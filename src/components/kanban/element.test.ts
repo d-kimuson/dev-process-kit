@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ArtifactKanban } from './element';
+import { DpkComponentKanban } from './element';
 import { defineKanban } from './index';
 
 defineKanban();
@@ -30,13 +30,13 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-const settle = async (element: ArtifactKanban): Promise<void> => {
+const settle = async (element: DpkComponentKanban): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<ArtifactKanban> => {
-  const element = document.createElement('artifact-kanban');
-  if (!(element instanceof ArtifactKanban)) throw new Error('did not upgrade');
+const mount = async (): Promise<DpkComponentKanban> => {
+  const element = document.createElement('dpk-component-kanban');
+  if (!(element instanceof DpkComponentKanban)) throw new Error('did not upgrade');
   element.id = 'board';
   element.innerHTML = `<script type="application/json">${JSON.stringify(raw)}</script>`;
   document.body.append(element);
@@ -44,9 +44,9 @@ const mount = async (): Promise<ArtifactKanban> => {
   return element;
 };
 
-/** Stand-in for the artifact: accept each action, then hand the recorded draft back. */
-const acceptActions = (element: ArtifactKanban): void => {
-  element.addEventListener('artifact-element-action', (event) => {
+/** Stand-in for the page: accept each action, then hand the recorded draft back. */
+const acceptActions = (element: DpkComponentKanban): void => {
+  element.addEventListener('dpk-element-action', (event) => {
     if (!(event instanceof CustomEvent)) return;
     event.preventDefault();
     const detail: { type: string; target: string; payload: unknown } = event.detail;
@@ -63,7 +63,7 @@ const acceptActions = (element: ArtifactKanban): void => {
   });
 };
 
-const layout = (element: ArtifactKanban): Record<string, (string | undefined)[]> =>
+const layout = (element: DpkComponentKanban): Record<string, (string | undefined)[]> =>
   Object.fromEntries(
     [...element.renderRoot.querySelectorAll<HTMLElement>('[data-column]')].map(
       (column): [string, (string | undefined)[]] => [
@@ -79,19 +79,19 @@ const drag = (target: Element, type: string, clientY = 0): void => {
   target.dispatchEvent(event);
 };
 
-const cardList = (element: ArtifactKanban, column: string): HTMLElement => {
+const cardList = (element: DpkComponentKanban, column: string): HTMLElement => {
   const list = element.renderRoot.querySelector<HTMLElement>(`[data-column="${column}"] .kanban-cards`);
   if (!list) throw new Error(`no column ${column}`);
   return list;
 };
 
-const card = (element: ArtifactKanban, id: string): HTMLElement => {
+const card = (element: DpkComponentKanban, id: string): HTMLElement => {
   const found = element.renderRoot.querySelector<HTMLElement>(`[data-card="${id}"]`);
   if (!found) throw new Error(`no card ${id}`);
   return found;
 };
 
-describe('<artifact-kanban>', () => {
+describe('<dpk-component-kanban>', () => {
   it('renders the columns with their cards in order', async () => {
     const element = await mount();
     expect(layout(element)).toEqual({ todo: ['login', 'api'], doing: ['stock'], done: [] });
@@ -142,7 +142,7 @@ describe('<artifact-kanban>', () => {
     ]);
   });
 
-  it('colours a column heading only when the column asks for it', async () => {
+  it('colors a column heading only when the column asks for it', async () => {
     const element = await mount();
     const column = (id: string) => element.renderRoot.querySelector<HTMLElement>(`[data-column="${id}"]`);
     expect(column('doing')?.dataset['color']).toBe('blue');
@@ -158,7 +158,7 @@ describe('<artifact-kanban>', () => {
     expect(element.renderRoot.querySelector('[data-move]')).toBeNull();
   });
 
-  it('records a dropped card through the hosting artifact, before the card under the pointer', async () => {
+  it('records a dropped card through the hosting template, before the card under the pointer', async () => {
     const element = await mount();
     acceptActions(element);
     // happy-dom lays nothing out: every card's box is at 0, so the pointer below it means "after".
@@ -187,7 +187,7 @@ describe('<artifact-kanban>', () => {
     expect(element.elementActions).toHaveLength(1);
   });
 
-  it('keeps the board and shows an error when no artifact records a drop', async () => {
+  it('keeps the board and shows an error when no template records a drop', async () => {
     const element = await mount();
     drag(card(element, 'login'), 'dragstart');
     drag(cardList(element, 'done'), 'drop', 100);
@@ -197,7 +197,7 @@ describe('<artifact-kanban>', () => {
     expect(slot?.querySelector('[role="alert"]')).not.toBeNull();
   });
 
-  const typeCard = async (element: ArtifactKanban, column: string, title: string): Promise<HTMLInputElement> => {
+  const typeCard = async (element: DpkComponentKanban, column: string, title: string): Promise<HTMLInputElement> => {
     element.renderRoot.querySelector<HTMLButtonElement>(`[data-column="${column}"] [data-action="add"]`)?.click();
     await settle(element);
     const input = element.renderRoot.querySelector<HTMLInputElement>(`[data-column="${column}"] .kanban-add input`);
@@ -209,7 +209,7 @@ describe('<artifact-kanban>', () => {
     return input;
   };
 
-  it('records a new card through the hosting artifact and selects it', async () => {
+  it('records a new card through the hosting template and selects it', async () => {
     const element = await mount();
     acceptActions(element);
     await typeCard(element, 'done', '監査ログ');
@@ -222,7 +222,7 @@ describe('<artifact-kanban>', () => {
     expect(element.commentTargets.map((target) => target.value)).toContain(`element:board/card/${id}`);
   });
 
-  it('keeps the typed title when no artifact records the card', async () => {
+  it('keeps the typed title when no template records the card', async () => {
     const element = await mount();
     const input = await typeCard(element, 'done', '保留');
     expect(input.isConnected).toBe(true);

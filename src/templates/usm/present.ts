@@ -183,7 +183,7 @@ export const usmTargetLabel = (state: UsmState, target: ActionTarget): string =>
         const milestone = findMilestone(state, target.id);
         return milestone ? `マイルストーン · ${milestone.name}` : `マイルストーン · ${target.id} (missing)`;
       }
-      case 'artifact':
+      case 'page':
         return `マップ · ${usmTitle(state)}`;
       default:
         return `${target.type} · ${target.id}`;
@@ -194,7 +194,7 @@ export const usmTargetLabel = (state: UsmState, target: ActionTarget): string =>
 };
 
 export const usmCommentTargets = (state: UsmState, _nav: Navigation): readonly CommentTargetOption[] => {
-  const options: CommentTargetOption[] = [{ value: 'artifact:usm', label: 'マップ全体', group: 'マップ' }];
+  const options: CommentTargetOption[] = [{ value: 'page:usm', label: 'マップ全体', group: 'マップ' }];
   for (const activity of state.activities) {
     options.push({
       value: targetRef({ type: 'activity', id: activity.id }),

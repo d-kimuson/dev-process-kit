@@ -23,7 +23,7 @@ const STATUS_LABELS = { same: '変更なし', added: '追加', removed: '削除'
 const SYMBOLS = { same: '', added: '+', removed: '−', changed: '~' } as const;
 
 /** Schema diagram with an always-on diff between the `before` and `after` snapshots. */
-export class ArtifactErDiagram extends DiagramElement<ErData> {
+export class DpkComponentErDiagram extends DiagramElement<ErData> {
   static override styles: CSSResultGroup = [diagramStyles, erStyles];
 
   #query = '';
@@ -72,9 +72,9 @@ export class ArtifactErDiagram extends DiagramElement<ErData> {
   protected override renderToolbarActions(): TemplateResult {
     return html`
       <label class="er-search">
-        <span class="af-label">検索</span>
+        <span class="dpk-label">検索</span>
         <input
-          class="af-input"
+          class="dpk-input"
           type="search"
           placeholder="table / field"
           .value=${this.#query}
@@ -171,7 +171,7 @@ export class ArtifactErDiagram extends DiagramElement<ErData> {
           ${table.status === 'same' ? nothing : html`<span class="er-mark" aria-hidden="true">${SYMBOLS[table.status]}</span>`}
           <span class="er-name">${table.id}</span>
           <span class="er-label">${table.name}</span>
-          <span class="af-label er-status">${STATUS_LABELS[table.status]}</span>
+          <span class="dpk-label er-status">${STATUS_LABELS[table.status]}</span>
         </button>
         ${this.renderCommentTrigger({ kind: 'node', id: table.id }, `${table.id} · ${table.name}`)}
         <div class="er-fields">${table.fields.map((field) => this.#renderField(field))}</div>

@@ -76,18 +76,18 @@ export const renderTagBar = <S extends SelectionRef>(
       (tag) => html`
         <button
           type="button"
-          class="af-tag"
+          class="dpk-tag"
           data-tag=${tag.tag}
           aria-pressed=${tag.selected ? 'true' : 'false'}
           @click=${() => send({ kind: 'tag', tag: tag.tag })}
         >
-          ${tag.tag}<span class="af-tag-count">${tag.count}</span>
+          ${tag.tag}<span class="dpk-tag-count">${tag.count}</span>
         </button>
       `,
     )}
     ${
       tags.some((tag) => tag.selected)
-        ? html`<button type="button" class="af-tag-clear" @click=${() => send({ kind: 'clear-tags' })}>解除</button>`
+        ? html`<button type="button" class="dpk-tag-clear" @click=${() => send({ kind: 'clear-tags' })}>解除</button>`
         : nothing
     }
   </div>

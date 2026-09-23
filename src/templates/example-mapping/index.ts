@@ -1,12 +1,6 @@
 export { exampleMappingDefinition, exampleMappingHasTarget } from './definition';
-export { ExampleMappingElement, defineExampleMappingElement } from './element';
-export {
-  ExampleMappingCard,
-  defineExampleMappingCard,
-  CARD_KINDS,
-  CARD_KIND_LABELS,
-  cardPaletteStyle,
-} from './components/mapping-card';
+export { DpkTemplateExampleMapping, defineExampleMappingElement } from './element';
+export { CARD_KINDS, CARD_KIND_LABELS, cardPaletteStyle } from './components/mapping-card';
 export { exampleMappingAction, exampleMappingActions } from './actions';
 export type { ExampleMappingAction } from './actions';
 export { applyExampleMappingAction, reorderById } from './apply';

@@ -28,23 +28,23 @@ import { kanbanStyles } from './styles';
 
 export type KanbanSelection = { readonly kind: 'column' | 'card'; readonly id: string };
 
-const NOT_RECORDED = '記録できませんでした（レビュー対象の Artifact 内に置いてください）。';
+const NOT_RECORDED = '記録できませんでした（dpk-template-* 要素の中に置いてください）。';
 
 /**
- * `<artifact-kanban>` — columns of cards, read left to right.
+ * `<dpk-component-kanban>` — columns of cards, read left to right.
  *
  * Columns and cards are comment targets. A card moves by drag and drop; a
  * column's footer adds a card. Both are
- * element actions (`MOVE_CARD`, `ADD_CARD`) recorded by the hosting artifact,
+ * element actions (`MOVE_CARD`, `ADD_CARD`) recorded by the hosting template,
  * which lists them with its other draft actions; the board shows their result.
  */
-export class ArtifactKanban extends DiagramChromeElement<KanbanData, KanbanSelection> {
+export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanSelection> {
   static override styles: CSSResultGroup = [diagramStyles, kanbanStyles];
 
   #seededFrom: KanbanData | null = null;
-  /** The card being typed into a column; `failed` when no artifact recorded it. */
+  /** The card being typed into a column; `failed` when no template recorded it. */
   #adding: { readonly column: string; readonly title: string; readonly failed: boolean } | null = null;
-  /** The card whose last move no artifact recorded. */
+  /** The card whose last move no template recorded. */
   #moveFailed: string | null = null;
   #dragging: string | null = null;
   #drop: KanbanPosition | null = null;
@@ -263,7 +263,7 @@ export class ArtifactKanban extends DiagramChromeElement<KanbanData, KanbanSelec
             </button>`
           : html`
               <input
-                class="af-input"
+                class="dpk-input"
                 aria-label="${column.label} に追加するカード"
                 placeholder="カード名（Enter で追加）"
                 .value=${adding.title}
@@ -286,7 +286,7 @@ export class ArtifactKanban extends DiagramChromeElement<KanbanData, KanbanSelec
     this.select({ kind: 'card', id });
   }
 
-  /** An artifact that records the move has already replayed it; otherwise the card says so. */
+  /** A template that records the move has already replayed it; otherwise the card says so. */
   #move(id: string, position: KanbanPosition): void {
     const accepted = this.dispatchElementAction(MOVE_CARD, ['card', id], {
       column: position.column,
@@ -387,7 +387,7 @@ export class ArtifactKanban extends DiagramChromeElement<KanbanData, KanbanSelec
       this.requestUpdate();
       return;
     }
-    // The artifact replayed the action synchronously: the card exists now.
+    // The template replayed the action synchronously: the card exists now.
     this.#adding = null;
     this.select({ kind: 'card', id });
     this.requestUpdate();

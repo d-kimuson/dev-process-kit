@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import type { DraftAction } from './types';
 
-import { ArtifactController } from './controller';
+import { DraftController } from './controller';
 import { tinyBase, tinyDefinition } from './testing/tiny-template';
 
 const makeController = (actions: readonly DraftAction[] = []) =>
-  new ArtifactController({
+  new DraftController({
     definition: tinyDefinition,
     base: tinyBase([
       { id: 'a', name: 'Alpha' },
@@ -19,14 +19,14 @@ const makeController = (actions: readonly DraftAction[] = []) =>
 
 const add = (id: string, name = 'New') => ({
   type: 'ADD_ITEM',
-  target: { type: 'artifact', id: 'tiny' },
+  target: { type: 'page', id: 'tiny' },
   payload: { id, name },
 });
 const rename = (id: string, name: string) => ({ type: 'SET_NAME', target: id, payload: { name } });
 const reorder = (id: string, after: string | null) => ({ type: 'REORDER', target: id, payload: { after } });
 const remove = (id: string) => ({ type: 'DELETE_ITEM', target: id, payload: {} });
 
-const typesOf = (controller: ArtifactController<unknown>) => controller.actions.map((action) => action.type);
+const typesOf = (controller: DraftController<unknown>) => controller.actions.map((action) => action.type);
 
 describe('interpretive draft', () => {
   it('cancels an addition that is deleted again', () => {
@@ -94,7 +94,7 @@ describe('interpretive draft', () => {
     expect(typesOf(controller)).toEqual(['DELETE_ITEM']);
   });
 
-  it('keeps actions that still change the artifact', () => {
+  it('keeps actions that still change the page', () => {
     const controller = makeController();
     controller.dispatch(add('x'));
     controller.dispatch(remove('b'));

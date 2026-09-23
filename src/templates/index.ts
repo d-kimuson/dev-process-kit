@@ -8,9 +8,10 @@ import { defineUsmElement } from './usm';
 /**
  * Template registry.
  *
- * Templates are conceptual packages, not separate bundles (design §6): the
- * shipped URL is one pinned, build-free ESM file. Adding a template means
- * adding its element definition here.
+ * Registers every template element (the all-in-one `index.js` entry uses it).
+ * Each template also ships as its own entry, `templates/<name>.js`; adding a
+ * template means adding its element definition here and its entry to
+ * `RELEASE_ENTRIES`.
  */
 export const registerTemplateElements = (): void => {
   definePrototypeElement();

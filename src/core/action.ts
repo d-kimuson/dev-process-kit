@@ -35,7 +35,7 @@ export const actionInputSchema = v.object({
   createdAt: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
 });
 
-/** Validate + normalize. Invalid actions are never persisted (design §11). */
+/** Validate + normalize. Invalid actions are never persisted. */
 export const buildAction = (input: unknown, descriptor: ActionDescriptor): BuildOutcome => {
   const validated = safeParse(actionInputSchema, input);
   if (!validated.success) return { ok: false, issue: firstIssue(validated.issues) };
@@ -58,7 +58,7 @@ export const buildAction = (input: unknown, descriptor: ActionDescriptor): Build
 
 /**
  * Patch actions are deduped per `(type, target)` so a draft stays small and
- * idempotent-ish: the last requested value wins (design §8, §12).
+ * idempotent-ish: the last requested value wins.
  */
 export const dedupeKeyOf = (action: DraftAction, descriptor: ActionDescriptor): string | null => {
   if (descriptor.dedupeKey) return descriptor.dedupeKey(action);

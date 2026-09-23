@@ -2,7 +2,7 @@ import { html, type TemplateResult } from 'lit';
 
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 
-import { ArtifactElement } from '../../core/element';
+import { TemplateElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface } from '../../core/theme';
 import { DragController, type Drop } from '../../lib/dom/drag';
@@ -19,7 +19,7 @@ import { IDLE_MODE, reduceCardIntent, type CardIntent, type UsmUiMode } from './
 const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
 
 /**
- * `<artifact-usm>` — the user story map.
+ * `<dpk-template-usm>` — the user story map.
  *
  * The element is the seam between the pure parts: it owns the one ephemeral
  * `mode` (which card is being edited / commented, or which drop is waiting
@@ -27,8 +27,8 @@ const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
  * card intents and drops into actions. Layout lives in `render/`, the card in
  * `components/`, and every drop decision in `drop.ts`.
  */
-export class UsmElement extends ArtifactElement<UsmState> {
-  static override styles = [ArtifactElement.styles, usmStyles, popoverSurface];
+export class DpkTemplateUsm extends TemplateElement<UsmState> {
+  static override styles = [TemplateElement.styles, usmStyles, popoverSurface];
 
   readonly definition = usmDefinition;
 
@@ -154,7 +154,7 @@ export class UsmElement extends ArtifactElement<UsmState> {
   }
 }
 
-export const defineUsmElement = (tag = 'artifact-usm'): void => {
+export const defineUsmElement = (): void => {
   defineUsmStoryCard();
-  if (!customElements.get(tag)) customElements.define(tag, UsmElement);
+  if (!customElements.get('dpk-template-usm')) customElements.define('dpk-template-usm', DpkTemplateUsm);
 };

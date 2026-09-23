@@ -27,7 +27,7 @@ import { defaultStorage, defaultStorageKey, type DraftStorage } from './persiste
 import { draftActionEnvelopeSchema, ownAction } from './schema';
 import { toTarget } from './target';
 
-export type ArtifactControllerOptions<S> = {
+export type DraftControllerOptions<S> = {
   readonly definition: TemplateDefinition<S>;
   readonly base: S;
   readonly storage?: DraftStorage | null;
@@ -47,7 +47,7 @@ export type ControllerListener = () => void;
 const batchInputSchema = array(unknown());
 
 /** Owns validation, canonical actions, derivation and a single persistence/notification boundary. */
-export class ArtifactController<S> {
+export class DraftController<S> {
   readonly #template: TemplateDefinition<S>;
   #definition: TemplateDefinition<S>;
   #snapshot: ComponentSnapshot = { targets: [], providers: [] };
@@ -61,7 +61,7 @@ export class ArtifactController<S> {
   #lastIssues: readonly ValidationIssue[] = [];
   #prunedCount = 0;
 
-  constructor(options: ArtifactControllerOptions<S>) {
+  constructor(options: DraftControllerOptions<S>) {
     this.#template = options.definition;
     this.#definition = withComponentSnapshot(options.definition, [], this.#elementResults);
     this.#base = options.base;
@@ -78,7 +78,7 @@ export class ArtifactController<S> {
   }
 
   /**
-   * What the artifact's components registered: comment targets and the results
+   * What the page's components registered: comment targets and the results
    * of their element actions. Refreshes applicability without creating actions
    * or writing to storage.
    */
@@ -149,7 +149,7 @@ export class ArtifactController<S> {
       // Comments and component actions never change template state.
       const next =
         action.type === 'comment' || isElementAction(action)
-          ? action.target.type === 'artifact' || this.definition.hasTarget(state, action.target)
+          ? action.target.type === 'page' || this.definition.hasTarget(state, action.target)
             ? state
             : null
           : this.definition.apply(state, action);
@@ -169,7 +169,7 @@ export class ArtifactController<S> {
     if (!parsed.success) return { ok: false, issue: firstIssue(parsed.issues) };
     const descriptor = this.descriptorFor(
       parsed.output.type,
-      typeof parsed.output.target === 'string' ? toTarget(parsed.output.target, 'artifact') : parsed.output.target,
+      typeof parsed.output.target === 'string' ? toTarget(parsed.output.target, 'page') : parsed.output.target,
     );
     if (!descriptor)
       return {

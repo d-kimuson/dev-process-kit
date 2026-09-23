@@ -25,7 +25,7 @@ export const exampleMappingHasTarget = (state: ExampleMappingState, target: Acti
     case 'example':
     case 'question':
       return findCard(state, target.id)?.kind === target.type;
-    case 'artifact':
+    case 'page':
       return true;
     default:
       return false;

@@ -10,7 +10,7 @@ describe('comment panel state', () => {
     const explicit = reducePanel(current, { kind: 'target-requested', ref: 'step:a' });
     expect(explicit.attachment).toEqual({ kind: 'explicit', ref: 'step:a', resume: 'current' });
     expect(reducePanel(explicit, { kind: 'clear-target' }).attachment).toEqual({ kind: 'current' });
-    expect(initial.attachment).toEqual({ kind: 'artifact' });
+    expect(initial.attachment).toEqual({ kind: 'page' });
   });
   it('does not clear text until submission is acknowledged', () => {
     const state = reducePanel(initialPanelState(), { kind: 'input', body: '  note  ' });

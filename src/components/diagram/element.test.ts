@@ -132,7 +132,7 @@ describe('DiagramElement', () => {
   it('renders the toolbar, tags, stats and both element kinds', async () => {
     const element = await mount('tiny-diagram', tinyData);
     expect(element.renderRoot.querySelector('.diagram-title')?.textContent).toBe('Tiny');
-    expect([...element.renderRoot.querySelectorAll('.af-tag')].map((tag) => tag.textContent?.trim())).toEqual([
+    expect([...element.renderRoot.querySelectorAll('.dpk-tag')].map((tag) => tag.textContent?.trim())).toEqual([
       'x2',
       'y2',
     ]);
@@ -166,7 +166,7 @@ describe('DiagramElement', () => {
     expect(element.tagFilter).toEqual({ match: 'single', active: ['y'] });
     expect(nodeIds(element)).toEqual(['b', 'c']);
 
-    element.renderRoot.querySelector<HTMLButtonElement>('.af-tag-clear')?.click();
+    element.renderRoot.querySelector<HTMLButtonElement>('.dpk-tag-clear')?.click();
     await element.updateComplete;
     expect(nodeIds(element)).toEqual(['a', 'b', 'c']);
   });
@@ -182,7 +182,7 @@ describe('DiagramElement', () => {
   it('highlights relations, dims the rest and publishes the selection', async () => {
     const element = await mount('tiny-diagram', tinyData);
     const events: unknown[] = [];
-    element.addEventListener('artifact-diagram-select', (event) => events.push((event as CustomEvent).detail));
+    element.addEventListener('dpk-diagram-select', (event) => events.push((event as CustomEvent).detail));
     element.renderRoot.querySelector<HTMLButtonElement>('[data-node="a"]')?.click();
     await element.updateComplete;
     const stateOfNode = (id: string) => {
@@ -227,12 +227,12 @@ describe('DiagramElement', () => {
     expect(triggerOf(element, 'edge', 'ab')?.closest('foreignObject')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
   });
 
-  it('opens the contextual composer from a trigger and submits to the enclosing artifact', async () => {
+  it('opens the contextual composer from a trigger and submits to the enclosing template', async () => {
     const element = await mount('tiny-diagram', tinyData);
     element.id = 'tiny';
     await settle(element);
     const submitted: unknown[] = [];
-    element.addEventListener('artifact-comment-submit', (event) => {
+    element.addEventListener('dpk-comment-submit', (event) => {
       if (!(event instanceof CustomEvent)) return;
       submitted.push(event.detail);
       event.preventDefault();

@@ -27,15 +27,15 @@ export const renderMoveDialog = (
   if (!story || !activity) return nothing;
   const firstStepId = activity.steps[0]?.id;
   return html`<div class="comment-pop move-dialog" id="move-dialog" popover="manual">
-    <span class="af-label">移動先のアクティビティ</span>
-    <select class="af-select" aria-label="移動先" data-move-dialog>
+    <span class="dpk-label">移動先のアクティビティ</span>
+    <select class="dpk-select" aria-label="移動先" data-move-dialog>
       ${activity.steps.map(
         (step) => html`<option value=${step.id} ?selected=${step.id === firstStepId}>${step.name}</option>`,
       )}
     </select>
     <div class="pop-actions">
       <button
-        class="af-btn af-btn--accent"
+        class="dpk-btn dpk-btn--accent"
         type="button"
         @click=${(e: Event) => {
           const dialog = elementOf(e.currentTarget, HTMLElement)?.closest('#move-dialog') ?? null;
@@ -46,7 +46,7 @@ export const renderMoveDialog = (
       >
         移動する
       </button>
-      <button class="af-btn" type="button" @click=${handlers.cancel}>キャンセル</button>
+      <button class="dpk-btn" type="button" @click=${handlers.cancel}>キャンセル</button>
     </div>
   </div>`;
 };

@@ -2,7 +2,7 @@
  * `templates/usm.js` — the user story mapping template on its own.
  *
  * The entry carries the core API, the components the template renders (the review rail
- * and inline editing are core elements every artifact uses) and nothing else. Load
+ * and inline editing are core elements every template uses) and nothing else. Load
  * `components.js` as well when the page also uses the diagram elements directly, or
  * `index.js` when it should carry every template.
  *
@@ -16,9 +16,9 @@ import { announce } from '../lib/announce';
 import { defineUsmElement } from '../templates/usm';
 
 export * from '../core/index';
-export { ArtifactCommentPanel } from '../components/comment-panel/index';
+export { DpkComponentCommentPanel } from '../components/comment-panel/index';
 export type { CommentPanelCallbacks } from '../components/comment-panel/index';
-export { ArtifactInlineEdit } from '../components/inline-edit';
+export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as usm from '../templates/usm';
 
 defineCommentPanel();

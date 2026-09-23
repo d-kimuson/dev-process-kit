@@ -179,7 +179,7 @@ export const canonicalEventStormingState = (state: EventStormingState): EventSto
 
 /**
  * Where a freshly added note of `type` should hook into an existing slice:
- * the member it forms a natural pair with (so legacy inference agrees), else
+ * the member it forms a natural pair with (so kind inference agrees), else
  * the slice head. `incoming` means the new note is the link's `from` side.
  */
 export const attachAnchor = (

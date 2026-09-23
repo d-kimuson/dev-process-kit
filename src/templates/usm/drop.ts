@@ -28,9 +28,6 @@ export type MoveStoryInput = {
   };
 };
 
-/** @deprecated alias kept for the earlier name. */
-export type GroupDropInput = MoveStoryInput;
-
 export type CellRef = {
   readonly activityId: string;
   readonly stepId: string;

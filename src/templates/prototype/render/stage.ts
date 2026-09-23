@@ -14,7 +14,7 @@ export const VIEWPORT_WIDTH: Record<PreviewViewport, string> = {
 
 /**
  * Preview frames are content sized: a mock that is taller than this simply makes
- * the frame taller and the artifact scrolls as a whole. The minimum only keeps a
+ * the frame taller and the page scrolls as a whole. The minimum only keeps a
  * short mock looking like a device screen.
  */
 export const VIEWPORT_MIN_HEIGHT: Record<PreviewViewport, string> = {
@@ -58,7 +58,7 @@ export const renderStage = (context: TemplateRenderContext<PrototypeState>, opti
       ${active ? renderFrame(context, active, options.hasPreviewContent(active.id)) : nothing}
       ${
         previews.length === 0
-          ? html`<p class="af-label">preview metadata がありません — 追加は Agent に依頼してください</p>`
+          ? html`<p class="dpk-label">preview metadata がありません — 追加は Agent に依頼してください</p>`
           : nothing
       }
       ${parked}
@@ -115,7 +115,7 @@ export const renderFrame = (
           hasContent
             ? nothing
             : html`<div class="frame-placeholder">
-                <span class="af-label">light dom preview</span>
+                <span class="dpk-label">light dom preview</span>
                 <code>&lt;div slot="preview" data-preview-id="${preview.id}"&gt;</code>
               </div>`
         }

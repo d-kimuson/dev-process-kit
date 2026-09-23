@@ -1,4 +1,4 @@
-import type { ArtifactSnapshot } from './shell/contracts';
+import type { TemplateSnapshot } from './shell/contracts';
 import type { DraftAction, TemplateDefinition } from './types';
 
 import { COMMENT_ACTION, serializeDraft } from './action';
@@ -26,11 +26,11 @@ const actionBlock = (action: DraftAction): string => {
 
 /**
  * The hand-off document an agent reads after a review round. Comments and
- * structural changes share one channel on purpose (design §15), so they are
+ * structural changes share one channel on purpose, so they are
  * presented as one ordered change request.
  */
 export const buildAgentBrief = <S>(
-  snapshot: ArtifactSnapshot<S>,
+  snapshot: TemplateSnapshot<S>,
   definition: TemplateDefinition<S>,
   frameworkVersion: string,
 ): string => {
@@ -39,7 +39,7 @@ export const buildAgentBrief = <S>(
   const changes = actions.filter((action) => action.type !== COMMENT_ACTION);
   const lines: string[] = [];
 
-  lines.push(`# Artifact draft — ${definition.label}`);
+  lines.push(`# Review draft — ${definition.label}`);
   lines.push('');
   lines.push(`- template: \`${definition.name}\``);
   lines.push(`- framework: \`dev-process-kit@${frameworkVersion}\``);

@@ -1,4 +1,4 @@
-export { GrillElement, defineGrillElement } from './element';
+export { DpkTemplateGrill, defineGrillElement } from './element';
 export { grillDefinition, grillHasTarget } from './definition';
 export { answerQuestion, grillActions } from './actions';
 export type { AnswerInput, GrillAction } from './actions';

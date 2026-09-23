@@ -1,29 +1,24 @@
 /**
  * The framework's built-in custom elements. These are part of the public
- * contract (`artifact-comment-panel`, `artifact-inline-edit`), so they live
+ * contract (`dpk-component-comment-panel`, `dpk-component-inline-edit`), so they live
  * outside `src/core` together with their registration.
  */
-export { ArtifactInlineEdit, defineInlineEdit } from './inline-edit';
-export { ArtifactCommentPanel, defineCommentPanel } from './comment-panel/index';
+export { DpkComponentInlineEdit, defineInlineEdit } from './inline-edit';
+export { DpkComponentCommentPanel, defineCommentPanel } from './comment-panel/index';
 export type { CommentPanelCallbacks } from './comment-panel/index';
-export { ArtifactStateDiagram, STATE_DIAGRAM_TAG, defineStateDiagram, parseStateData } from './state-diagram/index';
+export { DpkComponentStateDiagram, defineStateDiagram, parseStateData } from './state-diagram/index';
 export type { StateDiagramData, StateNode, StateTransition } from './state-diagram/index';
-export {
-  ArtifactSequenceDiagram,
-  SEQUENCE_DIAGRAM_TAG,
-  defineSequenceDiagram,
-  parseSequenceData,
-} from './sequence-diagram/index';
+export { DpkComponentSequenceDiagram, defineSequenceDiagram, parseSequenceData } from './sequence-diagram/index';
 export type { SequenceDiagramData, SequenceMessage, SequenceParticipant } from './sequence-diagram/index';
-export { ArtifactDependencyGraph, DEPENDENCY_GRAPH_TAG, defineDependencyGraph } from './dependency-graph/index';
+export { DpkComponentDependencyGraph, defineDependencyGraph } from './dependency-graph/index';
 export type { DependencyData, DependencyModule } from './dependency-graph/index';
-export { ArtifactErDiagram, ER_DIAGRAM_TAG, defineErDiagram } from './er-diagram/index';
+export { DpkComponentErDiagram, defineErDiagram } from './er-diagram/index';
 export type { ErData, ErTableDiff } from './er-diagram/index';
-export { ARCHITECTURE_MAP_TAG, ArtifactArchitectureMap, defineArchitectureMap } from './architecture-map/index';
+export { DpkComponentArchitectureMap, defineArchitectureMap } from './architecture-map/index';
 export type { ArchitectureData, ArchitectureService } from './architecture-map/index';
-export { ArtifactMindMap, MIND_MAP_TAG, defineMindMap, parseMindMapData } from './mind-map/index';
+export { DpkComponentMindMap, defineMindMap, parseMindMapData } from './mind-map/index';
 export type { MindMapData, MindMapNode, MindMapSide } from './mind-map/index';
-export { ArtifactKanban, KANBAN_TAG, defineKanban, parseKanbanData } from './kanban/index';
+export { DpkComponentKanban, defineKanban, parseKanbanData } from './kanban/index';
 export type { KanbanCard, KanbanColor, KanbanColumn, KanbanData } from './kanban/index';
 
 import { defineArchitectureMap } from './architecture-map/index';
@@ -53,7 +48,7 @@ export const registerDiagramElements = (): void => {
  * The name is kept from when these elements lived in `src/core`: it is exported
  * from the public entrypoint and referenced by the docs.
  */
-export const registerCoreElements = (): void => {
+export const registerComponentElements = (): void => {
   defineCommentPanel();
   defineInlineEdit();
   registerDiagramElements();

@@ -1,5 +1,5 @@
 /**
- * Ephemeral UI state of `<artifact-example-mapping>` as one closed union.
+ * Ephemeral UI state of `<dpk-template-example-mapping>` as one closed union.
  *
  * At most one card is being edited or commented on; encoding that as a single
  * value (instead of nullable fields) makes the exclusivity a fact of the type.

@@ -17,9 +17,9 @@ import { announce } from '../lib/announce';
 import { definePlainElement } from '../templates/plain';
 
 export * from '../core/index';
-export { ArtifactCommentPanel } from '../components/comment-panel/index';
+export { DpkComponentCommentPanel } from '../components/comment-panel/index';
 export type { CommentPanelCallbacks } from '../components/comment-panel/index';
-export { ArtifactInlineEdit } from '../components/inline-edit';
+export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as plain from '../templates/plain';
 
 defineCommentPanel();

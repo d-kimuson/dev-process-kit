@@ -58,7 +58,7 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
       ? { ref: attachment.ref, label: option ? labelOf(option) : attachment.ref }
       : attachment.kind === 'current' && current
         ? { ref: current.value, label: labelOf(current) }
-        : { ref: `artifact:${definition.name}`, label: 'Artifact 全体' };
+        : { ref: `page:${definition.name}`, label: 'ページ全体' };
   const stale = new Map(derivation.stale.map((entry) => [entry.action.id, entry.reason]));
   return {
     body: ui.body,

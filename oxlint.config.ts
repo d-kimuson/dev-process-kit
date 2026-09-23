@@ -57,6 +57,7 @@ export default defineConfig({
     'conventions/pure-layer-boundaries': 'error',
     'conventions/entrypoint-imports': 'error',
     'conventions/colocated-tests': 'error',
+    'conventions/element-naming': 'error',
   },
   overrides: [
     {

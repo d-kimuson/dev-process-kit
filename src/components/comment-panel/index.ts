@@ -1,7 +1,7 @@
 import { LitElement, nothing, type TemplateResult } from 'lit';
 
 import type { Derivation } from '../../core/derive';
-import type { Navigation, TemplateDefinition, ValidationIssue } from '../../core/types';
+import type { DispatchOutcome, Navigation, TemplateDefinition, ValidationIssue } from '../../core/types';
 
 import { serializeDraft } from '../../core/action';
 import { buildAgentBrief } from '../../core/export';
@@ -22,11 +22,11 @@ import { renderPanel } from './view';
 export type CommentPanelCallbacks = {
   readonly onDelete?: (id: string) => void;
   readonly onClear?: () => void;
-  readonly onComment?: (target: string, body: string) => void;
+  readonly onComment?: (target: string, body: string) => DispatchOutcome;
 };
 
 /** Public adapter: owns state references, lifecycle and effects, not presentation rules. */
-export class ArtifactCommentPanel extends LitElement {
+export class DpkComponentCommentPanel extends LitElement {
   static override styles = panelStyles;
   static override properties = {
     definition: { attribute: false },
@@ -115,9 +115,7 @@ export class ArtifactCommentPanel extends LitElement {
         if (!inputs || !this.onComment) return;
         const submission = commentSubmission(this.#ui, presentPanel(inputs, this.#ui).target.ref);
         if (!submission) return;
-        // Legacy void callbacks may return incidental values (e.g. Array.push).
-        const outcome: unknown = this.onComment(submission.target, submission.body);
-        if (typeof outcome === 'object' && outcome !== null && 'ok' in outcome && outcome.ok === false) return;
+        if (!this.onComment(submission.target, submission.body).ok) return;
         this.#update({ kind: 'submitted' });
         return;
       }
@@ -154,6 +152,7 @@ export class ArtifactCommentPanel extends LitElement {
 }
 
 export type { ActionInput } from '../../core/types';
-export const defineCommentPanel = (tag = 'artifact-comment-panel'): void => {
-  if (!customElements.get(tag)) customElements.define(tag, ArtifactCommentPanel);
+export const defineCommentPanel = (): void => {
+  if (!customElements.get('dpk-component-comment-panel'))
+    customElements.define('dpk-component-comment-panel', DpkComponentCommentPanel);
 };

@@ -7,7 +7,7 @@ import { COMMENT_ACTION } from './action';
 /**
  * Component element actions (ADR 20260924_component-element-actions).
  *
- * A component inside an artifact (a diagram, a custom provider) owns its own
+ * A component inside a template (a diagram, a custom provider) owns its own
  * authored JSON. It may still record change requests against its elements: the
  * core stores them in the same draft as template actions and comments, and the
  * component reports how each one applied. The core never interprets them.
@@ -46,7 +46,7 @@ export const ELEMENT_DESCRIPTOR: ActionDescriptor = {
   targetType: ELEMENT_TARGET_TYPE,
 };
 
-/** `artifact-element-action` detail. The target must be a registered comment target. */
+/** `dpk-element-action` detail. The target must be a registered comment target. */
 export const componentElementActionSchema = v.strictObject({
   type: elementActionTypeSchema,
   target: v.pipe(v.string(), v.regex(/^element:[^/]+\/.+/)),
@@ -64,7 +64,7 @@ export const elementActionResultSchema = v.strictObject({
 export type ElementActionResult = v.InferOutput<typeof elementActionResultSchema>;
 
 /**
- * What the shell reads from the components of one artifact.
+ * What the shell reads from the components of one template.
  * A malformed provider must not hide the others, so each part is checked on
  * its own and invalid entries are dropped.
  */

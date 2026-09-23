@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ArtifactController } from '../../core/controller';
+import { DraftController } from '../../core/controller';
 import { tinyBase, tinyDefinition } from '../../core/testing/tiny-template';
-import { ArtifactCommentPanel, defineCommentPanel } from './index';
+import { DpkComponentCommentPanel, defineCommentPanel } from './index';
 
 defineCommentPanel();
 afterEach(() => {
@@ -11,8 +11,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 const mount = async () => {
-  const panel = new ArtifactCommentPanel();
-  const controller = new ArtifactController({
+  const panel = new DpkComponentCommentPanel();
+  const controller = new DraftController({
     definition: tinyDefinition,
     base: tinyBase([{ id: 'a', name: 'Alpha' }]),
     storage: null,
@@ -24,7 +24,7 @@ const mount = async () => {
   await panel.updateComplete;
   return panel;
 };
-const enter = async (panel: ArtifactCommentPanel, text: string) => {
+const enter = async (panel: DpkComponentCommentPanel, text: string) => {
   const area = panel.shadowRoot?.querySelector('textarea');
   if (!area) throw new Error('missing composer');
   area.value = text;
@@ -34,15 +34,6 @@ const enter = async (panel: ArtifactCommentPanel, text: string) => {
 };
 
 describe('comment panel adapter', () => {
-  it.each([undefined, null, 1, true])('accepts legacy callbacks with incidental return %s', async (result) => {
-    const panel = await mount();
-    panel.onComment = () => result;
-    const area = await enter(panel, 'legacy');
-    area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
-    await panel.updateComplete;
-    expect(area.value).toBe('');
-  });
-
   it('keeps rejected input and clears accepted input', async () => {
     const panel = await mount();
     const callback = vi.fn(() => ({ ok: false, issues: [] }) as const);
@@ -50,7 +41,7 @@ describe('comment panel adapter', () => {
     const area = await enter(panel, 'note');
     area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
     await panel.updateComplete;
-    expect(callback).toHaveBeenCalledWith('artifact:tiny', 'note');
+    expect(callback).toHaveBeenCalledWith('page:tiny', 'note');
     expect(area.value).toBe('note');
     panel.onComment = () => ({ ok: true, id: 'comment' });
     area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
@@ -59,7 +50,7 @@ describe('comment panel adapter', () => {
   });
   it('does not submit during IME composition and focuses an explicit target after rendering', async () => {
     const panel = await mount();
-    panel.onComment = vi.fn();
+    panel.onComment = vi.fn(() => ({ ok: true, id: 'comment' }) as const);
     panel.pendingTarget = 'item:a';
     await panel.updateComplete;
     const area = await enter(panel, '変換中');

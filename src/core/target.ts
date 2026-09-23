@@ -42,7 +42,7 @@ export const createEntityId = (name: string, taken: Iterable<string>): string =>
   return `${base}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
-/** Identity for draft actions themselves (not for artifact entities). */
+/** Identity for draft actions themselves (not for template entities). */
 export const createActionId = (): string => {
   const globalCrypto = globalThis.crypto as Crypto | undefined;
   if (globalCrypto?.randomUUID) return globalCrypto.randomUUID();

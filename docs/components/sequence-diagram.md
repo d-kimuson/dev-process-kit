@@ -1,11 +1,11 @@
-# artifact-sequence-diagram
+# dpk-component-sequence-diagram
 
 Participants on a rail, messages as numbered rows, and `alt` / `opt` / `loop` / `par` fragments that fold individually.
 
 Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components/diagrams.md`.
 
 ```html
-<artifact-sequence-diagram heading="Sequence" subject="注文と決済">
+<dpk-component-sequence-diagram heading="Sequence" subject="注文と決済">
   <script type="application/json">
     {
       "participants": [
@@ -52,7 +52,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components
       ]
     }
   </script>
-</artifact-sequence-diagram>
+</dpk-component-sequence-diagram>
 ```
 
 ## Data

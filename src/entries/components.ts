@@ -12,12 +12,12 @@
  * `RELEASE_ENTRIES` in `scripts/release.ts` is what publishes this file as
  * `components.js`.
  */
-import { registerCoreElements } from '../components/index';
+import { registerComponentElements } from '../components/index';
 import { FRAMEWORK_VERSION } from '../core/index';
 import { announce } from '../lib/announce';
 
 export * from '../core/index';
 export * from '../components/index';
 
-registerCoreElements();
+registerComponentElements();
 announce(FRAMEWORK_VERSION, []);

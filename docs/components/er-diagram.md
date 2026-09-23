@@ -1,11 +1,11 @@
-# artifact-er-diagram
+# dpk-component-er-diagram
 
 Tables, fields and foreign keys — with an **always-on diff** between two schema snapshots: added is green, removed is red and struck through, changed shows `− before / + after` on the same row.
 
 Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components/diagrams.md`.
 
 ```html
-<artifact-er-diagram heading="ERD" subject="注文スキーマ">
+<dpk-component-er-diagram heading="ERD" subject="注文スキーマ">
   <script type="application/json">
     {
       "before": {
@@ -43,7 +43,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components
       }
     }
   </script>
-</artifact-er-diagram>
+</dpk-component-er-diagram>
 ```
 
 ## Data
@@ -66,10 +66,10 @@ Two snapshots of the same shape: `{ tables: [{ id, name, tags?, fields }] }`.
 ## Reading it
 
 - **Change marks** — `+` added, `−` removed, `~` changed, on both the table card and the field row; a removed field row is struck through.
-- **Relations** are drawn from the referenced field to the FK field that points at it, with `1` near the referenced end and `N` near the FK end, coloured by the relation's status.
+- **Relations** are drawn from the referenced field to the FK field that points at it, with `1` near the referenced end and `N` near the FK end, colored by the relation's status.
 - **検索** narrows the diagram to tables whose id, name or field matches, and marks the matching rows.
 - **Selection** highlights the tables connected to the selected one (either direction) and dims the rest. It never adds a detail panel below the canvas.
-- **Comments** — give the diagram a stable HTML `id` and place it inside an artifact template. Hover a table or relationship to reveal its comment icon, then activate the icon to open the shared composer beside it. Selection alone does not open the input. Keyboard focus also reveals the icon, and it stays visible on devices without hover. The composer follows pan/zoom without resizing the diagram. Send there with the button or `Ctrl`/`Cmd+Enter`; the comment is saved to the template's Review without opening its rail. Escape/cancel closes the surface, and switching selections preserves unsent text per target for the mounted component. Fields are not separate comment targets.
+- **Comments** — give the diagram a stable HTML `id` and place it inside a template. Hover a table or relationship to reveal its comment icon, then activate the icon to open the shared composer beside it. Selection alone does not open the input. Keyboard focus also reveals the icon, and it stays visible on devices without hover. The composer follows pan/zoom without resizing the diagram. Send there with the button or `Ctrl`/`Cmd+Enter`; the comment is saved to the template's Review without opening its rail. Escape/cancel closes the surface, and switching selections preserves unsent text per target for the mounted component. Fields are not separate comment targets.
 
 ## Layout
 

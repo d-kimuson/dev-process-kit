@@ -31,7 +31,7 @@ export type StickyNote = {
 /**
  * What a link means for placement: a `member` link folds both notes into one
  * slice, a `flow` link is temporal succession drawn as an arrow. Links without
- * a kind fall back to inference from the note-type pair (legacy data).
+ * a kind are inferred from the note-type pair.
  */
 export type LinkKind = 'member' | 'flow';
 

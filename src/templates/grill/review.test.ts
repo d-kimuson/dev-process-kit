@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ArtifactCommentPanel } from '../../components/comment-panel';
-import { ArtifactErDiagram } from '../../components/er-diagram/element';
+import { DpkComponentCommentPanel } from '../../components/comment-panel';
+import { DpkComponentErDiagram } from '../../components/er-diagram/element';
 import { parseErData } from '../../components/er-diagram/model';
-import { GrillElement } from './element';
+import { DpkTemplateGrill } from './element';
 import '../../index';
 
 const er = {
@@ -12,23 +12,24 @@ const er = {
   after: { tables: [{ id: 'users', name: 'Users', fields: [{ id: 'id', type: 'uuid', key: 'PK' }] }] },
 };
 const mount = async () => {
-  document.body.innerHTML = `<artifact-grill storage="memory"><script type="application/json">${JSON.stringify({ questions: [{ id: 'q', title: 'Question', options: [{ id: 'yes', label: 'Yes' }] }] })}</script><artifact-er-diagram id="schema" slot="main"><script type="application/json">${JSON.stringify(er)}</script></artifact-er-diagram></artifact-grill>`;
-  const host = document.querySelector('artifact-grill');
-  const diagram = document.querySelector('artifact-er-diagram');
-  if (!(host instanceof GrillElement) || !(diagram instanceof ArtifactErDiagram)) throw new Error('not upgraded');
-  await host.artifact.ready;
+  document.body.innerHTML = `<dpk-template-grill storage="memory"><script type="application/json">${JSON.stringify({ questions: [{ id: 'q', title: 'Question', options: [{ id: 'yes', label: 'Yes' }] }] })}</script><dpk-component-er-diagram id="schema" slot="main"><script type="application/json">${JSON.stringify(er)}</script></dpk-component-er-diagram></dpk-template-grill>`;
+  const host = document.querySelector('dpk-template-grill');
+  const diagram = document.querySelector('dpk-component-er-diagram');
+  if (!(host instanceof DpkTemplateGrill) || !(diagram instanceof DpkComponentErDiagram))
+    throw new Error('not upgraded');
+  await host.api.ready;
   await diagram.updateComplete;
   await host.updateComplete;
   return { host, diagram };
 };
-const panelOf = async (host: GrillElement) => {
+const panelOf = async (host: DpkTemplateGrill) => {
   await host.updateComplete;
-  const panel = host.shadowRoot?.querySelector('artifact-comment-panel');
-  if (!(panel instanceof ArtifactCommentPanel)) throw new Error('no panel');
+  const panel = host.shadowRoot?.querySelector('dpk-component-comment-panel');
+  if (!(panel instanceof DpkComponentCommentPanel)) throw new Error('no panel');
   await panel.updateComplete;
   return panel;
 };
-const post = async (panel: ArtifactCommentPanel | ArtifactErDiagram, body: string) => {
+const post = async (panel: DpkComponentCommentPanel | DpkComponentErDiagram, body: string) => {
   const area = panel.shadowRoot?.querySelector('textarea');
   if (!area) throw new Error('no composer');
   area.value = body;
@@ -49,11 +50,11 @@ describe('Grill integrated review', () => {
     const root = host.shadowRoot;
     expect(root?.querySelector('[data-filter]')).toBeNull();
     expect(root?.querySelectorAll('[role="tab"]')).toHaveLength(2);
-    expect(root?.querySelectorAll('artifact-comment-panel')).toHaveLength(1);
+    expect(root?.querySelectorAll('dpk-component-comment-panel')).toHaveLength(1);
     root?.querySelector<HTMLButtonElement>('[data-tab="review"]')?.click();
     const panel = await panelOf(host);
     await post(panel, 'General feedback');
-    host.artifact.dispatch({
+    host.api.dispatch({
       type: 'ANSWER_QUESTION',
       target: 'question:q',
       payload: { kind: 'option', optionId: 'yes' },
@@ -77,7 +78,7 @@ describe('Grill integrated review', () => {
     host.requestComment('question:q');
     await host.updateComplete;
     expect(root?.querySelector('[data-tab="review"]')?.getAttribute('aria-selected')).toBe('true');
-    expect(root?.querySelector('.af-sidebar')?.hasAttribute('hidden')).toBe(false);
+    expect(root?.querySelector('.dpk-sidebar')?.hasAttribute('hidden')).toBe(false);
     expect((await panelOf(host)).shadowRoot?.querySelector('textarea')?.value).toBe('Unsent');
   });
 
@@ -96,52 +97,52 @@ describe('Grill integrated review', () => {
     expect(diagram.shadowRoot?.querySelector('.comment-pop')).not.toBeNull();
     await post(diagram, 'Table note');
     await host.updateComplete;
-    expect(host.artifact.comments[0]?.target).toEqual({ type: 'element', id: 'schema/node/users' });
+    expect(host.api.comments[0]?.target).toEqual({ type: 'element', id: 'schema/node/users' });
     expect(diagram.shadowRoot?.querySelector('.comment-pop')).toBeNull();
-    expect(host.shadowRoot?.querySelector('.af-sidebar')?.hasAttribute('hidden')).toBe(true);
+    expect(host.shadowRoot?.querySelector('.dpk-sidebar')?.hasAttribute('hidden')).toBe(true);
     expect(host.shadowRoot?.querySelector('[aria-selected="true"]')?.getAttribute('data-tab')).toBe('questions');
     const panel = await panelOf(host);
     expect(panel.shadowRoot?.querySelector('.item-body')?.textContent).toContain('Table note');
     diagram.tagFilter = { match: 'single', active: ['absent'] };
     await diagram.updateComplete;
     await host.updateComplete;
-    expect(host.artifact.stale).toEqual([]);
-    const actions = host.artifact.actions;
+    expect(host.api.stale).toEqual([]);
+    const actions = host.api.actions;
     diagram.remove();
     await Promise.resolve();
     await host.updateComplete;
-    expect(host.artifact.stale).toHaveLength(1);
+    expect(host.api.stale).toHaveLength(1);
     host.append(diagram);
     await diagram.updateComplete;
     await host.updateComplete;
-    expect(host.artifact.comments).toHaveLength(1);
-    expect(host.artifact.actions).toEqual(actions);
-    expect(host.artifact.exportBrief()).toContain('ERD · schema · users');
+    expect(host.api.comments).toHaveLength(1);
+    expect(host.api.actions).toEqual(actions);
+    expect(host.api.exportBrief()).toContain('ERD · schema · users');
     const restored = await mount();
-    restored.host.artifact.importDraft(actions);
-    expect(restored.host.artifact.comments).toHaveLength(1);
+    restored.host.api.importDraft(actions);
+    expect(restored.host.api.comments).toHaveLength(1);
     restored.diagram.data = parseErData({ before: { tables: [] }, after: { tables: [] } });
     await restored.diagram.updateComplete;
     await restored.host.updateComplete;
-    expect(restored.host.artifact.stale).toHaveLength(1);
+    expect(restored.host.api.stale).toHaveLength(1);
   });
 
   it('isolates repeated element ids across diagrams and refuses ambiguous diagram ids', async () => {
     const { host, diagram } = await mount();
-    const second = document.createElement('artifact-er-diagram');
-    if (!(second instanceof ArtifactErDiagram)) throw new Error('not upgraded');
+    const second = document.createElement('dpk-component-er-diagram');
+    if (!(second instanceof DpkComponentErDiagram)) throw new Error('not upgraded');
     second.id = 'schema-two';
     second.data = parseErData(er);
     host.append(second);
     await second.updateComplete;
     await host.updateComplete;
-    host.artifact.comment('element:schema/node/users', 'first');
-    host.artifact.comment('element:schema-two/node/users', 'second');
-    expect(host.artifact.comments).toHaveLength(2);
+    host.api.comment('element:schema/node/users', 'first');
+    host.api.comment('element:schema-two/node/users', 'second');
+    expect(host.api.comments).toHaveLength(2);
     second.id = diagram.id;
     await second.updateComplete;
     await host.updateComplete;
-    expect(host.artifact.stale).toHaveLength(2);
+    expect(host.api.stale).toHaveLength(2);
   });
 
   it('opens questions from badges while folded on Review and supports keyboard tabs', async () => {
@@ -157,7 +158,7 @@ describe('Grill integrated review', () => {
     await host.updateComplete;
     host.shadowRoot?.querySelector<HTMLButtonElement>('.grill-label')?.click();
     await host.updateComplete;
-    expect(host.shadowRoot?.querySelector('.af-sidebar')?.hasAttribute('hidden')).toBe(false);
+    expect(host.shadowRoot?.querySelector('.dpk-sidebar')?.hasAttribute('hidden')).toBe(false);
     const questions = host.shadowRoot?.querySelector<HTMLButtonElement>('[data-tab="questions"]');
     expect(questions?.getAttribute('aria-selected')).toBe('true');
     questions?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
@@ -165,6 +166,6 @@ describe('Grill integrated review', () => {
     const review = host.shadowRoot?.querySelector('[data-tab="review"]');
     expect(review?.getAttribute('aria-selected')).toBe('true');
     expect(host.shadowRoot?.activeElement).toBe(review);
-    expect(host.artifact.actions).toEqual([]);
+    expect(host.api.actions).toEqual([]);
   });
 });

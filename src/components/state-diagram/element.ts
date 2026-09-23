@@ -19,7 +19,7 @@ import { stateDiagramStyles } from './styles';
 const ARROWS = [{ id: 'state-arrow' }, { id: 'state-arrow-active' }, { id: 'state-arrow-exception' }] as const;
 
 /** Lifecycle diagram: select a state to see its transitions, or one transition. */
-export class ArtifactStateDiagram extends DiagramElement<StateDiagramData> {
+export class DpkComponentStateDiagram extends DiagramElement<StateDiagramData> {
   static override styles: CSSResultGroup = [diagramStyles, stateDiagramStyles];
 
   protected override parseData(input: unknown): StateDiagramData {

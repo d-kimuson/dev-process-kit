@@ -2,7 +2,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 
-import { ArtifactElement } from '../../core/element';
+import { TemplateElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
 import { createEntityId } from '../../core/target';
 import { popoverSurface } from '../../core/theme';
@@ -55,7 +55,7 @@ const DRAG_THRESHOLD = 5;
 const HOVER_PAD = { x: 20, top: 46, bottom: 40 };
 
 /**
- * `<artifact-event-storming>` — the big picture wall.
+ * `<dpk-template-event-storming>` — the big picture wall.
  *
  * The element is the seam between the pure parts: it owns the ephemeral UI
  * state (mode, viewport, pointer gesture, hover, selection), measures its own
@@ -63,8 +63,8 @@ const HOVER_PAD = { x: 20, top: 46, bottom: 40 };
  * actions. Placement lives in `layout.ts`, gesture math in `interactions.ts`,
  * rendering in `render/board.ts`, the sticky note in `components/note-card.ts`.
  */
-export class EventStormingElement extends ArtifactElement<EventStormingState> {
-  static override styles = [ArtifactElement.styles, eventStormingStyles, popoverSurface];
+export class DpkTemplateEventStorming extends TemplateElement<EventStormingState> {
+  static override styles = [TemplateElement.styles, eventStormingStyles, popoverSurface];
 
   readonly definition = eventStormingDefinition;
 
@@ -273,7 +273,7 @@ export class EventStormingElement extends ArtifactElement<EventStormingState> {
     for (const el of event.composedPath()) {
       if (el === event.currentTarget) break;
       if (!(el instanceof Element)) continue;
-      if (el.tagName.toLowerCase() === 'artifact-es-note') return;
+      if (el.tagName.toLowerCase() === 'dpk-internal-event-storming-note') return;
       if (el.matches('button, select, textarea, input, a')) return;
     }
     const point = this.#local(event);
@@ -629,12 +629,12 @@ export class EventStormingElement extends ArtifactElement<EventStormingState> {
   #renderContextPop(context: TemplateRenderContext<EventStormingState>, naming: EsNaming): TemplateResult {
     const current = naming.kind === 'rename-context' ? (findContext(context.state, naming.contextId)?.name ?? '') : '';
     return html`<div id="context-pop" class="comment-pop context-pop" popover="manual">
-      <span class="af-label">
+      <span class="dpk-label">
         ${naming.kind === 'create-context' ? '新しい境界づけられたコンテキスト' : 'コンテキスト名を変更'}
       </span>
       <input
         id="context-name"
-        class="af-input"
+        class="dpk-input"
         type="text"
         placeholder="コンテキスト名"
         .value=${current}
@@ -644,8 +644,8 @@ export class EventStormingElement extends ArtifactElement<EventStormingState> {
         }}
       />
       <div class="pop-actions">
-        <button class="af-btn" type="button" @click=${() => (this.naming = undefined)}>キャンセル</button>
-        <button class="af-btn af-btn--accent" type="button" @click=${() => this.#confirmNaming(context, naming)}>
+        <button class="dpk-btn" type="button" @click=${() => (this.naming = undefined)}>キャンセル</button>
+        <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => this.#confirmNaming(context, naming)}>
           ${naming.kind === 'create-context' ? '作成' : '保存'}
         </button>
       </div>
@@ -659,7 +659,7 @@ export class EventStormingElement extends ArtifactElement<EventStormingState> {
     const slice = this.#sliceById(context.state, sliceId);
     const from = slice === undefined ? undefined : sliceVoice(slice);
     return html`<div id="append-menu" class="comment-pop append-menu" popover="manual">
-      <span class="af-label">${from === undefined ? '続きに追加する付箋' : `「${from.name}」の続きに追加`}</span>
+      <span class="dpk-label">${from === undefined ? '続きに追加する付箋' : `「${from.name}」の続きに追加`}</span>
       <div class="type-options">
         ${APPEND_TYPES.map(
           (type) =>
@@ -675,7 +675,7 @@ export class EventStormingElement extends ArtifactElement<EventStormingState> {
         )}
       </div>
       <div class="pop-actions">
-        <button class="af-btn" type="button" @click=${() => (this.mode = ES_IDLE)}>キャンセル</button>
+        <button class="dpk-btn" type="button" @click=${() => (this.mode = ES_IDLE)}>キャンセル</button>
       </div>
     </div>`;
   }
@@ -696,7 +696,8 @@ export class EventStormingElement extends ArtifactElement<EventStormingState> {
 /** Narrowest useful band: one single-note slice plus its padding. */
 const SLICE_MIN_ROW = 132 * 2;
 
-export const defineEventStormingElement = (tag = 'artifact-event-storming'): void => {
+export const defineEventStormingElement = (): void => {
   defineEsNoteCard();
-  if (!customElements.get(tag)) customElements.define(tag, EventStormingElement);
+  if (!customElements.get('dpk-template-event-storming'))
+    customElements.define('dpk-template-event-storming', DpkTemplateEventStorming);
 };

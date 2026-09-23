@@ -1,14 +1,14 @@
 import { LitElement, css, html, type TemplateResult } from 'lit';
 
-import { controls, tokens } from '../core/theme';
-import { elementOf } from '../lib/dom/element';
+import { controls, tokens } from '../../core/theme';
+import { elementOf } from '../../lib/dom/element';
 
 /**
- * Small inline editor used by every template for "local edits" (design §24).
- * It never mutates anything: it only emits `artifact-commit`, so the edit still
+ * Small inline editor used by every template for "local edits".
+ * It never mutates anything: it only emits `dpk-commit`, so the edit still
  * travels through the draft action pipeline.
  */
-export class ArtifactInlineEdit extends LitElement {
+export class DpkComponentInlineEdit extends LitElement {
   static override styles = [
     tokens,
     controls,
@@ -17,7 +17,7 @@ export class ArtifactInlineEdit extends LitElement {
         display: inline;
         /* Inherit the surrounding type scale instead of forcing the chrome size:
            an inline edit inside a 17px heading must look like a 17px heading.
-           Colour comes along too, so an edit on a coloured card stays legible. */
+           Color comes along too, so an edit on a colored card stays legible. */
         font-family: inherit;
         font-size: inherit;
         font-weight: inherit;
@@ -36,12 +36,12 @@ export class ArtifactInlineEdit extends LitElement {
       }
 
       .view:hover {
-        border-bottom-color: var(--af-blue);
-        background: var(--af-blue-soft);
+        border-bottom-color: var(--dpk-blue);
+        background: var(--dpk-blue-soft);
       }
 
       .view[data-empty='true'] {
-        color: var(--af-ink-faint);
+        color: var(--dpk-ink-faint);
         font-style: italic;
       }
 
@@ -49,10 +49,10 @@ export class ArtifactInlineEdit extends LitElement {
       textarea {
         font: inherit;
         color: inherit;
-        background: var(--af-paper-raised);
-        border: 1px solid var(--af-blue);
-        border-radius: var(--af-radius-sm);
-        box-shadow: var(--af-focus);
+        background: var(--dpk-paper-raised);
+        border: 1px solid var(--dpk-blue);
+        border-radius: var(--dpk-radius-sm);
+        box-shadow: var(--dpk-focus);
         padding: 3px 7px;
         min-width: 0;
         width: 100%;
@@ -60,9 +60,9 @@ export class ArtifactInlineEdit extends LitElement {
       }
 
       textarea {
-        min-height: var(--af-inline-textarea-min-height, 90px);
+        min-height: var(--dpk-inline-textarea-min-height, 90px);
         resize: vertical;
-        font-family: var(--af-body);
+        font-family: var(--dpk-body);
         line-height: 1.5;
       }
 
@@ -76,7 +76,7 @@ export class ArtifactInlineEdit extends LitElement {
 
       /* seamless: no field chrome at all — the text is edited where it sits.
          The chrome theme paints fields with its own ink and size, so the
-         seamless field re-states the inherited type and colour. */
+         seamless field re-states the inherited type and color. */
       :host([seamless]) input,
       :host([seamless]) textarea {
         padding: 0;
@@ -183,7 +183,7 @@ export class ArtifactInlineEdit extends LitElement {
       ${
         this.multiline || this.wrap
           ? html`<textarea
-              class="af-textarea"
+              class="dpk-textarea"
               .value=${this.#draft}
               aria-label=${name}
               @input=${this.#onInput}
@@ -191,7 +191,7 @@ export class ArtifactInlineEdit extends LitElement {
               @blur=${this.#onBlur}
             ></textarea>`
           : html`<input
-              class="af-input"
+              class="dpk-input"
               .value=${this.#draft}
               aria-label=${name}
               @input=${this.#onInput}
@@ -258,7 +258,7 @@ export class ArtifactInlineEdit extends LitElement {
     const next = raw.trim();
     if (next === this.value) return;
     this.dispatchEvent(
-      new CustomEvent('artifact-commit', {
+      new CustomEvent('dpk-commit', {
         detail: { value: next },
         bubbles: true,
         composed: true,
@@ -267,6 +267,7 @@ export class ArtifactInlineEdit extends LitElement {
   };
 }
 
-export const defineInlineEdit = (tag = 'artifact-inline-edit'): void => {
-  if (!customElements.get(tag)) customElements.define(tag, ArtifactInlineEdit);
+export const defineInlineEdit = (): void => {
+  if (!customElements.get('dpk-component-inline-edit'))
+    customElements.define('dpk-component-inline-edit', DpkComponentInlineEdit);
 };

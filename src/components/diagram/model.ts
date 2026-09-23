@@ -122,7 +122,7 @@ export type DiagramNodeInput = {
   readonly width: number;
   readonly height: number;
   readonly tags: readonly string[];
-  /** Space-separated `artifact-grill-panel` references, e.g. `Q1 Q4`. */
+  /** Space-separated `dpk-template-grill` question ids, e.g. `Q1 Q4`. */
   readonly questions?: string;
   /** Port offsets relative to the node's top-left corner. */
   readonly ports?: Readonly<Record<string, LayoutPoint>>;
@@ -135,7 +135,7 @@ export type DiagramEdgeInput = {
   readonly from: string;
   readonly to: string;
   readonly tags: readonly string[];
-  /** Space-separated `artifact-grill-panel` references. */
+  /** Space-separated `dpk-template-grill` question ids. */
   readonly questions?: string;
   readonly fromPort?: string;
   readonly toPort?: string;

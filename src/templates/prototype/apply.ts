@@ -17,7 +17,7 @@ import {
 } from './model';
 
 /**
- * `applyAction` for the Prototype template (design §10).
+ * `applyAction` for the Prototype template.
  *
  * Pure function: `(state, action) => state | null`, where `null` means the
  * action cannot be applied to the current base. Returning the same value shape

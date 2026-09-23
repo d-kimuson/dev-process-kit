@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ArtifactController } from '../../core/controller';
+import { DraftController } from '../../core/controller';
 import { exampleMappingDefinition } from './definition';
 import { parseExampleMappingBase } from './model';
 
@@ -20,7 +20,7 @@ const base = parseExampleMappingBase({
   questions: [],
 });
 
-const controller = () => new ArtifactController({ definition: exampleMappingDefinition, base, storage: null });
+const controller = () => new DraftController({ definition: exampleMappingDefinition, base, storage: null });
 
 const moveRule = (id: string, storyId: string, after: string | null) => ({
   type: 'MOVE_RULE',

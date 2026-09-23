@@ -28,9 +28,9 @@ export const renderNav = (context: TemplateRenderContext<PrototypeState>): Templ
   return html`
     <div class="nav">
       <div class="field">
-        <span class="af-label">Activity</span>
+        <span class="dpk-label">Activity</span>
         <select
-          class="af-select"
+          class="dpk-select"
           aria-label="Activity"
           @change=${onSelectChange((value) => context.navigate({ activity: value, story: null, step: null }))}
         >
@@ -40,9 +40,9 @@ export const renderNav = (context: TemplateRenderContext<PrototypeState>): Templ
         </select>
       </div>
       <div class="field">
-        <span class="af-label">User Story</span>
+        <span class="dpk-label">User Story</span>
         <select
-          class="af-select"
+          class="dpk-select"
           aria-label="User Story"
           @change=${onSelectChange((value) => context.navigate({ activity: activity.id, story: value, step: null }))}
         >
@@ -52,8 +52,8 @@ export const renderNav = (context: TemplateRenderContext<PrototypeState>): Templ
         </select>
       </div>
       <div class="steps-head">
-        <span class="af-label">Step</span>
-        <span class="af-label">${steps.length}</span>
+        <span class="dpk-label">Step</span>
+        <span class="dpk-label">${steps.length}</span>
       </div>
       <ol class="steps">
         ${repeat(
@@ -71,7 +71,7 @@ export const renderNav = (context: TemplateRenderContext<PrototypeState>): Templ
                 </a>
                 <span class="row-tools">
                   <button
-                    class="af-icon-btn"
+                    class="dpk-icon-btn"
                     type="button"
                     aria-label="ステップを削除"
                     @click=${() => context.dispatch(prototypeAction.deleteStep(ref))}
@@ -84,7 +84,7 @@ export const renderNav = (context: TemplateRenderContext<PrototypeState>): Templ
           },
         )}
       </ol>
-      <button class="af-btn" type="button" @click=${() => addStep(context, storyRef(activity.id, story.id))}>
+      <button class="dpk-btn" type="button" @click=${() => addStep(context, storyRef(activity.id, story.id))}>
         ＋ Step
       </button>
       ${
@@ -93,29 +93,29 @@ export const renderNav = (context: TemplateRenderContext<PrototypeState>): Templ
               currentRef,
               html`<div class="detail">
                 <div class="detail-row">
-                  <span class="af-label">Step 名</span>
+                  <span class="dpk-label">Step 名</span>
                   <span class="detail-value">
-                    <artifact-inline-edit
+                    <dpk-component-inline-edit
                       .value=${current.name}
                       .label=${'Step 名'}
-                      @artifact-commit=${onCommit((value) =>
+                      @dpk-commit=${onCommit((value) =>
                         context.dispatch(prototypeAction.setStepName(currentRef ?? current.id, value)),
                       )}
-                    ></artifact-inline-edit>
+                    ></dpk-component-inline-edit>
                   </span>
                 </div>
                 <div class="detail-row">
-                  <span class="af-label">説明</span>
+                  <span class="dpk-label">説明</span>
                   <span class="detail-value">
-                    <artifact-inline-edit
+                    <dpk-component-inline-edit
                       multiline
                       .value=${current.description ?? ''}
                       .placeholder=${'この Step で何が起きるか（クリックして編集）'}
                       .label=${'説明'}
-                      @artifact-commit=${onCommit((value) =>
+                      @dpk-commit=${onCommit((value) =>
                         context.dispatch(prototypeAction.setStepDescription(currentRef ?? current.id, value)),
                       )}
-                    ></artifact-inline-edit>
+                    ></dpk-component-inline-edit>
                   </span>
                 </div>
               </div>`,

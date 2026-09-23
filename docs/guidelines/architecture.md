@@ -8,19 +8,19 @@ The framework has four conceptual layers:
 lib <- core <- components <- templates
 ```
 
-`lib` contains small helpers that know nothing about the artifact framework. `core` owns the artifact pipeline without knowing any template. Components provide reusable public UI, and templates provide domain-specific models and actions. Genuinely shared behavior belongs in a lower layer rather than coupling templates to one another.
+`lib` contains small helpers that know nothing about dev-process-kit. `core` owns the draft pipeline without knowing any template. Components provide reusable public UI, and templates provide domain-specific models and actions. Genuinely shared behavior belongs in a lower layer rather than coupling templates to one another.
 
 Entrypoints assemble these layers into public distributions; they are not shared implementation modules.
 
-The published trees are generated artifacts. Their sources of truth are `src/**` and the consumer documentation; do not implement changes in `public/` or `public-dev/`.
+The published trees are generated output. Their sources of truth are `src/**` and the consumer documentation; do not implement changes in `public/` or `public-dev/`.
 
 ## State and actions
 
-An artifact has a base state and an ordered draft of human actions. The visible state is derived by reducing those actions over the base state. UI code must not mutate domain state directly; every human-authored change enters through the action pipeline.
+A template element has a base state and an ordered draft of human actions. The visible state is derived by reducing those actions over the base state. UI code must not mutate domain state directly; every human-authored change enters through the action pipeline.
 
 Applying an action is a pure operation. It returns the next state, or `null` when the action cannot apply to the current base. This distinction lets the review rail preserve and explain stale or incompatible actions instead of silently discarding them.
 
-The draft is interpretive: it states the net change, not how the reader got there. After every change the core drops each set of template actions whose removal leaves the artifact meaning the same (an addition deleted again, a move and its move back), together with the actions that only existed to edit what was removed. Removal is judged only by the resulting state, so it can never change what the draft asks for. See the [ADR](../adr/20260924_interpretive-drafts.md).
+The draft is interpretive: it states the net change, not how the reader got there. After every change the core drops each set of template actions whose removal leaves the page meaning the same (an addition deleted again, a move and its move back), together with the actions that only existed to edit what was removed. Removal is judged only by the resulting state, so it can never change what the draft asks for. See the [ADR](../adr/20260924_interpretive-drafts.md).
 
 Navigation describes what the reader is viewing. It is not a draft action and must not become part of the authored change history.
 
@@ -52,7 +52,7 @@ A template supplies a semantic model and action vocabulary; it does not reimplem
 Keep these semantic details in mind:
 
 - Action descriptions receive the state after the draft has been applied. Use the optional base state for a meaningful “before” value. An entity created by the draft has no corresponding value in the base.
-- When the state stores an order that the template never shows (for example the global order of stories that are only ever shown per cell), implement `canonicalState` so that two states meaning the same artifact compare equal. Otherwise a move and its move back may not cancel.
+- When the state stores an order that the template never shows (for example the global order of stories that are only ever shown per cell), implement `canonicalState` so that two states meaning the same page compare equal. Otherwise a move and its move back may not cancel.
 - A slot only distributes light DOM belonging to its own host. Author-owned preview content therefore needs a slot in the template element that owns that light DOM.
 - SVG fragments must be created in the SVG namespace. Keep theme-driven SVG paint in styles rather than relying on CSS variables inside presentation attributes.
 

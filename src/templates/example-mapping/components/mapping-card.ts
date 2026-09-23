@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing, type PropertyValues, type TemplateResult } from 'lit';
 
-import type { ArtifactInlineEdit } from '../../../components/inline-edit';
+import type { DpkComponentInlineEdit } from '../../../components/inline-edit';
 import type { DraftAction } from '../../../core/types';
 import type { MappingCard, MappingCardKind } from '../model';
 import type { MappingCardIntent, MappingCardMode } from '../ui-mode';
@@ -25,7 +25,7 @@ export const CARD_KIND_LABELS = {
   question: '質問',
 } as const satisfies Record<MappingCardKind, string>;
 
-/** Card colour per kind — the single source for the cards and the legend. */
+/** Card color per kind — the single source for the cards and the legend. */
 const CARD_PALETTE = {
   story: { bg: 'linear-gradient(178deg, #fff3a6, #fde77a)', ink: '#4a3a06' },
   rule: { bg: 'linear-gradient(178deg, #a3d1f5, #7cb8ea)', ink: '#0e2c4b' },
@@ -49,8 +49,8 @@ const cardStyles = css`
     min-height: 76px;
     padding: 17px 11px 11px;
     border-radius: 3px;
-    background: var(--em-card-bg, var(--af-paper-raised));
-    color: var(--em-card-ink, var(--af-ink));
+    background: var(--em-card-bg, var(--dpk-paper-raised));
+    color: var(--em-card-ink, var(--dpk-ink));
     box-shadow:
       0 1px 2px rgba(30, 24, 10, 0.14),
       0 5px 10px -4px rgba(30, 24, 10, 0.24);
@@ -72,7 +72,7 @@ const cardStyles = css`
 
   :host([focused]) {
     z-index: 5;
-    outline: 2px solid var(--af-blue);
+    outline: 2px solid var(--dpk-blue);
     outline-offset: 2px;
     transform: rotate(0deg);
   }
@@ -97,7 +97,7 @@ const cardStyles = css`
     position: absolute;
     top: 5px;
     left: 8px;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 8px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -136,9 +136,9 @@ const cardStyles = css`
     padding: 0 4px;
     box-sizing: border-box;
     border-radius: 999px;
-    background: var(--af-accent);
-    color: var(--af-accent-ink);
-    font-family: var(--af-mono);
+    background: var(--dpk-accent);
+    color: var(--dpk-accent-ink);
+    font-family: var(--dpk-mono);
     font-size: 9.5px;
     font-weight: 650;
     line-height: 17px;
@@ -168,18 +168,18 @@ const cardStyles = css`
     pointer-events: auto;
   }
 
-  .card-tools .af-icon-btn {
+  .card-tools .dpk-icon-btn {
     width: 22px;
     height: 22px;
-    border: 1px solid var(--af-rule);
+    border: 1px solid var(--dpk-rule);
     border-radius: 50%;
-    background: color-mix(in srgb, var(--af-paper-raised) 94%, transparent);
-    box-shadow: var(--af-shadow-xs);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
+    box-shadow: var(--dpk-shadow-xs);
   }
 `;
 
 /**
- * `<artifact-example-mapping-card>` — one story, rule, example or question,
+ * `<dpk-internal-example-mapping-card>` — one story, rule, example or question,
  * drawn as a sticky note whose name is edited where it sits.
  *
  * The board positions the host; the card only paints itself and reports
@@ -187,7 +187,7 @@ const cardStyles = css`
  * host's decision (`ExampleMappingUiMode`); the card renders the mode it is
  * given and never dispatches actions itself.
  */
-export class ExampleMappingCard extends LitElement {
+export class DpkInternalExampleMappingCard extends LitElement {
   static override styles = [controls, cardStyles, popoverSurface];
 
   static override properties = {
@@ -240,7 +240,7 @@ export class ExampleMappingCard extends LitElement {
     if (changed.has('mode')) {
       if (this.mode !== 'commenting') this.#draft = '';
       if (this.mode === 'editing') {
-        this.renderRoot.querySelector<ArtifactInlineEdit>('artifact-inline-edit')?.startEditing();
+        this.renderRoot.querySelector<DpkComponentInlineEdit>('dpk-component-inline-edit')?.startEditing();
       }
     }
     if (this.mode !== 'commenting') return;
@@ -256,19 +256,19 @@ export class ExampleMappingCard extends LitElement {
     const label = CARD_KIND_LABELS[card.kind];
     return html`
       <div class="card-kind">${label}</div>
-      <artifact-inline-edit
+      <dpk-component-inline-edit
         class="card-name"
         ?wrap=${true}
         ?seamless=${true}
         .value=${card.name}
         .label=${`${label}名`}
-        @artifact-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
-      ></artifact-inline-edit>
+        @dpk-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
+      ></dpk-component-inline-edit>
       ${card.description ? html`<div class="card-text">${card.description}</div>` : nothing}
       ${this.notes.length > 0 ? html`<span class="card-flag">${this.notes.length}</span>` : nothing}
       <div class="card-tools">
         <button
-          class="af-icon-btn"
+          class="dpk-icon-btn"
           type="button"
           data-role="comment"
           aria-label="コメント"
@@ -278,7 +278,7 @@ export class ExampleMappingCard extends LitElement {
           ${iconComment()}
         </button>
         <button
-          class="af-icon-btn"
+          class="dpk-icon-btn"
           type="button"
           data-role="delete"
           aria-label="削除"
@@ -313,6 +313,7 @@ export class ExampleMappingCard extends LitElement {
   }
 }
 
-export const defineExampleMappingCard = (tag = 'artifact-example-mapping-card'): void => {
-  if (!customElements.get(tag)) customElements.define(tag, ExampleMappingCard);
+export const defineExampleMappingCard = (): void => {
+  if (!customElements.get('dpk-internal-example-mapping-card'))
+    customElements.define('dpk-internal-example-mapping-card', DpkInternalExampleMappingCard);
 };

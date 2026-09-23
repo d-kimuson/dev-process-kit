@@ -1,4 +1,4 @@
-# Template: usm (`<artifact-usm>`)
+# Template: usm (`<dpk-template-usm>`)
 
 User Story Mapping: バックボーン（`Activity › Step`）を列に、マイルストーンを行に取るストーリーマップ。
 
@@ -8,9 +8,9 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 セル = その列 × その行に属する UserStory の並び
 ```
 
-- Element: `<artifact-usm>`
+- Element: `<dpk-template-usm>`
 - Definition name: `usm`
-- Accent token: `--af-blue`（選択・フォーカス）
+- Accent token: `--dpk-blue`（選択・フォーカス）
 
 ## Base data
 
@@ -43,7 +43,7 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 
 | Field                             | Required | Notes                                                              |
 | --------------------------------- | -------- | ------------------------------------------------------------------ |
-| `title`                           | no       | artifact ヘッダーに表示される                                      |
+| `title`                           | no       | ページのヘッダーに表示される                                       |
 | `activities[].id` / `name`        | yes      | バックボーンの最上段。id は `[A-Za-z0-9_-]+`                       |
 | `activities[].steps[]`            | no       | 既定は `[]`。各要素は `id` / `name` が必須                         |
 | `milestones[].id` / `name`        | yes      | 水平スライス。空配列でもよい（「未割当」行は常にある）             |
@@ -63,7 +63,7 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 | `SET_ACTIVITY_NAME`     | activity  | `{ "name": string }`                                                                 |
 | `SET_STEP_NAME`         | step      | `{ "name": string }`                                                                 |
 | `REORDER_STEP`          | step      | `{ "after": string \| null }`（`null` = 先頭、同一 Activity 内）                     |
-| `ADD_ACTIVITY`          | artifact  | `{ "id", "name" }`                                                                   |
+| `ADD_ACTIVITY`          | page      | `{ "id", "name" }`                                                                   |
 | `ADD_STEP`              | activity  | `{ "id", "name" }`                                                                   |
 | `DELETE_ACTIVITY`       | activity  | `{}`（配下のステップとストーリーごと削除）                                           |
 | `DELETE_STEP`           | step      | `{}`（配下のストーリーごと削除）                                                     |
@@ -75,7 +75,7 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 | `ADD_STORY`             | step      | `{ "id", "name", "activityId", "milestoneId"? }`                                     |
 | `DELETE_STORY`          | story     | `{}`                                                                                 |
 | `SET_MILESTONE_NAME`    | milestone | `{ "name": string }`                                                                 |
-| `ADD_MILESTONE`         | artifact  | `{ "id", "name" }`                                                                   |
+| `ADD_MILESTONE`         | page      | `{ "id", "name" }`                                                                   |
 | `DELETE_MILESTONE`      | milestone | `{}`（所属ストーリーは未割当へ退避、削除しない）                                     |
 | `REORDER_MILESTONE`     | milestone | `{ "after": string \| null }`                                                        |
 
@@ -108,7 +108,7 @@ UI から編集できるのはストーリー名（inline-edit）、セルごと
 
 ## Comment targets
 
-`artifact:usm`（マップ全体）と、すべての activity / step / milestone / story が `commentTargets` に列挙される。カードのコメントアイコンはそのストーリーへの composer を top layer の popover として開き、popover 内に textarea + 送信 / キャンセル + 既存コメント一覧がある（カード自体のレイアウトは動かない）。
+`page:usm`（マップ全体）と、すべての activity / step / milestone / story が `commentTargets` に列挙される。カードのコメントアイコンはそのストーリーへの composer を top layer の popover として開き、popover 内に textarea + 送信 / キャンセル + 既存コメント一覧がある（カード自体のレイアウトは動かない）。
 
 ## Naming
 

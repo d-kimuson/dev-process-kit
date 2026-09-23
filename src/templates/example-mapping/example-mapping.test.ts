@@ -2,8 +2,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { DraftAction } from '../../core/types';
-import type { ExampleMappingCard } from './components/mapping-card';
-import type { ExampleMappingElement } from './element';
+import type { DpkInternalExampleMappingCard } from './components/mapping-card';
+import type { DpkTemplateExampleMapping } from './element';
 
 import '../../index';
 import { exampleMappingAction } from './actions';
@@ -41,21 +41,21 @@ const action = (type: string, target: { type: string; id: string }, payload: unk
 const state = (): ExampleMappingState => parseExampleMappingBase(base);
 
 const area = (root: ShadowRoot, testid: string): (string | null)[] =>
-  [...root.querySelectorAll(`[data-testid="${testid}"] artifact-example-mapping-card`)].map((card) =>
+  [...root.querySelectorAll(`[data-testid="${testid}"] dpk-internal-example-mapping-card`)].map((card) =>
     card.getAttribute('data-card'),
   );
 
-const mount = (hash = ''): ExampleMappingElement => {
+const mount = (hash = ''): DpkTemplateExampleMapping => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <artifact-example-mapping storage="memory">
+    <dpk-template-example-mapping storage="memory">
       <script type="application/json">${JSON.stringify(base)}</script>
-    </artifact-example-mapping>`;
-  return document.querySelector('artifact-example-mapping') as ExampleMappingElement;
+    </dpk-template-example-mapping>`;
+  return document.querySelector('dpk-template-example-mapping') as DpkTemplateExampleMapping;
 };
 
-const settle = async (el: ExampleMappingElement): Promise<void> => {
-  await el.artifact.ready;
+const settle = async (el: DpkTemplateExampleMapping): Promise<void> => {
+  await el.api.ready;
   await el.updateComplete;
   await Promise.resolve();
   await el.updateComplete;
@@ -200,7 +200,7 @@ describe('example-mapping actions', () => {
     );
     expect(JSON.stringify(state())).toBe(frozen);
     expect(next?.rules.find((rule) => rule.id === 'r1')?.name).toBe('New');
-    const add = action('ADD_STORY', { type: 'artifact', id: 'example-mapping' }, { id: 's3', name: 'S3' });
+    const add = action('ADD_STORY', { type: 'page', id: 'example-mapping' }, { id: 's3', name: 'S3' });
     const added = applyExampleMappingAction(state(), add);
     expect(applyExampleMappingAction(added!, add)).toEqual(added);
   });
@@ -295,7 +295,7 @@ describe('example-mapping actions', () => {
     const root = el.shadowRoot!;
     expect(root.querySelector('[data-testid="example-mapping-board"]')).not.toBeNull();
     // One card per entity: 2 stories + 2 rules + 2 examples + 3 questions.
-    expect(root.querySelectorAll('artifact-example-mapping-card')).toHaveLength(9);
+    expect(root.querySelectorAll('dpk-internal-example-mapping-card')).toHaveLength(9);
     expect(root.querySelectorAll('[data-testid="rules-s1"] .rule-col')).toHaveLength(2);
     expect(area(root, 'examples-r1')).toEqual(['e1', 'e2']);
     expect(area(root, 'questions-r1')).toEqual(['q1', 'q2']);
@@ -304,13 +304,13 @@ describe('example-mapping actions', () => {
     expect(root.querySelector('[data-testid="questions-s1"]')).toBeNull();
     // Examples on top, questions below: two separate areas in each rule column.
     const column = root.querySelector('.rule-col[data-rule="r1"]')!;
-    const order = [...column.querySelectorAll('artifact-example-mapping-card')].map((card) =>
+    const order = [...column.querySelectorAll('dpk-internal-example-mapping-card')].map((card) =>
       card.getAttribute('data-card'),
     );
     expect(order).toEqual(['r1', 'e1', 'e2', 'q1', 'q2']);
     const areas = [...column.querySelectorAll('[data-testid]')].map((node) => node.getAttribute('data-testid'));
     expect(areas).toEqual(['examples-r1', 'questions-r1']);
-    // The legend explains the colours in the header.
+    // The legend explains the colors in the header.
     expect(root.querySelectorAll('.legend li')).toHaveLength(4);
     document.body.innerHTML = '';
   });
@@ -319,7 +319,7 @@ describe('example-mapping actions', () => {
     const el = mount();
     await settle(el);
     const root = el.shadowRoot!;
-    const rule = root.querySelector<ExampleMappingCard>('artifact-example-mapping-card[data-card="r1"]');
+    const rule = root.querySelector<DpkInternalExampleMappingCard>('dpk-internal-example-mapping-card[data-card="r1"]');
     if (!rule) throw new Error('missing rule card');
     await rule.updateComplete;
     const shadow = rule.shadowRoot!;
@@ -327,25 +327,25 @@ describe('example-mapping actions', () => {
     expect(shadow.querySelector('[data-role="edit"]')).toBeNull();
     // Questions are added from the rule's question area, not from a card.
     expect(shadow.querySelector('[data-role="ask"]')).toBeNull();
-    const editor = shadow.querySelector('artifact-inline-edit');
+    const editor = shadow.querySelector('dpk-component-inline-edit');
     expect(editor?.hasAttribute('seamless')).toBe(true);
-    editor?.dispatchEvent(new CustomEvent('artifact-commit', { detail: { value: 'Renamed' }, bubbles: true }));
+    editor?.dispatchEvent(new CustomEvent('dpk-commit', { detail: { value: 'Renamed' }, bubbles: true }));
     await settle(el);
-    expect(el.artifact.state.rules.find((entry) => entry.id === 'r1')?.name).toBe('Renamed');
+    expect(el.api.state.rules.find((entry) => entry.id === 'r1')?.name).toBe('Renamed');
 
     root.querySelector<HTMLButtonElement>('[data-testid="questions-r2"] .add-question')?.click();
     await settle(el);
-    const question = el.artifact.state.questions.at(-1);
+    const question = el.api.state.questions.at(-1);
     expect(question).toMatchObject({ ruleId: 'r2', name: '新しい質問' });
     // The fresh question takes the caret straight away.
     const fresh = root.querySelector(
-      `[data-testid="questions-r2"] artifact-example-mapping-card[data-card="${question?.id}"]`,
+      `[data-testid="questions-r2"] dpk-internal-example-mapping-card[data-card="${question?.id}"]`,
     );
     expect(fresh?.getAttribute('data-mode')).toBe('editing');
 
     root.querySelector<HTMLButtonElement>('[data-testid="examples-r2"] .add-example')?.click();
     await settle(el);
-    const example = el.artifact.state.examples.at(-1);
+    const example = el.api.state.examples.at(-1);
     expect(example).toMatchObject({ ruleId: 'r2', name: '新しい具体例' });
     expect(area(root, 'examples-r2')).toEqual([example?.id]);
     document.body.innerHTML = '';
@@ -355,19 +355,19 @@ describe('example-mapping actions', () => {
     const el = mount();
     await settle(el);
 
-    el.artifact.dispatch(exampleMappingAction.setRuleName('r1', 'Updated'));
+    el.api.dispatch(exampleMappingAction.setRuleName('r1', 'Updated'));
     await settle(el);
-    expect(el.artifact.state.rules.find((rule) => rule.id === 'r1')?.name).toBe('Updated');
+    expect(el.api.state.rules.find((rule) => rule.id === 'r1')?.name).toBe('Updated');
 
-    el.artifact.comment('rule:r1', 'hello');
+    el.api.comment('rule:r1', 'hello');
     await settle(el);
-    expect(el.artifact.actions.some((entry) => entry.type === 'comment' && entry.target.id === 'r1')).toBe(true);
+    expect(el.api.actions.some((entry) => entry.type === 'comment' && entry.target.id === 'r1')).toBe(true);
 
-    el.artifact.dispatch(exampleMappingAction.deleteExample('e2'));
+    el.api.dispatch(exampleMappingAction.deleteExample('e2'));
     await settle(el);
-    expect(el.artifact.state.examples.map((example) => example.id)).toEqual(['e1']);
+    expect(el.api.state.examples.map((example) => example.id)).toEqual(['e1']);
 
-    el.artifact.navigate({ card: 'q2' });
+    el.api.navigate({ card: 'q2' });
     await settle(el);
     expect(location.hash).toContain('card=q2');
     document.body.innerHTML = '';

@@ -49,7 +49,7 @@ const tiltOf = (kind: MappingCardKind, id: string): number => {
   return ((Math.abs(hash) % 5) - 2) * 0.45;
 };
 
-/** The colour key: what each sticky note colour means. */
+/** The color key: what each sticky note color means. */
 export const renderLegend = (): TemplateResult => {
   return html`<ul class="legend" aria-label="カードの種類">
     ${CARD_KINDS.map(
@@ -70,7 +70,7 @@ export const renderBoard = (props: BoardProps): TemplateResult => {
           ストーリー（黄）を1枚置き、その下に受け入れ条件となるルール（青）を並べます。
           ルールごとに、上の欄へ具体例（緑）を、下の欄へ答えの出ない論点を質問（赤）として積みます。
         </p>
-        <button class="af-btn af-btn--accent" type="button" @click=${handlers.addStory}>＋ 最初のストーリー</button>
+        <button class="dpk-btn dpk-btn--accent" type="button" @click=${handlers.addStory}>＋ 最初のストーリー</button>
       </div>
     `;
   }
@@ -90,7 +90,7 @@ const renderCard = (props: BoardProps, kind: MappingCardKind, entity: Entity): T
   const { context, mode, drag, handlers } = props;
   const notes = context.comments.filter((c) => c.target.type === kind && c.target.id === entity.id);
   const source = drag.source({ type: kind, id: entity.id });
-  return html`<artifact-example-mapping-card
+  return html`<dpk-internal-example-mapping-card
     data-card=${entity.id}
     data-card-kind=${kind}
     draggable="true"
@@ -108,7 +108,7 @@ const renderCard = (props: BoardProps, kind: MappingCardKind, entity: Entity): T
     ?dragging=${drag.isDragging(kind, entity.id)}
     @dragstart=${source.dragstart}
     @dragend=${source.dragend}
-  ></artifact-example-mapping-card>`;
+  ></dpk-internal-example-mapping-card>`;
 };
 
 const renderStorySection = (props: BoardProps, story: MappingStory): TemplateResult => {
@@ -240,7 +240,7 @@ const renderArea = (props: BoardProps, ruleId: string, kind: AreaKind): Template
 const closestCard =
   (kind: MappingCardKind) =>
   (event: DragEvent): { id: string | null; element: Element } | null => {
-    const card = event.target instanceof Element ? event.target.closest('artifact-example-mapping-card') : null;
+    const card = event.target instanceof Element ? event.target.closest('dpk-internal-example-mapping-card') : null;
     if (!card || card.getAttribute('data-card-kind') !== kind) return null;
     return { id: card.getAttribute('data-card'), element: card };
   };

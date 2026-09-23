@@ -8,9 +8,9 @@ accepted
 
 ## Context
 
-The distribution ADR (20260919) makes every published version a permanent, immutable address: `package.json` names it, artifacts accumulate under `public/dev-process-kit@<version>/`, the samples pin it, and a published directory is never changed. Cutting a version is a commitment.
+The distribution ADR (20260919) makes every published version a permanent, immutable address: `package.json` names it, releases accumulate under `public/dev-process-kit@<version>/`, the samples pin it, and a published directory is never changed. Cutting a version is a commitment.
 
-Before `0.0.1` exists, the current build still has to be exercised the way a generated artifact uses it: from another origin, over the network, in a real browser. That needs an address that (a) does not claim to be a version and (b) may be replaced at any time.
+Before `0.0.1` exists, the current build still has to be exercised the way a generated page uses it: from another origin, over the network, in a real browser. That needs an address that (a) does not claim to be a version and (b) may be replaced at any time.
 
 A second Worker does not solve it either. Deploying is per Worker and replaces the whole asset set, so the Worker that answers the URL must be redeployed with a tree that holds everything which has to stay live — a debug deployment would either publish versions or drop them.
 
@@ -25,13 +25,13 @@ A second Worker does not solve it either. Deploying is per Worker and replaces t
 
 ## Consequences
 
-- The debug release may be replaced as often as wanted. An artifact that pinned it stops being reproducible — which is the point: it is not a version, and nothing should pin it.
+- The debug release may be replaced as often as wanted. A page that pinned it stops being reproducible — which is the point: it is not a version, and nothing should pin it.
 - `0.0.1` is unaffected and stays unpublished. `pnpm build` + `wrangler deploy` is still the version path, and it publishes `dev-process-kit@<version>` only.
 - Deploying replaces the Worker's asset set with the tree. Once versions are live, a deploy from a tree that does not contain them removes them from the Worker; accumulating published releases and rejecting changes to them is still the open half of the distribution ADR.
 - The debug origin is a constant in `scripts/release.ts` (the account's `workers.dev` subdomain plus the Worker name in `wrangler.jsonc`). Attaching the custom domain later makes the two origins the same and the origin rewrite disappears; that constant is the one place to change.
 - The verification on the debug channel skips the sample checks of the stable tree: the samples are repository-local and pin the stable release, which is not what a debug build produces. The debug verification instead fails when a document still addresses another channel.
 - No published release ships a source map, so the debug channel does not either (the distribution ADR's source-map addendum).
-- The account protects its whole `workers.dev` subdomain with Cloudflare Access, so the debug release is reachable by the maintainer's browser rather than by anyone. Consequences: an artifact hosted on another origin cannot load the bundle (its module request carries no Access session), and there is no network-side check — a non-browser check would only see the Access login page. Verifying the deployed bytes would need an Access service token, which is a decision for whoever wants that check back.
+- The account protects its whole `workers.dev` subdomain with Cloudflare Access, so the debug release is reachable by the maintainer's browser rather than by anyone. Consequences: a page hosted on another origin cannot load the bundle (its module request carries no Access session), and there is no network-side check — a non-browser check would only see the Access login page. Verifying the deployed bytes would need an Access service token, which is a decision for whoever wants that check back.
 
 ## References
 

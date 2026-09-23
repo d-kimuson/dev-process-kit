@@ -70,7 +70,7 @@ const renderQuestion = (question: GrillQuestionViewModel, handlers: PanelHandler
             ${
               question.allowFreeText
                 ? html`<textarea
-                    class="af-textarea grill-free"
+                    class="dpk-textarea grill-free"
                     data-free-text=${question.id}
                     aria-label=${`${question.ref} の自由記述`}
                     placeholder="回答を入力…（⌘/Ctrl+Enter で次へ）"

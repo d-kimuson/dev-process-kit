@@ -4,7 +4,7 @@
 # tree copies this file to its asset root, so it holds only rules that are true
 # both in development and in production.
 #
-# CORS: a generated artifact may be hosted on any origin, so the bundle has to be
+# CORS: a generated page may be hosted on any origin, so the bundle has to be
 # loadable cross-origin. Module scripts are fetched in CORS mode, which is why
 # this is required and not merely a convenience.
 #

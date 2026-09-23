@@ -34,7 +34,7 @@ const ARROWS = [
 ] as const;
 
 /** Module dependencies: pick a module to see what it uses and what uses it. */
-export class ArtifactDependencyGraph extends DiagramElement<DependencyData> {
+export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> {
   static override styles: CSSResultGroup = [diagramStyles, dependencyStyles];
 
   #direction: DependencyDirection = 'both';
@@ -138,7 +138,7 @@ export class ArtifactDependencyGraph extends DiagramElement<DependencyData> {
       </div>
       <button
         type="button"
-        class="af-btn af-btn--ghost dep-toggle"
+        class="dpk-btn dpk-btn--ghost dep-toggle"
         data-toggle="transitive"
         aria-pressed=${this.#transitive ? 'true' : 'false'}
         @click=${() => {
@@ -150,7 +150,7 @@ export class ArtifactDependencyGraph extends DiagramElement<DependencyData> {
       </button>
       <button
         type="button"
-        class="af-btn af-btn--ghost dep-toggle"
+        class="dpk-btn dpk-btn--ghost dep-toggle"
         data-toggle="cycles"
         aria-pressed=${this.#cyclesOnly ? 'true' : 'false'}
         aria-label=${`循環依存 ${cycles} グループだけ表示`}

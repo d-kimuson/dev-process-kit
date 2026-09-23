@@ -9,8 +9,8 @@ import { targetRef } from './target';
 
 export type StaleReason = 'unsupported-action-type' | 'target-missing' | 'constraint-violated';
 
-/** Target type reserved by the core for "the artifact as a whole". */
-export const ARTIFACT_TARGET_TYPE = 'artifact';
+/** Target type reserved by the core for "the page as a whole". */
+export const PAGE_TARGET_TYPE = 'page';
 
 export type StaleAction = {
   readonly action: DraftAction;
@@ -19,15 +19,15 @@ export type StaleAction = {
 
 export type Derivation<S> = {
   readonly base: S;
-  /** `reduce(base, draftActions, applyAction)` (design §10). */
+  /** `reduce(base, draftActions, applyAction)`. */
   readonly state: S;
   /** Everything persisted, in dispatch order. */
   readonly actions: readonly DraftAction[];
   /** Actions that actually shaped `state`. */
   readonly applied: readonly DraftAction[];
-  /** Persisted but not applicable to the current base (design §11). */
+  /** Persisted but not applicable to the current base. */
   readonly stale: readonly StaleAction[];
-  /** Patch actions the base/state already reflects — safe to drop (design §12). */
+  /** Patch actions the base/state already reflects — safe to drop. */
   readonly obsolete: readonly DraftAction[];
   readonly comments: readonly DraftAction[];
   readonly commentsByTarget: ReadonlyMap<string, readonly DraftAction[]>;
@@ -38,7 +38,7 @@ export const commentTargetKey = (target: { type: string; id: string }): string =
 };
 
 /**
- * Derives the visible artifact state from the base data and the draft actions.
+ * Derives the visible state from the base data and the draft actions.
  * Pure: safe to run on every render and in tests without a DOM.
  *
  * Component element actions never touch `state`: their owner applies them and
@@ -96,11 +96,11 @@ export const derive = <S>(
     applied.push(action);
   }
 
-  // Comments describe the final artifact, not the intermediate state at their
+  // Comments describe the final page, not the intermediate state at their
   // position in the draft. A later deletion (or creation) must be visible here.
   for (const action of actions) {
     if (action.type !== COMMENT_ACTION) continue;
-    if (action.target.type !== ARTIFACT_TARGET_TYPE && !definition.hasTarget(state, action.target)) {
+    if (action.target.type !== PAGE_TARGET_TYPE && !definition.hasTarget(state, action.target)) {
       stale.push({ action, reason: 'target-missing' });
       continue;
     }
@@ -123,7 +123,7 @@ export const derive = <S>(
   };
 };
 
-/** Whether two states mean the same artifact, per the template's canonical form. */
+/** Whether two states mean the same page, per the template's canonical form. */
 export const sameState = <S>(definition: TemplateDefinition<S>, a: S, b: S): boolean => {
   if (a === b) return true;
   if (definition.canonicalState === undefined) return isEqual(a, b);

@@ -1,4 +1,4 @@
-export { ArtifactArchitectureMap } from './element';
+export { DpkComponentArchitectureMap } from './element';
 export { SERVICE_SIZE, boundaryBoxes, emptyArchitectureData, parseArchitectureData } from './model';
 export type {
   ArchitectureBoundary,
@@ -10,10 +10,9 @@ export type {
   ServiceArtwork,
 } from './model';
 
-import { ArtifactArchitectureMap } from './element';
+import { DpkComponentArchitectureMap } from './element';
 
-export const ARCHITECTURE_MAP_TAG = 'artifact-architecture-map';
-
-export const defineArchitectureMap = (tag = ARCHITECTURE_MAP_TAG): void => {
-  if (!customElements.get(tag)) customElements.define(tag, ArtifactArchitectureMap);
+export const defineArchitectureMap = (): void => {
+  if (!customElements.get('dpk-component-architecture-map'))
+    customElements.define('dpk-component-architecture-map', DpkComponentArchitectureMap);
 };

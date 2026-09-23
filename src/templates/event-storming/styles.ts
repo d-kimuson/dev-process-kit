@@ -1,13 +1,13 @@
 import { css } from 'lit';
 
-/** Wall chrome of `<artifact-event-storming>`. Notes style themselves. */
+/** Wall chrome of `<dpk-template-event-storming>`. Notes style themselves. */
 export const eventStormingStyles = css`
   /* The board owns the whole main area; the viewport clips, never the shell. */
-  .af-main {
+  .dpk-main {
     overflow: hidden;
   }
 
-  .af-main-body {
+  .dpk-main-body {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
@@ -26,8 +26,8 @@ export const eventStormingStyles = css`
     min-height: 0;
     overflow: hidden;
     touch-action: none;
-    background-color: var(--af-paper);
-    background-image: radial-gradient(circle, var(--af-rule) 1px, transparent 1px);
+    background-color: var(--dpk-paper);
+    background-image: radial-gradient(circle, var(--dpk-rule) 1px, transparent 1px);
   }
 
   .board-viewport--gesturing,
@@ -43,7 +43,7 @@ export const eventStormingStyles = css`
 
   .board-viewport:focus-visible {
     outline: none;
-    box-shadow: inset var(--af-focus);
+    box-shadow: inset var(--dpk-focus);
   }
 
   .board-content {
@@ -79,32 +79,32 @@ export const eventStormingStyles = css`
   .slice {
     position: absolute;
     z-index: 1;
-    border: 1px solid var(--af-rule-strong);
+    border: 1px solid var(--dpk-rule-strong);
     border-radius: 12px;
-    background: color-mix(in srgb, var(--af-paper-raised) 78%, transparent);
-    box-shadow: var(--af-shadow-xs);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 78%, transparent);
+    box-shadow: var(--dpk-shadow-xs);
     cursor: grab;
   }
 
   .slice--selected {
-    border-color: var(--af-blue);
+    border-color: var(--dpk-blue);
     box-shadow:
-      0 0 0 2px var(--af-blue-soft),
-      var(--af-shadow-xs);
+      0 0 0 2px var(--dpk-blue-soft),
+      var(--dpk-shadow-xs);
   }
 
   /* While a connection drag is out: everywhere it may land lights up dashed… */
   .slice--candidate {
-    border: 1.5px dashed color-mix(in srgb, var(--af-blue) 55%, transparent);
+    border: 1.5px dashed color-mix(in srgb, var(--dpk-blue) 55%, transparent);
   }
 
   /* …and the slice under the cursor confirms the landing. */
   .slice--target {
-    border: 1.5px solid var(--af-blue);
-    background: color-mix(in srgb, var(--af-blue-soft) 55%, transparent);
+    border: 1.5px solid var(--dpk-blue);
+    background: color-mix(in srgb, var(--dpk-blue-soft) 55%, transparent);
     box-shadow:
-      0 0 0 3px var(--af-blue-soft),
-      var(--af-shadow-sm);
+      0 0 0 3px var(--dpk-blue-soft),
+      var(--dpk-shadow-sm);
   }
 
   /* The slice being carried by a move drag. */
@@ -123,7 +123,7 @@ export const eventStormingStyles = css`
     bottom: -6px;
     width: 3px;
     border-radius: 2px;
-    background: var(--af-blue);
+    background: var(--dpk-blue);
   }
 
   .slice--insert-before::before {
@@ -142,13 +142,13 @@ export const eventStormingStyles = css`
     z-index: 5;
     width: 26px;
     height: 26px;
-    border: 1px solid var(--af-rule-strong);
+    border: 1px solid var(--dpk-rule-strong);
     border-radius: 50%;
-    background: var(--af-paper-raised);
-    color: var(--af-ink-soft);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
     font-size: 13px;
     line-height: 1;
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
     cursor: crosshair;
     opacity: 0;
     pointer-events: none;
@@ -164,8 +164,8 @@ export const eventStormingStyles = css`
   }
 
   .slice-port:hover {
-    border-color: var(--af-blue);
-    color: var(--af-blue);
+    border-color: var(--dpk-blue);
+    color: var(--dpk-blue);
   }
 
   /* Add-note chips under the hovered slice: the roles it is still missing. */
@@ -178,14 +178,14 @@ export const eventStormingStyles = css`
   }
 
   .slice-chip {
-    border: 1px dashed var(--af-rule-strong);
+    border: 1px dashed var(--dpk-rule-strong);
     border-radius: 999px;
     padding: 3px 9px;
     font-size: 10.5px;
     font-weight: 620;
     white-space: nowrap;
-    color: var(--af-ink-soft);
-    background: color-mix(in srgb, var(--af-paper-raised) 88%, transparent);
+    color: var(--dpk-ink-soft);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent);
     cursor: pointer;
     transition:
       border-color 120ms ease,
@@ -193,8 +193,8 @@ export const eventStormingStyles = css`
   }
 
   .slice-chip:hover {
-    border-color: var(--af-blue);
-    color: var(--af-blue);
+    border-color: var(--dpk-blue);
+    color: var(--dpk-blue);
   }
 
   /* ------------------------------------------------------ bounded contexts */
@@ -243,7 +243,7 @@ export const eventStormingStyles = css`
     border: none;
     border-radius: 999px;
     padding: 3px 10px;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 9.5px;
     font-weight: 650;
     letter-spacing: 0.13em;
@@ -252,7 +252,7 @@ export const eventStormingStyles = css`
     color: #fff;
     background: rgba(var(--ctx-rgb), 0.9);
     cursor: pointer;
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
   }
 
   .context-label-name:hover {
@@ -267,8 +267,8 @@ export const eventStormingStyles = css`
     font-size: 9px;
     line-height: 1;
     color: rgba(var(--ctx-rgb), 0.9);
-    background: color-mix(in srgb, var(--af-paper-raised) 92%, transparent);
-    box-shadow: var(--af-shadow-xs);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 92%, transparent);
+    box-shadow: var(--dpk-shadow-xs);
     cursor: pointer;
     opacity: 0;
     transition: opacity 120ms ease;
@@ -294,7 +294,7 @@ export const eventStormingStyles = css`
      a var() inside stroke="..." is not substituted and the line stays invisible. */
   .link-path {
     fill: none;
-    stroke: var(--af-ink-soft);
+    stroke: var(--dpk-ink-soft);
     stroke-width: 1.6;
     stroke-linecap: round;
     opacity: 0.6;
@@ -312,24 +312,24 @@ export const eventStormingStyles = css`
   }
 
   .link-path.is-selected {
-    stroke: var(--af-blue);
+    stroke: var(--dpk-blue);
     stroke-width: 2.6;
     opacity: 1;
   }
 
   .link-label {
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 9px;
     letter-spacing: 0.06em;
-    fill: var(--af-ink-soft);
+    fill: var(--dpk-ink-soft);
     paint-order: stroke;
-    stroke: var(--af-paper-raised);
+    stroke: var(--dpk-paper-raised);
     stroke-width: 3;
     stroke-linejoin: round;
   }
 
   .links-layer marker path {
-    fill: var(--af-ink-soft);
+    fill: var(--dpk-ink-soft);
     opacity: 0.75;
   }
 
@@ -348,21 +348,21 @@ export const eventStormingStyles = css`
 
   .connect-line {
     fill: none;
-    stroke: var(--af-blue);
+    stroke: var(--dpk-blue);
     stroke-width: 2;
     stroke-linecap: round;
     stroke-dasharray: 6 4;
   }
 
   .connect-tip {
-    fill: var(--af-blue);
+    fill: var(--dpk-blue);
   }
 
   .select-rect {
     position: absolute;
     z-index: 30;
-    border: 1px solid var(--af-blue);
-    background: color-mix(in srgb, var(--af-blue-soft) 40%, transparent);
+    border: 1px solid var(--dpk-blue);
+    background: color-mix(in srgb, var(--dpk-blue-soft) 40%, transparent);
     pointer-events: none;
   }
 
@@ -377,19 +377,19 @@ export const eventStormingStyles = css`
     gap: 12px;
     align-items: center;
     padding: 5px 12px;
-    border: 1px solid var(--af-rule);
+    border: 1px solid var(--dpk-rule);
     border-radius: 999px;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 10px;
     letter-spacing: 0.05em;
-    color: var(--af-ink-faint);
-    background: color-mix(in srgb, var(--af-paper-raised) 82%, transparent);
+    color: var(--dpk-ink-faint);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 82%, transparent);
     backdrop-filter: blur(6px);
     pointer-events: none;
   }
 
   .board-hint {
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     opacity: 0.8;
   }
 
@@ -400,11 +400,11 @@ export const eventStormingStyles = css`
     z-index: 40;
     display: flex;
     align-items: center;
-    border: 1px solid var(--af-rule);
+    border: 1px solid var(--dpk-rule);
     border-radius: 8px;
-    background: color-mix(in srgb, var(--af-paper-raised) 88%, transparent);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent);
     backdrop-filter: blur(6px);
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
     overflow: hidden;
   }
 
@@ -414,18 +414,18 @@ export const eventStormingStyles = css`
     padding: 6px 10px;
     font-size: 12px;
     line-height: 1;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
     cursor: pointer;
   }
 
   .board-zoom button:hover {
-    background: var(--af-blue-soft);
-    color: var(--af-blue);
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
   }
 
   .board-zoom .board-zoom-pct {
     min-width: 48px;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 10.5px;
   }
 
@@ -439,37 +439,37 @@ export const eventStormingStyles = css`
     gap: 8px;
     align-items: center;
     padding: 8px 12px;
-    border: 1px solid var(--af-rule-strong);
+    border: 1px solid var(--dpk-rule-strong);
     border-radius: 10px;
-    background: color-mix(in srgb, var(--af-paper-raised) 94%, transparent);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
     backdrop-filter: blur(6px);
-    box-shadow: var(--af-shadow);
+    box-shadow: var(--dpk-shadow);
   }
 
   .board-selection-count {
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 10.5px;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
     white-space: nowrap;
   }
 
   .board-selection-hint {
     font-size: 10.5px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     white-space: nowrap;
   }
 
   /* ----------------------------------------------------------------- empty */
 
   .empty {
-    border: 1px dashed var(--af-rule-strong);
-    border-radius: var(--af-radius-lg);
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-lg);
     padding: 28px 24px;
-    background: var(--af-paper-raised);
+    background: var(--dpk-paper-raised);
     max-width: 560px;
     display: grid;
     gap: 10px;
-    box-shadow: var(--af-shadow-sm);
+    box-shadow: var(--dpk-shadow-sm);
     justify-items: start;
   }
 
@@ -499,18 +499,18 @@ export const eventStormingStyles = css`
     font-size: 11px;
     font-weight: 620;
     text-align: left;
-    background: var(--es-note-bg, var(--af-paper-raised));
-    color: var(--es-note-ink, var(--af-ink));
+    background: var(--es-note-bg, var(--dpk-paper-raised));
+    color: var(--es-note-ink, var(--dpk-ink));
     cursor: pointer;
     transition: transform 120ms ease;
   }
 
   .type-chip:hover {
     transform: translateY(-1px);
-    box-shadow: var(--af-shadow-sm);
+    box-shadow: var(--dpk-shadow-sm);
   }
 
-  .link-add .af-select {
+  .link-add .dpk-select {
     flex: 1 1 auto;
     min-width: 0;
   }

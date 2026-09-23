@@ -1,7 +1,7 @@
 import type { DraftAction, TemplateDefinition } from './types';
 
 import { COMMENT_ACTION } from './action';
-import { ARTIFACT_TARGET_TYPE, sameState, type Derivation } from './derive';
+import { PAGE_TARGET_TYPE, sameState, type Derivation } from './derive';
 import { isElementAction } from './element-actions';
 import { ownAction } from './schema';
 
@@ -11,7 +11,7 @@ import { ownAction } from './schema';
  * A draft states what should change, not the history of how the reader got
  * there: adding a note and deleting it again leaves nothing to hand back, and
  * neither does moving a story away and back. After a change, every set of
- * template actions whose removal leaves the artifact meaning the same is
+ * template actions whose removal leaves the page meaning the same is
  * dropped from the draft.
  *
  * Only the final state decides, so a cancellation can never change what the
@@ -19,7 +19,7 @@ import { ownAction } from './schema';
  * run that ends where it started, and earlier actions on the same entities.
  * Removing a candidate may leave later actions without a target (a rename of a
  * note that is no longer added); those are removed with it, and still only when
- * the artifact then means the same. Comments and component element actions are
+ * the page then means the same. Comments and component element actions are
  * never removed, and a stale action is never part of a candidate.
  */
 export const compactDraft = <S>(
@@ -129,7 +129,7 @@ const relatedSets = <S>(
  * still checked against the final state.
  */
 const referencesOf = (action: DraftAction): readonly string[] => {
-  const target = action.target.type === ARTIFACT_TARGET_TYPE ? [] : action.target.id.split('.');
+  const target = action.target.type === PAGE_TARGET_TYPE ? [] : action.target.id.split('.');
   const payload =
     typeof action.payload === 'object' && action.payload !== null
       ? Object.values(action.payload).filter((value): value is string => typeof value === 'string' && value !== '')
@@ -143,7 +143,7 @@ const modeOf = <S>(definition: TemplateDefinition<S>, action: DraftAction) => {
 
 /**
  * The draft without `ids`, and without the actions that lose their target once
- * those are gone, or `null` when that changes what the artifact means.
+ * those are gone, or `null` when that changes what the page means.
  */
 const withoutActions = <S>(
   definition: TemplateDefinition<S>,

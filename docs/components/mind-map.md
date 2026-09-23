@@ -1,11 +1,11 @@
-# artifact-mind-map
+# dpk-component-mind-map
 
 A central topic and a tree of subtopics, fanned out to the left and the right. Selecting a topic lights its path to the centre and everything beneath it; a topic with subtopics folds down to a count.
 
 Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing): `docs/components/diagrams.md`.
 
 ```html
-<artifact-mind-map id="checkout-mind-map" heading="Mind map" subject="注文フロー刷新の論点">
+<dpk-component-mind-map id="checkout-mind-map" heading="Mind map" subject="注文フロー刷新の論点">
   <script type="application/json">
     {
       "root": {
@@ -26,7 +26,7 @@ Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing):
       }
     }
   </script>
-</artifact-mind-map>
+</dpk-component-mind-map>
 ```
 
 ## Data
@@ -48,7 +48,7 @@ Duplicate ids, `side` below a main topic and unknown keys are errors, and the el
 
 ## Layout
 
-The central topic sits in the middle. Main topics without a `side` go to whichever half has fewer leaves so far, so the map stays balanced; authored sides count towards that balance. Subtrees are stacked so they never overlap, and each main topic gives its whole branch one colour.
+The central topic sits in the middle. Main topics without a `side` go to whichever half has fewer leaves so far, so the map stays balanced; authored sides count towards that balance. Subtrees are stacked so they never overlap, and each main topic gives its whole branch one color.
 
 The map opens fitted to the canvas (the centre is in the middle, so 100% from the top-left corner would hide half of it). Folding and filtering keep the reader's current pan and zoom.
 

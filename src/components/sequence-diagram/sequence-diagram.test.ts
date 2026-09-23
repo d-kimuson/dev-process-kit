@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ArtifactSequenceDiagram } from './element';
-import { defineSequenceDiagram, SEQUENCE_DIAGRAM_TAG } from './index';
+import { DpkComponentSequenceDiagram } from './element';
+import { defineSequenceDiagram } from './index';
 import { flattenMessages, layoutSequence, messageNumbers, parseSequenceData, pruneItems } from './model';
 
 defineSequenceDiagram();
@@ -86,19 +86,19 @@ const raw = {
   ],
 } as const;
 
-const settle = async (element: ArtifactSequenceDiagram): Promise<void> => {
+const settle = async (element: DpkComponentSequenceDiagram): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<ArtifactSequenceDiagram> => {
-  const element = new ArtifactSequenceDiagram();
+const mount = async (): Promise<DpkComponentSequenceDiagram> => {
+  const element = new DpkComponentSequenceDiagram();
   element.data = parseSequenceData(raw);
   document.body.append(element);
   await settle(element);
   return element;
 };
 
-const labels = (element: ArtifactSequenceDiagram): (string | undefined)[] =>
+const labels = (element: DpkComponentSequenceDiagram): (string | undefined)[] =>
   [...element.renderRoot.querySelectorAll<HTMLElement>('[data-message-label]')].map(
     (node) => node.dataset['messageLabel'],
   );
@@ -184,7 +184,6 @@ describe('sequence diagram data', () => {
         items: [{ kind: 'fragment', id: 'f', operator: 'alt', title: 'T', branches: [] }],
       }),
     ).toThrow();
-    expect(SEQUENCE_DIAGRAM_TAG).toBe('artifact-sequence-diagram');
   });
 
   it('prunes filtered messages, and the fragments left empty', () => {
@@ -204,7 +203,7 @@ describe('sequence diagram data', () => {
   });
 });
 
-describe('artifact-sequence-diagram', () => {
+describe('dpk-component-sequence-diagram', () => {
   it('renders the participant rail, numbered messages and a folded fragment', async () => {
     const element = await mount();
     expect(element.renderRoot.querySelectorAll('[data-participant]')).toHaveLength(4);

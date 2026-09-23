@@ -5,7 +5,7 @@ import type { ActionDescriptor } from './types';
 import { COMMENT_ACTION } from './action';
 
 /**
- * Free comments are draft actions like any other (design §15): same envelope,
+ * Free comments are draft actions like any other: same envelope,
  * same pipeline, same CommentPanel. Only `payload.body` is core-owned.
  */
 export const commentActionSchema = v.object({
@@ -22,7 +22,7 @@ export type CommentPayload = v.InferOutput<typeof commentActionSchema>['payload'
 export const COMMENT_DESCRIPTOR: ActionDescriptor = {
   schema: commentActionSchema,
   mode: 'append',
-  targetType: 'artifact',
+  targetType: 'page',
 };
 
 /** A comment's body is external input: validate the payload instead of asserting it. */

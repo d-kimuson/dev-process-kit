@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing, type PropertyValues, type TemplateResult } from 'lit';
 
-import type { ArtifactInlineEdit } from '../../../components/inline-edit';
+import type { DpkComponentInlineEdit } from '../../../components/inline-edit';
 import type { DraftAction } from '../../../core/types';
 import type { StickyNote } from '../model';
 import type { NoteCardMode, NoteIntent } from '../ui-mode';
@@ -26,7 +26,7 @@ export const NOTE_TYPE_LABELS: Record<StickyNote['type'], string> = {
   hotspot: 'ホットスポット',
 };
 
-/** Sticky colour per type — the single source for the notes and the legend. */
+/** Sticky color per type — the single source for the notes and the legend. */
 const NOTE_TYPE_COLORS: Record<StickyNote['type'], { readonly bg: string; readonly ink: string }> = {
   event: { bg: 'linear-gradient(178deg, #ffbc55, #f8a52e)', ink: '#402703' },
   command: { bg: 'linear-gradient(178deg, #93c9f2, #74b4e8)', ink: '#0e2c4b' },
@@ -56,8 +56,8 @@ const cardStyles = css`
     box-sizing: border-box;
     padding: 16px 9px 8px;
     border-radius: 3px;
-    background: var(--es-note-bg, var(--af-paper-raised));
-    color: var(--es-note-ink, var(--af-ink));
+    background: var(--es-note-bg, var(--dpk-paper-raised));
+    color: var(--es-note-ink, var(--dpk-ink));
     box-shadow:
       0 1px 2px rgba(30, 24, 10, 0.14),
       0 5px 10px -4px rgba(30, 24, 10, 0.24);
@@ -78,7 +78,7 @@ const cardStyles = css`
   }
 
   :host([focused]) {
-    outline: 2px solid var(--af-blue);
+    outline: 2px solid var(--dpk-blue);
     outline-offset: 2px;
     transform: rotate(0deg);
     z-index: 5;
@@ -97,7 +97,7 @@ const cardStyles = css`
     position: absolute;
     top: 5px;
     left: 7px;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 8px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -140,9 +140,9 @@ const cardStyles = css`
     height: 17px;
     padding: 0 4px;
     border-radius: 999px;
-    background: var(--af-accent);
-    color: var(--af-accent-ink);
-    font-family: var(--af-mono);
+    background: var(--dpk-accent);
+    color: var(--dpk-accent-ink);
+    font-family: var(--dpk-mono);
     font-size: 9.5px;
     font-weight: 650;
     line-height: 17px;
@@ -179,8 +179,8 @@ const cardStyles = css`
     font-weight: 620;
     white-space: nowrap;
     color: #c2213a;
-    background: color-mix(in srgb, var(--af-paper-raised) 94%, transparent);
-    box-shadow: var(--af-shadow-xs);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
+    box-shadow: var(--dpk-shadow-xs);
     cursor: pointer;
     opacity: 0;
     pointer-events: none;
@@ -206,26 +206,26 @@ const cardStyles = css`
     pointer-events: auto;
   }
 
-  .note-tools .af-icon-btn {
+  .note-tools .dpk-icon-btn {
     width: 22px;
     height: 22px;
-    border: 1px solid var(--af-rule);
+    border: 1px solid var(--dpk-rule);
     border-radius: 50%;
-    background: color-mix(in srgb, var(--af-paper-raised) 94%, transparent);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
     backdrop-filter: blur(2px);
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
   }
 `;
 
 /**
- * `<artifact-es-note>` — one sticky note on the wall.
+ * `<dpk-internal-event-storming-note>` — one sticky note on the wall.
  *
  * The board positions and sizes the host; the note only paints itself and
  * reports `NoteIntent`s. Which note is being edited or commented on is the
  * host element's decision (`EsUiMode`); the card renders the mode it is given
  * and never dispatches actions itself.
  */
-export class EsNoteCard extends LitElement {
+export class DpkInternalEventStormingNote extends LitElement {
   static override styles = [controls, cardStyles, popoverSurface];
 
   static override properties = {
@@ -271,7 +271,7 @@ export class EsNoteCard extends LitElement {
     if (changed.has('mode')) {
       if (this.mode !== 'commenting') this.#draft = '';
       if (this.mode === 'editing') {
-        this.renderRoot.querySelector<ArtifactInlineEdit>('artifact-inline-edit')?.startEditing();
+        this.renderRoot.querySelector<DpkComponentInlineEdit>('dpk-component-inline-edit')?.startEditing();
       }
     }
     if (this.mode !== 'commenting') return;
@@ -285,14 +285,14 @@ export class EsNoteCard extends LitElement {
     if (!note) return nothing;
     return html`
       <div class="note-type">${NOTE_TYPE_LABELS[note.type]}</div>
-      <artifact-inline-edit
+      <dpk-component-inline-edit
         class="note-name"
         ?wrap=${true}
         ?seamless=${true}
         .value=${note.name}
         .label=${'付箋名'}
-        @artifact-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
-      ></artifact-inline-edit>
+        @dpk-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
+      ></dpk-component-inline-edit>
       ${this.notes.length > 0 ? html`<span class="note-flag">${this.notes.length}</span>` : nothing}
       ${
         note.type === 'hotspot'
@@ -309,7 +309,7 @@ export class EsNoteCard extends LitElement {
       }
       <div class="note-tools">
         <button
-          class="af-icon-btn"
+          class="dpk-icon-btn"
           type="button"
           data-role="comment"
           aria-label="コメント"
@@ -319,7 +319,7 @@ export class EsNoteCard extends LitElement {
           ${iconComment()}
         </button>
         <button
-          class="af-icon-btn"
+          class="dpk-icon-btn"
           type="button"
           data-role="delete"
           aria-label="削除"
@@ -354,6 +354,7 @@ export class EsNoteCard extends LitElement {
   }
 }
 
-export const defineEsNoteCard = (tag = 'artifact-es-note'): void => {
-  if (!customElements.get(tag)) customElements.define(tag, EsNoteCard);
+export const defineEsNoteCard = (): void => {
+  if (!customElements.get('dpk-internal-event-storming-note'))
+    customElements.define('dpk-internal-event-storming-note', DpkInternalEventStormingNote);
 };

@@ -1,7 +1,7 @@
 import { LitElement, html, nothing, type CSSResultGroup, type PropertyDeclarations, type TemplateResult } from 'lit';
 import { safeParse } from 'valibot';
 
-import type { ArtifactApi, ArtifactSnapshot, ShellRegions, TemplateRenderContext } from './shell/contracts';
+import type { TemplateApi, TemplateSnapshot, ShellRegions, TemplateRenderContext } from './shell/contracts';
 import type {
   ActionInput,
   BatchDispatchOutcome,
@@ -14,11 +14,11 @@ import type {
 
 import { COMMENT_ACTION } from './action';
 import { componentCommentSubmissionSchema } from './comment-targets';
-import { ArtifactController } from './controller';
+import { DraftController } from './controller';
 import { componentElementActionSchema } from './element-actions';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { defaultStorage, MemoryDraftStorage, type DraftStorage } from './persistence';
-import { createArtifactApi, renderContextOf, snapshotOf, type ArtifactFacadeSource } from './shell/api';
+import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSource } from './shell/api';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
 import { PreviewRouter } from './shell/preview-router';
@@ -26,7 +26,7 @@ import { chromeStyles } from './shell/styles';
 import { targetRef } from './target';
 import { FRAMEWORK_VERSION } from './version';
 
-export abstract class ArtifactElement<S> extends LitElement {
+export abstract class TemplateElement<S> extends LitElement {
   static override styles: CSSResultGroup = chromeStyles;
 
   /**
@@ -56,10 +56,10 @@ export abstract class ArtifactElement<S> extends LitElement {
 
   abstract readonly definition: TemplateDefinition<S>;
 
-  #controller: ArtifactController<S> | undefined;
+  #controller: DraftController<S> | undefined;
   #navigation: Navigation = EMPTY_NAVIGATION;
   #pendingCommentTarget: string | null = null;
-  readonly #listeners = new Set<(snapshot: ArtifactSnapshot<S>) => void>();
+  readonly #listeners = new Set<(snapshot: TemplateSnapshot<S>) => void>();
   #baseError: string | null = null;
   #unsubscribe: (() => void) | undefined;
   #previewObserver: MutationObserver | undefined;
@@ -69,7 +69,7 @@ export abstract class ArtifactElement<S> extends LitElement {
   #readyPromise: Promise<void> = new Promise<void>((resolve) => {
     this.#resolveReady = resolve;
   });
-  #api: ArtifactApi<S> | undefined;
+  #api: TemplateApi<S> | undefined;
 
   // ---------------------------------------------------------------- lifecycle
 
@@ -83,10 +83,10 @@ export abstract class ArtifactElement<S> extends LitElement {
     this.#start();
     window.addEventListener('hashchange', this.#onHashChange);
     this.addEventListener('click', this.#onClick);
-    this.addEventListener('artifact-comment-targets-change', this.#refreshCommentTargets);
-    this.addEventListener('artifact-comment-request', this.#onCommentRequest);
-    this.addEventListener('artifact-comment-submit', this.#onCommentSubmit);
-    this.addEventListener('artifact-element-action', this.#onElementAction);
+    this.addEventListener('dpk-comment-targets-change', this.#refreshCommentTargets);
+    this.addEventListener('dpk-comment-request', this.#onCommentRequest);
+    this.addEventListener('dpk-comment-submit', this.#onCommentSubmit);
+    this.addEventListener('dpk-element-action', this.#onElementAction);
     this.#targetObserver ??= new MutationObserver(this.#refreshCommentTargets);
     this.#refreshCommentTargets();
   }
@@ -99,10 +99,10 @@ export abstract class ArtifactElement<S> extends LitElement {
     this.removeEventListener('click', this.#onClick);
     this.#previewObserver?.disconnect();
     this.#targetObserver?.disconnect();
-    this.removeEventListener('artifact-comment-targets-change', this.#refreshCommentTargets);
-    this.removeEventListener('artifact-comment-request', this.#onCommentRequest);
-    this.removeEventListener('artifact-comment-submit', this.#onCommentSubmit);
-    this.removeEventListener('artifact-element-action', this.#onElementAction);
+    this.removeEventListener('dpk-comment-targets-change', this.#refreshCommentTargets);
+    this.removeEventListener('dpk-comment-request', this.#onCommentRequest);
+    this.removeEventListener('dpk-comment-submit', this.#onCommentSubmit);
+    this.removeEventListener('dpk-element-action', this.#onElementAction);
   }
 
   /**
@@ -133,12 +133,12 @@ export abstract class ArtifactElement<S> extends LitElement {
 
   // ------------------------------------------------------------------ public
 
-  get artifact(): ArtifactApi<S> {
+  get api(): TemplateApi<S> {
     this.#api ??= this.#createApi();
     return this.#api;
   }
 
-  get controller(): ArtifactController<S> {
+  get controller(): DraftController<S> {
     if (!this.#controller) throw new Error(`<${this.tagName.toLowerCase()}> is not initialized yet`);
     return this.#controller;
   }
@@ -156,7 +156,7 @@ export abstract class ArtifactElement<S> extends LitElement {
     if (!outcome.ok) {
       this.requestUpdate();
       this.dispatchEvent(
-        new CustomEvent('artifact-error', {
+        new CustomEvent('dpk-error', {
           detail: { issues: outcome.issues },
           bubbles: true,
           composed: true,
@@ -172,7 +172,7 @@ export abstract class ArtifactElement<S> extends LitElement {
     if (!outcome.ok) {
       this.requestUpdate();
       this.dispatchEvent(
-        new CustomEvent('artifact-error', { detail: { issues: outcome.issues }, bubbles: true, composed: true }),
+        new CustomEvent('dpk-error', { detail: { issues: outcome.issues }, bubbles: true, composed: true }),
       );
       this.#notify();
     }
@@ -196,7 +196,7 @@ export abstract class ArtifactElement<S> extends LitElement {
     if (before === after) return;
     this.#notify();
     this.dispatchEvent(
-      new CustomEvent('artifact-navigate', {
+      new CustomEvent('dpk-navigate', {
         detail: { navigation: this.#navigation },
         bubbles: true,
         composed: true,
@@ -224,13 +224,13 @@ export abstract class ArtifactElement<S> extends LitElement {
   }
 
   protected renderReviewPanel(context: TemplateRenderContext<S>): TemplateResult {
-    return html`<artifact-comment-panel
+    return html`<dpk-component-comment-panel
       .definition=${this.controller.definition}
       .state=${context.state}
       .navigation=${context.navigation}
       .derivation=${this.derivation}
       .issues=${this.controller.lastIssues}
-      .exportBrief=${() => this.artifact.exportBrief()}
+      .exportBrief=${() => this.api.exportBrief()}
       .pendingTarget=${this.#pendingCommentTarget}
       .embedded=${this.integratedReview}
       .onDelete=${(id: string) => this.removeAction(id)}
@@ -240,64 +240,67 @@ export abstract class ArtifactElement<S> extends LitElement {
         if (outcome.ok) this.#pendingCommentTarget = null;
         return outcome;
       }}
-    ></artifact-comment-panel>`;
+    ></dpk-component-comment-panel>`;
   }
 
   protected renderChrome(context: TemplateRenderContext<S>, regions: ShellRegions): TemplateResult {
     const draftCount = context.actions.length;
     const commentCount = context.comments.length;
     return html`
-      <div class="af-shell">
-        <header class="af-header">
-          <div class="af-title">
-            <span class="af-template-mark">${this.definition.label}</span>
+      <div class="dpk-shell">
+        <header class="dpk-header">
+          <div class="dpk-title">
+            <span class="dpk-template-mark">${this.definition.label}</span>
             <h1>${this.definition.title(context.state)}</h1>
           </div>
-          <div class="af-header-slot">
+          <div class="dpk-header-slot">
             ${regions.header ?? nothing}
             <slot name="header"></slot>
           </div>
-          <div class="af-header-meta">
+          <div class="dpk-header-meta">
             <span>dev-process-kit@${FRAMEWORK_VERSION}</span>
             <span>${this.definition.name}</span>
             <span>${draftCount} draft · ${commentCount} note</span>
           </div>
         </header>
-        <div class="af-body">
-          <aside class="af-sidebar" ?hidden=${regions.sidebarHidden || (!regions.sidebar && !this.hasSidebarContent())}>
+        <div class="dpk-body">
+          <aside
+            class="dpk-sidebar"
+            ?hidden=${regions.sidebarHidden || (!regions.sidebar && !this.hasSidebarContent())}
+          >
             ${regions.sidebar ?? nothing}
             <slot name="sidebar"></slot>
           </aside>
-          <main class="af-main">
-            <div class="af-main-body">
+          <main class="dpk-main">
+            <div class="dpk-main-body">
               ${
                 this.#baseError
-                  ? html`<div class="af-banner" role="alert">
-                      <strong>base data を読み込めませんでした（空の Artifact として表示中）</strong>
+                  ? html`<div class="dpk-banner" role="alert">
+                      <strong>base data を読み込めませんでした（空のページとして表示中）</strong>
                       <code>${this.#baseError}</code>
                     </div>`
                   : nothing
               }
               ${regions.main ?? nothing}
               <slot name="main"></slot>
-              <section class="af-orphans" ?hidden=${this.#previewRouter.orphans === 0}>
-                <p class="af-label">previews without metadata</p>
+              <section class="dpk-orphans" ?hidden=${this.#previewRouter.orphans === 0}>
+                <p class="dpk-label">previews without metadata</p>
                 <slot name="preview"></slot>
               </section>
             </div>
-            <div class="af-memo" ?hidden=${!this.hasMemoContent()}>
+            <div class="dpk-memo" ?hidden=${!this.hasMemoContent()}>
               <slot name="memo"></slot>
             </div>
           </main>
           ${
             this.integratedReview
               ? nothing
-              : html`<aside class="af-notes" ?hidden=${!this.notesOpen}>${this.renderReviewPanel(context)}</aside>`
+              : html`<aside class="dpk-notes" ?hidden=${!this.notesOpen}>${this.renderReviewPanel(context)}</aside>`
           }
         </div>
         ${
           regions.footer || this.hasFooterContent()
-            ? html`<footer class="af-footer">
+            ? html`<footer class="dpk-footer">
                 ${regions.footer ?? nothing}
                 <slot name="footer"></slot>
               </footer>`
@@ -307,7 +310,7 @@ export abstract class ArtifactElement<S> extends LitElement {
           this.integratedReview
             ? nothing
             : html`<button
-                class="af-fab"
+                class="dpk-fab"
                 type="button"
                 aria-expanded=${this.notesOpen ? 'true' : 'false'}
                 title="レビュー / コメント"
@@ -315,14 +318,14 @@ export abstract class ArtifactElement<S> extends LitElement {
                   this.notesOpen = !this.notesOpen;
                 }}
               >
-                <span class="af-fab-icon" aria-hidden="true"></span>
+                <span class="dpk-fab-icon" aria-hidden="true"></span>
                 <span
-                  class="af-label"
+                  class="dpk-label"
                   style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"
                 >
                   レビュー
                 </span>
-                ${draftCount > 0 ? html`<span class="af-fab-badge">${draftCount}</span>` : nothing}
+                ${draftCount > 0 ? html`<span class="dpk-fab-badge">${draftCount}</span>` : nothing}
               </button>`
         }
       </div>
@@ -357,7 +360,7 @@ export abstract class ArtifactElement<S> extends LitElement {
 
   // --------------------------------------------------------------- internals
 
-  #facadeSource(): ArtifactFacadeSource<S> {
+  #facadeSource(): TemplateFacadeSource<S> {
     return {
       definition: this.definition,
       controller: () => this.controller,
@@ -381,11 +384,11 @@ export abstract class ArtifactElement<S> extends LitElement {
     };
   }
 
-  #createApi(): ArtifactApi<S> {
-    return createArtifactApi(this.#facadeSource(), this);
+  #createApi(): TemplateApi<S> {
+    return createTemplateApi(this.#facadeSource(), this);
   }
 
-  #snapshot(): ArtifactSnapshot<S> {
+  #snapshot(): TemplateSnapshot<S> {
     return snapshotOf(this.#facadeSource());
   }
 
@@ -401,7 +404,7 @@ export abstract class ArtifactElement<S> extends LitElement {
     const base = this.#readBase();
     this.#navigation = readNavigationFromHash();
     const storageKey = this.storageKey;
-    this.#controller = new ArtifactController<S>({
+    this.#controller = new DraftController<S>({
       definition: this.definition,
       base,
       storage: this.#resolveStorage(),
@@ -424,9 +427,7 @@ export abstract class ArtifactElement<S> extends LitElement {
   #readBase(): S {
     const script = this.querySelector('script[type="application/json"]');
     if (!script?.textContent || script.textContent.trim().length === 0) {
-      console.warn(
-        `[dev-process-kit] <${this.tagName.toLowerCase()}> has no base JSON; starting from an empty artifact.`,
-      );
+      console.warn(`[dev-process-kit] <${this.tagName.toLowerCase()}> has no base JSON; starting from an empty state.`);
       this.#baseError = 'no <script type="application/json"> child found';
       return this.definition.emptyBase();
     }
@@ -479,7 +480,7 @@ export abstract class ArtifactElement<S> extends LitElement {
     this.requestUpdate();
     this.#notify();
     this.dispatchEvent(
-      new CustomEvent('artifact-change', {
+      new CustomEvent('dpk-change', {
         detail: this.#snapshot(),
         bubbles: true,
         composed: true,
@@ -500,7 +501,7 @@ export abstract class ArtifactElement<S> extends LitElement {
     this.requestUpdate();
     this.#notify();
     this.dispatchEvent(
-      new CustomEvent('artifact-navigate', {
+      new CustomEvent('dpk-navigate', {
         detail: { navigation: this.#navigation },
         bubbles: true,
         composed: true,
@@ -519,7 +520,7 @@ export abstract class ArtifactElement<S> extends LitElement {
   };
 
   #onCommentRequest = (event: Event): void => {
-    // Even a rejected request belongs to its nearest artifact, never an ancestor.
+    // Even a rejected request belongs to its nearest template, never an ancestor.
     event.stopPropagation();
     if (!(event instanceof CustomEvent) || !this.#controller) return;
     const detail: unknown = event.detail;
@@ -559,18 +560,18 @@ export abstract class ArtifactElement<S> extends LitElement {
     if (outcome.ok) event.preventDefault();
   };
 
-  /** `data-artifact-navigate="step=next"` and `data-artifact-comment="step:x"` sugar. */
+  /** `data-dpk-navigate="step=next"` and `data-dpk-comment="step:x"` sugar. */
   #onClick = (event: Event): void => {
     for (const node of event.composedPath()) {
       if (!(node instanceof Element)) continue;
       if (node === this || node.hasAttribute('data-template')) break;
-      const nav = node.getAttribute('data-artifact-navigate');
+      const nav = node.getAttribute('data-dpk-navigate');
       if (nav !== null) {
         event.preventDefault();
         this.navigate(parseHash(nav.includes('=') ? nav : `step=${nav}`));
         return;
       }
-      const comment = node.getAttribute('data-artifact-comment');
+      const comment = node.getAttribute('data-dpk-comment');
       if (comment !== null) {
         event.preventDefault();
         this.requestComment(comment);

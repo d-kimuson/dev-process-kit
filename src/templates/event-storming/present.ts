@@ -123,8 +123,8 @@ export const eventStormingTargetLabel = (state: EventStormingState, target: Acti
       const l = findLink(state, target.id);
       return l ? `リンク · ${l.from}→${l.to}` : `リンク · ${target.id} (missing)`;
     }
-    case 'artifact':
-      return `Artifact · ${eventStormingTitle(state)}`;
+    case 'page':
+      return `ページ · ${eventStormingTitle(state)}`;
     default:
       return `${target.type} · ${target.id}`;
   }

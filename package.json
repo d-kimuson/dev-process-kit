@@ -2,7 +2,7 @@
   "name": "@kimuson/dev-process-kit",
   "version": "0.0.1",
   "private": true,
-  "description": "Dev Process Kit — core + templates (Prototype / USM / EventStorming)",
+  "description": "Web Components for single-file HTML pages that a human reviews in the browser, with a structured draft/feedback loop back to an agent.",
   "license": "MIT",
   "type": "module",
   "scripts": {

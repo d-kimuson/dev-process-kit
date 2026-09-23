@@ -1,12 +1,12 @@
 import { css } from 'lit';
 
 export const grillStyles = css`
-  .af-main {
+  .dpk-main {
     order: 1;
   }
 
   /* The shell's sidebar becomes a right-hand rail, keeping its width and scroll. */
-  .af-sidebar {
+  .dpk-sidebar {
     order: 2;
     width: 336px;
     display: flex;
@@ -14,7 +14,7 @@ export const grillStyles = css`
     gap: 0;
     padding: 0;
     border-right: 0;
-    border-left: 1px solid var(--af-rule);
+    border-left: 1px solid var(--dpk-rule);
   }
 
   /* The header reserves room for the corner button, exactly like the review
@@ -35,11 +35,11 @@ export const grillStyles = css`
   }
 
   .grill-tab-panel[hidden],
-  .af-sidebar[hidden] {
+  .dpk-sidebar[hidden] {
     display: none;
   }
 
-  .grill-tab-panel artifact-comment-panel {
+  .grill-tab-panel dpk-component-comment-panel {
     flex: 1;
   }
 
@@ -61,14 +61,14 @@ export const grillStyles = css`
     width: 38px;
     height: 38px;
     padding: 0;
-    border: 1px solid var(--af-rule-strong);
+    border: 1px solid var(--dpk-rule-strong);
     border-radius: 999px;
-    background: var(--af-paper-raised);
-    color: var(--af-ink-soft);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
     font-size: 16.5px;
     font-weight: 650;
     line-height: 1;
-    box-shadow: var(--af-shadow);
+    box-shadow: var(--dpk-shadow);
     cursor: pointer;
     transition:
       color 160ms ease,
@@ -79,25 +79,25 @@ export const grillStyles = css`
   }
 
   .grill-toggle:hover {
-    color: var(--af-ink);
+    color: var(--dpk-ink);
     transform: translateY(-2px) scale(1.05);
-    box-shadow: var(--af-shadow-lg);
+    box-shadow: var(--dpk-shadow-lg);
   }
 
   .grill-toggle:active {
     transform: translateY(0) scale(0.97);
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
   }
 
   .grill-toggle:focus-visible {
     outline: none;
-    box-shadow: var(--af-focus);
+    box-shadow: var(--dpk-focus);
   }
 
   .grill-toggle[aria-expanded='true'] {
-    color: var(--af-accent-ink);
+    color: var(--dpk-accent-ink);
     border-color: transparent;
-    background: linear-gradient(135deg, var(--af-accent), #c23e12);
+    background: linear-gradient(135deg, var(--dpk-accent), #c23e12);
     box-shadow: 0 2px 8px rgba(217, 73, 32, 0.3);
   }
 
@@ -112,11 +112,11 @@ export const grillStyles = css`
     min-width: 22px;
     height: 18px;
     padding: 0 5px;
-    border: 2px solid var(--af-paper-raised);
+    border: 2px solid var(--dpk-paper-raised);
     border-radius: 999px;
-    background: var(--af-paper-inset);
-    color: var(--af-ink-faint);
-    font-family: var(--af-mono);
+    background: var(--dpk-paper-inset);
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
     font-size: 9px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
@@ -127,8 +127,8 @@ export const grillStyles = css`
   }
 
   .grill-toggle[aria-expanded='true'] .grill-toggle-badge {
-    background: var(--af-paper-raised);
-    color: var(--af-ink-soft);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
   }
 
   /* ------------------------------------------------------------- the list */
@@ -139,8 +139,8 @@ export const grillStyles = css`
     gap: 2px;
     flex-shrink: 0;
     padding: 8px 10px;
-    border-bottom: 1px solid var(--af-rule);
-    background: var(--af-paper-raised);
+    border-bottom: 1px solid var(--dpk-rule);
+    background: var(--dpk-paper-raised);
   }
 
   .grill-tabs button {
@@ -149,31 +149,31 @@ export const grillStyles = css`
     gap: 5px;
     padding: 5px 9px;
     border: 1px solid transparent;
-    border-radius: var(--af-radius-xs);
+    border-radius: var(--dpk-radius-xs);
     background: transparent;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     font-size: 11.5px;
     cursor: pointer;
   }
 
   .grill-tabs button:hover {
-    background: var(--af-paper-inset);
-    color: var(--af-ink);
+    background: var(--dpk-paper-inset);
+    color: var(--dpk-ink);
   }
 
   .grill-tabs button[aria-selected='true'] {
-    border-color: var(--af-rule-strong);
-    background: var(--af-paper-raised);
-    color: var(--af-ink);
+    border-color: var(--dpk-rule-strong);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
     font-weight: 600;
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
   }
 
   .grill-count {
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 10px;
     font-variant-numeric: tabular-nums;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .grill-list {
@@ -189,11 +189,11 @@ export const grillStyles = css`
     padding: 22px 8px;
     text-align: center;
     font-size: 12px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .grill-question {
-    border-bottom: 1px solid var(--af-rule);
+    border-bottom: 1px solid var(--dpk-rule);
   }
 
   .grill-question:last-child {
@@ -207,14 +207,14 @@ export const grillStyles = css`
     width: 100%;
     padding: 11px 6px;
     border: 0;
-    border-radius: var(--af-radius-xs);
+    border-radius: var(--dpk-radius-xs);
     background: none;
     text-align: left;
     cursor: pointer;
   }
 
   .grill-heading:hover {
-    background: var(--af-paper-sunken);
+    background: var(--dpk-paper-sunken);
   }
 
   .grill-ref {
@@ -224,25 +224,25 @@ export const grillStyles = css`
     min-width: 30px;
     height: 22px;
     padding: 0 6px;
-    border: 1px solid var(--af-rule-strong);
+    border: 1px solid var(--dpk-rule-strong);
     border-radius: 999px;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 10px;
     font-variant-numeric: tabular-nums;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .grill-question[data-answered='true'] .grill-ref {
     border-color: transparent;
-    background: var(--af-green-soft);
-    color: var(--af-green);
+    background: var(--dpk-green-soft);
+    color: var(--dpk-green);
     font-weight: 600;
   }
 
   .grill-question:has(.grill-heading[aria-expanded='true']) .grill-ref {
     border-color: transparent;
-    background: var(--af-accent-soft);
-    color: var(--af-accent);
+    background: var(--dpk-accent-soft);
+    color: var(--dpk-accent);
     font-weight: 600;
   }
 
@@ -263,7 +263,7 @@ export const grillStyles = css`
     margin-top: 4px;
     font-size: 10.5px;
     line-height: 1.6;
-    color: var(--af-green);
+    color: var(--dpk-green);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -272,7 +272,7 @@ export const grillStyles = css`
   .grill-chevron {
     flex: 0 0 auto;
     width: 16px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     font-size: 12px;
     line-height: 22px;
     text-align: center;
@@ -286,18 +286,18 @@ export const grillStyles = css`
     margin: 0 0 8px;
     font-size: 11.5px;
     line-height: 1.85;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
   }
 
   .grill-note {
     margin: 0 0 10px;
     padding: 7px 10px;
-    border-left: 2px solid var(--af-amber);
-    border-radius: 0 var(--af-radius-xs) var(--af-radius-xs) 0;
-    background: var(--af-amber-soft);
+    border-left: 2px solid var(--dpk-amber);
+    border-radius: 0 var(--dpk-radius-xs) var(--dpk-radius-xs) 0;
+    background: var(--dpk-amber-soft);
     font-size: 11px;
     line-height: 1.7;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
   }
 
   .grill-choices {
@@ -310,27 +310,27 @@ export const grillStyles = css`
     align-items: flex-start;
     gap: 8px;
     padding: 8px 9px;
-    border: 1px solid var(--af-rule);
-    border-radius: var(--af-radius-sm);
-    background: var(--af-paper);
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper);
     font-size: 11.5px;
     line-height: 1.7;
     cursor: pointer;
   }
 
   .grill-choice:hover {
-    border-color: var(--af-rule-strong);
+    border-color: var(--dpk-rule-strong);
   }
 
   .grill-choice:has(input:checked) {
-    border-color: color-mix(in srgb, var(--af-green) 45%, transparent);
-    background: var(--af-green-soft);
+    border-color: color-mix(in srgb, var(--dpk-green) 45%, transparent);
+    background: var(--dpk-green-soft);
   }
 
   .grill-choice input {
     flex: 0 0 auto;
     margin: 3px 0 0;
-    accent-color: var(--af-green);
+    accent-color: var(--dpk-green);
   }
 
   .grill-choice-text {
@@ -341,10 +341,10 @@ export const grillStyles = css`
 
   .grill-letter {
     flex: 0 0 auto;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 10px;
     line-height: 1.9;
-    color: var(--af-green);
+    color: var(--dpk-green);
   }
 
   .grill-free {
@@ -358,7 +358,7 @@ export const grillStyles = css`
     padding: 0;
     border: 0;
     background: none;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     font-size: 10.5px;
     text-decoration: underline;
     text-underline-offset: 3px;
@@ -366,14 +366,14 @@ export const grillStyles = css`
   }
 
   .grill-clear:hover {
-    color: var(--af-ink);
+    color: var(--dpk-ink);
   }
 
   .grill-footer {
     flex-shrink: 0;
     padding: 10px 12px;
-    border-top: 1px solid var(--af-rule);
-    background: var(--af-paper-raised);
+    border-top: 1px solid var(--dpk-rule);
+    background: var(--dpk-paper-raised);
   }
 
   .grill-copy {
@@ -383,24 +383,24 @@ export const grillStyles = css`
   /* The copy button reports the outcome, so a click is never silent. */
   .grill-copy[data-status='copied'] {
     border-color: transparent;
-    background: var(--af-green);
-    color: var(--af-accent-ink);
+    background: var(--dpk-green);
+    color: var(--dpk-accent-ink);
   }
 
   .grill-copy[data-status='copied']:hover:not([disabled]) {
     border-color: transparent;
-    background: color-mix(in srgb, var(--af-green) 85%, #000);
+    background: color-mix(in srgb, var(--dpk-green) 85%, #000);
   }
 
   .grill-copy[data-status='failed'] {
     border-color: transparent;
-    background: var(--af-amber);
-    color: var(--af-accent-ink);
+    background: var(--dpk-amber);
+    color: var(--dpk-accent-ink);
   }
 
   .grill-copy[data-status='failed']:hover:not([disabled]) {
     border-color: transparent;
-    background: color-mix(in srgb, var(--af-amber) 85%, #000);
+    background: color-mix(in srgb, var(--dpk-amber) 85%, #000);
   }
 
   /* Announced to assistive tech; the button label change alone is easy to miss. */
@@ -439,15 +439,15 @@ export const grillStyles = css`
     min-width: 30px;
     height: 22px;
     padding: 0 7px;
-    border: 2px solid var(--af-paper-raised);
+    border: 2px solid var(--dpk-paper-raised);
     border-radius: 999px;
-    background: var(--af-accent);
-    color: var(--af-accent-ink);
-    font-family: var(--af-mono);
+    background: var(--dpk-accent);
+    color: var(--dpk-accent-ink);
+    font-family: var(--dpk-mono);
     font-size: 10px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
     cursor: pointer;
     pointer-events: auto;
   }
@@ -457,21 +457,21 @@ export const grillStyles = css`
   }
 
   .grill-label:hover {
-    background: color-mix(in srgb, var(--af-accent) 80%, #000);
+    background: color-mix(in srgb, var(--dpk-accent) 80%, #000);
   }
 
   .grill-label[data-answered='true'] {
-    background: var(--af-green);
+    background: var(--dpk-green);
   }
 
   .grill-label[aria-pressed='true'] {
     box-shadow:
-      0 0 0 2px color-mix(in srgb, var(--af-accent) 45%, transparent),
-      var(--af-shadow-xs);
+      0 0 0 2px color-mix(in srgb, var(--dpk-accent) 45%, transparent),
+      var(--dpk-shadow-xs);
   }
 
   .grill-label:focus-visible {
     outline: none;
-    box-shadow: var(--af-focus);
+    box-shadow: var(--dpk-focus);
   }
 `;

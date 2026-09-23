@@ -1,8 +1,8 @@
 # dev-process-kit
 
-単一 HTML Artifact（UX Prototype / USM / Event Storming）の
-**構造・レビュー・Agent へのフィードバック**を共通化するフレームワークである。
-ビルド不要の単一 ESM として配布し、Custom Elements / attributes / properties /
+Agent が生成し人がブラウザでレビューする単一 HTML ページの
+**構造・レビュー・Agent へのフィードバック**を共通化する Web Components である。
+ビルド不要の ESM として配布し、Custom Elements / attributes / properties /
 events / slots だけを公開契約にする（Lit は実装詳細）。
 
 ## Directory Structure
@@ -10,8 +10,8 @@ events / slots だけを公開契約にする（Lit は実装詳細）。
 ```text
 .
 ├── src/
-│   ├── components/    # 公開 custom element（artifact-comment-panel / artifact-inline-edit）
-│   ├── templates/     # 公開テンプレート（prototype / usm / event-storming / example-mapping / grill / plain）
+│   ├── components/    # 公開コンポーネント dpk-component-*（レビューレール / インライン編集 / 図）
+│   ├── templates/     # 公開テンプレート dpk-template-*（prototype / usm / event-storming / example-mapping / grill / plain）
 │   ├── core/          # 内部実装（pipeline / persistence / element 基底 / 契約）
 │   ├── lib/           # 依存を持たない小さな共通ヘルパー（lib/dom/*）
 │   ├── entries/       # 配信する entrypoint（components / templates/<name>）

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ArtifactStateDiagram } from './element';
+import { DpkComponentStateDiagram } from './element';
 import { defineStateDiagram } from './index';
 import { hasAuthoredPositions, parseStateData } from './model';
 
@@ -35,20 +35,20 @@ const raw = {
   ],
 };
 
-const settle = async (element: ArtifactStateDiagram): Promise<void> => {
+const settle = async (element: DpkComponentStateDiagram): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<ArtifactStateDiagram> => {
-  const element = document.createElement('artifact-state-diagram');
-  if (!(element instanceof ArtifactStateDiagram)) throw new Error('did not upgrade');
+const mount = async (): Promise<DpkComponentStateDiagram> => {
+  const element = document.createElement('dpk-component-state-diagram');
+  if (!(element instanceof DpkComponentStateDiagram)) throw new Error('did not upgrade');
   element.innerHTML = `<script type="application/json">${JSON.stringify(raw)}</script>`;
   document.body.append(element);
   await settle(element);
   return element;
 };
 
-const ids = (element: ArtifactStateDiagram, selector: string): (string | undefined)[] =>
+const ids = (element: DpkComponentStateDiagram, selector: string): (string | undefined)[] =>
   [...element.renderRoot.querySelectorAll<HTMLElement>(selector)].map(
     (node) => node.dataset['state'] ?? node.dataset['transition'] ?? node.dataset['transitionLabel'],
   );
@@ -81,7 +81,7 @@ describe('state diagram data', () => {
   });
 });
 
-describe('artifact-state-diagram', () => {
+describe('dpk-component-state-diagram', () => {
   it('renders states at their authored positions with an initial marker', async () => {
     const element = await mount();
     expect(ids(element, '.state-node')).toEqual(['pending', 'paid', 'cancelled', 'refunding']);
@@ -158,7 +158,7 @@ describe('artifact-state-diagram', () => {
     expect(ids(element, '[data-transition-label]')).toEqual(['charge']);
     expect(element.renderRoot.querySelectorAll('.state-initial-mark')).toHaveLength(1);
 
-    element.renderRoot.querySelector<HTMLButtonElement>('.af-tag-clear')?.click();
+    element.renderRoot.querySelector<HTMLButtonElement>('.dpk-tag-clear')?.click();
     await element.updateComplete;
     expect(ids(element, '.state-node')).toHaveLength(4);
 
@@ -168,7 +168,7 @@ describe('artifact-state-diagram', () => {
   });
 
   it('lays out states without positions automatically', async () => {
-    const element = new ArtifactStateDiagram();
+    const element = new DpkComponentStateDiagram();
     element.data = parseStateData({
       states: [
         { id: 'a', name: 'A' },

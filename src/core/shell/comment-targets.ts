@@ -11,9 +11,9 @@ import {
 } from '../element-actions';
 
 /**
- * Elements of one artifact that take part in the provider contract: they
+ * Elements of one template that take part in the provider contract: they
  * register `commentTargets`, or accept `elementActions` under their `id`.
- * Providers in open shadow roots count; nested artifacts own their history.
+ * Providers in open shadow roots count; nested templates own their history.
  */
 export const findComponentProviders = (
   host: Element,

@@ -160,7 +160,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     const signature = JSON.stringify([this.commentTargets, this.#elementResults]);
     if (signature !== this.#targetSignature) {
       this.#targetSignature = signature;
-      this.dispatchEvent(new CustomEvent('artifact-comment-targets-change', { bubbles: true, composed: true }));
+      this.dispatchEvent(new CustomEvent('dpk-comment-targets-change', { bubbles: true, composed: true }));
     }
   }
 
@@ -177,7 +177,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
       onView: (view) => {
         if (this.#zoomLabel) this.#zoomLabel.textContent = `${Math.round(view.scale * 100)}%`;
         this.dispatchEvent(
-          new CustomEvent('artifact-diagram-view', {
+          new CustomEvent('dpk-diagram-view', {
             detail: { view },
             bubbles: true,
             composed: true,
@@ -236,7 +236,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     const target = this.commentRef(kind, ...ids);
     if (!this.commentTargets.some((option) => option.value === target)) return;
     this.dispatchEvent(
-      new CustomEvent('artifact-comment-request', {
+      new CustomEvent('dpk-comment-request', {
         detail: { target },
         bubbles: true,
         composed: true,
@@ -245,7 +245,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
   }
 
   /**
-   * The draft actions the hosting artifact recorded against this diagram, in
+   * The draft actions the hosting template recorded against this diagram, in
    * order. The host assigns them; the diagram replays them over its data.
    */
   get elementActions(): readonly DraftAction[] {
@@ -278,8 +278,8 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
   }
 
   /**
-   * Asks the hosting artifact to record an action against one of this
-   * diagram's elements. `true` when an artifact accepted it; by then the action
+   * Asks the hosting template to record an action against one of this
+   * diagram's elements. `true` when a template accepted it; by then the action
    * is already replayed into `items()`.
    */
   protected dispatchElementAction(
@@ -287,7 +287,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     element: readonly [kind: string, ...ids: string[]],
     payload: Readonly<Record<string, unknown>>,
   ): boolean {
-    const event = new CustomEvent('artifact-element-action', {
+    const event = new CustomEvent('dpk-element-action', {
       detail: { type, target: this.commentRef(...element), payload },
       bubbles: true,
       composed: true,
@@ -460,7 +460,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
 
   /**
    * `data-grill-questions` for a rendered element, or `nothing` when the data
-   * carries no references. `artifact-grill-labels` places a badge per reference;
+   * carries no references. `dpk-template-grill` places a badge per reference;
    * it reaches into this shadow root to find them.
    */
   protected questionsOf(item: { readonly questions?: string | null }): string | typeof nothing {
@@ -589,9 +589,9 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
       return;
     }
     if (intent.kind === 'comment') {
-      // Only an enclosing artifact that saved the comment cancels the event.
+      // Only an enclosing template that saved the comment cancels the event.
       const accepted = !this.dispatchEvent(
-        new CustomEvent('artifact-comment-submit', {
+        new CustomEvent('dpk-comment-submit', {
           detail: { target, body: intent.body },
           bubbles: true,
           composed: true,
@@ -636,9 +636,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     this.#selection = selection;
     // A composer belongs to the element it was opened on.
     this.#commenting = null;
-    this.dispatchEvent(
-      new CustomEvent('artifact-diagram-select', { detail: { selection }, bubbles: true, composed: true }),
-    );
+    this.dispatchEvent(new CustomEvent('dpk-diagram-select', { detail: { selection }, bubbles: true, composed: true }));
     this.requestUpdate();
   }
 
@@ -703,7 +701,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
             <span class="diagram-stats">${this.statsText()}</span>
             <button
               type="button"
-              class="af-icon-btn diagram-maximize"
+              class="dpk-icon-btn diagram-maximize"
               aria-label=${maximizeLabel}
               title=${maximizeLabel}
               aria-pressed=${maximized === null ? 'false' : 'true'}

@@ -1,6 +1,6 @@
 # Keep drafts interpretive: drop actions that cancel out
 
-A draft states what should change, not the history of how the reader got there. After every change, the core drops each set of template actions whose removal leaves the artifact meaning the same.
+A draft states what should change, not the history of how the reader got there. After every change, the core drops each set of template actions whose removal leaves the page meaning the same.
 
 ## Status
 

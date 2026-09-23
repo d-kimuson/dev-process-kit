@@ -22,7 +22,7 @@ export type SequenceMessage = {
   readonly tags: readonly string[];
   readonly guard: string | null;
   readonly detail: string | null;
-  /** Space-separated `artifact-grill-panel` references. */
+  /** Space-separated `dpk-template-grill` question ids. */
   readonly questions: string | null;
 };
 

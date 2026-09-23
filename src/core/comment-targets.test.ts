@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ArtifactController } from './controller';
+import { DraftController } from './controller';
 import { tinyDefinition } from './testing/tiny-template';
 
 // External components contribute targets, never template state or actions.
@@ -14,7 +14,7 @@ describe('component comment targets', () => {
       commentTargets: () => [native],
       describe: () => ({ title: 'Comment', targetLabel: 'Native note', tone: 'comment' }) as const,
     };
-    const controller = new ArtifactController({ definition, base: tinyDefinition.emptyBase(), storage: null });
+    const controller = new DraftController({ definition, base: tinyDefinition.emptyBase(), storage: null });
     controller.dispatch({ type: 'comment', target: 'element:n1', payload: { body: 'Keep this note' } });
     controller.setComponentSnapshot({
       targets: [
@@ -34,7 +34,7 @@ describe('component comment targets', () => {
     expect(controller.derivation.comments).toHaveLength(1);
   });
   it('shares validation, persistence and stale handling with template comments', () => {
-    const controller = new ArtifactController({
+    const controller = new DraftController({
       definition: tinyDefinition,
       base: tinyDefinition.emptyBase(),
       storage: null,

@@ -1,12 +1,12 @@
 import { css } from 'lit';
 
-/** Board chrome of `<artifact-usm>`: table, headers, rows, cells. Cards style themselves. */
+/** Board chrome of `<dpk-template-usm>`: table, headers, rows, cells. Cards style themselves. */
 export const usmStyles = css`
   :host {
-    --af-usm-accent: var(--af-blue);
+    --dpk-usm-accent: var(--dpk-blue);
   }
   .map-scroll {
-    /* A wide table must scroll inside itself and never widen the artifact shell. */
+    /* A wide table must scroll inside itself and never widen the template shell. */
     min-width: 0;
     max-width: 100%;
     overflow-x: auto;
@@ -16,10 +16,10 @@ export const usmStyles = css`
     display: grid;
     gap: 0;
     min-width: max-content;
-    border: 1px solid var(--af-rule);
-    border-radius: var(--af-radius-lg);
-    background: var(--af-paper-raised);
-    box-shadow: var(--af-shadow);
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow);
     overflow: hidden;
   }
   .map-row {
@@ -27,7 +27,7 @@ export const usmStyles = css`
     grid-template-columns: 140px repeat(var(--cols), minmax(180px, 240px));
   }
   .map-row + .map-row {
-    border-top: 1px solid var(--af-rule-strong);
+    border-top: 1px solid var(--dpk-rule-strong);
   }
   .corner,
   .act-head,
@@ -37,7 +37,7 @@ export const usmStyles = css`
     padding: 10px;
   }
   .corner {
-    background: linear-gradient(135deg, var(--af-paper-sunken), var(--af-paper-inset));
+    background: linear-gradient(135deg, var(--dpk-paper-sunken), var(--dpk-paper-inset));
     display: grid;
     gap: 2px;
     align-content: start;
@@ -50,9 +50,9 @@ export const usmStyles = css`
     gap: 2px;
     padding: 3px;
     margin-bottom: 12px;
-    border: 1px solid var(--af-rule);
+    border: 1px solid var(--dpk-rule);
     border-radius: 999px;
-    background: var(--af-paper-sunken);
+    background: var(--dpk-paper-sunken);
     box-shadow: inset 0 1px 2px rgba(20, 28, 44, 0.04);
   }
 
@@ -62,7 +62,7 @@ export const usmStyles = css`
     font-size: 12px;
     font-weight: 500;
     text-decoration: none;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
     white-space: nowrap;
     transition:
       background 120ms ease,
@@ -70,19 +70,19 @@ export const usmStyles = css`
   }
 
   .tab:hover {
-    color: var(--af-ink);
-    background: var(--af-paper-raised);
+    color: var(--dpk-ink);
+    background: var(--dpk-paper-raised);
   }
 
   .tab[data-current='true'] {
-    background: var(--af-paper-raised);
-    color: var(--af-ink);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
     font-weight: 600;
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
   }
   .act-head {
-    border-left: 1px solid var(--af-rule);
-    background: linear-gradient(180deg, var(--af-paper-sunken), var(--af-paper-inset));
+    border-left: 1px solid var(--dpk-rule);
+    background: linear-gradient(180deg, var(--dpk-paper-sunken), var(--dpk-paper-inset));
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -91,13 +91,13 @@ export const usmStyles = css`
     font-weight: 600;
   }
   .col-head {
-    border-left: 1px solid var(--af-rule);
-    background: var(--af-paper-sunken);
+    border-left: 1px solid var(--dpk-rule);
+    background: var(--dpk-paper-sunken);
     transition: background 150ms ease;
   }
   .col-head[data-current='true'] {
     background: linear-gradient(180deg, rgba(51, 102, 204, 0.06), rgba(51, 102, 204, 0.03));
-    box-shadow: inset 0 2px 0 var(--af-blue);
+    box-shadow: inset 0 2px 0 var(--dpk-blue);
   }
   .col-head h4 {
     font-size: 13px;
@@ -107,7 +107,7 @@ export const usmStyles = css`
     display: flex;
     align-items: center;
     gap: 6px;
-    background: var(--af-paper-sunken);
+    background: var(--dpk-paper-sunken);
     font-size: 12px;
     font-weight: 600;
     transition: background 150ms ease;
@@ -119,7 +119,7 @@ export const usmStyles = css`
     user-select: none;
   }
 
-  .row-head[draggable='true'] artifact-inline-edit {
+  .row-head[draggable='true'] dpk-component-inline-edit {
     -webkit-user-drag: none;
   }
 
@@ -130,7 +130,7 @@ export const usmStyles = css`
   .row-grip {
     flex: 0 0 auto;
     display: inline-flex;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .row-grip svg {
@@ -141,13 +141,13 @@ export const usmStyles = css`
 
   /* Row-level drag affordance: hover highlights the entire .map-row. */
   .map-row[data-draggable='true']:hover > .row-head {
-    background: linear-gradient(90deg, var(--af-blue-soft), var(--af-paper-sunken));
+    background: linear-gradient(90deg, var(--dpk-blue-soft), var(--dpk-paper-sunken));
   }
   .map-row[data-draggable='true']:hover > .cell {
-    background: linear-gradient(90deg, rgba(51, 102, 204, 0.03), var(--af-paper-raised));
+    background: linear-gradient(90deg, rgba(51, 102, 204, 0.03), var(--dpk-paper-raised));
   }
   .map-row[data-draggable='true']:hover .row-grip {
-    color: var(--af-blue);
+    color: var(--dpk-blue);
   }
   .map-row[data-draggable='true'] {
     cursor: grab;
@@ -168,28 +168,28 @@ export const usmStyles = css`
 
   /* Drop target: entire row highlights. */
   .map-row[data-row-drop='true'] {
-    outline: 2px dashed var(--af-blue);
+    outline: 2px dashed var(--dpk-blue);
     outline-offset: -2px;
   }
   .map-row[data-row-drop='true'] > .row-head {
-    background: var(--af-blue-soft);
+    background: var(--dpk-blue-soft);
   }
   .map-row[data-row-drop='true'] > .cell {
-    background: linear-gradient(135deg, var(--af-blue-soft), rgba(51, 102, 204, 0.04));
+    background: linear-gradient(135deg, var(--dpk-blue-soft), rgba(51, 102, 204, 0.04));
   }
   .cell {
-    border-left: 1px solid var(--af-rule);
-    border-top: 1px solid var(--af-rule);
+    border-left: 1px solid var(--dpk-rule);
+    border-top: 1px solid var(--dpk-rule);
     display: flex;
     flex-direction: column;
     gap: 8px;
     min-height: 100px;
-    background: var(--af-paper-raised);
+    background: var(--dpk-paper-raised);
     transition: background 150ms ease;
   }
   .cell[data-drop='true'] {
-    background: linear-gradient(135deg, var(--af-blue-soft), rgba(51, 102, 204, 0.04));
-    outline: 2px dashed var(--af-blue);
+    background: linear-gradient(135deg, var(--dpk-blue-soft), rgba(51, 102, 204, 0.04));
+    outline: 2px dashed var(--dpk-blue);
     outline-offset: -2px;
   }
   .card-list {
@@ -202,35 +202,35 @@ export const usmStyles = css`
     margin-top: auto;
     opacity: 0;
     transition: opacity 180ms ease;
-    border: 1px dashed var(--af-rule-strong);
-    border-radius: var(--af-radius-sm);
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
     background: transparent;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     padding: 4px 8px;
     font-size: 11.5px;
   }
   .add-cell:hover {
-    background: var(--af-blue-soft);
-    border-color: var(--af-blue);
-    color: var(--af-blue);
+    background: var(--dpk-blue-soft);
+    border-color: var(--dpk-blue);
+    color: var(--dpk-blue);
   }
   .cell:hover .add-cell {
     opacity: 1;
   }
   .empty {
-    border: 1px dashed var(--af-rule-strong);
-    border-radius: var(--af-radius-lg);
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-lg);
     padding: 28px 24px;
-    background: var(--af-paper-raised);
+    background: var(--dpk-paper-raised);
     max-width: 620px;
     display: grid;
     gap: 10px;
   }
   .count {
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-variant-numeric: tabular-nums;
     font-size: 10px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   /* Step picker shown after a cross-activity drop. */

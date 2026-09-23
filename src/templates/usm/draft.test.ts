@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ArtifactController } from '../../core/controller';
+import { DraftController } from '../../core/controller';
 import { usmAction } from './actions';
 import { usmDefinition } from './definition';
 import { resolveCellDrop } from './drop';
@@ -27,7 +27,7 @@ const base = parseUsmBase({
   ],
 });
 
-const controller = () => new ArtifactController({ definition: usmDefinition, base, storage: null });
+const controller = () => new DraftController({ definition: usmDefinition, base, storage: null });
 
 describe('usm draft', () => {
   it('cancels a story moved to another cell and back', () => {
@@ -61,7 +61,7 @@ describe('usm draft', () => {
 
   it('cancels an activity added with its step and stories, then deleted', () => {
     const c = controller();
-    c.dispatch({ type: 'ADD_ACTIVITY', target: { type: 'artifact', id: 'usm' }, payload: { id: 'a2', name: 'A2' } });
+    c.dispatch({ type: 'ADD_ACTIVITY', target: { type: 'page', id: 'usm' }, payload: { id: 'a2', name: 'A2' } });
     c.dispatch({ type: 'ADD_STEP', target: { type: 'activity', id: 'a2' }, payload: { id: 's3', name: 'S3' } });
     c.dispatch({
       type: 'ADD_STORY',

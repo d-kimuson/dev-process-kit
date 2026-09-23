@@ -43,7 +43,7 @@ export const renderEmptyBoard = (context: TemplateRenderContext<UsmState>): Temp
     <div class="empty">
       <h2>バックボーンがまだありません</h2>
       <p>アクティビティとステップを追加すると、ここにストーリーマップが現れます。</p>
-      <button class="af-btn af-btn--accent" type="button" @click=${() => addActivity(context)}>
+      <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => addActivity(context)}>
         ＋ 最初のアクティビティ
       </button>
     </div>
@@ -95,7 +95,7 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
       <div class="map" style=${`--cols:${columns.length + 1}`} data-testid="usm-map">
         <div class="map-row">
           <div class="corner">
-            <span class="af-label">アクティビティグループ →</span>
+            <span class="dpk-label">アクティビティグループ →</span>
           </div>
           ${repeat(
             state.activities,
@@ -113,10 +113,10 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
             ({ step }) => html`
               <div class="col-head" data-current=${String(context.navigation['step'] === step.id)}>
                 <h4>
-                  <artifact-inline-edit
+                  <dpk-component-inline-edit
                     .value=${step.name}
                     .label=${'ステップ名'}
-                    @artifact-commit=${onCommit((name) =>
+                    @dpk-commit=${onCommit((name) =>
                       context.dispatch({
                         type: 'SET_STEP_NAME',
                         target: { type: 'step', id: step.id },
@@ -124,12 +124,12 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
                       }),
                     )}
                     @click=${(e: Event) => e.stopPropagation()}
-                  ></artifact-inline-edit>
+                  ></dpk-component-inline-edit>
                 </h4>
               </div>
             `,
           )}
-          <div class="corner"><span class="af-label">—</span></div>
+          <div class="corner"><span class="dpk-label">—</span></div>
         </div>
         ${repeat(
           rows,
@@ -195,8 +195,8 @@ const renderGroupView = (props: BoardProps): TemplateResult => {
 
 const renderAxisCorner = (): TemplateResult => {
   return html`<div class="corner">
-    <span class="af-label">アクティビティ →</span>
-    <span class="af-label">マイルストーン ↓</span>
+    <span class="dpk-label">アクティビティ →</span>
+    <span class="dpk-label">マイルストーン ↓</span>
   </div>`;
 };
 
@@ -209,19 +209,19 @@ const renderActivityHead = (
   if (!activity) return html`<div class="act-head"></div>`;
   return html`
     <div class="act-head" style=${style ?? nothing}>
-      <artifact-inline-edit
+      <dpk-component-inline-edit
         .value=${activity.name}
         .label=${'アクティビティ名'}
-        @artifact-commit=${onCommit((name) =>
+        @dpk-commit=${onCommit((name) =>
           context.dispatch({
             type: 'SET_ACTIVITY_NAME',
             target: { type: 'activity', id: activity.id },
             payload: { name },
           }),
         )}
-      ></artifact-inline-edit>
+      ></dpk-component-inline-edit>
       <button
-        class="af-icon-btn"
+        class="dpk-icon-btn"
         type="button"
         aria-label="このアクティビティにステップを追加"
         @click=${() => addStep(context, activity.id)}
@@ -234,14 +234,14 @@ const renderActivityHead = (
 
 const renderAddActivityHead = (context: TemplateRenderContext<UsmState>): TemplateResult => {
   return html`<div class="act-head">
-    <button class="af-btn af-btn--ghost" type="button" @click=${() => addActivity(context)}>＋ アクティビティ</button>
+    <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addActivity(context)}>＋ アクティビティ</button>
   </div>`;
 };
 
 const renderAddMilestoneRow = (context: TemplateRenderContext<UsmState>, columnCount: number): TemplateResult => {
   return html`<div class="map-row">
     <div class="row-head">
-      <button class="af-btn af-btn--ghost" type="button" @click=${() => addMilestone(context)}>
+      <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addMilestone(context)}>
         ＋ マイルストーン
       </button>
     </div>
@@ -295,18 +295,18 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
         @dragend=${source.dragend}
       >
         <span class="row-grip" aria-hidden="true">${iconGrip()}</span
-        ><artifact-inline-edit
+        ><dpk-component-inline-edit
           draggable="false"
           .value=${row.name}
           .label=${'マイルストーン名'}
-          @artifact-commit=${onCommit((name) =>
+          @dpk-commit=${onCommit((name) =>
             context.dispatch({
               type: 'SET_MILESTONE_NAME',
               target: { type: 'milestone', id: milestoneId },
               payload: { name },
             }),
           )}
-        ></artifact-inline-edit>
+        ></dpk-component-inline-edit>
       </div>
       ${cells}
       <div class="cell"></div>
@@ -343,7 +343,7 @@ const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
         )}
       </div>
       <button
-        class="af-btn af-btn--ghost add-cell"
+        class="dpk-btn dpk-btn--ghost add-cell"
         type="button"
         title="このマスにストーリーを追加"
         @click=${() => addStory(context, cell.activityId, cell.stepId, cell.milestoneId)}
@@ -387,7 +387,7 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
       ${
         firstStep
           ? html`<button
-              class="af-btn af-btn--ghost add-cell"
+              class="dpk-btn dpk-btn--ghost add-cell"
               type="button"
               aria-label="このマスにストーリーを追加"
               @click=${() => addStory(context, activityId, firstStep.id, milestoneId)}
@@ -404,7 +404,7 @@ const renderCard = (props: BoardProps, story: UserStory): TemplateResult => {
   const { context, mode, drag, handlers } = props;
   const notes = context.comments.filter((c) => c.target.type === 'story' && c.target.id === story.id);
   const source = drag.source({ type: 'story', id: story.id });
-  return html`<artifact-usm-card
+  return html`<dpk-internal-usm-story-card
     data-story=${story.id}
     draggable="true"
     .story=${story}
@@ -415,12 +415,12 @@ const renderCard = (props: BoardProps, story: UserStory): TemplateResult => {
     ?dragging=${drag.isDragging('story', story.id)}
     @dragstart=${source.dragstart}
     @dragend=${source.dragend}
-  ></artifact-usm-card>`;
+  ></dpk-internal-usm-story-card>`;
 };
 
 /** The card under the pointer; events from inside its shadow root retarget to the host. */
 const hoveredCard = (event: DragEvent): { id: string | null; element: Element } | null => {
-  const card = event.target instanceof Element ? event.target.closest('artifact-usm-card') : null;
+  const card = event.target instanceof Element ? event.target.closest('dpk-internal-usm-story-card') : null;
   return card ? { id: card.getAttribute('data-story'), element: card } : null;
 };
 

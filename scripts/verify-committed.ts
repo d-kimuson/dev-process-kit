@@ -3,13 +3,13 @@
  * Verifies that the committed deployable tree is what a build produces.
  *
  * `public/` is tracked, because the committed tree is what gets deployed: a published
- * release has to be reviewable, and "these artifacts are not stale and nobody edited them
+ * release has to be reviewable, and "these files are not stale and nobody edited them
  * by hand" is only checkable against the sources. This command rebuilds every channel whose
  * release is already committed and fails when the build changes, adds or removes anything
- * under the tree — which is what a hand-edited artifact, a build from older sources, or a
+ * under the tree — which is what a hand-edited file, a build from older sources, or a
  * publish that was never committed looks like.
  *
- * The build has to be reproducible for this to mean anything, which is why an artifact
+ * The build has to be reproducible for this to mean anything, which is why a built file
  * carries no build time and no commit (`scripts/assemble-assets.ts`); where a *deployment*
  * came from is recorded in the deploy message (`scripts/deploy-debug.ts`).
  *

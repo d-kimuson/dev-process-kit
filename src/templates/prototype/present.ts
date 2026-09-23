@@ -34,7 +34,7 @@ const arrow = (before: string | undefined, after: string): string => {
 
 /**
  * Action vocabulary -> human text. This is the only place the CommentPanel
- * needs from the template besides `serialize` (design §16).
+ * needs from the template besides `serialize`.
  */
 const DESCRIBERS: Record<string, (action: DraftAction, state: PrototypeState) => Summary> = {
   SET_ACTIVITY_NAME: (action, state) => ({
@@ -196,8 +196,8 @@ export const prototypeTargetLabel = (state: PrototypeState, target: ActionTarget
       const preview = findPreview(state, target.id)?.preview;
       return preview ? `Preview · ${preview.label ?? preview.id}` : `Preview · ${target.id} (missing)`;
     }
-    case 'artifact':
-      return `Artifact · ${prototypeTitle(state)}`;
+    case 'page':
+      return `Page · ${prototypeTitle(state)}`;
     default:
       return `${target.type} · ${target.id}`;
   }
@@ -205,7 +205,7 @@ export const prototypeTargetLabel = (state: PrototypeState, target: ActionTarget
 
 /**
  * Address shown in the browser chrome. `preview.url` wins, then `baseUrl`, then
- * a placeholder domain derived from the artifact title
+ * a placeholder domain derived from the page title
  * (`https://kumoma.example.com/<preview id>`), so a preview never shows an
  * internal id as if it were a protocol.
  */
@@ -218,7 +218,7 @@ export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePre
     ? configured.startsWith('http')
       ? configured
       : `https://${configured}`
-    : `https://${slug === 'item' ? 'artifact' : slug}.example.com`;
+    : `https://${slug === 'item' ? 'page' : slug}.example.com`;
   return `${origin.replace(/\/+$/, '')}/${preview.id}`;
 };
 
@@ -250,7 +250,7 @@ export const prototypeCommentTargets = (state: PrototypeState): readonly Comment
 
 /**
  * The step the reader is looking at: the composer's "attach to this step"
- * checkbox, and the target of an artifact-wide note's counterpart.
+ * checkbox, and the target of an page-wide note's counterpart.
  */
 export const prototypeCurrentTarget = (state: PrototypeState, nav: Navigation): CommentTargetOption | null => {
   const location = findStep(state, nav['step']);

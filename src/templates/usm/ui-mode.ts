@@ -1,5 +1,5 @@
 /**
- * Ephemeral UI state of `<artifact-usm>` as one closed union.
+ * Ephemeral UI state of `<dpk-template-usm>` as one closed union.
  *
  * At most one card is being edited or commented on and at most one drop is
  * waiting for a step choice; encoding that as a single value (instead of four

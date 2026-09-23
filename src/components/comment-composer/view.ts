@@ -35,7 +35,7 @@ export const renderComposer = (vm: ComposerViewModel, send: (intent: ComposerInt
         : nothing
     }
     <textarea
-      class="af-textarea"
+      class="dpk-textarea"
       aria-label="コメント"
       .value=${vm.body}
       @input=${(event: Event) => {
@@ -51,10 +51,10 @@ export const renderComposer = (vm: ComposerViewModel, send: (intent: ComposerInt
       }}
     ></textarea>
     <div class="pop-actions">
-      <button class="af-btn af-btn--accent" type="button" ?disabled=${vm.submission === null} @click=${submit}>
+      <button class="dpk-btn dpk-btn--accent" type="button" ?disabled=${vm.submission === null} @click=${submit}>
         送信
       </button>
-      <button class="af-btn" type="button" @click=${() => send({ kind: 'dismiss' })}>キャンセル</button>
+      <button class="dpk-btn" type="button" @click=${() => send({ kind: 'dismiss' })}>キャンセル</button>
     </div>
   </div>`;
 };

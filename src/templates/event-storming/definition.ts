@@ -28,7 +28,7 @@ export const eventStormingHasTarget = (state: EventStormingState, target: Action
       return findContext(state, target.id) !== undefined;
     case 'link':
       return findLink(state, target.id) !== undefined;
-    case 'artifact':
+    case 'page':
       return true;
     default:
       return false;

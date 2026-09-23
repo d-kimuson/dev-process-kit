@@ -148,7 +148,7 @@ export const completeReleasesIn = async (assetsRoot: string): Promise<string[]> 
  * The `VERSION` marker: the release this directory holds and the channel it was built
  * for. `verify-release.ts` fails when it disagrees with the tree.
  *
- * It deliberately carries no build time and no commit: the artifacts are committed, and
+ * It deliberately carries no build time and no commit: the built files are committed, and
  * the check that the committed tree is what a build produces (`scripts/verify-committed.ts`)
  * only means something when a build is reproducible from its sources. Which commit a
  * *deployment* came from is recorded where it belongs — in the deploy message
@@ -170,7 +170,7 @@ export const releaseIndex = (releases: readonly string[]): string => {
   return [
     '# dev-process-kit',
     '',
-    'Single HTML Artifact Framework — build-free single-file HTML artifacts with a structured draft/feedback loop back to an agent.',
+    'Web Components for single-file HTML pages that a human reviews in the browser, with a structured draft/feedback loop back to an agent.',
     '',
     '## Latest version',
     '',
@@ -187,7 +187,7 @@ export const releaseIndex = (releases: readonly string[]): string => {
     '',
     '`docs/index.md` is the entry point of a release and points at the rest of what it ships.',
     '',
-    'Build the URLs from the origin you fetched this file from, and pin the version: an artifact has to keep working when a new version is published.',
+    'Build the URLs from the origin you fetched this file from, and pin the version: a page has to keep working when a new version is published.',
     '',
   ].join('\n');
 };

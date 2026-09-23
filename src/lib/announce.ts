@@ -8,5 +8,5 @@
  */
 export const announce = (version: string, templates: readonly string[]): void => {
   if (typeof window === 'undefined') return;
-  Object.assign(window, { artifactFramework: { version, templates } });
+  Object.assign(window, { devProcessKit: { version, templates } });
 };

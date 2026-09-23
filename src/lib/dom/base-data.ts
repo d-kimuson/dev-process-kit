@@ -1,6 +1,6 @@
 /**
  * The `<script type="application/json">` child that components use for their
- * data, mirroring the artifact base-data contract: one JSON block, no envelope,
+ * data, mirroring the template base-data contract: one JSON block, no envelope,
  * parsed strictly.
  */
 export type JsonChildResult<T> =

@@ -1,8 +1,8 @@
-# artifact-comment-panel
+# dpk-component-comment-panel
 
 The review rail: the list of draft actions and comments, the stale markers, deletion, and the copy hand-off for the agent. It is a Shadow DOM component, and the only place the framework renders template-specific text — through `describe()` and `serialize()`.
 
-Every artifact uses the shared panel. Most templates place it in a notes rail, closed by default and toggled by the floating comment button. Grill embeds it in the **Review** tab beside its questions and uses one combined copy button (`docs/templates/grill.md`).
+Every template uses the shared panel. Most templates place it in a notes rail, closed by default and toggled by the floating comment button. Grill embeds it in the **Review** tab beside its questions and uses one combined copy button (`docs/templates/grill.md`).
 
 ## Rendering contract
 
@@ -16,13 +16,13 @@ The composer dispatches a core `comment` action:
 { "type": "comment", "target": "step:google-auth", "payload": { "body": "…" } }
 ```
 
-| State                                        | Target                                              |
-| -------------------------------------------- | --------------------------------------------------- |
-| an explicit request is pending               | that target (shown as a chip you can clear)         |
-| the "attach to the current …" checkbox is on | `currentTarget(state, nav)` of the template         |
-| otherwise                                    | the artifact as a whole, `artifact:<template name>` |
+| State                                        | Target                                      |
+| -------------------------------------------- | ------------------------------------------- |
+| an explicit request is pending               | that target (shown as a chip you can clear) |
+| the "attach to the current …" checkbox is on | `currentTarget(state, nav)` of the template |
+| otherwise                                    | the page as a whole, `page:<template name>` |
 
-The checkbox only appears when the template implements `currentTarget()`. `requestComment(target)` on the artifact element (or `data-artifact-comment="step:id"` in author markup) pre-fills the composer with that exact target, which is how per-element comment buttons work; the chip shows where the note will land, and clearing it returns to the checkbox. `Ctrl`/`Cmd`+Enter submits, except during IME composition. An `onComment` callback may return the dispatch outcome: a rejected submission retains its text and a successful one clears it.
+The checkbox only appears when the template implements `currentTarget()`. `requestComment(target)` on the template element (or `data-dpk-comment="step:id"` in author markup) pre-fills the composer with that exact target, which is how per-element comment buttons work; the chip shows where the note will land, and clearing it returns to the checkbox. `Ctrl`/`Cmd`+Enter submits, except during IME composition. The `onComment` callback returns the dispatch outcome: a rejected submission retains its text and a successful one clears it.
 
 Diagram-element requests use the same composer, with component labels and stable `element:` references; see `docs/components/diagrams.md`. They do not create a separate comment history.
 
@@ -34,11 +34,11 @@ Diagram-element requests use the same composer, with component labels and stable
 | `Copy brief` | markdown: template, version, navigation, comments, requested changes, then the canonical JSON |
 | `Clear`      | removes every draft action                                                                    |
 
-`element.artifact.exportBrief()` returns the same markdown as `Copy brief` (including the stale count), and `element.artifact.exportDraft()` returns the JSON with `template`, `frameworkVersion` and `exportedAt`. Both are produced from the draft only; the agent receives the base HTML separately, so it can diff intent against the current base.
+`element.api.exportBrief()` returns the same markdown as `Copy brief` (including the stale count), and `element.api.exportDraft()` returns the JSON with `template`, `frameworkVersion` and `exportedAt`. Both are produced from the draft only; the agent receives the base HTML separately, so it can diff intent against the current base.
 
 ## Standalone use
 
-The panel is a normal custom element, but it expects a derivation, not a state: assign `definition`, `state`, `navigation` and `derivation`, and re-assign `derivation` after every change. Inside an artifact the base element does that for you.
+The panel is a normal custom element, but it expects a derivation, not a state: assign `definition`, `state`, `navigation` and `derivation`, and re-assign `derivation` after every change. Inside a template the base element does that for you.
 
 | Property (attribute: false)          | Type                 | Purpose                                                   |
 | ------------------------------------ | -------------------- | --------------------------------------------------------- |

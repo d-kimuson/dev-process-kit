@@ -131,7 +131,7 @@ describe('prototype preview url', () => {
       prototypePreviewUrl(state(), { id: 'x', kind: 'browser', viewport: 'fluid', url: 'https://a.example.com/x' }),
     ).toBe('https://a.example.com/x');
     expect(prototypePreviewUrl({ activities: [] }, { id: 'x', kind: 'browser', viewport: 'fluid' })).toBe(
-      'https://artifact.example.com/x',
+      'https://page.example.com/x',
     );
   });
 });
@@ -151,7 +151,7 @@ describe('prototype applyAction', () => {
     expect(next?.activities[0]?.stories[1]?.steps[0]?.name).toBe('Profile step');
   });
 
-  it('is idempotent: applying the same patch twice gives the same artifact', () => {
+  it('is idempotent: applying the same patch twice gives the same page', () => {
     const once = applyPrototypeAction(state(), action(prototypeAction.reorderStep('a', 'c')));
     const twice = applyPrototypeAction(once ?? state(), action(prototypeAction.reorderStep('a', 'c')));
     expect(stepIds(once ?? state())).toEqual(['b', 'c', 'a']);

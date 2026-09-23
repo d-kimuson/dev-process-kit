@@ -32,7 +32,7 @@ export const prototypeHasTarget = (state: PrototypeState, target: ActionTarget):
       return findStep(state, target.id) !== undefined;
     case 'preview':
       return findPreview(state, target.id) !== undefined;
-    case 'artifact':
+    case 'page':
       return true;
     default:
       return false;
@@ -40,7 +40,7 @@ export const prototypeHasTarget = (state: PrototypeState, target: ActionTarget):
 };
 
 /**
- * Prototype template: Activity > UserStory > Step > Preview[] (design §19-§21).
+ * Prototype template: Activity > UserStory > Step > Preview[].
  * `Step` is one page / experience state; a Step owns the previews it needs.
  */
 export const prototypeDefinition: TemplateDefinition<PrototypeState> = {

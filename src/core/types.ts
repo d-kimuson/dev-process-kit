@@ -61,7 +61,7 @@ export type ActionInput = {
 };
 
 /**
- * `patch` actions express "the artifact should look like this" (last write wins,
+ * `patch` actions express "the page should look like this" (last write wins,
  * deduped per target). `append` actions accumulate (comments, additions, links).
  */
 export type ActionMode = 'patch' | 'sequence' | 'append';
@@ -127,7 +127,7 @@ export type TemplateDefinition<S> = {
 
   /** Validates and normalizes the JSON baked into the HTML. Throws when invalid. */
   parseBase(input: unknown): S;
-  /** Used when the artifact has no base JSON at all. */
+  /** Used when the element has no base JSON at all. */
   emptyBase(): S;
 
   /** Action vocabulary. `comment` is contributed by the core. */
@@ -138,7 +138,7 @@ export type TemplateDefinition<S> = {
 
   /**
    * Rewrites incidental structure (for example the global order of items that
-   * are only ever shown per lane) so that two states meaning the same artifact
+   * are only ever shown per lane) so that two states meaning the same page
    * compare equal. Deciding whether a draft still changes anything relies on
    * it; without it, states are compared as they are.
    */
@@ -170,11 +170,11 @@ export type TemplateDefinition<S> = {
    *
    * When a template provides it, the composer offers a checkbox that attaches a
    * note to that element; unchecked, or when the template has no notion of a
-   * current element, the note is artifact-wide (`target.type === 'artifact'`,
+   * current element, the note is page-wide (`target.type === 'page'`,
    * which the core always treats as applicable).
    */
   currentTarget?(state: S, nav: Navigation): CommentTargetOption | null;
 
-  /** Title shown in the artifact chrome. */
+  /** Title shown in the template chrome. */
   title(state: S): string;
 };

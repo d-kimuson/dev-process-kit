@@ -5,7 +5,7 @@ import pkg from './package.json' with { type: 'json' };
 
 export default defineConfig({
   define: {
-    __ARTIFACT_FRAMEWORK_VERSION__: JSON.stringify(pkg.version),
+    __DPK_VERSION__: JSON.stringify(pkg.version),
   },
   test: {
     environment: 'happy-dom',

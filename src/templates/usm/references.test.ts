@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { ArtifactController } from '../../core/controller';
+import { DraftController } from '../../core/controller';
 import { usmDefinition } from './definition';
 
 const make = () =>
-  new ArtifactController({
+  new DraftController({
     definition: usmDefinition,
     storage: null,
     base: usmDefinition.parseBase({
@@ -23,7 +23,7 @@ const make = () =>
 describe('USM target paths', () => {
   it.each(['ADD_ACTIVITY', 'ADD_STEP', 'ADD_STORY', 'ADD_MILESTONE'])('rejects invalid created ids for %s', (type) => {
     const c = make();
-    const target = type === 'ADD_STEP' ? 'a' : type === 'ADD_STORY' ? 'a.s' : 'artifact:usm';
+    const target = type === 'ADD_STEP' ? 'a' : type === 'ADD_STORY' ? 'a.s' : 'page:usm';
     expect(c.dispatch({ type, target, payload: { id: 'bad.id', name: 'Bad', activityId: 'a' } }).ok).toBe(false);
     expect(c.actions).toEqual([]);
   });

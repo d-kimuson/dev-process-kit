@@ -4,6 +4,7 @@ import { describe, it } from 'vitest';
 import {
   colocatedTests,
   coreTemplateBoundaries,
+  elementNaming,
   entrypointImports,
   libBoundaries,
   pureLayerBoundaries,
@@ -47,7 +48,7 @@ ruleTester.run('core-template-boundaries', coreTemplateBoundaries, {
     },
     {
       name: 'core must not import a component',
-      code: "import { ArtifactCommentPanel } from '../components/comment-panel';",
+      code: "import { DpkComponentCommentPanel } from '../components/comment-panel';",
       filename: `${CORE}/element.ts`,
       errors: [{ message: /Core must not import a template or a component/ }],
     },
@@ -87,7 +88,7 @@ ruleTester.run('lib-boundaries', libBoundaries, {
     },
     {
       name: 'lib must not import a component',
-      code: "import { ArtifactCommentPanel } from '../../components/comment-panel';",
+      code: "import { DpkComponentCommentPanel } from '../../components/comment-panel';",
       filename: `${LIB}/dom/events.ts`,
       errors: [{ message: /lib must stay dependency-free/ }],
     },
@@ -208,7 +209,7 @@ ruleTester.run('entrypoint-imports', entrypointImports, {
     },
     {
       name: 'the entrypoint itself is exempt',
-      code: "import { ArtifactElement } from './core/index';",
+      code: "import { TemplateElement } from './core/index';",
       filename: '/project/src/index.ts',
     },
     {
@@ -220,13 +221,13 @@ ruleTester.run('entrypoint-imports', entrypointImports, {
   invalid: [
     {
       name: 'internal modules must not import the public entrypoint',
-      code: "import { registerArtifactFramework } from '../index';",
+      code: "import { registerAllElements } from '../index';",
       filename: `${CORE}/element.ts`,
       errors: [{ message: /must not import the public entrypoint/ }],
     },
     {
       name: 'the directory form of the entrypoint is the same boundary',
-      code: "export { registerArtifactFramework } from '..';",
+      code: "export { registerAllElements } from '..';",
       filename: `${CORE}/element.ts`,
       errors: [{ message: /must not import the public entrypoint/ }],
     },
@@ -258,6 +259,71 @@ ruleTester.run('colocated-tests', colocatedTests, {
       code: 'export const x = 1;',
       filename: `/project/src/core/__tests__/controller.test.ts`,
       errors: [{ message: /must be colocated/ }],
+    },
+  ],
+});
+
+const define = (tag, className) => `customElements.define('${tag}', ${className});`;
+
+ruleTester.run('element-naming', elementNaming, {
+  valid: [
+    {
+      name: 'a template registers dpk-template-<its directory>',
+      code: define('dpk-template-usm', 'DpkTemplateUsm'),
+      filename: `${USM}/element.ts`,
+    },
+    {
+      name: 'a template-owned sub-element is dpk-internal-<template>-*',
+      code: define('dpk-internal-usm-story-card', 'DpkInternalUsmStoryCard'),
+      filename: `${USM}/components/story-card.ts`,
+    },
+    {
+      name: 'a component registers dpk-component-<its directory>',
+      code: define('dpk-component-er-diagram', 'DpkComponentErDiagram'),
+      filename: '/project/src/components/er-diagram/index.ts',
+    },
+    {
+      name: 'tests may register fixtures under any name',
+      code: define('tiny-diagram', 'TinyDiagram'),
+      filename: '/project/src/components/diagram/element.test.ts',
+    },
+  ],
+  invalid: [
+    {
+      name: 'the old artifact-* prefix is rejected',
+      code: define('artifact-usm', 'DpkTemplateUsm'),
+      filename: `${USM}/element.ts`,
+      errors: [{ message: /must be `dpk-template-usm` or `dpk-internal-usm-\*`/ }],
+    },
+    {
+      name: 'a template must not register another template',
+      code: define('dpk-template-prototype', 'DpkTemplatePrototype'),
+      filename: `${USM}/element.ts`,
+      errors: [{ message: /must be `dpk-template-usm`/ }],
+    },
+    {
+      name: 'a component tag follows its directory',
+      code: define('dpk-component-erd', 'DpkComponentErd'),
+      filename: '/project/src/components/er-diagram/index.ts',
+      errors: [{ message: /must be `dpk-component-er-diagram`/ }],
+    },
+    {
+      name: 'the class is the PascalCase of the tag',
+      code: define('dpk-template-usm', 'UsmElement'),
+      filename: `${USM}/element.ts`,
+      errors: [{ message: /must be named `DpkTemplateUsm`/ }],
+    },
+    {
+      name: 'the tag must be a string literal',
+      code: "const tag = 'dpk-template-usm'; customElements.define(tag, DpkTemplateUsm);",
+      filename: `${USM}/element.ts`,
+      errors: [{ message: /string literal/ }],
+    },
+    {
+      name: 'nothing outside templates and components registers elements',
+      code: define('dpk-component-thing', 'DpkComponentThing'),
+      filename: `${CORE}/element.ts`,
+      errors: [{ message: /registered only in src\/templates/ }],
     },
   ],
 });

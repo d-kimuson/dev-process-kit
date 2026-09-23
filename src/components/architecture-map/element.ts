@@ -20,7 +20,7 @@ import { architectureStyles } from './styles';
 const ARROWS = [{ id: 'arch-neutral' }, { id: 'arch-selected' }] as const;
 
 /** System map: services grouped into boundaries, with the links between them. */
-export class ArtifactArchitectureMap extends DiagramElement<ArchitectureData> {
+export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData> {
   static override styles: CSSResultGroup = [diagramStyles, architectureStyles];
 
   #showBoundaries = true;
@@ -86,7 +86,7 @@ export class ArtifactArchitectureMap extends DiagramElement<ArchitectureData> {
     return html`
       <button
         type="button"
-        class="af-btn af-btn--ghost arch-toggle"
+        class="dpk-btn dpk-btn--ghost arch-toggle"
         data-toggle="boundaries"
         aria-pressed=${this.#showBoundaries ? 'true' : 'false'}
         @click=${() => {

@@ -30,8 +30,8 @@ export const grillTargetLabel = (state: GrillState, target: ActionTarget): strin
   switch (target.type) {
     case 'question':
       return questionLabel(state, target.id);
-    case 'artifact':
-      return 'Artifact 全体';
+    case 'page':
+      return 'ページ全体';
     default:
       return target.id;
   }

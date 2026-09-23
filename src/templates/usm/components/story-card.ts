@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing, type PropertyValues, type TemplateResult } from 'lit';
 
-import type { ArtifactInlineEdit } from '../../../components/inline-edit';
+import type { DpkComponentInlineEdit } from '../../../components/inline-edit';
 import type { DraftAction } from '../../../core/types';
 import type { UserStory } from '../model';
 import type { CardIntent, CardMode } from '../ui-mode';
@@ -19,10 +19,10 @@ const cardStyles = css`
   :host {
     display: grid;
     gap: 5px;
-    background: var(--af-paper-raised);
-    border: 1px solid var(--af-rule);
-    border-radius: var(--af-radius);
-    box-shadow: var(--af-shadow-xs);
+    background: var(--dpk-paper-raised);
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius);
+    box-shadow: var(--dpk-shadow-xs);
     padding: 10px 12px 8px;
     cursor: pointer;
     transition:
@@ -32,15 +32,15 @@ const cardStyles = css`
   }
 
   :host(:hover) {
-    border-color: var(--af-rule-strong);
-    box-shadow: var(--af-shadow-sm);
+    border-color: var(--dpk-rule-strong);
+    box-shadow: var(--dpk-shadow-sm);
     transform: translateY(-1px);
   }
 
   :host([focused]) {
-    border-color: var(--af-blue);
+    border-color: var(--dpk-blue);
     box-shadow:
-      var(--af-shadow),
+      var(--dpk-shadow),
       0 0 0 2px rgba(51, 102, 204, 0.12);
   }
 
@@ -59,7 +59,7 @@ const cardStyles = css`
   .card-text {
     font-size: 11.5px;
     line-height: 1.5;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
     white-space: pre-wrap;
   }
 
@@ -70,7 +70,7 @@ const cardStyles = css`
     justify-content: flex-end;
     margin-top: 2px;
     padding-top: 5px;
-    border-top: 1px solid var(--af-rule);
+    border-top: 1px solid var(--dpk-rule);
     opacity: 0;
     transition: opacity 150ms ease;
   }
@@ -84,7 +84,7 @@ const cardStyles = css`
 `;
 
 /**
- * `<artifact-usm-card>` — one user story on the map.
+ * `<dpk-internal-usm-story-card>` — one user story on the map.
  *
  * The card owns only what is ephemeral *to itself*: the comment draft while it
  * is typed and the placement of its composer popover. Which card is being
@@ -95,7 +95,7 @@ const cardStyles = css`
  * Drag & drop is bound by the host on this element (it is the draggable), so
  * `dragging` is a plain reflected input like `focused`.
  */
-export class UsmStoryCard extends LitElement {
+export class DpkInternalUsmStoryCard extends LitElement {
   static override styles = [controls, cardStyles, popoverSurface];
 
   static override properties = {
@@ -134,7 +134,7 @@ export class UsmStoryCard extends LitElement {
     if (changed.has('mode')) {
       if (this.mode !== 'commenting') this.#draft = '';
       if (this.mode === 'editing') {
-        this.renderRoot.querySelector<ArtifactInlineEdit>('artifact-inline-edit')?.startEditing();
+        this.renderRoot.querySelector<DpkComponentInlineEdit>('dpk-component-inline-edit')?.startEditing();
       }
     }
     if (this.mode !== 'commenting') return;
@@ -154,18 +154,18 @@ export class UsmStoryCard extends LitElement {
       <div class="card-name">
         ${
           editing
-            ? html`<artifact-inline-edit
+            ? html`<dpk-component-inline-edit
                 .value=${story.name}
                 .label=${'ストーリー名'}
-                @artifact-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
-              ></artifact-inline-edit>`
+                @dpk-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
+              ></dpk-component-inline-edit>`
             : html`<span>${story.name}</span>`
         }
       </div>
       ${story.description ? html`<div class="card-text">${story.description}</div>` : nothing}
       <div class="card-tools">
         <button
-          class="af-icon-btn"
+          class="dpk-icon-btn"
           type="button"
           data-role="edit"
           aria-label="タイトルを編集"
@@ -175,7 +175,7 @@ export class UsmStoryCard extends LitElement {
           ${iconPencil()}
         </button>
         <button
-          class="af-icon-btn"
+          class="dpk-icon-btn"
           type="button"
           data-role="comment"
           aria-label="コメント"
@@ -183,10 +183,10 @@ export class UsmStoryCard extends LitElement {
           @click=${this.#tool({ kind: 'toggle-comment' })}
         >
           ${iconComment()}
-          ${this.notes.length > 0 ? html`<span class="af-icon-badge">${this.notes.length}</span>` : nothing}
+          ${this.notes.length > 0 ? html`<span class="dpk-icon-badge">${this.notes.length}</span>` : nothing}
         </button>
         <button
-          class="af-icon-btn"
+          class="dpk-icon-btn"
           type="button"
           data-role="delete"
           aria-label="削除"
@@ -221,6 +221,7 @@ export class UsmStoryCard extends LitElement {
   }
 }
 
-export const defineUsmStoryCard = (tag = 'artifact-usm-card'): void => {
-  if (!customElements.get(tag)) customElements.define(tag, UsmStoryCard);
+export const defineUsmStoryCard = (): void => {
+  if (!customElements.get('dpk-internal-usm-story-card'))
+    customElements.define('dpk-internal-usm-story-card', DpkInternalUsmStoryCard);
 };

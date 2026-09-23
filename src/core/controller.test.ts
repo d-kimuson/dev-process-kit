@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { DraftAction } from './types';
 
-import { ArtifactController } from './controller';
+import { DraftController } from './controller';
 import { MemoryDraftStorage } from './persistence';
 import { tinyBase, tinyDefinition } from './testing/tiny-template';
 
 const makeController = (actions: readonly DraftAction[] = []) => {
   const storage = new MemoryDraftStorage();
-  const controller = new ArtifactController({
+  const controller = new DraftController({
     definition: tinyDefinition,
     base: tinyBase([
       { id: 'a', name: 'Alpha' },
@@ -21,7 +21,7 @@ const makeController = (actions: readonly DraftAction[] = []) => {
   return { controller, storage };
 };
 
-describe('ArtifactController', () => {
+describe('DraftController', () => {
   it.each([null, {}, 0, 'invalid'])('rejects a malformed batch envelope: %s', (input) => {
     const { controller } = makeController();
     expect(controller.dispatchBatch(input).ok).toBe(false);
@@ -151,7 +151,7 @@ describe('ArtifactController', () => {
       payload: { name: 'Persisted' },
     });
 
-    const restored = new ArtifactController({
+    const restored = new DraftController({
       definition: tinyDefinition,
       base: tinyBase([{ id: 'a', name: 'Alpha' }]),
       storage,
@@ -172,7 +172,7 @@ describe('ArtifactController', () => {
         createdAt: 'now',
       },
     ]);
-    const controller = new ArtifactController({
+    const controller = new DraftController({
       definition: tinyDefinition,
       base: tinyBase([{ id: 'a', name: 'Alpha' }]),
       storage,
@@ -243,7 +243,7 @@ describe('ArtifactController', () => {
   });
 
   it('preserves the order of interdependent reorders', () => {
-    const controller = new ArtifactController({
+    const controller = new DraftController({
       definition: tinyDefinition,
       base: tinyBase(['a', 'b', 'c'].map((id) => ({ id, name: id }))),
       storage: null,
@@ -297,7 +297,7 @@ describe('ArtifactController', () => {
   });
 
   it('can disable persistence entirely', () => {
-    const controller = new ArtifactController({
+    const controller = new DraftController({
       definition: tinyDefinition,
       base: tinyBase([{ id: 'a', name: 'Alpha' }]),
       storage: null,

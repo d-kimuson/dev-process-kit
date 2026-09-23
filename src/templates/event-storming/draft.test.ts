@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ArtifactController } from '../../core/controller';
+import { DraftController } from '../../core/controller';
 import { eventStormingAction } from './actions';
 import { eventStormingDefinition } from './definition';
 import { sliceMovePlan } from './interactions';
@@ -19,10 +19,10 @@ const base = parseEventStormingBase({
   links: [{ id: 'l1', from: 'c1', to: 'e1' }],
 });
 
-const controller = () => new ArtifactController({ definition: eventStormingDefinition, base, storage: null });
+const controller = () => new DraftController({ definition: eventStormingDefinition, base, storage: null });
 
 const moveSlice = (
-  c: ArtifactController<EventStormingState>,
+  c: DraftController<EventStormingState>,
   moving: string,
   target: string,
   side: 'before' | 'after',
@@ -46,7 +46,7 @@ describe('event storming draft', () => {
     c.dispatch(eventStormingAction.setElementName('x', 'Renamed'));
     c.dispatch({
       type: 'LINK_ELEMENTS',
-      target: { type: 'artifact', id: 'event-storming' },
+      target: { type: 'page', id: 'event-storming' },
       payload: { id: 'lx', from: 'x', to: 'c1' },
     });
     c.dispatch(eventStormingAction.deleteElement('x'));
@@ -58,12 +58,12 @@ describe('event storming draft', () => {
     const c = controller();
     c.dispatch({
       type: 'LINK_ELEMENTS',
-      target: { type: 'artifact', id: 'event-storming' },
+      target: { type: 'page', id: 'event-storming' },
       payload: { id: 'l2', from: 'e1', to: 'e2' },
     });
     c.dispatch({
       type: 'UNLINK_ELEMENTS',
-      target: { type: 'artifact', id: 'event-storming' },
+      target: { type: 'page', id: 'event-storming' },
       payload: { from: 'e1', to: 'e2' },
     });
     expect(c.actions).toEqual([]);

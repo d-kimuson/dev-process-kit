@@ -1,6 +1,6 @@
 ---
 name: dev-process-kit
-description: Build shared understanding with the user through single-file HTML artifacts that they review and comment on in the browser. Use when the user should check or agree on your understanding — requirements, a design, a domain, a plan, open questions — instead of a long text reply.
+description: Build shared understanding with the user through single-file HTML pages that they review and comment on in the browser. Use when the user should check or agree on your understanding — requirements, a design, a domain, a plan, open questions — instead of a long text reply.
 ---
 
 # dev-process-kit

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { GrillElement } from './element';
+import type { DpkTemplateGrill } from './element';
 
 import '../../index';
 import { answerQuestion } from './actions';
@@ -44,20 +44,20 @@ const mainSlot = `
     <div data-grill-questions="Q2">在庫予約</div>
   </div>`;
 
-const mount = (questions: unknown = base, content: string = mainSlot, hash = ''): GrillElement => {
+const mount = (questions: unknown = base, content: string = mainSlot, hash = ''): DpkTemplateGrill => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <artifact-grill storage="memory">
+    <dpk-template-grill storage="memory">
       <script type="application/json">${JSON.stringify(questions)}</script>
       ${content}
-    </artifact-grill>`;
-  const element = document.querySelector('artifact-grill');
+    </dpk-template-grill>`;
+  const element = document.querySelector('dpk-template-grill');
   if (!(element instanceof HTMLElement)) throw new Error('element did not upgrade');
-  return element as GrillElement;
+  return element as DpkTemplateGrill;
 };
 
-const settle = async (element: GrillElement): Promise<void> => {
-  await element.artifact.ready;
+const settle = async (element: DpkTemplateGrill): Promise<void> => {
+  await element.api.ready;
   await element.updateComplete;
   await Promise.resolve();
   await element.updateComplete;
@@ -199,7 +199,7 @@ describe('grill review rail', () => {
   });
 });
 
-describe('artifact-grill', () => {
+describe('dpk-template-grill', () => {
   it('renders the question list, the fold control and the badges', async () => {
     const element = mount();
     await settle(element);
@@ -233,9 +233,9 @@ describe('artifact-grill', () => {
     choice.dispatchEvent(new Event('change', { bubbles: true }));
     await settle(element);
 
-    expect(element.artifact.state.answers['retry']).toEqual({ kind: 'option', optionId: 'key' });
-    expect(element.artifact.actions).toHaveLength(1);
-    expect(element.artifact.stale).toHaveLength(0);
+    expect(element.api.state.answers['retry']).toEqual({ kind: 'option', optionId: 'key' });
+    expect(element.api.actions).toHaveLength(1);
+    expect(element.api.stale).toHaveLength(0);
     expect(shadow.querySelector('[data-question="retry"]')?.getAttribute('data-answered')).toBe('true');
     expect(shadow.querySelector('.grill-toggle-badge')?.textContent).toBe('1 / 2');
 
@@ -300,13 +300,13 @@ describe('artifact-grill', () => {
 
     shadow.querySelector<HTMLButtonElement>('.grill-toggle')?.click();
     await settle(element);
-    expect(shadow.querySelector('.af-sidebar')?.hasAttribute('hidden')).toBe(true);
+    expect(shadow.querySelector('.dpk-sidebar')?.hasAttribute('hidden')).toBe(true);
     expect(shadow.querySelector('.grill-stage')).not.toBeNull();
     expect(shadow.querySelector('.grill-toggle')?.getAttribute('aria-expanded')).toBe('false');
 
     shadow.querySelector<HTMLButtonElement>('.grill-toggle')?.click();
     await settle(element);
-    expect(shadow.querySelector('.af-sidebar')?.hasAttribute('hidden')).toBe(false);
+    expect(shadow.querySelector('.dpk-sidebar')?.hasAttribute('hidden')).toBe(false);
     expect(shadow.querySelectorAll('.grill-question')).toHaveLength(2);
   });
 
@@ -335,7 +335,7 @@ describe('artifact-grill', () => {
     // Nothing left to answer: the review stays where it is.
     await choose('cancel', 'before-shipping');
     expect(element.navigation['question']).toBe('cancel');
-    expect(element.artifact.state.answers).toHaveProperty('cancel');
+    expect(element.api.state.answers).toHaveProperty('cancel');
   });
 
   it('answers with free text, keeps the caret, and clears back', async () => {
@@ -356,23 +356,23 @@ describe('artifact-grill', () => {
     area.value = '照会してから判断する';
     area.dispatchEvent(new Event('input', { bubbles: true }));
     await settle(element);
-    expect(element.artifact.state.answers['retry']).toEqual({ kind: 'free', text: '照会してから判断する' });
-    expect(element.artifact.exportBrief()).toContain('照会してから判断する');
+    expect(element.api.state.answers['retry']).toEqual({ kind: 'free', text: '照会してから判断する' });
+    expect(element.api.exportBrief()).toContain('照会してから判断する');
 
     shadow.querySelector<HTMLButtonElement>('[data-question="retry"] .grill-clear')?.click();
     await settle(element);
-    expect(element.artifact.state.answers).toEqual({});
+    expect(element.api.state.answers).toEqual({});
   });
 
   it('marks an answer stale when its question is gone', async () => {
     const element = mount();
     await settle(element);
-    element.artifact.dispatch(answerQuestion('retry', { kind: 'option', optionId: 'key' }));
+    element.api.dispatch(answerQuestion('retry', { kind: 'option', optionId: 'key' }));
     await settle(element);
     const other = mount({ questions: [{ id: 'cancel', title: 'キャンセルはいつまで？' }] });
     await settle(other);
-    other.artifact.importDraft(element.artifact.actions);
+    other.api.importDraft(element.api.actions);
     await settle(other);
-    expect(other.artifact.stale.map((entry) => entry.reason)).toEqual(['target-missing']);
+    expect(other.api.stale.map((entry) => entry.reason)).toEqual(['target-missing']);
   });
 });

@@ -1,4 +1,4 @@
-export { ArtifactSequenceDiagram } from './element';
+export { DpkComponentSequenceDiagram } from './element';
 export type { SequenceSelection } from './element';
 export {
   PARTICIPANT_PITCH,
@@ -27,10 +27,9 @@ export type {
   SequenceParticipant,
 } from './model';
 
-import { ArtifactSequenceDiagram } from './element';
+import { DpkComponentSequenceDiagram } from './element';
 
-export const SEQUENCE_DIAGRAM_TAG = 'artifact-sequence-diagram';
-
-export const defineSequenceDiagram = (tag = SEQUENCE_DIAGRAM_TAG): void => {
-  if (!customElements.get(tag)) customElements.define(tag, ArtifactSequenceDiagram);
+export const defineSequenceDiagram = (): void => {
+  if (!customElements.get('dpk-component-sequence-diagram'))
+    customElements.define('dpk-component-sequence-diagram', DpkComponentSequenceDiagram);
 };

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { DraftAction } from './types';
 
-import { ArtifactController } from './controller';
+import { DraftController } from './controller';
 import { elementActionsFor, providerOf } from './element-actions';
 import { buildAgentBrief } from './export';
 import { tinyBase, tinyDefinition } from './testing/tiny-template';
@@ -11,7 +11,7 @@ const TOPIC = 'element:map/node/root';
 const targets = [{ value: TOPIC, label: 'Root', group: 'Map' }];
 
 const makeController = (initialActions?: readonly DraftAction[]) =>
-  new ArtifactController({
+  new DraftController({
     definition: tinyDefinition,
     base: tinyBase([{ id: 'a', name: 'Alpha' }]),
     storage: null,

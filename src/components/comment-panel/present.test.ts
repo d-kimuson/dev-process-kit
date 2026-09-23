@@ -25,7 +25,7 @@ describe('panel presentation', () => {
     const ui = reducePanel(initialPanelState(), { kind: 'attach', current: true });
     expect(presentPanel(inputs, ui).target.ref).toBe('item:a');
     expect(presentPanel({ ...inputs, navigation: { item: 'b' } }, ui).target.ref).toBe('item:b');
-    expect(presentPanel({ ...inputs, navigation: {} }, ui).target.ref).toBe('artifact:tiny');
+    expect(presentPanel({ ...inputs, navigation: {} }, ui).target.ref).toBe('page:tiny');
   });
   it('keeps explicit targets stable and derives their label', () => {
     const ui = reducePanel(initialPanelState(), { kind: 'target-requested', ref: 'item:a' });

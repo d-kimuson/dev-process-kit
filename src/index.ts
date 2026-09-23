@@ -1,27 +1,22 @@
-import { registerCoreElements } from './components/index';
+import { registerComponentElements } from './components/index';
 import { FRAMEWORK_VERSION } from './core/index';
 /**
- * dev-process-kit — Single HTML Artifact Framework.
+ * dev-process-kit.
  *
  * The `index.js` entry: every template and every component in one file. Pages that use
  * one template should load that template's entry instead (`templates/<name>.js`); this
  * one is the union, and the entry the docs and samples pin when they do not care.
  *
- * Public contract (design §3): custom elements, attributes, properties, DOM
+ * Public contract: custom elements, attributes, properties, DOM
  * events and slots. Lit is an implementation detail and is never re-exported.
  */
 import { announce } from './lib/announce';
 import { registerTemplateElements } from './templates/index';
 
-/**
- * Kept as a public alias for compatibility: structural equality is
- * `es-toolkit`'s `isEqual` (a superset that also handles Date/Map/Set).
- */
-export { isEqual as deepEqual } from 'es-toolkit/predicate';
 export { FRAMEWORK_VERSION } from './core/version';
 export {
-  ArtifactElement,
-  ArtifactController,
+  TemplateElement,
+  DraftController,
   COMMENT_ACTION,
   buildAgentBrief,
   commentBody,
@@ -44,16 +39,16 @@ export {
   defaultStorageKey,
 } from './core/index';
 export {
-  ArtifactArchitectureMap,
-  ArtifactCommentPanel,
-  ArtifactDependencyGraph,
-  ArtifactErDiagram,
-  ArtifactInlineEdit,
-  ArtifactKanban,
-  ArtifactMindMap,
-  ArtifactSequenceDiagram,
-  ArtifactStateDiagram,
-  registerCoreElements,
+  DpkComponentArchitectureMap,
+  DpkComponentCommentPanel,
+  DpkComponentDependencyGraph,
+  DpkComponentErDiagram,
+  DpkComponentInlineEdit,
+  DpkComponentKanban,
+  DpkComponentMindMap,
+  DpkComponentSequenceDiagram,
+  DpkComponentStateDiagram,
+  registerComponentElements,
   registerDiagramElements,
 } from './components/index';
 export type {
@@ -78,8 +73,8 @@ export type {
   ActionInput,
   ActionTarget,
   ActionTone,
-  ArtifactApi,
-  ArtifactSnapshot,
+  TemplateApi,
+  TemplateSnapshot,
   CommentTargetOption,
   DispatchOutcome,
   BatchDispatchOutcome,
@@ -102,14 +97,14 @@ export * as exampleMapping from './templates/example-mapping';
 export * as grill from './templates/grill';
 export * as plain from './templates/plain';
 
-/** The template elements this entry registers, for `window.artifactFramework`. */
+/** The template elements this entry registers, for `window.devProcessKit`. */
 const TEMPLATES = ['prototype', 'usm', 'event-storming', 'example-mapping', 'grill', 'plain'] as const;
 
-/** Registers every `artifact-*` custom element. Idempotent. */
-export const registerArtifactFramework = (): void => {
-  registerCoreElements();
+/** Registers every `dpk-*` custom element. Idempotent. */
+export const registerAllElements = (): void => {
+  registerComponentElements();
   registerTemplateElements();
   announce(FRAMEWORK_VERSION, TEMPLATES);
 };
 
-registerArtifactFramework();
+registerAllElements();

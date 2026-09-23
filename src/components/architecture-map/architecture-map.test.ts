@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ArtifactArchitectureMap } from './element';
-import { defineArchitectureMap, ARCHITECTURE_MAP_TAG } from './index';
+import { DpkComponentArchitectureMap } from './element';
+import { defineArchitectureMap } from './index';
 import { boundaryBoxes, parseArchitectureData, SERVICE_SIZE } from './model';
 
 defineArchitectureMap();
@@ -56,19 +56,19 @@ const raw = {
   ],
 };
 
-const settle = async (element: ArtifactArchitectureMap): Promise<void> => {
+const settle = async (element: DpkComponentArchitectureMap): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<ArtifactArchitectureMap> => {
-  const element = new ArtifactArchitectureMap();
+const mount = async (): Promise<DpkComponentArchitectureMap> => {
+  const element = new DpkComponentArchitectureMap();
   element.data = parseArchitectureData(raw);
   document.body.append(element);
   await settle(element);
   return element;
 };
 
-const classes = (element: ArtifactArchitectureMap, service: string): string[] => [
+const classes = (element: DpkComponentArchitectureMap, service: string): string[] => [
   ...(element.renderRoot.querySelector<HTMLElement>(`[data-service="${service}"]`)?.classList ?? []),
 ];
 
@@ -96,7 +96,6 @@ describe('architecture map data', () => {
       }),
     ).toThrow(/duplicate service id/);
     expect(() => parseArchitectureData({ services: [{ id: 'a', name: 'A' }] })).toThrow();
-    expect(ARCHITECTURE_MAP_TAG).toBe('artifact-architecture-map');
   });
 
   it('derives a boundary rectangle around its members', () => {
@@ -178,7 +177,7 @@ describe('architecture map data', () => {
   });
 });
 
-describe('artifact-architecture-map', () => {
+describe('dpk-component-architecture-map', () => {
   it('renders boundaries, services and artwork', async () => {
     const element = await mount();
     expect(element.renderRoot.querySelectorAll('[data-service]')).toHaveLength(6);

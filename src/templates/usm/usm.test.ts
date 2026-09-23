@@ -3,9 +3,9 @@ import { LitElement } from 'lit';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { DraftAction } from '../../core/types';
-import type { UsmElement } from './element';
+import type { DpkTemplateUsm } from './element';
 
-import { ArtifactInlineEdit } from '../../components/inline-edit';
+import { DpkComponentInlineEdit } from '../../components/inline-edit';
 import { applyUsmAction } from './apply';
 import '../../index';
 import { usmDefinition } from './definition';
@@ -35,17 +35,17 @@ const action = (type: string, target: { type: string; id: string }, payload: unk
   return { id: 'a', type, target, payload, createdAt: '2026-01-01T00:00:00Z' };
 };
 
-const mount = (hash = ''): UsmElement => {
+const mount = (hash = ''): DpkTemplateUsm => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <artifact-usm storage="memory">
+    <dpk-template-usm storage="memory">
       <script type="application/json">${JSON.stringify(base)}</script>
-    </artifact-usm>`;
-  return document.querySelector('artifact-usm') as UsmElement;
+    </dpk-template-usm>`;
+  return document.querySelector('dpk-template-usm') as DpkTemplateUsm;
 };
 
-const settle = async (el: UsmElement): Promise<void> => {
-  await el.artifact.ready;
+const settle = async (el: DpkTemplateUsm): Promise<void> => {
+  await el.api.ready;
   await el.updateComplete;
   await Promise.resolve();
   await el.updateComplete;
@@ -60,21 +60,21 @@ describe('usm template', () => {
   it('keeps a step editor attached to its entity across reordering', async () => {
     const el = mount();
     await settle(el);
-    const editor = el.shadowRoot?.querySelector('.col-head artifact-inline-edit');
-    if (!(editor instanceof ArtifactInlineEdit)) throw new Error('missing editor');
+    const editor = el.shadowRoot?.querySelector('.col-head dpk-component-inline-edit');
+    if (!(editor instanceof DpkComponentInlineEdit)) throw new Error('missing editor');
     editor.startEditing();
     await editor.updateComplete;
     const input = editor.shadowRoot?.querySelector('input');
     if (!input) throw new Error('missing input');
     input.value = 'Draft S1';
     input.dispatchEvent(new Event('input'));
-    el.artifact.dispatch({ type: 'REORDER_STEP', target: 'step:a1.s2', payload: { after: null } });
+    el.api.dispatch({ type: 'REORDER_STEP', target: 'step:a1.s2', payload: { after: null } });
     await settle(el);
-    expect([...el.shadowRoot!.querySelectorAll('.col-head artifact-inline-edit')][1]).toBe(editor);
+    expect([...el.shadowRoot!.querySelectorAll('.col-head dpk-component-inline-edit')][1]).toBe(editor);
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await settle(el);
-    expect(el.artifact.state.activities[0]?.steps.find((step) => step.id === 's1')?.name).toBe('Draft S1');
-    expect(el.artifact.state.activities[0]?.steps.find((step) => step.id === 's2')?.name).toBe('S2');
+    expect(el.api.state.activities[0]?.steps.find((step) => step.id === 's1')?.name).toBe('Draft S1');
+    expect(el.api.state.activities[0]?.steps.find((step) => step.id === 's2')?.name).toBe('S2');
   });
 
   it('rejects unknown keys (strict base parsing)', () => {
@@ -120,7 +120,7 @@ describe('usm template', () => {
     const once = applyUsmAction(state, move);
     const twice = once ? applyUsmAction(once, move) : null;
     expect(JSON.stringify(once)).toBe(JSON.stringify(twice));
-    const add = action('ADD_MILESTONE', { type: 'artifact', id: 'usm' }, { id: 'v1', name: 'V1' });
+    const add = action('ADD_MILESTONE', { type: 'page', id: 'usm' }, { id: 'v1', name: 'V1' });
     const added = applyUsmAction(state, add);
     expect(applyUsmAction(added!, add)).toEqual(added);
   });
@@ -199,12 +199,12 @@ describe('usm template', () => {
       'アクティビティグループ',
     );
     // one header per activity, no step columns
-    expect(root.querySelectorAll('.act-head artifact-inline-edit').length).toBe(1);
+    expect(root.querySelectorAll('.act-head dpk-component-inline-edit').length).toBe(1);
     expect(root.querySelectorAll('.col-head').length).toBe(0);
     // u1/u2 share the activity column and the unassigned + mvp rows resolve
     const cell = root.querySelector('[data-testid="group-cell-a1-mvp"]');
     expect(cell).not.toBeNull();
-    expect(cell!.querySelectorAll('artifact-usm-card').length).toBe(2);
+    expect(cell!.querySelectorAll('dpk-internal-usm-story-card').length).toBe(2);
     // dropping inside the activity view keeps the dragged story's own step.
     // jsdom has no DataTransfer/DragEvent, and it swallows a synthetic dragstart
     // outright — so the pointer wiring is verified in a real browser, and here the
@@ -219,10 +219,10 @@ describe('usm template', () => {
     });
     expect(resolveGroupDrop(parseUsmBase(base), 'other', 'mvp', 'u2', null, 'end')).toBeNull();
     // dispatching the resolved input moves the story and keeps its step
-    el.artifact.dispatch(dropInput!);
+    el.api.dispatch(dropInput!);
     await settle(el);
-    expect(el.artifact.state.stories.find((s) => s.id === 'u2')).toMatchObject({ stepId: 's1', milestoneId: 'mvp' });
-    expect(el.artifact.state.stories.filter((s) => s.stepId === 's1').map((s) => s.id)).toEqual(['u2', 'u1']);
+    expect(el.api.state.stories.find((s) => s.id === 'u2')).toMatchObject({ stepId: 's1', milestoneId: 'mvp' });
+    expect(el.api.state.stories.filter((s) => s.stepId === 's1').map((s) => s.id)).toEqual(['u2', 'u1']);
     document.body.innerHTML = '';
   });
 
@@ -246,7 +246,8 @@ describe('usm template', () => {
     await settle(el);
     const root = el.shadowRoot!;
     const heads = [...root.querySelectorAll('.row-head')].filter(
-      (h) => (h.querySelector('artifact-inline-edit') as unknown as { value?: string } | null)?.value !== undefined,
+      (h) =>
+        (h.querySelector('dpk-component-inline-edit') as unknown as { value?: string } | null)?.value !== undefined,
     );
     expect(heads.length).toBeGreaterThan(0);
     for (const head of heads) {
@@ -269,15 +270,15 @@ describe('usm template', () => {
     // Empty cell has no placeholder text.
     const cells = Array.from(root.querySelectorAll('.cell'));
     const emptyCell = cells.find(
-      (c) => c.querySelectorAll('artifact-usm-card').length === 0 && c.textContent?.includes('追加'),
+      (c) => c.querySelectorAll('dpk-internal-usm-story-card').length === 0 && c.textContent?.includes('追加'),
     );
     expect(emptyCell?.textContent).not.toContain('空マス');
     // Three icon-only buttons per card: edit, comment, delete.
     // (Moving across activities goes through the drop-triggered dialog.)
-    const cards = root.querySelectorAll('artifact-usm-card');
+    const cards = root.querySelectorAll('dpk-internal-usm-story-card');
     expect(cards.length).toBe(2);
     await Promise.all([...cards].map((card) => (card as LitElement).updateComplete));
-    const buttons = cards[0]!.shadowRoot!.querySelectorAll('.af-icon-btn');
+    const buttons = cards[0]!.shadowRoot!.querySelectorAll('.dpk-icon-btn');
     expect(buttons.length).toBe(3);
     expect([...buttons].every((b) => b.textContent?.trim() === '' && !!b.getAttribute('aria-label'))).toBe(true);
     // Open the comment composer and dispatch a comment for that story.
@@ -300,9 +301,9 @@ describe('usm template', () => {
     expect(send).toBeTruthy();
     send.click();
     await settle(el);
-    expect(el.artifact.actions.some((a) => a.type === 'comment' && a.target.id === 'u1')).toBe(true);
+    expect(el.api.actions.some((a) => a.type === 'comment' && a.target.id === 'u1')).toBe(true);
     // Navigation follows.
-    el.artifact.navigate({ step: 's2', story: 'u2' });
+    el.api.navigate({ step: 's2', story: 'u2' });
     await settle(el);
     expect(location.hash).toContain('step=s2');
     expect(location.hash).toContain('story=u2');
@@ -315,10 +316,10 @@ describe('usm template', () => {
     };
     window.location.hash = '#view=group';
     document.body.innerHTML = `
-    <artifact-usm storage="memory">
+    <dpk-template-usm storage="memory">
       <script type="application/json">${JSON.stringify(twoActivities)}</script>
-    </artifact-usm>`;
-    const el = document.querySelector('artifact-usm') as UsmElement;
+    </dpk-template-usm>`;
+    const el = document.querySelector('dpk-template-usm') as DpkTemplateUsm;
     await settle(el);
     const root = el.shadowRoot!;
     const targetCell = root.querySelector('[data-testid="group-cell-a2-mvp"]')!;
@@ -339,9 +340,9 @@ describe('usm template', () => {
     select.dispatchEvent(new Event('change', { bubbles: true }));
     [...dialog!.querySelectorAll('button')].find((b) => b.textContent?.includes('移動する'))!.click();
     await settle(el);
-    const moved = el.artifact.actions.find((a) => a.type === 'MOVE_STORY');
+    const moved = el.api.actions.find((a) => a.type === 'MOVE_STORY');
     expect(moved?.payload).toMatchObject({ activityId: 'a2', stepId: 's3', milestoneId: 'mvp' });
-    expect(el.artifact.state.stories.find((story) => story.id === 'u1')).toMatchObject({
+    expect(el.api.state.stories.find((story) => story.id === 'u1')).toMatchObject({
       activityId: 'a2',
       stepId: 's3',
     });

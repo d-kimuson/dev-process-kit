@@ -27,7 +27,7 @@ const tinyActions = {
   REORDER: defineAction('REORDER', 'item', v.object({ after: v.nullable(v.string()) }), { mode: 'sequence' }),
   ADD_ITEM: defineAction(
     'ADD_ITEM',
-    'artifact',
+    'page',
     v.object({ id: v.pipe(v.string(), v.minLength(1)), name: v.pipe(v.string(), v.minLength(1)) }),
     { dedupeKey: entityDedupeKey },
   ),
@@ -83,7 +83,7 @@ export const tinyDefinition: TemplateDefinition<TinyState> = {
     }
   },
   hasTarget: (state, target: ActionTarget) =>
-    target.type === 'artifact' || state.items.some((item) => item.id === target.id),
+    target.type === 'page' || state.items.some((item) => item.id === target.id),
   describe: (action) => ({
     title: action.type,
     targetLabel: action.target.id,
@@ -97,5 +97,5 @@ export const tinyDefinition: TemplateDefinition<TinyState> = {
       label: item.name,
       group: 'Item',
     })),
-  title: () => 'Tiny artifact',
+  title: () => 'Tiny page',
 };

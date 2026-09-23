@@ -123,7 +123,7 @@ export type AssetTree = {
    * Replacements applied to the published `docs/**` of this release so that the
    * documentation addresses the channel it ships in. A pinned URL copied out of a debug
    * release's `docs/index.md` has to name the release and origin a reader can actually
-   * reach, or the artifact it produces loads a version that does not exist.
+   * reach, or the page it produces loads a version that does not exist.
    */;
   readonly rewrites: readonly Rewrite[];
 };
@@ -296,7 +296,7 @@ export const devTree = (assetsDir: string = DEV_ASSETS_DIR): AssetTree => ({
 });
 
 /**
- * The repository samples (`sample/<name>`): the living example of a pinned artifact.
+ * The repository samples (`sample/<name>`): the living example of a pinned page.
  * They are written against the sources of this checkout, load the bundle from
  * `DEV_ORIGIN` while developing, and are published under `/sample/` of the deployable
  * tree. `scripts/release.test.ts` fails when `sample/` holds a page this list misses.

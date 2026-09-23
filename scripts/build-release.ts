@@ -16,7 +16,7 @@
  * `public/` would fail loudly rather than silently produce the wrong tree).
  *
  * `scripts/verify-committed.ts` runs this command for every channel the committed tree holds,
- * to prove that the tracked artifacts are what the sources produce.
+ * to prove that the tracked files are what the sources produce.
  *
  * Only user-facing documentation ships. Developer documentation (guidelines, ADRs, scratch)
  * lives under `docs/guidelines`, `docs/adr` and `docs/tmp` and is deliberately excluded —

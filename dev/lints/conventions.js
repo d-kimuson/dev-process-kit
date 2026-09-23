@@ -9,6 +9,9 @@
  *   - entrypoint-imports:       internal modules must not import the public entrypoint
  *                              (`src/index.ts`, `src/entries/*`)
  *   - colocated-tests:          test files must sit next to their source, not in `__tests__/`
+ *   - element-naming:           custom element tags are `dpk-template-<name>` / `dpk-internal-<template>-*`
+ *                              (in src/templates) or `dpk-component-<name>` (in src/components), and the
+ *                              registered class is the tag in PascalCase
  *
  * The architecture this encodes is the one `docs/guidelines/architecture.md`
  * describes: `lib` holds dependency-free helpers, `core` owns the pipeline and
@@ -135,7 +138,7 @@ const coreTemplateBoundaries = {
 
 /**
  * `src/lib` holds small, reusable helpers (DOM interaction, formatting). It is
- * the lowest layer, so it must not know about the artifact framework at all.
+ * the lowest layer, so it must not know about dev-process-kit at all.
  */
 const libBoundaries = {
   create(context) {
@@ -360,6 +363,83 @@ const colocatedTests = {
   },
 };
 
+const pascalCase = (tag) =>
+  tag
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+
+const isDefineCall = (node) => {
+  const callee = node.callee;
+  if (callee?.type !== 'MemberExpression' || callee.computed) return false;
+  if (callee.property?.name !== 'define') return false;
+  const object = callee.object;
+  if (object?.type === 'Identifier') return object.name === 'customElements';
+  return object?.type === 'MemberExpression' && !object.computed && object.property?.name === 'customElements';
+};
+
+/**
+ * Where a file may register elements, and the tags it may use: a template
+ * registers `dpk-template-<name>` plus sub-elements `dpk-internal-<name>-*`,
+ * a component registers `dpk-component-<directory>`.
+ */
+const allowedTags = (filename) => {
+  const template = filename.match(/\/src\/templates\/([^/]+)\//);
+  if (template) {
+    const name = template[1];
+    return {
+      matches: (tag) => tag === `dpk-template-${name}` || tag.startsWith(`dpk-internal-${name}-`),
+      expected: `\`dpk-template-${name}\` or \`dpk-internal-${name}-*\``,
+    };
+  }
+  const component = filename.match(/\/src\/components\/([^/]+)\//);
+  if (component) {
+    const name = component[1];
+    return { matches: (tag) => tag === `dpk-component-${name}`, expected: `\`dpk-component-${name}\`` };
+  }
+  return null;
+};
+
+const elementNaming = {
+  create(context) {
+    const filename = normalize(context.filename ?? context.getFilename());
+    if (!/\/src\//.test(filename) || /\.test\.[cm]?[jt]sx?$/.test(filename)) return {};
+    const allowed = allowedTags(filename);
+    return {
+      CallExpression(node) {
+        if (!isDefineCall(node)) return;
+        if (!allowed) {
+          context.report({
+            node,
+            message: 'Custom elements are registered only in src/templates/** and src/components/**.',
+          });
+          return;
+        }
+        const [tagNode, classNode] = node.arguments;
+        if (tagNode?.type !== 'Literal' || typeof tagNode.value !== 'string') {
+          context.report({
+            node,
+            message: 'Pass the custom element tag as a string literal so its name can be checked.',
+          });
+          return;
+        }
+        const tag = tagNode.value;
+        if (!allowed.matches(tag)) {
+          context.report({ node: tagNode, message: `Tag \`${tag}\` must be ${allowed.expected} here.` });
+          return;
+        }
+        const className = pascalCase(tag);
+        if (classNode?.type === 'Identifier' && classNode.name !== className) {
+          context.report({
+            node: classNode,
+            message: `The class registered as \`${tag}\` must be named \`${className}\`.`,
+          });
+        }
+      },
+    };
+  },
+};
+
 const plugin = {
   meta: {
     name: 'conventions',
@@ -371,6 +451,7 @@ const plugin = {
     'pure-layer-boundaries': pureLayerBoundaries,
     'entrypoint-imports': entrypointImports,
     'colocated-tests': colocatedTests,
+    'element-naming': elementNaming,
   },
 };
 
@@ -383,6 +464,7 @@ export {
   pureLayerBoundaries,
   entrypointImports,
   colocatedTests,
+  elementNaming,
   classify,
   resolveImportPath,
 };

@@ -1,5 +1,5 @@
 export { eventStormingDefinition, eventStormingHasTarget } from './definition';
-export { EventStormingElement, defineEventStormingElement } from './element';
+export { DpkTemplateEventStorming, defineEventStormingElement } from './element';
 export {
   buildSlices,
   planSliceBands,
@@ -24,7 +24,7 @@ export {
 } from './interactions';
 export type { Viewport, Size, Rect, IdRect, MoveStep } from './interactions';
 export type { EsSlice, EsPin, SliceArrow, SliceBand, SliceBandOptions } from './layout';
-export { EsNoteCard, defineEsNoteCard, NOTE_TYPE_LABELS } from './components/note-card';
+export { NOTE_TYPE_LABELS } from './components/note-card';
 export { reduceNoteIntent, noteCardModeOf, ES_IDLE } from './ui-mode';
 export type { EsUiMode, NoteIntent, NoteCardMode, EsGesture, EsNaming } from './ui-mode';
 export { eventStormingAction, eventStormingActions } from './actions';

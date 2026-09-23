@@ -1,6 +1,6 @@
 # Harness Guideline
 
-This repository assumes that coding agents will create and maintain much of the framework and its artifacts. Agent context is finite, so every instruction must justify the context it consumes.
+This repository assumes that coding agents will create and maintain much of the framework and its documentation. Agent context is finite, so every instruction must justify the context it consumes.
 
 ## Progressive disclosure
 
@@ -27,4 +27,4 @@ Before adding an instruction, decide where its source of truth belongs:
 - Task-specific judgment belongs in a focused guideline.
 - Consumer-facing contracts belong in public documentation.
 
-Delete guidance that merely restates code or configuration. When prose remains necessary, state the intent once and link to the authoritative artifact instead of repeating its contents.
+Delete guidance that merely restates code or configuration. When prose remains necessary, state the intent once and link to the authoritative source instead of repeating its contents.

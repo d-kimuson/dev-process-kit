@@ -15,7 +15,7 @@ export const grillHasTarget = (state: GrillState, target: ActionTarget): boolean
   switch (target.type) {
     case 'question':
       return findQuestion(state, target.id) !== undefined;
-    case 'artifact':
+    case 'page':
       return true;
     default:
       return false;

@@ -11,7 +11,7 @@ export const panelStyles = [
       flex-direction: column;
       min-height: 0;
       width: 100%;
-      background: var(--af-paper-raised);
+      background: var(--dpk-paper-raised);
     }
 
     header {
@@ -20,8 +20,8 @@ export const panelStyles = [
       justify-content: space-between;
       gap: 8px;
       padding: 14px 16px 12px;
-      border-bottom: 1px solid var(--af-rule);
-      background: linear-gradient(180deg, var(--af-paper-raised), var(--af-paper));
+      border-bottom: 1px solid var(--dpk-rule);
+      background: linear-gradient(180deg, var(--dpk-paper-raised), var(--dpk-paper));
     }
 
     header h2 {
@@ -34,14 +34,14 @@ export const panelStyles = [
       display: grid;
       gap: 10px;
       padding: 14px 16px 14px;
-      border-bottom: 1px solid var(--af-rule);
-      background: var(--af-paper-sunken);
+      border-bottom: 1px solid var(--dpk-rule);
+      background: var(--dpk-paper-sunken);
     }
 
     .composer textarea {
       min-height: 62px;
-      background: var(--af-paper-raised);
-      border-radius: var(--af-radius);
+      background: var(--dpk-paper-raised);
+      border-radius: var(--dpk-radius);
     }
 
     .composer .row {
@@ -55,7 +55,7 @@ export const panelStyles = [
       align-items: center;
       gap: 7px;
       font-size: 12px;
-      color: var(--af-ink-soft);
+      color: var(--dpk-ink-soft);
       cursor: pointer;
     }
 
@@ -63,7 +63,7 @@ export const panelStyles = [
       width: 14px;
       height: 14px;
       margin: 0;
-      accent-color: var(--af-accent);
+      accent-color: var(--dpk-accent);
       cursor: pointer;
     }
 
@@ -72,9 +72,9 @@ export const panelStyles = [
       align-items: center;
       gap: 6px;
       padding: 3px 10px;
-      border: 1px solid var(--af-rule);
+      border: 1px solid var(--dpk-rule);
       border-radius: 999px;
-      background: var(--af-paper-raised);
+      background: var(--dpk-paper-raised);
       font-size: 11.5px;
       cursor: pointer;
     }
@@ -86,15 +86,15 @@ export const panelStyles = [
     }
 
     .composer .chip:hover {
-      border-color: var(--af-rule-strong);
+      border-color: var(--dpk-rule-strong);
     }
 
     .target-line {
       margin-right: auto;
-      font-family: var(--af-mono);
+      font-family: var(--dpk-mono);
       font-size: 10px;
       letter-spacing: 0.03em;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
     }
 
     .list {
@@ -114,17 +114,17 @@ export const panelStyles = [
       display: grid;
       gap: 4px;
       padding: 10px 12px 11px 14px;
-      border: 1px solid var(--af-rule);
-      border-radius: var(--af-radius);
-      background: var(--af-paper-raised);
-      box-shadow: var(--af-shadow-xs);
+      border: 1px solid var(--dpk-rule);
+      border-radius: var(--dpk-radius);
+      background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-shadow-xs);
       transition:
         box-shadow 160ms ease,
         border-color 160ms ease;
     }
 
     .item:hover {
-      box-shadow: var(--af-shadow-sm);
+      box-shadow: var(--dpk-shadow-sm);
     }
 
     .item::before {
@@ -135,28 +135,28 @@ export const panelStyles = [
       bottom: 10px;
       width: 3px;
       border-radius: 0 2px 2px 0;
-      background: var(--tone, var(--af-ink-faint));
+      background: var(--tone, var(--dpk-ink-faint));
     }
 
     .item[data-tone='comment'] {
-      --tone: var(--af-accent);
-      background: linear-gradient(90deg, var(--af-accent-soft), transparent 55%);
+      --tone: var(--dpk-accent);
+      background: linear-gradient(90deg, var(--dpk-accent-soft), transparent 55%);
     }
 
     .item[data-tone='create'] {
-      --tone: var(--af-green);
+      --tone: var(--dpk-green);
     }
 
     .item[data-tone='update'] {
-      --tone: var(--af-blue);
+      --tone: var(--dpk-blue);
     }
 
     .item[data-tone='delete'] {
-      --tone: var(--af-accent);
+      --tone: var(--dpk-accent);
     }
 
     .item[data-tone='move'] {
-      --tone: var(--af-violet);
+      --tone: var(--dpk-violet);
     }
 
     .item[data-stale='true'] {
@@ -178,43 +178,43 @@ export const panelStyles = [
 
     .stale-badge {
       padding: 1px 7px;
-      border: 1px solid var(--af-rule-strong);
+      border: 1px solid var(--dpk-rule-strong);
       border-radius: 999px;
-      font-family: var(--af-mono);
+      font-family: var(--dpk-mono);
       font-size: 9px;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
     }
 
-    .item-head .af-icon-btn {
+    .item-head .dpk-icon-btn {
       margin-left: auto;
     }
 
     .item-target {
-      font-family: var(--af-mono);
+      font-family: var(--dpk-mono);
       font-size: 10px;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
     }
 
     .item-summary {
       font-size: 12px;
-      color: var(--af-ink-soft);
+      color: var(--dpk-ink-soft);
     }
 
     .item-body {
       margin: 2px 0 0;
       padding-left: 9px;
-      border-left: 2px solid var(--af-accent);
+      border-left: 2px solid var(--dpk-accent);
       font-size: 12.5px;
       white-space: pre-wrap;
     }
 
     .item-code {
       margin-top: 2px;
-      font-family: var(--af-mono);
+      font-family: var(--dpk-mono);
       font-size: 10px;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
       overflow-wrap: anywhere;
     }
 
@@ -222,15 +222,15 @@ export const panelStyles = [
       padding: 6px 4px;
       font-size: 12px;
       line-height: 1.7;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
     }
 
     .issues {
       margin: 10px 12px 0;
       padding: 9px 11px;
       border: 1px solid rgba(194, 64, 15, 0.35);
-      border-radius: var(--af-radius-sm);
-      background: var(--af-accent-soft);
+      border-radius: var(--dpk-radius-sm);
+      background: var(--dpk-accent-soft);
       font-size: 11.5px;
     }
 
@@ -245,15 +245,15 @@ export const panelStyles = [
       align-items: center;
       gap: 8px;
       padding: 12px 16px;
-      border-top: 1px solid var(--af-rule);
-      background: linear-gradient(180deg, var(--af-paper-sunken), var(--af-paper-inset));
+      border-top: 1px solid var(--dpk-rule);
+      background: linear-gradient(180deg, var(--dpk-paper-sunken), var(--dpk-paper-inset));
     }
 
     .flash {
-      font-family: var(--af-mono);
+      font-family: var(--dpk-mono);
       font-size: 10px;
       letter-spacing: 0.04em;
-      color: var(--af-green);
+      color: var(--dpk-green);
     }
   `,
 ];

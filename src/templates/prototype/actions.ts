@@ -14,8 +14,8 @@ import { PREVIEW_KINDS, PREVIEW_VIEWPORTS, type PrototypePreview } from './model
 /**
  * Prototype action vocabulary.
  *
- * Vocabulary stays in the template's domain language (design §7): no generic
- * `SET_FIELD` / `MOVE`. Patch actions describe the *end state* (design §8), so
+ * Vocabulary stays in the template's domain language: no generic
+ * `SET_FIELD` / `MOVE`. Patch actions describe the *end state*, so
  * replaying a draft is idempotent.
  */
 export const prototypeActions = {
@@ -60,7 +60,7 @@ export const prototypeActions = {
 
   ADD_ACTIVITY: defineAction(
     'ADD_ACTIVITY',
-    'artifact',
+    'page',
     v.object({
       id: entityIdSchema,
       name: v.pipe(v.string(), v.minLength(1)),
@@ -198,7 +198,7 @@ export const prototypeAction = {
   }),
   addActivity: (id: string, name: string, description?: string): ActionInput => ({
     type: 'ADD_ACTIVITY',
-    target: { type: 'artifact', id: 'prototype' },
+    target: { type: 'page', id: 'prototype' },
     payload: {
       id,
       name,

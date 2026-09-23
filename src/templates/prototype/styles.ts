@@ -1,9 +1,9 @@
 import { css } from 'lit';
 
-/** Sidebar navigation, stage and preview frames of `<artifact-prototype>`. */
+/** Sidebar navigation, stage and preview frames of `<dpk-template-prototype>`. */
 export const prototypeStyles = css`
   :host {
-    --af-prototype-accent: var(--af-blue);
+    --dpk-prototype-accent: var(--dpk-blue);
   }
 
   /* ---------------------------------------------------------------- sidebar */
@@ -25,7 +25,7 @@ export const prototypeStyles = css`
     align-items: baseline;
     justify-content: space-between;
     padding-bottom: 5px;
-    border-bottom: 1px solid var(--af-rule);
+    border-bottom: 1px solid var(--dpk-rule);
   }
 
   .steps {
@@ -44,19 +44,19 @@ export const prototypeStyles = css`
     align-items: center;
     gap: 4px;
     padding: 0 4px 0 9px;
-    border-radius: var(--af-radius-sm);
+    border-radius: var(--dpk-radius-sm);
     transition:
       background 140ms ease,
       box-shadow 140ms ease;
   }
 
   .step-row:hover {
-    background: var(--af-paper-inset);
+    background: var(--dpk-paper-inset);
   }
 
   .step-row[data-current='true'] {
-    background: var(--af-paper-raised);
-    box-shadow: var(--af-shadow-sm);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow-sm);
   }
 
   .step-row[data-current='true']::before {
@@ -66,8 +66,8 @@ export const prototypeStyles = css`
     top: 8px;
     bottom: 8px;
     width: 3px;
-    border-radius: var(--af-radius-xs);
-    background: linear-gradient(180deg, var(--af-blue), #2952a3);
+    border-radius: var(--dpk-radius-xs);
+    background: linear-gradient(180deg, var(--dpk-blue), #2952a3);
   }
 
   .step-link {
@@ -78,13 +78,13 @@ export const prototypeStyles = css`
     gap: 7px;
     padding: 7px 0;
     text-decoration: none;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
     font-size: 12.5px;
     font-weight: 460;
   }
 
   .step-row[data-current='true'] .step-link {
-    color: var(--af-ink);
+    color: var(--dpk-ink);
     font-weight: 550;
   }
 
@@ -92,21 +92,21 @@ export const prototypeStyles = css`
     flex: 0 0 auto;
     min-width: 17px;
     padding: 1px 4px;
-    border-radius: var(--af-radius-xs);
-    background: var(--af-paper-inset);
-    font-family: var(--af-mono);
+    border-radius: var(--dpk-radius-xs);
+    background: var(--dpk-paper-inset);
+    font-family: var(--dpk-mono);
     font-size: 9.5px;
     font-variant-numeric: tabular-nums;
     text-align: center;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     transition:
       background 140ms ease,
       color 140ms ease;
   }
 
   .step-row[data-current='true'] .step-index {
-    background: var(--af-blue-soft);
-    color: var(--af-blue);
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
   }
 
   .step-name {
@@ -121,9 +121,9 @@ export const prototypeStyles = css`
     min-width: 16px;
     padding: 1px 5px;
     border-radius: 999px;
-    background: var(--af-accent);
-    color: var(--af-accent-ink);
-    font-family: var(--af-mono);
+    background: var(--dpk-accent);
+    color: var(--dpk-accent-ink);
+    font-family: var(--dpk-mono);
     font-size: 9px;
     font-variant-numeric: tabular-nums;
     text-align: center;
@@ -145,10 +145,10 @@ export const prototypeStyles = css`
     display: grid;
     gap: 12px;
     padding: 12px 12px 14px;
-    border: 1px solid var(--af-rule);
-    border-radius: var(--af-radius);
-    background: var(--af-paper-raised);
-    box-shadow: var(--af-shadow-sm);
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow-sm);
   }
 
   .detail-row {
@@ -158,13 +158,13 @@ export const prototypeStyles = css`
 
   .detail-value {
     font-size: 12.5px;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
   }
 
   .nav-empty {
     font-size: 12px;
     line-height: 1.6;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   /* ------------------------------------------------------------------ stage */
@@ -188,9 +188,9 @@ export const prototypeStyles = css`
     display: inline-flex;
     gap: 2px;
     padding: 3px;
-    border: 1px solid var(--af-rule);
+    border: 1px solid var(--dpk-rule);
     border-radius: 999px;
-    background: var(--af-paper-sunken);
+    background: var(--dpk-paper-sunken);
     box-shadow: inset 0 1px 2px rgba(20, 28, 44, 0.04);
   }
 
@@ -200,7 +200,7 @@ export const prototypeStyles = css`
     font-size: 12px;
     font-weight: 500;
     text-decoration: none;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
     white-space: nowrap;
     transition:
       background 120ms ease,
@@ -208,26 +208,26 @@ export const prototypeStyles = css`
   }
 
   .tab:hover {
-    color: var(--af-ink);
-    background: var(--af-paper-raised);
+    color: var(--dpk-ink);
+    background: var(--dpk-paper-raised);
   }
 
   .tab[data-current='true'] {
-    background: var(--af-paper-raised);
-    color: var(--af-ink);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
     font-weight: 600;
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
   }
 
   .stage-empty {
     max-width: 62ch;
     padding: 16px 18px;
-    border: 1px dashed var(--af-rule-strong);
-    border-radius: var(--af-radius-lg);
-    background: var(--af-paper-sunken);
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-sunken);
     font-size: 13px;
     line-height: 1.7;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
   }
 
   /* ------------------------------------------------------------------ frame */
@@ -236,10 +236,10 @@ export const prototypeStyles = css`
     width: min(var(--frame-width), 100%);
     max-width: 100%;
     margin: 0;
-    border: 1px solid var(--af-rule);
-    border-radius: var(--af-radius-lg);
-    background: var(--af-paper-raised);
-    box-shadow: var(--af-shadow-lg);
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow-lg);
     overflow: hidden;
     transition: box-shadow 200ms ease;
   }
@@ -249,8 +249,8 @@ export const prototypeStyles = css`
     align-items: center;
     gap: 8px;
     padding: 8px 14px;
-    background: linear-gradient(180deg, var(--af-paper-sunken), var(--af-paper-inset));
-    border-bottom: 1px solid var(--af-rule);
+    background: linear-gradient(180deg, var(--dpk-paper-sunken), var(--dpk-paper-inset));
+    border-bottom: 1px solid var(--dpk-rule);
   }
 
   .dots {
@@ -262,7 +262,7 @@ export const prototypeStyles = css`
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: var(--af-rule-strong);
+    background: var(--dpk-rule-strong);
   }
 
   .dots i:nth-child(1) {
@@ -281,13 +281,13 @@ export const prototypeStyles = css`
     flex: 1;
     min-width: 0;
     padding: 4px 14px;
-    border: 1px solid var(--af-rule);
-    border-radius: var(--af-radius-sm);
-    background: var(--af-paper-raised);
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-raised);
     box-shadow: inset 0 1px 2px rgba(20, 28, 44, 0.04);
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 10.5px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -303,7 +303,7 @@ export const prototypeStyles = css`
     border-radius: 28px;
     background: linear-gradient(160deg, #2e3440, #1a1d24);
     box-shadow:
-      var(--af-shadow-lg),
+      var(--dpk-shadow-lg),
       inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
@@ -371,7 +371,7 @@ export const prototypeStyles = css`
 
   /*
    * The preview is never scrolled on its own: it shows everything it contains and
-   * the artifact scrolls as a whole. The flex column keeps a short mock filling
+   * the page scrolls as a whole. The flex column keeps a short mock filling
    * the frame's minimum height without pinning a maximum.
    */
   .viewport {
@@ -409,22 +409,22 @@ export const prototypeStyles = css`
     gap: 8px;
     padding: 12px;
     text-align: center;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     background: repeating-linear-gradient(
       -45deg,
-      var(--af-paper-sunken),
-      var(--af-paper-sunken) 8px,
-      var(--af-paper) 8px,
-      var(--af-paper) 16px
+      var(--dpk-paper-sunken),
+      var(--dpk-paper-sunken) 8px,
+      var(--dpk-paper) 8px,
+      var(--dpk-paper) 16px
     );
   }
 
   .frame-placeholder code {
     padding: 3px 7px;
-    border: 1px solid var(--af-rule);
-    border-radius: var(--af-radius-xs);
-    background: var(--af-paper-raised);
-    font-family: var(--af-mono);
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-xs);
+    background: var(--dpk-paper-raised);
+    font-family: var(--dpk-mono);
     font-size: 10px;
   }
 

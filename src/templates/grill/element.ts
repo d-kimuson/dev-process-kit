@@ -4,7 +4,7 @@ import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contr
 import type { ActionTarget } from '../../core/types';
 import type { GrillState } from './model';
 
-import { ArtifactElement } from '../../core/element';
+import { TemplateElement } from '../../core/element';
 import { copyText } from '../../lib/dom/clipboard';
 import { answerQuestion, type AnswerInput } from './actions';
 import { grillDefinition } from './definition';
@@ -14,7 +14,7 @@ import { renderQuestionPanel } from './render/panel';
 import { grillStyles } from './styles';
 
 /**
- * `<artifact-grill>` — a review of questions over whatever the author puts in
+ * `<dpk-template-grill>` — a review of questions over whatever the author puts in
  * `slot="main"`.
  *
  * The template owns the question list (sidebar), the Q badges over the main area,
@@ -23,8 +23,8 @@ import { grillStyles } from './styles';
  * component, a table, prose, anything with `data-grill-questions` on the parts a
  * question is about.
  */
-export class GrillElement extends ArtifactElement<GrillState> {
-  static override styles = [ArtifactElement.styles, grillStyles];
+export class DpkTemplateGrill extends TemplateElement<GrillState> {
+  static override styles = [TemplateElement.styles, grillStyles];
 
   readonly definition = grillDefinition;
 
@@ -55,14 +55,14 @@ export class GrillElement extends ArtifactElement<GrillState> {
     document.addEventListener('scroll', this.#schedulePosition, true);
     window.addEventListener('resize', this.#schedulePosition);
     // A diagram pans and zooms without scrolling, so its badges follow its view.
-    this.addEventListener('artifact-diagram-view', this.#schedulePosition);
+    this.addEventListener('dpk-diagram-view', this.#schedulePosition);
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     document.removeEventListener('scroll', this.#schedulePosition, true);
     window.removeEventListener('resize', this.#schedulePosition);
-    this.removeEventListener('artifact-diagram-view', this.#schedulePosition);
+    this.removeEventListener('dpk-diagram-view', this.#schedulePosition);
     this.#observer?.disconnect();
     this.#observer = null;
     if (this.#copyTimer !== null) clearTimeout(this.#copyTimer);
@@ -190,7 +190,7 @@ export class GrillElement extends ArtifactElement<GrillState> {
         </div>
         <div class="grill-footer">
           <button
-            class="af-btn af-btn--accent grill-copy"
+            class="dpk-btn dpk-btn--accent grill-copy"
             type="button"
             data-status=${this.#copyStatus}
             ?disabled=${context.actions.length === 0}
@@ -271,7 +271,7 @@ export class GrillElement extends ArtifactElement<GrillState> {
   }
 
   async #copy(): Promise<void> {
-    const text = this.artifact.exportBrief();
+    const text = this.api.exportBrief();
     this.#reportCopy((await copyText(text)) ? 'copied' : 'failed');
   }
 
@@ -337,6 +337,6 @@ export class GrillElement extends ArtifactElement<GrillState> {
   }
 }
 
-export const defineGrillElement = (tag = 'artifact-grill'): void => {
-  if (!customElements.get(tag)) customElements.define(tag, GrillElement);
+export const defineGrillElement = (): void => {
+  if (!customElements.get('dpk-template-grill')) customElements.define('dpk-template-grill', DpkTemplateGrill);
 };

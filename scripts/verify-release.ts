@@ -300,7 +300,7 @@ export const verifyRelease = async (tree: AssetTree): Promise<string[]> => {
   if (headers === null) failures.push('missing _headers');
   else {
     const rules = headerRules(headers);
-    // 5a. The catch-all rule is what makes the bundle loadable from an artifact that
+    // 5a. The catch-all rule is what makes the bundle loadable from a page that
     //     another origin hosts; nothing else provides that header.
     if (!(rules.get('/*') ?? []).some((line) => line.startsWith('Access-Control-Allow-Origin:'))) {
       failures.push(`${tree.assetsDir}/_headers does not allow cross-origin loading of the bundle`);
@@ -386,7 +386,7 @@ export const verifyRelease = async (tree: AssetTree): Promise<string[]> => {
 
   //    The tree holds only what a build puts there: at the root, releases plus the index, the
   //    headers, the licence and the published samples (checked in 9); in the release being built, the entries, their shared chunks,
-  //    the documentation and the release's own files. Anything else is a leftover — an artifact
+  //    the documentation and the release's own files. Anything else is a leftover — a file
   //    from an older era, a file someone copied in — and a deploy would publish it, so it is
   //    reported instead. Only the release being built is enumerated: a published version keeps
   //    whatever it was built with, which is what makes it immutable.
@@ -412,7 +412,7 @@ export const verifyRelease = async (tree: AssetTree): Promise<string[]> => {
 
   // 8. Channel addressing. A consumer document of the debug channel has to name the
   //    debug origin and release: an agent that copies a pinned URL out of it would
-  //    otherwise generate an artifact that loads a version which does not exist. The
+  //    otherwise generate a page that loads a version which does not exist. The
   //    rewrite is performed by `assemble-assets.ts` and the strings it knows are the
   //    ones `release.ts` declares, so a document that drifts from them fails here.
   if (tree.rewrites.length > 0) {

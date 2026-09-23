@@ -40,7 +40,7 @@ if (!releases.includes(tree.releaseId)) {
 // account serves the Worker through Cloudflare Access, so only a browser that is logged in
 // sees the asset (the maintainer's), and the build's own verification proves the tree.
 //
-// The artifacts themselves carry no build identity (they are committed, and a reproducible
+// The built files themselves carry no build identity (they are committed, and a reproducible
 // build is what makes that check meaningful), so the commit goes where a deployment records
 // it: the version message and tag of this Worker.
 const revision = buildRevision() ?? 'unknown';

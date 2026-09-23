@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ArtifactMindMap } from './element';
+import { DpkComponentMindMap } from './element';
 import { defineMindMap } from './index';
 import { layoutMindMap } from './layout';
 import {
@@ -233,14 +233,14 @@ describe('mind map layout', () => {
   });
 });
 
-describe('<artifact-mind-map>', () => {
-  const settle = async (element: ArtifactMindMap): Promise<void> => {
+describe('<dpk-component-mind-map>', () => {
+  const settle = async (element: DpkComponentMindMap): Promise<void> => {
     for (let index = 0; index < 3; index++) await element.updateComplete;
   };
 
-  const mount = async (): Promise<ArtifactMindMap> => {
-    const element = document.createElement('artifact-mind-map');
-    if (!(element instanceof ArtifactMindMap)) throw new Error('did not upgrade');
+  const mount = async (): Promise<DpkComponentMindMap> => {
+    const element = document.createElement('dpk-component-mind-map');
+    if (!(element instanceof DpkComponentMindMap)) throw new Error('did not upgrade');
     element.id = 'checkout-map';
     element.innerHTML = `<script type="application/json">${JSON.stringify(raw)}</script>`;
     document.body.append(element);
@@ -248,7 +248,7 @@ describe('<artifact-mind-map>', () => {
     return element;
   };
 
-  const topics = (element: ArtifactMindMap): (string | undefined)[] =>
+  const topics = (element: DpkComponentMindMap): (string | undefined)[] =>
     [...element.renderRoot.querySelectorAll<HTMLElement>('[data-topic]')].map((node) => node.dataset['topic']);
 
   it('renders topics and starts with the authored folding', async () => {
@@ -295,14 +295,14 @@ describe('<artifact-mind-map>', () => {
     const bar = element.renderRoot.querySelector<HTMLElement>('.mind-actions');
     expect(bar?.dataset['for']).toBe('payment');
     const requests: unknown[] = [];
-    element.addEventListener('artifact-comment-request', (event) => {
+    element.addEventListener('dpk-comment-request', (event) => {
       if (event instanceof CustomEvent) requests.push(event.detail);
     });
     bar?.querySelector<HTMLButtonElement>('[data-action="comment"]')?.click();
     expect(requests).toEqual([{ target: 'element:checkout-map/node/payment' }]);
   });
 
-  const type = async (element: ArtifactMindMap, label: string): Promise<HTMLInputElement> => {
+  const type = async (element: DpkComponentMindMap, label: string): Promise<HTMLInputElement> => {
     element.renderRoot.querySelector<HTMLButtonElement>('.mind-actions [data-action="add"]')?.click();
     await settle(element);
     const input = element.renderRoot.querySelector<HTMLInputElement>('.mind-actions input');
@@ -314,10 +314,10 @@ describe('<artifact-mind-map>', () => {
     return input;
   };
 
-  it('records a new subtopic through the hosting artifact and selects it', async () => {
+  it('records a new subtopic through the hosting template and selects it', async () => {
     const element = await mount();
-    // Stand-in for the artifact: accept, then hand the recorded action back.
-    element.addEventListener('artifact-element-action', (event) => {
+    // Stand-in for the page: accept, then hand the recorded action back.
+    element.addEventListener('dpk-element-action', (event) => {
       if (!(event instanceof CustomEvent)) return;
       event.preventDefault();
       const detail: { type: string; target: string; payload: unknown } = event.detail;
@@ -347,7 +347,7 @@ describe('<artifact-mind-map>', () => {
     expect(element.commentTargets.map((target) => target.value)).toContain(`element:checkout-map/node/${id}`);
   });
 
-  it('keeps the typed label when no artifact records the topic', async () => {
+  it('keeps the typed label when no template records the topic', async () => {
     const element = await mount();
     element.select({ kind: 'node', id: 'payment' });
     await settle(element);

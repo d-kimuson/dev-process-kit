@@ -1,15 +1,15 @@
 /**
  * Framework internals: the draft-action pipeline, persistence, navigation, the
- * artifact element base and the contracts templates implement.
+ * template element base and the contracts templates implement.
  *
  * Nothing here knows about a template, and nothing here is a custom element —
  * the shipped elements live in `src/components` and `src/templates`.
  */
 export { FRAMEWORK_VERSION } from './version';
-export { ArtifactElement } from './element';
-export type { ArtifactApi, ArtifactSnapshot, ShellRegions, TemplateRenderContext } from './shell/contracts';
-export { ArtifactController } from './controller';
-export type { ArtifactControllerOptions, DraftExport } from './controller';
+export { TemplateElement } from './element';
+export type { TemplateApi, TemplateSnapshot, ShellRegions, TemplateRenderContext } from './shell/contracts';
+export { DraftController } from './controller';
+export type { DraftControllerOptions, DraftExport } from './controller';
 export { derive, liveActions, commentTargetKey } from './derive';
 export type { Derivation, StaleAction, StaleReason } from './derive';
 export { buildAgentBrief } from './export';

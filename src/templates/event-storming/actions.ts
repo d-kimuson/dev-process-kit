@@ -21,7 +21,7 @@ export const eventStormingActions = {
   }),
   ADD_ELEMENT: defineAction(
     'ADD_ELEMENT',
-    'artifact',
+    'page',
     v.object({
       id: entityIdSchema,
       type: v.picklist(NOTE_TYPES),
@@ -34,7 +34,7 @@ export const eventStormingActions = {
   DELETE_ELEMENT: defineAction('DELETE_ELEMENT', 'element', v.object({})),
   LINK_ELEMENTS: defineAction(
     'LINK_ELEMENTS',
-    'artifact',
+    'page',
     v.object({
       id: entityIdSchema,
       from: v.pipe(v.string(), v.minLength(1)),
@@ -47,13 +47,13 @@ export const eventStormingActions = {
   SET_LINK_LABEL: defineAction('SET_LINK_LABEL', 'link', v.object({ label: v.string() })),
   UNLINK_ELEMENTS: defineAction(
     'UNLINK_ELEMENTS',
-    'artifact',
+    'page',
     v.object({ from: v.pipe(v.string(), v.minLength(1)), to: v.pipe(v.string(), v.minLength(1)) }),
     { mode: 'sequence' },
   ),
   ADD_CONTEXT: defineAction(
     'ADD_CONTEXT',
-    'artifact',
+    'page',
     v.object({
       id: entityIdSchema,
       name: v.pipe(v.string(), v.minLength(1)),
@@ -96,7 +96,7 @@ export const eventStormingAction = {
   }),
   addElement: (id: string, type: string, name: string): ActionInput => ({
     type: 'ADD_ELEMENT',
-    target: { type: 'artifact', id: 'event-storming' },
+    target: { type: 'page', id: 'event-storming' },
     payload: { id, type, name },
   }),
   deleteElement: (id: string): ActionInput => ({
@@ -111,7 +111,7 @@ export const eventStormingAction = {
     options?: { label?: string; kind?: 'member' | 'flow' },
   ): ActionInput => ({
     type: 'LINK_ELEMENTS',
-    target: { type: 'artifact', id: 'event-storming' },
+    target: { type: 'page', id: 'event-storming' },
     payload: {
       id,
       from,
@@ -127,12 +127,12 @@ export const eventStormingAction = {
   }),
   unlinkElements: (from: string, to: string): ActionInput => ({
     type: 'UNLINK_ELEMENTS',
-    target: { type: 'artifact', id: 'event-storming' },
+    target: { type: 'page', id: 'event-storming' },
     payload: { from, to },
   }),
   addContext: (id: string, name: string): ActionInput => ({
     type: 'ADD_CONTEXT',
-    target: { type: 'artifact', id: 'event-storming' },
+    target: { type: 'page', id: 'event-storming' },
     payload: { id, name },
   }),
   setContextName: (id: string, name: string): ActionInput => ({

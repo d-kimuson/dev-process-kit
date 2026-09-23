@@ -33,7 +33,7 @@ const draftRecordSchema = v.object({
   actions: v.array(v.unknown()),
 });
 
-/** Persist drafts across reload / browser reopen (design §12). */
+/** Persist drafts across reload / browser reopen. */
 export class WebStorageDraftStorage implements DraftStorage {
   constructor(private readonly storage: StorageLike) {}
 
@@ -49,7 +49,7 @@ export class WebStorageDraftStorage implements DraftStorage {
       });
     } catch {
       // Corrupt JSON, a blocked store, or a security error: no draft is better
-      // than a broken artifact.
+      // than a broken page.
       return [];
     }
   }
@@ -72,7 +72,7 @@ export class WebStorageDraftStorage implements DraftStorage {
   }
 }
 
-/** Used by tests, SSR and `storage="off"` artifacts. */
+/** Used by tests, SSR and `storage="off"` elements. */
 export class MemoryDraftStorage implements DraftStorage {
   private readonly store = new Map<string, string>();
 

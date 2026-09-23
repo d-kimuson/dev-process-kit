@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ArtifactCommentPanel } from '../components/comment-panel';
-import type { PrototypeElement } from '../templates/prototype/element';
+import type { DpkComponentCommentPanel } from '../components/comment-panel';
+import type { DpkTemplatePrototype } from '../templates/prototype/element';
 
 import { prototypeDefinition } from '../templates/prototype/definition';
 import '../index';
@@ -38,26 +38,26 @@ const base = {
   ],
 };
 
-const mount = (hash = ''): PrototypeElement => {
+const mount = (hash = ''): DpkTemplatePrototype => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <artifact-prototype storage="memory">
+    <dpk-template-prototype storage="memory">
       <script type="application/json">${JSON.stringify(base)}</script>
       <div slot="preview" data-preview-id="landing-mobile"><p id="landing-body">hello</p></div>
       <div slot="preview" data-preview-id="auth-mobile"><p id="auth-body">auth</p></div>
       <div slot="preview" data-preview-id="auth-desktop"><p id="auth-desktop-body">auth wide</p></div>
-    </artifact-prototype>`;
-  return document.querySelector('artifact-prototype') as PrototypeElement;
+    </dpk-template-prototype>`;
+  return document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
 };
 
-const settle = async (el: PrototypeElement): Promise<void> => {
-  await el.artifact.ready;
+const settle = async (el: DpkTemplatePrototype): Promise<void> => {
+  await el.api.ready;
   await el.updateComplete;
   await Promise.resolve();
   await el.updateComplete;
 };
 
-describe('<artifact-prototype>', () => {
+describe('<dpk-template-prototype>', () => {
   beforeEach(() => {
     window.location.hash = '';
     document.body.innerHTML = '';
@@ -67,7 +67,7 @@ describe('<artifact-prototype>', () => {
     const el = mount();
     await settle(el);
     expect(el.dataset['template']).toBe('prototype');
-    expect(el.artifact.state.title).toBe('Demo');
+    expect(el.api.state.title).toBe('Demo');
     expect(el.shadowRoot?.querySelectorAll('.step-link')).toHaveLength(2);
     expect(el.shadowRoot?.querySelectorAll('.nav select')).toHaveLength(2);
     expect(location.hash).toBe('#activity=onboarding&preview=landing-mobile&step=landing&story=account');
@@ -76,7 +76,7 @@ describe('<artifact-prototype>', () => {
   it('keeps the base JSON out of the rendering and exposes it read-only', async () => {
     const el = mount();
     await settle(el);
-    expect(el.artifact.base.activities).toHaveLength(1);
+    expect(el.api.base.activities).toHaveLength(1);
     expect(el.shadowRoot?.querySelector('script')).toBeNull();
   });
 
@@ -93,7 +93,7 @@ describe('<artifact-prototype>', () => {
   it('renders both preview frames of the current step after navigation', async () => {
     const el = mount();
     await settle(el);
-    el.artifact.navigate({ step: 'google-auth' });
+    el.api.navigate({ step: 'google-auth' });
     await settle(el);
     // Previews of one step are tabs: exactly one frame is visible at a time.
     expect(el.shadowRoot?.querySelectorAll('.tab')).toHaveLength(2);
@@ -102,46 +102,46 @@ describe('<artifact-prototype>', () => {
     expect(el.shadowRoot?.querySelector('.frame .url')?.textContent ?? '').toContain('auth-mobile');
 
     // The sibling preview keeps its (parked) slot: nothing falls into the orphan bucket.
-    expect(el.shadowRoot?.querySelector('.af-orphans')?.hasAttribute('hidden')).toBe(true);
+    expect(el.shadowRoot?.querySelector('.dpk-orphans')?.hasAttribute('hidden')).toBe(true);
 
-    el.artifact.navigate({ preview: 'auth-desktop' });
+    el.api.navigate({ preview: 'auth-desktop' });
     await settle(el);
     expect(el.shadowRoot?.querySelector('.frame')?.getAttribute('data-viewport')).toBe('desktop');
     expect(el.shadowRoot?.querySelector('.tab[data-current="true"]')?.textContent?.trim()).toBe('desktop');
-    expect(el.shadowRoot?.querySelector('.af-orphans')?.hasAttribute('hidden')).toBe(true);
+    expect(el.shadowRoot?.querySelector('.dpk-orphans')?.hasAttribute('hidden')).toBe(true);
     expect(location.hash).toContain('preview=auth-desktop');
   });
 
   it('navigates with the hash instead of draft actions', async () => {
     const el = mount();
     await settle(el);
-    el.artifact.navigate({ step: 'google-auth' });
+    el.api.navigate({ step: 'google-auth' });
     await settle(el);
-    expect(el.artifact.actions).toHaveLength(0);
-    expect(el.artifact.navigation['step']).toBe('google-auth');
+    expect(el.api.actions).toHaveLength(0);
+    expect(el.api.navigation['step']).toBe('google-auth');
   });
 
   it('publishes current issues and navigation through the same snapshot subscription', async () => {
     const el = mount();
     await settle(el);
-    const snapshots: ReturnType<typeof el.artifact.snapshot>[] = [];
-    const unsubscribe = el.artifact.subscribe((snapshot) => snapshots.push(snapshot));
-    el.artifact.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: {} });
+    const snapshots: ReturnType<typeof el.api.snapshot>[] = [];
+    const unsubscribe = el.api.subscribe((snapshot) => snapshots.push(snapshot));
+    el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: {} });
     expect(snapshots.at(-1)?.issues.length).toBeGreaterThan(0);
-    el.artifact.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'Updated' } });
+    el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'Updated' } });
     expect(snapshots.at(-1)?.issues).toEqual([]);
-    el.artifact.navigate({ step: 'google-auth' });
+    el.api.navigate({ step: 'google-auth' });
     expect(snapshots.at(-1)?.navigation['step']).toBe('google-auth');
     unsubscribe();
     const count = snapshots.length;
-    el.artifact.navigate({ step: 'landing' });
+    el.api.navigate({ step: 'landing' });
     expect(snapshots).toHaveLength(count);
   });
 
   it('resolves a deep link that only carries the step id', async () => {
     const el = mount('#step=google-auth');
     await settle(el);
-    expect(el.artifact.navigation).toMatchObject({
+    expect(el.api.navigation).toMatchObject({
       activity: 'onboarding',
       story: 'account',
       step: 'google-auth',
@@ -151,34 +151,34 @@ describe('<artifact-prototype>', () => {
   it('dispatches draft actions and re-renders the review rail', async () => {
     const el = mount();
     await settle(el);
-    el.artifact.dispatch({
+    el.api.dispatch({
       type: 'SET_STEP_NAME',
       target: 'landing',
       payload: { name: 'LP' },
     });
     await settle(el);
-    expect(el.artifact.state.activities[0]?.stories[0]?.steps[0]?.name).toBe('LP');
-    const panel = el.shadowRoot?.querySelector('artifact-comment-panel');
+    expect(el.api.state.activities[0]?.stories[0]?.steps[0]?.name).toBe('LP');
+    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel');
     expect(panel?.shadowRoot?.querySelectorAll('.item')).toHaveLength(1);
   });
 
-  it('navigates from `data-artifact-navigate` clicks inside preview content', async () => {
+  it('navigates from `data-dpk-navigate` clicks inside preview content', async () => {
     const el = mount();
     await settle(el);
     const trigger = document.createElement('a');
-    trigger.setAttribute('data-artifact-navigate', 'step=google-auth');
+    trigger.setAttribute('data-dpk-navigate', 'step=google-auth');
     el.querySelector('[data-preview-id="landing-mobile"]')?.append(trigger);
     trigger.click();
     await settle(el);
     expect(location.hash).toContain('step=google-auth');
   });
 
-  it('comments on the whole artifact by default and on the current step when attached', async () => {
+  it('comments on the whole page by default and on the current step when attached', async () => {
     const el = mount();
     await settle(el);
-    el.requestComment('artifact:prototype');
+    el.requestComment('page:prototype');
     await settle(el);
-    const panel = el.shadowRoot?.querySelector('artifact-comment-panel') as ArtifactCommentPanel | null;
+    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel | null;
     const composer = panel?.shadowRoot;
 
     const submit = async (text: string): Promise<void> => {
@@ -188,14 +188,14 @@ describe('<artifact-prototype>', () => {
       area.dispatchEvent(new Event('input', { bubbles: true }));
       // the disabled state of the button follows the value on the next update
       await panel?.updateComplete;
-      const button = composer?.querySelector('button.af-btn--accent');
+      const button = composer?.querySelector('button.dpk-btn--accent');
       if (!(button instanceof HTMLButtonElement)) throw new Error('comment submit button not found');
       button.click();
     };
 
     await submit('全体へのメモ');
     await settle(el);
-    expect(el.artifact.comments[0]?.target).toEqual({ type: 'artifact', id: 'prototype' });
+    expect(el.api.comments[0]?.target).toEqual({ type: 'page', id: 'prototype' });
 
     // The checkbox attaches the note to the step the reader is looking at.
     const box = composer?.querySelector('input[type="checkbox"]') as HTMLInputElement;
@@ -205,36 +205,36 @@ describe('<artifact-prototype>', () => {
     await settle(el);
     await submit('この Step へのメモ');
     await settle(el);
-    expect(el.artifact.comments[1]?.target).toEqual({ type: 'step', id: 'onboarding.account.landing' });
+    expect(el.api.comments[1]?.target).toEqual({ type: 'step', id: 'onboarding.account.landing' });
   });
 
   it('keeps the review rail closed behind the floating comment button', async () => {
     const el = mount();
     await settle(el);
-    const notes = el.shadowRoot?.querySelector('.af-notes');
-    const fab = el.shadowRoot?.querySelector('.af-fab');
+    const notes = el.shadowRoot?.querySelector('.dpk-notes');
+    const fab = el.shadowRoot?.querySelector('.dpk-fab');
     expect(fab).not.toBeNull();
     expect(notes?.hasAttribute('hidden')).toBe(true);
 
     (fab as HTMLElement).click();
     await settle(el);
-    expect(el.shadowRoot?.querySelector('.af-notes')?.hasAttribute('hidden')).toBe(false);
-    expect(el.shadowRoot?.querySelector('.af-fab')?.getAttribute('aria-expanded')).toBe('true');
+    expect(el.shadowRoot?.querySelector('.dpk-notes')?.hasAttribute('hidden')).toBe(false);
+    expect(el.shadowRoot?.querySelector('.dpk-fab')?.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('shows the draft count on the floating button', async () => {
     const el = mount();
     await settle(el);
-    expect(el.shadowRoot?.querySelector('.af-fab-badge')).toBeNull();
-    el.artifact.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
+    expect(el.shadowRoot?.querySelector('.dpk-fab-badge')).toBeNull();
+    el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
     await settle(el);
-    expect(el.shadowRoot?.querySelector('.af-fab-badge')?.textContent?.trim()).toBe('1');
+    expect(el.shadowRoot?.querySelector('.dpk-fab-badge')?.textContent?.trim()).toBe('1');
   });
 
   it('renders the floating memo only when the author slots content into it', async () => {
     const el = mount();
     await settle(el);
-    expect(el.shadowRoot?.querySelector('.af-memo')?.hasAttribute('hidden')).toBe(true);
+    expect(el.shadowRoot?.querySelector('.dpk-memo')?.hasAttribute('hidden')).toBe(true);
 
     const memo = document.createElement('div');
     memo.setAttribute('slot', 'memo');
@@ -242,18 +242,18 @@ describe('<artifact-prototype>', () => {
     el.append(memo);
     el.requestUpdate();
     await settle(el);
-    expect(el.shadowRoot?.querySelector('.af-memo')?.hasAttribute('hidden')).toBe(false);
+    expect(el.shadowRoot?.querySelector('.dpk-memo')?.hasAttribute('hidden')).toBe(false);
   });
 
-  it('falls back to an empty artifact with a visible error when base data is invalid', async () => {
+  it('falls back to an empty state with a visible error when base data is invalid', async () => {
     document.body.innerHTML = `
-      <artifact-prototype storage="memory">
+      <dpk-template-prototype storage="memory">
         <script type="application/json">{"activities":[{"id":"a","name":"A","oops":true}]}</script>
-      </artifact-prototype>`;
-    const el = document.querySelector('artifact-prototype') as PrototypeElement;
+      </dpk-template-prototype>`;
+    const el = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
     await settle(el);
-    expect(el.artifact.state.activities).toHaveLength(0);
-    expect(el.shadowRoot?.querySelector('.af-banner')).not.toBeNull();
+    expect(el.api.state.activities).toHaveLength(0);
+    expect(el.shadowRoot?.querySelector('.dpk-banner')).not.toBeNull();
   });
 
   it('exposes the rendered description and serialization through the definition', () => {
@@ -265,14 +265,14 @@ describe('<artifact-prototype>', () => {
     const el = mount();
     await settle(el);
     const listener = vi.fn();
-    const stop = el.artifact.subscribe(listener);
+    const stop = el.api.subscribe(listener);
     el.remove();
     const url = location.href;
-    el.artifact.comment('artifact:prototype', 'detached');
+    el.api.comment('page:prototype', 'detached');
     expect(listener).toHaveBeenCalledOnce();
     expect(location.href).toBe(url);
     stop();
-    el.artifact.comment('artifact:prototype', 'unsubscribed');
+    el.api.comment('page:prototype', 'unsubscribed');
     expect(listener).toHaveBeenCalledOnce();
   });
 
@@ -281,8 +281,8 @@ describe('<artifact-prototype>', () => {
     const removeEventListener = vi.spyOn(window, 'removeEventListener');
 
     // No base JSON: this is the path that installs the MutationObserver.
-    document.body.innerHTML = '<artifact-prototype storage="memory"></artifact-prototype>';
-    const el = document.querySelector('artifact-prototype') as PrototypeElement;
+    document.body.innerHTML = '<dpk-template-prototype storage="memory"></dpk-template-prototype>';
+    const el = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
     await settle(el);
 
     el.remove();
@@ -292,8 +292,8 @@ describe('<artifact-prototype>', () => {
     // Reconnecting must re-subscribe, otherwise drafts would stop rendering.
     document.body.append(el);
     await settle(el);
-    el.artifact.comment('artifact:prototype', 'after reconnect');
+    el.api.comment('page:prototype', 'after reconnect');
     await settle(el);
-    expect(el.artifact.comments).toHaveLength(1);
+    expect(el.api.comments).toHaveLength(1);
   });
 });

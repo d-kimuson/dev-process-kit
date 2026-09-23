@@ -9,7 +9,7 @@
       this page's own origin: the sample server is a separate origin on purpose,
       so the cross-origin (CORS) load is exercised locally too.
 
-      A concept explainer: artifact-plain brings the header and the review
+      A concept explainer: dpk-template-plain brings the header and the review
       pipeline, components.js the mind map and the context map, and the
       glossary and the aggregate figure are hand-written markup.
     -->
@@ -22,7 +22,7 @@
         margin: 0;
         background: #ffffff;
       }
-      artifact-plain {
+      dpk-template-plain {
         display: block;
         height: 100dvh;
       }
@@ -32,7 +32,7 @@
         width: 100%;
         max-width: 960px;
         margin: 0 auto 64px;
-        color: var(--af-ink);
+        color: var(--dpk-ink);
         font-size: 13.5px;
         line-height: 1.85;
       }
@@ -55,24 +55,24 @@
       .head button {
         margin-left: auto;
         padding: 3px 10px;
-        border: 1px solid var(--af-rule-strong);
+        border: 1px solid var(--dpk-rule-strong);
         border-radius: 6px;
-        background: var(--af-paper-raised);
-        color: var(--af-ink-soft);
+        background: var(--dpk-paper-raised);
+        color: var(--dpk-ink-soft);
         font: inherit;
         font-size: 11px;
         cursor: pointer;
       }
       .head button:hover {
-        border-color: var(--af-blue);
-        color: var(--af-blue);
+        border-color: var(--dpk-blue);
+        color: var(--dpk-blue);
       }
       .primer p {
         margin: 0 0 12px;
-        color: var(--af-ink-soft);
+        color: var(--dpk-ink-soft);
       }
       .primer strong {
-        color: var(--af-ink);
+        color: var(--dpk-ink);
         font-weight: 600;
       }
       .diagram {
@@ -95,10 +95,10 @@
         text-align: left;
         vertical-align: top;
         padding: 9px 10px;
-        border-bottom: 1px solid var(--af-rule);
+        border-bottom: 1px solid var(--dpk-rule);
       }
       th {
-        color: var(--af-ink-faint);
+        color: var(--dpk-ink-faint);
         font-weight: 500;
         font-size: 11.5px;
       }
@@ -108,7 +108,7 @@
       }
       td code {
         font-size: 11.5px;
-        color: var(--af-ink-soft);
+        color: var(--dpk-ink-soft);
       }
 
       /* Custom: an aggregate and what lives outside it. */
@@ -121,23 +121,23 @@
       .boundary {
         position: relative;
         padding: 30px 18px 18px;
-        border: 1.5px dashed var(--af-blue);
+        border: 1.5px dashed var(--dpk-blue);
         border-radius: 12px;
-        background: var(--af-blue-soft);
+        background: var(--dpk-blue-soft);
       }
       .boundary > .label {
         position: absolute;
         top: 8px;
         left: 14px;
-        color: var(--af-blue);
+        color: var(--dpk-blue);
         font-size: 11.5px;
         font-weight: 600;
       }
       .root {
         padding: 10px 14px;
-        border: 2px solid var(--af-blue);
+        border: 2px solid var(--dpk-blue);
         border-radius: 8px;
-        background: var(--af-paper-raised);
+        background: var(--dpk-paper-raised);
       }
       .members {
         display: grid;
@@ -147,9 +147,9 @@
       }
       .member {
         padding: 8px 12px;
-        border: 1px solid var(--af-rule-strong);
+        border: 1px solid var(--dpk-rule-strong);
         border-radius: 8px;
-        background: var(--af-paper-raised);
+        background: var(--dpk-paper-raised);
       }
       .member.is-value {
         border-style: dotted;
@@ -164,7 +164,7 @@
       .member small,
       .outside small {
         display: block;
-        color: var(--af-ink-faint);
+        color: var(--dpk-ink-faint);
         font-size: 11px;
         line-height: 1.5;
       }
@@ -175,9 +175,9 @@
       }
       .outside {
         padding: 8px 12px;
-        border: 1px solid var(--af-rule-strong);
+        border: 1px solid var(--dpk-rule-strong);
         border-radius: 8px;
-        background: var(--af-paper-sunken);
+        background: var(--dpk-paper-sunken);
       }
       .outside small code {
         font-size: 10.5px;
@@ -185,7 +185,7 @@
       .rules {
         margin: 16px 0 0;
         padding-left: 20px;
-        color: var(--af-ink-soft);
+        color: var(--dpk-ink-soft);
       }
 
       @media (max-width: 720px) {
@@ -197,7 +197,7 @@
     </style>
   </head>
   <body>
-    <artifact-plain storage-key="sample-ddd-primer">
+    <dpk-template-plain storage-key="sample-ddd-primer">
       <script type="application/json">
         {
           "title": "DDD を図で理解する",
@@ -214,7 +214,7 @@
         <section>
           <div class="head">
             <h2>全体像</h2>
-            <button type="button" data-artifact-comment="section:overview">このセクションにコメント</button>
+            <button type="button" data-dpk-comment="section:overview">このセクションにコメント</button>
           </div>
           <p>
             ドメイン駆動設計（DDD）は、業務の知識をそのままソフトウェアの形にするための考え方です。
@@ -223,7 +223,7 @@
             つに分かれ、その両方を業務の言葉（ユビキタス言語）がつなぎます。このページでは EC
             の注文システムを例に、それぞれを図で見ていきます。
           </p>
-          <artifact-mind-map id="ddd-map" class="diagram" heading="Mind map" subject="ドメイン駆動設計">
+          <dpk-component-mind-map id="ddd-map" class="diagram" heading="Mind map" subject="ドメイン駆動設計">
             <script type="application/json">
               {
                 "root": {
@@ -318,13 +318,13 @@
                 }
               }
             </script>
-          </artifact-mind-map>
+          </dpk-component-mind-map>
         </section>
 
         <section>
           <div class="head">
             <h2>境界づけられたコンテキスト</h2>
-            <button type="button" data-artifact-comment="section:contexts">このセクションにコメント</button>
+            <button type="button" data-dpk-comment="section:contexts">このセクションにコメント</button>
           </div>
           <p>
             1 つの巨大なモデルで業務全体を表そうとすると、言葉の意味がぶつかって破綻します。そこで、
@@ -332,7 +332,7 @@
             注文システムなら、注文・在庫・配送・決済は別々のコンテキストになり、イベントや API でやりとりします。
           </p>
           <p>下のコンテキストマップは、サブドメインの種類ごとに枠を分けています。</p>
-          <artifact-architecture-map id="context-map" class="diagram" heading="Context map" subject="注文システム">
+          <dpk-component-architecture-map id="context-map" class="diagram" heading="Context map" subject="注文システム">
             <script type="application/json">
               {
                 "boundaries": [
@@ -403,13 +403,13 @@
                 ]
               }
             </script>
-          </artifact-architecture-map>
+          </dpk-component-architecture-map>
         </section>
 
         <section>
           <div class="head">
             <h2>ユビキタス言語</h2>
-            <button type="button" data-artifact-comment="section:language">このセクションにコメント</button>
+            <button type="button" data-dpk-comment="section:language">このセクションにコメント</button>
           </div>
           <p>
             同じ「商品」という言葉でも、コンテキストによって関心がまったく違います。無理に 1
@@ -447,7 +447,7 @@
         <section>
           <div class="head">
             <h2>集約</h2>
-            <button type="button" data-artifact-comment="section:aggregate">このセクションにコメント</button>
+            <button type="button" data-dpk-comment="section:aggregate">このセクションにコメント</button>
           </div>
           <p>
             集約は<strong>一緒に整合性を守るオブジェクトのまとまり</strong>です。「注文の合計金額は明細の合計と一致する」
@@ -494,6 +494,6 @@
           </ol>
         </section>
       </div>
-    </artifact-plain>
+    </dpk-template-plain>
   </body>
 </html>

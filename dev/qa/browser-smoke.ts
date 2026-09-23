@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Real-browser smoke check for the published samples (AC 7.1 / 7.5).
+ * Real-browser smoke check for the published samples.
  *
  * Usage:
  *   pnpm dev                            # wrangler (assets) + sample server, via portless
@@ -8,7 +8,7 @@
  *
  * Drives the repo's `agent-browser` devDependency (headless, shared agent profile
  * per the browser-ops skill) and fails when a sample reports a page error or
- * renders the artifact error banner.
+ * renders the template error banner.
  */
 import { execFileSync } from 'node:child_process';
 import * as v from 'valibot';
@@ -19,7 +19,7 @@ if (base === undefined) {
   process.exit(2);
 }
 
-/** Sample page → the artifact root it renders. */
+/** Sample page → the template element it renders. */
 const SAMPLES = [
   ['prototype', 'prototype'],
   ['usm', 'usm'],
@@ -42,12 +42,12 @@ const ab = (...args: readonly string[]): string =>
 /** The probe result is external input: validate it instead of trusting its shape. */
 const probeSchema = v.object({ banner: v.boolean(), rail: v.boolean() });
 
-/** Reads `{ banner, rail }` out of the artifact, or `null` when the probe failed. */
+/** Reads `{ banner, rail }` out of the template element, or `null` when the probe failed. */
 const probeState = (template: string): { banner: boolean; rail: boolean } | null => {
   try {
     const raw = ab(
       'eval',
-      `(() => { const el = document.querySelector('artifact-${template}'); return JSON.stringify({ banner: !!el?.shadowRoot?.querySelector('.af-banner'), rail: !!el?.shadowRoot?.querySelector('artifact-comment-panel') }); })()`,
+      `(() => { const el = document.querySelector('dpk-template-${template}'); return JSON.stringify({ banner: !!el?.shadowRoot?.querySelector('.dpk-banner'), rail: !!el?.shadowRoot?.querySelector('dpk-component-comment-panel') }); })()`,
     ).trim();
     const decoded: unknown = JSON.parse(raw);
     const parsed = v.safeParse(probeSchema, typeof decoded === 'string' ? JSON.parse(decoded) : decoded);

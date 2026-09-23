@@ -73,7 +73,7 @@ describe('kanban data', () => {
     ).toThrow(/duplicate card id/);
     expect(() => parseKanbanData({ columns: [{ id: 'a', label: 'A', limit: 0, cards: [] }] })).toThrow();
     expect(() => parseKanbanData({ columns: [{ id: 'a', label: 'A', cards: [], typo: 1 }] })).toThrow();
-    // Colours come from the theme palette, so they follow light and dark themes.
+    // Colors come from the theme palette, so they follow light and dark themes.
     expect(() => parseKanbanData({ columns: [{ id: 'a', label: 'A', color: '#ff0000' }] })).toThrow();
     expect(() => parseKanbanData({})).toThrow();
   });

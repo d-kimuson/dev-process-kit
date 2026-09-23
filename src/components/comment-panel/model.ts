@@ -1,7 +1,7 @@
 export type Attachment =
-  | { readonly kind: 'artifact' }
+  | { readonly kind: 'page' }
   | { readonly kind: 'current' }
-  | { readonly kind: 'explicit'; readonly ref: string; readonly resume: 'artifact' | 'current' };
+  | { readonly kind: 'explicit'; readonly ref: string; readonly resume: 'page' | 'current' };
 
 export type CopyFormat = 'json' | 'brief';
 export type CopyStatus =
@@ -37,7 +37,7 @@ export type PanelEvent =
 
 export const initialPanelState = (): PanelState => ({
   body: '',
-  attachment: { kind: 'artifact' },
+  attachment: { kind: 'page' },
   copy: { kind: 'idle' },
   copyRequest: 0,
 });
@@ -50,7 +50,7 @@ export const reducePanel = (state: PanelState, event: PanelEvent): PanelState =>
     case 'input':
       return { ...state, body: event.body };
     case 'attach':
-      return { ...state, attachment: { kind: event.current ? 'current' : 'artifact' } };
+      return { ...state, attachment: { kind: event.current ? 'current' : 'page' } };
     case 'clear-target':
       return { ...state, attachment: clearExplicit(state.attachment) };
     case 'target-requested':

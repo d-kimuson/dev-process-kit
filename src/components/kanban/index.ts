@@ -1,4 +1,4 @@
-export { ArtifactKanban } from './element';
+export { DpkComponentKanban } from './element';
 export type { KanbanSelection } from './element';
 export {
   ADD_CARD,
@@ -12,10 +12,8 @@ export {
 } from './model';
 export type { KanbanCard, KanbanCardChange, KanbanColor, KanbanColumn, KanbanData, KanbanPosition } from './model';
 
-import { ArtifactKanban } from './element';
+import { DpkComponentKanban } from './element';
 
-export const KANBAN_TAG = 'artifact-kanban';
-
-export const defineKanban = (tag = KANBAN_TAG): void => {
-  if (!customElements.get(tag)) customElements.define(tag, ArtifactKanban);
+export const defineKanban = (): void => {
+  if (!customElements.get('dpk-component-kanban')) customElements.define('dpk-component-kanban', DpkComponentKanban);
 };

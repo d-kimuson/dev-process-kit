@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ArtifactController } from '../../core/controller';
+import { DraftController } from '../../core/controller';
 import { answerQuestion } from './actions';
 import { grillDefinition } from './definition';
 import { parseGrillBase } from './model';
@@ -13,7 +13,7 @@ const base = parseGrillBase({
   ],
 });
 
-const controller = () => new ArtifactController({ definition: grillDefinition, base, storage: null });
+const controller = () => new DraftController({ definition: grillDefinition, base, storage: null });
 
 describe('grill draft', () => {
   it('keeps only the answers that still stand', () => {

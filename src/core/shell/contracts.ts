@@ -1,7 +1,7 @@
 /**
  * The element-side contracts a template and slot content see.
  *
- * `ArtifactElement` implements `ArtifactApi`; `TemplateRenderContext` is the
+ * `TemplateElement` implements `TemplateApi`; `TemplateRenderContext` is the
  * read-only view handed to templates and author slot content.
  */
 import type { TemplateResult, nothing } from 'lit';
@@ -19,7 +19,7 @@ import type {
   ValidationIssue,
 } from '../types';
 
-export type ArtifactSnapshot<S> = {
+export type TemplateSnapshot<S> = {
   readonly base: S;
   readonly state: S;
   readonly navigation: Navigation;
@@ -29,7 +29,7 @@ export type ArtifactSnapshot<S> = {
   readonly issues: readonly ValidationIssue[];
 };
 
-/** Read-only view handed to slot content and template components (design §17). */
+/** Read-only view handed to slot content and template components. */
 export type TemplateRenderContext<S> = {
   readonly state: S;
   readonly base: S;
@@ -45,7 +45,7 @@ export type TemplateRenderContext<S> = {
   readonly requestComment: (target: string | ActionTarget) => void;
 };
 
-export type ArtifactApi<S> = {
+export type TemplateApi<S> = {
   readonly version: string;
   readonly template: string;
   readonly host: HTMLElement;
@@ -65,10 +65,10 @@ export type ArtifactApi<S> = {
   importDraft(actions: readonly DraftAction[]): void;
   navigate(patch: NavigationPatch, options?: { replace?: boolean }): void;
   hashFor(patch: NavigationPatch): string;
-  snapshot(): ArtifactSnapshot<S>;
+  snapshot(): TemplateSnapshot<S>;
   exportDraft(): DraftExport;
   exportBrief(): string;
-  subscribe(listener: (snapshot: ArtifactSnapshot<S>) => void): () => void;
+  subscribe(listener: (snapshot: TemplateSnapshot<S>) => void): () => void;
 };
 
 export type ShellRegions = {

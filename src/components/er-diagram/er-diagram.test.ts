@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ArtifactErDiagram } from './element';
-import { defineErDiagram, ER_DIAGRAM_TAG } from './index';
+import { DpkComponentErDiagram } from './element';
+import { defineErDiagram } from './index';
 import { parseErData, tableHeight } from './model';
 
 defineErDiagram();
@@ -77,19 +77,19 @@ const raw = {
   },
 };
 
-const settle = async (element: ArtifactErDiagram): Promise<void> => {
+const settle = async (element: DpkComponentErDiagram): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<ArtifactErDiagram> => {
-  const element = new ArtifactErDiagram();
+const mount = async (): Promise<DpkComponentErDiagram> => {
+  const element = new DpkComponentErDiagram();
   element.data = parseErData(raw);
   document.body.append(element);
   await settle(element);
   return element;
 };
 
-const classes = (element: ArtifactErDiagram, table: string): string[] => [
+const classes = (element: DpkComponentErDiagram, table: string): string[] => [
   ...(element.renderRoot.querySelector<HTMLElement>(`[data-er-table="${table}"]`)?.classList ?? []),
 ];
 
@@ -136,11 +136,10 @@ describe('er diagram data', () => {
     expect(() =>
       parseErData({ after: { tables: [{ id: 'a', name: 'A', fields: [{ id: 'x', type: 't', ref: 'nope' }] }] } }),
     ).toThrow();
-    expect(ER_DIAGRAM_TAG).toBe('artifact-er-diagram');
   });
 });
 
-const openComment = async (element: ArtifactErDiagram, kind: 'node' | 'edge', id: string) => {
+const openComment = async (element: DpkComponentErDiagram, kind: 'node' | 'edge', id: string) => {
   await settle(element);
   const button = [...element.renderRoot.querySelectorAll<HTMLButtonElement>('[data-comment-kind]')].find(
     (candidate) => candidate.dataset['commentKind'] === kind && candidate.dataset['commentId'] === id,
@@ -151,7 +150,7 @@ const openComment = async (element: ArtifactErDiagram, kind: 'node' | 'edge', id
   expect(element.renderRoot.querySelector('.comment-pop')).not.toBeNull();
 };
 
-describe('artifact-er-diagram', () => {
+describe('dpk-component-er-diagram', () => {
   it('requires the comment icon even after selecting or refocusing a table', async () => {
     const element = await mount();
     element.id = 'schema';
@@ -177,7 +176,7 @@ describe('artifact-er-diagram', () => {
     expect(trigger?.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it.each(['.af-btn--accent', '.af-btn:not(.af-btn--accent)'])('dismisses with Escape from %s', async (selector) => {
+  it.each(['.dpk-btn--accent', '.dpk-btn:not(.dpk-btn--accent)'])('dismisses with Escape from %s', async (selector) => {
     const element = await mount();
     element.id = 'schema';
     await openComment(element, 'node', 'orders');
@@ -217,7 +216,7 @@ describe('artifact-er-diagram', () => {
     await settle(element);
     area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
     await settle(element);
-    // No accepting artifact/consumer: do not discard user input.
+    // No accepting page/consumer: do not discard user input.
     expect(element.renderRoot.querySelector('[role="alert"]')?.textContent).toContain('送信できませんでした');
     expect(element.renderRoot.querySelector('textarea')?.value).toBe('Keep this draft');
     await openComment(element, 'node', 'customers');

@@ -19,7 +19,7 @@ export type LabelBinding = {
 };
 
 /**
- * Scopes to search: the artifact's own light DOM (the author's slot content),
+ * Scopes to search: the template's own light DOM (the author's slot content),
  * plus the shadow roots of the components inside it — a diagram component renders
  * its nodes itself, so its annotations are one boundary down.
  */

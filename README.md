@@ -1,6 +1,6 @@
 # dev-process-kit
 
-Design-process artifacts as single HTML files: an agent generates one, a human reviews it in the
+Design-process documents as single HTML files: an agent generates one, a human reviews it in the
 browser, and the review comes back as structured change requests the agent can apply.
 
 ## Features
@@ -24,7 +24,7 @@ flowchart LR
 
 ② is why the kit ships the formats that have proven themselves for building shared understanding between human engineers — user story mapping, ER diagrams and the rest.
 
-③ goes further than showing a picture: where a format allows it, the artifact can be operated directly in the browser, and those operations are collected as a log and handed to the agent, which rewrites the artifact itself.
+③ goes further than showing a picture: where a format allows it, the page can be operated directly in the browser, and those operations are collected as a log and handed to the agent, which rewrites the page itself.
 
 ## Usage
 
@@ -39,7 +39,7 @@ Use https://dev-process-kit.kimuson.dev/llms.txt.
 
 ### Install the skill
 
-The `dev-process-kit` agent skill tells the agent when to reach for an artifact and how to keep it focused.
+The `dev-process-kit` agent skill tells the agent when to reach for a page and how to keep it focused.
 
 ```sh
 # Any agent supported by the skills CLI
@@ -58,30 +58,30 @@ dev-process-kit ships **templates**, which make up a whole page, and **component
 
 ### Templates
 
-| Template           | Element                    | What it is                                                                                                                                                  |
-| ------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| UX Prototype       | `artifact-prototype`       | `Activity › UserStory › Step › Preview[]`: one step is one page or experience state, with previews per viewport                                             |
-| User Story Mapping | `artifact-usm`             | The backbone (activity › step) as columns, milestones as rows                                                                                               |
-| Event Storming     | `artifact-event-storming`  | Sticky notes on swimlanes in timeline order, with causality links between them                                                                              |
-| Example Mapping    | `artifact-example-mapping` | One story per column, rules beneath it, examples beneath each rule, questions pinned to any of them                                                         |
-| Grill              | `artifact-grill`           | A review of questions over whatever you put in the main area: the questions are base data, the answers are draft actions, the badges sit on your own markup |
-| Plain              | `artifact-plain`           | For a page no other template fits: only the header and the review (comments) pipeline around your own markup                                                |
+| Template           | Element                        | What it is                                                                                                                                                  |
+| ------------------ | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UX Prototype       | `dpk-template-prototype`       | `Activity › UserStory › Step › Preview[]`: one step is one page or experience state, with previews per viewport                                             |
+| User Story Mapping | `dpk-template-usm`             | The backbone (activity › step) as columns, milestones as rows                                                                                               |
+| Event Storming     | `dpk-template-event-storming`  | Sticky notes on swimlanes in timeline order, with causality links between them                                                                              |
+| Example Mapping    | `dpk-template-example-mapping` | One story per column, rules beneath it, examples beneath each rule, questions pinned to any of them                                                         |
+| Grill              | `dpk-template-grill`           | A review of questions over whatever you put in the main area: the questions are base data, the answers are draft actions, the badges sit on your own markup |
+| Plain              | `dpk-template-plain`           | For a page no other template fits: only the header and the review (comments) pipeline around your own markup                                                |
 
 ### Components
 
-| Component        | Element                     | What it is                                                                                   |
-| ---------------- | --------------------------- | -------------------------------------------------------------------------------------------- |
-| Review rail      | `artifact-comment-panel`    | The draft actions and comments, stale markers, deletion, and the copy hand-off for the agent |
-| Inline editing   | `artifact-inline-edit`      | A text/multiline editor that emits `artifact-commit`                                         |
-| State diagram    | `artifact-state-diagram`    | Which states exist, and what moves between them                                              |
-| Sequence diagram | `artifact-sequence-diagram` | In what order participants talk                                                              |
-| Dependency graph | `artifact-dependency-graph` | What depends on what, and what is circular                                                   |
-| ER diagram       | `artifact-er-diagram`       | What changed between two schema snapshots                                                    |
-| Architecture map | `artifact-architecture-map` | Which services exist, in which boundary                                                      |
-| Mind map         | `artifact-mind-map`         | A central topic and its subtopics, fanned out left and right, with folding                   |
-| Kanban           | `artifact-kanban`           | Columns of cards with WIP limits; reviewers move and add cards as draft actions              |
+| Component        | Element                          | What it is                                                                                   |
+| ---------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
+| Review rail      | `dpk-component-comment-panel`    | The draft actions and comments, stale markers, deletion, and the copy hand-off for the agent |
+| Inline editing   | `dpk-component-inline-edit`      | A text/multiline editor that emits `dpk-commit`                                              |
+| State diagram    | `dpk-component-state-diagram`    | Which states exist, and what moves between them                                              |
+| Sequence diagram | `dpk-component-sequence-diagram` | In what order participants talk                                                              |
+| Dependency graph | `dpk-component-dependency-graph` | What depends on what, and what is circular                                                   |
+| ER diagram       | `dpk-component-er-diagram`       | What changed between two schema snapshots                                                    |
+| Architecture map | `dpk-component-architecture-map` | Which services exist, in which boundary                                                      |
+| Mind map         | `dpk-component-mind-map`         | A central topic and its subtopics, fanned out left and right, with folding                   |
+| Kanban           | `dpk-component-kanban`           | Columns of cards with WIP limits; reviewers move and add cards as draft actions              |
 
-Diagrams are components, not templates: no draft actions, no review rail, no navigation. Put them in your own page, or inside an artifact. Each one has a page — `docs/templates/<name>.md` and `docs/components/<name>.md`.
+Diagrams are components, not templates: no draft actions, no review rail, no navigation. Put them in your own page, or inside a template. Each one has a page — `docs/templates/<name>.md` and `docs/components/<name>.md`.
 
 ## License
 

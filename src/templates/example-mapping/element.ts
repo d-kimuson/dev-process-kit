@@ -3,7 +3,7 @@ import { html, type TemplateResult } from 'lit';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 import type { ExampleMappingState, MappingCardKind } from './model';
 
-import { ArtifactElement } from '../../core/element';
+import { TemplateElement } from '../../core/element';
 import { DragController, type Drop, type DropPlace } from '../../lib/dom/drag';
 import { addExample, addQuestion, addRule, addStory } from './commands';
 import { defineExampleMappingCard } from './components/mapping-card';
@@ -28,7 +28,7 @@ const DELETE_ACTION = {
 } as const satisfies Record<MappingCardKind, string>;
 
 /**
- * `<artifact-example-mapping>` — Example Mapping (Matt Wynne) table.
+ * `<dpk-template-example-mapping>` — Example Mapping (Matt Wynne) table.
  *
  * The element is the seam between the pure parts: it owns the one ephemeral
  * `mode` (which card is being commented on, or which fresh card takes the
@@ -36,8 +36,8 @@ const DELETE_ACTION = {
  * intents and drops into actions. Layout lives in `render/`, the sticky note in
  * `components/`, and every drop decision in `drop.ts`.
  */
-export class ExampleMappingElement extends ArtifactElement<ExampleMappingState> {
-  static override styles = [ArtifactElement.styles, exampleMappingStyles];
+export class DpkTemplateExampleMapping extends TemplateElement<ExampleMappingState> {
+  static override styles = [TemplateElement.styles, exampleMappingStyles];
 
   readonly definition = exampleMappingDefinition;
 
@@ -151,7 +151,8 @@ export class ExampleMappingElement extends ArtifactElement<ExampleMappingState> 
   }
 }
 
-export const defineExampleMappingElement = (tag = 'artifact-example-mapping'): void => {
+export const defineExampleMappingElement = (): void => {
   defineExampleMappingCard();
-  if (!customElements.get(tag)) customElements.define(tag, ExampleMappingElement);
+  if (!customElements.get('dpk-template-example-mapping'))
+    customElements.define('dpk-template-example-mapping', DpkTemplateExampleMapping);
 };

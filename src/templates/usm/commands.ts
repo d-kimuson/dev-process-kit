@@ -11,7 +11,7 @@ export const addActivity = (context: TemplateRenderContext<UsmState>): void => {
   const id = createEntityId('new-activity', allUsmIds(context.state));
   const outcome = context.dispatch({
     type: 'ADD_ACTIVITY',
-    target: { type: 'artifact', id: 'usm' },
+    target: { type: 'page', id: 'usm' },
     payload: { id, name: '新しいアクティビティ' },
   });
   if (!outcome.ok) return;
@@ -37,7 +37,7 @@ export const addMilestone = (context: TemplateRenderContext<UsmState>): void => 
   const id = createEntityId('new-milestone', allUsmIds(context.state));
   context.dispatch({
     type: 'ADD_MILESTONE',
-    target: { type: 'artifact', id: 'usm' },
+    target: { type: 'page', id: 'usm' },
     payload: { id, name: '新しいマイルストーン' },
   });
 };

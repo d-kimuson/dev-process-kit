@@ -23,7 +23,7 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
   }
   <div class="composer">
     <textarea
-      class="af-textarea"
+      class="dpk-textarea"
       aria-label="レビューコメント"
       placeholder="変更したいこと / 気づきを書く（Agent への指示として渡る）"
       .value=${vm.body}
@@ -64,7 +64,7 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
     <div class="row">
       <span class="target-line">→ ${vm.target.label}</span>
       <button
-        class="af-btn af-btn--accent"
+        class="dpk-btn dpk-btn--accent"
         type="button"
         ?disabled=${!vm.canSubmit}
         @click=${() => send({ kind: 'submit' })}
@@ -92,16 +92,16 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
       embedded
         ? nothing
         : html`
-            <button class="af-btn" type="button" @click=${() => send({ kind: 'copy', format: 'json' })}>
+            <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'json' })}>
               Copy JSON
             </button>
-            <button class="af-btn" type="button" @click=${() => send({ kind: 'copy', format: 'brief' })}>
+            <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'brief' })}>
               Copy brief
             </button>
           `
     }
     <button
-      class="af-btn af-btn--ghost"
+      class="dpk-btn dpk-btn--ghost"
       type="button"
       ?disabled=${vm.items.length === 0}
       @click=${() => send({ kind: 'clear' })}
@@ -118,7 +118,7 @@ const renderItem = (item: PanelItem, send: PanelSend): TemplateResult => html`
       <span class="item-title">${item.title}</span>
       ${item.stale ? html`<span class="stale-badge">${item.stale}</span>` : nothing}
       <button
-        class="af-icon-btn"
+        class="dpk-icon-btn"
         type="button"
         aria-label="この draft action を削除"
         @click=${() => send({ kind: 'delete', id: item.id })}

@@ -53,7 +53,7 @@ export type ErField = {
   readonly key: ErKey;
   readonly ref: string | null;
   readonly nullable: boolean;
-  /** Space-separated `artifact-grill-panel` references. */
+  /** Space-separated `dpk-template-grill` question ids. */
   readonly questions: string | null;
 };
 

@@ -1,11 +1,11 @@
-# artifact-kanban
+# dpk-component-kanban
 
 Columns of cards, read left to right, with cards in priority order top to bottom. Reviewers move cards between and within columns and add new ones; each change is recorded as a draft action for the agent to fold into the JSON.
 
 Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing): `docs/components/diagrams.md`.
 
 ```html
-<artifact-kanban id="checkout-board" heading="Kanban" subject="注文フロー刷新">
+<dpk-component-kanban id="checkout-board" heading="Kanban" subject="注文フロー刷新">
   <script type="application/json">
     {
       "columns": [
@@ -29,21 +29,21 @@ Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing):
       ]
     }
   </script>
-</artifact-kanban>
+</dpk-component-kanban>
 ```
 
 ## Data
 
 `columns` is the board, in reading order (left to right).
 
-| Column field  | Required | Meaning                                                                                         |
-| ------------- | -------- | ----------------------------------------------------------------------------------------------- |
-| `id`          | yes      | Stable id, unique on the board. It is the comment target (`element:<diagram-id>/column/<id>`).  |
-| `label`       | yes      | Column heading.                                                                                 |
-| `description` | no       | Shown under the heading and as its tooltip.                                                     |
-| `color`       | no       | Heading colour: `gray` \| `blue` \| `green` \| `amber` \| `violet` \| `red`. Cards keep theirs. |
-| `limit`       | no       | WIP limit, an integer ≥ 1. The count reads `n / limit`, and a column over it is highlighted.    |
-| `cards`       | no       | Cards, in priority order (top to bottom).                                                       |
+| Column field  | Required | Meaning                                                                                        |
+| ------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `id`          | yes      | Stable id, unique on the board. It is the comment target (`element:<diagram-id>/column/<id>`). |
+| `label`       | yes      | Column heading.                                                                                |
+| `description` | no       | Shown under the heading and as its tooltip.                                                    |
+| `color`       | no       | Heading color: `gray` \| `blue` \| `green` \| `amber` \| `violet` \| `red`. Cards keep theirs. |
+| `limit`       | no       | WIP limit, an integer ≥ 1. The count reads `n / limit`, and a column over it is highlighted.   |
+| `cards`       | no       | Cards, in priority order (top to bottom).                                                      |
 
 | Card field    | Required | Meaning                                                                                                |
 | ------------- | -------- | ------------------------------------------------------------------------------------------------------ |
@@ -60,7 +60,7 @@ Duplicate column or card ids and unknown keys are errors, and the element render
 
 Columns are fixed-width lanes side by side; cards take the height their text needs. The board opens at 100% from the top-left corner and stays there when it is smaller than the canvas. A wide board pans horizontally; maximize it to see more columns at once.
 
-A column's `color` tints its heading, so statuses read at a glance; the colours come from the theme palette. Without a `color` the heading stays plain.
+A column's `color` tints its heading, so statuses read at a glance; the colors come from the theme palette. Without a `color` the heading stays plain.
 
 ## Tags
 

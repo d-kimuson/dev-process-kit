@@ -1,4 +1,4 @@
-export { ArtifactMindMap } from './element';
+export { DpkComponentMindMap } from './element';
 export { branchPath, layoutMindMap } from './layout';
 export {
   ancestorsOf,
@@ -12,10 +12,9 @@ export {
 } from './model';
 export type { MindMapData, MindMapEdge, MindMapNode, MindMapSide } from './model';
 
-import { ArtifactMindMap } from './element';
+import { DpkComponentMindMap } from './element';
 
-export const MIND_MAP_TAG = 'artifact-mind-map';
-
-export const defineMindMap = (tag = MIND_MAP_TAG): void => {
-  if (!customElements.get(tag)) customElements.define(tag, ArtifactMindMap);
+export const defineMindMap = (): void => {
+  if (!customElements.get('dpk-component-mind-map'))
+    customElements.define('dpk-component-mind-map', DpkComponentMindMap);
 };

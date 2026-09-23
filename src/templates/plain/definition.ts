@@ -13,7 +13,7 @@ export const plainHasTarget = (state: PlainState, target: ActionTarget): boolean
   switch (target.type) {
     case 'section':
       return findSection(state, target.id) !== undefined;
-    case 'artifact':
+    case 'page':
       return true;
     default:
       return false;

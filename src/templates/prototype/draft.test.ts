@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ArtifactController } from '../../core/controller';
+import { DraftController } from '../../core/controller';
 import { prototypeDefinition } from './definition';
 import { parsePrototypeBase } from './model';
 
@@ -25,7 +25,7 @@ const base = parsePrototypeBase({
   ],
 });
 
-const controller = () => new ArtifactController({ definition: prototypeDefinition, base, storage: null });
+const controller = () => new DraftController({ definition: prototypeDefinition, base, storage: null });
 
 const moveStep = (id: string, toStory: string, after: string | null) => ({
   type: 'MOVE_STEP',

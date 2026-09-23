@@ -10,8 +10,8 @@ export const sequenceStyles = css`
     height: 62px;
     flex-shrink: 0;
     overflow: hidden;
-    border-bottom: 1px solid var(--af-rule);
-    background: var(--af-paper);
+    border-bottom: 1px solid var(--dpk-rule);
+    background: var(--dpk-paper);
   }
 
   .sequence-rail-world {
@@ -31,10 +31,10 @@ export const sequenceStyles = css`
     align-items: center;
     gap: 9px;
     padding: 6px 10px;
-    border: 1px solid var(--af-rule-strong);
-    border-radius: var(--af-radius-sm);
-    background: var(--af-paper-raised);
-    box-shadow: var(--af-shadow-xs);
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow-xs);
     text-align: left;
     cursor: pointer;
   }
@@ -44,12 +44,12 @@ export const sequenceStyles = css`
   }
 
   .sequence-participant[aria-pressed='true'] {
-    border-color: var(--af-blue);
-    box-shadow: 0 0 0 3px var(--af-blue-soft);
+    border-color: var(--dpk-blue);
+    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
   }
 
   .sequence-participant.is-related {
-    border-color: color-mix(in srgb, var(--af-green) 60%, transparent);
+    border-color: color-mix(in srgb, var(--dpk-green) 60%, transparent);
   }
 
   .sequence-symbol {
@@ -58,16 +58,16 @@ export const sequenceStyles = css`
     place-items: center;
     width: 26px;
     height: 26px;
-    border-radius: var(--af-radius-xs);
-    background: var(--af-paper-inset);
-    color: var(--af-ink-faint);
-    font-family: var(--af-mono);
+    border-radius: var(--dpk-radius-xs);
+    background: var(--dpk-paper-inset);
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
     font-size: 9.5px;
   }
 
   .sequence-participant.is-external .sequence-symbol {
-    background: var(--af-amber-soft);
-    color: var(--af-amber);
+    background: var(--dpk-amber-soft);
+    color: var(--dpk-amber);
   }
 
   .sequence-name {
@@ -83,23 +83,23 @@ export const sequenceStyles = css`
     display: block;
     margin-top: 2px;
     font-size: 9px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .sequence-lifeline {
-    stroke: var(--af-rule-strong);
+    stroke: var(--dpk-rule-strong);
     stroke-width: 1;
     stroke-dasharray: 4 6;
   }
 
   .sequence-divider {
-    stroke: var(--af-rule-strong);
+    stroke: var(--dpk-rule-strong);
     stroke-dasharray: 4 4;
   }
 
   .sequence-message {
     fill: none;
-    stroke: var(--af-ink-faint);
+    stroke: var(--dpk-ink-faint);
     stroke-width: 1.5;
     stroke-linejoin: round;
   }
@@ -109,16 +109,16 @@ export const sequenceStyles = css`
   }
 
   .sequence-message.is-async {
-    stroke: var(--af-blue);
+    stroke: var(--dpk-blue);
   }
 
   .sequence-message-row.is-related .sequence-message {
-    stroke: var(--af-green);
+    stroke: var(--dpk-green);
     stroke-width: 2;
   }
 
   .sequence-message-row.is-selected .sequence-message {
-    stroke: var(--af-ink);
+    stroke: var(--dpk-ink);
     stroke-width: 2.4;
   }
 
@@ -129,9 +129,9 @@ export const sequenceStyles = css`
 
   .sequence-frame {
     position: absolute;
-    border: 1px solid var(--af-rule-strong);
-    border-radius: var(--af-radius-xs);
-    background: color-mix(in srgb, var(--af-blue-soft) 50%, transparent);
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-xs);
+    background: color-mix(in srgb, var(--dpk-blue-soft) 50%, transparent);
     pointer-events: none;
   }
 
@@ -141,45 +141,45 @@ export const sequenceStyles = css`
     align-items: center;
     gap: 9px;
     padding: 5px 9px;
-    border: 1px solid var(--af-rule-strong);
+    border: 1px solid var(--dpk-rule-strong);
     border-bottom: 0;
-    border-radius: var(--af-radius-xs) var(--af-radius-xs) 0 0;
-    background: var(--af-paper-sunken);
-    color: var(--af-ink-soft);
+    border-radius: var(--dpk-radius-xs) var(--dpk-radius-xs) 0 0;
+    background: var(--dpk-paper-sunken);
+    color: var(--dpk-ink-soft);
     font-size: 10px;
     text-align: left;
     cursor: pointer;
   }
 
   .sequence-frame-header:hover {
-    background: var(--af-paper-inset);
-    color: var(--af-ink);
+    background: var(--dpk-paper-inset);
+    color: var(--dpk-ink);
   }
 
   .sequence-operator {
     min-width: 26px;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-weight: 700;
-    color: var(--af-blue);
+    color: var(--dpk-blue);
   }
 
   .sequence-frame-count {
     margin-left: auto;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 9px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .sequence-branch {
     position: absolute;
     font-size: 9.5px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .sequence-fold {
     position: absolute;
     font-size: 10px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .sequence-label {
@@ -190,23 +190,23 @@ export const sequenceStyles = css`
     max-height: 27px;
     padding: 3px 5px;
     border: 1px solid transparent;
-    border-radius: var(--af-radius-xs);
-    background: var(--af-paper-raised);
-    color: var(--af-ink-soft);
+    border-radius: var(--dpk-radius-xs);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
     font-size: 10px;
     text-align: left;
     cursor: pointer;
   }
 
   .sequence-label:hover {
-    border-color: color-mix(in srgb, var(--af-blue) 40%, transparent);
-    color: var(--af-blue);
+    border-color: color-mix(in srgb, var(--dpk-blue) 40%, transparent);
+    color: var(--dpk-blue);
   }
 
   .sequence-label.is-selected {
-    border-color: color-mix(in srgb, var(--af-blue) 55%, transparent);
-    background: var(--af-blue-soft);
-    color: var(--af-blue);
+    border-color: color-mix(in srgb, var(--dpk-blue) 55%, transparent);
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
   }
 
   .sequence-number {
@@ -215,12 +215,12 @@ export const sequenceStyles = css`
     place-items: center;
     width: 19px;
     height: 17px;
-    border: 1px solid var(--af-rule-strong);
+    border: 1px solid var(--dpk-rule-strong);
     border-radius: 3px;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 8px;
     font-variant-numeric: tabular-nums;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .sequence-text {
@@ -232,21 +232,21 @@ export const sequenceStyles = css`
 
   #seq-request .diagram-arrow,
   #seq-response .diagram-arrow {
-    fill: var(--af-ink-faint);
-    stroke: var(--af-ink-faint);
+    fill: var(--dpk-ink-faint);
+    stroke: var(--dpk-ink-faint);
   }
 
   #seq-async .diagram-arrow {
-    stroke: var(--af-blue);
+    stroke: var(--dpk-blue);
   }
 
   #seq-related .diagram-arrow {
-    fill: var(--af-green);
-    stroke: var(--af-green);
+    fill: var(--dpk-green);
+    stroke: var(--dpk-green);
   }
 
   #seq-selected .diagram-arrow {
-    fill: var(--af-ink);
-    stroke: var(--af-ink);
+    fill: var(--dpk-ink);
+    stroke: var(--dpk-ink);
   }
 `;

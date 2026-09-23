@@ -16,9 +16,9 @@ import { announce } from '../lib/announce';
 import { defineGrillElement } from '../templates/grill';
 
 export * from '../core/index';
-export { ArtifactCommentPanel } from '../components/comment-panel/index';
+export { DpkComponentCommentPanel } from '../components/comment-panel/index';
 export type { CommentPanelCallbacks } from '../components/comment-panel/index';
-export { ArtifactInlineEdit } from '../components/inline-edit';
+export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as grill from '../templates/grill';
 
 defineCommentPanel();

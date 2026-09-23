@@ -68,9 +68,9 @@ describe('derive', () => {
     expect(result.state).toEqual(base);
   });
 
-  it('treats artifact-wide comments as always applicable', () => {
+  it('treats page-wide comments as always applicable', () => {
     const result = derive(tinyDefinition, base, [
-      action({ id: 'wide', type: 'comment', target: { type: 'artifact', id: 'tiny' }, payload: { body: 'whole doc' } }),
+      action({ id: 'wide', type: 'comment', target: { type: 'page', id: 'tiny' }, payload: { body: 'whole doc' } }),
     ]);
     expect(result.stale).toHaveLength(0);
     expect(result.comments.map((entry) => entry.id)).toEqual(['wide']);

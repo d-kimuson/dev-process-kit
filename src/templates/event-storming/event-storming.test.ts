@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { DraftAction } from '../../core/types';
-import type { EventStormingElement } from './element';
+import type { DpkTemplateEventStorming } from './element';
 
 import { applyEventStormingAction } from './apply';
 import { eventStormingDefinition } from './definition';
@@ -45,11 +45,7 @@ describe('event-storming', () => {
     const once = applyEventStormingAction(state, a) as EventStormingState;
     const twice = applyEventStormingAction(once, a) as EventStormingState;
     expect(twice).toEqual(once);
-    const add = action(
-      'ADD_ELEMENT',
-      { type: 'artifact', id: 'event-storming' },
-      { id: 'n3', type: 'event', name: 'N' },
-    );
+    const add = action('ADD_ELEMENT', { type: 'page', id: 'event-storming' }, { id: 'n3', type: 'event', name: 'N' });
     const s1 = applyEventStormingAction(state, add) as EventStormingState;
     const s2 = applyEventStormingAction(s1, add) as EventStormingState;
     expect(s2).toEqual(s1);
@@ -85,27 +81,27 @@ describe('event-storming', () => {
 
   it('mounts, dispatches and navigates', async () => {
     window.location.hash = '';
-    document.body.innerHTML = `<artifact-event-storming storage="memory"><script type="application/json">${JSON.stringify(base)}</script></artifact-event-storming>`;
-    const el = document.querySelector('artifact-event-storming') as unknown as EventStormingElement;
-    await el.artifact.ready;
+    document.body.innerHTML = `<dpk-template-event-storming storage="memory"><script type="application/json">${JSON.stringify(base)}</script></dpk-template-event-storming>`;
+    const el = document.querySelector('dpk-template-event-storming') as unknown as DpkTemplateEventStorming;
+    await el.api.ready;
     await el.updateComplete;
-    expect(el.shadowRoot?.querySelectorAll('artifact-es-note').length).toBeGreaterThan(0);
-    el.artifact.dispatch({ type: 'SET_ELEMENT_NAME', target: 'n1', payload: { name: 'Renamed' } });
+    expect(el.shadowRoot?.querySelectorAll('dpk-internal-event-storming-note').length).toBeGreaterThan(0);
+    el.api.dispatch({ type: 'SET_ELEMENT_NAME', target: 'n1', payload: { name: 'Renamed' } });
     await el.updateComplete;
     await Promise.resolve();
     await el.updateComplete;
     // The name renders inside the nested inline editor's shadow root.
-    const cards = Array.from(el.shadowRoot?.querySelectorAll('artifact-es-note') ?? []);
+    const cards = Array.from(el.shadowRoot?.querySelectorAll('dpk-internal-event-storming-note') ?? []);
     await Promise.all(cards.map((card) => (card as HTMLElement & { updateComplete: Promise<boolean> }).updateComplete));
     const editors = cards.flatMap((card) =>
-      Array.from(card.shadowRoot?.querySelectorAll('artifact-inline-edit') ?? []),
+      Array.from(card.shadowRoot?.querySelectorAll('dpk-component-inline-edit') ?? []),
     );
     await Promise.all(
       editors.map((edit) => (edit as HTMLElement & { updateComplete: Promise<boolean> }).updateComplete),
     );
     const names = editors.map((edit) => edit.shadowRoot?.textContent ?? '');
     expect(names.join('\n')).toContain('Renamed');
-    el.artifact.navigate({ note: 'n2' });
+    el.api.navigate({ note: 'n2' });
     await el.updateComplete;
     expect(location.hash).toContain('note=n2');
     document.body.innerHTML = '';
@@ -113,9 +109,9 @@ describe('event-storming', () => {
 
   it('an empty board starts its first event from the empty state', async () => {
     window.location.hash = '';
-    document.body.innerHTML = `<artifact-event-storming storage="memory"><script type="application/json">{}</script></artifact-event-storming>`;
-    const el = document.querySelector('artifact-event-storming') as unknown as EventStormingElement;
-    await el.artifact.ready;
+    document.body.innerHTML = `<dpk-template-event-storming storage="memory"><script type="application/json">{}</script></dpk-template-event-storming>`;
+    const el = document.querySelector('dpk-template-event-storming') as unknown as DpkTemplateEventStorming;
+    await el.api.ready;
     await el.updateComplete;
     const button = el.shadowRoot?.querySelector<HTMLButtonElement>('.empty button');
     expect(button?.textContent).toContain('最初のイベント');
@@ -124,7 +120,7 @@ describe('event-storming', () => {
     expect(el.shadowRoot?.querySelector('[data-testid="es-add"]')).toBeNull();
     button?.click();
     await el.updateComplete;
-    const notes = Array.from(el.shadowRoot?.querySelectorAll('artifact-es-note') ?? []);
+    const notes = Array.from(el.shadowRoot?.querySelectorAll('dpk-internal-event-storming-note') ?? []);
     expect(notes).toHaveLength(1);
     expect(notes[0]?.getAttribute('data-mode')).toBe('editing');
     document.body.innerHTML = '';
@@ -132,26 +128,26 @@ describe('event-storming', () => {
 
   it('renders causality links as SVG-namespaced elements', async () => {
     window.location.hash = '';
-    document.body.innerHTML = `<artifact-event-storming storage="memory"><script type="application/json">${JSON.stringify(base)}</script></artifact-event-storming>`;
-    const el = document.querySelector('artifact-event-storming') as unknown as EventStormingElement;
-    await el.artifact.ready;
+    document.body.innerHTML = `<dpk-template-event-storming storage="memory"><script type="application/json">${JSON.stringify(base)}</script></dpk-template-event-storming>`;
+    const el = document.querySelector('dpk-template-event-storming') as unknown as DpkTemplateEventStorming;
+    await el.api.ready;
     await el.updateComplete;
     const path = el.shadowRoot?.querySelector('.links-layer path.link-path');
     // Regression: a child template whose root is an SVG element must use lit's `svg`
     // tag, otherwise it is parsed in the HTML namespace and never painted.
     expect(path?.namespaceURI).toBe('http://www.w3.org/2000/svg');
     // Both notes fit in the first band here, so every link paints as one stroke.
-    expect(el.shadowRoot?.querySelectorAll('.links-layer path.link-path').length).toBe(el.artifact.state.links.length);
+    expect(el.shadowRoot?.querySelectorAll('.links-layer path.link-path').length).toBe(el.api.state.links.length);
     document.body.innerHTML = '';
   });
 
   it('a note paints its name only: the description is a tooltip', async () => {
     window.location.hash = '';
-    document.body.innerHTML = `<artifact-event-storming storage="memory"><script type="application/json">${JSON.stringify(base)}</script></artifact-event-storming>`;
-    const el = document.querySelector('artifact-event-storming') as unknown as EventStormingElement;
-    await el.artifact.ready;
+    document.body.innerHTML = `<dpk-template-event-storming storage="memory"><script type="application/json">${JSON.stringify(base)}</script></dpk-template-event-storming>`;
+    const el = document.querySelector('dpk-template-event-storming') as unknown as DpkTemplateEventStorming;
+    await el.api.ready;
     await el.updateComplete;
-    const card = el.shadowRoot?.querySelector('artifact-es-note');
+    const card = el.shadowRoot?.querySelector('dpk-internal-event-storming-note');
     await (card as (HTMLElement & { updateComplete: Promise<boolean> }) | null)?.updateComplete;
     expect(card?.getAttribute('title')).toBe('説明テキスト');
     expect(card?.shadowRoot?.textContent ?? '').not.toContain('説明テキスト');
@@ -163,9 +159,9 @@ describe('event-storming', () => {
     const chain = Array.from({ length: 6 }, (_, i) => ({ id: `e${i + 1}`, type: 'event', name: `E${i + 1}` }));
     const links = chain.slice(1).map((note, i) => ({ id: `l${i + 1}`, from: `e${i + 1}`, to: note.id }));
     const board = { elements: chain, links };
-    document.body.innerHTML = `<artifact-event-storming storage="memory"><script type="application/json">${JSON.stringify(board)}</script></artifact-event-storming>`;
-    const el = document.querySelector('artifact-event-storming') as unknown as EventStormingElement;
-    await el.artifact.ready;
+    document.body.innerHTML = `<dpk-template-event-storming storage="memory"><script type="application/json">${JSON.stringify(board)}</script></dpk-template-event-storming>`;
+    const el = document.querySelector('dpk-template-event-storming') as unknown as DpkTemplateEventStorming;
+    await el.api.ready;
     await el.updateComplete;
     const bands = Array.from(el.shadowRoot?.querySelectorAll('.band') ?? []);
     expect(bands.length).toBeGreaterThan(1);
@@ -183,15 +179,15 @@ describe('event-storming', () => {
 
   it('edits the name in place, with no pencil or detail button', async () => {
     window.location.hash = '';
-    document.body.innerHTML = `<artifact-event-storming storage="memory"><script type="application/json">${JSON.stringify(base)}</script></artifact-event-storming>`;
-    const el = document.querySelector('artifact-event-storming') as unknown as EventStormingElement;
-    await el.artifact.ready;
+    document.body.innerHTML = `<dpk-template-event-storming storage="memory"><script type="application/json">${JSON.stringify(base)}</script></dpk-template-event-storming>`;
+    const el = document.querySelector('dpk-template-event-storming') as unknown as DpkTemplateEventStorming;
+    await el.api.ready;
     await el.updateComplete;
-    const card = el.shadowRoot?.querySelector('artifact-es-note');
+    const card = el.shadowRoot?.querySelector('dpk-internal-event-storming-note');
     await (card as (HTMLElement & { updateComplete: Promise<boolean> }) | null)?.updateComplete;
     // The name itself is the editor; the card only carries comment, delete and
     // the labelled hotspot chip.
-    const edit = card?.shadowRoot?.querySelector<HTMLElement>('artifact-inline-edit.note-name');
+    const edit = card?.shadowRoot?.querySelector<HTMLElement>('dpk-component-inline-edit.note-name');
     expect(edit).not.toBeNull();
     expect(card?.shadowRoot?.querySelector('[data-role="edit"]')).toBeNull();
     expect(card?.shadowRoot?.querySelector('[data-role="detail"]')).toBeNull();
@@ -210,15 +206,15 @@ describe('event-storming', () => {
     await el.updateComplete;
     await Promise.resolve();
     await el.updateComplete;
-    expect(el.artifact.state.elements.find((note) => note.id === 'n1')?.name).toBe('注文する');
+    expect(el.api.state.elements.find((note) => note.id === 'n1')?.name).toBe('注文する');
     document.body.innerHTML = '';
   });
 
   it('selects a link stroke and deletes it with the Delete key', async () => {
     window.location.hash = '';
-    document.body.innerHTML = `<artifact-event-storming storage="memory"><script type="application/json">${JSON.stringify(base)}</script></artifact-event-storming>`;
-    const el = document.querySelector('artifact-event-storming') as unknown as EventStormingElement;
-    await el.artifact.ready;
+    document.body.innerHTML = `<dpk-template-event-storming storage="memory"><script type="application/json">${JSON.stringify(base)}</script></dpk-template-event-storming>`;
+    const el = document.querySelector('dpk-template-event-storming') as unknown as DpkTemplateEventStorming;
+    await el.api.ready;
     await el.updateComplete;
     el.shadowRoot?.querySelector('path.link-hit')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await el.updateComplete;
@@ -227,7 +223,7 @@ describe('event-storming', () => {
       ?.querySelector('.board-viewport')
       ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
     await el.updateComplete;
-    expect(el.artifact.state.links).toHaveLength(0);
+    expect(el.api.state.links).toHaveLength(0);
     expect(el.shadowRoot?.querySelector('.board-selection')).toBeNull();
     document.body.innerHTML = '';
   });

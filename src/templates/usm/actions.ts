@@ -21,7 +21,7 @@ export const usmActions = {
   REORDER_STEP: defineAction('REORDER_STEP', 'step', v.object({ after: v.nullable(v.string()) }), { mode: 'sequence' }),
   ADD_ACTIVITY: defineAction(
     'ADD_ACTIVITY',
-    'artifact',
+    'page',
     v.object({ id: entityIdSchema, name: v.pipe(v.string(), v.minLength(1)) }),
     {
       dedupeKey: entityDedupeKey,
@@ -75,7 +75,7 @@ export const usmActions = {
   ),
   ADD_MILESTONE: defineAction(
     'ADD_MILESTONE',
-    'artifact',
+    'page',
     v.object({ id: entityIdSchema, name: v.pipe(v.string(), v.minLength(1)) }),
     {
       dedupeKey: entityDedupeKey,

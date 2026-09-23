@@ -1,4 +1,4 @@
-export { PlainElement, definePlainElement } from './element';
+export { DpkTemplatePlain, definePlainElement } from './element';
 export { plainDefinition, plainHasTarget } from './definition';
 export {
   describePlainAction,

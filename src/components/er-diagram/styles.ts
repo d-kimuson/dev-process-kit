@@ -7,7 +7,7 @@ export const erStyles = css`
     gap: 6px;
   }
 
-  .er-search .af-input {
+  .er-search .dpk-input {
     width: 150px;
     min-height: 26px;
     font-size: 11px;
@@ -16,33 +16,33 @@ export const erStyles = css`
   .er-table {
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--af-rule-strong);
-    border-radius: var(--af-radius-sm);
-    background: var(--af-paper-raised);
-    box-shadow: var(--af-shadow-xs);
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow-xs);
     overflow: hidden;
     cursor: default;
   }
 
   .er-table.is-added {
-    border-color: color-mix(in srgb, var(--af-green) 55%, transparent);
+    border-color: color-mix(in srgb, var(--dpk-green) 55%, transparent);
   }
 
   .er-table.is-removed {
-    border-color: color-mix(in srgb, var(--af-accent) 55%, transparent);
+    border-color: color-mix(in srgb, var(--dpk-accent) 55%, transparent);
   }
 
   .er-table.is-changed {
-    border-color: color-mix(in srgb, var(--af-amber) 55%, transparent);
+    border-color: color-mix(in srgb, var(--dpk-amber) 55%, transparent);
   }
 
   .er-table.is-selected {
-    border-color: var(--af-blue);
-    box-shadow: 0 0 0 3px var(--af-blue-soft);
+    border-color: var(--dpk-blue);
+    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
   }
 
   .er-table.is-related {
-    border-color: color-mix(in srgb, var(--af-green) 50%, transparent);
+    border-color: color-mix(in srgb, var(--dpk-green) 50%, transparent);
   }
 
   .er-head {
@@ -57,15 +57,15 @@ export const erStyles = css`
     min-height: 42px;
     padding: 7px 11px;
     border: 0;
-    border-bottom: 1px solid var(--af-rule);
+    border-bottom: 1px solid var(--dpk-rule);
     border-radius: 0;
-    background: var(--af-paper);
+    background: var(--dpk-paper);
     text-align: left;
     cursor: pointer;
   }
 
   .er-head:hover {
-    background: var(--af-paper-sunken);
+    background: var(--dpk-paper-sunken);
   }
 
   .er-table:has(> .diagram-comment-trigger) .er-head {
@@ -92,28 +92,28 @@ export const erStyles = css`
     width: 16px;
     height: 16px;
     border-radius: 3px;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 10px;
   }
 
   .er-table.is-added .er-mark {
-    background: var(--af-green-soft);
-    color: var(--af-green);
+    background: var(--dpk-green-soft);
+    color: var(--dpk-green);
   }
 
   .er-table.is-removed .er-mark {
-    background: var(--af-accent-soft);
-    color: var(--af-accent);
+    background: var(--dpk-accent-soft);
+    color: var(--dpk-accent);
   }
 
   .er-table.is-changed .er-mark {
-    background: var(--af-amber-soft);
-    color: var(--af-amber);
+    background: var(--dpk-amber-soft);
+    color: var(--dpk-amber);
   }
 
   .er-name {
     grid-area: name;
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 12px;
     font-weight: 640;
     letter-spacing: -0.01em;
@@ -125,7 +125,7 @@ export const erStyles = css`
   .er-label {
     grid-area: label;
     font-size: 9.5px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -148,7 +148,7 @@ export const erStyles = css`
     align-items: center;
     gap: 6px;
     padding: 0 10px;
-    border-bottom: 1px solid var(--af-rule);
+    border-bottom: 1px solid var(--dpk-rule);
     font-size: 10.5px;
   }
 
@@ -157,49 +157,49 @@ export const erStyles = css`
   }
 
   .er-field.is-added {
-    background: color-mix(in srgb, var(--af-green) 7%, transparent);
+    background: color-mix(in srgb, var(--dpk-green) 7%, transparent);
   }
 
   .er-field.is-removed {
-    background: color-mix(in srgb, var(--af-accent) 7%, transparent);
+    background: color-mix(in srgb, var(--dpk-accent) 7%, transparent);
     text-decoration: line-through;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .er-field.is-changed {
-    background: color-mix(in srgb, var(--af-amber) 7%, transparent);
+    background: color-mix(in srgb, var(--dpk-amber) 7%, transparent);
   }
 
   .er-field.is-match {
-    box-shadow: inset 2px 0 0 var(--af-blue);
+    box-shadow: inset 2px 0 0 var(--dpk-blue);
   }
 
   .er-field-mark {
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 10px;
     text-align: center;
   }
 
   .er-field.is-added .er-field-mark {
-    color: var(--af-green);
+    color: var(--dpk-green);
   }
 
   .er-field.is-removed .er-field-mark {
-    color: var(--af-accent);
+    color: var(--dpk-accent);
   }
 
   .er-field.is-changed .er-field-mark {
-    color: var(--af-amber);
+    color: var(--dpk-amber);
   }
 
   .er-key {
     display: grid;
     place-items: center;
     border-radius: 3px;
-    background: var(--af-paper-inset);
-    font-family: var(--af-mono);
+    background: var(--dpk-paper-inset);
+    font-family: var(--dpk-mono);
     font-size: 8.5px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 
   .er-key[data-empty='true'] {
@@ -207,7 +207,7 @@ export const erStyles = css`
   }
 
   .er-field-name {
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -215,7 +215,7 @@ export const erStyles = css`
 
   .er-field-type {
     font-size: 9.5px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     white-space: nowrap;
   }
 
@@ -230,12 +230,12 @@ export const erStyles = css`
   }
 
   .er-change del {
-    color: var(--af-accent);
+    color: var(--dpk-accent);
     text-decoration: line-through;
   }
 
   .er-change ins {
-    color: var(--af-green);
+    color: var(--dpk-green);
     text-decoration: none;
   }
 
@@ -244,65 +244,65 @@ export const erStyles = css`
   }
 
   .er-edge.is-added .d-edge-path {
-    stroke: var(--af-green);
+    stroke: var(--dpk-green);
   }
 
   .er-edge.is-removed .d-edge-path {
-    stroke: var(--af-accent);
+    stroke: var(--dpk-accent);
     stroke-dasharray: 5 4;
   }
 
   .er-edge.is-selected .d-edge-path {
-    stroke: var(--af-blue);
+    stroke: var(--dpk-blue);
     stroke-width: 2.6;
   }
 
   .er-cardinality {
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 10px;
-    fill: var(--af-ink-faint);
+    fill: var(--dpk-ink-faint);
     paint-order: stroke;
-    stroke: var(--af-paper-raised);
+    stroke: var(--dpk-paper-raised);
     stroke-width: 4px;
   }
 
   .er-cardinality.is-added {
-    fill: var(--af-green);
+    fill: var(--dpk-green);
   }
 
   .er-cardinality.is-removed {
-    fill: var(--af-accent);
+    fill: var(--dpk-accent);
   }
 
   .diagram-legend .er-swatch-added {
-    border-color: var(--af-green);
+    border-color: var(--dpk-green);
   }
 
   .diagram-legend .er-swatch-removed {
-    border-color: var(--af-accent);
+    border-color: var(--dpk-accent);
   }
 
   .diagram-legend .er-swatch-changed {
-    border-color: var(--af-amber);
+    border-color: var(--dpk-amber);
   }
 
   #er-neutral .diagram-arrow {
-    fill: var(--af-rule-strong);
-    stroke: var(--af-rule-strong);
+    fill: var(--dpk-rule-strong);
+    stroke: var(--dpk-rule-strong);
   }
 
   #er-added .diagram-arrow {
-    fill: var(--af-green);
-    stroke: var(--af-green);
+    fill: var(--dpk-green);
+    stroke: var(--dpk-green);
   }
 
   #er-removed .diagram-arrow {
-    fill: var(--af-accent);
-    stroke: var(--af-accent);
+    fill: var(--dpk-accent);
+    stroke: var(--dpk-accent);
   }
 
   #er-selected .diagram-arrow {
-    fill: var(--af-blue);
-    stroke: var(--af-blue);
+    fill: var(--dpk-blue);
+    stroke: var(--dpk-blue);
   }
 `;

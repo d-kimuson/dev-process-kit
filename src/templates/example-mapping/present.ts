@@ -213,7 +213,7 @@ export const exampleMappingTargetLabel = (state: ExampleMappingState, target: Ac
         const question = findQuestion(state, target.id);
         return question ? `質問 · ${question.name}` : `質問 · ${target.id} (missing)`;
       }
-      case 'artifact':
+      case 'page':
         return `マップ · ${exampleMappingTitle(state)}`;
       default:
         return `${target.type} · ${target.id}`;
@@ -227,7 +227,7 @@ export const exampleMappingCommentTargets = (
   state: ExampleMappingState,
   _nav: Navigation,
 ): readonly CommentTargetOption[] => {
-  const options: CommentTargetOption[] = [{ value: 'artifact:example-mapping', label: 'マップ全体', group: 'マップ' }];
+  const options: CommentTargetOption[] = [{ value: 'page:example-mapping', label: 'マップ全体', group: 'マップ' }];
   for (const story of state.stories) {
     options.push({ value: targetRef({ type: 'story', id: story.id }), label: story.name, group: 'ストーリー' });
   }

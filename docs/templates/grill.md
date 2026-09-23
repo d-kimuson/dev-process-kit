@@ -1,16 +1,16 @@
-# Template: grill (`<artifact-grill>`)
+# Template: grill (`<dpk-template-grill>`)
 
 A review of questions over whatever the author puts in the main area. The questions are base data, the answers are draft actions, and the badges that tie them together sit on your own markup — a diagram component, a table, prose.
 
 ```text
-artifact-grill
+dpk-template-grill
   main   slot="main" — your content, with the Q badges layered over it
   rail   質問 / Review tabs on the right, with one combined copy button
   corner the 質問 / Review button (top right) — folds the column away,
          badge = 回答済み / 全件
 ```
 
-The **Review** tab embeds the same comment panel used by the other templates. Answers, artifact-wide notes, question comments and diagram-element comments share one persisted draft and one hand-off.
+The **Review** tab embeds the same comment panel used by the other templates. Answers, page-wide notes, question comments and diagram-element comments share one persisted draft and one hand-off.
 
 ## Base data
 
@@ -33,10 +33,10 @@ The **Review** tab embeds the same comment panel used by the other templates. An
 }
 ```
 
-| Field         | Required | Meaning                                                     |
-| ------------- | -------- | ----------------------------------------------------------- |
-| `title`       | no       | Artifact title in the chrome. Defaults to `Visually Grill`. |
-| `questions[]` | yes      | The questions, in reading order.                            |
+| Field         | Required | Meaning                                                 |
+| ------------- | -------- | ------------------------------------------------------- |
+| `title`       | no       | Page title in the chrome. Defaults to `Visually Grill`. |
+| `questions[]` | yes      | The questions, in reading order.                        |
 
 Per question:
 
@@ -72,22 +72,22 @@ The open question is navigation, not a draft action:
 #question=release-path
 ```
 
-`resolveNavigation` fills it with the first question and re-points it when the question it names disappears. Clicking a Q badge on the main area navigates, and the list scrolls that question into view; `data-artifact-navigate="question=release-path"` on your own markup works too, so a diagram can link to the question about it. Clicking a badge also opens the 質問 tab and unfolds the rail. Tabs are view state, not draft actions; all questions remain in the list.
+`resolveNavigation` fills it with the first question and re-points it when the question it names disappears. Clicking a Q badge on the main area navigates, and the list scrolls that question into view; `data-dpk-navigate="question=release-path"` on your own markup works too, so a diagram can link to the question about it. Clicking a badge also opens the 質問 tab and unfolds the rail. Tabs are view state, not draft actions; all questions remain in the list.
 
 ## Main area
 
 `slot="main"` is yours, and the template captures it inside its own stage so the badges share a coordinate space with the content. When using diagrams, load `components.js` alongside `templates/grill.js` (or use the all-in-one `index.js`):
 
 ```html
-<artifact-grill storage-key="checkout-review">
+<dpk-template-grill storage-key="checkout-review">
   <script type="application/json">
     { "title": "在庫予約の設計レビュー", "questions": [ … ] }
   </script>
 
   <div slot="main">
-    <artifact-er-diagram id="checkout-schema">…</artifact-er-diagram>
+    <dpk-component-er-diagram id="checkout-schema">…</dpk-component-er-diagram>
   </div>
-</artifact-grill>
+</dpk-template-grill>
 ```
 
 | Where                   | How                                                |
@@ -100,7 +100,7 @@ The second one reaches into a diagram's shadow root to place the badge on the ex
 ## UI provided by the template
 
 - **質問 tab** (right): one card per question with choices and a free-text answer. No answered/unanswered filters.
-- **Review tab**: the shared composer and draft list, including stale actions. Notes are artifact-wide; use a diagram's comment button to target that element. There is no attach-to-question checkbox: the answer is the reply to a question. A comment request opens Review and unfolds the rail. Switching tabs or folding preserves unsent input.
+- **Review tab**: the shared composer and draft list, including stale actions. Notes are page-wide; use a diagram's comment button to target that element. There is no attach-to-question checkbox: the answer is the reply to a question. A comment request opens Review and unfolds the rail. Switching tabs or folding preserves unsent input.
 - **回答・Review をまとめてコピー**: available below either tab; copies the canonical agent brief with answers, all comments, target references and draft JSON, independent of the selected tab. Also works for a review containing only comments.
 - **質問 / Review button** (top right): a round button with an `回答済み / 全件` badge that folds the whole column away.
 - **Q badges** (main): one per reference, red until the question is answered and green after; clicking opens the question.
@@ -114,4 +114,4 @@ Give each diagram a stable, unique HTML `id`. Hover a table, state, participant,
 
 ## Naming
 
-Questions use `question:<id>`, artifact-wide comments use `artifact:grill`, and component-owned elements use `element:<reference>`. Preserve the diagram and element ids when revising the artifact so existing comments retain their targets.
+Questions use `question:<id>`, page-wide comments use `page:grill`, and component-owned elements use `element:<reference>`. Preserve the diagram and element ids when revising the page so existing comments retain their targets.

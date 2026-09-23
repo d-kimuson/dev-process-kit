@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import '../../index';
-import type { PrototypeElement } from './element';
+import type { DpkTemplatePrototype } from './element';
 
 const base = {
   title: 'Demo',
@@ -32,24 +32,24 @@ const base = {
   ],
 };
 
-const mount = (hash = ''): PrototypeElement => {
+const mount = (hash = ''): DpkTemplatePrototype => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <artifact-prototype storage="memory">
+    <dpk-template-prototype storage="memory">
       <script type="application/json">${JSON.stringify(base)}</script>
       <div slot="preview" data-preview-id="landing-mobile">mobile</div>
-    </artifact-prototype>`;
-  return document.querySelector('artifact-prototype') as PrototypeElement;
+    </dpk-template-prototype>`;
+  return document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
 };
 
-const settle = async (el: PrototypeElement): Promise<void> => {
-  await el.artifact.ready;
+const settle = async (el: DpkTemplatePrototype): Promise<void> => {
+  await el.api.ready;
   await el.updateComplete;
   await Promise.resolve();
   await el.updateComplete;
 };
 
-describe('<artifact-prototype> layout', () => {
+describe('<dpk-template-prototype> layout', () => {
   beforeEach(() => {
     window.location.hash = '';
     document.body.innerHTML = '';
@@ -64,7 +64,7 @@ describe('<artifact-prototype> layout', () => {
     expect([...selects[1]!.options].map((o) => o.value)).toEqual(['account', 'billing']);
     expect(root.querySelectorAll('.step-row')).toHaveLength(2);
     expect(root.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Landing');
-    expect(root.querySelectorAll('.detail artifact-inline-edit')).toHaveLength(2);
+    expect(root.querySelectorAll('.detail dpk-component-inline-edit')).toHaveLength(2);
   });
 
   it('renders the stage: tabs, frame, placeholder and parked slots', async () => {
@@ -81,10 +81,10 @@ describe('<artifact-prototype> layout', () => {
     const parked = [...root.querySelectorAll('.parked slot')].map((slot) => slot.getAttribute('name'));
     expect(parked).toEqual(['preview:landing-desktop', 'preview:auth-native']);
     // the step without previews says so instead of rendering an empty frame
-    el.artifact.navigate({ story: 'billing', step: 'invoice' });
+    el.api.navigate({ story: 'billing', step: 'invoice' });
     await settle(el);
     expect(root.querySelector('figure.frame')).toBeNull();
-    expect(root.querySelector('.stage .af-label')?.textContent).toContain('preview metadata がありません');
+    expect(root.querySelector('.stage .dpk-label')?.textContent).toContain('preview metadata がありません');
   });
 
   it('shows a placeholder and the native status bar when the preview has no markup', async () => {
@@ -111,7 +111,7 @@ describe('<artifact-prototype> layout', () => {
     expect(root.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Invoice');
     [...root.querySelectorAll('button')].find((b) => b.textContent?.includes('＋ Step'))!.click();
     await settle(el);
-    expect(el.artifact.actions.some((a) => a.type === 'ADD_STEP')).toBe(true);
+    expect(el.api.actions.some((a) => a.type === 'ADD_STEP')).toBe(true);
     expect(root.querySelectorAll('.step-row')).toHaveLength(2);
     expect(location.hash).toContain('step=new-step');
   });

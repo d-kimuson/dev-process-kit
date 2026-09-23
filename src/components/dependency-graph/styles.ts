@@ -5,8 +5,8 @@ export const dependencyStyles = css`
     display: flex;
     gap: 1px;
     padding: 2px;
-    border: 1px solid var(--af-rule-strong);
-    border-radius: var(--af-radius-xs);
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-xs);
   }
 
   .dep-direction button {
@@ -14,14 +14,14 @@ export const dependencyStyles = css`
     border-radius: 3px;
     padding: 3px 7px;
     background: transparent;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     font-size: 9.5px;
     cursor: pointer;
   }
 
   .dep-direction button[aria-pressed='true'] {
-    background: var(--af-blue-soft);
-    color: var(--af-blue);
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
     font-weight: 650;
   }
 
@@ -32,9 +32,9 @@ export const dependencyStyles = css`
   }
 
   .dep-toggle[aria-pressed='true'] {
-    border-color: color-mix(in srgb, var(--af-blue) 40%, transparent);
-    background: var(--af-blue-soft);
-    color: var(--af-blue);
+    border-color: color-mix(in srgb, var(--dpk-blue) 40%, transparent);
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
   }
 
   .dep-module {
@@ -42,31 +42,31 @@ export const dependencyStyles = css`
     flex-direction: column;
     gap: 5px;
     padding: 11px 12px;
-    border: 1px solid var(--af-rule-strong);
-    border-radius: var(--af-radius-sm);
-    background: var(--af-paper-raised);
-    box-shadow: var(--af-shadow-xs);
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow-xs);
     text-align: left;
     overflow: hidden;
   }
 
   .dep-module:hover {
-    border-color: var(--af-blue);
+    border-color: var(--dpk-blue);
   }
 
   .dep-module.is-cyclic:not(.is-selected) {
-    border-color: color-mix(in srgb, var(--af-amber) 55%, transparent);
+    border-color: color-mix(in srgb, var(--dpk-amber) 55%, transparent);
   }
 
   .dep-module.is-selected {
-    border-color: var(--af-blue);
-    background: var(--af-blue-soft);
-    box-shadow: 0 0 0 3px var(--af-blue-soft);
+    border-color: var(--dpk-blue);
+    background: var(--dpk-blue-soft);
+    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
   }
 
   .dep-module.is-related {
-    border-color: color-mix(in srgb, var(--af-green) 55%, transparent);
-    background: var(--af-green-soft);
+    border-color: color-mix(in srgb, var(--dpk-green) 55%, transparent);
+    background: var(--dpk-green-soft);
   }
 
   .dep-module.is-dependency {
@@ -89,7 +89,7 @@ export const dependencyStyles = css`
 
   .dep-layer {
     font-size: 9px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -99,8 +99,8 @@ export const dependencyStyles = css`
     flex-shrink: 0;
     padding: 1px 4px;
     border-radius: 3px;
-    background: var(--af-amber-soft);
-    color: var(--af-amber);
+    background: var(--dpk-amber-soft);
+    color: var(--dpk-amber);
     font-size: 8.5px;
   }
 
@@ -114,31 +114,31 @@ export const dependencyStyles = css`
   }
 
   .dep-path {
-    font-family: var(--af-mono);
+    font-family: var(--dpk-mono);
     font-size: 9px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .dep-edge .d-edge-path {
-    stroke: var(--af-rule-strong);
+    stroke: var(--dpk-rule-strong);
     stroke-width: 1.4;
   }
 
   .dep-edge.is-related .d-edge-path {
-    stroke: var(--af-green);
+    stroke: var(--dpk-green);
     stroke-width: 2;
   }
 
   .dep-edge.is-selected .d-edge-path {
-    stroke: var(--af-blue);
+    stroke: var(--dpk-blue);
     stroke-width: 2.6;
   }
 
   .dep-edge:focus-visible .d-edge-path {
-    stroke: var(--af-blue);
+    stroke: var(--dpk-blue);
   }
 
   .diagram-legend .dep-swatch-outgoing {
@@ -150,12 +150,12 @@ export const dependencyStyles = css`
   }
 
   .diagram-legend .dep-swatch-cycle {
-    border-color: var(--af-amber);
+    border-color: var(--dpk-amber);
   }
 
   #dep-neutral .diagram-arrow {
-    fill: var(--af-rule-strong);
-    stroke: var(--af-rule-strong);
+    fill: var(--dpk-rule-strong);
+    stroke: var(--dpk-rule-strong);
   }
 
   #dep-outgoing .diagram-arrow {
@@ -169,12 +169,12 @@ export const dependencyStyles = css`
   }
 
   #dep-cycle .diagram-arrow {
-    fill: var(--af-amber);
-    stroke: var(--af-amber);
+    fill: var(--dpk-amber);
+    stroke: var(--dpk-amber);
   }
 
   #dep-selected .diagram-arrow {
-    fill: var(--af-blue);
-    stroke: var(--af-blue);
+    fill: var(--dpk-blue);
+    stroke: var(--dpk-blue);
   }
 `;

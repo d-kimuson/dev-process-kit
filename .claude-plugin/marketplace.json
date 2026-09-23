@@ -8,7 +8,7 @@
     {
       "name": "dev-process-kit",
       "source": "./",
-      "description": "Build shared understanding with the user through single-file HTML artifacts reviewed in the browser."
+      "description": "Build shared understanding with the user through single-file HTML pages reviewed in the browser."
     }
   ]
 }

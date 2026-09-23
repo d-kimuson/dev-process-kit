@@ -23,27 +23,27 @@ import {
 } from './model';
 import { mindMapStyles } from './styles';
 
-/** Branch colours cycle through the theme's accent tokens. */
-const BRANCH_COLOURS = 5;
+/** Branch colors cycle through the theme's accent tokens. */
+const BRANCH_COLORS = 5;
 
 /**
- * `<artifact-mind-map>` — a central topic and a tree of subtopics.
+ * `<dpk-component-mind-map>` — a central topic and a tree of subtopics.
  *
  * Selecting a topic lights its path to the centre and everything beneath it.
  * Topics with subtopics fold and unfold; folding is view state, like the tag
  * filter, and never changes the comment targets.
  *
  * A selected topic offers a subtopic and a comment right below it. A new
- * subtopic is an `ADD_TOPIC` element action recorded by the hosting artifact
+ * subtopic is an `ADD_TOPIC` element action recorded by the hosting template
  * (it lists it with the other draft actions); the map shows it as added.
  */
-export class ArtifactMindMap extends DiagramElement<MindMapData> {
+export class DpkComponentMindMap extends DiagramElement<MindMapData> {
   static override styles: CSSResultGroup = [diagramStyles, mindMapStyles];
 
   #collapsed = new Set<string>();
   #seededFrom: MindMapData | null = null;
   #fitted = false;
-  /** The subtopic being typed under a topic; `failed` when no artifact recorded it. */
+  /** The subtopic being typed under a topic; `failed` when no template recorded it. */
   #adding: { readonly parent: string; readonly label: string; readonly failed: boolean } | null = null;
 
   /** Folds or unfolds a topic's subtopics. */
@@ -179,7 +179,7 @@ export class ArtifactMindMap extends DiagramElement<MindMapData> {
 
   #branchClass(node: MindMapNode | undefined): string {
     if (node === undefined || node.branch < 0) return 'branch-root';
-    return `branch-${node.branch % BRANCH_COLOURS}`;
+    return `branch-${node.branch % BRANCH_COLORS}`;
   }
 
   #renderBranch(edge: MindMapEdge): TemplateResult {
@@ -276,12 +276,12 @@ export class ArtifactMindMap extends DiagramElement<MindMapData> {
         ${
           adding === null
             ? html`
-                <button type="button" class="af-btn" data-action="add" @click=${() => this.#startAdding(node.id)}>
+                <button type="button" class="dpk-btn" data-action="add" @click=${() => this.#startAdding(node.id)}>
                   ＋ サブトピック
                 </button>
                 <button
                   type="button"
-                  class="af-btn"
+                  class="dpk-btn"
                   data-action="comment"
                   @click=${() => this.requestElementComment('node', node.id)}
                 >
@@ -290,7 +290,7 @@ export class ArtifactMindMap extends DiagramElement<MindMapData> {
               `
             : html`
                 <input
-                  class="af-input"
+                  class="dpk-input"
                   aria-label="${node.label} のサブトピック"
                   placeholder="サブトピック名（Enter で追加）"
                   .value=${adding.label}
@@ -304,7 +304,7 @@ export class ArtifactMindMap extends DiagramElement<MindMapData> {
                 ${
                   adding.failed
                     ? html`<span class="mind-actions-error" role="alert"
-                        >記録できませんでした（レビュー対象の Artifact 内に置いてください）。</span
+                        >記録できませんでした（dpk-template-* 要素の中に置いてください）。</span
                       >`
                     : nothing
                 }
@@ -350,7 +350,7 @@ export class ArtifactMindMap extends DiagramElement<MindMapData> {
       this.requestUpdate();
       return;
     }
-    // The artifact replayed the action synchronously: the topic exists now.
+    // The template replayed the action synchronously: the topic exists now.
     this.#adding = null;
     this.#collapsed.delete(parent);
     this.select({ kind: 'node', id });

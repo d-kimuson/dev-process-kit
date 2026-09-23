@@ -26,8 +26,7 @@ export {
   type UserStory,
   type UsmState,
 } from './model';
-export { UsmElement, defineUsmElement } from './element';
-export { UsmStoryCard, defineUsmStoryCard } from './components/story-card';
+export { DpkTemplateUsm, defineUsmElement } from './element';
 export { dropAfter, resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove } from './drop';
 export type { CellRef, MoveStoryInput, MilestoneDropInput } from './drop';
 export { IDLE_MODE, cardModeOf, modeConcerns, reduceCardIntent } from './ui-mode';

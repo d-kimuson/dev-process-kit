@@ -2,49 +2,49 @@ import { css } from 'lit';
 
 /**
  * Shared design tokens. They are declared on `:host`, so they inherit into the
- * light DOM as well — user CSS can theme artifacts with `var(--af-*)`.
+ * light DOM as well — user CSS can theme pages with `var(--dpk-*)`.
  */
 export const tokens = css`
   :host {
     /* Neutral, white-based surface scale. */
-    --af-paper: #fafbfc;
-    --af-paper-raised: #ffffff;
-    --af-paper-sunken: #f3f5f8;
-    --af-paper-inset: #eceef2;
-    --af-ink: #1a1d24;
-    --af-ink-soft: #4d5566;
-    --af-ink-faint: #7c8599;
-    --af-rule: rgba(20, 28, 44, 0.08);
-    --af-rule-strong: rgba(20, 28, 44, 0.14);
-    --af-accent: #d94920;
-    --af-accent-soft: rgba(217, 73, 32, 0.07);
-    --af-accent-ink: #ffffff;
-    --af-blue: #3366cc;
-    --af-blue-soft: rgba(51, 102, 204, 0.08);
-    --af-green: #1a8a4a;
-    --af-green-soft: rgba(26, 138, 74, 0.08);
-    --af-amber: #b47a0a;
-    --af-amber-soft: rgba(180, 122, 10, 0.09);
-    --af-violet: #7c4dcc;
-    --af-violet-soft: rgba(124, 77, 204, 0.08);
-    --af-display: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    --af-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    --af-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+    --dpk-paper: #fafbfc;
+    --dpk-paper-raised: #ffffff;
+    --dpk-paper-sunken: #f3f5f8;
+    --dpk-paper-inset: #eceef2;
+    --dpk-ink: #1a1d24;
+    --dpk-ink-soft: #4d5566;
+    --dpk-ink-faint: #7c8599;
+    --dpk-rule: rgba(20, 28, 44, 0.08);
+    --dpk-rule-strong: rgba(20, 28, 44, 0.14);
+    --dpk-accent: #d94920;
+    --dpk-accent-soft: rgba(217, 73, 32, 0.07);
+    --dpk-accent-ink: #ffffff;
+    --dpk-blue: #3366cc;
+    --dpk-blue-soft: rgba(51, 102, 204, 0.08);
+    --dpk-green: #1a8a4a;
+    --dpk-green-soft: rgba(26, 138, 74, 0.08);
+    --dpk-amber: #b47a0a;
+    --dpk-amber-soft: rgba(180, 122, 10, 0.09);
+    --dpk-violet: #7c4dcc;
+    --dpk-violet-soft: rgba(124, 77, 204, 0.08);
+    --dpk-display: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --dpk-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --dpk-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 
     /* Shape + elevation scale, so every surface reads as one system. */
-    --af-radius-xs: 5px;
-    --af-radius-sm: 7px;
-    --af-radius: 8px;
-    --af-radius-lg: 12px;
-    --af-shadow-xs: 0 1px 2px rgba(20, 28, 44, 0.05), 0 1px 1px rgba(20, 28, 44, 0.03);
-    --af-shadow-sm: 0 1px 2px rgba(20, 28, 44, 0.06), 0 2px 8px -2px rgba(20, 28, 44, 0.12);
-    --af-shadow: 0 1px 3px rgba(20, 28, 44, 0.06), 0 8px 24px -8px rgba(20, 28, 44, 0.18);
-    --af-shadow-lg: 0 2px 6px rgba(20, 28, 44, 0.06), 0 16px 40px -12px rgba(20, 28, 44, 0.22);
-    --af-focus: 0 0 0 3px rgba(51, 102, 204, 0.25);
-    --af-control-h: 32px;
+    --dpk-radius-xs: 5px;
+    --dpk-radius-sm: 7px;
+    --dpk-radius: 8px;
+    --dpk-radius-lg: 12px;
+    --dpk-shadow-xs: 0 1px 2px rgba(20, 28, 44, 0.05), 0 1px 1px rgba(20, 28, 44, 0.03);
+    --dpk-shadow-sm: 0 1px 2px rgba(20, 28, 44, 0.06), 0 2px 8px -2px rgba(20, 28, 44, 0.12);
+    --dpk-shadow: 0 1px 3px rgba(20, 28, 44, 0.06), 0 8px 24px -8px rgba(20, 28, 44, 0.18);
+    --dpk-shadow-lg: 0 2px 6px rgba(20, 28, 44, 0.06), 0 16px 40px -12px rgba(20, 28, 44, 0.22);
+    --dpk-focus: 0 0 0 3px rgba(51, 102, 204, 0.25);
+    --dpk-control-h: 32px;
 
-    color: var(--af-ink);
-    font-family: var(--af-body);
+    color: var(--dpk-ink);
+    font-family: var(--dpk-body);
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -62,7 +62,7 @@ export const tokens = css`
   h2,
   h3,
   h4 {
-    font-family: var(--af-display);
+    font-family: var(--dpk-display);
     font-weight: 650;
     margin: 0;
     line-height: 1.2;
@@ -78,38 +78,38 @@ export const tokens = css`
     background: rgba(47, 90, 168, 0.18);
   }
 
-  .af-mono,
-  .af-num {
+  .dpk-mono,
+  .dpk-num {
     font-variant-numeric: tabular-nums;
   }
 
-  .af-label {
-    font-family: var(--af-mono);
+  .dpk-label {
+    font-family: var(--dpk-mono);
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
   }
 `;
 
 export const controls = css`
-  .af-btn {
+  .dpk-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     min-height: 30px;
     padding: 0 12px;
-    border: 1px solid var(--af-rule-strong);
-    border-radius: var(--af-radius-sm);
-    background: var(--af-paper-raised);
-    color: var(--af-ink);
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
     font-size: 12.5px;
     font-weight: 520;
     line-height: 1;
     white-space: nowrap;
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
     cursor: pointer;
     transition:
       background 140ms ease,
@@ -119,38 +119,38 @@ export const controls = css`
       transform 80ms ease;
   }
 
-  .af-btn:hover:not([disabled]) {
-    background: var(--af-paper-sunken);
+  .dpk-btn:hover:not([disabled]) {
+    background: var(--dpk-paper-sunken);
     border-color: rgba(20, 28, 44, 0.22);
-    box-shadow: var(--af-shadow-sm);
+    box-shadow: var(--dpk-shadow-sm);
   }
 
-  .af-btn:active:not([disabled]) {
+  .dpk-btn:active:not([disabled]) {
     transform: translateY(1px);
     box-shadow: none;
   }
 
-  .af-btn:focus-visible {
+  .dpk-btn:focus-visible {
     outline: none;
-    box-shadow: var(--af-focus);
+    box-shadow: var(--dpk-focus);
   }
 
-  .af-btn[disabled] {
+  .dpk-btn[disabled] {
     opacity: 0.45;
     box-shadow: none;
     cursor: not-allowed;
   }
 
-  .af-btn--accent {
+  .dpk-btn--accent {
     border-color: transparent;
-    background: linear-gradient(180deg, var(--af-accent), #c23e12);
-    color: var(--af-accent-ink);
+    background: linear-gradient(180deg, var(--dpk-accent), #c23e12);
+    color: var(--dpk-accent-ink);
     box-shadow:
       0 1px 2px rgba(217, 73, 32, 0.25),
       0 0 0 1px rgba(217, 73, 32, 0.15);
   }
 
-  .af-btn--accent:hover:not([disabled]) {
+  .dpk-btn--accent:hover:not([disabled]) {
     background: linear-gradient(180deg, #e0521f, #b83710);
     border-color: transparent;
     box-shadow:
@@ -159,33 +159,33 @@ export const controls = css`
   }
 
   /* Selection state, shared by every template's filter/nav controls. */
-  .af-btn--selected {
+  .dpk-btn--selected {
     border-color: transparent;
-    background: linear-gradient(180deg, var(--af-blue), #2952a3);
+    background: linear-gradient(180deg, var(--dpk-blue), #2952a3);
     color: #fff;
     box-shadow: 0 1px 3px rgba(51, 102, 204, 0.3);
   }
 
-  .af-btn--selected:hover:not([disabled]) {
+  .dpk-btn--selected:hover:not([disabled]) {
     background: linear-gradient(180deg, #2952a3, #213f80);
     border-color: transparent;
     box-shadow: 0 2px 6px rgba(51, 102, 204, 0.35);
   }
 
-  .af-btn--ghost {
+  .dpk-btn--ghost {
     border-color: transparent;
     background: transparent;
     box-shadow: none;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
   }
 
-  .af-btn--ghost:hover:not([disabled]) {
-    background: var(--af-paper-inset);
+  .dpk-btn--ghost:hover:not([disabled]) {
+    background: var(--dpk-paper-inset);
     border-color: transparent;
-    color: var(--af-ink);
+    color: var(--dpk-ink);
   }
 
-  .af-icon-btn {
+  .dpk-icon-btn {
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -194,9 +194,9 @@ export const controls = css`
     height: 26px;
     padding: 0;
     border: 1px solid transparent;
-    border-radius: var(--af-radius-xs);
+    border-radius: var(--dpk-radius-xs);
     background: transparent;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     font-size: 11px;
     line-height: 1;
     cursor: pointer;
@@ -206,63 +206,63 @@ export const controls = css`
       transform 100ms ease;
   }
 
-  .af-icon-btn:hover:not([disabled]) {
-    background: var(--af-paper-inset);
-    color: var(--af-ink);
+  .dpk-icon-btn:hover:not([disabled]) {
+    background: var(--dpk-paper-inset);
+    color: var(--dpk-ink);
     transform: scale(1.08);
   }
 
-  .af-icon-btn:focus-visible {
+  .dpk-icon-btn:focus-visible {
     outline: none;
-    box-shadow: var(--af-focus);
+    box-shadow: var(--dpk-focus);
   }
 
-  .af-icon-btn[disabled] {
+  .dpk-icon-btn[disabled] {
     opacity: 0.35;
     cursor: default;
   }
 
-  .af-icon-btn[data-active='true'] {
-    background: var(--af-blue-soft);
-    color: var(--af-blue);
+  .dpk-icon-btn[data-active='true'] {
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
   }
 
-  .af-icon-btn svg {
+  .dpk-icon-btn svg {
     display: block;
     width: 15px;
     height: 15px;
   }
 
   /* Count badge for an icon-only control (comments on a card, drafts on the rail). */
-  .af-icon-badge {
+  .dpk-icon-badge {
     position: absolute;
     top: -4px;
     right: -4px;
     min-width: 15px;
     height: 15px;
     padding: 0 3px;
-    border: 1.5px solid var(--af-paper-raised);
+    border: 1.5px solid var(--dpk-paper-raised);
     border-radius: 999px;
-    background: var(--af-accent);
-    color: var(--af-accent-ink);
-    font-family: var(--af-mono);
+    background: var(--dpk-accent);
+    color: var(--dpk-accent-ink);
+    font-family: var(--dpk-mono);
     font-size: 9px;
     font-variant-numeric: tabular-nums;
     line-height: 12px;
     text-align: center;
   }
 
-  .af-input,
-  .af-textarea,
-  .af-select {
+  .dpk-input,
+  .dpk-textarea,
+  .dpk-select {
     box-sizing: border-box;
     width: 100%;
-    min-height: var(--af-control-h);
+    min-height: var(--dpk-control-h);
     padding: 5px 9px;
-    border: 1px solid var(--af-rule-strong);
-    border-radius: var(--af-radius-sm);
-    background: var(--af-paper-raised);
-    color: var(--af-ink);
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
     font: inherit;
     font-size: 12.5px;
     transition:
@@ -270,21 +270,21 @@ export const controls = css`
       box-shadow 120ms ease;
   }
 
-  .af-input:hover,
-  .af-textarea:hover,
-  .af-select:hover {
+  .dpk-input:hover,
+  .dpk-textarea:hover,
+  .dpk-select:hover {
     border-color: rgba(20, 22, 26, 0.24);
   }
 
-  .af-input:focus,
-  .af-textarea:focus,
-  .af-select:focus {
+  .dpk-input:focus,
+  .dpk-textarea:focus,
+  .dpk-select:focus {
     outline: none;
-    border-color: var(--af-blue);
-    box-shadow: var(--af-focus);
+    border-color: var(--dpk-blue);
+    box-shadow: var(--dpk-focus);
   }
 
-  .af-select {
+  .dpk-select {
     appearance: none;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23878e9e' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
     background-repeat: no-repeat;
@@ -293,7 +293,7 @@ export const controls = css`
     cursor: pointer;
   }
 
-  .af-textarea {
+  .dpk-textarea {
     resize: vertical;
     min-height: 64px;
     line-height: 1.55;
@@ -311,11 +311,11 @@ export const popoverSurface = css`
     display: grid;
     gap: 8px;
     padding: 12px;
-    border: 1px solid var(--af-rule);
-    border-radius: var(--af-radius-lg);
-    background: var(--af-paper-raised);
-    box-shadow: var(--af-shadow-lg);
-    color: var(--af-ink);
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow-lg);
+    color: var(--dpk-ink);
     font-size: 12.5px;
   }
 
@@ -328,15 +328,15 @@ export const popoverSurface = css`
     max-height: 140px;
     overflow: auto;
     font-size: 12px;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
   }
 
   .comment-pop .comment-list li {
     padding-left: 8px;
-    border-left: 2px solid var(--af-accent);
+    border-left: 2px solid var(--dpk-accent);
   }
 
-  .comment-pop .af-textarea {
+  .comment-pop .dpk-textarea {
     min-height: 54px;
   }
 

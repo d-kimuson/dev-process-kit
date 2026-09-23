@@ -9,7 +9,7 @@ import { elementOf } from './element';
  */
 const commitDetailSchema = v.object({ value: v.string() });
 
-/** `@artifact-commit` from `<artifact-inline-edit>`: hand the committed text on. */
+/** `@dpk-commit` from `<dpk-component-inline-edit>`: hand the committed text on. */
 export const onCommit = (fn: (value: string) => void): ((event: Event) => void) => {
   return (event) => {
     if (!(event instanceof CustomEvent)) return;

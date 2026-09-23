@@ -24,9 +24,9 @@ export const diagramStyles = [
          takes whatever is left of it. */
       height: var(--diagram-height, 560px);
       min-height: 260px;
-      border: 1px solid var(--af-rule);
-      border-radius: var(--af-radius-lg);
-      background: var(--af-paper-raised);
+      border: 1px solid var(--dpk-rule);
+      border-radius: var(--dpk-radius-lg);
+      background: var(--dpk-paper-raised);
       overflow: hidden;
       resize: vertical;
     }
@@ -49,7 +49,7 @@ export const diagramStyles = [
       padding: 0;
       border: 0;
       border-radius: 0;
-      color: var(--af-ink);
+      color: var(--dpk-ink);
       resize: none;
     }
 
@@ -64,8 +64,8 @@ export const diagramStyles = [
       flex-wrap: wrap;
       min-height: 42px;
       padding: 7px 12px;
-      border-bottom: 1px solid var(--af-rule);
-      background: linear-gradient(180deg, var(--af-paper-raised), var(--af-paper));
+      border-bottom: 1px solid var(--dpk-rule);
+      background: linear-gradient(180deg, var(--dpk-paper-raised), var(--dpk-paper));
       flex-shrink: 0;
     }
 
@@ -77,9 +77,9 @@ export const diagramStyles = [
 
     .diagram-subject {
       font-size: 10px;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
       padding-left: 10px;
-      border-left: 1px solid var(--af-rule-strong);
+      border-left: 1px solid var(--dpk-rule-strong);
     }
 
     .diagram-toolbar-actions {
@@ -91,9 +91,9 @@ export const diagramStyles = [
     }
 
     .diagram-stats {
-      font-family: var(--af-mono);
+      font-family: var(--dpk-mono);
       font-size: 10px;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
@@ -104,8 +104,8 @@ export const diagramStyles = [
       gap: 4px;
       flex-wrap: wrap;
       padding: 6px 12px;
-      border-bottom: 1px solid var(--af-rule);
-      background: var(--af-paper);
+      border-bottom: 1px solid var(--dpk-rule);
+      background: var(--dpk-paper);
       flex-shrink: 0;
     }
 
@@ -114,8 +114,8 @@ export const diagramStyles = [
       gap: 1px;
       padding: 2px;
       margin-right: 5px;
-      border: 1px solid var(--af-rule-strong);
-      border-radius: var(--af-radius-xs);
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius-xs);
     }
 
     .diagram-match button {
@@ -123,54 +123,54 @@ export const diagramStyles = [
       border-radius: 3px;
       padding: 3px 6px;
       background: transparent;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
       font-size: 9.5px;
       cursor: pointer;
     }
 
     .diagram-match button[aria-pressed='true'] {
-      background: var(--af-blue-soft);
-      color: var(--af-blue);
+      background: var(--dpk-blue-soft);
+      color: var(--dpk-blue);
       font-weight: 650;
     }
 
-    .af-tag {
+    .dpk-tag {
       display: inline-flex;
       align-items: center;
       gap: 5px;
       padding: 4px 8px;
       border: 1px solid transparent;
-      border-radius: var(--af-radius-xs);
-      background: var(--af-paper-inset);
-      color: var(--af-ink-soft);
+      border-radius: var(--dpk-radius-xs);
+      background: var(--dpk-paper-inset);
+      color: var(--dpk-ink-soft);
       font-size: 10.5px;
       cursor: pointer;
     }
 
-    .af-tag:hover {
-      background: var(--af-paper-sunken);
-      color: var(--af-ink);
+    .dpk-tag:hover {
+      background: var(--dpk-paper-sunken);
+      color: var(--dpk-ink);
     }
 
-    .af-tag[aria-pressed='true'] {
-      border-color: color-mix(in srgb, var(--af-blue) 40%, transparent);
-      background: var(--af-blue-soft);
-      color: var(--af-blue);
+    .dpk-tag[aria-pressed='true'] {
+      border-color: color-mix(in srgb, var(--dpk-blue) 40%, transparent);
+      background: var(--dpk-blue-soft);
+      color: var(--dpk-blue);
       font-weight: 600;
     }
 
-    .af-tag-count {
-      font-family: var(--af-mono);
+    .dpk-tag-count {
+      font-family: var(--dpk-mono);
       font-size: 9px;
       opacity: 0.7;
       font-variant-numeric: tabular-nums;
     }
 
-    .af-tag-clear {
+    .dpk-tag-clear {
       border: 0;
       background: none;
       padding: 4px 6px;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
       font-size: 10px;
       cursor: pointer;
     }
@@ -182,14 +182,14 @@ export const diagramStyles = [
       overflow: hidden;
       touch-action: none;
       cursor: grab;
-      background-color: var(--af-paper-raised);
-      background-image: radial-gradient(var(--af-rule-strong) 0.7px, transparent 0.7px);
+      background-color: var(--dpk-paper-raised);
+      background-image: radial-gradient(var(--dpk-rule-strong) 0.7px, transparent 0.7px);
       background-size: 22px 22px;
     }
 
     .diagram-canvas:focus-visible {
       outline: none;
-      box-shadow: inset var(--af-focus);
+      box-shadow: inset var(--dpk-focus);
     }
 
     .diagram-canvas.is-panning {
@@ -215,10 +215,10 @@ export const diagramStyles = [
       bottom: 12px;
       display: flex;
       overflow: hidden;
-      border: 1px solid var(--af-rule-strong);
-      border-radius: var(--af-radius-sm);
-      background: var(--af-paper-raised);
-      box-shadow: var(--af-shadow-sm);
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius-sm);
+      background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-shadow-sm);
     }
 
     .diagram-zoom button {
@@ -231,7 +231,7 @@ export const diagramStyles = [
     }
 
     .diagram-zoom button:hover {
-      background: var(--af-paper-sunken);
+      background: var(--dpk-paper-sunken);
     }
 
     .diagram-legend {
@@ -243,10 +243,10 @@ export const diagramStyles = [
       flex-wrap: wrap;
       max-width: calc(100% - 150px);
       padding: 3px 6px;
-      border-radius: var(--af-radius-xs);
-      background: color-mix(in srgb, var(--af-paper-raised) 88%, transparent);
+      border-radius: var(--dpk-radius-xs);
+      background: color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent);
       font-size: 9.5px;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
     }
 
     .diagram-legend span {
@@ -257,7 +257,7 @@ export const diagramStyles = [
 
     .diagram-legend i {
       width: 16px;
-      border-top: 1.6px solid var(--af-rule-strong);
+      border-top: 1.6px solid var(--dpk-rule-strong);
     }
 
     .diagram-empty,
@@ -268,7 +268,7 @@ export const diagramStyles = [
       transform: translate(-50%, -50%);
       margin: 0;
       font-size: 12px;
-      color: var(--af-ink-faint);
+      color: var(--dpk-ink-faint);
       text-align: center;
       pointer-events: none;
     }
@@ -276,11 +276,11 @@ export const diagramStyles = [
     .diagram-notice {
       pointer-events: auto;
       padding: 12px 16px;
-      border: 1px solid var(--af-rule-strong);
-      border-radius: var(--af-radius);
-      background: var(--af-paper-raised);
-      box-shadow: var(--af-shadow-sm);
-      color: var(--af-ink-soft);
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius);
+      background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-shadow-sm);
+      color: var(--dpk-ink-soft);
     }
 
     .diagram-notice p {
@@ -298,11 +298,11 @@ export const diagramStyles = [
       width: 28px;
       height: 28px;
       padding: 5px;
-      border: 1px solid var(--af-rule-strong);
-      border-radius: var(--af-radius-sm);
-      background: var(--af-paper-raised);
-      color: var(--af-ink-soft);
-      box-shadow: var(--af-shadow-xs);
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius-sm);
+      background: var(--dpk-paper-raised);
+      color: var(--dpk-ink-soft);
+      box-shadow: var(--dpk-shadow-xs);
       cursor: pointer;
       opacity: 0;
       pointer-events: none;
@@ -336,8 +336,8 @@ export const diagramStyles = [
 
     .diagram-comment-trigger:hover,
     .diagram-comment-trigger:focus-visible {
-      color: var(--af-accent);
-      border-color: var(--af-accent);
+      color: var(--dpk-accent);
+      border-color: var(--dpk-accent);
     }
 
     @media (hover: none) {
@@ -355,7 +355,7 @@ export const diagramStyles = [
     .comment-error {
       margin: 0;
       font-size: 11px;
-      color: var(--af-accent);
+      color: var(--dpk-accent);
     }
 
     /* Element state, shared by every diagram so highlighting reads the same. */
@@ -388,26 +388,26 @@ export const diagramStyles = [
 
     .d-edge-path {
       fill: none;
-      stroke: var(--af-rule-strong);
+      stroke: var(--dpk-rule-strong);
       stroke-width: 1.5;
       stroke-linejoin: round;
     }
 
     .d-edge.is-selected .d-edge-path,
     .d-edge:focus-visible .d-edge-path {
-      stroke: var(--af-ink);
+      stroke: var(--dpk-ink);
       stroke-width: 2.4;
     }
 
     .d-edge:focus-visible .d-edge-hit {
-      stroke: var(--af-blue-soft);
+      stroke: var(--dpk-blue-soft);
     }
 
     .d-edge-label {
       font-size: 9.5px;
-      fill: var(--af-ink-faint);
+      fill: var(--dpk-ink-faint);
       paint-order: stroke;
-      stroke: var(--af-paper-raised);
+      stroke: var(--dpk-paper-raised);
       stroke-width: 5px;
       stroke-linejoin: round;
     }

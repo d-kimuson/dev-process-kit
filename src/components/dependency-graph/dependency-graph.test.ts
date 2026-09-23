@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ArtifactDependencyGraph } from './element';
-import { defineDependencyGraph, DEPENDENCY_GRAPH_TAG } from './index';
+import { DpkComponentDependencyGraph } from './element';
+import { defineDependencyGraph } from './index';
 import { parseDependencyData } from './model';
 
 defineDependencyGraph();
@@ -46,19 +46,19 @@ const raw = {
   ],
 };
 
-const settle = async (element: ArtifactDependencyGraph): Promise<void> => {
+const settle = async (element: DpkComponentDependencyGraph): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<ArtifactDependencyGraph> => {
-  const element = new ArtifactDependencyGraph();
+const mount = async (): Promise<DpkComponentDependencyGraph> => {
+  const element = new DpkComponentDependencyGraph();
   element.data = parseDependencyData(raw);
   document.body.append(element);
   await settle(element);
   return element;
 };
 
-const classes = (element: ArtifactDependencyGraph, id: string): string[] => [
+const classes = (element: DpkComponentDependencyGraph, id: string): string[] => [
   ...(element.renderRoot.querySelector<HTMLElement>(`[data-module="${id}"]`)?.classList ?? []),
 ];
 
@@ -83,11 +83,10 @@ describe('dependency graph data', () => {
     expect(() =>
       parseDependencyData({ modules: [{ id: 'a', name: 'A' }], dependencies: [{ id: 'd', from: 'a', to: 'x' }] }),
     ).toThrow(/unknown dependency target/);
-    expect(DEPENDENCY_GRAPH_TAG).toBe('artifact-dependency-graph');
   });
 });
 
-describe('artifact-dependency-graph', () => {
+describe('dpk-component-dependency-graph', () => {
   it('renders modules, dependencies and cycle badges', async () => {
     const element = await mount();
     expect(element.renderRoot.querySelectorAll('[data-module]')).toHaveLength(7);

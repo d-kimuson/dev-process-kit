@@ -1,7 +1,7 @@
 import { css } from 'lit';
 
 /**
- * Board chrome of `<artifact-example-mapping>`: the table the cards sit on.
+ * Board chrome of `<dpk-template-example-mapping>`: the table the cards sit on.
  *
  * Grouping is shown by a tinted lane around a rule, and inside it a green area
  * for its examples above a red one for its questions — never by a border on
@@ -18,7 +18,7 @@ export const exampleMappingStyles = css`
     padding: 0;
     list-style: none;
     font-size: 11.5px;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
   }
 
   .legend li {
@@ -48,17 +48,17 @@ export const exampleMappingStyles = css`
     gap: 18px;
     min-width: 0;
     padding: 20px 22px 24px;
-    border: 1px solid var(--af-rule);
-    border-radius: var(--af-radius-lg);
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
     background:
       radial-gradient(circle, rgba(20, 28, 44, 0.07) 1px, transparent 1.2px) 0 0 / 18px 18px,
-      var(--af-paper-raised);
-    box-shadow: var(--af-shadow);
+      var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow);
     transition: outline-color 150ms ease;
   }
 
   .story-section[data-drop='true'] {
-    outline: 2px dashed var(--af-blue);
+    outline: 2px dashed var(--dpk-blue);
     outline-offset: 4px;
   }
 
@@ -86,13 +86,13 @@ export const exampleMappingStyles = css`
     border-radius: 999px;
     font-size: 11.5px;
     font-weight: 650;
-    background: var(--af-paper-sunken);
-    color: var(--af-ink-soft);
+    background: var(--dpk-paper-sunken);
+    color: var(--dpk-ink-soft);
   }
 
   .readiness[data-readiness='ready'] {
-    background: var(--af-green-soft);
-    color: var(--af-green);
+    background: var(--dpk-green-soft);
+    color: var(--dpk-green);
   }
 
   .readiness[data-readiness='open-questions'],
@@ -102,8 +102,8 @@ export const exampleMappingStyles = css`
   }
 
   .readiness[data-readiness='thin'] {
-    background: var(--af-amber-soft);
-    color: var(--af-amber);
+    background: var(--dpk-amber-soft);
+    color: var(--dpk-amber);
   }
 
   .tally {
@@ -111,13 +111,13 @@ export const exampleMappingStyles = css`
     align-items: center;
     gap: 5px;
     padding: 3px 9px;
-    border: 1px solid var(--af-rule);
+    border: 1px solid var(--dpk-rule);
     border-radius: 999px;
-    background: var(--af-paper-raised);
-    font-family: var(--af-mono);
+    background: var(--dpk-paper-raised);
+    font-family: var(--dpk-mono);
     font-size: 10.5px;
     font-variant-numeric: tabular-nums;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
   }
 
   .tally-dot {
@@ -137,11 +137,11 @@ export const exampleMappingStyles = css`
     min-width: 0;
     overflow-x: auto;
     padding: 4px 4px 16px;
-    border-radius: var(--af-radius);
+    border-radius: var(--dpk-radius);
   }
 
   .rules-row[data-drop='true'] {
-    background: var(--af-blue-soft);
+    background: var(--dpk-blue-soft);
   }
 
   /* A rule and its examples read as one lane: a soft tint, no side border. */
@@ -151,7 +151,7 @@ export const exampleMappingStyles = css`
     gap: 16px;
     align-content: start;
     padding: 10px 10px 14px;
-    border-radius: var(--af-radius-lg);
+    border-radius: var(--dpk-radius-lg);
     background: linear-gradient(180deg, rgba(51, 102, 204, 0.09), rgba(51, 102, 204, 0.03) 70%, transparent);
   }
 
@@ -166,7 +166,7 @@ export const exampleMappingStyles = css`
     align-content: start;
     min-height: 44px;
     padding: 8px 8px 10px;
-    border-radius: var(--af-radius);
+    border-radius: var(--dpk-radius);
   }
 
   .card-area--example {
@@ -177,12 +177,12 @@ export const exampleMappingStyles = css`
     background: rgba(214, 53, 80, 0.06);
   }
 
-  .card-area--question artifact-example-mapping-card {
+  .card-area--question dpk-internal-example-mapping-card {
     min-height: 56px;
   }
 
   .card-area[data-drop='true'] {
-    outline: 2px dashed var(--af-blue);
+    outline: 2px dashed var(--dpk-blue);
     outline-offset: 2px;
   }
 
@@ -194,13 +194,13 @@ export const exampleMappingStyles = css`
     font-size: 10.5px;
     font-weight: 600;
     letter-spacing: 0.04em;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
   }
 
   .stack-hint {
     margin: 0;
     font-size: 11px;
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     text-align: center;
   }
 
@@ -209,10 +209,10 @@ export const exampleMappingStyles = css`
   .add-card,
   .add-rule,
   .add-story {
-    border: 1px dashed var(--af-rule-strong);
-    border-radius: var(--af-radius-sm);
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
     background: rgba(255, 255, 255, 0.6);
-    color: var(--af-ink-faint);
+    color: var(--dpk-ink-faint);
     font: inherit;
     font-size: 11.5px;
     cursor: pointer;
@@ -249,9 +249,9 @@ export const exampleMappingStyles = css`
   .add-card:hover,
   .add-rule:hover,
   .add-story:hover {
-    border-color: var(--af-blue);
-    background: var(--af-blue-soft);
-    color: var(--af-blue);
+    border-color: var(--dpk-blue);
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
   }
 
   .empty {
@@ -259,14 +259,14 @@ export const exampleMappingStyles = css`
     gap: 10px;
     max-width: 620px;
     padding: 28px 24px;
-    border: 1px dashed var(--af-rule-strong);
-    border-radius: var(--af-radius-lg);
-    background: var(--af-paper-raised);
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-raised);
   }
 
   .empty p {
     margin: 0;
-    color: var(--af-ink-soft);
+    color: var(--dpk-ink-soft);
     line-height: 1.7;
   }
 `;

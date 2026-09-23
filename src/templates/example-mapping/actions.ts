@@ -19,7 +19,7 @@ export const exampleMappingActions = {
   }),
   ADD_STORY: defineAction(
     'ADD_STORY',
-    'artifact',
+    'page',
     v.object({
       id: entityIdSchema,
       name: v.pipe(v.string(), v.minLength(1)),
@@ -133,7 +133,7 @@ export const exampleMappingAction = {
   }),
   addStory: (id: string, name: string): ActionInput => ({
     type: 'ADD_STORY',
-    target: { type: 'artifact', id: 'example-mapping' },
+    target: { type: 'page', id: 'example-mapping' },
     payload: { id, name },
   }),
   deleteStory: (id: string): ActionInput => ({

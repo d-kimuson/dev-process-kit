@@ -41,7 +41,7 @@ const DETAIL_LABELS: Readonly<Record<SequenceMessage['style'], string>> = {
 };
 
 /** Interaction diagram: participants on a rail, messages as numbered rows. */
-export class ArtifactSequenceDiagram extends DiagramChromeElement<SequenceDiagramData, SequenceSelection> {
+export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDiagramData, SequenceSelection> {
   static override styles: CSSResultGroup = [diagramStyles, sequenceStyles];
 
   #layout: SequenceLayout | null = null;

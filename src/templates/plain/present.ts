@@ -5,7 +5,7 @@ import { findSection, type PlainState } from './model';
 
 /**
  * The plain template's review rail. It has no action vocabulary of its own, so
- * everything the rail ever describes is a comment: on the artifact, on a
+ * everything the rail ever describes is a comment: on the page, on a
  * declared section, or on a component element (the core labels those).
  */
 
@@ -16,8 +16,8 @@ export const plainTargetLabel = (state: PlainState, target: ActionTarget): strin
   switch (target.type) {
     case 'section':
       return findSection(state, target.id)?.title ?? target.id;
-    case 'artifact':
-      return 'Artifact 全体';
+    case 'page':
+      return 'ページ全体';
     default:
       return target.id;
   }

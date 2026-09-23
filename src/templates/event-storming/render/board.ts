@@ -198,7 +198,7 @@ export const renderEsBoard = (props: EsBoardProps): TemplateResult => {
       <div class="empty">
         <h2>付箋がまだありません</h2>
         <p>イベントストーミングを開始しましょう。ドメインイベントを時系列に貼るところから始めます。</p>
-        <button class="af-btn af-btn--accent" type="button" @click=${() => handlers.addFirst()}>
+        <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => handlers.addFirst()}>
           ＋ 最初のイベント
         </button>
       </div>
@@ -265,7 +265,7 @@ const renderBand = (
     return { x: geometry.xOf.get(slice.id) ?? 0, y: band.head, w: geometry.widthOf.get(slice.id) ?? 0 };
   };
   const noteCard = (note: EsSlice['notes'][number], style: string, compact = false): TemplateResult =>
-    html`<artifact-es-note
+    html`<dpk-internal-event-storming-note
       style=${style}
       .note=${note}
       .notes=${context.comments.filter((c) => c.target.type === 'element' && c.target.id === note.id)}
@@ -273,7 +273,7 @@ const renderBand = (
       ?focused=${navigation['note'] === note.id}
       ?compact=${compact}
       .onIntent=${(intent: NoteIntent) => handlers.noteIntent(note.id, intent)}
-    ></artifact-es-note>`;
+    ></dpk-internal-event-storming-note>`;
   return html`
     <section class="band" data-band=${bandIndex} style=${`left:${WALL_PAD + band.x}px;top:${band.y}px`}>
       <div class="band-canvas" style=${`width:${band.width}px;height:${band.height}px`}>
@@ -471,11 +471,11 @@ const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothin
   if (selectedLinkIds.length > 0) {
     return html`<div class="board-selection" @pointerdown=${(event: PointerEvent) => event.stopPropagation()}>
       <span class="board-selection-count">${selectedLinkIds.length} 本のリンクを選択中</span>
-      <button class="af-btn af-btn--accent" type="button" @click=${() => handlers.deleteSelection()}>
+      <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => handlers.deleteSelection()}>
         リンクを削除
       </button>
       <span class="board-selection-hint">Delete でも削除できます</span>
-      <button class="af-icon-btn" type="button" aria-label="選択解除" @click=${() => handlers.clearSelection()}>
+      <button class="dpk-icon-btn" type="button" aria-label="選択解除" @click=${() => handlers.clearSelection()}>
         ✕
       </button>
     </div>`;
@@ -483,7 +483,7 @@ const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothin
   return html`<div class="board-selection" @pointerdown=${(event: PointerEvent) => event.stopPropagation()}>
     <span class="board-selection-count">${selectedSliceIds.length} スライスを選択中</span>
     <button
-      class="af-btn af-btn--accent"
+      class="dpk-btn dpk-btn--accent"
       type="button"
       @click=${(event: MouseEvent) => handlers.groupSelection({ x: event.clientX, y: event.clientY })}
     >
@@ -492,7 +492,7 @@ const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothin
     ${
       contexts.length > 0
         ? html`<select
-            class="af-select"
+            class="dpk-select"
             aria-label="既存コンテキストへ追加"
             @change=${(event: Event) => {
               const select = elementOf(event.target, HTMLSelectElement);
@@ -506,9 +506,11 @@ const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothin
           </select>`
         : nothing
     }
-    <button class="af-btn" type="button" @click=${() => handlers.stripSelectionContext()}>コンテキスト解除</button>
-    <button class="af-btn" type="button" @click=${() => handlers.deleteSelection()}>削除</button>
-    <button class="af-icon-btn" type="button" aria-label="選択解除" @click=${() => handlers.clearSelection()}>✕</button>
+    <button class="dpk-btn" type="button" @click=${() => handlers.stripSelectionContext()}>コンテキスト解除</button>
+    <button class="dpk-btn" type="button" @click=${() => handlers.deleteSelection()}>削除</button>
+    <button class="dpk-icon-btn" type="button" aria-label="選択解除" @click=${() => handlers.clearSelection()}>
+      ✕
+    </button>
   </div>`;
 };
 

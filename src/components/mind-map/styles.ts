@@ -2,33 +2,33 @@ import { css } from 'lit';
 
 /**
  * Mind map styling. Each main topic's branch takes one theme accent
- * (`--mind-colour`), and everything beneath it inherits that colour, so a
+ * (`--mind-color`), and everything beneath it inherits that color, so a
  * branch reads as one unit across its curves and topics.
  */
 export const mindMapStyles = css`
   .branch-root {
-    --mind-colour: var(--af-ink);
-    --mind-soft: var(--af-paper-sunken);
+    --mind-color: var(--dpk-ink);
+    --mind-soft: var(--dpk-paper-sunken);
   }
   .branch-0 {
-    --mind-colour: var(--af-blue);
-    --mind-soft: var(--af-blue-soft);
+    --mind-color: var(--dpk-blue);
+    --mind-soft: var(--dpk-blue-soft);
   }
   .branch-1 {
-    --mind-colour: var(--af-green);
-    --mind-soft: var(--af-green-soft);
+    --mind-color: var(--dpk-green);
+    --mind-soft: var(--dpk-green-soft);
   }
   .branch-2 {
-    --mind-colour: var(--af-violet);
-    --mind-soft: var(--af-violet-soft);
+    --mind-color: var(--dpk-violet);
+    --mind-soft: var(--dpk-violet-soft);
   }
   .branch-3 {
-    --mind-colour: var(--af-amber);
-    --mind-soft: var(--af-amber-soft);
+    --mind-color: var(--dpk-amber);
+    --mind-soft: var(--dpk-amber-soft);
   }
   .branch-4 {
-    --mind-colour: var(--af-accent);
-    --mind-soft: var(--af-accent-soft);
+    --mind-color: var(--dpk-accent);
+    --mind-soft: var(--dpk-accent-soft);
   }
 
   .mind-topic {
@@ -36,14 +36,14 @@ export const mindMapStyles = css`
     align-items: center;
     justify-content: center;
     padding: 0 12px;
-    border: 1px solid color-mix(in srgb, var(--mind-colour) 45%, transparent);
+    border: 1px solid color-mix(in srgb, var(--mind-color) 45%, transparent);
     border-radius: 999px;
-    background: var(--af-paper-raised);
-    color: var(--af-ink);
-    font-family: var(--af-body);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
+    font-family: var(--dpk-body);
     font-size: 12.5px;
     line-height: 1.3;
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
   }
 
   .mind-label {
@@ -56,53 +56,53 @@ export const mindMapStyles = css`
   .mind-topic.depth-0 {
     padding: 0 22px;
     border: 0;
-    background: var(--af-ink);
-    color: var(--af-paper-raised);
+    background: var(--dpk-ink);
+    color: var(--dpk-paper-raised);
     font-size: 16px;
     font-weight: 680;
     letter-spacing: -0.01em;
-    box-shadow: var(--af-shadow-sm);
+    box-shadow: var(--dpk-shadow-sm);
   }
 
   .mind-topic.depth-1 {
     padding: 0 15px;
     border-width: 1.5px;
-    border-color: var(--mind-colour);
+    border-color: var(--mind-color);
     background: var(--mind-soft);
     font-size: 13.5px;
     font-weight: 620;
   }
 
   .mind-topic.depth-1 .mind-label {
-    color: color-mix(in srgb, var(--mind-colour) 70%, var(--af-ink));
+    color: color-mix(in srgb, var(--mind-color) 70%, var(--dpk-ink));
   }
 
   .mind-topic:hover {
-    border-color: var(--mind-colour);
+    border-color: var(--mind-color);
   }
 
   .mind-topic.is-selected {
-    border-color: var(--mind-colour);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mind-colour) 22%, transparent);
+    border-color: var(--mind-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mind-color) 22%, transparent);
   }
 
   .mind-topic.depth-0.is-selected {
-    box-shadow: 0 0 0 3px var(--af-blue-soft);
+    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
   }
 
   .mind-topic.is-related {
-    border-color: var(--mind-colour);
+    border-color: var(--mind-color);
   }
 
   .mind-topic:focus-visible {
     outline: none;
-    box-shadow: var(--af-focus);
+    box-shadow: var(--dpk-focus);
   }
 
   /* Added on this page by a draft action: not authored yet. */
   .mind-topic.is-added {
     border-style: dashed;
-    border-color: var(--mind-colour);
+    border-color: var(--mind-color);
   }
 
   .mind-actions {
@@ -115,27 +115,27 @@ export const mindMapStyles = css`
     width: 220px;
   }
 
-  .mind-actions .af-btn {
+  .mind-actions .dpk-btn {
     padding: 3px 9px;
     font-size: 12px;
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
   }
 
-  .mind-actions .af-input {
+  .mind-actions .dpk-input {
     width: 100%;
     font-size: 12.5px;
-    box-shadow: var(--af-shadow-xs);
+    box-shadow: var(--dpk-shadow-xs);
   }
 
   .mind-actions-error {
     font-size: 11.5px;
     line-height: 1.4;
-    color: var(--af-accent);
+    color: var(--dpk-accent);
   }
 
   .mind-branch {
     fill: none;
-    stroke: color-mix(in srgb, var(--mind-colour) 55%, transparent);
+    stroke: color-mix(in srgb, var(--mind-color) 55%, transparent);
     stroke-width: 1.5;
     stroke-linecap: round;
     cursor: default;
@@ -151,7 +151,7 @@ export const mindMapStyles = css`
   }
 
   .mind-branch.is-related {
-    stroke: var(--mind-colour);
+    stroke: var(--mind-color);
   }
 
   .mind-toggle {
@@ -161,11 +161,11 @@ export const mindMapStyles = css`
     height: 18px;
     padding: 0 4px;
     transform: translate(-50%, -50%);
-    border: 1.5px solid var(--mind-colour);
+    border: 1.5px solid var(--mind-color);
     border-radius: 999px;
-    background: var(--af-paper-raised);
-    color: var(--mind-colour);
-    font-family: var(--af-mono);
+    background: var(--dpk-paper-raised);
+    color: var(--mind-color);
+    font-family: var(--dpk-mono);
     font-size: 10px;
     font-weight: 700;
     line-height: 1;
@@ -192,7 +192,7 @@ export const mindMapStyles = css`
 
   .mind-toggle:focus-visible {
     outline: none;
-    box-shadow: var(--af-focus);
+    box-shadow: var(--dpk-focus);
   }
 
   @media (hover: none) {
