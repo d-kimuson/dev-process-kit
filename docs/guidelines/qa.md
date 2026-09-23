@@ -34,6 +34,6 @@ Use HTTP-level checks for cache policy, redirects, CORS headers, and missing ass
 
 ## Evidence
 
-Record real-browser sessions under `dev/qa/` when the result will be needed beyond the current terminal session. Include the tested build or URL, scenarios, results, failures and reruns, and any remaining human judgment. Keep screenshots only when they add evidence that commands and assertions cannot capture.
+Do not commit session records to the repository. Report real-browser results in the ticket or pull request: the tested build or URL, scenarios, results, failures and reruns, and any remaining human judgment. Attach screenshots only when they add evidence that commands and assertions cannot capture. A check worth repeating belongs in an executable script such as `dev/qa/browser-smoke.ts`, not in prose.
 
 In a ticket or pull request, map evidence to the acceptance criteria. Report unresolved failures rather than replacing them with a general statement that the checks passed.
