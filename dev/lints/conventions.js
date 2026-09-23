@@ -13,7 +13,7 @@
  *                              (in src/templates) or `dpk-component-<name>` (in src/components), and the
  *                              registered class is the tag in PascalCase
  *
- * The architecture this encodes is the one `docs/guidelines/architecture.md`
+ * The architecture this encodes is the one `dev-docs/guidelines/architecture.md`
  * describes: `lib` holds dependency-free helpers, `core` owns the pipeline and
  * must stay template-agnostic, `components` and `templates` are the shipped
  * elements, and the public entrypoint composes them without being re-imported

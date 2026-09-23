@@ -4,7 +4,7 @@ import { defineConfig } from 'oxlint';
  * Lint is the enforcement point for the project's architectural rules.
  *
  * `dev/lints/conventions.js` holds the rules that encode boundaries the type
- * system cannot express (see `docs/guidelines/architecture.md`); everything else
+ * system cannot express (see `dev-docs/guidelines/architecture.md`); everything else
  * here is a general correctness or type-safety rule. Rules that a document could
  * state but lint can decide live here instead of in prose.
  */

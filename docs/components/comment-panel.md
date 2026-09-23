@@ -6,7 +6,7 @@ Every template uses the shared panel. Most templates place it in a notes rail, c
 
 ## Rendering contract
 
-Action rows are rendered by the template's `describe()` / `serialize()`, and the target choices by `commentTargets()` / `currentTarget()`. `describe()` must not throw when the target has disappeared — stale actions are rendered too, with a `target-missing` / `constraint-violated` / `unsupported-action-type` badge. The signatures are in `docs/guidelines/architecture.md`.
+Action rows are rendered by the template's `describe()` / `serialize()`, and the target choices by `commentTargets()` / `currentTarget()`. `describe()` must not throw when the target has disappeared — stale actions are rendered too, with a `target-missing` / `constraint-violated` / `unsupported-action-type` badge. These hooks are framework internals, not part of the page contract; their signatures are in the repository's developer guide (`dev-docs/guidelines/architecture.md`).
 
 ## Composer
 

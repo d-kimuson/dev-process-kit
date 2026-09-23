@@ -33,5 +33,5 @@ Letting readers add a topic to a mind map (and later, similar edits on other dia
 
 ## References
 
-- [Diagram components: custom component providers](../components/diagrams.md)
-- [dpk-component-mind-map](../components/mind-map.md)
+- [Diagram components: custom component providers](../../docs/components/diagrams.md)
+- [dpk-component-mind-map](../../docs/components/mind-map.md)

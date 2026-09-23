@@ -6,9 +6,9 @@ This repository assumes that coding agents will create and maintain much of the 
 
 `AGENTS.md` is the single entrypoint. Keep it limited to the project overview, major ownership boundaries, and an index that tells an agent which focused guide to read for a task.
 
-Put task-specific knowledge in `docs/guidelines/` and load it only when relevant. Do not duplicate the same instruction across the entrypoint, guidelines, and tool-specific files. `CLAUDE.md` remains a compatibility symlink to the canonical `AGENTS.md`.
+Put task-specific knowledge in `dev-docs/guidelines/` and load it only when relevant. Do not duplicate the same instruction across the entrypoint, guidelines, and tool-specific files. `CLAUDE.md` remains a compatibility symlink to the canonical `AGENTS.md`.
 
-Developer guidelines and user documentation have different audiences. Guidelines direct contributors and agents; `docs/index.md`, `docs/components/`, and `docs/templates/` explain the shipped contract to consumers. Keep these audiences separate.
+Developer documentation and user documentation have different audiences, so they live in different trees. `dev-docs/` (guidelines and ADRs) directs contributors and agents; `docs/` (`index.md`, `components/`, `templates/`) explains the shipped contract to consumers, who read it at a release tag. Keep these audiences separate: nothing under `docs/` should require reading `dev-docs/`.
 
 ## Prefer executable policy
 

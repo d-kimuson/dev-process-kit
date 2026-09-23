@@ -4,7 +4,7 @@ An Architecture Decision Record preserves a decision whose rationale would other
 
 ## Scope and naming
 
-Cross-cutting architectural decisions belong in `docs/adr/`. Keep one decision per file and name it `YYYYMMDD_<short-kebab-case>.md`, following the repository's existing chronology.
+Cross-cutting architectural decisions belong in `dev-docs/adr/`. Keep one decision per file and name it `YYYYMMDD_<short-kebab-case>.md`, following the repository's existing chronology.
 
 Write ADRs in English. Describe the decision at the level that should remain useful after the implementation changes; avoid inventories of files, configuration options, lint rules, and step-by-step procedures.
 
