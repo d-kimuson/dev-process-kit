@@ -1,0 +1,299 @@
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { ArtifactCommentPanel } from '../components/comment-panel';
+import type { PrototypeElement } from '../templates/prototype/element';
+
+import { prototypeDefinition } from '../templates/prototype/definition';
+import '../index';
+
+const base = {
+  title: 'Demo',
+  activities: [
+    {
+      id: 'onboarding',
+      name: 'Onboarding',
+      stories: [
+        {
+          id: 'account',
+          name: 'Account',
+          steps: [
+            {
+              id: 'landing',
+              name: 'Landing',
+              previews: [{ id: 'landing-mobile', kind: 'browser', viewport: 'mobile' }],
+            },
+            {
+              id: 'google-auth',
+              name: 'Google auth',
+              previews: [
+                { id: 'auth-mobile', kind: 'browser', viewport: 'mobile' },
+                { id: 'auth-desktop', kind: 'browser', viewport: 'desktop' },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const mount = (hash = ''): PrototypeElement => {
+  window.location.hash = hash;
+  document.body.innerHTML = `
+    <artifact-prototype storage="memory">
+      <script type="application/json">${JSON.stringify(base)}</script>
+      <div slot="preview" data-preview-id="landing-mobile"><p id="landing-body">hello</p></div>
+      <div slot="preview" data-preview-id="auth-mobile"><p id="auth-body">auth</p></div>
+      <div slot="preview" data-preview-id="auth-desktop"><p id="auth-desktop-body">auth wide</p></div>
+    </artifact-prototype>`;
+  return document.querySelector('artifact-prototype') as PrototypeElement;
+};
+
+const settle = async (el: PrototypeElement): Promise<void> => {
+  await el.artifact.ready;
+  await el.updateComplete;
+  await Promise.resolve();
+  await el.updateComplete;
+};
+
+describe('<artifact-prototype>', () => {
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+  });
+
+  it('reads base data, renders the tree and canonically syncs the URL', async () => {
+    const el = mount();
+    await settle(el);
+    expect(el.dataset['template']).toBe('prototype');
+    expect(el.artifact.state.title).toBe('Demo');
+    expect(el.shadowRoot?.querySelectorAll('.step-link')).toHaveLength(2);
+    expect(el.shadowRoot?.querySelectorAll('.nav select')).toHaveLength(2);
+    expect(location.hash).toBe('#activity=onboarding&preview=landing-mobile&step=landing&story=account');
+  });
+
+  it('keeps the base JSON out of the rendering and exposes it read-only', async () => {
+    const el = mount();
+    await settle(el);
+    expect(el.artifact.base.activities).toHaveLength(1);
+    expect(el.shadowRoot?.querySelector('script')).toBeNull();
+  });
+
+  it('routes light DOM previews into the frame slot for their preview id', async () => {
+    const el = mount();
+    await settle(el);
+    const landing = el.querySelector('[data-preview-id="landing-mobile"]');
+    expect(landing?.getAttribute('slot')).toBe('preview:landing-mobile');
+    const frames = el.shadowRoot?.querySelectorAll('figure.frame') ?? [];
+    expect(frames).toHaveLength(1);
+    expect(el.shadowRoot?.querySelector('slot[name="preview:landing-mobile"]')).not.toBeNull();
+  });
+
+  it('renders both preview frames of the current step after navigation', async () => {
+    const el = mount();
+    await settle(el);
+    el.artifact.navigate({ step: 'google-auth' });
+    await settle(el);
+    // Previews of one step are tabs: exactly one frame is visible at a time.
+    expect(el.shadowRoot?.querySelectorAll('.tab')).toHaveLength(2);
+    expect(el.shadowRoot?.querySelectorAll('figure.frame')).toHaveLength(1);
+    expect(location.hash).toBe('#activity=onboarding&preview=auth-mobile&step=google-auth&story=account');
+    expect(el.shadowRoot?.querySelector('.frame .url')?.textContent ?? '').toContain('auth-mobile');
+
+    // The sibling preview keeps its (parked) slot: nothing falls into the orphan bucket.
+    expect(el.shadowRoot?.querySelector('.af-orphans')?.hasAttribute('hidden')).toBe(true);
+
+    el.artifact.navigate({ preview: 'auth-desktop' });
+    await settle(el);
+    expect(el.shadowRoot?.querySelector('.frame')?.getAttribute('data-viewport')).toBe('desktop');
+    expect(el.shadowRoot?.querySelector('.tab[data-current="true"]')?.textContent?.trim()).toBe('desktop');
+    expect(el.shadowRoot?.querySelector('.af-orphans')?.hasAttribute('hidden')).toBe(true);
+    expect(location.hash).toContain('preview=auth-desktop');
+  });
+
+  it('navigates with the hash instead of draft actions', async () => {
+    const el = mount();
+    await settle(el);
+    el.artifact.navigate({ step: 'google-auth' });
+    await settle(el);
+    expect(el.artifact.actions).toHaveLength(0);
+    expect(el.artifact.navigation['step']).toBe('google-auth');
+  });
+
+  it('publishes current issues and navigation through the same snapshot subscription', async () => {
+    const el = mount();
+    await settle(el);
+    const snapshots: ReturnType<typeof el.artifact.snapshot>[] = [];
+    const unsubscribe = el.artifact.subscribe((snapshot) => snapshots.push(snapshot));
+    el.artifact.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: {} });
+    expect(snapshots.at(-1)?.issues.length).toBeGreaterThan(0);
+    el.artifact.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'Updated' } });
+    expect(snapshots.at(-1)?.issues).toEqual([]);
+    el.artifact.navigate({ step: 'google-auth' });
+    expect(snapshots.at(-1)?.navigation['step']).toBe('google-auth');
+    unsubscribe();
+    const count = snapshots.length;
+    el.artifact.navigate({ step: 'landing' });
+    expect(snapshots).toHaveLength(count);
+  });
+
+  it('resolves a deep link that only carries the step id', async () => {
+    const el = mount('#step=google-auth');
+    await settle(el);
+    expect(el.artifact.navigation).toMatchObject({
+      activity: 'onboarding',
+      story: 'account',
+      step: 'google-auth',
+    });
+  });
+
+  it('dispatches draft actions and re-renders the review rail', async () => {
+    const el = mount();
+    await settle(el);
+    el.artifact.dispatch({
+      type: 'SET_STEP_NAME',
+      target: 'landing',
+      payload: { name: 'LP' },
+    });
+    await settle(el);
+    expect(el.artifact.state.activities[0]?.stories[0]?.steps[0]?.name).toBe('LP');
+    const panel = el.shadowRoot?.querySelector('artifact-comment-panel');
+    expect(panel?.shadowRoot?.querySelectorAll('.item')).toHaveLength(1);
+  });
+
+  it('navigates from `data-artifact-navigate` clicks inside preview content', async () => {
+    const el = mount();
+    await settle(el);
+    const trigger = document.createElement('a');
+    trigger.setAttribute('data-artifact-navigate', 'step=google-auth');
+    el.querySelector('[data-preview-id="landing-mobile"]')?.append(trigger);
+    trigger.click();
+    await settle(el);
+    expect(location.hash).toContain('step=google-auth');
+  });
+
+  it('comments on the whole artifact by default and on the current step when attached', async () => {
+    const el = mount();
+    await settle(el);
+    el.requestComment('artifact:prototype');
+    await settle(el);
+    const panel = el.shadowRoot?.querySelector('artifact-comment-panel') as ArtifactCommentPanel | null;
+    const composer = panel?.shadowRoot;
+
+    const submit = async (text: string): Promise<void> => {
+      const area = composer?.querySelector('textarea');
+      if (!(area instanceof HTMLTextAreaElement)) throw new Error('comment textarea not found');
+      area.value = text;
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+      // the disabled state of the button follows the value on the next update
+      await panel?.updateComplete;
+      const button = composer?.querySelector('button.af-btn--accent');
+      if (!(button instanceof HTMLButtonElement)) throw new Error('comment submit button not found');
+      button.click();
+    };
+
+    await submit('全体へのメモ');
+    await settle(el);
+    expect(el.artifact.comments[0]?.target).toEqual({ type: 'artifact', id: 'prototype' });
+
+    // The checkbox attaches the note to the step the reader is looking at.
+    const box = composer?.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(box).not.toBeNull();
+    box.checked = true;
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle(el);
+    await submit('この Step へのメモ');
+    await settle(el);
+    expect(el.artifact.comments[1]?.target).toEqual({ type: 'step', id: 'onboarding.account.landing' });
+  });
+
+  it('keeps the review rail closed behind the floating comment button', async () => {
+    const el = mount();
+    await settle(el);
+    const notes = el.shadowRoot?.querySelector('.af-notes');
+    const fab = el.shadowRoot?.querySelector('.af-fab');
+    expect(fab).not.toBeNull();
+    expect(notes?.hasAttribute('hidden')).toBe(true);
+
+    (fab as HTMLElement).click();
+    await settle(el);
+    expect(el.shadowRoot?.querySelector('.af-notes')?.hasAttribute('hidden')).toBe(false);
+    expect(el.shadowRoot?.querySelector('.af-fab')?.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('shows the draft count on the floating button', async () => {
+    const el = mount();
+    await settle(el);
+    expect(el.shadowRoot?.querySelector('.af-fab-badge')).toBeNull();
+    el.artifact.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
+    await settle(el);
+    expect(el.shadowRoot?.querySelector('.af-fab-badge')?.textContent?.trim()).toBe('1');
+  });
+
+  it('renders the floating memo only when the author slots content into it', async () => {
+    const el = mount();
+    await settle(el);
+    expect(el.shadowRoot?.querySelector('.af-memo')?.hasAttribute('hidden')).toBe(true);
+
+    const memo = document.createElement('div');
+    memo.setAttribute('slot', 'memo');
+    memo.textContent = '前提メモ';
+    el.append(memo);
+    el.requestUpdate();
+    await settle(el);
+    expect(el.shadowRoot?.querySelector('.af-memo')?.hasAttribute('hidden')).toBe(false);
+  });
+
+  it('falls back to an empty artifact with a visible error when base data is invalid', async () => {
+    document.body.innerHTML = `
+      <artifact-prototype storage="memory">
+        <script type="application/json">{"activities":[{"id":"a","name":"A","oops":true}]}</script>
+      </artifact-prototype>`;
+    const el = document.querySelector('artifact-prototype') as PrototypeElement;
+    await settle(el);
+    expect(el.artifact.state.activities).toHaveLength(0);
+    expect(el.shadowRoot?.querySelector('.af-banner')).not.toBeNull();
+  });
+
+  it('exposes the rendered description and serialization through the definition', () => {
+    expect(prototypeDefinition.name).toBe('prototype');
+    expect(prototypeDefinition.label).toBe('UX Prototype');
+  });
+
+  it('notifies facade subscribers while detached without changing the document URL', async () => {
+    const el = mount();
+    await settle(el);
+    const listener = vi.fn();
+    const stop = el.artifact.subscribe(listener);
+    el.remove();
+    const url = location.href;
+    el.artifact.comment('artifact:prototype', 'detached');
+    expect(listener).toHaveBeenCalledOnce();
+    expect(location.href).toBe(url);
+    stop();
+    el.artifact.comment('artifact:prototype', 'unsubscribed');
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it('detaches listeners and observers on disconnect, and works again after reconnection', async () => {
+    const observerDisconnect = vi.spyOn(MutationObserver.prototype, 'disconnect');
+    const removeEventListener = vi.spyOn(window, 'removeEventListener');
+
+    // No base JSON: this is the path that installs the MutationObserver.
+    document.body.innerHTML = '<artifact-prototype storage="memory"></artifact-prototype>';
+    const el = document.querySelector('artifact-prototype') as PrototypeElement;
+    await settle(el);
+
+    el.remove();
+    expect(observerDisconnect).toHaveBeenCalled();
+    expect(removeEventListener).toHaveBeenCalledWith('hashchange', expect.any(Function));
+
+    // Reconnecting must re-subscribe, otherwise drafts would stop rendering.
+    document.body.append(el);
+    await settle(el);
+    el.artifact.comment('artifact:prototype', 'after reconnect');
+    await settle(el);
+    expect(el.artifact.comments).toHaveLength(1);
+  });
+});

@@ -1,0 +1,58 @@
+{
+  "name": "@kimuson/dev-process-kit",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Dev Process Kit — core + templates (Prototype / USM / EventStorming)",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "run-p 'dev:*'",
+    "dev:build": "DPK_ASSETS_DIR=public-dev vite build --watch",
+    "dev:wrangler": "portless run --name dev-process-kit pnpm run base-dev:wrangler",
+    "dev:sample": "portless run --name sample.dev-process-kit pnpm run base-dev:sample",
+    "base-dev:wrangler": "node scripts/dev-assets.ts && wrangler dev --assets public-dev --ip 127.0.0.1 --port \"${PORT:-8787}\"",
+    "base-dev:sample": "http-server sample -c-1 --silent -p \"${PORT:-8080}\"",
+    "build": "vite build && node scripts/build-release.ts",
+    "deploy:debug": "DPK_CHANNEL=debug pnpm build && node scripts/deploy-debug.ts",
+    "typecheck": "tsc -p . --noEmit",
+    "lint": "run-p 'lint:*'",
+    "lint:oxlint": "oxlint --type-aware --ignore-path .gitignore --no-error-on-unmatched-pattern",
+    "lint:fmt": "pnpm fmt:oxfmt --check",
+    "fix": "run-p 'fix:*'",
+    "fix:oxlint": "pnpm lint:oxlint --fix",
+    "fix:fmt": "pnpm fmt:oxfmt",
+    "fmt": "run-p 'fmt:*'",
+    "fmt:oxfmt": "oxfmt --ignore-path .gitignore --no-error-on-unmatched-pattern",
+    "test": "vitest run",
+    "qa:browser": "node dev/qa/browser-smoke.ts"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "1.8.0",
+    "es-toolkit": "1.52.0",
+    "lit": "3.3.3",
+    "valibot": "1.5.0"
+  },
+  "devDependencies": {
+    "@tsconfig/strictest": "2.0.8",
+    "@types/node": "24.13.4",
+    "@typescript/lib-dom": "npm:modern-web-types@0.5.0",
+    "agent-browser": "0.37.1",
+    "happy-dom": "19.0.2",
+    "http-server": "14.1.1",
+    "jsdom": "30.0.1",
+    "lefthook": "2.1.10",
+    "npm-run-all2": "9.0.3",
+    "oxfmt": "0.64.0",
+    "oxlint": "1.79.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "portless": "0.15.6",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "3.2.7",
+    "wrangler": "4.134.0"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.27.0"
+}

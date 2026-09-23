@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Example Mapping — 注文キャンセル | dev-process-kit</title>
+    <!--
+      The framework is served by the Workers Static Assets dev server, not by
+      this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too.
+    -->
+    <script
+      type="module"
+      src="https://dev-process-kit.localhost/dev-process-kit@0.0.1/templates/example-mapping.js"
+    ></script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #ffffff;
+      }
+      artifact-example-mapping {
+        display: block;
+        height: 100dvh;
+      }
+    </style>
+  </head>
+  <body>
+    <artifact-example-mapping storage-key="sample-example-mapping-cancel">
+      <script type="application/json">
+        {
+          "title": "Sora Market — 注文キャンセル",
+          "stories": [
+            {
+              "id": "cancel",
+              "name": "注文をキャンセルする",
+              "description": "購入者がマイページから、出荷前の注文を自分で取り消す"
+            },
+            { "id": "refund", "name": "返金を受け取る", "description": "取り消した注文の代金が、支払った手段へ戻る" },
+            {
+              "id": "notify",
+              "name": "キャンセルの結果を知る",
+              "description": "受付から返金完了までを、メールと注文詳細で確かめる"
+            }
+          ],
+          "rules": [
+            { "id": "before-shipping", "storyId": "cancel", "name": "出荷指示前（支払済み）の注文だけ取り消せる" },
+            { "id": "own-order", "storyId": "cancel", "name": "注文した本人だけが取り消せる" },
+            { "id": "whole-order", "storyId": "cancel", "name": "注文全体を取り消す（一部だけは不可）" },
+            { "id": "accept-once", "storyId": "cancel", "name": "取り消しは一度だけ受け付ける" },
+            { "id": "full-refund", "storyId": "refund", "name": "支払った手段へ全額を返す" },
+            { "id": "refund-timing", "storyId": "refund", "name": "返金の反映時期は決済手段次第と伝える" },
+            { "id": "notify-accepted", "storyId": "notify", "name": "受け付けたらすぐメールで知らせる" },
+            { "id": "notify-refunded", "storyId": "notify", "name": "返金が済んだらメールで知らせる" }
+          ],
+          "examples": [
+            {
+              "id": "paid-accept",
+              "ruleId": "before-shipping",
+              "name": "#SM-1024 支払済み → 受け付ける",
+              "description": "9/20 10:00 に支払済み・出荷指示前。9/20 15:00 にキャンセル → 受け付ける"
+            },
+            {
+              "id": "shipping-reject",
+              "ruleId": "before-shipping",
+              "name": "#SM-1031 出荷指示済み → 取り消せない",
+              "description": "キャンセルボタンの代わりに問い合わせ窓口を案内する"
+            },
+            {
+              "id": "delivered-reject",
+              "ruleId": "before-shipping",
+              "name": "#SM-1036 配送済み → 取り消せない（返品は対象外）"
+            },
+            { "id": "own-accept", "ruleId": "own-order", "name": "本人が #SM-1024 → 取り消せる" },
+            { "id": "other-reject", "ruleId": "own-order", "name": "別アカウントから #SM-1024 → 注文が見つからない" },
+            { "id": "partial-reject", "ruleId": "whole-order", "name": "3 点中 1 点だけ → 選べない（全体のみ）" },
+            { "id": "whole-accept", "ruleId": "whole-order", "name": "3 点まとめて → 3 点とも在庫に戻る" },
+            { "id": "double-click", "ruleId": "accept-once", "name": "確定を 2 回押す → 受付は 1 件" },
+            {
+              "id": "already-cancelled",
+              "ruleId": "accept-once",
+              "name": "取消済みの #SM-1019 → 「取り消し済み」と表示"
+            },
+            { "id": "card-refund", "ruleId": "full-refund", "name": "カード ¥4,980 → カードへ ¥4,980" },
+            {
+              "id": "shipping-fee",
+              "ruleId": "full-refund",
+              "name": "商品 ¥2,980 + 送料 ¥500 → ¥3,480 を返す",
+              "description": "出荷前の取り消しなので送料も返す"
+            },
+            { "id": "card-statement", "ruleId": "refund-timing", "name": "カード払い → 翌月以降の明細で相殺と案内" },
+            { "id": "accepted-mail", "ruleId": "notify-accepted", "name": "9/20 15:00 受付 → 15:00 に受付メール" }
+          ],
+          "questions": [
+            {
+              "id": "deadline",
+              "ruleId": "before-shipping",
+              "name": "締め切りは出荷指示前でよい？",
+              "description": "購入者には「出荷予定の N 時間前まで」の方が分かりやすいかもしれない"
+            },
+            {
+              "id": "cod",
+              "ruleId": "before-shipping",
+              "name": "代引き注文はキャンセル対象？",
+              "description": "出荷前は支払いが無いので「支払済み」にならない"
+            },
+            {
+              "id": "partial-demand",
+              "ruleId": "whole-order",
+              "name": "一部だけ取り消したい問い合わせはどれくらいある？"
+            },
+            {
+              "id": "coupon",
+              "ruleId": "full-refund",
+              "name": "クーポン併用の注文の返金額は？",
+              "description": "¥5,000 の注文に ¥500 クーポン → 返すのは ¥4,500？ クーポンも戻す？"
+            },
+            { "id": "points", "ruleId": "full-refund", "name": "ポイントで払った分はどう戻す？" },
+            { "id": "refund-failed", "ruleId": "notify-refunded", "name": "返金に失敗したとき、購入者へどう知らせる？" }
+          ]
+        }
+      </script>
+    </artifact-example-mapping>
+  </body>
+</html>

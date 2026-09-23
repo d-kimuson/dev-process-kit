@@ -1,0 +1,14 @@
+engineStrict: true
+
+# Keep new dependencies on an exact version, and wait out freshly published
+# releases before adopting them (supply-chain hygiene).
+saveExact: true
+minimumReleaseAge: 1440
+
+allowBuilds:
+  esbuild: true
+  # agent-browser / lefthook install their platform binaries in postinstall.
+  agent-browser: true
+  lefthook: true
+  # `wrangler dev` runs miniflare on workerd, which installs a platform binary.
+  workerd: true

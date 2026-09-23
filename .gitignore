@@ -1,0 +1,17 @@
+node_modules/
+*.log
+.DS_Store
+.vite/
+.direnv
+.wrangler/
+
+# Build output. Every asset tree is generated from `src/**` + `docs/**`:
+#   `pnpm build`  -> `public/` (the deployable tree; one release per channel is written into it)
+#   `pnpm dev`    -> `public-dev/` (the tree `wrangler dev` serves)
+# `public/` is tracked: the committed tree is what gets deployed, which is what makes a
+# published release reviewable and `scripts/verify-committed.ts` means something. `public-dev/` is
+# not: `vite build --watch` rewrites it while a dev session runs.
+public-dev/
+
+# docs
+docs/tmp

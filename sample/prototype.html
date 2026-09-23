@@ -1,0 +1,1446 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX Prototype — 注文とキャンセル | dev-process-kit</title>
+
+    <!--
+      Single HTML artifact:
+        1. pin the framework version
+        2. bake the base data in as JSON
+        3. put prototype markup in the light DOM, tagged with data-preview-id
+    -->
+    <!--
+      The framework is served by the Workers Static Assets dev server, not by
+      this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too.
+    -->
+    <script type="module" src="https://dev-process-kit.localhost/dev-process-kit@0.0.1/templates/prototype.js"></script>
+
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #ffffff;
+      }
+
+      artifact-prototype {
+        display: block;
+        height: 100dvh;
+      }
+
+      /* ------------------------------------------------------------------
+         Prototype content (light DOM). These styles are plain page CSS —
+         the framework never reaches into them.
+         ------------------------------------------------------------------ */
+      .sm {
+        --sm-bg: #f6f3ee;
+        --sm-panel: #ffffff;
+        --sm-line: #e4ddd2;
+        --sm-text: #2b2620;
+        --sm-dim: #7a7064;
+        --sm-accent: #2f6b5a;
+        --sm-accent-soft: #e5efe9;
+        --sm-warn: #a8552f;
+        --sm-warn-soft: #f7e9df;
+        /* The frame stretches this to the preview height; centring the content is
+           enough, no percentage height that would defeat intrinsic sizing. */
+        display: grid;
+        align-content: center;
+        margin: 0;
+        padding: 18px;
+        background: var(--sm-bg);
+        color: var(--sm-text);
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          'Hiragino Sans',
+          sans-serif;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .sm * {
+        box-sizing: border-box;
+      }
+
+      .sm-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 18px;
+        color: var(--sm-dim);
+        font-size: 11.5px;
+      }
+
+      .sm-logo {
+        display: inline-grid;
+        place-items: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--sm-accent);
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .sm-brand {
+        color: var(--sm-text);
+        font-weight: 650;
+        letter-spacing: 0.02em;
+      }
+
+      .sm-nav .sm-crumb {
+        margin-left: auto;
+      }
+
+      .sm-shot {
+        display: grid;
+        align-content: center;
+        gap: 16px;
+        width: 100%;
+        max-width: 440px;
+        margin: 0 auto;
+      }
+
+      .sm-title {
+        margin: 0 0 4px;
+        font-size: 22px;
+        font-weight: 650;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+      }
+
+      .sm-sub {
+        margin: 0;
+        color: var(--sm-dim);
+      }
+
+      .sm-card {
+        background: var(--sm-panel);
+        border: 1px solid var(--sm-line);
+        border-radius: 10px;
+        padding: 16px;
+      }
+
+      .sm-card h2 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .sm-item {
+        display: grid;
+        grid-template-columns: 48px 1fr auto;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--sm-line);
+      }
+
+      .sm-item:last-child {
+        border-bottom: 0;
+      }
+
+      .sm-thumb {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        background: linear-gradient(140deg, #d9cbb5, #b9a88f);
+      }
+
+      .sm-thumb--mug {
+        background: linear-gradient(140deg, #c9d6de, #8fa6b5);
+      }
+
+      .sm-item small {
+        display: block;
+        color: var(--sm-dim);
+        font-size: 11.5px;
+      }
+
+      .sm-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 4px 0;
+        color: var(--sm-dim);
+      }
+
+      .sm-row b {
+        color: var(--sm-text);
+        font-weight: 600;
+      }
+
+      .sm-row--total {
+        margin-top: 6px;
+        padding-top: 10px;
+        border-top: 1px solid var(--sm-line);
+        color: var(--sm-text);
+        font-size: 15px;
+      }
+
+      .sm-field {
+        display: grid;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+
+      .sm-field > span {
+        color: var(--sm-dim);
+        font-size: 11.5px;
+      }
+
+      .sm-input {
+        border: 1px solid var(--sm-line);
+        background: #fdfcfa;
+        border-radius: 6px;
+        padding: 9px 11px;
+      }
+
+      .sm-choice {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid var(--sm-line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+      }
+
+      .sm-choice[data-selected='true'] {
+        border-color: var(--sm-accent);
+        background: var(--sm-accent-soft);
+      }
+
+      .sm-choice::before {
+        content: '';
+        flex: none;
+        width: 12px;
+        height: 12px;
+        border: 1.5px solid var(--sm-line);
+        border-radius: 50%;
+      }
+
+      .sm-choice[data-selected='true']::before {
+        border: 4px solid var(--sm-accent);
+      }
+
+      .sm-btn {
+        display: block;
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        padding: 11px 14px;
+        font: inherit;
+        font-weight: 650;
+        cursor: pointer;
+        background: var(--sm-accent);
+        color: #ffffff;
+        text-align: center;
+        text-decoration: none;
+      }
+
+      .sm-btn + .sm-btn {
+        margin-top: 8px;
+      }
+
+      .sm-btn--ghost {
+        background: transparent;
+        border: 1px solid var(--sm-line);
+        color: var(--sm-text);
+      }
+
+      .sm-btn--danger {
+        background: var(--sm-warn);
+      }
+
+      .sm-btn[disabled] {
+        background: #e7e2da;
+        color: #a39a8e;
+        cursor: not-allowed;
+      }
+
+      .sm-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 2px 10px;
+        background: var(--sm-accent-soft);
+        color: var(--sm-accent);
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .sm-status--pending {
+        background: var(--sm-warn-soft);
+        color: var(--sm-warn);
+      }
+
+      .sm-status--shipped {
+        background: #ece8f3;
+        color: #5b4f86;
+      }
+
+      .sm-order {
+        display: grid;
+        gap: 4px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--sm-line);
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .sm-order:last-child {
+        border-bottom: 0;
+      }
+
+      .sm-order-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .sm-order small {
+        color: var(--sm-dim);
+        font-size: 11.5px;
+      }
+
+      .sm-note {
+        border-left: 3px solid var(--sm-accent);
+        padding: 2px 0 2px 12px;
+        color: var(--sm-dim);
+      }
+
+      .sm-note--warn {
+        border-left-color: var(--sm-warn);
+      }
+
+      .sm-done {
+        display: grid;
+        place-items: center;
+        width: 52px;
+        height: 52px;
+        margin: 0 auto 6px;
+        border-radius: 50%;
+        background: var(--sm-accent-soft);
+        color: var(--sm-accent);
+        font-size: 24px;
+      }
+
+      .sm-done--pending {
+        background: var(--sm-warn-soft);
+        color: var(--sm-warn);
+      }
+
+      .sm-center {
+        text-align: center;
+      }
+
+      .sm-steps {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 4px;
+        color: var(--sm-dim);
+        font-size: 11px;
+      }
+
+      .sm-steps span[aria-current='step'] {
+        color: var(--sm-accent);
+        font-weight: 650;
+      }
+
+      .sm-link {
+        color: var(--sm-accent);
+        text-decoration: underline;
+      }
+
+      /* Native preview: a lock-screen notification rather than a web page. */
+      .sm-lock {
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        min-height: 560px;
+        padding: 56px 14px 18px;
+        background: linear-gradient(180deg, #3e5a52, #1f2c29);
+        color: #ffffff;
+      }
+
+      .sm-clock {
+        margin-bottom: 18px;
+        text-align: center;
+        font-size: 54px;
+        font-weight: 300;
+        line-height: 1;
+      }
+
+      .sm-clock small {
+        display: block;
+        margin-top: 6px;
+        font-size: 13px;
+        opacity: 0.8;
+      }
+
+      .sm-push {
+        display: grid;
+        grid-template-columns: 32px 1fr;
+        gap: 10px;
+        padding: 12px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.86);
+        color: var(--sm-text);
+      }
+
+      .sm-push .sm-logo {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+      }
+
+      .sm-push small {
+        display: block;
+        color: var(--sm-dim);
+        font-size: 11px;
+      }
+
+      .sm-timeline {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .sm-timeline li {
+        display: grid;
+        grid-template-columns: 88px 1fr;
+        gap: 10px;
+      }
+
+      .sm-timeline time {
+        color: var(--sm-dim);
+        font-size: 11.5px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ------------------------------------------------------------------
+         Shop admin (desktop only): side navigation + wide working area.
+         ------------------------------------------------------------------ */
+      .sm--admin {
+        align-content: start;
+        padding: 0;
+        background: #f3f4f6;
+      }
+
+      .sm-admin {
+        display: grid;
+        grid-template-columns: 184px minmax(0, 1fr);
+        min-height: 520px;
+      }
+
+      .sm-side {
+        display: grid;
+        align-content: start;
+        gap: 2px;
+        padding: 16px 12px;
+        background: #26302c;
+        color: #d7ded9;
+        font-size: 12.5px;
+      }
+
+      .sm-side .sm-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 6px 14px;
+        color: #ffffff;
+      }
+
+      .sm-side a {
+        padding: 7px 10px;
+        border-radius: 6px;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .sm-side a[aria-current='page'] {
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+        font-weight: 600;
+      }
+
+      .sm-side .sm-count {
+        float: right;
+        padding: 0 7px;
+        border-radius: 999px;
+        background: var(--sm-warn);
+        color: #ffffff;
+        font-size: 11px;
+      }
+
+      .sm-work {
+        display: grid;
+        align-content: start;
+        gap: 16px;
+        padding: 20px 24px;
+      }
+
+      .sm-work-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .sm-split {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr;
+        align-items: start;
+        gap: 16px;
+      }
+
+      .sm-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .sm-chip {
+        padding: 3px 11px;
+        border: 1px solid var(--sm-line);
+        border-radius: 999px;
+        background: var(--sm-panel);
+        color: var(--sm-dim);
+        font-size: 12px;
+      }
+
+      .sm-chip[aria-pressed='true'] {
+        border-color: var(--sm-accent);
+        background: var(--sm-accent-soft);
+        color: var(--sm-accent);
+        font-weight: 600;
+      }
+
+      .sm-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+
+      .sm-table th {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--sm-line);
+        color: var(--sm-dim);
+        font-size: 11.5px;
+        font-weight: 500;
+        text-align: left;
+      }
+
+      .sm-table td {
+        padding: 10px;
+        border-bottom: 1px solid var(--sm-line);
+      }
+
+      .sm-table tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .sm-table tr[data-alert] td {
+        background: var(--sm-warn-soft);
+      }
+
+      .sm-table .sm-num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .sm-table a {
+        color: var(--sm-accent);
+        font-weight: 600;
+      }
+
+      .sm-banner {
+        padding: 10px 14px;
+        border: 1px solid #e8c9b6;
+        border-radius: 8px;
+        background: var(--sm-warn-soft);
+        color: var(--sm-warn);
+      }
+
+      .sm-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .sm-actions .sm-btn {
+        width: auto;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <artifact-prototype storage-key="sample-prototype-sora-market">
+      <script type="application/json">
+        {
+          "title": "Sora Market — 注文とキャンセル",
+          "baseUrl": "https://sora-market.example.com",
+          "activities": [
+            {
+              "id": "buyer",
+              "name": "購入者（スマホ）",
+              "description": "スマホのブラウザで買い物をし、注文を自分で取り消す",
+              "stories": [
+                {
+                  "id": "checkout",
+                  "name": "購入手続き",
+                  "steps": [
+                    {
+                      "id": "cart",
+                      "name": "カートを確かめる",
+                      "previews": [
+                        { "id": "cart-mobile", "viewport": "mobile", "url": "https://sora-market.example.com/cart" }
+                      ]
+                    },
+                    {
+                      "id": "delivery-payment",
+                      "name": "配送先と支払い方法を選ぶ",
+                      "previews": [
+                        {
+                          "id": "delivery-payment-mobile",
+                          "viewport": "mobile",
+                          "url": "https://sora-market.example.com/checkout/delivery"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "review",
+                      "name": "注文を確定する",
+                      "description": "キャンセルできる期限を、確定の前に一度だけ伝える",
+                      "previews": [
+                        {
+                          "id": "review-mobile",
+                          "viewport": "mobile",
+                          "url": "https://sora-market.example.com/checkout/review"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "order-complete",
+                      "name": "注文の完了を確かめる",
+                      "previews": [
+                        {
+                          "id": "order-complete-mobile",
+                          "viewport": "mobile",
+                          "url": "https://sora-market.example.com/orders/SM-0918-0342/thanks"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "cancel",
+                  "name": "注文をキャンセルする",
+                  "description": "支払済み（出荷指示前）の注文を、注文全体で取り消す",
+                  "steps": [
+                    {
+                      "id": "order-history",
+                      "name": "注文履歴を開く",
+                      "description": "キャンセルできる注文は一覧の時点で分かる",
+                      "previews": [
+                        {
+                          "id": "order-history-mobile",
+                          "viewport": "mobile",
+                          "url": "https://sora-market.example.com/mypage/orders"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "order-detail",
+                      "name": "注文詳細からキャンセルを選ぶ",
+                      "previews": [
+                        {
+                          "id": "order-detail-mobile",
+                          "viewport": "mobile",
+                          "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "cancel-confirm",
+                      "name": "返金額と返金先を確かめて確定する",
+                      "description": "理由の選択は任意。確定を妨げない",
+                      "previews": [
+                        {
+                          "id": "cancel-confirm-mobile",
+                          "viewport": "mobile",
+                          "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342/cancel"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "cancel-accepted",
+                      "name": "受付を確かめる",
+                      "description": "返金の完了を待たずに受付だけを伝える。注文は「返金待ち」になる",
+                      "previews": [
+                        {
+                          "id": "cancel-accepted-mobile",
+                          "viewport": "mobile",
+                          "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342/cancel/accepted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "refund",
+                  "name": "返金を確かめる",
+                  "steps": [
+                    {
+                      "id": "refund-mail",
+                      "name": "返金完了のメールを受け取る",
+                      "description": "受付と返金完了は別のメールで届く",
+                      "previews": [
+                        { "id": "refund-mail-native", "kind": "native", "viewport": "mobile", "label": "通知" }
+                      ]
+                    },
+                    {
+                      "id": "refunded-detail",
+                      "name": "注文が取消済みになったのを確かめる",
+                      "previews": [
+                        {
+                          "id": "refunded-detail-mobile",
+                          "viewport": "mobile",
+                          "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "not-cancellable",
+                  "name": "出荷後の注文について問い合わせる",
+                  "description": "出荷指示後はキャンセルできない。返品は別機能",
+                  "steps": [
+                    {
+                      "id": "shipped-detail",
+                      "name": "キャンセルできない理由を知る",
+                      "description": "キャンセルのボタンは出さず、理由と次にできることを示す",
+                      "previews": [
+                        {
+                          "id": "shipped-detail-mobile",
+                          "viewport": "mobile",
+                          "url": "https://sora-market.example.com/mypage/orders/SM-0912-0127"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "contact",
+                      "name": "問い合わせを送る",
+                      "description": "注文番号と用件を埋めた状態で開く",
+                      "previews": [
+                        {
+                          "id": "contact-mobile",
+                          "viewport": "mobile",
+                          "url": "https://sora-market.example.com/contact?order=SM-0912-0127"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "ops",
+              "name": "ショップ運営（PC）",
+              "description": "管理画面で注文の状態と返金の進み具合を見る",
+              "stories": [
+                {
+                  "id": "orders",
+                  "name": "注文を管理する",
+                  "steps": [
+                    {
+                      "id": "admin-orders",
+                      "name": "注文を状態で絞り込む",
+                      "description": "状態は購入者に見せるものと同じ名前にそろえる",
+                      "previews": [
+                        {
+                          "id": "admin-orders-desktop",
+                          "viewport": "desktop",
+                          "url": "https://admin.sora-market.example.com/orders"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "admin-order-detail",
+                      "name": "キャンセルの経緯をたどる",
+                      "description": "誰がいつ取り消し、いつ返金と引当の解除が済んだかを一列で追える",
+                      "previews": [
+                        {
+                          "id": "admin-order-detail-desktop",
+                          "viewport": "desktop",
+                          "url": "https://admin.sora-market.example.com/orders/SM-0918-0342"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "refunds",
+                  "name": "滞っている返金に対応する",
+                  "steps": [
+                    {
+                      "id": "admin-refunds",
+                      "name": "返金待ちが長い注文を見つける",
+                      "description": "経過時間の長い順に並べ、24 時間を超えたものを目立たせる",
+                      "previews": [
+                        {
+                          "id": "admin-refunds-desktop",
+                          "viewport": "desktop",
+                          "url": "https://admin.sora-market.example.com/refunds?status=pending"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "admin-refund-stuck",
+                      "name": "失敗が続く返金を調べる",
+                      "description": "失敗が続いたときの扱いは未決。ここでは「返金待ち」のまま残し、運営が照会と連絡をする案で描いた",
+                      "previews": [
+                        {
+                          "id": "admin-refund-stuck-desktop",
+                          "viewport": "desktop",
+                          "url": "https://admin.sora-market.example.com/refunds/SM-0915-0288"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      </script>
+
+      <div slot="memo">
+        <strong>メモ</strong> — 購入者はスマホ、ショップ運営は PC
+        で使う前提。キャンセルできるかは注文の状態だけで決まるので、できない注文にはボタンを出さず、理由と次にできることを示す。返金は決済代行の都合で数日かかることがあるため、受付と返金完了は別々に知らせる。
+      </div>
+
+      <!-- ================================================================ -->
+      <!-- 購入者（スマホ） -->
+      <!-- ================================================================ -->
+
+      <!-- story: 購入手続き -->
+      <div slot="preview" data-preview-id="cart-mobile">
+        <div class="sm">
+          <div class="sm-nav">
+            <span class="sm-logo">S</span><span class="sm-brand">Sora Market</span>
+            <span class="sm-crumb">カート</span>
+          </div>
+          <div class="sm-shot">
+            <h1 class="sm-title">カート（2 点）</h1>
+            <div class="sm-card">
+              <div class="sm-item">
+                <span class="sm-thumb"></span>
+                <div>手織りリネンのテーブルクロス<small>ナチュラル / 140×180cm · 数量 1</small></div>
+                <b>¥6,800</b>
+              </div>
+              <div class="sm-item">
+                <span class="sm-thumb sm-thumb--mug"></span>
+                <div>波佐見焼 マグカップ 2 個セット<small>藍 · 数量 1</small></div>
+                <b>¥4,400</b>
+              </div>
+            </div>
+            <div class="sm-card">
+              <div class="sm-row"><span>小計</span><b>¥11,200</b></div>
+              <div class="sm-row"><span>送料</span><b>¥550</b></div>
+              <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
+            </div>
+            <a class="sm-btn" href="#step=delivery-payment" data-artifact-navigate="step=delivery-payment"
+              >レジに進む</a
+            >
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="delivery-payment-mobile">
+        <div class="sm">
+          <div class="sm-nav"><span class="sm-logo">S</span><span class="sm-brand">Sora Market</span></div>
+          <div class="sm-shot">
+            <div>
+              <div class="sm-steps">
+                <span>カート</span>›<span aria-current="step">配送・支払い</span>›<span>確認</span>
+              </div>
+              <h1 class="sm-title">配送先と支払い方法</h1>
+            </div>
+            <div class="sm-card">
+              <h2>配送先</h2>
+              <div class="sm-choice" data-selected="true">
+                <div>空野 ひかり<br /><small style="color: var(--sm-dim)">東京都架空区そら町 1-2-3</small></div>
+              </div>
+              <div class="sm-choice">別の住所を追加</div>
+            </div>
+            <div class="sm-card">
+              <h2>支払い方法</h2>
+              <div class="sm-choice" data-selected="true">クレジットカード VISA •••• 4242</div>
+              <div class="sm-choice">コンビニ払い</div>
+            </div>
+            <a class="sm-btn" href="#step=review" data-artifact-navigate="step=review">確認画面へ</a>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="review-mobile">
+        <div class="sm">
+          <div class="sm-nav"><span class="sm-logo">S</span><span class="sm-brand">Sora Market</span></div>
+          <div class="sm-shot">
+            <div>
+              <div class="sm-steps">
+                <span>カート</span>›<span>配送・支払い</span>›<span aria-current="step">確認</span>
+              </div>
+              <h1 class="sm-title">ご注文内容の確認</h1>
+            </div>
+            <div class="sm-card">
+              <div class="sm-row"><span>お届け先</span><b>空野 ひかり</b></div>
+              <div class="sm-row"><span>お届け予定</span><b>9月27日（土）</b></div>
+              <div class="sm-row"><span>お支払い</span><b>VISA •••• 4242</b></div>
+              <div class="sm-row"><span>商品（2 点）</span><b>¥11,200</b></div>
+              <div class="sm-row"><span>送料</span><b>¥550</b></div>
+              <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
+            </div>
+            <p class="sm-note">出荷の準備が始まる前（通常はご注文の翌朝まで）なら、注文履歴からキャンセルできます。</p>
+            <button class="sm-btn" data-artifact-navigate="step=order-complete">注文を確定する</button>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="order-complete-mobile">
+        <div class="sm">
+          <div class="sm-nav"><span class="sm-logo">S</span><span class="sm-brand">Sora Market</span></div>
+          <div class="sm-shot sm-center">
+            <div>
+              <div class="sm-done">✓</div>
+              <h1 class="sm-title">ご注文ありがとうございます</h1>
+              <p class="sm-sub">注文番号 SM-0918-0342 · 確認メールをお送りしました。</p>
+            </div>
+            <div class="sm-card" style="text-align: left">
+              <div class="sm-row"><span>合計（税込）</span><b>¥11,750</b></div>
+              <div class="sm-row"><span>お届け予定</span><b>9月27日（土）</b></div>
+            </div>
+            <a class="sm-btn sm-btn--ghost" href="#step=order-history" data-artifact-navigate="step=order-history">
+              注文履歴を見る
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- story: 注文をキャンセルする -->
+      <div slot="preview" data-preview-id="order-history-mobile">
+        <div class="sm">
+          <div class="sm-nav">
+            <span class="sm-logo">S</span><span class="sm-brand">Sora Market</span>
+            <span class="sm-crumb">マイページ</span>
+          </div>
+          <div class="sm-shot">
+            <h1 class="sm-title">注文履歴</h1>
+            <div class="sm-card">
+              <a class="sm-order" href="#step=order-detail" data-artifact-navigate="step=order-detail">
+                <div class="sm-order-head"><b>SM-0918-0342</b><span class="sm-status">支払済み</span></div>
+                <small>9月18日 · 2 点 · ¥11,750 — キャンセルできます</small>
+              </a>
+              <a class="sm-order" href="#step=shipped-detail" data-artifact-navigate="step=shipped-detail">
+                <div class="sm-order-head">
+                  <b>SM-0912-0127</b><span class="sm-status sm-status--shipped">出荷中</span>
+                </div>
+                <small>9月12日 · 1 点 · ¥3,300</small>
+              </a>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0830-0981</b><span class="sm-status">お届け済み</span></div>
+                <small>8月30日 · 3 点 · ¥8,970</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="order-detail-mobile">
+        <div class="sm">
+          <div class="sm-nav">
+            <span class="sm-logo">S</span><span class="sm-brand">Sora Market</span>
+            <span class="sm-crumb">注文詳細</span>
+          </div>
+          <div class="sm-shot">
+            <div>
+              <span class="sm-status">支払済み</span>
+              <h1 class="sm-title" style="margin-top: 6px">SM-0918-0342</h1>
+              <p class="sm-sub">9月18日のご注文 · お届け予定 9月27日（土）</p>
+            </div>
+            <div class="sm-card">
+              <div class="sm-item">
+                <span class="sm-thumb"></span>
+                <div>手織りリネンのテーブルクロス<small>数量 1</small></div>
+                <b>¥6,800</b>
+              </div>
+              <div class="sm-item">
+                <span class="sm-thumb sm-thumb--mug"></span>
+                <div>波佐見焼 マグカップ 2 個セット<small>数量 1</small></div>
+                <b>¥4,400</b>
+              </div>
+              <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
+            </div>
+            <div>
+              <a class="sm-btn sm-btn--ghost" href="#step=cancel-confirm" data-artifact-navigate="step=cancel-confirm">
+                この注文をキャンセルする
+              </a>
+              <p class="sm-sub" style="margin-top: 8px; font-size: 11.5px">
+                出荷の準備が始まるとキャンセルできなくなります。一部の商品だけのキャンセルはできません。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="cancel-confirm-mobile">
+        <div class="sm">
+          <div class="sm-nav">
+            <span class="sm-logo">S</span><span class="sm-brand">Sora Market</span>
+            <span class="sm-crumb">キャンセルの確認</span>
+          </div>
+          <div class="sm-shot">
+            <div>
+              <h1 class="sm-title">注文をキャンセルしますか？</h1>
+              <p class="sm-sub">SM-0918-0342 のすべての商品がキャンセルになります。</p>
+            </div>
+            <div class="sm-card">
+              <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
+              <div class="sm-row"><span>返金先</span><b>VISA •••• 4242</b></div>
+              <div class="sm-row"><span>返金の目安</span><b>数日〜1 週間</b></div>
+            </div>
+            <div class="sm-card">
+              <div class="sm-field" style="margin-bottom: 0">
+                <span>キャンセルの理由（任意）</span>
+                <div class="sm-input">選択してください ▾</div>
+              </div>
+            </div>
+            <div>
+              <button class="sm-btn sm-btn--danger" data-artifact-navigate="step=cancel-accepted">
+                キャンセルを確定する
+              </button>
+              <a class="sm-btn sm-btn--ghost" href="#step=order-detail" data-artifact-navigate="step=order-detail">
+                注文詳細に戻る
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="cancel-accepted-mobile">
+        <div class="sm">
+          <div class="sm-nav"><span class="sm-logo">S</span><span class="sm-brand">Sora Market</span></div>
+          <div class="sm-shot sm-center">
+            <div>
+              <div class="sm-done sm-done--pending">↺</div>
+              <h1 class="sm-title">キャンセルを受け付けました</h1>
+              <p class="sm-sub">返金の手続きを進めています。完了したらメールでお知らせします。</p>
+            </div>
+            <div class="sm-card" style="text-align: left">
+              <div class="sm-row">
+                <span>注文の状態</span><span class="sm-status sm-status--pending">返金待ち</span>
+              </div>
+              <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
+              <div class="sm-row"><span>返金先</span><b>VISA •••• 4242</b></div>
+            </div>
+            <a class="sm-btn sm-btn--ghost" href="#step=order-history" data-artifact-navigate="step=order-history">
+              注文履歴に戻る
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- story: 返金を確かめる -->
+      <div slot="preview" data-preview-id="refund-mail-native">
+        <div class="sm sm-lock">
+          <div class="sm-clock">9:41<small>9月19日（金）</small></div>
+          <a class="sm-push" href="#step=refunded-detail" data-artifact-navigate="step=refunded-detail">
+            <span class="sm-logo">S</span>
+            <div>
+              <b>メール</b> <small>いま</small>
+              <div>Sora Market — 返金が完了しました</div>
+              <small>注文 SM-0918-0342 のキャンセルにより ¥11,750 を VISA •••• 4242 に返金しました。</small>
+            </div>
+          </a>
+          <div class="sm-push">
+            <span class="sm-logo">S</span>
+            <div>
+              <b>メール</b> <small>昨日</small>
+              <div>Sora Market — キャンセルを受け付けました</div>
+              <small>返金の手続きを進めています。完了したらあらためてお知らせします。</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="refunded-detail-mobile">
+        <div class="sm">
+          <div class="sm-nav">
+            <span class="sm-logo">S</span><span class="sm-brand">Sora Market</span>
+            <span class="sm-crumb">注文詳細</span>
+          </div>
+          <div class="sm-shot">
+            <div>
+              <span class="sm-status sm-status--shipped">取消済み</span>
+              <h1 class="sm-title" style="margin-top: 6px">SM-0918-0342</h1>
+              <p class="sm-sub">9月18日のご注文 · 2 点</p>
+            </div>
+            <div class="sm-card">
+              <h2>返金</h2>
+              <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
+              <div class="sm-row"><span>返金先</span><b>VISA •••• 4242</b></div>
+              <div class="sm-row"><span>返金日</span><b>9月19日（金）</b></div>
+            </div>
+            <div class="sm-card">
+              <h2>経過</h2>
+              <ol class="sm-timeline">
+                <li><time>9/18 10:12</time><span>ご注文</span></li>
+                <li><time>9/18 21:40</time><span>キャンセルを受け付けました</span></li>
+                <li><time>9/19 09:05</time><span>返金が完了しました</span></li>
+              </ol>
+            </div>
+            <p class="sm-sub" style="font-size: 11.5px">
+              カード明細への反映は、カード会社によって数日遅れることがあります。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- story: 出荷後の注文について問い合わせる -->
+      <div slot="preview" data-preview-id="shipped-detail-mobile">
+        <div class="sm">
+          <div class="sm-nav">
+            <span class="sm-logo">S</span><span class="sm-brand">Sora Market</span>
+            <span class="sm-crumb">注文詳細</span>
+          </div>
+          <div class="sm-shot">
+            <div>
+              <span class="sm-status sm-status--shipped">出荷中</span>
+              <h1 class="sm-title" style="margin-top: 6px">SM-0912-0127</h1>
+              <p class="sm-sub">9月12日のご注文 · 9月14日に出荷しました</p>
+            </div>
+            <div class="sm-card">
+              <div class="sm-item">
+                <span class="sm-thumb"></span>
+                <div>真鍮のペーパーウェイト<small>数量 1</small></div>
+                <b>¥3,300</b>
+              </div>
+            </div>
+            <p class="sm-note sm-note--warn">
+              出荷の準備が始まったため、この注文はキャンセルできません。お届け後の返品は、商品が届いてからお申し込みいただけます。
+            </p>
+            <div>
+              <a class="sm-btn sm-btn--ghost" href="#step=contact" data-artifact-navigate="step=contact">
+                この注文について問い合わせる
+              </a>
+              <div class="sm-btn sm-btn--ghost">返品について</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="contact-mobile">
+        <div class="sm">
+          <div class="sm-nav">
+            <span class="sm-logo">S</span><span class="sm-brand">Sora Market</span>
+            <span class="sm-crumb">お問い合わせ</span>
+          </div>
+          <div class="sm-shot">
+            <h1 class="sm-title">お問い合わせ</h1>
+            <div class="sm-card">
+              <div class="sm-field">
+                <span>注文番号</span>
+                <div class="sm-input">SM-0912-0127</div>
+              </div>
+              <div class="sm-field">
+                <span>ご用件</span>
+                <div class="sm-input">出荷後の注文のキャンセル・返品 ▾</div>
+              </div>
+              <div class="sm-field" style="margin-bottom: 0">
+                <span>内容</span>
+                <div class="sm-input" style="min-height: 96px; color: var(--sm-dim)">ご用件の詳細をご記入ください</div>
+              </div>
+            </div>
+            <p class="sm-sub" style="font-size: 11.5px">通常 1 営業日以内にメールでお返事します。</p>
+            <button class="sm-btn">送信する</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================ -->
+      <!-- ショップ運営（PC） -->
+      <!-- ================================================================ -->
+
+      <!-- story: 注文を管理する -->
+      <div slot="preview" data-preview-id="admin-orders-desktop">
+        <div class="sm sm--admin">
+          <div class="sm-admin">
+            <nav class="sm-side">
+              <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
+              <a href="#step=admin-orders" data-artifact-navigate="step=admin-orders" aria-current="page">注文</a>
+              <a href="#step=admin-refunds" data-artifact-navigate="step=admin-refunds"
+                >返金 <span class="sm-count">3</span></a
+              >
+              <a>在庫</a>
+              <a>お問い合わせ</a>
+            </nav>
+            <div class="sm-work">
+              <div class="sm-work-head">
+                <h1 class="sm-title">注文</h1>
+                <span class="sm-sub">9月19日（金）10:30 時点</span>
+              </div>
+              <div class="sm-chips">
+                <span class="sm-chip">すべて 128</span>
+                <span class="sm-chip">支払済み 14</span>
+                <span class="sm-chip">出荷中 21</span>
+                <span class="sm-chip">返金待ち 3</span>
+                <span class="sm-chip" aria-pressed="true">取消済み 5</span>
+              </div>
+              <div class="sm-card" style="padding: 4px 8px">
+                <table class="sm-table">
+                  <thead>
+                    <tr>
+                      <th>注文番号</th>
+                      <th>注文日時</th>
+                      <th>購入者</th>
+                      <th class="sm-num">合計</th>
+                      <th>状態</th>
+                      <th>キャンセル</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <a href="#step=admin-order-detail" data-artifact-navigate="step=admin-order-detail"
+                          >SM-0918-0342</a
+                        >
+                      </td>
+                      <td>9/18 10:12</td>
+                      <td>空野 ひかり</td>
+                      <td class="sm-num">¥11,750</td>
+                      <td><span class="sm-status sm-status--shipped">取消済み</span></td>
+                      <td>購入者 · 9/18 21:40</td>
+                    </tr>
+                    <tr>
+                      <td><a>SM-0916-0301</a></td>
+                      <td>9/16 19:48</td>
+                      <td>雲井 たける</td>
+                      <td class="sm-num">¥2,980</td>
+                      <td><span class="sm-status sm-status--shipped">取消済み</span></td>
+                      <td>購入者 · 9/16 20:02</td>
+                    </tr>
+                    <tr>
+                      <td><a>SM-0914-0210</a></td>
+                      <td>9/14 08:15</td>
+                      <td>晴海 さき</td>
+                      <td class="sm-num">¥6,600</td>
+                      <td><span class="sm-status sm-status--shipped">取消済み</span></td>
+                      <td>サポート · 9/14 11:30</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="admin-order-detail-desktop">
+        <div class="sm sm--admin">
+          <div class="sm-admin">
+            <nav class="sm-side">
+              <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
+              <a href="#step=admin-orders" data-artifact-navigate="step=admin-orders" aria-current="page">注文</a>
+              <a href="#step=admin-refunds" data-artifact-navigate="step=admin-refunds"
+                >返金 <span class="sm-count">3</span></a
+              >
+              <a>在庫</a>
+              <a>お問い合わせ</a>
+            </nav>
+            <div class="sm-work">
+              <div class="sm-work-head">
+                <div>
+                  <span class="sm-status sm-status--shipped">取消済み</span>
+                  <h1 class="sm-title" style="margin-top: 6px">SM-0918-0342</h1>
+                </div>
+                <span class="sm-sub">空野 ひかり · VISA •••• 4242</span>
+              </div>
+              <div class="sm-split">
+                <div class="sm-card">
+                  <h2>状態の履歴</h2>
+                  <ol class="sm-timeline">
+                    <li><time>9/18 10:12</time><span>注文確定 · 在庫を引き当て</span></li>
+                    <li><time>9/18 10:13</time><span>支払済み（売上確定）</span></li>
+                    <li><time>9/18 21:40</time><span>購入者がキャンセル → 返金待ち</span></li>
+                    <li><time>9/18 21:41</time><span>返金を要求（冪等キー SM-0918-0342）· タイムアウト</span></li>
+                    <li><time>9/18 21:46</time><span>結果を照会 · 未処理のため再送</span></li>
+                    <li><time>9/19 09:05</time><span>返金完了 → 取消済み · 在庫の引当を解除</span></li>
+                  </ol>
+                </div>
+                <div class="sm-card">
+                  <h2>明細</h2>
+                  <div class="sm-row"><span>手織りリネンのテーブルクロス × 1</span><b>¥6,800</b></div>
+                  <div class="sm-row"><span>波佐見焼 マグカップ 2 個セット × 1</span><b>¥4,400</b></div>
+                  <div class="sm-row"><span>送料</span><b>¥550</b></div>
+                  <div class="sm-row sm-row--total"><span>返金額</span><b>¥11,750</b></div>
+                  <div class="sm-row"><span>キャンセルの理由</span><b>注文内容を間違えた</b></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- story: 滞っている返金に対応する -->
+      <div slot="preview" data-preview-id="admin-refunds-desktop">
+        <div class="sm sm--admin">
+          <div class="sm-admin">
+            <nav class="sm-side">
+              <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
+              <a href="#step=admin-orders" data-artifact-navigate="step=admin-orders">注文</a>
+              <a href="#step=admin-refunds" data-artifact-navigate="step=admin-refunds" aria-current="page"
+                >返金 <span class="sm-count">3</span></a
+              >
+              <a>在庫</a>
+              <a>お問い合わせ</a>
+            </nav>
+            <div class="sm-work">
+              <div class="sm-work-head">
+                <h1 class="sm-title">返金待ち</h1>
+                <span class="sm-sub">経過時間の長い順</span>
+              </div>
+              <div class="sm-banner">24 時間を超えて返金待ちの注文が 1 件あります。</div>
+              <div class="sm-card" style="padding: 4px 8px">
+                <table class="sm-table">
+                  <thead>
+                    <tr>
+                      <th>注文番号</th>
+                      <th>キャンセル受付</th>
+                      <th>経過</th>
+                      <th class="sm-num">返金額</th>
+                      <th class="sm-num">試行</th>
+                      <th>直近の結果</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr data-alert>
+                      <td>
+                        <a href="#step=admin-refund-stuck" data-artifact-navigate="step=admin-refund-stuck"
+                          >SM-0915-0288</a
+                        >
+                      </td>
+                      <td>9/16 07:55</td>
+                      <td><b>3 日 2 時間</b></td>
+                      <td class="sm-num">¥24,200</td>
+                      <td class="sm-num">6 回</td>
+                      <td>タイムアウト</td>
+                    </tr>
+                    <tr>
+                      <td><a>SM-0919-0012</a></td>
+                      <td>9/19 09:48</td>
+                      <td>42 分</td>
+                      <td class="sm-num">¥5,390</td>
+                      <td class="sm-num">1 回</td>
+                      <td>照会中</td>
+                    </tr>
+                    <tr>
+                      <td><a>SM-0919-0020</a></td>
+                      <td>9/19 10:24</td>
+                      <td>6 分</td>
+                      <td class="sm-num">¥1,650</td>
+                      <td class="sm-num">1 回</td>
+                      <td>処理中</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="admin-refund-stuck-desktop">
+        <div class="sm sm--admin">
+          <div class="sm-admin">
+            <nav class="sm-side">
+              <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
+              <a href="#step=admin-orders" data-artifact-navigate="step=admin-orders">注文</a>
+              <a href="#step=admin-refunds" data-artifact-navigate="step=admin-refunds" aria-current="page"
+                >返金 <span class="sm-count">3</span></a
+              >
+              <a>在庫</a>
+              <a>お問い合わせ</a>
+            </nav>
+            <div class="sm-work">
+              <div class="sm-work-head">
+                <div>
+                  <span class="sm-status sm-status--pending">返金待ち · 3 日 2 時間</span>
+                  <h1 class="sm-title" style="margin-top: 6px">SM-0915-0288 の返金</h1>
+                </div>
+                <span class="sm-sub">¥24,200 · VISA •••• 1881 · 冪等キー SM-0915-0288</span>
+              </div>
+              <div class="sm-split">
+                <div class="sm-card">
+                  <h2>試行の履歴</h2>
+                  <table class="sm-table">
+                    <thead>
+                      <tr>
+                        <th>日時</th>
+                        <th>操作</th>
+                        <th>決済代行の応答</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>9/16 07:56</td>
+                        <td>返金を要求</td>
+                        <td>タイムアウト</td>
+                      </tr>
+                      <tr>
+                        <td>9/16 08:01</td>
+                        <td>結果を照会 → 再送</td>
+                        <td>503 一時的なエラー</td>
+                      </tr>
+                      <tr>
+                        <td>9/16 09:01</td>
+                        <td>結果を照会 → 再送</td>
+                        <td>タイムアウト</td>
+                      </tr>
+                      <tr>
+                        <td>9/19 07:01</td>
+                        <td>結果を照会 → 再送（6 回目）</td>
+                        <td>タイムアウト</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="sm-card">
+                  <h2>対応</h2>
+                  <p class="sm-sub" style="margin-bottom: 12px">
+                    次の自動再試行は 9/20 07:01。購入者には受付のメールだけが届いています。
+                  </p>
+                  <div class="sm-actions">
+                    <button class="sm-btn">いま結果を照会する</button>
+                    <button class="sm-btn sm-btn--ghost">購入者に連絡する</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </artifact-prototype>
+  </body>
+</html>

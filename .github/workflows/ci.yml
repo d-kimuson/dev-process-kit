@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-ci
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # The published-release check diffs against the base of the change.
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint and format check
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      # A build verifies the release it wrote (scripts/verify-release.ts), so
+      # every tree the steps below check or upload is already a valid one.
+      - name: Build the debug channel
+        run: DPK_CHANNEL=debug pnpm build
+
+      # The tracked tree has to be exactly what a build produces. It runs
+      # before the stable build below, which would add a release the tree
+      # does not hold yet.
+      - name: Verify the committed tree is the build output
+        run: node scripts/verify-committed.ts
+
+      - name: Verify no published release changed
+        run: >-
+          node scripts/verify-published.ts
+          "${{ github.event.pull_request.base.sha || github.event.before }}"
+
+      - name: Build the release tree
+        run: pnpm build

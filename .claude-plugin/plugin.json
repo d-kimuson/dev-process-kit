@@ -1,0 +1,9 @@
+{
+  "name": "dev-process-kit",
+  "version": "0.0.1",
+  "description": "Build shared understanding with the user through single-file HTML artifacts reviewed in the browser.",
+  "author": { "name": "d-kimuson" },
+  "homepage": "https://dev-process-kit.kimuson.dev",
+  "repository": "https://github.com/d-kimuson/dev-process-kit",
+  "license": "MIT"
+}

@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DDD を図で理解する | dev-process-kit</title>
+    <!--
+      The framework is served by the Workers Static Assets dev server, not by
+      this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too.
+
+      A concept explainer: artifact-plain brings the header and the review
+      pipeline, components.js the mind map and the context map, and the
+      glossary and the aggregate figure are hand-written markup.
+    -->
+    <script type="module" src="https://dev-process-kit.localhost/dev-process-kit@0.0.1/templates/plain.js"></script>
+    <script type="module" src="https://dev-process-kit.localhost/dev-process-kit@0.0.1/components.js"></script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #ffffff;
+      }
+      artifact-plain {
+        display: block;
+        height: 100dvh;
+      }
+
+      /* Everything below is author content inside slot="main". */
+      .primer {
+        width: 100%;
+        max-width: 960px;
+        margin: 0 auto 64px;
+        color: var(--af-ink);
+        font-size: 13.5px;
+        line-height: 1.85;
+      }
+      .primer section {
+        margin-top: 40px;
+      }
+      .primer section:first-child {
+        margin-top: 8px;
+      }
+      .head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .head h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .head button {
+        margin-left: auto;
+        padding: 3px 10px;
+        border: 1px solid var(--af-rule-strong);
+        border-radius: 6px;
+        background: var(--af-paper-raised);
+        color: var(--af-ink-soft);
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .head button:hover {
+        border-color: var(--af-blue);
+        color: var(--af-blue);
+      }
+      .primer p {
+        margin: 0 0 12px;
+        color: var(--af-ink-soft);
+      }
+      .primer strong {
+        color: var(--af-ink);
+        font-weight: 600;
+      }
+      .diagram {
+        --diagram-height: 560px;
+      }
+      #context-map {
+        --diagram-height: 660px;
+      }
+
+      /* Custom: the same word, three meanings. */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 4px;
+        font-size: 12.5px;
+        line-height: 1.6;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--af-rule);
+      }
+      th {
+        color: var(--af-ink-faint);
+        font-weight: 500;
+        font-size: 11.5px;
+      }
+      td:first-child {
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      td code {
+        font-size: 11.5px;
+        color: var(--af-ink-soft);
+      }
+
+      /* Custom: an aggregate and what lives outside it. */
+      .aggregate-figure {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 190px;
+        gap: 16px;
+        margin-top: 6px;
+      }
+      .boundary {
+        position: relative;
+        padding: 30px 18px 18px;
+        border: 1.5px dashed var(--af-blue);
+        border-radius: 12px;
+        background: var(--af-blue-soft);
+      }
+      .boundary > .label {
+        position: absolute;
+        top: 8px;
+        left: 14px;
+        color: var(--af-blue);
+        font-size: 11.5px;
+        font-weight: 600;
+      }
+      .root {
+        padding: 10px 14px;
+        border: 2px solid var(--af-blue);
+        border-radius: 8px;
+        background: var(--af-paper-raised);
+      }
+      .members {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .member {
+        padding: 8px 12px;
+        border: 1px solid var(--af-rule-strong);
+        border-radius: 8px;
+        background: var(--af-paper-raised);
+      }
+      .member.is-value {
+        border-style: dotted;
+      }
+      .root b,
+      .member b,
+      .outside b {
+        display: block;
+        font-size: 12.5px;
+      }
+      .root small,
+      .member small,
+      .outside small {
+        display: block;
+        color: var(--af-ink-faint);
+        font-size: 11px;
+        line-height: 1.5;
+      }
+      .outside-list {
+        display: grid;
+        align-content: center;
+        gap: 10px;
+      }
+      .outside {
+        padding: 8px 12px;
+        border: 1px solid var(--af-rule-strong);
+        border-radius: 8px;
+        background: var(--af-paper-sunken);
+      }
+      .outside small code {
+        font-size: 10.5px;
+      }
+      .rules {
+        margin: 16px 0 0;
+        padding-left: 20px;
+        color: var(--af-ink-soft);
+      }
+
+      @media (max-width: 720px) {
+        .aggregate-figure,
+        .members {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <artifact-plain storage-key="sample-ddd-primer">
+      <script type="application/json">
+        {
+          "title": "DDD を図で理解する",
+          "sections": [
+            { "id": "overview", "title": "全体像" },
+            { "id": "contexts", "title": "境界づけられたコンテキスト" },
+            { "id": "language", "title": "ユビキタス言語" },
+            { "id": "aggregate", "title": "集約" }
+          ]
+        }
+      </script>
+
+      <div class="primer" slot="main">
+        <section>
+          <div class="head">
+            <h2>全体像</h2>
+            <button type="button" data-artifact-comment="section:overview">このセクションにコメント</button>
+          </div>
+          <p>
+            ドメイン駆動設計（DDD）は、業務の知識をそのままソフトウェアの形にするための考え方です。
+            <strong>どこで線を引くか</strong
+            >を決める戦略的設計と、<strong>線の内側をどう作るか</strong>を決める戦術的設計の 2
+            つに分かれ、その両方を業務の言葉（ユビキタス言語）がつなぎます。このページでは EC
+            の注文システムを例に、それぞれを図で見ていきます。
+          </p>
+          <artifact-mind-map id="ddd-map" class="diagram" heading="Mind map" subject="ドメイン駆動設計">
+            <script type="application/json">
+              {
+                "root": {
+                  "id": "ddd",
+                  "label": "ドメイン駆動設計",
+                  "children": [
+                    {
+                      "id": "strategic",
+                      "label": "戦略的設計",
+                      "side": "left",
+                      "tags": ["戦略"],
+                      "children": [
+                        {
+                          "id": "subdomain",
+                          "label": "サブドメイン",
+                          "description": "業務を分けた単位。どこに力を入れるかを決める。",
+                          "children": [
+                            { "id": "core", "label": "コア: 競争力の源", "description": "例: 注文、価格" },
+                            {
+                              "id": "supporting",
+                              "label": "支援: 独自だが差別化しない",
+                              "description": "例: 在庫、配送"
+                            },
+                            { "id": "generic", "label": "汎用: 買って済ませる", "description": "例: 決済、通知" }
+                          ]
+                        },
+                        {
+                          "id": "bounded-context",
+                          "label": "境界づけられたコンテキスト",
+                          "description": "1 つのモデルと言葉が通じる範囲。"
+                        },
+                        {
+                          "id": "context-map",
+                          "label": "コンテキストマップ",
+                          "description": "コンテキスト同士の関係（誰が誰に合わせるか）を描いたもの。"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "language",
+                      "label": "ユビキタス言語",
+                      "side": "left",
+                      "tags": ["共通"],
+                      "children": [
+                        { "id": "shared-words", "label": "業務と開発で同じ言葉を使う" },
+                        { "id": "words-in-code", "label": "コードの名前にもそのまま使う" },
+                        { "id": "per-context", "label": "意味はコンテキストごとに決まる" }
+                      ]
+                    },
+                    {
+                      "id": "tactical",
+                      "label": "戦術的設計",
+                      "side": "right",
+                      "tags": ["戦術"],
+                      "children": [
+                        { "id": "entity", "label": "エンティティ", "description": "ID で同一性を追う。例: 注文" },
+                        {
+                          "id": "value-object",
+                          "label": "値オブジェクト",
+                          "description": "値そのものが意味。変更せず作り直す。例: 金額、住所"
+                        },
+                        {
+                          "id": "aggregate",
+                          "label": "集約",
+                          "description": "一緒に整合性を守るまとまり。更新はルート経由で。"
+                        },
+                        {
+                          "id": "domain-event",
+                          "label": "ドメインイベント",
+                          "description": "業務上の出来事。例: OrderPlaced"
+                        },
+                        { "id": "repository", "label": "リポジトリ", "description": "集約単位で保存・復元する。" },
+                        {
+                          "id": "domain-service",
+                          "label": "ドメインサービス",
+                          "description": "どのエンティティにも属さない業務ルール。"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "misconceptions",
+                      "label": "よくある誤解",
+                      "side": "right",
+                      "collapsed": true,
+                      "children": [
+                        { "id": "not-layers", "label": "レイヤー構成のことではない" },
+                        { "id": "not-everywhere", "label": "全部に適用しなくてよい" },
+                        { "id": "not-patterns-first", "label": "パターンより言葉とモデルが先" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            </script>
+          </artifact-mind-map>
+        </section>
+
+        <section>
+          <div class="head">
+            <h2>境界づけられたコンテキスト</h2>
+            <button type="button" data-artifact-comment="section:contexts">このセクションにコメント</button>
+          </div>
+          <p>
+            1 つの巨大なモデルで業務全体を表そうとすると、言葉の意味がぶつかって破綻します。そこで、
+            <strong>1 つのモデルが通用する範囲</strong>で線を引きます。これが境界づけられたコンテキストです。
+            注文システムなら、注文・在庫・配送・決済は別々のコンテキストになり、イベントや API でやりとりします。
+          </p>
+          <p>下のコンテキストマップは、サブドメインの種類ごとに枠を分けています。</p>
+          <artifact-architecture-map id="context-map" class="diagram" heading="Context map" subject="注文システム">
+            <script type="application/json">
+              {
+                "boundaries": [
+                  { "id": "core", "label": "コアドメイン" },
+                  { "id": "supporting", "label": "支援サブドメイン" },
+                  { "id": "generic", "label": "汎用サブドメイン" },
+                  { "id": "external", "label": "外部サービス", "kind": "external" }
+                ],
+                "services": [
+                  {
+                    "id": "ordering",
+                    "name": "注文",
+                    "description": "注文の受付とキャンセル。可否のルールを持つ。",
+                    "boundary": "core",
+                    "position": { "x": 0, "y": 0 }
+                  },
+                  {
+                    "id": "pricing",
+                    "name": "価格",
+                    "description": "割引とキャンペーンを含めた見積もり。",
+                    "boundary": "core",
+                    "position": { "x": 0, "y": 220 }
+                  },
+                  {
+                    "id": "inventory",
+                    "name": "在庫",
+                    "description": "倉庫ごとの在庫数と引当。",
+                    "boundary": "supporting",
+                    "position": { "x": 320, "y": 0 }
+                  },
+                  {
+                    "id": "shipping",
+                    "name": "配送",
+                    "description": "出荷指示と配送状況の追跡。",
+                    "boundary": "supporting",
+                    "position": { "x": 320, "y": 220 }
+                  },
+                  {
+                    "id": "billing",
+                    "name": "決済",
+                    "description": "決済代行の API を包み、社内の言葉に変換する（腐敗防止層）。",
+                    "boundary": "generic",
+                    "position": { "x": 640, "y": 0 }
+                  },
+                  {
+                    "id": "notification",
+                    "name": "通知",
+                    "description": "メールとプッシュ通知。",
+                    "boundary": "generic",
+                    "position": { "x": 640, "y": 220 }
+                  },
+                  {
+                    "id": "psp",
+                    "name": "決済代行",
+                    "description": "外部の決済プロバイダ。モデルは相手が決める。",
+                    "boundary": "external",
+                    "symbol": "PS",
+                    "position": { "x": 960, "y": 0 }
+                  }
+                ],
+                "links": [
+                  { "id": "ordering-pricing", "from": "ordering", "to": "pricing", "label": "見積もりを取得" },
+                  { "id": "ordering-inventory", "from": "ordering", "to": "inventory", "label": "OrderPlaced" },
+                  { "id": "ordering-shipping", "from": "ordering", "to": "shipping", "label": "出荷を依頼" },
+                  { "id": "ordering-billing", "from": "ordering", "to": "billing", "label": "支払いを依頼" },
+                  { "id": "billing-psp", "from": "billing", "to": "psp", "label": "腐敗防止層で変換" },
+                  { "id": "shipping-notification", "from": "shipping", "to": "notification", "label": "Shipped" }
+                ]
+              }
+            </script>
+          </artifact-architecture-map>
+        </section>
+
+        <section>
+          <div class="head">
+            <h2>ユビキタス言語</h2>
+            <button type="button" data-artifact-comment="section:language">このセクションにコメント</button>
+          </div>
+          <p>
+            同じ「商品」という言葉でも、コンテキストによって関心がまったく違います。無理に 1
+            つのクラスにまとめず、<strong>コンテキストごとに別のモデル</strong>として持つのが DDD の考え方です。
+            コンテキストの中では、業務の人と開発者が同じ言葉を同じ意味で使い、コードの名前にもそのまま使います。
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>コンテキスト</th>
+                <th>「商品」が意味するもの</th>
+                <th>モデルが持つもの</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>注文</td>
+                <td>カートに入れて買うもの</td>
+                <td><code>商品ID</code> · 注文時点の価格 · 数量</td>
+              </tr>
+              <tr>
+                <td>在庫</td>
+                <td>倉庫の棚にあるもの</td>
+                <td><code>SKU</code> · 倉庫ごとの在庫数 · 引当数</td>
+              </tr>
+              <tr>
+                <td>配送</td>
+                <td>箱に詰めて運ぶもの</td>
+                <td>重さ · サイズ · 温度帯</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <div class="head">
+            <h2>集約</h2>
+            <button type="button" data-artifact-comment="section:aggregate">このセクションにコメント</button>
+          </div>
+          <p>
+            集約は<strong>一緒に整合性を守るオブジェクトのまとまり</strong>です。「注文の合計金額は明細の合計と一致する」
+            のようなルールは、集約の中で必ず守られます。外からはルート（ここでは Order）だけを触り、他の集約は ID
+            で参照します。
+          </p>
+          <div class="aggregate-figure" aria-label="Order 集約の構成">
+            <div class="boundary">
+              <span class="label">Order 集約</span>
+              <div class="root">
+                <b>Order（集約ルート）</b>
+                <small>状態 · 合計金額を持ち、明細の追加やキャンセルはすべてここを通す</small>
+              </div>
+              <div class="members">
+                <div class="member">
+                  <b>OrderLine</b>
+                  <small>エンティティ · 注文明細。Order の外では意味を持たない</small>
+                </div>
+                <div class="member is-value">
+                  <b>Money</b>
+                  <small>値オブジェクト · 金額と通貨</small>
+                </div>
+                <div class="member is-value">
+                  <b>ShippingAddress</b>
+                  <small>値オブジェクト · 配送先の住所</small>
+                </div>
+              </div>
+            </div>
+            <div class="outside-list">
+              <div class="outside">
+                <b>Customer 集約</b>
+                <small><code>customerId</code> で参照</small>
+              </div>
+              <div class="outside">
+                <b>Product（価格）</b>
+                <small><code>productId</code> で参照</small>
+              </div>
+            </div>
+          </div>
+          <ol class="rules">
+            <li>1 つのトランザクションで更新するのは 1 つの集約だけ。</li>
+            <li>集約をまたぐ整合性は、ドメインイベント（例: <code>OrderPlaced</code>）で後から合わせる。</li>
+            <li>集約は小さく保つ。迷ったら分けて、ID で参照する。</li>
+          </ol>
+        </section>
+      </div>
+    </artifact-plain>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+{
+  // Distribution is static assets only: no Worker script is deployed
+  // (docs/adr/20260919_workers-static-assets-distribution.md).
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "dev-process-kit",
+  "compatibility_date": "2026-09-19",
+  "assets": {
+    // The deployable tree. `pnpm dev` serves `public-dev/` instead
+    // (`wrangler dev --assets public-dev`), so a deploy build cannot change the
+    // caching policy of a running dev session. Both trees are build output:
+    // `src/**` is the source of truth.
+    "directory": "./public",
+    // A missing asset is a missing asset: never fall back to an HTML shell.
+    "not_found_handling": "none",
+  },
+}

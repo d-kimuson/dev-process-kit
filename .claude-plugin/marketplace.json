@@ -1,0 +1,14 @@
+{
+  "name": "dev-process-kit",
+  "description": "The dev-process-kit agent skill.",
+  "owner": {
+    "name": "d-kimuson"
+  },
+  "plugins": [
+    {
+      "name": "dev-process-kit",
+      "source": "./",
+      "description": "Build shared understanding with the user through single-file HTML artifacts reviewed in the browser."
+    }
+  ]
+}
