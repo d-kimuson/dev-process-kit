@@ -23,7 +23,7 @@ Load one entry, with the version pinned: a page has to keep working when a new v
 | `index.js`                                                                                                                                                   | one URL for everything                                                                |
 
 ```html
-<script type="module" src="https://dev-process-kit.biz-km.workers.dev/dev-process-kit@debug/templates/prototype.js"></script>
+<script type="module" src="https://dev-process-kit.kimuson.dev/dev-process-kit@debug/templates/prototype.js"></script>
 ```
 
 A template entry registers that template, the review rail and inline editing. Add `components.js` when the page also uses the diagram elements directly.
