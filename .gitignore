@@ -4,6 +4,7 @@ node_modules/
 .vite/
 .direnv
 .wrangler/
+.claude/trash/
 
 # Build output. Every asset tree is generated from `src/**` + `docs/**`:
 #   `pnpm build`  -> `public/` (the deployable tree; one release per channel is written into it)
