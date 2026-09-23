@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Build shared understanding with the user through single-file HTML pages reviewed in the browser.",
   "author": { "name": "d-kimuson" },
-  "homepage": "https://dev-process-kit.kimuson.dev",
+  "homepage": "https://www.npmjs.com/package/dev-process-kit",
   "repository": "https://github.com/d-kimuson/dev-process-kit",
   "license": "MIT"
 }

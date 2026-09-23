@@ -8,7 +8,7 @@ Keep one logical change in each commit. Separate unrelated behavior, refactoring
 
 Inspect the staged diff before committing. Include only files required by the stated intent, especially when the working tree already contains unrelated work. Do not discard, rewrite, or accidentally stage changes that belong to another task.
 
-`public/` is tracked release output and belongs in a commit only when that commit intentionally creates or updates a release. `public-dev/` is temporary development output and never belongs in a commit.
+`dist/` is build output and never belongs in a commit; npm publishes what the release workflow builds from the tagged commit. A release is the version bump commit that `npm version` creates (`chore: release v<version>`, see `.agents/skills/release`) and nothing else.
 
 ## Message
 

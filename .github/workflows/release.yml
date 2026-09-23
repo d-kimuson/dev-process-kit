@@ -1,0 +1,66 @@
+name: Release
+
+# `npm version` + `git push --follow-tags` (.agents/skills/release) pushes a signed `v<version>` tag; this publishes that version to npm with
+# Trusted Publishing (OIDC), so no npm token is stored in the repository.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # A tag that does not name the committed version would publish a version nobody pinned.
+      - name: Check the tag names the package version
+        run: |
+          VERSION="$(node -p 'require("./package.json").version')"
+          if [[ "${{ github.ref_name }}" != "v${VERSION}" ]]; then
+            echo "tag ${{ github.ref_name }} does not match package.json version ${VERSION}" >&2
+            exit 1
+          fi
+
+      # A prerelease (`0.1.1-beta.0`) goes to the dist-tag of its identifier (`beta`), so
+      # `@latest` only ever resolves to a release.
+      - name: Determine npm dist-tag
+        id: dist-tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ "$TAG" == *-* ]]; then
+            echo "tag=${TAG##*-}" | sed 's/\.[0-9]*$//' >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      # clean-pkg-json strips the development-only fields (scripts, devDependencies, …) from the published
+      # package.json; it rewrites the file in place, which is why it runs here and not in a
+      # lifecycle script a local `pnpm pack` would trigger.
+      - name: Build the package
+        run: pnpm build
+
+      - name: Strip development fields from package.json
+        run: pnpm exec clean-pkg-json
+
+      - name: Publish to npm
+        run: pnpm publish --provenance --no-git-checks --access public --tag ${{ steps.dist-tag.outputs.tag }}

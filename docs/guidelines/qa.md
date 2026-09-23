@@ -8,7 +8,7 @@ Use the lowest layer that can provide credible evidence:
 
 1. **Pure unit tests** cover domain transitions, presentation derivation, navigation, and other behavior without effects.
 2. **Custom Element integration tests** cover rendering, events, dispatch, rerendering, and persistence at the component boundary.
-3. **Release verification** covers the assembled bundles, public documentation, headers, release metadata, and pinned sample URLs.
+3. **Build checks** (`vite.config.ts`, run by every build) cover the package boundary: `exports` in `package.json` matches the entries, and every bundled license is on the allowlist. `pnpm pack --dry-run` shows what npm would ship.
 4. **Real-browser QA** covers behavior that simulated DOM environments cannot represent reliably, including drag gestures, popovers, slot routing, cross-origin module loading, and browser-specific APIs.
 5. **Human QA** is reserved for visual judgment and product decisions that cannot be made reproducibly by an agent.
 
@@ -25,12 +25,11 @@ Exercise the built bundle from the sample's separate origin. This preserves the 
 - the review rail accepts a comment;
 - an authored action changes the visible state;
 - draft state survives a reload;
-- navigation is canonicalized;
-- debug releases are not treated as immutable versioned releases.
+- navigation is canonicalized.
 
 When adopting an API with limited browser availability, verify both the supported path and the fallback or feature-detection path in the relevant engines.
 
-Use HTTP-level checks for cache policy, redirects, CORS headers, and missing assets. These are protocol contracts and are more directly observed without a browser UI.
+Use HTTP-level checks for CORS headers and missing assets. These are protocol contracts and are more directly observed without a browser UI.
 
 ## Evidence
 

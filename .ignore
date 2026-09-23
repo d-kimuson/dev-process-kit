@@ -1,5 +1,0 @@
-# Files tools should not walk — as opposed to `.gitignore`, which says what git should not
-# track. `public/` is tracked (the committed tree is what gets deployed) but it is generated:
-# searching it only ever finds the bundled copy of `src/**`.
-public/
-public-dev/

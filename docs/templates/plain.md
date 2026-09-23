@@ -35,8 +35,8 @@ Section ids follow the common id rule (letters, digits, `_`, `-`); a duplicate i
 Put anything in `slot="main"`. Load `components.js` alongside `templates/plain.js` when it contains diagram elements (or use the all-in-one `index.js`):
 
 ```html
-<script type="module" src="https://dev-process-kit.kimuson.dev/dev-process-kit@0.0.1/templates/plain.js"></script>
-<script type="module" src="https://dev-process-kit.kimuson.dev/dev-process-kit@0.0.1/components.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/plain.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/components.js"></script>
 
 <dpk-template-plain storage-key="checkout-notes">
   <script type="application/json">

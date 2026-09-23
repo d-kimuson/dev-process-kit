@@ -6,7 +6,7 @@
  * `components.js` as well when the page also uses the diagram elements directly, or
  * `index.js` when it should carry every template.
  *
- * `RELEASE_ENTRIES` in `scripts/release.ts` is what publishes this file as
+ * `ENTRIES` in `vite.config.ts` is what publishes this file as
  * `templates/prototype.js`.
  */
 import { defineCommentPanel } from '../components/comment-panel/index';

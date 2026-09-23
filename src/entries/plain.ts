@@ -7,7 +7,7 @@
  * components the template renders (the review rail and inline editing) and nothing
  * else; `index.js` carries every template.
  *
- * `RELEASE_ENTRIES` in `scripts/release.ts` is what publishes this file as
+ * `ENTRIES` in `vite.config.ts` is what publishes this file as
  * `templates/plain.js`.
  */
 import { defineCommentPanel } from '../components/comment-panel/index';

@@ -9,9 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom',
-    // `scripts/**` holds the release tooling; its tests cover the channel decisions
-    // (where a build goes, how it is cached, how its documentation is addressed).
-    include: ['src/**/*.test.ts', 'dev/**/*.test.{js,ts}', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'dev/**/*.test.{js,ts}'],
     restoreMocks: true,
   },
 });

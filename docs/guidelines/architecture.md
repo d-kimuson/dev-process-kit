@@ -12,7 +12,7 @@ lib <- core <- components <- templates
 
 Entrypoints assemble these layers into public distributions; they are not shared implementation modules.
 
-The published trees are generated output. Their sources of truth are `src/**` and the consumer documentation; do not implement changes in `public/` or `public-dev/`.
+`dist/` is generated output whose source of truth is `src/**`; do not implement changes in it.
 
 ## State and actions
 

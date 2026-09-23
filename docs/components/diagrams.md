@@ -12,7 +12,7 @@ Seven reusable diagram elements. They share one interaction contract and differ 
 | `dpk-component-mind-map`         | How does one topic break down?              | `docs/components/mind-map.md`         |
 | `dpk-component-kanban`           | Where does each piece of work stand?        | `docs/components/kanban.md`           |
 
-A diagram pairs with the `dpk-template-grill` template when you want to review it with questions (`docs/templates/grill.md`), or with `dpk-template-plain` when you only want comments on it (`docs/templates/plain.md`). Load `components.js` for a page that uses them without a template; the entries are listed in the release's `docs/index.md`.
+A diagram pairs with the `dpk-template-grill` template when you want to review it with questions (`docs/templates/grill.md`), or with `dpk-template-plain` when you only want comments on it (`docs/templates/plain.md`). Load `components.js` for a page that uses them without a template; the entries are listed in `docs/index.md`.
 
 ## Data
 

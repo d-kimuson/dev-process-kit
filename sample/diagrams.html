@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Diagram components | dev-process-kit</title>
     <!--
-      The framework is served by the Workers Static Assets dev server, not by
-      this page's own origin: the sample server is a separate origin on purpose,
-      so the cross-origin (CORS) load is exercised locally too.
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too. A generated page
+      loads the same files from jsDelivr instead.
 
       The page is an dpk-template-plain: the header and the review pipeline come from
       the template, the diagrams from components.js.
     -->
-    <script type="module" src="https://dev-process-kit.localhost/dev-process-kit@0.0.1/templates/plain.js"></script>
-    <script type="module" src="https://dev-process-kit.localhost/dev-process-kit@0.0.1/components.js"></script>
+    <script type="module" src="https://dev-process-kit.localhost/templates/plain.js"></script>
+    <script type="module" src="https://dev-process-kit.localhost/components.js"></script>
     <style>
       html,
       body {

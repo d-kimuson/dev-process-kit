@@ -7,7 +7,7 @@ for distribution.
 
 ## Status
 
-accepted
+superseded by [20260924_npm-jsdelivr-distribution](20260924_npm-jsdelivr-distribution.md)
 
 ## Context
 

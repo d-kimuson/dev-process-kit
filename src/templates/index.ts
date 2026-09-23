@@ -11,7 +11,7 @@ import { defineUsmElement } from './usm';
  * Registers every template element (the all-in-one `index.js` entry uses it).
  * Each template also ships as its own entry, `templates/<name>.js`; adding a
  * template means adding its element definition here and its entry to
- * `RELEASE_ENTRIES`.
+ * `ENTRIES` in `vite.config.ts` (and `exports` in `package.json`).
  */
 export const registerTemplateElements = (): void => {
   definePrototypeElement();

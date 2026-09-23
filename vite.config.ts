@@ -1,106 +1,123 @@
 // Resolved via pnpm workspace install (`pnpm install`).
-import { rm } from 'node:fs/promises';
-import path from 'node:path';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, transformWithEsbuild, type Plugin } from 'vite';
 
-import { currentTree, releaseSegment, RELEASE_ENTRIES } from './scripts/release.ts';
+import pkg from './package.json' with { type: 'json' };
 
 /**
- * The tree this build writes: the deployable tree of the selected release channel
- * (`DPK_CHANNEL`), or the development tree when `pnpm dev` sets
- * `DPK_ASSETS_DIR=public-dev` — a deploy build must not be able to change what a
- * running dev session serves (see `scripts/release.ts`).
+ * The entry points the package ships, as `<output name> -> <source>`. A page loads one of them
+ * from jsDelivr, pinned to an exact version:
+ * `https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/<name>.js`.
+ *
+ * A page that uses one template downloads that template, not every template and every diagram;
+ * `index` stays the union of all of them. The entries share the core, the components and their
+ * dependencies, which Rollup emits once as chunks next to them.
  */
-const tree = currentTree();
+const ENTRIES = {
+  index: 'src/index.ts',
+  components: 'src/entries/components.ts',
+  'templates/prototype': 'src/entries/prototype.ts',
+  'templates/usm': 'src/entries/usm.ts',
+  'templates/event-storming': 'src/entries/event-storming.ts',
+  'templates/example-mapping': 'src/entries/example-mapping.ts',
+  'templates/grill': 'src/entries/grill.ts',
+  'templates/plain': 'src/entries/plain.ts',
+} as const satisfies Record<string, string>;
+
+// `exports` in package.json is the same list seen from a bundler; keep the two from drifting.
+const expectedExports = Object.fromEntries(
+  Object.keys(ENTRIES).map((name) => [name === 'index' ? '.' : `./${name}`, `./dist/${name}.js`]),
+);
+if (JSON.stringify(pkg.exports) !== JSON.stringify(expectedExports)) {
+  throw new Error(`package.json "exports" must be ${JSON.stringify(expectedExports, null, 2)}`);
+}
 
 /**
- * The `VERSION` file is the marker that a release finished assembling, and
- * `isCompleteRelease` (scripts/assemble-assets.ts) trusts it. Vite writes the
- * bundle straight into the release directory, so the marker has to be dropped
- * before the first byte is written: an interrupted build must not leave a
- * truncated bundle next to a marker that claims the release is complete.
- *
- * `scripts/assemble-assets.ts` writes the marker again once the release content is
- * in place.
- *
- * The marker is located from Vite's *resolved* output directory rather than from
- * the current working directory, so it follows wherever this build actually writes
- * (a caller that sets `root` or `build.outDir` included).
+ * Vite's ES library build keeps whitespace, assuming a library is re-bundled by its consumer.
+ * This one is loaded by the browser as-is, so the published build is minified fully.
  */
-const invalidateReleaseMarker = (): Plugin => {
-  let marker: string | null = null;
-  return {
-    name: 'dev-process-kit:invalidate-release-marker',
-    configResolved(config) {
-      // Vite lets `rollupOptions.output.dir` override the output directory it
-      // computed. The bundle URL shape is a published contract, so an override is a
-      // configuration error rather than something to work around: silently
-      // invalidating a marker elsewhere would let a release be rewritten without
-      // losing its "complete" marker.
-      const output = config.build.rollupOptions.output;
-      const dirs = (Array.isArray(output) ? output : [output]).map((entry) => entry?.dir);
-      if (dirs.some((dir) => dir !== undefined)) {
-        throw new Error(
-          'dev-process-kit: `build.rollupOptions.output.dir` overrides the asset layout; the bundle has to be written to `build.outDir`.',
-        );
+const minifyFully = (): Plugin => ({
+  name: 'dpk:minify-fully',
+  apply: 'build',
+  // After every `renderChunk`, so no later pass reformats the output.
+  generateBundle: {
+    order: 'post',
+    async handler(_options, bundle) {
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type !== 'chunk') continue;
+        const result = await transformWithEsbuild(chunk.code, chunk.fileName, {
+          minify: true,
+          target: 'es2022',
+          format: 'esm',
+        });
+        chunk.code = result.code;
       }
-      marker = path.resolve(config.root, config.build.outDir, 'VERSION');
     },
-    async buildStart() {
-      if (marker !== null) await rm(marker, { force: true });
-    },
-  };
-};
+  },
+});
 
 /**
- * The framework ships as a build-free ESM bundle per entry point, whose URL shape mirrors
- * the pinned asset URL: `<origin>/dev-process-kit@<version>/<entry>.js`
- * (`scripts/release.ts` owns the entry list). The entries share the core, the components
- * and their dependencies, which Rollup emits once as chunks next to them.
- *
- * The asset trees are build output, not source directories: `src/**` is the
- * source of truth and the tree around this bundle is assembled from it.
+ * Licenses the bundle may contain. The package is MIT, so everything bundled into it has to be
+ * permissive too. Apache-2.0 is deliberately absent: it can require reproducing a `NOTICE` file,
+ * which the generated notice does not do, so adding such a dependency needs a decision first.
  */
-export default defineConfig({
-  define: {
-    __DPK_VERSION__: JSON.stringify(tree.frameworkVersion),
-  },
-  plugins: [invalidateReleaseMarker()],
-  // The asset directory is generated by the build; never treat it as Vite's
-  // static-file source.
-  publicDir: false,
-  build: {
-    outDir: `${tree.assetsDir}/${releaseSegment(tree.releaseId)}`,
-    // A published release is rebuilt as a whole: a chunk left over from an earlier build
-    // would ship without being referenced, and `scripts/minify-release.ts` would re-minify
-    // it on every build, so the tree would never be reproducible. The dev tree is kept,
-    // because `vite build --watch` rewrites it under a running dev session.
-    emptyOutDir: tree.channel !== 'dev',
-    copyPublicDir: false,
-    target: 'es2022',
-    minify: 'esbuild',
-    // A release is distributed, so it carries no source map (see `scripts/release.ts`);
-    // only the development tree, which is never deployed, keeps one.
-    sourcemap: tree.sourcemap,
-    // Attribution for the packages that actually end up in the bundles. Vite walks
-    // the Rollup module graph, so this cannot list a dependency whose code was
-    // tree-shaken away, nor miss one that a dependency pulled in transitively.
-    // `THIRD_PARTY_LICENSES.md` is emitted into the release directory next to the
-    // bundle, which is what makes it immutable-cacheable and self-contained.
-    license: { fileName: 'THIRD_PARTY_LICENSES.md' },
-    lib: {
-      entry: RELEASE_ENTRIES,
-      formats: ['es'],
-      fileName: (_format, entryName) => `${entryName}.js`,
+const ALLOWED_LICENSES = new Set(['MIT', 'BSD-3-Clause', 'ISC', '0BSD', 'Unlicense']);
+
+/** Fails the build when the generated third-party notice lists a license outside the allowlist. */
+const checkLicenses = (): Plugin => ({
+  name: 'dpk:check-licenses',
+  apply: 'build',
+  generateBundle: {
+    order: 'post',
+    handler(_options, bundle) {
+      const notice = bundle['THIRD_PARTY_LICENSES.md'];
+      if (notice?.type !== 'asset') return this.error('THIRD_PARTY_LICENSES.md was not generated');
+      const text = typeof notice.source === 'string' ? notice.source : new TextDecoder().decode(notice.source);
+      // Vite writes one heading per package: `## <name> - <version> (<SPDX identifier>)`.
+      const disallowed = [...text.matchAll(/^## (\S+) - (\S+) \(([^)]+)\)$/gm)].filter(
+        ([, , , license]) => !ALLOWED_LICENSES.has(license ?? ''),
+      );
+      if (disallowed.length > 0) {
+        this.error(`bundled under a license that is not allowed: ${disallowed.map(([heading]) => heading).join(', ')}`);
+      }
     },
-    rollupOptions: {
-      output: {
-        // The entries import shared code from this directory. A release is mirrored as a
-        // whole, so the chunk names only have to be stable within one release, and nothing
-        // but the entries is a contract: the names say "internal" rather than pretending to
-        // describe what Rollup decided to share.
-        chunkFileNames: 'chunks/shared-[hash].js',
+  },
+});
+
+/**
+ * `pnpm build` writes the published package (minified, no source maps). `pnpm dev` builds with
+ * `--mode dev` into the same `dist/`, readable and with source maps, and serves it to the samples
+ * from a separate origin. (Not `development`: that would also switch the dependencies, Lit among
+ * them, to their development builds, which the published package never runs.)
+ */
+export default defineConfig(({ mode }) => {
+  const production = mode === 'production';
+  return {
+    define: {
+      __DPK_VERSION__: JSON.stringify(pkg.version),
+    },
+    publicDir: false,
+    plugins: [...(production ? [minifyFully()] : []), checkLicenses()],
+    build: {
+      outDir: 'dist',
+      target: 'es2022',
+      // `minifyFully` minifies the published build as a whole.
+      minify: false,
+      // The published package ships no source maps: the bytes are what a page downloads.
+      sourcemap: !production,
+      // Attribution for the packages that actually end up in the bundle, derived from the module
+      // graph. It is emitted next to the bundle, so it travels with it.
+      license: { fileName: 'THIRD_PARTY_LICENSES.md' },
+      lib: {
+        entry: ENTRIES,
+        formats: ['es'],
+        fileName: (_format, entryName) => `${entryName}.js`,
+      },
+      rollupOptions: {
+        output: {
+          // Nothing but the entries is a contract; the chunk names say "internal".
+          chunkFileNames: 'chunks/shared-[hash].js',
+        },
       },
     },
-  },
+  };
 });

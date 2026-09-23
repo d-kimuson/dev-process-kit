@@ -10,5 +10,3 @@ allowBuilds:
   # agent-browser / lefthook install their platform binaries in postinstall.
   agent-browser: true
   lefthook: true
-  # `wrangler dev` runs miniflare on workerd, which installs a platform binary.
-  workerd: true

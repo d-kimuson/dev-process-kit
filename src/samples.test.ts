@@ -71,8 +71,8 @@ describe('sample pages', () => {
 
   it('diagrams.html is an dpk-template-plain page whose sections and diagrams are commentable', () => {
     const html = sample('diagrams.html');
-    expect(html).toMatch(/<script type="module" src="[^"]*\/templates\/plain\.js"><\/script>/);
-    expect(html).toMatch(/<script type="module" src="[^"]*\/components\.js"><\/script>/);
+    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/templates\/plain\.js"\s*><\/script>/);
+    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/components\.js"\s*><\/script>/);
     const plain = parsePlainBase(jsonChild(html, 'dpk-template-plain'));
     expect(plain.title).not.toBe('');
     // Every declared section has a comment button, and every button names a section.
@@ -107,7 +107,7 @@ describe('sample pages', () => {
 
   it('grill.html reviews the feature through the grill template', () => {
     const html = sample('grill.html');
-    expect(html).toMatch(/<script type="module" src="[^"]*\/components\.js"><\/script>/);
+    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/components\.js"\s*><\/script>/);
     const grill = parseGrillBase(jsonChild(html, 'dpk-template-grill'));
     expect(grill.questions.length).toBeGreaterThan(3);
     expect(grill.title).not.toBe('');

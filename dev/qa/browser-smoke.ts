@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Real-browser smoke check for the published samples.
+ * Real-browser smoke check for the repository samples.
  *
  * Usage:
- *   pnpm dev                            # wrangler (assets) + sample server, via portless
+ *   pnpm dev                            # dev asset server + sample server, via portless
  *   node dev/qa/browser-smoke.ts https://sample.dev-process-kit.localhost
  *
  * Drives the repo's `agent-browser` devDependency (headless, shared agent profile

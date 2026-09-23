@@ -93,8 +93,8 @@ export default defineConfig({
       },
     },
     {
-      // Build and dev scripts run in Node and legitimately use process/console.
-      files: ['scripts/**/*.ts', 'dev/**/*.js'],
+      // Dev scripts run in Node and legitimately use process/console.
+      files: ['dev/**/*.js'],
       rules: {
         'conventions/entrypoint-imports': 'off',
       },
@@ -116,5 +116,5 @@ export default defineConfig({
       },
     },
   ],
-  ignorePatterns: ['public/**', 'node_modules/**', 'dist/**', 'coverage/**'],
+  ignorePatterns: ['node_modules/**', 'dist/**', 'coverage/**'],
 });

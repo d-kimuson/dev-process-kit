@@ -30,6 +30,17 @@ Measured on `0.0.1` (gzip, entry plus its chunks): prototype 40 kB, grill 38 kB,
 - Adding a template now costs a new entry and its own size instead of adding to every page, and the samples pin the entry they exercise (which is what the sample verification checks).
 - Total bytes in a release grow slightly (the shared chunks exist once, the thin entries add a few kB) while every page downloads less. Since `public/` is expected to be committed per release, the extra few kB are the price of the split.
 
+## Addendum (2026-09-24): the entries in the npm package
+
+The distribution moved to npm and jsDelivr ([ADR](20260924_npm-jsdelivr-distribution.md)).
+
+- **Paths.** The entries are unchanged, but they now live under the package's `dist/`:
+  - `dev-process-kit@<version>/dist/templates/<name>.js`
+  - `…/dist/components.js`
+  - `…/dist/index.js`
+- **The single list.** It is `ENTRIES` in `vite.config.ts`. The build fails when the `exports` of `package.json` do not name exactly those entries.
+- **`public/`.** Nothing is committed per release any more, so the notes above about `public/` no longer apply.
+
 ## References
 
 - [ADR: Publish with Workers Static Assets](20260919_workers-static-assets-distribution.md)

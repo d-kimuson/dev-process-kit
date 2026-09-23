@@ -15,18 +15,17 @@ events / slots だけを公開契約にする（Lit は実装詳細）。
 │   ├── core/          # 内部実装（pipeline / persistence / element 基底 / 契約）
 │   ├── lib/           # 依存を持たない小さな共通ヘルパー（lib/dom/*）
 │   ├── entries/       # 配信する entrypoint（components / templates/<name>）
-│   ├── static/        # 配信物にそのまま入るファイル（_headers）
 │   └── index.ts       # 配信する entrypoint（全部入り）
-├── public/            # 配信物（ビルド成果物だが git 追跡する。release ごとにディレクトリが同居）
-├── public-dev/        # 開発用の配信ツリー（`pnpm dev` が作り、wrangler dev が配信する）
-├── sample/            # サンプル（dev では別オリジンで配信し bundle を cross-origin で読む。build が /sample/ に同梱する）
-├── wrangler.jsonc     # Workers Static Assets の配信設定（Worker コードは置かない）
-├── docs/              # 利用者向け（core / components / templates。配布物に同梱される）
+├── dist/              # npm パッケージの中身（`pnpm build` の生成物。`pnpm dev` も同じ場所に書く。commit しない）
+├── sample/            # サンプル（dev では別オリジンで配信し bundle を cross-origin で読む。配布物には含めない）
+├── docs/              # 利用者向け（core / components / templates。バージョンごとの版は Git tag `v<version>` で参照される）
 ├── docs/guidelines/   # 開発者向け（Harness / 設計 / 検証。配布物には含めない）
+├── skills/            # 利用者（Agent）向け skill。npm 上の最新版の見つけ方と docs への入口を持つ
+├── .agents/skills/    # 開発者向け skill（release）
 ├── docs/adr/          # 覆すコストが高い意思決定の記録
 ├── dev/lints/         # リポジトリ固有の oxlint ルール（境界の強制）
 ├── dev/types/         # 型検査だけを目的とした compile-time guard
-└── scripts/           # build / 配布整合性検査
+└── dev/qa/            # 実ブラウザでのサンプル smoke check
 ```
 
 ## References
@@ -42,13 +41,10 @@ events / slots だけを公開契約にする（Lit は実装詳細）。
 | [Commit](docs/guidelines/commit.md)             | Git commits                      | コミットを作成するとき                   |
 | [ADR](docs/guidelines/adr.md)                   | `docs/adr/**`                    | 意思決定を記録するとき                   |
 
-利用者向け文書は `docs/index.md`（利用方法と API 契約）と `docs/templates/*` / `docs/components/*`（個別ページ）で、各 release の入口は `dev-process-kit@<version>/docs/index.md`。asset root の `llms.txt` は release index で、ツリーが持つ最新バージョンを名乗る（生成物）。開発者向け文書と混同しない。
+利用者向け文書は `docs/index.md`（利用方法と API 契約）と `docs/templates/*` / `docs/components/*`（個別ページ）で、npm パッケージには含めない。利用者（Agent）は `skills/dev-process-kit/SKILL.md` に従い、npm で最新バージョンを調べ、そのバージョンの Git tag（`v<version>`）の docs を読む。docs の URL 例は `dev-process-kit@<version>` と書く。開発者向け文書と混同しない。
 
-`public/` ・ `public-dev/` は生成物であり、直接編集しない。配信物の SSoT は `src/**`（と同梱する `docs/**`）で、`scripts/assemble-assets.ts` が配信ツリーを組み立てる（`pnpm build` が `public/`、 `pnpm dev` が `public-dev/`）。`public/` は commit する: commit されたツリーがデプロイされ、 `node scripts/verify-committed.ts` がビルド結果との一致を、`node scripts/verify-published.ts <base>` が公開済み release の不変性を検査する。`public-dev/` は commit しない。
+配布は npm パッケージ `dev-process-kit` で、ページは jsDelivr（`https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/<entry>.js`）から exact version を固定して読む（[ADR](docs/adr/20260924_npm-jsdelivr-distribution.md)）。root の `package.json` をそのまま公開し、`files` で `dist/` だけを載せる。build の設定（entry・minify・source map・third-party notice とライセンス検査）は `vite.config.ts` にまとまっている。`dist/` は生成物であり、直接編集しない。
 
-どの release を `public/` に書くかはチャネル（`DPK_CHANNEL=stable|debug`）が決め、その判断は
-`scripts/release.ts` に集約する（release id / origin / キャッシュポリシー / docs の書き換え）。
-`pnpm deploy:debug` は最新ビルドを debug release（`dev-process-kit@debug`、上書きされる）として
-公開ドメイン（`https://dev-process-kit.kimuson.dev`）に公開する。詳細は [ADR](docs/adr/20260920_debug-release-channel.md)。
+バージョンの SSoT は `package.json` の `version` で、リリースは `.agents/skills/release/SKILL.md` の手順で行う（`npm version` が検査・署名付き commit・`v<version>` tag を作り、tag の push を受けて `.github/workflows/release.yml` が Trusted Publishing で publish する）。検証用の版は prerelease（`x.y.z-beta.n`、dist-tag `beta`）として出し、公開済みのバージョンは上書きしない。
 
-release は用途ごとの entry（`templates/<name>.js` / `components.js` / 全部入りの `index.js`）を配る。一覧は `scripts/release.ts` の `RELEASE_ENTRIES` が唯一の定義で、build・完全性検査・docs がそれを読む （[ADR](docs/adr/20260920_per-template-entries.md)）。
+パッケージは用途ごとの entry（`templates/<name>.js` / `components.js` / 全部入りの `index.js`）を配る。一覧は `vite.config.ts` の `ENTRIES` で、`package.json` の `exports` と一致しないと build が失敗する（[ADR](docs/adr/20260920_per-template-entries.md)）。

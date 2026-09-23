@@ -9,7 +9,7 @@
  * union of what the per-template entries ship. A page that uses one template should
  * load that template's entry instead: it carries the same core API for less.
  *
- * `RELEASE_ENTRIES` in `scripts/release.ts` is what publishes this file as
+ * `ENTRIES` in `vite.config.ts` is what publishes this file as
  * `components.js`.
  */
 import { registerComponentElements } from '../components/index';

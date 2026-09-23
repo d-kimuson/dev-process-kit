@@ -14,7 +14,7 @@ The template owns meaning: what a "step", a "story" or a sticky note _is_, and w
 
 ## Load it
 
-Load one entry, with the version pinned: a page has to keep working when a new version is published, so never generate HTML against a floating URL.
+Load one entry from jsDelivr, with the version pinned: a page has to keep working when a new version is published, so never generate HTML against a floating URL such as `@latest`. `<version>` below is the version these docs belong to — the `v<version>` Git tag you are reading them at.
 
 | Entry                                                                                                                                                        | Use it when                                                                           |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
@@ -23,7 +23,7 @@ Load one entry, with the version pinned: a page has to keep working when a new v
 | `index.js`                                                                                                                                                   | one URL for everything                                                                |
 
 ```html
-<script type="module" src="https://dev-process-kit.kimuson.dev/dev-process-kit@0.0.1/templates/prototype.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/prototype.js"></script>
 ```
 
 A template entry registers that template, the review rail and inline editing. Add `components.js` when the page also uses the diagram elements directly.

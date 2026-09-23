@@ -80,6 +80,21 @@ So the notice has to be derived from the build, not from the manifest.
 - This records a licensing decision, not legal advice. If the dependency set grows to
   include a license whose obligations are not covered above, revisit this ADR.
 
+## Addendum (2026-09-24): the notices in the npm package
+
+The distribution moved to npm ([ADR](20260924_npm-jsdelivr-distribution.md)).
+
+- **The framework's license.** npm ships the root `LICENSE` with every package version, so the package is self-contained without a copy under `dist/`.
+- **The third-party notice.** It stays next to the bundle, at `dist/THIRD_PARTY_LICENSES.md`.
+- **The license check.** It moved into the build (`vite.config.ts`), which fails on a bundled license outside the allowlist.
+- **Apache-2.0.** It is no longer on the allowlist. The build does not collect `NOTICE` files, so a bundled Apache-2.0 package now fails the build as a whole. Before, the check failed only when such a package shipped a `NOTICE`. Either way, adding one needs a decision.
+- **Checks that are gone:**
+  - the check that `LICENSE` is MIT;
+  - the missing-license-text check;
+  - the cache rules and the asset-root copy.
+
+  `scripts/check-public.ts` and `pnpm verify:public` never existed under those names.
+
 ## References
 
 - [Vite `build.license`](https://vite.dev/config/build-options)

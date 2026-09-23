@@ -4,7 +4,7 @@ Publish the current build as `dev-process-kit@debug` inside the same deployable 
 
 ## Status
 
-accepted
+superseded by [20260924_npm-jsdelivr-distribution](20260924_npm-jsdelivr-distribution.md): a build to try out is published as a prerelease version instead
 
 ## Context
 

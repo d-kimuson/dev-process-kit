@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>dev-process-kit — Samples</title>
     <!-- The Components section renders live diagrams, so the catalog loads the components entry too. -->
-    <script type="module" src="https://dev-process-kit.localhost/dev-process-kit@0.0.1/components.js"></script>
+    <script type="module" src="https://dev-process-kit.localhost/components.js"></script>
     <style>
       /* Same tokens as the framework chrome (src/core/theme.ts), so the catalog looks like what it links to. */
       :root {
@@ -734,7 +734,7 @@
         <p>バージョンを固定した URL から、使うテンプレートの entry を 1 つ読み込みます。</p>
         <div class="usage">
           <pre><code>&lt;script type="module"
-  src="https://dev-process-kit.kimuson.dev/dev-process-kit@0.0.1/templates/prototype.js"&gt;&lt;/script&gt;
+  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/templates/prototype.js"&gt;&lt;/script&gt;
 
 &lt;dpk-template-prototype storage-key="my-flow"&gt;
   &lt;script type="application/json"&gt;{ "activities": [] }&lt;/script&gt;
@@ -746,21 +746,23 @@
       <section id="docs">
         <h2>Docs</h2>
         <ul class="docs">
-          <li><a href="https://dev-process-kit.localhost/dev-process-kit@0.0.1/docs/index.md">docs/index.md</a></li>
           <li>
-            <a href="https://dev-process-kit.localhost/dev-process-kit@0.0.1/docs/templates/prototype.md"
+            <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/index.md</a>
+          </li>
+          <li>
+            <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/templates/prototype.md"
               >docs/templates/*.md</a
             >
           </li>
           <li>
-            <a href="https://dev-process-kit.localhost/dev-process-kit@0.0.1/docs/components/diagrams.md"
+            <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/components/diagrams.md"
               >docs/components/*.md</a
             >
           </li>
         </ul>
       </section>
 
-      <footer>dev-process-kit@0.0.1</footer>
+      <footer>dev-process-kit</footer>
     </main>
 
     <script>
@@ -774,7 +776,7 @@
       for (const thumb of document.querySelectorAll('.thumb')) observer.observe(thumb);
 
       // The component previews reuse the diagrams sample's data: fetch it once, clone the chosen element.
-      const DOCS_BASE = 'https://dev-process-kit.localhost/dev-process-kit@0.0.1/docs/components/';
+      const DOCS_BASE = 'https://github.com/d-kimuson/dev-process-kit/blob/main/docs/components/';
       const stage = document.getElementById('preview-stage');
       const buttons = [...document.querySelectorAll('.picker button')];
       const source = fetch('diagrams.html')

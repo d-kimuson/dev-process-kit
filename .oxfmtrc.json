@@ -18,5 +18,5 @@
     ]
   },
   "sortPackageJson": true,
-  "ignorePatterns": ["public/**", "public-dev/**", "pnpm-lock.yaml"]
+  "ignorePatterns": ["dist/**", "pnpm-lock.yaml"]
 }

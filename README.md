@@ -28,13 +28,13 @@ flowchart LR
 
 ## Usage
 
-dev-process-kit is built to be used by an agent: the instructions for LLMs live at <https://dev-process-kit.kimuson.dev/llms.txt>.
+dev-process-kit is built to be used by an agent: the instructions for LLMs are the [`dev-process-kit` skill](skills/dev-process-kit/SKILL.md). It is published to npm as [`dev-process-kit`](https://www.npmjs.com/package/dev-process-kit), a page loads it from jsDelivr with the version pinned, and the documentation of each version is [`docs/`](docs/index.md) at its `v<version>` tag.
 
-The shortest way to try it is to hand that URL to an agent and say what you want:
+The shortest way to try it is to hand the skill to an agent and say what you want:
 
 ```markdown
 Create a USM for this product.
-Use https://dev-process-kit.kimuson.dev/llms.txt.
+Follow https://raw.githubusercontent.com/d-kimuson/dev-process-kit/main/skills/dev-process-kit/SKILL.md.
 ```
 
 ### Install the skill
