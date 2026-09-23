@@ -12,6 +12,8 @@ Inspect the staged diff before committing. Include only files required by the st
 
 ## Message
 
+Write commit messages in English, regardless of the language used in conversation or in other documents.
+
 Use [Conventional Commits](https://www.conventionalcommits.org/) with the form:
 
 ```text
