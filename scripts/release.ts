@@ -45,19 +45,12 @@ export type ReleaseChannel = 'stable' | 'debug';
 export const DEBUG_RELEASE_ID = 'debug';
 
 /**
- * The origin the consumer documentation in `src/**` and `docs/**` names: the public
- * domain of the stable channel. The domain is not attached to the Worker yet, which
- * is why the debug channel addresses `DEBUG_ORIGIN` instead (see `publishTree`).
+ * The public origin of the deployable tree: the custom domain of the `dev-process-kit`
+ * Worker (`routes` in `wrangler.jsonc`). Every channel is served from it, so the consumer
+ * documentation in `src/**` and `docs/**` names it and only the release segment differs
+ * between channels.
  */
-export const STABLE_ORIGIN = 'https://dev-process-kit.kimuson.dev';
-
-/**
- * Where the Worker that serves the deployable tree is reachable right now: the
- * `dev-process-kit` Worker from `wrangler.jsonc`, on the account's `workers.dev`
- * subdomain. No custom domain is configured yet, so this is the address a copied
- * URL has to use.
- */
-export const DEBUG_ORIGIN = 'https://dev-process-kit.biz-km.workers.dev';
+export const PUBLIC_ORIGIN = 'https://dev-process-kit.kimuson.dev';
 
 /** The directory `pnpm dev` assembles and `wrangler dev` serves. */
 const DEV_ASSETS_DIR = 'public-dev';
@@ -257,21 +250,18 @@ export const publishTree = (channel: ReleaseChannel): AssetTree =>
         releaseId: DEBUG_RELEASE_ID,
         frameworkVersion: `${pkg.version}-debug`,
         assetsDir: 'public',
-        origin: DEBUG_ORIGIN,
+        origin: PUBLIC_ORIGIN,
         cacheRules: true,
         sourcemap: false,
         samples: true,
-        rewrites: [
-          { from: STABLE_ORIGIN, to: DEBUG_ORIGIN },
-          { from: releaseSegment(pkg.version), to: releaseSegment(DEBUG_RELEASE_ID) },
-        ],
+        rewrites: [{ from: releaseSegment(pkg.version), to: releaseSegment(DEBUG_RELEASE_ID) }],
       }
     : {
         channel,
         releaseId: pkg.version,
         frameworkVersion: pkg.version,
         assetsDir: 'public',
-        origin: STABLE_ORIGIN,
+        origin: PUBLIC_ORIGIN,
         cacheRules: true,
         sourcemap: false,
         samples: true,

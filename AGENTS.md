@@ -49,6 +49,6 @@ events / slots だけを公開契約にする（Lit は実装詳細）。
 どの release を `public/` に書くかはチャネル（`DPK_CHANNEL=stable|debug`）が決め、その判断は
 `scripts/release.ts` に集約する（release id / origin / キャッシュポリシー / docs の書き換え）。
 `pnpm deploy:debug` は最新ビルドを debug release（`dev-process-kit@debug`、上書きされる）として
-workers.dev に公開する。詳細は [ADR](docs/adr/20260920_debug-release-channel.md)。
+公開ドメイン（`https://dev-process-kit.kimuson.dev`）に公開する。詳細は [ADR](docs/adr/20260920_debug-release-channel.md)。
 
 release は用途ごとの entry（`templates/<name>.js` / `components.js` / 全部入りの `index.js`）を配る。一覧は `scripts/release.ts` の `RELEASE_ENTRIES` が唯一の定義で、build・完全性検査・docs がそれを読む （[ADR](docs/adr/20260920_per-template-entries.md)）。

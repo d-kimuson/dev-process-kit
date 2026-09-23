@@ -35,10 +35,10 @@ if (!releases.includes(tree.releaseId)) {
   process.exit(1);
 }
 
-// The Worker (`wrangler.jsonc`) and the release (`scripts/release.ts`) are the two
-// halves of "where this is published". Nothing checks the result over the network: this
-// account serves the Worker through Cloudflare Access, so only a browser that is logged in
-// sees the asset (the maintainer's), and the build's own verification proves the tree.
+// The Worker (`wrangler.jsonc`: account and custom domain) and the release
+// (`scripts/release.ts`: origin and release id) are the two halves of "where this is
+// published". The build's own verification proves the tree; the deployed pages are checked
+// with `pnpm qa:browser <origin>/sample`.
 //
 // The built files themselves carry no build identity (they are committed, and a reproducible
 // build is what makes that check meaningful), so the commit goes where a deployment records

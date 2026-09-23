@@ -19,7 +19,6 @@ import {
   channelFromEnv,
   compareReleases,
   currentTree,
-  DEBUG_ORIGIN,
   devTree,
   isVersionRelease,
   latestRelease,
@@ -30,7 +29,7 @@ import {
   SAMPLES,
   sampleRelease,
   sampleRewrites,
-  STABLE_ORIGIN,
+  PUBLIC_ORIGIN,
 } from './release';
 
 /** Repository root, resolved from this file's own location (`scripts/`). */
@@ -72,7 +71,7 @@ describe('publishTree', () => {
     expect(tree.releaseId).toBe(pkg.version);
     expect(tree.frameworkVersion).toBe(pkg.version);
     expect(tree.assetsDir).toBe('public');
-    expect(tree.origin).toBe(STABLE_ORIGIN);
+    expect(tree.origin).toBe(PUBLIC_ORIGIN);
     expect(tree.cacheRules).toBe(true);
     expect(tree.samples).toBe(true);
     expect(tree.rewrites).toEqual([]);
@@ -83,7 +82,7 @@ describe('publishTree', () => {
     expect(tree.releaseId).toBe('debug');
     expect(tree.frameworkVersion).toBe(`${pkg.version}-debug`);
     expect(tree.assetsDir).toBe(publishTree('stable').assetsDir);
-    expect(tree.origin).toBe(DEBUG_ORIGIN);
+    expect(tree.origin).toBe(PUBLIC_ORIGIN);
     expect(tree.cacheRules).toBe(true);
     // The debug release is served by the deployed Worker while the repository is
     // private, so it does not publish the source maps the dev tree keeps.
@@ -173,7 +172,7 @@ describe('debug channel addressing', () => {
     // The release segment is rewritten everywhere it appears, which is only safe
     // while no published document pins the local dev origin: that URL is not a
     // release URL and must not be rewritten.
-    const pinned = [STABLE_ORIGIN, `dev-process-kit@${pkg.version}`, 'dev-process-kit.localhost'];
+    const pinned = [`dev-process-kit@${pkg.version}`, 'dev-process-kit.localhost'];
     const leftovers: string[] = [];
     for (const document of documents) {
       const rewritten = applyRewrites(await readFile(document, 'utf8'), rewrites);
@@ -212,9 +211,9 @@ describe('published samples', () => {
   });
 
   it('address the debug release everywhere when they load it', () => {
-    const snippet = `${STABLE_ORIGIN}/dev-process-kit@${pkg.version}/templates/prototype.js`;
+    const snippet = `${PUBLIC_ORIGIN}/dev-process-kit@${pkg.version}/templates/prototype.js`;
     expect(applyRewrites(snippet, sampleRewrites('debug'))).toBe(
-      `${DEBUG_ORIGIN}/dev-process-kit@debug/templates/prototype.js`,
+      `${PUBLIC_ORIGIN}/dev-process-kit@debug/templates/prototype.js`,
     );
     expect(applyRewrites(snippet, sampleRewrites(pkg.version))).toBe(snippet);
   });
@@ -232,8 +231,7 @@ describe('published samples', () => {
       const source = await readFile(`${root}sample/${sample}`, 'utf8');
       for (const release of [pkg.version, 'debug']) {
         const published = applyRewrites(source, sampleRewrites(release));
-        const pinned =
-          release === 'debug' ? [DEV_ORIGIN, STABLE_ORIGIN, `dev-process-kit@${pkg.version}`] : [DEV_ORIGIN];
+        const pinned = release === 'debug' ? [DEV_ORIGIN, `dev-process-kit@${pkg.version}`] : [DEV_ORIGIN];
         for (const value of pinned) {
           if (published.includes(value)) leftovers.push(`${sample} (${release}): ${value}`);
         }

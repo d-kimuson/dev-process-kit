@@ -43,7 +43,6 @@ import {
   sampleRelease,
   sampleRewrites,
   SAMPLES,
-  STABLE_ORIGIN,
   type AssetTree,
 } from './release.ts';
 
@@ -411,9 +410,8 @@ export const verifyRelease = async (tree: AssetTree): Promise<string[]> => {
   }
 
   // 8. Channel addressing. A consumer document of the debug channel has to name the
-  //    debug origin and release: an agent that copies a pinned URL out of it would
-  //    otherwise generate a page that loads a version which does not exist. The
-  //    rewrite is performed by `assemble-assets.ts` and the strings it knows are the
+  //    debug release: an agent that copies a pinned URL out of it would otherwise
+  //    generate a page that loads a version which does not exist. The rewrite is performed by `assemble-assets.ts` and the strings it knows are the
   //    ones `release.ts` declares, so a document that drifts from them fails here.
   if (tree.rewrites.length > 0) {
     const documents: string[] = [];
@@ -423,10 +421,9 @@ export const verifyRelease = async (tree: AssetTree): Promise<string[]> => {
     for (const document of documents) {
       const text = await readText(document);
       if (text === null) continue;
-      for (const value of [STABLE_ORIGIN, releaseSegment(pkg.version)]) {
-        if (text.includes(value)) {
-          failures.push(`${document.replace(root, '')} still addresses another channel: ${value}`);
-        }
+      const version = releaseSegment(pkg.version);
+      if (text.includes(version)) {
+        failures.push(`${document.replace(root, '')} still addresses another channel: ${version}`);
       }
     }
   }

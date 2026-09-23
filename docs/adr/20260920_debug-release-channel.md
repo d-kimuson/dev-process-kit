@@ -33,6 +33,10 @@ A second Worker does not solve it either. Deploying is per Worker and replaces t
 - No published release ships a source map, so the debug channel does not either (the distribution ADR's source-map addendum).
 - The account protects its whole `workers.dev` subdomain with Cloudflare Access, so the debug release is reachable by the maintainer's browser rather than by anyone. Consequences: a page hosted on another origin cannot load the bundle (its module request carries no Access session), and there is no network-side check — a non-browser check would only see the Access login page. Verifying the deployed bytes would need an Access service token, which is a decision for whoever wants that check back.
 
+## Addendum (2026-09-24): the custom domain is attached
+
+The Worker now lives in the account that owns the `kimuson.dev` zone and is served from `https://dev-process-kit.kimuson.dev` without Cloudflare Access. As anticipated above, the debug origin collapsed into the public one: `scripts/release.ts` has a single `PUBLIC_ORIGIN`, the debug documentation rewrites only the release segment, and `wrangler.jsonc` pins the account and attaches the domain on deploy. The Access-related consequences no longer hold: pages on other origins can load the debug bundle, and the deployed samples are checked over the network with `pnpm qa:browser <origin>/sample`.
+
 ## References
 
 - [ADR: Publish with Workers Static Assets](20260919_workers-static-assets-distribution.md)
