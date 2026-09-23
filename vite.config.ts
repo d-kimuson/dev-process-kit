@@ -71,7 +71,11 @@ export default defineConfig({
   publicDir: false,
   build: {
     outDir: `${tree.assetsDir}/${releaseSegment(tree.releaseId)}`,
-    emptyOutDir: false,
+    // A published release is rebuilt as a whole: a chunk left over from an earlier build
+    // would ship without being referenced, and `scripts/minify-release.ts` would re-minify
+    // it on every build, so the tree would never be reproducible. The dev tree is kept,
+    // because `vite build --watch` rewrites it under a running dev session.
+    emptyOutDir: tree.channel !== 'dev',
     copyPublicDir: false,
     target: 'es2022',
     minify: 'esbuild',
