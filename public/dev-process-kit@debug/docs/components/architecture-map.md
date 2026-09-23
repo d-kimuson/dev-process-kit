@@ -1,11 +1,11 @@
-# artifact-architecture-map
+# dpk-component-architecture-map
 
 Services grouped into boundaries, with the links between them. This is the "system map" view: what exists, who is external, and which service talks to which.
 
 Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components/diagrams.md`.
 
 ```html
-<artifact-architecture-map heading="Architecture" subject="注文と決済">
+<dpk-component-architecture-map heading="Architecture" subject="注文と決済">
   <script type="application/json">
     {
       "boundaries": [
@@ -29,7 +29,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components
       "links": [{ "id": "orders-payment", "from": "browser", "to": "payment", "label": "決済要求" }]
     }
   </script>
-</artifact-architecture-map>
+</dpk-component-architecture-map>
 ```
 
 ## Data
@@ -55,7 +55,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components
 
 The element ships **no icon set**: `artwork.src` is any URL or data URI you provide, rendered as an `<img>` with your `alt` text, and `artwork.license` is the icon's tooltip (`アイコン出典: …`).
 
-Vendor icon sets come with attribution and trademark terms that belong to the page you generate, not to this framework's bundle, so embed the artwork unmodified (a data URI keeps the file single-page) and put the required attribution in `license`. For example, AWS allows its Architecture Icons to be used in architecture diagrams, as drawn and in their own colours. Without `artwork` the card shows the `symbol` tile, which is the right choice for anything you have no licensed icon for.
+Vendor icon sets come with attribution and trademark terms that belong to the page you generate, not to this framework's bundle, so embed the artwork unmodified (a data URI keeps the file single-page) and put the required attribution in `license`. For example, AWS allows its Architecture Icons to be used in architecture diagrams, as drawn and in their own colors. Without `artwork` the card shows the `symbol` tile, which is the right choice for anything you have no licensed icon for.
 
 ## Reading it
 

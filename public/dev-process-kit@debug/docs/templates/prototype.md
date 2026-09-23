@@ -1,4 +1,4 @@
-# Template: prototype (`<artifact-prototype>`)
+# Template: prototype (`<dpk-template-prototype>`)
 
 UX prototypes: `Activity › UserStory › Step › Preview[]`.
 
@@ -7,9 +7,9 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
 1 Step may have several Preview entries (mobile, desktop, native …)
 ```
 
-- Element: `<artifact-prototype>`
+- Element: `<dpk-template-prototype>`
 - Definition name: `prototype`
-- Accent token: `--af-blue`
+- Accent token: `--dpk-blue`
 
 ## Base data
 
@@ -43,7 +43,7 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
 
 | Field                      | Required | Notes                                                                                                           |
 | -------------------------- | -------- | --------------------------------------------------------------------------------------------------------------- |
-| `title`                    | no       | shown in the artifact header, and the source of the placeholder preview domain                                  |
+| `title`                    | no       | shown in the page header, and the source of the placeholder preview domain                                      |
 | `baseUrl`                  | no       | origin used for preview URLs, e.g. `https://app.kumoma.io`. Defaults to `https://<slugified title>.example.com` |
 | `activities[].id` / `name` | yes      | `description` optional                                                                                          |
 | `stories[].id` / `name`    | yes      | `description` optional                                                                                          |
@@ -54,7 +54,7 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
 | `previews[].label`         | no       | caption and tab label; defaults to the viewport name                                                            |
 | `previews[].url`           | no       | overrides the address shown in the browser chrome (cosmetic)                                                    |
 
-Ids use `[A-Za-z0-9_-]+`. An activity id and a preview id are unique across the whole artifact (a preview id names a light DOM slot), while a story id and a step id are unique within their parent.
+Ids use `[A-Za-z0-9_-]+`. An activity id and a preview id are unique across the whole page (a preview id names a light DOM slot), while a story id and a step id are unique within their parent.
 
 Every preview declared in the base gets a frame; a preview without matching light DOM shows an empty frame with a hint.
 
@@ -75,11 +75,11 @@ The prototype itself is authored by you, in the light DOM, so your CSS, JS, `loc
 Step flow inside your own mock is plain navigation, not a draft action:
 
 ```html
-<a href="#step=google-auth-done" data-artifact-navigate="step=google-auth-done">続行</a>
-<button data-artifact-navigate="step=next-step">次へ</button>
+<a href="#step=google-auth-done" data-dpk-navigate="step=google-auth-done">続行</a>
+<button data-dpk-navigate="step=next-step">次へ</button>
 ```
 
-`data-artifact-navigate` accepts the same `key=value&key2=value2` syntax as the hash, and the framework resolves the activity/story automatically while keeping the URL canonical.
+`data-dpk-navigate` accepts the same `key=value&key2=value2` syntax as the hash, and the framework resolves the activity/story automatically while keeping the URL canonical.
 
 ## Action vocabulary
 
@@ -99,7 +99,7 @@ Step flow inside your own mock is plain navigation, not a draft action:
 | `REORDER_STEP`             | step     | `{ "after": string \| null }`                                  |
 | `MOVE_STORY`               | story    | `{ "toActivity": string, "after": string \| null }`            |
 | `MOVE_STEP`                | step     | `{ "toStory": string, "after": string \| null }`               |
-| `ADD_ACTIVITY`             | artifact | `{ "id", "name", "description"? }`                             |
+| `ADD_ACTIVITY`             | page     | `{ "id", "name", "description"? }`                             |
 | `ADD_STORY`                | activity | `{ "id", "name", "description"? }`                             |
 | `ADD_STEP`                 | story    | `{ "id", "name", "description"?, "previews"? }`                |
 | `ADD_PREVIEW`              | step     | `{ "id", "kind"?, "viewport"?, "label"?, "url"? }`             |
@@ -110,7 +110,7 @@ Step flow inside your own mock is plain navigation, not a draft action:
 
 - `after` is an anchor id, not an offset: `{ "after": "login" }` means "directly after login" and `{ "after": null }` means "first". An anchor that does not exist makes the action stale instead of silently landing somewhere.
 - `MOVE_STEP` / `MOVE_STORY` move the entity; combined with `after` they replace "move A from X to B" with an idempotent statement.
-- Step targets are paths (`activityId.storyId.stepId`), and a bare step id is accepted only while it stays unique. Story targets use `activityId.storyId`; activity, preview and artifact targets stay bare.
+- Step targets are paths (`activityId.storyId.stepId`), and a bare step id is accepted only while it stays unique. Story targets use `activityId.storyId`; activity, preview and page targets stay bare.
 - `ADD_*` actions carry the new id, so re-applying one whose entity already exists is a pruned no-op.
 - Deleting an activity deletes its stories and steps at render time, so a draft that deletes a parent and then edits a child leaves the child edit stale.
 
@@ -130,7 +130,7 @@ Only `step` is required (`#step=google-auth` resolves the containing activity an
 | main    | preview tabs (only when the step has more than one preview) plus the frame of the selected preview                                                                           |
 | frame   | browser chrome (traffic dots + address bar) or, for `native`, a device bezel with a phone status bar and a home indicator. There is no caption: what you see is the preview. |
 
-Frames are sized by content, not by a fixed height: the viewport has a per-kind minimum height (mobile 620 · tablet 640 · desktop 520 · fluid 420) and grows with the mock, so a preview never scrolls inside its own frame — the artifact main column scrolls instead. The author wrapper element is stretched to fill the frame, so a mock can rely on being at least as tall as that minimum without using a percentage height.
+Frames are sized by content, not by a fixed height: the viewport has a per-kind minimum height (mobile 620 · tablet 640 · desktop 520 · fluid 420) and grows with the mock, so a preview never scrolls inside its own frame — the page main column scrolls instead. The author wrapper element is stretched to fill the frame, so a mock can rely on being at least as tall as that minimum without using a percentage height.
 
 The UI edits step name/description, adds steps, and comments. Adding previews, deleting previews, reordering steps and switching a preview's kind or viewport are deliberately not UI affordances: an empty frame or a reordered flow is a structural change, so it goes through the agent as natural language. A preview's `label` only names its tab, so it is edited through a draft action too.
 

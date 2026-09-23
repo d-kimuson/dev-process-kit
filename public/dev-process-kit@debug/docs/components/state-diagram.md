@@ -1,11 +1,11 @@
-# artifact-state-diagram
+# dpk-component-state-diagram
 
 States and the transitions between them. Selecting a state highlights what enters and leaves it; a transition's condition and effect are its tooltip.
 
 Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components/diagrams.md`.
 
 ```html
-<artifact-state-diagram heading="State machine" subject="注文ライフサイクル">
+<dpk-component-state-diagram heading="State machine" subject="注文ライフサイクル">
   <script type="application/json">
     {
       "states": [
@@ -25,7 +25,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components
       ]
     }
   </script>
-</artifact-state-diagram>
+</dpk-component-state-diagram>
 ```
 
 ## Data

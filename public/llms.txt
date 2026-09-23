@@ -1,6 +1,6 @@
 # dev-process-kit
 
-Single HTML Artifact Framework — build-free single-file HTML artifacts with a structured draft/feedback loop back to an agent.
+Web Components for single-file HTML pages that a human reviews in the browser, with a structured draft/feedback loop back to an agent.
 
 ## Latest version
 
@@ -15,4 +15,4 @@ No version is published from this origin yet.
 
 `docs/index.md` is the entry point of a release and points at the rest of what it ships.
 
-Build the URLs from the origin you fetched this file from, and pin the version: an artifact has to keep working when a new version is published.
+Build the URLs from the origin you fetched this file from, and pin the version: a page has to keep working when a new version is published.

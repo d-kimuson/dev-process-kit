@@ -1,4 +1,4 @@
-# Template: example-mapping (`<artifact-example-mapping>`)
+# Template: example-mapping (`<dpk-template-example-mapping>`)
 
 Example Mapping (Matt Wynne): one table per story. The story heads it, the rules sit side by side beneath it, and under each rule sit two areas: its examples on top, the questions still open about it below.
 
@@ -9,9 +9,9 @@ example (green)  — under its rule, stacked vertically
 question (red)   — under its rule, in a separate area below the examples
 ```
 
-- Element: `<artifact-example-mapping>`
+- Element: `<dpk-template-example-mapping>`
 - Definition name: `example-mapping`
-- Accent token: `--af-green`（選択・フォーカス）
+- Accent token: `--dpk-green`（選択・フォーカス）
 
 ## Base data
 
@@ -25,14 +25,14 @@ question (red)   — under its rule, in a separate area below the examples
 }
 ```
 
-| Field                     | Required | Notes                                                   |
-| ------------------------- | -------- | ------------------------------------------------------- |
-| `title`                   | no       | artifact ヘッダーに表示される。既定は `Example Mapping` |
-| `stories[].id` / `name`   | yes      | 列の見出し。id は `[A-Za-z0-9_-]+` で全体一意           |
-| `rules[].id` / `name`     | yes      | `storyId` が必須（存在するストーリーを指すこと）        |
-| `examples[].id` / `name`  | yes      | `ruleId` が必須（存在するルールを指すこと）             |
-| `questions[].id` / `name` | yes      | `ruleId` が必須（存在するルールを指すこと）             |
-| `*/description`           | no       | カードに読み取り専用で表示される                        |
+| Field                     | Required | Notes                                                  |
+| ------------------------- | -------- | ------------------------------------------------------ |
+| `title`                   | no       | ページのヘッダーに表示される。既定は `Example Mapping` |
+| `stories[].id` / `name`   | yes      | 列の見出し。id は `[A-Za-z0-9_-]+` で全体一意          |
+| `rules[].id` / `name`     | yes      | `storyId` が必須（存在するストーリーを指すこと）       |
+| `examples[].id` / `name`  | yes      | `ruleId` が必須（存在するルールを指すこと）            |
+| `questions[].id` / `name` | yes      | `ruleId` が必須（存在するルールを指すこと）            |
+| `*/description`           | no       | カードに読み取り専用で表示される                       |
 
 存在しない `storyId` / `ruleId` を参照するカードは reject される。質問はルールに属し、ストーリーや具体例に直接ぶら下げることはできない。`stories` / `rules` / `examples` / `questions` をまたぐ id の重複も reject される。
 
@@ -45,7 +45,7 @@ question (red)   — under its rule, in a separate area below the examples
 | `SET_STORY_NAME`           | story    | `{ "name": string }`                                  |
 | `SET_STORY_DESCRIPTION`    | story    | `{ "description": string }`                           |
 | `REORDER_STORY`            | story    | `{ "after": string \| null }`（`null` = 先頭）        |
-| `ADD_STORY`                | artifact | `{ "id", "name", "description"? }`                    |
+| `ADD_STORY`                | page     | `{ "id", "name", "description"? }`                    |
 | `DELETE_STORY`             | story    | `{}`（配下のルール・具体例・質問ごと削除）            |
 | `SET_RULE_NAME`            | rule     | `{ "name": string }`                                  |
 | `SET_RULE_DESCRIPTION`     | rule     | `{ "description": string }`                           |
@@ -98,7 +98,7 @@ UI から編集できるのはカード名、追加、ドラッグ移動（ス�
 
 ## Comment targets
 
-`artifact:example-mapping`（マップ全体）と、すべての story / rule / example / question が `commentTargets` に列挙される。カードのコメントアイコンはそのカードへの composer を top layer の popover として開き、popover 内に textarea + 送信 / キャンセル + 既存コメント一覧がある（カード自体のレイアウトは動かない）。
+`page:example-mapping`（マップ全体）と、すべての story / rule / example / question が `commentTargets` に列挙される。カードのコメントアイコンはそのカードへの composer を top layer の popover として開き、popover 内に textarea + 送信 / キャンセル + 既存コメント一覧がある（カード自体のレイアウトは動かない）。
 
 ## Naming
 

@@ -1,4 +1,4 @@
-# Template: event-storming (`<artifact-event-storming>`)
+# Template: event-storming (`<dpk-template-event-storming>`)
 
 Event Storming board: sticky notes in timeline order, grouped into slices by the links between them.
 
@@ -8,9 +8,9 @@ array order of elements = timeline order (left to right)
 a `member` link keeps two notes in the same slice; a `flow` link is succession
 ```
 
-- Element: `<artifact-event-storming>`
+- Element: `<dpk-template-event-storming>`
 - Definition name: `event-storming`
-- Accent token: `--af-accent` (vermilion)
+- Accent token: `--dpk-accent` (vermilion)
 
 ## Base data
 
@@ -44,7 +44,7 @@ a `member` link keeps two notes in the same slice; a `flow` link is succession
 
 | Field                             | Required | Notes                                                                                         |
 | --------------------------------- | -------- | --------------------------------------------------------------------------------------------- |
-| `title`                           | no       | shown in the artifact header; defaults to `Event Storming`                                    |
+| `title`                           | no       | shown in the page header; defaults to `Event Storming`                                        |
 | `contexts[].id` / `name`          | yes      | `description` optional                                                                        |
 | `elements[].id` / `name`          | yes      | `description` optional, `contextId` optional (must reference a known context)                 |
 | `elements[].type`                 | yes      | one of `actor \| command \| aggregate \| event \| policy \| readmodel \| external \| hotspot` |
@@ -67,21 +67,21 @@ A link to an unknown note, or a note pointing at an unknown context, is an error
 
 ## Action vocabulary
 
-| Action                    | target   | payload                                                                                                            |
-| ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| `SET_ELEMENT_NAME`        | element  | `{ "name": string }`                                                                                               |
-| `SET_ELEMENT_DESCRIPTION` | element  | `{ "description": string }`                                                                                        |
-| `SET_ELEMENT_TYPE`        | element  | `{ "type": "actor" \| "command" \| "aggregate" \| "event" \| "policy" \| "readmodel" \| "external" \| "hotspot" }` |
-| `SET_ELEMENT_CONTEXT`     | element  | `{ "contextId": string \| null }` (`null` = unassigned)                                                            |
-| `MOVE_ELEMENT`            | element  | `{ "after": string \| null }` (`null` = first)                                                                     |
-| `ADD_ELEMENT`             | artifact | `{ "id", "type", "name", "description"?, "contextId"? }`                                                           |
-| `DELETE_ELEMENT`          | element  | `{}`                                                                                                               |
-| `LINK_ELEMENTS`           | artifact | `{ "id", "from", "to", "label"?, "kind"? }`                                                                        |
-| `SET_LINK_LABEL`          | link     | `{ "label": string }`                                                                                              |
-| `UNLINK_ELEMENTS`         | artifact | `{ "from", "to" }` (removes every link with that pair)                                                             |
-| `ADD_CONTEXT`             | artifact | `{ "id", "name", "description"? }`                                                                                 |
-| `SET_CONTEXT_NAME`        | context  | `{ "name": string }`                                                                                               |
-| `DELETE_CONTEXT`          | context  | `{}` (its notes become unassigned)                                                                                 |
+| Action                    | target  | payload                                                                                                            |
+| ------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `SET_ELEMENT_NAME`        | element | `{ "name": string }`                                                                                               |
+| `SET_ELEMENT_DESCRIPTION` | element | `{ "description": string }`                                                                                        |
+| `SET_ELEMENT_TYPE`        | element | `{ "type": "actor" \| "command" \| "aggregate" \| "event" \| "policy" \| "readmodel" \| "external" \| "hotspot" }` |
+| `SET_ELEMENT_CONTEXT`     | element | `{ "contextId": string \| null }` (`null` = unassigned)                                                            |
+| `MOVE_ELEMENT`            | element | `{ "after": string \| null }` (`null` = first)                                                                     |
+| `ADD_ELEMENT`             | page    | `{ "id", "type", "name", "description"?, "contextId"? }`                                                           |
+| `DELETE_ELEMENT`          | element | `{}`                                                                                                               |
+| `LINK_ELEMENTS`           | page    | `{ "id", "from", "to", "label"?, "kind"? }`                                                                        |
+| `SET_LINK_LABEL`          | link    | `{ "label": string }`                                                                                              |
+| `UNLINK_ELEMENTS`         | page    | `{ "from", "to" }` (removes every link with that pair)                                                             |
+| `ADD_CONTEXT`             | page    | `{ "id", "name", "description"? }`                                                                                 |
+| `SET_CONTEXT_NAME`        | context | `{ "name": string }`                                                                                               |
+| `DELETE_CONTEXT`          | context | `{}` (its notes become unassigned)                                                                                 |
 
 - The order of the `elements` array **is** the timeline order, and only `MOVE_ELEMENT` changes it. `after` is an anchor id, not an offset: `{ "after": "order-cmd" }` means "directly after order-cmd", and an unknown anchor makes the action stale.
 - An unknown endpoint, an unknown `contextId` (or one that no longer exists) makes the action stale: `SET_ELEMENT_CONTEXT`, `ADD_ELEMENT` and `LINK_ELEMENTS` are the ones that can carry one.

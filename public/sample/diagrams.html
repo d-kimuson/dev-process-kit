@@ -9,7 +9,7 @@
       this page's own origin: the sample server is a separate origin on purpose,
       so the cross-origin (CORS) load is exercised locally too.
 
-      The page is an artifact-plain: the header and the review pipeline come from
+      The page is an dpk-template-plain: the header and the review pipeline come from
       the template, the diagrams from components.js.
     -->
     <script type="module" src="/dev-process-kit@debug/templates/plain.js"></script>
@@ -21,7 +21,7 @@
         margin: 0;
         background: #ffffff;
       }
-      artifact-plain {
+      dpk-template-plain {
         display: block;
         height: 100dvh;
       }
@@ -86,38 +86,38 @@
     </style>
   </head>
   <body>
-    <artifact-plain storage-key="sample-diagrams">
+    <dpk-template-plain storage-key="sample-diagrams">
       <script type="application/json">
         {
           "title": "Diagram components",
           "sections": [
             {
               "id": "mind-map",
-              "title": "artifact-mind-map"
+              "title": "dpk-component-mind-map"
             },
             {
               "id": "state",
-              "title": "artifact-state-diagram"
+              "title": "dpk-component-state-diagram"
             },
             {
               "id": "sequence",
-              "title": "artifact-sequence-diagram"
+              "title": "dpk-component-sequence-diagram"
             },
             {
               "id": "dependency",
-              "title": "artifact-dependency-graph"
+              "title": "dpk-component-dependency-graph"
             },
             {
               "id": "er",
-              "title": "artifact-er-diagram"
+              "title": "dpk-component-er-diagram"
             },
             {
               "id": "architecture",
-              "title": "artifact-architecture-map"
+              "title": "dpk-component-architecture-map"
             },
             {
               "id": "kanban",
-              "title": "artifact-kanban"
+              "title": "dpk-component-kanban"
             }
           ]
         }
@@ -131,15 +131,20 @@
 
         <section class="block">
           <div class="block-head">
-            <h2>artifact-mind-map</h2>
-            <button type="button" class="block-comment" data-artifact-comment="section:mind-map">
+            <h2>dpk-component-mind-map</h2>
+            <button type="button" class="block-comment" data-dpk-comment="section:mind-map">
               このセクションにコメント
             </button>
           </div>
           <p>
             中心のトピックから左右に広がるツリー。トピックを選ぶと中心までの経路と配下が光り、枝はたたむと件数だけになります。
           </p>
-          <artifact-mind-map id="checkout-mind-map" class="diagram" heading="Mind map" subject="注文フロー刷新の論点">
+          <dpk-component-mind-map
+            id="checkout-mind-map"
+            class="diagram"
+            heading="Mind map"
+            subject="注文フロー刷新の論点"
+          >
             <script type="application/json">
               {
                 "root": {
@@ -274,18 +279,18 @@
                 }
               }
             </script>
-          </artifact-mind-map>
+          </dpk-component-mind-map>
         </section>
 
         <section class="block">
           <div class="block-head">
-            <h2>artifact-state-diagram</h2>
-            <button type="button" class="block-comment" data-artifact-comment="section:state">
+            <h2>dpk-component-state-diagram</h2>
+            <button type="button" class="block-comment" data-dpk-comment="section:state">
               このセクションにコメント
             </button>
           </div>
           <p>状態と遷移。状態を選ぶと出入りの遷移、遷移を選ぶと条件と副作用が出ます。</p>
-          <artifact-state-diagram
+          <dpk-component-state-diagram
             id="order-lifecycle"
             class="diagram"
             heading="State machine"
@@ -419,18 +424,18 @@
                 ]
               }
             </script>
-          </artifact-state-diagram>
+          </dpk-component-state-diagram>
         </section>
 
         <section class="block">
           <div class="block-head">
-            <h2>artifact-sequence-diagram</h2>
-            <button type="button" class="block-comment" data-artifact-comment="section:sequence">
+            <h2>dpk-component-sequence-diagram</h2>
+            <button type="button" class="block-comment" data-dpk-comment="section:sequence">
               このセクションにコメント
             </button>
           </div>
           <p>参加者とメッセージ。分岐は個別に折りたためます。</p>
-          <artifact-sequence-diagram
+          <dpk-component-sequence-diagram
             id="order-sequence"
             class="diagram--tall diagram"
             heading="Sequence"
@@ -588,18 +593,18 @@
                 ]
               }
             </script>
-          </artifact-sequence-diagram>
+          </dpk-component-sequence-diagram>
         </section>
 
         <section class="block">
           <div class="block-head">
-            <h2>artifact-dependency-graph</h2>
-            <button type="button" class="block-comment" data-artifact-comment="section:dependency">
+            <h2>dpk-component-dependency-graph</h2>
+            <button type="button" class="block-comment" data-dpk-comment="section:dependency">
               このセクションにコメント
             </button>
           </div>
           <p>モジュールと依存。方向の切り替え、間接依存、循環依存の絞り込みができます。</p>
-          <artifact-dependency-graph
+          <dpk-component-dependency-graph
             id="order-dependencies"
             class="diagram"
             heading="Dependencies"
@@ -669,18 +674,21 @@
                 ]
               }
             </script>
-          </artifact-dependency-graph>
+          </dpk-component-dependency-graph>
         </section>
 
         <section class="block">
           <div class="block-head">
-            <h2>artifact-er-diagram</h2>
-            <button type="button" class="block-comment" data-artifact-comment="section:er">
-              このセクションにコメント
-            </button>
+            <h2>dpk-component-er-diagram</h2>
+            <button type="button" class="block-comment" data-dpk-comment="section:er">このセクションにコメント</button>
           </div>
           <p>before / after の 2 スナップショットから、追加・削除・変更を常時表示します。</p>
-          <artifact-er-diagram id="order-schema" class="diagram--tall diagram" heading="ERD" subject="注文スキーマ">
+          <dpk-component-er-diagram
+            id="order-schema"
+            class="diagram--tall diagram"
+            heading="ERD"
+            subject="注文スキーマ"
+          >
             <script type="application/json">
               {
                 "before": {
@@ -772,18 +780,18 @@
                 }
               }
             </script>
-          </artifact-er-diagram>
+          </dpk-component-er-diagram>
         </section>
 
         <section class="block">
           <div class="block-head">
-            <h2>artifact-architecture-map</h2>
-            <button type="button" class="block-comment" data-artifact-comment="section:architecture">
+            <h2>dpk-component-architecture-map</h2>
+            <button type="button" class="block-comment" data-dpk-comment="section:architecture">
               このセクションにコメント
             </button>
           </div>
           <p>サービスと境界。アイコンは作者が <code>artwork.src</code> で渡します（バンドルには同梱しません）。</p>
-          <artifact-architecture-map
+          <dpk-component-architecture-map
             id="order-architecture"
             class="diagram"
             heading="Architecture"
@@ -952,18 +960,18 @@
                 ]
               }
             </script>
-          </artifact-architecture-map>
+          </dpk-component-architecture-map>
         </section>
 
         <section class="block">
           <div class="block-head">
-            <h2>artifact-kanban</h2>
-            <button type="button" class="block-comment" data-artifact-comment="section:kanban">
+            <h2>dpk-component-kanban</h2>
+            <button type="button" class="block-comment" data-dpk-comment="section:kanban">
               このセクションにコメント
             </button>
           </div>
           <p>列とカード。カードはドラッグで動かせ、動かした結果はドラフトに残ります。</p>
-          <artifact-kanban id="cancel-board" class="diagram" heading="Kanban" subject="注文のセルフキャンセル">
+          <dpk-component-kanban id="cancel-board" class="diagram" heading="Kanban" subject="注文のセルフキャンセル">
             <script type="application/json">
               {
                 "columns": [
@@ -1041,9 +1049,9 @@
                 ]
               }
             </script>
-          </artifact-kanban>
+          </dpk-component-kanban>
         </section>
       </div>
-    </artifact-plain>
+    </dpk-template-plain>
   </body>
 </html>

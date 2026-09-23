@@ -6,7 +6,7 @@
     <title>UX Prototype — 注文とキャンセル | dev-process-kit</title>
 
     <!--
-      Single HTML artifact:
+      Single-file HTML page:
         1. pin the framework version
         2. bake the base data in as JSON
         3. put prototype markup in the light DOM, tagged with data-preview-id
@@ -26,7 +26,7 @@
         background: #ffffff;
       }
 
-      artifact-prototype {
+      dpk-template-prototype {
         display: block;
         height: 100dvh;
       }
@@ -585,7 +585,7 @@
     </style>
   </head>
   <body>
-    <artifact-prototype storage-key="sample-prototype-sora-market">
+    <dpk-template-prototype storage-key="sample-prototype-sora-market">
       <script type="application/json">
         {
           "title": "Sora Market — 注文とキャンセル",
@@ -861,9 +861,7 @@
               <div class="sm-row"><span>送料</span><b>¥550</b></div>
               <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
             </div>
-            <a class="sm-btn" href="#step=delivery-payment" data-artifact-navigate="step=delivery-payment"
-              >レジに進む</a
-            >
+            <a class="sm-btn" href="#step=delivery-payment" data-dpk-navigate="step=delivery-payment">レジに進む</a>
           </div>
         </div>
       </div>
@@ -890,7 +888,7 @@
               <div class="sm-choice" data-selected="true">クレジットカード VISA •••• 4242</div>
               <div class="sm-choice">コンビニ払い</div>
             </div>
-            <a class="sm-btn" href="#step=review" data-artifact-navigate="step=review">確認画面へ</a>
+            <a class="sm-btn" href="#step=review" data-dpk-navigate="step=review">確認画面へ</a>
           </div>
         </div>
       </div>
@@ -914,7 +912,7 @@
               <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
             </div>
             <p class="sm-note">出荷の準備が始まる前（通常はご注文の翌朝まで）なら、注文履歴からキャンセルできます。</p>
-            <button class="sm-btn" data-artifact-navigate="step=order-complete">注文を確定する</button>
+            <button class="sm-btn" data-dpk-navigate="step=order-complete">注文を確定する</button>
           </div>
         </div>
       </div>
@@ -932,7 +930,7 @@
               <div class="sm-row"><span>合計（税込）</span><b>¥11,750</b></div>
               <div class="sm-row"><span>お届け予定</span><b>9月27日（土）</b></div>
             </div>
-            <a class="sm-btn sm-btn--ghost" href="#step=order-history" data-artifact-navigate="step=order-history">
+            <a class="sm-btn sm-btn--ghost" href="#step=order-history" data-dpk-navigate="step=order-history">
               注文履歴を見る
             </a>
           </div>
@@ -949,11 +947,11 @@
           <div class="sm-shot">
             <h1 class="sm-title">注文履歴</h1>
             <div class="sm-card">
-              <a class="sm-order" href="#step=order-detail" data-artifact-navigate="step=order-detail">
+              <a class="sm-order" href="#step=order-detail" data-dpk-navigate="step=order-detail">
                 <div class="sm-order-head"><b>SM-0918-0342</b><span class="sm-status">支払済み</span></div>
                 <small>9月18日 · 2 点 · ¥11,750 — キャンセルできます</small>
               </a>
-              <a class="sm-order" href="#step=shipped-detail" data-artifact-navigate="step=shipped-detail">
+              <a class="sm-order" href="#step=shipped-detail" data-dpk-navigate="step=shipped-detail">
                 <div class="sm-order-head">
                   <b>SM-0912-0127</b><span class="sm-status sm-status--shipped">出荷中</span>
                 </div>
@@ -994,7 +992,7 @@
               <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
             </div>
             <div>
-              <a class="sm-btn sm-btn--ghost" href="#step=cancel-confirm" data-artifact-navigate="step=cancel-confirm">
+              <a class="sm-btn sm-btn--ghost" href="#step=cancel-confirm" data-dpk-navigate="step=cancel-confirm">
                 この注文をキャンセルする
               </a>
               <p class="sm-sub" style="margin-top: 8px; font-size: 11.5px">
@@ -1028,10 +1026,10 @@
               </div>
             </div>
             <div>
-              <button class="sm-btn sm-btn--danger" data-artifact-navigate="step=cancel-accepted">
+              <button class="sm-btn sm-btn--danger" data-dpk-navigate="step=cancel-accepted">
                 キャンセルを確定する
               </button>
-              <a class="sm-btn sm-btn--ghost" href="#step=order-detail" data-artifact-navigate="step=order-detail">
+              <a class="sm-btn sm-btn--ghost" href="#step=order-detail" data-dpk-navigate="step=order-detail">
                 注文詳細に戻る
               </a>
             </div>
@@ -1055,7 +1053,7 @@
               <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
               <div class="sm-row"><span>返金先</span><b>VISA •••• 4242</b></div>
             </div>
-            <a class="sm-btn sm-btn--ghost" href="#step=order-history" data-artifact-navigate="step=order-history">
+            <a class="sm-btn sm-btn--ghost" href="#step=order-history" data-dpk-navigate="step=order-history">
               注文履歴に戻る
             </a>
           </div>
@@ -1066,7 +1064,7 @@
       <div slot="preview" data-preview-id="refund-mail-native">
         <div class="sm sm-lock">
           <div class="sm-clock">9:41<small>9月19日（金）</small></div>
-          <a class="sm-push" href="#step=refunded-detail" data-artifact-navigate="step=refunded-detail">
+          <a class="sm-push" href="#step=refunded-detail" data-dpk-navigate="step=refunded-detail">
             <span class="sm-logo">S</span>
             <div>
               <b>メール</b> <small>いま</small>
@@ -1142,7 +1140,7 @@
               出荷の準備が始まったため、この注文はキャンセルできません。お届け後の返品は、商品が届いてからお申し込みいただけます。
             </p>
             <div>
-              <a class="sm-btn sm-btn--ghost" href="#step=contact" data-artifact-navigate="step=contact">
+              <a class="sm-btn sm-btn--ghost" href="#step=contact" data-dpk-navigate="step=contact">
                 この注文について問い合わせる
               </a>
               <div class="sm-btn sm-btn--ghost">返品について</div>
@@ -1189,8 +1187,8 @@
           <div class="sm-admin">
             <nav class="sm-side">
               <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
-              <a href="#step=admin-orders" data-artifact-navigate="step=admin-orders" aria-current="page">注文</a>
-              <a href="#step=admin-refunds" data-artifact-navigate="step=admin-refunds"
+              <a href="#step=admin-orders" data-dpk-navigate="step=admin-orders" aria-current="page">注文</a>
+              <a href="#step=admin-refunds" data-dpk-navigate="step=admin-refunds"
                 >返金 <span class="sm-count">3</span></a
               >
               <a>在庫</a>
@@ -1223,9 +1221,7 @@
                   <tbody>
                     <tr>
                       <td>
-                        <a href="#step=admin-order-detail" data-artifact-navigate="step=admin-order-detail"
-                          >SM-0918-0342</a
-                        >
+                        <a href="#step=admin-order-detail" data-dpk-navigate="step=admin-order-detail">SM-0918-0342</a>
                       </td>
                       <td>9/18 10:12</td>
                       <td>空野 ひかり</td>
@@ -1262,8 +1258,8 @@
           <div class="sm-admin">
             <nav class="sm-side">
               <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
-              <a href="#step=admin-orders" data-artifact-navigate="step=admin-orders" aria-current="page">注文</a>
-              <a href="#step=admin-refunds" data-artifact-navigate="step=admin-refunds"
+              <a href="#step=admin-orders" data-dpk-navigate="step=admin-orders" aria-current="page">注文</a>
+              <a href="#step=admin-refunds" data-dpk-navigate="step=admin-refunds"
                 >返金 <span class="sm-count">3</span></a
               >
               <a>在庫</a>
@@ -1309,8 +1305,8 @@
           <div class="sm-admin">
             <nav class="sm-side">
               <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
-              <a href="#step=admin-orders" data-artifact-navigate="step=admin-orders">注文</a>
-              <a href="#step=admin-refunds" data-artifact-navigate="step=admin-refunds" aria-current="page"
+              <a href="#step=admin-orders" data-dpk-navigate="step=admin-orders">注文</a>
+              <a href="#step=admin-refunds" data-dpk-navigate="step=admin-refunds" aria-current="page"
                 >返金 <span class="sm-count">3</span></a
               >
               <a>在庫</a>
@@ -1337,9 +1333,7 @@
                   <tbody>
                     <tr data-alert>
                       <td>
-                        <a href="#step=admin-refund-stuck" data-artifact-navigate="step=admin-refund-stuck"
-                          >SM-0915-0288</a
-                        >
+                        <a href="#step=admin-refund-stuck" data-dpk-navigate="step=admin-refund-stuck">SM-0915-0288</a>
                       </td>
                       <td>9/16 07:55</td>
                       <td><b>3 日 2 時間</b></td>
@@ -1376,8 +1370,8 @@
           <div class="sm-admin">
             <nav class="sm-side">
               <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
-              <a href="#step=admin-orders" data-artifact-navigate="step=admin-orders">注文</a>
-              <a href="#step=admin-refunds" data-artifact-navigate="step=admin-refunds" aria-current="page"
+              <a href="#step=admin-orders" data-dpk-navigate="step=admin-orders">注文</a>
+              <a href="#step=admin-refunds" data-dpk-navigate="step=admin-refunds" aria-current="page"
                 >返金 <span class="sm-count">3</span></a
               >
               <a>在庫</a>
@@ -1441,6 +1435,6 @@
           </div>
         </div>
       </div>
-    </artifact-prototype>
+    </dpk-template-prototype>
   </body>
 </html>

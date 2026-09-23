@@ -1,11 +1,11 @@
-# artifact-dependency-graph
+# dpk-component-dependency-graph
 
 Modules and the references between them. Selecting a module answers two questions at once: what it uses, and what would be affected by changing it.
 
 Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components/diagrams.md`.
 
 ```html
-<artifact-dependency-graph heading="Dependencies" subject="注文モジュール">
+<dpk-component-dependency-graph heading="Dependencies" subject="注文モジュール">
   <script type="application/json">
     {
       "modules": [
@@ -25,7 +25,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components
       ]
     }
   </script>
-</artifact-dependency-graph>
+</dpk-component-dependency-graph>
 ```
 
 ## Data
@@ -51,7 +51,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components
 | `間接も含む`                 | Follows the whole transitive closure, not just direct neighbours. Link labels gain their hop distance (`Pricing · 2段`). |
 | `循環 N`                     | Restricts the view to circular groups (see below); disabled when there are none.                                         |
 
-Direction is visible in the colour of the card and the edge: green = uses (依存先), blue = used by (依存元), amber = part of a cycle.
+Direction is visible in the color of the card and the edge: green = uses (依存先), blue = used by (依存元), amber = part of a cycle.
 
 ## Cycles
 

@@ -18,7 +18,7 @@
         margin: 0;
         background: #ffffff;
       }
-      artifact-grill {
+      dpk-template-grill {
         display: block;
         height: 100dvh;
       }
@@ -62,7 +62,7 @@
     </style>
   </head>
   <body>
-    <artifact-grill storage-key="sample-grill-cancel">
+    <dpk-template-grill storage-key="sample-grill-cancel">
       <script type="application/json">
         {
           "title": "新機能: 注文のセルフキャンセル",
@@ -152,7 +152,12 @@
 
         <section class="block">
           <h3>スキーマの変更案</h3>
-          <artifact-er-diagram id="cancel-schema" heading="ERD" subject="注文と返金" style="--diagram-height: 560px">
+          <dpk-component-er-diagram
+            id="cancel-schema"
+            heading="ERD"
+            subject="注文と返金"
+            style="--diagram-height: 560px"
+          >
             <script type="application/json">
               {
                 "before": {
@@ -246,12 +251,12 @@
                 }
               }
             </script>
-          </artifact-er-diagram>
+          </dpk-component-er-diagram>
         </section>
 
         <section class="block">
           <h3>キャンセルから返金までの流れ（案）</h3>
-          <artifact-sequence-diagram
+          <dpk-component-sequence-diagram
             id="cancel-flow"
             heading="Sequence"
             subject="キャンセルから返金まで"
@@ -475,9 +480,9 @@
                 ]
               }
             </script>
-          </artifact-sequence-diagram>
+          </dpk-component-sequence-diagram>
         </section>
       </div>
-    </artifact-grill>
+    </dpk-template-grill>
   </body>
 </html>

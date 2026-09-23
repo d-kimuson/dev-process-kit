@@ -551,8 +551,8 @@
       <div class="intro">
         <h1>Agent が書く単一 HTML を、人がレビューして Agent に返す</h1>
         <p class="lede">
-          dev-process-kit は、Agent に生成させる HTML
-          Artifact（プロトタイプ、ストーリーマップ、イベントストーミングなど）に
+          dev-process-kit は、Agent に生成させる単一 HTML
+          ページ（プロトタイプ、ストーリーマップ、イベントストーミングなど）に
           共通の構造とレビューの仕組みを与えるフレームワークです。ビルド不要で、script タグ 1 つで読み込めます。
         </p>
         <ol class="loop" aria-label="レビューの流れ">
@@ -587,7 +587,7 @@
             <div class="card-body">
               <div class="card-head">
                 <h3>Event Storming</h3>
-                <code>artifact-event-storming</code>
+                <code>dpk-template-event-storming</code>
               </div>
               <p>ドメインイベントを時系列に並べ、コマンド・集約・ポリシーとの因果をたどる。</p>
             </div>
@@ -597,7 +597,7 @@
             <div class="card-body">
               <div class="card-head">
                 <h3>User Story Mapping</h3>
-                <code>artifact-usm</code>
+                <code>dpk-template-usm</code>
               </div>
               <p>Activity と Step の背骨の下に、リリースごとにユーザーストーリーを並べる。</p>
             </div>
@@ -609,7 +609,7 @@
             <div class="card-body">
               <div class="card-head">
                 <h3>Example Mapping</h3>
-                <code>artifact-example-mapping</code>
+                <code>dpk-template-example-mapping</code>
               </div>
               <p>ストーリーごとにルール・具体例・疑問を積み、要件の抜けを洗い出す。</p>
             </div>
@@ -619,7 +619,7 @@
             <div class="card-body">
               <div class="card-head">
                 <h3>Visually Grill</h3>
-                <code>artifact-grill</code>
+                <code>dpk-template-grill</code>
               </div>
               <p>設計を図で示しながら質問を投げ、回答とコメントを Agent に返す。</p>
             </div>
@@ -631,7 +631,7 @@
             <div class="card-body">
               <div class="card-head">
                 <h3>UX Prototype</h3>
-                <code>artifact-prototype</code>
+                <code>dpk-template-prototype</code>
               </div>
               <p>画面の流れをストーリーとステップに分けて並べ、プレビューで確かめる。</p>
             </div>
@@ -647,7 +647,7 @@
             <div class="card-body">
               <div class="card-head">
                 <h3>Plain</h3>
-                <code>artifact-plain</code>
+                <code>dpk-template-plain</code>
               </div>
               <p>ヘッダーとレビューだけを持ち、中身は自由に書く。</p>
             </div>
@@ -697,25 +697,25 @@
         <p>Plain やテンプレートの中に置ける図のコンポーネントです。</p>
         <div class="viewer">
           <div class="picker" aria-label="コンポーネント">
-            <button type="button" data-tag="artifact-mind-map" data-doc="mind-map">
+            <button type="button" data-tag="dpk-component-mind-map" data-doc="mind-map">
               <b>Mind map</b><span>1 つのテーマがどう分かれるか</span>
             </button>
-            <button type="button" data-tag="artifact-state-diagram" data-doc="state-diagram">
+            <button type="button" data-tag="dpk-component-state-diagram" data-doc="state-diagram">
               <b>State diagram</b><span>どんな状態があり、何で移るか</span>
             </button>
-            <button type="button" data-tag="artifact-sequence-diagram" data-doc="sequence-diagram">
+            <button type="button" data-tag="dpk-component-sequence-diagram" data-doc="sequence-diagram">
               <b>Sequence diagram</b><span>参加者がどの順でやりとりするか</span>
             </button>
-            <button type="button" data-tag="artifact-dependency-graph" data-doc="dependency-graph">
+            <button type="button" data-tag="dpk-component-dependency-graph" data-doc="dependency-graph">
               <b>Dependency graph</b><span>何が何に依存し、どこが循環するか</span>
             </button>
-            <button type="button" data-tag="artifact-er-diagram" data-doc="er-diagram">
+            <button type="button" data-tag="dpk-component-er-diagram" data-doc="er-diagram">
               <b>ER diagram</b><span>2 つのスキーマの間で何が変わったか</span>
             </button>
-            <button type="button" data-tag="artifact-architecture-map" data-doc="architecture-map">
+            <button type="button" data-tag="dpk-component-architecture-map" data-doc="architecture-map">
               <b>Architecture map</b><span>どのサービスがどの境界にあるか</span>
             </button>
-            <button type="button" data-tag="artifact-kanban" data-doc="kanban">
+            <button type="button" data-tag="dpk-component-kanban" data-doc="kanban">
               <b>Kanban</b><span>どの作業がどこまで進んでいるか</span>
             </button>
           </div>
@@ -736,9 +736,9 @@
           <pre><code>&lt;script type="module"
   src="https://dev-process-kit.biz-km.workers.dev/dev-process-kit@debug/templates/prototype.js"&gt;&lt;/script&gt;
 
-&lt;artifact-prototype storage-key="my-flow"&gt;
+&lt;dpk-template-prototype storage-key="my-flow"&gt;
   &lt;script type="application/json"&gt;{ "activities": [] }&lt;/script&gt;
-&lt;/artifact-prototype&gt;</code></pre>
+&lt;/dpk-template-prototype&gt;</code></pre>
           <p>図を使うときは <code>components.js</code> も読み込みます（全部入りは <code>index.js</code>）。</p>
         </div>
       </section>
@@ -760,7 +760,7 @@
         </ul>
       </section>
 
-      <footer>dev-process-kit@debug · single HTML artifact framework</footer>
+      <footer>dev-process-kit@debug</footer>
     </main>
 
     <script>
