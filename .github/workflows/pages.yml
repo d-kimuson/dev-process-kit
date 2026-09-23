@@ -1,0 +1,71 @@
+name: Pages
+
+# Publishes the samples of `main` to GitHub Pages. They load the bundle built from the same commit, so the site shows
+# what `main` does, which may be ahead of the latest npm release.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the package
+        run: pnpm build
+
+      # In development the samples load the bundle from the dev asset server's origin; on Pages the bundle sits next
+      # to them under `dist/`.
+      - name: Assemble the site
+        run: |
+          mkdir _site
+          cp sample/*.html _site/
+          cp -R dist _site/dist
+          sed -i 's#https://dev-process-kit\.localhost/#./dist/#g' _site/*.html
+          if grep -l 'dev-process-kit\.localhost' _site/*.html; then
+            echo 'a sample still points at the dev asset server' >&2
+            exit 1
+          fi
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

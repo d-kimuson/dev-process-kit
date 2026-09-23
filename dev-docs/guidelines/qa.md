@@ -29,6 +29,8 @@ Exercise the built bundle from the sample's separate origin. This preserves the 
 
 When adopting an API with limited browser availability, verify both the supported path and the fallback or feature-detection path in the relevant engines.
 
+`main` publishes the samples to GitHub Pages (`.github/workflows/pages.yml`), with the bundle built from the same commit; the smoke script accepts that site too: `pnpm qa:browser https://d-kimuson.github.io/dev-process-kit`.
+
 Use HTTP-level checks for CORS headers and missing assets. These are protocol contracts and are more directly observed without a browser UI.
 
 ## Evidence

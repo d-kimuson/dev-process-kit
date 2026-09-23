@@ -17,7 +17,7 @@ events / slots だけを公開契約にする（Lit は実装詳細）。
 │   ├── entries/       # 配信する entrypoint（components / templates/<name>）
 │   └── index.ts       # 配信する entrypoint（全部入り）
 ├── dist/              # npm パッケージの中身（`pnpm build` の生成物。`pnpm dev` も同じ場所に書く。commit しない）
-├── sample/            # サンプル（dev では別オリジンで配信し bundle を cross-origin で読む。配布物には含めない）
+├── sample/            # サンプル（dev では別オリジンで配信し bundle を cross-origin で読む。main は GitHub Pages に公開。配布物には含めない）
 ├── docs/              # 利用者向け（core / components / templates。バージョンごとの版は Git tag `v<version>` で参照される）
 ├── dev-docs/          # 開発者向け（利用者向けの docs/ とは分ける）
 │   ├── guidelines/    # Harness / 設計 / 検証 / commit / ADR の書き方
