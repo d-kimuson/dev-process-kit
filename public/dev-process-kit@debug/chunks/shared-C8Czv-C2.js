@@ -1,0 +1,1 @@
+import{ax as e,ay as r,a1 as n,az as i}from"./shared-BpZBcqrz.js";const u=e(class extends r{constructor(){super(...arguments),this.key=n}render(t,s){return this.key=t,s}update(t,[s,a]){return s!==this.key&&(i(t),this.key=s),a}});export{u as i};

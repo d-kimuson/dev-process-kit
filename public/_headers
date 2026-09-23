@@ -22,3 +22,6 @@
 
 /dev-process-kit%40debug/*
   Cache-Control: no-cache
+
+/sample/*
+  Cache-Control: no-cache

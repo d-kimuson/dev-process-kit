@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Design Doc — 注文キャンセルと返金 | dev-process-kit</title>
+    <!--
+      The framework is served by the Workers Static Assets dev server, not by
+      this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too.
+
+      A design doc: artifact-plain brings the header and the review pipeline,
+      components.js the diagrams the design needs. The prose is ordinary markup
+      in slot="main", and each section is a comment target.
+    -->
+    <script type="module" src="/dev-process-kit@debug/templates/plain.js"></script>
+    <script type="module" src="/dev-process-kit@debug/components.js"></script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #ffffff;
+      }
+      artifact-plain {
+        display: block;
+        height: 100dvh;
+      }
+
+      /* Everything below is author content inside slot="main". */
+      .doc {
+        width: 100%;
+        max-width: 880px;
+        margin: 0 auto 64px;
+        color: var(--af-ink);
+        font-size: 13.5px;
+        line-height: 1.85;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 20px;
+        margin: 4px 0 0;
+        padding: 0 0 14px;
+        border-bottom: 1px solid var(--af-rule);
+        color: var(--af-ink-faint);
+        font-size: 12px;
+      }
+      .meta b {
+        margin-right: 6px;
+        font-weight: 500;
+        color: var(--af-ink-soft);
+      }
+      .doc section {
+        margin-top: 36px;
+      }
+      .head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .head h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .head button {
+        margin-left: auto;
+        padding: 3px 10px;
+        border: 1px solid var(--af-rule-strong);
+        border-radius: 6px;
+        background: var(--af-paper-raised);
+        color: var(--af-ink-soft);
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .head button:hover {
+        border-color: var(--af-blue);
+        color: var(--af-blue);
+      }
+      .doc h3 {
+        margin: 22px 0 6px;
+        font-size: 13.5px;
+      }
+      .doc p,
+      .doc ul,
+      .doc ol {
+        margin: 0 0 10px;
+        color: var(--af-ink-soft);
+      }
+      .doc ul,
+      .doc ol {
+        padding-left: 20px;
+      }
+      .goals {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+      }
+      .goals h3 {
+        margin-top: 0;
+      }
+      .diagram {
+        --diagram-height: 560px;
+        margin-bottom: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+        line-height: 1.6;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--af-rule);
+      }
+      th {
+        color: var(--af-ink-faint);
+        font-weight: 500;
+        font-size: 11.5px;
+      }
+      td:first-child {
+        white-space: nowrap;
+      }
+      tr.is-chosen td {
+        background: var(--af-blue-soft);
+      }
+      .badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 0 7px;
+        border-radius: 999px;
+        background: var(--af-blue);
+        color: #ffffff;
+        font-size: 10.5px;
+        line-height: 18px;
+        vertical-align: 1px;
+      }
+
+      @media (max-width: 720px) {
+        .goals {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <artifact-plain storage-key="sample-design-doc">
+      <script type="application/json">
+        {
+          "title": "Design Doc: 注文キャンセルと返金",
+          "sections": [
+            { "id": "summary", "title": "概要" },
+            { "id": "goals", "title": "ゴールと非ゴール" },
+            { "id": "design", "title": "設計" },
+            { "id": "alternatives", "title": "検討した代替案" },
+            { "id": "open-questions", "title": "未決事項" }
+          ]
+        }
+      </script>
+
+      <div class="doc" slot="main">
+        <p class="meta">
+          <span><b>状態</b>レビュー中</span>
+          <span><b>担当</b>注文チーム</span>
+          <span><b>関係するコンテキスト</b>注文 · 決済 · 在庫</span>
+        </p>
+
+        <section>
+          <div class="head">
+            <h2>概要</h2>
+            <button type="button" data-artifact-comment="section:summary">このセクションにコメント</button>
+          </div>
+          <p>
+            支払済みの注文を、出荷指示の前であればお客様自身がキャンセルできるようにする。いまはサポート窓口への問い合わせで
+            オペレーターが手作業で取り消しており、出荷に間に合わないケースが月に数十件ある。
+          </p>
+          <p>
+            キャンセルは注文の中だけで閉じず、決済（返金）と在庫（引当の解除）をまたぐ。返金は外部の決済代行を呼ぶため失敗や
+            タイムアウトがあり得る。この文書は、その間も注文の状態を矛盾させない方法を決める。
+          </p>
+        </section>
+
+        <section>
+          <div class="head">
+            <h2>ゴールと非ゴール</h2>
+            <button type="button" data-artifact-comment="section:goals">このセクションにコメント</button>
+          </div>
+          <div class="goals">
+            <div>
+              <h3>ゴール</h3>
+              <ul>
+                <li>出荷指示前の注文を、お客様が画面からキャンセルできる</li>
+                <li>キャンセルした注文は、必ず返金と在庫の解除まで到達する</li>
+                <li>キャンセル済みの注文に出荷指示が出ることはない</li>
+              </ul>
+            </div>
+            <div>
+              <h3>非ゴール</h3>
+              <ul>
+                <li>出荷後の返品・返金（別の Design Doc で扱う）</li>
+                <li>注文の一部だけのキャンセル</li>
+                <li>ポイントやクーポンの払い戻し</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="head">
+            <h2>設計</h2>
+            <button type="button" data-artifact-comment="section:design">このセクションにコメント</button>
+          </div>
+          <p>
+            注文に「返金待ち」の状態を足し、キャンセルの受付と返金の実行を分ける。受付は注文集約の中で同期的に確定させ、
+            返金はイベントを受けたワーカーが非同期に進める。
+          </p>
+
+          <h3>状態遷移</h3>
+          <p>「返金待ち」の間は出荷指示を受け付けない。キャンセルの可否と出荷指示は同じトランザクションで判定する。</p>
+          <artifact-state-diagram
+            id="cancel-lifecycle"
+            class="diagram"
+            heading="State machine"
+            subject="キャンセルを含む注文ライフサイクル"
+          >
+            <script type="application/json">
+              {
+                "states": [
+                  {
+                    "id": "paid",
+                    "name": "支払済み",
+                    "code": "paid",
+                    "kind": "initial",
+                    "position": { "x": 0, "y": 40 }
+                  },
+                  { "id": "shipping", "name": "出荷中", "code": "shipping", "position": { "x": 280, "y": 40 } },
+                  {
+                    "id": "completed",
+                    "name": "完了",
+                    "code": "completed",
+                    "kind": "terminal",
+                    "position": { "x": 560, "y": 40 }
+                  },
+                  {
+                    "id": "refunding",
+                    "name": "返金待ち",
+                    "code": "refund_pending",
+                    "kind": "compensation",
+                    "description": "出荷指示を受け付けない。返金ジョブの完了を待つ。",
+                    "position": { "x": 280, "y": 200 }
+                  },
+                  {
+                    "id": "cancelled",
+                    "name": "取消済み",
+                    "code": "cancelled",
+                    "kind": "terminal",
+                    "position": { "x": 560, "y": 200 }
+                  }
+                ],
+                "transitions": [
+                  { "id": "dispatch", "from": "paid", "to": "shipping", "title": "出荷指示", "tags": ["正常系"] },
+                  { "id": "deliver", "from": "shipping", "to": "completed", "title": "配送完了", "tags": ["正常系"] },
+                  {
+                    "id": "cancel",
+                    "from": "paid",
+                    "to": "refunding",
+                    "title": "キャンセル受付",
+                    "kind": "exception",
+                    "tags": ["キャンセル"],
+                    "guard": "出荷指示前であることを同一トランザクションで確認",
+                    "effect": "OrderCancelled を発行し、返金ジョブを積む。"
+                  },
+                  {
+                    "id": "refunded",
+                    "from": "refunding",
+                    "to": "cancelled",
+                    "title": "返金完了",
+                    "tags": ["キャンセル", "非同期"],
+                    "effect": "在庫の引当を解除する。"
+                  },
+                  {
+                    "id": "retry",
+                    "from": "refunding",
+                    "to": "refunding",
+                    "title": "返金の再試行",
+                    "kind": "exception",
+                    "tags": ["キャンセル", "再試行"],
+                    "guard": "決済代行の応答がタイムアウトし、結果が未確定",
+                    "effect": "結果を照会し、未処理なら同じ冪等キーで返金を再送する。"
+                  }
+                ]
+              }
+            </script>
+          </artifact-state-diagram>
+
+          <h3>処理の流れ</h3>
+          <p>お客様への応答は受付の時点で返す。返金の結果はメールで知らせる。</p>
+          <artifact-sequence-diagram
+            id="cancel-sequence"
+            class="diagram"
+            heading="Sequence"
+            subject="キャンセルから返金まで"
+          >
+            <script type="application/json">
+              {
+                "participants": [
+                  { "id": "customer", "name": "購入者", "role": "注文画面", "symbol": "UI" },
+                  { "id": "orders", "name": "Order API", "role": "注文コンテキスト" },
+                  { "id": "queue", "name": "Queue", "role": "イベント配送", "symbol": "QS" },
+                  { "id": "refund", "name": "Refund worker", "role": "返金の実行", "symbol": "WK" },
+                  { "id": "payment", "name": "決済代行", "role": "外部サービス", "kind": "external", "symbol": "PS" },
+                  { "id": "stock", "name": "Stock API", "role": "在庫コンテキスト" }
+                ],
+                "items": [
+                  {
+                    "kind": "message",
+                    "id": "request",
+                    "from": "customer",
+                    "to": "orders",
+                    "title": "POST /orders/{id}/cancel"
+                  },
+                  {
+                    "kind": "message",
+                    "id": "accept",
+                    "from": "orders",
+                    "to": "orders",
+                    "title": "出荷指示前なら refund_pending へ",
+                    "guard": "出荷指示が出ていない",
+                    "detail": "状態の更新とイベントの記録を同じトランザクションで行う（outbox）。"
+                  },
+                  {
+                    "kind": "message",
+                    "id": "publish",
+                    "from": "orders",
+                    "to": "queue",
+                    "title": "OrderCancelled",
+                    "style": "async"
+                  },
+                  {
+                    "kind": "message",
+                    "id": "accepted",
+                    "from": "orders",
+                    "to": "customer",
+                    "title": "202 Accepted",
+                    "style": "response"
+                  },
+                  {
+                    "kind": "message",
+                    "id": "deliver",
+                    "from": "queue",
+                    "to": "refund",
+                    "title": "OrderCancelled",
+                    "style": "async"
+                  },
+                  {
+                    "kind": "message",
+                    "id": "refund-request",
+                    "from": "refund",
+                    "to": "payment",
+                    "title": "返金要求",
+                    "detail": "注文 ID を冪等キーにする。"
+                  },
+                  {
+                    "kind": "fragment",
+                    "id": "refund-result",
+                    "operator": "alt",
+                    "title": "返金結果",
+                    "branches": [
+                      {
+                        "label": "成功",
+                        "items": [
+                          {
+                            "kind": "message",
+                            "id": "refund-ok",
+                            "from": "payment",
+                            "to": "refund",
+                            "title": "refunded",
+                            "style": "response"
+                          },
+                          {
+                            "kind": "message",
+                            "id": "complete",
+                            "from": "refund",
+                            "to": "orders",
+                            "title": "RefundCompleted",
+                            "style": "async"
+                          },
+                          {
+                            "kind": "message",
+                            "id": "release",
+                            "from": "orders",
+                            "to": "stock",
+                            "title": "引当を解除",
+                            "style": "async"
+                          }
+                        ]
+                      },
+                      {
+                        "label": "タイムアウト",
+                        "items": [
+                          {
+                            "kind": "message",
+                            "id": "inquire",
+                            "from": "refund",
+                            "to": "payment",
+                            "title": "結果を照会",
+                            "tags": ["再試行"]
+                          },
+                          {
+                            "kind": "message",
+                            "id": "reschedule",
+                            "from": "refund",
+                            "to": "queue",
+                            "title": "未処理なら再試行を予約",
+                            "style": "async",
+                            "tags": ["再試行"]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            </script>
+          </artifact-sequence-diagram>
+
+          <h3>データの変更</h3>
+          <p>注文の状態に <code>refund_pending</code> を足し、返金の記録を別テーブルに持つ。</p>
+          <artifact-er-diagram id="cancel-schema" class="diagram" heading="ERD" subject="注文と返金">
+            <script type="application/json">
+              {
+                "before": {
+                  "tables": [
+                    {
+                      "id": "orders",
+                      "name": "注文",
+                      "fields": [
+                        { "id": "id", "type": "uuid", "key": "PK" },
+                        { "id": "status", "type": "varchar" },
+                        { "id": "paid_at", "type": "timestamptz", "nullable": true }
+                      ]
+                    }
+                  ]
+                },
+                "after": {
+                  "tables": [
+                    {
+                      "id": "orders",
+                      "name": "注文",
+                      "fields": [
+                        { "id": "id", "type": "uuid", "key": "PK" },
+                        { "id": "status", "type": "order_status" },
+                        { "id": "paid_at", "type": "timestamptz", "nullable": true },
+                        { "id": "cancelled_at", "type": "timestamptz", "nullable": true }
+                      ]
+                    },
+                    {
+                      "id": "refunds",
+                      "name": "返金",
+                      "fields": [
+                        { "id": "id", "type": "uuid", "key": "PK" },
+                        { "id": "order_id", "type": "uuid", "key": "FK", "ref": "orders.id" },
+                        { "id": "idempotency_key", "type": "varchar", "key": "UQ" },
+                        { "id": "amount", "type": "integer" },
+                        { "id": "status", "type": "refund_status" },
+                        { "id": "completed_at", "type": "timestamptz", "nullable": true }
+                      ]
+                    }
+                  ]
+                }
+              }
+            </script>
+          </artifact-er-diagram>
+        </section>
+
+        <section>
+          <div class="head">
+            <h2>検討した代替案</h2>
+            <button type="button" data-artifact-comment="section:alternatives">このセクションにコメント</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>案</th>
+                <th>やり方</th>
+                <th>見送った理由</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>A. 同期で返金</td>
+                <td>キャンセル API の中で返金まで完了させる</td>
+                <td>決済代行のタイムアウトがそのままキャンセルの失敗になる</td>
+              </tr>
+              <tr class="is-chosen">
+                <td>B. 返金待ちを挟む<span class="badge">採用</span></td>
+                <td>注文を「返金待ち」にして即応答し、返金はワーカーで進める</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td>C. 申請と承認</td>
+                <td>キャンセル申請として受け、オペレーターが承認する</td>
+                <td>人手が律速になり、出荷前に間に合わない</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <div class="head">
+            <h2>未決事項</h2>
+            <button type="button" data-artifact-comment="section:open-questions">このセクションにコメント</button>
+          </div>
+          <ol>
+            <li>返金が一定時間失敗し続けたとき、「返金待ち」のまま残すか、オペレーター対応の状態に移すか。</li>
+            <li>キャンセル受付の締め切りを「出荷指示前」ではなく「出荷予定の N 時間前」にするか。</li>
+          </ol>
+        </section>
+      </div>
+    </artifact-plain>
+  </body>
+</html>
