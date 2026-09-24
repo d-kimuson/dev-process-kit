@@ -20,7 +20,7 @@ Humans have little context and do not read long text well.
 1. Get the latest version: the `version` of <https://registry.npmjs.org/dev-process-kit/latest>. Use that exact version everywhere below.
 2. Read the docs of that version at its Git tag: `https://raw.githubusercontent.com/d-kimuson/dev-process-kit/v<version>/docs/index.md`.
 3. Pick one template (and any components) and read only their pages: `…/v<version>/docs/templates/<name>.md` and `…/v<version>/docs/components/<name>.md`.
-4. Write the HTML in the user's language and give the user the file. Load the bundle from jsDelivr with the version pinned — `https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/<name>.js` — never `@latest`: the page has to keep working after a new release. jsDelivr is also what a Claude Artifact is allowed to load scripts from.
+4. Write the HTML in the user's language and give the user the file. Load the bundle from jsDelivr with the version pinned — `https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/<name>.js` — never `@latest`: the page has to keep working after a new release. When you publish the page as a Claude Artifact, write it as [references/claude-artifact.md](references/claude-artifact.md) says.
 5. On a brief, apply it to the base data and answer the comments in the next version.
 
 | Agree on                                  | Template                         |
