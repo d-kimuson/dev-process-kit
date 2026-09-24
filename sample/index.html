@@ -4,25 +4,54 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>dev-process-kit — Samples</title>
+    <script>
+      // Resolve the color scheme before the first paint, the way templates do: the reader's
+      // toggle (shared with every template page of the origin), else the OS preference.
+      try {
+        const stored = JSON.parse(localStorage.getItem('dev-process-kit:color-scheme') ?? 'null');
+        if (stored === 'light' || stored === 'dark') document.documentElement.dataset.theme = stored;
+      } catch {
+        /* no stored choice */
+      }
+    </script>
     <!-- The Components section renders live diagrams, so the catalog loads the components entry too. -->
     <script type="module" src="https://dev-process-kit.localhost/components.js"></script>
     <style>
-      /* Same tokens as the framework chrome (src/core/theme.ts), so the catalog looks like what it links to. */
+      /*
+       * Same tokens as the framework chrome (src/core/theme.ts), so the catalog looks like what it links to.
+       * `color-scheme` picks the light or dark value; the diagram previews follow it too.
+       */
       :root {
-        --paper: #fafbfc;
-        --paper-raised: #ffffff;
-        --paper-sunken: #f3f5f8;
-        --ink: #1a1d24;
-        --ink-soft: #4d5566;
-        --ink-faint: #7c8599;
-        --rule: rgba(20, 28, 44, 0.08);
-        --rule-strong: rgba(20, 28, 44, 0.14);
-        --blue: #3366cc;
-        --blue-soft: rgba(51, 102, 204, 0.08);
+        color-scheme: light dark;
+        --paper: light-dark(#fafbfc, #15171c);
+        --paper-raised: light-dark(#ffffff, #1d2027);
+        --paper-sunken: light-dark(#f3f5f8, #111317);
+        --ink: light-dark(#1a1d24, #e6e9ef);
+        --ink-soft: light-dark(#4d5566, #aeb5c2);
+        --ink-faint: light-dark(#7c8599, #7f8798);
+        --rule: light-dark(rgba(20, 28, 44, 0.08), rgba(222, 230, 245, 0.09));
+        --rule-strong: light-dark(rgba(20, 28, 44, 0.14), rgba(222, 230, 245, 0.16));
+        --rule-hover: light-dark(rgba(20, 28, 44, 0.22), rgba(222, 230, 245, 0.26));
+        --blue: light-dark(#3366cc, #6f9bf0);
+        --blue-soft: light-dark(rgba(51, 102, 204, 0.08), rgba(111, 155, 240, 0.15));
+        --shade: light-dark(rgb(20, 28, 44), rgb(0, 0, 0));
+        --focus: 0 0 0 3px color-mix(in srgb, var(--blue) 28%, transparent);
         --body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
-        --shadow-sm: 0 1px 2px rgba(20, 28, 44, 0.06), 0 2px 8px -2px rgba(20, 28, 44, 0.12);
-        --shadow: 0 1px 3px rgba(20, 28, 44, 0.06), 0 8px 24px -8px rgba(20, 28, 44, 0.18);
+        --shadow-sm:
+          0 1px 2px color-mix(in srgb, var(--shade) 6%, transparent),
+          0 2px 8px -2px color-mix(in srgb, var(--shade) 12%, transparent);
+        --shadow:
+          0 1px 3px color-mix(in srgb, var(--shade) 6%, transparent),
+          0 8px 24px -8px color-mix(in srgb, var(--shade) 18%, transparent);
+      }
+
+      :root[data-theme='light'] {
+        color-scheme: light;
+      }
+
+      :root[data-theme='dark'] {
+        color-scheme: dark;
       }
 
       *,
@@ -80,6 +109,7 @@
       .brand {
         font-weight: 650;
         color: var(--ink);
+        white-space: nowrap;
       }
 
       .brand small {
@@ -106,6 +136,56 @@
         text-decoration: none;
       }
 
+      /* Language and theme, shaped like the template header's controls. */
+      .prefs {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .lang-select,
+      .theme-toggle {
+        height: 30px;
+        border: 1px solid var(--rule);
+        border-radius: 999px;
+        background: var(--paper-sunken);
+        color: var(--ink-soft);
+        cursor: pointer;
+        transition:
+          color 160ms ease,
+          border-color 160ms ease;
+      }
+
+      .lang-select {
+        padding: 0 10px;
+        font: inherit;
+        font-size: 12px;
+      }
+
+      .theme-toggle {
+        display: inline-grid;
+        place-items: center;
+        width: 30px;
+        padding: 0;
+      }
+
+      .theme-toggle svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      .lang-select:hover,
+      .theme-toggle:hover {
+        color: var(--ink);
+        border-color: var(--rule-hover);
+      }
+
+      .lang-select:focus-visible,
+      .theme-toggle:focus-visible {
+        outline: none;
+        box-shadow: var(--focus);
+      }
+
       /* Repository and package, as icons after the section links. */
       .external {
         display: flex;
@@ -130,7 +210,7 @@
 
       .external a:focus-visible {
         outline: none;
-        box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.25);
+        box-shadow: var(--focus);
       }
 
       .external svg {
@@ -278,7 +358,7 @@
 
       .shell .shell-main {
         background: transparent;
-        border: 1.5px dashed rgba(51, 102, 204, 0.45);
+        border: 1.5px dashed color-mix(in srgb, var(--blue) 45%, transparent);
         color: var(--blue);
       }
 
@@ -298,13 +378,13 @@
 
       a.card:hover {
         text-decoration: none;
-        border-color: rgba(51, 102, 204, 0.4);
+        border-color: color-mix(in srgb, var(--blue) 40%, transparent);
         box-shadow: var(--shadow);
       }
 
       a.card:focus-visible {
         outline: none;
-        box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.25);
+        box-shadow: var(--focus);
       }
 
       /* A live, scaled-down render of the sample. The script sets --scale from the box width. */
@@ -312,7 +392,7 @@
         position: relative;
         aspect-ratio: 16 / 10;
         overflow: hidden;
-        background: #ffffff;
+        background: var(--paper);
         border-bottom: 1px solid var(--rule);
       }
 
@@ -472,7 +552,7 @@
 
       .picker button:focus-visible {
         outline: none;
-        box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.25);
+        box-shadow: var(--focus);
       }
 
       .picker b {
@@ -529,14 +609,20 @@
       }
 
       @media (max-width: 760px) {
+        .bar .wrap {
+          gap: 12px;
+        }
+
         .bar nav {
           display: none;
         }
 
-        .external {
+        .prefs {
           margin-left: auto;
-          padding-left: 0;
-          border-left: 0;
+        }
+
+        .external {
+          padding-left: 8px;
         }
 
         .loop {
@@ -579,13 +665,20 @@
     <header class="bar">
       <div class="wrap">
         <a class="brand" href="./">dev-process-kit<small>0.0.1</small></a>
-        <nav aria-label="セクション">
+        <nav aria-label="セクション" data-i18n-aria="nav">
           <a href="#templates">Templates</a>
           <a href="#patterns">Patterns</a>
           <a href="#components">Components</a>
-          <a href="#usage">使い方</a>
+          <a href="#usage" data-i18n="navUsage">使い方</a>
           <a href="#docs">Docs</a>
         </nav>
+        <div class="prefs">
+          <select class="lang-select" id="lang-select" aria-label="言語" title="言語" data-i18n-aria="language">
+            <option value="en" lang="en">English</option>
+            <option value="ja" lang="ja">日本語</option>
+          </select>
+          <button class="theme-toggle" id="theme-toggle" type="button"></button>
+        </div>
         <div class="external">
           <a href="https://github.com/d-kimuson/dev-process-kit" aria-label="GitHub repository" title="GitHub">
             <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -607,33 +700,37 @@
 
     <main class="wrap">
       <div class="intro">
-        <h1>Agent が書く単一 HTML を、人がレビューして Agent に返す</h1>
-        <p class="lede">
+        <h1 data-i18n="title">Agent が書く単一 HTML を、人がレビューして Agent に返す</h1>
+        <p class="lede" data-i18n="lede">
           dev-process-kit は、Agent に生成させる単一 HTML
           ページ（プロトタイプ、ストーリーマップ、イベントストーミングなど）に共通の構造とレビューの仕組みを与えるフレームワークです。ビルド不要で、script
           タグ 1 つで読み込めます。
         </p>
-        <ol class="loop" aria-label="レビューの流れ">
+        <ol class="loop" aria-label="レビューの流れ" data-i18n-aria="loop">
           <li>
-            <b>書く</b>
-            <span>Agent がテンプレートに沿って単一 HTML を書く。中身のデータは JSON で HTML に埋め込む。</span>
+            <b data-i18n="writeTitle">書く</b>
+            <span data-i18n="writeBody"
+              >Agent がテンプレートに沿って単一 HTML を書く。中身のデータは JSON で HTML に埋め込む。</span
+            >
           </li>
           <li>
-            <b>レビューする</b>
-            <span
+            <b data-i18n="reviewTitle">レビューする</b>
+            <span data-i18n="reviewBody"
               >人がブラウザ上でコメントや構造の変更を残す。下書きは LocalStorage に残り、再読込しても消えない。</span
             >
           </li>
           <li>
-            <b>返す</b>
-            <span>Copy brief で変更要求を Agent に渡し、HTML を作り直してもらう。反映済みの下書きは自動で消える。</span>
+            <b data-i18n="returnTitle">返す</b>
+            <span data-i18n="returnBody"
+              >Copy brief で変更要求を Agent に渡し、HTML を作り直してもらう。反映済みの下書きは自動で消える。</span
+            >
           </li>
         </ol>
       </div>
 
       <section id="templates">
         <h2>Templates</h2>
-        <p>
+        <p data-i18n="templatesLede">
           開発プロセスの成果物ごとのテンプレートです。Agent
           はデータを書くだけで、画面とレビューはテンプレートが用意します。
         </p>
@@ -647,7 +744,9 @@
                 <h3>Event Storming</h3>
                 <code>dpk-template-event-storming</code>
               </div>
-              <p>ドメインイベントを時系列に並べ、コマンド・集約・ポリシーとの因果をたどる。</p>
+              <p data-i18n="eventStorming">
+                ドメインイベントを時系列に並べ、コマンド・集約・ポリシーとの因果をたどる。
+              </p>
             </div>
           </a>
           <a class="card" href="usm.html">
@@ -657,7 +756,7 @@
                 <h3>User Story Mapping</h3>
                 <code>dpk-template-usm</code>
               </div>
-              <p>Activity と Step の背骨の下に、リリースごとにユーザーストーリーを並べる。</p>
+              <p data-i18n="usm">Activity と Step の背骨の下に、リリースごとにユーザーストーリーを並べる。</p>
             </div>
           </a>
           <a class="card" href="example-mapping.html">
@@ -669,7 +768,7 @@
                 <h3>Example Mapping</h3>
                 <code>dpk-template-example-mapping</code>
               </div>
-              <p>ストーリーごとにルール・具体例・疑問を積み、要件の抜けを洗い出す。</p>
+              <p data-i18n="exampleMapping">ストーリーごとにルール・具体例・疑問を積み、要件の抜けを洗い出す。</p>
             </div>
           </a>
           <a class="card" href="grill.html">
@@ -679,7 +778,7 @@
                 <h3>Visually Grill</h3>
                 <code>dpk-template-grill</code>
               </div>
-              <p>設計を図で示しながら質問を投げ、回答とコメントを Agent に返す。</p>
+              <p data-i18n="grill">設計を図で示しながら質問を投げ、回答とコメントを Agent に返す。</p>
             </div>
           </a>
           <a class="card" href="prototype.html">
@@ -691,7 +790,7 @@
                 <h3>UX Prototype</h3>
                 <code>dpk-template-prototype</code>
               </div>
-              <p>画面の流れをストーリーとステップに分けて並べ、プレビューで確かめる。</p>
+              <p data-i18n="prototype">画面の流れをストーリーとステップに分けて並べ、プレビューで確かめる。</p>
             </div>
           </a>
           <a class="card" href="#patterns">
@@ -707,7 +806,7 @@
                 <h3>Plain</h3>
                 <code>dpk-template-plain</code>
               </div>
-              <p>ヘッダーとレビューだけを持ち、中身は自由に書く。</p>
+              <p data-i18n="plain">ヘッダーとレビューだけを持ち、中身は自由に書く。</p>
             </div>
           </a>
         </div>
@@ -715,7 +814,9 @@
 
       <section id="patterns">
         <h2>Patterns</h2>
-        <p>テンプレートに当たらない資料は、Plain に図のコンポーネントと自由な HTML を組み合わせて作ります。</p>
+        <p data-i18n="patternsLede">
+          テンプレートに当たらない資料は、Plain に図のコンポーネントと自由な HTML を組み合わせて作ります。
+        </p>
         <div class="grid">
           <a class="card" href="design-doc.html">
             <div class="thumb">
@@ -724,7 +825,9 @@
             <div class="card-body">
               <div class="card-head"><h3>Design Doc</h3></div>
               <div class="recipe"><span>Plain</span>+<span>Components</span></div>
-              <p>注文キャンセルと返金の設計を、状態遷移図・シーケンス図・ER 図を添えた Design Doc にまとめる。</p>
+              <p data-i18n="designDoc">
+                注文キャンセルと返金の設計を、状態遷移図・シーケンス図・ER 図を添えた Design Doc にまとめる。
+              </p>
             </div>
           </a>
           <a class="card" href="architecture.html">
@@ -732,9 +835,11 @@
               <iframe src="architecture.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
             </div>
             <div class="card-body">
-              <div class="card-head"><h3>アーキテクチャ設計</h3></div>
+              <div class="card-head"><h3 data-i18n="architectureTitle">アーキテクチャ設計</h3></div>
               <div class="recipe"><span>Plain</span>+<span>Components</span></div>
-              <p>注文システムの構成とインフラを、アーキテクチャ図・依存グラフ・シーケンス図と表で示す。</p>
+              <p data-i18n="architecture">
+                注文システムの構成とインフラを、アーキテクチャ図・依存グラフ・シーケンス図と表で示す。
+              </p>
             </div>
           </a>
           <a class="card" href="ddd-primer.html">
@@ -742,9 +847,9 @@
               <iframe src="ddd-primer.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
             </div>
             <div class="card-body">
-              <div class="card-head"><h3>概念の解説</h3></div>
+              <div class="card-head"><h3 data-i18n="primerTitle">概念の解説</h3></div>
               <div class="recipe"><span>Plain</span>+<span>Components</span>+<span>Custom</span></div>
-              <p>DDD を、マインドマップ・コンテキストマップ・自作の表と図で説明する。</p>
+              <p data-i18n="primer">DDD を、マインドマップ・コンテキストマップ・自作の表と図で説明する。</p>
             </div>
           </a>
         </div>
@@ -752,29 +857,29 @@
 
       <section id="components">
         <h2>Components</h2>
-        <p>Plain やテンプレートの中に置ける図のコンポーネントです。</p>
+        <p data-i18n="componentsLede">Plain やテンプレートの中に置ける図のコンポーネントです。</p>
         <div class="viewer">
-          <div class="picker" aria-label="コンポーネント">
+          <div class="picker" aria-label="コンポーネント" data-i18n-aria="picker">
             <button type="button" data-tag="dpk-component-mind-map" data-doc="mind-map">
-              <b>Mind map</b><span>1 つのテーマがどう分かれるか</span>
+              <b>Mind map</b><span data-i18n="mindMap">1 つのテーマがどう分かれるか</span>
             </button>
             <button type="button" data-tag="dpk-component-state-diagram" data-doc="state-diagram">
-              <b>State diagram</b><span>どんな状態があり、何で移るか</span>
+              <b>State diagram</b><span data-i18n="stateDiagram">どんな状態があり、何で移るか</span>
             </button>
             <button type="button" data-tag="dpk-component-sequence-diagram" data-doc="sequence-diagram">
-              <b>Sequence diagram</b><span>参加者がどの順でやりとりするか</span>
+              <b>Sequence diagram</b><span data-i18n="sequenceDiagram">参加者がどの順でやりとりするか</span>
             </button>
             <button type="button" data-tag="dpk-component-dependency-graph" data-doc="dependency-graph">
-              <b>Dependency graph</b><span>何が何に依存し、どこが循環するか</span>
+              <b>Dependency graph</b><span data-i18n="dependencyGraph">何が何に依存し、どこが循環するか</span>
             </button>
             <button type="button" data-tag="dpk-component-er-diagram" data-doc="er-diagram">
-              <b>ER diagram</b><span>2 つのスキーマの間で何が変わったか</span>
+              <b>ER diagram</b><span data-i18n="erDiagram">2 つのスキーマの間で何が変わったか</span>
             </button>
             <button type="button" data-tag="dpk-component-architecture-map" data-doc="architecture-map">
-              <b>Architecture map</b><span>どのサービスがどの境界にあるか</span>
+              <b>Architecture map</b><span data-i18n="architectureMap">どのサービスがどの境界にあるか</span>
             </button>
             <button type="button" data-tag="dpk-component-kanban" data-doc="kanban">
-              <b>Kanban</b><span>どの作業がどこまで進んでいるか</span>
+              <b>Kanban</b><span data-i18n="kanban">どの作業がどこまで進んでいるか</span>
             </button>
           </div>
           <div class="preview">
@@ -788,8 +893,8 @@
       </section>
 
       <section id="usage">
-        <h2>使い方</h2>
-        <p>バージョンを固定した URL から、使うテンプレートの entry を 1 つ読み込みます。</p>
+        <h2 data-i18n="usageTitle">使い方</h2>
+        <p data-i18n="usageLede">バージョンを固定した URL から、使うテンプレートの entry を 1 つ読み込みます。</p>
         <div class="usage">
           <pre><code>&lt;script type="module"
   src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/templates/prototype.js"&gt;&lt;/script&gt;
@@ -797,7 +902,9 @@
 &lt;dpk-template-prototype storage-key="my-flow"&gt;
   &lt;script type="application/json"&gt;{ "activities": [] }&lt;/script&gt;
 &lt;/dpk-template-prototype&gt;</code></pre>
-          <p>図を使うときは <code>components.js</code> も読み込みます（全部入りは <code>index.js</code>）。</p>
+          <p data-i18n="usageNote">
+            図を使うときは <code>components.js</code> も読み込みます（全部入りは <code>index.js</code>）。
+          </p>
         </div>
       </section>
 
@@ -824,6 +931,168 @@
     </main>
 
     <script>
+      // ---- language and theme: the same choices, stored under the same keys, as the template header.
+      // A pick applies to every page of the origin, so the thumbnails below follow it too.
+
+      const LOCALE_KEY = 'dev-process-kit:locale';
+      const SCHEME_KEY = 'dev-process-kit:color-scheme';
+
+      const readStored = (key, allowed) => {
+        try {
+          const value = JSON.parse(localStorage.getItem(key) ?? 'null');
+          return allowed.includes(value) ? value : null;
+        } catch {
+          return null;
+        }
+      };
+
+      // Picking the default forgets the choice, so the page follows its own default again.
+      const store = (key, value, fallback) => {
+        try {
+          if (value === fallback) localStorage.removeItem(key);
+          else localStorage.setItem(key, JSON.stringify(value));
+        } catch {
+          /* this page load only */
+        }
+      };
+
+      // English text for everything tagged with data-i18n / data-i18n-aria; the Japanese is the markup itself.
+      const EN = {
+        nav: 'Sections',
+        navUsage: 'Usage',
+        language: 'Language',
+        title: 'An agent writes a single HTML page; people review it and hand it back',
+        lede: 'dev-process-kit gives the single HTML pages you have an agent generate (prototypes, story maps, event storming and more) a shared structure and a way to review them. No build step: one script tag loads it.',
+        loop: 'The review loop',
+        writeTitle: 'Write',
+        writeBody: 'The agent writes a single HTML page from a template, with its data embedded in the HTML as JSON.',
+        reviewTitle: 'Review',
+        reviewBody:
+          'People leave comments and structural changes in the browser. The draft stays in LocalStorage and survives a reload.',
+        returnTitle: 'Hand back',
+        returnBody:
+          'Copy brief hands the requested changes to the agent, which rewrites the HTML. Drafts it has applied clear themselves.',
+        templatesLede:
+          'One template per development-process artifact. The agent only writes the data; the template provides the screen and the review.',
+        eventStorming:
+          'Lay domain events out in time and trace their causes through commands, aggregates and policies.',
+        usm: 'Line user stories up by release under a backbone of activities and steps.',
+        exampleMapping: 'Stack rules, examples and questions under each story to find the gaps in the requirements.',
+        grill:
+          'Ask questions while showing the design as diagrams, and hand the answers and comments back to the agent.',
+        prototype: 'Lay screen flows out as stories and steps, and try them in a preview.',
+        plain: 'Only a header and the review; write whatever you like inside.',
+        patternsLede: 'For material no template fits, combine Plain with the diagram components and your own HTML.',
+        designDoc:
+          'The design of order cancellation and refunds as a design doc, with state, sequence and ER diagrams.',
+        architectureTitle: 'Architecture design',
+        architecture:
+          "The order system's structure and infrastructure, shown with an architecture map, a dependency graph, a sequence diagram and tables.",
+        primerTitle: 'Explaining a concept',
+        primer: 'DDD, explained with a mind map, a context map, and tables and diagrams made by hand.',
+        componentsLede: 'Diagram components to place inside Plain or a template.',
+        picker: 'Components',
+        mindMap: 'How one theme branches out',
+        stateDiagram: 'Which states exist and what moves between them',
+        sequenceDiagram: 'In what order the participants talk',
+        dependencyGraph: 'What depends on what, and where it cycles',
+        erDiagram: 'What changed between two schemas',
+        architectureMap: 'Which service sits in which boundary',
+        kanban: 'How far each piece of work has come',
+        usageTitle: 'Usage',
+        usageLede: 'Load the entry of the template you use, from a version-pinned URL.',
+        usageNote: 'Load <code>components.js</code> too when you use diagrams (<code>index.js</code> has everything).',
+      };
+
+      const JA = Object.fromEntries([
+        ...[...document.querySelectorAll('[data-i18n]')].map((el) => [el.dataset.i18n, el.innerHTML]),
+        ...[...document.querySelectorAll('[data-i18n-aria]')].map((el) => [
+          el.dataset.i18nAria,
+          el.getAttribute('aria-label'),
+        ]),
+      ]);
+
+      const TEXT = {
+        en: {
+          ...EN,
+          previewFailed: 'Could not load the preview.',
+          useLight: 'Switch to light theme',
+          useDark: 'Switch to dark theme',
+        },
+        ja: {
+          ...JA,
+          previewFailed: 'プレビューを読み込めませんでした。',
+          useLight: 'ライトテーマにする',
+          useDark: 'ダークテーマにする',
+        },
+      };
+
+      const AUTHORED_LOCALE = document.documentElement.lang === 'en' ? 'en' : 'ja';
+      let locale = readStored(LOCALE_KEY, ['en', 'ja']) ?? AUTHORED_LOCALE;
+
+      const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+      const osScheme = () => (darkQuery.matches ? 'dark' : 'light');
+      let scheme = readStored(SCHEME_KEY, ['light', 'dark']) ?? osScheme();
+
+      const langSelect = document.getElementById('lang-select');
+      const themeToggle = document.getElementById('theme-toggle');
+      const ICONS = {
+        sun: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="2.75" /><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.06 1.06M11.54 11.54l1.06 1.06M3.4 12.6l1.06-1.06M11.54 4.46l1.06-1.06" /></svg>',
+        moon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 016.4 2.5a5.75 5.75 0 107.1 7.1z" /></svg>',
+      };
+
+      const renderLocale = () => {
+        const text = TEXT[locale];
+        document.documentElement.lang = locale;
+        for (const el of document.querySelectorAll('[data-i18n]')) el.innerHTML = text[el.dataset.i18n];
+        for (const el of document.querySelectorAll('[data-i18n-aria]')) {
+          el.setAttribute('aria-label', text[el.dataset.i18nAria]);
+          if (el.hasAttribute('title')) el.setAttribute('title', text[el.dataset.i18nAria]);
+        }
+        langSelect.value = locale;
+        // The diagram previews resolve the closest lang again on this event, like inside a template.
+        document.dispatchEvent(new Event('dpk-locale-change'));
+      };
+
+      const renderScheme = () => {
+        document.documentElement.dataset.theme = scheme;
+        const dark = scheme === 'dark';
+        const label = dark ? TEXT[locale].useLight : TEXT[locale].useDark;
+        themeToggle.innerHTML = dark ? ICONS.sun : ICONS.moon;
+        themeToggle.setAttribute('aria-label', label);
+        themeToggle.title = label;
+      };
+
+      // The thumbnails read both choices when they load: reload them to show the new one.
+      const reloadThumbnails = () => {
+        for (const frame of document.querySelectorAll('.thumb iframe'))
+          frame.setAttribute('src', frame.getAttribute('src'));
+      };
+
+      langSelect.addEventListener('change', () => {
+        locale = langSelect.value === 'en' ? 'en' : 'ja';
+        store(LOCALE_KEY, locale, AUTHORED_LOCALE);
+        renderLocale();
+        renderScheme();
+        reloadThumbnails();
+      });
+
+      themeToggle.addEventListener('click', () => {
+        scheme = scheme === 'dark' ? 'light' : 'dark';
+        store(SCHEME_KEY, scheme, osScheme());
+        renderScheme();
+        reloadThumbnails();
+      });
+
+      darkQuery.addEventListener('change', () => {
+        if (readStored(SCHEME_KEY, ['light', 'dark']) !== null) return;
+        scheme = osScheme();
+        renderScheme();
+      });
+
+      renderLocale();
+      renderScheme();
+
       // Scale each live preview (rendered at 1280px wide) down to its card.
       const PREVIEW_WIDTH = 1280;
       const observer = new ResizeObserver((entries) => {
@@ -855,7 +1124,9 @@
         if (shown !== button) return;
         const original = diagrams?.querySelector(tag);
         if (!original) {
-          stage.innerHTML = '<p>プレビューを読み込めませんでした。</p>';
+          const message = document.createElement('p');
+          message.textContent = TEXT[locale].previewFailed;
+          stage.replaceChildren(message);
           return;
         }
         const element = document.importNode(original, true);
