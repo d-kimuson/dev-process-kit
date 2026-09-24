@@ -35,8 +35,12 @@ export const buildAgentBrief = <S>(
   frameworkVersion: string,
 ): string => {
   const { actions, state } = snapshot;
-  const comments = actions.filter((action) => action.type === COMMENT_ACTION);
-  const changes = actions.filter((action) => action.type !== COMMENT_ACTION);
+  // Stale actions stay in the reader's draft (interpretive drafts) but no longer
+  // fit the base, so they are reported apart instead of as pending work.
+  const staleIds = new Set(snapshot.stale.map((entry) => entry.action.id));
+  const pending = actions.filter((action) => !staleIds.has(action.id));
+  const comments = pending.filter((action) => action.type === COMMENT_ACTION);
+  const changes = pending.filter((action) => action.type !== COMMENT_ACTION);
   const lines: string[] = [];
 
   lines.push(`# Review draft — ${definition.label}`);
@@ -90,6 +94,22 @@ export const buildAgentBrief = <S>(
 
   if (changes.length === 0 && comments.length === 0) {
     lines.push('_No pending draft actions._');
+    lines.push('');
+  }
+
+  if (snapshot.stale.length > 0) {
+    lines.push(`## Not applicable to the current base (${snapshot.stale.length})`);
+    lines.push('');
+    lines.push(
+      'These actions were made against an earlier base and no longer fit it. Do not apply them; ' +
+        'mention them if they still matter. The reader can remove them from the review rail.',
+    );
+    lines.push('');
+    for (const [index, { action, reason }] of snapshot.stale.entries()) {
+      const description = definition.describe(action, state, snapshot.base);
+      const detail = action.type === COMMENT_ACTION ? commentBody(action) : description.title;
+      lines.push(`${index + 1}. \`${action.type}\` on \`${targetRef(action.target)}\` (${reason}) — ${detail}`);
+    }
     lines.push('');
   }
 

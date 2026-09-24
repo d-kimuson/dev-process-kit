@@ -124,6 +124,12 @@ describe('component element actions', () => {
   it('tells the agent which component JSON a component action changes', () => {
     const controller = makeController();
     controller.dispatch(addTopic());
+    const [action] = controller.actions;
+    if (!action) throw new Error('missing action');
+    controller.setComponentSnapshot({
+      targets,
+      providers: [{ id: 'map', results: [{ id: action.id, title: 'Add topic', tone: 'create' }] }],
+    });
     const brief = buildAgentBrief(
       {
         base: controller.base,
