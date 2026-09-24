@@ -96,9 +96,10 @@ export * as eventStorming from './templates/event-storming';
 export * as exampleMapping from './templates/example-mapping';
 export * as grill from './templates/grill';
 export * as plain from './templates/plain';
+export * as slides from './templates/slides';
 
 /** The template elements this entry registers, for `window.devProcessKit`. */
-const TEMPLATES = ['prototype', 'usm', 'event-storming', 'example-mapping', 'grill', 'plain'] as const;
+const TEMPLATES = ['prototype', 'usm', 'event-storming', 'example-mapping', 'grill', 'plain', 'slides'] as const;
 
 /** Registers every `dpk-*` custom element. Idempotent. */
 export const registerAllElements = (): void => {

@@ -16,11 +16,11 @@ The template owns meaning: what a "step", a "story" or a sticky note _is_, and w
 
 Load one entry from jsDelivr, with the version pinned: a page has to keep working when a new version is published, so never generate HTML against a floating URL such as `@latest`. `<version>` below is the version these docs belong to — the `v<version>` Git tag you are reading them at.
 
-| Entry                                                                                                                                                        | Use it when                                                                           |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `templates/prototype.js` / `templates/usm.js` / `templates/event-storming.js` / `templates/example-mapping.js` / `templates/grill.js` / `templates/plain.js` | the page is that template (`plain`: none of the others fits — header and review only) |
-| `components.js`                                                                                                                                              | the page uses the review rail or the diagram elements without a template              |
-| `index.js`                                                                                                                                                   | one URL for everything                                                                |
+| Entry                                                                                                                                                                                | Use it when                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `templates/prototype.js` / `templates/usm.js` / `templates/event-storming.js` / `templates/example-mapping.js` / `templates/grill.js` / `templates/plain.js` / `templates/slides.js` | the page is that template (`plain`: none of the others fits — header and review only) |
+| `components.js`                                                                                                                                                                      | the page uses the review rail or the diagram elements without a template              |
+| `index.js`                                                                                                                                                                           | one URL for everything                                                                |
 
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/prototype.js"></script>
@@ -226,9 +226,9 @@ Inside a Claude Artifact published with the `comments` capability, the rail also
 
 ## Read next
 
-| Question                          | Read                                                                                            |
-| --------------------------------- | ----------------------------------------------------------------------------------------------- |
-| The template I am actually using  | `docs/templates/<name>.md` (prototype / usm / event-storming / example-mapping / grill / plain) |
-| The component I am actually using | `docs/components/<name>.md` (comment-panel / diagrams / …)                                      |
+| Question                          | Read                                                                                                     |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| The template I am actually using  | `docs/templates/<name>.md` (prototype / usm / event-storming / example-mapping / grill / plain / slides) |
+| The component I am actually using | `docs/components/<name>.md` (comment-panel / diagrams / …)                                               |
 
 Read the page for what you are actually using, plus this one.

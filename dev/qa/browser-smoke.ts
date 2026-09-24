@@ -32,6 +32,7 @@ const SAMPLES = [
   ['design-doc', 'plain'],
   ['architecture', 'plain'],
   ['ddd-primer', 'plain'],
+  ['slides', 'slides'],
 ] as const;
 const SESSION = process.env['AGENT_BROWSER_SESSION'] ?? 'browser-ops';
 const PROFILE = process.env['AGENT_BROWSER_PROFILE'] ?? `${process.env['HOME']}/.config/agent-browser/profiles/shared`;

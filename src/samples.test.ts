@@ -12,6 +12,7 @@ import { parseStateData } from './components/state-diagram/model';
 import { parseExampleMappingBase } from './templates/example-mapping/model';
 import { parseGrillBase } from './templates/grill/model';
 import { parsePlainBase } from './templates/plain/model';
+import { parseSlidesBase } from './templates/slides/model';
 
 /**
  * The samples are what a reader opens first, and their data is hand-written JSON
@@ -132,5 +133,19 @@ describe('sample pages', () => {
     for (const ref of referenced) expect(refs.has(ref), `${ref} has no question`).toBe(true);
     for (const ref of refs) expect(referenced).toContain(ref);
     expect(grill.questions.every((question) => question.options.length > 0)).toBe(true);
+  });
+
+  it('slides.html explains a mechanism through the slides template', () => {
+    const html = sample('slides.html');
+    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/templates\/slides\.js"\s*><\/script>/);
+    const deck = parseSlidesBase(jsonChild(html, 'dpk-template-slides'));
+    expect(deck.title).not.toBe('');
+    expect(new Set(deck.slides.map((slide) => slide.layout))).toEqual(new Set(['title', 'section', 'content']));
+
+    // Every slide body is routed to a slide that exists.
+    const ids = new Set(deck.slides.map((slide) => slide.id));
+    const bodies = [...html.matchAll(/data-preview-id="([^"]*)"/g)].map((match) => match[1] ?? '');
+    expect(bodies.length).toBeGreaterThan(0);
+    for (const body of bodies) expect(ids.has(body), `${body} has no slide`).toBe(true);
   });
 });

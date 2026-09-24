@@ -82,14 +82,15 @@ dev-process-kit ships **templates**, which make up a whole page, and **component
 
 ### Templates
 
-| Template           | Element                        | What it is                                                                                                                                                  |
-| ------------------ | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| UX Prototype       | `dpk-template-prototype`       | `Activity › UserStory › Step › Preview[]`: one step is one page or experience state, with previews per viewport                                             |
-| User Story Mapping | `dpk-template-usm`             | The backbone (activity › step) as columns, milestones as rows                                                                                               |
-| Event Storming     | `dpk-template-event-storming`  | Sticky notes on swimlanes in timeline order, with causality links between them                                                                              |
-| Example Mapping    | `dpk-template-example-mapping` | One story per column, rules beneath it, examples beneath each rule, questions pinned to any of them                                                         |
-| Grill              | `dpk-template-grill`           | A review of questions over whatever you put in the main area: the questions are base data, the answers are draft actions, the badges sit on your own markup |
-| Plain              | `dpk-template-plain`           | For a page no other template fits: only the header and the review (comments) pipeline around your own markup                                                |
+| Template           | Element                        | What it is                                                                                                                                                       |
+| ------------------ | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UX Prototype       | `dpk-template-prototype`       | `Activity › UserStory › Step › Preview[]`: one step is one page or experience state, with previews per viewport                                                  |
+| User Story Mapping | `dpk-template-usm`             | The backbone (activity › step) as columns, milestones as rows                                                                                                    |
+| Event Storming     | `dpk-template-event-storming`  | Sticky notes on swimlanes in timeline order, with causality links between them                                                                                   |
+| Example Mapping    | `dpk-template-example-mapping` | One story per column, rules beneath it, examples beneath each rule, questions pinned to any of them                                                              |
+| Grill              | `dpk-template-grill`           | A review of questions over whatever you put in the main area: the questions are base data, the answers are draft actions, the badges sit on your own markup      |
+| Plain              | `dpk-template-plain`           | For a page no other template fits: only the header and the review (comments) pipeline around your own markup                                                     |
+| Slides             | `dpk-template-slides`          | A slide deck for explaining something step by step: slide titles and points are base data, richer bodies are your own markup, comments go on the slide on screen |
 
 ### Components
 

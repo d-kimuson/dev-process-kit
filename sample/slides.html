@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>楽観的ロックを 5 分で | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too. A generated page
+      loads the same files from jsDelivr instead.
+
+      An explainer deck: the slide titles, subtitles and points are base data,
+      and the slides that need more than text carry a body of their own markup
+      (a timeline, SQL, a flow, a table), sized in `em` so it scales with the slide.
+    -->
+    <script type="module" src="https://dev-process-kit.localhost/templates/slides.js"></script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-template-slides {
+        display: block;
+        height: 100dvh;
+      }
+
+      /*
+       * Everything below is author content inside the slide bodies. Sizes are in
+       * `em` so they scale with the slide.
+       */
+      .lost-update {
+        display: grid;
+        grid-template-columns: 5.5em 1fr 1fr;
+        gap: 0.35em 0.8em;
+        align-items: center;
+        max-width: 38em;
+      }
+      .lost-update .who {
+        font-weight: 650;
+        color: var(--dpk-ink);
+      }
+      .lost-update .head {
+        font-size: 0.8em;
+        color: var(--dpk-ink-faint);
+      }
+      .lost-update .cell {
+        padding: 0.35em 0.7em;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius-sm);
+        background: var(--dpk-paper-sunken);
+        font-size: 0.9em;
+      }
+      .lost-update .cell.lost {
+        border-color: var(--dpk-danger);
+        background: var(--dpk-danger-soft);
+        color: var(--dpk-ink);
+      }
+
+      .sql {
+        margin: 0;
+        padding: 0.9em 1.1em;
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper-sunken);
+        font-family: var(--dpk-mono);
+        font-size: 0.85em;
+        line-height: 1.6;
+        white-space: pre;
+        color: var(--dpk-ink);
+      }
+      .sql mark {
+        padding: 0 0.15em;
+        border-radius: 0.2em;
+        background: var(--dpk-accent-soft);
+        color: var(--dpk-accent-ink);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1.15fr;
+        align-items: center;
+        gap: 2.2em;
+        margin: 0.4em 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .flow li {
+        position: relative;
+      }
+      .flow li + li::before {
+        content: '→';
+        position: absolute;
+        top: 50%;
+        left: -1.6em;
+        color: var(--dpk-ink-faint);
+        transform: translateY(-50%);
+      }
+      .flow .step,
+      .flow .outcome {
+        display: grid;
+        align-content: start;
+        gap: 0.3em;
+        padding: 0.8em 1em;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper-sunken);
+        color: var(--dpk-ink);
+      }
+      .flow .outcomes {
+        display: grid;
+        gap: 0.7em;
+      }
+      .flow .outcome.ok {
+        border-color: var(--dpk-green);
+        background: var(--dpk-green-soft);
+      }
+      .flow .outcome.ng {
+        border-color: var(--dpk-danger);
+        background: var(--dpk-danger-soft);
+      }
+      .flow .actor {
+        font-size: 0.75em;
+        font-weight: 600;
+        color: var(--dpk-ink-faint);
+      }
+      .flow code {
+        font-family: var(--dpk-mono);
+        font-size: 0.85em;
+      }
+
+      .compare {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9em;
+      }
+      .compare th,
+      .compare td {
+        padding: 0.45em 0.8em;
+        border-bottom: 1px solid var(--dpk-rule);
+        text-align: left;
+        vertical-align: top;
+      }
+      .compare thead th {
+        font-size: 0.85em;
+        font-weight: 600;
+        color: var(--dpk-ink-faint);
+      }
+      .compare tbody th {
+        font-weight: 600;
+        color: var(--dpk-ink);
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-template-slides storage-key="sample-slides-optimistic-lock">
+      <script type="application/json">
+        {
+          "title": "楽観的ロックを 5 分で",
+          "slides": [
+            {
+              "id": "cover",
+              "layout": "title",
+              "title": "楽観的ロック",
+              "subtitle": "注文編集で起きた「黙って上書き」の再発防止策"
+            },
+            {
+              "id": "problem",
+              "title": "何が起きたか",
+              "points": [
+                "2 人の担当者が同じ注文を開いて編集した",
+                "後から保存した側が、先に保存された変更を黙って消した",
+                "どちらの保存もエラーにならず、誰も気づけない（Lost Update）"
+              ]
+            },
+            {
+              "id": "mechanism",
+              "layout": "section",
+              "title": "仕組み"
+            },
+            {
+              "id": "version",
+              "title": "行に version を持たせる",
+              "points": [
+                "読んだときの version を画面が覚えておく",
+                "更新は「version が変わっていなければ」を条件にする"
+              ]
+            },
+            {
+              "id": "flow",
+              "title": "更新の流れ",
+              "subtitle": "0 件更新を 409 Conflict として返すのが API の約束"
+            },
+            {
+              "id": "conflict-ux",
+              "title": "衝突したとき、画面は",
+              "points": [
+                "「ほかの人が先に更新しました」と伝え、入力は消さない",
+                "最新の内容を読み直してから、もう一度保存してもらう",
+                "自動マージはしない（何を優先するかは人が決める）"
+              ]
+            },
+            {
+              "id": "choice",
+              "layout": "section",
+              "title": "使い分け"
+            },
+            {
+              "id": "compare",
+              "title": "悲観的ロックとの比較",
+              "subtitle": "注文編集は衝突がまれで編集に数分かかるので、楽観的ロックが合う"
+            },
+            {
+              "id": "summary",
+              "title": "まとめ",
+              "points": [
+                "orders に version 列を足し、更新条件に入れる",
+                "0 件更新は 409 Conflict として返す",
+                "画面は入力を残したまま再読み込みを促す"
+              ]
+            },
+            {
+              "id": "decide",
+              "title": "決めてほしいこと",
+              "subtitle": "スライドの下のフォームからコメントで返してください",
+              "points": ["衝突したとき、入力を残すか", "最新の内容を自動で読み直すか"]
+            }
+          ]
+        }
+      </script>
+
+      <div slot="preview" data-preview-id="problem">
+        <div class="lost-update" role="table" aria-label="Lost Update の時系列">
+          <span></span>
+          <span class="head">10:00 読む</span>
+          <span class="head">10:05 保存</span>
+          <span class="who">佐藤</span>
+          <span class="cell">数量 3 を見る</span>
+          <span class="cell">住所を変更 → 保存</span>
+          <span class="who">鈴木</span>
+          <span class="cell">数量 3 を見る</span>
+          <span class="cell lost">数量を 5 に → 保存（住所の変更が消える）</span>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="version">
+        <pre class="sql">
+UPDATE orders
+   SET quantity = 5, <mark>version = version + 1</mark>
+ WHERE id = 42 <mark>AND version = 7</mark>;
+-- 更新件数が 0 件 = 読んだ後に誰かが書いた</pre>
+      </div>
+
+      <div slot="preview" data-preview-id="flow">
+        <ol class="flow">
+          <li class="step">
+            <span class="actor">編集画面</span>
+            <span>PUT /orders/42 <code>version: 7</code></span>
+          </li>
+          <li class="step">
+            <span class="actor">Order API</span>
+            <span><code>UPDATE … WHERE version = 7</code></span>
+          </li>
+          <li class="outcomes">
+            <span class="outcome ok"><span class="actor">1 件更新</span>200 OK <code>version: 8</code></span>
+            <span class="outcome ng"><span class="actor">0 件更新</span>409 Conflict</span>
+          </li>
+        </ol>
+      </div>
+
+      <div slot="preview" data-preview-id="compare">
+        <table class="compare">
+          <thead>
+            <tr>
+              <th></th>
+              <th>楽観的ロック</th>
+              <th>悲観的ロック</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>衝突の扱い</th>
+              <td>保存時に検出して断る</td>
+              <td>読むときに行をロックして防ぐ</td>
+            </tr>
+            <tr>
+              <th>向いている</th>
+              <td>衝突がまれ・編集に時間がかかる</td>
+              <td>衝突が多い・処理が短い</td>
+            </tr>
+            <tr>
+              <th>コスト</th>
+              <td>衝突時にやり直しが要る</td>
+              <td>待ちとデッドロック</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </dpk-template-slides>
+  </body>
+</html>

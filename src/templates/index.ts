@@ -3,6 +3,7 @@ import { defineExampleMappingElement } from './example-mapping';
 import { defineGrillElement } from './grill';
 import { definePlainElement } from './plain';
 import { definePrototypeElement } from './prototype';
+import { defineSlidesElement } from './slides';
 import { defineUsmElement } from './usm';
 
 /**
@@ -20,4 +21,5 @@ export const registerTemplateElements = (): void => {
   defineExampleMappingElement();
   defineGrillElement();
   definePlainElement();
+  defineSlidesElement();
 };

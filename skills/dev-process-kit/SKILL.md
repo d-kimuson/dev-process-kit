@@ -23,11 +23,12 @@ Humans have little context and do not read long text well.
 4. Write the HTML in the user's language, declare that language with `lang` on `<html>` and on the template element (`<dpk-template-usm lang="ja">`; the kit's own UI follows it and is English without it), and give the user the file. Load the bundle from jsDelivr with the version pinned — `https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/<name>.js` — never `@latest`: the page has to keep working after a new release. When you publish the page as a Claude Artifact, write it as [references/claude-artifact.md](references/claude-artifact.md) says.
 5. On a brief, apply it to the base data and answer the comments in the next version.
 
-| Agree on                                  | Template                         |
-| ----------------------------------------- | -------------------------------- |
-| Scope and release slicing                 | `usm`                            |
-| Domain events, commands and causality     | `event-storming`                 |
-| Rules of a story, with concrete examples  | `example-mapping`                |
-| Screen flow and what each step looks like | `prototype`                      |
-| Decisions you need from the user          | `grill`                          |
-| Anything else                             | `plain`, with diagram components |
+| Agree on                                   | Template                         |
+| ------------------------------------------ | -------------------------------- |
+| Scope and release slicing                  | `usm`                            |
+| Domain events, commands and causality      | `event-storming`                 |
+| Rules of a story, with concrete examples   | `example-mapping`                |
+| Screen flow and what each step looks like  | `prototype`                      |
+| Decisions you need from the user           | `grill`                          |
+| An explanation walked through step by step | `slides`                         |
+| Anything else                              | `plain`, with diagram components |
