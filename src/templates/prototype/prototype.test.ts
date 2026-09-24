@@ -9,6 +9,7 @@ import { prototypeMessages } from './messages';
 import { findStep, parsePrototypeBase, stepRef, type PrototypeState } from './model';
 import {
   describePrototypeAction,
+  prototypePageHeading,
   prototypePreviewUrl,
   resolvePrototypeNavigation,
   serializePrototypeAction,
@@ -253,6 +254,50 @@ describe('prototype presentation', () => {
       'story:daily.notes',
       'step:daily.notes.n',
     ]);
+  });
+});
+
+describe('prototype page heading', () => {
+  const heading = parsePrototypeBase({
+    activities: [
+      {
+        id: 'admin',
+        name: 'Admin',
+        actor: 'Administrator',
+        stories: [
+          {
+            id: 'users',
+            name: 'Users',
+            steps: [
+              { id: 'list', name: 'Open the user list', title: 'Users' },
+              { id: 'invite', name: 'Invite a user', actor: 'Owner' },
+            ],
+          },
+          {
+            id: 'support',
+            name: 'Support',
+            actor: 'Support staff',
+            steps: [{ id: 'ticket', name: 'Answer a ticket' }],
+          },
+        ],
+      },
+      {
+        id: 'shop',
+        name: 'Shop',
+        stories: [{ id: 'buy', name: 'Buy', steps: [{ id: 'cart', name: 'Open the cart' }] }],
+      },
+    ],
+  });
+  const of = (stepId: string) => prototypePageHeading(findStep(heading, stepId)!);
+
+  it('shows who uses the page: the nearest actor of step, story and activity', () => {
+    expect(of('list')).toEqual({ actor: 'Administrator', title: 'Users' });
+    expect(of('invite')).toEqual({ actor: 'Owner', title: 'Invite a user' });
+    expect(of('ticket')).toEqual({ actor: 'Support staff', title: 'Answer a ticket' });
+  });
+
+  it('falls back to the step name for the title and omits a missing actor', () => {
+    expect(of('cart')).toEqual({ title: 'Open the cart' });
   });
 });
 

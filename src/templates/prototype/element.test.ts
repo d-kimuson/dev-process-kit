@@ -14,6 +14,7 @@ const base = {
     {
       id: 'onboarding',
       name: 'Onboarding',
+      actor: 'Visitor',
       stories: [
         {
           id: 'account',
@@ -22,6 +23,7 @@ const base = {
             {
               id: 'landing',
               name: 'Landing',
+              title: 'Welcome',
               previews: [
                 { id: 'landing-mobile', kind: 'browser', viewport: 'mobile' },
                 { id: 'landing-desktop', kind: 'browser', viewport: 'desktop' },
@@ -89,6 +91,20 @@ describe('<dpk-template-prototype> layout', () => {
     await settle(el);
     expect(root.querySelector('figure.frame')).toBeNull();
     expect(root.querySelector('.stage .dpk-label')?.textContent).toBe(m.noPreviewMetadata);
+  });
+
+  it('heads the stage with who uses the page and its title', async () => {
+    const el = mount();
+    await settle(el);
+    const root = el.shadowRoot!;
+    const head = root.querySelector('.stage .page-head')!;
+    expect(head.querySelector('.page-actor')?.textContent?.trim()).toBe('Visitor');
+    expect(head.querySelector('.page-actor')?.getAttribute('aria-label')).toBe(m.pageActor('Visitor'));
+    expect(head.querySelector('.page-title')?.textContent?.trim()).toBe('Welcome');
+    // without a title the step name heads the page
+    el.api.navigate({ step: 'auth' });
+    await settle(el);
+    expect(root.querySelector('.page-head .page-title')?.textContent?.trim()).toBe('Auth');
   });
 
   it('shows a placeholder and the native status bar when the preview has no markup', async () => {

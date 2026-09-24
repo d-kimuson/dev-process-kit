@@ -21,6 +21,7 @@ import {
   storyRef,
   type PrototypePreview,
   type PrototypeState,
+  type StepLocation,
 } from './model';
 
 type Summary = {
@@ -275,6 +276,20 @@ export const prototypeCurrentTarget = (
   const location = findStep(state, nav['step']);
   if (!location) return null;
   return { value: targetRef({ type: 'step', id: stepRef(location) }), label: location.step.name, group: m.stepGroup };
+};
+
+export type PageHeading = {
+  /** Who uses the page; absent when no level names one. */
+  readonly actor?: string;
+  readonly title: string;
+};
+
+/** The stage heading of a step: the nearest actor (step › story › activity) and the page title. */
+export const prototypePageHeading = (location: StepLocation): PageHeading => {
+  const { activity, story, step } = location;
+  const actor = step.actor ?? story.actor ?? activity.actor;
+  const title = step.title ?? step.name;
+  return actor === undefined ? { title } : { actor, title };
 };
 
 export const prototypeTitle = (state: PrototypeState): string => {

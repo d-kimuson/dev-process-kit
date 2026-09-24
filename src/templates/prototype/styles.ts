@@ -187,9 +187,71 @@ export const prototypeStyles = css`
   .stage-bar {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    gap: 10px 16px;
     min-width: 0;
     flex-wrap: wrap;
+  }
+
+  /* ------------------------------------------------------------- page head */
+
+  .page-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    animation: dpk-page-head-in 260ms var(--dpk-ease) backwards;
+  }
+
+  @keyframes dpk-page-head-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+
+  .page-actor {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 11px 0 8px;
+    border-radius: 999px;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--dpk-blue) 16%, var(--dpk-paper-raised)),
+      color-mix(in srgb, var(--dpk-blue) 9%, var(--dpk-paper-raised))
+    );
+    box-shadow:
+      var(--dpk-bevel),
+      inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 32%, transparent),
+      var(--dpk-shadow-xs);
+    color: var(--dpk-blue);
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .page-actor svg {
+    width: 13px;
+    height: 13px;
+    fill: currentColor;
+    opacity: 0.9;
+  }
+
+  .page-title {
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+    color: var(--dpk-ink);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .tabs {

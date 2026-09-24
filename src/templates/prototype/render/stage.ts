@@ -4,7 +4,7 @@ import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { PrototypeMessages } from '../messages';
 
 import { findStep, flattenSteps, type PreviewViewport, type PrototypePreview, type PrototypeState } from '../model';
-import { prototypePreviewUrl } from '../present';
+import { prototypePageHeading, prototypePreviewUrl, type PageHeading } from '../present';
 
 export const VIEWPORT_WIDTH: Record<PreviewViewport, string> = {
   mobile: '390px',
@@ -57,7 +57,10 @@ export const renderStage = (
   const previews = location.step.previews;
   return html`
     <div class="stage">
-      ${previews.length > 1 ? renderPreviewTabs(context, previews, active?.id) : nothing}
+      <div class="stage-bar">
+        ${renderPageHead(m, prototypePageHeading(location))}
+        ${previews.length > 1 ? renderPreviewTabs(context, previews, active?.id) : nothing}
+      </div>
       <div class="canvas">
         ${active ? renderFrame(context, active, options.hasPreviewContent(active.id)) : nothing}
         ${previews.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
@@ -67,25 +70,41 @@ export const renderStage = (
   `;
 };
 
+/** Who uses the page and its title, above the frame like the top of a real screen spec. */
+const renderPageHead = (m: PrototypeMessages, heading: PageHeading): TemplateResult => {
+  return html`<div class="page-head">
+    ${
+      heading.actor === undefined
+        ? nothing
+        : html`<span class="page-actor" role="note" aria-label=${m.pageActor(heading.actor)}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="5.2" r="2.7" />
+              <path d="M2.8 14c.5-3 2.6-4.6 5.2-4.6s4.7 1.6 5.2 4.6Z" />
+            </svg>
+            ${heading.actor}
+          </span>`
+    }
+    <h2 class="page-title">${heading.title}</h2>
+  </div>`;
+};
+
 const renderPreviewTabs = (
   context: TemplateRenderContext<PrototypeState>,
   previews: readonly PrototypePreview[],
   activeId: string | undefined,
 ): TemplateResult => {
-  return html`<div class="stage-bar">
-    <div class="tabs" role="tablist">
-      ${previews.map(
-        (preview) =>
-          html`<a
-            class="tab"
-            role="tab"
-            data-current=${String(preview.id === activeId)}
-            aria-selected=${preview.id === activeId ? 'true' : 'false'}
-            href=${context.hashFor({ preview: preview.id })}
-            >${preview.label ?? preview.viewport}</a
-          >`,
-      )}
-    </div>
+  return html`<div class="tabs" role="tablist">
+    ${previews.map(
+      (preview) =>
+        html`<a
+          class="tab"
+          role="tab"
+          data-current=${String(preview.id === activeId)}
+          aria-selected=${preview.id === activeId ? 'true' : 'false'}
+          href=${context.hashFor({ preview: preview.id })}
+          >${preview.label ?? preview.viewport}</a
+        >`,
+    )}
   </div>`;
 };
 

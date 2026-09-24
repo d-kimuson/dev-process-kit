@@ -20,6 +20,10 @@ export type PrototypeStep = {
   readonly id: string;
   readonly name: string;
   readonly description?: string;
+  /** Title of the page this step shows, e.g. `Users`. Defaults to the step name. */
+  readonly title?: string;
+  /** Who uses the page, e.g. `Administrator`. Overrides the story's and activity's. */
+  readonly actor?: string;
   readonly previews: readonly PrototypePreview[];
 };
 
@@ -27,6 +31,8 @@ export type PrototypeStory = {
   readonly id: string;
   readonly name: string;
   readonly description?: string;
+  /** Who uses the story's pages unless a step says otherwise. */
+  readonly actor?: string;
   readonly steps: readonly PrototypeStep[];
 };
 
@@ -34,6 +40,8 @@ export type PrototypeActivity = {
   readonly id: string;
   readonly name: string;
   readonly description?: string;
+  /** Who uses the activity's pages unless a story or step says otherwise. */
+  readonly actor?: string;
   readonly stories: readonly PrototypeStory[];
 };
 
@@ -59,6 +67,8 @@ const stepSchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
+  title: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   previews: v.optional(v.array(previewSchema), []),
 });
 
@@ -66,6 +76,7 @@ const storySchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
+  actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   steps: v.optional(v.array(stepSchema), []),
 });
 
@@ -73,6 +84,7 @@ const activitySchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
+  actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   stories: v.optional(v.array(storySchema), []),
 });
 

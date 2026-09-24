@@ -594,6 +594,7 @@
             {
               "id": "buyer",
               "name": "購入者（スマホ）",
+              "actor": "購入者",
               "description": "スマホのブラウザで買い物をし、注文を自分で取り消す",
               "stories": [
                 {
@@ -603,6 +604,7 @@
                     {
                       "id": "cart",
                       "name": "カートを確かめる",
+                      "title": "カート",
                       "previews": [
                         { "id": "cart-mobile", "viewport": "mobile", "url": "https://sora-market.example.com/cart" }
                       ]
@@ -610,6 +612,7 @@
                     {
                       "id": "delivery-payment",
                       "name": "配送先と支払い方法を選ぶ",
+                      "title": "配送・支払い",
                       "previews": [
                         {
                           "id": "delivery-payment-mobile",
@@ -621,6 +624,7 @@
                     {
                       "id": "review",
                       "name": "注文を確定する",
+                      "title": "注文内容の確認",
                       "description": "キャンセルできる期限を、確定の前に一度だけ伝える",
                       "previews": [
                         {
@@ -633,6 +637,7 @@
                     {
                       "id": "order-complete",
                       "name": "注文の完了を確かめる",
+                      "title": "注文完了",
                       "previews": [
                         {
                           "id": "order-complete-mobile",
@@ -651,6 +656,7 @@
                     {
                       "id": "order-history",
                       "name": "注文履歴を開く",
+                      "title": "注文履歴",
                       "description": "キャンセルできる注文は一覧の時点で分かる",
                       "previews": [
                         {
@@ -663,6 +669,7 @@
                     {
                       "id": "order-detail",
                       "name": "注文詳細からキャンセルを選ぶ",
+                      "title": "注文詳細",
                       "previews": [
                         {
                           "id": "order-detail-mobile",
@@ -674,6 +681,7 @@
                     {
                       "id": "cancel-confirm",
                       "name": "返金額と返金先を確かめて確定する",
+                      "title": "キャンセルの確認",
                       "description": "理由の選択は任意。確定を妨げない",
                       "previews": [
                         {
@@ -686,6 +694,7 @@
                     {
                       "id": "cancel-accepted",
                       "name": "受付を確かめる",
+                      "title": "キャンセル受付",
                       "description": "返金の完了を待たずに受付だけを伝える。注文は「返金待ち」になる",
                       "previews": [
                         {
@@ -704,6 +713,7 @@
                     {
                       "id": "refund-mail",
                       "name": "返金完了のメールを受け取る",
+                      "title": "返金完了のお知らせ",
                       "description": "受付と返金完了は別のメールで届く",
                       "previews": [
                         { "id": "refund-mail-native", "kind": "native", "viewport": "mobile", "label": "通知" }
@@ -712,6 +722,7 @@
                     {
                       "id": "refunded-detail",
                       "name": "注文が取消済みになったのを確かめる",
+                      "title": "注文詳細（取消済み）",
                       "previews": [
                         {
                           "id": "refunded-detail-mobile",
@@ -730,6 +741,7 @@
                     {
                       "id": "shipped-detail",
                       "name": "キャンセルできない理由を知る",
+                      "title": "注文詳細（出荷済み）",
                       "description": "キャンセルのボタンは出さず、理由と次にできることを示す",
                       "previews": [
                         {
@@ -742,6 +754,7 @@
                     {
                       "id": "contact",
                       "name": "問い合わせを送る",
+                      "title": "お問い合わせ",
                       "description": "注文番号と用件を埋めた状態で開く",
                       "previews": [
                         {
@@ -758,6 +771,7 @@
             {
               "id": "ops",
               "name": "ショップ運営（PC）",
+              "actor": "ショップ運営者",
               "description": "管理画面で注文の状態と返金の進み具合を見る",
               "stories": [
                 {
@@ -767,6 +781,7 @@
                     {
                       "id": "admin-orders",
                       "name": "注文を状態で絞り込む",
+                      "title": "注文一覧",
                       "description": "状態は購入者に見せるものと同じ名前にそろえる",
                       "previews": [
                         {
@@ -779,6 +794,7 @@
                     {
                       "id": "admin-order-detail",
                       "name": "キャンセルの経緯をたどる",
+                      "title": "注文詳細",
                       "description": "誰がいつ取り消し、いつ返金と引当の解除が済んだかを一列で追える",
                       "previews": [
                         {
@@ -797,6 +813,7 @@
                     {
                       "id": "admin-refunds",
                       "name": "返金待ちが長い注文を見つける",
+                      "title": "返金待ち一覧",
                       "description": "経過時間の長い順に並べ、24 時間を超えたものを目立たせる",
                       "previews": [
                         {
@@ -809,6 +826,7 @@
                     {
                       "id": "admin-refund-stuck",
                       "name": "失敗が続く返金を調べる",
+                      "title": "返金の詳細",
                       "description": "失敗が続いたときの扱いは未決。ここでは「返金待ち」のまま残し、運営が照会と連絡をする案で描いた",
                       "previews": [
                         {

@@ -13,7 +13,9 @@ export {
   prototypeTargetLabel,
   resolvePrototypeNavigation,
   prototypeTitle,
+  prototypePageHeading,
 } from './present';
+export type { PageHeading } from './present';
 export {
   emptyPrototypeBase,
   parsePrototypeBase,

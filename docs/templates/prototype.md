@@ -20,6 +20,7 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
     {
       "id": "onboarding",
       "name": "オンボーディング",
+      "actor": "新規ユーザー",
       "stories": [
         {
           "id": "account",
@@ -28,6 +29,7 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
             {
               "id": "google-auth",
               "name": "Google ログイン",
+              "title": "ログイン",
               "previews": [
                 { "id": "google-auth-mobile", "viewport": "mobile" },
                 { "id": "google-auth-desktop", "viewport": "desktop", "url": "app://signin" }
@@ -48,6 +50,8 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
 | `activities[].id` / `name` | yes      | `description` optional                                                                                          |
 | `stories[].id` / `name`    | yes      | `description` optional                                                                                          |
 | `steps[].id` / `name`      | yes      | `description` optional                                                                                          |
+| `steps[].title`            | no       | title of the page the step shows, headed above the frame (e.g. `ユーザー一覧`). Defaults to the step name       |
+| `actor`                    | no       | who uses the page (e.g. `管理者`), on an activity, story or step. The nearest one wins: step › story › activity |
 | `previews[].id`            | yes      | must equal the `data-preview-id` of the light DOM below                                                         |
 | `previews[].kind`          | no       | `browser` (default, address bar) or `native` (phone bezel, no address bar)                                      |
 | `previews[].viewport`      | no       | `mobile` (390px) · `tablet` (834px) · `desktop` (1180px) · `fluid` (default)                                    |
@@ -127,12 +131,12 @@ Only `step` is required (`#step=google-auth` resolves the containing activity an
 | Region  | Content                                                                                                                                                                      |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | sidebar | Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description                                                          |
-| main    | preview tabs (only when the step has more than one preview) plus the frame of the selected preview                                                                           |
+| main    | page head (the `actor` chip and the page `title`), preview tabs (only when the step has more than one preview), plus the frame of the selected preview                       |
 | frame   | browser chrome (traffic dots + address bar) or, for `native`, a device bezel with a phone status bar and a home indicator. There is no caption: what you see is the preview. |
 
 Frames are sized by content, not by a fixed height: the viewport has a per-kind minimum height (mobile 620 · tablet 640 · desktop 520 · fluid 420) and grows with the mock, so a preview never scrolls inside its own frame — the page main column scrolls instead. The author wrapper element is stretched to fill the frame, so a mock can rely on being at least as tall as that minimum without using a percentage height.
 
-The UI edits step name/description, adds steps, and comments. Adding previews, deleting previews, reordering steps and switching a preview's kind or viewport are deliberately not UI affordances: an empty frame or a reordered flow is a structural change, so it goes through the agent as natural language. A preview's `label` only names its tab, so it is edited through a draft action too.
+The UI edits step name/description, adds steps, and comments. Adding previews, deleting previews, reordering steps and switching a preview's kind or viewport are deliberately not UI affordances: an empty frame or a reordered flow is a structural change, so it goes through the agent as natural language. A preview's `label` only names its tab, so it is edited through a draft action too. A step's `title` and the `actor` are base data with no draft action; a reviewer asks for a change with a comment on the step.
 
 ### Preview address
 
