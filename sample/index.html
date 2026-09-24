@@ -39,6 +39,9 @@
         font-size: 14px;
         line-height: 1.7;
         -webkit-font-smoothing: antialiased;
+        /* Wrap Japanese at phrase boundaries (not mid-word), and avoid a lone word on the last line. */
+        word-break: auto-phrase;
+        text-wrap: pretty;
       }
 
       a {
@@ -552,8 +555,8 @@
         <h1>Agent が書く単一 HTML を、人がレビューして Agent に返す</h1>
         <p class="lede">
           dev-process-kit は、Agent に生成させる単一 HTML
-          ページ（プロトタイプ、ストーリーマップ、イベントストーミングなど）に
-          共通の構造とレビューの仕組みを与えるフレームワークです。ビルド不要で、script タグ 1 つで読み込めます。
+          ページ（プロトタイプ、ストーリーマップ、イベントストーミングなど）に共通の構造とレビューの仕組みを与えるフレームワークです。ビルド不要で、script
+          タグ 1 つで読み込めます。
         </p>
         <ol class="loop" aria-label="レビューの流れ">
           <li>
