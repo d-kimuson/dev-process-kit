@@ -1,5 +1,16 @@
 # dev-process-kit
 
+[![npm](https://img.shields.io/npm/v/dev-process-kit?logo=npm&label=npm)](https://www.npmjs.com/package/dev-process-kit)
+[![npm beta](https://img.shields.io/npm/v/dev-process-kit/beta?logo=npm&label=beta&color=orange)](https://www.npmjs.com/package/dev-process-kit?activeTab=versions)
+[![jsDelivr](https://img.shields.io/jsdelivr/npm/hm/dev-process-kit?logo=jsdelivr&label=jsDelivr)](https://www.jsdelivr.com/package/npm/dev-process-kit)
+[![CI](https://img.shields.io/github/actions/workflow/status/d-kimuson/dev-process-kit/ci.yml?branch=main&logo=github&label=CI)](https://github.com/d-kimuson/dev-process-kit/actions/workflows/ci.yml)
+[![Samples](https://img.shields.io/github/actions/workflow/status/d-kimuson/dev-process-kit/pages.yml?branch=main&logo=githubpages&label=samples)](https://d-kimuson.github.io/dev-process-kit/)
+[![License: MIT](https://img.shields.io/npm/l/dev-process-kit?color=blue)](LICENSE)
+<br />
+[![Web Components](https://img.shields.io/badge/Web_Components-no_build-29abe2?logo=webcomponentsdotorg&logoColor=white)](docs/index.md)
+[![Agent skill](https://img.shields.io/badge/agent_skill-dev--process--kit-d97757?logo=anthropic&logoColor=white)](skills/dev-process-kit/SKILL.md)
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-d97757?logo=claude&logoColor=white)](#install-the-skill)
+
 Design-process documents as single HTML files: an agent generates one, a human reviews it in the
 browser, and the review comes back as structured change requests the agent can apply.
 
