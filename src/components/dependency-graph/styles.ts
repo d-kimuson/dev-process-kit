@@ -3,26 +3,34 @@ import { css } from 'lit';
 export const dependencyStyles = css`
   .dep-direction {
     display: flex;
-    gap: 1px;
-    padding: 2px;
-    border: 1px solid var(--dpk-rule-strong);
-    border-radius: var(--dpk-radius-xs);
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-sunken);
+    box-shadow: inset 0 1px 2px var(--dpk-shade-1);
   }
 
   .dep-direction button {
     border: 0;
-    border-radius: 3px;
-    padding: 3px 7px;
+    border-radius: var(--dpk-radius-xs);
+    padding: 4px 8px;
     background: transparent;
     color: var(--dpk-ink-faint);
     font-size: 9.5px;
+    font-weight: 600;
     cursor: pointer;
+    transition:
+      background 160ms var(--dpk-ease),
+      color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease);
   }
 
   .dep-direction button[aria-pressed='true'] {
-    background: var(--dpk-blue-soft);
-    color: var(--dpk-blue);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
     font-weight: 650;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
   .dep-toggle {
@@ -45,13 +53,19 @@ export const dependencyStyles = css`
     border: 1px solid var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-sm);
     background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     text-align: left;
     overflow: hidden;
+    transition:
+      border-color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease),
+      transform 160ms var(--dpk-ease);
   }
 
   .dep-module:hover {
     border-color: var(--dpk-blue);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+    transform: translateY(-1px);
   }
 
   .dep-module.is-cyclic:not(.is-selected) {
@@ -61,7 +75,10 @@ export const dependencyStyles = css`
   .dep-module.is-selected {
     border-color: var(--dpk-blue);
     background: var(--dpk-blue-soft);
-    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
+    box-shadow:
+      var(--dpk-bevel),
+      var(--dpk-shadow-sm),
+      0 0 0 3px var(--dpk-blue-soft);
   }
 
   .dep-module.is-related {

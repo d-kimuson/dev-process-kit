@@ -18,7 +18,7 @@ export const usmStyles = css`
     min-width: max-content;
     border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius-lg);
-    background: var(--dpk-paper-raised);
+    background: var(--dpk-paper-sunken);
     box-shadow: var(--dpk-shadow);
     overflow: hidden;
   }
@@ -27,7 +27,7 @@ export const usmStyles = css`
     grid-template-columns: 140px repeat(var(--cols), minmax(180px, 240px));
   }
   .map-row + .map-row {
-    border-top: 1px solid var(--dpk-rule-strong);
+    border-top: 1px solid var(--dpk-rule);
   }
   .corner,
   .act-head,
@@ -37,80 +37,121 @@ export const usmStyles = css`
     padding: 10px;
   }
   .corner {
-    background: linear-gradient(135deg, var(--dpk-paper-sunken), var(--dpk-paper-inset));
+    background: var(--dpk-paper-sunken);
     display: grid;
-    gap: 2px;
+    gap: 3px;
     align-content: start;
   }
 
-  /* Unit toggle above the table (group band vs one column per activity). */
+  /* Unit toggle above the table (group band vs one column per activity): a
+     sunken track with the selected segment raised on top of it. */
   .view-tabs {
     display: inline-flex;
     justify-self: start;
     gap: 2px;
     padding: 3px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     border: 1px solid var(--dpk-rule);
     border-radius: 999px;
     background: var(--dpk-paper-sunken);
-    box-shadow: inset 0 1px 2px rgba(20, 28, 44, 0.04);
+    box-shadow: inset 0 1px 3px var(--dpk-shade-1);
   }
 
   .tab {
-    padding: 4px 14px;
+    padding: 5px 14px;
     border-radius: 999px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 550;
     text-decoration: none;
     color: var(--dpk-ink-soft);
     white-space: nowrap;
     transition:
-      background 120ms ease,
-      color 120ms ease;
+      background 160ms var(--dpk-ease),
+      color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease);
   }
 
   .tab:hover {
     color: var(--dpk-ink);
-    background: var(--dpk-paper-raised);
+    background: var(--dpk-paper-inset);
   }
 
   .tab[data-current='true'] {
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink);
-    font-weight: 600;
-    box-shadow: var(--dpk-shadow-xs);
+    font-weight: 650;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
+
+  /* Activity band: raised above the working canvas and marked with a quiet
+     accent edge so the grouping reads at a glance. */
   .act-head {
+    position: relative;
     border-left: 1px solid var(--dpk-rule);
-    background: linear-gradient(180deg, var(--dpk-paper-sunken), var(--dpk-paper-inset));
+    background: var(--dpk-paper-raised);
+    box-shadow:
+      var(--dpk-bevel),
+      inset 0 -1px 0 var(--dpk-rule-strong);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 4px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 650;
+    letter-spacing: -0.005em;
+  }
+  .act-head::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: color-mix(in srgb, var(--dpk-usm-accent) 55%, transparent);
   }
   .col-head {
     border-left: 1px solid var(--dpk-rule);
     background: var(--dpk-paper-sunken);
-    transition: background 150ms ease;
+    transition: background 160ms var(--dpk-ease);
   }
   .col-head[data-current='true'] {
-    background: linear-gradient(180deg, rgba(51, 102, 204, 0.06), rgba(51, 102, 204, 0.03));
-    box-shadow: inset 0 2px 0 var(--dpk-blue);
+    background: color-mix(in srgb, var(--dpk-usm-accent) 7%, var(--dpk-paper-sunken));
+    box-shadow: inset 0 2px 0 var(--dpk-usm-accent);
   }
   .col-head h4 {
     font-size: 13px;
+    font-weight: 600;
     margin: 0;
   }
+
   .row-head {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: var(--dpk-paper-sunken);
-    font-size: 12px;
-    font-weight: 600;
-    transition: background 150ms ease;
+  }
+
+  /* Milestone row label: a floating release chip in the sunken rail, not a
+     flat table cell. The "add milestone" row reuses \`.row-head\` for its
+     ghost button and stays a plain cell. */
+  .row-head[data-milestone] {
+    display: inline-flex;
+    justify-self: start;
+    align-self: center;
+    margin: 6px 4px;
+    padding: 6px 12px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    color: var(--dpk-ink);
+    font-size: 11.5px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    max-width: 100%;
+    transition:
+      background 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease),
+      border-color 160ms var(--dpk-ease);
   }
 
   .row-head[draggable='true'] {
@@ -141,10 +182,11 @@ export const usmStyles = css`
 
   /* Row-level drag affordance: hover highlights the entire .map-row. */
   .map-row[data-draggable='true']:hover > .row-head {
-    background: linear-gradient(90deg, var(--dpk-blue-soft), var(--dpk-paper-sunken));
+    border-color: color-mix(in srgb, var(--dpk-blue) 45%, var(--dpk-rule));
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
   }
   .map-row[data-draggable='true']:hover > .cell {
-    background: linear-gradient(90deg, rgba(51, 102, 204, 0.03), var(--dpk-paper-raised));
+    background: var(--dpk-dots), color-mix(in srgb, var(--dpk-blue) 3%, var(--dpk-paper-sunken));
   }
   .map-row[data-draggable='true']:hover .row-grip {
     color: var(--dpk-blue);
@@ -172,11 +214,15 @@ export const usmStyles = css`
     outline-offset: -2px;
   }
   .map-row[data-row-drop='true'] > .row-head {
+    border-color: var(--dpk-blue);
     background: var(--dpk-blue-soft);
   }
   .map-row[data-row-drop='true'] > .cell {
-    background: linear-gradient(135deg, var(--dpk-blue-soft), rgba(51, 102, 204, 0.04));
+    background: var(--dpk-dots), color-mix(in srgb, var(--dpk-blue) 6%, var(--dpk-paper-sunken));
   }
+
+  /* Cells are the working canvas: sunken, with a quiet dot lattice, so raised
+     story cards read as things placed on the board. */
   .cell {
     border-left: 1px solid var(--dpk-rule);
     border-top: 1px solid var(--dpk-rule);
@@ -184,11 +230,11 @@ export const usmStyles = css`
     flex-direction: column;
     gap: 8px;
     min-height: 100px;
-    background: var(--dpk-paper-raised);
-    transition: background 150ms ease;
+    background: var(--dpk-dots), var(--dpk-paper-sunken);
+    transition: background 160ms var(--dpk-ease);
   }
   .cell[data-drop='true'] {
-    background: linear-gradient(135deg, var(--dpk-blue-soft), rgba(51, 102, 204, 0.04));
+    background: var(--dpk-dots), color-mix(in srgb, var(--dpk-blue) 8%, var(--dpk-paper-sunken));
     outline: 2px dashed var(--dpk-blue);
     outline-offset: -2px;
   }
@@ -201,7 +247,11 @@ export const usmStyles = css`
   .add-cell {
     margin-top: auto;
     opacity: 0;
-    transition: opacity 180ms ease;
+    transition:
+      opacity 180ms var(--dpk-ease),
+      background 160ms var(--dpk-ease),
+      border-color 160ms var(--dpk-ease),
+      color 160ms var(--dpk-ease);
     border: 1px dashed var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-sm);
     background: transparent;
@@ -221,7 +271,7 @@ export const usmStyles = css`
     border: 1px dashed var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-lg);
     padding: 28px 24px;
-    background: var(--dpk-paper-raised);
+    background: var(--dpk-dots), var(--dpk-paper-sunken);
     max-width: 620px;
     display: grid;
     gap: 10px;

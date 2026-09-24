@@ -315,6 +315,7 @@ export abstract class TemplateElement<S> extends LitElement {
     return html`
       <div class="dpk-shell">
         <header class="dpk-header">
+          <span class="dpk-brand" aria-hidden="true"></span>
           <div class="dpk-title">
             <span class="dpk-template-mark">${this.definition.label}</span>
             <h1>${this.definition.title(context.state)}</h1>
@@ -326,9 +327,11 @@ export abstract class TemplateElement<S> extends LitElement {
           <div class="dpk-header-meta">
             <span>dev-process-kit@${FRAMEWORK_VERSION}</span>
             <span>${this.definition.name}</span>
-            <span>${draftCount} draft · ${commentCount} note</span>
+            <span class="dpk-meta-count" data-active=${draftCount > 0 ? 'true' : 'false'}>
+              ${draftCount} draft · ${commentCount} note
+            </span>
           </div>
-          ${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}
+          <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
         </header>
         <div class="dpk-body">
           <aside

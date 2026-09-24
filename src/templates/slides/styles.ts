@@ -13,6 +13,8 @@ export const slidesStyles = css`
     display: flex;
     justify-content: space-between;
     padding: 0 6px 8px;
+    border-bottom: 1px solid var(--dpk-rule);
+    margin-bottom: 6px;
   }
 
   .outline-list {
@@ -23,19 +25,36 @@ export const slidesStyles = css`
     list-style: none;
   }
 
+  .outline-row {
+    position: relative;
+  }
+
+  .outline-row::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    border-radius: var(--dpk-radius-xs);
+    background: transparent;
+    transition: background 140ms var(--dpk-ease);
+  }
+
   .outline-row a {
     display: flex;
     align-items: baseline;
     gap: 10px;
-    padding: 7px 8px;
+    padding: 7px 8px 7px 14px;
     border-radius: var(--dpk-radius-sm);
     color: var(--dpk-ink-soft);
     font-size: 13px;
     line-height: 1.4;
     text-decoration: none;
     transition:
-      background 140ms ease,
-      color 140ms ease;
+      background 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease),
+      box-shadow 140ms var(--dpk-ease);
   }
 
   .outline-row a:hover {
@@ -48,10 +67,17 @@ export const slidesStyles = css`
     box-shadow: var(--dpk-focus);
   }
 
+  .outline-row[data-current='true']::before {
+    background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
+    box-shadow: 0 0 8px color-mix(in srgb, var(--dpk-accent) 45%, transparent);
+  }
+
   .outline-row[data-current='true'] a {
-    background: var(--dpk-paper-raised);
+    background: color-mix(in srgb, var(--dpk-accent) 8%, var(--dpk-paper-raised));
     color: var(--dpk-ink);
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--dpk-accent) 20%, transparent),
+      var(--dpk-shadow-xs);
   }
 
   /* A section slide opens a chapter: it reads as a heading in the outline. */
@@ -109,10 +135,19 @@ export const slidesStyles = css`
     color: var(--dpk-ink-faint);
   }
 
+  /*
+   * The work surface the slide is projected onto: a quiet dot lattice, sunken
+   * a shade below the page, so the slide's own shadow has somewhere to land.
+   */
   .stage {
     display: flex;
     justify-content: center;
     width: 100%;
+    padding: 28px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-xl);
+    background: var(--dpk-dots), var(--dpk-paper-sunken);
+    box-shadow: inset 0 1px 3px var(--dpk-shade-1);
   }
 
   /*
@@ -129,7 +164,7 @@ export const slidesStyles = css`
     border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius-lg);
     background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
   }
 
   .slide-content {
@@ -182,7 +217,8 @@ export const slidesStyles = css`
     width: 0.9cqw;
     height: 0.9cqw;
     border-radius: 50%;
-    background: var(--dpk-accent);
+    background: linear-gradient(135deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--dpk-accent) 14%, transparent);
   }
 
   .slide-body {
@@ -215,10 +251,11 @@ export const slidesStyles = css`
     position: absolute;
     left: 6.5cqw;
     top: 50%;
-    width: 0.5cqw;
+    width: 0.55cqw;
     height: 16cqw;
     border-radius: 999px;
-    background: var(--dpk-accent);
+    background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
+    box-shadow: 0 0 20px color-mix(in srgb, var(--dpk-accent) 35%, transparent);
     transform: translateY(-50%);
   }
 
@@ -251,13 +288,17 @@ export const slidesStyles = css`
     height: 0.5cqw;
     margin-top: 2.4cqw;
     border-radius: 999px;
-    background: var(--dpk-accent);
+    background: linear-gradient(90deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
   }
 
   /* Full screen: the stage alone, the slide as large as the screen allows. */
   .stage:fullscreen {
     align-items: center;
-    background: var(--dpk-paper-sunken);
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--dpk-dots), var(--dpk-paper-sunken);
   }
 
   .stage:fullscreen .slide {
@@ -275,6 +316,12 @@ export const slidesStyles = css`
     align-items: center;
     gap: 8px 12px;
     width: min(100%, 1180px);
+    padding: 8px 12px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-glass);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
   .deck-move {
@@ -304,9 +351,10 @@ export const slidesStyles = css`
 
   .deck-progress {
     flex: 1 1 80px;
-    height: 3px;
+    height: 4px;
     border-radius: 999px;
     background: var(--dpk-paper-inset);
+    box-shadow: inset 0 1px 2px var(--dpk-shade-1);
     overflow: hidden;
   }
 
@@ -327,8 +375,13 @@ export const slidesStyles = css`
 
   .slide-comments {
     display: grid;
-    gap: 8px;
+    gap: 10px;
     width: min(100%, 1180px);
+    padding: 14px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
   /* About three short comments; more scroll inside the list, not the page. */

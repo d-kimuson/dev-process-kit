@@ -10,13 +10,19 @@ export const stateDiagramStyles = css`
     border: 1px solid var(--dpk-rule-strong);
     border-radius: var(--dpk-radius);
     background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     text-align: left;
     overflow: hidden;
+    transition:
+      border-color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease),
+      transform 160ms var(--dpk-ease);
   }
 
   .state-node:hover {
     border-color: var(--dpk-blue);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+    transform: translateY(-1px);
   }
 
   .state-node.is-initial {
@@ -34,7 +40,10 @@ export const stateDiagramStyles = css`
 
   .state-node.is-selected {
     border-color: var(--dpk-blue);
-    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
+    box-shadow:
+      var(--dpk-bevel),
+      var(--dpk-shadow-sm),
+      0 0 0 3px var(--dpk-blue-soft);
   }
 
   .state-node.is-related {
@@ -85,11 +94,18 @@ export const stateDiagramStyles = css`
     overflow: hidden;
     text-overflow: ellipsis;
     cursor: pointer;
+    box-shadow: var(--dpk-shadow-xs);
+    transition:
+      border-color 160ms var(--dpk-ease),
+      background 160ms var(--dpk-ease),
+      color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease);
   }
 
   .state-label:hover {
     border-color: color-mix(in srgb, var(--dpk-blue) 40%, transparent);
     color: var(--dpk-blue);
+    box-shadow: var(--dpk-shadow-sm);
   }
 
   .state-label.is-selected {
@@ -97,6 +113,9 @@ export const stateDiagramStyles = css`
     background: var(--dpk-blue-soft);
     color: var(--dpk-blue);
     font-weight: 600;
+    box-shadow:
+      var(--dpk-shadow-xs),
+      inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 20%, transparent);
   }
 
   .state-label.is-dimmed {

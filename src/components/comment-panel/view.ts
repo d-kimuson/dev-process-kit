@@ -5,9 +5,27 @@ import type { PanelMessages } from './messages';
 import type { PanelIntent } from './model';
 import type { PanelItem, PanelViewModel } from './present';
 
-import { iconClose } from '../../core/icons';
+import { iconClose, iconComment, iconLink, iconMove, iconPencil, iconPlus, iconTrash } from '../../core/icons';
 
 export type PanelSend = (intent: PanelIntent) => void;
+
+/** A small colored glyph so a draft action's kind reads at a glance, before its title. */
+const iconForTone = (tone: PanelItem['tone']): TemplateResult => {
+  switch (tone) {
+    case 'comment':
+      return iconComment();
+    case 'create':
+      return iconPlus();
+    case 'update':
+      return iconPencil();
+    case 'delete':
+      return iconTrash();
+    case 'move':
+      return iconMove();
+    default:
+      return iconLink();
+  }
+};
 
 /** Renders plain view data and translates DOM events into typed intents. */
 export const renderPanel = (
@@ -83,8 +101,11 @@ export const renderPanel = (
     ${
       vm.items.length === 0
         ? html`<li class="empty">
-            ${m.empty}<br />
-            ${m.emptyHint}
+            <div class="empty-box">
+              ${iconComment()}
+              <p>${m.empty}</p>
+              <p class="empty-hint">${m.emptyHint}</p>
+            </div>
           </li>`
         : repeat(
             vm.items,
@@ -95,37 +116,39 @@ export const renderPanel = (
   </ul>
   <footer>
     ${
-      embedded
+      embedded || vm.send === 'hidden'
         ? nothing
-        : html`
-            ${
-              vm.send === 'hidden'
-                ? nothing
-                : html`<button
-                    class="dpk-btn dpk-btn--accent"
-                    type="button"
-                    ?disabled=${vm.send === 'disabled'}
-                    @click=${() => send({ kind: 'send' })}
-                  >
-                    ${m.sendToClaude}
-                  </button>`
-            }
-            <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'json' })}>
-              ${m.copyJson}
-            </button>
-            <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'brief' })}>
-              ${m.copyBrief}
-            </button>
-          `
+        : html`<button
+            class="dpk-btn dpk-btn--accent"
+            type="button"
+            ?disabled=${vm.send === 'disabled'}
+            @click=${() => send({ kind: 'send' })}
+          >
+            ${m.sendToClaude}
+          </button>`
     }
-    <button
-      class="dpk-btn dpk-btn--ghost"
-      type="button"
-      ?disabled=${vm.items.length === 0}
-      @click=${() => send({ kind: 'clear' })}
-    >
-      ${m.clear}
-    </button>
+    <div class="footer-actions">
+      ${
+        embedded
+          ? nothing
+          : html`
+              <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'json' })}>
+                ${m.copyJson}
+              </button>
+              <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'brief' })}>
+                ${m.copyBrief}
+              </button>
+            `
+      }
+      <button
+        class="dpk-btn dpk-btn--ghost"
+        type="button"
+        ?disabled=${vm.items.length === 0}
+        @click=${() => send({ kind: 'clear' })}
+      >
+        ${m.clear}
+      </button>
+    </div>
     ${vm.flash ? html`<span class="flash" role="status">${vm.flash}</span>` : nothing}
   </footer>
 `;
@@ -133,6 +156,7 @@ export const renderPanel = (
 const renderItem = (m: PanelMessages, item: PanelItem, send: PanelSend): TemplateResult => html`
   <li class="item" data-tone=${item.tone} data-stale=${String(item.stale !== null)}>
     <div class="item-head">
+      <span class="item-icon">${iconForTone(item.tone)}</span>
       <span class="item-title">${item.title}</span>
       ${item.stale ? html`<span class="stale-badge">${item.stale}</span>` : nothing}
       <button

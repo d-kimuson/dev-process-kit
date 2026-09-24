@@ -47,30 +47,28 @@ const cardStyles = css`
     border-radius: 3px;
     background: var(--em-card-bg, var(--dpk-paper-raised));
     color: var(--em-card-ink, var(--dpk-ink));
-    box-shadow:
-      0 1px 2px rgba(30, 24, 10, 0.14),
-      0 5px 10px -4px rgba(30, 24, 10, 0.24);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
     cursor: grab;
     transform: rotate(var(--em-tilt, 0deg));
     transition:
-      transform 180ms ease,
-      box-shadow 180ms ease,
-      opacity 180ms ease;
+      transform 180ms var(--dpk-ease),
+      box-shadow 180ms var(--dpk-ease),
+      opacity 180ms var(--dpk-ease);
   }
 
   :host(:hover) {
     z-index: 6;
     transform: rotate(0deg) translateY(-2px);
-    box-shadow:
-      0 2px 4px rgba(30, 24, 10, 0.16),
-      0 12px 22px -6px rgba(30, 24, 10, 0.3);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow);
   }
 
   :host([focused]) {
     z-index: 5;
-    outline: 2px solid var(--dpk-blue);
-    outline-offset: 2px;
     transform: rotate(0deg);
+    box-shadow:
+      var(--dpk-bevel),
+      var(--dpk-shadow),
+      0 0 0 2px color-mix(in srgb, var(--dpk-blue) 30%, transparent);
   }
 
   :host([data-mode='editing']),
@@ -139,7 +137,7 @@ const cardStyles = css`
     font-weight: 650;
     line-height: 17px;
     text-align: center;
-    box-shadow: 0 1px 4px rgba(217, 73, 32, 0.35);
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--dpk-accent) 35%, transparent);
   }
 
   /* A side rail of round buttons that fades in on hover, like Event Storming:
@@ -154,7 +152,7 @@ const cardStyles = css`
     gap: 3px;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 140ms ease;
+    transition: opacity 140ms var(--dpk-ease);
   }
 
   :host(:hover) .card-tools,

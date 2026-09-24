@@ -30,54 +30,115 @@
       /* Everything below is author content inside slot="main". */
       .doc {
         width: 100%;
-        max-width: 880px;
+        max-width: 860px;
         margin: 0 auto 64px;
         color: var(--dpk-ink);
         font-size: 13.5px;
-        line-height: 1.85;
+        line-height: 1.75;
+        counter-reset: section;
       }
       .meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 4px 20px;
-        margin: 4px 0 0;
-        padding: 0 0 14px;
+        gap: 8px;
+        margin: 6px 0 0;
+        padding: 0 0 20px;
         border-bottom: 1px solid var(--dpk-rule);
-        color: var(--dpk-ink-faint);
-        font-size: 12px;
+      }
+      .meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 12px 4px 6px;
+        border: 1px solid var(--dpk-rule-strong);
+        border-radius: 999px;
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+        color: var(--dpk-ink-soft);
+        font-size: 11.5px;
       }
       .meta b {
-        margin-right: 6px;
-        font-weight: 500;
-        color: var(--dpk-ink-soft);
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--dpk-paper-sunken);
+        color: var(--dpk-ink-faint);
+        font-family: var(--dpk-mono);
+        font-weight: 550;
+        font-size: 9.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
       .doc section {
-        margin-top: 36px;
+        margin-top: 40px;
+        counter-increment: section;
       }
       .head {
         display: flex;
         align-items: baseline;
         gap: 10px;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
       }
       .head h2 {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
         margin: 0;
         font-size: 16px;
       }
+      .head h2::before {
+        content: counter(section, decimal-leading-zero);
+        color: var(--dpk-ink-faint);
+        font-family: var(--dpk-mono);
+        font-size: 11.5px;
+        font-weight: 550;
+        letter-spacing: 0.02em;
+      }
       .head button {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
         margin-left: auto;
-        padding: 3px 10px;
-        border: 1px solid var(--dpk-rule-strong);
-        border-radius: 6px;
-        background: var(--dpk-paper-raised);
-        color: var(--dpk-ink-soft);
+        padding: 4px 10px;
+        border: 1px solid transparent;
+        border-radius: var(--dpk-radius-sm);
+        background: transparent;
+        color: var(--dpk-ink-faint);
         font: inherit;
         font-size: 11px;
         cursor: pointer;
+        opacity: 0.55;
+        transition:
+          opacity 160ms var(--dpk-ease),
+          background 160ms var(--dpk-ease),
+          color 160ms var(--dpk-ease),
+          border-color 160ms var(--dpk-ease),
+          box-shadow 160ms var(--dpk-ease);
+      }
+      .head button::before {
+        content: '';
+        display: block;
+        width: 13px;
+        height: 13px;
+        background-color: currentColor;
+        mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'><path d='M2 3.5h12v7H8.5L5 13v-2.5H2z'/></svg>")
+          center / contain no-repeat;
+        -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'><path d='M2 3.5h12v7H8.5L5 13v-2.5H2z'/></svg>")
+          center / contain no-repeat;
+      }
+      .doc section:hover .head button,
+      .head button:hover,
+      .head button:focus-visible {
+        opacity: 1;
       }
       .head button:hover {
-        border-color: var(--dpk-blue);
+        border-color: var(--dpk-rule-strong);
+        background: var(--dpk-paper-raised);
         color: var(--dpk-blue);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+      }
+      .head button:focus-visible {
+        outline: none;
+        box-shadow: var(--dpk-focus);
       }
       .doc h3 {
         margin: 22px 0 6px;
@@ -96,7 +157,20 @@
       .goals {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 20px;
+        gap: 16px;
+      }
+      .goals > div {
+        padding: 16px 18px;
+        border: 1px solid var(--dpk-rule-strong);
+        border-radius: var(--dpk-radius-lg);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+      }
+      .goals > div:first-child {
+        border-left: 3px solid var(--dpk-green);
+      }
+      .goals > div:last-child {
+        border-left: 3px solid var(--dpk-rule-strong);
       }
       .goals h3 {
         margin-top: 0;
@@ -107,38 +181,58 @@
       }
       table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
+        border: 1px solid var(--dpk-rule-strong);
+        border-radius: var(--dpk-radius-lg);
+        overflow: hidden;
         font-size: 12.5px;
         line-height: 1.6;
+      }
+      thead tr {
+        background: var(--dpk-paper-sunken);
       }
       th,
       td {
         text-align: left;
         vertical-align: top;
-        padding: 9px 10px;
+        padding: 10px 14px;
         border-bottom: 1px solid var(--dpk-rule);
       }
       th {
         color: var(--dpk-ink-faint);
-        font-weight: 500;
-        font-size: 11.5px;
+        font-weight: 600;
+        font-size: 10.5px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }
       td:first-child {
         white-space: nowrap;
       }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      tbody tr:hover td {
+        background: var(--dpk-paper-inset);
+      }
       tr.is-chosen td {
+        background: var(--dpk-blue-soft);
+      }
+      tr.is-chosen:hover td {
         background: var(--dpk-blue-soft);
       }
       .badge {
         display: inline-block;
         margin-left: 6px;
-        padding: 0 7px;
+        padding: 0 8px;
         border-radius: 999px;
-        background: var(--dpk-blue);
+        background: linear-gradient(180deg, var(--dpk-blue), var(--dpk-blue-strong));
         color: #ffffff;
         font-size: 10.5px;
+        font-weight: 600;
         line-height: 18px;
         vertical-align: 1px;
+        box-shadow: 0 1px 3px color-mix(in srgb, var(--dpk-blue) 45%, transparent);
       }
 
       @media (max-width: 720px) {

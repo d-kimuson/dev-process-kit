@@ -15,7 +15,7 @@ export const architectureStyles = css`
 
   .arch-boundary {
     position: absolute;
-    border: 1px dashed var(--dpk-rule-strong);
+    border: 1.5px dashed var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-lg);
     background: color-mix(in srgb, var(--dpk-blue) 3%, transparent);
     pointer-events: none;
@@ -30,6 +30,10 @@ export const architectureStyles = css`
     position: absolute;
     top: 9px;
     left: 14px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--dpk-glass);
+    backdrop-filter: blur(8px);
     font-family: var(--dpk-mono);
     font-size: 9px;
     letter-spacing: 0.1em;
@@ -46,18 +50,27 @@ export const architectureStyles = css`
     border: 1px solid var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-sm);
     background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     text-align: left;
     overflow: hidden;
+    transition:
+      border-color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease),
+      transform 160ms var(--dpk-ease);
   }
 
   .arch-service:hover {
     border-color: var(--dpk-blue);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+    transform: translateY(-1px);
   }
 
   .arch-service.is-selected {
     border-color: var(--dpk-blue);
-    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
+    box-shadow:
+      var(--dpk-bevel),
+      var(--dpk-shadow-sm),
+      0 0 0 3px var(--dpk-blue-soft);
   }
 
   .arch-service.is-related {
@@ -81,6 +94,7 @@ export const architectureStyles = css`
     color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
     font-size: 12px;
+    box-shadow: inset 0 1px 2px var(--dpk-shade-1);
   }
 
   .arch-body {

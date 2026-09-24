@@ -20,31 +20,44 @@ const COMPOSER_SIZE = { width: 300, height: 260 };
 
 const cardStyles = css`
   :host {
+    position: relative;
     display: grid;
     gap: 5px;
     background: var(--dpk-paper-raised);
     border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius);
-    box-shadow: var(--dpk-shadow-xs);
-    padding: 10px 12px 8px;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    padding: 10px 12px 8px 14px;
     cursor: pointer;
     transition:
-      box-shadow 200ms ease,
-      transform 200ms ease,
-      border-color 200ms ease;
+      box-shadow 200ms var(--dpk-ease),
+      transform 200ms var(--dpk-ease),
+      border-color 200ms var(--dpk-ease);
+  }
+
+  /* Left accent: a quiet claim that this card belongs to the board's story
+     lane, without a hard border changing the card's shape. */
+  :host::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--dpk-usm-accent) 65%, transparent);
+    pointer-events: none;
   }
 
   :host(:hover) {
     border-color: var(--dpk-rule-strong);
-    box-shadow: var(--dpk-shadow-sm);
-    transform: translateY(-1px);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+    transform: translateY(-2px);
   }
 
   :host([focused]) {
     border-color: var(--dpk-blue);
     box-shadow:
+      var(--dpk-bevel),
       var(--dpk-shadow),
-      0 0 0 2px rgba(51, 102, 204, 0.12);
+      0 0 0 2px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
   }
 
   :host([dragging]) {

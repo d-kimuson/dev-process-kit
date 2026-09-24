@@ -32,9 +32,12 @@
         max-width: 1180px;
         margin: 0 auto 48px;
         color: var(--dpk-ink);
+        counter-reset: block;
       }
       .lede {
-        margin: 0;
+        margin: 0 0 28px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--dpk-rule);
         font-size: 12.5px;
         line-height: 1.9;
         color: var(--dpk-ink-soft);
@@ -42,35 +45,94 @@
       code {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 11.5px;
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: var(--dpk-paper-sunken);
       }
       .block {
-        margin-top: 36px;
+        margin-top: 44px;
+        counter-increment: block;
+        animation: dpk-block-rise 220ms var(--dpk-ease) backwards;
+      }
+      @keyframes dpk-block-rise {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
       }
       .block-head {
         display: flex;
         align-items: baseline;
         gap: 10px;
-        margin-bottom: 4px;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--dpk-rule);
       }
       .block-head h2 {
         margin: 0;
         font-size: 15px;
-        letter-spacing: -0.01em;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+      }
+      .block-head h2::before {
+        content: counter(block, decimal-leading-zero);
+        margin-right: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0;
+        color: var(--dpk-ink-faint);
+        font-variant-numeric: tabular-nums;
       }
       .block-comment {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         margin-left: auto;
-        padding: 3px 10px;
-        border: 1px solid var(--dpk-rule-strong);
-        border-radius: 6px;
-        background: var(--dpk-paper-raised);
+        padding: 4px 11px 4px 9px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
         color: var(--dpk-ink-soft);
         font: inherit;
         font-size: 11px;
         cursor: pointer;
+        opacity: 0.55;
+        transition:
+          opacity 160ms var(--dpk-ease),
+          border-color 160ms var(--dpk-ease),
+          background-color 160ms var(--dpk-ease),
+          color 160ms var(--dpk-ease);
       }
-      .block-comment:hover {
-        border-color: var(--dpk-blue);
+      .block-comment::before {
+        content: '';
+        width: 12px;
+        height: 12px;
+        flex: none;
+        background-color: currentColor;
+        mask: center / contain no-repeat
+          url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4'><path d='M2 3.5h12v7H6.5L3.5 13v-2.5H2z' stroke-linejoin='round' stroke-linecap='round'/></svg>");
+        -webkit-mask: center / contain no-repeat
+          url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4'><path d='M2 3.5h12v7H6.5L3.5 13v-2.5H2z' stroke-linejoin='round' stroke-linecap='round'/></svg>");
+      }
+      .block:hover .block-comment,
+      .block-comment:hover,
+      .block-comment:focus-visible {
+        opacity: 1;
+      }
+      .block-comment:hover,
+      .block-comment:focus-visible {
+        border-color: color-mix(in srgb, var(--dpk-blue) 45%, transparent);
+        background: var(--dpk-blue-soft);
         color: var(--dpk-blue);
+      }
+      .block-comment:focus-visible {
+        box-shadow: var(--dpk-focus);
+        outline: none;
       }
       .block p {
         margin: 0 0 12px;

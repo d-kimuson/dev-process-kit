@@ -13,7 +13,7 @@ export const exampleMappingStyles = css`
   .legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 14px;
+    gap: 6px;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -21,10 +21,17 @@ export const exampleMappingStyles = css`
     color: var(--dpk-ink-soft);
   }
 
+  /* Each entry reads as a small raised chip, matching the pill vocabulary
+     used for the readiness / tally summary next to it. */
   .legend li {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    padding: 4px 10px 4px 6px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
   .legend-swatch {
@@ -32,7 +39,7 @@ export const exampleMappingStyles = css`
     height: 11px;
     border-radius: 2px;
     background: var(--em-card-bg);
-    box-shadow: 0 1px 2px rgba(30, 24, 10, 0.18);
+    box-shadow: var(--dpk-shadow-xs);
   }
 
   /* ------------------------------------------------------------- board */
@@ -44,6 +51,7 @@ export const exampleMappingStyles = css`
   }
 
   .story-section {
+    position: relative;
     display: grid;
     gap: 18px;
     min-width: 0;
@@ -55,6 +63,19 @@ export const exampleMappingStyles = css`
       var(--dpk-paper-raised);
     box-shadow: var(--dpk-shadow);
     transition: outline-color 150ms ease;
+  }
+
+  /* A quiet top edge marks the section as one grouped unit, echoing the
+     activity band accent used elsewhere in the kit. */
+  .story-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: var(--dpk-radius-lg) var(--dpk-radius-lg) 0 0;
+    background: color-mix(in srgb, var(--dpk-accent) 45%, transparent);
   }
 
   .story-section[data-drop='true'] {
@@ -88,6 +109,7 @@ export const exampleMappingStyles = css`
     font-weight: 650;
     background: var(--dpk-paper-sunken);
     color: var(--dpk-ink-soft);
+    box-shadow: var(--dpk-shadow-xs);
   }
 
   .readiness[data-readiness='ready'] {
@@ -114,6 +136,7 @@ export const exampleMappingStyles = css`
     border: 1px solid var(--dpk-rule);
     border-radius: 999px;
     background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     font-family: var(--dpk-mono);
     font-size: 10.5px;
     font-variant-numeric: tabular-nums;
@@ -144,15 +167,23 @@ export const exampleMappingStyles = css`
     background: var(--dpk-blue-soft);
   }
 
-  /* A rule and its examples read as one lane: a soft tint, no side border. */
+  /* A rule and its examples read as one lane: a soft tint plus a quiet left
+     accent, so the grouping reads even where the tint thins out lower down. */
   .rule-col {
+    position: relative;
     flex: 0 0 204px;
     display: grid;
     gap: 16px;
     align-content: start;
     padding: 10px 10px 14px;
     border-radius: var(--dpk-radius-lg);
-    background: linear-gradient(180deg, rgba(51, 102, 204, 0.09), rgba(51, 102, 204, 0.03) 70%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--dpk-blue) 9%, transparent),
+      color-mix(in srgb, var(--dpk-blue) 3%, transparent) 70%,
+      transparent
+    );
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--dpk-blue) 40%, transparent);
   }
 
   .rule-col[data-dragging] {
@@ -167,6 +198,7 @@ export const exampleMappingStyles = css`
     min-height: 44px;
     padding: 8px 8px 10px;
     border-radius: var(--dpk-radius);
+    box-shadow: inset 0 1px 3px var(--dpk-shade-1);
   }
 
   .card-area--example {
@@ -217,9 +249,10 @@ export const exampleMappingStyles = css`
     font-size: 11.5px;
     cursor: pointer;
     transition:
-      background 140ms ease,
-      border-color 140ms ease,
-      color 140ms ease;
+      background 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease),
+      transform 140ms var(--dpk-ease);
   }
 
   .add-card {
@@ -252,8 +285,11 @@ export const exampleMappingStyles = css`
     border-color: var(--dpk-blue);
     background: var(--dpk-blue-soft);
     color: var(--dpk-blue);
+    transform: translateY(-1px);
   }
 
+  /* The empty state is the working canvas before anything is on it: same
+     dot-grid ground as the other templates' boards. */
   .empty {
     display: grid;
     gap: 10px;
@@ -261,7 +297,7 @@ export const exampleMappingStyles = css`
     padding: 28px 24px;
     border: 1px dashed var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-lg);
-    background: var(--dpk-paper-raised);
+    background: var(--dpk-dots), var(--dpk-paper-sunken);
   }
 
   .empty p {

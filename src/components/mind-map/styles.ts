@@ -43,7 +43,11 @@ export const mindMapStyles = css`
     font-family: var(--dpk-body);
     font-size: 12.5px;
     line-height: 1.3;
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    transition:
+      border-color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease),
+      transform 160ms var(--dpk-ease);
   }
 
   .mind-label {
@@ -56,12 +60,14 @@ export const mindMapStyles = css`
   .mind-topic.depth-0 {
     padding: 0 22px;
     border: 0;
-    background: var(--dpk-ink);
+    background: linear-gradient(155deg, color-mix(in srgb, var(--dpk-ink) 88%, transparent), var(--dpk-ink));
     color: var(--dpk-paper-raised);
     font-size: 16px;
     font-weight: 680;
     letter-spacing: -0.01em;
-    box-shadow: var(--dpk-shadow-sm);
+    box-shadow:
+      inset 0 1px 0 var(--dpk-highlight),
+      var(--dpk-shadow-sm);
   }
 
   .mind-topic.depth-1 {
@@ -79,15 +85,23 @@ export const mindMapStyles = css`
 
   .mind-topic:hover {
     border-color: var(--mind-color);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+    transform: translateY(-1px);
   }
 
   .mind-topic.is-selected {
     border-color: var(--mind-color);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mind-color) 22%, transparent);
+    box-shadow:
+      var(--dpk-bevel),
+      var(--dpk-shadow-sm),
+      0 0 0 3px color-mix(in srgb, var(--mind-color) 22%, transparent);
   }
 
   .mind-topic.depth-0.is-selected {
-    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
+    box-shadow:
+      inset 0 1px 0 var(--dpk-highlight),
+      var(--dpk-shadow-sm),
+      0 0 0 3px var(--dpk-blue-soft);
   }
 
   .mind-topic.is-related {
@@ -171,7 +185,15 @@ export const mindMapStyles = css`
     line-height: 1;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 120ms ease;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    transition:
+      opacity 120ms ease,
+      box-shadow 160ms var(--dpk-ease);
+  }
+
+  .mind-toggle:hover,
+  .mind-toggle:focus-visible {
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
   }
 
   /* Expanded toggles appear with their topic; folded ones always show the count. */

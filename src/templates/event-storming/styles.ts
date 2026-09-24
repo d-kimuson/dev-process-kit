@@ -19,15 +19,15 @@ export const eventStormingStyles = css`
   /* ------------------------------------------------------------- viewport */
 
   /* An infinite pannable surface; the dot grid scrolls with the content
-     (background-position/-size are set inline from the viewport state). */
+     (background-position/-size are set inline from the viewport state). A
+     quiet sunken tray reads as the working surface under the wall. */
   .board-viewport {
     position: relative;
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
     touch-action: none;
-    background-color: var(--dpk-paper);
-    background-image: radial-gradient(circle, var(--dpk-rule) 1px, transparent 1px);
+    background: var(--dpk-dots), var(--dpk-paper-sunken);
   }
 
   .board-viewport--gesturing,
@@ -80,17 +80,28 @@ export const eventStormingStyles = css`
     position: absolute;
     z-index: 1;
     border: 1px solid var(--dpk-rule-strong);
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--dpk-paper-raised) 78%, transparent);
-    box-shadow: var(--dpk-shadow-xs);
+    border-radius: var(--dpk-radius-lg);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 82%, transparent);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     cursor: grab;
+    transition:
+      border-color 160ms var(--dpk-ease),
+      background 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease);
+  }
+
+  .slice:hover {
+    border-color: var(--dpk-rule-hover);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
   }
 
   .slice--selected {
     border-color: var(--dpk-blue);
+    background: color-mix(in srgb, var(--dpk-blue-soft) 60%, var(--dpk-paper-raised));
     box-shadow:
+      var(--dpk-bevel),
       0 0 0 2px var(--dpk-blue-soft),
-      var(--dpk-shadow-xs);
+      var(--dpk-shadow-sm);
   }
 
   /* While a connection drag is out: everywhere it may land lights up dashed… */
@@ -148,13 +159,16 @@ export const eventStormingStyles = css`
     color: var(--dpk-ink-soft);
     font-size: 13px;
     line-height: 1;
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     cursor: crosshair;
     opacity: 0;
     pointer-events: none;
     transition:
-      opacity 120ms ease,
-      border-color 120ms ease;
+      opacity 120ms var(--dpk-ease),
+      border-color 120ms var(--dpk-ease),
+      color 120ms var(--dpk-ease),
+      background 120ms var(--dpk-ease),
+      transform 160ms var(--dpk-ease-spring);
   }
 
   .slice-port--on,
@@ -165,7 +179,9 @@ export const eventStormingStyles = css`
 
   .slice-port:hover {
     border-color: var(--dpk-blue);
+    background: var(--dpk-blue-soft);
     color: var(--dpk-blue);
+    transform: scale(1.08);
   }
 
   /* Add-note chips under the hovered slice: the roles it is still missing. */
@@ -185,16 +201,22 @@ export const eventStormingStyles = css`
     font-weight: 620;
     white-space: nowrap;
     color: var(--dpk-ink-soft);
-    background: color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 90%, transparent);
+    box-shadow: var(--dpk-shadow-xs);
     cursor: pointer;
     transition:
-      border-color 120ms ease,
-      color 120ms ease;
+      border-color 120ms var(--dpk-ease),
+      color 120ms var(--dpk-ease),
+      background 120ms var(--dpk-ease),
+      transform 140ms var(--dpk-ease-spring);
   }
 
   .slice-chip:hover {
     border-color: var(--dpk-blue);
+    border-style: solid;
     color: var(--dpk-blue);
+    background: var(--dpk-blue-soft);
+    transform: translateY(-1px);
   }
 
   /* ------------------------------------------------------ bounded contexts */
@@ -223,9 +245,10 @@ export const eventStormingStyles = css`
   .context-region {
     position: absolute;
     z-index: 0;
-    border: 1.5px dashed rgba(var(--ctx-rgb), 0.33);
-    border-radius: 10px;
-    background: rgba(var(--ctx-rgb), 0.05);
+    border: 1.5px dashed rgba(var(--ctx-rgb), 0.36);
+    border-radius: var(--dpk-radius-lg);
+    background: linear-gradient(180deg, rgba(var(--ctx-rgb), 0.07), rgba(var(--ctx-rgb), 0.025));
+    box-shadow: inset 0 1px 0 rgba(var(--ctx-rgb), 0.14);
     pointer-events: none;
   }
 
@@ -250,13 +273,18 @@ export const eventStormingStyles = css`
     text-transform: uppercase;
     white-space: nowrap;
     color: #fff;
-    background: rgba(var(--ctx-rgb), 0.9);
+    background: linear-gradient(180deg, rgba(var(--ctx-rgb), 0.98), rgba(var(--ctx-rgb), 0.84));
     cursor: pointer;
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      0 1px 2px rgba(var(--ctx-rgb), 0.3),
+      var(--dpk-shadow-xs);
+    transition: transform 140ms var(--dpk-ease-spring);
   }
 
   .context-label-name:hover {
-    background: rgba(var(--ctx-rgb), 1);
+    background: linear-gradient(180deg, rgba(var(--ctx-rgb), 1), rgba(var(--ctx-rgb), 0.92));
+    transform: translateY(-1px);
   }
 
   .context-label-x {
@@ -268,10 +296,16 @@ export const eventStormingStyles = css`
     line-height: 1;
     color: rgba(var(--ctx-rgb), 0.9);
     background: color-mix(in srgb, var(--dpk-paper-raised) 92%, transparent);
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     cursor: pointer;
     opacity: 0;
-    transition: opacity 120ms ease;
+    transition:
+      opacity 120ms var(--dpk-ease),
+      transform 140ms var(--dpk-ease-spring);
+  }
+
+  .context-label-x:hover {
+    transform: scale(1.1);
   }
 
   .context-label:hover .context-label-x,
@@ -295,9 +329,10 @@ export const eventStormingStyles = css`
   .link-path {
     fill: none;
     stroke: var(--dpk-ink-soft);
-    stroke-width: 1.6;
+    stroke-width: 1.75;
     stroke-linecap: round;
-    opacity: 0.6;
+    stroke-linejoin: round;
+    opacity: 0.65;
   }
 
   /* Invisible fat stroke on top of the line: a mistaken connection is easy to
@@ -320,17 +355,18 @@ export const eventStormingStyles = css`
   .link-label {
     font-family: var(--dpk-mono);
     font-size: 9px;
+    font-weight: 620;
     letter-spacing: 0.06em;
     fill: var(--dpk-ink-soft);
     paint-order: stroke;
-    stroke: var(--dpk-paper-raised);
-    stroke-width: 3;
+    stroke: var(--dpk-paper-sunken);
+    stroke-width: 4;
     stroke-linejoin: round;
   }
 
   .links-layer marker path {
     fill: var(--dpk-ink-soft);
-    opacity: 0.75;
+    opacity: 0.8;
   }
 
   /* --------------------------------------------------------------- gesture */
@@ -374,23 +410,44 @@ export const eventStormingStyles = css`
     bottom: 12px;
     z-index: 40;
     display: flex;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
-    padding: 5px 12px;
+    padding: 6px 8px 6px 14px;
     border: 1px solid var(--dpk-rule);
     border-radius: 999px;
     font-family: var(--dpk-mono);
     font-size: 10px;
     letter-spacing: 0.05em;
     color: var(--dpk-ink-faint);
-    background: color-mix(in srgb, var(--dpk-paper-raised) 82%, transparent);
-    backdrop-filter: blur(6px);
+    background: var(--dpk-glass);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
     pointer-events: none;
+    animation: dpk-hud-in 220ms var(--dpk-ease) backwards;
+  }
+
+  .board-hud-stat {
+    padding-right: 10px;
+    border-right: 1px solid var(--dpk-rule);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .board-hud-stat:last-of-type {
+    padding-right: 0;
+    border-right: 0;
   }
 
   .board-hint {
     color: var(--dpk-ink-faint);
     opacity: 0.8;
+    letter-spacing: 0.02em;
+  }
+
+  @keyframes dpk-hud-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
   }
 
   .board-zoom {
@@ -401,11 +458,12 @@ export const eventStormingStyles = css`
     display: flex;
     align-items: center;
     border: 1px solid var(--dpk-rule);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent);
-    backdrop-filter: blur(6px);
-    box-shadow: var(--dpk-shadow-xs);
+    border-radius: var(--dpk-radius);
+    background: var(--dpk-glass);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
     overflow: hidden;
+    animation: dpk-hud-in 220ms var(--dpk-ease) backwards;
   }
 
   .board-zoom button {
@@ -416,6 +474,9 @@ export const eventStormingStyles = css`
     line-height: 1;
     color: var(--dpk-ink-soft);
     cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease);
   }
 
   .board-zoom button:hover {
@@ -440,10 +501,11 @@ export const eventStormingStyles = css`
     align-items: center;
     padding: 8px 12px;
     border: 1px solid var(--dpk-rule-strong);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
-    backdrop-filter: blur(6px);
-    box-shadow: var(--dpk-shadow);
+    border-radius: var(--dpk-radius);
+    background: var(--dpk-glass);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
+    animation: dpk-hud-in 200ms var(--dpk-ease-spring) backwards;
   }
 
   .board-selection-count {
@@ -462,15 +524,16 @@ export const eventStormingStyles = css`
   /* ----------------------------------------------------------------- empty */
 
   .empty {
-    border: 1px dashed var(--dpk-rule-strong);
-    border-radius: var(--dpk-radius-lg);
+    border: 1.5px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-xl);
     padding: 28px 24px;
     background: var(--dpk-paper-raised);
     max-width: 560px;
     display: grid;
     gap: 10px;
-    box-shadow: var(--dpk-shadow-sm);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
     justify-items: start;
+    animation: dpk-hud-in 220ms var(--dpk-ease) backwards;
   }
 
   /* --------------------------------------------------------------- pickers */
@@ -494,15 +557,18 @@ export const eventStormingStyles = css`
 
   .type-chip {
     border: 1px solid var(--dpk-rule-strong);
-    border-radius: 4px;
+    border-radius: var(--dpk-radius-xs);
     padding: 6px 8px;
     font-size: 11px;
     font-weight: 620;
     text-align: left;
     background: var(--es-note-bg, var(--dpk-paper-raised));
     color: var(--es-note-ink, var(--dpk-ink));
+    box-shadow: var(--dpk-shadow-xs);
     cursor: pointer;
-    transition: transform 120ms ease;
+    transition:
+      transform 140ms var(--dpk-ease-spring),
+      box-shadow 140ms var(--dpk-ease);
   }
 
   .type-chip:hover {

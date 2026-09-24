@@ -11,7 +11,7 @@ export const sequenceStyles = css`
     flex-shrink: 0;
     overflow: hidden;
     border-bottom: 1px solid var(--dpk-rule);
-    background: var(--dpk-paper);
+    background: linear-gradient(180deg, var(--dpk-paper-raised), var(--dpk-paper));
   }
 
   .sequence-rail-world {
@@ -34,18 +34,31 @@ export const sequenceStyles = css`
     border: 1px solid var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-sm);
     background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     text-align: left;
     cursor: pointer;
+    transition:
+      border-color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease),
+      transform 160ms var(--dpk-ease);
   }
 
   .sequence-participant.is-external {
     border-style: dashed;
   }
 
+  .sequence-participant:hover {
+    border-color: var(--dpk-blue);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+    transform: translateY(-1px);
+  }
+
   .sequence-participant[aria-pressed='true'] {
     border-color: var(--dpk-blue);
-    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
+    box-shadow:
+      var(--dpk-bevel),
+      var(--dpk-shadow-sm),
+      0 0 0 3px var(--dpk-blue-soft);
   }
 
   .sequence-participant.is-related {
@@ -132,6 +145,7 @@ export const sequenceStyles = css`
     border: 1px solid var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-xs);
     background: color-mix(in srgb, var(--dpk-blue-soft) 50%, transparent);
+    box-shadow: 0 1px 2px var(--dpk-shade-1);
     pointer-events: none;
   }
 
@@ -149,6 +163,9 @@ export const sequenceStyles = css`
     font-size: 10px;
     text-align: left;
     cursor: pointer;
+    transition:
+      background 160ms var(--dpk-ease),
+      color 160ms var(--dpk-ease);
   }
 
   .sequence-frame-header:hover {
@@ -196,17 +213,27 @@ export const sequenceStyles = css`
     font-size: 10px;
     text-align: left;
     cursor: pointer;
+    box-shadow: var(--dpk-shadow-xs);
+    transition:
+      border-color 160ms var(--dpk-ease),
+      background 160ms var(--dpk-ease),
+      color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease);
   }
 
   .sequence-label:hover {
     border-color: color-mix(in srgb, var(--dpk-blue) 40%, transparent);
     color: var(--dpk-blue);
+    box-shadow: var(--dpk-shadow-sm);
   }
 
   .sequence-label.is-selected {
     border-color: color-mix(in srgb, var(--dpk-blue) 55%, transparent);
     background: var(--dpk-blue-soft);
     color: var(--dpk-blue);
+    box-shadow:
+      var(--dpk-shadow-xs),
+      inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 20%, transparent);
   }
 
   .sequence-number {

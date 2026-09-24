@@ -58,8 +58,11 @@ export const renderStage = (
   return html`
     <div class="stage">
       ${previews.length > 1 ? renderPreviewTabs(context, previews, active?.id) : nothing}
-      ${active ? renderFrame(context, active, options.hasPreviewContent(active.id)) : nothing}
-      ${previews.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing} ${parked}
+      <div class="canvas">
+        ${active ? renderFrame(context, active, options.hasPreviewContent(active.id)) : nothing}
+        ${previews.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
+      </div>
+      ${parked}
     </div>
   `;
 };

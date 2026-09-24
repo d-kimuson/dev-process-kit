@@ -48,22 +48,40 @@ const cardStyles = css`
     box-sizing: border-box;
     padding: 16px 9px 8px;
     border-radius: 3px;
-    background: var(--es-note-bg, var(--dpk-paper-raised));
+    background:
+      linear-gradient(165deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 40%),
+      var(--es-note-bg, var(--dpk-paper-raised));
     color: var(--es-note-ink, var(--dpk-ink));
     box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
       0 1px 2px rgba(30, 24, 10, 0.14),
       0 5px 10px -4px rgba(30, 24, 10, 0.24);
     cursor: pointer;
     transform: rotate(var(--es-tilt, 0deg));
     transition:
-      transform 180ms ease,
-      box-shadow 180ms ease;
+      transform 180ms var(--dpk-ease),
+      box-shadow 180ms var(--dpk-ease);
     overflow: visible;
+  }
+
+  /* A dog-eared corner: a quiet cue that this is a paper note, not a flat chip. */
+  :host::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 13px;
+    height: 13px;
+    background: linear-gradient(135deg, transparent 50%, rgba(0, 0, 0, 0.16) 50%);
+    border-bottom-left-radius: 3px;
+    opacity: 0.6;
+    pointer-events: none;
   }
 
   :host(:hover) {
     transform: rotate(0deg) translateY(-2px);
     box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.32),
       0 2px 4px rgba(30, 24, 10, 0.16),
       0 12px 22px -6px rgba(30, 24, 10, 0.3);
     z-index: 6;
@@ -131,8 +149,9 @@ const cardStyles = css`
     min-width: 17px;
     height: 17px;
     padding: 0 4px;
+    border: 1.5px solid var(--dpk-paper-raised);
     border-radius: 999px;
-    background: var(--dpk-accent);
+    background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent));
     color: var(--dpk-accent-ink);
     font-family: var(--dpk-mono);
     font-size: 9.5px;
@@ -165,18 +184,22 @@ const cardStyles = css`
     right: -4px;
     z-index: 9;
     padding: 2px 7px;
-    border: 1px solid color-mix(in srgb, #e02c44 45%, transparent);
+    border: 1px solid color-mix(in srgb, var(--dpk-danger) 45%, transparent);
     border-radius: 999px;
     font-size: 9.5px;
     font-weight: 620;
     white-space: nowrap;
     color: var(--dpk-danger);
     background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     cursor: pointer;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 140ms ease;
+    transition:
+      opacity 140ms var(--dpk-ease),
+      transform 140ms var(--dpk-ease-spring),
+      background 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease);
   }
 
   :host(:hover) .note-hotspot,
@@ -187,8 +210,9 @@ const cardStyles = css`
   }
 
   .note-hotspot:hover {
-    border-color: #e02c44;
+    border-color: var(--dpk-danger);
     background: var(--dpk-danger-soft);
+    transform: translateY(-1px);
   }
 
   :host(:hover) .note-tools,
@@ -204,8 +228,8 @@ const cardStyles = css`
     border: 1px solid var(--dpk-rule);
     border-radius: 50%;
     background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
-    backdrop-filter: blur(2px);
-    box-shadow: var(--dpk-shadow-xs);
+    backdrop-filter: blur(4px);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 `;
 

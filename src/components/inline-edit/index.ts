@@ -30,21 +30,28 @@ export class DpkComponentInlineEdit extends LitElement {
       .view {
         cursor: text;
         border-bottom: 1px dashed transparent;
-        border-radius: 3px;
-        padding: 1px 3px;
+        border-radius: var(--dpk-radius-xs);
+        padding: 1px 4px;
         transition:
-          background 140ms ease,
-          border-color 140ms ease;
+          background 140ms var(--dpk-ease),
+          border-color 140ms var(--dpk-ease),
+          box-shadow 140ms var(--dpk-ease);
       }
 
       .view:hover {
         border-bottom-color: var(--dpk-blue);
         background: var(--dpk-blue-soft);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
       }
 
       .view[data-empty='true'] {
+        border-bottom-color: var(--dpk-rule-strong);
         color: var(--dpk-ink-faint);
         font-style: italic;
+      }
+
+      .view[data-empty='true']:hover {
+        border-bottom-color: var(--dpk-blue);
       }
 
       input,
@@ -58,7 +65,15 @@ export class DpkComponentInlineEdit extends LitElement {
         padding: 3px 7px;
         min-width: 0;
         width: 100%;
-        transition: box-shadow 140ms ease;
+        transition: box-shadow 140ms var(--dpk-ease);
+        animation: dpk-inline-edit-in 140ms var(--dpk-ease) backwards;
+      }
+
+      @keyframes dpk-inline-edit-in {
+        from {
+          opacity: 0;
+          transform: translateY(1px) scale(0.99);
+        }
       }
 
       textarea {

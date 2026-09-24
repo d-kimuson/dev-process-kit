@@ -5,6 +5,8 @@ import type { AnswerInput } from '../actions';
 import type { GrillMessages } from '../messages';
 import type { GrillChoiceViewModel, GrillPanelViewModel, GrillQuestionViewModel } from '../present';
 
+import { iconChevronRight } from '../../../core/icons';
+
 export type PanelHandlers = {
   readonly open: (questionId: string) => void;
   readonly answer: (questionId: string, answer: AnswerInput) => void;
@@ -52,7 +54,7 @@ const renderQuestion = (
         <strong>${question.title}</strong>
         ${!question.open && question.answered ? html`<span class="grill-summary">${question.summary}</span>` : nothing}
       </span>
-      <span class="grill-chevron" aria-hidden="true">${question.open ? '−' : '+'}</span>
+      <span class="grill-chevron" aria-hidden="true">${iconChevronRight()}</span>
     </button>
     ${
       question.open

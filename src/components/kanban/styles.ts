@@ -20,21 +20,28 @@ export const kanbanStyles = css`
     width: 264px;
     padding: 10px;
     border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius);
+    border-radius: var(--dpk-radius-lg);
     background: var(--dpk-paper-sunken);
+    box-shadow: inset 0 1px 3px var(--dpk-shade-1);
     cursor: default;
     transition:
-      border-color 150ms ease,
-      box-shadow 150ms ease;
+      border-color 150ms var(--dpk-ease),
+      box-shadow 150ms var(--dpk-ease);
   }
 
   .kanban-column.is-selected {
-    border-color: var(--dpk-ink-soft);
-    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
+    border-color: color-mix(in srgb, var(--dpk-blue) 55%, transparent);
+    box-shadow:
+      inset 0 1px 3px var(--dpk-shade-1),
+      inset 0 0 0 2px color-mix(in srgb, var(--dpk-blue) 40%, transparent);
   }
 
   .kanban-column.is-drop-target {
     border-color: var(--dpk-blue);
+    background: color-mix(in srgb, var(--dpk-blue-soft) 60%, var(--dpk-paper-sunken));
+    box-shadow:
+      inset 0 1px 3px var(--dpk-shade-1),
+      inset 0 0 0 2px color-mix(in srgb, var(--dpk-blue) 30%, transparent);
   }
 
   .kanban-column-head {
@@ -57,6 +64,7 @@ export const kanbanStyles = css`
     font-family: var(--dpk-body);
     font-size: 13px;
     font-weight: 650;
+    letter-spacing: -0.01em;
     text-align: left;
     cursor: pointer;
   }
@@ -114,6 +122,8 @@ export const kanbanStyles = css`
     font-family: var(--dpk-mono);
     font-size: 11px;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
   /* Over its WIP limit: the column asks for attention, not the cards. */
@@ -161,21 +171,27 @@ export const kanbanStyles = css`
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink);
     font-family: var(--dpk-body);
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     cursor: grab;
     transition:
-      border-color 150ms ease,
-      box-shadow 150ms ease,
-      opacity 150ms ease;
+      border-color 150ms var(--dpk-ease),
+      box-shadow 150ms var(--dpk-ease),
+      opacity 150ms var(--dpk-ease),
+      transform 150ms var(--dpk-ease);
   }
 
   .kanban-card:hover {
-    border-color: var(--dpk-rule-strong);
+    border-color: var(--dpk-rule-hover);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+    transform: translateY(-1px);
   }
 
   .kanban-card.is-selected {
-    border-color: var(--dpk-ink-soft);
-    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
+    border-color: color-mix(in srgb, var(--dpk-blue) 55%, transparent);
+    box-shadow:
+      var(--dpk-bevel),
+      inset 0 0 0 2px color-mix(in srgb, var(--dpk-blue) 45%, transparent),
+      var(--dpk-shadow-xs);
   }
 
   .kanban-card:focus-visible {
@@ -184,22 +200,27 @@ export const kanbanStyles = css`
   }
 
   .kanban-card.is-dragging {
-    opacity: 0.4;
+    opacity: 0.45;
+    transform: rotate(-1.5deg) scale(0.98);
+    box-shadow: var(--dpk-shadow-sm);
   }
 
   /* Changed on this page by a draft action: not authored yet. */
   .kanban-card.is-added {
     border-style: dashed;
     border-color: var(--dpk-green);
+    background: linear-gradient(90deg, var(--dpk-green-soft), transparent 60%), var(--dpk-paper-raised);
   }
 
   .kanban-card.is-moved {
     border-left: 3px solid var(--dpk-blue);
+    background: linear-gradient(90deg, var(--dpk-blue-soft), transparent 60%), var(--dpk-paper-raised);
   }
 
   .kanban-card-title {
     font-size: 13px;
-    font-weight: 560;
+    font-weight: 600;
+    letter-spacing: -0.005em;
     line-height: 1.45;
     overflow-wrap: anywhere;
   }
@@ -224,8 +245,9 @@ export const kanbanStyles = css`
   }
 
   .kanban-tag {
-    padding: 1px 6px;
-    border-radius: var(--dpk-radius-xs);
+    padding: 1px 7px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: 999px;
     background: var(--dpk-paper-sunken);
     color: var(--dpk-ink-soft);
     font-size: 10.5px;
@@ -237,6 +259,17 @@ export const kanbanStyles = css`
     font-size: 11px;
   }
 
+  .kanban-assignee::before {
+    content: '';
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    margin-right: 4px;
+    border-radius: 999px;
+    background: var(--dpk-ink-faint);
+    vertical-align: middle;
+  }
+
   .kanban-card-slot > .diagram-comment-trigger {
     position: absolute;
     top: 5px;
@@ -246,9 +279,9 @@ export const kanbanStyles = css`
 
   .kanban-error {
     margin: 6px 0 0;
-    padding: 4px 6px;
+    padding: 4px 7px;
     border-radius: var(--dpk-radius-xs);
-    background: var(--dpk-paper-raised);
+    background: var(--dpk-accent-soft);
     color: var(--dpk-accent);
     font-size: 11.5px;
     line-height: 1.4;
@@ -260,6 +293,15 @@ export const kanbanStyles = css`
     margin: -5.5px 0;
     border-radius: 2px;
     background: var(--dpk-blue);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
+    animation: dpk-drop-in 140ms var(--dpk-ease-spring) backwards;
+  }
+
+  @keyframes dpk-drop-in {
+    from {
+      opacity: 0;
+      transform: scaleX(0.4);
+    }
   }
 
   .kanban-add {
@@ -278,11 +320,16 @@ export const kanbanStyles = css`
     font-size: 12px;
     text-align: left;
     cursor: pointer;
+    transition:
+      border-color 140ms var(--dpk-ease),
+      background 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease);
   }
 
   .kanban-add-button:hover,
   .kanban-add-button:focus-visible {
-    border-color: var(--dpk-ink-soft);
+    border-color: color-mix(in srgb, var(--dpk-blue) 45%, var(--dpk-rule-strong));
+    background: var(--dpk-paper-raised);
     color: var(--dpk-ink);
     outline: none;
   }

@@ -19,9 +19,18 @@ export const erStyles = css`
     border: 1px solid var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-sm);
     background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     overflow: hidden;
     cursor: default;
+    transition:
+      border-color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease),
+      transform 160ms var(--dpk-ease);
+  }
+
+  .er-table:hover {
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+    transform: translateY(-1px);
   }
 
   .er-table.is-added {
@@ -38,7 +47,10 @@ export const erStyles = css`
 
   .er-table.is-selected {
     border-color: var(--dpk-blue);
-    box-shadow: 0 0 0 3px var(--dpk-blue-soft);
+    box-shadow:
+      var(--dpk-bevel),
+      var(--dpk-shadow-sm),
+      0 0 0 3px var(--dpk-blue-soft);
   }
 
   .er-table.is-related {
@@ -157,17 +169,20 @@ export const erStyles = css`
   }
 
   .er-field.is-added {
-    background: color-mix(in srgb, var(--dpk-green) 7%, transparent);
+    background: color-mix(in srgb, var(--dpk-green) 10%, transparent);
+    box-shadow: inset 2px 0 0 var(--dpk-green);
   }
 
   .er-field.is-removed {
-    background: color-mix(in srgb, var(--dpk-accent) 7%, transparent);
+    background: color-mix(in srgb, var(--dpk-accent) 10%, transparent);
+    box-shadow: inset 2px 0 0 var(--dpk-accent);
     text-decoration: line-through;
     color: var(--dpk-ink-faint);
   }
 
   .er-field.is-changed {
-    background: color-mix(in srgb, var(--dpk-amber) 7%, transparent);
+    background: color-mix(in srgb, var(--dpk-amber) 10%, transparent);
+    box-shadow: inset 2px 0 0 var(--dpk-amber);
   }
 
   .er-field.is-match {

@@ -447,9 +447,9 @@ const renderGestureOverlay = (gesture: EsGesture | undefined): TemplateResult | 
 
 const renderHud = (m: EventStormingMessages, state: EventStormingState, slices: readonly EsSlice[]): TemplateResult => {
   return html`<div class="board-hud">
-    <span>${m.noteCount(state.elements.length)}</span>
-    <span>${m.sliceCount(slices.length)}</span>
-    <span>${m.contextCount(state.contexts.length)}</span>
+    <span class="board-hud-stat">${m.noteCount(state.elements.length)}</span>
+    <span class="board-hud-stat">${m.sliceCount(slices.length)}</span>
+    <span class="board-hud-stat">${m.contextCount(state.contexts.length)}</span>
     <span class="board-hint">${m.hudHint}</span>
   </div>`;
 };

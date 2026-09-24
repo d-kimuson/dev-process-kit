@@ -27,6 +27,7 @@ export const diagramStyles = [
       border: 1px solid var(--dpk-rule);
       border-radius: var(--dpk-radius-lg);
       background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
       overflow: hidden;
       resize: vertical;
     }
@@ -50,6 +51,14 @@ export const diagramStyles = [
       border: 0;
       border-radius: 0;
       color: var(--dpk-ink);
+      background:
+        radial-gradient(
+          ellipse 900px 400px at 0% 0%,
+          color-mix(in srgb, var(--dpk-accent) 4%, transparent),
+          transparent 70%
+        ),
+        var(--dpk-paper-raised);
+      box-shadow: none;
       resize: none;
     }
 
@@ -62,17 +71,20 @@ export const diagramStyles = [
       align-items: center;
       gap: 10px;
       flex-wrap: wrap;
-      min-height: 42px;
-      padding: 7px 12px;
+      min-height: 44px;
+      padding: 8px 14px;
       border-bottom: 1px solid var(--dpk-rule);
       background: linear-gradient(180deg, var(--dpk-paper-raised), var(--dpk-paper));
+      box-shadow: 0 1px 0 var(--dpk-highlight) inset;
       flex-shrink: 0;
     }
 
     .diagram-title {
+      font-family: var(--dpk-display);
       font-size: 12.5px;
-      font-weight: 620;
-      letter-spacing: -0.01em;
+      font-weight: 660;
+      letter-spacing: -0.015em;
+      color: var(--dpk-ink);
     }
 
     .diagram-subject {
@@ -85,7 +97,7 @@ export const diagramStyles = [
     .diagram-toolbar-actions {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       margin-left: auto;
       flex-wrap: wrap;
     }
@@ -93,6 +105,11 @@ export const diagramStyles = [
     .diagram-stats {
       font-family: var(--dpk-mono);
       font-size: 10px;
+      font-weight: 550;
+      padding: 3px 9px;
+      border: 1px solid var(--dpk-rule);
+      border-radius: 999px;
+      background: var(--dpk-paper-sunken);
       color: var(--dpk-ink-faint);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
@@ -101,9 +118,9 @@ export const diagramStyles = [
     .diagram-tags {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       flex-wrap: wrap;
-      padding: 6px 12px;
+      padding: 7px 12px;
       border-bottom: 1px solid var(--dpk-rule);
       background: var(--dpk-paper);
       flex-shrink: 0;
@@ -111,40 +128,58 @@ export const diagramStyles = [
 
     .diagram-match {
       display: flex;
-      gap: 1px;
-      padding: 2px;
-      margin-right: 5px;
-      border: 1px solid var(--dpk-rule-strong);
-      border-radius: var(--dpk-radius-xs);
+      gap: 2px;
+      padding: 3px;
+      margin-right: 6px;
+      border: 1px solid var(--dpk-rule);
+      border-radius: var(--dpk-radius-sm);
+      background: var(--dpk-paper-sunken);
+      box-shadow: inset 0 1px 2px var(--dpk-shade-1);
     }
 
     .diagram-match button {
       border: 0;
-      border-radius: 3px;
-      padding: 3px 6px;
+      border-radius: var(--dpk-radius-xs);
+      padding: 4px 8px;
       background: transparent;
       color: var(--dpk-ink-faint);
       font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
       cursor: pointer;
+      transition:
+        background 160ms var(--dpk-ease),
+        color 160ms var(--dpk-ease),
+        box-shadow 160ms var(--dpk-ease);
+    }
+
+    .diagram-match button:hover[aria-pressed='false'] {
+      color: var(--dpk-ink-soft);
     }
 
     .diagram-match button[aria-pressed='true'] {
-      background: var(--dpk-blue-soft);
-      color: var(--dpk-blue);
+      background: var(--dpk-paper-raised);
+      color: var(--dpk-ink);
       font-weight: 650;
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     }
 
     .dpk-tag {
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 4px 8px;
+      padding: 4px 9px;
       border: 1px solid transparent;
       border-radius: var(--dpk-radius-xs);
       background: var(--dpk-paper-inset);
       color: var(--dpk-ink-soft);
       font-size: 10.5px;
       cursor: pointer;
+      transition:
+        background 140ms var(--dpk-ease),
+        color 140ms var(--dpk-ease),
+        border-color 140ms var(--dpk-ease),
+        box-shadow 140ms var(--dpk-ease);
     }
 
     .dpk-tag:hover {
@@ -153,10 +188,11 @@ export const diagramStyles = [
     }
 
     .dpk-tag[aria-pressed='true'] {
-      border-color: color-mix(in srgb, var(--dpk-blue) 40%, transparent);
+      border-color: color-mix(in srgb, var(--dpk-blue) 45%, transparent);
       background: var(--dpk-blue-soft);
       color: var(--dpk-blue);
       font-weight: 600;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 20%, transparent);
     }
 
     .dpk-tag-count {
@@ -182,9 +218,7 @@ export const diagramStyles = [
       overflow: hidden;
       touch-action: none;
       cursor: grab;
-      background-color: var(--dpk-paper-raised);
-      background-image: radial-gradient(var(--dpk-rule-strong) 0.7px, transparent 0.7px);
-      background-size: 22px 22px;
+      background: var(--dpk-dots), var(--dpk-paper-sunken);
     }
 
     .diagram-canvas:focus-visible {
@@ -217,8 +251,9 @@ export const diagramStyles = [
       overflow: hidden;
       border: 1px solid var(--dpk-rule-strong);
       border-radius: var(--dpk-radius-sm);
-      background: var(--dpk-paper-raised);
-      box-shadow: var(--dpk-shadow-sm);
+      background: var(--dpk-glass);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
     }
 
     .diagram-zoom button {
@@ -226,12 +261,26 @@ export const diagramStyles = [
       border-radius: 0;
       padding: 6px 9px;
       background: transparent;
+      color: var(--dpk-ink-soft);
       font-size: 10.5px;
       cursor: pointer;
+      transition:
+        background 140ms var(--dpk-ease),
+        color 140ms var(--dpk-ease);
+    }
+
+    .diagram-zoom button + button {
+      border-left: 1px solid var(--dpk-rule);
     }
 
     .diagram-zoom button:hover {
-      background: var(--dpk-paper-sunken);
+      background: var(--dpk-paper-inset);
+      color: var(--dpk-ink);
+    }
+
+    .diagram-zoom-value {
+      font-family: var(--dpk-mono);
+      font-variant-numeric: tabular-nums;
     }
 
     .diagram-legend {
@@ -242,9 +291,12 @@ export const diagramStyles = [
       gap: 12px;
       flex-wrap: wrap;
       max-width: calc(100% - 150px);
-      padding: 3px 6px;
+      padding: 4px 8px;
+      border: 1px solid var(--dpk-rule);
       border-radius: var(--dpk-radius-xs);
-      background: color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent);
+      background: var(--dpk-glass);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--dpk-shadow-xs);
       font-size: 9.5px;
       color: var(--dpk-ink-faint);
     }
@@ -267,20 +319,29 @@ export const diagramStyles = [
       top: 50%;
       transform: translate(-50%, -50%);
       margin: 0;
+      max-width: min(80%, 360px);
       font-size: 12px;
       color: var(--dpk-ink-faint);
       text-align: center;
       pointer-events: none;
     }
 
+    .diagram-empty {
+      padding: 16px 26px;
+      border: 1.5px dashed var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius);
+      background: color-mix(in srgb, var(--dpk-paper-raised) 55%, transparent);
+    }
+
     .diagram-notice {
       pointer-events: auto;
-      padding: 12px 16px;
-      border: 1px solid var(--dpk-rule-strong);
+      padding: 12px 16px 12px 19px;
+      border: 1px solid color-mix(in srgb, var(--dpk-danger) 35%, transparent);
       border-radius: var(--dpk-radius);
-      background: var(--dpk-paper-raised);
-      box-shadow: var(--dpk-shadow-sm);
+      background: linear-gradient(90deg, var(--dpk-danger) 0 3px, transparent 3px), var(--dpk-danger-soft);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow);
       color: var(--dpk-ink-soft);
+      text-align: left;
     }
 
     .diagram-notice p {
@@ -302,11 +363,17 @@ export const diagramStyles = [
       border-radius: var(--dpk-radius-sm);
       background: var(--dpk-paper-raised);
       color: var(--dpk-ink-soft);
-      box-shadow: var(--dpk-shadow-xs);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
       cursor: pointer;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 120ms ease;
+      transition:
+        opacity 120ms ease,
+        background 160ms var(--dpk-ease),
+        color 160ms var(--dpk-ease),
+        border-color 160ms var(--dpk-ease),
+        box-shadow 160ms var(--dpk-ease),
+        transform 160ms var(--dpk-ease-spring);
     }
 
     .diagram-comment-trigger.is-placed {
@@ -338,6 +405,14 @@ export const diagramStyles = [
     .diagram-comment-trigger:focus-visible {
       color: var(--dpk-accent);
       border-color: var(--dpk-accent);
+      background: var(--dpk-accent-soft);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+      transform: translateY(-1px);
+    }
+
+    .diagram-comment-trigger:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
     }
 
     @media (hover: none) {
@@ -364,8 +439,10 @@ export const diagramStyles = [
       cursor: pointer;
       transition:
         opacity 150ms ease,
-        border-color 150ms ease,
-        box-shadow 150ms ease;
+        border-color 160ms var(--dpk-ease),
+        box-shadow 160ms var(--dpk-ease),
+        background 160ms var(--dpk-ease),
+        transform 160ms var(--dpk-ease);
     }
 
     .d-node.is-dimmed,
@@ -391,12 +468,16 @@ export const diagramStyles = [
       stroke: var(--dpk-rule-strong);
       stroke-width: 1.5;
       stroke-linejoin: round;
+      stroke-linecap: round;
+      transition:
+        stroke 160ms var(--dpk-ease),
+        stroke-width 160ms var(--dpk-ease);
     }
 
     .d-edge.is-selected .d-edge-path,
     .d-edge:focus-visible .d-edge-path {
       stroke: var(--dpk-ink);
-      stroke-width: 2.4;
+      stroke-width: 2.6;
     }
 
     .d-edge:focus-visible .d-edge-hit {

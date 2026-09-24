@@ -63,25 +63,26 @@ export const grillStyles = css`
     padding: 0;
     border: 1px solid var(--dpk-rule-strong);
     border-radius: 999px;
-    background: var(--dpk-paper-raised);
+    background: var(--dpk-glass);
+    backdrop-filter: blur(12px);
     color: var(--dpk-ink-soft);
     font-size: 16.5px;
     font-weight: 650;
     line-height: 1;
-    box-shadow: var(--dpk-shadow);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow);
     cursor: pointer;
     transition:
-      color 160ms ease,
-      background 160ms ease,
-      border-color 160ms ease,
-      box-shadow 160ms ease,
-      transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      color 160ms var(--dpk-ease),
+      background 160ms var(--dpk-ease),
+      border-color 160ms var(--dpk-ease),
+      box-shadow 160ms var(--dpk-ease),
+      transform 160ms var(--dpk-ease-spring);
   }
 
   .grill-toggle:hover {
     color: var(--dpk-ink);
     transform: translateY(-2px) scale(1.05);
-    box-shadow: var(--dpk-shadow-lg);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
   }
 
   .grill-toggle:active {
@@ -97,8 +98,10 @@ export const grillStyles = css`
   .grill-toggle[aria-expanded='true'] {
     color: var(--dpk-accent-ink);
     border-color: transparent;
-    background: linear-gradient(135deg, var(--dpk-accent), var(--dpk-accent-strong));
-    box-shadow: 0 2px 8px rgba(217, 73, 32, 0.3);
+    background: linear-gradient(135deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.24),
+      0 2px 8px color-mix(in srgb, var(--dpk-accent) 40%, transparent);
   }
 
   .grill-toggle-glyph {
@@ -114,59 +117,68 @@ export const grillStyles = css`
     padding: 0 5px;
     border: 2px solid var(--dpk-paper-raised);
     border-radius: 999px;
-    background: var(--dpk-paper-inset);
-    color: var(--dpk-ink-faint);
+    background: linear-gradient(180deg, var(--dpk-paper-raised), var(--dpk-paper-inset));
+    color: var(--dpk-ink-soft);
     font-family: var(--dpk-mono);
     font-size: 9px;
-    font-weight: 600;
+    font-weight: 650;
     font-variant-numeric: tabular-nums;
     line-height: 14px;
     /* The widest value is wider than the button it sits on: keep it on one line. */
     white-space: nowrap;
     text-align: center;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
   .grill-toggle[aria-expanded='true'] .grill-toggle-badge {
     background: var(--dpk-paper-raised);
-    color: var(--dpk-ink-soft);
+    color: var(--dpk-accent);
   }
 
   /* ------------------------------------------------------------- the list */
 
+  /* A segmented control: a sunken track with the active tab raised out of it. */
   .grill-tabs {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     flex-shrink: 0;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--dpk-rule);
-    background: var(--dpk-paper-raised);
+    margin: 10px;
+    padding: 3px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius);
+    background: var(--dpk-paper-sunken);
+    box-shadow: inset 0 1px 2px var(--dpk-shade-1);
   }
 
   .grill-tabs button {
+    flex: 1 1 0;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
-    padding: 5px 9px;
+    padding: 6px 9px;
     border: 1px solid transparent;
-    border-radius: var(--dpk-radius-xs);
+    border-radius: var(--dpk-radius-sm);
     background: transparent;
     color: var(--dpk-ink-faint);
     font-size: 11.5px;
     cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease),
+      box-shadow 140ms var(--dpk-ease);
   }
 
   .grill-tabs button:hover {
-    background: var(--dpk-paper-inset);
     color: var(--dpk-ink);
   }
 
   .grill-tabs button[aria-selected='true'] {
-    border-color: var(--dpk-rule-strong);
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink);
     font-weight: 600;
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
   .grill-count {
@@ -174,6 +186,10 @@ export const grillStyles = css`
     font-size: 10px;
     font-variant-numeric: tabular-nums;
     color: var(--dpk-ink-faint);
+  }
+
+  .grill-tabs button[aria-selected='true'] .grill-count {
+    color: var(--dpk-accent);
   }
 
   .grill-list {
@@ -193,11 +209,18 @@ export const grillStyles = css`
   }
 
   .grill-question {
-    border-bottom: 1px solid var(--dpk-rule);
+    margin: 6px 0;
+    border: 1px solid transparent;
+    border-radius: var(--dpk-radius);
+    transition:
+      background 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease);
   }
 
-  .grill-question:last-child {
-    border-bottom: 0;
+  .grill-question:has(.grill-heading[aria-expanded='true']) {
+    border-color: var(--dpk-rule);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
   .grill-heading {
@@ -205,9 +228,9 @@ export const grillStyles = css`
     align-items: flex-start;
     gap: 9px;
     width: 100%;
-    padding: 11px 6px;
+    padding: 10px 8px;
     border: 0;
-    border-radius: var(--dpk-radius-xs);
+    border-radius: var(--dpk-radius-sm);
     background: none;
     text-align: left;
     cursor: pointer;
@@ -215,6 +238,10 @@ export const grillStyles = css`
 
   .grill-heading:hover {
     background: var(--dpk-paper-sunken);
+  }
+
+  .grill-question:has(.grill-heading[aria-expanded='true']) .grill-heading:hover {
+    background: none;
   }
 
   .grill-ref {
@@ -226,24 +253,34 @@ export const grillStyles = css`
     padding: 0 6px;
     border: 1px solid var(--dpk-rule-strong);
     border-radius: 999px;
+    background: var(--dpk-paper-sunken);
     font-family: var(--dpk-mono);
     font-size: 10px;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--dpk-ink-faint);
+    box-shadow: inset 0 1px 2px var(--dpk-shade-1);
+    transition:
+      background 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease),
+      box-shadow 140ms var(--dpk-ease);
   }
 
   .grill-question[data-answered='true'] .grill-ref {
     border-color: transparent;
-    background: var(--dpk-green-soft);
+    background: linear-gradient(180deg, var(--dpk-green-soft), color-mix(in srgb, var(--dpk-green) 16%, transparent));
     color: var(--dpk-green);
-    font-weight: 600;
+    box-shadow: var(--dpk-bevel);
   }
 
   .grill-question:has(.grill-heading[aria-expanded='true']) .grill-ref {
     border-color: transparent;
-    background: var(--dpk-accent-soft);
-    color: var(--dpk-accent);
-    font-weight: 600;
+    background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent));
+    color: var(--dpk-accent-ink);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.24),
+      0 2px 6px -2px color-mix(in srgb, var(--dpk-accent) 55%, transparent);
   }
 
   .grill-heading-text {
@@ -254,8 +291,9 @@ export const grillStyles = css`
   .grill-heading-text strong {
     display: block;
     font-size: 12.5px;
-    font-weight: 600;
+    font-weight: 620;
     line-height: 1.6;
+    letter-spacing: -0.005em;
   }
 
   .grill-summary {
@@ -273,13 +311,33 @@ export const grillStyles = css`
     flex: 0 0 auto;
     width: 16px;
     color: var(--dpk-ink-faint);
-    font-size: 12px;
     line-height: 22px;
     text-align: center;
   }
 
+  .grill-chevron svg {
+    display: block;
+    width: 13px;
+    height: 13px;
+    margin: 4.5px auto 0;
+    transition: transform 180ms var(--dpk-ease);
+  }
+
+  .grill-heading[aria-expanded='true'] .grill-chevron svg {
+    transform: rotate(90deg);
+    color: var(--dpk-accent);
+  }
+
   .grill-body {
-    padding: 0 6px 13px 45px;
+    padding: 2px 8px 14px 47px;
+    animation: dpk-grill-open 180ms var(--dpk-ease) backwards;
+  }
+
+  @keyframes dpk-grill-open {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
   }
 
   .grill-description {
@@ -294,7 +352,7 @@ export const grillStyles = css`
     padding: 7px 10px;
     border-left: 2px solid var(--dpk-amber);
     border-radius: 0 var(--dpk-radius-xs) var(--dpk-radius-xs) 0;
-    background: var(--dpk-amber-soft);
+    background: linear-gradient(90deg, var(--dpk-amber-soft), transparent);
     font-size: 11px;
     line-height: 1.7;
     color: var(--dpk-ink-soft);
@@ -306,25 +364,59 @@ export const grillStyles = css`
   }
 
   .grill-choice {
+    position: relative;
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    padding: 8px 9px;
+    padding: 8px 9px 8px 12px;
     border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius-sm);
     background: var(--dpk-paper);
     font-size: 11.5px;
     line-height: 1.7;
     cursor: pointer;
+    overflow: hidden;
+    transition:
+      border-color 140ms var(--dpk-ease),
+      background 140ms var(--dpk-ease),
+      box-shadow 140ms var(--dpk-ease),
+      transform 140ms var(--dpk-ease);
+  }
+
+  /* Selection indicator: a colored bar on the leading edge, like the rail's
+     comment cards — quiet until a choice is actually picked. */
+  .grill-choice::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: transparent;
+    transition: background 140ms var(--dpk-ease);
   }
 
   .grill-choice:hover {
-    border-color: var(--dpk-rule-strong);
+    border-color: var(--dpk-rule-hover);
+    background: var(--dpk-paper-inset);
   }
 
   .grill-choice:has(input:checked) {
     border-color: color-mix(in srgb, var(--dpk-green) 45%, transparent);
     background: var(--dpk-green-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-green) 30%, transparent);
+  }
+
+  .grill-choice:has(input:checked)::before {
+    background: var(--dpk-green);
+  }
+
+  .grill-choice--free {
+    border-style: dashed;
+  }
+
+  .grill-choice--free[data-free='true'] {
+    border-style: solid;
   }
 
   .grill-choice input {
@@ -343,6 +435,7 @@ export const grillStyles = css`
     flex: 0 0 auto;
     font-family: var(--dpk-mono);
     font-size: 10px;
+    font-weight: 600;
     line-height: 1.9;
     color: var(--dpk-green);
   }
@@ -374,6 +467,7 @@ export const grillStyles = css`
     padding: 10px 12px;
     border-top: 1px solid var(--dpk-rule);
     background: var(--dpk-paper-raised);
+    box-shadow: 0 -6px 12px -10px var(--dpk-shade-2);
   }
 
   .grill-copy {
@@ -458,6 +552,22 @@ export const grillStyles = css`
     min-width: 0;
   }
 
+  /* The author's own markup lands in slot="main": nudge its prose toward the
+     kit's own type scale, so the diagrams it wraps don't feel bolted on. */
+  .grill-stage ::slotted(h1),
+  .grill-stage ::slotted(h2),
+  .grill-stage ::slotted(h3) {
+    font-family: var(--dpk-display);
+    font-weight: 660;
+    letter-spacing: -0.015em;
+    color: var(--dpk-ink);
+  }
+
+  .grill-stage ::slotted(p) {
+    line-height: 1.75;
+    color: var(--dpk-ink-soft);
+  }
+
   .grill-labels {
     position: absolute;
     inset: 0;
@@ -476,15 +586,21 @@ export const grillStyles = css`
     padding: 0 7px;
     border: 2px solid var(--dpk-paper-raised);
     border-radius: 999px;
-    background: var(--dpk-accent);
+    background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent));
     color: var(--dpk-accent-ink);
     font-family: var(--dpk-mono);
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 650;
     font-variant-numeric: tabular-nums;
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      0 2px 6px -2px color-mix(in srgb, var(--dpk-accent) 55%, transparent);
     cursor: pointer;
     pointer-events: auto;
+    transition:
+      transform 160ms var(--dpk-ease-spring),
+      box-shadow 160ms var(--dpk-ease),
+      background 160ms var(--dpk-ease);
   }
 
   .grill-label[data-visible='false'] {
@@ -492,17 +608,20 @@ export const grillStyles = css`
   }
 
   .grill-label:hover {
-    background: color-mix(in srgb, var(--dpk-accent) 80%, #000);
+    transform: translateY(-1px) scale(1.06);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 4px 10px -2px color-mix(in srgb, var(--dpk-accent) 60%, transparent);
   }
 
   .grill-label[data-answered='true'] {
-    background: var(--dpk-green);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--dpk-green) 85%, white), var(--dpk-green));
   }
 
   .grill-label[aria-pressed='true'] {
     box-shadow:
       0 0 0 2px color-mix(in srgb, var(--dpk-accent) 45%, transparent),
-      var(--dpk-shadow-xs);
+      var(--dpk-shadow-sm);
   }
 
   .grill-label:focus-visible {

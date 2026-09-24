@@ -33,51 +33,102 @@ export const chromeStyles = [
     /* ------------------------------------------------------------- header */
 
     .dpk-header {
+      position: relative;
+      z-index: 20;
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
+      min-height: 60px;
       /* Right padding keeps the header content clear of the fixed review button. */
-      padding: 14px 78px 14px 20px;
+      padding: 10px 72px 10px 16px;
       border-bottom: 1px solid var(--dpk-rule);
-      background: linear-gradient(180deg, var(--dpk-paper-raised) 0%, var(--dpk-paper) 100%);
+      background: var(--dpk-glass);
+      backdrop-filter: saturate(1.6) blur(14px);
+      box-shadow: 0 1px 0 var(--dpk-highlight) inset;
+    }
+
+    /* A hairline of the accent along the bottom edge, fading out to the right. */
+    .dpk-header::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--dpk-accent) 70%, transparent),
+        color-mix(in srgb, var(--dpk-accent) 0%, transparent) 38%
+      );
+      pointer-events: none;
+    }
+
+    /* Kit mark: a stack of pages, the single HTML page the agent wrote. */
+    .dpk-brand {
+      position: relative;
+      flex: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.35), transparent 60%),
+        linear-gradient(145deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+        0 4px 12px -4px color-mix(in srgb, var(--dpk-accent) 70%, transparent);
+    }
+
+    .dpk-brand::before,
+    .dpk-brand::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 15px;
+      border-radius: 3px;
+    }
+
+    .dpk-brand::before {
+      left: 12px;
+      top: 7px;
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    .dpk-brand::after {
+      left: 8px;
+      top: 10px;
+      background:
+        linear-gradient(var(--dpk-accent), var(--dpk-accent)) 3px 4px / 6px 1.5px no-repeat,
+        linear-gradient(var(--dpk-accent), var(--dpk-accent)) 3px 7.5px / 4px 1.5px no-repeat,
+        #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
     }
 
     .dpk-title {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
       min-width: 0;
     }
 
     .dpk-title h1 {
-      font-size: 16.5px;
-      font-weight: 620;
+      font-size: 16px;
+      font-weight: 680;
+      letter-spacing: -0.02em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .dpk-template-mark {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 2px 9px 2px 7px;
-      border-radius: 999px;
-      background: var(--dpk-accent-soft);
+      align-self: flex-start;
       font-family: var(--dpk-mono);
       font-size: 9.5px;
-      font-weight: 550;
-      letter-spacing: 0.12em;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      line-height: 1;
       text-transform: uppercase;
       color: var(--dpk-accent);
-    }
-
-    .dpk-template-mark::before {
-      content: '';
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--dpk-accent);
     }
 
     .dpk-header-slot {
@@ -91,50 +142,76 @@ export const chromeStyles = [
     .dpk-header-meta {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 0;
       margin-left: auto;
-      padding: 4px 12px;
+      padding: 3px;
       border-radius: 999px;
       border: 1px solid var(--dpk-rule);
       background: var(--dpk-paper-sunken);
       font-family: var(--dpk-mono);
       font-size: 10px;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.02em;
       color: var(--dpk-ink-faint);
       white-space: nowrap;
     }
 
-    .dpk-header-meta span + span::before {
-      content: '';
-      display: inline-block;
-      width: 3px;
-      height: 3px;
-      margin-right: 8px;
-      vertical-align: 1px;
-      border-radius: 50%;
-      background: var(--dpk-ink-faint);
-      opacity: 0.5;
+    .dpk-header-meta span {
+      padding: 3px 9px;
+    }
+
+    .dpk-header-meta span + span {
+      border-left: 1px solid var(--dpk-rule);
+    }
+
+    .dpk-header-meta .dpk-meta-count {
+      margin-left: 2px;
+      border-left: 0;
+      border-radius: 999px;
+      background: var(--dpk-paper-raised);
+      color: var(--dpk-ink-soft);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    }
+
+    .dpk-header-meta .dpk-meta-count[data-active='true'] {
+      background: var(--dpk-accent-soft);
+      color: var(--dpk-accent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-accent) 25%, transparent);
+    }
+
+    .dpk-header-tools {
+      display: flex;
+      flex: none;
+      align-items: center;
+      gap: 2px;
+      padding: 3px;
+      border: 1px solid var(--dpk-rule);
+      border-radius: 999px;
+      background: var(--dpk-paper-sunken);
     }
 
     .dpk-lang-select {
       flex: none;
-      height: 30px;
-      padding: 0 10px;
-      border: 1px solid var(--dpk-rule);
+      height: 26px;
+      padding: 0 24px 0 10px;
+      border: 0;
       border-radius: 999px;
-      background: var(--dpk-paper-sunken);
+      background: transparent
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'><path d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23878e9e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+        no-repeat right 8px center;
+      appearance: none;
       color: var(--dpk-ink-soft);
       font: inherit;
       font-size: 12px;
+      font-weight: 520;
       cursor: pointer;
       transition:
-        color 160ms ease,
-        border-color 160ms ease;
+        color 160ms var(--dpk-ease),
+        background-color 160ms var(--dpk-ease);
     }
 
     .dpk-lang-select:hover {
       color: var(--dpk-ink);
-      border-color: var(--dpk-rule-hover);
+      background-color: var(--dpk-paper-raised);
     }
 
     .dpk-lang-select:focus-visible {
@@ -147,27 +224,29 @@ export const chromeStyles = [
       flex: none;
       align-items: center;
       justify-content: center;
-      width: 30px;
-      height: 30px;
+      width: 26px;
+      height: 26px;
       padding: 0;
-      border: 1px solid var(--dpk-rule);
+      border: 0;
       border-radius: 999px;
-      background: var(--dpk-paper-sunken);
+      background: transparent;
       color: var(--dpk-ink-soft);
       cursor: pointer;
       transition:
-        color 160ms ease,
-        border-color 160ms ease;
+        color 160ms var(--dpk-ease),
+        background 160ms var(--dpk-ease),
+        transform 300ms var(--dpk-ease-spring);
     }
 
     .dpk-theme-toggle svg {
-      width: 15px;
-      height: 15px;
+      width: 14px;
+      height: 14px;
     }
 
     .dpk-theme-toggle:hover {
       color: var(--dpk-ink);
-      border-color: var(--dpk-rule-hover);
+      background: var(--dpk-paper-raised);
+      transform: rotate(-18deg);
     }
 
     .dpk-theme-toggle:focus-visible {
@@ -183,12 +262,13 @@ export const chromeStyles = [
     }
 
     .dpk-sidebar {
-      width: 252px;
+      width: 260px;
       flex: 0 0 auto;
       border-right: 1px solid var(--dpk-rule);
-      background: linear-gradient(180deg, var(--dpk-paper-sunken) 0%, var(--dpk-paper-inset) 100%);
+      background: var(--dpk-paper-sunken);
       overflow: auto;
-      padding: 16px 14px;
+      padding: 18px 14px;
+      scrollbar-width: thin;
     }
 
     .dpk-sidebar[hidden] {
@@ -201,7 +281,20 @@ export const chromeStyles = [
       flex-direction: column;
       min-width: 0;
       overflow: auto;
-      background: var(--dpk-paper);
+      /* A faint wash of the accent from the top left corner gives the ground some depth. */
+      background:
+        radial-gradient(
+          ellipse 900px 360px at 0% 0%,
+          color-mix(in srgb, var(--dpk-accent) 5%, transparent),
+          transparent 70%
+        ),
+        radial-gradient(
+          ellipse 700px 320px at 100% 0%,
+          color-mix(in srgb, var(--dpk-blue) 4%, transparent),
+          transparent 70%
+        ),
+        var(--dpk-paper);
+      background-attachment: local;
     }
 
     .dpk-main-body {
@@ -211,6 +304,14 @@ export const chromeStyles = [
       gap: 16px;
       min-width: 0;
       padding: 24px;
+      animation: dpk-rise 420ms var(--dpk-ease) backwards;
+    }
+
+    @keyframes dpk-rise {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
     }
 
     /*
@@ -233,13 +334,16 @@ export const chromeStyles = [
     .dpk-memo ::slotted(*) {
       display: block;
       max-width: 100%;
-      padding: 10px 14px;
-      border: 1px solid var(--dpk-rule);
+      padding: 12px 16px 12px 18px;
+      border: 1px solid var(--dpk-rule-strong);
       border-radius: var(--dpk-radius-lg);
-      background: var(--dpk-paper-raised);
-      box-shadow: var(--dpk-shadow-lg);
+      background:
+        linear-gradient(90deg, var(--dpk-amber) 0 3px, transparent 3px),
+        color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
       font-size: 12.5px;
-      line-height: 1.65;
+      line-height: 1.7;
       color: var(--dpk-ink-soft);
       pointer-events: auto;
     }
@@ -247,24 +351,24 @@ export const chromeStyles = [
     .dpk-orphans {
       margin-top: 16px;
       border: 1px dashed var(--dpk-rule-strong);
-      border-radius: var(--dpk-radius-sm);
-      padding: 10px;
+      border-radius: var(--dpk-radius);
+      padding: 12px;
     }
 
     .dpk-banner {
       display: grid;
       gap: 4px;
       margin-bottom: 14px;
-      border: 1px solid var(--dpk-accent);
-      border-left-width: 3px;
-      border-radius: var(--dpk-radius-sm);
-      background: var(--dpk-accent-soft);
-      padding: 10px 12px;
+      border: 1px solid color-mix(in srgb, var(--dpk-danger) 35%, transparent);
+      border-radius: var(--dpk-radius);
+      background: linear-gradient(90deg, var(--dpk-danger) 0 3px, transparent 3px), var(--dpk-danger-soft);
+      padding: 12px 14px 12px 17px;
       max-width: 900px;
     }
 
     .dpk-banner strong {
       font-size: 13px;
+      color: var(--dpk-danger);
     }
 
     .dpk-banner code {
@@ -276,11 +380,20 @@ export const chromeStyles = [
 
     .dpk-notes {
       flex: 0 0 auto;
-      width: 344px;
+      width: 360px;
       border-left: 1px solid var(--dpk-rule);
       background: var(--dpk-paper-raised);
+      box-shadow: -12px 0 32px -24px var(--dpk-shade-3);
       overflow: hidden;
       display: flex;
+      animation: dpk-slide-in 260ms var(--dpk-ease) backwards;
+    }
+
+    @keyframes dpk-slide-in {
+      from {
+        opacity: 0;
+        transform: translateX(16px);
+      }
     }
 
     .dpk-notes[hidden] {
@@ -295,7 +408,8 @@ export const chromeStyles = [
       display: flex;
       gap: 12px;
       align-items: center;
-      background: var(--dpk-paper-sunken);
+      background: var(--dpk-glass);
+      backdrop-filter: blur(12px);
       font-size: 12px;
       color: var(--dpk-ink-faint);
     }
@@ -305,37 +419,38 @@ export const chromeStyles = [
     /* Review toggle: pinned to the top right corner, always in the same place. */
     .dpk-fab {
       position: fixed;
-      top: 10px;
+      top: 12px;
       right: 16px;
       z-index: 60;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 38px;
-      height: 38px;
+      width: 36px;
+      height: 36px;
       padding: 0;
       border: 1px solid var(--dpk-rule-strong);
-      border-radius: 999px;
+      border-radius: 11px;
       background: var(--dpk-paper-raised);
       color: var(--dpk-ink-soft);
-      box-shadow: var(--dpk-shadow);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
       cursor: pointer;
       transition:
-        color 160ms ease,
-        background 160ms ease,
-        border-color 160ms ease,
-        box-shadow 160ms ease,
-        transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
+        color 180ms var(--dpk-ease),
+        background 180ms var(--dpk-ease),
+        border-color 180ms var(--dpk-ease),
+        box-shadow 180ms var(--dpk-ease),
+        transform 220ms var(--dpk-ease-spring);
     }
 
     .dpk-fab:hover {
       color: var(--dpk-ink);
-      transform: translateY(-2px) scale(1.05);
-      box-shadow: var(--dpk-shadow-lg);
+      border-color: var(--dpk-rule-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow);
     }
 
     .dpk-fab:active {
-      transform: translateY(0) scale(0.97);
+      transform: translateY(0) scale(0.95);
       box-shadow: var(--dpk-shadow-xs);
     }
 
@@ -346,13 +461,17 @@ export const chromeStyles = [
 
     .dpk-fab[aria-expanded='true'] {
       color: var(--dpk-accent-ink);
-      border-color: transparent;
-      background: linear-gradient(135deg, var(--dpk-accent), var(--dpk-accent-strong));
-      box-shadow: 0 2px 8px rgba(217, 73, 32, 0.3);
+      border-color: color-mix(in srgb, var(--dpk-accent-strong) 70%, transparent);
+      background: linear-gradient(145deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        0 6px 16px -6px color-mix(in srgb, var(--dpk-accent) 70%, transparent);
     }
 
     .dpk-fab[aria-expanded='true']:hover {
-      box-shadow: 0 4px 14px rgba(217, 73, 32, 0.4);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        0 10px 22px -8px color-mix(in srgb, var(--dpk-accent) 80%, transparent);
     }
 
     .dpk-fab-icon {
@@ -361,7 +480,7 @@ export const chromeStyles = [
       width: 16px;
       height: 12px;
       border: 1.6px solid currentColor;
-      border-radius: 3.5px;
+      border-radius: 4px;
     }
 
     .dpk-fab-icon::after {
@@ -376,30 +495,40 @@ export const chromeStyles = [
 
     .dpk-fab-badge {
       position: absolute;
-      top: -5px;
-      right: -5px;
+      top: -6px;
+      right: -6px;
       min-width: 18px;
       height: 18px;
       padding: 0 4px;
-      border: 2px solid var(--dpk-paper-raised);
+      border: 2px solid var(--dpk-paper);
       border-radius: 999px;
-      background: linear-gradient(135deg, var(--dpk-accent-bright), var(--dpk-accent));
+      background: linear-gradient(145deg, var(--dpk-accent-bright), var(--dpk-accent));
       color: var(--dpk-accent-ink);
       font-family: var(--dpk-mono);
       font-size: 9.5px;
-      font-weight: 600;
+      font-weight: 650;
       font-variant-numeric: tabular-nums;
       line-height: 14px;
       text-align: center;
-      box-shadow: 0 1px 4px rgba(217, 73, 32, 0.3);
+      box-shadow: 0 3px 8px -2px color-mix(in srgb, var(--dpk-accent) 60%, transparent);
+      animation: dpk-pop 260ms var(--dpk-ease-spring);
+    }
+
+    @keyframes dpk-pop {
+      from {
+        transform: scale(0.4);
+        opacity: 0;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .dpk-header-meta {
+        display: none;
+      }
+
+      .dpk-brand {
+        display: none;
+      }
     }
   `,
 ];
-
-/**
- * Base class for every `dpk-template-*` element.
- *
- * It owns the Web Platform contract (attributes, properties, events, slots),
- * the draft pipeline wiring, hash navigation and the review rail. Templates
- * only supply meaning (`definition`) and layout (`renderRegions`).
- */

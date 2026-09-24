@@ -55,8 +55,14 @@ export const prototypeStyles = css`
   }
 
   .step-row[data-current='true'] {
-    background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-sm);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--dpk-prototype-accent) 10%, var(--dpk-paper-raised)),
+      color-mix(in srgb, var(--dpk-prototype-accent) 5%, var(--dpk-paper-raised))
+    );
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--dpk-prototype-accent) 22%, transparent),
+      var(--dpk-shadow-xs);
   }
 
   .step-row[data-current='true']::before {
@@ -68,6 +74,7 @@ export const prototypeStyles = css`
     width: 3px;
     border-radius: var(--dpk-radius-xs);
     background: linear-gradient(180deg, var(--dpk-blue), var(--dpk-blue-strong));
+    box-shadow: 0 0 8px color-mix(in srgb, var(--dpk-prototype-accent) 45%, transparent);
   }
 
   .step-link {
@@ -105,8 +112,9 @@ export const prototypeStyles = css`
   }
 
   .step-row[data-current='true'] .step-index {
-    background: var(--dpk-blue-soft);
-    color: var(--dpk-blue);
+    background: linear-gradient(180deg, var(--dpk-blue), var(--dpk-blue-strong));
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
   }
 
   .step-name {
@@ -148,7 +156,7 @@ export const prototypeStyles = css`
     border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius);
     background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-sm);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
   }
 
   .detail-row {
@@ -216,7 +224,7 @@ export const prototypeStyles = css`
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink);
     font-weight: 600;
-    box-shadow: var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
   .stage-empty {
@@ -230,6 +238,23 @@ export const prototypeStyles = css`
     color: var(--dpk-ink-soft);
   }
 
+  /* ----------------------------------------------------------------- canvas */
+
+  /*
+   * The work surface the frame sits on: a quiet dot lattice that reads as a
+   * canvas rather than empty page background, giving the frame somewhere to
+   * cast its shadow.
+   */
+  .canvas {
+    display: flex;
+    justify-content: center;
+    padding: 30px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-xl);
+    background: var(--dpk-dots), var(--dpk-paper-sunken);
+    box-shadow: inset 0 1px 3px var(--dpk-shade-1);
+  }
+
   /* ------------------------------------------------------------------ frame */
 
   .frame {
@@ -239,9 +264,9 @@ export const prototypeStyles = css`
     border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius-lg);
     background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-lg);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
     overflow: hidden;
-    transition: box-shadow 200ms ease;
+    transition: box-shadow 200ms var(--dpk-ease);
   }
 
   .chrome {
@@ -249,8 +274,14 @@ export const prototypeStyles = css`
     align-items: center;
     gap: 8px;
     padding: 8px 14px;
-    background: linear-gradient(180deg, var(--dpk-paper-sunken), var(--dpk-paper-inset));
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent),
+      color-mix(in srgb, var(--dpk-paper-inset) 88%, transparent)
+    );
+    backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--dpk-rule);
+    box-shadow: inset 0 1px 0 var(--dpk-highlight);
   }
 
   .dots {
@@ -404,7 +435,7 @@ export const prototypeStyles = css`
 
   .frame-placeholder {
     position: absolute;
-    inset: 0;
+    inset: 12px;
     display: grid;
     align-content: center;
     justify-items: center;
@@ -412,13 +443,9 @@ export const prototypeStyles = css`
     padding: 12px;
     text-align: center;
     color: var(--dpk-ink-faint);
-    background: repeating-linear-gradient(
-      -45deg,
-      var(--dpk-paper-sunken),
-      var(--dpk-paper-sunken) 8px,
-      var(--dpk-paper) 8px,
-      var(--dpk-paper) 16px
-    );
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius);
+    background: var(--dpk-dots), var(--dpk-paper-sunken);
   }
 
   .frame-placeholder code {
