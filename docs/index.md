@@ -207,6 +207,8 @@ The template sets `color-scheme` on itself, and the color tokens switch with it,
 
 The review rail produces two clipboard payloads: the canonical draft JSON (`Copy JSON`) and a readable hand-off brief (`Copy brief`). Hand the brief to the agent: it applies the requested end state to the base HTML, keeps the ids of the concepts that survived, and drops the draft envelope from the JSON. The page never mutates its own base data, so the HTML the agent writes back is the new source of truth.
 
+Inside a Claude Artifact published with the `comments` capability, the rail also offers **Claude に送る**: the brief is posted as a comment sent to the Claude session that published the page, pinned to the template element. A brief over the 4 KiB comment limit is stored as a document in the `reviews` collection of the artifact's database (when the page also declares `db`), and the comment points at it; the document holds `brief` (the same markdown) and `draft` (the canonical JSON). The button appears only when the viewer can send to Claude right now; a failed send says why and leaves the copy buttons as the way on. Elsewhere nothing changes.
+
 ## Read next
 
 | Question                          | Read                                                                                            |

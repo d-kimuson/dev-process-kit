@@ -380,6 +380,41 @@ export const grillStyles = css`
     width: 100%;
   }
 
+  /* Inside a Claude Artifact: send is the way, copy the fallback beside it. */
+  .grill-footer-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .grill-send {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .grill-footer-actions .grill-copy {
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  .grill-send[data-status='sent'] {
+    border-color: transparent;
+    background: var(--dpk-green);
+    color: var(--dpk-accent-ink);
+  }
+
+  .grill-send[data-status='failed'] {
+    border-color: transparent;
+    background: var(--dpk-amber);
+    color: var(--dpk-accent-ink);
+  }
+
+  .grill-footer-note {
+    margin: 8px 0 0;
+    color: var(--dpk-ink-soft);
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
   /* The copy button reports the outcome, so a click is never silent. */
   .grill-copy[data-status='copied'] {
     border-color: transparent;

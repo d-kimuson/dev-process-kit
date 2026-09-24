@@ -285,6 +285,56 @@ describe('dpk-template-grill', () => {
     }
   });
 
+  it('sends the review to Claude instead inside a Claude Artifact, keeping copy as the fallback', async () => {
+    const sendToClaude = vi
+      .fn<(target: unknown) => Promise<unknown>>()
+      .mockRejectedValueOnce({ code: 'claude_unavailable', message: '' })
+      .mockResolvedValue({ threadId: 't', commentId: 'c' });
+    const comments = {
+      anchorFor: async () => ({ path: 'x', x: 0, y: 0 }),
+      canSendToClaude: async () => 'available',
+      sendToClaude,
+    };
+    vi.stubGlobal('claude', { use: async (name: string) => (name === 'comments' ? comments : null) });
+    try {
+      const element = mount();
+      await settle(element);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await settle(element);
+      const shadow = element.shadowRoot;
+      if (!shadow) throw new Error('no shadow root');
+      const choice = shadow.querySelector<HTMLInputElement>('[data-question="retry"] input[value="key"]');
+      if (!choice) throw new Error('missing choice');
+      choice.checked = true;
+      choice.dispatchEvent(new Event('change', { bubbles: true }));
+      await settle(element);
+
+      const send = shadow.querySelector<HTMLButtonElement>('.grill-send');
+      if (!send) throw new Error('missing send button');
+      expect(send.textContent?.trim()).toBe('回答・Review を Claude に送る');
+      expect(shadow.querySelector('.grill-copy')?.textContent?.trim()).toBe('コピー');
+
+      send.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await settle(element);
+      // The reason says what to do next; nothing was posted, so copying is the way on.
+      expect(send.dataset['status']).toBe('failed');
+      expect(shadow.querySelector('.grill-footer-note')?.textContent).toMatch(/コピー/);
+
+      send.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await settle(element);
+      expect(sendToClaude).toHaveBeenLastCalledWith({
+        anchor: { path: 'x', x: 0, y: 0 },
+        text: expect.stringContaining('注文IDを冪等キーにして再試行する'),
+      });
+      expect(send.textContent?.trim()).toBe('Claude に送りました');
+      expect(shadow.querySelector('.grill-footer-note')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('opens the question a badge points at, and folds the sidebar away', async () => {
     const element = mount();
     await settle(element);

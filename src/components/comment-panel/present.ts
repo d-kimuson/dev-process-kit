@@ -8,6 +8,7 @@ import type {
 } from '../../core/types';
 import type { PanelState } from './model';
 
+import { handoffFailureLabel } from '../../core/claude-handoff';
 import { commentBody } from '../../core/comment';
 
 export type PanelInputs<S> = {
@@ -16,6 +17,8 @@ export type PanelInputs<S> = {
   readonly navigation: Navigation;
   readonly derivation: Derivation<S>;
   readonly issues: readonly ValidationIssue[];
+  /** The host can hand the review to Claude (inside a Claude Artifact). */
+  readonly sendable?: boolean;
 };
 
 export type PanelItem = {
@@ -38,6 +41,7 @@ export type PanelViewModel = {
   readonly canSubmit: boolean;
   readonly items: readonly PanelItem[];
   readonly issues: readonly string[];
+  readonly send: 'hidden' | 'disabled' | 'ready';
   readonly flash: string;
 };
 
@@ -87,11 +91,21 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
       };
     }),
     issues: inputs.issues.map((issue) => `${issue.path ? `${issue.path}: ` : ''}${issue.message}`),
+    send:
+      inputs.sendable !== true
+        ? 'hidden'
+        : derivation.actions.length === 0 || ui.send.kind === 'pending'
+          ? 'disabled'
+          : 'ready',
     flash:
-      ui.copy.kind === 'copied'
-        ? `copied ${ui.copy.format === 'json' ? 'JSON' : 'brief'} ✓`
-        : ui.copy.kind === 'failed'
-          ? 'copy failed'
-          : '',
+      ui.send.kind === 'sent'
+        ? 'Claude に送りました ✓'
+        : ui.send.kind === 'failed'
+          ? handoffFailureLabel(ui.send.reason)
+          : ui.copy.kind === 'copied'
+            ? `copied ${ui.copy.format === 'json' ? 'JSON' : 'brief'} ✓`
+            : ui.copy.kind === 'failed'
+              ? 'copy failed'
+              : '',
   };
 };

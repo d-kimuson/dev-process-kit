@@ -1,3 +1,4 @@
+import type { HandoffFailure } from '../../core/claude-handoff';
 import type {
   ActionDescription,
   ActionTarget,
@@ -131,6 +132,11 @@ export type GrillQuestionViewModel = {
 
 /** What the copy button reports after a click. */
 export type CopyStatus = 'idle' | 'copied' | 'failed';
+
+/** What the send-to-Claude button reports; a failure keeps its reason on screen. */
+export type SendStatus =
+  | { readonly kind: 'idle' | 'pending' | 'sent' }
+  | { readonly kind: 'failed'; readonly reason: HandoffFailure };
 
 export type GrillPanelViewModel = {
   readonly questions: readonly GrillQuestionViewModel[];

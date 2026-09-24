@@ -340,3 +340,52 @@ describe('color scheme', () => {
     expect(el.dataset['theme']).toBe('dark');
   });
 });
+
+describe('send to Claude', () => {
+  const sendButton = (el: DpkTemplatePrototype): HTMLButtonElement | undefined => {
+    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    return Array.from(panel.shadowRoot?.querySelectorAll('button') ?? []).find(
+      (button) => button.textContent?.trim() === 'Claude に送る',
+    );
+  };
+  const flush = async (el: DpkTemplatePrototype): Promise<void> => {
+    for (let i = 0; i < 4; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await settle(el);
+      const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel | null;
+      await panel?.updateComplete;
+    }
+  };
+
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+    Reflect.deleteProperty(window, 'claude');
+  });
+
+  it('keeps only the copy buttons outside a Claude Artifact', async () => {
+    const el = mount();
+    await flush(el);
+    expect(sendButton(el)).toBeUndefined();
+  });
+
+  it('posts the brief as a comment sent to Claude, pinned to the template element', async () => {
+    const sendToClaude = vi.fn(async () => ({ threadId: 't', commentId: 'c' }));
+    const anchorFor = vi.fn(async () => ({ path: 'x', x: 0, y: 0 }));
+    const comments = { anchorFor, sendToClaude, canSendToClaude: async () => 'available' };
+    Object.assign(window, { claude: { use: async (name: string) => (name === 'comments' ? comments : null) } });
+
+    const el = mount();
+    await flush(el);
+    el.api.comment('page:prototype', 'looks good');
+    await flush(el);
+    sendButton(el)?.click();
+    await flush(el);
+
+    expect(anchorFor).toHaveBeenCalledWith(el);
+    expect(sendToClaude).toHaveBeenCalledWith({
+      anchor: { path: 'x', x: 0, y: 0 },
+      text: expect.stringContaining('looks good'),
+    });
+  });
+});

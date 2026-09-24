@@ -1,5 +1,6 @@
 import { LitElement, nothing, type TemplateResult } from 'lit';
 
+import type { HandoffOutcome } from '../../core/claude-handoff';
 import type { Derivation } from '../../core/derive';
 import type { DispatchOutcome, Navigation, TemplateDefinition, ValidationIssue } from '../../core/types';
 
@@ -39,6 +40,7 @@ export class DpkComponentCommentPanel extends LitElement {
     onClear: { attribute: false },
     onComment: { attribute: false },
     exportBrief: { attribute: false },
+    sendToClaude: { attribute: false },
     embedded: { type: Boolean },
   };
 
@@ -53,6 +55,8 @@ export class DpkComponentCommentPanel extends LitElement {
   declare onClear: CommentPanelCallbacks['onClear'];
   declare onComment: CommentPanelCallbacks['onComment'];
   declare exportBrief: (() => string) | undefined;
+  /** Set by the template inside a Claude Artifact that can reach Claude; shows "Claude に送る". */
+  declare sendToClaude: (() => Promise<HandoffOutcome>) | undefined;
   #ui = initialPanelState();
 
   constructor() {
@@ -86,6 +90,7 @@ export class DpkComponentCommentPanel extends LitElement {
       navigation: this.navigation,
       derivation: this.derivation,
       issues: this.issues,
+      sendable: this.sendToClaude !== undefined,
     };
   }
 
@@ -110,6 +115,9 @@ export class DpkComponentCommentPanel extends LitElement {
       case 'copy':
         void this.#copy(intent.format);
         return;
+      case 'send':
+        void this.#sendToClaude();
+        return;
       case 'submit': {
         const inputs = this.#inputs();
         if (!inputs || !this.onComment) return;
@@ -123,6 +131,15 @@ export class DpkComponentCommentPanel extends LitElement {
         this.#update(intent);
     }
   };
+
+  async #sendToClaude(): Promise<void> {
+    const send = this.sendToClaude;
+    if (!send || this.#ui.send.kind === 'pending') return;
+    this.#update({ kind: 'send-started' });
+    const request = this.#ui.sendRequest;
+    const outcome = await send().catch((): HandoffOutcome => ({ ok: false, reason: 'error' }));
+    if (this.isConnected) this.#update({ kind: 'send-finished', request, outcome });
+  }
 
   async #copy(format: CopyFormat): Promise<void> {
     const inputs = this.#inputs();

@@ -1,6 +1,7 @@
 import { LitElement, html, nothing, type CSSResultGroup, type PropertyDeclarations, type TemplateResult } from 'lit';
 import { safeParse } from 'valibot';
 
+import type { HandoffOutcome } from './claude-handoff';
 import type { TemplateApi, TemplateSnapshot, ShellRegions, TemplateRenderContext } from './shell/contracts';
 import type {
   ActionInput,
@@ -12,7 +13,7 @@ import type {
   TemplateDefinition,
 } from './types';
 
-import { COMMENT_ACTION } from './action';
+import { COMMENT_ACTION, serializeDraft } from './action';
 import { parseColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
 import { DraftController } from './controller';
@@ -21,6 +22,7 @@ import { iconMoon, iconSun } from './icons';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { defaultStorage, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSource } from './shell/api';
+import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
@@ -64,6 +66,7 @@ export abstract class TemplateElement<S> extends LitElement {
   #notesInitialized = false;
   #previewRouter = new PreviewRouter(this);
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
+  #claude = new ClaudeHandoffController(this);
 
   abstract readonly definition: TemplateDefinition<S>;
 
@@ -240,6 +243,24 @@ export abstract class TemplateElement<S> extends LitElement {
     return false;
   }
 
+  /**
+   * Inside a Claude Artifact that declared `comments` (and `db` for long
+   * reviews), the review can go straight to the Claude session instead of
+   * through the clipboard. `false` everywhere else.
+   */
+  protected get canSendToClaude(): boolean {
+    return this.#claude.available;
+  }
+
+  /** Posts the brief as a comment sent to Claude, pinned to this element. */
+  protected sendToClaude(): Promise<HandoffOutcome> {
+    return this.#claude.send({
+      brief: this.api.exportBrief(),
+      draft: serializeDraft(this.derivation.actions),
+      anchor: this,
+    });
+  }
+
   protected renderReviewPanel(context: TemplateRenderContext<S>): TemplateResult {
     return html`<dpk-component-comment-panel
       .definition=${this.controller.definition}
@@ -248,6 +269,7 @@ export abstract class TemplateElement<S> extends LitElement {
       .derivation=${this.derivation}
       .issues=${this.controller.lastIssues}
       .exportBrief=${() => this.api.exportBrief()}
+      .sendToClaude=${this.canSendToClaude ? () => this.sendToClaude() : undefined}
       .pendingTarget=${this.#pendingCommentTarget}
       .embedded=${this.integratedReview}
       .onDelete=${(id: string) => this.removeAction(id)}

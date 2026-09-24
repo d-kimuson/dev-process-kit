@@ -102,6 +102,7 @@ The second one reaches into a diagram's shadow root to place the badge on the ex
 - **質問 tab** (right): one card per question with choices and a free-text answer. No answered/unanswered filters.
 - **Review tab**: the shared composer and draft list, including stale actions. Notes are page-wide; use a diagram's comment button to target that element. There is no attach-to-question checkbox: the answer is the reply to a question. A comment request opens Review and unfolds the rail. Switching tabs or folding preserves unsent input.
 - **回答・Review をまとめてコピー**: available below either tab; copies the canonical agent brief with answers, all comments, target references and draft JSON, independent of the selected tab. Also works for a review containing only comments.
+- **回答・Review を Claude に送る**: replaces the copy button inside a Claude Artifact that can send comments to Claude, and sends the same brief (`docs/index.md`, Review and the hand-off). A small **コピー** button stays beside it, and a failed send explains the reason below the buttons.
 - **質問 / Review button** (top right): a round button with an `回答済み / 全件` badge that folds the whole column away.
 - **Q badges** (main): one per reference, red until the question is answered and green after; clicking opens the question.
 - **Auto-advance**: choosing an option records it and opens the next unanswered question. Free text is not interrupted while typing — `⌘/Ctrl+Enter` moves on — and when nothing is left unanswered the review stays where it is.

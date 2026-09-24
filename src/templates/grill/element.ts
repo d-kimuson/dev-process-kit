@@ -4,11 +4,12 @@ import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contr
 import type { ActionTarget } from '../../core/types';
 import type { GrillState } from './model';
 
+import { handoffFailureLabel } from '../../core/claude-handoff';
 import { TemplateElement } from '../../core/element';
 import { copyText } from '../../lib/dom/clipboard';
 import { answerQuestion, type AnswerInput } from './actions';
 import { grillDefinition } from './definition';
-import { presentGrillHeader, presentGrillPanel, nextOpenQuestion, type CopyStatus } from './present';
+import { presentGrillHeader, presentGrillPanel, nextOpenQuestion, type CopyStatus, type SendStatus } from './present';
 import { GRILL_QUESTIONS_ATTRIBUTE, collectLabelBindings, positionLabels, type LabelBinding } from './render/labels';
 import { renderQuestionPanel } from './render/panel';
 import { grillStyles } from './styles';
@@ -42,7 +43,8 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
   #focusFree: string | null = null;
   #observer: MutationObserver | null = null;
   #copyStatus: CopyStatus = 'idle';
-  #copyTimer: ReturnType<typeof setTimeout> | null = null;
+  #flashTimer: ReturnType<typeof setTimeout> | null = null;
+  #sendStatus: SendStatus = { kind: 'idle' };
 
   constructor() {
     super();
@@ -65,8 +67,7 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
     this.removeEventListener('dpk-diagram-view', this.#schedulePosition);
     this.#observer?.disconnect();
     this.#observer = null;
-    if (this.#copyTimer !== null) clearTimeout(this.#copyTimer);
-    this.#copyTimer = null;
+    this.#clearFlash();
   }
 
   protected override renderRegions(context: TemplateRenderContext<GrillState>): ShellRegions {
@@ -137,12 +138,6 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
 
   #renderSidebar(context: TemplateRenderContext<GrillState>): TemplateResult {
     const panel = presentGrillPanel(context.state, context.navigation);
-    const copyLabel =
-      this.#copyStatus === 'copied'
-        ? 'コピーしました'
-        : this.#copyStatus === 'failed'
-          ? 'コピーできませんでした'
-          : '回答・Review をまとめてコピー';
     return html`
       <div class="grill-panel">
         <div class="grill-tabs" role="tablist" aria-label="質問 / Review">
@@ -188,18 +183,74 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
         >
           ${this.renderReviewPanel(context)}
         </div>
+        ${this.#renderFooter(context.actions.length === 0)}
+      </div>
+    `;
+  }
+
+  /**
+   * The hand-off. Inside a Claude Artifact the review goes straight to Claude,
+   * with copying kept as the way on when a send fails.
+   */
+  #renderFooter(empty: boolean): TemplateResult {
+    const copyLabel =
+      this.#copyStatus === 'copied'
+        ? 'コピーしました'
+        : this.#copyStatus === 'failed'
+          ? 'コピーできませんでした'
+          : '回答・Review をまとめてコピー';
+    if (!this.canSendToClaude) {
+      return html`
         <div class="grill-footer">
           <button
             class="dpk-btn dpk-btn--accent grill-copy"
             type="button"
             data-status=${this.#copyStatus}
-            ?disabled=${context.actions.length === 0}
+            ?disabled=${empty}
             @click=${() => void this.#copy()}
           >
             ${copyLabel}
           </button>
           <span class="grill-sr" role="status">${this.#copyStatus === 'idle' ? '' : copyLabel}</span>
         </div>
+      `;
+    }
+    const send = this.#sendStatus;
+    const sendLabel =
+      send.kind === 'pending'
+        ? '送信中…'
+        : send.kind === 'sent'
+          ? 'Claude に送りました'
+          : send.kind === 'failed'
+            ? '送れませんでした'
+            : '回答・Review を Claude に送る';
+    const note = send.kind === 'failed' ? handoffFailureLabel(send.reason) : null;
+    const announced = note ?? (send.kind === 'sent' ? sendLabel : this.#copyStatus === 'idle' ? '' : copyLabel);
+    return html`
+      <div class="grill-footer">
+        <div class="grill-footer-actions">
+          <button
+            class="dpk-btn dpk-btn--accent grill-send"
+            type="button"
+            data-status=${send.kind}
+            ?disabled=${empty || send.kind === 'pending'}
+            @click=${() => void this.#send()}
+          >
+            ${sendLabel}
+          </button>
+          <button
+            class="dpk-btn dpk-btn--ghost grill-copy"
+            type="button"
+            data-status=${this.#copyStatus}
+            title="回答・Review をまとめてコピー"
+            ?disabled=${empty}
+            @click=${() => void this.#copy()}
+          >
+            ${this.#copyStatus === 'copied' ? 'コピー済み' : 'コピー'}
+          </button>
+        </div>
+        ${note === null ? null : html`<p class="grill-footer-note">${note}</p>`}
+        <span class="grill-sr" role="status">${announced}</span>
       </div>
     `;
   }
@@ -272,19 +323,39 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
 
   async #copy(): Promise<void> {
     const text = this.api.exportBrief();
-    this.#reportCopy((await copyText(text)) ? 'copied' : 'failed');
+    const copied = await copyText(text);
+    this.#clearFlash();
+    this.#copyStatus = copied ? 'copied' : 'failed';
+    this.#flash();
   }
 
-  /** The button reports the outcome, then goes back to its label. */
-  #reportCopy(status: Exclude<CopyStatus, 'idle'>): void {
-    this.#copyStatus = status;
+  async #send(): Promise<void> {
+    this.#clearFlash();
+    this.#sendStatus = { kind: 'pending' };
     this.requestUpdate();
-    if (this.#copyTimer !== null) clearTimeout(this.#copyTimer);
-    this.#copyTimer = setTimeout(() => {
-      this.#copyTimer = null;
+    const outcome = await this.sendToClaude();
+    this.#sendStatus = outcome.ok ? { kind: 'sent' } : { kind: 'failed', reason: outcome.reason };
+    // A failure says what to do next, so it stays until the reader acts on it.
+    if (outcome.ok) this.#flash();
+    else this.requestUpdate();
+  }
+
+  /** One outcome at a time: it shows, then the buttons go back to their labels. */
+  #flash(): void {
+    this.requestUpdate();
+    this.#flashTimer = setTimeout(() => {
+      this.#flashTimer = null;
       this.#copyStatus = 'idle';
+      this.#sendStatus = { kind: 'idle' };
       this.requestUpdate();
     }, 2400);
+  }
+
+  #clearFlash(): void {
+    if (this.#flashTimer !== null) clearTimeout(this.#flashTimer);
+    this.#flashTimer = null;
+    this.#copyStatus = 'idle';
+    this.#sendStatus = { kind: 'idle' };
   }
 
   // ------------------------------------------------------------ label layer

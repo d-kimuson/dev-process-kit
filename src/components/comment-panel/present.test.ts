@@ -62,4 +62,23 @@ describe('panel presentation', () => {
     );
     expect(vm.items[0]).toMatchObject({ title: 'Alpha', stale: 'target-missing' });
   });
+  it('offers the send to Claude only when the host provides it and there is something to send', () => {
+    const actions = [
+      { id: 'c', type: 'comment', target: { type: 'page', id: 'tiny' }, payload: { body: 'hi' }, createdAt: 'now' },
+    ];
+    const withDraft = { ...inputs, derivation: derive(definition, base, actions) };
+    expect(presentPanel(inputs, initialPanelState()).send).toBe('hidden');
+    expect(presentPanel({ ...inputs, sendable: true }, initialPanelState()).send).toBe('disabled');
+    expect(presentPanel({ ...withDraft, sendable: true }, initialPanelState()).send).toBe('ready');
+    const pending = reducePanel(initialPanelState(), { kind: 'send-started' });
+    expect(presentPanel({ ...withDraft, sendable: true }, pending).send).toBe('disabled');
+  });
+  it('explains a failed send in the flash', () => {
+    const ui = reducePanel(reducePanel(initialPanelState(), { kind: 'send-started' }), {
+      kind: 'send-finished',
+      request: 1,
+      outcome: { ok: false, reason: 'too_large' },
+    });
+    expect(presentPanel(inputs, ui).flash).toMatch(/コピー/);
+  });
 });

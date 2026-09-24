@@ -27,4 +27,16 @@ describe('comment panel state', () => {
       'failed',
     );
   });
+  it('reports only the latest send to Claude', () => {
+    const first = reducePanel(initialPanelState(), { kind: 'send-started' });
+    const second = reducePanel(first, { kind: 'send-started' });
+    const stale = reducePanel(second, { kind: 'send-finished', request: first.sendRequest, outcome: { ok: true } });
+    expect(stale).toBe(second);
+    const failed = reducePanel(second, {
+      kind: 'send-finished',
+      request: second.sendRequest,
+      outcome: { ok: false, reason: 'consent' },
+    });
+    expect(failed.send).toEqual({ kind: 'failed', reason: 'consent' });
+  });
 });

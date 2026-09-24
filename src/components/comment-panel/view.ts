@@ -92,6 +92,18 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
       embedded
         ? nothing
         : html`
+            ${
+              vm.send === 'hidden'
+                ? nothing
+                : html`<button
+                    class="dpk-btn dpk-btn--accent"
+                    type="button"
+                    ?disabled=${vm.send === 'disabled'}
+                    @click=${() => send({ kind: 'send' })}
+                  >
+                    Claude に送る
+                  </button>`
+            }
             <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'json' })}>
               Copy JSON
             </button>
