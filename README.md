@@ -19,6 +19,7 @@ browser, and the review comes back as structured change requests the agent can a
 - **Rich diagrams with almost no code.** Parts for the traditional diagrams a development process uses, ready to drop into your markup.
 - **No setup.** The components are made for a single-file HTML page and ship as Web Components: one `<script>` tag, and they are there.
 - **Feedback without leaving the page.** Operate the diagram and comment on individual elements in the UI, then copy the operations and the comments out as a hand-off to an agent.
+- **First-class support for Claude Artifacts.** Published from Claude Code as a Claude Artifact, the page follows the claude.ai theme and sends the review straight back to the Claude session with one click: no copy and paste.
 
 ## Why dev-process-kit?
 
@@ -49,6 +50,16 @@ The shortest way to try it is to hand the skill to an agent and say what you wan
 Create a USM for this product.
 Follow https://raw.githubusercontent.com/d-kimuson/dev-process-kit/main/skills/dev-process-kit/SKILL.md.
 ```
+
+### Claude Artifacts
+
+Claude Code can publish the page as a Claude Artifact instead of a local file, and dev-process-kit supports that as a first-class target:
+
+- **One-click hand-off.** With the `comments` and `db` capabilities declared, the review rail offers **Claude に送る** in place of copying. The review arrives in the Claude Code session that published the page, which applies it and republishes to the same URL.
+- **Fits the viewer.** The template follows the reader's claude.ai light / dark theme and sizes itself to the viewer's frame.
+- **Nothing to configure.** The page detects the Artifact at runtime; outside one, or when a send cannot land, the copy hand-off stays as it is.
+
+The skill's [Claude Artifact reference](skills/dev-process-kit/references/claude-artifact.md) tells the agent how to write and publish such a page.
 
 ### Install the skill
 
@@ -84,7 +95,7 @@ dev-process-kit ships **templates**, which make up a whole page, and **component
 
 | Component        | Element                          | What it is                                                                                   |
 | ---------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
-| Review rail      | `dpk-component-comment-panel`    | The draft actions and comments, stale markers, deletion, and the copy hand-off for the agent |
+| Review rail      | `dpk-component-comment-panel`    | Draft actions and comments, stale markers, deletion, and the copy or send-to-Claude hand-off |
 | Inline editing   | `dpk-component-inline-edit`      | A text/multiline editor that emits `dpk-commit`                                              |
 | State diagram    | `dpk-component-state-diagram`    | Which states exist, and what moves between them                                              |
 | Sequence diagram | `dpk-component-sequence-diagram` | In what order participants talk                                                              |
