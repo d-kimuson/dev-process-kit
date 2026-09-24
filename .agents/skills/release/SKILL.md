@@ -1,6 +1,9 @@
 ---
 name: release
 description: Run the dev-process-kit release flow end-to-end. Use when the user asks to release patch, minor, major, beta, or an explicit semver; bumps the version with `npm version`, pushes the signed tag, watches the Release workflow that publishes to npm, and publishes the GitHub Release.
+# A maintainer's skill: keep it out of `npx skills add d-kimuson/dev-process-kit`.
+metadata:
+  internal: true
 ---
 
 # dev-process-kit Release
