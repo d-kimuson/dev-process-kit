@@ -97,7 +97,7 @@ export const grillStyles = css`
   .grill-toggle[aria-expanded='true'] {
     color: var(--dpk-accent-ink);
     border-color: transparent;
-    background: linear-gradient(135deg, var(--dpk-accent), #c23e12);
+    background: linear-gradient(135deg, var(--dpk-accent), var(--dpk-accent-strong));
     box-shadow: 0 2px 8px rgba(217, 73, 32, 0.3);
   }
 

@@ -67,7 +67,7 @@ export const prototypeStyles = css`
     bottom: 8px;
     width: 3px;
     border-radius: var(--dpk-radius-xs);
-    background: linear-gradient(180deg, var(--dpk-blue), #2952a3);
+    background: linear-gradient(180deg, var(--dpk-blue), var(--dpk-blue-strong));
   }
 
   .step-link {
@@ -380,6 +380,8 @@ export const prototypeStyles = css`
     flex-direction: column;
     width: 100%;
     min-height: var(--frame-min-height, 480px);
+    /* A preview is the product's screen, not the kit's chrome: it stays light in a dark theme. */
+    color-scheme: light;
     background: #fff;
   }
 

@@ -493,7 +493,7 @@ export const eventStormingStyles = css`
   }
 
   .type-chip {
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--dpk-rule-strong);
     border-radius: 4px;
     padding: 6px 8px;
     font-size: 11px;

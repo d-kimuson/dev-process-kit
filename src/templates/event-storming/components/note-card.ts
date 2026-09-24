@@ -178,7 +178,7 @@ const cardStyles = css`
     font-size: 9.5px;
     font-weight: 620;
     white-space: nowrap;
-    color: #c2213a;
+    color: var(--dpk-danger);
     background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
     box-shadow: var(--dpk-shadow-xs);
     cursor: pointer;
@@ -196,7 +196,7 @@ const cardStyles = css`
 
   .note-hotspot:hover {
     border-color: #e02c44;
-    background: #fff1f3;
+    background: var(--dpk-danger-soft);
   }
 
   :host(:hover) .note-tools,

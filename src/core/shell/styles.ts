@@ -15,6 +15,12 @@ export const chromeStyles = [
       display: block;
       min-height: 100%;
       background: var(--dpk-paper);
+      color-scheme: light;
+    }
+
+    /* The element stamps its resolved scheme; nested components inherit it. */
+    :host([data-theme='dark']) {
+      color-scheme: dark;
     }
 
     .dpk-shell {
@@ -108,6 +114,39 @@ export const chromeStyles = [
       border-radius: 50%;
       background: var(--dpk-ink-faint);
       opacity: 0.5;
+    }
+
+    .dpk-theme-toggle {
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid var(--dpk-rule);
+      border-radius: 999px;
+      background: var(--dpk-paper-sunken);
+      color: var(--dpk-ink-soft);
+      cursor: pointer;
+      transition:
+        color 160ms ease,
+        border-color 160ms ease;
+    }
+
+    .dpk-theme-toggle svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .dpk-theme-toggle:hover {
+      color: var(--dpk-ink);
+      border-color: var(--dpk-rule-hover);
+    }
+
+    .dpk-theme-toggle:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
     }
 
     /* --------------------------------------------------------------- body */
@@ -282,7 +321,7 @@ export const chromeStyles = [
     .dpk-fab[aria-expanded='true'] {
       color: var(--dpk-accent-ink);
       border-color: transparent;
-      background: linear-gradient(135deg, var(--dpk-accent), #c23e12);
+      background: linear-gradient(135deg, var(--dpk-accent), var(--dpk-accent-strong));
       box-shadow: 0 2px 8px rgba(217, 73, 32, 0.3);
     }
 
@@ -318,7 +357,7 @@ export const chromeStyles = [
       padding: 0 4px;
       border: 2px solid var(--dpk-paper-raised);
       border-radius: 999px;
-      background: linear-gradient(135deg, #e55a2b, var(--dpk-accent));
+      background: linear-gradient(135deg, var(--dpk-accent-bright), var(--dpk-accent));
       color: var(--dpk-accent-ink);
       font-family: var(--dpk-mono);
       font-size: 9.5px;

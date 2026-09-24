@@ -13,12 +13,15 @@ import type {
 } from './types';
 
 import { COMMENT_ACTION } from './action';
+import { parseColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
 import { DraftController } from './controller';
 import { componentElementActionSchema } from './element-actions';
+import { iconMoon, iconSun } from './icons';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { defaultStorage, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSource } from './shell/api';
+import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
 import { PreviewRouter } from './shell/preview-router';
@@ -37,6 +40,7 @@ export abstract class TemplateElement<S> extends LitElement {
     storageKey: { type: String, attribute: 'storage-key' },
     storage: { type: String },
     notes: { type: String },
+    theme: { type: String },
     notesOpen: { state: true },
   };
 
@@ -49,10 +53,17 @@ export abstract class TemplateElement<S> extends LitElement {
    * floating comment button; `notes="on"` opens it on load.
    */
   declare notes: string | null;
+  /**
+   * `theme="light|dark"` fixes the default palette. Without it the page follows
+   * `<html data-theme>`, then the OS preference; the header toggle overrides
+   * either for this reader.
+   */
+  declare theme: string | null;
   /** Internal UI state of the floating review toggle. */
   declare notesOpen: boolean;
   #notesInitialized = false;
   #previewRouter = new PreviewRouter(this);
+  #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
 
   abstract readonly definition: TemplateDefinition<S>;
 
@@ -125,6 +136,12 @@ export abstract class TemplateElement<S> extends LitElement {
   #subscribe(): void {
     if (this.#unsubscribe) return;
     this.#unsubscribe = this.#controller?.subscribe(() => this.#onControllerChange());
+  }
+
+  protected override willUpdate(): void {
+    // Reflected on the host so `color-scheme` (and so every `light-dark()`
+    // token) cascades into nested components and slotted light DOM.
+    this.dataset['theme'] = this.#colorScheme.resolve(parseColorScheme(this.theme));
   }
 
   protected override updated(): void {
@@ -262,6 +279,7 @@ export abstract class TemplateElement<S> extends LitElement {
             <span>${this.definition.name}</span>
             <span>${draftCount} draft · ${commentCount} note</span>
           </div>
+          ${this.#renderThemeToggle()}
         </header>
         <div class="dpk-body">
           <aside
@@ -330,6 +348,20 @@ export abstract class TemplateElement<S> extends LitElement {
         }
       </div>
     `;
+  }
+
+  #renderThemeToggle(): TemplateResult {
+    const dark = this.dataset['theme'] === 'dark';
+    const label = dark ? 'ライトテーマにする' : 'ダークテーマにする';
+    return html`<button
+      class="dpk-theme-toggle"
+      type="button"
+      aria-label=${label}
+      title=${label}
+      @click=${() => this.#colorScheme.toggle(parseColorScheme(this.theme))}
+    >
+      ${dark ? iconSun() : iconMoon()}
+    </button>`;
   }
 
   protected override render(): TemplateResult | typeof nothing {

@@ -297,3 +297,46 @@ describe('<dpk-template-prototype>', () => {
     expect(el.api.comments).toHaveLength(1);
   });
 });
+
+describe('color scheme', () => {
+  const toggle = (el: DpkTemplatePrototype): HTMLButtonElement =>
+    el.shadowRoot?.querySelector('.dpk-theme-toggle') as HTMLButtonElement;
+
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+    delete document.documentElement.dataset['theme'];
+  });
+
+  it('follows the environment and flips with the header toggle', async () => {
+    const el = mount();
+    await settle(el);
+    expect(el.dataset['theme']).toBe('light');
+    expect(toggle(el).getAttribute('aria-label')).toBe('ダークテーマにする');
+
+    toggle(el).click();
+    await settle(el);
+    expect(el.dataset['theme']).toBe('dark');
+    expect(toggle(el).getAttribute('aria-label')).toBe('ライトテーマにする');
+  });
+
+  it("follows the page's data-theme stamp, also when it changes later", async () => {
+    document.documentElement.dataset['theme'] = 'dark';
+    const el = mount();
+    await settle(el);
+    expect(el.dataset['theme']).toBe('dark');
+
+    document.documentElement.dataset['theme'] = 'light';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await settle(el);
+    expect(el.dataset['theme']).toBe('light');
+  });
+
+  it('lets the author fix the default with the theme attribute', async () => {
+    document.documentElement.dataset['theme'] = 'light';
+    const el = mount();
+    el.setAttribute('theme', 'dark');
+    await settle(el);
+    expect(el.dataset['theme']).toBe('dark');
+  });
+});

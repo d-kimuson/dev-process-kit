@@ -112,6 +112,7 @@ Drafts live in `LocalStorage`, so a reload keeps the review in progress. A store
 | `storage-key` | string            | LocalStorage key override (recommended for anything a human will re-open) |
 | `storage`     | `off` \| `memory` | persistence mode (default: `localStorage`)                                |
 | `notes`       | `on`              | opens the review rail on load (default: closed)                           |
+| `theme`       | `light` \| `dark` | the default color scheme (see [Color scheme](#color-scheme))              |
 
 ## Navigation
 
@@ -178,17 +179,29 @@ All events bubble and are composed. `dpk-component-comment-panel` (the review ra
 Framework chrome (shell, sidebar, review rail, preview frames) is Shadow DOM; everything you write stays in the light DOM, so your CSS and JS work normally. The `--dpk-*` custom properties declared on `:host` are inherited into your content, so you can reuse the palette without importing anything:
 
 ```text
---dpk-paper --dpk-paper-raised --dpk-paper-sunken
+--dpk-paper --dpk-paper-raised --dpk-paper-sunken --dpk-paper-inset
 --dpk-ink --dpk-ink-soft --dpk-ink-faint
---dpk-rule --dpk-rule-strong
---dpk-accent --dpk-accent-soft
---dpk-blue --dpk-blue-soft --dpk-green --dpk-green-soft
+--dpk-rule --dpk-rule-strong --dpk-rule-hover
+--dpk-accent --dpk-accent-strong --dpk-accent-bright --dpk-accent-soft --dpk-accent-ink
+--dpk-blue --dpk-blue-strong --dpk-blue-soft --dpk-green --dpk-green-soft
 --dpk-amber --dpk-amber-soft --dpk-violet --dpk-violet-soft
+--dpk-danger --dpk-danger-soft --dpk-shade
 --dpk-display --dpk-body --dpk-mono
---dpk-radius --dpk-shadow
+--dpk-radius --dpk-shadow --dpk-focus
 ```
 
 Slot content reaches the page through the public API and DOM events, never through framework internals: read `state` / `base` / `actions` as immutable values, change things only with `dispatch()` / `comment()` / `navigate()`, and re-render on `dpk-change` and `dpk-navigate`.
+
+### Color scheme
+
+Every template renders light or dark, and its header carries a sun / moon toggle for the reader. The scheme is decided in this order, strongest first:
+
+1. the reader's toggle — remembered per browser for every page of the origin (for this page load only under `storage="off"` / `"memory"`); toggling back to the default forgets it
+2. the `theme` attribute on the template element
+3. `<html data-theme="light|dark">` on the page — how a host such as the Claude Artifact viewer passes its reader's choice down
+4. the OS preference (`prefers-color-scheme`)
+
+The template sets `color-scheme` on itself, and the color tokens switch with it, so author content that uses `var(--dpk-*)` follows without extra CSS. Hard-coded colors do not: write page CSS with the tokens, and do not paint `html` / `body` with a fixed background (leave the page ground to the template). A mockup that must stay light can set `color-scheme: light` on its own container. A component used on its own follows the page's `color-scheme` (light when the page declares none).
 
 ## Review and the hand-off
 

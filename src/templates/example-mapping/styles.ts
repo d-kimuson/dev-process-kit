@@ -51,7 +51,7 @@ export const exampleMappingStyles = css`
     border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius-lg);
     background:
-      radial-gradient(circle, rgba(20, 28, 44, 0.07) 1px, transparent 1.2px) 0 0 / 18px 18px,
+      radial-gradient(circle, var(--dpk-rule) 1px, transparent 1.2px) 0 0 / 18px 18px,
       var(--dpk-paper-raised);
     box-shadow: var(--dpk-shadow);
     transition: outline-color 150ms ease;
@@ -97,8 +97,8 @@ export const exampleMappingStyles = css`
 
   .readiness[data-readiness='open-questions'],
   .readiness[data-readiness='too-big'] {
-    background: rgba(214, 53, 80, 0.1);
-    color: #b81c33;
+    background: var(--dpk-danger-soft);
+    color: var(--dpk-danger);
   }
 
   .readiness[data-readiness='thin'] {
@@ -170,11 +170,11 @@ export const exampleMappingStyles = css`
   }
 
   .card-area--example {
-    background: rgba(74, 163, 94, 0.08);
+    background: var(--dpk-green-soft);
   }
 
   .card-area--question {
-    background: rgba(214, 53, 80, 0.06);
+    background: var(--dpk-danger-soft);
   }
 
   .card-area--question dpk-internal-example-mapping-card {
@@ -211,7 +211,7 @@ export const exampleMappingStyles = css`
   .add-story {
     border: 1px dashed var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-sm);
-    background: rgba(255, 255, 255, 0.6);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 60%, transparent);
     color: var(--dpk-ink-faint);
     font: inherit;
     font-size: 11.5px;

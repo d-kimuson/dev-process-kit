@@ -1,4 +1,49 @@
-import { css } from 'lit';
+import { css, unsafeCSS } from 'lit';
+
+/**
+ * The palette as `[light, dark]` pairs. A template sets `color-scheme` on its
+ * host from the resolved theme, and `light-dark()` picks the matching value
+ * wherever a token is used — in the chrome, in nested components and in the
+ * author's light DOM alike. A standalone component follows the page's own
+ * `color-scheme`.
+ */
+const palette = {
+  paper: ['#fafbfc', '#15171c'],
+  'paper-raised': ['#ffffff', '#1d2027'],
+  'paper-sunken': ['#f3f5f8', '#111317'],
+  'paper-inset': ['#eceef2', '#272b34'],
+  ink: ['#1a1d24', '#e6e9ef'],
+  'ink-soft': ['#4d5566', '#aeb5c2'],
+  'ink-faint': ['#7c8599', '#7f8798'],
+  rule: ['rgba(20, 28, 44, 0.08)', 'rgba(222, 230, 245, 0.09)'],
+  'rule-strong': ['rgba(20, 28, 44, 0.14)', 'rgba(222, 230, 245, 0.16)'],
+  'rule-hover': ['rgba(20, 28, 44, 0.22)', 'rgba(222, 230, 245, 0.26)'],
+  accent: ['#d94920', '#ee6a40'],
+  'accent-strong': ['#c23e12', '#d4532a'],
+  'accent-bright': ['#e55a2b', '#f47d55'],
+  'accent-soft': ['rgba(217, 73, 32, 0.07)', 'rgba(238, 106, 64, 0.15)'],
+  'accent-ink': ['#ffffff', '#ffffff'],
+  blue: ['#3366cc', '#6f9bf0'],
+  'blue-strong': ['#2952a3', '#4f7fdc'],
+  'blue-soft': ['rgba(51, 102, 204, 0.08)', 'rgba(111, 155, 240, 0.15)'],
+  green: ['#1a8a4a', '#43c07a'],
+  'green-soft': ['rgba(26, 138, 74, 0.08)', 'rgba(67, 192, 122, 0.14)'],
+  amber: ['#b47a0a', '#e2a73c'],
+  'amber-soft': ['rgba(180, 122, 10, 0.09)', 'rgba(226, 167, 60, 0.15)'],
+  violet: ['#7c4dcc', '#a88af0'],
+  'violet-soft': ['rgba(124, 77, 204, 0.08)', 'rgba(168, 138, 240, 0.15)'],
+  danger: ['#b81c33', '#f36b80'],
+  'danger-soft': ['rgba(214, 53, 80, 0.08)', 'rgba(243, 107, 128, 0.14)'],
+  /** Shadow tint: shadows mix it with transparency, so they stay visible on a dark ground. */
+  shade: ['rgb(20, 28, 44)', 'rgb(0, 0, 0)'],
+} as const satisfies Record<string, readonly [light: string, dark: string]>;
+
+const declarations = (value: (light: string, dark: string) => string) =>
+  unsafeCSS(
+    Object.entries(palette)
+      .map(([name, [light, dark]]) => `--dpk-${name}: ${value(light, dark)};`)
+      .join('\n'),
+  );
 
 /**
  * Shared design tokens. They are declared on `:host`, so they inherit into the
@@ -6,27 +51,8 @@ import { css } from 'lit';
  */
 export const tokens = css`
   :host {
-    /* Neutral, white-based surface scale. */
-    --dpk-paper: #fafbfc;
-    --dpk-paper-raised: #ffffff;
-    --dpk-paper-sunken: #f3f5f8;
-    --dpk-paper-inset: #eceef2;
-    --dpk-ink: #1a1d24;
-    --dpk-ink-soft: #4d5566;
-    --dpk-ink-faint: #7c8599;
-    --dpk-rule: rgba(20, 28, 44, 0.08);
-    --dpk-rule-strong: rgba(20, 28, 44, 0.14);
-    --dpk-accent: #d94920;
-    --dpk-accent-soft: rgba(217, 73, 32, 0.07);
-    --dpk-accent-ink: #ffffff;
-    --dpk-blue: #3366cc;
-    --dpk-blue-soft: rgba(51, 102, 204, 0.08);
-    --dpk-green: #1a8a4a;
-    --dpk-green-soft: rgba(26, 138, 74, 0.08);
-    --dpk-amber: #b47a0a;
-    --dpk-amber-soft: rgba(180, 122, 10, 0.09);
-    --dpk-violet: #7c4dcc;
-    --dpk-violet-soft: rgba(124, 77, 204, 0.08);
+    /* Browsers without light-dark() stay light. */
+    ${declarations((light) => light)}
     --dpk-display: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --dpk-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --dpk-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
@@ -36,11 +62,19 @@ export const tokens = css`
     --dpk-radius-sm: 7px;
     --dpk-radius: 8px;
     --dpk-radius-lg: 12px;
-    --dpk-shadow-xs: 0 1px 2px rgba(20, 28, 44, 0.05), 0 1px 1px rgba(20, 28, 44, 0.03);
-    --dpk-shadow-sm: 0 1px 2px rgba(20, 28, 44, 0.06), 0 2px 8px -2px rgba(20, 28, 44, 0.12);
-    --dpk-shadow: 0 1px 3px rgba(20, 28, 44, 0.06), 0 8px 24px -8px rgba(20, 28, 44, 0.18);
-    --dpk-shadow-lg: 0 2px 6px rgba(20, 28, 44, 0.06), 0 16px 40px -12px rgba(20, 28, 44, 0.22);
-    --dpk-focus: 0 0 0 3px rgba(51, 102, 204, 0.25);
+    --dpk-shadow-xs:
+      0 1px 2px color-mix(in srgb, var(--dpk-shade) 5%, transparent),
+      0 1px 1px color-mix(in srgb, var(--dpk-shade) 3%, transparent);
+    --dpk-shadow-sm:
+      0 1px 2px color-mix(in srgb, var(--dpk-shade) 6%, transparent),
+      0 2px 8px -2px color-mix(in srgb, var(--dpk-shade) 12%, transparent);
+    --dpk-shadow:
+      0 1px 3px color-mix(in srgb, var(--dpk-shade) 6%, transparent),
+      0 8px 24px -8px color-mix(in srgb, var(--dpk-shade) 18%, transparent);
+    --dpk-shadow-lg:
+      0 2px 6px color-mix(in srgb, var(--dpk-shade) 6%, transparent),
+      0 16px 40px -12px color-mix(in srgb, var(--dpk-shade) 22%, transparent);
+    --dpk-focus: 0 0 0 3px color-mix(in srgb, var(--dpk-blue) 28%, transparent);
     --dpk-control-h: 32px;
 
     color: var(--dpk-ink);
@@ -50,6 +84,12 @@ export const tokens = css`
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     display: block;
+  }
+
+  @supports (color: light-dark(#000, #fff)) {
+    :host {
+      ${declarations((light, dark) => `light-dark(${light}, ${dark})`)}
+    }
   }
 
   *,
@@ -121,7 +161,7 @@ export const controls = css`
 
   .dpk-btn:hover:not([disabled]) {
     background: var(--dpk-paper-sunken);
-    border-color: rgba(20, 28, 44, 0.22);
+    border-color: var(--dpk-rule-hover);
     box-shadow: var(--dpk-shadow-sm);
   }
 
@@ -143,7 +183,7 @@ export const controls = css`
 
   .dpk-btn--accent {
     border-color: transparent;
-    background: linear-gradient(180deg, var(--dpk-accent), #c23e12);
+    background: linear-gradient(180deg, var(--dpk-accent), var(--dpk-accent-strong));
     color: var(--dpk-accent-ink);
     box-shadow:
       0 1px 2px rgba(217, 73, 32, 0.25),
@@ -151,7 +191,7 @@ export const controls = css`
   }
 
   .dpk-btn--accent:hover:not([disabled]) {
-    background: linear-gradient(180deg, #e0521f, #b83710);
+    background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
     border-color: transparent;
     box-shadow:
       0 2px 6px rgba(217, 73, 32, 0.3),
@@ -161,13 +201,13 @@ export const controls = css`
   /* Selection state, shared by every template's filter/nav controls. */
   .dpk-btn--selected {
     border-color: transparent;
-    background: linear-gradient(180deg, var(--dpk-blue), #2952a3);
+    background: linear-gradient(180deg, var(--dpk-blue), var(--dpk-blue-strong));
     color: #fff;
     box-shadow: 0 1px 3px rgba(51, 102, 204, 0.3);
   }
 
   .dpk-btn--selected:hover:not([disabled]) {
-    background: linear-gradient(180deg, #2952a3, #213f80);
+    background: linear-gradient(180deg, var(--dpk-blue-strong), var(--dpk-blue-strong));
     border-color: transparent;
     box-shadow: 0 2px 6px rgba(51, 102, 204, 0.35);
   }
@@ -273,7 +313,7 @@ export const controls = css`
   .dpk-input:hover,
   .dpk-textarea:hover,
   .dpk-select:hover {
-    border-color: rgba(20, 22, 26, 0.24);
+    border-color: var(--dpk-rule-hover);
   }
 
   .dpk-input:focus,
