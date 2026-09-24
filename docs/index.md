@@ -98,7 +98,7 @@ The path states _where_ the target lives, which is the difference between "renam
 ### Validation and staleness
 
 - **Schema validation** at `dispatch()`: unknown action types and malformed payloads are rejected with issues in the `dpk-error` event, and nothing is persisted.
-- **Applicability** is checked at derive time: an action whose target no longer exists stays in the draft as **stale**, is not applied, and is greyed out in the rail with a reason (`target-missing`, `constraint-violated`, `unsupported-action-type`).
+- **Applicability** is checked at derive time: an action whose target no longer exists stays in the draft as **stale**, is not applied, and is greyed out in the rail with a reason (`target-missing`, `constraint-violated`, `unsupported-action-type`). The brief lists stale actions in a section of their own ("Not applicable to the current base"), apart from the pending comments and changes.
 - A no-op patch — the base already says exactly that — is dropped automatically on the next derive. That is how a draft cleans itself when the agent applies it and regenerates the HTML.
 - The draft is **interpretive**, not a history: it holds the net change. Actions that cancel out are dropped as soon as they do — adding a note and deleting it again leaves nothing, and so does moving a story away and back. So is an edit the draft makes invisible, such as renaming an entity that is deleted later. Actions are dropped only when the page still means the same without them, and comments, stale actions and component element actions are never dropped.
 - `comment` actions accumulate. They are draft actions, not a second channel, and their targets are meaning elements, not arbitrary DOM nodes.
@@ -203,11 +203,26 @@ Every template renders light or dark, and its header carries a sun / moon toggle
 
 The template sets `color-scheme` on itself, and the color tokens switch with it, so author content that uses `var(--dpk-*)` follows without extra CSS. Hard-coded colors do not: write page CSS with the tokens, and do not paint `html` / `body` with a fixed background (leave the page ground to the template). A mockup that must stay light can set `color-scheme: light` on its own container. A component used on its own follows the page's `color-scheme` (light when the page declares none).
 
+### Language
+
+The kit's own text — the review rail, template chrome, diagram controls and the titles of draft actions — follows the page's `lang`. Every element uses the closest `lang` attribute: its own, then its ancestors', through shadow roots. Only the primary subtag counts (`ja-JP` is `ja`). The kit ships English (`en`) and Japanese (`ja`); a missing or unsupported `lang` renders English.
+
+```html
+<html lang="ja">
+  …
+  <dpk-template-usm lang="ja" storage-key="checkout-usm">…</dpk-template-usm>
+</html>
+```
+
+Write `lang` on `<html>`, and also on the template element when you do not control `<html>` (a Claude Artifact wraps your file in its own document). The language is read when the element connects; changing `lang` afterwards has no effect.
+
+The template header has a language select that starts on that language. The reader's pick switches the template and every element inside it, and is remembered per origin (`localStorage` key `dev-process-kit:locale`) unless `storage` is `off` or `memory`. Picking the page's own language forgets the pick. The template applies a pick by setting its own `lang`, so do not read that attribute back as the page's language. Your content (base data, slot markup, a diagram's `heading` / `subject`) is never translated. The hand-off brief keeps its headings and instructions in English for the agent; the action titles in it follow the page's language.
+
 ## Review and the hand-off
 
 The review rail produces two clipboard payloads: the canonical draft JSON (`Copy JSON`) and a readable hand-off brief (`Copy brief`). Hand the brief to the agent: it applies the requested end state to the base HTML, keeps the ids of the concepts that survived, and drops the draft envelope from the JSON. The page never mutates its own base data, so the HTML the agent writes back is the new source of truth.
 
-Inside a Claude Artifact published with the `comments` capability, the rail also offers **Claude に送る**: the brief is posted as a comment sent to the Claude session that published the page, pinned to the template element. A brief over the 4 KiB comment limit is stored as a document in the `reviews` collection of the artifact's database (when the page also declares `db`), and the comment points at it; the document holds `brief` (the same markdown) and `draft` (the canonical JSON). The button appears only when the viewer can send to Claude right now; a failed send says why and leaves the copy buttons as the way on. Elsewhere nothing changes.
+Inside a Claude Artifact published with the `comments` capability, the rail also offers **Send to Claude**: the brief is posted as a comment sent to the Claude session that published the page, pinned to the template element. A brief over the 4 KiB comment limit is stored as a document in the `reviews` collection of the artifact's database (when the page also declares `db`), and the comment points at it; the document holds `brief` (the same markdown) and `draft` (the canonical JSON). The button appears only when the viewer can send to Claude right now; a failed send says why and leaves the copy buttons as the way on. Elsewhere nothing changes.
 
 ## Read next
 

@@ -9,6 +9,7 @@ import { DiagramElement } from '../diagram/element';
 import { reach, tagStateMatches, type DiagramSelection, type Reach } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
 import { branchPath, layoutMindMap } from './layout';
+import { mindMapMessages } from './messages';
 import {
   ADD_TOPIC,
   ancestorsOf,
@@ -79,21 +80,22 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
     data: MindMapData,
     actions: readonly DraftAction[],
   ): { readonly data: MindMapData; readonly results: readonly ElementActionResult[] } {
-    return reduceMindMapActions(data, actions);
+    return reduceMindMapActions(mindMapMessages(this.locale), data, actions);
   }
 
   protected override defaultHeading(): string {
-    return 'Mind map';
+    return mindMapMessages(this.locale).heading;
   }
 
   protected override emptyMessage(): string {
-    return '該当するトピックはありません。';
+    return mindMapMessages(this.locale).empty;
   }
 
   protected override statsText(): string {
+    const m = mindMapMessages(this.locale);
     const total = this.items().nodes.length;
     const shown = this.filtered().nodes.length;
-    return shown === total ? `${total} トピック` : `${shown} / ${total} トピック`;
+    return shown === total ? `${total} ${m.topics}` : `${shown} / ${total} ${m.topics}`;
   }
 
   protected override filtered(): MindMapData {
@@ -166,12 +168,13 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
 
   protected override renderCanvas(): TemplateResult {
     const visible = this.filtered();
+    const m = mindMapMessages(this.locale);
     return html`
       ${this.renderEdges(
         visible.edges.map((edge) => this.#renderBranch(edge)),
         [],
       )}
-      ${visible.nodes.map((node) => this.#renderTopic(node))} ${this.#renderActions()}
+      ${visible.nodes.map((node) => this.#renderTopic(node, m))} ${this.#renderActions(m)}
     `;
   }
 
@@ -194,7 +197,7 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
     `;
   }
 
-  #renderTopic(node: MindMapNode): TemplateResult | typeof nothing {
+  #renderTopic(node: MindMapNode, m: ReturnType<typeof mindMapMessages>): TemplateResult | typeof nothing {
     const placed = this.placedNode(node.id);
     if (!placed) return nothing;
     const state = this.nodeState(node.id);
@@ -221,7 +224,11 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
       >
         <span class="mind-label">${node.label}</span>
       </button>
-      ${node.depth === 0 || node.children.length === 0 ? nothing : this.#renderToggle(node, placed, folded, state.dimmed)}
+      ${
+        node.depth === 0 || node.children.length === 0
+          ? nothing
+          : this.#renderToggle(node, placed, folded, state.dimmed, m)
+      }
     `;
   }
 
@@ -230,10 +237,11 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
     placed: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
     folded: boolean,
     dimmed: boolean,
+    m: ReturnType<typeof mindMapMessages>,
   ): TemplateResult {
     const hidden = folded ? descendantCount(this.items(), node.id) : 0;
     const x = node.side === 'left' ? placed.x : placed.x + placed.width;
-    const label = folded ? `${node.label} のサブトピック ${hidden} 件をひらく` : `${node.label} のサブトピックをたたむ`;
+    const label = folded ? m.toggleOpen(node.label, hidden) : m.toggleClose(node.label);
     return html`
       <button
         type="button"
@@ -259,7 +267,7 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
   }
 
   /** Subtopic and comment for the selected topic, just below it. */
-  #renderActions(): TemplateResult | typeof nothing {
+  #renderActions(m: ReturnType<typeof mindMapMessages>): TemplateResult | typeof nothing {
     const selection = this.selection;
     if (selection === null || selection.kind !== 'node') return nothing;
     const node = this.items().nodes.find((item) => item.id === selection.id);
@@ -277,7 +285,7 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
           adding === null
             ? html`
                 <button type="button" class="dpk-btn" data-action="add" @click=${() => this.#startAdding(node.id)}>
-                  ＋ サブトピック
+                  ${m.addSubtopicButton}
                 </button>
                 <button
                   type="button"
@@ -285,14 +293,14 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
                   data-action="comment"
                   @click=${() => this.requestElementComment('node', node.id)}
                 >
-                  コメント
+                  ${m.commentButton}
                 </button>
               `
             : html`
                 <input
                   class="dpk-input"
-                  aria-label="${node.label} のサブトピック"
-                  placeholder="サブトピック名（Enter で追加）"
+                  aria-label="${m.addSubtopicAriaLabel(node.label)}"
+                  placeholder="${m.addSubtopicPlaceholder}"
                   .value=${adding.label}
                   @input=${(event: Event) => {
                     const input = event.currentTarget;
@@ -301,13 +309,7 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
                   }}
                   @keydown=${(event: KeyboardEvent) => this.#onAddKey(event, node.id)}
                 />
-                ${
-                  adding.failed
-                    ? html`<span class="mind-actions-error" role="alert"
-                        >記録できませんでした（dpk-template-* 要素の中に置いてください）。</span
-                      >`
-                    : nothing
-                }
+                ${adding.failed ? html`<span class="mind-actions-error" role="alert">${m.notRecorded}</span>` : nothing}
               `
         }
       </div>

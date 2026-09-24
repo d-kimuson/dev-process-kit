@@ -5,26 +5,18 @@ import type { DraftAction } from '../../../core/types';
 import type { StickyNote } from '../model';
 import type { NoteCardMode, NoteIntent } from '../ui-mode';
 
+import { composerMessages, type ComposerMessages } from '../../../components/comment-composer/messages';
 import { presentComposer } from '../../../components/comment-composer/present';
 import { renderComposer } from '../../../components/comment-composer/view';
 import { commentBody } from '../../../core/comment';
 import { iconComment, iconTrash } from '../../../core/icons';
+import { LocaleController } from '../../../core/locale-controller';
 import { PopoverController } from '../../../core/popover-controller';
 import { controls, popoverSurface } from '../../../core/theme';
 import { onCommit } from '../../../lib/dom/events';
+import { eventStormingMessages } from '../messages';
 
 const COMPOSER_SIZE = { width: 300, height: 260 };
-
-export const NOTE_TYPE_LABELS: Record<StickyNote['type'], string> = {
-  actor: 'アクター',
-  command: 'コマンド',
-  aggregate: '集約',
-  event: 'イベント',
-  policy: 'ポリシー',
-  readmodel: 'リードモデル',
-  external: '外部システム',
-  hotspot: 'ホットスポット',
-};
 
 /** Sticky color per type — the single source for the notes and the legend. */
 const NOTE_TYPE_COLORS: Record<StickyNote['type'], { readonly bg: string; readonly ink: string }> = {
@@ -249,6 +241,7 @@ export class DpkInternalEventStormingNote extends LitElement {
   /** Typed text is read on submit; the textarea owns it while typing. */
   #draft = '';
   readonly #popovers = new PopoverController(this);
+  readonly #i18n = new LocaleController(this);
 
   constructor() {
     super();
@@ -283,14 +276,16 @@ export class DpkInternalEventStormingNote extends LitElement {
   protected override render(): TemplateResult | typeof nothing {
     const note = this.note;
     if (!note) return nothing;
+    const m = eventStormingMessages(this.#i18n.locale);
+    const cm = composerMessages(this.#i18n.locale);
     return html`
-      <div class="note-type">${NOTE_TYPE_LABELS[note.type]}</div>
+      <div class="note-type">${m.noteTypeLabel(note.type)}</div>
       <dpk-component-inline-edit
         class="note-name"
         ?wrap=${true}
         ?seamless=${true}
         .value=${note.name}
-        .label=${'付箋名'}
+        .label=${m.noteNameLabel}
         @dpk-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
       ></dpk-component-inline-edit>
       ${this.notes.length > 0 ? html`<span class="note-flag">${this.notes.length}</span>` : nothing}
@@ -301,10 +296,10 @@ export class DpkInternalEventStormingNote extends LitElement {
               class="note-hotspot"
               type="button"
               data-role="hotspot"
-              title="この付箋にホットスポットを立てる"
+              title=${m.pinHotspotTitle}
               @click=${this.#tool(() => ({ kind: 'add-hotspot' }))}
             >
-              ＋ ホットスポット
+              ${m.addHotspot}
             </button>`
       }
       <div class="note-tools">
@@ -312,7 +307,7 @@ export class DpkInternalEventStormingNote extends LitElement {
           class="dpk-icon-btn"
           type="button"
           data-role="comment"
-          aria-label="コメント"
+          aria-label=${cm.comment}
           data-active=${String(this.mode === 'commenting')}
           @click=${this.#tool(() => ({ kind: 'toggle-comment' }))}
         >
@@ -322,18 +317,18 @@ export class DpkInternalEventStormingNote extends LitElement {
           class="dpk-icon-btn"
           type="button"
           data-role="delete"
-          aria-label="削除"
+          aria-label=${m.deleteNote}
           @click=${this.#tool(() => ({ kind: 'delete' }))}
         >
           ${iconTrash()}
         </button>
       </div>
-      ${this.mode === 'commenting' ? this.#renderComposer() : nothing}
+      ${this.mode === 'commenting' ? this.#renderComposer(cm) : nothing}
     `;
   }
 
-  #renderComposer(): TemplateResult {
-    return renderComposer(presentComposer(this.#draft, this.notes.map(commentBody)), (intent) => {
+  #renderComposer(cm: ComposerMessages): TemplateResult {
+    return renderComposer(cm, presentComposer(this.#draft, this.notes.map(commentBody)), (intent) => {
       if (intent.kind === 'input') {
         this.#draft = intent.body;
         this.requestUpdate();

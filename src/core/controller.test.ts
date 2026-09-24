@@ -22,6 +22,25 @@ const makeController = (actions: readonly DraftAction[] = []) => {
 };
 
 describe('DraftController', () => {
+  it('swaps the template text without touching the draft', () => {
+    const { controller, storage } = makeController();
+    controller.dispatch({ type: 'SET_NAME', target: 'a', payload: { name: 'Renamed' } });
+    const listener = vi.fn();
+    controller.subscribe(listener);
+    controller.setTemplate({
+      ...tinyDefinition,
+      describe: (action) => ({ title: `translated ${action.type}`, targetLabel: action.target.id, tone: 'update' }),
+    });
+    expect(listener).toHaveBeenCalledOnce();
+    expect(controller.actions).toHaveLength(1);
+    expect(storage.load('test', 'tiny')).toHaveLength(1);
+    const [action] = controller.actions;
+    if (!action) throw new Error('missing action');
+    expect(controller.definition.describe(action, controller.derivation.state, controller.base).title).toBe(
+      'translated SET_NAME',
+    );
+  });
+
   it.each([null, {}, 0, 'invalid'])('rejects a malformed batch envelope: %s', (input) => {
     const { controller } = makeController();
     expect(controller.dispatchBatch(input).ok).toBe(false);

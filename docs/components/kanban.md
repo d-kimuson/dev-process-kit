@@ -64,7 +64,7 @@ A column's `color` tints its heading, so statuses read at a glance; the colors c
 
 ## Tags
 
-The tag filter hides cards only. Every column stays, so the board keeps its shape and counts still show the whole column; the toolbar reads `shown / total カード` while a filter is active.
+The tag filter hides cards only. Every column stays, so the board keeps its shape and counts still show the whole column; the toolbar reads `shown / total Card` while a filter is active.
 
 ## Selection and moves
 
@@ -78,7 +78,7 @@ Cards move by drag and drop only. A moved card is selected and drawn with a blue
 
 ## Adding cards
 
-**＋ カード** at the bottom of each column opens an input. Type a title and press `Enter` to add a card at the end of the column; `Escape` cancels. The new card is drawn with a dashed border and selected. Its id is derived from the title and kept unique on the board.
+**+ Card** at the bottom of each column opens an input. Type a title and press `Enter` to add a card at the end of the column; `Escape` cancels. The new card is drawn with a dashed border and selected. Its id is derived from the title and kept unique on the board.
 
 Moves and added cards are not written into the JSON child. They are recorded as element actions in the enclosing template's draft, next to its actions and comments, and appear in its review rail. The board replays these actions over the authored data, so they survive a reload and reach the agent in the brief. Outside a template, or without a diagram `id`, there is nothing to record into: the board stays as it is and shows an error (the add input keeps its text).
 

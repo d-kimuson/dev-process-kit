@@ -1,5 +1,7 @@
-export { prototypeDefinition } from './definition';
+export { prototypeDefinitionFor } from './definition';
 export { DpkTemplatePrototype, definePrototypeElement } from './element';
+export { prototypeMessages } from './messages';
+export type { PrototypeMessages } from './messages';
 export { renderNav } from './render/nav';
 export { renderStage, renderFrame, VIEWPORT_WIDTH, VIEWPORT_MIN_HEIGHT } from './render/stage';
 export { prototypeAction, prototypeActions } from './actions';

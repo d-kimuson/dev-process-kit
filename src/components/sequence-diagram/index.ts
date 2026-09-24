@@ -1,5 +1,7 @@
 export { DpkComponentSequenceDiagram } from './element';
 export type { SequenceSelection } from './element';
+export { sequenceDiagramMessages } from './messages';
+export type { SequenceDiagramMessages } from './messages';
 export {
   PARTICIPANT_PITCH,
   countMessages,

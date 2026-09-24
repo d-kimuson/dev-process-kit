@@ -7,6 +7,7 @@ import { DiagramChromeElement } from '../diagram/element';
 import { tagStateMatches, type ElementState } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
 import { arrowDefinitions } from '../diagram/view';
+import { sequenceDiagramMessages } from './messages';
 import {
   emptySequenceData,
   flattenMessages,
@@ -33,12 +34,6 @@ const ARROWS = [
   { id: 'seq-related' },
   { id: 'seq-selected' },
 ] as const;
-
-const DETAIL_LABELS: Readonly<Record<SequenceMessage['style'], string>> = {
-  request: '処理 / 保証',
-  response: '応答 / 保証',
-  async: '非同期処理 / 保証',
-};
 
 /** Interaction diagram: participants on a rail, messages as numbered rows. */
 export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDiagramData, SequenceSelection> {
@@ -76,7 +71,7 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
   }
 
   protected override defaultHeading(): string {
-    return 'Sequence';
+    return sequenceDiagramMessages(this.locale).heading;
   }
 
   protected override shellClass(): string {
@@ -84,7 +79,7 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
   }
 
   protected override emptyMessage(): string {
-    return '該当するメッセージはありません。';
+    return sequenceDiagramMessages(this.locale).empty;
   }
 
   protected override fitViewport(): void {
@@ -110,7 +105,7 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
   protected override statsText(): string {
     const layout = this.#layout;
     const total = flattenMessages(this.items().items).length;
-    return layout === null ? '' : `${layout.rows.length} / ${total} メッセージ`;
+    return layout === null ? '' : sequenceDiagramMessages(this.locale).stats(layout.rows.length, total);
   }
 
   protected override contentSize(): { readonly width: number; readonly height: number } | null {
@@ -166,8 +161,8 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
   }
 
   /** The guard and what the message guarantees, which only the tooltip carries. */
-  #tooltip(message: SequenceMessage): string {
-    const detail = message.detail === null ? null : `${DETAIL_LABELS[message.style]}: ${message.detail}`;
+  #tooltip(message: SequenceMessage, m: ReturnType<typeof sequenceDiagramMessages>): string {
+    const detail = message.detail === null ? null : `${m.detailLabel(message.style)}: ${message.detail}`;
     return [message.guard, detail].filter((value) => value !== null).join('\n') || message.title;
   }
 
@@ -222,8 +217,9 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
   protected override renderAboveCanvas(): TemplateResult | typeof nothing {
     const layout = this.#layout;
     if (layout === null) return nothing;
+    const m = sequenceDiagramMessages(this.locale);
     return html`
-      <div class="sequence-rail" role="group" aria-label="参加者">
+      <div class="sequence-rail" role="group" aria-label=${m.participants}>
         <div class="sequence-rail-world">
           ${layout.participants.map((participant) => this.#renderParticipant(participant, layout))}
         </div>
@@ -261,15 +257,18 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
   protected override renderCanvas(): TemplateResult {
     const layout = this.#layout;
     if (layout === null) return html``;
+    const m = sequenceDiagramMessages(this.locale);
     return html`
-      ${this.#renderEdges(layout)}
+      ${this.#renderEdges(layout, m)}
       ${layout.frames.map(
         (frame) => html`<div
           class="sequence-frame"
           style="left:${frame.x}px; top:${frame.y}px; width:${frame.width}px; height:${frame.height}px"
         ></div>`,
       )}
-      ${layout.frames.map((frame) => this.#renderFrameHeader(frame.fragment, frame.x, frame.y, frame.width, frame.count))}
+      ${layout.frames.map((frame) =>
+        this.#renderFrameHeader(frame.fragment, frame.x, frame.y, frame.width, frame.count, m),
+      )}
       ${layout.branches.map(
         (branch) => html`<span class="sequence-branch" style="left:${branch.x}px; top:${branch.y}px"
           >[${branch.label}]</span
@@ -280,11 +279,11 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
           >${fold.fragment.branches.map((branch) => `[${branch.label}]`).join(' / ')}</span
         >`,
       )}
-      ${layout.rows.map((row) => this.#renderMessage(row.y, row.message, layout))}
+      ${layout.rows.map((row) => this.#renderMessage(row.y, row.message, layout, m))}
     `;
   }
 
-  #renderEdges(layout: SequenceLayout): TemplateResult {
+  #renderEdges(layout: SequenceLayout, m: ReturnType<typeof sequenceDiagramMessages>): TemplateResult {
     const lifelines = layout.participants.map(
       (participant) =>
         svg`<path
@@ -315,9 +314,9 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
           class=${this.elementClass(state, 'sequence-message-row', 'd-edge', `is-${row.message.style}`)}
           data-message=${row.message.id}
         >
-          <title>${this.#tooltip(row.message)}</title>
+          <title>${this.#tooltip(row.message, m)}</title>
           <path class="d-edge-hit" d=${d} role="button" tabindex="0"
-            aria-label=${`${row.message.title}を選択`}
+            aria-label=${m.selectMessage(row.message.title)}
             @click=${select}
             @keydown=${(event: KeyboardEvent) => {
               if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -333,7 +332,14 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
     </svg>`;
   }
 
-  #renderFrameHeader(fragment: SequenceFragment, x: number, y: number, width: number, count: number): TemplateResult {
+  #renderFrameHeader(
+    fragment: SequenceFragment,
+    x: number,
+    y: number,
+    width: number,
+    count: number,
+    m: ReturnType<typeof sequenceDiagramMessages>,
+  ): TemplateResult {
     const collapsed = this.#isCollapsed(fragment);
     return html`
       <button
@@ -342,18 +348,23 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
         data-fragment=${fragment.id}
         style="left:${x}px; top:${y}px; width:${width}px"
         aria-expanded=${collapsed ? 'false' : 'true'}
-        aria-label=${`${fragment.operator} · ${fragment.title}を${collapsed ? '展開' : '折りたたむ'}`}
+        aria-label=${m.frameHeaderLabel(fragment.operator, fragment.title, collapsed)}
         @click=${() => this.#toggleFragment(fragment)}
       >
         <span aria-hidden="true">${collapsed ? '▸' : '▾'}</span>
         <span class="sequence-operator">${fragment.operator}</span>
         <span class="sequence-text">${fragment.title}</span>
-        <span class="sequence-frame-count">${count} メッセージ</span>
+        <span class="sequence-frame-count">${m.frameCount(count)}</span>
       </button>
     `;
   }
 
-  #renderMessage(y: number, message: SequenceMessage, layout: SequenceLayout): TemplateResult {
+  #renderMessage(
+    y: number,
+    message: SequenceMessage,
+    layout: SequenceLayout,
+    m: ReturnType<typeof sequenceDiagramMessages>,
+  ): TemplateResult {
     const from = layout.x.get(message.from) ?? 0;
     const to = layout.x.get(message.to) ?? 0;
     const self = from === to;
@@ -367,7 +378,7 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
         data-message-label=${message.id}
         data-grill-questions=${this.questionsOf(message)}
         style="left:${left}px; top:${y - 28}px; width:${width}px"
-        title=${this.#tooltip(message)}
+        title=${this.#tooltip(message, m)}
         @click=${() => this.select({ kind: 'message', id: message.id })}
       >
         <span class="sequence-number">${this.#numbers.get(message.id) ?? ''}</span>

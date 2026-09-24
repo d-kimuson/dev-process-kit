@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DraftController } from '../../core/controller';
 import { eventStormingAction } from './actions';
-import { eventStormingDefinition } from './definition';
+import { eventStormingDefinitionFor } from './definition';
 import { sliceMovePlan } from './interactions';
 import { buildSlices } from './layout';
 import { parseEventStormingBase, type EventStormingState } from './model';
@@ -19,7 +19,7 @@ const base = parseEventStormingBase({
   links: [{ id: 'l1', from: 'c1', to: 'e1' }],
 });
 
-const controller = () => new DraftController({ definition: eventStormingDefinition, base, storage: null });
+const controller = () => new DraftController({ definition: eventStormingDefinitionFor('en'), base, storage: null });
 
 const moveSlice = (
   c: DraftController<EventStormingState>,

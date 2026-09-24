@@ -2,6 +2,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { AnswerInput } from '../actions';
+import type { GrillMessages } from '../messages';
 import type { GrillChoiceViewModel, GrillPanelViewModel, GrillQuestionViewModel } from '../present';
 
 export type PanelHandlers = {
@@ -15,21 +16,29 @@ export type PanelHandlers = {
  * The question list. It renders view data and turns DOM events into handler
  * calls without owning question or navigation state.
  */
-export const renderQuestionPanel = (vm: GrillPanelViewModel, handlers: PanelHandlers): TemplateResult => html`
+export const renderQuestionPanel = (
+  m: GrillMessages,
+  vm: GrillPanelViewModel,
+  handlers: PanelHandlers,
+): TemplateResult => html`
   <div class="grill-list">
     ${
       vm.questions.length === 0
-        ? html`<p class="grill-empty">該当する質問はありません。</p>`
+        ? html`<p class="grill-empty">${m.noQuestions}</p>`
         : repeat(
             vm.questions,
             (question) => question.id,
-            (question) => renderQuestion(question, handlers),
+            (question) => renderQuestion(m, question, handlers),
           )
     }
   </div>
 `;
 
-const renderQuestion = (question: GrillQuestionViewModel, handlers: PanelHandlers): TemplateResult => html`
+const renderQuestion = (
+  m: GrillMessages,
+  question: GrillQuestionViewModel,
+  handlers: PanelHandlers,
+): TemplateResult => html`
   <section class="grill-question" data-question=${question.id} data-answered=${String(question.answered)}>
     <button
       class="grill-heading"
@@ -62,7 +71,7 @@ const renderQuestion = (question: GrillQuestionViewModel, handlers: PanelHandler
                         .checked=${question.freeSelected}
                         @change=${() => handlers.answer(question.id, { kind: 'free', text: '' })}
                       />
-                      <span class="grill-choice-text">自由記述</span>
+                      <span class="grill-choice-text">${m.freeText}</span>
                     </label>`
                   : nothing
               }
@@ -72,8 +81,8 @@ const renderQuestion = (question: GrillQuestionViewModel, handlers: PanelHandler
                 ? html`<textarea
                     class="dpk-textarea grill-free"
                     data-free-text=${question.id}
-                    aria-label=${`${question.ref} の自由記述`}
-                    placeholder="回答を入力…（⌘/Ctrl+Enter で次へ）"
+                    aria-label=${m.freeTextOf(question.ref)}
+                    placeholder=${m.freeTextPlaceholder}
                     .value=${question.draft}
                     ?hidden=${!question.freeSelected}
                     @input=${(event: Event) => {
@@ -96,7 +105,7 @@ const renderQuestion = (question: GrillQuestionViewModel, handlers: PanelHandler
                     class="grill-clear"
                     @click=${() => handlers.answer(question.id, { kind: 'clear' })}
                   >
-                    回答をクリア
+                    ${m.clearAnswer}
                   </button>`
                 : nothing
             }

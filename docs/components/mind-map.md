@@ -77,7 +77,7 @@ Branches are not selectable and are not comment targets: comment on the topic in
 
 ## Adding topics
 
-The action bar under a selected topic offers **＋ サブトピック** and **コメント** (the latter needs a diagram `id`). Type a label and press `Enter` to add a subtopic; `Escape` cancels. The new topic is drawn with a dashed border, its parent unfolds, and the new topic is selected.
+The action bar under a selected topic offers **+ Subtopic** and **Comment** (the latter needs a diagram `id`). Type a label and press `Enter` to add a subtopic; `Escape` cancels. The new topic is drawn with a dashed border, its parent unfolds, and the new topic is selected.
 
 An added topic is not written into the JSON child. It is recorded as an element action in the enclosing template's draft, next to its actions and comments, and appears in its review rail. The map replays these actions over the authored data, so they survive a reload and reach the agent in the brief. Outside a template, or without a diagram `id`, there is nothing to record into: the bar shows an error and keeps the input.
 

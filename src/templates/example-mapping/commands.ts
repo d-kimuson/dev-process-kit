@@ -1,5 +1,6 @@
 import type { TemplateRenderContext } from '../../core/shell/contracts';
 import type { ActionInput } from '../../core/types';
+import type { ExampleMappingMessages } from './messages';
 
 import { createEntityId } from '../../core/target';
 import { exampleMappingAction } from './actions';
@@ -19,14 +20,14 @@ const create = (context: Context, prefix: string, build: (id: string) => ActionI
   return id;
 };
 
-export const addStory = (context: Context): string | null =>
-  create(context, 'new-story', (id) => exampleMappingAction.addStory(id, '新しいストーリー'));
+export const addStory = (context: Context, m: ExampleMappingMessages): string | null =>
+  create(context, 'new-story', (id) => exampleMappingAction.addStory(id, m.newStory));
 
-export const addRule = (context: Context, storyId: string): string | null =>
-  create(context, 'new-rule', (id) => exampleMappingAction.addRule(storyId, id, '新しいルール'));
+export const addRule = (context: Context, m: ExampleMappingMessages, storyId: string): string | null =>
+  create(context, 'new-rule', (id) => exampleMappingAction.addRule(storyId, id, m.newRule));
 
-export const addExample = (context: Context, ruleId: string): string | null =>
-  create(context, 'new-example', (id) => exampleMappingAction.addExample(ruleId, id, '新しい具体例'));
+export const addExample = (context: Context, m: ExampleMappingMessages, ruleId: string): string | null =>
+  create(context, 'new-example', (id) => exampleMappingAction.addExample(ruleId, id, m.newExample));
 
-export const addQuestion = (context: Context, ruleId: string): string | null =>
-  create(context, 'new-question', (id) => exampleMappingAction.addQuestion(ruleId, id, '新しい質問'));
+export const addQuestion = (context: Context, m: ExampleMappingMessages, ruleId: string): string | null =>
+  create(context, 'new-question', (id) => exampleMappingAction.addQuestion(ruleId, id, m.newQuestion));

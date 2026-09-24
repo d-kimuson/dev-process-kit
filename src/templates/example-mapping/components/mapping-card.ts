@@ -5,25 +5,21 @@ import type { DraftAction } from '../../../core/types';
 import type { MappingCard, MappingCardKind } from '../model';
 import type { MappingCardIntent, MappingCardMode } from '../ui-mode';
 
+import { composerMessages } from '../../../components/comment-composer/messages';
 import { presentComposer } from '../../../components/comment-composer/present';
 import { renderComposer } from '../../../components/comment-composer/view';
 import { commentBody } from '../../../core/comment';
 import { iconComment, iconTrash } from '../../../core/icons';
+import { LocaleController } from '../../../core/locale-controller';
 import { PopoverController } from '../../../core/popover-controller';
 import { controls, popoverSurface } from '../../../core/theme';
 import { onCommit } from '../../../lib/dom/events';
+import { exampleMappingMessages } from '../messages';
 
 const COMPOSER_SIZE = { width: 300, height: 260 };
 
 /** Board order of the four card kinds: the order the legend reads them in. */
 export const CARD_KINDS = ['story', 'rule', 'example', 'question'] as const satisfies readonly MappingCardKind[];
-
-export const CARD_KIND_LABELS = {
-  story: 'ストーリー',
-  rule: 'ルール',
-  example: '具体例',
-  question: '質問',
-} as const satisfies Record<MappingCardKind, string>;
 
 /** Card color per kind — the single source for the cards and the legend. */
 const CARD_PALETTE = {
@@ -213,6 +209,7 @@ export class DpkInternalExampleMappingCard extends LitElement {
   /** Typed text is read on submit; the textarea owns it while typing. */
   #draft = '';
   readonly #popovers = new PopoverController(this);
+  readonly #i18n = new LocaleController(this);
 
   constructor() {
     super();
@@ -253,7 +250,8 @@ export class DpkInternalExampleMappingCard extends LitElement {
   protected override render(): TemplateResult | typeof nothing {
     const card = this.card;
     if (!card) return nothing;
-    const label = CARD_KIND_LABELS[card.kind];
+    const m = exampleMappingMessages(this.#i18n.locale);
+    const label = m.kindLabel(card.kind);
     return html`
       <div class="card-kind">${label}</div>
       <dpk-component-inline-edit
@@ -261,7 +259,7 @@ export class DpkInternalExampleMappingCard extends LitElement {
         ?wrap=${true}
         ?seamless=${true}
         .value=${card.name}
-        .label=${`${label}名`}
+        .label=${m.nameField(label)}
         @dpk-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
       ></dpk-component-inline-edit>
       ${card.description ? html`<div class="card-text">${card.description}</div>` : nothing}
@@ -271,7 +269,7 @@ export class DpkInternalExampleMappingCard extends LitElement {
           class="dpk-icon-btn"
           type="button"
           data-role="comment"
-          aria-label="コメント"
+          aria-label=${m.commentButton}
           data-active=${String(this.mode === 'commenting')}
           @click=${this.#tool({ kind: 'toggle-comment' })}
         >
@@ -281,7 +279,7 @@ export class DpkInternalExampleMappingCard extends LitElement {
           class="dpk-icon-btn"
           type="button"
           data-role="delete"
-          aria-label="削除"
+          aria-label=${m.deleteButton}
           @click=${this.#tool({ kind: 'delete' })}
         >
           ${iconTrash()}
@@ -292,12 +290,16 @@ export class DpkInternalExampleMappingCard extends LitElement {
   }
 
   #renderComposer(card: MappingCard): TemplateResult {
-    return renderComposer(presentComposer(this.#draft, this.notes.map(commentBody), { label: card.name }), (intent) => {
-      if (intent.kind === 'input') {
-        this.#draft = intent.body;
-        this.requestUpdate();
-      } else this.#report(intent);
-    });
+    return renderComposer(
+      composerMessages(this.#i18n.locale),
+      presentComposer(this.#draft, this.notes.map(commentBody), { label: card.name }),
+      (intent) => {
+        if (intent.kind === 'input') {
+          this.#draft = intent.body;
+          this.requestUpdate();
+        } else this.#report(intent);
+      },
+    );
   }
 
   /** Tool buttons must not also select the card. */

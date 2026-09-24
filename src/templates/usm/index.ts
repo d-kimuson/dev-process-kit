@@ -1,10 +1,13 @@
-export { usmDefinition, usmHasTarget } from './definition';
+export { usmDefinitionFor, usmHasTarget } from './definition';
 export { usmActions, usmAction } from './actions';
 export { applyUsmAction } from './apply';
+export { usmMessages } from './messages';
+export type { UsmMessages } from './messages';
 export {
   describeUsmAction,
   serializeUsmAction,
   usmCommentTargets,
+  usmCurrentTarget,
   usmTargetLabel,
   usmTitle,
   resolveUsmNavigation,

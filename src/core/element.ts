@@ -13,18 +13,22 @@ import type {
   TemplateDefinition,
 } from './types';
 
+import { onSelectChange } from '../lib/dom/events';
 import { COMMENT_ACTION, serializeDraft } from './action';
 import { parseColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
 import { DraftController } from './controller';
 import { componentElementActionSchema } from './element-actions';
+import { LOCALES, type Locale } from './i18n';
 import { iconMoon, iconSun } from './icons';
+import { coreMessages, LANGUAGE_NAMES } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { defaultStorage, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSource } from './shell/api';
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
+import { LocaleChoiceController } from './shell/locale-choice-controller';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
 import { PreviewRouter } from './shell/preview-router';
 import { chromeStyles } from './shell/styles';
@@ -68,7 +72,18 @@ export abstract class TemplateElement<S> extends LitElement {
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
   #claude = new ClaudeHandoffController(this);
 
-  abstract readonly definition: TemplateDefinition<S>;
+  /**
+   * The template in one language. Called again whenever the locale changes:
+   * on connect, and when the reader picks a language in the header.
+   */
+  protected abstract definitionFor(locale: Locale): TemplateDefinition<S>;
+
+  #localeChoice = new LocaleChoiceController(
+    this,
+    () => this.storage !== 'off' && this.storage !== 'memory',
+    () => this.#controller?.setTemplate(this.definition),
+  );
+  #definition: { readonly locale: Locale; readonly value: TemplateDefinition<S> } | undefined;
 
   #controller: DraftController<S> | undefined;
   #navigation: Navigation = EMPTY_NAVIGATION;
@@ -86,6 +101,17 @@ export abstract class TemplateElement<S> extends LitElement {
   #api: TemplateApi<S> | undefined;
 
   // ---------------------------------------------------------------- lifecycle
+
+  /** The reader's pick from the header, else the closest `lang`. */
+  get locale(): Locale {
+    return this.#localeChoice.locale;
+  }
+
+  get definition(): TemplateDefinition<S> {
+    const locale = this.locale;
+    if (this.#definition?.locale !== locale) this.#definition = { locale, value: this.definitionFor(locale) };
+    return this.#definition.value;
+  }
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -285,6 +311,7 @@ export abstract class TemplateElement<S> extends LitElement {
   protected renderChrome(context: TemplateRenderContext<S>, regions: ShellRegions): TemplateResult {
     const draftCount = context.actions.length;
     const commentCount = context.comments.length;
+    const messages = coreMessages(this.locale);
     return html`
       <div class="dpk-shell">
         <header class="dpk-header">
@@ -301,7 +328,7 @@ export abstract class TemplateElement<S> extends LitElement {
             <span>${this.definition.name}</span>
             <span>${draftCount} draft · ${commentCount} note</span>
           </div>
-          ${this.#renderThemeToggle()}
+          ${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}
         </header>
         <div class="dpk-body">
           <aside
@@ -316,7 +343,7 @@ export abstract class TemplateElement<S> extends LitElement {
               ${
                 this.#baseError
                   ? html`<div class="dpk-banner" role="alert">
-                      <strong>base data を読み込めませんでした（空のページとして表示中）</strong>
+                      <strong>${messages.baseDataError}</strong>
                       <code>${this.#baseError}</code>
                     </div>`
                   : nothing
@@ -353,7 +380,7 @@ export abstract class TemplateElement<S> extends LitElement {
                 class="dpk-fab"
                 type="button"
                 aria-expanded=${this.notesOpen ? 'true' : 'false'}
-                title="レビュー / コメント"
+                title=${messages.reviewToggle}
                 @click=${() => {
                   this.notesOpen = !this.notesOpen;
                 }}
@@ -363,7 +390,7 @@ export abstract class TemplateElement<S> extends LitElement {
                   class="dpk-label"
                   style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"
                 >
-                  レビュー
+                  ${messages.review}
                 </span>
                 ${draftCount > 0 ? html`<span class="dpk-fab-badge">${draftCount}</span>` : nothing}
               </button>`
@@ -372,9 +399,31 @@ export abstract class TemplateElement<S> extends LitElement {
     `;
   }
 
+  #renderLanguageSelect(): TemplateResult {
+    const locale = this.locale;
+    const label = coreMessages(locale).language;
+    return html`<select
+      class="dpk-lang-select"
+      aria-label=${label}
+      title=${label}
+      @change=${onSelectChange((value) => {
+        const picked = LOCALES.find((candidate) => candidate === value);
+        if (picked !== undefined) this.#localeChoice.pick(picked);
+      })}
+    >
+      ${LOCALES.map(
+        (candidate) =>
+          html`<option value=${candidate} lang=${candidate} ?selected=${candidate === locale}>
+            ${LANGUAGE_NAMES[candidate]}
+          </option>`,
+      )}
+    </select>`;
+  }
+
   #renderThemeToggle(): TemplateResult {
     const dark = this.dataset['theme'] === 'dark';
-    const label = dark ? 'ライトテーマにする' : 'ダークテーマにする';
+    const messages = coreMessages(this.locale);
+    const label = dark ? messages.useLightTheme : messages.useDarkTheme;
     return html`<button
       class="dpk-theme-toggle"
       type="button"

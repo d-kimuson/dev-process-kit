@@ -4,9 +4,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DpkTemplatePlain } from './element';
 
 import '../../index';
-import { plainDefinition, plainHasTarget } from './definition';
+import { plainDefinitionFor, plainHasTarget } from './definition';
+import { plainMessages } from './messages';
 import { parsePlainBase } from './model';
 import { describePlainAction, plainCommentTargets, plainTargetLabel } from './present';
+
+const m = plainMessages('en');
 
 const base = {
   title: '注文フローの設計メモ',
@@ -24,10 +27,10 @@ const diagram = `
     </script>
   </dpk-component-state-diagram>`;
 
-const mount = (data: unknown = base, content = diagram): DpkTemplatePlain => {
+const mount = (data: unknown = base, content = diagram, lang = ''): DpkTemplatePlain => {
   window.location.hash = '';
   document.body.innerHTML = `
-    <dpk-template-plain storage="memory">
+    <dpk-template-plain storage="memory"${lang === '' ? '' : ` lang="${lang}"`}>
       <script type="application/json">${JSON.stringify(data)}</script>
       <section slot="main"><h2>背景</h2><button data-dpk-comment="section:background">コメント</button></section>
       ${content}
@@ -70,9 +73,10 @@ describe('plain base data', () => {
 
 describe('plain definition', () => {
   const state = parsePlainBase(base);
+  const definition = plainDefinitionFor('en');
 
   it('offers the declared sections as comment targets', () => {
-    expect(plainCommentTargets(state).map((option) => option.value)).toEqual([
+    expect(plainCommentTargets(m, state).map((option) => option.value)).toEqual([
       'section:background',
       'section:decision',
     ]);
@@ -82,9 +86,9 @@ describe('plain definition', () => {
   });
 
   it('labels targets and never throws on a missing one', () => {
-    expect(plainTargetLabel(state, { type: 'section', id: 'background' })).toBe('背景');
-    expect(plainTargetLabel(state, { type: 'section', id: 'gone' })).toBe('gone');
-    expect(plainTargetLabel(state, { type: 'page', id: 'plain' })).toBe('ページ全体');
+    expect(plainTargetLabel(m, state, { type: 'section', id: 'background' })).toBe('背景');
+    expect(plainTargetLabel(m, state, { type: 'section', id: 'gone' })).toBe('gone');
+    expect(plainTargetLabel(m, state, { type: 'page', id: 'plain' })).toBe('Whole page');
     const comment = {
       id: 'c',
       type: 'comment',
@@ -92,13 +96,13 @@ describe('plain definition', () => {
       payload: { body: 'x' },
       createdAt: '2026-01-01T00:00:00Z',
     };
-    expect(describePlainAction(comment, state).targetLabel).toBe('決めたこと');
+    expect(describePlainAction(m, comment, state).targetLabel).toBe('決めたこと');
   });
 
   it('has no actions of its own and titles itself', () => {
-    expect(plainDefinition.actions).toEqual({});
-    expect(plainDefinition.title(state)).toBe('注文フローの設計メモ');
-    expect(plainDefinition.title(parsePlainBase({}))).toBe('Plain');
+    expect(definition.actions).toEqual({});
+    expect(definition.title(state)).toBe('注文フローの設計メモ');
+    expect(definition.title(parsePlainBase({}))).toBe('Plain');
   });
 });
 
@@ -140,5 +144,22 @@ describe('<dpk-template-plain>', () => {
     element.api.comment('section:decision', '残る');
     element.controller.setBase(parsePlainBase({ title: 'x', sections: [] }));
     expect(element.api.stale.map((entry) => entry.action.target)).toEqual([{ type: 'section', id: 'decision' }]);
+  });
+
+  it('renders a page-targeted comment label in the page language, and in English without one', async () => {
+    const english = mount();
+    await settle(english);
+    english.api.comment({ type: 'page', id: 'plain' }, 'x');
+    await settle(english);
+    const englishPanel = english.shadowRoot?.querySelector('dpk-component-comment-panel');
+    expect(englishPanel?.shadowRoot?.querySelector('.item-target')?.textContent).toBe(m.wholePage);
+
+    const japanese = mount(base, diagram, 'ja');
+    await settle(japanese);
+    expect(japanese.locale).toBe('ja');
+    japanese.api.comment({ type: 'page', id: 'plain' }, 'x');
+    await settle(japanese);
+    const japanesePanel = japanese.shadowRoot?.querySelector('dpk-component-comment-panel');
+    expect(japanesePanel?.shadowRoot?.querySelector('.item-target')?.textContent).toBe(plainMessages('ja').wholePage);
   });
 });

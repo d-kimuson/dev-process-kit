@@ -1,4 +1,6 @@
 export { DpkComponentDependencyGraph } from './element';
+export { dependencyGraphMessages } from './messages';
+export type { DependencyGraphMessages } from './messages';
 export { MODULE_SIZE, emptyDependencyData, parseDependencyData } from './model';
 export type { DependencyData, DependencyDirection, DependencyLink, DependencyModule } from './model';
 

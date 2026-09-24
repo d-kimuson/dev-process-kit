@@ -2,6 +2,7 @@ import * as v from 'valibot';
 
 import type { ElementActionResult } from '../../core/element-actions';
 import type { DraftAction } from '../../core/types';
+import type { KanbanMessages } from './messages';
 
 import { elementRefSegments } from '../diagram/model';
 
@@ -175,8 +176,8 @@ const insertCard = (data: KanbanData, card: KanbanCard, position: KanbanPosition
 
 type Step = { readonly data: KanbanData; readonly result: ElementActionResult };
 
-const addCard = (data: KanbanData, action: DraftAction): Step => {
-  const title = 'カードを追加';
+const addCard = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step => {
+  const title = m.addCardTitle;
   const columnId = idOfTarget(action.target.id, 'column');
   const column = data.columns.find((item) => item.id === columnId);
   if (column === undefined) return { data, result: { id: action.id, title, stale: 'target-missing' } };
@@ -195,12 +196,12 @@ const addCard = (data: KanbanData, action: DraftAction): Step => {
   };
   return {
     data: insertCard(data, card, { column: column.id, before: null }),
-    result: { id: action.id, title, summary: `${column.label} › ${card.title}`, tone: 'create' },
+    result: { id: action.id, title, summary: m.addSummary(column.label, card.title), tone: 'create' },
   };
 };
 
-const moveCard = (data: KanbanData, action: DraftAction): Step => {
-  const title = 'カードを移動';
+const moveCard = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step => {
+  const title = m.moveCardTitle;
   const cardId = idOfTarget(action.target.id, 'card');
   const card = cardId === null ? undefined : findCard(data, cardId);
   if (card === undefined) return { data, result: { id: action.id, title, stale: 'target-missing' } };
@@ -214,7 +215,7 @@ const moveCard = (data: KanbanData, action: DraftAction): Step => {
   }
   const moved: KanbanCard = { ...card, change: card.change ?? 'moved' };
   const summary =
-    from.id === to.id ? `${card.title}: ${to.label} 内で並べ替え` : `${card.title}: ${from.label} → ${to.label}`;
+    from.id === to.id ? m.moveSummarySame(card.title, to.label) : m.moveSummaryAcross(card.title, from.label, to.label);
   return {
     data: insertCard(withoutCard(data, card.id), moved, { column: to.id, before }),
     result: { id: action.id, title, summary, tone: 'move' },
@@ -226,6 +227,7 @@ const moveCard = (data: KanbanData, action: DraftAction): Step => {
  * Each action is reported on: applied, or why it is stale. Pure.
  */
 export const reduceKanbanActions = (
+  m: KanbanMessages,
   data: KanbanData,
   actions: readonly DraftAction[],
 ): { readonly data: KanbanData; readonly results: readonly ElementActionResult[] } => {
@@ -234,9 +236,9 @@ export const reduceKanbanActions = (
   for (const action of actions) {
     const step =
       action.type === ADD_CARD
-        ? addCard(board, action)
+        ? addCard(m, board, action)
         : action.type === MOVE_CARD
-          ? moveCard(board, action)
+          ? moveCard(m, board, action)
           : { data: board, result: { id: action.id, title: action.type, stale: 'unsupported-action-type' as const } };
     board = step.data;
     results.push(step.result);

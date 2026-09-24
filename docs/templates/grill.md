@@ -5,9 +5,9 @@ A review of questions over whatever the author puts in the main area. The questi
 ```text
 dpk-template-grill
   main   slot="main" — your content, with the Q badges layered over it
-  rail   質問 / Review tabs on the right, with one combined copy button
-  corner the 質問 / Review button (top right) — folds the column away,
-         badge = 回答済み / 全件
+  rail   Questions / Review tabs on the right, with one combined copy button
+  corner the Questions / Review button (top right) — folds the column away,
+         badge = answered / total
 ```
 
 The **Review** tab embeds the same comment panel used by the other templates. Answers, page-wide notes, question comments and diagram-element comments share one persisted draft and one hand-off.
@@ -72,7 +72,7 @@ The open question is navigation, not a draft action:
 #question=release-path
 ```
 
-`resolveNavigation` fills it with the first question and re-points it when the question it names disappears. Clicking a Q badge on the main area navigates, and the list scrolls that question into view; `data-dpk-navigate="question=release-path"` on your own markup works too, so a diagram can link to the question about it. Clicking a badge also opens the 質問 tab and unfolds the rail. Tabs are view state, not draft actions; all questions remain in the list.
+`resolveNavigation` fills it with the first question and re-points it when the question it names disappears. Clicking a Q badge on the main area navigates, and the list scrolls that question into view; `data-dpk-navigate="question=release-path"` on your own markup works too, so a diagram can link to the question about it. Clicking a badge also opens the Questions tab and unfolds the rail. Tabs are view state, not draft actions; all questions remain in the list.
 
 ## Main area
 
@@ -99,11 +99,11 @@ The second one reaches into a diagram's shadow root to place the badge on the ex
 
 ## UI provided by the template
 
-- **質問 tab** (right): one card per question with choices and a free-text answer. No answered/unanswered filters.
+- **Questions tab** (right): one card per question with choices and a free-text answer. No answered/unanswered filters.
 - **Review tab**: the shared composer and draft list, including stale actions. Notes are page-wide; use a diagram's comment button to target that element. There is no attach-to-question checkbox: the answer is the reply to a question. A comment request opens Review and unfolds the rail. Switching tabs or folding preserves unsent input.
-- **回答・Review をまとめてコピー**: available below either tab; copies the canonical agent brief with answers, all comments, target references and draft JSON, independent of the selected tab. Also works for a review containing only comments.
-- **回答・Review を Claude に送る**: replaces the copy button inside a Claude Artifact that can send comments to Claude, and sends the same brief (`docs/index.md`, Review and the hand-off). A small **コピー** button stays beside it, and a failed send explains the reason below the buttons.
-- **質問 / Review button** (top right): a round button with an `回答済み / 全件` badge that folds the whole column away.
+- **Copy answers and review**: available below either tab; copies the canonical agent brief with answers, all comments, target references and draft JSON, independent of the selected tab. Also works for a review containing only comments.
+- **Send answers and review to Claude**: replaces the copy button inside a Claude Artifact that can send comments to Claude, and sends the same brief (`docs/index.md`, Review and the hand-off). A small **Copy** button stays beside it, and a failed send explains the reason below the buttons.
+- **Questions / Review button** (top right): a round button with an `answered / total` badge that folds the whole column away.
 - **Q badges** (main): one per reference, red until the question is answered and green after; clicking opens the question.
 - **Auto-advance**: choosing an option records it and opens the next unanswered question. Free text is not interrupted while typing — `⌘/Ctrl+Enter` moves on — and when nothing is left unanswered the review stays where it is.
 
@@ -111,7 +111,7 @@ Answers and submitted comments survive reload through the common draft storage. 
 
 ## Diagram-element comments
 
-Give each diagram a stable, unique HTML `id`. Hover a table, state, participant, module, service or the edge between them and activate its comment icon to open the composer beside it. Focus/selection also exposes the icon, and touch devices always show it. Selection alone does not open the composer; there is no bottom detail area or separate field-comment UI. Posting does not open or resize the Review rail. A mind map offers **コメント** in the action bar under the selected topic. All these notes appear in Review alongside question answers and do not require a `questions` annotation. See `docs/components/diagrams.md` for target identity and the component integration contract.
+Give each diagram a stable, unique HTML `id`. Hover a table, state, participant, module, service or the edge between them and activate its comment icon to open the composer beside it. Focus/selection also exposes the icon, and touch devices always show it. Selection alone does not open the composer; there is no bottom detail area or separate field-comment UI. Posting does not open or resize the Review rail. A mind map offers **Comment** in the action bar under the selected topic. All these notes appear in Review alongside question answers and do not require a `questions` annotation. See `docs/components/diagrams.md` for target identity and the component integration contract.
 
 ## Naming
 

@@ -2,9 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DpkComponentStateDiagram } from './element';
 import { defineStateDiagram } from './index';
+import { stateDiagramMessages } from './messages';
 import { hasAuthoredPositions, parseStateData } from './model';
 
 defineStateDiagram();
+
+const m = stateDiagramMessages('en');
 
 const raw = {
   states: [
@@ -39,9 +42,10 @@ const settle = async (element: DpkComponentStateDiagram): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<DpkComponentStateDiagram> => {
+const mount = async (lang?: string): Promise<DpkComponentStateDiagram> => {
   const element = document.createElement('dpk-component-state-diagram');
   if (!(element instanceof DpkComponentStateDiagram)) throw new Error('did not upgrade');
+  if (lang !== undefined) element.setAttribute('lang', lang);
   element.innerHTML = `<script type="application/json">${JSON.stringify(raw)}</script>`;
   document.body.append(element);
   await settle(element);
@@ -89,7 +93,16 @@ describe('dpk-component-state-diagram', () => {
     expect(element.renderRoot.querySelector<HTMLElement>('[data-state="paid"]')?.style.left).toBe('344px');
     expect(element.renderRoot.querySelectorAll('.state-initial-mark')).toHaveLength(1);
     expect(element.renderRoot.querySelectorAll('[data-transition-label]')).toHaveLength(4);
-    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe('4 状態 · 4 遷移');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`4 ${m.node} · 4 ${m.edge}`);
+  });
+
+  it('renders its stats and empty message in the element’s language', async () => {
+    const ja = stateDiagramMessages('ja');
+    const element = await mount('ja');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`4 ${ja.node} · 4 ${ja.edge}`);
+    element.tagFilter = { match: 'all', active: ['nothing'] };
+    await element.updateComplete;
+    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain(ja.empty);
   });
 
   it('highlights the transitions in and out of the selected state', async () => {
@@ -164,7 +177,7 @@ describe('dpk-component-state-diagram', () => {
 
     element.tagFilter = { match: 'all', active: ['nothing'] };
     await element.updateComplete;
-    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain('該当する遷移はありません');
+    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain(m.empty);
   });
 
   it('lays out states without positions automatically', async () => {

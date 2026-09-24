@@ -1,3 +1,5 @@
+import type { DiagramMessages } from './messages';
+
 import { tagCounts, type TagState } from './model';
 
 /**
@@ -24,5 +26,5 @@ export const presentStats = (
   labels: { readonly node: string; readonly edge: string },
 ): string => `${nodes} ${labels.node} · ${edges} ${labels.edge}`;
 
-/** `「A」→「B」` style summaries, used by the ERD and the state diagram. */
-export const changeSummary = (before: string, after: string): string => `「${before}」→「${after}」`;
+/** `“A” → “B”` style summaries, used by the ERD and the state diagram. */
+export const changeSummary = (m: DiagramMessages, before: string, after: string): string => m.change(before, after);

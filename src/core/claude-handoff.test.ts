@@ -8,6 +8,7 @@ import {
   storedHandoffText,
   utf8Length,
 } from './claude-handoff';
+import { coreMessages } from './messages';
 
 describe('inlineHandoffText', () => {
   it('puts the brief under an instruction to apply and republish', () => {
@@ -53,7 +54,8 @@ describe('handoffFailureOf', () => {
 });
 
 describe('handoffFailureLabel', () => {
-  it('tells the reader what to do instead', () => {
-    expect(handoffFailureLabel('too_large')).toMatch(/コピー/);
+  it('tells the reader what to do instead, in the page language', () => {
+    expect(handoffFailureLabel('too_large', 'en')).toBe(coreMessages('en').handoffTooLarge);
+    expect(handoffFailureLabel('storage', 'ja')).toBe(coreMessages('ja').handoffStorage);
   });
 });

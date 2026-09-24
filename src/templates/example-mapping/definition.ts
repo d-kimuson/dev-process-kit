@@ -1,7 +1,9 @@
+import type { Locale } from '../../core/i18n';
 import type { ActionTarget, TemplateDefinition } from '../../core/types';
 
 import { exampleMappingActions } from './actions';
 import { applyExampleMappingAction } from './apply';
+import { exampleMappingMessages } from './messages';
 import {
   canonicalExampleMappingState,
   emptyExampleMappingBase,
@@ -32,19 +34,23 @@ export const exampleMappingHasTarget = (state: ExampleMappingState, target: Acti
   }
 };
 
-export const exampleMappingDefinition: TemplateDefinition<ExampleMappingState> = {
-  name: 'example-mapping',
-  label: 'Example Mapping',
-  parseBase: parseExampleMappingBase,
-  emptyBase: emptyExampleMappingBase,
-  actions: exampleMappingActions,
-  apply: applyExampleMappingAction,
-  canonicalState: canonicalExampleMappingState,
-  hasTarget: exampleMappingHasTarget,
-  describe: describeExampleMappingAction,
-  serialize: serializeExampleMappingAction,
-  resolveNavigation: resolveExampleMappingNavigation,
-  commentTargets: (state: ExampleMappingState, navigation) => exampleMappingCommentTargets(state, navigation),
-  currentTarget: (state, navigation) => exampleMappingCurrentTarget(state, navigation),
-  title: exampleMappingTitle,
+/** The example mapping template, describing its actions in `locale`. */
+export const exampleMappingDefinitionFor = (locale: Locale): TemplateDefinition<ExampleMappingState> => {
+  const m = exampleMappingMessages(locale);
+  return {
+    name: 'example-mapping',
+    label: 'Example Mapping',
+    parseBase: parseExampleMappingBase,
+    emptyBase: emptyExampleMappingBase,
+    actions: exampleMappingActions,
+    apply: applyExampleMappingAction,
+    canonicalState: canonicalExampleMappingState,
+    hasTarget: exampleMappingHasTarget,
+    describe: (action, state, base) => describeExampleMappingAction(m, action, state, base),
+    serialize: serializeExampleMappingAction,
+    resolveNavigation: resolveExampleMappingNavigation,
+    commentTargets: (state, navigation) => exampleMappingCommentTargets(m, state, navigation),
+    currentTarget: (state, navigation) => exampleMappingCurrentTarget(m, state, navigation),
+    title: exampleMappingTitle,
+  };
 };

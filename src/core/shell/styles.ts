@@ -116,6 +116,32 @@ export const chromeStyles = [
       opacity: 0.5;
     }
 
+    .dpk-lang-select {
+      flex: none;
+      height: 30px;
+      padding: 0 10px;
+      border: 1px solid var(--dpk-rule);
+      border-radius: 999px;
+      background: var(--dpk-paper-sunken);
+      color: var(--dpk-ink-soft);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      transition:
+        color 160ms ease,
+        border-color 160ms ease;
+    }
+
+    .dpk-lang-select:hover {
+      color: var(--dpk-ink);
+      border-color: var(--dpk-rule-hover);
+    }
+
+    .dpk-lang-select:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
     .dpk-theme-toggle {
       display: inline-flex;
       flex: none;

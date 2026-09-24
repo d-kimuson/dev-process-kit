@@ -1,5 +1,6 @@
 import { html, nothing, type TemplateResult } from 'lit';
 
+import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 
 import { TemplateElement } from '../../core/element';
@@ -8,8 +9,8 @@ import { createEntityId } from '../../core/target';
 import { popoverSurface } from '../../core/theme';
 import { pointAnchor } from '../../lib/dom/popover';
 import { eventStormingAction } from './actions';
-import { defineEsNoteCard, NOTE_TYPE_LABELS, notePaletteStyle } from './components/note-card';
-import { eventStormingDefinition } from './definition';
+import { defineEsNoteCard, notePaletteStyle } from './components/note-card';
+import { eventStormingDefinitionFor } from './definition';
 import { moveGesture } from './gesture';
 import {
   constrainViewport,
@@ -26,6 +27,7 @@ import {
   type Viewport,
 } from './interactions';
 import { attachAnchor, buildSlices, connectionEndpoints, sliceVoice, type EsSlice } from './layout';
+import { eventStormingMessages } from './messages';
 import { allNoteIds, findContext, findNote, type EventStormingState, type NoteType } from './model';
 import { renderEsBoard } from './render/board';
 import { eventStormingStyles } from './styles';
@@ -66,7 +68,9 @@ const HOVER_PAD = { x: 20, top: 46, bottom: 40 };
 export class DpkTemplateEventStorming extends TemplateElement<EventStormingState> {
   static override styles = [TemplateElement.styles, eventStormingStyles, popoverSurface];
 
-  readonly definition = eventStormingDefinition;
+  protected override definitionFor(locale: Locale) {
+    return eventStormingDefinitionFor(locale);
+  }
 
   static override properties = {
     mode: { state: true },
@@ -148,8 +152,10 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
   }
 
   #renderMain(context: TemplateRenderContext<EventStormingState>): TemplateResult {
+    const m = eventStormingMessages(this.locale);
     return html`
       ${renderEsBoard({
+        m,
         context,
         mode: this.mode,
         maxRowWidth: this.#maxRowWidth(),
@@ -482,7 +488,7 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
     const id = createEntityId(`new-${type}`, allNoteIds(context.state));
     const taken = context.state.links.map((link) => link.id);
     const outcome = context.dispatchBatch([
-      eventStormingAction.addElement(id, type, NOTE_TYPE_LABELS[type]),
+      eventStormingAction.addElement(id, type, eventStormingMessages(this.locale).noteTypeLabel(type)),
       eventStormingAction.linkElements(createEntityId(`link-${source.id}`, taken), source.id, id, { kind: 'flow' }),
     ]);
     if (!outcome.ok) {
@@ -498,7 +504,7 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
     const id = createEntityId('new-hotspot', allNoteIds(context.state));
     const taken = context.state.links.map((link) => link.id);
     const outcome = context.dispatchBatch([
-      eventStormingAction.addElement(id, 'hotspot', NOTE_TYPE_LABELS.hotspot),
+      eventStormingAction.addElement(id, 'hotspot', eventStormingMessages(this.locale).noteTypeLabel('hotspot')),
       eventStormingAction.linkElements(createEntityId(`link-${id}`, taken), id, noteId, { kind: 'member' }),
     ]);
     if (!outcome.ok) return;
@@ -515,7 +521,7 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
     const [from, to] = anchor.incoming ? [id, anchor.anchorId] : [anchor.anchorId, id];
     const taken = context.state.links.map((link) => link.id);
     const outcome = context.dispatchBatch([
-      eventStormingAction.addElement(id, type, NOTE_TYPE_LABELS[type]),
+      eventStormingAction.addElement(id, type, eventStormingMessages(this.locale).noteTypeLabel(type)),
       eventStormingAction.linkElements(createEntityId(`link-${from}`, taken), from, to, { kind: 'member' }),
     ]);
     if (!outcome.ok) return;
@@ -627,16 +633,15 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
   }
 
   #renderContextPop(context: TemplateRenderContext<EventStormingState>, naming: EsNaming): TemplateResult {
+    const m = eventStormingMessages(this.locale);
     const current = naming.kind === 'rename-context' ? (findContext(context.state, naming.contextId)?.name ?? '') : '';
     return html`<div id="context-pop" class="comment-pop context-pop" popover="manual">
-      <span class="dpk-label">
-        ${naming.kind === 'create-context' ? '新しい境界づけられたコンテキスト' : 'コンテキスト名を変更'}
-      </span>
+      <span class="dpk-label"> ${naming.kind === 'create-context' ? m.newContextTitle : m.renameContextTitle} </span>
       <input
         id="context-name"
         class="dpk-input"
         type="text"
-        placeholder="コンテキスト名"
+        placeholder=${m.contextNamePlaceholder}
         .value=${current}
         @keydown=${(event: KeyboardEvent) => {
           if (event.key === 'Enter') this.#confirmNaming(context, naming);
@@ -644,9 +649,9 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
         }}
       />
       <div class="pop-actions">
-        <button class="dpk-btn" type="button" @click=${() => (this.naming = undefined)}>キャンセル</button>
+        <button class="dpk-btn" type="button" @click=${() => (this.naming = undefined)}>${m.cancel}</button>
         <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => this.#confirmNaming(context, naming)}>
-          ${naming.kind === 'create-context' ? '作成' : '保存'}
+          ${naming.kind === 'create-context' ? m.create : m.save}
         </button>
       </div>
     </div>`;
@@ -656,10 +661,11 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
 
   /** The empty state's only affordance: the first domain event of the wall. */
   #renderAppendMenu(context: TemplateRenderContext<EventStormingState>, sliceId: string): TemplateResult {
+    const m = eventStormingMessages(this.locale);
     const slice = this.#sliceById(context.state, sliceId);
     const from = slice === undefined ? undefined : sliceVoice(slice);
     return html`<div id="append-menu" class="comment-pop append-menu" popover="manual">
-      <span class="dpk-label">${from === undefined ? '続きに追加する付箋' : `「${from.name}」の続きに追加`}</span>
+      <span class="dpk-label">${from === undefined ? m.appendMenuNext : m.appendMenuAfter(from.name)}</span>
       <div class="type-options">
         ${APPEND_TYPES.map(
           (type) =>
@@ -670,19 +676,21 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
               style=${notePaletteStyle(type)}
               @click=${() => this.#appendNote(context, sliceId, type)}
             >
-              ${NOTE_TYPE_LABELS[type]}
+              ${m.noteTypeLabel(type)}
             </button>`,
         )}
       </div>
       <div class="pop-actions">
-        <button class="dpk-btn" type="button" @click=${() => (this.mode = ES_IDLE)}>キャンセル</button>
+        <button class="dpk-btn" type="button" @click=${() => (this.mode = ES_IDLE)}>${m.cancel}</button>
       </div>
     </div>`;
   }
 
   #addFirstEvent(context: TemplateRenderContext<EventStormingState>): void {
     const id = createEntityId('new-event', allNoteIds(context.state));
-    const outcome = context.dispatch(eventStormingAction.addElement(id, 'event', NOTE_TYPE_LABELS.event));
+    const outcome = context.dispatch(
+      eventStormingAction.addElement(id, 'event', eventStormingMessages(this.locale).noteTypeLabel('event')),
+    );
     if (!outcome.ok) {
       this.mode = ES_IDLE;
       return;

@@ -6,6 +6,8 @@
  * helpers next to it are the parts a component reuses directly.
  */
 export { DiagramElement } from './element';
+export { diagramMessages } from './messages';
+export type { DiagramMessages } from './messages';
 export { diagramStyles } from './styles';
 export {
   EMPTY_REACH,

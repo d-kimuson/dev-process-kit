@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Example Mapping — Order cancellation | dev-process-kit</title>
+    <!--
+      The English counterpart of `example-mapping.html`: the same template with
+      `lang="en"`, so the kit's own UI renders in English. The framework is served
+      from `dist/` by the dev asset server (`pnpm dev`), cross-origin on purpose.
+    -->
+    <script type="module" src="https://dev-process-kit.localhost/templates/example-mapping.js"></script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-template-example-mapping {
+        display: block;
+        height: 100dvh;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-template-example-mapping storage-key="sample-example-mapping-cancel-en">
+      <script type="application/json">
+        {
+          "title": "Sora Market — Order cancellation",
+          "stories": [
+            {
+              "id": "cancel",
+              "name": "Cancel an order",
+              "description": "A buyer cancels an order that has not shipped yet, from their account page"
+            },
+            {
+              "id": "refund",
+              "name": "Get a refund",
+              "description": "The amount of a cancelled order returns to the payment method used"
+            }
+          ],
+          "rules": [
+            {
+              "id": "before-shipping",
+              "storyId": "cancel",
+              "name": "Only paid orders not yet sent to the warehouse can be cancelled"
+            },
+            { "id": "own-order", "storyId": "cancel", "name": "Only the buyer who placed the order can cancel it" },
+            { "id": "accept-once", "storyId": "cancel", "name": "A cancellation is accepted once" },
+            { "id": "full-refund", "storyId": "refund", "name": "Refund the full amount to the payment method used" }
+          ],
+          "examples": [
+            {
+              "id": "paid-accept",
+              "ruleId": "before-shipping",
+              "name": "#SM-1024 paid → accepted",
+              "description": "Paid 9/20 10:00, not yet sent to the warehouse. Cancelled 9/20 15:00 → accepted"
+            },
+            {
+              "id": "shipping-reject",
+              "ruleId": "before-shipping",
+              "name": "#SM-1031 sent to the warehouse → cannot cancel",
+              "description": "Show the support contact instead of the cancel button"
+            },
+            { "id": "other-reject", "ruleId": "own-order", "name": "#SM-1024 from another account → order not found" },
+            { "id": "double-click", "ruleId": "accept-once", "name": "Confirm clicked twice → one cancellation" },
+            { "id": "shipping-fee", "ruleId": "full-refund", "name": "Item $29.80 + shipping $5.00 → refund $34.80" }
+          ],
+          "questions": [
+            {
+              "id": "deadline",
+              "ruleId": "before-shipping",
+              "name": "Is \"before the warehouse\" the right deadline?",
+              "description": "\"Until N hours before the planned shipment\" may be clearer to buyers"
+            },
+            {
+              "id": "coupon",
+              "ruleId": "full-refund",
+              "name": "What is refunded on an order paid partly with a coupon?"
+            }
+          ]
+        }
+      </script>
+    </dpk-template-example-mapping>
+  </body>
+</html>

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { DraftController } from '../../core/controller';
-import { usmDefinition } from './definition';
+import { usmDefinitionFor } from './definition';
+
+const usmDefinition = usmDefinitionFor('en');
 
 const make = () =>
   new DraftController({

@@ -4,7 +4,8 @@ import type { ActionInput, DraftAction } from '../../core/types';
 
 import { prototypeAction } from './actions';
 import { applyPrototypeAction } from './apply';
-import { prototypeDefinition } from './definition';
+import { prototypeDefinitionFor } from './definition';
+import { prototypeMessages } from './messages';
 import { findStep, parsePrototypeBase, stepRef, type PrototypeState } from './model';
 import {
   describePrototypeAction,
@@ -12,6 +13,8 @@ import {
   resolvePrototypeNavigation,
   serializePrototypeAction,
 } from './present';
+
+const m = prototypeMessages('en');
 
 const state = (): PrototypeState => {
   return parsePrototypeBase({
@@ -214,16 +217,16 @@ describe('prototype applyAction', () => {
 
 describe('prototype presentation', () => {
   it('describes rename actions with a before/after summary', () => {
-    const description = describePrototypeAction(action(prototypeAction.setStepName('a', 'Renamed')), state());
-    expect(description.title).toBe('Step 名を変更');
+    const description = describePrototypeAction(m, action(prototypeAction.setStepName('a', 'Renamed')), state());
+    expect(description.title).toBe(m.renameStep);
     expect(description.targetLabel).toBe('Step · A');
     expect(description.summary).toContain('→');
   });
 
   it('does not throw for stale targets', () => {
     const stale = action(prototypeAction.setStepName('ghost', 'X'));
-    expect(() => describePrototypeAction(stale, state())).not.toThrow();
-    expect(describePrototypeAction(stale, state()).targetLabel).toContain('missing');
+    expect(() => describePrototypeAction(m, stale, state())).not.toThrow();
+    expect(describePrototypeAction(m, stale, state()).targetLabel).toContain('missing');
   });
 
   it('serializes to a stable one-liner', () => {
@@ -234,7 +237,11 @@ describe('prototype presentation', () => {
 
   it('offers comment targets for activity, story and step', () => {
     // Step refs carry the path: a bare step id is not unique across stories.
-    expect(prototypeDefinition.commentTargets(state(), {}).map((option) => option.value)).toEqual([
+    expect(
+      prototypeDefinitionFor('en')
+        .commentTargets(state(), {})
+        .map((option) => option.value),
+    ).toEqual([
       'activity:onboarding',
       'story:onboarding.account',
       'step:onboarding.account.a',

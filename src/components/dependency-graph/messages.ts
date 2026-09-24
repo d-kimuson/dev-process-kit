@@ -1,0 +1,46 @@
+import { defineMessages } from '../../core/i18n';
+
+export const dependencyGraphMessages = defineMessages({
+  en: {
+    heading: 'Dependencies',
+    node: 'Module',
+    edge: 'Dependency',
+    emptyCycles: 'No matching cycles.',
+    emptyModules: 'No matching modules.',
+    directionGroup: 'Direction to follow from the selected module',
+    directionOutgoing: 'Depends on',
+    directionIncoming: 'Depended on by',
+    directionBoth: 'Both',
+    transitive: 'Include indirect',
+    cyclesToggleLabel: (cycles: number) => `Show only ${cycles} cycle group(s)`,
+    cyclesCount: (cycles: number) => `Cycles ${cycles}`,
+    legendOutgoing: 'Depends on',
+    legendIncoming: 'Depended on by',
+    legendCycle: 'Cycle',
+    edgeLabel: (from: string, to: string) => `${from} depends on ${to}`,
+    cyclicSuffix: (name: string) => `${name}, part of a cycle`,
+    cycleBadge: 'Cycle',
+  },
+  ja: {
+    heading: '依存関係グラフ',
+    node: 'モジュール',
+    edge: '依存',
+    emptyCycles: '該当する循環依存はありません。',
+    emptyModules: '該当するモジュールはありません。',
+    directionGroup: '選択したモジュールから追う方向',
+    directionOutgoing: '依存先',
+    directionIncoming: '依存元',
+    directionBoth: '両方',
+    transitive: '間接も含む',
+    cyclesToggleLabel: (cycles: number) => `循環依存 ${cycles} グループだけ表示`,
+    cyclesCount: (cycles: number) => `循環 ${cycles}`,
+    legendOutgoing: '依存先',
+    legendIncoming: '依存元',
+    legendCycle: '循環',
+    edgeLabel: (from: string, to: string) => `${from} が ${to} に依存`,
+    cyclicSuffix: (name: string) => `${name}・循環依存あり`,
+    cycleBadge: '循環',
+  },
+});
+
+export type DependencyGraphMessages = ReturnType<typeof dependencyGraphMessages>;

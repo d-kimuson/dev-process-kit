@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DpkComponentCommentPanel } from '../components/comment-panel';
 import type { DpkTemplatePrototype } from '../templates/prototype/element';
 
-import { prototypeDefinition } from '../templates/prototype/definition';
+import { panelMessages } from '../components/comment-panel/messages';
+import { prototypeDefinitionFor } from '../templates/prototype/definition';
+import { prototypeMessages } from '../templates/prototype/messages';
+import { coreMessages } from './messages';
 import '../index';
 
 const base = {
@@ -38,10 +41,10 @@ const base = {
   ],
 };
 
-const mount = (hash = ''): DpkTemplatePrototype => {
+const mount = (hash = '', attributes = ''): DpkTemplatePrototype => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <dpk-template-prototype storage="memory">
+    <dpk-template-prototype storage="memory" ${attributes}>
       <script type="application/json">${JSON.stringify(base)}</script>
       <div slot="preview" data-preview-id="landing-mobile"><p id="landing-body">hello</p></div>
       <div slot="preview" data-preview-id="auth-mobile"><p id="auth-body">auth</p></div>
@@ -257,8 +260,8 @@ describe('<dpk-template-prototype>', () => {
   });
 
   it('exposes the rendered description and serialization through the definition', () => {
-    expect(prototypeDefinition.name).toBe('prototype');
-    expect(prototypeDefinition.label).toBe('UX Prototype');
+    expect(prototypeDefinitionFor('en').name).toBe('prototype');
+    expect(prototypeDefinitionFor('en').label).toBe('UX Prototype');
   });
 
   it('notifies facade subscribers while detached without changing the document URL', async () => {
@@ -312,12 +315,12 @@ describe('color scheme', () => {
     const el = mount();
     await settle(el);
     expect(el.dataset['theme']).toBe('light');
-    expect(toggle(el).getAttribute('aria-label')).toBe('ダークテーマにする');
+    expect(toggle(el).getAttribute('aria-label')).toBe(coreMessages('en').useDarkTheme);
 
     toggle(el).click();
     await settle(el);
     expect(el.dataset['theme']).toBe('dark');
-    expect(toggle(el).getAttribute('aria-label')).toBe('ライトテーマにする');
+    expect(toggle(el).getAttribute('aria-label')).toBe(coreMessages('en').useLightTheme);
   });
 
   it("follows the page's data-theme stamp, also when it changes later", async () => {
@@ -341,11 +344,65 @@ describe('color scheme', () => {
   });
 });
 
+describe('language', () => {
+  const select = (el: DpkTemplatePrototype): HTMLSelectElement =>
+    el.shadowRoot?.querySelector('.dpk-lang-select') as HTMLSelectElement;
+  const pick = (el: DpkTemplatePrototype, locale: string): void => {
+    select(el).value = locale;
+    select(el).dispatchEvent(new Event('change'));
+  };
+  const railText = async (el: DpkTemplatePrototype): Promise<string> => {
+    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    await panel.updateComplete;
+    return panel.shadowRoot?.textContent ?? '';
+  };
+
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+    document.documentElement.removeAttribute('lang');
+  });
+
+  it('defaults to the closest lang and switches the template and its nested elements', async () => {
+    document.documentElement.lang = 'ja';
+    const el = mount();
+    await settle(el);
+    el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
+    await settle(el);
+    expect(select(el).value).toBe('ja');
+    expect(await railText(el)).toContain(prototypeMessages('ja').renameStep);
+
+    pick(el, 'en');
+    await settle(el);
+    expect(el.getAttribute('lang')).toBe('en');
+    expect(select(el).value).toBe('en');
+    const rail = await railText(el);
+    expect(rail).toContain(panelMessages('en').copyBrief);
+    expect(rail).toContain(prototypeMessages('en').renameStep);
+    expect(el.api.actions).toHaveLength(1);
+  });
+
+  it("gives the author's own lang back when the reader picks the page language again", async () => {
+    const el = mount('', 'lang="ja-JP"');
+    await settle(el);
+    expect(select(el).value).toBe('ja');
+
+    pick(el, 'en');
+    await settle(el);
+    expect(el.getAttribute('lang')).toBe('en');
+
+    pick(el, 'ja');
+    await settle(el);
+    expect(el.getAttribute('lang')).toBe('ja-JP');
+    expect(await railText(el)).toContain(panelMessages('ja').copyBrief);
+  });
+});
+
 describe('send to Claude', () => {
   const sendButton = (el: DpkTemplatePrototype): HTMLButtonElement | undefined => {
     const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
     return Array.from(panel.shadowRoot?.querySelectorAll('button') ?? []).find(
-      (button) => button.textContent?.trim() === 'Claude に送る',
+      (button) => button.textContent?.trim() === panelMessages('en').sendToClaude,
     );
   };
   const flush = async (el: DpkTemplatePrototype): Promise<void> => {

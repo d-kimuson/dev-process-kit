@@ -4,9 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DpkTemplateGrill } from './element';
 
 import '../../index';
+import { coreMessages } from '../../core/messages';
 import { answerQuestion } from './actions';
 import { applyGrillAction } from './apply';
-import { grillDefinition } from './definition';
+import { grillDefinitionFor } from './definition';
+import { grillMessages } from './messages';
 import { answerCounts, parseGrillBase, withAnswer } from './model';
 import {
   describeGrillAction,
@@ -38,16 +40,19 @@ const base = {
   ],
 };
 
+const m = grillMessages('en');
+const grillDefinition = grillDefinitionFor('en');
+
 const mainSlot = `
   <div class="flow" slot="main">
     <div data-grill-questions="Q1">カート確定</div>
     <div data-grill-questions="Q2">在庫予約</div>
   </div>`;
 
-const mount = (questions: unknown = base, content: string = mainSlot, hash = ''): DpkTemplateGrill => {
+const mount = (questions: unknown = base, content: string = mainSlot, hash = '', lang = ''): DpkTemplateGrill => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <dpk-template-grill storage="memory">
+    <dpk-template-grill storage="memory"${lang === '' ? '' : ` lang="${lang}"`}>
       <script type="application/json">${JSON.stringify(questions)}</script>
       ${content}
     </dpk-template-grill>`;
@@ -66,6 +71,13 @@ const settle = async (element: DpkTemplateGrill): Promise<void> => {
 };
 
 const state = () => parseGrillBase(base);
+
+/** The questions tab's label, without its count. */
+const tabLabel = (element: DpkTemplateGrill): string => {
+  const tab = element.shadowRoot?.querySelector('[data-tab="questions"]');
+  const count = tab?.querySelector('.grill-count')?.textContent ?? '';
+  return (tab?.textContent ?? '').replace(count, '').trim();
+};
 
 const answer = (id: string, value: Parameters<typeof answerQuestion>[1]) =>
   applyGrillAction(state(), {
@@ -162,14 +174,14 @@ describe('grill review rail', () => {
       payload: { kind: 'option', optionId: 'lookup' },
       createdAt: '2026-01-01T00:00:00Z',
     };
-    expect(describeGrillAction(action, state())).toMatchObject({
-      title: '回答',
+    expect(describeGrillAction(m, action, state())).toMatchObject({
+      title: m.answered,
       targetLabel: 'Q1 · 決済の再試行で、二重請求が起きない？',
-      summary: '→ 「結果を照会してから再試行する」',
+      summary: m.quoted('結果を照会してから再試行する'),
       tone: 'update',
     });
     expect(serializeGrillAction(action)).toBe('ANSWER_QUESTION question:retry {"kind":"option","optionId":"lookup"}');
-    expect(describeGrillAction({ ...action, payload: { kind: 'clear' } }, state()).title).toBe('回答をクリア');
+    expect(describeGrillAction(m, { ...action, payload: { kind: 'clear' } }, state()).title).toBe(m.answerCleared);
     expect(grillDefinition.title(state())).toBe('注文フローのレビュー');
     expect(grillDefinition.title(parseGrillBase({ questions: [] }))).toBe('Visually Grill');
   });
@@ -189,7 +201,10 @@ describe('grill review rail', () => {
   });
 
   it('offers the questions as comment targets without attaching notes to the open one', () => {
-    expect(grillCommentTargets(state()).map((option) => option.value)).toEqual(['question:retry', 'question:cancel']);
+    expect(grillCommentTargets(m, state()).map((option) => option.value)).toEqual([
+      'question:retry',
+      'question:cancel',
+    ]);
     // Notes are about the design as a whole or a diagram element, never "the open question":
     // the answer already is the reply to it, so the composer offers no attach-to-question checkbox.
     expect('currentTarget' in grillDefinition).toBe(false);
@@ -222,6 +237,29 @@ describe('dpk-template-grill', () => {
     expect(slots[1]?.assignedElements()).toHaveLength(0);
   });
 
+  it('renders its own text in the page language, and in English without one', async () => {
+    const english = mount();
+    await settle(english);
+    expect(tabLabel(english)).toBe(m.questionsTab);
+
+    document.documentElement.lang = 'ja-JP';
+    try {
+      const japanese = mount();
+      await settle(japanese);
+      const ja = grillMessages('ja');
+      expect(japanese.locale).toBe('ja');
+      expect(tabLabel(japanese)).toBe(ja.questionsTab);
+      expect(japanese.shadowRoot?.querySelector('.grill-copy')?.textContent?.trim()).toBe(ja.copyAll);
+    } finally {
+      document.documentElement.removeAttribute('lang');
+    }
+
+    // The template element's own `lang` wins over the page's.
+    const own = mount(base, mainSlot, '', 'ja');
+    await settle(own);
+    expect(own.locale).toBe('ja');
+  });
+
   it('turns a choice into a draft action, and copies the review brief', async () => {
     const element = mount();
     await settle(element);
@@ -243,14 +281,14 @@ describe('dpk-template-grill', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     const button = shadow.querySelector<HTMLButtonElement>('.grill-copy');
     if (!button) throw new Error('missing copy button');
-    expect(button.textContent?.trim()).toBe('回答・Review をまとめてコピー');
+    expect(button.textContent?.trim()).toBe(m.copyAll);
     button.click();
     await settle(element);
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('注文IDを冪等キーにして再試行する'));
     // A click is never silent: the button reports what happened.
-    expect(button.textContent?.trim()).toBe('コピーしました');
+    expect(button.textContent?.trim()).toBe(m.copied);
     expect(button.dataset['status']).toBe('copied');
-    expect(shadow.querySelector('.grill-sr')?.textContent).toBe('コピーしました');
+    expect(shadow.querySelector('.grill-sr')?.textContent).toBe(m.copied);
   });
 
   it('reports a failed copy, and settles back to the plain label', async () => {
@@ -273,12 +311,12 @@ describe('dpk-template-grill', () => {
       if (!button) throw new Error('missing copy button');
       button.click();
       await settle(element);
-      expect(button.textContent?.trim()).toBe('コピーできませんでした');
+      expect(button.textContent?.trim()).toBe(m.copyFailed);
       expect(button.dataset['status']).toBe('failed');
 
       vi.advanceTimersByTime(2400);
       await settle(element);
-      expect(button.textContent?.trim()).toBe('回答・Review をまとめてコピー');
+      expect(button.textContent?.trim()).toBe(m.copyAll);
       expect(button.dataset['status']).toBe('idle');
     } finally {
       vi.useRealTimers();
@@ -311,15 +349,15 @@ describe('dpk-template-grill', () => {
 
       const send = shadow.querySelector<HTMLButtonElement>('.grill-send');
       if (!send) throw new Error('missing send button');
-      expect(send.textContent?.trim()).toBe('回答・Review を Claude に送る');
-      expect(shadow.querySelector('.grill-copy')?.textContent?.trim()).toBe('コピー');
+      expect(send.textContent?.trim()).toBe(m.sendAll);
+      expect(shadow.querySelector('.grill-copy')?.textContent?.trim()).toBe(m.copy);
 
       send.click();
       await new Promise((resolve) => setTimeout(resolve, 0));
       await settle(element);
       // The reason says what to do next; nothing was posted, so copying is the way on.
       expect(send.dataset['status']).toBe('failed');
-      expect(shadow.querySelector('.grill-footer-note')?.textContent).toMatch(/コピー/);
+      expect(shadow.querySelector('.grill-footer-note')?.textContent).toBe(coreMessages('en').handoffClaudeUnavailable);
 
       send.click();
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -328,7 +366,7 @@ describe('dpk-template-grill', () => {
         anchor: { path: 'x', x: 0, y: 0 },
         text: expect.stringContaining('注文IDを冪等キーにして再試行する'),
       });
-      expect(send.textContent?.trim()).toBe('Claude に送りました');
+      expect(send.textContent?.trim()).toBe(m.sent);
       expect(shadow.querySelector('.grill-footer-note')).toBeNull();
     } finally {
       vi.unstubAllGlobals();

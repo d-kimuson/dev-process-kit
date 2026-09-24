@@ -1,6 +1,7 @@
 import { html, nothing, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
+import type { PanelMessages } from './messages';
 import type { PanelIntent } from './model';
 import type { PanelItem, PanelViewModel } from './present';
 
@@ -9,12 +10,17 @@ import { iconClose } from '../../core/icons';
 export type PanelSend = (intent: PanelIntent) => void;
 
 /** Renders plain view data and translates DOM events into typed intents. */
-export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = false): TemplateResult => html`
-  ${embedded ? nothing : html`<header><h2>Review notes</h2></header>`}
+export const renderPanel = (
+  m: PanelMessages,
+  vm: PanelViewModel,
+  send: PanelSend,
+  embedded = false,
+): TemplateResult => html`
+  ${embedded ? nothing : html`<header><h2>${m.heading}</h2></header>`}
   ${
     vm.issues.length > 0
       ? html`<div class="issues" role="alert">
-          <strong>Action rejected.</strong>
+          <strong>${m.rejected}</strong>
           <ul>
             ${vm.issues.map((issue) => html`<li>${issue}</li>`)}
           </ul>
@@ -24,8 +30,8 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
   <div class="composer">
     <textarea
       class="dpk-textarea"
-      aria-label="レビューコメント"
-      placeholder="変更したいこと / 気づきを書く（Agent への指示として渡る）"
+      aria-label=${m.commentLabel}
+      placeholder=${m.commentPlaceholder}
       .value=${vm.body}
       @input=${(event: Event) => {
         if (event.currentTarget instanceof HTMLTextAreaElement)
@@ -41,7 +47,7 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
     ${
       vm.attachment.kind === 'explicit'
         ? html`<div class="row">
-            <button class="chip" type="button" aria-label="紐づけを解除" @click=${() => send({ kind: 'clear-target' })}>
+            <button class="chip" type="button" aria-label=${m.detach} @click=${() => send({ kind: 'clear-target' })}>
               ${vm.target.label} ${iconClose()}
             </button>
           </div>`
@@ -56,7 +62,7 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
                       send({ kind: 'attach', current: event.currentTarget.checked });
                   }}
                 />
-                <span>この ${vm.attachment.group} に紐づける</span>
+                <span>${m.attachTo(vm.attachment.group)}</span>
               </label>
             </div>`
           : nothing
@@ -69,7 +75,7 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
         ?disabled=${!vm.canSubmit}
         @click=${() => send({ kind: 'submit' })}
       >
-        Add note
+        ${m.addNote}
       </button>
     </div>
   </div>
@@ -77,13 +83,13 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
     ${
       vm.items.length === 0
         ? html`<li class="empty">
-            No draft actions yet.<br />
-            Comments and structural patches both land here, and survive reload via LocalStorage.
+            ${m.empty}<br />
+            ${m.emptyHint}
           </li>`
         : repeat(
             vm.items,
             (item) => item.id,
-            (item) => renderItem(item, send),
+            (item) => renderItem(m, item, send),
           )
     }
   </ul>
@@ -101,14 +107,14 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
                     ?disabled=${vm.send === 'disabled'}
                     @click=${() => send({ kind: 'send' })}
                   >
-                    Claude に送る
+                    ${m.sendToClaude}
                   </button>`
             }
             <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'json' })}>
-              Copy JSON
+              ${m.copyJson}
             </button>
             <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'brief' })}>
-              Copy brief
+              ${m.copyBrief}
             </button>
           `
     }
@@ -118,13 +124,13 @@ export const renderPanel = (vm: PanelViewModel, send: PanelSend, embedded = fals
       ?disabled=${vm.items.length === 0}
       @click=${() => send({ kind: 'clear' })}
     >
-      Clear
+      ${m.clear}
     </button>
     ${vm.flash ? html`<span class="flash" role="status">${vm.flash}</span>` : nothing}
   </footer>
 `;
 
-const renderItem = (item: PanelItem, send: PanelSend): TemplateResult => html`
+const renderItem = (m: PanelMessages, item: PanelItem, send: PanelSend): TemplateResult => html`
   <li class="item" data-tone=${item.tone} data-stale=${String(item.stale !== null)}>
     <div class="item-head">
       <span class="item-title">${item.title}</span>
@@ -132,7 +138,7 @@ const renderItem = (item: PanelItem, send: PanelSend): TemplateResult => html`
       <button
         class="dpk-icon-btn"
         type="button"
-        aria-label="この draft action を削除"
+        aria-label=${m.deleteAction}
         @click=${() => send({ kind: 'delete', id: item.id })}
       >
         ${iconClose()}

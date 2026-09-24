@@ -3,8 +3,9 @@ import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { DragController, Drop } from '../../../lib/dom/drag';
+import type { ExampleMappingMessages } from '../messages';
 
-import { CARD_KIND_LABELS, CARD_KINDS, cardPaletteStyle } from '../components/mapping-card';
+import { CARD_KINDS, cardPaletteStyle } from '../components/mapping-card';
 import {
   examplesOfRule,
   questionsOfRule,
@@ -37,6 +38,7 @@ export type BoardProps = {
   readonly mode: ExampleMappingUiMode;
   readonly drag: DragController<MappingDragType>;
   readonly handlers: BoardHandlers;
+  readonly m: ExampleMappingMessages;
 };
 
 type Entity = { readonly id: string; readonly name: string; readonly description?: string };
@@ -50,27 +52,23 @@ const tiltOf = (kind: MappingCardKind, id: string): number => {
 };
 
 /** The color key: what each sticky note color means. */
-export const renderLegend = (): TemplateResult => {
-  return html`<ul class="legend" aria-label="カードの種類">
+export const renderLegend = (m: ExampleMappingMessages): TemplateResult => {
+  return html`<ul class="legend" aria-label=${m.cardKinds}>
     ${CARD_KINDS.map(
-      (kind) =>
-        html`<li><span class="legend-swatch" style=${cardPaletteStyle(kind)}></span>${CARD_KIND_LABELS[kind]}</li>`,
+      (kind) => html`<li><span class="legend-swatch" style=${cardPaletteStyle(kind)}></span>${m.kindLabel(kind)}</li>`,
     )}
   </ul>`;
 };
 
 /** One story per section: story on top, rules side by side, and under each rule its examples, then its questions. */
 export const renderBoard = (props: BoardProps): TemplateResult => {
-  const { context, handlers } = props;
+  const { context, handlers, m } = props;
   if (context.state.stories.length === 0) {
     return html`
       <div class="empty">
-        <h2>ストーリーがまだありません</h2>
-        <p>
-          ストーリー（黄）を1枚置き、その下に受け入れ条件となるルール（青）を並べます。
-          ルールごとに、上の欄へ具体例（緑）を、下の欄へ答えの出ない論点を質問（赤）として積みます。
-        </p>
-        <button class="dpk-btn dpk-btn--accent" type="button" @click=${handlers.addStory}>＋ 最初のストーリー</button>
+        <h2>${m.noStoriesTitle}</h2>
+        <p>${m.noStoriesBody}</p>
+        <button class="dpk-btn dpk-btn--accent" type="button" @click=${handlers.addStory}>${m.firstStory}</button>
       </div>
     `;
   }
@@ -81,7 +79,7 @@ export const renderBoard = (props: BoardProps): TemplateResult => {
         (story) => story.id,
         (story) => renderStorySection(props, story),
       )}
-      <button class="add-story" type="button" @click=${handlers.addStory}>＋ ストーリー</button>
+      <button class="add-story" type="button" @click=${handlers.addStory}>${m.addStoryButton}</button>
     </div>
   `;
 };
@@ -112,8 +110,8 @@ const renderCard = (props: BoardProps, kind: MappingCardKind, entity: Entity): T
 };
 
 const renderStorySection = (props: BoardProps, story: MappingStory): TemplateResult => {
-  const { context, drag, handlers } = props;
-  const summary = presentStorySummary(context.state, story.id);
+  const { context, drag, handlers, m } = props;
+  const summary = presentStorySummary(m, context.state, story.id);
   const sectionKey = `story:${story.id}`;
   const sectionTarget = drag.target({
     key: sectionKey,
@@ -142,12 +140,16 @@ const renderStorySection = (props: BoardProps, story: MappingStory): TemplateRes
         <div class="story-slot">${renderCard(props, 'story', story)}</div>
         <div class="story-meta">
           <span class="readiness" data-readiness=${summary.readiness}>${summary.label}</span>
-          <span class="tally"><i class="tally-dot" style=${cardPaletteStyle('rule')}></i>ルール ${summary.rules}</span>
           <span class="tally"
-            ><i class="tally-dot" style=${cardPaletteStyle('example')}></i>具体例 ${summary.examples}</span
+            ><i class="tally-dot" style=${cardPaletteStyle('rule')}></i>${m.kindLabel('rule')} ${summary.rules}</span
           >
           <span class="tally"
-            ><i class="tally-dot" style=${cardPaletteStyle('question')}></i>質問 ${summary.questions}</span
+            ><i class="tally-dot" style=${cardPaletteStyle('example')}></i>${m.kindLabel('example')}
+            ${summary.examples}</span
+          >
+          <span class="tally"
+            ><i class="tally-dot" style=${cardPaletteStyle('question')}></i>${m.kindLabel('question')}
+            ${summary.questions}</span
           >
         </div>
       </header>
@@ -166,7 +168,7 @@ const renderStorySection = (props: BoardProps, story: MappingStory): TemplateRes
           (rule) => renderRuleColumn(props, rule),
         )}
         <button class="add-rule" type="button" @click=${() => handlers.addRule(story.id)}>
-          <span class="add-plus">＋</span>ルール
+          <span class="add-plus">+</span>${m.kindLabel('rule')}
         </button>
       </div>
     </section>
@@ -186,15 +188,19 @@ const renderRuleColumn = (props: BoardProps, rule: MappingRule): TemplateResult 
 
 type AreaKind = 'example' | 'question';
 
-const AREAS = {
-  example: { testid: 'examples', label: '具体例', empty: '具体例がまだありません', add: '＋ 具体例' },
-  question: { testid: 'questions', label: '質問', empty: '未解決の質問はありません', add: '＋ 質問' },
-} as const satisfies Record<AreaKind, { testid: string; label: string; empty: string; add: string }>;
+const AREA_TESTID = { example: 'examples', question: 'questions' } as const satisfies Record<AreaKind, string>;
+
+const areaOf = (m: ExampleMappingMessages, kind: AreaKind) => ({
+  testid: AREA_TESTID[kind],
+  label: m.kindLabel(kind),
+  empty: kind === 'example' ? m.noExamples : m.noQuestions,
+  add: `+ ${m.kindLabel(kind)}`,
+});
 
 /** A rule's examples or questions: its own drop target, its own add button. */
 const renderArea = (props: BoardProps, ruleId: string, kind: AreaKind): TemplateResult => {
-  const { context, drag, handlers } = props;
-  const area = AREAS[kind];
+  const { context, drag, handlers, m } = props;
+  const area = areaOf(m, kind);
   const key = `${area.testid}:${ruleId}`;
   const target =
     kind === 'example'

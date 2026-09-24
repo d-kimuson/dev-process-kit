@@ -5,12 +5,18 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { DraftAction } from '../../core/types';
 import type { DpkTemplateUsm } from './element';
 
+import { composerMessages } from '../../components/comment-composer/messages';
 import { DpkComponentInlineEdit } from '../../components/inline-edit';
 import { applyUsmAction } from './apply';
 import '../../index';
-import { usmDefinition } from './definition';
+import { usmDefinitionFor } from './definition';
 import { dropAfter, resolveGroupDrop, resolveMilestoneDrop } from './drop';
+import { usmMessages } from './messages';
 import { parseUsmBase } from './model';
+
+const usmDefinition = usmDefinitionFor('en');
+const m = usmMessages('en');
+const composerM = composerMessages('en');
 
 const base = {
   title: 'Map',
@@ -35,10 +41,10 @@ const action = (type: string, target: { type: string; id: string }, payload: unk
   return { id: 'a', type, target, payload, createdAt: '2026-01-01T00:00:00Z' };
 };
 
-const mount = (hash = ''): DpkTemplateUsm => {
+const mount = (hash = '', lang = ''): DpkTemplateUsm => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <dpk-template-usm storage="memory">
+    <dpk-template-usm storage="memory"${lang === '' ? '' : ` lang="${lang}"`}>
       <script type="application/json">${JSON.stringify(base)}</script>
     </dpk-template-usm>`;
   return document.querySelector('dpk-template-usm') as DpkTemplateUsm;
@@ -194,10 +200,8 @@ describe('usm template', () => {
     expect(root.querySelector('[data-testid="usm-map"]')).toBeNull();
     // one tab bar, activity tab current
     const tabs = [...root.querySelectorAll('.view-tabs .tab')].map((t) => t.textContent?.trim());
-    expect(tabs).toEqual(['アクティビティ', 'アクティビティグループ']);
-    expect(root.querySelector('.view-tabs .tab[data-current="true"]')?.textContent?.trim()).toBe(
-      'アクティビティグループ',
-    );
+    expect(tabs).toEqual([m.activityGroup, m.groupViewTab]);
+    expect(root.querySelector('.view-tabs .tab[data-current="true"]')?.textContent?.trim()).toBe(m.groupViewTab);
     // one header per activity, no step columns
     expect(root.querySelectorAll('.act-head dpk-component-inline-edit').length).toBe(1);
     expect(root.querySelectorAll('.col-head').length).toBe(0);
@@ -255,7 +259,9 @@ describe('usm template', () => {
       expect(head.querySelectorAll('button').length).toBe(0);
     }
     // the unassigned row is neither draggable nor a drop target
-    const unassigned = [...root.querySelectorAll('.row-head')].find((h) => (h.textContent ?? '').includes('未割当'))!;
+    const unassigned = [...root.querySelectorAll('.row-head')].find((h) =>
+      (h.textContent ?? '').includes(m.unassigned),
+    )!;
     expect(unassigned.getAttribute('draggable')).toBe('false');
     document.body.innerHTML = '';
   });
@@ -266,11 +272,11 @@ describe('usm template', () => {
     const root = el.shadowRoot!;
     expect(root.querySelector('[data-testid="usm-map"]')).not.toBeNull();
     const corner = root.querySelector('.corner')?.textContent ?? '';
-    expect(corner).toContain('アクティビティグループ');
+    expect(corner).toContain(m.groupAxisHeader);
     // Empty cell has no placeholder text.
     const cells = Array.from(root.querySelectorAll('.cell'));
     const emptyCell = cells.find(
-      (c) => c.querySelectorAll('dpk-internal-usm-story-card').length === 0 && c.textContent?.includes('追加'),
+      (c) => c.querySelectorAll('dpk-internal-usm-story-card').length === 0 && c.textContent?.includes(m.addCellButton),
     );
     expect(emptyCell?.textContent).not.toContain('空マス');
     // Three icon-only buttons per card: edit, comment, delete.
@@ -297,7 +303,9 @@ describe('usm template', () => {
     textarea.value = 'hello';
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     if (cards[0] instanceof LitElement) await cards[0].updateComplete;
-    const send = Array.from(composer!.querySelectorAll('button')).find((b) => b.textContent?.includes('送信'))!;
+    const send = Array.from(composer!.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes(composerM.submit),
+    )!;
     expect(send).toBeTruthy();
     send.click();
     await settle(el);
@@ -307,6 +315,30 @@ describe('usm template', () => {
     await settle(el);
     expect(location.hash).toContain('step=s2');
     expect(location.hash).toContain('story=u2');
+  });
+
+  it('renders its own text in the page language, and in English without one', async () => {
+    const english = mount();
+    await settle(english);
+    const englishCorner = english.shadowRoot?.querySelector('.corner')?.textContent ?? '';
+    expect(englishCorner).toContain(m.groupAxisHeader);
+
+    document.documentElement.lang = 'ja-JP';
+    try {
+      const japanese = mount();
+      await settle(japanese);
+      const ja = usmMessages('ja');
+      expect(japanese.locale).toBe('ja');
+      const japaneseCorner = japanese.shadowRoot?.querySelector('.corner')?.textContent ?? '';
+      expect(japaneseCorner).toContain(ja.groupAxisHeader);
+    } finally {
+      document.documentElement.removeAttribute('lang');
+    }
+
+    // The template element's own `lang` wins over the page's.
+    const own = mount('', 'ja');
+    await settle(own);
+    expect(own.locale).toBe('ja');
   });
 
   it('opens the step picker on a cross-activity drop and moves on submit', async () => {
@@ -338,7 +370,7 @@ describe('usm template', () => {
     expect(select.querySelector('option')?.textContent?.trim()).toBe('S3');
     select.value = 's3';
     select.dispatchEvent(new Event('change', { bubbles: true }));
-    [...dialog!.querySelectorAll('button')].find((b) => b.textContent?.includes('移動する'))!.click();
+    [...dialog!.querySelectorAll('button')].find((b) => b.textContent?.includes(m.moveConfirm))!.click();
     await settle(el);
     const moved = el.api.actions.find((a) => a.type === 'MOVE_STORY');
     expect(moved?.payload).toMatchObject({ activityId: 'a2', stepId: 's3', milestoneId: 'mvp' });

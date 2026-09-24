@@ -7,6 +7,7 @@ import type {
   DraftAction,
   Navigation,
 } from '../../core/types';
+import type { GrillMessages } from './messages';
 
 import { payloadFor } from '../../core/schema';
 import { targetRef } from '../../core/target';
@@ -27,12 +28,12 @@ import {
 export const grillTitle = (state: GrillState): string => (state.title === '' ? 'Visually Grill' : state.title);
 
 /** Never throws: an unknown target falls back to its raw id. */
-export const grillTargetLabel = (state: GrillState, target: ActionTarget): string => {
+export const grillTargetLabel = (m: GrillMessages, state: GrillState, target: ActionTarget): string => {
   switch (target.type) {
     case 'question':
       return questionLabel(state, target.id);
     case 'page':
-      return 'ページ全体';
+      return m.wholePage;
     default:
       return target.id;
   }
@@ -44,26 +45,31 @@ type Summary = {
   readonly body?: string;
 };
 
-const summarizeAnswer = (state: GrillState, action: DraftAction): Summary => {
+const summarizeAnswer = (m: GrillMessages, state: GrillState, action: DraftAction): Summary => {
   const payload = payloadFor(grillActions.ANSWER_QUESTION, action);
-  if (payload.kind === 'clear') return { title: '回答をクリア', tone: 'delete' };
+  if (payload.kind === 'clear') return { title: m.answerCleared, tone: 'delete' };
   if (payload.kind === 'option') {
     const option = findQuestion(state, action.target.id)?.options.find((entry) => entry.id === payload.optionId);
-    return { title: '回答', tone: 'update', body: `→ 「${option?.label ?? payload.optionId}」` };
+    return { title: m.answered, tone: 'update', body: m.quoted(option?.label ?? payload.optionId) };
   }
-  return { title: '自由記述で回答', tone: 'update', body: `→ 「${payload.text.slice(0, 120)}」` };
+  return { title: m.answeredFreely, tone: 'update', body: m.quoted(payload.text.slice(0, 120)) };
 };
 
-export const describeGrillAction = (action: DraftAction, state: GrillState, base?: GrillState): ActionDescription => {
+export const describeGrillAction = (
+  m: GrillMessages,
+  action: DraftAction,
+  state: GrillState,
+  base?: GrillState,
+): ActionDescription => {
   let summary: Summary;
   try {
-    summary = summarizeAnswer(base ?? state, action);
+    summary = summarizeAnswer(m, base ?? state, action);
   } catch {
     summary = { title: action.type, tone: 'meta' };
   }
   return {
     title: summary.title,
-    targetLabel: grillTargetLabel(state, action.target),
+    targetLabel: grillTargetLabel(m, state, action.target),
     tone: summary.tone,
     ...(summary.body === undefined ? {} : { summary: summary.body }),
   };
@@ -72,11 +78,11 @@ export const describeGrillAction = (action: DraftAction, state: GrillState, base
 export const serializeGrillAction = (action: DraftAction): string =>
   `${action.type} ${targetRef(action.target)} ${JSON.stringify(action.payload)}`;
 
-export const grillCommentTargets = (state: GrillState): readonly CommentTargetOption[] =>
+export const grillCommentTargets = (m: GrillMessages, state: GrillState): readonly CommentTargetOption[] =>
   state.questions.map((question) => ({
     value: `question:${question.id}`,
     label: questionLabel(state, question.id),
-    group: '質問',
+    group: m.questionGroup,
   }));
 
 /** The open question is navigation, never a draft action. */
@@ -179,10 +185,10 @@ export const presentGrillPanel = (state: GrillState, navigation: Navigation): Gr
   };
 };
 
-export const presentGrillHeader = (state: GrillState): GrillHeaderViewModel => {
+export const presentGrillHeader = (m: GrillMessages, state: GrillState): GrillHeaderViewModel => {
   const counts = answerCounts(state);
   return {
-    progress: `回答済み ${counts.answered} / ${counts.total}`,
+    progress: m.progress(counts.answered, counts.total),
     answered: counts.answered,
     total: counts.total,
   };

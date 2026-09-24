@@ -1,5 +1,7 @@
 export { DpkComponentMindMap } from './element';
 export { branchPath, layoutMindMap } from './layout';
+export { mindMapMessages } from './messages';
+export type { MindMapMessages } from './messages';
 export {
   ancestorsOf,
   assignSides,

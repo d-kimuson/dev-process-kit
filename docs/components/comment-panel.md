@@ -28,12 +28,12 @@ Diagram-element requests use the same composer, with component labels and stable
 
 ## Hand-off
 
-| Button          | Payload                                                                                        |
-| --------------- | ---------------------------------------------------------------------------------------------- |
-| `Claude に送る` | inside a Claude Artifact only: the brief, posted as a comment sent to Claude (`docs/index.md`) |
-| `Copy JSON`     | `serializeDraft(actions)` — the canonical draft, an array of action objects                    |
-| `Copy brief`    | markdown: template, version, navigation, comments, requested changes, then the canonical JSON  |
-| `Clear`         | removes every draft action                                                                     |
+| Button           | Payload                                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `Send to Claude` | inside a Claude Artifact only: the brief, posted as a comment sent to Claude (`docs/index.md`) |
+| `Copy JSON`      | `serializeDraft(actions)` — the canonical draft, an array of action objects                    |
+| `Copy brief`     | markdown: template, version, navigation, comments, requested changes, then the canonical JSON  |
+| `Clear`          | removes every draft action                                                                     |
 
 `element.api.exportBrief()` returns the same markdown as `Copy brief` (including the stale count), and `element.api.exportDraft()` returns the JSON with `template`, `frameworkVersion` and `exportedAt`. Both are produced from the draft only; the agent receives the base HTML separately, so it can diff intent against the current base.
 
@@ -41,16 +41,16 @@ Diagram-element requests use the same composer, with component labels and stable
 
 The panel is a normal custom element, but it expects a derivation, not a state: assign `definition`, `state`, `navigation` and `derivation`, and re-assign `derivation` after every change. Inside a template the base element does that for you.
 
-| Property (attribute: false)          | Type                                                   | Purpose                                                                            |
-| ------------------------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| `definition`                         | `TemplateDefinition`                                   | `describe` / `serialize` / `commentTargets`                                        |
-| `state`                              | derived state                                          | passed to `describe`                                                               |
-| `navigation`                         | `Navigation`                                           | passed to `commentTargets`                                                         |
-| `derivation`                         | `Derivation`                                           | the draft, comments, stale list                                                    |
-| `issues`                             | `ValidationIssue[]`                                    | last rejected dispatch, rendered as an inline alert                                |
-| `pendingTarget`                      | `string \| null`                                       | target ref focused by `requestComment()`                                           |
-| `exportBrief`                        | `() => string`                                         | optional canonical host brief (shared fallback otherwise)                          |
-| `sendToClaude`                       | `() => Promise<{ ok: true } \| { ok: false, reason }>` | shows the `Claude に送る` button and runs it; left unset outside a Claude Artifact |
-| `onDelete` / `onClear` / `onComment` | callbacks                                              | the only way the panel changes anything                                            |
+| Property (attribute: false)          | Type                                                   | Purpose                                                                             |
+| ------------------------------------ | ------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `definition`                         | `TemplateDefinition`                                   | `describe` / `serialize` / `commentTargets`                                         |
+| `state`                              | derived state                                          | passed to `describe`                                                                |
+| `navigation`                         | `Navigation`                                           | passed to `commentTargets`                                                          |
+| `derivation`                         | `Derivation`                                           | the draft, comments, stale list                                                     |
+| `issues`                             | `ValidationIssue[]`                                    | last rejected dispatch, rendered as an inline alert                                 |
+| `pendingTarget`                      | `string \| null`                                       | target ref focused by `requestComment()`                                            |
+| `exportBrief`                        | `() => string`                                         | optional canonical host brief (shared fallback otherwise)                           |
+| `sendToClaude`                       | `() => Promise<{ ok: true } \| { ok: false, reason }>` | shows the `Send to Claude` button and runs it; left unset outside a Claude Artifact |
+| `onDelete` / `onClear` / `onComment` | callbacks                                              | the only way the panel changes anything                                             |
 
 The boolean `embedded` property/attribute hides the panel heading and its copy buttons when the enclosing template supplies those controls. The composer, draft rows and Clear button remain unchanged.

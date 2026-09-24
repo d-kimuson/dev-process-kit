@@ -55,7 +55,7 @@ Follow https://raw.githubusercontent.com/d-kimuson/dev-process-kit/main/skills/d
 
 Claude Code can publish the page as a Claude Artifact instead of a local file, and dev-process-kit supports that as a first-class target:
 
-- **One-click hand-off.** With the `comments` and `db` capabilities declared, the review rail offers **Claude に送る** in place of copying. The review arrives in the Claude Code session that published the page, which applies it and republishes to the same URL.
+- **One-click hand-off.** With the `comments` and `db` capabilities declared, the review rail offers **Send to Claude** in place of copying. The review arrives in the Claude Code session that published the page, which applies it and republishes to the same URL.
 - **Fits the viewer.** The template follows the reader's claude.ai light / dark theme and sizes itself to the viewer's frame.
 - **Nothing to configure.** The page detects the Artifact at runtime; outside one, or when a send cannot land, the copy hand-off stays as it is.
 

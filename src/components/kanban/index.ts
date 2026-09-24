@@ -1,5 +1,7 @@
 export { DpkComponentKanban } from './element';
 export type { KanbanSelection } from './element';
+export { kanbanMessages } from './messages';
+export type { KanbanMessages } from './messages';
 export {
   ADD_CARD,
   KANBAN_COLORS,

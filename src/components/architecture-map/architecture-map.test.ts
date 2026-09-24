@@ -2,9 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DpkComponentArchitectureMap } from './element';
 import { defineArchitectureMap } from './index';
+import { architectureMapMessages } from './messages';
 import { boundaryBoxes, parseArchitectureData, SERVICE_SIZE } from './model';
 
 defineArchitectureMap();
+
+const m = architectureMapMessages('en');
 
 const raw = {
   boundaries: [
@@ -60,8 +63,9 @@ const settle = async (element: DpkComponentArchitectureMap): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<DpkComponentArchitectureMap> => {
+const mount = async (lang?: string): Promise<DpkComponentArchitectureMap> => {
   const element = new DpkComponentArchitectureMap();
+  if (lang !== undefined) element.setAttribute('lang', lang);
   element.data = parseArchitectureData(raw);
   document.body.append(element);
   await settle(element);
@@ -188,9 +192,15 @@ describe('dpk-component-architecture-map', () => {
     expect(element.renderRoot.querySelector('[data-boundary="edge"] span')?.textContent).toBe('CLIENT & EDGE');
     expect(element.renderRoot.querySelector('.arch-artwork')?.getAttribute('alt')).toBe('AWS Lambda');
     expect(element.renderRoot.querySelector('[data-service="database"] .arch-symbol')?.textContent).toBe('DB');
-    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe('6 サービス · 4 接続');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`6 ${m.node} · 4 ${m.edge}`);
     const world = element.renderRoot.querySelector<HTMLElement>('.diagram-world');
     expect(Number.parseFloat(world?.style.width ?? '0')).toBeGreaterThan(880);
+  });
+
+  it('renders its stats in the element’s language', async () => {
+    const ja = architectureMapMessages('ja');
+    const element = await mount('ja');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`6 ${ja.node} · 4 ${ja.edge}`);
   });
 
   // Hand-placed cards stack vertically too: a link has to leave and enter by the
@@ -249,7 +259,7 @@ describe('dpk-component-architecture-map', () => {
     expect(element.renderRoot.querySelector('.diagram-details')).toBeNull();
     // The icon credit travels with the icon itself.
     expect(element.renderRoot.querySelector('[data-service="payment"] .arch-artwork')?.getAttribute('title')).toBe(
-      'アイコン出典: AWS アイコン (CC BY-ND 2.0)',
+      m.artworkCredit('AWS アイコン (CC BY-ND 2.0)'),
     );
   });
 

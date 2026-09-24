@@ -109,4 +109,4 @@ The board is a fixed grid — notes keep their size so the link lines never need
 
 ## Comment targets
 
-Elements and contexts: `element:<id>` labelled with the note name under group `要素`, `context:<id>` labelled with the context name under group `コンテキスト`.
+Elements and contexts: `element:<id>` labelled with the note name under group `Element`, `context:<id>` labelled with the context name under group `Bounded context`.

@@ -1,5 +1,5 @@
 /**
- * The effects behind "Claude に送る": reaching the Claude Artifact viewer's
+ * The effects behind "Send to Claude": reaching the Claude Artifact viewer's
  * `comments` / `db` capabilities through `window.claude`, and keeping the
  * button's availability current. Outside an Artifact (or when the publisher did
  * not declare `comments`) nothing lights up and the page keeps its copy buttons.

@@ -1,6 +1,8 @@
-export { exampleMappingDefinition, exampleMappingHasTarget } from './definition';
+export { exampleMappingDefinitionFor, exampleMappingHasTarget } from './definition';
 export { DpkTemplateExampleMapping, defineExampleMappingElement } from './element';
-export { CARD_KINDS, CARD_KIND_LABELS, cardPaletteStyle } from './components/mapping-card';
+export { exampleMappingMessages } from './messages';
+export type { ExampleMappingMessages } from './messages';
+export { CARD_KINDS, cardPaletteStyle } from './components/mapping-card';
 export { exampleMappingAction, exampleMappingActions } from './actions';
 export type { ExampleMappingAction } from './actions';
 export { applyExampleMappingAction, reorderById } from './apply';

@@ -11,7 +11,7 @@ const moduleSchema = v.strictObject({
   name: v.pipe(v.string(), v.minLength(1)),
   /** Source location, e.g. `app/order-service`. */
   path: v.optional(v.string()),
-  /** Layer label shown on the card, e.g. `アプリケーション`. */
+  /** Layer label shown on the card, e.g. `Application`. */
   layer: v.optional(v.string()),
   tags: v.optional(v.array(v.string()), []),
   description: v.optional(v.string()),

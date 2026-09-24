@@ -75,15 +75,15 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components
 { kind: 'fragment', id, operator, title, collapsed?, branches: [{ label, items: [...] }] }
 ```
 
-| Field         | Required       | Meaning                                                                                                                        |
-| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `from` / `to` | yes            | Participant ids; `from === to` draws a self-message.                                                                           |
-| `style`       | no             | `request` (default) \| `response` (dashed) \| `async` (blue, open arrow head).                                                 |
-| `tags`        | no             | Filtered by the tag row; a fragment whose messages all disappear goes with them.                                               |
-| `guard`       | no             | The condition, shown as the row tooltip.                                                                                       |
-| `detail`      | no             | What the message guarantees, shown in the row tooltip labelled by `style` (`処理 / 保証`, `応答 / 保証`, `非同期処理 / 保証`). |
-| `operator`    | yes (fragment) | `alt` \| `opt` \| `loop` \| `par`.                                                                                             |
-| `collapsed`   | no             | `true` starts the fragment folded, showing its branch labels on one line.                                                      |
+| Field         | Required       | Meaning                                                                                                                                         |
+| ------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `from` / `to` | yes            | Participant ids; `from === to` draws a self-message.                                                                                            |
+| `style`       | no             | `request` (default) \| `response` (dashed) \| `async` (blue, open arrow head).                                                                  |
+| `tags`        | no             | Filtered by the tag row; a fragment whose messages all disappear goes with them.                                                                |
+| `guard`       | no             | The condition, shown as the row tooltip.                                                                                                        |
+| `detail`      | no             | What the message guarantees, shown in the row tooltip labelled by `style` (`Process / guarantee`, `Response / guarantee`, `Async / guarantee`). |
+| `operator`    | yes (fragment) | `alt` \| `opt` \| `loop` \| `par`.                                                                                                              |
+| `collapsed`   | no             | `true` starts the fragment folded, showing its branch labels on one line.                                                                       |
 
 Message numbers follow declaration order, not the filter, so `Q`-style references stay valid while you narrow the view.
 

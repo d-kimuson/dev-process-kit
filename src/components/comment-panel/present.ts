@@ -1,4 +1,5 @@
 import type { Derivation, StaleReason } from '../../core/derive';
+import type { Locale } from '../../core/i18n';
 import type {
   ActionTone,
   CommentTargetOption,
@@ -10,6 +11,7 @@ import type { PanelState } from './model';
 
 import { handoffFailureLabel } from '../../core/claude-handoff';
 import { commentBody } from '../../core/comment';
+import { panelMessages } from './messages';
 
 export type PanelInputs<S> = {
   readonly definition: TemplateDefinition<S>;
@@ -19,6 +21,8 @@ export type PanelInputs<S> = {
   readonly issues: readonly ValidationIssue[];
   /** The host can hand the review to Claude (inside a Claude Artifact). */
   readonly sendable?: boolean;
+  /** The language the panel renders its own text in. */
+  readonly locale: Locale;
 };
 
 export type PanelItem = {
@@ -51,6 +55,7 @@ const labelOf = (option: CommentTargetOption): string =>
 /** No DOM or callbacks: all domain-dependent presentation ends at this boundary. */
 export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelViewModel => {
   const { definition, state, navigation, derivation } = inputs;
+  const m = panelMessages(inputs.locale);
   const current = definition.currentTarget?.(state, navigation) ?? null;
   const attachment = ui.attachment;
   const option =
@@ -62,7 +67,7 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
       ? { ref: attachment.ref, label: option ? labelOf(option) : attachment.ref }
       : attachment.kind === 'current' && current
         ? { ref: current.value, label: labelOf(current) }
-        : { ref: `page:${definition.name}`, label: 'ページ全体' };
+        : { ref: `page:${definition.name}`, label: m.wholePage };
   const stale = new Map(derivation.stale.map((entry) => [entry.action.id, entry.reason]));
   return {
     body: ui.body,
@@ -79,7 +84,7 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
       const comment = action.type === 'comment';
       return {
         id: action.id,
-        title: comment ? 'コメント' : description.title,
+        title: comment ? m.comment : description.title,
         targetLabel: description.targetLabel,
         tone: comment ? 'comment' : description.tone,
         text: {
@@ -99,13 +104,13 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
           : 'ready',
     flash:
       ui.send.kind === 'sent'
-        ? 'Claude に送りました ✓'
+        ? m.sent
         : ui.send.kind === 'failed'
-          ? handoffFailureLabel(ui.send.reason)
+          ? handoffFailureLabel(ui.send.reason, inputs.locale)
           : ui.copy.kind === 'copied'
-            ? `copied ${ui.copy.format === 'json' ? 'JSON' : 'brief'} ✓`
+            ? m.copied(ui.copy.format === 'json' ? 'JSON' : 'brief')
             : ui.copy.kind === 'failed'
-              ? 'copy failed'
+              ? m.copyFailed
               : '',
   };
 };

@@ -12,6 +12,7 @@
  *   - element-naming:           custom element tags are `dpk-template-<name>` / `dpk-internal-<template>-*`
  *                              (in src/templates) or `dpk-component-<name>` (in src/components), and the
  *                              registered class is the tag in PascalCase
+ *   - localized-text:           Japanese text in `src/**` lives only in `messages.ts` dictionaries
  *
  * The architecture this encodes is the one `dev-docs/guidelines/architecture.md`
  * describes: `lib` holds dependency-free helpers, `core` owns the pipeline and
@@ -440,6 +441,39 @@ const elementNaming = {
   },
 };
 
+/**
+ * Hiragana, katakana, CJK ideographs, CJK symbols and punctuation, and the
+ * full-width forms. Symbols such as `·`, `→`, `✓` are outside these ranges and
+ * stay usable inline.
+ */
+const RE_JAPANESE = /[\u3000-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/;
+
+/**
+ * The kit's own text follows the page's `lang` (see the UI localization ADR),
+ * so Japanese UI text belongs in a module's `messages.ts`. Tests keep their
+ * Japanese fixture data; comments are not literals and are never checked.
+ */
+const localizedText = {
+  create(context) {
+    const filename = normalize(context.filename ?? context.getFilename());
+    if (!/\/src\//.test(filename) || /\.test\.[cm]?[jt]sx?$/.test(filename)) return {};
+    if (filename.endsWith('/messages.ts')) return {};
+    const report = (node) =>
+      context.report({
+        node,
+        message: "Japanese text belongs in the module's messages.ts dictionary, so it follows the page's `lang`.",
+      });
+    return {
+      Literal(node) {
+        if (typeof node.value === 'string' && RE_JAPANESE.test(node.value)) report(node);
+      },
+      TemplateElement(node) {
+        if (RE_JAPANESE.test(node.value?.cooked ?? node.value?.raw ?? '')) report(node);
+      },
+    };
+  },
+};
+
 const plugin = {
   meta: {
     name: 'conventions',
@@ -452,6 +486,7 @@ const plugin = {
     'entrypoint-imports': entrypointImports,
     'colocated-tests': colocatedTests,
     'element-naming': elementNaming,
+    'localized-text': localizedText,
   },
 };
 
@@ -465,6 +500,7 @@ export {
   entrypointImports,
   colocatedTests,
   elementNaming,
+  localizedText,
   classify,
   resolveImportPath,
 };

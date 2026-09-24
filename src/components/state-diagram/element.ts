@@ -6,6 +6,7 @@ import { DiagramElement } from '../diagram/element';
 import { classNames, EMPTY_REACH, reach, routeLabelPoint, type DiagramSelection, type Reach } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
 import { pathData } from '../diagram/view';
+import { stateDiagramMessages } from './messages';
 import {
   emptyStateData,
   hasAuthoredPositions,
@@ -31,15 +32,16 @@ export class DpkComponentStateDiagram extends DiagramElement<StateDiagramData> {
   }
 
   protected override defaultHeading(): string {
-    return 'State machine';
+    return stateDiagramMessages(this.locale).heading;
   }
 
   protected override statsLabels(): { readonly node: string; readonly edge: string } {
-    return { node: '状態', edge: '遷移' };
+    const m = stateDiagramMessages(this.locale);
+    return { node: m.node, edge: m.edge };
   }
 
   protected override emptyMessage(): string {
-    return '該当する遷移はありません。';
+    return stateDiagramMessages(this.locale).empty;
   }
 
   /** Transitions carry the tags here, so the filter decides which states exist. */
@@ -103,6 +105,7 @@ export class DpkComponentStateDiagram extends DiagramElement<StateDiagramData> {
   }
 
   #renderTransition(edge: StateTransition): TemplateResult {
+    const m = stateDiagramMessages(this.locale);
     const state = this.edgeState(edge.id);
     const points = this.routeOf(edge.id);
     const path = pathData(points);
@@ -121,7 +124,7 @@ export class DpkComponentStateDiagram extends DiagramElement<StateDiagramData> {
           d=${path}
           role="button"
           tabindex="0"
-          aria-label=${`${this.#name(edge.from)} から ${this.#name(edge.to)} への ${edge.title}`}
+          aria-label=${m.transitionLabel(this.#name(edge.from), this.#name(edge.to), edge.title)}
           @click=${select}
           @keydown=${(event: KeyboardEvent) => {
             if (event.key !== 'Enter' && event.key !== ' ') return;

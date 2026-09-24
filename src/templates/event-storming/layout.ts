@@ -233,7 +233,7 @@ const pairKey = (a: string, b: string): string => `${a}\u0000${b}`;
  * two slices onto the same line: a band only breaks where no arrow crosses the
  * break, so a run of causally connected slices is kept together and a run wider
  * than the budget is cut — the band below it then carries the cut as its
- * "つづき" mark. Shorter runs pack greedily, which spreads the timeline over as
+ * continuation mark. Shorter runs pack greedily, which spreads the timeline over as
  * many bands as the width needs.
  */
 export const planSliceBands = (

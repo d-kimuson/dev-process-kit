@@ -6,6 +6,7 @@ import type {
   DraftAction,
   Navigation,
 } from '../../core/types';
+import type { UsmMessages } from './messages';
 
 import { payloadFor, type ActionName } from '../../core/schema';
 import { targetRef } from '../../core/target';
@@ -18,143 +19,152 @@ type Summary = {
   readonly body?: string;
 };
 
-const arrow = (before: unknown, after: unknown): string => {
+const arrow = (m: UsmMessages, before: unknown, after: unknown): string => {
   const afterText = typeof after === 'string' ? after : '';
   const beforeText = typeof before === 'string' ? before : undefined;
-  return beforeText === undefined ? `→ 「${afterText}」` : `「${beforeText}」→「${afterText}」`;
+  return beforeText === undefined ? m.toValue(afterText) : m.fromTo(beforeText, afterText);
+};
+
+const reorderBody = (m: UsmMessages, after: unknown): string => {
+  return typeof after === 'string' ? m.afterName(after) : m.toFront;
 };
 
 // Never throws: every lookup falls back to the raw id.
-const DESCRIBERS: Record<string, (action: DraftAction, state: UsmState) => Summary> = {
-  SET_ACTIVITY_NAME: (action, state) => ({
-    title: 'アクティビティ名を変更',
+const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: UsmState) => Summary> = {
+  SET_ACTIVITY_NAME: (m, action, state) => ({
+    title: m.renameActivity,
     tone: 'update',
     body: arrow(
+      m,
       findActivity(state, action.target.id)?.name,
       payloadFor(usmActions.SET_ACTIVITY_NAME, action)['name'] ?? '',
     ),
   }),
-  SET_STEP_NAME: (action, state) => ({
-    title: 'ステップ名を変更',
+  SET_STEP_NAME: (m, action, state) => ({
+    title: m.renameStep,
     tone: 'update',
     body: arrow(
+      m,
       findStep(state, action.target.id)?.step.name,
       payloadFor(usmActions.SET_STEP_NAME, action)['name'] ?? '',
     ),
   }),
-  REORDER_STEP: (action) => ({
-    title: 'ステップの順序を変更',
+  REORDER_STEP: (m, action) => ({
+    title: m.reorderStep,
     tone: 'move',
-    body:
-      payloadFor(usmActions.REORDER_STEP, action)['after'] === null ||
-      payloadFor(usmActions.REORDER_STEP, action)['after'] === undefined
-        ? '→ 先頭へ'
-        : `→ 「${String(payloadFor(usmActions.REORDER_STEP, action)['after'])}」の直後へ`,
+    body: reorderBody(m, payloadFor(usmActions.REORDER_STEP, action)['after']),
   }),
-  ADD_ACTIVITY: (action) => ({
-    title: 'アクティビティを追加',
+  ADD_ACTIVITY: (m, action) => ({
+    title: m.addActivity,
     tone: 'create',
-    body: `+ 「${payloadFor(usmActions.ADD_ACTIVITY, action)['name'] ?? ''}」`,
+    body: m.added(String(payloadFor(usmActions.ADD_ACTIVITY, action)['name'] ?? '')),
   }),
-  ADD_STEP: (action) => ({
-    title: 'ステップを追加',
+  ADD_STEP: (m, action) => ({
+    title: m.addStep,
     tone: 'create',
-    body: `+ 「${payloadFor(usmActions.ADD_STEP, action)['name'] ?? ''}」`,
+    body: m.added(String(payloadFor(usmActions.ADD_STEP, action)['name'] ?? '')),
   }),
-  DELETE_ACTIVITY: (action, state) => ({
-    title: 'アクティビティを削除',
+  DELETE_ACTIVITY: (m, action, state) => ({
+    title: m.deleteActivity,
     tone: 'delete',
-    body: `− 「${findActivity(state, action.target.id)?.name ?? action.target.id}」`,
+    body: m.removed(findActivity(state, action.target.id)?.name ?? action.target.id),
   }),
-  DELETE_STEP: (action, state) => ({
-    title: 'ステップを削除',
+  DELETE_STEP: (m, action, state) => ({
+    title: m.deleteStep,
     tone: 'delete',
-    body: `− 「${findStep(state, action.target.id)?.step.name ?? action.target.id}」`,
+    body: m.removed(findStep(state, action.target.id)?.step.name ?? action.target.id),
   }),
-  SET_STORY_NAME: (action, state) => ({
-    title: 'ストーリー名を変更',
-    tone: 'update',
-    body: arrow(findStory(state, action.target.id)?.name, payloadFor(usmActions.SET_STORY_NAME, action)['name'] ?? ''),
-  }),
-  SET_STORY_DESCRIPTION: (action) => ({
-    title: 'ストーリーの説明を更新',
-    tone: 'update',
-    body: `→ 「${String(payloadFor(usmActions.SET_STORY_DESCRIPTION, action)['description'] ?? '').slice(0, 90)}」`,
-  }),
-  SET_STORY_MILESTONE: (action, state) => ({
-    title: 'マイルストーンを変更',
-    tone: 'move',
-    body:
-      payloadFor(usmActions.SET_STORY_MILESTONE, action)['milestoneId'] === null ||
-      payloadFor(usmActions.SET_STORY_MILESTONE, action)['milestoneId'] === undefined
-        ? '→ 未割当へ'
-        : `→ ${findMilestone(state, String(payloadFor(usmActions.SET_STORY_MILESTONE, action)['milestoneId']))?.name ?? String(payloadFor(usmActions.SET_STORY_MILESTONE, action)['milestoneId'])}`,
-  }),
-  MOVE_STORY: (action, state) => ({
-    title: 'ストーリーを移動',
-    tone: 'move',
-    body: `→ ${findStep(state, String(payloadFor(usmActions.MOVE_STORY, action)['stepId']))?.step.name ?? String(payloadFor(usmActions.MOVE_STORY, action)['stepId'] ?? '')}`,
-  }),
-  REORDER_STORY: (action) => ({
-    title: 'ストーリーの順序を変更',
-    tone: 'move',
-    body:
-      payloadFor(usmActions.REORDER_STORY, action)['after'] === null ||
-      payloadFor(usmActions.REORDER_STORY, action)['after'] === undefined
-        ? '→ 先頭へ'
-        : `→ 「${String(payloadFor(usmActions.REORDER_STORY, action)['after'])}」の直後へ`,
-  }),
-  ADD_STORY: (action) => ({
-    title: 'ストーリーを追加',
-    tone: 'create',
-    body: `+ 「${payloadFor(usmActions.ADD_STORY, action)['name'] ?? ''}」`,
-  }),
-  DELETE_STORY: (action, state) => ({
-    title: 'ストーリーを削除',
-    tone: 'delete',
-    body: `− 「${findStory(state, action.target.id)?.name ?? action.target.id}」`,
-  }),
-  SET_MILESTONE_NAME: (action, state) => ({
-    title: 'マイルストーン名を変更',
+  SET_STORY_NAME: (m, action, state) => ({
+    title: m.renameStory,
     tone: 'update',
     body: arrow(
+      m,
+      findStory(state, action.target.id)?.name,
+      payloadFor(usmActions.SET_STORY_NAME, action)['name'] ?? '',
+    ),
+  }),
+  SET_STORY_DESCRIPTION: (m, action) => ({
+    title: m.updateStoryDescription,
+    tone: 'update',
+    body: m.toValue(String(payloadFor(usmActions.SET_STORY_DESCRIPTION, action)['description'] ?? '').slice(0, 90)),
+  }),
+  SET_STORY_MILESTONE: (m, action, state) => {
+    const milestoneId = payloadFor(usmActions.SET_STORY_MILESTONE, action)['milestoneId'];
+    return {
+      title: m.changeMilestone,
+      tone: 'move',
+      body:
+        milestoneId === null || milestoneId === undefined
+          ? m.toUnassigned
+          : m.toName(findMilestone(state, String(milestoneId))?.name ?? String(milestoneId)),
+    };
+  },
+  MOVE_STORY: (m, action, state) => ({
+    title: m.moveStory,
+    tone: 'move',
+    body: m.toName(
+      findStep(state, String(payloadFor(usmActions.MOVE_STORY, action)['stepId']))?.step.name ??
+        String(payloadFor(usmActions.MOVE_STORY, action)['stepId'] ?? ''),
+    ),
+  }),
+  REORDER_STORY: (m, action) => ({
+    title: m.reorderStory,
+    tone: 'move',
+    body: reorderBody(m, payloadFor(usmActions.REORDER_STORY, action)['after']),
+  }),
+  ADD_STORY: (m, action) => ({
+    title: m.addStory,
+    tone: 'create',
+    body: m.added(String(payloadFor(usmActions.ADD_STORY, action)['name'] ?? '')),
+  }),
+  DELETE_STORY: (m, action, state) => ({
+    title: m.deleteStory,
+    tone: 'delete',
+    body: m.removed(findStory(state, action.target.id)?.name ?? action.target.id),
+  }),
+  SET_MILESTONE_NAME: (m, action, state) => ({
+    title: m.renameMilestone,
+    tone: 'update',
+    body: arrow(
+      m,
       findMilestone(state, action.target.id)?.name,
       payloadFor(usmActions.SET_MILESTONE_NAME, action)['name'] ?? '',
     ),
   }),
-  ADD_MILESTONE: (action) => ({
-    title: 'マイルストーンを追加',
+  ADD_MILESTONE: (m, action) => ({
+    title: m.addMilestone,
     tone: 'create',
-    body: `+ 「${payloadFor(usmActions.ADD_MILESTONE, action)['name'] ?? ''}」`,
+    body: m.added(String(payloadFor(usmActions.ADD_MILESTONE, action)['name'] ?? '')),
   }),
-  DELETE_MILESTONE: (action, state) => ({
-    title: 'マイルストーンを削除',
+  DELETE_MILESTONE: (m, action, state) => ({
+    title: m.deleteMilestone,
     tone: 'delete',
-    body: `− 「${findMilestone(state, action.target.id)?.name ?? action.target.id}」`,
+    body: m.removed(findMilestone(state, action.target.id)?.name ?? action.target.id),
   }),
-  REORDER_MILESTONE: (action) => ({
-    title: 'マイルストーンの順序を変更',
+  REORDER_MILESTONE: (m, action) => ({
+    title: m.reorderMilestone,
     tone: 'move',
-    body:
-      payloadFor(usmActions.REORDER_MILESTONE, action)['after'] === null ||
-      payloadFor(usmActions.REORDER_MILESTONE, action)['after'] === undefined
-        ? '→ 先頭へ'
-        : `→ 「${String(payloadFor(usmActions.REORDER_MILESTONE, action)['after'])}」の直後へ`,
+    body: reorderBody(m, payloadFor(usmActions.REORDER_MILESTONE, action)['after']),
   }),
-} satisfies Record<ActionName<typeof usmActions>, (action: DraftAction, state: UsmState) => Summary>;
+} satisfies Record<ActionName<typeof usmActions>, (m: UsmMessages, action: DraftAction, state: UsmState) => Summary>;
 
-export const describeUsmAction = (action: DraftAction, state: UsmState, base?: UsmState): ActionDescription => {
+export const describeUsmAction = (
+  m: UsmMessages,
+  action: DraftAction,
+  state: UsmState,
+  base?: UsmState,
+): ActionDescription => {
   let summary: Summary;
   try {
     const describer = DESCRIBERS[action.type];
     const origin = base ?? state;
-    summary = describer ? describer(action, origin) : { title: action.type, tone: 'meta' };
+    summary = describer ? describer(m, action, origin) : { title: action.type, tone: 'meta' };
   } catch {
     summary = { title: action.type, tone: 'meta' };
   }
   return {
     title: summary.title,
-    targetLabel: usmTargetLabel(state, action.target),
+    targetLabel: usmTargetLabel(m, state, action.target),
     tone: summary.tone,
     ...(summary.body === undefined ? {} : { summary: summary.body }),
   };
@@ -164,27 +174,29 @@ export const serializeUsmAction = (action: DraftAction): string => {
   return `${action.type} ${targetRef(action.target)} ${JSON.stringify(action.payload)}`;
 };
 
-export const usmTargetLabel = (state: UsmState, target: ActionTarget): string => {
+export const usmTargetLabel = (m: UsmMessages, state: UsmState, target: ActionTarget): string => {
   try {
     switch (target.type) {
       case 'activity': {
         const activity = findActivity(state, target.id);
-        return activity ? `アクティビティ · ${activity.name}` : `アクティビティ · ${target.id} (missing)`;
+        return activity ? m.targetLabel(m.activityGroup, activity.name) : m.targetMissing(m.activityGroup, target.id);
       }
       case 'step': {
         const step = findStep(state, target.id)?.step;
-        return step ? `ステップ · ${step.name}` : `ステップ · ${target.id} (missing)`;
+        return step ? m.targetLabel(m.stepGroup, step.name) : m.targetMissing(m.stepGroup, target.id);
       }
       case 'story': {
         const story = findStory(state, target.id);
-        return story ? `ストーリー · ${story.name}` : `ストーリー · ${target.id} (missing)`;
+        return story ? m.targetLabel(m.storyGroup, story.name) : m.targetMissing(m.storyGroup, target.id);
       }
       case 'milestone': {
         const milestone = findMilestone(state, target.id);
-        return milestone ? `マイルストーン · ${milestone.name}` : `マイルストーン · ${target.id} (missing)`;
+        return milestone
+          ? m.targetLabel(m.milestoneGroup, milestone.name)
+          : m.targetMissing(m.milestoneGroup, target.id);
       }
       case 'page':
-        return `マップ · ${usmTitle(state)}`;
+        return m.targetLabel(m.mapGroup, usmTitle(state));
       default:
         return `${target.type} · ${target.id}`;
     }
@@ -193,19 +205,23 @@ export const usmTargetLabel = (state: UsmState, target: ActionTarget): string =>
   }
 };
 
-export const usmCommentTargets = (state: UsmState, _nav: Navigation): readonly CommentTargetOption[] => {
-  const options: CommentTargetOption[] = [{ value: 'page:usm', label: 'マップ全体', group: 'マップ' }];
+export const usmCommentTargets = (
+  m: UsmMessages,
+  state: UsmState,
+  _nav: Navigation,
+): readonly CommentTargetOption[] => {
+  const options: CommentTargetOption[] = [{ value: 'page:usm', label: m.wholeMap, group: m.mapGroup }];
   for (const activity of state.activities) {
     options.push({
       value: targetRef({ type: 'activity', id: activity.id }),
       label: activity.name,
-      group: 'アクティビティ',
+      group: m.activityGroup,
     });
     for (const step of activity.steps) {
       options.push({
         value: targetRef({ type: 'step', id: stepRefOf(activity.id, step.id) }),
         label: `${activity.name} › ${step.name}`,
-        group: 'ステップ',
+        group: m.stepGroup,
       });
     }
   }
@@ -213,11 +229,11 @@ export const usmCommentTargets = (state: UsmState, _nav: Navigation): readonly C
     options.push({
       value: targetRef({ type: 'milestone', id: milestone.id }),
       label: milestone.name,
-      group: 'マイルストーン',
+      group: m.milestoneGroup,
     });
   }
   for (const story of state.stories) {
-    options.push({ value: targetRef({ type: 'story', id: story.id }), label: story.name, group: 'ストーリー' });
+    options.push({ value: targetRef({ type: 'story', id: story.id }), label: story.name, group: m.storyGroup });
   }
   return options;
 };
@@ -226,9 +242,9 @@ export const usmCommentTargets = (state: UsmState, _nav: Navigation): readonly C
  * The story the reader is looking at: the composer attaches a note to it when
  * the checkbox is on, otherwise the note is map-wide.
  */
-export const usmCurrentTarget = (state: UsmState, nav: Navigation): CommentTargetOption | null => {
+export const usmCurrentTarget = (m: UsmMessages, state: UsmState, nav: Navigation): CommentTargetOption | null => {
   const story = state.stories.find((candidate) => candidate.id === nav['story']);
-  if (story) return { value: targetRef({ type: 'story', id: story.id }), label: story.name, group: 'ストーリー' };
+  if (story) return { value: targetRef({ type: 'story', id: story.id }), label: story.name, group: m.storyGroup };
   // With no story focused yet, the selected column is what the reader is looking at.
   for (const activity of state.activities) {
     const step = activity.steps.find((candidate) => candidate.id === nav['step']);
@@ -236,7 +252,7 @@ export const usmCurrentTarget = (state: UsmState, nav: Navigation): CommentTarge
       return {
         value: targetRef({ type: 'step', id: stepRefOf(activity.id, step.id) }),
         label: step.name,
-        group: 'ステップ',
+        group: m.stepGroup,
       };
     }
   }

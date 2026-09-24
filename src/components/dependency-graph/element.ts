@@ -15,6 +15,7 @@ import {
 } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
 import { pathData } from '../diagram/view';
+import { dependencyGraphMessages } from './messages';
 import {
   emptyDependencyData,
   parseDependencyData,
@@ -53,15 +54,17 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
   }
 
   protected override defaultHeading(): string {
-    return 'Dependencies';
+    return dependencyGraphMessages(this.locale).heading;
   }
 
   protected override statsLabels(): { readonly node: string; readonly edge: string } {
-    return { node: 'モジュール', edge: '依存' };
+    const m = dependencyGraphMessages(this.locale);
+    return { node: m.node, edge: m.edge };
   }
 
   protected override emptyMessage(): string {
-    return this.#cyclesOnly ? '該当する循環依存はありません。' : '該当するモジュールはありません。';
+    const m = dependencyGraphMessages(this.locale);
+    return this.#cyclesOnly ? m.emptyCycles : m.emptyModules;
   }
 
   protected override layoutOptions(): LayoutOptions {
@@ -114,14 +117,15 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
   }
 
   protected override renderToolbarActions(): TemplateResult {
+    const m = dependencyGraphMessages(this.locale);
     const cycles = this.#allCycles.length;
     return html`
-      <div class="dep-direction" role="group" aria-label="選択したモジュールから追う方向">
+      <div class="dep-direction" role="group" aria-label=${m.directionGroup}>
         ${(
           [
-            ['outgoing', '依存先'],
-            ['incoming', '依存元'],
-            ['both', '両方'],
+            ['outgoing', m.directionOutgoing],
+            ['incoming', m.directionIncoming],
+            ['both', m.directionBoth],
           ] as const
         ).map(
           ([id, label]) => html`
@@ -146,30 +150,31 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
           this.requestUpdate();
         }}
       >
-        間接も含む
+        ${m.transitive}
       </button>
       <button
         type="button"
         class="dpk-btn dpk-btn--ghost dep-toggle"
         data-toggle="cycles"
         aria-pressed=${this.#cyclesOnly ? 'true' : 'false'}
-        aria-label=${`循環依存 ${cycles} グループだけ表示`}
+        aria-label=${m.cyclesToggleLabel(cycles)}
         ?disabled=${!this.#cyclesOnly && cycles === 0}
         @click=${() => {
           this.#cyclesOnly = !this.#cyclesOnly;
           this.requestUpdate();
         }}
       >
-        循環 ${cycles}
+        ${m.cyclesCount(cycles)}
       </button>
     `;
   }
 
   protected override renderLegend(): TemplateResult {
+    const m = dependencyGraphMessages(this.locale);
     return html`<div class="diagram-legend">
-      <span><i class="dep-swatch-outgoing"></i>依存先</span>
-      <span><i class="dep-swatch-incoming"></i>依存元</span>
-      <span><i class="dep-swatch-cycle"></i>循環</span>
+      <span><i class="dep-swatch-outgoing"></i>${m.legendOutgoing}</span>
+      <span><i class="dep-swatch-incoming"></i>${m.legendIncoming}</span>
+      <span><i class="dep-swatch-cycle"></i>${m.legendCycle}</span>
     </div>`;
   }
 
@@ -188,6 +193,7 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
   }
 
   protected override renderCanvas(): TemplateResult {
+    const m = dependencyGraphMessages(this.locale);
     const visible = this.visible;
     const membership = cycleMembership(this.#allCycles);
     const name = (id: string) => visible.nodes.find((node) => node.id === id)?.name ?? id;
@@ -205,7 +211,7 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
             d=${points}
             role="button"
             tabindex="0"
-            aria-label=${`${name(link.from)} が ${name(link.to)} に依存`}
+            aria-label=${m.edgeLabel(name(link.from), name(link.to))}
             @click=${select}
             @keydown=${(event: KeyboardEvent) => {
               if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -239,13 +245,13 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
           data-grill-questions=${this.questionsOf(node)}
           style="left:${placed.x}px; top:${placed.y}px; width:${node.width}px; height:${node.height}px"
           aria-pressed=${state.selected ? 'true' : 'false'}
-          aria-label=${`${node.name}${cyclic ? '・循環依存あり' : ''}`}
+          aria-label=${cyclic ? m.cyclicSuffix(node.name) : node.name}
           title=${[node.path ?? node.name, node.description].filter((value) => value !== null).join('\n')}
           @click=${() => this.select({ kind: 'node', id: node.id })}
         >
           <span class="dep-head">
             <span class="dep-layer">${node.layer ?? ''}</span>
-            ${cyclic ? html`<span class="dep-cycle-badge">循環</span>` : nothing}
+            ${cyclic ? html`<span class="dep-cycle-badge">${m.cycleBadge}</span>` : nothing}
           </span>
           <span class="dep-name">${node.name}</span>
           <span class="dep-path">${node.path ?? ''}</span>

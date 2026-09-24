@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { DraftController } from '../../core/controller';
-import { prototypeDefinition } from './definition';
+import { prototypeDefinitionFor } from './definition';
 import { findStep, findStory, parsePrototypeBase } from './model';
 import { resolvePrototypeNavigation } from './present';
 
@@ -22,7 +22,7 @@ const base = () =>
       ],
     })),
   });
-const controller = () => new DraftController({ definition: prototypeDefinition, base: base(), storage: null });
+const controller = () => new DraftController({ definition: prototypeDefinitionFor('en'), base: base(), storage: null });
 
 describe('qualified prototype references', () => {
   it('rejects ambiguous bare ids and keeps navigation stable across resolution', () => {
@@ -66,7 +66,7 @@ describe('qualified prototype references', () => {
   it('validates a batch against the compacted candidate, without partial commit', () => {
     const save = vi.fn();
     const c = new DraftController({
-      definition: prototypeDefinition,
+      definition: prototypeDefinitionFor('en'),
       base: parsePrototypeBase({ activities: [{ id: 'a', name: 'A', stories: [{ id: 's', name: 'S' }] }] }),
       storage: { load: () => [], save, clear: vi.fn() },
     });
@@ -103,7 +103,7 @@ describe('qualified prototype references', () => {
         { id: 'b', name: 'B', stories: [{ id: 'other', name: 'Other', steps: [{ id: 'x', name: 'X' }] }] },
       ],
     });
-    const c = new DraftController({ definition: prototypeDefinition, base, storage: null });
+    const c = new DraftController({ definition: prototypeDefinitionFor('en'), base, storage: null });
     c.dispatch({ type: 'MOVE_STEP', target: 'a.source.m', payload: { toStory: 'a.dest', after } });
     c.dispatch({ type: 'REORDER_STEP', target: 'a.dest.y', payload: { after } });
     expect(c.derivation.state).toEqual(base);
@@ -127,7 +127,7 @@ describe('qualified prototype references', () => {
         { id: 'c', name: 'C', stories: [{ id: 'x', name: 'X' }] },
       ],
     });
-    const c = new DraftController({ definition: prototypeDefinition, base, storage: null });
+    const c = new DraftController({ definition: prototypeDefinitionFor('en'), base, storage: null });
     c.dispatch({ type: 'MOVE_STORY', target: 'a.m', payload: { toActivity: 'b', after } });
     c.dispatch({ type: 'REORDER_STORY', target: 'b.y', payload: { after } });
     expect(c.derivation.state).toEqual(base);

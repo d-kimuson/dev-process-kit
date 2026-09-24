@@ -8,10 +8,14 @@ import type { DpkTemplateExampleMapping } from './element';
 import '../../index';
 import { exampleMappingAction } from './actions';
 import { applyExampleMappingAction } from './apply';
-import { exampleMappingDefinition } from './definition';
+import { exampleMappingDefinitionFor } from './definition';
 import { dropAfter, resolveExampleDrop, resolveQuestionDrop, resolveRuleDrop, resolveStoryDrop } from './drop';
+import { exampleMappingMessages } from './messages';
 import { parseExampleMappingBase, type ExampleMappingState } from './model';
 import { presentStorySummary } from './present';
+
+const m = exampleMappingMessages('en');
+const exampleMappingDefinition = exampleMappingDefinitionFor('en');
 
 const base = {
   title: '注文フロー',
@@ -45,10 +49,10 @@ const area = (root: ShadowRoot, testid: string): (string | null)[] =>
     card.getAttribute('data-card'),
   );
 
-const mount = (hash = ''): DpkTemplateExampleMapping => {
+const mount = (hash = '', lang = ''): DpkTemplateExampleMapping => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <dpk-template-example-mapping storage="memory">
+    <dpk-template-example-mapping storage="memory"${lang === '' ? '' : ` lang="${lang}"`}>
       <script type="application/json">${JSON.stringify(base)}</script>
     </dpk-template-example-mapping>`;
   return document.querySelector('dpk-template-example-mapping') as DpkTemplateExampleMapping;
@@ -271,18 +275,19 @@ describe('example-mapping actions', () => {
 
   it('summarizes where a story stands', () => {
     const parsed = state();
-    expect(presentStorySummary(parsed, 's1')).toMatchObject({
+    expect(presentStorySummary(m, parsed, 's1')).toMatchObject({
       rules: 2,
       examples: 2,
       questions: 3,
       readiness: 'open-questions',
     });
-    expect(presentStorySummary(parsed, 's2').readiness).toBe('empty');
+    expect(presentStorySummary(m, parsed, 's2').readiness).toBe('empty');
     const answered = { ...parsed, questions: [] };
     // r2 has no example yet: the story is not understood.
-    expect(presentStorySummary(answered, 's1').readiness).toBe('thin');
+    expect(presentStorySummary(m, answered, 's1').readiness).toBe('thin');
     expect(
       presentStorySummary(
+        m,
         { ...answered, examples: [...answered.examples, { id: 'e3', ruleId: 'r2', name: 'x' }] },
         's1',
       ).readiness,
@@ -336,7 +341,7 @@ describe('example-mapping actions', () => {
     root.querySelector<HTMLButtonElement>('[data-testid="questions-r2"] .add-question')?.click();
     await settle(el);
     const question = el.api.state.questions.at(-1);
-    expect(question).toMatchObject({ ruleId: 'r2', name: '新しい質問' });
+    expect(question).toMatchObject({ ruleId: 'r2', name: m.newQuestion });
     // The fresh question takes the caret straight away.
     const fresh = root.querySelector(
       `[data-testid="questions-r2"] dpk-internal-example-mapping-card[data-card="${question?.id}"]`,
@@ -346,8 +351,41 @@ describe('example-mapping actions', () => {
     root.querySelector<HTMLButtonElement>('[data-testid="examples-r2"] .add-example')?.click();
     await settle(el);
     const example = el.api.state.examples.at(-1);
-    expect(example).toMatchObject({ ruleId: 'r2', name: '新しい具体例' });
+    expect(example).toMatchObject({ ruleId: 'r2', name: m.newExample });
     expect(area(root, 'examples-r2')).toEqual([example?.id]);
+    document.body.innerHTML = '';
+  });
+
+  it('renders its own text in the page language, and in English without one', async () => {
+    const english = mount();
+    await settle(english);
+    expect(english.locale).toBe('en');
+    const root = english.shadowRoot!;
+    expect([...root.querySelectorAll('.legend li')].map((li) => li.textContent?.trim())).toEqual([
+      m.kindLabel('story'),
+      m.kindLabel('rule'),
+      m.kindLabel('example'),
+      m.kindLabel('question'),
+    ]);
+    document.body.innerHTML = '';
+
+    const japanese = mount('', 'ja');
+    await settle(japanese);
+    const ja = exampleMappingMessages('ja');
+    expect(japanese.locale).toBe('ja');
+    const jaRoot = japanese.shadowRoot!;
+    expect([...jaRoot.querySelectorAll('.legend li')].map((li) => li.textContent?.trim())).toEqual([
+      ja.kindLabel('story'),
+      ja.kindLabel('rule'),
+      ja.kindLabel('example'),
+      ja.kindLabel('question'),
+    ]);
+    jaRoot.querySelector<HTMLButtonElement>('[data-testid="questions-r2"] .add-question')?.click();
+    await settle(japanese);
+    expect(japanese.api.state.questions.at(-1)).toMatchObject({ ruleId: 'r2', name: ja.newQuestion });
+    // The card is a nested LitElement in the template's shadow root: it resolves its own locale too.
+    const card = jaRoot.querySelector('dpk-internal-example-mapping-card[data-card="r1"]');
+    expect(card?.shadowRoot?.querySelector('.card-kind')?.textContent).toBe(ja.kindLabel('rule'));
     document.body.innerHTML = '';
   });
 

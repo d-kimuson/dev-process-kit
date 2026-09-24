@@ -6,8 +6,10 @@ import type { DispatchOutcome, Navigation, TemplateDefinition, ValidationIssue }
 
 import { serializeDraft } from '../../core/action';
 import { buildAgentBrief } from '../../core/export';
+import { LocaleController } from '../../core/locale-controller';
 import { FRAMEWORK_VERSION } from '../../core/version';
 import { copyText } from '../../lib/dom/clipboard';
+import { panelMessages } from './messages';
 import {
   commentSubmission,
   initialPanelState,
@@ -55,9 +57,10 @@ export class DpkComponentCommentPanel extends LitElement {
   declare onClear: CommentPanelCallbacks['onClear'];
   declare onComment: CommentPanelCallbacks['onComment'];
   declare exportBrief: (() => string) | undefined;
-  /** Set by the template inside a Claude Artifact that can reach Claude; shows "Claude に送る". */
+  /** Set by the template inside a Claude Artifact that can reach Claude; shows the send button. */
   declare sendToClaude: (() => Promise<HandoffOutcome>) | undefined;
   #ui = initialPanelState();
+  readonly #i18n = new LocaleController(this);
 
   constructor() {
     super();
@@ -91,12 +94,15 @@ export class DpkComponentCommentPanel extends LitElement {
       derivation: this.derivation,
       issues: this.issues,
       sendable: this.sendToClaude !== undefined,
+      locale: this.#i18n.locale,
     };
   }
 
   protected override render(): TemplateResult | typeof nothing {
     const inputs = this.#inputs();
-    return inputs ? renderPanel(presentPanel(inputs, this.#ui), this.#send, this.embedded) : nothing;
+    return inputs
+      ? renderPanel(panelMessages(this.#i18n.locale), presentPanel(inputs, this.#ui), this.#send, this.embedded)
+      : nothing;
   }
 
   #update(event: PanelEvent): void {

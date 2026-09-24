@@ -1,5 +1,6 @@
 import { html, type TemplateResult } from 'lit';
 
+import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 import type { ExampleMappingState, MappingCardKind } from './model';
 
@@ -7,8 +8,9 @@ import { TemplateElement } from '../../core/element';
 import { DragController, type Drop, type DropPlace } from '../../lib/dom/drag';
 import { addExample, addQuestion, addRule, addStory } from './commands';
 import { defineExampleMappingCard } from './components/mapping-card';
-import { exampleMappingDefinition } from './definition';
+import { exampleMappingDefinitionFor } from './definition';
 import { resolveExampleDrop, resolveQuestionDrop, resolveRuleDrop, resolveStoryDrop } from './drop';
+import { exampleMappingMessages, type ExampleMappingMessages } from './messages';
 import { renderBoard, renderLegend, type MappingDragType } from './render/board';
 import { exampleMappingStyles } from './styles';
 import { IDLE_MODE, reduceCardIntent, type ExampleMappingUiMode, type MappingCardIntent } from './ui-mode';
@@ -39,7 +41,9 @@ const DELETE_ACTION = {
 export class DpkTemplateExampleMapping extends TemplateElement<ExampleMappingState> {
   static override styles = [TemplateElement.styles, exampleMappingStyles];
 
-  readonly definition = exampleMappingDefinition;
+  protected override definitionFor(locale: Locale) {
+    return exampleMappingDefinitionFor(locale);
+  }
 
   static override properties = {
     mode: { state: true },
@@ -55,24 +59,26 @@ export class DpkTemplateExampleMapping extends TemplateElement<ExampleMappingSta
   }
 
   protected override renderRegions(context: TemplateRenderContext<ExampleMappingState>): ShellRegions {
+    const m = exampleMappingMessages(this.locale);
     return {
-      header: renderLegend(),
-      main: this.#renderMain(context),
+      header: renderLegend(m),
+      main: this.#renderMain(context, m),
     };
   }
 
-  #renderMain(context: TemplateRenderContext<ExampleMappingState>): TemplateResult {
+  #renderMain(context: TemplateRenderContext<ExampleMappingState>, m: ExampleMappingMessages): TemplateResult {
     return html`
       ${renderBoard({
         context,
         mode: this.mode,
         drag: this.#drag,
+        m,
         handlers: {
           cardIntent: (cardId, kind, intent) => this.#onCardIntent(cardId, kind, intent),
-          addStory: () => this.#editFresh(addStory(context)),
-          addRule: (storyId) => this.#editFresh(addRule(context, storyId)),
-          addExample: (ruleId) => this.#editFresh(addExample(context, ruleId)),
-          addQuestion: (ruleId) => this.#editFresh(addQuestion(context, ruleId)),
+          addStory: () => this.#editFresh(addStory(context, m)),
+          addRule: (storyId) => this.#editFresh(addRule(context, m, storyId)),
+          addExample: (ruleId) => this.#editFresh(addExample(context, m, ruleId)),
+          addQuestion: (ruleId) => this.#editFresh(addQuestion(context, m, ruleId)),
           dropStory: (drop) => this.#onStoryDrop(drop),
           dropRule: (storyId, drop) => this.#onRuleDrop(storyId, drop),
           dropExample: (ruleId, drop) => this.#onExampleDrop(ruleId, drop),

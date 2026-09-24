@@ -5,9 +5,13 @@ import type { DraftAction } from '../../core/types';
 import type { DpkTemplateEventStorming } from './element';
 
 import { applyEventStormingAction } from './apply';
-import { eventStormingDefinition } from './definition';
+import { eventStormingDefinitionFor } from './definition';
+import { eventStormingMessages } from './messages';
 import { parseEventStormingBase, emptyEventStormingBase, type EventStormingState } from './model';
 import '../../index';
+
+const m = eventStormingMessages('en');
+const eventStormingDefinition = eventStormingDefinitionFor('en');
 
 const base = {
   title: 'Test',
@@ -114,7 +118,7 @@ describe('event-storming', () => {
     await el.api.ready;
     await el.updateComplete;
     const button = el.shadowRoot?.querySelector<HTMLButtonElement>('.empty button');
-    expect(button?.textContent).toContain('最初のイベント');
+    expect(button?.textContent).toContain(m.addFirstEvent);
     // New notes come from the context they belong to (the empty state, a
     // slice's role chips, a note's hotspot tool) — never from a wall toolbar.
     expect(el.shadowRoot?.querySelector('[data-testid="es-add"]')).toBeNull();
@@ -191,7 +195,7 @@ describe('event-storming', () => {
     expect(edit).not.toBeNull();
     expect(card?.shadowRoot?.querySelector('[data-role="edit"]')).toBeNull();
     expect(card?.shadowRoot?.querySelector('[data-role="detail"]')).toBeNull();
-    expect(card?.shadowRoot?.querySelector('.note-hotspot')?.textContent).toContain('ホットスポット');
+    expect(card?.shadowRoot?.querySelector('.note-hotspot')?.textContent).toContain(m.addHotspot);
     expect(card?.shadowRoot?.querySelectorAll('.note-tools button')).toHaveLength(2);
     await (edit as unknown as { updateComplete: Promise<boolean> }).updateComplete;
     edit?.shadowRoot?.querySelector<HTMLElement>('.view')?.click();
@@ -225,6 +229,27 @@ describe('event-storming', () => {
     await el.updateComplete;
     expect(el.api.state.links).toHaveLength(0);
     expect(el.shadowRoot?.querySelector('.board-selection')).toBeNull();
+    document.body.innerHTML = '';
+  });
+
+  it('renders its own text in the page language, and in English without one', async () => {
+    window.location.hash = '';
+    document.body.innerHTML = `<dpk-template-event-storming storage="memory" lang="ja"><script type="application/json">{}</script></dpk-template-event-storming>`;
+    const ja = document.querySelector('dpk-template-event-storming') as unknown as DpkTemplateEventStorming;
+    await ja.api.ready;
+    await ja.updateComplete;
+    expect(ja.locale).toBe('ja');
+    expect(ja.shadowRoot?.querySelector('.empty button')?.textContent).toContain(
+      eventStormingMessages('ja').addFirstEvent,
+    );
+    document.body.innerHTML = '';
+
+    document.body.innerHTML = `<dpk-template-event-storming storage="memory"><script type="application/json">{}</script></dpk-template-event-storming>`;
+    const en = document.querySelector('dpk-template-event-storming') as unknown as DpkTemplateEventStorming;
+    await en.api.ready;
+    await en.updateComplete;
+    expect(en.locale).toBe('en');
+    expect(en.shadowRoot?.querySelector('.empty button')?.textContent).toContain(m.addFirstEvent);
     document.body.innerHTML = '';
   });
 

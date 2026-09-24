@@ -58,6 +58,7 @@ export default defineConfig({
     'conventions/entrypoint-imports': 'error',
     'conventions/colocated-tests': 'error',
     'conventions/element-naming': 'error',
+    'conventions/localized-text': 'error',
   },
   overrides: [
     {

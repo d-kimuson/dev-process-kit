@@ -7,6 +7,7 @@ import {
   elementNaming,
   entrypointImports,
   libBoundaries,
+  localizedText,
   pureLayerBoundaries,
   templateIsolation,
 } from './conventions.js';
@@ -324,6 +325,61 @@ ruleTester.run('element-naming', elementNaming, {
       code: define('dpk-component-thing', 'DpkComponentThing'),
       filename: `${CORE}/element.ts`,
       errors: [{ message: /registered only in src\/templates/ }],
+    },
+  ],
+});
+
+ruleTester.run('localized-text', localizedText, {
+  valid: [
+    {
+      name: 'English text in code',
+      code: "export const label = 'Add note';",
+      filename: `${USM}/present.ts`,
+    },
+    {
+      name: 'symbols the dictionaries do not own',
+      code: 'export const line = (a, b) => `${a} · ${b} → ✓ ×`;',
+      filename: `${USM}/present.ts`,
+    },
+    {
+      name: 'Japanese in a dictionary',
+      code: "export const ja = { add: '追加' };",
+      filename: `${USM}/messages.ts`,
+    },
+    {
+      name: 'Japanese in a comment',
+      code: "// 追加する\nexport const add = 'Add';",
+      filename: `${USM}/present.ts`,
+    },
+    {
+      name: 'Japanese fixture data in a test',
+      code: "const story = { name: '注文する' };",
+      filename: `${USM}/usm.test.ts`,
+    },
+    {
+      name: 'files outside src',
+      code: "export const title = 'サンプル';",
+      filename: '/project/dev/qa/browser-smoke.ts',
+    },
+  ],
+  invalid: [
+    {
+      name: 'Japanese in a string literal',
+      code: "export const label = 'メモを追加';",
+      filename: `${USM}/present.ts`,
+      errors: [{ message: /messages\.ts/ }],
+    },
+    {
+      name: 'Japanese in a template literal',
+      code: 'export const label = (name) => `${name}にコメント`;',
+      filename: '/project/src/components/diagram/element.ts',
+      errors: [{ message: /messages\.ts/ }],
+    },
+    {
+      name: 'full-width symbols',
+      code: "export const plus = '＋';",
+      filename: `${CORE}/element.ts`,
+      errors: [{ message: /messages\.ts/ }],
     },
   ],
 });

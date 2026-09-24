@@ -1,7 +1,9 @@
+import type { Locale } from '../../core/i18n';
 import type { ActionTarget, TemplateDefinition } from '../../core/types';
 
 import { usmActions } from './actions';
 import { applyUsmAction } from './apply';
+import { usmMessages } from './messages';
 import {
   canonicalUsmState,
   emptyUsmBase,
@@ -39,24 +41,28 @@ export const usmHasTarget = (state: UsmState, target: ActionTarget): boolean => 
   }
 };
 
-export const usmDefinition: TemplateDefinition<UsmState> = {
-  name: 'usm',
-  label: 'User Story Mapping',
-  parseBase: parseUsmBase,
-  emptyBase: emptyUsmBase,
-  actions: usmActions,
-  apply: applyUsmAction,
-  canonicalState: canonicalUsmState,
-  hasTarget: usmHasTarget,
-  canonicalTarget: (state, target) => {
-    if (target.type !== 'step') return target;
-    const location = findStep(state, target.id);
-    return location ? { ...target, id: stepRefOf(location.activity.id, location.step.id) } : target;
-  },
-  describe: describeUsmAction,
-  serialize: serializeUsmAction,
-  resolveNavigation: resolveUsmNavigation,
-  commentTargets: (state: UsmState, navigation) => usmCommentTargets(state, navigation),
-  currentTarget: (state, navigation) => usmCurrentTarget(state, navigation),
-  title: usmTitle,
+/** The user story mapping template, describing its actions in `locale`. */
+export const usmDefinitionFor = (locale: Locale): TemplateDefinition<UsmState> => {
+  const m = usmMessages(locale);
+  return {
+    name: 'usm',
+    label: 'User Story Mapping',
+    parseBase: parseUsmBase,
+    emptyBase: emptyUsmBase,
+    actions: usmActions,
+    apply: applyUsmAction,
+    canonicalState: canonicalUsmState,
+    hasTarget: usmHasTarget,
+    canonicalTarget: (state, target) => {
+      if (target.type !== 'step') return target;
+      const location = findStep(state, target.id);
+      return location ? { ...target, id: stepRefOf(location.activity.id, location.step.id) } : target;
+    },
+    describe: (action, state, base) => describeUsmAction(m, action, state, base),
+    serialize: serializeUsmAction,
+    resolveNavigation: resolveUsmNavigation,
+    commentTargets: (state: UsmState, navigation) => usmCommentTargets(m, state, navigation),
+    currentTarget: (state, navigation) => usmCurrentTarget(m, state, navigation),
+    title: usmTitle,
+  };
 };

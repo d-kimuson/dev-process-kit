@@ -12,6 +12,8 @@ Build domain behavior from functions over plain data. Express a state transition
 
 Separate presentation derivation from rendering. A presentation function should answer what the UI needs to show without knowing how the DOM will be updated.
 
+Text the kit renders itself comes from the module's `messages.ts` dictionary, one per language, never from a literal in code. A presentation function receives the dictionary as an input; the element resolves the locale from `lang` through `LocaleController`, on connect and again when the reader picks a language in the template header ([ADR](../adr/20260925_ui-localization.md)). The `conventions/localized-text` lint rule rejects Japanese text outside the dictionaries.
+
 Use an existing, focused library before introducing a local utility for a solved general-purpose problem. Keep project code focused on domain behavior.
 
 ## Keep changes understandable

@@ -6,6 +6,7 @@ import type {
   DraftAction,
   Navigation,
 } from '../../core/types';
+import type { PrototypeMessages } from './messages';
 
 import { payloadFor, type ActionName } from '../../core/schema';
 import { slugify, targetRef } from '../../core/target';
@@ -36,99 +37,106 @@ const arrow = (before: string | undefined, after: string): string => {
  * Action vocabulary -> human text. This is the only place the CommentPanel
  * needs from the template besides `serialize`.
  */
-const DESCRIBERS: Record<string, (action: DraftAction, state: PrototypeState) => Summary> = {
-  SET_ACTIVITY_NAME: (action, state) => ({
-    title: 'Activity 名を変更',
-    tone: 'update',
-    body: arrow(
-      findActivity(state, action.target.id)?.name,
-      payloadFor(prototypeActions.SET_ACTIVITY_NAME, action).name,
-    ),
-  }),
-  SET_ACTIVITY_DESCRIPTION: (action, state) => ({
-    title: 'Activity の説明を更新',
-    tone: 'update',
-    body: preview(
-      findActivity(state, action.target.id)?.description,
-      payloadFor(prototypeActions.SET_ACTIVITY_DESCRIPTION, action).description,
-    ),
-  }),
-  SET_STORY_NAME: (action, state) => ({
-    title: 'UserStory 名を変更',
-    tone: 'update',
-    body: arrow(
-      findStory(state, action.target.id)?.story.name,
-      payloadFor(prototypeActions.SET_STORY_NAME, action).name,
-    ),
-  }),
-  SET_STORY_DESCRIPTION: (action, state) => ({
-    title: 'UserStory の説明を更新',
-    tone: 'update',
-    body: preview(
-      findStory(state, action.target.id)?.story.description,
-      payloadFor(prototypeActions.SET_STORY_DESCRIPTION, action).description,
-    ),
-  }),
-  SET_STEP_NAME: (action, state) => ({
-    title: 'Step 名を変更',
-    tone: 'update',
-    body: arrow(findStep(state, action.target.id)?.step.name, payloadFor(prototypeActions.SET_STEP_NAME, action).name),
-  }),
-  SET_STEP_DESCRIPTION: (action, state) => ({
-    title: 'Step の説明を更新',
-    tone: 'update',
-    body: preview(
-      findStep(state, action.target.id)?.step.description,
-      payloadFor(prototypeActions.SET_STEP_DESCRIPTION, action).description,
-    ),
-  }),
-  SET_PREVIEW_KIND: (action, state) => ({
-    title: 'Preview の種別を変更',
-    tone: 'update',
-    body: arrow(
-      findPreview(state, action.target.id)?.preview.kind,
-      payloadFor(prototypeActions.SET_PREVIEW_KIND, action).kind,
-    ),
-  }),
-  SET_PREVIEW_VIEWPORT: (action, state) => ({
-    title: 'Preview のビューポートを変更',
-    tone: 'update',
-    body: arrow(
-      findPreview(state, action.target.id)?.preview.viewport,
-      payloadFor(prototypeActions.SET_PREVIEW_VIEWPORT, action).viewport,
-    ),
-  }),
-  SET_PREVIEW_LABEL: (action) => ({
-    title: 'Preview のラベルを変更',
-    tone: 'update',
-    body: `→ "${payloadFor(prototypeActions.SET_PREVIEW_LABEL, action).label}"`,
-  }),
-  REORDER_ACTIVITY: (action) => reorderSummary('Activity', payloadFor(prototypeActions.REORDER_ACTIVITY, action).after),
-  REORDER_STORY: (action) => reorderSummary('UserStory', payloadFor(prototypeActions.REORDER_STORY, action).after),
-  REORDER_STEP: (action) => reorderSummary('Step', payloadFor(prototypeActions.REORDER_STEP, action).after),
-  MOVE_STORY: (action, state) => ({
-    title: 'UserStory を移動',
-    tone: 'move',
-    body: `→ ${findActivity(state, payloadFor(prototypeActions.MOVE_STORY, action).toActivity)?.name ?? payloadFor(prototypeActions.MOVE_STORY, action).toActivity}`,
-  }),
-  MOVE_STEP: (action, state) => ({
-    title: 'Step を移動',
-    tone: 'move',
-    body: `→ ${findStory(state, payloadFor(prototypeActions.MOVE_STEP, action).toStory)?.story.name ?? payloadFor(prototypeActions.MOVE_STEP, action).toStory}`,
-  }),
-  ADD_ACTIVITY: (action) => addSummary('Activity', payloadFor(prototypeActions.ADD_ACTIVITY, action).name),
-  ADD_STORY: (action) => addSummary('UserStory', payloadFor(prototypeActions.ADD_STORY, action).name),
-  ADD_STEP: (action) => addSummary('Step', payloadFor(prototypeActions.ADD_STEP, action).name),
-  ADD_PREVIEW: (action) =>
-    addSummary(
-      'Preview',
-      payloadFor(prototypeActions.ADD_PREVIEW, action).label ?? payloadFor(prototypeActions.ADD_PREVIEW, action).id,
-    ),
-  DELETE_ACTIVITY: (action, state) => deleteSummary(findActivity(state, action.target.id)?.name),
-  DELETE_STORY: (action, state) => deleteSummary(findStory(state, action.target.id)?.story.name),
-  DELETE_STEP: (action, state) => deleteSummary(findStep(state, action.target.id)?.step.name),
-  DELETE_PREVIEW: (action, state) => deleteSummary(findPreview(state, action.target.id)?.preview.label),
-} satisfies Record<ActionName<typeof prototypeActions>, (action: DraftAction, state: PrototypeState) => Summary>;
+const describers = (m: PrototypeMessages): Record<string, (action: DraftAction, state: PrototypeState) => Summary> =>
+  ({
+    SET_ACTIVITY_NAME: (action, state) => ({
+      title: m.renameActivity,
+      tone: 'update',
+      body: arrow(
+        findActivity(state, action.target.id)?.name,
+        payloadFor(prototypeActions.SET_ACTIVITY_NAME, action).name,
+      ),
+    }),
+    SET_ACTIVITY_DESCRIPTION: (action, state) => ({
+      title: m.updateActivityDescription,
+      tone: 'update',
+      body: preview(
+        findActivity(state, action.target.id)?.description,
+        payloadFor(prototypeActions.SET_ACTIVITY_DESCRIPTION, action).description,
+      ),
+    }),
+    SET_STORY_NAME: (action, state) => ({
+      title: m.renameStory,
+      tone: 'update',
+      body: arrow(
+        findStory(state, action.target.id)?.story.name,
+        payloadFor(prototypeActions.SET_STORY_NAME, action).name,
+      ),
+    }),
+    SET_STORY_DESCRIPTION: (action, state) => ({
+      title: m.updateStoryDescription,
+      tone: 'update',
+      body: preview(
+        findStory(state, action.target.id)?.story.description,
+        payloadFor(prototypeActions.SET_STORY_DESCRIPTION, action).description,
+      ),
+    }),
+    SET_STEP_NAME: (action, state) => ({
+      title: m.renameStep,
+      tone: 'update',
+      body: arrow(
+        findStep(state, action.target.id)?.step.name,
+        payloadFor(prototypeActions.SET_STEP_NAME, action).name,
+      ),
+    }),
+    SET_STEP_DESCRIPTION: (action, state) => ({
+      title: m.updateStepDescription,
+      tone: 'update',
+      body: preview(
+        findStep(state, action.target.id)?.step.description,
+        payloadFor(prototypeActions.SET_STEP_DESCRIPTION, action).description,
+      ),
+    }),
+    SET_PREVIEW_KIND: (action, state) => ({
+      title: m.changePreviewKind,
+      tone: 'update',
+      body: arrow(
+        findPreview(state, action.target.id)?.preview.kind,
+        payloadFor(prototypeActions.SET_PREVIEW_KIND, action).kind,
+      ),
+    }),
+    SET_PREVIEW_VIEWPORT: (action, state) => ({
+      title: m.changePreviewViewport,
+      tone: 'update',
+      body: arrow(
+        findPreview(state, action.target.id)?.preview.viewport,
+        payloadFor(prototypeActions.SET_PREVIEW_VIEWPORT, action).viewport,
+      ),
+    }),
+    SET_PREVIEW_LABEL: (action) => ({
+      title: m.changePreviewLabel,
+      tone: 'update',
+      body: `→ "${payloadFor(prototypeActions.SET_PREVIEW_LABEL, action).label}"`,
+    }),
+    REORDER_ACTIVITY: (action) =>
+      reorderSummary(m, m.activityGroup, payloadFor(prototypeActions.REORDER_ACTIVITY, action).after),
+    REORDER_STORY: (action) =>
+      reorderSummary(m, m.storyGroup, payloadFor(prototypeActions.REORDER_STORY, action).after),
+    REORDER_STEP: (action) => reorderSummary(m, m.stepGroup, payloadFor(prototypeActions.REORDER_STEP, action).after),
+    MOVE_STORY: (action, state) => ({
+      title: m.moveStory,
+      tone: 'move',
+      body: `→ ${findActivity(state, payloadFor(prototypeActions.MOVE_STORY, action).toActivity)?.name ?? payloadFor(prototypeActions.MOVE_STORY, action).toActivity}`,
+    }),
+    MOVE_STEP: (action, state) => ({
+      title: m.moveStep,
+      tone: 'move',
+      body: `→ ${findStory(state, payloadFor(prototypeActions.MOVE_STEP, action).toStory)?.story.name ?? payloadFor(prototypeActions.MOVE_STEP, action).toStory}`,
+    }),
+    ADD_ACTIVITY: (action) => addSummary(m, m.activityGroup, payloadFor(prototypeActions.ADD_ACTIVITY, action).name),
+    ADD_STORY: (action) => addSummary(m, m.storyGroup, payloadFor(prototypeActions.ADD_STORY, action).name),
+    ADD_STEP: (action) => addSummary(m, m.stepGroup, payloadFor(prototypeActions.ADD_STEP, action).name),
+    ADD_PREVIEW: (action) =>
+      addSummary(
+        m,
+        m.previewGroup,
+        payloadFor(prototypeActions.ADD_PREVIEW, action).label ?? payloadFor(prototypeActions.ADD_PREVIEW, action).id,
+      ),
+    DELETE_ACTIVITY: (action, state) => deleteSummary(m, findActivity(state, action.target.id)?.name),
+    DELETE_STORY: (action, state) => deleteSummary(m, findStory(state, action.target.id)?.story.name),
+    DELETE_STEP: (action, state) => deleteSummary(m, findStep(state, action.target.id)?.step.name),
+    DELETE_PREVIEW: (action, state) => deleteSummary(m, findPreview(state, action.target.id)?.preview.label),
+  }) satisfies Record<ActionName<typeof prototypeActions>, (action: DraftAction, state: PrototypeState) => Summary>;
 
 const preview = (before: string | undefined, after: string): string => {
   const trimmed = after.length > 90 ? `${after.slice(0, 90)}…` : after;
@@ -139,36 +147,38 @@ const shorten = (value: string): string => {
   return value.length > 60 ? `${value.slice(0, 60)}…` : value;
 };
 
-const reorderSummary = (kind: string, after: string | null): Summary => {
+const reorderSummary = (m: PrototypeMessages, kind: string, after: string | null): Summary => {
   return {
-    title: `${kind} の順序を変更`,
+    title: m.reorderTitle(kind),
     tone: 'move',
-    body: after === null ? '→ 先頭へ' : `→ "${after}" の直後へ`,
+    body: after === null ? m.toFront : m.afterName(after),
   };
 };
 
-const addSummary = (kind: string, name: string): Summary => {
-  return { title: `${kind} を追加`, tone: 'create', body: `+ "${name}"` };
+const addSummary = (m: PrototypeMessages, kind: string, name: string): Summary => {
+  return { title: m.addTitle(kind), tone: 'create', body: `+ "${name}"` };
 };
 
-const deleteSummary = (name: string | undefined): Summary => {
+const deleteSummary = (m: PrototypeMessages, name: string | undefined): Summary => {
   return {
-    title: '削除',
+    title: m.deleteTitle,
     tone: 'delete',
-    body: name === undefined ? '(unknown target)' : `− "${name}"`,
+    body: name === undefined ? m.unknownTarget : `− "${name}"`,
   };
 };
 
 export const describePrototypeAction = (
+  m: PrototypeMessages,
   action: DraftAction,
   state: PrototypeState,
   base?: PrototypeState,
 ): ActionDescription => {
+  const DESCRIBERS = describers(m);
   const describer = Object.hasOwn(DESCRIBERS, action.type) ? DESCRIBERS[action.type] : undefined;
   const summary: Summary = describer ? describer(action, base ?? state) : { title: action.type, tone: 'meta' };
   return {
     title: summary.title,
-    targetLabel: prototypeTargetLabel(state, action.target),
+    targetLabel: prototypeTargetLabel(m, state, action.target),
     tone: summary.tone,
     ...(summary.body === undefined ? {} : { summary: summary.body }),
   };
@@ -178,28 +188,30 @@ export const serializePrototypeAction = (action: DraftAction): string => {
   return `${action.type} ${targetRef(action.target)} ${JSON.stringify(action.payload)}`;
 };
 
-export const prototypeTargetLabel = (state: PrototypeState, target: ActionTarget): string => {
+export const prototypeTargetLabel = (m: PrototypeMessages, state: PrototypeState, target: ActionTarget): string => {
   switch (target.type) {
     case 'activity': {
       const activity = findActivity(state, target.id);
-      return activity ? `Activity · ${activity.name}` : `Activity · ${target.id} (missing)`;
+      return activity ? m.targetLabel(m.activityGroup, activity.name) : m.targetMissing(m.activityGroup, target.id);
     }
     case 'story': {
       const story = findStory(state, target.id)?.story;
-      return story ? `UserStory · ${story.name}` : `UserStory · ${target.id} (missing)`;
+      return story ? m.targetLabel(m.storyGroup, story.name) : m.targetMissing(m.storyGroup, target.id);
     }
     case 'step': {
       const step = findStep(state, target.id)?.step;
-      return step ? `Step · ${step.name}` : `Step · ${target.id} (missing)`;
+      return step ? m.targetLabel(m.stepGroup, step.name) : m.targetMissing(m.stepGroup, target.id);
     }
     case 'preview': {
       const preview = findPreview(state, target.id)?.preview;
-      return preview ? `Preview · ${preview.label ?? preview.id}` : `Preview · ${target.id} (missing)`;
+      return preview
+        ? m.targetLabel(m.previewGroup, preview.label ?? preview.id)
+        : m.targetMissing(m.previewGroup, target.id);
     }
     case 'page':
-      return `Page · ${prototypeTitle(state)}`;
+      return m.targetLabel(m.pageGroup, prototypeTitle(state));
     default:
-      return `${target.type} · ${target.id}`;
+      return m.targetLabel(target.type, target.id);
   }
 };
 
@@ -222,25 +234,28 @@ export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePre
   return `${origin.replace(/\/+$/, '')}/${preview.id}`;
 };
 
-export const prototypeCommentTargets = (state: PrototypeState): readonly CommentTargetOption[] => {
+export const prototypeCommentTargets = (
+  m: PrototypeMessages,
+  state: PrototypeState,
+): readonly CommentTargetOption[] => {
   const options: CommentTargetOption[] = [];
   for (const activity of state.activities) {
     options.push({
       value: targetRef({ type: 'activity', id: activity.id }),
       label: activity.name,
-      group: 'Activity',
+      group: m.activityGroup,
     });
     for (const story of activity.stories) {
       options.push({
         value: targetRef({ type: 'story', id: storyRef(activity.id, story.id) }),
         label: `${activity.name} › ${story.name}`,
-        group: 'UserStory',
+        group: m.storyGroup,
       });
       for (const step of story.steps) {
         options.push({
           value: targetRef({ type: 'step', id: stepRefOf(activity, story, step) }),
           label: `${story.name} › ${step.name}`,
-          group: 'Step',
+          group: m.stepGroup,
         });
       }
     }
@@ -252,10 +267,14 @@ export const prototypeCommentTargets = (state: PrototypeState): readonly Comment
  * The step the reader is looking at: the composer's "attach to this step"
  * checkbox, and the target of an page-wide note's counterpart.
  */
-export const prototypeCurrentTarget = (state: PrototypeState, nav: Navigation): CommentTargetOption | null => {
+export const prototypeCurrentTarget = (
+  m: PrototypeMessages,
+  state: PrototypeState,
+  nav: Navigation,
+): CommentTargetOption | null => {
   const location = findStep(state, nav['step']);
   if (!location) return null;
-  return { value: targetRef({ type: 'step', id: stepRef(location) }), label: location.step.name, group: 'Step' };
+  return { value: targetRef({ type: 'step', id: stepRef(location) }), label: location.step.name, group: m.stepGroup };
 };
 
 export const prototypeTitle = (state: PrototypeState): string => {

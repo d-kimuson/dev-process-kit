@@ -1,8 +1,9 @@
+import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 import type { PlainState } from './model';
 
 import { TemplateElement } from '../../core/element';
-import { plainDefinition } from './definition';
+import { plainDefinitionFor } from './definition';
 
 /**
  * `<dpk-template-plain>` — the shell and the review pipeline, and nothing else.
@@ -14,7 +15,9 @@ import { plainDefinition } from './definition';
  * `sections` in the base data make prose commentable too.
  */
 export class DpkTemplatePlain extends TemplateElement<PlainState> {
-  readonly definition = plainDefinition;
+  protected override definitionFor(locale: Locale) {
+    return plainDefinitionFor(locale);
+  }
 
   protected override renderRegions(_context: TemplateRenderContext<PlainState>): ShellRegions {
     return {};

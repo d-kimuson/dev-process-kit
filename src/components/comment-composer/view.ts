@@ -1,5 +1,6 @@
 import { html, nothing, type TemplateResult } from 'lit';
 
+import type { ComposerMessages } from './messages';
 import type { ComposerViewModel } from './present';
 
 export type ComposerIntent =
@@ -8,7 +9,11 @@ export type ComposerIntent =
   | { readonly kind: 'dismiss' };
 
 /** Shared light-weight view: deliberately stays inside the card's shadow root. */
-export const renderComposer = (vm: ComposerViewModel, send: (intent: ComposerIntent) => void): TemplateResult => {
+export const renderComposer = (
+  m: ComposerMessages,
+  vm: ComposerViewModel,
+  send: (intent: ComposerIntent) => void,
+): TemplateResult => {
   const submit = (): void => {
     if (vm.submission !== null) send({ kind: 'comment', body: vm.submission });
   };
@@ -16,7 +21,7 @@ export const renderComposer = (vm: ComposerViewModel, send: (intent: ComposerInt
     class="comment-pop"
     popover="manual"
     role="dialog"
-    aria-label=${vm.label ? `${vm.label}へのコメント` : 'コメント'}
+    aria-label=${vm.label ? m.commentOn(vm.label) : m.comment}
     @click=${(event: Event) => event.stopPropagation()}
     @keydown=${(event: KeyboardEvent) => {
       if (event.isComposing || event.key !== 'Escape') return;
@@ -36,7 +41,7 @@ export const renderComposer = (vm: ComposerViewModel, send: (intent: ComposerInt
     }
     <textarea
       class="dpk-textarea"
-      aria-label="コメント"
+      aria-label=${m.comment}
       .value=${vm.body}
       @input=${(event: Event) => {
         if (event.currentTarget instanceof HTMLTextAreaElement)
@@ -52,9 +57,9 @@ export const renderComposer = (vm: ComposerViewModel, send: (intent: ComposerInt
     ></textarea>
     <div class="pop-actions">
       <button class="dpk-btn dpk-btn--accent" type="button" ?disabled=${vm.submission === null} @click=${submit}>
-        送信
+        ${m.submit}
       </button>
-      <button class="dpk-btn" type="button" @click=${() => send({ kind: 'dismiss' })}>キャンセル</button>
+      <button class="dpk-btn" type="button" @click=${() => send({ kind: 'dismiss' })}>${m.cancel}</button>
     </div>
   </div>`;
 };

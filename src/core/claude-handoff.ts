@@ -8,6 +8,10 @@
  * `shell/claude-handoff-controller.ts` owns the calls.
  */
 
+import type { Locale } from './i18n';
+
+import { coreMessages } from './messages';
+
 /** The comment store's limit on one comment, in UTF-8 bytes. */
 export const COMMENT_TEXT_LIMIT = 4096;
 
@@ -61,14 +65,15 @@ export const handoffFailureOf = (error: unknown): HandoffFailure => {
   return (typeof code === 'string' ? FAILURE_BY_CODE[code] : undefined) ?? 'error';
 };
 
-const FAILURE_LABELS: Readonly<Record<HandoffFailure, string>> = {
-  too_large: 'Review が長すぎて送れません。コピーして渡してください',
-  consent: 'コメントの許可が必要です。許可してからもう一度送ってください',
-  forbidden: 'このページからは送れません。コピーして渡してください',
-  claude_unavailable: 'Claude のセッションに届きませんでした。コピーして渡してください',
-  rate_limited: '送信が続いています。少し待ってから送ってください',
-  storage: 'Review を保存できませんでした。コピーして渡してください',
-  error: '送れませんでした。コピーして渡してください',
-};
+const FAILURE_MESSAGES = {
+  too_large: 'handoffTooLarge',
+  consent: 'handoffConsent',
+  forbidden: 'handoffForbidden',
+  claude_unavailable: 'handoffClaudeUnavailable',
+  rate_limited: 'handoffRateLimited',
+  storage: 'handoffStorage',
+  error: 'handoffError',
+} as const satisfies Record<HandoffFailure, keyof ReturnType<typeof coreMessages>>;
 
-export const handoffFailureLabel = (reason: HandoffFailure): string => FAILURE_LABELS[reason];
+export const handoffFailureLabel = (reason: HandoffFailure, locale: Locale): string =>
+  coreMessages(locale)[FAILURE_MESSAGES[reason]];

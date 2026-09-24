@@ -5,13 +5,16 @@ import type { DraftAction } from '../../../core/types';
 import type { UserStory } from '../model';
 import type { CardIntent, CardMode } from '../ui-mode';
 
+import { composerMessages } from '../../../components/comment-composer/messages';
 import { presentComposer } from '../../../components/comment-composer/present';
 import { renderComposer } from '../../../components/comment-composer/view';
 import { commentBody } from '../../../core/comment';
 import { iconComment, iconPencil, iconTrash } from '../../../core/icons';
+import { LocaleController } from '../../../core/locale-controller';
 import { PopoverController } from '../../../core/popover-controller';
 import { controls, popoverSurface } from '../../../core/theme';
 import { onCommit } from '../../../lib/dom/events';
+import { usmMessages } from '../messages';
 
 const COMPOSER_SIZE = { width: 300, height: 260 };
 
@@ -118,6 +121,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
   /** Typed text is read on submit; the textarea owns it while typing. */
   #draft = '';
   readonly #popovers = new PopoverController(this);
+  readonly #i18n = new LocaleController(this);
 
   constructor() {
     super();
@@ -148,6 +152,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
   protected override render(): TemplateResult | typeof nothing {
     const story = this.story;
     if (!story) return nothing;
+    const m = usmMessages(this.#i18n.locale);
     const editing = this.mode === 'editing';
     const commenting = this.mode === 'commenting';
     return html`
@@ -156,7 +161,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
           editing
             ? html`<dpk-component-inline-edit
                 .value=${story.name}
-                .label=${'ストーリー名'}
+                .label=${m.storyNameLabel}
                 @dpk-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
               ></dpk-component-inline-edit>`
             : html`<span>${story.name}</span>`
@@ -168,7 +173,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
           class="dpk-icon-btn"
           type="button"
           data-role="edit"
-          aria-label="タイトルを編集"
+          aria-label=${m.editTitleAria}
           data-active=${String(editing)}
           @click=${this.#tool({ kind: 'toggle-edit' })}
         >
@@ -178,7 +183,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
           class="dpk-icon-btn"
           type="button"
           data-role="comment"
-          aria-label="コメント"
+          aria-label=${m.commentAria}
           data-active=${String(commenting)}
           @click=${this.#tool({ kind: 'toggle-comment' })}
         >
@@ -189,7 +194,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
           class="dpk-icon-btn"
           type="button"
           data-role="delete"
-          aria-label="削除"
+          aria-label=${m.deleteAria}
           @click=${this.#tool({ kind: 'delete' })}
         >
           ${iconTrash()}
@@ -200,12 +205,16 @@ export class DpkInternalUsmStoryCard extends LitElement {
   }
 
   #renderComposer(): TemplateResult {
-    return renderComposer(presentComposer(this.#draft, this.notes.map(commentBody)), (intent) => {
-      if (intent.kind === 'input') {
-        this.#draft = intent.body;
-        this.requestUpdate();
-      } else this.#report(intent);
-    });
+    return renderComposer(
+      composerMessages(this.#i18n.locale),
+      presentComposer(this.#draft, this.notes.map(commentBody)),
+      (intent) => {
+        if (intent.kind === 'input') {
+          this.#draft = intent.body;
+          this.requestUpdate();
+        } else this.#report(intent);
+      },
+    );
   }
 
   /** Tool buttons must not also select the card. */

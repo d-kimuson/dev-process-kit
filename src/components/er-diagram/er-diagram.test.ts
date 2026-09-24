@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { diagramMessages } from '../diagram/messages';
 import { DpkComponentErDiagram } from './element';
 import { defineErDiagram } from './index';
+import { erDiagramMessages } from './messages';
 import { parseErData, tableHeight } from './model';
 
 defineErDiagram();
+
+const m = erDiagramMessages('en');
 
 const raw = {
   before: {
@@ -81,8 +85,9 @@ const settle = async (element: DpkComponentErDiagram): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<DpkComponentErDiagram> => {
+const mount = async (lang?: string): Promise<DpkComponentErDiagram> => {
   const element = new DpkComponentErDiagram();
+  if (lang !== undefined) element.setAttribute('lang', lang);
   element.data = parseErData(raw);
   document.body.append(element);
   await settle(element);
@@ -217,7 +222,7 @@ describe('dpk-component-er-diagram', () => {
     area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
     await settle(element);
     // No accepting page/consumer: do not discard user input.
-    expect(element.renderRoot.querySelector('[role="alert"]')?.textContent).toContain('送信できませんでした');
+    expect(element.renderRoot.querySelector('[role="alert"]')?.textContent).toContain(diagramMessages('en').sendFailed);
     expect(element.renderRoot.querySelector('textarea')?.value).toBe('Keep this draft');
     await openComment(element, 'node', 'customers');
     expect(element.renderRoot.querySelector('textarea')?.value).toBe('');
@@ -261,7 +266,7 @@ describe('dpk-component-er-diagram', () => {
     expect(element.renderRoot.querySelectorAll('.er-edge.is-added')).toHaveLength(1);
     expect(element.renderRoot.querySelectorAll('.er-edge.is-removed')).toHaveLength(1);
     expect(element.renderRoot.querySelectorAll('.er-cardinality')).toHaveLength(6);
-    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe('4 テーブル · 3 関連');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`4 ${m.node} · 3 ${m.edge}`);
     expect(
       element.renderRoot.querySelector('[data-er-table="orders"] .er-field.is-changed del')?.textContent,
     ).toContain('varchar');
@@ -287,7 +292,13 @@ describe('dpk-component-er-diagram', () => {
     input.value = 'nothing';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await element.updateComplete;
-    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain('該当するテーブルはありません');
+    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain(m.empty);
+  });
+
+  it('renders its stats in the element’s language', async () => {
+    const ja = erDiagramMessages('ja');
+    const element = await mount('ja');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`4 ${ja.node} · 3 ${ja.edge}`);
   });
 
   it('highlights related tables without opening comments or bottom details', async () => {

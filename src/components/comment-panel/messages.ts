@@ -1,0 +1,48 @@
+import { defineMessages } from '../../core/i18n';
+
+export const panelMessages = defineMessages({
+  en: {
+    heading: 'Review notes',
+    rejected: 'Action rejected.',
+    commentLabel: 'Review comment',
+    commentPlaceholder: 'What should change, or what you noticed (passed to the agent as an instruction)',
+    detach: 'Detach',
+    attachTo: (group: string) => `Attach to this ${group}`,
+    addNote: 'Add note',
+    empty: 'No draft actions yet.',
+    emptyHint: 'Comments and structural patches both land here, and survive reload via LocalStorage.',
+    sendToClaude: 'Send to Claude',
+    copyJson: 'Copy JSON',
+    copyBrief: 'Copy brief',
+    clear: 'Clear',
+    deleteAction: 'Delete this draft action',
+    wholePage: 'Whole page',
+    comment: 'Comment',
+    sent: 'Sent to Claude ✓',
+    copied: (format: string) => `copied ${format} ✓`,
+    copyFailed: 'copy failed',
+  },
+  ja: {
+    heading: 'レビューノート',
+    rejected: 'action を受け付けられませんでした。',
+    commentLabel: 'レビューコメント',
+    commentPlaceholder: '変更したいこと / 気づきを書く（Agent への指示として渡る）',
+    detach: '紐づけを解除',
+    attachTo: (group: string) => `この ${group} に紐づける`,
+    addNote: 'ノートを追加',
+    empty: 'draft action はまだありません。',
+    emptyHint: 'コメントも構造の変更もここに集まり、LocalStorage に残るのでリロードしても消えません。',
+    sendToClaude: 'Claude に送る',
+    copyJson: 'JSON をコピー',
+    copyBrief: 'brief をコピー',
+    clear: 'クリア',
+    deleteAction: 'この draft action を削除',
+    wholePage: 'ページ全体',
+    comment: 'コメント',
+    sent: 'Claude に送りました ✓',
+    copied: (format: string) => `${format} をコピーしました ✓`,
+    copyFailed: 'コピーできませんでした',
+  },
+});
+
+export type PanelMessages = ReturnType<typeof panelMessages>;

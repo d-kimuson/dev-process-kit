@@ -84,11 +84,11 @@ export type ApplyResult<S> = S | null;
 export type ActionTone = 'comment' | 'create' | 'update' | 'delete' | 'move' | 'meta';
 
 export type ActionDescription = {
-  /** Short action label, e.g. `ステップ名を変更`. */
+  /** Short action label, e.g. `Rename step`. */
   readonly title: string;
   /** Optional before/after or payload summary. */
   readonly summary?: string;
-  /** Human readable target, e.g. `Step · Google ログイン`. */
+  /** Human readable target, e.g. `Step · Sign in with Google`. */
   readonly targetLabel: string;
   readonly tone: ActionTone;
 };

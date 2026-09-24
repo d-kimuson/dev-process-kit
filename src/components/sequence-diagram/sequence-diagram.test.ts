@@ -2,9 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DpkComponentSequenceDiagram } from './element';
 import { defineSequenceDiagram } from './index';
+import { sequenceDiagramMessages } from './messages';
 import { flattenMessages, layoutSequence, messageNumbers, parseSequenceData, pruneItems } from './model';
 
 defineSequenceDiagram();
+
+const m = sequenceDiagramMessages('en');
 
 const raw = {
   participants: [
@@ -90,8 +93,9 @@ const settle = async (element: DpkComponentSequenceDiagram): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<DpkComponentSequenceDiagram> => {
+const mount = async (lang?: string): Promise<DpkComponentSequenceDiagram> => {
   const element = new DpkComponentSequenceDiagram();
+  if (lang !== undefined) element.setAttribute('lang', lang);
   element.data = parseSequenceData(raw);
   document.body.append(element);
   await settle(element);
@@ -146,7 +150,7 @@ describe('sequence comment targets', () => {
   it('keeps the guard and what a message guarantees in its tooltip', async () => {
     const element = await mount();
     expect(element.renderRoot.querySelector('[data-message-label="m1"]')?.getAttribute('title')).toBe(
-      '購入者が確定済み\n処理 / 保証: 冪等キーを送る。',
+      `購入者が確定済み\n${m.detailLabel('request')}: 冪等キーを送る。`,
     );
   });
 });
@@ -218,7 +222,7 @@ describe('dpk-component-sequence-diagram', () => {
       '04',
       '05',
     ]);
-    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe('5 / 6 メッセージ');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(m.stats(5, 6));
     expect(element.renderRoot.querySelector('[data-fragment="duplicate"]')?.getAttribute('aria-expanded')).toBe(
       'false',
     );
@@ -271,11 +275,11 @@ describe('dpk-component-sequence-diagram', () => {
         (node) => node.dataset['participant'],
       ),
     ).toEqual(['api', 'payment']);
-    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe('1 / 6 メッセージ');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(m.stats(1, 6));
 
     element.tagFilter = { match: 'all', active: ['nothing'] };
     await element.updateComplete;
-    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain('該当するメッセージはありません');
+    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain(m.empty);
   });
 
   it('fits the width on first render and keeps the rail aligned', async () => {
@@ -285,5 +289,26 @@ describe('dpk-component-sequence-diagram', () => {
     expect(rail?.style.transform).toContain('translateX');
     element.resetView();
     expect(element.renderRoot.querySelector('.diagram-zoom-value')?.textContent).toMatch(/^\d+%$/);
+  });
+
+  it('renders its kit text in the element’s language', async () => {
+    const ja = sequenceDiagramMessages('ja');
+    const element = await mount('ja');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(ja.stats(5, 6));
+    expect(element.renderRoot.querySelector('.sequence-rail')?.getAttribute('aria-label')).toBe(ja.participants);
+    expect(element.renderRoot.querySelector('[data-fragment="duplicate"]')?.getAttribute('aria-label')).toBe(
+      ja.frameHeaderLabel('loop', '通知の重複排除', true),
+    );
+    element.tagFilter = { match: 'all', active: ['nothing'] };
+    await element.updateComplete;
+    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain(ja.empty);
+  });
+
+  it('renders its kit text in English by default', async () => {
+    const element = await mount();
+    expect(element.renderRoot.querySelector('.sequence-rail')?.getAttribute('aria-label')).toBe(m.participants);
+    expect(element.renderRoot.querySelector('[data-fragment="duplicate"]')?.getAttribute('aria-label')).toBe(
+      m.frameHeaderLabel('loop', '通知の重複排除', true),
+    );
   });
 });

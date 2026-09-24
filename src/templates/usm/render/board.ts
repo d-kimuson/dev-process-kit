@@ -4,6 +4,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { DragController, Drop } from '../../../lib/dom/drag';
 import type { CellRef } from '../drop';
+import type { UsmMessages } from '../messages';
 
 import { iconGrip, iconPlus } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
@@ -22,6 +23,7 @@ export type BoardHandlers = {
 };
 
 export type BoardProps = {
+  readonly m: UsmMessages;
   readonly context: TemplateRenderContext<UsmState>;
   readonly mode: UsmUiMode;
   readonly drag: DragController<UsmDragType>;
@@ -34,17 +36,17 @@ export type MilestoneRow = {
   readonly name: string;
 };
 
-export const milestoneRows = (state: UsmState): readonly MilestoneRow[] => {
-  return [...state.milestones.map(({ id, name }) => ({ id, name })), { id: undefined, name: '未割当' }];
+export const milestoneRows = (m: UsmMessages, state: UsmState): readonly MilestoneRow[] => {
+  return [...state.milestones.map(({ id, name }) => ({ id, name })), { id: undefined, name: m.unassigned }];
 };
 
-export const renderEmptyBoard = (context: TemplateRenderContext<UsmState>): TemplateResult => {
+export const renderEmptyBoard = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult => {
   return html`
     <div class="empty">
-      <h2>バックボーンがまだありません</h2>
-      <p>アクティビティとステップを追加すると、ここにストーリーマップが現れます。</p>
-      <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => addActivity(context)}>
-        ＋ 最初のアクティビティ
+      <h2>${m.emptyTitle}</h2>
+      <p>${m.emptyBody}</p>
+      <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => addActivity(m, context)}>
+        ${m.firstActivityButton}
       </button>
     </div>
   `;
@@ -52,14 +54,14 @@ export const renderEmptyBoard = (context: TemplateRenderContext<UsmState>): Temp
 
 /** View tabs plus the map in the requested grouping. */
 export const renderBoard = (props: BoardProps): TemplateResult => {
-  const { context } = props;
+  const { m, context } = props;
   const columns = flatSteps(context.state);
-  if (columns.length === 0) return renderEmptyBoard(context);
+  if (columns.length === 0) return renderEmptyBoard(m, context);
   const view: 'group' | 'activity' = context.navigation['view'] === 'group' ? 'group' : 'activity';
   return html`
-    <div class="view-tabs" role="tablist" aria-label="まとめる単位">
-      ${renderViewTab(context, 'activity', view, 'アクティビティ')}
-      ${renderViewTab(context, 'group', view, 'アクティビティグループ')}
+    <div class="view-tabs" role="tablist" aria-label=${m.groupingLabel}>
+      ${renderViewTab(context, 'activity', view, m.activityGroup)}
+      ${renderViewTab(context, 'group', view, m.groupViewTab)}
     </div>
     ${view === 'activity' ? renderActivityView(props, columns) : renderGroupView(props)}
   `;
@@ -87,26 +89,26 @@ const renderViewTab = (
  * Milestone rows stay identical in both views.
  */
 const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSteps>): TemplateResult => {
-  const { context } = props;
+  const { m, context } = props;
   const { state } = context;
-  const rows = milestoneRows(state);
+  const rows = milestoneRows(m, state);
   return html`
     <div class="map-scroll">
       <div class="map" style=${`--cols:${columns.length + 1}`} data-testid="usm-map">
         <div class="map-row">
           <div class="corner">
-            <span class="dpk-label">アクティビティグループ →</span>
+            <span class="dpk-label">${m.groupAxisHeader}</span>
           </div>
           ${repeat(
             state.activities,
             (activity) => activity.id,
             (activity) =>
-              renderActivityHead(context, activity.id, `grid-column: span ${Math.max(activity.steps.length, 1)}`),
+              renderActivityHead(m, context, activity.id, `grid-column: span ${Math.max(activity.steps.length, 1)}`),
           )}
-          ${renderAddActivityHead(context)}
+          ${renderAddActivityHead(m, context)}
         </div>
         <div class="map-row">
-          ${renderAxisCorner()}
+          ${renderAxisCorner(m)}
           ${repeat(
             columns,
             ({ activity, step }) => `${activity.id}.${step.id}`,
@@ -115,7 +117,7 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
                 <h4>
                   <dpk-component-inline-edit
                     .value=${step.name}
-                    .label=${'ステップ名'}
+                    .label=${m.stepNameLabel}
                     @dpk-commit=${onCommit((name) =>
                       context.dispatch({
                         type: 'SET_STEP_NAME',
@@ -146,7 +148,7 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
               )}`,
             ),
         )}
-        ${renderAddMilestoneRow(context, columns.length)}
+        ${renderAddMilestoneRow(m, context, columns.length)}
       </div>
     </div>
   `;
@@ -158,20 +160,20 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
  * step and only changes the milestone and the position.
  */
 const renderGroupView = (props: BoardProps): TemplateResult => {
-  const { context } = props;
+  const { m, context } = props;
   const { state } = context;
-  const rows = milestoneRows(state);
+  const rows = milestoneRows(m, state);
   return html`
     <div class="map-scroll">
       <div class="map" style=${`--cols:${state.activities.length + 1}`} data-testid="usm-map-group">
         <div class="map-row">
-          ${renderAxisCorner()}
+          ${renderAxisCorner(m)}
           ${repeat(
             state.activities,
             (activity) => activity.id,
-            (activity) => renderActivityHead(context, activity.id),
+            (activity) => renderActivityHead(m, context, activity.id),
           )}
-          ${renderAddActivityHead(context)}
+          ${renderAddActivityHead(m, context)}
         </div>
         ${repeat(
           rows,
@@ -187,20 +189,21 @@ const renderGroupView = (props: BoardProps): TemplateResult => {
               )}`,
             ),
         )}
-        ${renderAddMilestoneRow(context, state.activities.length)}
+        ${renderAddMilestoneRow(m, context, state.activities.length)}
       </div>
     </div>
   `;
 };
 
-const renderAxisCorner = (): TemplateResult => {
+const renderAxisCorner = (m: UsmMessages): TemplateResult => {
   return html`<div class="corner">
-    <span class="dpk-label">アクティビティ →</span>
-    <span class="dpk-label">マイルストーン ↓</span>
+    <span class="dpk-label">${m.activityAxis}</span>
+    <span class="dpk-label">${m.milestoneAxis}</span>
   </div>`;
 };
 
 const renderActivityHead = (
+  m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
   activityId: string,
   style?: string,
@@ -211,7 +214,7 @@ const renderActivityHead = (
     <div class="act-head" style=${style ?? nothing}>
       <dpk-component-inline-edit
         .value=${activity.name}
-        .label=${'アクティビティ名'}
+        .label=${m.activityNameLabel}
         @dpk-commit=${onCommit((name) =>
           context.dispatch({
             type: 'SET_ACTIVITY_NAME',
@@ -223,8 +226,8 @@ const renderActivityHead = (
       <button
         class="dpk-icon-btn"
         type="button"
-        aria-label="このアクティビティにステップを追加"
-        @click=${() => addStep(context, activity.id)}
+        aria-label=${m.addStepAria}
+        @click=${() => addStep(m, context, activity.id)}
       >
         ${iconPlus()}
       </button>
@@ -232,17 +235,23 @@ const renderActivityHead = (
   `;
 };
 
-const renderAddActivityHead = (context: TemplateRenderContext<UsmState>): TemplateResult => {
+const renderAddActivityHead = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult => {
   return html`<div class="act-head">
-    <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addActivity(context)}>＋ アクティビティ</button>
+    <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addActivity(m, context)}>
+      ${m.newActivityButton}
+    </button>
   </div>`;
 };
 
-const renderAddMilestoneRow = (context: TemplateRenderContext<UsmState>, columnCount: number): TemplateResult => {
+const renderAddMilestoneRow = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  columnCount: number,
+): TemplateResult => {
   return html`<div class="map-row">
     <div class="row-head">
-      <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addMilestone(context)}>
-        ＋ マイルストーン
+      <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addMilestone(m, context)}>
+        ${m.newMilestoneButton}
       </button>
     </div>
     ${Array.from({ length: columnCount + 1 }, () => html`<div class="cell"></div>`)}
@@ -256,7 +265,7 @@ const renderAddMilestoneRow = (context: TemplateRenderContext<UsmState>, columnC
  * neither draggable nor a drop target.
  */
 const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: TemplateResult): TemplateResult => {
-  const { context, drag, handlers } = props;
+  const { m, context, drag, handlers } = props;
   const milestoneId = row.id;
   if (milestoneId === undefined) {
     return html`<div class="map-row" data-draggable="false" data-row-dragging="false" data-row-drop="false">
@@ -298,7 +307,7 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
         ><dpk-component-inline-edit
           draggable="false"
           .value=${row.name}
-          .label=${'マイルストーン名'}
+          .label=${m.milestoneNameLabel}
           @dpk-commit=${onCommit((name) =>
             context.dispatch({
               type: 'SET_MILESTONE_NAME',
@@ -315,7 +324,7 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
 };
 
 const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
-  const { context, drag, handlers } = props;
+  const { m, context, drag, handlers } = props;
   const stories = storiesInCell(context.state, cell.stepId, cell.milestoneId);
   const key = `cell:${cell.stepId}:${cell.milestoneId ?? ''}`;
   const target = drag.target({
@@ -345,17 +354,17 @@ const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
       <button
         class="dpk-btn dpk-btn--ghost add-cell"
         type="button"
-        title="このマスにストーリーを追加"
-        @click=${() => addStory(context, cell.activityId, cell.stepId, cell.milestoneId)}
+        title=${m.addStoryCellAria}
+        @click=${() => addStory(m, context, cell.activityId, cell.stepId, cell.milestoneId)}
       >
-        ＋ 追加
+        ${m.addCellButton}
       </button>
     </div>
   `;
 };
 
 const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: string | undefined): TemplateResult => {
-  const { context, drag, handlers } = props;
+  const { m, context, drag, handlers } = props;
   const { state } = context;
   const stories = storiesInActivity(state, activityId, milestoneId);
   const firstStep = state.activities.find((candidate) => candidate.id === activityId)?.steps[0];
@@ -389,10 +398,10 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
           ? html`<button
               class="dpk-btn dpk-btn--ghost add-cell"
               type="button"
-              aria-label="このマスにストーリーを追加"
-              @click=${() => addStory(context, activityId, firstStep.id, milestoneId)}
+              aria-label=${m.addStoryCellAria}
+              @click=${() => addStory(m, context, activityId, firstStep.id, milestoneId)}
             >
-              ＋ 追加
+              ${m.addCellButton}
             </button>`
           : nothing
       }

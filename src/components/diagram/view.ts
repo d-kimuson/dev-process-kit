@@ -2,6 +2,7 @@ import { html, svg, nothing, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { LayoutPoint } from '../../lib/layout/layered';
+import type { DiagramMessages } from './messages';
 import type { DiagramIntent, SelectionRef, TagMatch } from './model';
 import type { TagViewModel } from './present';
 
@@ -45,12 +46,13 @@ export const arrowDefinitions = (definitions: readonly ArrowDefinition[]): Templ
 `;
 
 export const renderTagBar = <S extends SelectionRef>(
+  m: DiagramMessages,
   tags: readonly TagViewModel[],
   match: TagMatch,
   send: DiagramSend<S>,
 ): TemplateResult => html`
-  <div class="diagram-tags" role="group" aria-label="タグの絞り込み">
-    <div class="diagram-match" role="group" aria-label="タグの一致条件">
+  <div class="diagram-tags" role="group" aria-label=${m.tagFilter}>
+    <div class="diagram-match" role="group" aria-label=${m.tagMatch}>
       ${(
         [
           ['single', 'Single'],
@@ -87,17 +89,19 @@ export const renderTagBar = <S extends SelectionRef>(
     )}
     ${
       tags.some((tag) => tag.selected)
-        ? html`<button type="button" class="dpk-tag-clear" @click=${() => send({ kind: 'clear-tags' })}>解除</button>`
+        ? html`<button type="button" class="dpk-tag-clear" @click=${() => send({ kind: 'clear-tags' })}>
+            ${m.clearTags}
+          </button>`
         : nothing
     }
   </div>
 `;
 
-export const renderZoom = <S extends SelectionRef>(send?: DiagramSend<S>): TemplateResult => html`
+export const renderZoom = <S extends SelectionRef>(m: DiagramMessages, send?: DiagramSend<S>): TemplateResult => html`
   <div class="diagram-zoom">
     <button
       type="button"
-      aria-label="縮小"
+      aria-label=${m.zoomOut}
       @click=${(event: Event) => {
         event.stopPropagation();
         send?.({ kind: 'zoom', factor: 1 / 1.1 });
@@ -108,21 +112,21 @@ export const renderZoom = <S extends SelectionRef>(send?: DiagramSend<S>): Templ
     <button
       type="button"
       class="diagram-zoom-value"
-      title="全体を表示"
-      aria-label="全体を表示"
+      title=${m.fit}
+      aria-label=${m.fit}
       @click=${() => send?.({ kind: 'fit' })}
     >
       100%
     </button>
     <button
       type="button"
-      aria-label="拡大"
+      aria-label=${m.zoomIn}
       @click=${(event: Event) => {
         event.stopPropagation();
         send?.({ kind: 'zoom', factor: 1.1 });
       }}
     >
-      ＋
+      +
     </button>
   </div>
 `;

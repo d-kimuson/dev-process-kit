@@ -2,6 +2,7 @@ import * as v from 'valibot';
 
 import type { ElementActionResult } from '../../core/element-actions';
 import type { DraftAction } from '../../core/types';
+import type { MindMapMessages } from './messages';
 
 import { elementRefSegments, type DiagramEdgeInput, type DiagramNodeInput } from '../diagram/model';
 
@@ -221,10 +222,11 @@ const pinSides = (root: TopicInput): TopicInput => {
  * Each action is reported on: applied, or why it is stale. Pure.
  */
 export const reduceMindMapActions = (
+  m: MindMapMessages,
   data: MindMapData,
   actions: readonly DraftAction[],
 ): { readonly data: MindMapData; readonly results: readonly ElementActionResult[] } => {
-  const title = 'トピックを追加';
+  const title = m.addTopicTitle;
   const labels = new Map(data.nodes.map((node) => [node.id, node.label]));
   const added = new Set<string>();
   const results: ElementActionResult[] = [];
@@ -249,7 +251,7 @@ export const reduceMindMapActions = (
     root = appendChild(root, parent, { id, label });
     labels.set(id, label);
     added.add(id);
-    results.push({ id: action.id, title, summary: `${parentLabel} › ${label}`, tone: 'create' });
+    results.push({ id: action.id, title, summary: m.addSummary(parentLabel, label), tone: 'create' });
   }
   return { data: root === null || added.size === 0 ? data : flattenMindMap(root, added), results };
 };

@@ -25,6 +25,8 @@ const SAMPLES = [
   ['usm', 'usm'],
   ['event-storming', 'event-storming'],
   ['example-mapping', 'example-mapping'],
+  // English UI (`lang="en"`); every other sample is Japanese.
+  ['example-mapping-en', 'example-mapping'],
   ['grill', 'grill'],
   ['diagrams', 'plain'],
   ['design-doc', 'plain'],

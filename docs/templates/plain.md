@@ -58,11 +58,11 @@ Give the host a height (for example `dpk-template-plain { display: block; height
 
 ## Comment targets
 
-| Target                     | How the reader reaches it                                                                    |
-| -------------------------- | -------------------------------------------------------------------------------------------- |
-| `page:plain`               | The review composer, with nothing attached                                                   |
-| `section:<id>`             | `data-dpk-comment="section:<id>"` on your markup, or the composer's target list              |
-| `element:<diagram-id>/...` | A diagram's **この要素にコメント** (see `docs/components/diagrams.md`); needs a diagram `id` |
+| Target                     | How the reader reaches it                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| `page:plain`               | The review composer, with nothing attached                                                 |
+| `section:<id>`             | `data-dpk-comment="section:<id>"` on your markup, or the composer's target list            |
+| `element:<diagram-id>/...` | A diagram's element comment icon (see `docs/components/diagrams.md`); needs a diagram `id` |
 
 A comment on a section that disappears from the base data, or on a diagram element that no longer exists, stays in the draft as **stale** instead of being dropped. Keep section and diagram ids stable across revisions so existing comments keep their targets.
 

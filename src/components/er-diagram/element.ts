@@ -6,6 +6,7 @@ import { DiagramElement } from '../diagram/element';
 import { EMPTY_REACH, reach, type DiagramSelection, type Reach } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
 import { pathData } from '../diagram/view';
+import { erDiagramMessages, type ErDiagramMessages } from './messages';
 import {
   emptyErData,
   fieldRowHeight,
@@ -19,7 +20,6 @@ import { erStyles } from './styles';
 
 const ARROWS = [{ id: 'er-neutral' }, { id: 'er-added' }, { id: 'er-removed' }, { id: 'er-selected' }] as const;
 
-const STATUS_LABELS = { same: '変更なし', added: '追加', removed: '削除', changed: '変更' } as const;
 const SYMBOLS = { same: '', added: '+', removed: '−', changed: '~' } as const;
 
 /** Schema diagram with an always-on diff between the `before` and `after` snapshots. */
@@ -37,15 +37,16 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
   }
 
   protected override defaultHeading(): string {
-    return 'ERD';
+    return erDiagramMessages(this.locale).heading;
   }
 
   protected override statsLabels(): { readonly node: string; readonly edge: string } {
-    return { node: 'テーブル', edge: '関連' };
+    const m = erDiagramMessages(this.locale);
+    return { node: m.node, edge: m.edge };
   }
 
   protected override emptyMessage(): string {
-    return '該当するテーブルはありません。';
+    return erDiagramMessages(this.locale).empty;
   }
 
   protected override layoutOptions(): LayoutOptions {
@@ -70,9 +71,10 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
   }
 
   protected override renderToolbarActions(): TemplateResult {
+    const m = erDiagramMessages(this.locale);
     return html`
       <label class="er-search">
-        <span class="dpk-label">検索</span>
+        <span class="dpk-label">${m.search}</span>
         <input
           class="dpk-input"
           type="search"
@@ -90,10 +92,11 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
   }
 
   protected override renderLegend(): TemplateResult {
+    const m = erDiagramMessages(this.locale);
     return html`<div class="diagram-legend">
-      <span><i class="er-swatch-added"></i>追加</span>
-      <span><i class="er-swatch-removed"></i>削除</span>
-      <span><i class="er-swatch-changed"></i>変更</span>
+      <span><i class="er-swatch-added"></i>${m.legendAdded}</span>
+      <span><i class="er-swatch-removed"></i>${m.legendRemoved}</span>
+      <span><i class="er-swatch-changed"></i>${m.legendChanged}</span>
     </div>`;
   }
 
@@ -104,6 +107,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
   }
 
   protected override renderCanvas(): TemplateResult {
+    const m = erDiagramMessages(this.locale);
     const visible = this.visible;
     const edges = visible.edges.map((relation) => {
       const state = this.edgeState(relation.id);
@@ -119,7 +123,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
             d=${d}
             role="button"
             tabindex="0"
-            aria-label=${`${relation.from} と ${relation.to} の関連`}
+            aria-label=${m.edgeLabel(relation.from, relation.to)}
             @click=${select}
             @keydown=${(event: KeyboardEvent) => {
               if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -136,7 +140,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
         </g>
       `;
     });
-    return html`${this.renderEdges(edges, ARROWS)}${visible.nodes.map((table) => this.#renderTable(table))}`;
+    return html`${this.renderEdges(edges, ARROWS)}${visible.nodes.map((table) => this.#renderTable(table, m))}`;
   }
 
   #renderCardinality(points: readonly { x: number; y: number }[], status: ErTableDiff['status']): TemplateResult {
@@ -149,7 +153,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
     `;
   }
 
-  #renderTable(table: ErTableDiff): TemplateResult | typeof nothing {
+  #renderTable(table: ErTableDiff, m: ErDiagramMessages): TemplateResult | typeof nothing {
     const placed = this.placedNode(table.id);
     if (!placed) return nothing;
     const state = this.nodeState(table.id);
@@ -171,24 +175,24 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
           ${table.status === 'same' ? nothing : html`<span class="er-mark" aria-hidden="true">${SYMBOLS[table.status]}</span>`}
           <span class="er-name">${table.id}</span>
           <span class="er-label">${table.name}</span>
-          <span class="dpk-label er-status">${STATUS_LABELS[table.status]}</span>
+          <span class="dpk-label er-status">${m.statusLabel(table.status)}</span>
         </button>
         ${this.renderCommentTrigger({ kind: 'node', id: table.id }, `${table.id} · ${table.name}`)}
-        <div class="er-fields">${table.fields.map((field) => this.#renderField(field))}</div>
+        <div class="er-fields">${table.fields.map((field) => this.#renderField(field, m))}</div>
       </div>
     `;
   }
 
-  #renderField(field: ErFieldDiff): TemplateResult {
+  #renderField(field: ErFieldDiff, m: ErDiagramMessages): TemplateResult {
     const describe = (value: ErFieldDiff | NonNullable<ErFieldDiff['before']>): string =>
-      [value.type, value.key ?? '—', value.ref ?? null, value.nullable ? 'null可' : null].filter(Boolean).join(' · ');
+      [value.type, value.key ?? '—', value.ref ?? null, value.nullable ? m.nullable : null].filter(Boolean).join(' · ');
     const matches = this.#query !== '' && field.id.toLowerCase().includes(this.#query);
     return html`
       <div
         class="er-field is-${field.status} ${matches ? 'is-match' : ''}"
         style="height:${fieldRowHeight(field)}px"
         data-grill-questions=${this.questionsOf(field)}
-        title=${[STATUS_LABELS[field.status], field.id, describe(field)].filter(Boolean).join(' / ')}
+        title=${[m.statusLabel(field.status), field.id, describe(field)].filter(Boolean).join(' / ')}
       >
         <span class="er-field-mark" aria-hidden="true">${SYMBOLS[field.status]}</span>
         <span class="er-key" data-empty=${field.key === null ? 'true' : 'false'}>${field.key ?? '·'}</span>

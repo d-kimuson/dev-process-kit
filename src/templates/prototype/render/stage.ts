@@ -1,6 +1,7 @@
 import { html, nothing, type TemplateResult } from 'lit';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
+import type { PrototypeMessages } from '../messages';
 
 import { findStep, flattenSteps, type PreviewViewport, type PrototypePreview, type PrototypeState } from '../model';
 import { prototypePreviewUrl } from '../present';
@@ -30,7 +31,11 @@ export type StageOptions = {
 };
 
 /** Tabs (when a step has several previews), the active frame and the parked slots. */
-export const renderStage = (context: TemplateRenderContext<PrototypeState>, options: StageOptions): TemplateResult => {
+export const renderStage = (
+  context: TemplateRenderContext<PrototypeState>,
+  m: PrototypeMessages,
+  options: StageOptions,
+): TemplateResult => {
   const { state, navigation } = context;
   const location = findStep(state, navigation['step']);
   const active = location
@@ -42,9 +47,7 @@ export const renderStage = (context: TemplateRenderContext<PrototypeState>, opti
     return html`
       <div class="stage">
         <p class="stage-empty">
-          Step がまだありません。Prototype は
-          <strong>Activity › UserStory › Step › Preview</strong> の意味構造を持ち、 1 Step = 1 画面 / 1
-          体験状態です。base JSON に Step を追加すると、ここに Preview が現れます。
+          ${m.noStepBefore}<strong>Activity › UserStory › Step › Preview</strong>${m.noStepAfter}
         </p>
         ${parked}
       </div>
@@ -56,12 +59,7 @@ export const renderStage = (context: TemplateRenderContext<PrototypeState>, opti
     <div class="stage">
       ${previews.length > 1 ? renderPreviewTabs(context, previews, active?.id) : nothing}
       ${active ? renderFrame(context, active, options.hasPreviewContent(active.id)) : nothing}
-      ${
-        previews.length === 0
-          ? html`<p class="dpk-label">preview metadata がありません — 追加は Agent に依頼してください</p>`
-          : nothing
-      }
-      ${parked}
+      ${previews.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing} ${parked}
     </div>
   `;
 };

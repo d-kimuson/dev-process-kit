@@ -1,7 +1,9 @@
+import type { Locale } from '../../core/i18n';
 import type { ActionTarget, Navigation, TemplateDefinition } from '../../core/types';
 
 import { prototypeActions } from './actions';
 import { applyPrototypeAction } from './apply';
+import { prototypeMessages } from './messages';
 import {
   emptyPrototypeBase,
   findActivity,
@@ -43,33 +45,36 @@ export const prototypeHasTarget = (state: PrototypeState, target: ActionTarget):
  * Prototype template: Activity > UserStory > Step > Preview[].
  * `Step` is one page / experience state; a Step owns the previews it needs.
  */
-export const prototypeDefinition: TemplateDefinition<PrototypeState> = {
-  name: 'prototype',
-  label: 'UX Prototype',
-  parseBase: parsePrototypeBase,
-  emptyBase: emptyPrototypeBase,
-  actions: prototypeActions,
-  apply: applyPrototypeAction,
-  hasTarget: prototypeHasTarget,
-  canonicalTarget: (state, target) => {
-    if (target.type === 'step') {
-      const location = findStep(state, target.id);
-      return location ? { ...target, id: stepRef(location) } : target;
-    }
-    if (target.type === 'story') {
-      const location = findStory(state, target.id);
-      return location ? { ...target, id: storyRef(location.activity.id, location.story.id) } : target;
-    }
-    if (target.type === 'preview') {
-      const location = findPreview(state, target.id);
-      return location ? { ...target, id: location.preview.id } : target;
-    }
-    return target;
-  },
-  describe: describePrototypeAction,
-  serialize: serializePrototypeAction,
-  resolveNavigation: resolvePrototypeNavigation,
-  commentTargets: (state: PrototypeState, _navigation: Navigation) => prototypeCommentTargets(state),
-  currentTarget: (state: PrototypeState, navigation: Navigation) => prototypeCurrentTarget(state, navigation),
-  title: prototypeTitle,
+export const prototypeDefinitionFor = (locale: Locale): TemplateDefinition<PrototypeState> => {
+  const m = prototypeMessages(locale);
+  return {
+    name: 'prototype',
+    label: 'UX Prototype',
+    parseBase: parsePrototypeBase,
+    emptyBase: emptyPrototypeBase,
+    actions: prototypeActions,
+    apply: applyPrototypeAction,
+    hasTarget: prototypeHasTarget,
+    canonicalTarget: (state, target) => {
+      if (target.type === 'step') {
+        const location = findStep(state, target.id);
+        return location ? { ...target, id: stepRef(location) } : target;
+      }
+      if (target.type === 'story') {
+        const location = findStory(state, target.id);
+        return location ? { ...target, id: storyRef(location.activity.id, location.story.id) } : target;
+      }
+      if (target.type === 'preview') {
+        const location = findPreview(state, target.id);
+        return location ? { ...target, id: location.preview.id } : target;
+      }
+      return target;
+    },
+    describe: (action, state, base) => describePrototypeAction(m, action, state, base),
+    serialize: serializePrototypeAction,
+    resolveNavigation: resolvePrototypeNavigation,
+    commentTargets: (state: PrototypeState, _navigation: Navigation) => prototypeCommentTargets(m, state),
+    currentTarget: (state: PrototypeState, navigation: Navigation) => prototypeCurrentTarget(m, state, navigation),
+    title: prototypeTitle,
+  };
 };

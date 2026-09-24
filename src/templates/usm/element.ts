@@ -1,5 +1,6 @@
 import { html, type TemplateResult } from 'lit';
 
+import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 
 import { TemplateElement } from '../../core/element';
@@ -8,8 +9,9 @@ import { popoverSurface } from '../../core/theme';
 import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
 import { defineUsmStoryCard } from './components/story-card';
-import { usmDefinition } from './definition';
+import { usmDefinitionFor } from './definition';
 import { resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove, type CellRef } from './drop';
+import { usmMessages } from './messages';
 import { findStory, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
 import { renderMoveDialog } from './render/move-dialog';
@@ -30,7 +32,9 @@ const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
 export class DpkTemplateUsm extends TemplateElement<UsmState> {
   static override styles = [TemplateElement.styles, usmStyles, popoverSurface];
 
-  readonly definition = usmDefinition;
+  protected override definitionFor(locale: Locale) {
+    return usmDefinitionFor(locale);
+  }
 
   static override properties = {
     mode: { state: true },
@@ -60,8 +64,10 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   }
 
   #renderMain(context: TemplateRenderContext<UsmState>): TemplateResult {
+    const m = usmMessages(this.locale);
     return html`
       ${renderBoard({
+        m,
         context,
         mode: this.mode,
         drag: this.#drag,
@@ -72,7 +78,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
           dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
         },
       })}
-      ${renderMoveDialog(context, this.mode, {
+      ${renderMoveDialog(m, context, this.mode, {
         confirm: (stepId) => this.#confirmPickedStep(stepId),
         cancel: () => (this.mode = IDLE_MODE),
       })}

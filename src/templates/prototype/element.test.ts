@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import '../../index';
 import type { DpkTemplatePrototype } from './element';
+
+import '../../index';
+import { prototypeMessages } from './messages';
+
+const m = prototypeMessages('en');
 
 const base = {
   title: 'Demo',
@@ -32,10 +36,10 @@ const base = {
   ],
 };
 
-const mount = (hash = ''): DpkTemplatePrototype => {
+const mount = (hash = '', lang = ''): DpkTemplatePrototype => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <dpk-template-prototype storage="memory">
+    <dpk-template-prototype storage="memory"${lang === '' ? '' : ` lang="${lang}"`}>
       <script type="application/json">${JSON.stringify(base)}</script>
       <div slot="preview" data-preview-id="landing-mobile">mobile</div>
     </dpk-template-prototype>`;
@@ -84,7 +88,7 @@ describe('<dpk-template-prototype> layout', () => {
     el.api.navigate({ story: 'billing', step: 'invoice' });
     await settle(el);
     expect(root.querySelector('figure.frame')).toBeNull();
-    expect(root.querySelector('.stage .dpk-label')?.textContent).toContain('preview metadata がありません');
+    expect(root.querySelector('.stage .dpk-label')?.textContent).toBe(m.noPreviewMetadata);
   });
 
   it('shows a placeholder and the native status bar when the preview has no markup', async () => {
@@ -109,10 +113,27 @@ describe('<dpk-template-prototype> layout', () => {
     expect(location.hash).toContain('story=billing');
     expect(root.querySelectorAll('.step-row')).toHaveLength(1);
     expect(root.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Invoice');
-    [...root.querySelectorAll('button')].find((b) => b.textContent?.includes('＋ Step'))!.click();
+    [...root.querySelectorAll('button')].find((b) => b.textContent?.includes(m.addStepButton))!.click();
     await settle(el);
     expect(el.api.actions.some((a) => a.type === 'ADD_STEP')).toBe(true);
     expect(root.querySelectorAll('.step-row')).toHaveLength(2);
     expect(location.hash).toContain('step=new-step');
+  });
+
+  it('renders the ja dictionary text under lang="ja", and en without one', async () => {
+    const english = mount();
+    await settle(english);
+    english.api.navigate({ story: 'billing', step: 'invoice' });
+    await settle(english);
+    expect(english.shadowRoot!.querySelector('.stage .dpk-label')?.textContent).toBe(m.noPreviewMetadata);
+
+    const japanese = mount('', 'ja');
+    await settle(japanese);
+    expect(japanese.locale).toBe('ja');
+    japanese.api.navigate({ story: 'billing', step: 'invoice' });
+    await settle(japanese);
+    expect(japanese.shadowRoot!.querySelector('.stage .dpk-label')?.textContent).toBe(
+      prototypeMessages('ja').noPreviewMetadata,
+    );
   });
 });

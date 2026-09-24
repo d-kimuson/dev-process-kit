@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { DpkComponentMindMap } from './element';
 import { defineMindMap } from './index';
 import { layoutMindMap } from './layout';
+import { mindMapMessages } from './messages';
 import {
   ancestorsOf,
   descendantCount,
@@ -13,6 +14,8 @@ import {
 } from './model';
 
 defineMindMap();
+
+const m = mindMapMessages('en');
 
 const raw = {
   root: {
@@ -119,7 +122,7 @@ const addTopic = (id: string, parent: string, payload: unknown, type = 'ADD_TOPI
 
 describe('mind map element actions', () => {
   it('adds a subtopic at the end of its parent, marked as added', () => {
-    const { data: next, results } = reduceMindMapActions(data(), [
+    const { data: next, results } = reduceMindMapActions(m, data(), [
       addTopic('a1', 'payment', { id: 'chargeback', label: 'チャージバック' }),
     ]);
     expect(next.nodes.find((node) => node.id === 'payment')?.children).toEqual([
@@ -137,12 +140,14 @@ describe('mind map element actions', () => {
     });
     expect(next.nodes.find((node) => node.id === 'retry')?.added).toBe(false);
     expect(next.edges.find((edge) => edge.id === 'chargeback')).toMatchObject({ from: 'payment', to: 'chargeback' });
-    expect(results).toEqual([{ id: 'a1', title: 'トピックを追加', summary: '決済 › チャージバック', tone: 'create' }]);
+    expect(results).toEqual([
+      { id: 'a1', title: m.addTopicTitle, summary: m.addSummary('決済', 'チャージバック'), tone: 'create' },
+    ]);
   });
 
   it('builds on topics added earlier and keeps every main topic on its side', () => {
     const before = Object.fromEntries(data().nodes.map((node) => [node.id, node.side]));
-    const { data: next } = reduceMindMapActions(data(), [
+    const { data: next } = reduceMindMapActions(m, data(), [
       addTopic('a1', 'stock', { id: 'lots', label: 'ロット' }),
       addTopic('a2', 'lots', { id: 'lot-a', label: 'A' }),
       addTopic('a3', 'lots', { id: 'lot-b', label: 'B' }),
@@ -156,7 +161,7 @@ describe('mind map element actions', () => {
 
   it('reports what it cannot apply and leaves the data alone', () => {
     const base = data();
-    const { data: next, results } = reduceMindMapActions(base, [
+    const { data: next, results } = reduceMindMapActions(m, base, [
       addTopic('gone', 'nowhere', { id: 'x', label: 'X' }),
       addTopic('dup', 'payment', { id: 'retry', label: '再試行' }),
       addTopic('bad', 'payment', { id: 'y' }),
@@ -238,10 +243,11 @@ describe('<dpk-component-mind-map>', () => {
     for (let index = 0; index < 3; index++) await element.updateComplete;
   };
 
-  const mount = async (): Promise<DpkComponentMindMap> => {
+  const mount = async (lang?: string): Promise<DpkComponentMindMap> => {
     const element = document.createElement('dpk-component-mind-map');
     if (!(element instanceof DpkComponentMindMap)) throw new Error('did not upgrade');
     element.id = 'checkout-map';
+    if (lang !== undefined) element.setAttribute('lang', lang);
     element.innerHTML = `<script type="application/json">${JSON.stringify(raw)}</script>`;
     document.body.append(element);
     await settle(element);
@@ -342,7 +348,7 @@ describe('<dpk-component-mind-map>', () => {
     expect(topics(element)).toContain(id);
     expect(element.renderRoot.querySelector(`[data-topic="${id}"]`)?.className).toContain('is-added');
     expect(element.elementActionResults).toEqual([
-      { id: 'a0', title: 'トピックを追加', summary: '決済 › チャージバック', tone: 'create' },
+      { id: 'a0', title: m.addTopicTitle, summary: m.addSummary('決済', 'チャージバック'), tone: 'create' },
     ]);
     expect(element.commentTargets.map((target) => target.value)).toContain(`element:checkout-map/node/${id}`);
   });
@@ -374,5 +380,28 @@ describe('<dpk-component-mind-map>', () => {
     expect(values).toContain('element:checkout-map/node/confirm');
     expect(values.some((value) => value.includes('/edge/'))).toBe(false);
     expect(element.commentTargets.find((target) => target.value.endsWith('/retry'))?.label).toBe('再試行');
+  });
+
+  it('renders its kit text in the element’s language', async () => {
+    const ja = mindMapMessages('ja');
+    const element = await mount('ja');
+    const toggle = element.renderRoot.querySelector<HTMLButtonElement>('[data-toggle="ui"]');
+    expect(toggle?.getAttribute('aria-label')).toBe(ja.toggleOpen('画面', 1));
+    element.select({ kind: 'node', id: 'payment' });
+    await settle(element);
+    const bar = element.renderRoot.querySelector<HTMLElement>('.mind-actions');
+    expect(bar?.querySelector('[data-action="add"]')?.textContent?.trim()).toBe(ja.addSubtopicButton);
+    expect(bar?.querySelector('[data-action="comment"]')?.textContent?.trim()).toBe(ja.commentButton);
+  });
+
+  it('renders its kit text in English by default', async () => {
+    const element = await mount();
+    const toggle = element.renderRoot.querySelector<HTMLButtonElement>('[data-toggle="ui"]');
+    expect(toggle?.getAttribute('aria-label')).toBe(m.toggleOpen('画面', 1));
+    element.select({ kind: 'node', id: 'payment' });
+    await settle(element);
+    const bar = element.renderRoot.querySelector<HTMLElement>('.mind-actions');
+    expect(bar?.querySelector('[data-action="add"]')?.textContent?.trim()).toBe(m.addSubtopicButton);
+    expect(bar?.querySelector('[data-action="comment"]')?.textContent?.trim()).toBe(m.commentButton);
   });
 });

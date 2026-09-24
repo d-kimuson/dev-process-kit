@@ -48,7 +48,7 @@ const batchInputSchema = array(unknown());
 
 /** Owns validation, canonical actions, derivation and a single persistence/notification boundary. */
 export class DraftController<S> {
-  readonly #template: TemplateDefinition<S>;
+  #template: TemplateDefinition<S>;
   #definition: TemplateDefinition<S>;
   #snapshot: ComponentSnapshot = { targets: [], providers: [] };
   #elementResults: ReadonlyMap<string, ElementActionResult> = new Map();
@@ -86,6 +86,17 @@ export class DraftController<S> {
     const snapshot = parse(componentSnapshotSchema, input);
     if (isEqual(snapshot, this.#snapshot)) return;
     this.#snapshot = snapshot;
+    this.#rewrap();
+    this.#derivation = this.#derive(this.#actions);
+    for (const listener of this.#listeners) listener();
+  }
+
+  /**
+   * Replaces the template with the same one in another language. The draft,
+   * the base and storage stay as they are; only the text derived from them changes.
+   */
+  setTemplate(definition: TemplateDefinition<S>): void {
+    this.#template = definition;
     this.#rewrap();
     this.#derivation = this.#derive(this.#actions);
     for (const listener of this.#listeners) listener();

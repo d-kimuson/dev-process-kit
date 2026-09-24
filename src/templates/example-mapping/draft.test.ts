@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { DraftController } from '../../core/controller';
-import { exampleMappingDefinition } from './definition';
+import { exampleMappingDefinitionFor } from './definition';
 import { parseExampleMappingBase } from './model';
+
+const exampleMappingDefinition = exampleMappingDefinitionFor('en');
 
 // Rules of different stories interleave, as they do in a hand-written base.
 const base = parseExampleMappingBase({

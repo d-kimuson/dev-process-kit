@@ -6,6 +6,7 @@ import type {
   DraftAction,
   Navigation,
 } from '../../core/types';
+import type { ExampleMappingMessages } from './messages';
 
 import { payloadFor, type ActionName } from '../../core/schema';
 import { targetRef } from '../../core/target';
@@ -18,151 +19,176 @@ type Summary = {
   readonly body?: string;
 };
 
-const arrow = (before: unknown, after: unknown): string => {
+const arrow = (m: ExampleMappingMessages, before: unknown, after: unknown): string => {
   const afterText = typeof after === 'string' ? after : '';
   const beforeText = typeof before === 'string' ? before : undefined;
-  return beforeText === undefined ? `→ 「${afterText}」` : `「${beforeText}」→「${afterText}」`;
+  return beforeText === undefined ? m.arrowTo(afterText) : m.arrowFrom(beforeText, afterText);
 };
 
 // Never throws: every lookup falls back to the raw id.
-const DESCRIBERS: Record<string, (action: DraftAction, state: ExampleMappingState) => Summary> = {
-  SET_STORY_NAME: (action, state) => ({
-    title: 'ストーリー名を変更',
+const DESCRIBERS: Record<
+  string,
+  (m: ExampleMappingMessages, action: DraftAction, state: ExampleMappingState) => Summary
+> = {
+  SET_STORY_NAME: (m, action, state) => ({
+    title: m.storyRenamedTitle,
     tone: 'update',
     body: arrow(
+      m,
       findStory(state, action.target.id)?.name,
       payloadFor(exampleMappingActions.SET_STORY_NAME, action)['name'] ?? '',
     ),
   }),
-  SET_STORY_DESCRIPTION: (action) => ({
-    title: 'ストーリーの説明を更新',
+  SET_STORY_DESCRIPTION: (m, action) => ({
+    title: m.storyDescriptionUpdatedTitle,
     tone: 'update',
-    body: `→ 「${String(payloadFor(exampleMappingActions.SET_STORY_DESCRIPTION, action)['description'] ?? '').slice(0, 90)}」`,
+    body: m.arrowTo(
+      String(payloadFor(exampleMappingActions.SET_STORY_DESCRIPTION, action)['description'] ?? '').slice(0, 90),
+    ),
   }),
-  REORDER_STORY: (action) => ({
-    title: 'ストーリーの順序を変更',
+  REORDER_STORY: (m, action) => ({
+    title: m.storyReorderedTitle,
     tone: 'move',
-    body: afterSummary(payloadFor(exampleMappingActions.REORDER_STORY, action)['after']),
+    body: afterSummary(m, payloadFor(exampleMappingActions.REORDER_STORY, action)['after']),
   }),
-  ADD_STORY: (action) => ({
-    title: 'ストーリーを追加',
+  ADD_STORY: (m, action) => ({
+    title: m.storyAddedTitle,
     tone: 'create',
-    body: `+ 「${payloadFor(exampleMappingActions.ADD_STORY, action)['name'] ?? ''}」`,
+    body: m.added(String(payloadFor(exampleMappingActions.ADD_STORY, action)['name'] ?? '')),
   }),
-  DELETE_STORY: (action, state) => ({
-    title: 'ストーリーを削除',
+  DELETE_STORY: (m, action, state) => ({
+    title: m.storyDeletedTitle,
     tone: 'delete',
-    body: `− 「${findStory(state, action.target.id)?.name ?? action.target.id}」`,
+    body: m.deleted(findStory(state, action.target.id)?.name ?? action.target.id),
   }),
-  SET_RULE_NAME: (action, state) => ({
-    title: 'ルール名を変更',
+  SET_RULE_NAME: (m, action, state) => ({
+    title: m.ruleRenamedTitle,
     tone: 'update',
     body: arrow(
+      m,
       findRule(state, action.target.id)?.name,
       payloadFor(exampleMappingActions.SET_RULE_NAME, action)['name'] ?? '',
     ),
   }),
-  SET_RULE_DESCRIPTION: (action) => ({
-    title: 'ルールの説明を更新',
+  SET_RULE_DESCRIPTION: (m, action) => ({
+    title: m.ruleDescriptionUpdatedTitle,
     tone: 'update',
-    body: `→ 「${String(payloadFor(exampleMappingActions.SET_RULE_DESCRIPTION, action)['description'] ?? '').slice(0, 90)}」`,
+    body: m.arrowTo(
+      String(payloadFor(exampleMappingActions.SET_RULE_DESCRIPTION, action)['description'] ?? '').slice(0, 90),
+    ),
   }),
-  MOVE_RULE: (action, state) => ({
-    title: 'ルールを移動',
+  MOVE_RULE: (m, action, state) => ({
+    title: m.ruleMovedTitle,
     tone: 'move',
-    body: `→ ${findStory(state, String(payloadFor(exampleMappingActions.MOVE_RULE, action)['storyId']))?.name ?? String(payloadFor(exampleMappingActions.MOVE_RULE, action)['storyId'] ?? '')}`,
+    body: m.arrowTo(
+      findStory(state, String(payloadFor(exampleMappingActions.MOVE_RULE, action)['storyId']))?.name ??
+        String(payloadFor(exampleMappingActions.MOVE_RULE, action)['storyId'] ?? ''),
+    ),
   }),
-  REORDER_RULE: (action) => ({
-    title: 'ルールの順序を変更',
+  REORDER_RULE: (m, action) => ({
+    title: m.ruleReorderedTitle,
     tone: 'move',
-    body: afterSummary(payloadFor(exampleMappingActions.REORDER_RULE, action)['after']),
+    body: afterSummary(m, payloadFor(exampleMappingActions.REORDER_RULE, action)['after']),
   }),
-  ADD_RULE: (action) => ({
-    title: 'ルールを追加',
+  ADD_RULE: (m, action) => ({
+    title: m.ruleAddedTitle,
     tone: 'create',
-    body: `+ 「${payloadFor(exampleMappingActions.ADD_RULE, action)['name'] ?? ''}」`,
+    body: m.added(String(payloadFor(exampleMappingActions.ADD_RULE, action)['name'] ?? '')),
   }),
-  DELETE_RULE: (action, state) => ({
-    title: 'ルールを削除',
+  DELETE_RULE: (m, action, state) => ({
+    title: m.ruleDeletedTitle,
     tone: 'delete',
-    body: `− 「${findRule(state, action.target.id)?.name ?? action.target.id}」`,
+    body: m.deleted(findRule(state, action.target.id)?.name ?? action.target.id),
   }),
-  SET_EXAMPLE_NAME: (action, state) => ({
-    title: '具体例名を変更',
+  SET_EXAMPLE_NAME: (m, action, state) => ({
+    title: m.exampleRenamedTitle,
     tone: 'update',
     body: arrow(
+      m,
       findExample(state, action.target.id)?.name,
       payloadFor(exampleMappingActions.SET_EXAMPLE_NAME, action)['name'] ?? '',
     ),
   }),
-  SET_EXAMPLE_DESCRIPTION: (action) => ({
-    title: '具体例の説明を更新',
+  SET_EXAMPLE_DESCRIPTION: (m, action) => ({
+    title: m.exampleDescriptionUpdatedTitle,
     tone: 'update',
-    body: `→ 「${String(payloadFor(exampleMappingActions.SET_EXAMPLE_DESCRIPTION, action)['description'] ?? '').slice(0, 90)}」`,
+    body: m.arrowTo(
+      String(payloadFor(exampleMappingActions.SET_EXAMPLE_DESCRIPTION, action)['description'] ?? '').slice(0, 90),
+    ),
   }),
-  MOVE_EXAMPLE: (action, state) => ({
-    title: '具体例を移動',
+  MOVE_EXAMPLE: (m, action, state) => ({
+    title: m.exampleMovedTitle,
     tone: 'move',
-    body: `→ ${findRule(state, String(payloadFor(exampleMappingActions.MOVE_EXAMPLE, action)['ruleId']))?.name ?? String(payloadFor(exampleMappingActions.MOVE_EXAMPLE, action)['ruleId'] ?? '')}`,
+    body: m.arrowTo(
+      findRule(state, String(payloadFor(exampleMappingActions.MOVE_EXAMPLE, action)['ruleId']))?.name ??
+        String(payloadFor(exampleMappingActions.MOVE_EXAMPLE, action)['ruleId'] ?? ''),
+    ),
   }),
-  REORDER_EXAMPLE: (action) => ({
-    title: '具体例の順序を変更',
+  REORDER_EXAMPLE: (m, action) => ({
+    title: m.exampleReorderedTitle,
     tone: 'move',
-    body: afterSummary(payloadFor(exampleMappingActions.REORDER_EXAMPLE, action)['after']),
+    body: afterSummary(m, payloadFor(exampleMappingActions.REORDER_EXAMPLE, action)['after']),
   }),
-  ADD_EXAMPLE: (action) => ({
-    title: '具体例を追加',
+  ADD_EXAMPLE: (m, action) => ({
+    title: m.exampleAddedTitle,
     tone: 'create',
-    body: `+ 「${payloadFor(exampleMappingActions.ADD_EXAMPLE, action)['name'] ?? ''}」`,
+    body: m.added(String(payloadFor(exampleMappingActions.ADD_EXAMPLE, action)['name'] ?? '')),
   }),
-  DELETE_EXAMPLE: (action, state) => ({
-    title: '具体例を削除',
+  DELETE_EXAMPLE: (m, action, state) => ({
+    title: m.exampleDeletedTitle,
     tone: 'delete',
-    body: `− 「${findExample(state, action.target.id)?.name ?? action.target.id}」`,
+    body: m.deleted(findExample(state, action.target.id)?.name ?? action.target.id),
   }),
-  SET_QUESTION_NAME: (action, state) => ({
-    title: '質問名を変更',
+  SET_QUESTION_NAME: (m, action, state) => ({
+    title: m.questionRenamedTitle,
     tone: 'update',
     body: arrow(
+      m,
       findQuestion(state, action.target.id)?.name,
       payloadFor(exampleMappingActions.SET_QUESTION_NAME, action)['name'] ?? '',
     ),
   }),
-  SET_QUESTION_DESCRIPTION: (action) => ({
-    title: '質問の説明を更新',
+  SET_QUESTION_DESCRIPTION: (m, action) => ({
+    title: m.questionDescriptionUpdatedTitle,
     tone: 'update',
-    body: `→ 「${String(payloadFor(exampleMappingActions.SET_QUESTION_DESCRIPTION, action)['description'] ?? '').slice(0, 90)}」`,
+    body: m.arrowTo(
+      String(payloadFor(exampleMappingActions.SET_QUESTION_DESCRIPTION, action)['description'] ?? '').slice(0, 90),
+    ),
   }),
-  MOVE_QUESTION: (action, state) => ({
-    title: '質問を移動',
+  MOVE_QUESTION: (m, action, state) => ({
+    title: m.questionMovedTitle,
     tone: 'move',
-    body: `→ ${findRule(state, String(payloadFor(exampleMappingActions.MOVE_QUESTION, action)['ruleId']))?.name ?? String(payloadFor(exampleMappingActions.MOVE_QUESTION, action)['ruleId'] ?? '')}`,
+    body: m.arrowTo(
+      findRule(state, String(payloadFor(exampleMappingActions.MOVE_QUESTION, action)['ruleId']))?.name ??
+        String(payloadFor(exampleMappingActions.MOVE_QUESTION, action)['ruleId'] ?? ''),
+    ),
   }),
-  REORDER_QUESTION: (action) => ({
-    title: '質問の順序を変更',
+  REORDER_QUESTION: (m, action) => ({
+    title: m.questionReorderedTitle,
     tone: 'move',
-    body: afterSummary(payloadFor(exampleMappingActions.REORDER_QUESTION, action)['after']),
+    body: afterSummary(m, payloadFor(exampleMappingActions.REORDER_QUESTION, action)['after']),
   }),
-  ADD_QUESTION: (action) => ({
-    title: '質問を追加',
+  ADD_QUESTION: (m, action) => ({
+    title: m.questionAddedTitle,
     tone: 'create',
-    body: `+ 「${payloadFor(exampleMappingActions.ADD_QUESTION, action)['name'] ?? ''}」`,
+    body: m.added(String(payloadFor(exampleMappingActions.ADD_QUESTION, action)['name'] ?? '')),
   }),
-  DELETE_QUESTION: (action, state) => ({
-    title: '質問を削除',
+  DELETE_QUESTION: (m, action, state) => ({
+    title: m.questionDeletedTitle,
     tone: 'delete',
-    body: `− 「${findQuestion(state, action.target.id)?.name ?? action.target.id}」`,
+    body: m.deleted(findQuestion(state, action.target.id)?.name ?? action.target.id),
   }),
 } satisfies Record<
   ActionName<typeof exampleMappingActions>,
-  (action: DraftAction, state: ExampleMappingState) => Summary
+  (m: ExampleMappingMessages, action: DraftAction, state: ExampleMappingState) => Summary
 >;
 
-const afterSummary = (after: string | null | undefined): string => {
-  return after === null || after === undefined ? '→ 先頭へ' : `→ 「${after}」の直後へ`;
+const afterSummary = (m: ExampleMappingMessages, after: string | null | undefined): string => {
+  return after === null || after === undefined ? m.toTop : m.afterPlacement(after);
 };
 
 export const describeExampleMappingAction = (
+  m: ExampleMappingMessages,
   action: DraftAction,
   state: ExampleMappingState,
   base?: ExampleMappingState,
@@ -171,13 +197,13 @@ export const describeExampleMappingAction = (
   try {
     const describer = DESCRIBERS[action.type];
     const origin = base ?? state;
-    summary = describer ? describer(action, origin) : { title: action.type, tone: 'meta' };
+    summary = describer ? describer(m, action, origin) : { title: action.type, tone: 'meta' };
   } catch {
     summary = { title: action.type, tone: 'meta' };
   }
   return {
     title: summary.title,
-    targetLabel: exampleMappingTargetLabel(state, action.target),
+    targetLabel: exampleMappingTargetLabel(m, state, action.target),
     tone: summary.tone,
     ...(summary.body === undefined ? {} : { summary: summary.body }),
   };
@@ -187,34 +213,35 @@ export const serializeExampleMappingAction = (action: DraftAction): string => {
   return `${action.type} ${targetRef(action.target)} ${JSON.stringify(action.payload)}`;
 };
 
-const KIND_LABELS = {
-  story: 'ストーリー',
-  rule: 'ルール',
-  example: '具体例',
-  question: '質問',
-} as const;
-
-export const exampleMappingTargetLabel = (state: ExampleMappingState, target: ActionTarget): string => {
+export const exampleMappingTargetLabel = (
+  m: ExampleMappingMessages,
+  state: ExampleMappingState,
+  target: ActionTarget,
+): string => {
   try {
     switch (target.type) {
       case 'story': {
         const story = findStory(state, target.id);
-        return story ? `ストーリー · ${story.name}` : `ストーリー · ${target.id} (missing)`;
+        return story ? `${m.kindLabel('story')} · ${story.name}` : `${m.kindLabel('story')} · ${target.id} (missing)`;
       }
       case 'rule': {
         const rule = findRule(state, target.id);
-        return rule ? `ルール · ${rule.name}` : `ルール · ${target.id} (missing)`;
+        return rule ? `${m.kindLabel('rule')} · ${rule.name}` : `${m.kindLabel('rule')} · ${target.id} (missing)`;
       }
       case 'example': {
         const example = findExample(state, target.id);
-        return example ? `具体例 · ${example.name}` : `具体例 · ${target.id} (missing)`;
+        return example
+          ? `${m.kindLabel('example')} · ${example.name}`
+          : `${m.kindLabel('example')} · ${target.id} (missing)`;
       }
       case 'question': {
         const question = findQuestion(state, target.id);
-        return question ? `質問 · ${question.name}` : `質問 · ${target.id} (missing)`;
+        return question
+          ? `${m.kindLabel('question')} · ${question.name}`
+          : `${m.kindLabel('question')} · ${target.id} (missing)`;
       }
       case 'page':
-        return `マップ · ${exampleMappingTitle(state)}`;
+        return `${m.map} · ${exampleMappingTitle(state)}`;
       default:
         return `${target.type} · ${target.id}`;
     }
@@ -224,19 +251,24 @@ export const exampleMappingTargetLabel = (state: ExampleMappingState, target: Ac
 };
 
 export const exampleMappingCommentTargets = (
+  m: ExampleMappingMessages,
   state: ExampleMappingState,
   _nav: Navigation,
 ): readonly CommentTargetOption[] => {
-  const options: CommentTargetOption[] = [{ value: 'page:example-mapping', label: 'マップ全体', group: 'マップ' }];
+  const options: CommentTargetOption[] = [{ value: 'page:example-mapping', label: m.wholeMap, group: m.map }];
   for (const story of state.stories) {
-    options.push({ value: targetRef({ type: 'story', id: story.id }), label: story.name, group: 'ストーリー' });
+    options.push({
+      value: targetRef({ type: 'story', id: story.id }),
+      label: story.name,
+      group: m.kindLabel('story'),
+    });
   }
   for (const rule of state.rules) {
     const story = findStory(state, rule.storyId);
     options.push({
       value: targetRef({ type: 'rule', id: rule.id }),
       label: story ? `${story.name} › ${rule.name}` : rule.name,
-      group: 'ルール',
+      group: m.kindLabel('rule'),
     });
   }
   for (const example of state.examples) {
@@ -244,7 +276,7 @@ export const exampleMappingCommentTargets = (
     options.push({
       value: targetRef({ type: 'example', id: example.id }),
       label: rule ? `${rule.name} › ${example.name}` : example.name,
-      group: '具体例',
+      group: m.kindLabel('example'),
     });
   }
   for (const question of state.questions) {
@@ -252,7 +284,7 @@ export const exampleMappingCommentTargets = (
     options.push({
       value: targetRef({ type: 'question', id: question.id }),
       label: rule ? `${rule.name} › ${question.name}` : question.name,
-      group: '質問',
+      group: m.kindLabel('question'),
     });
   }
   return options;
@@ -263,6 +295,7 @@ export const exampleMappingCommentTargets = (
  * the checkbox is on, otherwise the note is map-wide.
  */
 export const exampleMappingCurrentTarget = (
+  m: ExampleMappingMessages,
   state: ExampleMappingState,
   nav: Navigation,
 ): CommentTargetOption | null => {
@@ -271,7 +304,7 @@ export const exampleMappingCurrentTarget = (
   return {
     value: targetRef({ type: card.kind, id: card.id }),
     label: card.name,
-    group: KIND_LABELS[card.kind],
+    group: m.kindLabel(card.kind),
   };
 };
 
@@ -293,15 +326,11 @@ export type StorySummary = {
 /** More rules than this and the story is usually worth splitting. */
 const RULES_PER_STORY = 4;
 
-const READINESS_LABELS = {
-  empty: 'ルール未整理',
-  'open-questions': '未解決の質問あり',
-  'too-big': '分割を検討',
-  thin: '具体例の無いルールあり',
-  ready: '合意できそう',
-} as const satisfies Record<StoryReadiness, string>;
-
-export const presentStorySummary = (state: ExampleMappingState, storyId: string): StorySummary => {
+export const presentStorySummary = (
+  m: ExampleMappingMessages,
+  state: ExampleMappingState,
+  storyId: string,
+): StorySummary => {
   const rules = state.rules.filter((rule) => rule.storyId === storyId);
   const ruleIds = new Set(rules.map((rule) => rule.id));
   const examples = state.examples.filter((example) => ruleIds.has(example.ruleId));
@@ -317,7 +346,7 @@ export const presentStorySummary = (state: ExampleMappingState, storyId: string)
           : thin
             ? 'thin'
             : 'ready';
-  return { rules: rules.length, examples: examples.length, questions, readiness, label: READINESS_LABELS[readiness] };
+  return { rules: rules.length, examples: examples.length, questions, readiness, label: m.readinessLabel(readiness) };
 };
 
 export const exampleMappingTitle = (state: ExampleMappingState): string => {

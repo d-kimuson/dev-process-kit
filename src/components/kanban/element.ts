@@ -9,6 +9,7 @@ import { createEntityId } from '../../core/target';
 import { DiagramChromeElement } from '../diagram/element';
 import { classNames, tagStateMatches } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
+import { kanbanMessages } from './messages';
 import {
   ADD_CARD,
   allCards,
@@ -27,8 +28,6 @@ import {
 import { kanbanStyles } from './styles';
 
 export type KanbanSelection = { readonly kind: 'column' | 'card'; readonly id: string };
-
-const NOT_RECORDED = '記録できませんでした（dpk-template-* 要素の中に置いてください）。';
 
 /**
  * `<dpk-component-kanban>` — columns of cards, read left to right.
@@ -61,11 +60,11 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
     data: KanbanData,
     actions: readonly DraftAction[],
   ): { readonly data: KanbanData; readonly results: readonly ElementActionResult[] } {
-    return reduceKanbanActions(data, actions);
+    return reduceKanbanActions(kanbanMessages(this.locale), data, actions);
   }
 
   protected override defaultHeading(): string {
-    return 'Kanban';
+    return kanbanMessages(this.locale).heading;
   }
 
   protected override shellClass(): string {
@@ -73,7 +72,7 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
   }
 
   protected override emptyMessage(): string {
-    return '列がありません。';
+    return kanbanMessages(this.locale).empty;
   }
 
   protected override commentItems(): readonly CommentTargetOption[] {
@@ -96,9 +95,10 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
   }
 
   protected override statsText(): string {
+    const m = kanbanMessages(this.locale);
     const total = allCards(this.items()).length;
     const shown = allCards(this.#visible()).length;
-    return shown === total ? `${total} カード` : `${shown} / ${total} カード`;
+    return shown === total ? `${total} ${m.cards}` : `${shown} / ${total} ${m.cards}`;
   }
 
   protected override isEmpty(): boolean {
@@ -155,6 +155,7 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
   }
 
   #renderColumn(column: KanbanColumn, count: number): TemplateResult {
+    const m = kanbanMessages(this.locale);
     const over = column.limit !== null && count > column.limit;
     const drop = this.#drop?.column === column.id ? this.#drop : null;
     return html`
@@ -178,7 +179,7 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
             @click=${() => this.select({ kind: 'column', id: column.id })}
           >
             <span class="kanban-column-label">${column.label}</span>
-            <span class="kanban-count" title=${column.limit === null ? nothing : `WIP 上限 ${column.limit}`}>
+            <span class="kanban-count" title=${column.limit === null ? nothing : m.wipLimit(column.limit)}>
               ${column.limit === null ? count : `${count} / ${column.limit}`}
             </span>
           </button>
@@ -194,11 +195,12 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
           ${repeat(
             column.cards,
             (card) => card.id,
-            (card) => html`${drop?.before === card.id ? this.#renderDropMarker() : nothing}${this.#renderCard(card)}`,
+            (card) =>
+              html`${drop?.before === card.id ? this.#renderDropMarker() : nothing}${this.#renderCard(card, m)}`,
           )}
           ${drop !== null && drop.before === null ? this.#renderDropMarker() : nothing}
         </div>
-        ${this.#renderAdd(column)}
+        ${this.#renderAdd(column, m)}
       </section>
     `;
   }
@@ -207,7 +209,7 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
     return html`<div class="kanban-drop-marker" aria-hidden="true"></div>`;
   }
 
-  #renderCard(card: KanbanCard): TemplateResult {
+  #renderCard(card: KanbanCard, m: ReturnType<typeof kanbanMessages>): TemplateResult {
     const selected = this.#isSelected('card', card.id);
     return html`
       <div class="kanban-card-slot">
@@ -243,12 +245,12 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
           }
         </div>
         ${this.renderCommentTrigger({ kind: 'card', id: card.id }, card.title)}
-        ${this.#moveFailed === card.id ? html`<p class="kanban-error" role="alert">${NOT_RECORDED}</p>` : nothing}
+        ${this.#moveFailed === card.id ? html`<p class="kanban-error" role="alert">${m.notRecorded}</p>` : nothing}
       </div>
     `;
   }
 
-  #renderAdd(column: KanbanColumn): TemplateResult {
+  #renderAdd(column: KanbanColumn, m: ReturnType<typeof kanbanMessages>): TemplateResult {
     const adding = this.#adding?.column === column.id ? this.#adding : null;
     return html`<div class="kanban-add">
       ${
@@ -259,13 +261,13 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
               data-action="add"
               @click=${() => this.#startAdding(column.id)}
             >
-              ＋ カード
+              ${m.addCardButton}
             </button>`
           : html`
               <input
                 class="dpk-input"
-                aria-label="${column.label} に追加するカード"
-                placeholder="カード名（Enter で追加）"
+                aria-label="${m.addCardAriaLabel(column.label)}"
+                placeholder="${m.addCardPlaceholder}"
                 .value=${adding.title}
                 @input=${(event: Event) => {
                   const input = event.currentTarget;
@@ -274,7 +276,7 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
                 }}
                 @keydown=${(event: KeyboardEvent) => this.#onAddKey(event, column.id)}
               />
-              ${adding.failed ? html`<span class="kanban-error" role="alert">${NOT_RECORDED}</span>` : nothing}
+              ${adding.failed ? html`<span class="kanban-error" role="alert">${m.notRecorded}</span>` : nothing}
             `
       }
     </div>`;

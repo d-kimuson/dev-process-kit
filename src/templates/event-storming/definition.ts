@@ -1,8 +1,10 @@
+import type { Locale } from '../../core/i18n';
 import type { ActionTarget, Navigation, TemplateDefinition } from '../../core/types';
 
 import { eventStormingActions } from './actions';
 import { applyEventStormingAction } from './apply';
 import { canonicalEventStormingState } from './layout';
+import { eventStormingMessages } from './messages';
 import {
   emptyEventStormingBase,
   findContext,
@@ -35,19 +37,23 @@ export const eventStormingHasTarget = (state: EventStormingState, target: Action
   }
 };
 
-export const eventStormingDefinition: TemplateDefinition<EventStormingState> = {
-  name: 'event-storming',
-  label: 'Event Storming',
-  parseBase: parseEventStormingBase,
-  emptyBase: emptyEventStormingBase,
-  actions: eventStormingActions,
-  apply: applyEventStormingAction,
-  canonicalState: canonicalEventStormingState,
-  hasTarget: eventStormingHasTarget,
-  describe: describeEventStormingAction,
-  serialize: serializeEventStormingAction,
-  resolveNavigation: resolveEventStormingNavigation,
-  commentTargets: (state: EventStormingState, _nav: Navigation) => eventStormingCommentTargets(state),
-  currentTarget: (state, navigation) => eventStormingCurrentTarget(state, navigation),
-  title: eventStormingTitle,
+/** The event storming template, describing its actions in `locale`. */
+export const eventStormingDefinitionFor = (locale: Locale): TemplateDefinition<EventStormingState> => {
+  const m = eventStormingMessages(locale);
+  return {
+    name: 'event-storming',
+    label: 'Event Storming',
+    parseBase: parseEventStormingBase,
+    emptyBase: emptyEventStormingBase,
+    actions: eventStormingActions,
+    apply: applyEventStormingAction,
+    canonicalState: canonicalEventStormingState,
+    hasTarget: eventStormingHasTarget,
+    describe: (action, state, base) => describeEventStormingAction(m, action, state, base),
+    serialize: serializeEventStormingAction,
+    resolveNavigation: resolveEventStormingNavigation,
+    commentTargets: (state: EventStormingState, _nav: Navigation) => eventStormingCommentTargets(m, state),
+    currentTarget: (state, navigation) => eventStormingCurrentTarget(m, state, navigation),
+    title: eventStormingTitle,
+  };
 };

@@ -1,8 +1,10 @@
+import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 import type { PrototypeState } from './model';
 
 import { TemplateElement } from '../../core/element';
-import { prototypeDefinition } from './definition';
+import { prototypeDefinitionFor } from './definition';
+import { prototypeMessages } from './messages';
 import { renderNav } from './render/nav';
 import { renderStage } from './render/stage';
 import { prototypeStyles } from './styles';
@@ -26,12 +28,15 @@ import { prototypeStyles } from './styles';
 export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   static override styles = [TemplateElement.styles, prototypeStyles];
 
-  readonly definition = prototypeDefinition;
+  protected override definitionFor(locale: Locale) {
+    return prototypeDefinitionFor(locale);
+  }
 
   protected override renderRegions(context: TemplateRenderContext<PrototypeState>): ShellRegions {
+    const m = prototypeMessages(this.locale);
     return {
-      sidebar: renderNav(context),
-      main: renderStage(context, { hasPreviewContent: (previewId) => this.#hasPreviewContent(previewId) }),
+      sidebar: renderNav(context, m),
+      main: renderStage(context, m, { hasPreviewContent: (previewId) => this.#hasPreviewContent(previewId) }),
     };
   }
 

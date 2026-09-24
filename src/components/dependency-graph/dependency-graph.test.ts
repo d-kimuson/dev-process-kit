@@ -2,9 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DpkComponentDependencyGraph } from './element';
 import { defineDependencyGraph } from './index';
+import { dependencyGraphMessages } from './messages';
 import { parseDependencyData } from './model';
 
 defineDependencyGraph();
+
+const m = dependencyGraphMessages('en');
 
 const raw = {
   modules: [
@@ -50,8 +53,9 @@ const settle = async (element: DpkComponentDependencyGraph): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<DpkComponentDependencyGraph> => {
+const mount = async (lang?: string): Promise<DpkComponentDependencyGraph> => {
   const element = new DpkComponentDependencyGraph();
+  if (lang !== undefined) element.setAttribute('lang', lang);
   element.data = parseDependencyData(raw);
   document.body.append(element);
   await settle(element);
@@ -91,11 +95,18 @@ describe('dpk-component-dependency-graph', () => {
     const element = await mount();
     expect(element.renderRoot.querySelectorAll('[data-module]')).toHaveLength(7);
     expect(element.renderRoot.querySelectorAll('[data-dependency]')).toHaveLength(7);
-    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe('7 モジュール · 7 依存');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`7 ${m.node} · 7 ${m.edge}`);
     expect(classes(element, 'pricing')).toContain('is-cyclic');
     expect(classes(element, 'promotions')).toContain('is-cyclic');
     expect(classes(element, 'orders')).not.toContain('is-cyclic');
-    expect(element.renderRoot.querySelector('[data-toggle="cycles"]')?.textContent?.trim()).toBe('循環 1');
+    expect(element.renderRoot.querySelector('[data-toggle="cycles"]')?.textContent?.trim()).toBe(m.cyclesCount(1));
+  });
+
+  it('renders its stats and toggle label in the element’s language', async () => {
+    const ja = dependencyGraphMessages('ja');
+    const element = await mount('ja');
+    expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`7 ${ja.node} · 7 ${ja.edge}`);
+    expect(element.renderRoot.querySelector('[data-toggle="cycles"]')?.textContent?.trim()).toBe(ja.cyclesCount(1));
   });
 
   it('shows dependencies and dependents of the selected module', async () => {
@@ -146,7 +157,7 @@ describe('dpk-component-dependency-graph', () => {
     ).toEqual(['pricing-promotions', 'promotions-pricing']);
     element.tagFilter = { match: 'all', active: ['nothing'] };
     await element.updateComplete;
-    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain('該当する循環依存はありません');
+    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain(m.emptyCycles);
   });
 
   it('opens the contextual composer beside a module or a dependency', async () => {

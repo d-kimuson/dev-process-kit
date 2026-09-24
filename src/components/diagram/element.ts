@@ -4,7 +4,9 @@ import { keyed } from 'lit/directives/keyed.js';
 import type { ElementActionResult } from '../../core/element-actions';
 import type { CommentTargetOption, DraftAction } from '../../core/types';
 
+import { type Locale } from '../../core/i18n';
 import { iconComment, iconMaximize, iconMinimize } from '../../core/icons';
+import { LocaleController } from '../../core/locale-controller';
 import { PopoverController } from '../../core/popover-controller';
 import { observeJsonChild } from '../../lib/dom/base-data';
 import {
@@ -17,8 +19,10 @@ import {
   type LayoutResult,
   type PlacedNode,
 } from '../../lib/layout/layered';
+import { composerMessages } from '../comment-composer/messages';
 import { presentComposer } from '../comment-composer/present';
 import { renderComposer, type ComposerIntent } from '../comment-composer/view';
+import { diagramMessages, type DiagramMessages } from './messages';
 import {
   classNames,
   clearTags,
@@ -65,7 +69,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
   declare data: D | null;
   /** Toolbar title; falls back to the component's own default. */
   declare heading: string | null;
-  /** Toolbar subtitle, e.g. `注文ライフサイクル`. */
+  /** Toolbar subtitle, e.g. `Order lifecycle`. */
   declare subject: string | null;
 
   /** The authored data, before this diagram's element actions. */
@@ -96,6 +100,9 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
    */
   #maximized: { readonly height: number } | null = null;
   readonly #popovers = new PopoverController(this);
+  readonly #i18n = new LocaleController(this, () => {
+    this.#targetSignature = '';
+  });
 
   constructor() {
     super();
@@ -351,6 +358,16 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
   // ------------------------------------------------- subclass responsibilities
 
   /** Validates one JSON payload into the component's domain data. */
+  /** The language of the page around this diagram, resolved on connect. */
+  protected get locale(): Locale {
+    return this.#i18n.locale;
+  }
+
+  /** The shared chrome's text in `locale`. */
+  protected get chromeMessages(): DiagramMessages {
+    return diagramMessages(this.#i18n.locale);
+  }
+
   protected abstract parseData(input: unknown): D;
 
   /** Data used when nothing was supplied; usually empty collections. */
@@ -370,11 +387,11 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     if (ref === null || label === undefined) return nothing;
     const vm = presentComposer(this.#drafts.get(ref) ?? '', [], {
       label,
-      ...(this.#failedTarget === ref ? { error: '送信できませんでした。もう一度お試しください。' } : {}),
+      ...(this.#failedTarget === ref ? { error: this.chromeMessages.sendFailed } : {}),
     });
     return html`${keyed(
       ref,
-      renderComposer(vm, (intent) => this.#commentIntent(ref, intent)),
+      renderComposer(composerMessages(this.#i18n.locale), vm, (intent) => this.#commentIntent(ref, intent)),
     )}`;
   }
 
@@ -399,8 +416,8 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
       style=${at ? `left:${at.x}px; top:${at.y}px` : nothing}
       data-comment-kind=${selection.kind}
       data-comment-id=${selection.id}
-      aria-label=${`${label}にコメント`}
-      title=${`${label}にコメント`}
+      aria-label=${this.chromeMessages.commentOn(label)}
+      title=${this.chromeMessages.commentOn(label)}
       aria-haspopup="dialog"
       aria-expanded=${this.#commenting === ref ? 'true' : 'false'}
       @click=${() => {
@@ -498,7 +515,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
   }
 
   protected emptyMessage(): string {
-    return '該当する要素はありません。';
+    return this.chromeMessages.noMatches;
   }
 
   /** Component-specific toolbar controls, before the stats line. */
@@ -676,7 +693,8 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     this.refreshContent();
     const tags = presentTagBar(this.tagItems(), this.#tags);
     const maximized = this.#maximized;
-    const maximizeLabel = maximized === null ? '最大化' : '元のサイズに戻す';
+    const m = this.chromeMessages;
+    const maximizeLabel = maximized === null ? m.maximize : m.restore;
     return html`
       ${
         maximized === null
@@ -711,22 +729,16 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
             </button>
           </div>
         </div>
-        ${renderTagBar(tags, this.#tags.match, this.#send)} ${this.renderAboveCanvas()}
-        <div
-          class="diagram-canvas"
-          tabindex="0"
-          aria-label="図。矢印キーでパン、プラス・マイナスでズーム、0で全体表示。"
-        >
+        ${renderTagBar(m, tags, this.#tags.match, this.#send)} ${this.renderAboveCanvas()}
+        <div class="diagram-canvas" tabindex="0" aria-label=${m.canvas}>
           <div class="diagram-world">${this.renderCanvas()}</div>
           ${this.isEmpty() ? html`<p class="diagram-empty">${this.emptyMessage()}</p>` : nothing}
           ${
             this.#dataError === null
               ? nothing
-              : html`<p class="diagram-notice" role="alert">
-                  図のデータを読み込めませんでした。<br />${this.#dataError}
-                </p>`
+              : html`<p class="diagram-notice" role="alert">${m.dataError}<br />${this.#dataError}</p>`
           }
-          ${this.renderLegend()} ${renderZoom(this.#send)}
+          ${this.renderLegend()} ${renderZoom(m, this.#send)}
         </div>
         ${this.renderSelection()}
       </div>
@@ -798,7 +810,7 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
   }
 
   protected statsLabels(): { readonly node: string; readonly edge: string } {
-    return { node: '要素', edge: '関連' };
+    return { node: this.chromeMessages.nodes, edge: this.chromeMessages.edges };
   }
 
   protected override statsText(): string {

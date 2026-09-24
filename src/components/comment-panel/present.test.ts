@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { derive } from '../../core/derive';
+import { coreMessages } from '../../core/messages';
 import { tinyBase, tinyDefinition } from '../../core/testing/tiny-template';
 import { initialPanelState, reducePanel } from './model';
 import { presentPanel } from './present';
@@ -18,6 +19,7 @@ const inputs = {
   navigation: { item: 'a' },
   derivation: derive(definition, base, []),
   issues: [],
+  locale: 'en' as const,
 };
 
 describe('panel presentation', () => {
@@ -79,6 +81,6 @@ describe('panel presentation', () => {
       request: 1,
       outcome: { ok: false, reason: 'too_large' },
     });
-    expect(presentPanel(inputs, ui).flash).toMatch(/コピー/);
+    expect(presentPanel(inputs, ui).flash).toBe(coreMessages('en').handoffTooLarge);
   });
 });

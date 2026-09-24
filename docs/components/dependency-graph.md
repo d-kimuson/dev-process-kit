@@ -45,17 +45,17 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components
 
 ## Reading it
 
-| Control                      | Effect                                                                                                                   |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `依存先` / `依存元` / `両方` | Which direction the selection follows; `両方` (default) shows both sides.                                                |
-| `間接も含む`                 | Follows the whole transitive closure, not just direct neighbours. Link labels gain their hop distance (`Pricing · 2段`). |
-| `循環 N`                     | Restricts the view to circular groups (see below); disabled when there are none.                                         |
+| Control                                  | Effect                                                                                                                   |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `Depends on` / `Depended on by` / `Both` | Which direction the selection follows; `Both` (default) shows both sides.                                                |
+| `Include indirect`                       | Follows the whole transitive closure, not just direct neighbours. Link labels gain their hop distance (`Pricing · 2段`). |
+| `Cycles N`                               | Restricts the view to circular groups (see below); disabled when there are none.                                         |
 
-Direction is visible in the color of the card and the edge: green = uses (依存先), blue = used by (依存元), amber = part of a cycle.
+Direction is visible in the color of the card and the edge: green = uses (Depends on), blue = used by (Depended on by), amber = part of a cycle.
 
 ## Cycles
 
-Cycles are detected from the tag-filtered graph: a group of strongly connected modules, including a self-edge. Members get a `循環` badge, and `循環 N` counts the groups and filters the diagram down to them, edges included. Two modules that reference each other are one group, so the badge means "this module is in a loop", not "this edge closes a loop".
+Cycles are detected from the tag-filtered graph: a group of strongly connected modules, including a self-edge. Members get a `Cycle` badge, and `Cycles N` counts the groups and filters the diagram down to them, edges included. Two modules that reference each other are one group, so the badge means "this module is in a loop", not "this edge closes a loop".
 
 ## Layout
 

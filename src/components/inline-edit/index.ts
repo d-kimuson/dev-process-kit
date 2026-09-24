@@ -1,7 +1,9 @@
 import { LitElement, css, html, type TemplateResult } from 'lit';
 
+import { LocaleController } from '../../core/locale-controller';
 import { controls, tokens } from '../../core/theme';
 import { elementOf } from '../../lib/dom/element';
+import { inlineEditMessages } from './messages';
 
 /**
  * Small inline editor used by every template for "local edits".
@@ -122,6 +124,7 @@ export class DpkComponentInlineEdit extends LitElement {
 
   #draft = '';
   #connectionVersion = 0;
+  readonly #i18n = new LocaleController(this);
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -165,6 +168,7 @@ export class DpkComponentInlineEdit extends LitElement {
   }
 
   protected override render(): TemplateResult {
+    const m = inlineEditMessages(this.#i18n.locale);
     if (!this.editing) {
       const empty = this.value.length === 0;
       return html`<span
@@ -172,13 +176,13 @@ export class DpkComponentInlineEdit extends LitElement {
         data-empty=${String(empty)}
         role="button"
         tabindex="0"
-        title="クリックして編集"
+        title=${m.clickToEdit}
         @click=${this.#start}
         @keydown=${this.#onKeydownView}
-        >${empty ? this.placeholder || '未設定' : this.value}</span
+        >${empty ? this.placeholder || m.unset : this.value}</span
       >`;
     }
-    const name = this.label || this.placeholder || '編集';
+    const name = this.label || this.placeholder || m.edit;
     return html`
       ${
         this.multiline || this.wrap

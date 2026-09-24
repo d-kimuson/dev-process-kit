@@ -2,8 +2,11 @@ import { html, type TemplateResult } from 'lit';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { DiagramElement } from './element';
+import { diagramMessages } from './messages';
 import { reach, type DiagramEdgeInput, type DiagramNodeInput, type DiagramSelection, type Reach } from './model';
 import { pathData, renderZoom } from './view';
+
+const m = diagramMessages('en');
 
 /**
  * Minimal diagram used to exercise the shared foundation: three tagged nodes and
@@ -176,7 +179,7 @@ describe('DiagramElement', () => {
     element.tagFilter = { match: 'all', active: ['x', 'nothing'] };
     await element.updateComplete;
     expect(nodeIds(element)).toEqual([]);
-    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toContain('該当する要素はありません');
+    expect(element.renderRoot.querySelector('.diagram-empty')?.textContent).toBe(m.noMatches);
   });
 
   it('highlights relations, dims the rest and publishes the selection', async () => {
@@ -222,7 +225,7 @@ describe('DiagramElement', () => {
     expect(element.renderRoot.querySelector('.diagram-comment-trigger')).toBeNull();
     element.id = 'tiny';
     await settle(element);
-    expect(triggerOf(element, 'node', 'a')?.getAttribute('aria-label')).toBe('Alphaにコメント');
+    expect(triggerOf(element, 'node', 'a')?.getAttribute('aria-label')).toBe(m.commentOn('Alpha'));
     expect(triggerOf(element, 'node', 'a')?.getAttribute('aria-haspopup')).toBe('dialog');
     expect(triggerOf(element, 'edge', 'ab')?.closest('foreignObject')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
   });
@@ -269,7 +272,7 @@ describe('DiagramElement', () => {
     await settle(element);
     area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
     await settle(element);
-    expect(element.renderRoot.querySelector('[role="alert"]')?.textContent).toContain('送信できませんでした');
+    expect(element.renderRoot.querySelector('[role="alert"]')?.textContent).toContain(m.sendFailed);
     expect(element.renderRoot.querySelector('textarea')?.value).toBe('Keep me');
     element.select({ kind: 'node', id: 'b' });
     await settle(element);
@@ -301,7 +304,7 @@ describe('DiagramElement', () => {
     await broken.updateComplete;
     const error = broken.renderRoot.querySelector('.diagram-notice');
     expect(broken.dataError).toMatch(/nodes/);
-    expect(error?.textContent).toContain('図のデータを読み込めませんでした');
+    expect(error?.textContent).toContain(m.dataError);
   });
 
   it('places fixed-layout nodes where the data says', async () => {
@@ -322,7 +325,7 @@ describe('DiagramElement', () => {
     const element = await mount('tiny-diagram', tinyData);
     const label = () => element.renderRoot.querySelector('.diagram-zoom-value')?.textContent;
     expect(label()).toBe('100%');
-    element.renderRoot.querySelector<HTMLButtonElement>('[aria-label="縮小"]')?.click();
+    element.renderRoot.querySelector<HTMLButtonElement>(`[aria-label="${m.zoomOut}"]`)?.click();
     await element.updateComplete;
     expect(label()).toBe('91%');
     element.renderRoot.querySelector<HTMLButtonElement>('.diagram-zoom-value')?.click();
@@ -334,13 +337,13 @@ describe('DiagramElement', () => {
     const element = await mount('tiny-diagram', tinyData);
     const shell = () => element.renderRoot.querySelector<HTMLElement>('.diagram');
     const toggle = () => element.renderRoot.querySelector<HTMLButtonElement>('.diagram-maximize');
-    expect(toggle()?.getAttribute('aria-label')).toBe('最大化');
+    expect(toggle()?.getAttribute('aria-label')).toBe(m.maximize);
     expect(toggle()?.getAttribute('aria-pressed')).toBe('false');
 
     toggle()?.click();
     await settle(element);
     expect(shell()?.classList.contains('is-maximized')).toBe(true);
-    expect(toggle()?.getAttribute('aria-label')).toBe('元のサイズに戻す');
+    expect(toggle()?.getAttribute('aria-label')).toBe(m.restore);
     expect(toggle()?.getAttribute('aria-pressed')).toBe('true');
     toggle()?.click();
     await settle(element);
@@ -388,7 +391,7 @@ describe('DiagramElement', () => {
   });
 
   it('exposes the zoom control markup for components that need a custom shell', () => {
-    const fragment = renderZoom();
+    const fragment = renderZoom(m);
     expect(fragment.strings.join('')).toContain('diagram-zoom');
   });
 });

@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DpkComponentKanban } from './element';
 import { defineKanban } from './index';
+import { kanbanMessages } from './messages';
+
+const m = kanbanMessages('en');
 
 defineKanban();
 
@@ -34,10 +37,11 @@ const settle = async (element: DpkComponentKanban): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (): Promise<DpkComponentKanban> => {
+const mount = async (lang?: string): Promise<DpkComponentKanban> => {
   const element = document.createElement('dpk-component-kanban');
   if (!(element instanceof DpkComponentKanban)) throw new Error('did not upgrade');
   element.id = 'board';
+  if (lang !== undefined) element.setAttribute('lang', lang);
   element.innerHTML = `<script type="application/json">${JSON.stringify(raw)}</script>`;
   document.body.append(element);
   await settle(element);
@@ -178,7 +182,12 @@ describe('<dpk-component-kanban>', () => {
     expect(card(element, 'login').className).toContain('is-moved');
     expect(element.selection).toEqual({ kind: 'card', id: 'login' });
     expect(element.elementActionResults).toEqual([
-      { id: 'a0', title: 'カードを移動', summary: 'ログイン画面: ToDo → 作業中', tone: 'move' },
+      {
+        id: 'a0',
+        title: m.moveCardTitle,
+        summary: m.moveSummaryAcross('ログイン画面', 'ToDo', '作業中'),
+        tone: 'move',
+      },
     ]);
     // Dropping a card where it already is records nothing.
     drag(card(element, 'api'), 'dragstart');
@@ -239,5 +248,26 @@ describe('<dpk-component-kanban>', () => {
       (trigger) => `${trigger.dataset['commentKind']}/${trigger.dataset['commentId']}`,
     );
     expect(triggers).toEqual(['column/todo', 'card/login', 'card/api', 'column/doing', 'card/stock', 'column/done']);
+  });
+
+  it('renders its kit text in the element’s language', async () => {
+    const ja = kanbanMessages('ja');
+    const element = await mount('ja');
+    const doing = element.renderRoot.querySelector<HTMLElement>('[data-column="doing"]');
+    expect(doing?.querySelector('.kanban-count')?.getAttribute('title')).toBe(ja.wipLimit(1));
+    element.renderRoot.querySelector<HTMLButtonElement>('[data-column="done"] [data-action="add"]')?.click();
+    await settle(element);
+    const input = element.renderRoot.querySelector<HTMLInputElement>('[data-column="done"] .kanban-add input');
+    expect(input?.getAttribute('aria-label')).toBe(ja.addCardAriaLabel('完了'));
+    expect(input?.getAttribute('placeholder')).toBe(ja.addCardPlaceholder);
+  });
+
+  it('renders its kit text in English by default', async () => {
+    const element = await mount();
+    const doing = element.renderRoot.querySelector<HTMLElement>('[data-column="doing"]');
+    expect(doing?.querySelector('.kanban-count')?.getAttribute('title')).toBe(m.wipLimit(1));
+    expect(element.renderRoot.querySelector('[data-column="todo"] [data-action="add"]')?.textContent?.trim()).toBe(
+      m.addCardButton,
+    );
   });
 });

@@ -1,6 +1,7 @@
 import { html, nothing, type TemplateResult } from 'lit';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
+import type { UsmMessages } from '../messages';
 import type { UsmUiMode } from '../ui-mode';
 
 import { elementOf } from '../../../lib/dom/element';
@@ -17,6 +18,7 @@ export type MoveDialogHandlers = {
  * the drop cell and the story is appended to the chosen step.
  */
 export const renderMoveDialog = (
+  m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
   mode: UsmUiMode,
   handlers: MoveDialogHandlers,
@@ -27,8 +29,8 @@ export const renderMoveDialog = (
   if (!story || !activity) return nothing;
   const firstStepId = activity.steps[0]?.id;
   return html`<div class="comment-pop move-dialog" id="move-dialog" popover="manual">
-    <span class="dpk-label">移動先のアクティビティ</span>
-    <select class="dpk-select" aria-label="移動先" data-move-dialog>
+    <span class="dpk-label">${m.moveDialogLabel}</span>
+    <select class="dpk-select" aria-label=${m.moveDialogSelectLabel} data-move-dialog>
       ${activity.steps.map(
         (step) => html`<option value=${step.id} ?selected=${step.id === firstStepId}>${step.name}</option>`,
       )}
@@ -44,9 +46,9 @@ export const renderMoveDialog = (
           else handlers.cancel();
         }}
       >
-        移動する
+        ${m.moveConfirm}
       </button>
-      <button class="dpk-btn" type="button" @click=${handlers.cancel}>キャンセル</button>
+      <button class="dpk-btn" type="button" @click=${handlers.cancel}>${m.moveCancel}</button>
     </div>
   </div>`;
 };

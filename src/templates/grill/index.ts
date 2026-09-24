@@ -1,5 +1,7 @@
 export { DpkTemplateGrill, defineGrillElement } from './element';
-export { grillDefinition, grillHasTarget } from './definition';
+export { grillDefinitionFor, grillHasTarget } from './definition';
+export { grillMessages } from './messages';
+export type { GrillMessages } from './messages';
 export { answerQuestion, grillActions } from './actions';
 export type { AnswerInput, GrillAction } from './actions';
 export { applyGrillAction } from './apply';

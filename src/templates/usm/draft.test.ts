@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DraftController } from '../../core/controller';
 import { usmAction } from './actions';
-import { usmDefinition } from './definition';
+import { usmDefinitionFor } from './definition';
 import { resolveCellDrop } from './drop';
 import { parseUsmBase } from './model';
 
@@ -27,7 +27,7 @@ const base = parseUsmBase({
   ],
 });
 
-const controller = () => new DraftController({ definition: usmDefinition, base, storage: null });
+const controller = () => new DraftController({ definition: usmDefinitionFor('en'), base, storage: null });
 
 describe('usm draft', () => {
   it('cancels a story moved to another cell and back', () => {

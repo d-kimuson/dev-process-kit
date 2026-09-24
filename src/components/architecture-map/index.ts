@@ -1,4 +1,6 @@
 export { DpkComponentArchitectureMap } from './element';
+export { architectureMapMessages } from './messages';
+export type { ArchitectureMapMessages } from './messages';
 export { SERVICE_SIZE, boundaryBoxes, emptyArchitectureData, parseArchitectureData } from './model';
 export type {
   ArchitectureBoundary,

@@ -1,5 +1,6 @@
 import { html, type TemplateResult } from 'lit';
 
+import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 import type { ActionTarget } from '../../core/types';
 import type { GrillState } from './model';
@@ -8,7 +9,8 @@ import { handoffFailureLabel } from '../../core/claude-handoff';
 import { TemplateElement } from '../../core/element';
 import { copyText } from '../../lib/dom/clipboard';
 import { answerQuestion, type AnswerInput } from './actions';
-import { grillDefinition } from './definition';
+import { grillDefinitionFor } from './definition';
+import { grillMessages } from './messages';
 import { presentGrillHeader, presentGrillPanel, nextOpenQuestion, type CopyStatus, type SendStatus } from './present';
 import { GRILL_QUESTIONS_ATTRIBUTE, collectLabelBindings, positionLabels, type LabelBinding } from './render/labels';
 import { renderQuestionPanel } from './render/panel';
@@ -27,7 +29,9 @@ import { grillStyles } from './styles';
 export class DpkTemplateGrill extends TemplateElement<GrillState> {
   static override styles = [TemplateElement.styles, grillStyles];
 
-  readonly definition = grillDefinition;
+  protected override definitionFor(locale: Locale) {
+    return grillDefinitionFor(locale);
+  }
 
   static override properties = {
     tab: { state: true },
@@ -118,9 +122,9 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
    * Folding gives the integrated question/review column's width back to the main area.
    */
   #renderHeaderControl(context: TemplateRenderContext<GrillState>): TemplateResult {
-    const header = presentGrillHeader(context.state);
-    const press = this.folded ? '質問 / Review をひらく' : '質問 / Review をたたむ';
-    const label = `${press}（${header.progress}）`;
+    const m = grillMessages(this.locale);
+    const header = presentGrillHeader(m, context.state);
+    const label = m.toggleLabel(this.folded ? m.openPanel : m.closePanel, header.progress);
     return html`
       <button
         type="button"
@@ -137,10 +141,11 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
   }
 
   #renderSidebar(context: TemplateRenderContext<GrillState>): TemplateResult {
+    const m = grillMessages(this.locale);
     const panel = presentGrillPanel(context.state, context.navigation);
     return html`
       <div class="grill-panel">
-        <div class="grill-tabs" role="tablist" aria-label="質問 / Review">
+        <div class="grill-tabs" role="tablist" aria-label=${m.tabs}>
           ${(['questions', 'review'] as const).map(
             (tab) => html`
               <button
@@ -154,7 +159,7 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
                 @click=${() => (this.tab = tab)}
                 @keydown=${(event: KeyboardEvent) => this.#tabKey(event)}
               >
-                ${tab === 'questions' ? '質問' : 'Review'}<span class="grill-count"
+                ${tab === 'questions' ? m.questionsTab : m.reviewTab}<span class="grill-count"
                   >${tab === 'questions' ? context.state.questions.length : context.actions.length}</span
                 >
               </button>
@@ -168,7 +173,7 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
           aria-labelledby="grill-tab-questions"
           ?hidden=${this.tab !== 'questions'}
         >
-          ${renderQuestionPanel(panel, {
+          ${renderQuestionPanel(m, panel, {
             open: (questionId) => this.#openQuestion(context, questionId),
             answer: (questionId, answer) => this.#answer(questionId, answer),
             next: (questionId) => this.#advance(questionId),
@@ -193,12 +198,9 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
    * with copying kept as the way on when a send fails.
    */
   #renderFooter(empty: boolean): TemplateResult {
+    const m = grillMessages(this.locale);
     const copyLabel =
-      this.#copyStatus === 'copied'
-        ? 'コピーしました'
-        : this.#copyStatus === 'failed'
-          ? 'コピーできませんでした'
-          : '回答・Review をまとめてコピー';
+      this.#copyStatus === 'copied' ? m.copied : this.#copyStatus === 'failed' ? m.copyFailed : m.copyAll;
     if (!this.canSendToClaude) {
       return html`
         <div class="grill-footer">
@@ -218,13 +220,13 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
     const send = this.#sendStatus;
     const sendLabel =
       send.kind === 'pending'
-        ? '送信中…'
+        ? m.sending
         : send.kind === 'sent'
-          ? 'Claude に送りました'
+          ? m.sent
           : send.kind === 'failed'
-            ? '送れませんでした'
-            : '回答・Review を Claude に送る';
-    const note = send.kind === 'failed' ? handoffFailureLabel(send.reason) : null;
+            ? m.sendFailed
+            : m.sendAll;
+    const note = send.kind === 'failed' ? handoffFailureLabel(send.reason, this.locale) : null;
     const announced = note ?? (send.kind === 'sent' ? sendLabel : this.#copyStatus === 'idle' ? '' : copyLabel);
     return html`
       <div class="grill-footer">
@@ -242,11 +244,11 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
             class="dpk-btn dpk-btn--ghost grill-copy"
             type="button"
             data-status=${this.#copyStatus}
-            title="回答・Review をまとめてコピー"
+            title=${m.copyAll}
             ?disabled=${empty}
             @click=${() => void this.#copy()}
           >
-            ${this.#copyStatus === 'copied' ? 'コピー済み' : 'コピー'}
+            ${this.#copyStatus === 'copied' ? m.copyDone : m.copy}
           </button>
         </div>
         ${note === null ? null : html`<p class="grill-footer-note">${note}</p>`}

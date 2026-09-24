@@ -6,6 +6,7 @@ import { DiagramElement } from '../diagram/element';
 import { EMPTY_REACH, reach, type DiagramSelection, type Reach } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
 import { pathData } from '../diagram/view';
+import { architectureMapMessages } from './messages';
 import {
   boundaryBoxes,
   emptyArchitectureData,
@@ -34,15 +35,16 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
   }
 
   protected override defaultHeading(): string {
-    return 'Architecture';
+    return architectureMapMessages(this.locale).heading;
   }
 
   protected override statsLabels(): { readonly node: string; readonly edge: string } {
-    return { node: 'サービス', edge: '接続' };
+    const m = architectureMapMessages(this.locale);
+    return { node: m.node, edge: m.edge };
   }
 
   protected override emptyMessage(): string {
-    return '該当するサービスはありません。';
+    return architectureMapMessages(this.locale).empty;
   }
 
   protected override get layoutMode(): 'fixed' {
@@ -83,6 +85,7 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
   }
 
   protected override renderToolbarActions(): TemplateResult {
+    const m = architectureMapMessages(this.locale);
     return html`
       <button
         type="button"
@@ -94,7 +97,7 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
           this.requestUpdate();
         }}
       >
-        境界
+        ${m.boundaries}
       </button>
     `;
   }
@@ -108,6 +111,7 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
   }
 
   protected override renderCanvas(): TemplateResult {
+    const m = architectureMapMessages(this.locale);
     const visible = this.visible;
     const name = (id: string) => visible.nodes.find((node) => node.id === id)?.name ?? id;
     const edges = visible.edges.map((link) => {
@@ -128,7 +132,7 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
             d=${d}
             role="button"
             tabindex="0"
-            aria-label=${`${name(link.from)} から ${name(link.to)} への接続`}
+            aria-label=${m.edgeLabel(name(link.from), name(link.to))}
             @click=${select}
             @keydown=${(event: KeyboardEvent) => {
               if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -159,7 +163,7 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
             )
           : nothing
       }
-      ${this.renderEdges(edges, ARROWS)} ${visible.nodes.map((service) => this.#renderService(service))}
+      ${this.renderEdges(edges, ARROWS)} ${visible.nodes.map((service) => this.#renderService(service, m))}
     `;
   }
 
@@ -169,7 +173,10 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
     return svg`<text class="arch-link-label" x=${middle.x} y=${middle.y - 6}>${label}</text>`;
   }
 
-  #renderService(service: ArchitectureService): TemplateResult | typeof nothing {
+  #renderService(
+    service: ArchitectureService,
+    m: ReturnType<typeof architectureMapMessages>,
+  ): TemplateResult | typeof nothing {
     const placed = this.placedNode(service.id);
     if (!placed) return nothing;
     const state = this.nodeState(service.id);
@@ -191,7 +198,7 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
                 class="arch-artwork"
                 src=${service.artwork.src}
                 alt=${service.artwork.alt}
-                title=${service.artwork.license === null ? nothing : `アイコン出典: ${service.artwork.license}`}
+                title=${service.artwork.license === null ? nothing : m.artworkCredit(service.artwork.license)}
               />`
         }
         <span class="arch-body">

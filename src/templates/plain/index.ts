@@ -1,5 +1,7 @@
 export { DpkTemplatePlain, definePlainElement } from './element';
-export { plainDefinition, plainHasTarget } from './definition';
+export { plainDefinitionFor, plainHasTarget } from './definition';
+export { plainMessages } from './messages';
+export type { PlainMessages } from './messages';
 export {
   describePlainAction,
   plainCommentTargets,

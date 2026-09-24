@@ -4,10 +4,11 @@ import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { Viewport } from '../interactions';
+import type { EventStormingMessages } from '../messages';
 import type { EventStormingState, NoteType } from '../model';
 
 import { elementOf } from '../../../lib/dom/element';
-import { NOTE_TYPE_LABELS, notePaletteStyle } from '../components/note-card';
+import { notePaletteStyle } from '../components/note-card';
 import { buildSlices, planSliceBands, sliceArrows, type EsSlice, type SliceArrow } from '../layout';
 import { noteCardModeOf, type EsGesture, type EsUiMode, type NoteIntent, type Point } from '../ui-mode';
 
@@ -39,7 +40,7 @@ const BAND_GAP = 6;
 /** Hotspot pin: a smaller sticky hung over one note's top-right corner. */
 const PIN_W = 92;
 const PIN_H = 54;
-/** Kept clear of the card's own ＋ホットスポット chip, which hugs that corner. */
+/** Kept clear of the card's own + Hotspot chip, which hugs that corner. */
 const PIN_LIFT = 72;
 /** Vertical step between several pins on the same note: never overlapping. */
 const PIN_STEP = PIN_H + 4;
@@ -90,6 +91,7 @@ export type EsBoardHandlers = {
 };
 
 export type EsBoardProps = {
+  readonly m: EventStormingMessages;
   readonly context: TemplateRenderContext<EventStormingState>;
   readonly mode: EsUiMode;
   /** Pixel budget for one wrapped band of flows (connector gaps included). */
@@ -189,17 +191,17 @@ const wallGeometry = (state: EventStormingState, slices: readonly EsSlice[], max
 };
 
 export const renderEsBoard = (props: EsBoardProps): TemplateResult => {
-  const { context, maxRowWidth, viewport, handlers } = props;
+  const { m, context, maxRowWidth, viewport, handlers } = props;
   const { state } = context;
   const dot = 24 * viewport.zoom;
   const surfaceStyle = `background-size:${dot}px ${dot}px;background-position:${viewport.panX}px ${viewport.panY}px`;
   if (state.elements.length === 0) {
     return html`<div class="board-viewport board-viewport--empty" style=${surfaceStyle}>
       <div class="empty">
-        <h2>付箋がまだありません</h2>
-        <p>イベントストーミングを開始しましょう。ドメインイベントを時系列に貼るところから始めます。</p>
+        <h2>${m.emptyTitle}</h2>
+        <p>${m.emptyBody}</p>
         <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => handlers.addFirst()}>
-          ＋ 最初のイベント
+          ${m.addFirstEvent}
         </button>
       </div>
     </div>`;
@@ -229,7 +231,7 @@ export const renderEsBoard = (props: EsBoardProps): TemplateResult => {
           ${geometry.bands.map((band, index) => renderBand(props, geometry, band, index))}
         </div>
       </div>
-      ${renderGestureOverlay(props.gesture)} ${renderHud(state, slices)} ${renderZoomControls(props)}
+      ${renderGestureOverlay(props.gesture)} ${renderHud(m, state, slices)} ${renderZoomControls(props)}
       ${renderSelectionBar(props)}
     </div>
   `;
@@ -258,7 +260,7 @@ const renderBand = (
   band: BandGeometry,
   bandIndex: number,
 ): TemplateResult => {
-  const { context, mode, gesture, hoverSliceId, handlers } = props;
+  const { m, context, mode, gesture, hoverSliceId, handlers } = props;
   const { navigation } = context;
   const bandSlices = band.sliceIds.flatMap((id) => geometry.slices.filter((slice) => slice.id === id));
   const rect = (slice: EsSlice): { x: number; y: number; w: number } => {
@@ -327,8 +329,8 @@ const renderBand = (
             class="slice-port${on ? ' slice-port--on' : ''}"
             type="button"
             style=${`left:${x + w - PORT_R}px;top:${y + SLICE_H / 2 - PORT_R}px`}
-            aria-label="続きを追加（種類を選んで追加 / ドラッグで他のスライスへ接続）"
-            title="クリック: 続きの付箋を選んで追加 / ドラッグ: 他のスライスへ接続"
+            aria-label=${m.portAriaLabel}
+            title=${m.portTitle}
             @pointerdown=${(event: PointerEvent) => handlers.portPointerDown(slice.id, event)}
           >
             →
@@ -347,7 +349,7 @@ const renderBand = (
             ${missing.map(
               (type) =>
                 html`<button class="slice-chip" type="button" @click=${() => handlers.attachNote(slice.id, type)}>
-                  ＋ ${NOTE_TYPE_LABELS[type]}
+                  ${m.addTypeLabel(type)}
                 </button>`,
             )}
           </div>`;
@@ -364,7 +366,7 @@ const renderContextRegions = (
   geometry: WallGeometry,
   bandIndex: number,
 ): TemplateResult | typeof nothing => {
-  const { context, handlers } = props;
+  const { m, context, handlers } = props;
   const regions = context.state.contexts.flatMap((boundedContext, index) => {
     const members = geometry.slices.filter((slice) => slice.contextId === boundedContext.id);
     const placed = members.flatMap((slice) => {
@@ -397,7 +399,7 @@ const renderContextRegions = (
           <button
             class="context-label-name"
             type="button"
-            title="クリックして名前を変更"
+            title=${m.renameContextHint}
             @click=${(event: MouseEvent) =>
               handlers.renameContext(boundedContext.id, { x: event.clientX, y: event.clientY })}
           >
@@ -406,8 +408,8 @@ const renderContextRegions = (
           <button
             class="context-label-x"
             type="button"
-            aria-label=${`コンテキスト「${boundedContext.name}」を解体`}
-            title="コンテキストを解体（付箋は残ります）"
+            aria-label=${m.dissolveContextAria(boundedContext.name)}
+            title=${m.dissolveContextTitle}
             @click=${() => handlers.dissolveContext(boundedContext.id)}
           >
             ✕
@@ -443,57 +445,62 @@ const renderGestureOverlay = (gesture: EsGesture | undefined): TemplateResult | 
 
 /* ------------------------------------------------------------ floating UI */
 
-const renderHud = (state: EventStormingState, slices: readonly EsSlice[]): TemplateResult => {
+const renderHud = (m: EventStormingMessages, state: EventStormingState, slices: readonly EsSlice[]): TemplateResult => {
   return html`<div class="board-hud">
-    <span>${state.elements.length} 付箋</span>
-    <span>${slices.length} スライス</span>
-    <span>${state.contexts.length} コンテキスト</span>
-    <span class="board-hint">ホイール: 移動 · ピンチ: ズーム · 背景ドラッグ: 範囲選択</span>
+    <span>${m.noteCount(state.elements.length)}</span>
+    <span>${m.sliceCount(slices.length)}</span>
+    <span>${m.contextCount(state.contexts.length)}</span>
+    <span class="board-hint">${m.hudHint}</span>
   </div>`;
 };
 
 const renderZoomControls = (props: EsBoardProps): TemplateResult => {
-  const { viewport, handlers } = props;
+  const { m, viewport, handlers } = props;
   return html`<div class="board-zoom" @pointerdown=${(event: PointerEvent) => event.stopPropagation()}>
-    <button type="button" aria-label="縮小" @click=${() => handlers.zoomStep(-1)}>−</button>
-    <button type="button" class="board-zoom-pct" title="100% に戻す" @click=${() => handlers.zoomReset()}>
+    <button type="button" aria-label=${m.zoomOut} @click=${() => handlers.zoomStep(-1)}>−</button>
+    <button type="button" class="board-zoom-pct" title=${m.zoomReset} @click=${() => handlers.zoomReset()}>
       ${Math.round(viewport.zoom * 100)}%
     </button>
-    <button type="button" aria-label="拡大" @click=${() => handlers.zoomStep(1)}>＋</button>
-    <button type="button" aria-label="全体を表示" title="全体を表示" @click=${() => handlers.zoomFit()}>⛶</button>
+    <button type="button" aria-label=${m.zoomIn} @click=${() => handlers.zoomStep(1)}>+</button>
+    <button type="button" aria-label=${m.zoomFit} title=${m.zoomFit} @click=${() => handlers.zoomFit()}>⛶</button>
   </div>`;
 };
 
 const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothing => {
-  const { context, selectedSliceIds, selectedLinkIds, handlers } = props;
+  const { m, context, selectedSliceIds, selectedLinkIds, handlers } = props;
   if (selectedLinkIds.length === 0 && selectedSliceIds.length === 0) return nothing;
   const contexts = context.state.contexts;
   if (selectedLinkIds.length > 0) {
     return html`<div class="board-selection" @pointerdown=${(event: PointerEvent) => event.stopPropagation()}>
-      <span class="board-selection-count">${selectedLinkIds.length} 本のリンクを選択中</span>
+      <span class="board-selection-count">${m.selectedLinks(selectedLinkIds.length)}</span>
       <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => handlers.deleteSelection()}>
-        リンクを削除
+        ${m.deleteLinks}
       </button>
-      <span class="board-selection-hint">Delete でも削除できます</span>
-      <button class="dpk-icon-btn" type="button" aria-label="選択解除" @click=${() => handlers.clearSelection()}>
+      <span class="board-selection-hint">${m.deleteHint}</span>
+      <button
+        class="dpk-icon-btn"
+        type="button"
+        aria-label=${m.clearSelection}
+        @click=${() => handlers.clearSelection()}
+      >
         ✕
       </button>
     </div>`;
   }
   return html`<div class="board-selection" @pointerdown=${(event: PointerEvent) => event.stopPropagation()}>
-    <span class="board-selection-count">${selectedSliceIds.length} スライスを選択中</span>
+    <span class="board-selection-count">${m.selectedSlices(selectedSliceIds.length)}</span>
     <button
       class="dpk-btn dpk-btn--accent"
       type="button"
       @click=${(event: MouseEvent) => handlers.groupSelection({ x: event.clientX, y: event.clientY })}
     >
-      コンテキストにまとめる
+      ${m.groupIntoContext}
     </button>
     ${
       contexts.length > 0
         ? html`<select
             class="dpk-select"
-            aria-label="既存コンテキストへ追加"
+            aria-label=${m.addToExistingAria}
             @change=${(event: Event) => {
               const select = elementOf(event.target, HTMLSelectElement);
               if (select === null) return;
@@ -501,14 +508,16 @@ const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothin
               select.value = '';
             }}
           >
-            <option value="" selected>既存へ追加…</option>
+            <option value="" selected>${m.addToExistingOption}</option>
             ${contexts.map((c) => html`<option value=${c.id}>${c.name}</option>`)}
           </select>`
         : nothing
     }
-    <button class="dpk-btn" type="button" @click=${() => handlers.stripSelectionContext()}>コンテキスト解除</button>
-    <button class="dpk-btn" type="button" @click=${() => handlers.deleteSelection()}>削除</button>
-    <button class="dpk-icon-btn" type="button" aria-label="選択解除" @click=${() => handlers.clearSelection()}>
+    <button class="dpk-btn" type="button" @click=${() => handlers.stripSelectionContext()}>
+      ${m.removeFromContext}
+    </button>
+    <button class="dpk-btn" type="button" @click=${() => handlers.deleteSelection()}>${m.deleteButton}</button>
+    <button class="dpk-icon-btn" type="button" aria-label=${m.clearSelection} @click=${() => handlers.clearSelection()}>
       ✕
     </button>
   </div>`;
