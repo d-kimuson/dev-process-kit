@@ -96,6 +96,8 @@ question (red)   — under its rule, in a separate area below the examples
 
 UI から編集できるのはカード名、追加、ドラッグ移動（ストーリー = テーブル単位、ルール = 列単位、具体例 = 別のルールの具体例エリアへ、質問 = 別のルールの質問エリアへ）、削除、コメント。説明文（`description`）はカードに読み取り専用で表示され、編集は agent が base を作り直す（`SET_*_DESCRIPTION` は draft として記録される）。
 
+ドラッグの並び替えは USM と同じで、同じ並びの中ではドロップした要素の位置を取り、別のルールから来たカードは要素の中央より上か下かで前後が決まる。
+
 ## Comment targets
 
 `page:example-mapping`（マップ全体）と、すべての story / rule / example / question が `commentTargets` に列挙される。カードのコメントアイコンはそのカードへの composer を top layer の popover として開き、popover 内に textarea + Send / Cancel + 既存コメント一覧がある（カード自体のレイアウトは動かない）。

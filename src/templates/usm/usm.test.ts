@@ -215,8 +215,12 @@ describe('usm template', () => {
     // extracted drop logic is exercised directly.
     const dropInput = resolveGroupDrop(parseUsmBase(base), 'a1', 'mvp', 'u2', 'u1', 'before');
     expect(dropInput?.payload).toMatchObject({ activityId: 'a1', stepId: 's1', milestoneId: 'mvp', after: null });
+    // within its own column the dragged story takes the hovered slot, whichever half is hovered
     expect(resolveGroupDrop(parseUsmBase(base), 'a1', 'mvp', 'u2', 'u1', 'after')).toMatchObject({
-      payload: { after: 'u1' },
+      payload: { after: null },
+    });
+    expect(resolveGroupDrop(parseUsmBase(base), 'a1', 'mvp', 'u1', 'u2', 'before')).toMatchObject({
+      payload: { after: 'u2' },
     });
     expect(resolveGroupDrop(parseUsmBase(base), 'a1', 'mvp', 'u2', null, 'end')).toMatchObject({
       payload: { after: 'u1' },
@@ -238,6 +242,11 @@ describe('usm template', () => {
       payload: { after: null },
     });
     expect(resolveMilestoneDrop(ids, 'v1', 'v2', 'after')).toMatchObject({ payload: { after: 'v2' } });
+    // the upper half of the next row swaps too, and the lower half of the previous one
+    expect(resolveMilestoneDrop(ids, 'mvp', 'v1', 'before')).toMatchObject({ payload: { after: 'v1' } });
+    expect(resolveMilestoneDrop(ids, 'v2', 'v1', 'after')).toMatchObject({ payload: { after: 'mvp' } });
+    // dropping a row on itself keeps it where it is
+    expect(resolveMilestoneDrop(ids, 'v1', 'v1', 'after')).toMatchObject({ payload: { after: 'mvp' } });
     expect(resolveMilestoneDrop(ids, 'v1', null, 'end')).toMatchObject({ payload: { after: 'v2' } });
     expect(resolveMilestoneDrop(ids, 'gone', null, 'end')).toBeNull();
     const state = parseUsmBase(base);

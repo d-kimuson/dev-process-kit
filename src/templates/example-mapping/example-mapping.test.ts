@@ -249,6 +249,14 @@ describe('example-mapping actions', () => {
     expect(resolveQuestionDrop(parsed, 'nope', 'q2', null, 'end')).toBeNull();
   });
 
+  it('swaps neighbours within a lane from either half of the hovered card', () => {
+    const parsed = state();
+    expect(resolveStoryDrop(parsed, 's1', 's2', 'before')).toMatchObject({ payload: { after: 's2' } });
+    expect(resolveRuleDrop(parsed, 's1', 'r1', 'r2', 'before')).toMatchObject({ payload: { after: 'r2' } });
+    expect(resolveExampleDrop(parsed, 'r1', 'e2', 'e1', 'after')).toMatchObject({ payload: { after: null } });
+    expect(resolveQuestionDrop(parsed, 'r1', 'q1', 'q2', 'before')).toMatchObject({ payload: { after: 'q2' } });
+  });
+
   it('describe/serialize never throw, even for stale targets', () => {
     const parsed = state();
     const stale = action('SET_RULE_NAME', { type: 'rule', id: 'gone' }, { name: 'X' });

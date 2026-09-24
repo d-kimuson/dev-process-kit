@@ -1,5 +1,6 @@
 import type { DropPlace } from '../../lib/dom/drag';
 
+import { reorderAnchor } from '../../lib/reorder';
 import { findStory, storiesInActivity, storiesInCell, type UsmState } from './model';
 
 /**
@@ -42,9 +43,7 @@ export const resolveCellDrop = (
   hoveredId: string | null,
   place: DropPlace,
 ): MoveStoryInput => {
-  const orderedIds = storiesInCell(state, cell.stepId, cell.milestoneId)
-    .filter((story) => story.id !== storyId)
-    .map((story) => story.id);
+  const orderedIds = storiesInCell(state, cell.stepId, cell.milestoneId).map((story) => story.id);
   return {
     type: 'MOVE_STORY',
     target: { type: 'story', id: storyId },
@@ -52,7 +51,7 @@ export const resolveCellDrop = (
       activityId: cell.activityId,
       stepId: cell.stepId,
       milestoneId: cell.milestoneId ?? null,
-      after: dropAfter(orderedIds, hoveredId, place),
+      after: reorderAnchor(orderedIds, storyId, hoveredId, place),
     },
   };
 };
@@ -73,9 +72,7 @@ export const resolveGroupDrop = (
 ): MoveStoryInput | null => {
   const current = findStory(state, storyId);
   if (!current || current.activityId !== activityId) return null;
-  const orderedIds = storiesInActivity(state, activityId, milestoneId)
-    .filter((story) => story.id !== storyId)
-    .map((story) => story.id);
+  const orderedIds = storiesInActivity(state, activityId, milestoneId).map((story) => story.id);
   return {
     type: 'MOVE_STORY',
     target: { type: 'story', id: storyId },
@@ -83,7 +80,7 @@ export const resolveGroupDrop = (
       activityId,
       stepId: current.stepId,
       milestoneId: milestoneId ?? null,
-      after: dropAfter(orderedIds, hoveredId, place),
+      after: reorderAnchor(orderedIds, storyId, hoveredId, place),
     },
   };
 };
@@ -117,8 +114,7 @@ export type MilestoneDropInput = {
 
 /**
  * What a milestone-row drop dispatches. `milestoneIds` is the current global
- * order; the dragged milestone is excluded first, then the hovered row decides
- * the anchor exactly like cards do.
+ * order; the dragged row takes the hovered row's slot (see `reorderAnchor`).
  */
 export const resolveMilestoneDrop = (
   milestoneIds: readonly string[],
@@ -127,10 +123,9 @@ export const resolveMilestoneDrop = (
   place: DropPlace,
 ): MilestoneDropInput | null => {
   if (!milestoneIds.includes(draggedId)) return null;
-  const orderedIds = milestoneIds.filter((id) => id !== draggedId);
   return {
     type: 'REORDER_MILESTONE',
     target: { type: 'milestone', id: draggedId },
-    payload: { after: dropAfter(orderedIds, hoveredId, place) },
+    payload: { after: reorderAnchor(milestoneIds, draggedId, hoveredId, place) },
   };
 };

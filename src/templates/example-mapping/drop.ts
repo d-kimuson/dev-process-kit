@@ -1,5 +1,6 @@
 import type { DropPlace } from '../../lib/dom/drag';
 
+import { reorderAnchor } from '../../lib/reorder';
 import { findExample, findQuestion, findRule, findStory, type ExampleMappingState } from './model';
 
 /**
@@ -49,11 +50,11 @@ export const resolveStoryDrop = (
   place: DropPlace,
 ): MoveStoryInput | null => {
   if (!findStory(state, storyId)) return null;
-  const orderedIds = state.stories.filter((story) => story.id !== storyId).map((story) => story.id);
+  const orderedIds = state.stories.map((story) => story.id);
   return {
     type: 'REORDER_STORY',
     target: { type: 'story', id: storyId },
-    payload: { after: dropAfter(orderedIds, hoveredId, place) },
+    payload: { after: reorderAnchor(orderedIds, storyId, hoveredId, place) },
   };
 };
 
@@ -66,13 +67,11 @@ export const resolveRuleDrop = (
   place: DropPlace,
 ): MoveRuleInput | null => {
   if (!findStory(state, storyId) || !findRule(state, ruleId)) return null;
-  const orderedIds = state.rules
-    .filter((rule) => rule.storyId === storyId && rule.id !== ruleId)
-    .map((rule) => rule.id);
+  const orderedIds = state.rules.filter((rule) => rule.storyId === storyId).map((rule) => rule.id);
   return {
     type: 'MOVE_RULE',
     target: { type: 'rule', id: ruleId },
-    payload: { storyId, after: dropAfter(orderedIds, hoveredId, place) },
+    payload: { storyId, after: reorderAnchor(orderedIds, ruleId, hoveredId, place) },
   };
 };
 
@@ -85,13 +84,11 @@ export const resolveExampleDrop = (
   place: DropPlace,
 ): MoveExampleInput | null => {
   if (!findRule(state, ruleId) || !findExample(state, exampleId)) return null;
-  const orderedIds = state.examples
-    .filter((example) => example.ruleId === ruleId && example.id !== exampleId)
-    .map((example) => example.id);
+  const orderedIds = state.examples.filter((example) => example.ruleId === ruleId).map((example) => example.id);
   return {
     type: 'MOVE_EXAMPLE',
     target: { type: 'example', id: exampleId },
-    payload: { ruleId, after: dropAfter(orderedIds, hoveredId, place) },
+    payload: { ruleId, after: reorderAnchor(orderedIds, exampleId, hoveredId, place) },
   };
 };
 
@@ -104,12 +101,10 @@ export const resolveQuestionDrop = (
   place: DropPlace,
 ): MoveQuestionInput | null => {
   if (!findRule(state, ruleId) || !findQuestion(state, questionId)) return null;
-  const orderedIds = state.questions
-    .filter((question) => question.ruleId === ruleId && question.id !== questionId)
-    .map((question) => question.id);
+  const orderedIds = state.questions.filter((question) => question.ruleId === ruleId).map((question) => question.id);
   return {
     type: 'MOVE_QUESTION',
     target: { type: 'question', id: questionId },
-    payload: { ruleId, after: dropAfter(orderedIds, hoveredId, place) },
+    payload: { ruleId, after: reorderAnchor(orderedIds, questionId, hoveredId, place) },
   };
 };

@@ -39,6 +39,15 @@ describe('usm draft', () => {
     expect(c.actions).toEqual([]);
   });
 
+  it('swaps neighbouring stories in a cell from either half of the hovered card', () => {
+    const c = controller();
+    const cell = { activityId: 'a1', stepId: 's1', milestoneId: 'mvp' };
+    const input = resolveCellDrop(c.derivation.state, cell, 'u1', 'u3', 'before');
+    expect(input.payload.after).toBe('u3');
+    expect(c.dispatch(input).ok).toBe(true);
+    expect(c.derivation.state.stories.filter((s) => s.stepId === 's1').map((s) => s.id)).toEqual(['u3', 'u1']);
+  });
+
   it('keeps a story moved away and back to a different position', () => {
     const c = controller();
     const cell = (stepId: string) => ({ activityId: 'a1', stepId, milestoneId: 'mvp' });
