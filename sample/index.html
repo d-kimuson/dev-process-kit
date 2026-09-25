@@ -155,48 +155,64 @@
         text-decoration: none;
       }
 
-      /* Language and theme, shaped like the template header's controls. */
+      /* Language and theme in one pill, the same as the template header's controls (src/core/shell/styles.ts). */
       .prefs {
         display: flex;
+        flex: none;
         align-items: center;
-        gap: 8px;
+        gap: 2px;
+        padding: 3px;
+        border: 1px solid var(--rule);
+        border-radius: 999px;
+        background: var(--paper-sunken);
       }
 
       .lang-select,
       .theme-toggle {
-        height: 30px;
-        border: 1px solid var(--rule);
+        flex: none;
+        height: 26px;
+        border: 0;
         border-radius: 999px;
-        background: var(--paper-sunken);
         color: var(--ink-soft);
         cursor: pointer;
         transition:
-          color 160ms ease,
-          border-color 160ms ease;
+          color 160ms var(--ease),
+          background-color 160ms var(--ease),
+          transform 300ms var(--ease-spring);
       }
 
       .lang-select {
-        padding: 0 10px;
+        padding: 0 24px 0 10px;
+        background: transparent
+          url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'><path d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23878e9e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+          no-repeat right 8px center;
+        appearance: none;
         font: inherit;
         font-size: 12px;
+        font-weight: 520;
       }
 
       .theme-toggle {
         display: inline-grid;
         place-items: center;
-        width: 30px;
+        width: 26px;
         padding: 0;
+        background: transparent;
       }
 
       .theme-toggle svg {
-        width: 15px;
-        height: 15px;
+        width: 14px;
+        height: 14px;
       }
 
       .lang-select:hover,
       .theme-toggle:hover {
         color: var(--ink);
-        border-color: var(--rule-hover);
+        background-color: var(--paper-raised);
+      }
+
+      .theme-toggle:hover {
+        transform: rotate(-18deg);
       }
 
       .lang-select:focus-visible,
