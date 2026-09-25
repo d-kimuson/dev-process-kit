@@ -8,6 +8,7 @@ import type { GrillState } from './model';
 import { handoffFailureLabel } from '../../core/claude-handoff';
 import { TemplateElement } from '../../core/element';
 import { copyText } from '../../lib/dom/clipboard';
+import { revealWithin } from '../../lib/dom/scroll';
 import { answerQuestion, type AnswerInput } from './actions';
 import { grillDefinitionFor } from './definition';
 import { grillMessages } from './messages';
@@ -406,7 +407,8 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
     if (this.tab !== 'questions' || this.folded || openId === null || openId === this.#scrolledQuestion) return;
     this.#scrolledQuestion = openId;
     const card = this.renderRoot.querySelector(`[data-question="${openId}"]`);
-    if (card !== null && typeof card.scrollIntoView === 'function') card.scrollIntoView({ block: 'nearest' });
+    const list = card?.closest('.grill-list');
+    if (card && list) revealWithin(list, card);
   }
 }
 
