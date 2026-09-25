@@ -29,6 +29,11 @@ export const grillMessages = defineMessages({
     freeTextOf: (ref: string) => `Your own answer to ${ref}`,
     freeTextPlaceholder: 'Type an answer… (⌘/Ctrl+Enter for next)',
     clearAnswer: 'Clear answer',
+    roundSelect: 'Question round',
+    currentRound: 'Current questions',
+    roundOption: (label: string, count: number) => `${label} (${count})`,
+    pastRound: (label: string) => `${label}: earlier questions, read-only`,
+    unanswered: 'Not answered',
   },
   ja: {
     wholePage: 'ページ全体',
@@ -58,6 +63,11 @@ export const grillMessages = defineMessages({
     freeTextOf: (ref: string) => `${ref} の自由記述`,
     freeTextPlaceholder: '回答を入力…（⌘/Ctrl+Enter で次へ）',
     clearAnswer: '回答をクリア',
+    roundSelect: '質問のラウンド',
+    currentRound: '現在の質問',
+    roundOption: (label: string, count: number) => `${label}（${count} 問）`,
+    pastRound: (label: string) => `${label}: 過去の質問（閲覧のみ）`,
+    unanswered: '未回答',
   },
 });
 

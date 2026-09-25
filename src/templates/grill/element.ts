@@ -1,4 +1,4 @@
-import { html, type TemplateResult } from 'lit';
+import { html, nothing, type TemplateResult } from 'lit';
 
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
@@ -11,10 +11,21 @@ import { copyText } from '../../lib/dom/clipboard';
 import { revealWithin } from '../../lib/dom/scroll';
 import { answerQuestion, type AnswerInput } from './actions';
 import { grillDefinitionFor } from './definition';
-import { grillMessages } from './messages';
-import { presentGrillHeader, presentGrillPanel, nextOpenQuestion, type CopyStatus, type SendStatus } from './present';
+import { grillMessages, type GrillMessages } from './messages';
+import {
+  presentGrillHeader,
+  presentGrillPanel,
+  presentPastRound,
+  presentRoundChoices,
+  nextOpenQuestion,
+  resolveRound,
+  type CopyStatus,
+  type GrillRoundChoice,
+  type GrillRoundSelection,
+  type SendStatus,
+} from './present';
 import { GRILL_QUESTIONS_ATTRIBUTE, collectLabelBindings, positionLabels, type LabelBinding } from './render/labels';
-import { renderQuestionPanel } from './render/panel';
+import { renderPastRound, renderQuestionPanel } from './render/panel';
 import { grillStyles } from './styles';
 
 /**
@@ -37,10 +48,13 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
   static override properties = {
     tab: { state: true },
     folded: { state: true },
+    round: { state: true },
   };
 
   declare private tab: 'questions' | 'review';
   declare private folded: boolean;
+  /** Which questions the questions tab shows; earlier rounds are only looked at, never answered. */
+  declare private round: GrillRoundSelection;
 
   #bindings: readonly LabelBinding[] = [];
   #positionPending = false;
@@ -55,6 +69,7 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
     super();
     this.tab = 'questions';
     this.folded = false;
+    this.round = 'current';
   }
 
   override connectedCallback(): void {
@@ -113,6 +128,7 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
   #openQuestion(context: TemplateRenderContext<GrillState>, questionId: string): void {
     this.tab = 'questions';
     this.folded = false;
+    this.round = 'current';
     this.#scrolledQuestion = null;
     context.navigate({ question: questionId });
   }
@@ -143,28 +159,32 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
 
   #renderSidebar(context: TemplateRenderContext<GrillState>): TemplateResult {
     const m = grillMessages(this.locale);
-    const panel = presentGrillPanel(context.state, context.navigation);
+    const round = resolveRound(context.state, this.round);
+    const rounds = presentRoundChoices(m, context.state, round);
+    const past = round === 'current' ? null : presentPastRound(m, context.state, round);
     return html`
       <div class="grill-panel">
         <div class="grill-tabs" role="tablist" aria-label=${m.tabs}>
-          ${(['questions', 'review'] as const).map(
-            (tab) => html`
-              <button
-                type="button"
-                role="tab"
-                id=${`grill-tab-${tab}`}
-                data-tab=${tab}
-                aria-controls=${`grill-panel-${tab}`}
-                aria-selected=${String(this.tab === tab)}
-                tabindex=${this.tab === tab ? 0 : -1}
-                @click=${() => (this.tab = tab)}
-                @keydown=${(event: KeyboardEvent) => this.#tabKey(event)}
-              >
-                ${tab === 'questions' ? m.questionsTab : m.reviewTab}<span class="grill-count"
-                  >${tab === 'questions' ? context.state.questions.length : context.actions.length}</span
-                >
-              </button>
-            `,
+          ${(['questions', 'review'] as const).map((tab) =>
+            tab === 'questions' && rounds.length > 0
+              ? this.#renderRoundTab(m, rounds)
+              : html`
+                  <button
+                    type="button"
+                    role="tab"
+                    id=${`grill-tab-${tab}`}
+                    data-tab=${tab}
+                    aria-controls=${`grill-panel-${tab}`}
+                    aria-selected=${String(this.tab === tab)}
+                    tabindex=${this.tab === tab ? 0 : -1}
+                    @click=${() => (this.tab = tab)}
+                    @keydown=${(event: KeyboardEvent) => this.#tabKey(event)}
+                  >
+                    ${tab === 'questions' ? m.questionsTab : m.reviewTab}<span class="grill-count"
+                      >${tab === 'questions' ? context.state.questions.length : context.actions.length}</span
+                    >
+                  </button>
+                `,
           )}
         </div>
         <div
@@ -174,11 +194,15 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
           aria-labelledby="grill-tab-questions"
           ?hidden=${this.tab !== 'questions'}
         >
-          ${renderQuestionPanel(m, panel, {
-            open: (questionId) => this.#openQuestion(context, questionId),
-            answer: (questionId, answer) => this.#answer(questionId, answer),
-            next: (questionId) => this.#advance(questionId),
-          })}
+          ${
+            past === null
+              ? renderQuestionPanel(m, presentGrillPanel(context.state, context.navigation), {
+                  open: (questionId) => this.#openQuestion(context, questionId),
+                  answer: (questionId, answer) => this.#answer(questionId, answer),
+                  next: (questionId) => this.#advance(questionId),
+                })
+              : renderPastRound(m, past)
+          }
         </div>
         <div
           class="grill-tab-panel"
@@ -258,6 +282,61 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
     `;
   }
 
+  /**
+   * The questions tab as a select of rounds. It only opens once its tab is
+   * selected: from Review it is disabled, and a tab button laid over it just
+   * switches back.
+   */
+  #renderRoundTab(m: GrillMessages, rounds: readonly GrillRoundChoice[]): TemplateResult {
+    const selected = this.tab === 'questions';
+    const select = html`
+      <select
+        class="grill-round"
+        id=${selected ? 'grill-tab-questions' : nothing}
+        data-tab=${selected ? 'questions' : nothing}
+        aria-label=${m.roundSelect}
+        aria-controls="grill-panel-questions"
+        ?disabled=${!selected}
+        @change=${(event: Event) => this.#pickRound(event)}
+      >
+        ${rounds.map(
+          (choice) => html`<option value=${choice.value} ?selected=${choice.selected}>${choice.label}</option>`,
+        )}
+      </select>
+    `;
+    return html`
+      <div class="grill-round-tab" data-selected=${String(selected)}>
+        ${select}
+        ${
+          selected
+            ? nothing
+            : html`<button
+                type="button"
+                role="tab"
+                class="grill-round-switch"
+                id="grill-tab-questions"
+                data-tab="questions"
+                aria-controls="grill-panel-questions"
+                aria-selected="false"
+                aria-label=${rounds.find((choice) => choice.selected)?.label ?? m.questionsTab}
+                tabindex="-1"
+                @click=${() => (this.tab = 'questions')}
+                @keydown=${(event: KeyboardEvent) => this.#tabKey(event)}
+              ></button>`
+        }
+      </div>
+    `;
+  }
+
+  #pickRound(event: Event): void {
+    const select = event.currentTarget;
+    if (!(select instanceof HTMLSelectElement)) return;
+    this.tab = 'questions';
+    this.round = select.value === 'current' ? 'current' : Number(select.value);
+    // Back on the current questions, the list scrolls to the open one again.
+    this.#scrolledQuestion = null;
+  }
+
   #tabKey(event: KeyboardEvent): void {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
@@ -269,7 +348,9 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
           : this.tab === 'questions'
             ? 'review'
             : 'questions';
-    this.renderRoot.querySelector<HTMLButtonElement>(`[data-tab="${this.tab}"]`)?.focus();
+    // The questions tab can change element (the round select) when selected, so focus after the render.
+    const tab = this.tab;
+    void this.updateComplete.then(() => this.renderRoot.querySelector<HTMLElement>(`[data-tab="${tab}"]`)?.focus());
   }
 
   /**
@@ -404,7 +485,8 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
   /** Opening a question from a badge moves the list to that question. */
   #revealOpenQuestion(): void {
     const openId = this.navigation['question'] ?? null;
-    if (this.tab !== 'questions' || this.folded || openId === null || openId === this.#scrolledQuestion) return;
+    if (this.tab !== 'questions' || this.round !== 'current' || this.folded) return;
+    if (openId === null || openId === this.#scrolledQuestion) return;
     this.#scrolledQuestion = openId;
     const card = this.renderRoot.querySelector(`[data-question="${openId}"]`);
     const list = card?.closest('.grill-list');

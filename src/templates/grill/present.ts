@@ -19,6 +19,7 @@ import {
   isAnswered,
   optionLetter,
   questionLabel,
+  type GrillAnswer,
   type GrillQuestion,
   type GrillState,
 } from './model';
@@ -154,6 +155,14 @@ export type GrillHeaderViewModel = {
   readonly total: number;
 };
 
+const presentChoices = (question: GrillQuestion, answer: GrillAnswer | undefined): readonly GrillChoiceViewModel[] =>
+  question.options.map((option, index) => ({
+    id: option.id,
+    letter: optionLetter(index),
+    label: option.label,
+    checked: answer?.kind === 'option' && answer.optionId === option.id,
+  }));
+
 const presentQuestion = (question: GrillQuestion, state: GrillState, openId: string | null): GrillQuestionViewModel => {
   const answer = state.answers[question.id];
   return {
@@ -165,12 +174,7 @@ const presentQuestion = (question: GrillQuestion, state: GrillState, openId: str
     open: question.id === openId,
     answered: answerText(question, answer) !== '',
     summary: answerText(question, answer),
-    choices: question.options.map((option, index) => ({
-      id: option.id,
-      letter: optionLetter(index),
-      label: option.label,
-      checked: answer?.kind === 'option' && answer.optionId === option.id,
-    })),
+    choices: presentChoices(question, answer),
     draft: answer?.kind === 'free' ? answer.text : '',
     freeSelected: answer?.kind === 'free',
     allowFreeText: question.freeText,
@@ -191,5 +195,89 @@ export const presentGrillHeader = (m: GrillMessages, state: GrillState): GrillHe
     progress: m.progress(counts.answered, counts.total),
     answered: counts.answered,
     total: counts.total,
+  };
+};
+
+/* ------------------------------------------------------------ earlier rounds */
+
+/** Which questions the questions tab shows: the current ones, or an earlier round by its `history` index. */
+export type GrillRoundSelection = 'current' | number;
+
+export type GrillRoundChoice = {
+  readonly value: string;
+  readonly label: string;
+  readonly selected: boolean;
+};
+
+export type GrillPastQuestionViewModel = {
+  readonly id: string;
+  readonly ref: string;
+  readonly title: string;
+  readonly description: string | null;
+  readonly note: string | null;
+  readonly answered: boolean;
+  /** The recorded answer, or the "not answered" label. */
+  readonly summary: string;
+  readonly choices: readonly GrillChoiceViewModel[];
+  /** The answer given in the reader's own words, if that is what they did. */
+  readonly freeText: string | null;
+};
+
+export type GrillPastRoundViewModel = {
+  readonly label: string;
+  readonly questions: readonly GrillPastQuestionViewModel[];
+};
+
+/** A selection that no longer names a round (the base data changed) falls back to the current questions. */
+export const resolveRound = (state: GrillState, round: GrillRoundSelection): GrillRoundSelection =>
+  round !== 'current' && state.pastRounds[round] !== undefined ? round : 'current';
+
+/** Empty without history: the questions tab stays a plain tab. Earlier rounds come newest first. */
+export const presentRoundChoices = (
+  m: GrillMessages,
+  state: GrillState,
+  round: GrillRoundSelection,
+): readonly GrillRoundChoice[] => {
+  if (state.pastRounds.length === 0) return [];
+  const selected = resolveRound(state, round);
+  const past = state.pastRounds.map((entry, index) => ({
+    value: String(index),
+    label: m.roundOption(entry.label, entry.questions.length),
+    selected: selected === index,
+  }));
+  return [
+    {
+      value: 'current',
+      label: m.roundOption(m.currentRound, state.questions.length),
+      selected: selected === 'current',
+    },
+    ...[...past].reverse(),
+  ];
+};
+
+export const presentPastRound = (
+  m: GrillMessages,
+  state: GrillState,
+  index: number,
+): GrillPastRoundViewModel | null => {
+  const round = state.pastRounds[index];
+  if (round === undefined) return null;
+  return {
+    label: round.label,
+    questions: round.questions.map((question) => {
+      const answer = question.answer ?? undefined;
+      const summary = answerText(question, answer);
+      return {
+        id: question.id,
+        ref: question.ref,
+        title: question.title,
+        description: question.description,
+        note: question.note,
+        answered: summary !== '',
+        summary: summary === '' ? m.unanswered : summary,
+        choices: presentChoices(question, answer),
+        freeText: answer?.kind === 'free' ? answer.text : null,
+      };
+    }),
   };
 };

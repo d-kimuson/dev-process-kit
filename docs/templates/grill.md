@@ -6,6 +6,7 @@ A review of questions over whatever the author puts in the main area. The questi
 dpk-template-grill
   main   slot="main" — your content, with the Q badges layered over it
   rail   Questions / Review tabs on the right, with one combined copy button
+         (with earlier rounds, the Questions tab is a select: current, v2, v1 …)
   corner the Questions / Review button (top right) — folds the column away,
          badge = answered / total
 ```
@@ -37,6 +38,7 @@ The **Review** tab embeds the same comment panel used by the other templates. An
 | ------------- | -------- | ------------------------------------------------------- |
 | `title`       | no       | Page title in the chrome. Defaults to `Visually Grill`. |
 | `questions[]` | yes      | The questions, in reading order.                        |
+| `history[]`   | no       | Earlier rounds of questions, oldest first (see below).  |
 
 Per question:
 
@@ -50,7 +52,39 @@ Per question:
 | `options`     | no       | `[{ id, label }]`, rendered as `(a)`, `(b)`, … choices.          |
 | `freeText`    | no       | `false` renders a select-only question (default `true`).         |
 
-Duplicate question ids and duplicate option ids are errors. Answers never appear in the base JSON — they are what the reader produced.
+Duplicate question ids and duplicate option ids are errors. Answers to the current questions never appear in the base JSON — they are what the reader produced.
+
+### Earlier rounds (`history`)
+
+When you revise the page with the next round of questions, move the answered round into `history` instead of dropping it, so the reader can look back at what was already decided:
+
+```json
+{
+  "questions": [{ "id": "refund-failure", "title": "返金が失敗し続けたらどうする？", "options": [ … ] }],
+  "history": [
+    {
+      "label": "v1",
+      "questions": [
+        {
+          "id": "reservation-table",
+          "title": "在庫予約テーブルは本当に必要？",
+          "options": [ … ],
+          "answer": { "kind": "option", "optionId": "own-table" }
+        },
+        { "id": "release-path", "title": "予約はいつ解放する？", "answer": { "kind": "free", "text": "決済失敗時と期限切れ時" } }
+      ]
+    }
+  ]
+}
+```
+
+| Field         | Required | Meaning                                                                                                    |
+| ------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `label`       | no       | Name in the round select. Defaults to `v1`, `v2`, … by position.                                           |
+| `questions[]` | yes      | The questions of that round, same fields as above, plus `answer`.                                          |
+| `answer`      | no       | The recorded answer, copied from the reader's `ANSWER_QUESTION` payload (`option` / `free`). Omit if none. |
+
+An earlier round is read-only: nothing can answer or comment on it, it is not part of the hand-off, and its question ids may repeat ids of other rounds (ids are unique within a round). An `answer` naming an unknown option is an error. Keep each round's `ref`s as they were, so the reader recognises them.
 
 ## Action vocabulary
 
@@ -100,6 +134,7 @@ The second one reaches into a diagram's shadow root to place the badge on the ex
 ## UI provided by the template
 
 - **Questions tab** (right): one card per question with choices and a free-text answer. No answered/unanswered filters.
+- **Round select**: with `history`, the Questions tab becomes a select — **Current questions** first, then earlier rounds newest first, each with its question count. While Review is open the select is disabled, and clicking it only switches back to the Questions tab. Picking an earlier round shows it read-only, each question folded to its recorded answer and opening to the options it offered. A Q badge always goes back to the current questions. Without `history` the tab is a plain tab.
 - **Review tab**: the shared composer and draft list, including stale actions. Notes are page-wide; use a diagram's comment button to target that element. There is no attach-to-question checkbox: the answer is the reply to a question. A comment request opens Review and unfolds the rail. Switching tabs or folding preserves unsent input.
 - **Copy answers and review**: available below either tab; copies the canonical agent brief with answers, all comments, target references and draft JSON, independent of the selected tab. Also works for a review containing only comments.
 - **Send answers and review to Claude**: replaces the copy button inside a Claude Artifact that can send comments to Claude, and sends the same brief (`docs/index.md`, Review and the hand-off). A small **Copy** button stays beside it, and a failed send explains the reason below the buttons.

@@ -3,7 +3,13 @@ import { repeat } from 'lit/directives/repeat.js';
 
 import type { AnswerInput } from '../actions';
 import type { GrillMessages } from '../messages';
-import type { GrillChoiceViewModel, GrillPanelViewModel, GrillQuestionViewModel } from '../present';
+import type {
+  GrillChoiceViewModel,
+  GrillPanelViewModel,
+  GrillPastQuestionViewModel,
+  GrillPastRoundViewModel,
+  GrillQuestionViewModel,
+} from '../present';
 
 import { iconChevronRight } from '../../../core/icons';
 
@@ -135,4 +141,61 @@ const renderChoice = (
       <span>${choice.label}</span>
     </span>
   </label>
+`;
+
+/**
+ * An earlier round, read-only: each question folds to its recorded answer and
+ * opens to the options it offered, with the chosen one marked.
+ */
+export const renderPastRound = (m: GrillMessages, vm: GrillPastRoundViewModel): TemplateResult => html`
+  <div class="grill-list">
+    <p class="grill-round-note">${m.pastRound(vm.label)}</p>
+    ${
+      vm.questions.length === 0
+        ? html`<p class="grill-empty">${m.noQuestions}</p>`
+        : repeat(
+            vm.questions,
+            (question) => question.id,
+            (question) => renderPastQuestion(question),
+          )
+    }
+  </div>
+`;
+
+const renderPastQuestion = (question: GrillPastQuestionViewModel): TemplateResult => html`
+  <details
+    class="grill-question grill-question--past"
+    data-question=${question.id}
+    data-answered=${String(question.answered)}
+  >
+    <summary class="grill-heading">
+      <span class="grill-ref">${question.ref}</span>
+      <span class="grill-heading-text">
+        <strong>${question.title}</strong>
+        <span class="grill-summary">${question.summary}</span>
+      </span>
+      <span class="grill-chevron" aria-hidden="true">${iconChevronRight()}</span>
+    </summary>
+    <div class="grill-body">
+      ${question.description ? html`<p class="grill-description">${question.description}</p>` : nothing}
+      ${question.note ? html`<p class="grill-note">${question.note}</p>` : nothing}
+      ${
+        question.choices.length === 0
+          ? nothing
+          : html`<ul class="grill-past-choices">
+              ${question.choices.map(
+                (choice) => html`<li class="grill-past-choice" data-checked=${String(choice.checked)}>
+                  <span class="grill-letter">(${choice.letter})</span>
+                  <span>${choice.label}</span>
+                </li>`,
+              )}
+            </ul>`
+      }
+      ${
+        question.freeText === null
+          ? nothing
+          : html`<p class="grill-past-choice grill-past-free" data-checked="true">${question.freeText}</p>`
+      }
+    </div>
+  </details>
 `;

@@ -133,6 +133,40 @@
                 { "id": "manual", "label": "一定回数で「オペレーター対応」の状態に移し、人が返金する" }
               ]
             }
+          ],
+          "history": [
+            {
+              "label": "v1 スコープ",
+              "questions": [
+                {
+                  "id": "who-cancels",
+                  "title": "誰がキャンセルできる？",
+                  "description": "購入者本人に開くか、オペレーター経由のままにするかを決めます。",
+                  "options": [
+                    { "id": "customer", "label": "購入者がマイページから自分でキャンセルする" },
+                    { "id": "operator", "label": "今まで通りオペレーターに依頼してもらう" }
+                  ],
+                  "answer": { "kind": "option", "optionId": "customer" }
+                },
+                {
+                  "id": "partial",
+                  "title": "一部の商品だけのキャンセルも扱う？",
+                  "options": [
+                    { "id": "whole-only", "label": "注文単位のキャンセルだけにする" },
+                    { "id": "per-item", "label": "明細単位でキャンセルできるようにする" }
+                  ],
+                  "answer": { "kind": "free", "text": "初回は注文単位だけ。明細単位は問い合わせの多さを見て次に回す" }
+                },
+                {
+                  "id": "notify",
+                  "title": "キャンセルを店舗にどう知らせる？",
+                  "options": [
+                    { "id": "mail", "label": "メールで通知する" },
+                    { "id": "dashboard", "label": "管理画面のお知らせに出す" }
+                  ]
+                }
+              ]
+            }
           ]
         }
       </script>

@@ -203,6 +203,80 @@ export const grillStyles = css`
     color: var(--dpk-accent);
   }
 
+  /* With earlier rounds, the questions tab is a select of rounds: the same
+     segment, with a chevron drawn from the text color. */
+  .grill-round-tab {
+    position: relative;
+    flex: 1 1 0;
+    display: flex;
+    min-width: 0;
+  }
+
+  .grill-round {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 22px 6px 9px;
+    border: 1px solid transparent;
+    border-radius: var(--dpk-radius-sm);
+    appearance: none;
+    background-color: transparent;
+    background-image:
+      linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:
+      calc(100% - 12px) 52%,
+      calc(100% - 8px) 52%;
+    background-size: 4px 4px;
+    background-repeat: no-repeat;
+    color: var(--dpk-ink-faint);
+    font: inherit;
+    font-size: 11.5px;
+    text-align: center;
+    text-align-last: center;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition:
+      background-color 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease),
+      box-shadow 140ms var(--dpk-ease);
+  }
+
+  .grill-round-tab:hover .grill-round {
+    color: var(--dpk-ink);
+  }
+
+  /* From Review the select is disabled and only looks like the other tab. */
+  .grill-round:disabled {
+    opacity: 1;
+  }
+
+  .grill-tabs .grill-round-switch {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+  }
+
+  .grill-round-tab[data-selected='true'] .grill-round {
+    background-color: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
+    font-weight: 600;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+  }
+
+  .grill-round option {
+    color: var(--dpk-ink);
+    background: var(--dpk-paper-raised);
+    font-weight: 400;
+  }
+
+  .grill-round-note {
+    margin: 4px 0 2px;
+    padding: 0 8px;
+    font-size: 10.5px;
+    line-height: 1.6;
+    color: var(--dpk-ink-faint);
+  }
+
   .grill-list {
     flex: 1;
     min-height: 0;
@@ -449,6 +523,68 @@ export const grillStyles = css`
     font-weight: 600;
     line-height: 1.9;
     color: var(--dpk-green);
+  }
+
+  /* An earlier round: a disclosure per question, nothing to answer with. */
+  .grill-question--past > summary {
+    list-style: none;
+  }
+
+  .grill-question--past > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .grill-question--past[open] {
+    border-color: var(--dpk-rule);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+  }
+
+  .grill-question--past[open] .grill-heading:hover {
+    background: none;
+  }
+
+  .grill-question--past[open] .grill-chevron svg {
+    transform: rotate(90deg);
+  }
+
+  .grill-question--past[open] .grill-summary {
+    display: none;
+  }
+
+  .grill-question--past[data-answered='false'] .grill-summary {
+    color: var(--dpk-ink-faint);
+  }
+
+  .grill-past-choices {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .grill-past-choice {
+    display: flex;
+    gap: 7px;
+    margin: 0;
+    padding: 7px 9px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-sm);
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: var(--dpk-ink-faint);
+  }
+
+  .grill-past-choice[data-checked='true'] {
+    border-color: color-mix(in srgb, var(--dpk-green) 45%, transparent);
+    background: var(--dpk-green-soft);
+    color: var(--dpk-ink);
+  }
+
+  .grill-past-free {
+    margin-top: 6px;
+    white-space: pre-wrap;
   }
 
   .grill-free {

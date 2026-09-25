@@ -30,10 +30,27 @@ export type GrillAnswer =
 /** Keyed by question id. An unanswered question has no entry at all. */
 export type GrillAnswers = Readonly<Record<string, GrillAnswer>>;
 
+/** A question from an earlier round, with the answer the agent recorded (`null`: left unanswered). */
+export type GrillPastQuestion = GrillQuestion & {
+  readonly answer: GrillAnswer | null;
+};
+
+/**
+ * An earlier round of questions. It is base data the agent keeps when it asks
+ * the next round, so the reader can look back; nothing can answer it again.
+ */
+export type GrillRound = {
+  /** Display label in the round select. Defaults to `v<1-based position>`. */
+  readonly label: string;
+  readonly questions: readonly GrillPastQuestion[];
+};
+
 export type GrillState = {
   readonly title: string;
   readonly questions: readonly GrillQuestion[];
   readonly answers: GrillAnswers;
+  /** Earlier rounds, oldest first (`history` in the base data). */
+  readonly pastRounds: readonly GrillRound[];
 };
 
 const optionSchema = v.strictObject({
@@ -51,15 +68,34 @@ const questionSchema = v.strictObject({
   freeText: v.optional(v.boolean(), true),
 });
 
+/** The same shape as the `ANSWER_QUESTION` payload, so a draft answer can be copied over as is. */
+const recordedAnswerSchema = v.variant('kind', [
+  v.strictObject({ kind: v.literal('option'), optionId: v.pipe(v.string(), v.minLength(1)) }),
+  v.strictObject({ kind: v.literal('free'), text: v.string() }),
+]);
+
+const pastQuestionSchema = v.strictObject({
+  ...questionSchema.entries,
+  answer: v.optional(recordedAnswerSchema),
+});
+
+const roundSchema = v.strictObject({
+  label: v.optional(v.pipe(v.string(), v.minLength(1))),
+  questions: v.array(pastQuestionSchema),
+});
+
 export const grillBaseSchema = v.strictObject({
   title: v.optional(v.string(), ''),
   questions: v.array(questionSchema),
+  history: v.optional(v.array(roundSchema), []),
 });
 
-export const parseGrillBase = (input: unknown): GrillState => {
-  const parsed = v.parse(grillBaseSchema, input);
+type ParsedQuestion = v.InferOutput<typeof questionSchema>;
+
+/** Ids are unique within one round; a later round may reuse an earlier round's id. */
+const toQuestions = <Q extends ParsedQuestion>(questions: readonly Q[]): readonly (Q & GrillQuestion)[] => {
   const ids = new Set<string>();
-  const questions = parsed.questions.map((question, index) => {
+  return questions.map((question, index) => {
     if (ids.has(question.id)) throw new Error(`duplicate question id: ${question.id}`);
     ids.add(question.id);
     const optionIds = new Set<string>();
@@ -68,19 +104,45 @@ export const parseGrillBase = (input: unknown): GrillState => {
       optionIds.add(option.id);
     }
     return {
-      id: question.id,
+      ...question,
       ref: question.ref ?? `Q${index + 1}`,
-      title: question.title,
       description: question.description ?? null,
       note: question.note ?? null,
-      options: question.options,
-      freeText: question.freeText,
-    } satisfies GrillQuestion;
+    };
   });
-  return { title: parsed.title, questions, answers: {} };
 };
 
-export const emptyGrillBase = (): GrillState => ({ title: '', questions: [], answers: {} });
+const toQuestion = (question: GrillQuestion): GrillQuestion => ({
+  id: question.id,
+  ref: question.ref,
+  title: question.title,
+  description: question.description,
+  note: question.note,
+  options: question.options,
+  freeText: question.freeText,
+});
+
+const toPastQuestion = (question: GrillQuestion & { readonly answer?: GrillAnswer | undefined }): GrillPastQuestion => {
+  const answer = question.answer ?? null;
+  if (answer?.kind === 'option' && !question.options.some((option) => option.id === answer.optionId))
+    throw new Error(`unknown option id: ${answer.optionId} in question ${question.id}`);
+  return { ...toQuestion(question), answer };
+};
+
+export const parseGrillBase = (input: unknown): GrillState => {
+  const parsed = v.parse(grillBaseSchema, input);
+  return {
+    title: parsed.title,
+    questions: toQuestions(parsed.questions).map(toQuestion),
+    answers: {},
+    pastRounds: parsed.history.map((round, index) => ({
+      label: round.label ?? `v${index + 1}`,
+      questions: toQuestions(round.questions).map(toPastQuestion),
+    })),
+  };
+};
+
+export const emptyGrillBase = (): GrillState => ({ title: '', questions: [], answers: {}, pastRounds: [] });
 
 export const findQuestion = (state: GrillState, id: string): GrillQuestion | undefined =>
   state.questions.find((question) => question.id === id);
