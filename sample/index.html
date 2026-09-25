@@ -34,6 +34,7 @@
         --rule-hover: light-dark(rgba(20, 28, 44, 0.22), rgba(222, 230, 245, 0.26));
         --blue: light-dark(#3366cc, #6f9bf0);
         --blue-soft: light-dark(rgba(51, 102, 204, 0.08), rgba(111, 155, 240, 0.15));
+        --teal: light-dark(#0f7b6c, #4fc1b0);
         --shade: light-dark(rgb(20, 28, 44), rgb(0, 0, 0));
         --highlight: light-dark(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.05));
         --focus: 0 0 0 3px color-mix(in srgb, var(--blue) 28%, transparent);
@@ -504,10 +505,50 @@
         gap: 12px;
       }
 
-      .card-head code {
-        color: var(--ink-faint);
-        font-size: 11.5px;
+      /*
+       * The custom elements a sample uses, as labels laid over its thumbnail. The template (listed
+       * first) sits in the corner; the components it adds, named without their `dpk-component-`
+       * prefix, flow in page order before it.
+       */
+      .thumb-tags {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        left: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 4px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .thumb-tags > :first-child {
+        order: 1;
+      }
+
+      .thumb-tag {
+        --tag: var(--blue);
+        max-width: 100%;
+        padding: 2px 9px;
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--tag) 35%, transparent);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--tag) 14%, var(--glass));
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        box-shadow: var(--shadow-xs);
+        color: var(--tag);
+        font-size: 11px;
+        font-weight: 550;
+        line-height: 1.6;
+        text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .thumb-tag[data-kind='component'] {
+        --tag: var(--teal);
       }
 
       .card-body p {
@@ -515,25 +556,6 @@
         color: var(--ink-soft);
         font-size: 13px;
         line-height: 1.65;
-      }
-
-      /* "Plain + Components + Custom" as chips. */
-      .recipe {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px;
-        margin-top: 2px;
-        font-size: 11.5px;
-        color: var(--ink-faint);
-      }
-
-      .recipe span {
-        padding: 1px 8px;
-        border: 1px solid var(--rule-strong);
-        border-radius: 999px;
-        background: var(--paper-sunken);
-        color: var(--ink-soft);
       }
 
       /* ---- usage ---- */
@@ -828,98 +850,104 @@
           <a class="card" href="event-storming.html">
             <div class="thumb">
               <iframe src="event-storming.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-event-storming</code></li>
+              </ul>
             </div>
             <div class="card-body">
-              <div class="card-head">
-                <h3>Event Storming</h3>
-                <code>dpk-template-event-storming</code>
-              </div>
+              <div class="card-head"><h3>Event Storming</h3></div>
               <p data-i18n="eventStorming">
                 ドメインイベントを時系列に並べ、コマンド・集約・ポリシーとの因果をたどる。
               </p>
             </div>
           </a>
           <a class="card" href="usm.html">
-            <div class="thumb"><iframe src="usm.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe></div>
+            <div class="thumb">
+              <iframe src="usm.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-usm</code></li>
+              </ul>
+            </div>
             <div class="card-body">
-              <div class="card-head">
-                <h3>User Story Mapping</h3>
-                <code>dpk-template-usm</code>
-              </div>
+              <div class="card-head"><h3>User Story Mapping</h3></div>
               <p data-i18n="usm">Activity と Step の背骨の下に、リリースごとにユーザーストーリーを並べる。</p>
             </div>
           </a>
           <a class="card" href="example-mapping.html">
             <div class="thumb">
               <iframe src="example-mapping.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-example-mapping</code></li>
+              </ul>
             </div>
             <div class="card-body">
-              <div class="card-head">
-                <h3>Example Mapping</h3>
-                <code>dpk-template-example-mapping</code>
-              </div>
+              <div class="card-head"><h3>Example Mapping</h3></div>
               <p data-i18n="exampleMapping">ストーリーごとにルール・具体例・疑問を積み、要件の抜けを洗い出す。</p>
             </div>
           </a>
           <a class="card" href="grill.html">
-            <div class="thumb"><iframe src="grill.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe></div>
+            <div class="thumb">
+              <iframe src="grill.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-grill</code></li>
+              </ul>
+            </div>
             <div class="card-body">
-              <div class="card-head">
-                <h3>Visually Grill</h3>
-                <code>dpk-template-grill</code>
-              </div>
+              <div class="card-head"><h3>Visually Grill</h3></div>
               <p data-i18n="grill">設計を図で示しながら質問を投げ、回答とコメントを Agent に返す。</p>
             </div>
           </a>
           <a class="card" href="prototype.html">
             <div class="thumb">
               <iframe src="prototype.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-prototype</code></li>
+              </ul>
             </div>
             <div class="card-body">
-              <div class="card-head">
-                <h3>UX Prototype</h3>
-                <code>dpk-template-prototype</code>
-              </div>
+              <div class="card-head"><h3>UX Prototype</h3></div>
               <p data-i18n="prototype">画面の流れをストーリーとステップに分けて並べ、プレビューで確かめる。</p>
             </div>
           </a>
           <a class="card" href="slides.html">
-            <div class="thumb"><iframe src="slides.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe></div>
+            <div class="thumb">
+              <iframe src="slides.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-slides</code></li>
+              </ul>
+            </div>
             <div class="card-body">
-              <div class="card-head">
-                <h3>Slides</h3>
-                <code>dpk-template-slides</code>
-              </div>
+              <div class="card-head"><h3>Slides</h3></div>
               <p data-i18n="slides">一枚ずつ順にめくるスライドで、仕組みや変更を Agent が解説する。</p>
             </div>
           </a>
           <a class="card" href="task-board.html">
             <div class="thumb">
               <iframe src="task-board.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-task-board</code></li>
+              </ul>
             </div>
             <div class="card-body">
-              <div class="card-head">
-                <h3>Task Context Board</h3>
-                <code>dpk-template-task-board</code>
-              </div>
+              <div class="card-head"><h3>Task Context Board</h3></div>
               <p data-i18n="taskBoard">
                 Agent と進めるタスクの状況・Todo・成果物・報告を一枚で追い、質問や提案に答える。
               </p>
             </div>
           </a>
           <a class="card" href="#patterns">
-            <div class="thumb" aria-hidden="true">
-              <div class="shell">
+            <div class="thumb">
+              <div class="shell" aria-hidden="true">
                 <div class="shell-header">header</div>
                 <div class="shell-main">slot="main"</div>
                 <div>review</div>
               </div>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-plain</code></li>
+              </ul>
             </div>
             <div class="card-body">
-              <div class="card-head">
-                <h3>Plain</h3>
-                <code>dpk-template-plain</code>
-              </div>
+              <div class="card-head"><h3>Plain</h3></div>
               <p data-i18n="plain">ヘッダーとレビューだけを持ち、中身は自由に書く。</p>
             </div>
           </a>
@@ -935,10 +963,15 @@
           <a class="card" href="design-doc.html">
             <div class="thumb">
               <iframe src="design-doc.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-plain</code></li>
+                <li><code class="thumb-tag" data-kind="component">state-diagram</code></li>
+                <li><code class="thumb-tag" data-kind="component">sequence-diagram</code></li>
+                <li><code class="thumb-tag" data-kind="component">er-diagram</code></li>
+              </ul>
             </div>
             <div class="card-body">
               <div class="card-head"><h3>Design Doc</h3></div>
-              <div class="recipe"><span>Plain</span>+<span>Components</span></div>
               <p data-i18n="designDoc">
                 注文キャンセルと返金の設計を、状態遷移図・シーケンス図・ER 図を添えた Design Doc にまとめる。
               </p>
@@ -947,10 +980,15 @@
           <a class="card" href="architecture.html">
             <div class="thumb">
               <iframe src="architecture.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-plain</code></li>
+                <li><code class="thumb-tag" data-kind="component">architecture-map</code></li>
+                <li><code class="thumb-tag" data-kind="component">dependency-graph</code></li>
+                <li><code class="thumb-tag" data-kind="component">sequence-diagram</code></li>
+              </ul>
             </div>
             <div class="card-body">
               <div class="card-head"><h3 data-i18n="architectureTitle">アーキテクチャ設計</h3></div>
-              <div class="recipe"><span>Plain</span>+<span>Components</span></div>
               <p data-i18n="architecture">
                 注文システムの構成とインフラを、アーキテクチャ図・依存グラフ・シーケンス図と表で示す。
               </p>
@@ -959,10 +997,14 @@
           <a class="card" href="ddd-primer.html">
             <div class="thumb">
               <iframe src="ddd-primer.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-plain</code></li>
+                <li><code class="thumb-tag" data-kind="component">mind-map</code></li>
+                <li><code class="thumb-tag" data-kind="component">architecture-map</code></li>
+              </ul>
             </div>
             <div class="card-body">
               <div class="card-head"><h3 data-i18n="primerTitle">概念の解説</h3></div>
-              <div class="recipe"><span>Plain</span>+<span>Components</span>+<span>Custom</span></div>
               <p data-i18n="primer">DDD を、マインドマップ・コンテキストマップ・自作の表と図で説明する。</p>
             </div>
           </a>
