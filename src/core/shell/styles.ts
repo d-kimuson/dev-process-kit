@@ -326,7 +326,8 @@ export const chromeStyles = [
       position: sticky;
       bottom: 0;
       z-index: 5;
-      padding: 0 20px 20px;
+      /* Clear of the hand-off dock at the bottom right while it is shown. */
+      padding: 0 calc(20px + var(--dpk-dock-space, 0px)) 20px 20px;
       pointer-events: none;
     }
 
@@ -522,6 +523,52 @@ export const chromeStyles = [
         transform: scale(0.4);
         opacity: 0;
       }
+    }
+
+    /* ------------------------------------------------------ hand-off dock */
+
+    .dpk-dock {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      max-width: calc(100vw - 32px);
+      animation: dpk-dock-in 260ms var(--dpk-ease) backwards;
+    }
+
+    @keyframes dpk-dock-in {
+      from {
+        transform: translateY(8px);
+        opacity: 0;
+      }
+    }
+
+    .dpk-dock-actions {
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius-lg);
+      background: var(--dpk-glass);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
+    }
+
+    .dpk-dock-note {
+      max-width: 320px;
+      margin: 0;
+      padding: 8px 12px;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius);
+      background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-shadow);
+      color: var(--dpk-ink-soft);
+      font-size: 12px;
+      line-height: 1.6;
     }
 
     @media (max-width: 720px) {

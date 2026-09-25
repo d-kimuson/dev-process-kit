@@ -4,20 +4,12 @@ import type { HandoffOutcome } from '../../core/claude-handoff';
 import type { Derivation } from '../../core/derive';
 import type { DispatchOutcome, Navigation, TemplateDefinition, ValidationIssue } from '../../core/types';
 
-import { serializeDraft } from '../../core/action';
 import { buildAgentBrief } from '../../core/export';
 import { LocaleController } from '../../core/locale-controller';
 import { FRAMEWORK_VERSION } from '../../core/version';
 import { copyText } from '../../lib/dom/clipboard';
 import { panelMessages } from './messages';
-import {
-  commentSubmission,
-  initialPanelState,
-  reducePanel,
-  type CopyFormat,
-  type PanelEvent,
-  type PanelIntent,
-} from './model';
+import { commentSubmission, initialPanelState, reducePanel, type PanelEvent, type PanelIntent } from './model';
 import { presentPanel, type PanelInputs } from './present';
 import { panelStyles } from './styles';
 import { renderPanel } from './view';
@@ -119,7 +111,7 @@ export class DpkComponentCommentPanel extends LitElement {
         this.onClear?.();
         return;
       case 'copy':
-        void this.#copy(intent.format);
+        void this.#copy();
         return;
       case 'send':
         void this.#sendToClaude();
@@ -147,25 +139,24 @@ export class DpkComponentCommentPanel extends LitElement {
     if (this.isConnected) this.#update({ kind: 'send-finished', request, outcome });
   }
 
-  async #copy(format: CopyFormat): Promise<void> {
+  /** The brief carries the canonical draft JSON too, so it is the one thing to copy. */
+  async #copy(): Promise<void> {
     const inputs = this.#inputs();
     if (!inputs) return;
-    this.#update({ kind: 'copy-started', format });
+    this.#update({ kind: 'copy-started' });
     const request = this.#ui.copyRequest;
     try {
       const text =
-        format === 'json'
-          ? serializeDraft(inputs.derivation.actions)
-          : (this.exportBrief?.() ??
-            buildAgentBrief(
-              {
-                ...inputs.derivation,
-                navigation: inputs.navigation,
-                issues: inputs.issues,
-              },
-              inputs.definition,
-              FRAMEWORK_VERSION,
-            ));
+        this.exportBrief?.() ??
+        buildAgentBrief(
+          {
+            ...inputs.derivation,
+            navigation: inputs.navigation,
+            issues: inputs.issues,
+          },
+          inputs.definition,
+          FRAMEWORK_VERSION,
+        );
       const ok = await copyText(text);
       if (this.isConnected) this.#update({ kind: 'copy-finished', request, ok });
     } catch {

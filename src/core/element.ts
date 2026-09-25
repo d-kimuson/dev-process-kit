@@ -19,6 +19,7 @@ import { parseColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
 import { DraftController } from './controller';
 import { componentElementActionSchema } from './element-actions';
+import { presentDock } from './handoff-dock';
 import { LOCALES, type Locale } from './i18n';
 import { iconMoon, iconSun } from './icons';
 import { coreMessages, LANGUAGE_NAMES } from './messages';
@@ -28,6 +29,7 @@ import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSour
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
+import { HandoffDockController } from './shell/handoff-dock-controller';
 import { LocaleChoiceController } from './shell/locale-choice-controller';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
 import { PreviewRouter } from './shell/preview-router';
@@ -71,6 +73,7 @@ export abstract class TemplateElement<S> extends LitElement {
   #previewRouter = new PreviewRouter(this);
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
   #claude = new ClaudeHandoffController(this);
+  #dock = new HandoffDockController(this);
 
   /**
    * The template in one language. Called again whenever the locale changes:
@@ -175,6 +178,7 @@ export abstract class TemplateElement<S> extends LitElement {
 
   protected override updated(): void {
     this.#routePreviews();
+    this.#reserveDockSpace();
   }
 
   // ------------------------------------------------------------------ public
@@ -398,8 +402,45 @@ export abstract class TemplateElement<S> extends LitElement {
                 ${draftCount > 0 ? html`<span class="dpk-fab-badge">${draftCount}</span>` : nothing}
               </button>`
         }
+        ${this.integratedReview ? nothing : this.#renderHandoffDock(draftCount)}
       </div>
     `;
+  }
+
+  /** Send or copy the draft without opening the rail; the rail has the same buttons when it is open. */
+  #renderHandoffDock(draftCount: number): TemplateResult | typeof nothing {
+    const vm = presentDock(
+      { actions: draftCount, railOpen: this.notesOpen, sendable: this.canSendToClaude, locale: this.locale },
+      this.#dock.state,
+    );
+    if (!vm) return nothing;
+    const messages = coreMessages(this.locale);
+    return html`<div class="dpk-dock" role="group" aria-label=${messages.handoffLabel}>
+      ${vm.note ? html`<p class="dpk-dock-note" role="alert">${vm.note}</p>` : nothing}
+      <div class="dpk-dock-actions">
+        ${
+          vm.send
+            ? html`<button
+                class="dpk-btn dpk-btn--accent"
+                type="button"
+                ?disabled=${vm.send.disabled}
+                @click=${() => void this.#dock.send(() => this.sendToClaude())}
+              >
+                ${vm.send.label}
+              </button>`
+            : nothing
+        }
+        <button
+          class=${vm.send ? 'dpk-btn' : 'dpk-btn dpk-btn--accent'}
+          type="button"
+          data-status=${vm.copy.status}
+          title=${messages.handoffCopyTitle}
+          @click=${() => void this.#dock.copy(() => this.api.exportBrief())}
+        >
+          ${vm.copy.label}
+        </button>
+      </div>
+    </div>`;
   }
 
   #renderLanguageSelect(): TemplateResult {
@@ -685,6 +726,15 @@ export abstract class TemplateElement<S> extends LitElement {
       }
     }
   };
+
+  /** The floating memo keeps its right edge clear of the hand-off dock, whose width follows its labels. */
+  #reserveDockSpace(): void {
+    const shell = this.renderRoot.querySelector<HTMLElement>('.dpk-shell');
+    const dock = this.renderRoot.querySelector<HTMLElement>('.dpk-dock-actions');
+    if (!shell) return;
+    if (dock) shell.style.setProperty('--dpk-dock-space', `${dock.offsetWidth + 8}px`);
+    else shell.style.removeProperty('--dpk-dock-space');
+  }
 
   /** Assigns light-DOM previews to the frame slots the template rendered. */
   #routePreviews(): void {

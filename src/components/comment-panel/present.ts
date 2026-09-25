@@ -108,7 +108,7 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
         : ui.send.kind === 'failed'
           ? handoffFailureLabel(ui.send.reason, inputs.locale)
           : ui.copy.kind === 'copied'
-            ? m.copied(ui.copy.format === 'json' ? 'JSON' : 'brief')
+            ? m.copied
             : ui.copy.kind === 'failed'
               ? m.copyFailed
               : '',

@@ -5,11 +5,7 @@ export type Attachment =
   | { readonly kind: 'current' }
   | { readonly kind: 'explicit'; readonly ref: string; readonly resume: 'page' | 'current' };
 
-export type CopyFormat = 'json' | 'brief';
-export type CopyStatus =
-  | { readonly kind: 'idle' }
-  | { readonly kind: 'pending' | 'copied'; readonly format: CopyFormat }
-  | { readonly kind: 'failed' };
+export type CopyStatus = { readonly kind: 'idle' | 'pending' | 'copied' | 'failed' };
 
 export type SendStatus =
   | { readonly kind: 'idle' | 'pending' | 'sent' }
@@ -34,14 +30,14 @@ export type PanelIntent =
   | { readonly kind: 'submit' }
   | { readonly kind: 'delete'; readonly id: string }
   | { readonly kind: 'clear' }
-  | { readonly kind: 'copy'; readonly format: CopyFormat }
+  | { readonly kind: 'copy' }
   | { readonly kind: 'send' };
 
 export type PanelEvent =
   | PanelEdit
   | { readonly kind: 'target-requested'; readonly ref: string }
   | { readonly kind: 'submitted' }
-  | { readonly kind: 'copy-started'; readonly format: CopyFormat }
+  | { readonly kind: 'copy-started' }
   | { readonly kind: 'copy-finished'; readonly request: number; readonly ok: boolean }
   | { readonly kind: 'send-started' }
   | { readonly kind: 'send-finished'; readonly request: number; readonly outcome: HandoffOutcome };
@@ -89,14 +85,14 @@ export const reducePanel = (state: PanelState, event: PanelEvent): PanelState =>
     case 'copy-started':
       return {
         ...state,
-        copy: { kind: 'pending', format: event.format },
+        copy: { kind: 'pending' },
         copyRequest: state.copyRequest + 1,
         send: { kind: 'idle' },
         sendRequest: state.sendRequest + 1,
       };
     case 'copy-finished':
       if (event.request !== state.copyRequest || state.copy.kind !== 'pending') return state;
-      return { ...state, copy: event.ok ? { kind: 'copied', format: state.copy.format } : { kind: 'failed' } };
+      return { ...state, copy: { kind: event.ok ? 'copied' : 'failed' } };
     case 'send-started':
       return {
         ...state,

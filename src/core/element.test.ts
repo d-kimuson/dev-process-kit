@@ -234,6 +234,33 @@ describe('<dpk-template-prototype>', () => {
     expect(el.shadowRoot?.querySelector('.dpk-fab-badge')?.textContent?.trim()).toBe('1');
   });
 
+  it('offers the hand-off beside the closed rail once there is a draft', async () => {
+    const el = mount();
+    await settle(el);
+    const dock = () => el.shadowRoot?.querySelector('.dpk-dock') ?? null;
+    expect(dock()).toBeNull();
+
+    el.api.comment('page:prototype', 'looks good');
+    await settle(el);
+    const buttons = [...(dock()?.querySelectorAll('button') ?? [])].map((b) => b.textContent?.trim());
+    expect(buttons).toEqual([coreMessages('en').handoffCopy]);
+
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    try {
+      dock()?.querySelector('button')?.click();
+      await settle(el);
+      expect(writeText).toHaveBeenCalledWith(el.api.exportBrief());
+      expect(dock()?.querySelector('button')?.textContent?.trim()).toBe(coreMessages('en').handoffCopied);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    el.shadowRoot?.querySelector<HTMLElement>('.dpk-fab')?.click();
+    await settle(el);
+    expect(dock()).toBeNull();
+  });
+
   it('renders the floating memo only when the author slots content into it', async () => {
     const el = mount();
     await settle(el);
@@ -377,7 +404,7 @@ describe('language', () => {
     expect(el.getAttribute('lang')).toBe('en');
     expect(select(el).value).toBe('en');
     const rail = await railText(el);
-    expect(rail).toContain(panelMessages('en').copyBrief);
+    expect(rail).toContain(panelMessages('en').copy);
     expect(rail).toContain(prototypeMessages('en').renameStep);
     expect(el.api.actions).toHaveLength(1);
   });
@@ -394,7 +421,7 @@ describe('language', () => {
     pick(el, 'ja');
     await settle(el);
     expect(el.getAttribute('lang')).toBe('ja-JP');
-    expect(await railText(el)).toContain(panelMessages('ja').copyBrief);
+    expect(await railText(el)).toContain(panelMessages('ja').copy);
   });
 });
 
@@ -444,5 +471,28 @@ describe('send to Claude', () => {
       anchor: { path: 'x', x: 0, y: 0 },
       text: expect.stringContaining('looks good'),
     });
+  });
+
+  it('sends from the floating hand-off without opening the rail', async () => {
+    const sendToClaude = vi.fn(async () => ({ threadId: 't', commentId: 'c' }));
+    const comments = {
+      anchorFor: async () => ({ path: 'x', x: 0, y: 0 }),
+      sendToClaude,
+      canSendToClaude: async () => 'available',
+    };
+    Object.assign(window, { claude: { use: async (name: string) => (name === 'comments' ? comments : null) } });
+
+    const el = mount();
+    await flush(el);
+    el.api.comment('page:prototype', 'ship it');
+    await flush(el);
+    const send = [...(el.shadowRoot?.querySelectorAll<HTMLButtonElement>('.dpk-dock button') ?? [])].find(
+      (button) => button.textContent?.trim() === coreMessages('en').handoffSend,
+    );
+    send?.click();
+    await flush(el);
+
+    expect(sendToClaude).toHaveBeenCalledWith({ anchor: expect.anything(), text: expect.stringContaining('ship it') });
+    expect(el.shadowRoot?.querySelector('.dpk-notes')?.hasAttribute('hidden')).toBe(true);
   });
 });

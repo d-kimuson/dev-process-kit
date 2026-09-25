@@ -131,14 +131,15 @@ export const renderPanel = (
       ${
         embedded
           ? nothing
-          : html`
-              <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'json' })}>
-                ${m.copyJson}
-              </button>
-              <button class="dpk-btn" type="button" @click=${() => send({ kind: 'copy', format: 'brief' })}>
-                ${m.copyBrief}
-              </button>
-            `
+          : html`<button
+              class=${vm.send === 'hidden' ? 'dpk-btn dpk-btn--accent' : 'dpk-btn'}
+              type="button"
+              title=${m.copyTitle}
+              ?disabled=${vm.items.length === 0}
+              @click=${() => send({ kind: 'copy' })}
+            >
+              ${m.copy}
+            </button>`
       }
       <button
         class="dpk-btn dpk-btn--ghost"

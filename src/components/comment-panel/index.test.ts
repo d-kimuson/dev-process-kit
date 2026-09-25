@@ -58,16 +58,20 @@ describe('comment panel adapter', () => {
     area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, isComposing: true }));
     expect(panel.onComment).not.toHaveBeenCalled();
   });
-  it('copies the host brief instead of generating a second format', async () => {
+  it('copies the host brief with its one copy button', async () => {
     const panel = await mount();
+    const controller = new DraftController({ definition: tinyDefinition, base: tinyBase([]), storage: null });
+    controller.dispatch({ type: 'comment', target: 'page:tiny', payload: { body: 'note' } });
+    panel.derivation = controller.derivation;
+    await panel.updateComplete;
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     try {
       panel.exportBrief = () => 'canonical brief';
-      const button = [...(panel.shadowRoot?.querySelectorAll('button') ?? [])].find(
-        (b) => b.textContent?.trim() === 'Copy brief',
-      );
-      if (!button) throw new Error('missing Copy brief button');
+      const buttons = [...(panel.shadowRoot?.querySelectorAll('button') ?? [])];
+      expect(buttons.filter((b) => b.textContent?.trim().startsWith('Copy'))).toHaveLength(1);
+      const button = buttons.find((b) => b.textContent?.trim() === 'Copy changes & comments');
+      if (!button) throw new Error('missing Copy button');
       button.click();
       await Promise.resolve();
       expect(writeText).toHaveBeenCalledWith('canonical brief');

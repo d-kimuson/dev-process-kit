@@ -28,14 +28,15 @@ Diagram-element requests use the same composer, with component labels and stable
 
 ## Hand-off
 
-| Button           | Payload                                                                                        |
-| ---------------- | ---------------------------------------------------------------------------------------------- |
-| `Send to Claude` | inside a Claude Artifact only: the brief, posted as a comment sent to Claude (`docs/index.md`) |
-| `Copy JSON`      | `serializeDraft(actions)` — the canonical draft, an array of action objects                    |
-| `Copy brief`     | markdown: template, version, navigation, comments, requested changes, then the canonical JSON  |
-| `Clear`          | removes every draft action                                                                     |
+| Button                    | Payload                                                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `Send to Claude`          | inside a Claude Artifact only: the brief, posted as a comment sent to Claude (`docs/index.md`)            |
+| `Copy changes & comments` | the brief — markdown: template, version, navigation, comments, requested changes, then the canonical JSON |
+| `Clear`                   | removes every draft action                                                                                |
 
-`element.api.exportBrief()` returns the same markdown as `Copy brief` (including the stale count), and `element.api.exportDraft()` returns the JSON with `template`, `frameworkVersion` and `exportedAt`. Both are produced from the draft only; the agent receives the base HTML separately, so it can diff intent against the current base.
+`Copy changes & comments` and `Send to Claude` are disabled while the draft is empty. While the rail is closed and there is a draft, the template shell floats the same two buttons at the bottom right, so the review can be handed off without opening the rail.
+
+`element.api.exportBrief()` returns the same markdown as `Copy changes & comments` (including the stale count), and `element.api.exportDraft()` returns the JSON with `template`, `frameworkVersion` and `exportedAt`. Both are produced from the draft only; the agent receives the base HTML separately, so it can diff intent against the current base.
 
 ## Standalone use
 
@@ -53,4 +54,4 @@ The panel is a normal custom element, but it expects a derivation, not a state: 
 | `sendToClaude`                       | `() => Promise<{ ok: true } \| { ok: false, reason }>` | shows the `Send to Claude` button and runs it; left unset outside a Claude Artifact |
 | `onDelete` / `onClear` / `onComment` | callbacks                                              | the only way the panel changes anything                                             |
 
-The boolean `embedded` property/attribute hides the panel heading and its copy buttons when the enclosing template supplies those controls. The composer, draft rows and Clear button remain unchanged.
+The boolean `embedded` property/attribute hides the panel heading and its copy button when the enclosing template supplies those controls. The composer, draft rows and Clear button remain unchanged.

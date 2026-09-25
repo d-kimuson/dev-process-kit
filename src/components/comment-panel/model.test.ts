@@ -20,8 +20,8 @@ describe('comment panel state', () => {
     expect(commentSubmission(initialPanelState(), 'step:a')).toBeNull();
   });
   it('ignores late clipboard completions', () => {
-    const first = reducePanel(initialPanelState(), { kind: 'copy-started', format: 'json' });
-    const second = reducePanel(first, { kind: 'copy-started', format: 'brief' });
+    const first = reducePanel(initialPanelState(), { kind: 'copy-started' });
+    const second = reducePanel(first, { kind: 'copy-started' });
     expect(reducePanel(second, { kind: 'copy-finished', request: first.copyRequest, ok: true })).toBe(second);
     expect(reducePanel(second, { kind: 'copy-finished', request: second.copyRequest, ok: false }).copy.kind).toBe(
       'failed',
