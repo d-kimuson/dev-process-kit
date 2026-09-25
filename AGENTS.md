@@ -11,7 +11,7 @@ events / slots だけを公開契約にする（Lit は実装詳細）。
 .
 ├── src/
 │   ├── components/    # 公開コンポーネント dpk-component-*（レビューレール / インライン編集 / 図）
-│   ├── templates/     # 公開テンプレート dpk-template-*（prototype / usm / event-storming / example-mapping / grill / plain / slides）
+│   ├── templates/     # 公開テンプレート dpk-template-*（prototype / usm / event-storming / example-mapping / grill / plain / slides / task-board）
 │   ├── core/          # 内部実装（pipeline / persistence / element 基底 / 契約）
 │   ├── lib/           # 依存を持たない小さな共通ヘルパー（lib/dom/*）
 │   ├── entries/       # 配信する entrypoint（components / templates/<name>）

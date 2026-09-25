@@ -31,4 +31,5 @@ Humans have little context and do not read long text well.
 | Screen flow and what each step looks like  | `prototype`                      |
 | Decisions you need from the user           | `grill`                          |
 | An explanation walked through step by step | `slides`                         |
+| Where a task shared with the user stands   | `task-board`                     |
 | Anything else                              | `plain`, with diagram components |

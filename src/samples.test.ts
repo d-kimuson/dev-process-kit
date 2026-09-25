@@ -13,6 +13,7 @@ import { parseExampleMappingBase } from './templates/example-mapping/model';
 import { parseGrillBase } from './templates/grill/model';
 import { parsePlainBase } from './templates/plain/model';
 import { parseSlidesBase } from './templates/slides/model';
+import { parseTaskBoardBase } from './templates/task-board/model';
 
 /**
  * The samples are what a reader opens first, and their data is hand-written JSON
@@ -147,5 +148,42 @@ describe('sample pages', () => {
     const bodies = [...html.matchAll(/data-preview-id="([^"]*)"/g)].map((match) => match[1] ?? '');
     expect(bodies.length).toBeGreaterThan(0);
     for (const body of bodies) expect(ids.has(body), `${body} has no slide`).toBe(true);
+  });
+
+  it('task-board.html follows a task through the task-board template', () => {
+    const html = sample('task-board.html');
+    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/templates\/task-board\.js"\s*><\/script>/);
+    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/components\.js"\s*><\/script>/);
+    const board = parseTaskBoardBase(jsonChild(html, 'dpk-template-task-board'));
+    expect(board.title).not.toBe('');
+    expect(board.status).not.toBeNull();
+    // The context tab reads as a design doc, with the diagrams under it.
+    expect(board.context.why).not.toBeNull();
+    expect(board.context.what).not.toBeNull();
+    expect(board.context.goals.length).toBeGreaterThan(0);
+    expect(board.context.nonGoals.length).toBeGreaterThan(0);
+    expect(parseErData(jsonChild(html, 'dpk-component-er-diagram')).nodes.length).toBeGreaterThan(1);
+    expect(parseSequenceData(jsonChild(html, 'dpk-component-sequence-diagram')).participants.length).toBeGreaterThan(1);
+    expect([...html.matchAll(/<dpk-component-[a-z-]+\b[^>]*\bslot="main"/g)]).toHaveLength(2);
+    // The log is a conversation: both sides speak in it.
+    const kinds = new Set(
+      board.log.map((entry) => board.members.find((member) => member.id === entry.from)?.kind ?? 'agent'),
+    );
+    expect(kinds).toEqual(new Set(['agent', 'human']));
+    expect(new Set(board.todos.map((todo) => todo.status))).toEqual(new Set(['todo', 'doing', 'blocked', 'done']));
+    // Proposals sit in the todo list, waiting to be accepted.
+    expect(board.todos.some((todo) => todo.proposed && todo.reason !== null)).toBe(true);
+    // Outputs of both kinds: a URL to open and a file path to copy.
+    expect(board.outputs.some((output) => output.href.startsWith('https://'))).toBe(true);
+    expect(board.outputs.some((output) => !output.href.includes('://'))).toBe(true);
+    // Every kind of question: one the agent works around, one blocking with a
+    // recommendation to approve and one blocking with nothing to fall back on.
+    expect(board.questions.some((question) => !question.blocking)).toBe(true);
+    expect(board.questions.some((question) => question.blocking && question.assumption !== null)).toBe(true);
+    expect(board.questions.some((question) => question.blocking && question.assumption === null)).toBe(true);
+    // A person has open todos too, so the "people" filter and their status select have something to show.
+    const people = new Set(board.members.filter((member) => member.kind === 'human').map((member) => member.id));
+    const theirs = board.todos.filter((todo) => todo.assignee !== null && people.has(todo.assignee));
+    expect(theirs.some((todo) => todo.status !== 'done')).toBe(true);
   });
 });

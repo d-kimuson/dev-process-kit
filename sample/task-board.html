@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>注文一覧 API のページング対応 | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too. A generated page
+      loads the same files from jsDelivr instead.
+
+      A task board the agent rewrites as the work goes on. The main area has
+      three tabs — what the task is about (why / what / goals as a short design
+      doc, with the ER and sequence diagrams below it), the conversation with
+      the agent (its newest entry says where the task stands) and what the
+      agent asks; the right rail holds the outputs (URLs and file paths) and the todo list,
+      with the agent's own proposals under a "?" mark and the done todos folded
+      away. Questions never stop the work: the agent goes on under an
+      assumption unless the question blocks. The reader sets the status of
+      their own todos only; the agent reports its own. Replies, decisions and
+      todo changes are drafts the reader hands back.
+    -->
+    <script type="module" src="https://dev-process-kit.localhost/templates/task-board.js"></script>
+    <script type="module" src="https://dev-process-kit.localhost/components.js"></script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-template-task-board {
+        display: block;
+        height: 100dvh;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-template-task-board>
+      <script type="application/json">
+        {
+          "title": "注文一覧 API のページング対応",
+          "status": "waiting",
+          "updatedAt": "2026-09-25 14:10",
+          "context": {
+            "why": "注文が 10 万件を超えた店舗で、管理画面の注文一覧の後ろのページが 2 秒近くかかる。offset 方式は深いページほど読み飛ばす行が増えるので、件数が増えるほど遅くなる。",
+            "what": "GET /orders のページングを offset 方式から cursor 方式（created_at, id の組を不透明な文字列で返す）に置き換える。並びは created_at desc, id desc で固定し、次のページは next_cursor で取る。",
+            "goals": [
+              "どのページも 100 ms 以内に返る（10 万件で計測）",
+              "管理画面の一覧が新しい API で動く",
+              "同時刻の注文があっても重複・欠落なくページを送れる"
+            ],
+            "nonGoals": ["検索条件や並べ替え項目を増やすこと", "CSV 出力の作り直し（提案として別に挙げる）"]
+          },
+          "members": [
+            { "id": "claude", "name": "Claude", "kind": "agent" },
+            { "id": "kaito", "name": "Kaito", "kind": "human" }
+          ],
+          "todos": [
+            {
+              "id": "requirements",
+              "title": "困っている画面と件数を共有する",
+              "status": "done",
+              "assignee": "kaito"
+            },
+            { "id": "survey", "title": "既存の呼び出し元を洗い出す", "status": "done", "assignee": "claude" },
+            {
+              "id": "design",
+              "title": "cursor の形式を決める",
+              "status": "done",
+              "assignee": "claude",
+              "note": "created_at と id の組を base64url で包む。"
+            },
+            {
+              "id": "impl",
+              "title": "GET /orders を cursor 方式にする",
+              "status": "doing",
+              "assignee": "claude",
+              "note": "上限件数は Q3 の仮回答（100 件）で実装中。"
+            },
+            { "id": "tests", "title": "境界値のテストを足す", "status": "doing", "assignee": "claude" },
+            {
+              "id": "client",
+              "title": "管理画面の一覧を新しい API に切り替える",
+              "status": "blocked",
+              "note": "旧パラメータの扱い（Q1）が決まるまで保留。"
+            },
+            {
+              "id": "index",
+              "title": "orders に (created_at, id) の複合 index を張る",
+              "status": "todo",
+              "assignee": "claude",
+              "proposed": true,
+              "reason": "今は created_at 単独の index しかなく、同時刻の注文が多い日に並べ替えが遅くなる。"
+            },
+            {
+              "id": "csv",
+              "title": "CSV 出力も cursor で回すようにする",
+              "status": "todo",
+              "assignee": "claude",
+              "proposed": true,
+              "reason": "頼まれた範囲ではないが、offset のままだと件数が増えたときに同じく遅くなる。"
+            },
+            { "id": "review", "title": "PR をレビューする", "status": "todo", "assignee": "kaito" },
+            {
+              "id": "staging",
+              "title": "ステージングの管理画面で一覧を触って確認する",
+              "status": "todo",
+              "assignee": "kaito",
+              "note": "PR が Ready になったら。"
+            },
+            { "id": "release-note", "title": "リリースノートを書く", "status": "todo", "assignee": "claude" }
+          ],
+          "outputs": [
+            {
+              "id": "pr",
+              "label": "#1284 注文一覧を cursor ページングにする",
+              "href": "https://github.com/example/shop/pull/1284",
+              "kind": "PR",
+              "description": "Draft。Q1 が決まり次第 Ready にする。"
+            },
+            {
+              "id": "design-doc",
+              "label": "ページング方式の比較メモ",
+              "href": "docs/paging.md",
+              "kind": "Doc"
+            },
+            {
+              "id": "bench",
+              "label": "計測結果（10 万件）",
+              "href": "https://github.com/example/shop/actions/runs/9120",
+              "kind": "CI"
+            },
+            { "id": "handler", "href": "src/api/orders/list.ts" },
+            { "id": "migration", "href": "db/migrate/20260925_add_orders_cursor_index.sql" }
+          ],
+          "log": [
+            {
+              "id": "kickoff",
+              "from": "kaito",
+              "at": "09-25 10:02",
+              "body": "大きい店舗で注文一覧の後ろのページが遅いと問い合わせが来ている。今週中に直したいので、方式から任せたい。管理画面は私が触って確認する。"
+            },
+            {
+              "id": "plan",
+              "from": "claude",
+              "at": "09-25 11:45",
+              "title": "cursor 方式で進めます",
+              "body": "10 万件で深いページを取ると offset は 1.8 秒、cursor は 40 ms でした。比較は docs/paging.md にまとめています。",
+              "points": ["並びは created_at desc, id desc で固定", "上限件数は Q3 の仮回答（100 件）で実装を始めます"]
+            },
+            {
+              "id": "limit-reply",
+              "from": "kaito",
+              "at": "09-25 12:30",
+              "body": "cursor で OK。上限件数は仮回答のままで進めて、あとで見直そう。"
+            },
+            {
+              "id": "draft-pr",
+              "from": "claude",
+              "at": "09-25 14:10",
+              "title": "PR を Draft で出しました。Q1 と Q2 を決めてもらえれば仕上げられます",
+              "body": "実装とテストはほぼ終わりです。旧パラメータ page / per_page の扱い（Q1）で管理画面の切り替えを今回含めるかが変わるので、そこだけ止まっています。",
+              "points": ["既存テストは全部通る", "複合 index と CSV 出力は提案として Todo に置いた"]
+            }
+          ],
+          "questions": [
+            {
+              "id": "legacy",
+              "title": "旧パラメータ page / per_page はどう扱いますか？",
+              "description": "管理画面の切り替えをこの PR に含めるかが変わる。",
+              "blocking": true,
+              "assumption": "当面は両方受け付け、次のリリースで 400 を返す"
+            },
+            {
+              "id": "deadline",
+              "title": "いつまでにマージできれば助かりますか？",
+              "description": "リリースの予定に合わせて、提案の index 追加を今回に含めるか決めたい。",
+              "blocking": true
+            },
+            {
+              "id": "limit",
+              "title": "1 ページの上限件数はいくつにしますか？",
+              "description": "管理画面は今 50 件ずつ表示している。",
+              "assumption": "100 件（CSV 出力でも使える大きさ）"
+            },
+            {
+              "id": "cursor-ttl",
+              "title": "cursor に有効期限は要りますか？",
+              "assumption": "期限は付けない。並びが変わっても次のページがずれるだけで済む"
+            }
+          ]
+        }
+      </script>
+      <dpk-component-er-diagram
+        id="orders-schema"
+        slot="main"
+        heading="ERD"
+        subject="ページングで読むテーブル"
+        style="--diagram-height: 380px"
+      >
+        <script type="application/json">
+          {
+            "after": {
+              "tables": [
+                {
+                  "id": "shops",
+                  "name": "店舗",
+                  "fields": [
+                    { "id": "id", "type": "uuid", "key": "PK" },
+                    { "id": "name", "type": "varchar" }
+                  ]
+                },
+                {
+                  "id": "orders",
+                  "name": "注文",
+                  "fields": [
+                    { "id": "id", "type": "uuid", "key": "PK" },
+                    { "id": "shop_id", "type": "uuid", "key": "FK", "ref": "shops.id" },
+                    { "id": "created_at", "type": "timestamptz" },
+                    { "id": "status", "type": "varchar" },
+                    { "id": "total_amount", "type": "integer" }
+                  ]
+                },
+                {
+                  "id": "order_lines",
+                  "name": "注文明細",
+                  "fields": [
+                    { "id": "id", "type": "uuid", "key": "PK" },
+                    { "id": "order_id", "type": "uuid", "key": "FK", "ref": "orders.id" },
+                    { "id": "sku", "type": "varchar" },
+                    { "id": "quantity", "type": "integer" }
+                  ]
+                }
+              ]
+            }
+          }
+        </script>
+      </dpk-component-er-diagram>
+      <dpk-component-sequence-diagram id="cursor-flow" slot="main" heading="Sequence" subject="次のページを取る">
+        <script type="application/json">
+          {
+            "participants": [
+              { "id": "admin", "name": "管理画面", "symbol": "UI" },
+              { "id": "api", "name": "Order API" },
+              { "id": "db", "name": "orders", "symbol": "DB" }
+            ],
+            "items": [
+              { "kind": "message", "id": "first", "from": "admin", "to": "api", "title": "GET /orders?limit=100" },
+              {
+                "kind": "message",
+                "id": "query",
+                "from": "api",
+                "to": "db",
+                "title": "WHERE (created_at, id) < cursor ORDER BY created_at DESC, id DESC"
+              },
+              { "kind": "message", "id": "rows", "from": "db", "to": "api", "title": "101 行", "style": "response" },
+              {
+                "kind": "message",
+                "id": "page",
+                "from": "api",
+                "to": "admin",
+                "title": "items[100] + next_cursor",
+                "style": "response"
+              },
+              {
+                "kind": "message",
+                "id": "next",
+                "from": "admin",
+                "to": "api",
+                "title": "GET /orders?cursor=next_cursor"
+              }
+            ]
+          }
+        </script>
+      </dpk-component-sequence-diagram>
+    </dpk-template-task-board>
+  </body>
+</html>

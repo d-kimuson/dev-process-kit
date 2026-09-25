@@ -25,6 +25,9 @@ export const chromeStyles = [
 
     .dpk-shell {
       display: grid;
+      /* One column no wider than the host: a truncated title must not widen
+         the page past a phone screen. */
+      grid-template-columns: minmax(0, 1fr);
       grid-template-rows: auto minmax(0, 1fr) auto;
       min-height: 100%;
       max-height: 100%;

@@ -4,6 +4,7 @@ import { defineGrillElement } from './grill';
 import { definePlainElement } from './plain';
 import { definePrototypeElement } from './prototype';
 import { defineSlidesElement } from './slides';
+import { defineTaskBoardElement } from './task-board';
 import { defineUsmElement } from './usm';
 
 /**
@@ -22,4 +23,5 @@ export const registerTemplateElements = (): void => {
   defineGrillElement();
   definePlainElement();
   defineSlidesElement();
+  defineTaskBoardElement();
 };
