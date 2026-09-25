@@ -109,6 +109,8 @@ The second one reaches into a diagram's shadow root to place the badge on the ex
 
 Answers and submitted comments survive reload through the common draft storage. The separate core floating review button is not rendered; there is only one integrated rail.
 
+The rail and the hand-off stay on screen because the shell is bounded. Give the page a height: `html, body { height: 100% }` and the element `height: 100%`. Without one, the template falls back to the viewport height (`100dvh`) instead of growing with its content and scrolling the rail off screen; that fallback does not subtract a Claude Artifact's safe-area padding, so still set the heights.
+
 ## Diagram-element comments
 
 Give each diagram a stable, unique HTML `id`. Hover a table, state, participant, module, service or the edge between them and activate its comment icon to open the composer beside it. Focus/selection also exposes the icon, and touch devices always show it. Selection alone does not open the composer; there is no bottom detail area or separate field-comment UI. Posting does not open or resize the Review rail. A mind map offers **Comment** in the action bar under the selected topic. All these notes appear in Review alongside question answers and do not require a `questions` annotation. See `docs/components/diagrams.md` for target identity and the component integration contract.

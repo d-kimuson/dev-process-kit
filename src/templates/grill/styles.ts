@@ -1,6 +1,17 @@
 import { css } from 'lit';
 
 export const grillStyles = css`
+  /*
+   * The rail and its hand-off only work inside a bounded shell. A page that gives
+   * the host no height (no \`height: 100%\` up the chain) would grow the shell to
+   * its content and scroll the whole document, carrying the rail and the copy
+   * button off screen; the viewport height is the fallback. A host with a height
+   * still wins: the shell's own min/max-height pin it to that.
+   */
+  .dpk-shell {
+    height: 100dvh;
+  }
+
   .dpk-main {
     order: 1;
   }
