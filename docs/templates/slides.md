@@ -9,7 +9,7 @@ dpk-template-slides
   main     the slide on screen
            · the deck bar: previous / next, position, progress, "Full screen"
            · the comments on this slide and a form to add one, beneath it
-  rail     Review notes, opened from the floating button (bottom right)
+  rail     Review notes, opened from the floating button (top right)
 ```
 
 There is no action vocabulary: everything a reader produces is a comment. The form beneath the slide writes to the slide on screen (`⌘` / `Ctrl` + `Enter` adds it), an unsent comment stays with its slide while the reader moves through the deck, and each comment in the list above the form can be deleted there. The review composer offers the same attachment, and a comment on the whole deck.

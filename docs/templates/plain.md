@@ -6,7 +6,7 @@ The shell and the review pipeline, and nothing else. Use it for a page no other 
 dpk-template-plain
   header  template label + title, draft / note counts; slot="header" for your own controls
   main    slot="main" — your content
-  rail    Review notes, opened from the floating button (bottom right)
+  rail    Review notes, opened from the floating button (top right)
 ```
 
 There is no action vocabulary: everything a reader produces is a comment. Comments can target the whole page, a declared section, or an element of a diagram placed inside.
