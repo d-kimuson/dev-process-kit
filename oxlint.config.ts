@@ -63,10 +63,11 @@ export default defineConfig({
   overrides: [
     {
       /*
-       * The lint plugin is plain JavaScript walking a dynamic AST, so the
+       * The lint plugin is plain JavaScript walking a dynamic AST, and the
+       * samples' helper is plain JavaScript served without a build, so the
        * type-aware rules written for typed application code do not apply.
        */
-      files: ['dev/lints/**'],
+      files: ['dev/lints/**', 'sample/**/*.js'],
       rules: {
         'typescript/no-unsafe-argument': 'off',
         'typescript/no-unsafe-assignment': 'off',

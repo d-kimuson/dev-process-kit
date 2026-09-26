@@ -8,9 +8,13 @@
       The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
       by this page's own origin: the sample server is a separate origin on purpose,
       so the cross-origin (CORS) load is exercised locally too. A generated page
-      loads the same files from jsDelivr instead.
+      loads the same files from jsDelivr instead, and so does this page on GitHub
+      Pages or with `?version=<version>` (`kit.js`).
     -->
-    <script type="module" src="https://dev-process-kit.localhost/templates/event-storming.js"></script>
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['templates/event-storming.js']);
+    </script>
     <style>
       html,
       body {

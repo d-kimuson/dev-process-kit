@@ -34,6 +34,13 @@ const jsonChild = (html: string, tag: string, index = 0): unknown => {
   return JSON.parse(block[1]);
 };
 
+/** The bundle entries a sample loads through `sample/kit.js` (`loadKit([...])`). */
+const entriesOf = (html: string): readonly string[] => {
+  const list = /loadKit\(\[([^\]]*)\]\)/.exec(html)?.[1];
+  if (list === undefined) throw new Error('sample loads no entry through loadKit');
+  return [...list.matchAll(/'([^']*)'/g)].map((match) => match[1] ?? '');
+};
+
 /** Every `questions` value anywhere in a parsed diagram payload. */
 const questionsIn = (value: unknown, found: string[] = []): string[] => {
   if (Array.isArray(value)) {
@@ -73,8 +80,8 @@ describe('sample pages', () => {
 
   it('diagrams.html is an dpk-template-plain page whose sections and diagrams are commentable', () => {
     const html = sample('diagrams.html');
-    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/templates\/plain\.js"\s*><\/script>/);
-    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/components\.js"\s*><\/script>/);
+    expect(entriesOf(html)).toContain('templates/plain.js');
+    expect(entriesOf(html)).toContain('components.js');
     const plain = parsePlainBase(jsonChild(html, 'dpk-template-plain'));
     expect(plain.title).not.toBe('');
     // Every declared section has a comment button, and every button names a section.
@@ -109,7 +116,7 @@ describe('sample pages', () => {
 
   it('grill.html reviews the feature through the grill template', () => {
     const html = sample('grill.html');
-    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/components\.js"\s*><\/script>/);
+    expect(entriesOf(html)).toContain('components.js');
     const grill = parseGrillBase(jsonChild(html, 'dpk-template-grill'));
     expect(grill.questions.length).toBeGreaterThan(3);
     expect(grill.title).not.toBe('');
@@ -138,7 +145,7 @@ describe('sample pages', () => {
 
   it('slides.html explains a mechanism through the slides template', () => {
     const html = sample('slides.html');
-    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/templates\/slides\.js"\s*><\/script>/);
+    expect(entriesOf(html)).toContain('templates/slides.js');
     const deck = parseSlidesBase(jsonChild(html, 'dpk-template-slides'));
     expect(deck.title).not.toBe('');
     expect(new Set(deck.slides.map((slide) => slide.layout))).toEqual(new Set(['title', 'section', 'content']));
@@ -152,8 +159,8 @@ describe('sample pages', () => {
 
   it('task-board.html follows a task through the task-board template', () => {
     const html = sample('task-board.html');
-    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/templates\/task-board\.js"\s*><\/script>/);
-    expect(html).toMatch(/<script\s+type="module"\s+src="[^"]*\/components\.js"\s*><\/script>/);
+    expect(entriesOf(html)).toContain('templates/task-board.js');
+    expect(entriesOf(html)).toContain('components.js');
     const board = parseTaskBoardBase(jsonChild(html, 'dpk-template-task-board'));
     expect(board.title).not.toBe('');
     expect(board.status).not.toBeNull();

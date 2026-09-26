@@ -1,7 +1,7 @@
 name: Pages
 
-# Publishes the samples of `main` to GitHub Pages. They load the bundle built from the same commit, so the site shows
-# what `main` does, which may be ahead of the latest npm release.
+# Publishes the samples of `main` to GitHub Pages. They load the latest npm release from jsDelivr (`sample/kit.js`),
+# or the version picked in the catalog, so the site shows what a generated page gets; `main`'s markup may be ahead of it.
 on:
   push:
     branches:
@@ -23,31 +23,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build the package
-        run: pnpm build
-
-      # In development the samples load the bundle from the dev asset server's origin; on Pages the bundle sits next
-      # to them under `dist/`.
+      # The samples need no build: they load the package from jsDelivr, never from the dev asset server.
       - name: Assemble the site
         run: |
           mkdir _site
-          cp sample/*.html _site/
-          cp -R dist _site/dist
-          sed -i 's#https://dev-process-kit\.localhost/#./dist/#g' _site/*.html
+          cp sample/*.html sample/*.js _site/
           if grep -l 'dev-process-kit\.localhost' _site/*.html; then
-            echo 'a sample still points at the dev asset server' >&2
+            echo 'a sample points at the dev asset server instead of loading through kit.js' >&2
             exit 1
           fi
 

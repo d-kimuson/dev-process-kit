@@ -15,7 +15,10 @@
       }
     </script>
     <!-- The Components section renders live diagrams, so the catalog loads the components entry too. -->
-    <script type="module" src="https://dev-process-kit.localhost/components.js"></script>
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['components.js']);
+    </script>
     <style>
       /*
        * Same tokens as the framework chrome (src/core/theme.ts), so the catalog looks like what it links to.
