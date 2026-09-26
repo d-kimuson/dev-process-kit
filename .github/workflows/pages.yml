@@ -1,7 +1,7 @@
 name: Pages
 
 # Publishes the samples of `main` to GitHub Pages. They load the latest npm release from jsDelivr (`sample/kit.js`),
-# or the version picked in the catalog, so the site shows what a generated page gets; `main`'s markup may be ahead of it.
+# or the one picked in each sample's header, so the site shows what a generated page gets; `main`'s markup may be ahead of it.
 on:
   push:
     branches:
