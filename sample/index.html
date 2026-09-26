@@ -14,10 +14,14 @@
         /* no stored choice */
       }
     </script>
-    <!-- The Components section renders live diagrams, so the catalog loads the components entry too. -->
+    <!--
+      The Components section renders live diagrams, so the catalog loads the components entry too.
+      The brand shows the version of the bundle loaded, which the build takes from package.json.
+    -->
     <script type="module">
       import { loadKit } from './kit.js';
-      loadKit(['components.js']);
+      const version = await loadKit(['components.js']);
+      if (version !== undefined) document.querySelector('.brand small').textContent = version;
     </script>
     <style>
       /*
@@ -778,7 +782,7 @@
   <body>
     <header class="bar">
       <div class="wrap">
-        <a class="brand" href="./">dev-process-kit<small>0.0.1</small></a>
+        <a class="brand" href="./">dev-process-kit<small></small></a>
         <nav aria-label="セクション" data-i18n-aria="nav">
           <a href="#templates">Templates</a>
           <a href="#patterns">Patterns</a>

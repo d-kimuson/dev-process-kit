@@ -163,6 +163,9 @@ const showNote = (text, select) => {
 /**
  * Imports the entries (`templates/grill.js`, `components.js`, …) of the version to load, one after another, in the
  * order separate module scripts would run, then puts the version select into the page's template header.
+ *
+ * Resolves to the `FRAMEWORK_VERSION` of the bundle loaded (the `package.json` version it was built from, so `local`
+ * names the working tree's), or `undefined` when nothing loaded.
  */
 export const loadKit = async (entries) => {
   document.head.append(Object.assign(document.createElement('style'), { textContent: STYLES }));
@@ -172,14 +175,16 @@ export const loadKit = async (entries) => {
   } catch (error) {
     console.error(error);
     showNote('Could not find the latest dev-process-kit on npm');
-    return;
+    return undefined;
   }
 
   const base = bundleBase(version);
   const missing = [];
+  let frameworkVersion;
   for (const entry of entries) {
     try {
-      await import(new URL(entry, base).href);
+      const module = await import(new URL(entry, base).href);
+      if (typeof module.FRAMEWORK_VERSION === 'string') frameworkVersion ??= module.FRAMEWORK_VERSION;
     } catch (error) {
       console.error(error);
       missing.push(entry);
@@ -192,7 +197,7 @@ export const loadKit = async (entries) => {
   );
   if (template === undefined) {
     if (missing.length > 0) showNote(`dev-process-kit@${version ?? 'local'} has no ${missing.join(', ')}`);
-    return;
+    return frameworkVersion;
   }
   const select = versionSelect(version);
   const rendered = customElements.get(template.localName) !== undefined;
@@ -203,4 +208,5 @@ export const loadKit = async (entries) => {
   if (missing.length > 0) {
     showNote(`dev-process-kit@${version ?? 'local'} has no ${missing.join(', ')}`, rendered ? undefined : select);
   }
+  return frameworkVersion;
 };
