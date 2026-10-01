@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>形式検証の結果 — 並べ替え・割引・在庫・返金・クーポン | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin (see design-doc.html).
+
+      A formal specification for people who do not read Lean or TLA+: the
+      dpk-component-formal-spec element restates each checked theorem in prose —
+      what it is about, what it assumes, what it concludes, what it does NOT
+      claim — and how strongly it holds. How it was proved is left out on purpose.
+      Each claim, clause and term is a comment target of the enclosing template.
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['templates/plain.js', 'components.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-template-plain {
+        display: block;
+        height: 100dvh;
+      }
+
+      /* Everything below is author content inside slot="main". */
+      .doc {
+        width: 100%;
+        max-width: 860px;
+        margin: 0 auto 64px;
+        color: var(--dpk-ink);
+        font-size: 13.5px;
+        line-height: 1.75;
+      }
+      .doc > p {
+        margin: 6px 0 20px;
+        color: var(--dpk-ink-soft);
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-template-plain storage-key="sample-formal-spec">
+      <script type="application/json">
+        { "title": "形式検証の結果: 注文まわりの性質" }
+      </script>
+
+      <div class="doc" slot="main">
+        <p>
+          注文まわりで Lean と TLA+
+          が確かめた性質と、クーポン適用でこれから証明する性質の案です。返金額の上限は、部分返金を繰り返す場合などの証明がまだ終わっていません。クーポンの
+          3 件は実装に入る前に合意したいので、足りない性質や強すぎる主張があればコメントください。
+        </p>
+
+        <dpk-component-formal-spec id="order-spec" subject="注文まわり">
+          <script type="application/json">
+            {
+              "targets": [
+                {
+                  "id": "sort",
+                  "name": "注文一覧の並べ替え",
+                  "code": "sortOrdersByTotal(orders)",
+                  "summary": "注文一覧を、合計金額の[[sorted|小さい順]]に並べ替えて返す関数。管理画面の「金額順」で使う。"
+                },
+                {
+                  "id": "discount",
+                  "name": "割引の適用",
+                  "code": "applyDiscount(price, rate)",
+                  "summary": "商品の金額に割引率をかけて、割引後の金額を返す関数。"
+                },
+                {
+                  "id": "stock",
+                  "name": "在庫の引当",
+                  "code": "reserveStock(orderId, sku)",
+                  "summary": "注文が確定するときに、商品の在庫を 1 つ[[reservation|引き当てる]]処理。複数の注文処理が同時に動く。"
+                },
+                {
+                  "id": "refund",
+                  "name": "返金",
+                  "code": "refund(orderId, amount)",
+                  "summary": "支払い済みの注文に対して、全額または一部を返金する処理。何回かに分けて返金できる。"
+                },
+                {
+                  "id": "coupon",
+                  "name": "クーポンの併用（新機能）",
+                  "code": "applyCoupons(order, coupons)",
+                  "summary": "1 つの注文に複数のクーポンを使えるようにする。実装の前に、証明する性質をここで合意したい。"
+                }
+              ],
+              "terms": [
+                {
+                  "id": "sorted",
+                  "name": "小さい順に並んでいる",
+                  "meaning": "隣り合うどの 2 つを見ても、前の値が後ろの値以下であること。同じ値が続いてもよい。"
+                },
+                {
+                  "id": "same-items",
+                  "name": "同じ注文からなる",
+                  "meaning": "2 つの一覧が、どの注文についても同じ個数ずつ含むこと。並び順は問わない。"
+                },
+                {
+                  "id": "reservation",
+                  "name": "引当",
+                  "meaning": "注文のために在庫を確保し、他の注文が使えないようにすること。"
+                },
+                {
+                  "id": "refunded-total",
+                  "name": "返金済みの合計",
+                  "meaning": "1 つの注文について、これまでに成功した返金の金額をすべて足したもの。失敗・取消した返金は含めない。"
+                },
+                {
+                  "id": "coupon-total",
+                  "name": "クーポン適用後の合計",
+                  "meaning": "注文の合計金額から、使ったクーポンの割引をすべて差し引いた、実際に支払う金額。"
+                }
+              ],
+              "claims": [
+                {
+                  "id": "sort-correct",
+                  "target": "sort",
+                  "statement": "どんな注文一覧を渡しても、返ってくる一覧は合計金額が[[sorted]]。しかも渡した一覧と[[same-items]]。",
+                  "subjects": [
+                    {
+                      "id": "input",
+                      "text": "任意の注文一覧（空でもよい。同じ金額の注文があってもよい）"
+                    }
+                  ],
+                  "conclusions": [
+                    {
+                      "id": "ordered",
+                      "text": "返ってくる一覧は、合計金額が[[sorted]]"
+                    },
+                    {
+                      "id": "permutation",
+                      "text": "返ってくる一覧は、渡した一覧と[[same-items]]"
+                    }
+                  ],
+                  "examples": [
+                    {
+                      "id": "ex-basic",
+                      "text": "合計 3,000 円・1,000 円・2,000 円の注文 → 1,000 円・2,000 円・3,000 円の順"
+                    },
+                    {
+                      "id": "ex-dup",
+                      "text": "同じ 2,000 円の注文が 2 件あっても、どちらも消えずに残る"
+                    }
+                  ],
+                  "notClaimed": [
+                    {
+                      "id": "stable",
+                      "text": "同じ金額の注文どうしが、元の順序（たとえば注文日時の順）を保つこと"
+                    },
+                    {
+                      "id": "speed",
+                      "text": "どれくらい速く終わるか"
+                    }
+                  ],
+                  "assurance": {
+                    "kind": "proved"
+                  },
+                  "source": {
+                    "tool": "Lean 4",
+                    "ref": "Order/Sort.lean · sortOrdersByTotal_correct"
+                  }
+                },
+                {
+                  "id": "sort-weak",
+                  "target": "sort",
+                  "statement": "どんな注文一覧を渡しても、返ってくる一覧は合計金額が[[sorted]]。",
+                  "subjects": [
+                    {
+                      "id": "input",
+                      "text": "任意の注文一覧"
+                    }
+                  ],
+                  "conclusions": [
+                    {
+                      "id": "ordered",
+                      "text": "返ってくる一覧は、合計金額が[[sorted]]"
+                    }
+                  ],
+                  "examples": [
+                    {
+                      "id": "ex-empty",
+                      "text": "常に空の一覧を返す実装でも、この主張は成り立ってしまう"
+                    }
+                  ],
+                  "notClaimed": [
+                    {
+                      "id": "permutation",
+                      "text": "返ってくる一覧が、渡した一覧と[[same-items]]こと — 注文が消えても、増えても、この主張は破れない"
+                    }
+                  ],
+                  "assurance": {
+                    "kind": "proved"
+                  },
+                  "source": {
+                    "tool": "Lean 4",
+                    "ref": "Order/SortOld.lean · sortOrdersByTotal_sorted"
+                  }
+                },
+                {
+                  "id": "discount",
+                  "target": "discount",
+                  "statement": "割引率が 0% 以上 100% 以下なら、applyDiscount が返す金額はマイナスにならず、元の金額を超えない。",
+                  "subjects": [
+                    {
+                      "id": "price",
+                      "text": "0 円以上の任意の金額"
+                    },
+                    {
+                      "id": "rate",
+                      "text": "任意の割引率"
+                    }
+                  ],
+                  "premises": [
+                    {
+                      "id": "rate-range",
+                      "text": "割引率は 0% 以上 100% 以下"
+                    }
+                  ],
+                  "conclusions": [
+                    {
+                      "id": "non-negative",
+                      "text": "割引後の金額は 0 円以上"
+                    },
+                    {
+                      "id": "at-most",
+                      "text": "割引後の金額は元の金額以下"
+                    }
+                  ],
+                  "notClaimed": [
+                    {
+                      "id": "rounding",
+                      "text": "1 円未満をどう丸めるか（切り捨てか四捨五入か）"
+                    },
+                    {
+                      "id": "stacking",
+                      "text": "複数の割引を重ねたときの金額"
+                    }
+                  ],
+                  "assurance": {
+                    "kind": "proved",
+                    "assumptions": ["金額計算に使う十進数ライブラリの丸めが、仕様どおりに動くこと"]
+                  },
+                  "source": {
+                    "tool": "Lean 4",
+                    "ref": "Pricing/Discount.lean · applyDiscount_bounds"
+                  }
+                },
+                {
+                  "id": "stock-mutex",
+                  "target": "stock",
+                  "statement": "同じ商品の最後の 1 個を、2 つの注文が同時に[[reservation|引き当てる]]ことはない。",
+                  "subjects": [
+                    {
+                      "id": "orders",
+                      "text": "同じ商品を同時に注文する、複数の注文処理"
+                    }
+                  ],
+                  "premises": [
+                    {
+                      "id": "lock",
+                      "text": "[[reservation]]の前に、商品ごとのロックを取る"
+                    },
+                    {
+                      "id": "crash",
+                      "text": "処理が途中で止まっても、ロックは一定時間で解放される"
+                    }
+                  ],
+                  "conclusions": [
+                    {
+                      "id": "never-negative",
+                      "text": "在庫数がマイナスになることはない"
+                    },
+                    {
+                      "id": "eventually",
+                      "text": "ロックを待つ注文には、いずれ必ず順番が回ってくる"
+                    }
+                  ],
+                  "notClaimed": [
+                    {
+                      "id": "fairness",
+                      "text": "先に注文した人が先に[[reservation|引き当てる]]こと（到着順）"
+                    }
+                  ],
+                  "assurance": {
+                    "kind": "bounded",
+                    "bound": "注文処理 3 つ、在庫 2 個まで。それより多い場合は確かめていない"
+                  },
+                  "source": {
+                    "tool": "TLA+ (TLC)",
+                    "ref": "StockLock.tla · Safety, Liveness"
+                  }
+                },
+                {
+                  "id": "refund-cap",
+                  "target": "refund",
+                  "statement": "何回に分けて返金しても、1 つの注文の[[refunded-total]]は、支払った金額を超えない。",
+                  "subjects": [
+                    {
+                      "id": "order",
+                      "text": "支払い済みの任意の注文"
+                    },
+                    {
+                      "id": "refunds",
+                      "text": "その注文への、任意の回数・金額の返金依頼"
+                    }
+                  ],
+                  "conclusions": [
+                    {
+                      "id": "cap",
+                      "text": "[[refunded-total]]は、支払った金額以下"
+                    }
+                  ],
+                  "notClaimed": [
+                    {
+                      "id": "timing",
+                      "text": "返金が何日以内に完了するか"
+                    }
+                  ],
+                  "assurance": {
+                    "kind": "incomplete",
+                    "gaps": ["部分返金を 2 回以上行う場合", "返金が失敗して再試行する場合"]
+                  },
+                  "source": {
+                    "tool": "Lean 4",
+                    "ref": "Payment/Refund.lean · refund_le_paid"
+                  }
+                },
+                {
+                  "id": "coupon-floor",
+                  "target": "coupon",
+                  "statement": "どんなクーポンをいくつ組み合わせても、[[coupon-total]]は 0 円を下回らない。",
+                  "subjects": [
+                    {
+                      "id": "order",
+                      "text": "任意の注文"
+                    },
+                    {
+                      "id": "coupons",
+                      "text": "その注文に使える、任意の数・種類のクーポン（定額引き・定率引き）"
+                    }
+                  ],
+                  "conclusions": [
+                    {
+                      "id": "non-negative",
+                      "text": "[[coupon-total]]は 0 円以上"
+                    }
+                  ],
+                  "notClaimed": [
+                    {
+                      "id": "shipping",
+                      "text": "送料がクーポンの対象になるかどうか"
+                    }
+                  ],
+                  "assurance": {
+                    "kind": "planned"
+                  }
+                },
+                {
+                  "id": "coupon-once",
+                  "target": "coupon",
+                  "statement": "同じクーポンを 1 つの注文に何回指定しても、割引は 1 回分しか適用されない。",
+                  "subjects": [
+                    {
+                      "id": "coupons",
+                      "text": "同じクーポンを重複して含む、任意のクーポンの指定"
+                    }
+                  ],
+                  "conclusions": [
+                    {
+                      "id": "once",
+                      "text": "[[coupon-total]]は、重複を取り除いて指定した場合と同じ"
+                    }
+                  ],
+                  "notClaimed": [
+                    {
+                      "id": "across-orders",
+                      "text": "別々の注文で、同じクーポンを何回使えるか"
+                    }
+                  ],
+                  "assurance": {
+                    "kind": "planned"
+                  }
+                },
+                {
+                  "id": "coupon-order",
+                  "target": "coupon",
+                  "statement": "同じクーポンの組み合わせなら、どの順番で適用しても[[coupon-total]]は同じ。",
+                  "subjects": [
+                    {
+                      "id": "coupons",
+                      "text": "任意のクーポンの組み合わせと、その任意の並べ方"
+                    }
+                  ],
+                  "premises": [
+                    {
+                      "id": "no-floor",
+                      "text": "どの順番でも、途中の金額が 0 円で止まらない（0 円で止まると、後の定率引きの効き方が変わる）"
+                    }
+                  ],
+                  "conclusions": [
+                    {
+                      "id": "same-total",
+                      "text": "[[coupon-total]]は、適用の順番によらず同じ"
+                    }
+                  ],
+                  "notClaimed": [
+                    {
+                      "id": "rounding",
+                      "text": "途中で 1 円未満を丸める場合の差"
+                    }
+                  ],
+                  "assurance": {
+                    "kind": "planned"
+                  }
+                }
+              ]
+            }
+          </script>
+        </dpk-component-formal-spec>
+      </div>
+    </dpk-template-plain>
+  </body>
+</html>

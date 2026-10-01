@@ -163,7 +163,7 @@ el.api.subscribe(fn); // returns an unsubscribe function
 | `dpk-error`    | `{ issues }`     | a dispatch was rejected                              |
 | `dpk-commit`   | `{ value }`      | from `dpk-component-inline-edit` (bubbles, composed) |
 
-All events bubble and are composed. `dpk-component-comment-panel` (the review rail) and `dpk-component-inline-edit` (the inline editor) are registered by every entry; the diagram elements are components, not templates — no review rail, no navigation of their own; their comments and element actions go into the enclosing template's draft — and have their own pages under `docs/components/`.
+All events bubble and are composed. `dpk-component-comment-panel` (the review rail) and `dpk-component-inline-edit` (the inline editor) are registered by every entry; the diagram elements are components, not templates — no review rail, no navigation of their own; their comments and element actions go into the enclosing template's draft — and have their own pages under `docs/components/`. `dpk-component-formal-spec` (verified properties restated in plain words, `docs/components/formal-spec.md`) works the same way for comments.
 
 ## Slots and styling
 
@@ -233,6 +233,6 @@ Inside a Claude Artifact published with the `comments` capability, the rail also
 | Question                          | Read                                                                                                                  |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | The template I am actually using  | `docs/templates/<name>.md` (prototype / usm / event-storming / example-mapping / grill / plain / slides / task-board) |
-| The component I am actually using | `docs/components/<name>.md` (comment-panel / diagrams / …)                                                            |
+| The component I am actually using | `docs/components/<name>.md` (comment-panel / diagrams / formal-spec / …)                                              |
 
 Read the page for what you are actually using, plus this one.

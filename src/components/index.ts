@@ -20,11 +20,14 @@ export { DpkComponentMindMap, defineMindMap, parseMindMapData } from './mind-map
 export type { MindMapData, MindMapNode, MindMapSide } from './mind-map/index';
 export { DpkComponentKanban, defineKanban, parseKanbanData } from './kanban/index';
 export type { KanbanCard, KanbanColor, KanbanColumn, KanbanData } from './kanban/index';
+export { DpkComponentFormalSpec, defineFormalSpec, parseFormalSpecData } from './formal-spec/index';
+export type { Assurance, Claim, Clause, FormalSpecData, Term } from './formal-spec/index';
 
 import { defineArchitectureMap } from './architecture-map/index';
 import { defineCommentPanel } from './comment-panel/index';
 import { defineDependencyGraph } from './dependency-graph/index';
 import { defineErDiagram } from './er-diagram/index';
+import { defineFormalSpec } from './formal-spec/index';
 import { defineInlineEdit } from './inline-edit';
 import { defineKanban } from './kanban/index';
 import { defineMindMap } from './mind-map/index';
@@ -52,4 +55,5 @@ export const registerComponentElements = (): void => {
   defineCommentPanel();
   defineInlineEdit();
   registerDiagramElements();
+  defineFormalSpec();
 };

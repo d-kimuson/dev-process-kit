@@ -1015,12 +1015,27 @@
               <p data-i18n="primer">DDD を、マインドマップ・コンテキストマップ・自作の表と図で説明する。</p>
             </div>
           </a>
+          <a class="card" href="formal-spec.html">
+            <div class="thumb">
+              <iframe src="formal-spec.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-plain</code></li>
+                <li><code class="thumb-tag" data-kind="component">formal-spec</code></li>
+              </ul>
+            </div>
+            <div class="card-body">
+              <div class="card-head"><h3 data-i18n="formalSpecTitle">形式検証の結果</h3></div>
+              <p data-i18n="formalSpecSample">
+                Lean や TLA+ で確かめた性質を、前提・結論・主張していないこと・保証の強さに分けてふだんの言葉で示す。
+              </p>
+            </div>
+          </a>
         </div>
       </section>
 
       <section id="components">
         <h2>Components</h2>
-        <p data-i18n="componentsLede">Plain やテンプレートの中に置ける図のコンポーネントです。</p>
+        <p data-i18n="componentsLede">Plain やテンプレートの中に置ける図や表示のコンポーネントです。</p>
         <div class="viewer">
           <div class="picker" aria-label="コンポーネント" data-i18n-aria="picker">
             <button type="button" data-tag="dpk-component-mind-map" data-doc="mind-map">
@@ -1043,6 +1058,14 @@
             </button>
             <button type="button" data-tag="dpk-component-kanban" data-doc="kanban">
               <b>Kanban</b><span data-i18n="kanban">どの作業がどこまで進んでいるか</span>
+            </button>
+            <button
+              type="button"
+              data-tag="dpk-component-formal-spec"
+              data-doc="formal-spec"
+              data-source="formal-spec.html"
+            >
+              <b>Formal spec</b><span data-i18n="formalSpec">証明された性質が何を言っているか</span>
             </button>
           </div>
           <div class="preview">
@@ -1156,7 +1179,10 @@
           "The order system's structure and infrastructure, shown with an architecture map, a dependency graph, a sequence diagram and tables.",
         primerTitle: 'Explaining a concept',
         primer: 'DDD, explained with a mind map, a context map, and tables and diagrams made by hand.',
-        componentsLede: 'Diagram components to place inside Plain or a template.',
+        formalSpecTitle: 'Formal verification results',
+        formalSpecSample:
+          'Properties checked in Lean or TLA+, restated in plain words as premises, conclusions, what is not claimed and how strongly each holds.',
+        componentsLede: 'Diagrams and other views to place inside Plain or a template.',
         picker: 'Components',
         mindMap: 'How one theme branches out',
         stateDiagram: 'Which states exist and what moves between them',
@@ -1165,6 +1191,7 @@
         erDiagram: 'What changed between two schemas',
         architectureMap: 'Which service sits in which boundary',
         kanban: 'How far each piece of work has come',
+        formalSpec: 'What a proved property actually says',
         usageTitle: 'Usage',
         usageLede: 'Load the entry of the template you use, from a version-pinned URL.',
         usageNote: 'Load <code>components.js</code> too when you use diagrams (<code>index.js</code> has everything).',
@@ -1268,13 +1295,22 @@
       });
       for (const thumb of document.querySelectorAll('.thumb')) observer.observe(thumb);
 
-      // The component previews reuse the diagrams sample's data: fetch it once, clone the chosen element.
+      // The component previews reuse a sample's data (the diagrams sample unless a button names another):
+      // fetch each page once, clone the chosen element.
       const DOCS_BASE = 'https://github.com/d-kimuson/dev-process-kit/blob/main/docs/components/';
       const stage = document.getElementById('preview-stage');
       const buttons = [...document.querySelectorAll('.picker button')];
-      const source = fetch('diagrams.html')
-        .then((response) => response.text())
-        .then((text) => new DOMParser().parseFromString(text, 'text/html'));
+      const sources = new Map();
+      const source = (page) => {
+        if (!sources.has(page))
+          sources.set(
+            page,
+            fetch(page)
+              .then((response) => response.text())
+              .then((text) => new DOMParser().parseFromString(text, 'text/html')),
+          );
+        return sources.get(page);
+      };
       let shown = null;
 
       const show = async (button) => {
@@ -1286,9 +1322,9 @@
         link.href = `${DOCS_BASE}${doc}.md`;
         link.textContent = `docs/components/${doc}.md`;
 
-        const diagrams = await source.catch(() => null);
+        const page = await source(button.dataset.source ?? 'diagrams.html').catch(() => null);
         if (shown !== button) return;
-        const original = diagrams?.querySelector(tag);
+        const original = page?.querySelector(tag);
         if (!original) {
           const message = document.createElement('p');
           message.textContent = TEXT[locale].previewFailed;

@@ -95,19 +95,20 @@ dev-process-kit ships **templates**, which make up a whole page, and **component
 
 ### Components
 
-| Component        | Element                          | What it is                                                                                   |
-| ---------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
-| Review rail      | `dpk-component-comment-panel`    | Draft actions and comments, stale markers, deletion, and the copy or send-to-Claude hand-off |
-| Inline editing   | `dpk-component-inline-edit`      | A text/multiline editor that emits `dpk-commit`                                              |
-| State diagram    | `dpk-component-state-diagram`    | Which states exist, and what moves between them                                              |
-| Sequence diagram | `dpk-component-sequence-diagram` | In what order participants talk                                                              |
-| Dependency graph | `dpk-component-dependency-graph` | What depends on what, and what is circular                                                   |
-| ER diagram       | `dpk-component-er-diagram`       | What changed between two schema snapshots                                                    |
-| Architecture map | `dpk-component-architecture-map` | Which services exist, in which boundary                                                      |
-| Mind map         | `dpk-component-mind-map`         | A central topic and its subtopics, fanned out left and right, with folding                   |
-| Kanban           | `dpk-component-kanban`           | Columns of cards with WIP limits; reviewers move and add cards as draft actions              |
+| Component        | Element                          | What it is                                                                                    |
+| ---------------- | -------------------------------- | --------------------------------------------------------------------------------------------- |
+| Review rail      | `dpk-component-comment-panel`    | Draft actions and comments, stale markers, deletion, and the copy or send-to-Claude hand-off  |
+| Inline editing   | `dpk-component-inline-edit`      | A text/multiline editor that emits `dpk-commit`                                               |
+| State diagram    | `dpk-component-state-diagram`    | Which states exist, and what moves between them                                               |
+| Sequence diagram | `dpk-component-sequence-diagram` | In what order participants talk                                                               |
+| Dependency graph | `dpk-component-dependency-graph` | What depends on what, and what is circular                                                    |
+| ER diagram       | `dpk-component-er-diagram`       | What changed between two schema snapshots                                                     |
+| Architecture map | `dpk-component-architecture-map` | Which services exist, in which boundary                                                       |
+| Mind map         | `dpk-component-mind-map`         | A central topic and its subtopics, fanned out left and right, with folding                    |
+| Kanban           | `dpk-component-kanban`           | Columns of cards with WIP limits; reviewers move and add cards as draft actions               |
+| Formal spec      | `dpk-component-formal-spec`      | What a verified property says (premises, conclusions, what it does not claim), in plain words |
 
-Diagrams are components, not templates: no draft actions, no review rail, no navigation. Put them in your own page, or inside a template. Each one has a page — `docs/templates/<name>.md` and `docs/components/<name>.md`.
+Diagrams and the formal spec are components, not templates: no draft actions, no review rail, no navigation. Put them in your own page, or inside a template. Each one has a page — `docs/templates/<name>.md` and `docs/components/<name>.md`.
 
 ## License
 

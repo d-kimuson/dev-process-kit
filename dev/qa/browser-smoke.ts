@@ -32,6 +32,7 @@ const SAMPLES = [
   ['design-doc', 'plain'],
   ['architecture', 'plain'],
   ['ddd-primer', 'plain'],
+  ['formal-spec', 'plain'],
   ['slides', 'slides'],
   ['task-board', 'task-board'],
 ] as const;
