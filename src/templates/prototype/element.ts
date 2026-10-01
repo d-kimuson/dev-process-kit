@@ -23,7 +23,8 @@ import { prototypeStyles } from './styles';
  * function, not a child element.
  *
  * The template has no ephemeral UI state of its own: everything it shows is a
- * function of the template state and the navigation hash.
+ * function of the template state and the navigation hash. Whether the stage is
+ * full screen belongs to the browser (`:fullscreen`), not to this element.
  */
 export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   static override styles = [TemplateElement.styles, prototypeStyles];
@@ -36,8 +37,20 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     const m = prototypeMessages(this.locale);
     return {
       sidebar: renderNav(context, m),
-      main: renderStage(context, m, { hasPreviewContent: (previewId) => this.#hasPreviewContent(previewId) }),
+      main: renderStage(context, m, {
+        hasPreviewContent: (previewId) => this.#hasPreviewContent(previewId),
+        canFullscreen: document.fullscreenEnabled === true,
+        onToggleFullscreen: () => this.#toggleFullscreen(),
+      }),
     };
+  }
+
+  #toggleFullscreen(): void {
+    const stage = this.renderRoot.querySelector('.stage');
+    if (!(stage instanceof HTMLElement)) return;
+    // Refused when the frame is not allowed full screen; the page stays as it is.
+    if (this.shadowRoot?.fullscreenElement === stage) document.exitFullscreen().catch(() => undefined);
+    else stage.requestFullscreen().catch(() => undefined);
   }
 
   #hasPreviewContent(previewId: string): boolean {

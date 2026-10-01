@@ -254,6 +254,33 @@ export const prototypeStyles = css`
     white-space: nowrap;
   }
 
+  .stage-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .stage-fullscreen svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .stage-fullscreen > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stage-fullscreen .fullscreen-exit,
+  .stage:fullscreen .stage-fullscreen .fullscreen-enter {
+    display: none;
+  }
+
+  .stage:fullscreen .stage-fullscreen .fullscreen-exit {
+    display: inline-flex;
+  }
+
   .tabs {
     display: inline-flex;
     gap: 2px;
@@ -315,6 +342,33 @@ export const prototypeStyles = css`
     border-radius: var(--dpk-radius-xl);
     background: var(--dpk-dots), var(--dpk-paper-sunken);
     box-shadow: inset 0 1px 3px var(--dpk-shade-1);
+  }
+
+  /*
+   * Full screen: the page head, the tabs and the canvas fill the screen. The
+   * canvas scrolls instead of the page, and a browser preview is at least as tall
+   * as the screen allows; a phone keeps its device shape.
+   */
+  .stage:fullscreen {
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 16px 20px 20px;
+    background: var(--dpk-paper);
+    overflow: hidden;
+  }
+
+  .stage:fullscreen .canvas {
+    align-items: flex-start;
+    overflow: auto;
+  }
+
+  .stage:fullscreen .frame:not([data-kind='native']) {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .stage:fullscreen .frame:not([data-kind='native']) .viewport {
+    flex: 1 0 auto;
   }
 
   /* ------------------------------------------------------------------ frame */

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DpkTemplatePrototype } from './element';
 
@@ -151,5 +151,55 @@ describe('<dpk-template-prototype> layout', () => {
     expect(japanese.shadowRoot!.querySelector('.stage .dpk-label')?.textContent).toBe(
       prototypeMessages('ja').noPreviewMetadata,
     );
+  });
+
+  describe('full screen', () => {
+    const allowFullscreen = (): void => {
+      Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: true });
+    };
+
+    afterEach(() => {
+      Reflect.deleteProperty(document, 'fullscreenEnabled');
+      vi.restoreAllMocks();
+    });
+
+    it('hides the full screen button where the browser does not allow it', async () => {
+      const el = mount();
+      await settle(el);
+      expect(el.shadowRoot!.querySelector('.stage-fullscreen')).toBeNull();
+    });
+
+    it('shows the stage alone when the reader asks for full screen', async () => {
+      allowFullscreen();
+      const requestFullscreen = vi.fn(() => Promise.resolve());
+      HTMLElement.prototype.requestFullscreen = requestFullscreen;
+      const el = mount();
+      await settle(el);
+      const root = el.shadowRoot!;
+      const button = root.querySelector<HTMLButtonElement>('.stage-bar .stage-fullscreen')!;
+      expect(button.textContent).toContain(m.fullscreen);
+      button.click();
+      expect(requestFullscreen).toHaveBeenCalledTimes(1);
+      expect(requestFullscreen.mock.contexts[0]).toBe(root.querySelector('.stage'));
+    });
+
+    it('leaves full screen from the same button', async () => {
+      allowFullscreen();
+      const exitFullscreen = vi.fn(() => Promise.resolve());
+      document.exitFullscreen = exitFullscreen;
+      const el = mount();
+      await settle(el);
+      const root = el.shadowRoot!;
+      Object.defineProperty(root, 'fullscreenElement', { configurable: true, value: root.querySelector('.stage') });
+      root.querySelector<HTMLButtonElement>('.stage-fullscreen')!.click();
+      expect(exitFullscreen).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers no full screen for a step without a preview', async () => {
+      allowFullscreen();
+      const el = mount('#story=billing&step=invoice');
+      await settle(el);
+      expect(el.shadowRoot!.querySelector('.stage-fullscreen')).toBeNull();
+    });
   });
 });

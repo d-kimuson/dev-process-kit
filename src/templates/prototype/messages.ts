@@ -48,6 +48,9 @@ export const prototypeMessages = defineMessages({
       ' — one Step is one screen / one experience state. Add a Step to the base JSON, and a Preview will appear here.',
     noPreviewMetadata: 'No preview metadata — ask the agent to add it.',
     pageActor: (actor: string) => `Used by ${actor}`,
+    fullscreen: 'Full screen',
+    exitFullscreen: 'Exit full screen',
+    fullscreenHint: 'Show the preview alone · Esc to leave',
   },
   ja: {
     renameActivity: 'Activity 名を変更',
@@ -91,6 +94,9 @@ export const prototypeMessages = defineMessages({
       ' の意味構造を持ち、1 Step = 1 画面 / 1 体験状態です。base JSON に Step を追加すると、ここに Preview が現れます。',
     noPreviewMetadata: 'preview metadata がありません — 追加は Agent に依頼してください',
     pageActor: (actor: string) => `利用者: ${actor}`,
+    fullscreen: '全画面表示',
+    exitFullscreen: '全画面を終了',
+    fullscreenHint: 'プレビューだけを表示 · Esc で戻る',
   },
 });
 

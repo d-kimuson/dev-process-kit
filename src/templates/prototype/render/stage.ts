@@ -3,6 +3,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { PrototypeMessages } from '../messages';
 
+import { iconMaximize, iconMinimize } from '../../../core/icons';
 import { findStep, flattenSteps, type PreviewViewport, type PrototypePreview, type PrototypeState } from '../model';
 import { prototypePageHeading, prototypePreviewUrl, type PageHeading } from '../present';
 
@@ -28,6 +29,10 @@ export const VIEWPORT_MIN_HEIGHT: Record<PreviewViewport, string> = {
 export type StageOptions = {
   /** Whether the light DOM holds markup for the preview (else a placeholder is shown). */
   readonly hasPreviewContent: (previewId: string) => boolean;
+  /** Whether the browser lets this page go full screen (a sandboxed frame may not). */
+  readonly canFullscreen: boolean;
+  /** Enters full screen, or leaves it when the stage is already there. */
+  readonly onToggleFullscreen: () => void;
 };
 
 /** Tabs (when a step has several previews), the active frame and the parked slots. */
@@ -59,7 +64,10 @@ export const renderStage = (
     <div class="stage">
       <div class="stage-bar">
         ${renderPageHead(m, prototypePageHeading(location))}
-        ${previews.length > 1 ? renderPreviewTabs(context, previews, active?.id) : nothing}
+        <div class="stage-tools">
+          ${previews.length > 1 ? renderPreviewTabs(context, previews, active?.id) : nothing}
+          ${active !== undefined && options.canFullscreen ? renderFullscreenToggle(m, options.onToggleFullscreen) : nothing}
+        </div>
       </div>
       <div class="canvas">
         ${active ? renderFrame(context, active, options.hasPreviewContent(active.id)) : nothing}
@@ -106,6 +114,18 @@ const renderPreviewTabs = (
         >`,
     )}
   </div>`;
+};
+
+/**
+ * One button both enters and leaves full screen. Which label shows is decided by
+ * `.stage:fullscreen` in the styles, so the browser stays the only owner of
+ * whether the stage is full screen.
+ */
+const renderFullscreenToggle = (m: PrototypeMessages, onToggle: () => void): TemplateResult => {
+  return html`<button class="dpk-btn stage-fullscreen" type="button" title=${m.fullscreenHint} @click=${onToggle}>
+    <span class="fullscreen-enter">${iconMaximize()} ${m.fullscreen}</span>
+    <span class="fullscreen-exit">${iconMinimize()} ${m.exitFullscreen}</span>
+  </button>`;
 };
 
 export const renderFrame = (

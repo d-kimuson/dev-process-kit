@@ -128,13 +128,15 @@ Only `step` is required (`#step=google-auth` resolves the containing activity an
 
 ## UI provided by the template
 
-| Region  | Content                                                                                                                                                                      |
-| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| sidebar | Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description                                                          |
-| main    | page head (the `actor` chip and the page `title`), preview tabs (only when the step has more than one preview), plus the frame of the selected preview                       |
-| frame   | browser chrome (traffic dots + address bar) or, for `native`, a device bezel with a phone status bar and a home indicator. There is no caption: what you see is the preview. |
+| Region  | Content                                                                                                                                                                        |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| sidebar | Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description                                                            |
+| main    | page head (the `actor` chip and the page `title`), preview tabs (only when the step has more than one preview), a "Full screen" button, plus the frame of the selected preview |
+| frame   | browser chrome (traffic dots + address bar) or, for `native`, a device bezel with a phone status bar and a home indicator. There is no caption: what you see is the preview.   |
 
 Frames are sized by content, not by a fixed height: the viewport has a per-kind minimum height (mobile 620 · tablet 640 · desktop 520 · fluid 420) and grows with the mock, so a preview never scrolls inside its own frame — the page main column scrolls instead. The author wrapper element is stretched to fill the frame, so a mock can rely on being at least as tall as that minimum without using a percentage height.
+
+**Full screen** shows the page head, the preview tabs and the frame alone on the whole screen; the canvas scrolls instead of the page, and a browser preview is at least as tall as the screen. The same button (or `Esc`) leaves. The button is hidden where the browser does not allow full screen (for example a sandboxed frame).
 
 The UI edits step name/description, adds steps, and comments. Adding previews, deleting previews, reordering steps and switching a preview's kind or viewport are deliberately not UI affordances: an empty frame or a reordered flow is a structural change, so it goes through the agent as natural language. A preview's `label` only names its tab, so it is edited through a draft action too. A step's `title` and the `actor` are base data with no draft action; a reviewer asks for a change with a comment on the step.
 
