@@ -17,6 +17,13 @@ describe('inlineHandoffText', () => {
     expect(text?.endsWith('# Review draft')).toBe(true);
   });
 
+  it('tells the agent to answer in the comment thread, since the page never shows the database', () => {
+    const text = inlineHandoffText('# Review draft');
+    expect(text).toMatch(/ArtifactComments/);
+    expect(text).toMatch(/reply/);
+    expect(text).toMatch(/database/);
+  });
+
   it('drops control characters the comment store rejects, keeping newlines and tabs', () => {
     expect(inlineHandoffText('a\r\n\tb\u0007c')).toMatch(/a\n\tbc$/);
   });
@@ -35,6 +42,7 @@ describe('storedHandoffText', () => {
   it('points the agent at the stored document', () => {
     const text = storedHandoffText('reviews/abc');
     expect(text).toContain('`reviews/abc`');
+    expect(text).toMatch(/ArtifactComments/);
     expect(utf8Length(text)).toBeLessThan(COMMENT_TEXT_LIMIT);
   });
 });

@@ -42,7 +42,9 @@ When the comment arrives:
 
 1. If it points at `reviews/<id>`, read that document with `ArtifactData` (`get`, collection `reviews`). `brief` is the same markdown the copy button gives; `draft` is the canonical draft JSON.
 2. Apply the brief to the base data as usual and republish to the same artifact.
-3. Answer in the comment's thread with `ArtifactComments`: what changed, and anything you did not apply and why.
+3. Answer in the comment's thread with `ArtifactComments` (`reply`, the `thread_id` from the notification): what changed, and anything you did not apply and why. Then `resolve` the thread.
+
+The reader sees your answer only in that thread. The page never shows the database: a reply written into `reviews/<id>` (or anywhere else with `ArtifactData`) reaches no one. Say you answered only after the `reply` call succeeded; if it returns guidance instead (the thread is not activated for Claude), give the answer in your session and tell the user the thread did not get it.
 
 ## What behaves differently
 

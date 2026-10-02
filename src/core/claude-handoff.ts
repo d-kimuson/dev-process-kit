@@ -29,7 +29,12 @@ export type HandoffFailure =
 
 export type HandoffOutcome = { readonly ok: true } | { readonly ok: false; readonly reason: HandoffFailure };
 
-const INTRO = 'Review from the page (dev-process-kit). Apply it to the base data and republish this artifact.';
+// Agents have answered by writing into the database, which the page never shows,
+// so the comment names the one place the reader sees an answer.
+const INTRO =
+  'Review from the page (dev-process-kit). Apply it to the base data and republish this artifact. ' +
+  'Then answer with ArtifactComments `reply` in this thread: the reader sees only this thread, ' +
+  'and the page never shows anything written to the database.';
 
 export const utf8Length = (text: string): number => new TextEncoder().encode(text).length;
 
