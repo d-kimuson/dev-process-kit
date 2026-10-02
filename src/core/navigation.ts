@@ -24,8 +24,25 @@ export const formatHash = (navigation: Navigation): string => {
   return serialized.length === 0 ? '' : `#${serialized}`;
 };
 
-export const patchNavigation = (navigation: Navigation, patch: NavigationPatch): Navigation => {
+/**
+ * Applies a patch. With a `hierarchy` (outermost key first), naming a level
+ * also drops the deeper levels the patch leaves out: a step that belonged to
+ * the previous story must not pull the reader back there.
+ */
+export const patchNavigation = (
+  navigation: Navigation,
+  patch: NavigationPatch,
+  hierarchy: readonly string[] = [],
+): Navigation => {
   const next: Record<string, string> = { ...navigation };
+  const levels = Object.keys(patch)
+    .map((key) => hierarchy.indexOf(key))
+    .filter((index) => index >= 0);
+  if (levels.length > 0) {
+    for (const key of hierarchy.slice(Math.min(...levels) + 1)) {
+      if (!Object.hasOwn(patch, key)) delete next[key];
+    }
+  }
   for (const [key, value] of Object.entries(patch)) {
     if (value === null || value === undefined || value === '') delete next[key];
     else next[key] = value;

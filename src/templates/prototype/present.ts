@@ -19,8 +19,10 @@ import {
   stepRef,
   stepRefOf,
   storyRef,
+  type PrototypeActivity,
   type PrototypePreview,
   type PrototypeState,
+  type PrototypeStory,
   type StepLocation,
 } from './model';
 
@@ -278,6 +280,22 @@ export const prototypeCurrentTarget = (
   return { value: targetRef({ type: 'step', id: stepRef(location) }), label: location.step.name, group: m.stepGroup };
 };
 
+/** Where the reader is: always a story, and one of its steps unless it has none yet. */
+export type PrototypeLocation =
+  | ({ readonly kind: 'step' } & StepLocation)
+  | { readonly kind: 'story'; readonly activity: PrototypeActivity; readonly story: PrototypeStory };
+
+/** Reads a resolved navigation (see `resolvePrototypeNavigation`). */
+export const locatePrototype = (state: PrototypeState, nav: Navigation): PrototypeLocation | undefined => {
+  const step = findStep(state, nav['step']);
+  if (step) return { kind: 'step', ...step };
+  const activity = findActivity(state, nav['activity']);
+  const story = activity?.stories.find(
+    (entry) => entry.id === nav['story'] || storyRef(activity.id, entry.id) === nav['story'],
+  );
+  return activity && story ? { kind: 'story', activity, story } : undefined;
+};
+
 export type PageHeading = {
   /** Who uses the page; absent when no level names one. */
   readonly actor?: string;
@@ -292,6 +310,12 @@ export const prototypePageHeading = (location: StepLocation): PageHeading => {
   return actor === undefined ? { title } : { actor, title };
 };
 
+/** The stage heading of a story that has no steps yet: its actor and its name. */
+export const prototypeStoryHeading = (activity: PrototypeActivity, story: PrototypeStory): PageHeading => {
+  const actor = story.actor ?? activity.actor;
+  return actor === undefined ? { title: story.name } : { actor, title: story.name };
+};
+
 export const prototypeTitle = (state: PrototypeState): string => {
   return state.title ?? 'UX Prototype';
 };
@@ -299,20 +323,22 @@ export const prototypeTitle = (state: PrototypeState): string => {
 export const resolvePrototypeNavigation = (state: PrototypeState, nav: Navigation): Navigation => {
   const requestedActivity = findActivity(state, nav['activity']);
   const requestedStory = nav['story'];
+  // A bare story id names a story of the requested activity first, then the
+  // one story of the page with that id, whose activity it then brings along.
   const scopedStory = requestedActivity?.stories.find(
     (story) => story.id === requestedStory || storyRef(requestedActivity.id, story.id) === requestedStory,
   );
-  const requestedStep = nav['step'];
-  const scopedStep =
-    requestedActivity && scopedStory && requestedStep
-      ? findStep(state, `${storyRef(requestedActivity.id, scopedStory.id)}.${requestedStep}`)
-      : undefined;
-  const located = scopedStep ?? findStep(state, requestedStep);
   const storyLocation =
     scopedStory && requestedActivity
       ? { activity: requestedActivity, story: scopedStory }
       : findStory(state, requestedStory);
-  const activity = located?.activity ?? requestedActivity ?? storyLocation?.activity ?? state.activities[0];
+  const requestedStep = nav['step'];
+  const scopedStep =
+    storyLocation && requestedStep
+      ? findStep(state, `${storyRef(storyLocation.activity.id, storyLocation.story.id)}.${requestedStep}`)
+      : undefined;
+  const located = scopedStep ?? findStep(state, requestedStep);
+  const activity = located?.activity ?? storyLocation?.activity ?? requestedActivity ?? state.activities[0];
   const story =
     located?.story ??
     (storyLocation && storyLocation.activity === activity ? storyLocation.story : undefined) ??

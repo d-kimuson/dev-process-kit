@@ -365,6 +365,38 @@ describe('prototype navigation', () => {
     expect(nav).toMatchObject({ activity: 'daily', story: 'notes', step: 'n' });
   });
 
+  it('follows a story into the activity that holds it', () => {
+    expect(resolvePrototypeNavigation(state(), { activity: 'onboarding', story: 'notes' })).toMatchObject({
+      activity: 'daily',
+      story: 'notes',
+      step: 'n',
+    });
+    // a story id the current activity holds wins over the same id elsewhere
+    expect(resolvePrototypeNavigation(state(), { activity: 'onboarding', story: 'profile' })).toMatchObject({
+      activity: 'onboarding',
+      story: 'profile',
+      step: 'p',
+    });
+  });
+
+  it('lands on a story that has no steps yet', () => {
+    const base = parsePrototypeBase({
+      activities: [
+        {
+          id: 'work',
+          name: 'Work',
+          stories: [
+            { id: 'today', name: 'Today', steps: [{ id: 't', name: 'T' }] },
+            { id: 'tasks', name: 'Tasks' },
+          ],
+        },
+      ],
+    });
+    const nav = resolvePrototypeNavigation(base, { activity: 'work', story: 'tasks' });
+    expect(nav).toEqual({ activity: 'work', story: 'tasks' });
+    expect(resolvePrototypeNavigation(base, nav)).toEqual(nav);
+  });
+
   it('falls back to the first step when the id is unknown', () => {
     const nav = resolvePrototypeNavigation(state(), {
       activity: 'daily',

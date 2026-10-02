@@ -9,20 +9,20 @@ import { iconClose } from '../../../core/icons';
 import { createEntityId } from '../../../core/target';
 import { onCommit, onSelectChange } from '../../../lib/dom/events';
 import { prototypeAction } from '../actions';
-import { allStepIds, findStep, stepRef, stepRefOf, storyRef, type PrototypeState } from '../model';
+import { allStepIds, stepRef, stepRefOf, storyRef, type PrototypeState } from '../model';
+import { locatePrototype } from '../present';
 
 /** Activity select -> UserStory select -> step list of the selected story. */
 export const renderNav = (context: TemplateRenderContext<PrototypeState>, m: PrototypeMessages): TemplateResult => {
   const { state, navigation } = context;
-  const located = findStep(state, navigation['step']);
-  const activity = located?.activity ?? state.activities[0];
-  const story = located?.story ?? activity?.stories[0];
-  if (!activity || !story) {
+  const location = locatePrototype(state, navigation);
+  if (!location) {
     return html`<p class="nav-empty">${m.noActivityBefore}<code>activities</code>${m.noActivityAfter}</p>`;
   }
+  const { activity, story } = location;
   const steps = story.steps;
-  const current = located?.step;
-  const currentRef = located ? stepRef(located) : undefined;
+  const current = location.kind === 'step' ? location.step : undefined;
+  const currentRef = location.kind === 'step' ? stepRef(location) : undefined;
 
   return html`
     <div class="nav">

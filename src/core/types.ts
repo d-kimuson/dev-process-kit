@@ -162,6 +162,13 @@ export type TemplateDefinition<S> = {
   /** Fills navigation defaults without writing to the URL. */
   resolveNavigation(state: S, nav: Navigation): Navigation;
 
+  /**
+   * Navigation keys that nest, outermost first (`['activity', 'story', 'step']`).
+   * A navigation patch that names a level drops the deeper levels it leaves
+   * out, so `story=x` lands on that story instead of keeping the old step.
+   */
+  readonly navigationHierarchy?: readonly string[];
+
   /** Selectable comment targets for the composer. */
   commentTargets(state: S, nav: Navigation): readonly CommentTargetOption[];
 

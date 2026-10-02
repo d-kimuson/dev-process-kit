@@ -239,7 +239,7 @@ export abstract class TemplateElement<S> extends LitElement {
 
   navigate(patch: NavigationPatch, options: { replace?: boolean } = {}): void {
     const before = formatHash(this.#effectiveNavigation());
-    this.#navigation = patchNavigation(this.#navigation, patch);
+    this.#navigation = patchNavigation(this.#navigation, patch, this.definition.navigationHierarchy);
     this.#canonicalizeNavigation(options.replace ?? false);
     const after = formatHash(this.#effectiveNavigation());
     this.requestUpdate();
@@ -256,7 +256,12 @@ export abstract class TemplateElement<S> extends LitElement {
 
   hashFor(patch: NavigationPatch): string {
     const effective = this.#effectiveNavigation();
-    return formatHash(this.definition.resolveNavigation(this.derivation.state, patchNavigation(effective, patch)));
+    return formatHash(
+      this.definition.resolveNavigation(
+        this.derivation.state,
+        patchNavigation(effective, patch, this.definition.navigationHierarchy),
+      ),
+    );
   }
 
   requestComment(target: string | ActionTarget): void {

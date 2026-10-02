@@ -4,8 +4,14 @@ import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { PrototypeMessages } from '../messages';
 
 import { iconMaximize, iconMinimize } from '../../../core/icons';
-import { findStep, flattenSteps, type PreviewViewport, type PrototypePreview, type PrototypeState } from '../model';
-import { prototypePageHeading, prototypePreviewUrl, type PageHeading } from '../present';
+import { flattenSteps, type PreviewViewport, type PrototypePreview, type PrototypeState } from '../model';
+import {
+  locatePrototype,
+  prototypePageHeading,
+  prototypePreviewUrl,
+  prototypeStoryHeading,
+  type PageHeading,
+} from '../present';
 
 export const VIEWPORT_WIDTH: Record<PreviewViewport, string> = {
   mobile: '390px',
@@ -42,11 +48,28 @@ export const renderStage = (
   options: StageOptions,
 ): TemplateResult => {
   const { state, navigation } = context;
-  const location = findStep(state, navigation['step']);
+  const located = locatePrototype(state, navigation);
+  const location = located?.kind === 'step' ? located : undefined;
   const active = location
     ? (location.step.previews.find((preview) => preview.id === navigation['preview']) ?? location.step.previews[0])
     : undefined;
   const parked = renderParkedPreviews(state, active?.id);
+
+  if (located?.kind === 'story') {
+    // A story nothing has prototyped yet is still a destination: a mock links
+    // its menu item here instead of leaving it dead.
+    const { activity, story } = located;
+    return html`
+      <div class="stage">
+        <section class="stage-story">
+          ${renderPageHead(m, prototypeStoryHeading(activity, story))}
+          ${story.description ? html`<p class="story-description">${story.description}</p>` : nothing}
+          <p class="stage-empty">${m.storyWithoutSteps}</p>
+        </section>
+        ${parked}
+      </div>
+    `;
+  }
 
   if (!location) {
     return html`

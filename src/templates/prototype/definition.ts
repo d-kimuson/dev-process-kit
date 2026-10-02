@@ -73,6 +73,7 @@ export const prototypeDefinitionFor = (locale: Locale): TemplateDefinition<Proto
     describe: (action, state, base) => describePrototypeAction(m, action, state, base),
     serialize: serializePrototypeAction,
     resolveNavigation: resolvePrototypeNavigation,
+    navigationHierarchy: ['activity', 'story', 'step', 'preview'],
     commentTargets: (state: PrototypeState, _navigation: Navigation) => prototypeCommentTargets(m, state),
     currentTarget: (state: PrototypeState, navigation: Navigation) => prototypeCurrentTarget(m, state, navigation),
     title: prototypeTitle,

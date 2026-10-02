@@ -27,6 +27,19 @@ describe('hash navigation', () => {
     });
   });
 
+  it('drops the keys below the shallowest level a patch names in a hierarchy', () => {
+    const hierarchy = ['activity', 'story', 'step', 'preview'];
+    const navigation = { activity: 'a', story: 's', step: 'x', preview: 'p', view: 'v' };
+    expect(patchNavigation(navigation, { story: 't' }, hierarchy)).toEqual({ activity: 'a', story: 't', view: 'v' });
+    expect(patchNavigation(navigation, { story: 't', step: 'y' }, hierarchy)).toEqual({
+      activity: 'a',
+      story: 't',
+      step: 'y',
+      view: 'v',
+    });
+    expect(patchNavigation(navigation, { view: 'w' }, hierarchy)).toEqual({ ...navigation, view: 'w' });
+  });
+
   it('round-trips', () => {
     const navigation = { activity: 'a b', step: 'x/y' };
     expect(parseHash(formatHash(navigation))).toEqual(navigation);

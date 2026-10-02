@@ -33,6 +33,7 @@ const base = {
           ],
         },
         { id: 'billing', name: 'Billing', steps: [{ id: 'invoice', name: 'Invoice', previews: [] }] },
+        { id: 'tasks', name: 'Check every task', description: 'All open tasks on one list' },
       ],
     },
   ],
@@ -67,7 +68,7 @@ describe('<dpk-template-prototype> layout', () => {
     const root = el.shadowRoot!;
     const selects = root.querySelectorAll<HTMLSelectElement>('.nav select');
     expect(selects).toHaveLength(2);
-    expect([...selects[1]!.options].map((o) => o.value)).toEqual(['account', 'billing']);
+    expect([...selects[1]!.options].map((o) => o.value)).toEqual(['account', 'billing', 'tasks']);
     expect(root.querySelectorAll('.step-row')).toHaveLength(2);
     expect(root.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Landing');
     expect(root.querySelectorAll('.detail dpk-component-inline-edit')).toHaveLength(2);
@@ -134,6 +135,34 @@ describe('<dpk-template-prototype> layout', () => {
     expect(el.api.actions.some((a) => a.type === 'ADD_STEP')).toBe(true);
     expect(root.querySelectorAll('.step-row')).toHaveLength(2);
     expect(location.hash).toContain('step=new-step');
+  });
+
+  it('takes a `data-dpk-navigate` story link inside a preview to that story', async () => {
+    const el = mount('#step=landing');
+    await settle(el);
+    const trigger = document.createElement('a');
+    trigger.setAttribute('data-dpk-navigate', 'story=billing');
+    el.querySelector('[data-preview-id="landing-mobile"]')?.append(trigger);
+    trigger.click();
+    await settle(el);
+    expect(el.api.navigation).toMatchObject({ story: 'billing', step: 'invoice' });
+    expect(el.shadowRoot!.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Invoice');
+  });
+
+  it('shows a story that has no steps yet as the story itself', async () => {
+    const el = mount('#step=landing');
+    await settle(el);
+    el.api.navigate({ story: 'tasks' });
+    await settle(el);
+    const root = el.shadowRoot!;
+    expect(el.api.navigation).toEqual({ activity: 'onboarding', story: 'tasks' });
+    expect(root.querySelectorAll<HTMLSelectElement>('.nav select')[1]!.value).toBe('tasks');
+    expect(root.querySelectorAll('.step-row')).toHaveLength(0);
+    const story = root.querySelector('.stage .stage-story')!;
+    expect(story.querySelector('.page-title')?.textContent?.trim()).toBe('Check every task');
+    expect(story.textContent).toContain('All open tasks on one list');
+    expect(story.textContent).toContain(m.storyWithoutSteps);
+    expect(root.querySelector('figure.frame')).toBeNull();
   });
 
   it('renders the ja dictionary text under lang="ja", and en without one', async () => {

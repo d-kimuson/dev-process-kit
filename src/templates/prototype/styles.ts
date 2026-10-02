@@ -327,6 +327,22 @@ export const prototypeStyles = css`
     color: var(--dpk-ink-soft);
   }
 
+  /* A story that has no steps yet: its heading, what it is for, and why no frame. */
+  .stage-story {
+    display: grid;
+    gap: 12px;
+    justify-items: start;
+  }
+
+  .story-description {
+    max-width: 62ch;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--dpk-ink);
+    white-space: pre-wrap;
+  }
+
   /* ----------------------------------------------------------------- canvas */
 
   /*

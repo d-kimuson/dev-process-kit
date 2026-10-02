@@ -48,7 +48,7 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
 | `title`                    | no       | shown in the page header, and the source of the placeholder preview domain                                      |
 | `baseUrl`                  | no       | origin used for preview URLs, e.g. `https://app.kumoma.io`. Defaults to `https://<slugified title>.example.com` |
 | `activities[].id` / `name` | yes      | `description` optional                                                                                          |
-| `stories[].id` / `name`    | yes      | `description` optional                                                                                          |
+| `stories[].id` / `name`    | yes      | `description` optional. `steps` defaults to `[]`: a story with no steps yet is still a navigation destination   |
 | `steps[].id` / `name`      | yes      | `description` optional                                                                                          |
 | `steps[].title`            | no       | title of the page the step shows, headed above the frame (e.g. `ユーザー一覧`). Defaults to the step name       |
 | `actor`                    | no       | who uses the page (e.g. `管理者`), on an activity, story or step. The nearest one wins: step › story › activity |
@@ -84,6 +84,25 @@ Step flow inside your own mock is plain navigation, not a draft action:
 ```
 
 `data-dpk-navigate` accepts the same `key=value&key2=value2` syntax as the hash, and the framework resolves the activity/story automatically while keeping the URL canonical.
+
+### Linking the UI back to its user story
+
+A step links to the next screen of its own flow. Shared UI — a global menu, a tab bar, a "see all" link — instead leads to the **user story** behind it. Link it with `story=` so the reader can follow the UI back to the story it serves:
+
+```html
+<nav>
+  <a href="#story=tasks" data-dpk-navigate="story=tasks">タスク一覧</a>
+  <a href="#story=reports" data-dpk-navigate="story=reports">レポート</a>
+</nav>
+```
+
+`story=` lands on the first step of that story (a bare id is looked up in the current activity first, then across the page; `activity.story` is always unambiguous). Naming a level drops the deeper ones: `story=` forgets the current step, `activity=` the current story.
+
+A story does not need steps. Declare the stories the UI points to even before they are prototyped — the link then shows the story's name and description with a note that nothing is drawn yet — rather than leaving the menu item dead:
+
+```json
+{ "id": "tasks", "name": "タスク一覧を確認する", "description": "自分に割り当てられたタスクを期限順に見る" }
+```
 
 ## Action vocabulary
 
@@ -124,7 +143,7 @@ Step flow inside your own mock is plain navigation, not a draft action:
 #activity=onboarding&preview=google-auth-mobile&step=google-auth&story=account
 ```
 
-Only `step` is required (`#step=google-auth` resolves the containing activity and story). `preview` is the selected preview tab of that step; it is navigation state, so it lives in the hash and is shareable like everything else, and an unknown id falls back to the first preview.
+Only `step` is required (`#step=google-auth` resolves the containing activity and story); `#story=account` alone opens the first step of that story, or the story itself when it has none. `preview` is the selected preview tab of that step; it is navigation state, so it lives in the hash and is shareable like everything else, and an unknown id falls back to the first preview.
 
 ## UI provided by the template
 
