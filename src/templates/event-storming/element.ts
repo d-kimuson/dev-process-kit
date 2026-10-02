@@ -29,6 +29,7 @@ import {
 import { attachAnchor, buildSlices, connectionEndpoints, sliceVoice, type EsSlice } from './layout';
 import { eventStormingMessages } from './messages';
 import { allNoteIds, findContext, findNote, type EventStormingState, type NoteType } from './model';
+import { PinHeightsController } from './pin-heights';
 import { renderEsBoard } from './render/board';
 import { eventStormingStyles } from './styles';
 import {
@@ -61,9 +62,10 @@ const HOVER_PAD = { x: 20, top: 46, bottom: 40 };
  *
  * The element is the seam between the pure parts: it owns the ephemeral UI
  * state (mode, viewport, pointer gesture, hover, selection), measures its own
- * size to decide where the slice timeline wraps, and turns intents into
- * actions. Placement lives in `layout.ts`, gesture math in `interactions.ts`,
- * rendering in `render/board.ts`, the sticky note in `components/note-card.ts`.
+ * size to decide where the slice timeline wraps and its hotspot pins to stack
+ * them, and turns intents into actions. Placement lives in `layout.ts`,
+ * gesture math in `interactions.ts`, rendering in `render/board.ts` (pin
+ * stacking in `render/pin-stack.ts`), the sticky note in `components/note-card.ts`.
  */
 export class DpkTemplateEventStorming extends TemplateElement<EventStormingState> {
   static override styles = [TemplateElement.styles, eventStormingStyles, popoverSurface];
@@ -94,6 +96,7 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
 
   #resize: ResizeObserver | undefined;
   readonly #popovers = new PopoverController(this);
+  readonly #pinHeights = new PinHeightsController(this);
 
   constructor() {
     super();
@@ -159,6 +162,7 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
         context,
         mode: this.mode,
         maxRowWidth: this.#maxRowWidth(),
+        pinHeights: this.#pinHeights.heights,
         viewport: this.viewport,
         gesture: this.gesture,
         hoverSliceId: this.hoverSliceId,

@@ -11,6 +11,7 @@ import { elementOf } from '../../../lib/dom/element';
 import { notePaletteStyle } from '../components/note-card';
 import { buildSlices, planSliceBands, sliceArrows, type EsSlice, type SliceArrow } from '../layout';
 import { noteCardModeOf, type EsGesture, type EsUiMode, type NoteIntent, type Point } from '../ui-mode';
+import { PIN_H, PIN_W, stackPins } from './pin-stack';
 
 export const SLOT_W = 132;
 export const SLOT_H = 96;
@@ -37,28 +38,30 @@ const WALL_PAD = 8;
 /** Vertical gap between two bands. */
 const BAND_GAP = 6;
 
-/** Hotspot pin: a smaller sticky hung over one note's top-right corner. */
-const PIN_W = 92;
-const PIN_H = 54;
-/** Kept clear of the card's own + Hotspot chip, which hugs that corner. */
-const PIN_LIFT = 72;
-/** Vertical step between several pins on the same note: never overlapping. */
-const PIN_STEP = PIN_H + 4;
-/** Head room a band needs so a note's stacked pins stay inside it. */
-const bandHead = (pinsOnOneNote: number): number =>
-  Math.max(ROW_TOP, PIN_LIFT + (pinsOnOneNote - 1) * PIN_STEP - SLICE_PAD_Y);
+/** Head room a band needs so its notes' stacked pins stay inside it. */
+const bandHead = (pinExtent: number): number => Math.max(ROW_TOP, pinExtent - SLICE_PAD_Y);
+/** A band always keeps room for one pin, so pinning the first does not shift the wall. */
+const ONE_PIN_EXTENT = stackPins([PIN_H]).extent;
 
 /** Note roles a hovered slice offers to fill in when it lacks them. */
 const CHIP_TYPES: readonly NoteType[] = ['actor', 'command', 'aggregate', 'event', 'policy', 'readmodel', 'external'];
 
 const sliceWidth = (noteCount: number): number => SLICE_PAD_X * 2 + noteCount * SLOT_W + (noteCount - 1) * SLOT_GAP;
 
-/** How many hotspots hang on the busiest note of a slice (0 when there are none). */
-const pinsPerNote = (slice: EsSlice | undefined): number => {
-  if (slice === undefined) return 0;
-  const counts = new Map<string, number>();
-  for (const pin of slice.pins) counts.set(pin.targetId, (counts.get(pin.targetId) ?? 0) + 1);
-  return Math.max(0, ...counts.values());
+/** Where a slice's pins hang above their notes, and how far its tallest stack reaches. */
+const slicePins = (
+  slice: EsSlice,
+  heightOf: (pinId: string) => number,
+): { readonly liftOf: ReadonlyMap<string, number>; readonly extent: number } => {
+  const liftOf = new Map<string, number>();
+  let extent = 0;
+  for (const note of slice.notes) {
+    const pins = slice.pins.filter((pin) => pin.targetId === note.id);
+    const stack = stackPins(pins.map((pin) => heightOf(pin.note.id)));
+    pins.forEach((pin, index) => liftOf.set(pin.note.id, stack.lifts[index] ?? 0));
+    extent = Math.max(extent, stack.extent);
+  }
+  return { liftOf, extent };
 };
 
 export type EsBoardHandlers = {
@@ -96,6 +99,8 @@ export type EsBoardProps = {
   readonly mode: EsUiMode;
   /** Pixel budget for one wrapped band of flows (connector gaps included). */
   readonly maxRowWidth: number;
+  /** Rendered height of each hotspot pin measured so far; an unmeasured pin counts as `PIN_H`. */
+  readonly pinHeights: ReadonlyMap<string, number>;
   readonly viewport: Viewport;
   readonly gesture: EsGesture | undefined;
   readonly hoverSliceId: string | undefined;
@@ -129,13 +134,20 @@ type WallGeometry = {
   /** Slice id → index of the band it sits in. */
   readonly bandOf: ReadonlyMap<string, number>;
   readonly widthOf: ReadonlyMap<string, number>;
+  /** Pin id → its bottom edge's lift above the top of the note it names. */
+  readonly pinLiftOf: ReadonlyMap<string, number>;
   readonly arrows: readonly SliceArrow[];
   /** Full wall size: bands and the arrow layer are placed inside it absolutely. */
   readonly width: number;
   readonly height: number;
 };
 
-const wallGeometry = (state: EventStormingState, slices: readonly EsSlice[], maxRowWidth: number): WallGeometry => {
+const wallGeometry = (
+  state: EventStormingState,
+  slices: readonly EsSlice[],
+  maxRowWidth: number,
+  pinHeights: ReadonlyMap<string, number>,
+): WallGeometry => {
   const widthOf = new Map(slices.map((slice) => [slice.id, sliceWidth(slice.notes.length)] as const));
   const arrows = sliceArrows(state, slices);
   const planned = planSliceBands(slices, arrows, {
@@ -147,7 +159,13 @@ const wallGeometry = (state: EventStormingState, slices: readonly EsSlice[], max
   const xOf = new Map<string, number>();
   const absXOf = new Map<string, number>();
   const bandOf = new Map<string, number>();
-  const sliceOf = new Map(slices.map((slice) => [slice.id, slice] as const));
+  const pinLiftOf = new Map<string, number>();
+  const pinExtentOf = new Map<string, number>();
+  for (const slice of slices) {
+    const pins = slicePins(slice, (pinId) => pinHeights.get(pinId) ?? PIN_H);
+    for (const [pinId, lift] of pins.liftOf) pinLiftOf.set(pinId, lift);
+    pinExtentOf.set(slice.id, pins.extent);
+  }
   let y = WALL_PAD;
   const bands = planned.map((band, bandIndex): BandGeometry => {
     // A band cut off a run starts directly under the slice it continues from,
@@ -155,8 +173,8 @@ const wallGeometry = (state: EventStormingState, slices: readonly EsSlice[], max
     const cutAt = band.cutFrom === undefined ? undefined : absXOf.get(band.cutFrom.from);
     const bandX = cutAt === undefined ? 0 : Math.max(0, cutAt - ROW_PAD_X);
     let cursor = bandX + ROW_PAD_X;
-    // Pins stack upward, so a note carrying several of them needs head room.
-    const head = bandHead(Math.max(1, ...band.sliceIds.map((id) => pinsPerNote(sliceOf.get(id)))));
+    // Pins stack upward, so a note carrying several or wordy ones needs head room.
+    const head = bandHead(Math.max(ONE_PIN_EXTENT, ...band.sliceIds.map((id) => pinExtentOf.get(id) ?? 0)));
     for (const id of band.sliceIds) {
       xOf.set(id, cursor - bandX);
       absXOf.set(id, cursor);
@@ -184,6 +202,7 @@ const wallGeometry = (state: EventStormingState, slices: readonly EsSlice[], max
     absXOf,
     bandOf,
     widthOf,
+    pinLiftOf,
     arrows,
     width: Math.max(0, ...bands.map((band) => band.x + band.width)) + WALL_PAD * 2,
     height: last === undefined ? WALL_PAD * 2 : last.y + last.height + WALL_PAD,
@@ -191,7 +210,7 @@ const wallGeometry = (state: EventStormingState, slices: readonly EsSlice[], max
 };
 
 export const renderEsBoard = (props: EsBoardProps): TemplateResult => {
-  const { m, context, maxRowWidth, viewport, handlers } = props;
+  const { m, context, maxRowWidth, pinHeights, viewport, handlers } = props;
   const { state } = context;
   const dot = 24 * viewport.zoom;
   const surfaceStyle = `background-size:${dot}px ${dot}px;background-position:${viewport.panX}px ${viewport.panY}px`;
@@ -207,7 +226,7 @@ export const renderEsBoard = (props: EsBoardProps): TemplateResult => {
     </div>`;
   }
   const slices = buildSlices(state);
-  const geometry = wallGeometry(state, slices, maxRowWidth);
+  const geometry = wallGeometry(state, slices, maxRowWidth, pinHeights);
   return html`
     <div
       class="board-viewport${props.gesture !== undefined ? ' board-viewport--gesturing' : ''}"
@@ -274,6 +293,7 @@ const renderBand = (
       .mode=${noteCardModeOf(mode, note.id)}
       ?focused=${navigation['note'] === note.id}
       ?compact=${compact}
+      data-pin=${compact ? note.id : nothing}
       .onIntent=${(intent: NoteIntent) => handlers.noteIntent(note.id, intent)}
     ></dpk-internal-event-storming-note>`;
   return html`
@@ -315,9 +335,10 @@ const renderBand = (
             const noteY = at.y + SLICE_PAD_Y;
             return noteCard(
               pin.note,
+              // Anchored by the bottom edge: a wordy pin grows upward, never onto its note.
               `${notePaletteStyle(pin.note.type)};position:absolute;left:${noteX + SLOT_W - PIN_W - 6 - index * 10}px;` +
-                `top:${noteY - PIN_LIFT - index * PIN_STEP}px;` +
-                `width:${PIN_W}px;height:${PIN_H}px;--es-tilt:-2.4deg;z-index:3`,
+                `bottom:${band.height - (noteY - (geometry.pinLiftOf.get(pin.note.id) ?? 0))}px;` +
+                `width:${PIN_W}px;min-height:${PIN_H}px;--es-tilt:-2.4deg;z-index:3`,
               true,
             );
           },
