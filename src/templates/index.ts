@@ -1,3 +1,4 @@
+import { defineDelegationPokerElement } from './delegation-poker';
 import { defineEventStormingElement } from './event-storming';
 import { defineExampleMappingElement } from './example-mapping';
 import { defineGrillElement } from './grill';
@@ -24,4 +25,5 @@ export const registerTemplateElements = (): void => {
   definePlainElement();
   defineSlidesElement();
   defineTaskBoardElement();
+  defineDelegationPokerElement();
 };

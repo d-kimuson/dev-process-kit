@@ -25,3 +25,11 @@ export const onSelectChange = (fn: (value: string) => void): ((event: Event) => 
     if (select !== null) fn(select.value);
   };
 };
+
+/** `@change` on a checkbox: hand the checked state on. */
+export const onCheckedChange = (fn: (checked: boolean) => void): ((event: Event) => void) => {
+  return (event) => {
+    const input = elementOf(event.target, HTMLInputElement);
+    if (input !== null) fn(input.checked);
+  };
+};

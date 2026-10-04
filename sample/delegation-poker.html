@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Delegation Poker — Claude に何を任せるか | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too. A generated page
+      loads the same files from jsDelivr instead, and so does this page on GitHub
+      Pages or with `?version=<version>` (`kit.js`).
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['templates/delegation-poker.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-template-delegation-poker {
+        display: block;
+        height: 100dvh;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-template-delegation-poker mode="strict" storage-key="sample-delegation-poker-claude">
+      <script type="application/json">
+        {
+          "title": "Sora Market — Claude に何を任せるか",
+          "parties": { "delegator": "あなた", "delegate": "Claude" },
+          "players": [
+            { "id": "claude", "name": "Claude" },
+            { "id": "sato", "name": "佐藤（テックリード）" }
+          ],
+          "decisions": [
+            {
+              "id": "deps",
+              "name": "ライブラリの追加・更新",
+              "description": "新しい npm パッケージを入れる、メジャーバージョンを上げる",
+              "cards": [
+                {
+                  "player": "claude",
+                  "level": 5,
+                  "reason": "ライセンスとメンテ状況は調べて比較できます。採否は助言を聞いてから決めたいです。"
+                },
+                {
+                  "player": "sato",
+                  "level": 3,
+                  "reason": "依存はあとから外しにくいので、決める前に一度相談してほしい。"
+                }
+              ]
+            },
+            {
+              "id": "refactor",
+              "name": "リファクタリングの範囲",
+              "description": "タスクのついでに、周辺のコードをどこまで整理してよいか",
+              "cards": [
+                {
+                  "player": "claude",
+                  "level": 6,
+                  "reason": "テストで振る舞いを守れる範囲なら任せてください。PR の説明で何を変えたか報告します。"
+                },
+                { "player": "sato", "level": 6 }
+              ]
+            },
+            {
+              "id": "public-api",
+              "name": "公開 API・型の変更",
+              "description": "Custom Elements の属性・イベント、export している型を変える",
+              "cards": [
+                {
+                  "player": "claude",
+                  "level": 3,
+                  "reason": "利用者に影響するので、意見を出したうえで決めてもらうのがよいと思います。"
+                },
+                { "player": "sato", "level": 2 }
+              ]
+            },
+            {
+              "id": "migration",
+              "name": "DB スキーマのマイグレーション",
+              "description": "本番データのあるテーブルに列を足す・型を変える",
+              "cards": [
+                {
+                  "player": "claude",
+                  "level": 2,
+                  "reason": "取り返しがつかない変更なので、方針は決めてもらい、私は手順を整えます。"
+                },
+                { "player": "sato", "level": 1 }
+              ]
+            },
+            {
+              "id": "testing",
+              "name": "テスト方針",
+              "description": "どの層をどのくらいテストするか、モックをどこで切るか",
+              "cards": [
+                {
+                  "player": "claude",
+                  "level": 4,
+                  "reason": "方針は一緒に決め、個々のテストの書き方は任せてほしいです。"
+                },
+                { "player": "sato", "level": 5 }
+              ]
+            },
+            {
+              "id": "release",
+              "name": "本番リリースのタイミング",
+              "description": "いつ main を本番へ出すか",
+              "cards": [
+                {
+                  "player": "claude",
+                  "level": 1,
+                  "reason": "顧客への告知や体制を私は知らないので、決めて伝えてください。"
+                }
+              ]
+            },
+            {
+              "id": "commits",
+              "name": "コミットの粒度",
+              "description": "1 コミットにどこまで含めるか、メッセージの書き方",
+              "cards": [
+                { "player": "claude", "level": 7, "reason": "コミット規約があるので、それに従います。" },
+                { "player": "sato", "level": 7 }
+              ],
+              "agreed": 7
+            }
+          ]
+        }
+      </script>
+    </dpk-template-delegation-poker>
+  </body>
+</html>

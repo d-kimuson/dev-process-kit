@@ -35,6 +35,7 @@ const SAMPLES = [
   ['formal-spec', 'plain'],
   ['slides', 'slides'],
   ['task-board', 'task-board'],
+  ['delegation-poker', 'delegation-poker'],
 ] as const;
 const SESSION = process.env['AGENT_BROWSER_SESSION'] ?? 'browser-ops';
 const PROFILE = process.env['AGENT_BROWSER_PROFILE'] ?? `${process.env['HOME']}/.config/agent-browser/profiles/shared`;

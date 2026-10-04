@@ -9,6 +9,7 @@ import { parseKanbanData } from './components/kanban/model';
 import { parseMindMapData } from './components/mind-map/model';
 import { parseSequenceData } from './components/sequence-diagram/model';
 import { parseStateData } from './components/state-diagram/model';
+import { parseDelegationPokerBase } from './templates/delegation-poker/model';
 import { parseExampleMappingBase } from './templates/example-mapping/model';
 import { parseGrillBase } from './templates/grill/model';
 import { parsePlainBase } from './templates/plain/model';
@@ -192,5 +193,18 @@ describe('sample pages', () => {
     const people = new Set(board.members.filter((member) => member.kind === 'human').map((member) => member.id));
     const theirs = board.todos.filter((todo) => todo.assignee !== null && people.has(todo.assignee));
     expect(theirs.some((todo) => todo.status !== 'done')).toBe(true);
+  });
+
+  it('delegation-poker.html deals the decisions the reader still has to play', () => {
+    const html = sample('delegation-poker.html');
+    expect(entriesOf(html)).toContain('templates/delegation-poker.js');
+    const poker = parseDelegationPokerBase(jsonChild(html, 'dpk-template-delegation-poker'));
+    expect(poker.title).not.toBe('');
+    expect(poker.players.length).toBeGreaterThan(1);
+    // Most areas wait for the reader's card; one is already agreed, so the board shows both.
+    expect(poker.decisions.filter((decision) => decision.agreed === undefined).length).toBeGreaterThan(3);
+    expect(poker.decisions.some((decision) => decision.agreed !== undefined)).toBe(true);
+    // The cards spread out somewhere, so the lowest and the highest have something to explain.
+    expect(poker.decisions.some((decision) => new Set(decision.cards.map((card) => card.level)).size > 1)).toBe(true);
   });
 });
