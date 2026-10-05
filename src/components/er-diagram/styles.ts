@@ -61,12 +61,14 @@ export const erStyles = css`
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      'mark name status'
-      'mark label status';
+      'mark name name'
+      'mark label label'
+      '. status status';
     align-items: center;
     gap: 1px 8px;
     width: 100%;
-    min-height: 42px;
+    min-height: 74px;
+    flex-shrink: 0;
     padding: 7px 11px;
     border: 0;
     border-bottom: 1px solid var(--dpk-rule);
@@ -129,18 +131,18 @@ export const erStyles = css`
     font-size: 12px;
     font-weight: 640;
     letter-spacing: -0.01em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 0;
   }
 
   .er-label {
     grid-area: label;
     font-size: 9.5px;
     color: var(--dpk-ink-faint);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 0;
   }
 
   .er-status {
@@ -156,10 +158,13 @@ export const erStyles = css`
 
   .er-field {
     display: grid;
-    grid-template-columns: 14px 26px minmax(0, 1fr) auto;
+    grid-template-columns: 14px 26px minmax(0, 1fr);
+    grid-template-areas: 'mark key name' '. . type';
     align-items: center;
     gap: 6px;
-    padding: 0 10px;
+    padding: 6px 10px;
+    min-height: 28px;
+    flex-shrink: 0;
     border-bottom: 1px solid var(--dpk-rule);
     font-size: 10.5px;
   }
@@ -190,6 +195,7 @@ export const erStyles = css`
   }
 
   .er-field-mark {
+    grid-area: mark;
     font-family: var(--dpk-mono);
     font-size: 10px;
     text-align: center;
@@ -208,6 +214,7 @@ export const erStyles = css`
   }
 
   .er-key {
+    grid-area: key;
     display: grid;
     place-items: center;
     border-radius: 3px;
@@ -222,26 +229,33 @@ export const erStyles = css`
   }
 
   .er-field-name {
+    grid-area: name;
     font-family: var(--dpk-mono);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 0;
   }
 
   .er-field-type {
+    grid-area: type;
     font-size: 9.5px;
     color: var(--dpk-ink-faint);
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 0;
   }
 
   .er-change {
+    grid-area: type;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: flex-start;
     font-size: 9px;
     line-height: 1.6;
-    white-space: nowrap;
-    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 0;
+    text-align: left;
   }
 
   .er-change del {

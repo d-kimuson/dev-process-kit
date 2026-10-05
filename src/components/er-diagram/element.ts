@@ -7,15 +7,7 @@ import { EMPTY_REACH, reach, type DiagramSelection, type Reach } from '../diagra
 import { diagramStyles } from '../diagram/styles';
 import { pathData } from '../diagram/view';
 import { erDiagramMessages, type ErDiagramMessages } from './messages';
-import {
-  emptyErData,
-  fieldRowHeight,
-  parseErData,
-  tableHeight,
-  type ErData,
-  type ErFieldDiff,
-  type ErTableDiff,
-} from './model';
+import { emptyErData, parseErData, type ErData, type ErFieldDiff, type ErTableDiff } from './model';
 import { erStyles } from './styles';
 
 const ARROWS = [{ id: 'er-neutral' }, { id: 'er-added' }, { id: 'er-removed' }, { id: 'er-selected' }] as const;
@@ -27,6 +19,75 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
   static override styles: CSSResultGroup = [diagramStyles, erStyles];
 
   #query = '';
+  #sizes = new Map<string, { height: number; rows: readonly number[] }>();
+  #resize: ResizeObserver | null = null;
+
+  override disconnectedCallback(): void {
+    this.#resize?.disconnect();
+    this.#resize = null;
+    super.disconnectedCallback();
+  }
+
+  protected override updated(): void {
+    super.updated();
+    if (typeof ResizeObserver !== 'undefined') this.#resize ??= new ResizeObserver(() => this.#measureTables());
+    this.#resize?.disconnect();
+    for (const card of this.renderRoot.querySelectorAll('.er-table')) {
+      this.#resize?.observe(card);
+      for (const row of card.querySelectorAll('.er-field')) this.#resize?.observe(row);
+    }
+    this.#measureTables();
+  }
+
+  #measureTables(): void {
+    let changed = false;
+    for (const card of this.renderRoot.querySelectorAll<HTMLElement>('.er-table')) {
+      const id = card.dataset['erTable'];
+      const bounds = card.getBoundingClientRect();
+      if (id === undefined || bounds.width === 0) continue;
+      // Undo viewport zoom; DOM geometry also accounts for fonts, wrapping and borders.
+      const scale = bounds.width / card.offsetWidth;
+      const round = (value: number) => Math.round(value * 64) / 64;
+      const size = {
+        height: round(bounds.height / scale),
+        rows: [...card.querySelectorAll('.er-field')].map((row) => {
+          const rect = row.getBoundingClientRect();
+          return round((rect.top + rect.height / 2 - bounds.top) / scale);
+        }),
+      };
+      if (JSON.stringify(this.#sizes.get(id)) === JSON.stringify(size)) continue;
+      this.#sizes.set(id, size);
+      changed = true;
+    }
+    if (changed) this.requestUpdate();
+  }
+
+  protected override layoutSignature(): string {
+    return JSON.stringify([...this.#sizes]);
+  }
+
+  protected override filtered(): ErData {
+    const data = super.filtered();
+    return {
+      ...data,
+      nodes: data.nodes.map((node) => {
+        const size = this.#sizes.get(node.id);
+        if (!size) return node;
+        const ports = { ...node.ports };
+        for (const edge of data.edges) {
+          if (edge.from === node.id && edge.fromPort !== undefined) {
+            const y = size.rows[node.fields.findIndex((field) => field.id === edge.sourceField)];
+            if (y !== undefined) ports[edge.fromPort] = { x: node.width, y };
+          }
+          if (edge.to === node.id && edge.toPort !== undefined) {
+            const y = size.rows[node.fields.findIndex((field) => field.id === edge.targetField)];
+            if (y !== undefined) ports[edge.toPort] = { x: 0, y };
+          }
+        }
+        return { ...node, height: size.height, ports };
+      }),
+    };
+  }
 
   protected override parseData(input: unknown): ErData {
     return parseErData(input);
@@ -162,7 +223,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
         class=${this.elementClass(state, 'd-node', 'er-table', `is-${table.status}`)}
         data-er-table=${table.id}
         data-grill-questions=${this.questionsOf(table)}
-        style="left:${placed.x}px; top:${placed.y}px; width:${table.width}px; height:${tableHeight(table.fields)}px"
+        style="left:${placed.x}px; top:${placed.y}px; width:${table.width}px"
       >
         <button
           type="button"
@@ -190,7 +251,6 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
     return html`
       <div
         class="er-field is-${field.status} ${matches ? 'is-match' : ''}"
-        style="height:${fieldRowHeight(field)}px"
         data-grill-questions=${this.questionsOf(field)}
         title=${[m.statusLabel(field.status), field.id, describe(field)].filter(Boolean).join(' / ')}
       >
