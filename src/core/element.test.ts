@@ -8,6 +8,7 @@ import { panelMessages } from '../components/comment-panel/messages';
 import { prototypeDefinitionFor } from '../templates/prototype/definition';
 import { prototypeMessages } from '../templates/prototype/messages';
 import { coreMessages } from './messages';
+import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH } from './sidebar-width';
 import '../index';
 
 const base = {
@@ -368,6 +369,109 @@ describe('color scheme', () => {
     el.setAttribute('theme', 'dark');
     await settle(el);
     expect(el.dataset['theme']).toBe('dark');
+  });
+});
+
+describe('sidebar width', () => {
+  const sidebar = (el: Element): HTMLElement => el.shadowRoot?.querySelector('.dpk-sidebar') as HTMLElement;
+  const width = (el: Element): string => sidebar(el).style.getPropertyValue('--dpk-sidebar-width');
+  const edge = (el: Element): HTMLElement | null => el.shadowRoot?.querySelector('.dpk-sidebar-resizer') ?? null;
+  const press = (target: HTMLElement, key: string): void => {
+    target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+  };
+  const pointer = (target: HTMLElement, type: string, clientX: number): void => {
+    target.dispatchEvent(new PointerEvent(type, { pointerId: 1, button: 0, clientX, bubbles: true }));
+  };
+  const defaultWidth = DEFAULT_SIDEBAR_LAYOUT.defaultWidth;
+
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+    localStorage.clear();
+    // jsdom has no pointer capture; every browser the kit targets does.
+    if (!('setPointerCapture' in HTMLElement.prototype)) {
+      Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { configurable: true, value: () => {} });
+    }
+  });
+
+  it('starts at the default width with a labelled edge after the sidebar', async () => {
+    const el = mount();
+    await settle(el);
+    const handle = edge(el) as HTMLElement;
+    expect(handle.previousElementSibling).toBe(sidebar(el));
+    expect(handle.getAttribute('role')).toBe('separator');
+    expect(handle.getAttribute('aria-orientation')).toBe('vertical');
+    expect(handle.getAttribute('aria-label')).toBe(coreMessages('en').resizeSidebar);
+    expect(handle.getAttribute('aria-valuenow')).toBe(String(defaultWidth));
+    expect(width(el)).toBe(`${defaultWidth}px`);
+  });
+
+  it('resizes with the keyboard and goes back to the default on double-click', async () => {
+    const el = mount();
+    await settle(el);
+    const handle = edge(el) as HTMLElement;
+
+    press(handle, 'ArrowRight');
+    await settle(el);
+    expect(width(el)).toBe(`${defaultWidth + SIDEBAR_WIDTH.step}px`);
+    expect(handle.getAttribute('aria-valuenow')).toBe(String(defaultWidth + SIDEBAR_WIDTH.step));
+
+    handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await settle(el);
+    expect(width(el)).toBe(`${defaultWidth}px`);
+  });
+
+  it('follows a pointer drag on the edge until the pointer is released', async () => {
+    const el = mount();
+    await settle(el);
+    const handle = edge(el) as HTMLElement;
+    const shell = el.shadowRoot?.querySelector('.dpk-shell') as HTMLElement;
+
+    pointer(handle, 'pointerdown', 260);
+    pointer(handle, 'pointermove', 360);
+    await settle(el);
+    expect(width(el)).toBe(`${defaultWidth + 100}px`);
+    expect(shell.hasAttribute('data-resizing')).toBe(true);
+
+    pointer(handle, 'pointerup', 360);
+    pointer(handle, 'pointermove', 500);
+    await settle(el);
+    expect(width(el)).toBe(`${defaultWidth + 100}px`);
+    expect(shell.hasAttribute('data-resizing')).toBe(false);
+  });
+
+  it("remembers the reader's width for every page of the same template", async () => {
+    document.body.innerHTML = '<dpk-template-prototype storage-key="first"></dpk-template-prototype>';
+    const first = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    await settle(first);
+    press(edge(first) as HTMLElement, 'End');
+    await settle(first);
+
+    document.body.innerHTML = '<dpk-template-prototype storage-key="second"></dpk-template-prototype>';
+    const second = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    await settle(second);
+    expect(width(second)).toBe(`${SIDEBAR_WIDTH.max}px`);
+  });
+
+  it('puts the edge of a right-hand sidebar on its left, growing it as the edge moves left', async () => {
+    document.body.innerHTML = '<dpk-template-task-board storage="memory"></dpk-template-task-board>';
+    const el = document.querySelector('dpk-template-task-board') as DpkTemplatePrototype;
+    await settle(el);
+    const handle = edge(el) as HTMLElement;
+    expect(handle.nextElementSibling).toBe(sidebar(el));
+    const start = Number(handle.getAttribute('aria-valuenow'));
+
+    press(handle, 'ArrowLeft');
+    await settle(el);
+    expect(width(el)).toBe(`${start + SIDEBAR_WIDTH.step}px`);
+  });
+
+  it('has no edge when the template shows no sidebar', async () => {
+    document.body.innerHTML = '<dpk-template-usm storage="memory"></dpk-template-usm>';
+    const el = document.querySelector('dpk-template-usm') as DpkTemplatePrototype;
+    await settle(el);
+    expect(sidebar(el).hidden).toBe(true);
+    expect(edge(el)).toBeNull();
   });
 });
 

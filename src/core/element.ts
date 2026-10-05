@@ -33,7 +33,9 @@ import { HandoffDockController } from './shell/handoff-dock-controller';
 import { LocaleChoiceController } from './shell/locale-choice-controller';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
 import { PreviewRouter } from './shell/preview-router';
+import { SidebarResizeController } from './shell/sidebar-resize-controller';
 import { chromeStyles } from './shell/styles';
+import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, type SidebarLayout } from './sidebar-width';
 import { targetRef } from './target';
 import { FRAMEWORK_VERSION } from './version';
 
@@ -74,6 +76,11 @@ export abstract class TemplateElement<S> extends LitElement {
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
   #claude = new ClaudeHandoffController(this);
   #dock = new HandoffDockController(this);
+  #sidebarWidth = new SidebarResizeController(this, {
+    persist: () => this.storage !== 'off' && this.storage !== 'memory',
+    template: () => this.definition.name,
+    layout: () => this.sidebarLayout,
+  });
 
   /**
    * The template in one language. Called again whenever the locale changes:
@@ -321,8 +328,10 @@ export abstract class TemplateElement<S> extends LitElement {
     const draftCount = context.actions.length;
     const commentCount = context.comments.length;
     const messages = coreMessages(this.locale);
+    const sidebarHidden = regions.sidebarHidden === true || (!regions.sidebar && !this.hasSidebarContent());
+    const side = this.sidebarLayout.side;
     return html`
-      <div class="dpk-shell">
+      <div class="dpk-shell" ?data-resizing=${this.#sidebarWidth.dragging}>
         <header class="dpk-header">
           <span class="dpk-brand" aria-hidden="true"></span>
           <div class="dpk-title">
@@ -342,14 +351,17 @@ export abstract class TemplateElement<S> extends LitElement {
           </div>
           <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
         </header>
-        <div class="dpk-body">
+        <div class="dpk-body" data-sidebar-side=${side}>
+          ${sidebarHidden || side !== 'right' ? nothing : this.#renderSidebarEdge()}
           <aside
             class="dpk-sidebar"
-            ?hidden=${regions.sidebarHidden || (!regions.sidebar && !this.hasSidebarContent())}
+            ?hidden=${sidebarHidden}
+            style=${`--dpk-sidebar-width: ${this.#sidebarWidth.width}px`}
           >
             ${regions.sidebar ?? nothing}
             <slot name="sidebar"></slot>
           </aside>
+          ${sidebarHidden || side !== 'left' ? nothing : this.#renderSidebarEdge()}
           <main class="dpk-main">
             <div class="dpk-main-body">
               ${
@@ -484,10 +496,41 @@ export abstract class TemplateElement<S> extends LitElement {
     </button>`;
   }
 
+  /** The sidebar's edge facing the main column: dragged, or focused and moved with the arrow keys. */
+  #renderSidebarEdge(): TemplateResult {
+    const messages = coreMessages(this.locale);
+    const on = this.#sidebarWidth.handlers;
+    return html`<div
+      class="dpk-sidebar-resizer"
+      role="separator"
+      tabindex="0"
+      aria-orientation="vertical"
+      aria-label=${messages.resizeSidebar}
+      aria-valuemin=${SIDEBAR_WIDTH.min}
+      aria-valuemax=${SIDEBAR_WIDTH.max}
+      aria-valuenow=${this.#sidebarWidth.width}
+      title=${messages.resizeSidebarHint}
+      @pointerdown=${on.pointerdown}
+      @pointermove=${on.pointermove}
+      @pointerup=${on.pointerup}
+      @pointercancel=${on.pointercancel}
+      @keydown=${on.keydown}
+      @dblclick=${on.dblclick}
+    ></div>`;
+  }
+
   protected override render(): TemplateResult | typeof nothing {
     if (!this.#controller) return nothing;
     const context = this.#renderContext();
     return this.renderChrome(context, this.renderRegions(context));
+  }
+
+  /**
+   * Where the sidebar sits and how wide it starts. The edge facing the main
+   * column resizes it; the reader's width is kept per template.
+   */
+  protected get sidebarLayout(): SidebarLayout {
+    return DEFAULT_SIDEBAR_LAYOUT;
   }
 
   /** Set to `false` when the template has no sidebar at all. */

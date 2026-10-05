@@ -2,6 +2,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
+import type { SidebarLayout } from '../../core/sidebar-width';
 import type { TaskBoardState } from './model';
 
 import { TemplateElement } from '../../core/element';
@@ -61,6 +62,10 @@ export class DpkTemplateTaskBoard extends TemplateElement<TaskBoardState> {
     super();
     this.tab = 'context';
     this.todoFilter = 'all';
+  }
+
+  protected override get sidebarLayout(): SidebarLayout {
+    return { side: 'right', defaultWidth: 360 };
   }
 
   protected override definitionFor(locale: Locale) {

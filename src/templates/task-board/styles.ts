@@ -13,16 +13,9 @@ import { css } from 'lit';
  * stack and the page scrolls as one.
  */
 export const taskBoardStyles = css`
-  .dpk-main {
-    order: 1;
-  }
-
+  /* The shell's sidebar is a right-hand rail (see \`sidebarLayout\`). */
   .dpk-sidebar {
-    order: 2;
-    width: 360px;
     padding: 10px 14px 20px;
-    border-right: 0;
-    border-left: 1px solid var(--dpk-rule);
   }
 
   .board-rail {
@@ -73,8 +66,14 @@ export const taskBoardStyles = css`
 
     .dpk-sidebar {
       width: auto;
+      max-width: none;
       border-left: 0;
       border-top: 1px solid var(--dpk-rule);
+    }
+
+    /* Stacked, the rail takes the full width: there is no edge to drag. */
+    .dpk-sidebar-resizer {
+      display: none;
     }
 
     /* The body scrolls here, so an absolute panel would scroll away with it:

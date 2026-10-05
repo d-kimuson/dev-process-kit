@@ -265,7 +265,10 @@ export const chromeStyles = [
     }
 
     .dpk-sidebar {
-      width: 260px;
+      /* The element sets the template's or the reader's width; on a narrow
+         screen a wide one still leaves the main column some room. */
+      width: var(--dpk-sidebar-width);
+      max-width: calc(100% - 120px);
       flex: 0 0 auto;
       border-right: 1px solid var(--dpk-rule);
       background: var(--dpk-paper-sunken);
@@ -276,6 +279,73 @@ export const chromeStyles = [
 
     .dpk-sidebar[hidden] {
       display: none;
+    }
+
+    /*
+     * A right-hand sidebar: a rail beside the main column rather than a list
+     * before it. \`:where\` keeps these as weak as the rules above, so a
+     * template can still restyle the rail (stacking it on a phone, say).
+     */
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-main {
+      order: 1;
+    }
+
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar,
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-resizer {
+      order: 2;
+    }
+
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar {
+      border-right: 0;
+      border-left: 1px solid var(--dpk-rule);
+    }
+
+    /*
+     * The sidebar's resizable edge: a hit area straddling its border that takes
+     * no room of its own, with an accent line while hovered, focused or dragged.
+     */
+    .dpk-sidebar-resizer {
+      position: relative;
+      z-index: 6;
+      flex: none;
+      width: 9px;
+      /* Centred on the sidebar's border, whichever side that is. */
+      margin: 0 -5px 0 -4px;
+      cursor: col-resize;
+      touch-action: none;
+    }
+
+    .dpk-sidebar-resizer::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 3px;
+      width: 2px;
+      border-radius: 1px;
+      background: var(--dpk-accent);
+      opacity: 0;
+      transition: opacity 160ms var(--dpk-ease);
+    }
+
+    .dpk-sidebar-resizer:hover::after,
+    .dpk-sidebar-resizer:focus-visible::after,
+    .dpk-shell[data-resizing] .dpk-sidebar-resizer::after {
+      opacity: 1;
+    }
+
+    .dpk-sidebar-resizer:focus-visible {
+      outline: none;
+    }
+
+    /* While dragging, the cursor stays put and nothing underneath (text, preview frames) reacts. */
+    .dpk-shell[data-resizing] {
+      cursor: col-resize;
+      user-select: none;
+    }
+
+    .dpk-shell[data-resizing] .dpk-main {
+      pointer-events: none;
     }
 
     .dpk-main {

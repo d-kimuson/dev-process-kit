@@ -2,6 +2,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
+import type { SidebarLayout } from '../../core/sidebar-width';
 import type { ActionTarget } from '../../core/types';
 import type { GrillState } from './model';
 
@@ -40,6 +41,10 @@ import { grillStyles } from './styles';
  */
 export class DpkTemplateGrill extends TemplateElement<GrillState> {
   static override styles = [TemplateElement.styles, grillStyles];
+
+  protected override get sidebarLayout(): SidebarLayout {
+    return { side: 'right', defaultWidth: 336 };
+  }
 
   protected override definitionFor(locale: Locale) {
     return grillDefinitionFor(locale);

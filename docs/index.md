@@ -222,6 +222,10 @@ Write `lang` on `<html>`, and also on the template element when you do not contr
 
 The template header has a language select that starts on that language. The reader's pick switches the template and every element inside it, and is remembered per origin (`localStorage` key `dev-process-kit:locale`) unless `storage` is `off` or `memory`. Picking the page's own language forgets the pick. The template applies a pick by setting its own `lang`, so do not read that attribute back as the page's language. Your content (base data, slot markup, a diagram's `heading` / `subject`) is never translated. The hand-off brief keeps its headings and instructions in English for the agent; the action titles in it follow the page's language.
 
+### Sidebar width
+
+The reader can resize the template sidebar by dragging the edge that faces the main column, or by focusing that edge and pressing the arrow keys (they move the edge; Shift for larger steps, Home / End for the narrowest and widest). Double-clicking the edge restores the template's default width. The width stays between 180px and 560px and is remembered per template for every page of the origin (`localStorage` key `dev-process-kit:sidebar-width:<template>`) unless `storage` is `off` or `memory`. Templates without a sidebar have no edge.
+
 ## Review and the hand-off
 
 The review rail's `Copy changes & comments` button puts the hand-off brief on the clipboard: readable markdown that ends with the canonical draft JSON. Once there is a draft, the same `Copy changes & comments` (and `Send to Claude`, below) also floats at the bottom right while the rail is closed, so a reader who only wants to hand the review back does not have to open it. Hand the brief to the agent: it applies the requested end state to the base HTML, keeps the ids of the concepts that survived, and drops the draft envelope from the JSON. The page never mutates its own base data, so the HTML the agent writes back is the new source of truth.

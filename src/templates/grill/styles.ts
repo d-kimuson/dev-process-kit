@@ -12,20 +12,12 @@ export const grillStyles = css`
     height: 100dvh;
   }
 
-  .dpk-main {
-    order: 1;
-  }
-
-  /* The shell's sidebar becomes a right-hand rail, keeping its width and scroll. */
+  /* The shell's sidebar is a right-hand rail (see \`sidebarLayout\`), keeping its scroll. */
   .dpk-sidebar {
-    order: 2;
-    width: 336px;
     display: flex;
     flex-direction: column;
     gap: 0;
     padding: 0;
-    border-right: 0;
-    border-left: 1px solid var(--dpk-rule);
   }
 
   /* The header reserves room for the corner button, exactly like the review
