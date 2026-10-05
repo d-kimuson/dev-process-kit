@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ERD — long identifiers</title>
+  <style>
+    body {
+      margin: 20px;
+      background: #f6f4ef;
+      color: #32352f;
+      font-family: system-ui, sans-serif;
+    }
+    h1 {
+      font-size: 18px;
+    }
+    p {
+      font-size: 13px;
+    }
+    dpk-component-er-diagram {
+      --diagram-height: 800px;
+    }
+  </style>
+  <h1>ERD · 長いテーブル名とカラム名</h1>
+  <p>日本語・区切りのない英語・変更前後の型・複数の関連。拡大とドラッグで各テーブルを確認できます。</p>
+  <dpk-component-er-diagram id="long-schema" lang="ja">
+    <script type="application/json">
+      {
+        "before": {
+          "tables": [
+            {
+              "id": "InternationalCustomerAccountRegistrationHistory",
+              "name": "海外法人顧客の契約登録と請求先情報を管理する履歴テーブル",
+              "fields": [
+                { "id": "GloballyUniqueCustomerAccountRegistrationIdentifier", "type": "uuid", "key": "PK" },
+                { "id": "海外法人顧客の正式名称および請求書送付先の部署名", "type": "varchar(128)" },
+                { "id": "CustomerAccountNotificationDeliveryConfiguration", "type": "varchar(64)", "nullable": true }
+              ]
+            },
+            {
+              "id": "海外法人顧客契約に関連する月次請求明細管理テーブル",
+              "name": "InternationalMonthlyInvoiceLineItemProcessingHistory",
+              "fields": [
+                { "id": "InvoiceLineItemProcessingHistoryIdentifier", "type": "uuid", "key": "PK" },
+                {
+                  "id": "請求先顧客契約登録履歴を参照するための一意識別子",
+                  "type": "uuid",
+                  "key": "FK",
+                  "ref": "InternationalCustomerAccountRegistrationHistory.GloballyUniqueCustomerAccountRegistrationIdentifier"
+                },
+                {
+                  "id": "MonthlyInvoiceNotificationConfigurationReference",
+                  "type": "text",
+                  "ref": "InternationalCustomerAccountRegistrationHistory.CustomerAccountNotificationDeliveryConfiguration"
+                }
+              ]
+            }
+          ]
+        },
+        "after": {
+          "tables": [
+            {
+              "id": "InternationalCustomerAccountRegistrationHistory",
+              "name": "海外法人顧客の契約登録と請求先情報を管理する履歴テーブル",
+              "fields": [
+                { "id": "GloballyUniqueCustomerAccountRegistrationIdentifier", "type": "uuid", "key": "PK" },
+                { "id": "海外法人顧客の正式名称および請求書送付先の部署名", "type": "varchar(256)" },
+                { "id": "CustomerAccountNotificationDeliveryConfiguration", "type": "jsonb", "nullable": true }
+              ]
+            },
+            {
+              "id": "海外法人顧客契約に関連する月次請求明細管理テーブル",
+              "name": "InternationalMonthlyInvoiceLineItemProcessingHistory",
+              "fields": [
+                { "id": "InvoiceLineItemProcessingHistoryIdentifier", "type": "uuid", "key": "PK" },
+                {
+                  "id": "請求先顧客契約登録履歴を参照するための一意識別子",
+                  "type": "uuid",
+                  "key": "FK",
+                  "ref": "InternationalCustomerAccountRegistrationHistory.GloballyUniqueCustomerAccountRegistrationIdentifier"
+                },
+                {
+                  "id": "MonthlyInvoiceNotificationConfigurationReference",
+                  "type": "text",
+                  "ref": "InternationalCustomerAccountRegistrationHistory.CustomerAccountNotificationDeliveryConfiguration"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    </script>
+  </dpk-component-er-diagram>
+  <script type="module">
+    import { loadKit } from './kit.js';
+    await loadKit(['components.js']);
+  </script>
+</html>

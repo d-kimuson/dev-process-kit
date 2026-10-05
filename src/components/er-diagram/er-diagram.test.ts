@@ -156,6 +156,28 @@ const openComment = async (element: DpkComponentErDiagram, kind: 'node' | 'edge'
 };
 
 describe('dpk-component-er-diagram', () => {
+  it('lets long labels determine card and row heights instead of fixing them', async () => {
+    const element = await mount();
+    element.data = parseErData({
+      after: {
+        tables: [
+          {
+            id: 'UnbrokenInternationalCustomerAccountRegistrationHistory'.repeat(3),
+            name: '長い日本語の顧客契約登録履歴管理テーブル'.repeat(3),
+            fields: [{ id: '長いカラム識別子'.repeat(8), type: 'uuid', key: 'PK' }],
+          },
+        ],
+      },
+    });
+    await settle(element);
+    const card = element.renderRoot.querySelector<HTMLElement>('.er-table');
+    const row = element.renderRoot.querySelector<HTMLElement>('.er-field');
+    expect(card?.style.height).toBe('');
+    expect(row?.style.height).toBe('');
+    expect(element.renderRoot.querySelector('.er-name')?.textContent).toBe(element.data.nodes[0]?.id);
+    expect(element.renderRoot.querySelector('.er-field-name')?.textContent).toBe(element.data.nodes[0]?.fields[0]?.id);
+  });
+
   it('requires the comment icon even after selecting or refocusing a table', async () => {
     const element = await mount();
     element.id = 'schema';
