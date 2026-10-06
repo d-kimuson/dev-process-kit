@@ -17,6 +17,10 @@ export type BackboneActivity = {
 export type Milestone = {
   readonly id: string;
   readonly name: string;
+  /** When the slice is meant to ship, as free text (`2026年10月`, `Q4`). */
+  readonly timeframe?: string;
+  /** What the slice stands for (`必要最低限の機能群`). */
+  readonly description?: string;
 };
 
 export type UserStory = {
@@ -44,6 +48,8 @@ const activitySchema = v.strictObject({
 const milestoneSchema = v.strictObject({
   id: v.pipe(v.string(), v.minLength(1)),
   name: v.pipe(v.string(), v.minLength(1)),
+  timeframe: v.exactOptional(v.string()),
+  description: v.exactOptional(v.string()),
 });
 const storySchema = v.strictObject({
   id: entityIdSchema,

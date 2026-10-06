@@ -27,7 +27,7 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
       ]
     }
   ],
-  "milestones": [{ "id": "mvp", "name": "MVP" }],
+  "milestones": [{ "id": "mvp", "name": "MVP", "timeframe": "2026年10月", "description": "必要最低限の機能群" }],
   "stories": [
     {
       "id": "google-signup",
@@ -41,16 +41,18 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 }
 ```
 
-| Field                             | Required | Notes                                                              |
-| --------------------------------- | -------- | ------------------------------------------------------------------ |
-| `title`                           | no       | ページのヘッダーに表示される                                       |
-| `activities[].id` / `name`        | yes      | バックボーンの最上段。id は `[A-Za-z0-9_-]+`                       |
-| `activities[].steps[]`            | no       | 既定は `[]`。各要素は `id` / `name` が必須                         |
-| `milestones[].id` / `name`        | yes      | 水平スライス。空配列でもよい（「Unassigned」行は常にある）         |
-| `stories[].id` / `name`           | yes      | カードの見出し。id は `[A-Za-z0-9_-]+`                             |
-| `stories[].activityId` / `stepId` | yes      | 所属する列。`stepId` の持ち主と `activityId` が一致しないと reject |
-| `stories[].milestoneId`           | no       | 省略 = Unassigned 行。存在しない id は reject                      |
-| `stories[].description`           | no       | カードに読み取り専用で表示される                                   |
+| Field                             | Required | Notes                                                               |
+| --------------------------------- | -------- | ------------------------------------------------------------------- |
+| `title`                           | no       | ページのヘッダーに表示される                                        |
+| `activities[].id` / `name`        | yes      | バックボーンの最上段。id は `[A-Za-z0-9_-]+`                        |
+| `activities[].steps[]`            | no       | 既定は `[]`。各要素は `id` / `name` が必須                          |
+| `milestones[].id` / `name`        | yes      | 水平スライス。空配列でもよい（「Unassigned」行は常にある）          |
+| `milestones[].timeframe`          | no       | 時期（自由記述。`2026年10月`、`Q4` など）。マップ下部の定義表に出る |
+| `milestones[].description`        | no       | そのスライスが何を表すか。マップ下部の定義表に出る                  |
+| `stories[].id` / `name`           | yes      | カードの見出し。id は `[A-Za-z0-9_-]+`                              |
+| `stories[].activityId` / `stepId` | yes      | 所属する列。`stepId` の持ち主と `activityId` が一致しないと reject  |
+| `stories[].milestoneId`           | no       | 省略 = Unassigned 行。存在しない id は reject                       |
+| `stories[].description`           | no       | カードに読み取り専用で表示される                                    |
 
 存在しない `activityId` / `stepId` / `milestoneId` を参照するストーリーは reject される。`activities` / `steps` / `milestones` / `stories` をまたぐ id の重複も reject される。
 
@@ -103,6 +105,9 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 | 列ヘッダ     | Activity ごとのグループ見出し（名前は inline-edit 可能、ステップ追加はアイコンのみ）＋ ステップ名セル。右端に `+ Activity` |
 | 行ヘッダ     | マイルストーン名（行ヘッダ自体がドラッグハンドル）＋ 最終行 `Unassigned`（ドラッグ不可）。最下部に `+ Milestone`           |
 | セル         | カード一覧＋ 底部の `+ Add` ボタン                                                                                         |
+| マップ下部   | マイルストーン定義表（名前 / 時期 / 説明）。詳細は下記                                                                     |
+
+マイルストーン定義表は `timeframe` / `description` を読み取り専用で一覧する。どのマイルストーンにも書かれていない列は出さず、どちらも一つもなければ表ごと出さない（名前は行ヘッダにあるため）。並びはマップの行と同じで、名前は draft 適用後のものを表示する。
 
 UI から編集できるのはストーリー名（inline-edit）、セルごとの追加、アクティビティ名 / ステップ名 / マイルストーン名の変更とマイルストーンの並び替え、カードのドラッグ移動、カードの削除、カード上のコメント。
 

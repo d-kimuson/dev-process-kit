@@ -283,6 +283,53 @@ export const usmStyles = css`
     color: var(--dpk-ink-faint);
   }
 
+  /* Milestone legend under the map: a plain reference table, not a board. */
+  .milestone-defs {
+    display: grid;
+    gap: 8px;
+    margin-top: 20px;
+    max-width: 880px;
+  }
+  .milestone-defs h2 {
+    margin: 0;
+  }
+  .milestone-defs table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-raised);
+    font-size: 13px;
+  }
+  .milestone-defs th,
+  .milestone-defs td {
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+    border-top: 1px solid var(--dpk-rule);
+  }
+  .milestone-defs thead th {
+    border-top: 0;
+    background: var(--dpk-paper-sunken);
+    color: var(--dpk-ink-soft);
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .milestone-defs tbody th {
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  .milestone-defs .timeframe {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .milestone-defs .description {
+    white-space: pre-line;
+  }
+
   /* Step picker shown after a cross-activity drop. */
   .move-dialog {
     min-width: 220px;

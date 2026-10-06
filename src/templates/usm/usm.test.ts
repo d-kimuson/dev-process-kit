@@ -350,6 +350,39 @@ describe('usm template', () => {
     expect(own.locale).toBe('ja');
   });
 
+  it('lists the milestone definitions under the map, only with the columns the author filled', async () => {
+    const withDetails = {
+      ...base,
+      milestones: [
+        { id: 'mvp', name: 'MVP', description: 'Minimum feature set' },
+        { id: 'v1', name: 'v1' },
+      ],
+    };
+    document.body.innerHTML = `
+    <dpk-template-usm storage="memory">
+      <script type="application/json">${JSON.stringify(withDetails)}</script>
+    </dpk-template-usm>`;
+    const el = document.querySelector('dpk-template-usm') as DpkTemplateUsm;
+    await settle(el);
+    el.api.dispatch({ type: 'SET_MILESTONE_NAME', target: 'milestone:mvp', payload: { name: 'MVP+' } });
+    await settle(el);
+    const section = el.shadowRoot!.querySelector('[data-testid="usm-milestone-definitions"]');
+    expect(section?.querySelector('h2')?.textContent?.trim()).toBe(m.milestoneDefinitionsTitle);
+    const text = (cell: Element) => cell.textContent?.trim();
+    expect([...section!.querySelectorAll('thead th')].map(text)).toEqual([m.milestoneGroup, m.descriptionColumn]);
+    expect([...section!.querySelectorAll('tbody tr')].map((row) => [...row.children].map(text))).toEqual([
+      ['MVP+', 'Minimum feature set'],
+      ['v1', ''],
+    ]);
+    document.body.innerHTML = '';
+  });
+
+  it('omits the milestone definitions when no milestone defines more than its name', async () => {
+    const el = mount();
+    await settle(el);
+    expect(el.shadowRoot!.querySelector('[data-testid="usm-milestone-definitions"]')).toBeNull();
+  });
+
   it('opens the step picker on a cross-activity drop and moves on submit', async () => {
     const twoActivities = {
       ...base,

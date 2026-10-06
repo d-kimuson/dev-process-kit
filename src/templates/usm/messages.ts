@@ -61,6 +61,11 @@ export const usmMessages = defineMessages({
     addCellButton: '+ Add',
     addStoryCellAria: 'Add a story to this cell',
 
+    // ------------------------------------------------ milestone definitions
+    milestoneDefinitionsTitle: 'Milestones',
+    timeframeColumn: 'Timeframe',
+    descriptionColumn: 'Description',
+
     // ---------------------------------------------------------- move dialog
     moveDialogLabel: 'Step to move to',
     moveDialogSelectLabel: 'Destination',
@@ -134,6 +139,10 @@ export const usmMessages = defineMessages({
     newMilestoneButton: '+ マイルストーン',
     addCellButton: '+ 追加',
     addStoryCellAria: 'このマスにストーリーを追加',
+
+    milestoneDefinitionsTitle: 'マイルストーン',
+    timeframeColumn: '時期',
+    descriptionColumn: '説明',
 
     moveDialogLabel: '移動先のアクティビティ',
     moveDialogSelectLabel: '移動先',
