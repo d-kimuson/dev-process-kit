@@ -1,16 +1,31 @@
 import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
-import type { LayoutOptions } from '../../lib/layout/layered';
+import type { LayoutOptions, LayoutPoint } from '../../lib/layout/layered';
 
 import { DiagramElement } from '../diagram/element';
 import { EMPTY_REACH, reach, type DiagramSelection, type Reach } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
 import { pathData } from '../diagram/view';
 import { erDiagramMessages, type ErDiagramMessages } from './messages';
-import { emptyErData, parseErData, type ErData, type ErFieldDiff, type ErTableDiff } from './model';
+import {
+  cardinalityText,
+  emptyErData,
+  parseErData,
+  type ErData,
+  type ErField,
+  type ErFieldDiff,
+  type ErRelation,
+  type ErTableDiff,
+} from './model';
 import { erStyles } from './styles';
 
-const ARROWS = [{ id: 'er-neutral' }, { id: 'er-added' }, { id: 'er-removed' }, { id: 'er-selected' }] as const;
+const ARROWS = [
+  { id: 'er-neutral' },
+  { id: 'er-added' },
+  { id: 'er-removed' },
+  { id: 'er-changed' },
+  { id: 'er-selected' },
+] as const;
 
 const SYMBOLS = { same: '', added: '+', removed: '−', changed: '~' } as const;
 
@@ -111,7 +126,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
   }
 
   protected override layoutOptions(): LayoutOptions {
-    return { nodeSpacing: 38, layerSpacing: 96, padding: 32 };
+    return { nodeSpacing: 38, layerSpacing: 128, padding: 32 };
   }
 
   protected override matchesFilter(node: ErTableDiff): boolean {
@@ -158,13 +173,13 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
       <span><i class="er-swatch-added"></i>${m.legendAdded}</span>
       <span><i class="er-swatch-removed"></i>${m.legendRemoved}</span>
       <span><i class="er-swatch-changed"></i>${m.legendChanged}</span>
+      <span class="er-legend-cardinality">${m.legendCardinality}</span>
     </div>`;
   }
 
-  #marker(status: ErTableDiff['status']): string {
-    const selection = this.selection;
-    if (selection !== null && selection.kind === 'edge') return 'er-selected';
-    return status === 'added' ? 'er-added' : status === 'removed' ? 'er-removed' : 'er-neutral';
+  #marker(relation: ErRelation, selected: boolean): string {
+    if (selected) return 'er-selected';
+    return `er-${relation.status === 'same' ? 'neutral' : relation.status}`;
   }
 
   protected override renderCanvas(): TemplateResult {
@@ -175,16 +190,27 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
       const points = this.routeOf(relation.id);
       const d = pathData(points);
       const select = () => this.select({ kind: 'edge', id: relation.id });
+      const meaning = [cardinalityText(relation.cardinality), relation.label].filter(Boolean).join(' · ');
+      const before =
+        relation.before === null
+          ? null
+          : [cardinalityText(relation.before.cardinality), relation.before.label].filter(Boolean).join(' · ');
       return svg`
         <g class=${this.elementClass(state, 'd-edge', 'er-edge', `is-${relation.status}`)} data-relation=${relation.id}>
-          <title>${`${relation.from}.${relation.sourceField} → ${relation.to}.${relation.targetField}`}</title>
-          <path class="d-edge-path" d=${d} marker-end=${`url(#${this.#marker(relation.status)})`}></path>
+          <title>${[
+            `${relation.from}.${relation.sourceField} → ${relation.to}.${relation.targetField}`,
+            meaning,
+            before === null ? null : `(${m.was(before)})`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}</title>
+          <path class="d-edge-path" d=${d} marker-end=${`url(#${this.#marker(relation, state.selected)})`}></path>
           <path
             class="d-edge-hit"
             d=${d}
             role="button"
             tabindex="0"
-            aria-label=${m.edgeLabel(relation.from, relation.to)}
+            aria-label=${m.edgeLabel(relation.from, relation.to, meaning)}
             @click=${select}
             @keydown=${(event: KeyboardEvent) => {
               if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -192,7 +218,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
               select();
             }}
           ></path>
-          ${points.length > 0 ? this.#renderCardinality(points, relation.status) : nothing}
+          ${points.length > 0 ? this.#renderCardinality(points, relation) : nothing}
           ${this.renderEdgeCommentTrigger(
             { kind: 'edge', id: relation.id },
             `${relation.from}.${relation.sourceField} → ${relation.to}.${relation.targetField}`,
@@ -204,13 +230,36 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
     return html`${this.renderEdges(edges, ARROWS)}${visible.nodes.map((table) => this.#renderTable(table, m))}`;
   }
 
-  #renderCardinality(points: readonly { x: number; y: number }[], status: ErTableDiff['status']): TemplateResult {
-    const start = points[0];
+  /**
+   * `parent : child` above the line and the relation's label below it, both at
+   * the FK end: one referenced column often has several relations whose lines
+   * leave it together, but every FK column receives exactly one, so only that
+   * end can say which relation a value belongs to. A changed value keeps its
+   * previous one, struck through.
+   */
+  #renderCardinality(points: readonly LayoutPoint[], relation: ErRelation): TemplateResult {
     const end = points.at(-1);
-    if (!start || !end) return html``;
+    if (!end) return html``;
+    const previous = relation.before;
+    const value = (now: string | null, was: string | null | undefined) =>
+      svg`${
+        was !== undefined && was !== null && was !== now ? svg`<tspan class="er-was">${was}</tspan> ` : nothing
+      }${now ?? nothing}`;
+    const label = relation.label ?? previous?.label ?? null;
+    const x = end.x - 12;
     return svg`
-      <text class="er-cardinality is-${status}" x=${start.x + 9} y=${start.y - 5}>1</text>
-      <text class="er-cardinality is-${status}" x=${end.x - 13} y=${end.y - 5}>N</text>
+      <text class="er-cardinality is-${relation.status}" text-anchor="end" x=${x} y=${end.y - 6}>${value(
+        cardinalityText(relation.cardinality),
+        previous && cardinalityText(previous.cardinality),
+      )}</text>
+      ${
+        label === null
+          ? nothing
+          : svg`<text class="er-relation-label is-${relation.status}" text-anchor="end" x=${x} y=${end.y + 14}>${value(
+              relation.label,
+              previous?.label,
+            )}</text>`
+      }
     `;
   }
 
@@ -245,8 +294,17 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
   }
 
   #renderField(field: ErFieldDiff, m: ErDiagramMessages): TemplateResult {
-    const describe = (value: ErFieldDiff | NonNullable<ErFieldDiff['before']>): string =>
-      [value.type, value.key ?? '—', value.ref ?? null, value.nullable ? m.nullable : null].filter(Boolean).join(' · ');
+    const describe = (value: ErField): string =>
+      [
+        value.type,
+        value.keys.length === 0 ? '—' : value.keys.join('+'),
+        value.ref,
+        value.cardinality,
+        value.label === null ? null : `“${value.label}”`,
+        value.nullable ? m.nullable : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
     const matches = this.#query !== '' && field.id.toLowerCase().includes(this.#query);
     return html`
       <div
@@ -255,7 +313,9 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
         title=${[m.statusLabel(field.status), field.id, describe(field)].filter(Boolean).join(' / ')}
       >
         <span class="er-field-mark" aria-hidden="true">${SYMBOLS[field.status]}</span>
-        <span class="er-key" data-empty=${field.key === null ? 'true' : 'false'}>${field.key ?? '·'}</span>
+        <span class="er-key" data-empty=${field.keys.length === 0 ? 'true' : 'false'}
+          >${field.keys.length === 0 ? '·' : field.keys.map((key) => html`<span>${key}</span>`)}</span
+        >
         <span class="er-field-name">${field.id}</span>
         ${
           field.status === 'changed' && field.before !== null

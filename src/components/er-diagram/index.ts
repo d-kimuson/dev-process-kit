@@ -1,8 +1,27 @@
 export { DpkComponentErDiagram } from './element';
 export { erDiagramMessages } from './messages';
 export type { ErDiagramMessages } from './messages';
-export { TABLE_WIDTH, emptyErData, fieldOffset, fieldRowHeight, parseErData, tableHeight } from './model';
-export type { ErData, ErField, ErFieldDiff, ErKey, ErRelation, ErStatus, ErTableDiff } from './model';
+export {
+  TABLE_WIDTH,
+  cardinalityText,
+  emptyErData,
+  fieldOffset,
+  fieldRowHeight,
+  parseErData,
+  tableHeight,
+} from './model';
+export type {
+  ErCardinality,
+  ErData,
+  ErField,
+  ErFieldDiff,
+  ErKey,
+  ErMultiplicity,
+  ErRelation,
+  ErRelationMeaning,
+  ErStatus,
+  ErTableDiff,
+} from './model';
 
 import { DpkComponentErDiagram } from './element';
 
