@@ -5,22 +5,28 @@ export const usmStyles = css`
   :host {
     --dpk-usm-accent: var(--dpk-blue);
   }
+  /*
+   * A wide table must scroll inside itself and never widen the template shell.
+   * It scrolls both ways so the backbone can stick to its top and the
+   * milestone column to its left: a box that scrolls only sideways still
+   * becomes the sticky ancestor, and its top would never move. Capped near the
+   * viewport height, it fits under the tab bar once the page brings it up.
+   */
   .map-scroll {
-    /* A wide table must scroll inside itself and never widen the template shell. */
     min-width: 0;
     max-width: 100%;
-    overflow-x: auto;
-    padding-bottom: 12px;
+    max-height: max(320px, calc(100dvh - 170px));
+    overflow: auto;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-sunken);
+    box-shadow: var(--dpk-shadow);
   }
   .map {
     display: grid;
     gap: 0;
     min-width: max-content;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius-lg);
-    background: var(--dpk-paper-sunken);
-    box-shadow: var(--dpk-shadow);
-    overflow: hidden;
   }
   .map-row {
     display: grid;
@@ -28,6 +34,36 @@ export const usmStyles = css`
   }
   .map-row + .map-row {
     border-top: 1px solid var(--dpk-rule);
+  }
+
+  /* The backbone (activities and steps) stays at the top while the rows scroll. */
+  .map-head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    border-bottom: 1px solid var(--dpk-rule-strong);
+    box-shadow: 0 8px 14px -12px var(--dpk-shade-3);
+  }
+
+  /* The leading column (axis corners and milestone labels) stays at the left
+     while the steps scroll sideways; it is opaque so cards pass under it. */
+  .corner:first-child,
+  .row-lead {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    box-shadow: 1px 0 0 var(--dpk-rule);
+  }
+  .row-lead {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    background: var(--dpk-paper-sunken);
+  }
+  /* An activity name spans its steps; keep it in view beside the sticky column. */
+  .act-head > dpk-component-inline-edit {
+    position: sticky;
+    left: 150px;
   }
   .corner,
   .act-head,
@@ -46,12 +82,19 @@ export const usmStyles = css`
   /* Above the table: the unit toggle (group band vs one column per activity)
      and the milestone tabs (every slice, or one at a time). */
   .board-bar {
+    /* Stays on top while the page scrolls past the map to the legend below. */
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: -24px -24px 0;
+    padding: 12px 24px;
+    background: var(--dpk-glass);
+    backdrop-filter: saturate(1.6) blur(14px);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 10px 14px;
     min-width: 0;
-    margin-bottom: 14px;
   }
 
   /* A sunken track with the selected segment raised on top of it. */
@@ -196,7 +239,7 @@ export const usmStyles = css`
   }
 
   /* Row-level drag affordance: hover highlights the entire .map-row. */
-  .map-row[data-draggable='true']:hover > .row-head {
+  .map-row[data-draggable='true']:hover .row-head {
     border-color: color-mix(in srgb, var(--dpk-blue) 45%, var(--dpk-rule));
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
   }
@@ -228,7 +271,7 @@ export const usmStyles = css`
     outline: 2px dashed var(--dpk-blue);
     outline-offset: -2px;
   }
-  .map-row[data-row-drop='true'] > .row-head {
+  .map-row[data-row-drop='true'] .row-head {
     border-color: var(--dpk-blue);
     background: var(--dpk-blue-soft);
   }

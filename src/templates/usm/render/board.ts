@@ -132,43 +132,45 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
   return html`
     <div class="map-scroll">
       <div class="map" style=${`--cols:${columns.length + 1}`} data-testid="usm-map">
-        <div class="map-row">
-          <div class="corner">
-            <span class="dpk-label">${m.groupAxisHeader}</span>
+        <div class="map-head">
+          <div class="map-row">
+            <div class="corner">
+              <span class="dpk-label">${m.groupAxisHeader}</span>
+            </div>
+            ${repeat(
+              state.activities,
+              (activity) => activity.id,
+              (activity) =>
+                renderActivityHead(m, context, activity.id, `grid-column: span ${Math.max(activity.steps.length, 1)}`),
+            )}
+            ${renderAddActivityHead(m, context)}
           </div>
-          ${repeat(
-            state.activities,
-            (activity) => activity.id,
-            (activity) =>
-              renderActivityHead(m, context, activity.id, `grid-column: span ${Math.max(activity.steps.length, 1)}`),
-          )}
-          ${renderAddActivityHead(m, context)}
-        </div>
-        <div class="map-row">
-          ${renderAxisCorner(m)}
-          ${repeat(
-            columns,
-            ({ activity, step }) => `${activity.id}.${step.id}`,
-            ({ step }) => html`
-              <div class="col-head" data-current=${String(context.navigation['step'] === step.id)}>
-                <h4>
-                  <dpk-component-inline-edit
-                    .value=${step.name}
-                    .label=${m.stepNameLabel}
-                    @dpk-commit=${onCommit((name) =>
-                      context.dispatch({
-                        type: 'SET_STEP_NAME',
-                        target: { type: 'step', id: step.id },
-                        payload: { name },
-                      }),
-                    )}
-                    @click=${(e: Event) => e.stopPropagation()}
-                  ></dpk-component-inline-edit>
-                </h4>
-              </div>
-            `,
-          )}
-          <div class="corner"><span class="dpk-label">—</span></div>
+          <div class="map-row">
+            ${renderAxisCorner(m)}
+            ${repeat(
+              columns,
+              ({ activity, step }) => `${activity.id}.${step.id}`,
+              ({ step }) => html`
+                <div class="col-head" data-current=${String(context.navigation['step'] === step.id)}>
+                  <h4>
+                    <dpk-component-inline-edit
+                      .value=${step.name}
+                      .label=${m.stepNameLabel}
+                      @dpk-commit=${onCommit((name) =>
+                        context.dispatch({
+                          type: 'SET_STEP_NAME',
+                          target: { type: 'step', id: step.id },
+                          payload: { name },
+                        }),
+                      )}
+                      @click=${(e: Event) => e.stopPropagation()}
+                    ></dpk-component-inline-edit>
+                  </h4>
+                </div>
+              `,
+            )}
+            <div class="corner"><span class="dpk-label">—</span></div>
+          </div>
         </div>
         ${repeat(
           rows,
@@ -203,14 +205,16 @@ const renderGroupView = (props: BoardProps): TemplateResult => {
   return html`
     <div class="map-scroll">
       <div class="map" style=${`--cols:${state.activities.length + 1}`} data-testid="usm-map-group">
-        <div class="map-row">
-          ${renderAxisCorner(m)}
-          ${repeat(
-            state.activities,
-            (activity) => activity.id,
-            (activity) => renderActivityHead(m, context, activity.id),
-          )}
-          ${renderAddActivityHead(m, context)}
+        <div class="map-head">
+          <div class="map-row">
+            ${renderAxisCorner(m)}
+            ${repeat(
+              state.activities,
+              (activity) => activity.id,
+              (activity) => renderActivityHead(m, context, activity.id),
+            )}
+            ${renderAddActivityHead(m, context)}
+          </div>
         </div>
         ${repeat(
           rows,
@@ -286,10 +290,12 @@ const renderAddMilestoneRow = (
   columnCount: number,
 ): TemplateResult => {
   return html`<div class="map-row">
-    <div class="row-head">
-      <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addMilestone(m, context)}>
-        ${m.newMilestoneButton}
-      </button>
+    <div class="row-lead">
+      <div class="row-head">
+        <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addMilestone(m, context)}>
+          ${m.newMilestoneButton}
+        </button>
+      </div>
     </div>
     ${Array.from({ length: columnCount + 1 }, () => html`<div class="cell"></div>`)}
   </div>`;
@@ -306,7 +312,9 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
   const milestoneId = row.id;
   if (milestoneId === undefined) {
     return html`<div class="map-row" data-draggable="false" data-row-dragging="false" data-row-drop="false">
-      <div class="row-head" data-milestone="" draggable="false"><span>${row.name}</span></div>
+      <div class="row-lead">
+        <div class="row-head" data-milestone="" draggable="false"><span>${row.name}</span></div>
+      </div>
       ${cells}
       <div class="cell"></div>
     </div>`;
@@ -314,7 +322,9 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
   const rename = renderMilestoneName(m, context, milestoneId, row.name);
   if (!showsAllMilestones(context)) {
     return html`<div class="map-row" data-draggable="false" data-row-dragging="false" data-row-drop="false">
-      <div class="row-head" data-milestone=${milestoneId} draggable="false">${rename}</div>
+      <div class="row-lead">
+        <div class="row-head" data-milestone=${milestoneId} draggable="false">${rename}</div>
+      </div>
       ${cells}
       <div class="cell"></div>
     </div>`;
@@ -338,17 +348,19 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
       @dragleave=${target.dragleave}
       @drop=${target.drop}
     >
-      <div
-        class="row-head"
-        data-milestone=${milestoneId}
-        draggable="true"
-        @dragstart=${(event: DragEvent) => {
-          liftRow(event);
-          source.dragstart(event);
-        }}
-        @dragend=${source.dragend}
-      >
-        <span class="row-grip" aria-hidden="true">${iconGrip()}</span>${rename}
+      <div class="row-lead">
+        <div
+          class="row-head"
+          data-milestone=${milestoneId}
+          draggable="true"
+          @dragstart=${(event: DragEvent) => {
+            liftRow(event);
+            source.dragstart(event);
+          }}
+          @dragend=${source.dragend}
+        >
+          <span class="row-grip" aria-hidden="true">${iconGrip()}</span>${rename}
+        </div>
       </div>
       ${cells}
       <div class="cell"></div>
