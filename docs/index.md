@@ -222,9 +222,11 @@ Write `lang` on `<html>`, and also on the template element when you do not contr
 
 The template header has a language select that starts on that language. The reader's pick switches the template and every element inside it, and is remembered per origin (`localStorage` key `dev-process-kit:locale`) unless `storage` is `off` or `memory`. Picking the page's own language forgets the pick. The template applies a pick by setting its own `lang`, so do not read that attribute back as the page's language. Your content (base data, slot markup, a diagram's `heading` / `subject`) is never translated. The hand-off brief keeps its headings and instructions in English for the agent; the action titles in it follow the page's language.
 
-### Sidebar width
+### Sidebar width and folding
 
 The reader can resize the template sidebar by dragging the edge that faces the main column, or by focusing that edge and pressing the arrow keys (they move the edge; Shift for larger steps, Home / End for the narrowest and widest). Double-clicking the edge restores the template's default width. The width stays between 180px and 560px and is remembered per template for every page of the origin (`localStorage` key `dev-process-kit:sidebar-width:<template>`) unless `storage` is `off` or `memory`. Templates without a sidebar have no edge.
+
+The round button on that edge folds the sidebar away and leaves a narrow strip with a button that brings it back (both are ordinary buttons, so Tab and Enter / Space work, and they carry `aria-expanded`). The folded state is remembered the same way as the width (`localStorage` key `dev-process-kit:sidebar-collapsed:<template>`). Grill has no such button: its own Questions / Review button already folds its rail.
 
 ## Review and the hand-off
 

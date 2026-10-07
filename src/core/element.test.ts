@@ -475,6 +475,107 @@ describe('sidebar width', () => {
   });
 });
 
+describe('sidebar collapse', () => {
+  const sidebar = (el: Element): HTMLElement => el.shadowRoot?.querySelector('.dpk-sidebar') as HTMLElement;
+  const toggle = (el: Element): HTMLButtonElement | null =>
+    el.shadowRoot?.querySelector<HTMLButtonElement>('.dpk-sidebar-toggle') ?? null;
+  const edge = (el: Element): HTMLElement | null => el.shadowRoot?.querySelector('.dpk-sidebar-resizer') ?? null;
+  const messages = coreMessages('en');
+
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+    localStorage.clear();
+  });
+
+  it('folds the sidebar away with a labelled button and brings it back', async () => {
+    const el = mount();
+    await settle(el);
+    const button = toggle(el) as HTMLButtonElement;
+    expect(button.getAttribute('aria-label')).toBe(messages.collapseSidebar);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(button.getAttribute('aria-controls')).toBe(sidebar(el).id);
+
+    button.click();
+    await settle(el);
+    expect(sidebar(el).hidden).toBe(true);
+    expect(edge(el)).toBeNull();
+    const expand = toggle(el) as HTMLButtonElement;
+    expect(expand.getAttribute('aria-label')).toBe(messages.expandSidebar);
+    expect(expand.getAttribute('aria-expanded')).toBe('false');
+    expect(expand.closest('.dpk-sidebar-strip')).not.toBeNull();
+    expect(el.shadowRoot?.activeElement).toBe(expand);
+
+    expand.click();
+    await settle(el);
+    expect(sidebar(el).hidden).toBe(false);
+    expect(edge(el)).not.toBeNull();
+    expect(toggle(el)?.getAttribute('aria-label')).toBe(messages.collapseSidebar);
+  });
+
+  it('keeps the resizable edge working once expanded again', async () => {
+    const el = mount();
+    await settle(el);
+    (toggle(el) as HTMLButtonElement).click();
+    await settle(el);
+    (toggle(el) as HTMLButtonElement).click();
+    await settle(el);
+    (edge(el) as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    await settle(el);
+    expect(sidebar(el).style.getPropertyValue('--dpk-sidebar-width')).toBe(`${SIDEBAR_WIDTH.max}px`);
+  });
+
+  it("remembers the reader's choice for every page of the same template", async () => {
+    document.body.innerHTML = '<dpk-template-prototype storage-key="first"></dpk-template-prototype>';
+    const first = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    await settle(first);
+    (toggle(first) as HTMLButtonElement).click();
+    await settle(first);
+
+    document.body.innerHTML = '<dpk-template-prototype storage-key="second"></dpk-template-prototype>';
+    const second = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    await settle(second);
+    expect(sidebar(second).hidden).toBe(true);
+
+    (toggle(second) as HTMLButtonElement).click();
+    await settle(second);
+    expect(localStorage.getItem('dev-process-kit:sidebar-collapsed:prototype')).toBeNull();
+  });
+
+  it('keeps the choice to the page load with storage="memory"', async () => {
+    const el = mount();
+    await settle(el);
+    (toggle(el) as HTMLButtonElement).click();
+    await settle(el);
+    expect(localStorage.getItem('dev-process-kit:sidebar-collapsed:prototype')).toBeNull();
+  });
+
+  it('folds a right-hand sidebar towards the right', async () => {
+    document.body.innerHTML = '<dpk-template-task-board storage="memory"></dpk-template-task-board>';
+    const el = document.querySelector('dpk-template-task-board') as DpkTemplatePrototype;
+    await settle(el);
+    const button = toggle(el) as HTMLButtonElement;
+    expect(button.nextElementSibling).toBe(edge(el));
+    button.click();
+    await settle(el);
+    expect(sidebar(el).hidden).toBe(true);
+    expect(toggle(el)?.closest('.dpk-sidebar-strip')?.nextElementSibling).toBe(sidebar(el));
+  });
+
+  it('offers no fold button when the template shows no sidebar or folds it itself', async () => {
+    document.body.innerHTML = '<dpk-template-usm storage="memory"></dpk-template-usm>';
+    const usm = document.querySelector('dpk-template-usm') as DpkTemplatePrototype;
+    await settle(usm);
+    expect(toggle(usm)).toBeNull();
+
+    document.body.innerHTML = '<dpk-template-grill storage="memory"></dpk-template-grill>';
+    const grill = document.querySelector('dpk-template-grill') as DpkTemplatePrototype;
+    await settle(grill);
+    expect(toggle(grill)).toBeNull();
+    expect(edge(grill)).not.toBeNull();
+  });
+});
+
 describe('language', () => {
   const select = (el: DpkTemplatePrototype): HTMLSelectElement =>
     el.shadowRoot?.querySelector('.dpk-lang-select') as HTMLSelectElement;

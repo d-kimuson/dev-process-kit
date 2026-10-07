@@ -21,7 +21,7 @@ import { DraftController } from './controller';
 import { componentElementActionSchema } from './element-actions';
 import { presentDock } from './handoff-dock';
 import { LOCALES, type Locale } from './i18n';
-import { iconMoon, iconSun } from './icons';
+import { iconChevronLeft, iconChevronRight, iconMoon, iconSun } from './icons';
 import { coreMessages, LANGUAGE_NAMES } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { defaultStorage, MemoryDraftStorage, type DraftStorage } from './persistence';
@@ -33,9 +33,10 @@ import { HandoffDockController } from './shell/handoff-dock-controller';
 import { LocaleChoiceController } from './shell/locale-choice-controller';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
 import { PreviewRouter } from './shell/preview-router';
+import { SidebarCollapseController } from './shell/sidebar-collapse-controller';
 import { SidebarResizeController } from './shell/sidebar-resize-controller';
 import { chromeStyles } from './shell/styles';
-import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, type SidebarLayout } from './sidebar-width';
+import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, sidebarToggle, type SidebarLayout } from './sidebar-width';
 import { targetRef } from './target';
 import { FRAMEWORK_VERSION } from './version';
 
@@ -81,6 +82,12 @@ export abstract class TemplateElement<S> extends LitElement {
     template: () => this.definition.name,
     layout: () => this.sidebarLayout,
   });
+  #sidebarCollapse = new SidebarCollapseController(this, {
+    persist: () => this.storage !== 'off' && this.storage !== 'memory',
+    template: () => this.definition.name,
+  });
+  /** The fold button is replaced as the sidebar folds; focus follows it to the new one. */
+  #focusSidebarToggle = false;
 
   /**
    * The template in one language. Called again whenever the locale changes:
@@ -186,6 +193,10 @@ export abstract class TemplateElement<S> extends LitElement {
   protected override updated(): void {
     this.#routePreviews();
     this.#reserveDockSpace();
+    if (this.#focusSidebarToggle) {
+      this.#focusSidebarToggle = false;
+      this.renderRoot.querySelector<HTMLElement>('.dpk-sidebar-toggle')?.focus();
+    }
   }
 
   // ------------------------------------------------------------------ public
@@ -330,6 +341,8 @@ export abstract class TemplateElement<S> extends LitElement {
     const messages = coreMessages(this.locale);
     const sidebarHidden = regions.sidebarHidden === true || (!regions.sidebar && !this.hasSidebarContent());
     const side = this.sidebarLayout.side;
+    const collapsed = !sidebarHidden && this.#sidebarCollapsible && this.#sidebarCollapse.collapsed;
+    const edge = sidebarHidden ? nothing : this.#renderSidebarEdge(collapsed);
     return html`
       <div class="dpk-shell" ?data-resizing=${this.#sidebarWidth.dragging}>
         <header class="dpk-header">
@@ -352,16 +365,17 @@ export abstract class TemplateElement<S> extends LitElement {
           <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
         </header>
         <div class="dpk-body" data-sidebar-side=${side}>
-          ${sidebarHidden || side !== 'right' ? nothing : this.#renderSidebarEdge()}
+          ${side === 'right' ? edge : nothing}
           <aside
+            id="dpk-sidebar"
             class="dpk-sidebar"
-            ?hidden=${sidebarHidden}
+            ?hidden=${sidebarHidden || collapsed}
             style=${`--dpk-sidebar-width: ${this.#sidebarWidth.width}px`}
           >
             ${regions.sidebar ?? nothing}
             <slot name="sidebar"></slot>
           </aside>
-          ${sidebarHidden || side !== 'left' ? nothing : this.#renderSidebarEdge()}
+          ${side === 'left' ? edge : nothing}
           <main class="dpk-main">
             <div class="dpk-main-body">
               ${
@@ -496,8 +510,46 @@ export abstract class TemplateElement<S> extends LitElement {
     </button>`;
   }
 
+  get #sidebarCollapsible(): boolean {
+    return this.sidebarLayout.collapsible !== false;
+  }
+
+  /**
+   * What sits between the sidebar and the main column: the resizable edge and
+   * the fold button on it, or, once folded, a narrow strip holding the button
+   * that brings the sidebar back. The resizer stays next to the sidebar, on
+   * whichever side that is.
+   */
+  #renderSidebarEdge(collapsed: boolean): TemplateResult {
+    const toggle = this.#sidebarCollapsible ? this.#renderSidebarToggle(collapsed) : nothing;
+    if (collapsed) return html`<div class="dpk-sidebar-strip">${toggle}</div>`;
+    return this.sidebarLayout.side === 'left'
+      ? html`${this.#renderSidebarResizer()}${toggle}`
+      : html`${toggle}${this.#renderSidebarResizer()}`;
+  }
+
+  #renderSidebarToggle(collapsed: boolean): TemplateResult {
+    const messages = coreMessages(this.locale);
+    const toggle = sidebarToggle(this.sidebarLayout.side, collapsed);
+    const label = toggle.action === 'collapse' ? messages.collapseSidebar : messages.expandSidebar;
+    return html`<button
+      class="dpk-sidebar-toggle"
+      type="button"
+      aria-controls="dpk-sidebar"
+      aria-expanded=${collapsed ? 'false' : 'true'}
+      aria-label=${label}
+      title=${label}
+      @click=${() => {
+        this.#focusSidebarToggle = true;
+        this.#sidebarCollapse.toggle();
+      }}
+    >
+      ${toggle.points === 'left' ? iconChevronLeft() : iconChevronRight()}
+    </button>`;
+  }
+
   /** The sidebar's edge facing the main column: dragged, or focused and moved with the arrow keys. */
-  #renderSidebarEdge(): TemplateResult {
+  #renderSidebarResizer(): TemplateResult {
     const messages = coreMessages(this.locale);
     const on = this.#sidebarWidth.handlers;
     return html`<div

@@ -23,6 +23,11 @@ export type SidebarLayout = {
   readonly side: SidebarSide;
   /** The width before the reader resizes it, and the one a double-click restores. */
   readonly defaultWidth: number;
+  /**
+   * Whether the shell offers the reader a button to fold the sidebar away.
+   * Defaults to `true`; a template with its own fold control sets `false`.
+   */
+  readonly collapsible?: boolean;
 };
 
 export const DEFAULT_SIDEBAR_LAYOUT: SidebarLayout = { side: 'left', defaultWidth: 260 };
@@ -70,3 +75,17 @@ export const keyedSidebarWidth = (width: number, side: SidebarSide, { key, shift
       return null;
   }
 };
+
+/** A stored collapsed flag, or `null` when the value is not one. */
+export const parseSidebarCollapsed = (value: unknown): boolean | null => (typeof value === 'boolean' ? value : null);
+
+/** What the fold button does, and which way its chevron points: towards where the sidebar goes. */
+export type SidebarToggle = {
+  readonly action: 'collapse' | 'expand';
+  readonly points: SidebarSide;
+};
+
+const opposite = (side: SidebarSide): SidebarSide => (side === 'left' ? 'right' : 'left');
+
+export const sidebarToggle = (side: SidebarSide, collapsed: boolean): SidebarToggle =>
+  collapsed ? { action: 'expand', points: opposite(side) } : { action: 'collapse', points: side };

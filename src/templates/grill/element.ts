@@ -43,7 +43,8 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
   static override styles = [TemplateElement.styles, grillStyles];
 
   protected override get sidebarLayout(): SidebarLayout {
-    return { side: 'right', defaultWidth: 336 };
+    // The question column already folds from the header control.
+    return { side: 'right', defaultWidth: 336, collapsible: false };
   }
 
   protected override definitionFor(locale: Locale) {

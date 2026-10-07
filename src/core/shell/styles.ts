@@ -291,13 +291,74 @@ export const chromeStyles = [
     }
 
     :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar,
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-resizer {
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-resizer,
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-toggle,
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-strip {
       order: 2;
     }
 
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar {
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar,
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-strip {
       border-right: 0;
       border-left: 1px solid var(--dpk-rule);
+    }
+
+    /*
+     * The fold button. Expanded, it sits on the sidebar's border near the top
+     * and, like the resizer, takes no room of its own; folded, it is the only
+     * thing left in a narrow strip where the sidebar was.
+     */
+    .dpk-sidebar-toggle {
+      position: relative;
+      z-index: 7;
+      display: inline-flex;
+      flex: none;
+      align-self: flex-start;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      margin: 14px -11px 0;
+      padding: 0;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: 999px;
+      background: var(--dpk-paper-raised);
+      color: var(--dpk-ink-soft);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+      cursor: pointer;
+      transition:
+        color 160ms var(--dpk-ease),
+        border-color 160ms var(--dpk-ease),
+        background 160ms var(--dpk-ease);
+    }
+
+    .dpk-sidebar-toggle svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .dpk-sidebar-toggle:hover {
+      color: var(--dpk-accent);
+      border-color: color-mix(in srgb, var(--dpk-accent) 45%, transparent);
+    }
+
+    .dpk-sidebar-toggle:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
+    .dpk-sidebar-strip {
+      display: flex;
+      flex: none;
+      justify-content: center;
+      width: 36px;
+      padding-top: 14px;
+      border-right: 1px solid var(--dpk-rule);
+      background: var(--dpk-paper-sunken);
+    }
+
+    .dpk-sidebar-strip .dpk-sidebar-toggle {
+      margin: 0;
     }
 
     /*
