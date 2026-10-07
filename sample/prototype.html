@@ -586,6 +586,109 @@
         width: auto;
         margin: 0;
       }
+
+      /* The body of a received mail: the frame draws the envelope, the page only the message. */
+      .sm-mail {
+        align-content: start;
+        gap: 12px;
+        background: #ffffff;
+      }
+
+      .sm-mail p {
+        margin: 0;
+      }
+
+      /* A sticky note next to the admin screen: drawn by the page, framed by nothing. */
+      .sticky {
+        display: grid;
+        justify-items: center;
+        padding: 6px 0;
+      }
+
+      .sticky-note {
+        width: min(260px, 100%);
+        padding: 16px 18px 20px;
+        background: #fff3a8;
+        color: #3a3320;
+        font-family: 'Klee One', 'Yomogi', 'Comic Sans MS', cursive;
+        font-size: 13.5px;
+        line-height: 1.7;
+        box-shadow:
+          0 1px 1px rgba(0, 0, 0, 0.08),
+          0 10px 18px rgba(80, 60, 0, 0.18);
+        transform: rotate(1.2deg);
+      }
+
+      .sticky-note ul {
+        margin: 8px 0;
+        padding-left: 1.1em;
+      }
+
+      .sticky-note p {
+        margin: 0;
+        font-weight: 600;
+      }
+
+      /* A FAX on the operator's desk: not a screen, so a `plain` preview draws the paper itself. */
+      .fax {
+        display: grid;
+        justify-items: center;
+        padding: 8px 0 18px;
+      }
+
+      .fax-sheet {
+        width: min(520px, 100%);
+        padding: 28px 34px 34px;
+        background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.018) 0 1px, transparent 1px 3px), #fbfaf6;
+        color: #2a2a2a;
+        font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+        font-size: 13px;
+        line-height: 1.75;
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.12),
+          0 12px 28px rgba(0, 0, 0, 0.14);
+        transform: rotate(-0.6deg);
+        filter: grayscale(1) contrast(1.05);
+      }
+
+      .fax-head {
+        display: flex;
+        justify-content: space-between;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #2a2a2a;
+        font-family: ui-monospace, monospace;
+        font-size: 10.5px;
+        letter-spacing: 0.04em;
+      }
+
+      .fax-sheet h2 {
+        margin: 16px 0 10px;
+        font-size: 18px;
+        letter-spacing: 0.2em;
+        text-align: center;
+      }
+
+      .fax-sheet table {
+        width: 100%;
+        margin: 12px 0;
+        border-collapse: collapse;
+        font-family: ui-monospace, monospace;
+        font-size: 11.5px;
+      }
+
+      .fax-sheet th,
+      .fax-sheet td {
+        padding: 4px 6px;
+        border: 1px solid #555;
+        text-align: left;
+      }
+
+      .fax-note {
+        margin-top: 14px;
+        padding: 6px 10px;
+        border: 1px dashed #555;
+        font-size: 12px;
+      }
     </style>
   </head>
   <body>
@@ -719,8 +822,21 @@
                       "name": "返金完了のメールを受け取る",
                       "title": "返金完了のお知らせ",
                       "description": "受付と返金完了は別のメールで届く",
+                      "situation": "キャンセルから 3 日後の朝、通勤中の電車でスマホに通知が届く",
                       "previews": [
-                        { "id": "refund-mail-native", "kind": "native", "viewport": "mobile", "label": "通知" }
+                        { "id": "refund-mail-native", "kind": "native", "viewport": "mobile", "label": "通知" },
+                        {
+                          "id": "refund-mail-message",
+                          "kind": "mail",
+                          "viewport": "mobile",
+                          "label": "メール",
+                          "mail": {
+                            "from": "Sora Market <order@sora-market.example.com>",
+                            "to": "hanako.sato@example.com",
+                            "subject": "【Sora Market】返金が完了しました（注文 SM-0918-0342）",
+                            "date": "2025/09/19 9:41"
+                          }
+                        }
                       ]
                     },
                     {
@@ -815,6 +931,14 @@
                   "name": "滞っている返金に対応する",
                   "steps": [
                     {
+                      "id": "refund-fax",
+                      "name": "返金失敗の連絡を FAX で受け取る",
+                      "title": "返金不能のお知らせ（FAX）",
+                      "description": "決済代行は返金に失敗した取引を翌朝 FAX で知らせてくる。画面の外で始まる対応",
+                      "situation": "朝 8 時、事務所の FAX に決済代行から 1 枚届く。運営者は出社してすぐ紙で気づく",
+                      "previews": [{ "id": "refund-fax-paper", "kind": "plain", "label": "FAX" }]
+                    },
+                    {
                       "id": "admin-refunds",
                       "name": "返金待ちが長い注文を見つける",
                       "title": "返金待ち一覧",
@@ -832,10 +956,19 @@
                       "name": "失敗が続く返金を調べる",
                       "title": "返金の詳細",
                       "description": "失敗が続いたときの扱いは未決。ここでは「返金待ち」のまま残し、運営が照会と連絡をする案で描いた",
+                      "situation": "FAX を手元に置き、決済代行のサポートに電話で照会しながら管理画面で試行の履歴を確かめる",
+                      "layout": "side-by-side",
                       "previews": [
+                        {
+                          "id": "admin-refund-stuck-memo",
+                          "kind": "plain",
+                          "viewport": "fluid",
+                          "label": "手元のメモ"
+                        },
                         {
                           "id": "admin-refund-stuck-desktop",
                           "viewport": "desktop",
+                          "label": "管理画面",
                           "url": "https://admin.sora-market.example.com/refunds/SM-0915-0288"
                         }
                       ]
@@ -1096,7 +1229,7 @@
       <div slot="preview" data-preview-id="refund-mail-native">
         <div class="sm sm-lock">
           <div class="sm-clock">9:41<small>9月19日（金）</small></div>
-          <a class="sm-push" href="#step=refunded-detail" data-dpk-navigate="step=refunded-detail">
+          <a class="sm-push" href="#preview=refund-mail-message" data-dpk-navigate="preview=refund-mail-message">
             <span class="sm-logo">S</span>
             <div>
               <b>メール</b> <small>いま</small>
@@ -1112,6 +1245,22 @@
               <small>返金の手続きを進めています。完了したらあらためてお知らせします。</small>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="refund-mail-message">
+        <div class="sm sm-mail">
+          <p>佐藤 花子 様</p>
+          <p>
+            ご注文 SM-0918-0342
+            のキャンセルにともなう返金が完了しました。カード会社の処理により、明細への反映まで数日かかることがあります。
+          </p>
+          <div class="sm-card">
+            <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
+            <div class="sm-row"><span>返金先</span><span>VISA •••• 4242</span></div>
+          </div>
+          <a class="sm-btn" href="#step=refunded-detail" data-dpk-navigate="step=refunded-detail">注文を確認する</a>
+          <p class="sm-sub">このメールは送信専用です。お問い合わせは注文詳細の「お問い合わせ」からどうぞ。</p>
         </div>
       </div>
 
@@ -1262,7 +1411,9 @@
                       <td>購入者 · 9/18 21:40</td>
                     </tr>
                     <tr>
-                      <td><a>SM-0916-0301</a></td>
+                      <td>
+                        <a href="#step=admin-order-detail" data-dpk-navigate="step=admin-order-detail">SM-0916-0301</a>
+                      </td>
                       <td>9/16 19:48</td>
                       <td>雲井 たける</td>
                       <td class="sm-num">¥2,980</td>
@@ -1270,7 +1421,9 @@
                       <td>購入者 · 9/16 20:02</td>
                     </tr>
                     <tr>
-                      <td><a>SM-0914-0210</a></td>
+                      <td>
+                        <a href="#step=admin-order-detail" data-dpk-navigate="step=admin-order-detail">SM-0914-0210</a>
+                      </td>
                       <td>9/14 08:15</td>
                       <td>晴海 さき</td>
                       <td class="sm-num">¥6,600</td>
@@ -1374,7 +1527,9 @@
                       <td>タイムアウト</td>
                     </tr>
                     <tr>
-                      <td><a>SM-0919-0012</a></td>
+                      <td>
+                        <a href="#step=admin-refund-stuck" data-dpk-navigate="step=admin-refund-stuck">SM-0919-0012</a>
+                      </td>
                       <td>9/19 09:48</td>
                       <td>42 分</td>
                       <td class="sm-num">¥5,390</td>
@@ -1382,7 +1537,9 @@
                       <td>照会中</td>
                     </tr>
                     <tr>
-                      <td><a>SM-0919-0020</a></td>
+                      <td>
+                        <a href="#step=admin-refund-stuck" data-dpk-navigate="step=admin-refund-stuck">SM-0919-0020</a>
+                      </td>
                       <td>9/19 10:24</td>
                       <td>6 分</td>
                       <td class="sm-num">¥1,650</td>
@@ -1393,6 +1550,51 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="refund-fax-paper">
+        <div class="fax">
+          <div class="fax-sheet">
+            <div class="fax-head">
+              <span>FROM: ソラペイ決済 加盟店サポート 03-5555-0142</span>
+              <span>2025/09/19 08:12 P.01/01</span>
+            </div>
+            <h2>返金不能のお知らせ</h2>
+            <p>Sora Market 御中</p>
+            <p>下記のお取引について、カード会社の応答がなく返金を完了できませんでした。</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>加盟店取引番号</th>
+                  <th>金額</th>
+                  <th>状態</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>SM-0915-0288</td>
+                  <td>¥24,200</td>
+                  <td>応答なし（6 回）</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="fax-note">ご不明点は管理画面の「返金照会」またはお電話にてお問い合わせください。</p>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="admin-refund-stuck-memo">
+        <div class="sticky">
+          <div class="sticky-note">
+            <b>9/19 ソラペイ 電話</b>
+            <ul>
+              <li>SM-0915-0288 → カード会社側で保留</li>
+              <li>再送は止めてほしい（二重返金の恐れ）</li>
+              <li>結果は 9/22 までに FAX で</li>
+            </ul>
+            <p>→ 購入者に連絡する？</p>
           </div>
         </div>
       </div>
@@ -1459,7 +1661,7 @@
                   </p>
                   <div class="sm-actions">
                     <button class="sm-btn">いま結果を照会する</button>
-                    <button class="sm-btn sm-btn--ghost">購入者に連絡する</button>
+                    <button class="sm-btn sm-btn--ghost" data-dpk-navigate="story=inquiries">購入者に連絡する</button>
                   </div>
                 </div>
               </div>

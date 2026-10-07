@@ -8,6 +8,8 @@ import type {
 } from '../../core/types';
 import type { PrototypeMessages } from './messages';
 
+import { commentBody } from '../../core/comment';
+import { parseHash } from '../../core/navigation';
 import { payloadFor, type ActionName } from '../../core/schema';
 import { slugify, targetRef } from '../../core/target';
 import { prototypeActions } from './actions';
@@ -16,14 +18,20 @@ import {
   findPreview,
   findStep,
   findStory,
+  flattenSteps,
   stepRef,
   stepRefOf,
   storyRef,
+  type PreviewLayout,
   type PrototypeActivity,
   type PrototypePreview,
+  type PrototypeStep,
   type PrototypeState,
   type PrototypeStory,
   type StepLocation,
+  type UiTarget,
+  parseUiTargetId,
+  UI_TARGET,
 } from './model';
 
 type Summary = {
@@ -213,9 +221,58 @@ export const prototypeTargetLabel = (m: PrototypeMessages, state: PrototypeState
     }
     case 'page':
       return m.targetLabel(m.pageGroup, prototypeTitle(state));
+    case UI_TARGET: {
+      const ui = parseUiTargetId(target.id);
+      const preview = ui ? findPreview(state, ui.previewId)?.preview : undefined;
+      return ui && preview
+        ? m.targetLabel(m.uiGroup, prototypeUiTargetName(preview, ui))
+        : m.targetMissing(m.uiGroup, target.id);
+    }
     default:
       return m.targetLabel(target.type, target.id);
   }
+};
+
+/** `Desktop › "Save"`: the preview it is on, then what the element says (or its selector). */
+export const prototypeUiTargetName = (preview: PrototypePreview, target: UiTarget): string => {
+  const element = target.text === undefined ? target.selector : `"${target.text}"`;
+  return `${preview.label ?? preview.id} › ${element}`;
+};
+
+export type UiCommentPin = {
+  /** The comment action. */
+  readonly id: string;
+  readonly previewId: string;
+  readonly selector: string;
+  /** 1-based number of the pin among the comments on screen. */
+  readonly number: number;
+  readonly body: string;
+};
+
+/** The UI comments on the given previews, numbered in draft order, for the pins drawn over them. */
+export const prototypeUiCommentPins = (
+  comments: readonly DraftAction[],
+  previewIds: readonly string[],
+): readonly UiCommentPin[] => {
+  const pins: UiCommentPin[] = [];
+  for (const comment of comments) {
+    if (comment.target.type !== UI_TARGET) continue;
+    const ui = parseUiTargetId(comment.target.id);
+    if (!ui || !previewIds.includes(ui.previewId)) continue;
+    pins.push({
+      id: comment.id,
+      previewId: ui.previewId,
+      selector: ui.selector,
+      number: pins.length + 1,
+      body: commentBody(comment),
+    });
+  }
+  return pins;
+};
+
+/** How many UI comments sit on the given previews: the step list counts them with the step's own. */
+export const prototypeUiCommentCount = (comments: readonly DraftAction[], previewIds: readonly string[]): number => {
+  return prototypeUiCommentPins(comments, previewIds).length;
 };
 
 /**
@@ -235,6 +292,108 @@ export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePre
       : `https://${configured}`
     : `https://${slug === 'item' ? 'page' : slug}.example.com`;
   return `${origin.replace(/\/+$/, '')}/${preview.id}`;
+};
+
+export type StageFrames = {
+  readonly layout: PreviewLayout;
+  /** The previews on screen: the selected tab, or every preview side by side. */
+  readonly shown: readonly PrototypePreview[];
+  /** The tabs to switch between; empty when there is nothing to switch. */
+  readonly tabs: readonly PrototypePreview[];
+  /** The selected tab. */
+  readonly activeId?: string;
+};
+
+/** Which previews of a step are on screen, and whether tabs switch between them. */
+export const prototypeStageFrames = (step: PrototypeStep, nav: Navigation): StageFrames => {
+  if (step.layout === 'side-by-side') return { layout: 'side-by-side', shown: step.previews, tabs: [] };
+  const active = step.previews.find((preview) => preview.id === nav['preview']) ?? step.previews[0];
+  return {
+    layout: 'tabs',
+    shown: active ? [active] : [],
+    tabs: step.previews.length > 1 ? step.previews : [],
+    ...(active ? { activeId: active.id } : {}),
+  };
+};
+
+/** Why a link in a preview leads nowhere: it names no destination, or one the page does not have. */
+export type LinkProblem = 'no-destination' | 'unknown-target';
+
+const NAVIGATION_KEYS = ['activity', 'story', 'step', 'preview'] as const;
+
+const destinationExists = (state: PrototypeState, key: (typeof NAVIGATION_KEYS)[number], id: string): boolean => {
+  switch (key) {
+    case 'activity':
+      return findActivity(state, id) !== undefined;
+    case 'story':
+      // A bare id two activities share still resolves: the current activity wins.
+      return (
+        findStory(state, id) !== undefined ||
+        state.activities.some((activity) => activity.stories.some((story) => story.id === id))
+      );
+    case 'step':
+      return findStep(state, id) !== undefined || flattenSteps(state).some((location) => location.step.id === id);
+    case 'preview':
+      return findPreview(state, id) !== undefined;
+    default:
+      return false;
+  }
+};
+
+/**
+ * Checks a link of a preview against the page: `data-dpk-navigate` first, then
+ * an `href` hash. `null` when it goes somewhere (an external URL counts).
+ */
+export const prototypeLinkProblem = (
+  state: PrototypeState,
+  link: { readonly href: string | null; readonly navigate: string | null },
+): LinkProblem | null => {
+  let target: string;
+  if (link.navigate !== null) target = link.navigate.includes('=') ? link.navigate : `step=${link.navigate}`;
+  else {
+    const href = link.href?.trim() ?? '';
+    if (href === '' || href === '#' || href.toLowerCase().startsWith('javascript:')) return 'no-destination';
+    if (!href.startsWith('#')) return null;
+    target = href;
+  }
+  const navigation = parseHash(target);
+  const keys = NAVIGATION_KEYS.filter((key) => navigation[key] !== undefined);
+  if (keys.length === 0) return link.navigate === null ? null : 'unknown-target';
+  return keys.every((key) => destinationExists(state, key, navigation[key] ?? '')) ? null : 'unknown-target';
+};
+
+export type MailHeader = {
+  readonly subject?: string;
+  /** The sender's display name (`Shop <a@b>` -> `Shop`), shown next to the avatar. */
+  readonly sender?: string;
+  /** First letter of the sender, drawn as the avatar. */
+  readonly initial?: string;
+  readonly rows: readonly { readonly label: string; readonly value: string }[];
+};
+
+/** The envelope of a `mail` preview in the order a mail client shows it, without empty rows. */
+export const prototypeMailHeader = (m: PrototypeMessages, preview: PrototypePreview): MailHeader => {
+  const mail = preview.mail ?? {};
+  const rows = [
+    { label: m.mailFrom, value: mail.from },
+    { label: m.mailTo, value: mail.to },
+    { label: m.mailCc, value: mail.cc },
+    { label: m.mailDate, value: mail.date },
+  ].flatMap((row) =>
+    row.value === undefined || row.value.trim() === '' ? [] : [{ label: row.label, value: row.value }],
+  );
+  const sender =
+    mail.from
+      ?.replace(/<[^>]*>/g, '')
+      .replace(/["']/g, '')
+      .trim() || mail.from?.trim();
+  const initial = sender ? Array.from(sender)[0]?.toUpperCase() : undefined;
+  return {
+    ...(mail.subject === undefined || mail.subject.trim() === '' ? {} : { subject: mail.subject }),
+    ...(sender ? { sender } : {}),
+    ...(initial === undefined ? {} : { initial }),
+    rows,
+  };
 };
 
 export const prototypeCommentTargets = (
@@ -353,10 +512,13 @@ export const resolvePrototypeNavigation = (state: PrototypeState, nav: Navigatio
   else delete next['step'];
   // The preview tab is navigation state too: it must be shareable and survive
   // back/forward, so it lives in the hash and falls back to the first preview.
+  // Side by side, every preview is on screen at once: there is no tab to keep.
   const preview =
-    step && nav['preview'] && step.previews.some((entry) => entry.id === nav['preview'])
-      ? nav['preview']
-      : step?.previews[0]?.id;
+    step?.layout === 'side-by-side'
+      ? undefined
+      : step && nav['preview'] && step.previews.some((entry) => entry.id === nav['preview'])
+        ? nav['preview']
+        : step?.previews[0]?.id;
   if (preview) next['preview'] = preview;
   else delete next['preview'];
   return next;

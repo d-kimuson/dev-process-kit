@@ -11,9 +11,11 @@ import {
   findStep,
   findStory,
   parsePrototypeBase,
+  parseUiTargetId,
   stepRef,
   storyRef,
   type PrototypeState,
+  UI_TARGET,
 } from './model';
 import {
   describePrototypeAction,
@@ -36,6 +38,11 @@ export const prototypeHasTarget = (state: PrototypeState, target: ActionTarget):
       return findPreview(state, target.id) !== undefined;
     case 'page':
       return true;
+    case UI_TARGET: {
+      // The element itself lives in the author's markup; the comment holds as long as its preview does.
+      const ui = parseUiTargetId(target.id);
+      return ui !== undefined && findPreview(state, ui.previewId) !== undefined;
+    }
     default:
       return false;
   }

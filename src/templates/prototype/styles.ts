@@ -179,6 +179,8 @@ export const prototypeStyles = css`
 
   .stage {
     display: grid;
+    /* One column no wider than the main area: a wide row of panes scrolls inside the canvas. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
     width: 100%;
     min-width: 0;
@@ -343,6 +345,38 @@ export const prototypeStyles = css`
     white-space: pre-wrap;
   }
 
+  /* -------------------------------------------------------------- situation */
+
+  /* What is going on around the previews: a stage direction, read before them. */
+  .situation {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    max-width: 90ch;
+    margin: -4px 0 -2px;
+    padding: 9px 14px;
+    border-left: 3px solid color-mix(in srgb, var(--dpk-prototype-accent) 55%, transparent);
+    border-radius: 0 var(--dpk-radius) var(--dpk-radius) 0;
+    background: color-mix(in srgb, var(--dpk-prototype-accent) 6%, var(--dpk-paper-raised));
+  }
+
+  .situation-label {
+    flex: none;
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    color: var(--dpk-prototype-accent);
+  }
+
+  .situation-text {
+    margin: 0;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--dpk-ink);
+    white-space: pre-line;
+  }
+
   /* ----------------------------------------------------------------- canvas */
 
   /*
@@ -360,6 +394,149 @@ export const prototypeStyles = css`
     box-shadow: inset 0 1px 3px var(--dpk-shade-1);
   }
 
+  /* ---------------------------------------------------------- comment on UI */
+
+  .ui-comment-toggle svg,
+  .ui-comment-hint svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .ui-comment-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ui-comment-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -4px 0 -2px;
+    padding: 7px 12px;
+    border-radius: var(--dpk-radius);
+    background: var(--dpk-accent-soft);
+    color: var(--dpk-accent-strong, var(--dpk-accent));
+    font-size: 12.5px;
+    font-weight: 550;
+  }
+
+  .canvas {
+    position: relative;
+  }
+
+  .stage:not([data-ui-comment='off']) .canvas ::slotted(*) {
+    cursor: crosshair;
+  }
+
+  /* Positioned against the canvas by the element, which measures the author's markup. */
+  .ui-layer {
+    display: contents;
+  }
+
+  .ui-box {
+    position: absolute;
+    z-index: 2;
+    box-sizing: border-box;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+
+  .ui-hover {
+    outline: 2px solid var(--dpk-accent);
+    outline-offset: 1px;
+    background: color-mix(in srgb, var(--dpk-accent) 8%, transparent);
+  }
+
+  .ui-picked {
+    outline: 2px solid var(--dpk-accent);
+    outline-offset: 2px;
+    background: color-mix(in srgb, var(--dpk-accent) 14%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--dpk-accent) 18%, transparent);
+  }
+
+  .ui-pin {
+    position: absolute;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+    border: 2px solid var(--dpk-paper-raised);
+    border-radius: 999px 999px 999px 2px;
+    background: var(--dpk-accent);
+    color: var(--dpk-accent-ink);
+    box-shadow: var(--dpk-shadow-sm);
+    font-family: var(--dpk-mono);
+    font-size: 10px;
+    font-weight: 700;
+    pointer-events: auto;
+  }
+
+  .ui-box[hidden],
+  .ui-pin[hidden] {
+    display: none;
+  }
+
+  /*
+   * Side by side: what the user sees together, in one row. A fixed viewport
+   * keeps its width as long as the row allows it, a fluid one takes the rest;
+   * a row wider than the canvas scrolls sideways instead of squeezing a device.
+   */
+  .panes {
+    display: flex;
+    align-items: flex-start;
+    justify-content: safe center;
+    gap: 28px;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  /* A device shrinks at most to a width its layout still reads at, then the row scrolls. */
+  .pane {
+    display: grid;
+    gap: 8px;
+    flex: 0 1 var(--pane-width);
+    min-width: min(var(--pane-width), 720px);
+  }
+
+  .pane[data-viewport='mobile'] {
+    --pane-width: 390px;
+  }
+
+  .pane[data-viewport='tablet'] {
+    --pane-width: 834px;
+  }
+
+  .pane[data-viewport='desktop'] {
+    --pane-width: 1180px;
+  }
+
+  .pane[data-viewport='fluid'] {
+    flex: 1 1 0;
+    min-width: 240px;
+  }
+
+  .pane .frame {
+    width: 100%;
+  }
+
+  .pane-label {
+    justify-self: start;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--dpk-ink-soft);
+  }
+
   /*
    * Full screen: the page head, the tabs and the canvas fill the screen. The
    * canvas scrolls instead of the page, and a browser preview is at least as tall
@@ -372,18 +549,22 @@ export const prototypeStyles = css`
     overflow: hidden;
   }
 
+  .stage:fullscreen:has(> .situation) {
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
   .stage:fullscreen .canvas {
     align-items: flex-start;
     overflow: auto;
   }
 
-  .stage:fullscreen .frame:not([data-kind='native']) {
+  .stage:fullscreen .frame:not([data-kind='native'], [data-kind='plain']) {
     display: flex;
     flex-direction: column;
     min-height: 100%;
   }
 
-  .stage:fullscreen .frame:not([data-kind='native']) .viewport {
+  .stage:fullscreen .frame:not([data-kind='native'], [data-kind='plain']) .viewport {
     flex: 1 0 auto;
   }
 
@@ -479,6 +660,102 @@ export const prototypeStyles = css`
      instead of reusing the browser preview heights. */
   .frame[data-kind='native'][data-viewport='mobile'] .viewport {
     min-height: calc((var(--frame-width, 390px) - 16px) * 2.05);
+  }
+
+  /*
+   * A mail preview reads as one opened message in a mail client: the subject,
+   * the sender's avatar and the envelope rows, then the body (the light DOM).
+   */
+  .mail-head {
+    display: grid;
+    gap: 12px;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid #e3e6ec;
+    background: #fff;
+    color: #1f2430;
+    color-scheme: light;
+  }
+
+  .mail-subject {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 650;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  .mail-envelope {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .mail-avatar {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, #6b8af5, #3f5fd8);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 650;
+  }
+
+  .mail-meta {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .mail-row {
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .mail-row dt {
+    flex: none;
+    min-width: 3.5em;
+    color: #7a8294;
+  }
+
+  .mail-row dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: #1f2430;
+  }
+
+  .mail-row:first-child dd {
+    font-weight: 600;
+  }
+
+  /*
+   * A plain preview is not a screen: no chrome, no bezel, no frame of its own.
+   * The light DOM draws the whole object (a memo, a FAX, a paper form) and the
+   * canvas is its desk, so it is as tall as its content.
+   */
+  .frame[data-kind='plain'] {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .frame[data-kind='plain'] .viewport {
+    min-height: 0;
+    background: transparent;
+  }
+
+  .frame[data-kind='plain'][data-empty] .viewport {
+    min-height: 180px;
   }
 
   .status-bar {
