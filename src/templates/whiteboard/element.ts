@@ -32,6 +32,7 @@ import {
   fitRect,
   INITIAL_VIEWPORT,
   panBy,
+  revealRect,
   sameViewport,
   toCanvas,
   zoomAt,
@@ -468,6 +469,9 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     const context = this.context();
     const item = newItem(context.state, whiteboardMessages(this.locale), kind, center);
     if (!context.dispatch(whiteboardAction.addItem(item)).ok) return;
+    // The free spot may lie off screen; the reader should see what they just added.
+    const size = this.#canvasSize();
+    if (size.width > 0 && size.height > 0) this.#setViewport(revealRect(this.viewport, item, size));
     context.navigate({ item: item.id });
     this.mode = { kind: 'editing', itemId: item.id };
   }
@@ -498,7 +502,8 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
   #fit(rect: Rect | null): boolean {
     const size = this.#canvasSize();
     if (rect === null || size.width <= 0 || size.height <= 0) return false;
-    this.#setViewport(fitRect(rect, size));
+    // Wide enough a margin that the add toolbar on the left never covers the board.
+    this.#setViewport(fitRect(rect, size, 72));
     return true;
   }
 

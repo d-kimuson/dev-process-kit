@@ -70,4 +70,22 @@ export const constrainViewport = (viewport: Viewport, board: Rect | null, view: 
   };
 };
 
+/**
+ * The view after bringing `rect` into it: unchanged when the rect is already
+ * on screen (with `margin` to spare), else centered on it at the same zoom.
+ */
+export const revealRect = (viewport: Viewport, rect: Rect, view: Size, margin = 24): Viewport => {
+  const left = rect.x * viewport.zoom + viewport.x;
+  const top = rect.y * viewport.zoom + viewport.y;
+  const right = left + rect.w * viewport.zoom;
+  const bottom = top + rect.h * viewport.zoom;
+  if (left >= margin && top >= margin && right <= view.width - margin && bottom <= view.height - margin)
+    return viewport;
+  return {
+    zoom: viewport.zoom,
+    x: view.width / 2 - (rect.x + rect.w / 2) * viewport.zoom,
+    y: view.height / 2 - (rect.y + rect.h / 2) * viewport.zoom,
+  };
+};
+
 export const sameViewport = (a: Viewport, b: Viewport): boolean => a.x === b.x && a.y === b.y && a.zoom === b.zoom;

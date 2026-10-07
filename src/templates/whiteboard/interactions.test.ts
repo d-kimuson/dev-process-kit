@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { newItem } from './commands';
-import { constrainViewport, fitRect, toCanvas, toScreen, zoomAt, ZOOM_MAX } from './interactions';
+import { constrainViewport, fitRect, revealRect, toCanvas, toScreen, zoomAt, ZOOM_MAX } from './interactions';
 import { boardBounds, connectorGeometry, itemAt, outlinePoint } from './layout';
 import { whiteboardMessages } from './messages';
 import { parseWhiteboardBase } from './model';
@@ -19,6 +19,13 @@ describe('whiteboard viewport', () => {
     expect(fitted.zoom).toBe(1);
     expect(toScreen(fitted, { x: 300, y: 200 })).toEqual({ x: 500, y: 300 });
     expect(fitRect({ x: 0, y: 0, w: 1800, h: 200 }, { width: 1000, height: 600 }, 50).zoom).toBe(0.5);
+  });
+
+  it('brings an off-screen rect into view, and leaves a visible one alone', () => {
+    const view = { width: 800, height: 600 };
+    const viewport = { x: 0, y: 0, zoom: 1 };
+    expect(revealRect(viewport, { x: 100, y: 100, w: 160, h: 160 }, view)).toBe(viewport);
+    expect(revealRect(viewport, { x: 100, y: -700, w: 160, h: 160 }, view)).toEqual({ x: 220, y: 920, zoom: 1 });
   });
 
   it('lets the board wander but keeps a strip of it on screen', () => {
