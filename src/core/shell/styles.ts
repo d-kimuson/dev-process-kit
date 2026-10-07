@@ -734,6 +734,16 @@ export const chromeStyles = [
         display: none;
       }
 
+      /* The title takes the first row whole; the version select and tools wrap below it. */
+      .dpk-header {
+        flex-wrap: wrap;
+        row-gap: 8px;
+      }
+
+      .dpk-title {
+        flex: 1 0 100%;
+      }
+
       .dpk-brand {
         display: none;
       }
