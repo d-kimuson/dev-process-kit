@@ -121,6 +121,19 @@ describe('presentVersionSelect', () => {
     });
   });
 
+  it('never relabels the running version, so the header keeps its width when the listing arrives', () => {
+    const model = presentVersionSelect({
+      current: '0.0.8',
+      requested: false,
+      published: { latest: '0.0.8', versions: ['0.0.9-beta.1', '0.0.8'] },
+      text,
+    });
+    expect(model.options).toEqual([
+      { value: '0.0.9-beta.1', label: '0.0.9-beta.1' },
+      { value: '0.0.8', label: '0.0.8' },
+    ]);
+  });
+
   it('keeps the running version listed when the listing lacks it (an unpublished build)', () => {
     const model = presentVersionSelect({
       current: '0.0.9',

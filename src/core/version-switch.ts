@@ -126,7 +126,7 @@ export type VersionSelectInput = {
  * What the version select shows. The running version is always listed, so the
  * select reads right before the listing arrives, offline, or when the CDN's
  * API is out of reach; going back to the page's own version is offered
- * whenever the URL overrides it.
+ * whenever the URL overrides it. The running version's label never changes.
  */
 export const presentVersionSelect = (input: VersionSelectInput): VersionSelectModel => {
   const listed = input.published?.versions ?? [];
@@ -138,7 +138,9 @@ export const presentVersionSelect = (input: VersionSelectInput): VersionSelectMo
       ...(input.requested ? [{ value: '', label: input.text.pinned }] : []),
       ...versions.map((version) => ({
         value: version,
-        label: version === latest ? input.text.latest(version) : version,
+        // The running version is what the closed select shows: marking it once
+        // the listing arrives would widen the header under the pointer.
+        label: version === latest && version !== input.current ? input.text.latest(version) : version,
       })),
     ],
   };
