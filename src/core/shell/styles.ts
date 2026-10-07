@@ -729,7 +729,8 @@ export const chromeStyles = [
     }
 
     @media (max-width: 720px) {
-      .dpk-header-meta {
+      /* The version select stays: it is the reader's only way to switch versions. */
+      .dpk-header-meta > :not(.dpk-version) {
         display: none;
       }
 
