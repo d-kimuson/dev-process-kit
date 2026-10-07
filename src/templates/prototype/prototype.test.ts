@@ -9,7 +9,10 @@ import { prototypeMessages } from './messages';
 import { findStep, parsePrototypeBase, stepRef, type PrototypeState } from './model';
 import {
   describePrototypeAction,
+  prototypeLinkProblem,
+  prototypeMailHeader,
   prototypePageHeading,
+  prototypeStageFrames,
   prototypePreviewUrl,
   resolvePrototypeNavigation,
   serializePrototypeAction,
@@ -109,6 +112,171 @@ describe('prototype base parsing', () => {
       viewport: 'fluid',
     });
     expect(parsePrototypeBase({})).toEqual({ activities: [] });
+  });
+
+  it('accepts a plain preview for what is not a screen (a memo, a FAX, a paper form)', () => {
+    const parsed = parsePrototypeBase({
+      activities: [
+        {
+          id: 'a',
+          name: 'A',
+          stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', previews: [{ id: 'memo', kind: 'plain' }] }] }],
+        },
+      ],
+    });
+    expect(parsed.activities[0]?.stories[0]?.steps[0]?.previews[0]).toMatchObject({ kind: 'plain' });
+  });
+});
+
+const onePreview = (preview: Record<string, unknown>): unknown => ({
+  activities: [
+    { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', previews: [preview] }] }] },
+  ],
+});
+
+describe('prototype preview links', () => {
+  const link = (navigate: string | null, href: string | null = null) =>
+    prototypeLinkProblem(state(), { href, navigate });
+
+  it('accepts a link to a step, a story, an activity or a preview the page has', () => {
+    expect(link('step=b')).toBeNull();
+    expect(link('b')).toBeNull();
+    expect(link('story=profile')).toBeNull();
+    expect(link('story=onboarding.profile')).toBeNull();
+    expect(link('activity=daily&story=notes')).toBeNull();
+    expect(link('preview=a-mobile')).toBeNull();
+    expect(link(null, '#step=c')).toBeNull();
+    expect(link(null, 'https://example.com/help')).toBeNull();
+  });
+
+  it('flags a link that names no destination', () => {
+    expect(link(null, null)).toBe('no-destination');
+    expect(link(null, '#')).toBe('no-destination');
+    expect(link(null, '')).toBe('no-destination');
+    expect(link(null, 'javascript:void(0)')).toBe('no-destination');
+  });
+
+  it('flags a link to something the page does not have', () => {
+    expect(link('step=nope')).toBe('unknown-target');
+    expect(link('story=billing')).toBe('unknown-target');
+    expect(link('foo=bar')).toBe('unknown-target');
+    expect(link(null, '#step=nope')).toBe('unknown-target');
+  });
+});
+
+describe('prototype situation', () => {
+  it('keeps the situation of a step and rejects an empty one', () => {
+    const withSituation = (situation: string): unknown => ({
+      activities: [
+        { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', situation }] }] },
+      ],
+    });
+    expect(parsePrototypeBase(withSituation('A FAX arrives')).activities[0]?.stories[0]?.steps[0]?.situation).toBe(
+      'A FAX arrives',
+    );
+    expect(() => parsePrototypeBase(withSituation(''))).toThrow();
+  });
+});
+
+describe('prototype stage frames', () => {
+  const step = (layout?: 'tabs' | 'side-by-side'): PrototypeState =>
+    parsePrototypeBase({
+      activities: [
+        {
+          id: 'a',
+          name: 'A',
+          stories: [
+            {
+              id: 's',
+              name: 'S',
+              steps: [
+                {
+                  id: 'x',
+                  name: 'X',
+                  ...(layout === undefined ? {} : { layout }),
+                  previews: [
+                    { id: 'memo', kind: 'plain', label: 'Memo' },
+                    { id: 'screen', viewport: 'desktop' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  const xOf = (s: PrototypeState) => findStep(s, 'x')!.step;
+
+  it('shows one preview at a time as tabs by default', () => {
+    const frames = prototypeStageFrames(xOf(step()), { step: 'x', preview: 'screen' });
+    expect(frames.layout).toBe('tabs');
+    expect(frames.shown.map((preview) => preview.id)).toEqual(['screen']);
+    expect(frames.tabs.map((preview) => preview.id)).toEqual(['memo', 'screen']);
+    expect(frames.activeId).toBe('screen');
+    // an unknown tab falls back to the first preview
+    expect(prototypeStageFrames(xOf(step()), { preview: 'nope' }).activeId).toBe('memo');
+  });
+
+  it('puts every preview side by side, with no tabs to switch', () => {
+    const frames = prototypeStageFrames(xOf(step('side-by-side')), { step: 'x', preview: 'screen' });
+    expect(frames.layout).toBe('side-by-side');
+    expect(frames.shown.map((preview) => preview.id)).toEqual(['memo', 'screen']);
+    expect(frames.tabs).toEqual([]);
+    expect(frames.activeId).toBeUndefined();
+  });
+
+  it('keeps no preview tab in the hash of a side-by-side step', () => {
+    const nav = resolvePrototypeNavigation(step('side-by-side'), { step: 'x', preview: 'screen' });
+    expect(nav).toEqual({ activity: 'a', story: 's', step: 'x' });
+    expect(resolvePrototypeNavigation(step(), { step: 'x', preview: 'screen' })['preview']).toBe('screen');
+  });
+});
+
+describe('prototype mail preview', () => {
+  it('parses the envelope of a mail preview', () => {
+    const parsed = parsePrototypeBase(
+      onePreview({
+        id: 'm',
+        kind: 'mail',
+        mail: { from: 'Shop <no-reply@shop.example>', to: 'me@example.com', subject: 'Refunded' },
+      }),
+    );
+    expect(parsed.activities[0]?.stories[0]?.steps[0]?.previews[0]).toEqual({
+      id: 'm',
+      kind: 'mail',
+      viewport: 'fluid',
+      mail: { from: 'Shop <no-reply@shop.example>', to: 'me@example.com', subject: 'Refunded' },
+    });
+  });
+
+  it('rejects an envelope on a preview that is not a mail, and unknown envelope keys', () => {
+    expect(() => parsePrototypeBase(onePreview({ id: 'm', kind: 'browser', mail: { subject: 'x' } }))).toThrow(/mail/);
+    expect(() => parsePrototypeBase(onePreview({ id: 'm', kind: 'mail', mail: { title: 'x' } }))).toThrow();
+  });
+
+  it('presents the header rows in mail-client order and only those given', () => {
+    const header = prototypeMailHeader(m, {
+      id: 'm',
+      kind: 'mail',
+      viewport: 'fluid',
+      mail: {
+        from: 'Sora Market <info@sora.example>',
+        to: 'hanako@example.com',
+        date: '2025/09/19 10:02',
+        cc: 'ops@sora.example',
+      },
+    });
+    expect(header.subject).toBeUndefined();
+    expect(header.sender).toBe('Sora Market');
+    expect(header.initial).toBe('S');
+    expect(header.rows).toEqual([
+      { label: m.mailFrom, value: 'Sora Market <info@sora.example>' },
+      { label: m.mailTo, value: 'hanako@example.com' },
+      { label: m.mailCc, value: 'ops@sora.example' },
+      { label: m.mailDate, value: '2025/09/19 10:02' },
+    ]);
+    const bare = prototypeMailHeader(m, { id: 'm', kind: 'mail', viewport: 'fluid' });
+    expect(bare).toEqual({ rows: [] });
   });
 });
 

@@ -19,15 +19,30 @@ import { usmMessages } from '../messages';
 const COMPOSER_SIZE = { width: 300, height: 260 };
 
 const cardStyles = css`
+  /*
+   * The card takes its activity's tone (--usm-tone, set by the map) over its
+   * whole surface, like a sticky note of that activity's color: a tinted face
+   * and a tinted edge, never a colored strip down one side. The tools float
+   * above the top edge on hover instead of reserving an empty strip at the
+   * bottom of every card.
+   */
   :host {
+    --card-tone: var(--usm-tone, var(--dpk-ink-faint));
     position: relative;
     display: grid;
-    gap: 5px;
-    background: var(--dpk-paper-raised);
-    border: 1px solid var(--dpk-rule);
+    gap: 6px;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card-tone) 15%, var(--dpk-paper-raised)),
+      color-mix(in srgb, var(--card-tone) 6%, var(--dpk-paper-raised)) 75%
+    );
+    border: 1px solid color-mix(in srgb, var(--card-tone) 34%, var(--dpk-rule));
     border-radius: var(--dpk-radius);
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
-    padding: 10px 12px 8px 14px;
+    box-shadow:
+      var(--dpk-bevel),
+      0 1px 0 color-mix(in srgb, var(--card-tone) 10%, transparent),
+      var(--dpk-shadow-xs);
+    padding: 11px 12px 10px;
     cursor: pointer;
     transition:
       box-shadow 200ms var(--dpk-ease),
@@ -35,19 +50,8 @@ const cardStyles = css`
       border-color 200ms var(--dpk-ease);
   }
 
-  /* Left accent: a quiet claim that this card belongs to the board's story
-     lane, without a hard border changing the card's shape. */
-  :host::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--dpk-usm-accent) 65%, transparent);
-    pointer-events: none;
-  }
-
   :host(:hover) {
-    border-color: var(--dpk-rule-strong);
+    border-color: color-mix(in srgb, var(--card-tone) 46%, var(--dpk-rule-strong));
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
     transform: translateY(-2px);
   }
@@ -65,37 +69,118 @@ const cardStyles = css`
     transform: none;
   }
 
+  /* The step a card belongs to, where the column does not already say it. */
+  .card-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: color-mix(in srgb, var(--card-tone) 55%, var(--dpk-ink-soft));
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .card-step::before {
+    content: '';
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--card-tone);
+  }
+
+  .card-step span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .card-name {
     font-size: 13px;
     font-weight: 620;
     letter-spacing: -0.01em;
-    line-height: 1.3;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  /* The field pads its text by 4px; pull it out by as much so the name keeps
+     its place and its wrap width when editing starts. */
+  .card-name dpk-component-inline-edit {
+    display: block;
+    margin: 0 -4px;
   }
 
   .card-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
     font-size: 11.5px;
-    line-height: 1.5;
+    line-height: 1.55;
     color: var(--dpk-ink-soft);
     white-space: pre-wrap;
   }
 
-  .card-tools {
+  /* Comments already left, as a small tinted chip at the foot of the card. */
+  .card-meta {
     display: flex;
-    gap: 2px;
-    align-items: center;
     justify-content: flex-end;
     margin-top: 2px;
-    padding-top: 5px;
-    border-top: 1px solid var(--dpk-rule);
+  }
+
+  .card-meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 7px 1px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--card-tone) 12%, var(--dpk-paper-sunken));
+    color: var(--dpk-ink-soft);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+    line-height: 18px;
+  }
+
+  .card-meta svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .card-tools {
+    position: absolute;
+    top: -13px;
+    right: 8px;
+    z-index: 1;
+    display: flex;
+    gap: 1px;
+    padding: 2px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
     opacity: 0;
-    transition: opacity 150ms ease;
+    transform: translateY(3px);
+    pointer-events: none;
+    transition:
+      opacity 150ms ease,
+      transform 150ms var(--dpk-ease);
+  }
+
+  .card-tools .dpk-icon-btn {
+    width: 24px;
+    height: 24px;
   }
 
   :host(:hover) .card-tools,
+  :host(:focus-within) .card-tools,
   :host([focused]) .card-tools,
   :host([data-mode='editing']) .card-tools,
   :host([data-mode='commenting']) .card-tools {
     opacity: 1;
+    transform: none;
+    pointer-events: auto;
   }
 `;
 
@@ -116,6 +201,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
 
   static override properties = {
     story: { attribute: false },
+    stepName: { attribute: false },
     notes: { attribute: false },
     mode: { type: String, reflect: true, attribute: 'data-mode' },
     focused: { type: Boolean, reflect: true },
@@ -124,6 +210,8 @@ export class DpkInternalUsmStoryCard extends LitElement {
   };
 
   declare story: UserStory | null;
+  /** The story's step, shown where the column does not already say it; `''` hides it. */
+  declare stepName: string;
   /** Comments already left on this story. */
   declare notes: readonly DraftAction[];
   declare mode: CardMode;
@@ -139,6 +227,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
   constructor() {
     super();
     this.story = null;
+    this.stepName = '';
     this.notes = [];
     this.mode = 'view';
     this.focused = false;
@@ -169,10 +258,12 @@ export class DpkInternalUsmStoryCard extends LitElement {
     const editing = this.mode === 'editing';
     const commenting = this.mode === 'commenting';
     return html`
+      ${this.stepName === '' ? nothing : html`<div class="card-step"><span>${this.stepName}</span></div>`}
       <div class="card-name">
         ${
           editing
             ? html`<dpk-component-inline-edit
+                wrap
                 .value=${story.name}
                 .label=${m.storyNameLabel}
                 @dpk-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
@@ -181,6 +272,15 @@ export class DpkInternalUsmStoryCard extends LitElement {
         }
       </div>
       ${story.description ? html`<div class="card-text">${story.description}</div>` : nothing}
+      ${
+        this.notes.length > 0
+          ? html`<div class="card-meta">
+              <span class="card-meta-chip" aria-label=${m.commentCountAria(this.notes.length)}>
+                ${iconComment()}<span>${this.notes.length}</span>
+              </span>
+            </div>`
+          : nothing
+      }
       <div class="card-tools">
         <button
           class="dpk-icon-btn"

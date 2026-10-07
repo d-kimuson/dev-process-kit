@@ -1,5 +1,7 @@
 import { registerComponentElements } from './components/index';
 import { FRAMEWORK_VERSION } from './core/index';
+import { startEntry } from './core/version-loader';
+import { VERSION_PARAM } from './core/version-switch';
 /**
  * dev-process-kit.
  *
@@ -101,6 +103,7 @@ export * as plain from './templates/plain';
 export * as slides from './templates/slides';
 export * as taskBoard from './templates/task-board';
 export * as delegationPoker from './templates/delegation-poker';
+export * as whiteboard from './templates/whiteboard';
 
 /** The template elements this entry registers, for `window.devProcessKit`. */
 const TEMPLATES = [
@@ -113,13 +116,21 @@ const TEMPLATES = [
   'slides',
   'task-board',
   'delegation-poker',
+  'whiteboard',
 ] as const;
 
 /** Registers every `dpk-*` custom element. Idempotent. */
 export const registerAllElements = (): void => {
   registerComponentElements();
   registerTemplateElements();
-  announce(FRAMEWORK_VERSION, TEMPLATES);
+  announce(FRAMEWORK_VERSION, TEMPLATES, VERSION_PARAM);
 };
 
-registerAllElements();
+startEntry({
+  entry: 'index.js',
+  templates: TEMPLATES,
+  register: () => {
+    registerComponentElements();
+    registerTemplateElements();
+  },
+});

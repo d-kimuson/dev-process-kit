@@ -23,6 +23,8 @@ export type PanelInputs<S> = {
   readonly sendable?: boolean;
   /** The language the panel renders its own text in. */
   readonly locale: Locale;
+  /** The host takes edits of posted comments. */
+  readonly editable?: boolean;
 };
 
 export type PanelItem = {
@@ -33,6 +35,10 @@ export type PanelItem = {
   readonly text: { readonly kind: 'comment' | 'summary'; readonly body: string };
   readonly code: string;
   readonly stale: StaleReason | null;
+  /** Only a comment can be rewritten; `editing` holds its unsaved text. */
+  readonly edit:
+    | { readonly kind: 'none' | 'available' }
+    | { readonly kind: 'editing'; readonly body: string; readonly canSave: boolean };
 };
 
 export type PanelViewModel = {
@@ -93,6 +99,12 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
         },
         code: definition.serialize(action),
         stale: stale.get(action.id) ?? null,
+        edit:
+          !comment || inputs.editable !== true
+            ? { kind: 'none' }
+            : ui.editing?.id === action.id
+              ? { kind: 'editing', body: ui.editing.body, canSave: ui.editing.body.trim().length > 0 }
+              : { kind: 'available' },
       };
     }),
     issues: inputs.issues.map((issue) => `${issue.path ? `${issue.path}: ` : ''}${issue.message}`),

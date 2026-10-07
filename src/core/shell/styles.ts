@@ -166,6 +166,32 @@ export const chromeStyles = [
       border-left: 1px solid var(--dpk-rule);
     }
 
+    .dpk-version-select {
+      margin: -3px 0;
+      padding: 3px 14px 3px 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 12 12'><path d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23878e9e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+        no-repeat right 2px center;
+      appearance: none;
+      /* As wide as the version shown, not the longest prerelease in the list. */
+      field-sizing: content;
+      color: inherit;
+      font: inherit;
+      letter-spacing: inherit;
+      cursor: pointer;
+    }
+
+    .dpk-version-select:hover {
+      color: var(--dpk-ink-soft);
+    }
+
+    .dpk-version-select:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
     .dpk-header-meta .dpk-meta-count {
       margin-left: 2px;
       border-left: 0;
@@ -291,13 +317,74 @@ export const chromeStyles = [
     }
 
     :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar,
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-resizer {
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-resizer,
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-toggle,
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-strip {
       order: 2;
     }
 
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar {
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar,
+    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-strip {
       border-right: 0;
       border-left: 1px solid var(--dpk-rule);
+    }
+
+    /*
+     * The fold button. Expanded, it sits on the sidebar's border near the top
+     * and, like the resizer, takes no room of its own; folded, it is the only
+     * thing left in a narrow strip where the sidebar was.
+     */
+    .dpk-sidebar-toggle {
+      position: relative;
+      z-index: 7;
+      display: inline-flex;
+      flex: none;
+      align-self: flex-start;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      margin: 14px -11px 0;
+      padding: 0;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: 999px;
+      background: var(--dpk-paper-raised);
+      color: var(--dpk-ink-soft);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+      cursor: pointer;
+      transition:
+        color 160ms var(--dpk-ease),
+        border-color 160ms var(--dpk-ease),
+        background 160ms var(--dpk-ease);
+    }
+
+    .dpk-sidebar-toggle svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .dpk-sidebar-toggle:hover {
+      color: var(--dpk-accent);
+      border-color: color-mix(in srgb, var(--dpk-accent) 45%, transparent);
+    }
+
+    .dpk-sidebar-toggle:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
+    .dpk-sidebar-strip {
+      display: flex;
+      flex: none;
+      justify-content: center;
+      width: 36px;
+      padding-top: 14px;
+      border-right: 1px solid var(--dpk-rule);
+      background: var(--dpk-paper-sunken);
+    }
+
+    .dpk-sidebar-strip .dpk-sidebar-toggle {
+      margin: 0;
     }
 
     /*
@@ -408,12 +495,11 @@ export const chromeStyles = [
     .dpk-memo ::slotted(*) {
       display: block;
       max-width: 100%;
-      padding: 12px 16px 12px 18px;
-      border: 1px solid var(--dpk-rule-strong);
+      padding: 12px 16px;
+      /* A faint amber wash over the whole note marks it as the author's aside. */
+      border: 1px solid color-mix(in srgb, var(--dpk-amber) 28%, var(--dpk-rule-strong));
       border-radius: var(--dpk-radius-lg);
-      background:
-        linear-gradient(90deg, var(--dpk-amber) 0 3px, transparent 3px),
-        color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent);
+      background: color-mix(in srgb, color-mix(in srgb, var(--dpk-amber) 7%, var(--dpk-paper-raised)) 90%, transparent);
       backdrop-filter: blur(12px);
       box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
       font-size: 12.5px;
@@ -642,8 +728,19 @@ export const chromeStyles = [
     }
 
     @media (max-width: 720px) {
-      .dpk-header-meta {
+      /* The version select stays: it is the reader's only way to switch versions. */
+      .dpk-header-meta > :not(.dpk-version) {
         display: none;
+      }
+
+      /* The title takes the first row whole; the version select and tools wrap below it. */
+      .dpk-header {
+        flex-wrap: wrap;
+        row-gap: 8px;
+      }
+
+      .dpk-title {
+        flex: 1 0 100%;
       }
 
       .dpk-brand {

@@ -12,8 +12,7 @@
  */
 import { defineCommentPanel } from '../components/comment-panel/index';
 import { defineInlineEdit } from '../components/inline-edit';
-import { FRAMEWORK_VERSION } from '../core/index';
-import { announce } from '../lib/announce';
+import { startEntry } from '../core/version-loader';
 import { definePlainElement } from '../templates/plain';
 
 export * from '../core/index';
@@ -22,7 +21,12 @@ export type { CommentPanelCallbacks } from '../components/comment-panel/index';
 export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as plain from '../templates/plain';
 
-defineCommentPanel();
-defineInlineEdit();
-definePlainElement();
-announce(FRAMEWORK_VERSION, ['plain']);
+startEntry({
+  entry: 'templates/plain.js',
+  templates: ['plain'],
+  register: () => {
+    defineCommentPanel();
+    defineInlineEdit();
+    definePlainElement();
+  },
+});

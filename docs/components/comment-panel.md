@@ -1,6 +1,6 @@
 # dpk-component-comment-panel
 
-The review rail: the list of draft actions and comments, the stale markers, deletion, and the copy hand-off for the agent. It is a Shadow DOM component, and the only place the framework renders template-specific text — through `describe()` and `serialize()`.
+The review rail: the list of draft actions and comments, the stale markers, editing and deletion, and the copy hand-off for the agent. It is a Shadow DOM component, and the only place the framework renders template-specific text — through `describe()` and `serialize()`.
 
 Every template uses the shared panel. Most templates place it in a notes rail, closed by default and toggled by the floating comment button. Grill embeds it in the **Review** tab beside its questions and uses one combined copy button (`docs/templates/grill.md`).
 
@@ -24,6 +24,10 @@ The composer dispatches a core `comment` action:
 
 The checkbox only appears when the template implements `currentTarget()`. `requestComment(target)` on the template element (or `data-dpk-comment="step:id"` in author markup) pre-fills the composer with that exact target, which is how per-element comment buttons work; the chip shows where the note will land, and clearing it returns to the checkbox. `Ctrl`/`Cmd`+Enter submits, except during IME composition. The `onComment` callback returns the dispatch outcome: a rejected submission retains its text and a successful one clears it.
 
+## Editing a comment
+
+A posted comment has an edit button beside its delete button. It turns the comment into an editor holding its text: `Save` (or `Ctrl`/`Cmd`+Enter) replaces the comment's body, `Cancel` (or Escape) leaves it as it was, and neither fires during IME composition. A blank text cannot be saved; delete the comment instead. An edit changes only the body: the comment keeps its id, target, time and place in the draft, and the stored draft keeps its format, so drafts saved before editing existed load and edit as usual. One comment is edited at a time, separately from the composer's unsent text. Only comments are editable; a structural change is undone by deleting it and making it again. The panel calls `onEditComment(id, body)`; a rejected edit keeps the editor and its text. Without that callback there is no edit button. On a template, `element.api.editComment(id, body)` does the same.
+
 Diagram-element requests use the same composer, with component labels and stable `element:` references; see `docs/components/diagrams.md`. They do not create a separate comment history.
 
 ## Hand-off
@@ -42,16 +46,16 @@ Diagram-element requests use the same composer, with component labels and stable
 
 The panel is a normal custom element, but it expects a derivation, not a state: assign `definition`, `state`, `navigation` and `derivation`, and re-assign `derivation` after every change. Inside a template the base element does that for you.
 
-| Property (attribute: false)          | Type                                                   | Purpose                                                                             |
-| ------------------------------------ | ------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| `definition`                         | `TemplateDefinition`                                   | `describe` / `serialize` / `commentTargets`                                         |
-| `state`                              | derived state                                          | passed to `describe`                                                                |
-| `navigation`                         | `Navigation`                                           | passed to `commentTargets`                                                          |
-| `derivation`                         | `Derivation`                                           | the draft, comments, stale list                                                     |
-| `issues`                             | `ValidationIssue[]`                                    | last rejected dispatch, rendered as an inline alert                                 |
-| `pendingTarget`                      | `string \| null`                                       | target ref focused by `requestComment()`                                            |
-| `exportBrief`                        | `() => string`                                         | optional canonical host brief (shared fallback otherwise)                           |
-| `sendToClaude`                       | `() => Promise<{ ok: true } \| { ok: false, reason }>` | shows the `Send to Claude` button and runs it; left unset outside a Claude Artifact |
-| `onDelete` / `onClear` / `onComment` | callbacks                                              | the only way the panel changes anything                                             |
+| Property (attribute: false)                            | Type                                                   | Purpose                                                                             |
+| ------------------------------------------------------ | ------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `definition`                                           | `TemplateDefinition`                                   | `describe` / `serialize` / `commentTargets`                                         |
+| `state`                                                | derived state                                          | passed to `describe`                                                                |
+| `navigation`                                           | `Navigation`                                           | passed to `commentTargets`                                                          |
+| `derivation`                                           | `Derivation`                                           | the draft, comments, stale list                                                     |
+| `issues`                                               | `ValidationIssue[]`                                    | last rejected dispatch, rendered as an inline alert                                 |
+| `pendingTarget`                                        | `string \| null`                                       | target ref focused by `requestComment()`                                            |
+| `exportBrief`                                          | `() => string`                                         | optional canonical host brief (shared fallback otherwise)                           |
+| `sendToClaude`                                         | `() => Promise<{ ok: true } \| { ok: false, reason }>` | shows the `Send to Claude` button and runs it; left unset outside a Claude Artifact |
+| `onDelete` / `onClear` / `onComment` / `onEditComment` | callbacks                                              | the only way the panel changes anything                                             |
 
 The boolean `embedded` property/attribute hides the panel heading and its copy button when the enclosing template supplies those controls. The composer, draft rows and Clear button remain unchanged.

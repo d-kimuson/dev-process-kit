@@ -11,8 +11,8 @@ import type {
   ValidationIssue,
 } from './types';
 
-import { actionInputSchema, appendAction, buildAction, firstIssue, type BuildOutcome } from './action';
-import { COMMENT_DESCRIPTOR } from './comment';
+import { actionInputSchema, appendAction, buildAction, COMMENT_ACTION, firstIssue, type BuildOutcome } from './action';
+import { COMMENT_DESCRIPTOR, commentBody } from './comment';
 import { componentSnapshotSchema, withComponentSnapshot } from './comment-targets';
 import { compactDraft } from './compact';
 import { derive, liveActions, type Derivation } from './derive';
@@ -196,6 +196,28 @@ export class DraftController<S> {
   #reject(issues: readonly ValidationIssue[]): { readonly ok: false; readonly issues: readonly ValidationIssue[] } {
     this.#lastIssues = issues;
     return { ok: false, issues };
+  }
+
+  /**
+   * Rewrites a comment the reader already posted. Only the body changes: the
+   * comment keeps its id, target, time and place in the draft, so nothing else
+   * in the draft is revisited.
+   */
+  editComment(id: string, body: string): DispatchOutcome {
+    const existing = this.#actions.find((action) => action.id === id);
+    if (existing?.type !== COMMENT_ACTION)
+      return this.#reject([{ path: 'id', message: `no comment "${id}" in the draft` }]);
+    if (commentBody(existing) === body) return { ok: true, id };
+    const parsed = safeParse(COMMENT_DESCRIPTOR.schema, { ...existing, payload: { body } });
+    if (!parsed.success) return this.#reject([firstIssue(parsed.issues)]);
+    const edited = safeParse(draftActionEnvelopeSchema, parsed.output);
+    if (!edited.success) return this.#reject([firstIssue(edited.issues)]);
+    const replacement = edited.output;
+    this.#commit(
+      this.#actions.map((action) => (action === existing ? replacement : action)),
+      [],
+    );
+    return { ok: true, id };
   }
 
   removeAction(id: string): void {

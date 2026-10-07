@@ -2,11 +2,32 @@ import * as v from 'valibot';
 
 import { entityIdSchema, splitPath } from '../../core/schema';
 
-export const PREVIEW_KINDS = ['browser', 'native'] as const;
+/**
+ * What a preview looks like: a browser window, a phone app, a received e-mail,
+ * or `plain` — no device at all, for what is not a screen (a handwritten memo, a
+ * FAX, a paper form), whose look the light DOM draws itself.
+ */
+export const PREVIEW_KINDS = ['browser', 'native', 'mail', 'plain'] as const;
 export const PREVIEW_VIEWPORTS = ['mobile', 'tablet', 'desktop', 'fluid'] as const;
+/**
+ * How a step shows several previews: `tabs` — alternatives of the same moment,
+ * one at a time (mobile / desktop) — or `side-by-side` — things the user sees
+ * together (the memo in hand next to the screen).
+ */
+export const PREVIEW_LAYOUTS = ['tabs', 'side-by-side'] as const;
 
 export type PreviewKind = (typeof PREVIEW_KINDS)[number];
 export type PreviewViewport = (typeof PREVIEW_VIEWPORTS)[number];
+export type PreviewLayout = (typeof PREVIEW_LAYOUTS)[number];
+
+/** The envelope a `mail` preview shows above its body. Every field is cosmetic. */
+export type PreviewMail = {
+  readonly from?: string;
+  readonly to?: string;
+  readonly cc?: string;
+  readonly subject?: string;
+  readonly date?: string;
+};
 
 export type PrototypePreview = {
   readonly id: string;
@@ -14,6 +35,8 @@ export type PrototypePreview = {
   readonly viewport: PreviewViewport;
   readonly label?: string;
   readonly url?: string;
+  /** Only for `kind: "mail"`. */
+  readonly mail?: PreviewMail;
 };
 
 export type PrototypeStep = {
@@ -24,6 +47,13 @@ export type PrototypeStep = {
   readonly title?: string;
   /** Who uses the page, e.g. `Administrator`. Overrides the story's and activity's. */
   readonly actor?: string;
+  /**
+   * What is going on around the previews, e.g. `The clerk receives a FAX from
+   * the customer`. Shown just above them.
+   */
+  readonly situation?: string;
+  /** How several previews are shown. Defaults to `tabs`. */
+  readonly layout?: PreviewLayout;
   readonly previews: readonly PrototypePreview[];
 };
 
@@ -55,13 +85,31 @@ export type PrototypeState = {
   readonly activities: readonly PrototypeActivity[];
 };
 
-const previewSchema = v.strictObject({
+export const previewMailSchema = v.strictObject({
+  from: v.exactOptional(v.string()),
+  to: v.exactOptional(v.string()),
+  cc: v.exactOptional(v.string()),
+  subject: v.exactOptional(v.string()),
+  date: v.exactOptional(v.string()),
+});
+
+/** The fields of a preview, shared by the base and the actions that add one. */
+export const previewEntries = {
   id: entityIdSchema,
   kind: v.optional(v.picklist(PREVIEW_KINDS), 'browser'),
   viewport: v.optional(v.picklist(PREVIEW_VIEWPORTS), 'fluid'),
   label: v.exactOptional(v.string()),
   url: v.exactOptional(v.string()),
-});
+  mail: v.exactOptional(previewMailSchema),
+};
+
+const previewSchema = v.pipe(
+  v.strictObject(previewEntries),
+  v.check(
+    (preview) => preview.mail === undefined || preview.kind === 'mail',
+    'a preview `mail` envelope needs `"kind": "mail"`',
+  ),
+);
 
 const stepSchema = v.strictObject({
   id: entityIdSchema,
@@ -69,6 +117,8 @@ const stepSchema = v.strictObject({
   description: v.exactOptional(v.string()),
   title: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  situation: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  layout: v.exactOptional(v.picklist(PREVIEW_LAYOUTS)),
   previews: v.optional(v.array(previewSchema), []),
 });
 
@@ -125,6 +175,38 @@ const findDuplicateId = (state: v.InferOutput<typeof prototypeBaseSchema>): stri
     }
   }
   return null;
+};
+
+/** Target type of a comment on one element of a preview's markup. */
+export const UI_TARGET = 'ui';
+
+/**
+ * One element of a preview's markup, as a comment target id:
+ * `<preview id>/<selector> "<text>"`, e.g. `cart-mobile/a.sm-btn "レジに進む"`.
+ * The selector is relative to the preview's light DOM element and the text is
+ * what the element said, so the agent can find it either way.
+ */
+export type UiTarget = {
+  readonly previewId: string;
+  readonly selector: string;
+  readonly text?: string;
+};
+
+export const uiTargetId = (target: UiTarget): string => {
+  const text = target.text?.replaceAll('"', "'");
+  return `${target.previewId}/${target.selector}${text === undefined ? '' : ` "${text}"`}`;
+};
+
+export const parseUiTargetId = (id: string): UiTarget | undefined => {
+  const slash = id.indexOf('/');
+  if (slash <= 0) return undefined;
+  const previewId = id.slice(0, slash);
+  if (!v.is(entityIdSchema, previewId)) return undefined;
+  const rest = id.slice(slash + 1);
+  const quoted = / "([^"]*)"$/.exec(rest);
+  const selector = (quoted ? rest.slice(0, quoted.index) : rest).trim();
+  if (selector === '') return undefined;
+  return quoted?.[1] === undefined ? { previewId, selector } : { previewId, selector, text: quoted[1] };
 };
 
 export const parsePrototypeBase = (input: unknown): PrototypeState => {

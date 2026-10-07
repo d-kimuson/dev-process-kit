@@ -16,11 +16,11 @@ The template owns meaning: what a "step", a "story" or a sticky note _is_, and w
 
 Load one entry from jsDelivr, with the version pinned: a page has to keep working when a new version is published, so never generate HTML against a floating URL such as `@latest`. `<version>` below is the version these docs belong to — the `v<version>` Git tag you are reading them at.
 
-| Entry                                                                                                                                                                                                                                              | Use it when                                                                           |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `templates/prototype.js` / `templates/usm.js` / `templates/event-storming.js` / `templates/example-mapping.js` / `templates/grill.js` / `templates/plain.js` / `templates/slides.js` / `templates/task-board.js` / `templates/delegation-poker.js` | the page is that template (`plain`: none of the others fits — header and review only) |
-| `components.js`                                                                                                                                                                                                                                    | the page uses the review rail or the diagram elements without a template              |
-| `index.js`                                                                                                                                                                                                                                         | one URL for everything                                                                |
+| Entry                                                                                                                                                                                                                                                                          | Use it when                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `templates/prototype.js` / `templates/usm.js` / `templates/event-storming.js` / `templates/example-mapping.js` / `templates/grill.js` / `templates/plain.js` / `templates/slides.js` / `templates/task-board.js` / `templates/delegation-poker.js` / `templates/whiteboard.js` | the page is that template (`plain`: none of the others fits — header and review only) |
+| `components.js`                                                                                                                                                                                                                                                                | the page uses the review rail or the diagram elements without a template              |
+| `index.js`                                                                                                                                                                                                                                                                     | one URL for everything                                                                |
 
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/prototype.js"></script>
@@ -140,6 +140,7 @@ el.api.issues; // issues from the last rejected dispatch
 
 el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
 el.api.comment('step:landing', 'ここに説明がほしい');
+el.api.editComment(id, '言い直したコメント'); // new body; the comment keeps its target and place
 el.api.dispatchBatch(inputs); // compound command, committed atomically
 el.api.removeAction(id);
 el.api.clearActions();
@@ -222,9 +223,21 @@ Write `lang` on `<html>`, and also on the template element when you do not contr
 
 The template header has a language select that starts on that language. The reader's pick switches the template and every element inside it, and is remembered per origin (`localStorage` key `dev-process-kit:locale`) unless `storage` is `off` or `memory`. Picking the page's own language forgets the pick. The template applies a pick by setting its own `lang`, so do not read that attribute back as the page's language. Your content (base data, slot markup, a diagram's `heading` / `subject`) is never translated. The hand-off brief keeps its headings and instructions in English for the agent; the action titles in it follow the page's language.
 
-### Sidebar width
+### Sidebar width and folding
 
 The reader can resize the template sidebar by dragging the edge that faces the main column, or by focusing that edge and pressing the arrow keys (they move the edge; Shift for larger steps, Home / End for the narrowest and widest). Double-clicking the edge restores the template's default width. The width stays between 180px and 560px and is remembered per template for every page of the origin (`localStorage` key `dev-process-kit:sidebar-width:<template>`) unless `storage` is `off` or `memory`. Templates without a sidebar have no edge.
+
+The round button on that edge folds the sidebar away and leaves a narrow strip with a button that brings it back (both are ordinary buttons, so Tab and Enter / Space work, and they carry `aria-expanded`). The folded state is remembered the same way as the width (`localStorage` key `dev-process-kit:sidebar-collapsed:<template>`). Grill has no such button: its own Questions / Review button already folds its rail.
+
+### Version
+
+The template header shows the version running the page (`dev-process-kit@<version>`) as a select. When the reader first reaches for it, it lists every version published to npm (from jsDelivr's API, `data.jsdelivr.com`), the `latest` one marked; where that API cannot be reached, only the running version is listed. Picking a version reloads the page with `?dpk-version=<version>`, and the entry the page loads hands the page to that version's same entry on jsDelivr instead of defining its own elements: a document defines a custom element once, so switching needs a fresh page. Nothing else about the page changes — the markup and base data stay the ones you wrote, so a version older than the page may not render everything in it.
+
+- Only an exact version is honoured (`1.2.3`, `1.2.3-beta.1`); anything else, or the version already running, leaves the page on its pinned version. When the version asked for cannot be loaded (it does not exist, or lacks that entry), the pinned version runs the page and logs why.
+- While the URL overrides the version, the select also offers `Pinned by the page`, which drops the parameter.
+- A version from before this select renders none of its own; the entry that handed the page over then puts one into the template's `header` slot, so the reader can always come back.
+- Your pinned URL stays the contract: never write `?dpk-version=` into a link to make a page run another version, and never load `@latest`. The parameter is for the reader trying a version out.
+- `window.devProcessKit` names the version that defined the elements (`version`), the templates it registered (`templates`), and the query parameter above (`versionParam`).
 
 ## Review and the hand-off
 
@@ -234,9 +247,9 @@ Inside a Claude Artifact published with the `comments` capability, the rail also
 
 ## Read next
 
-| Question                          | Read                                                                                                                                     |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| The template I am actually using  | `docs/templates/<name>.md` (prototype / usm / event-storming / example-mapping / grill / plain / slides / task-board / delegation-poker) |
-| The component I am actually using | `docs/components/<name>.md` (comment-panel / diagrams / formal-spec / …)                                                                 |
+| Question                          | Read                                                                                                                                                  |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The template I am actually using  | `docs/templates/<name>.md` (prototype / usm / event-storming / example-mapping / grill / plain / slides / task-board / delegation-poker / whiteboard) |
+| The component I am actually using | `docs/components/<name>.md` (comment-panel / diagrams / formal-spec / …)                                                                              |
 
 Read the page for what you are actually using, plus this one.

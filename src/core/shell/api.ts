@@ -36,6 +36,7 @@ export type TemplateFacadeSource<S> = {
   readonly dispatch: (input: ActionInput) => DispatchOutcome;
   readonly dispatchBatch: (inputs: readonly ActionInput[]) => BatchDispatchOutcome;
   readonly subscribe: (listener: (snapshot: TemplateSnapshot<S>) => void) => () => void;
+  readonly editComment: (id: string, body: string) => DispatchOutcome;
   readonly removeAction: (id: string) => void;
   readonly clearActions: () => void;
   readonly navigate: (patch: NavigationPatch, options?: { replace?: boolean }) => void;
@@ -114,6 +115,7 @@ export const createTemplateApi = <S>(source: TemplateFacadeSource<S>, host: HTML
     dispatch: (input) => source.dispatch(input),
     dispatchBatch: (inputs) => source.dispatchBatch(inputs),
     comment: (target, body) => source.dispatch({ type: COMMENT_ACTION, target, payload: { body } }),
+    editComment: (id, body) => source.editComment(id, body),
     removeAction: (id) => source.removeAction(id),
     clearActions: () => source.clearActions(),
     importDraft: (actions) => source.controller().replaceActions(actions),

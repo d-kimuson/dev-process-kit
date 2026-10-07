@@ -11,8 +11,7 @@
  */
 import { defineCommentPanel } from '../components/comment-panel/index';
 import { defineInlineEdit } from '../components/inline-edit';
-import { FRAMEWORK_VERSION } from '../core/index';
-import { announce } from '../lib/announce';
+import { startEntry } from '../core/version-loader';
 import { defineGrillElement } from '../templates/grill';
 
 export * from '../core/index';
@@ -21,7 +20,12 @@ export type { CommentPanelCallbacks } from '../components/comment-panel/index';
 export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as grill from '../templates/grill';
 
-defineCommentPanel();
-defineInlineEdit();
-defineGrillElement();
-announce(FRAMEWORK_VERSION, ['grill']);
+startEntry({
+  entry: 'templates/grill.js',
+  templates: ['grill'],
+  register: () => {
+    defineCommentPanel();
+    defineInlineEdit();
+    defineGrillElement();
+  },
+});

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { SIDEBAR_WIDTH, draggedSidebarWidth, keyedSidebarWidth, parseSidebarWidth } from './sidebar-width';
+import {
+  SIDEBAR_WIDTH,
+  draggedSidebarWidth,
+  keyedSidebarWidth,
+  parseSidebarCollapsed,
+  parseSidebarWidth,
+  sidebarToggle,
+} from './sidebar-width';
 
 describe('parseSidebarWidth', () => {
   it('accepts a finite number and keeps it within the bounds', () => {
@@ -57,5 +64,27 @@ describe('keyedSidebarWidth', () => {
 
   it('ignores keys that do not resize', () => {
     expect(keyedSidebarWidth(260, 'left', key('Enter'))).toBeNull();
+  });
+});
+
+describe('parseSidebarCollapsed', () => {
+  it('accepts only a boolean', () => {
+    expect(parseSidebarCollapsed(true)).toBe(true);
+    expect(parseSidebarCollapsed(false)).toBe(false);
+    expect(parseSidebarCollapsed('true')).toBeNull();
+    expect(parseSidebarCollapsed(1)).toBeNull();
+    expect(parseSidebarCollapsed(null)).toBeNull();
+  });
+});
+
+describe('sidebarToggle', () => {
+  it('points towards the side a left sidebar folds into, and back out', () => {
+    expect(sidebarToggle('left', false)).toEqual({ action: 'collapse', points: 'left' });
+    expect(sidebarToggle('left', true)).toEqual({ action: 'expand', points: 'right' });
+  });
+
+  it('mirrors for a right-hand sidebar', () => {
+    expect(sidebarToggle('right', false)).toEqual({ action: 'collapse', points: 'right' });
+    expect(sidebarToggle('right', true)).toEqual({ action: 'expand', points: 'left' });
   });
 });

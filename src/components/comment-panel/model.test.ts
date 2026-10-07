@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { initialPanelState, reducePanel, commentSubmission } from './model';
+import { initialPanelState, reducePanel, commentEditSubmission, commentSubmission } from './model';
 
 describe('comment panel state', () => {
   it('preserves the follow-current preference underneath an explicit target', () => {
@@ -38,5 +38,29 @@ describe('comment panel state', () => {
       outcome: { ok: false, reason: 'consent' },
     });
     expect(failed.send).toEqual({ kind: 'failed', reason: 'consent' });
+  });
+  it('edits one posted comment at a time, apart from the composer', () => {
+    const composing = reducePanel(initialPanelState(), { kind: 'input', body: 'draft' });
+    const editing = reducePanel(composing, { kind: 'edit-start', id: 'c1', body: 'old' });
+    const typed = reducePanel(editing, { kind: 'edit-input', body: '  new  ' });
+    expect(typed.editing).toEqual({ id: 'c1', body: '  new  ' });
+    expect(typed.body).toBe('draft');
+    expect(commentEditSubmission(typed)).toEqual({ id: 'c1', body: 'new' });
+    expect(reducePanel(typed, { kind: 'edit-start', id: 'c2', body: 'other' }).editing).toEqual({
+      id: 'c2',
+      body: 'other',
+    });
+    expect(reducePanel(typed, { kind: 'edit-cancel' }).editing).toBeNull();
+    expect(reducePanel(typed, { kind: 'edited' }).editing).toBeNull();
+    expect(reducePanel(typed, { kind: 'submitted' }).editing).toEqual(typed.editing);
+  });
+  it('has nothing to save while the edit is blank or closed', () => {
+    expect(commentEditSubmission(initialPanelState())).toBeNull();
+    const blank = reducePanel(reducePanel(initialPanelState(), { kind: 'edit-start', id: 'c1', body: 'old' }), {
+      kind: 'edit-input',
+      body: '   ',
+    });
+    expect(commentEditSubmission(blank)).toBeNull();
+    expect(reducePanel(initialPanelState(), { kind: 'edit-input', body: 'x' }).editing).toBeNull();
   });
 });

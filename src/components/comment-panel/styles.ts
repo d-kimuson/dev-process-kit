@@ -246,6 +246,11 @@ export const panelStyles = [
       margin-left: auto;
     }
 
+    /* Edit and delete sit together at the end of the row. */
+    .item-head .item-edit + .dpk-icon-btn {
+      margin-left: -4px;
+    }
+
     .item-target {
       display: inline-flex;
       align-items: center;
@@ -270,6 +275,24 @@ export const panelStyles = [
       border-left: 2px solid var(--dpk-accent);
       font-size: 12.5px;
       white-space: pre-wrap;
+    }
+
+    .item-editor {
+      display: grid;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .item-editor textarea {
+      min-height: 62px;
+      background: var(--dpk-paper-raised);
+      border-radius: var(--dpk-radius);
+    }
+
+    .item-editor-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
     }
 
     .item-code {

@@ -162,6 +162,65 @@ describe('DraftController', () => {
     expect(listener).toHaveBeenCalledTimes(2); // already empty
   });
 
+  describe('editComment', () => {
+    const withComments = () => {
+      const made = makeController();
+      const first = made.controller.dispatch({ type: 'comment', target: 'item:a', payload: { body: 'first' } });
+      made.controller.dispatch({ type: 'SET_NAME', target: 'a', payload: { name: 'Renamed' } });
+      const second = made.controller.dispatch({ type: 'comment', target: 'page:tiny', payload: { body: 'second' } });
+      if (!first.ok || !second.ok) throw new Error('comments rejected');
+      return { ...made, first: first.id, second: second.id };
+    };
+
+    it('replaces only the body, keeping the comment where it is in the draft', () => {
+      const { controller, first } = withComments();
+      const before = controller.actions[0];
+      const outcome = controller.editComment(first, 'first, reworded');
+      expect(outcome).toEqual({ ok: true, id: first });
+      expect(controller.actions.map((action) => action.type)).toEqual(['comment', 'SET_NAME', 'comment']);
+      expect(controller.actions[0]).toEqual({ ...before, payload: { body: 'first, reworded' } });
+      expect(controller.derivation.commentsByTarget.get('item:a')?.[0]?.payload).toEqual({
+        body: 'first, reworded',
+      });
+    });
+
+    it('persists the edit, so a reload restores the new text', () => {
+      const { controller, storage, second } = withComments();
+      controller.editComment(second, 'edited');
+      const reloaded = new DraftController({
+        definition: tinyDefinition,
+        base: tinyBase([
+          { id: 'a', name: 'Alpha' },
+          { id: 'b', name: 'Beta' },
+        ]),
+        storage,
+        storageKey: 'test',
+      });
+      expect(reloaded.actions.at(-1)).toMatchObject({ id: second, payload: { body: 'edited' } });
+    });
+
+    it('notifies once per change and not at all when the text is the same', () => {
+      const { controller, first } = withComments();
+      const listener = vi.fn();
+      controller.subscribe(listener);
+      expect(controller.editComment(first, 'first').ok).toBe(true);
+      expect(listener).not.toHaveBeenCalled();
+      controller.editComment(first, 'changed');
+      expect(listener).toHaveBeenCalledOnce();
+    });
+
+    it('rejects an empty body, an unknown id and an action that is not a comment', () => {
+      const { controller, first } = withComments();
+      const before = controller.actions;
+      expect(controller.editComment(first, '').ok).toBe(false);
+      expect(controller.editComment('missing', 'text').ok).toBe(false);
+      const patch = controller.actions[1]?.id ?? '';
+      expect(controller.editComment(patch, 'text').ok).toBe(false);
+      expect(controller.lastIssues).toHaveLength(1);
+      expect(controller.actions).toBe(before);
+    });
+  });
+
   it('round-trips drafts through storage', () => {
     const { controller, storage } = makeController();
     controller.dispatch({

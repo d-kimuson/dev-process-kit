@@ -11,8 +11,7 @@
  */
 import { defineCommentPanel } from '../components/comment-panel/index';
 import { defineInlineEdit } from '../components/inline-edit';
-import { FRAMEWORK_VERSION } from '../core/index';
-import { announce } from '../lib/announce';
+import { startEntry } from '../core/version-loader';
 import { defineExampleMappingElement } from '../templates/example-mapping';
 
 export * from '../core/index';
@@ -21,7 +20,12 @@ export type { CommentPanelCallbacks } from '../components/comment-panel/index';
 export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as exampleMapping from '../templates/example-mapping';
 
-defineCommentPanel();
-defineInlineEdit();
-defineExampleMappingElement();
-announce(FRAMEWORK_VERSION, ['example-mapping']);
+startEntry({
+  entry: 'templates/example-mapping.js',
+  templates: ['example-mapping'],
+  register: () => {
+    defineCommentPanel();
+    defineInlineEdit();
+    defineExampleMappingElement();
+  },
+});

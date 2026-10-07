@@ -7,11 +7,21 @@ import { iconMaximize, iconMinimize } from '../../../core/icons';
 import { flattenSteps, type PreviewViewport, type PrototypePreview, type PrototypeState } from '../model';
 import {
   locatePrototype,
+  prototypeMailHeader,
   prototypePageHeading,
   prototypePreviewUrl,
+  prototypeStageFrames,
   prototypeStoryHeading,
+  type MailHeader,
   type PageHeading,
 } from '../present';
+import {
+  renderUiCommentHint,
+  renderUiCommentLayer,
+  renderUiCommentToggle,
+  renderUiComposer,
+  type UiCommentView,
+} from './ui-comment';
 
 export const VIEWPORT_WIDTH: Record<PreviewViewport, string> = {
   mobile: '390px',
@@ -35,13 +45,28 @@ export const VIEWPORT_MIN_HEIGHT: Record<PreviewViewport, string> = {
 export type StageOptions = {
   /** Whether the light DOM holds markup for the preview (else a placeholder is shown). */
   readonly hasPreviewContent: (previewId: string) => boolean;
-  /** Whether the browser lets this page go full screen (a sandboxed frame may not). */
-  readonly canFullscreen: boolean;
-  /** Enters full screen, or leaves it when the stage is already there. */
-  readonly onToggleFullscreen: () => void;
+  /**
+   * Set while the stage fills the tab. `height` is what the stage took in the
+   * page: a placeholder keeps it, so the page behind neither reflows nor scrolls.
+   */
+  readonly maximized: { readonly height: number } | null;
+  /** Maximizes the stage, or restores it when it already fills the tab. */
+  readonly onToggleMaximize: () => void;
+  /** A wheel over the maximized stage, which must not scroll the hidden page. */
+  readonly onMaximizedWheel: (event: WheelEvent) => void;
+  /** Commenting on the UI: the mode, the pins and the composer. */
+  readonly uiComment: UiCommentView;
+  /** Pointer events on the canvas, read by the element while the reader comments on the UI. */
+  readonly canvasEvents: {
+    readonly click: (event: MouseEvent) => void;
+    readonly pointermove: (event: PointerEvent) => void;
+    readonly pointerleave: () => void;
+    /** A row of panes scrolled sideways: what is drawn over it follows. */
+    readonly scroll: () => void;
+  };
 };
 
-/** Tabs (when a step has several previews), the active frame and the parked slots. */
+/** Tabs or panes (when a step has several previews), the frames on screen and the parked slots. */
 export const renderStage = (
   context: TemplateRenderContext<PrototypeState>,
   m: PrototypeMessages,
@@ -50,10 +75,8 @@ export const renderStage = (
   const { state, navigation } = context;
   const located = locatePrototype(state, navigation);
   const location = located?.kind === 'step' ? located : undefined;
-  const active = location
-    ? (location.step.previews.find((preview) => preview.id === navigation['preview']) ?? location.step.previews[0])
-    : undefined;
-  const parked = renderParkedPreviews(state, active?.id);
+  const frames = location ? prototypeStageFrames(location.step, navigation) : undefined;
+  const parked = renderParkedPreviews(state, frames?.shown.map((preview) => preview.id) ?? []);
 
   if (located?.kind === 'story') {
     // A story nothing has prototyped yet is still a destination: a mock links
@@ -82,21 +105,54 @@ export const renderStage = (
     `;
   }
 
-  const previews = location.step.previews;
+  const { layout, shown, tabs, activeId } = frames ?? prototypeStageFrames(location.step, navigation);
+  const ui = options.uiComment;
+  const maximized = options.maximized;
   return html`
-    <div class="stage">
+    ${
+      maximized === null ? nothing : html`<div class="stage-placeholder" style=${`height:${maximized.height}px`}></div>`
+    }
+    <div
+      class=${maximized === null ? 'stage' : 'stage is-maximized'}
+      data-ui-comment=${ui.mode.kind}
+      popover=${maximized === null ? nothing : 'manual'}
+      @wheel=${maximized === null ? nothing : { handleEvent: options.onMaximizedWheel, passive: false }}
+    >
       <div class="stage-bar">
         ${renderPageHead(m, prototypePageHeading(location))}
         <div class="stage-tools">
-          ${previews.length > 1 ? renderPreviewTabs(context, previews, active?.id) : nothing}
-          ${active !== undefined && options.canFullscreen ? renderFullscreenToggle(m, options.onToggleFullscreen) : nothing}
+          ${tabs.length > 0 ? renderPreviewTabs(context, tabs, activeId) : nothing}
+          ${shown.length > 0 ? renderUiCommentToggle(m, ui) : nothing}
+          ${shown.length > 0 ? renderMaximizeToggle(m, maximized !== null, options.onToggleMaximize) : nothing}
         </div>
       </div>
-      <div class="canvas">
-        ${active ? renderFrame(context, active, options.hasPreviewContent(active.id)) : nothing}
-        ${previews.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
+      ${location.step.situation === undefined ? nothing : renderSituation(m, location.step.situation)}
+      ${renderUiCommentHint(m, ui)}
+      <div
+        class="canvas"
+        data-layout=${layout}
+        @click=${{ handleEvent: options.canvasEvents.click, capture: true }}
+        @pointermove=${{ handleEvent: options.canvasEvents.pointermove, capture: true }}
+        @pointerleave=${options.canvasEvents.pointerleave}
+        @scroll=${{ handleEvent: options.canvasEvents.scroll, capture: true }}
+      >
+        ${
+          layout === 'side-by-side'
+            ? html`<div class="panes">
+                ${shown.map(
+                  (preview) =>
+                    html`<div class="pane" data-viewport=${preview.viewport}>
+                      ${preview.label === undefined ? nothing : html`<span class="pane-label">${preview.label}</span>`}
+                      ${renderFrame(context, m, preview, options.hasPreviewContent(preview.id))}
+                    </div>`,
+                )}
+              </div>`
+            : shown.map((preview) => renderFrame(context, m, preview, options.hasPreviewContent(preview.id)))
+        }
+        ${shown.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
+        ${renderUiCommentLayer(m, ui)}
       </div>
-      ${parked}
+      ${renderUiComposer(ui)} ${parked}
     </div>
   `;
 };
@@ -119,6 +175,14 @@ const renderPageHead = (m: PrototypeMessages, heading: PageHeading): TemplateRes
   </div>`;
 };
 
+/** The scene around the previews, read just before looking at them. */
+const renderSituation = (m: PrototypeMessages, situation: string): TemplateResult => {
+  return html`<aside class="situation">
+    <span class="situation-label">${m.situation}</span>
+    <p class="situation-text">${situation}</p>
+  </aside>`;
+};
+
 const renderPreviewTabs = (
   context: TemplateRenderContext<PrototypeState>,
   previews: readonly PrototypePreview[],
@@ -139,20 +203,22 @@ const renderPreviewTabs = (
   </div>`;
 };
 
-/**
- * One button both enters and leaves full screen. Which label shows is decided by
- * `.stage:fullscreen` in the styles, so the browser stays the only owner of
- * whether the stage is full screen.
- */
-const renderFullscreenToggle = (m: PrototypeMessages, onToggle: () => void): TemplateResult => {
-  return html`<button class="dpk-btn stage-fullscreen" type="button" title=${m.fullscreenHint} @click=${onToggle}>
-    <span class="fullscreen-enter">${iconMaximize()} ${m.fullscreen}</span>
-    <span class="fullscreen-exit">${iconMinimize()} ${m.exitFullscreen}</span>
+/** One button both maximizes the stage within the tab and restores it, like a diagram's. */
+const renderMaximizeToggle = (m: PrototypeMessages, maximized: boolean, onToggle: () => void): TemplateResult => {
+  return html`<button
+    class="dpk-btn stage-maximize"
+    type="button"
+    aria-pressed=${maximized ? 'true' : 'false'}
+    title=${m.maximizeHint}
+    @click=${onToggle}
+  >
+    ${maximized ? html`${iconMinimize()} ${m.restore}` : html`${iconMaximize()} ${m.maximize}`}
   </button>`;
 };
 
 export const renderFrame = (
   context: TemplateRenderContext<PrototypeState>,
+  m: PrototypeMessages,
   preview: PrototypePreview,
   hasContent: boolean,
 ): TemplateResult => {
@@ -161,6 +227,7 @@ export const renderFrame = (
       class="frame"
       data-kind=${preview.kind}
       data-viewport=${preview.viewport}
+      ?data-empty=${!hasContent}
       style=${`--frame-width:${VIEWPORT_WIDTH[preview.viewport]};--frame-min-height:${VIEWPORT_MIN_HEIGHT[preview.viewport]}`}
     >
       ${
@@ -169,7 +236,9 @@ export const renderFrame = (
               <span class="dots"><i></i><i></i><i></i></span>
               <span class="url">${prototypePreviewUrl(context.state, preview)}</span>
             </div>`
-          : nothing
+          : preview.kind === 'mail'
+            ? renderMailHeader(prototypeMailHeader(m, preview))
+            : nothing
       }
       <div class="viewport">
         ${preview.kind === 'native' ? renderStatusBar() : nothing}
@@ -185,6 +254,25 @@ export const renderFrame = (
       </div>
     </figure>
   `;
+};
+
+/** A received message: subject, the sender's avatar and the envelope rows, above the body. */
+const renderMailHeader = (header: MailHeader): TemplateResult => {
+  return html`<header class="mail-head">
+    ${header.subject === undefined ? nothing : html`<h3 class="mail-subject">${header.subject}</h3>`}
+    <div class="mail-envelope">
+      ${header.initial === undefined ? nothing : html`<span class="mail-avatar" aria-hidden="true">${header.initial}</span>`}
+      <dl class="mail-meta">
+        ${header.rows.map(
+          (row) =>
+            html`<div class="mail-row">
+              <dt>${row.label}</dt>
+              <dd>${row.value}</dd>
+            </div>`,
+        )}
+      </dl>
+    </div>
+  </header>`;
 };
 
 const renderStatusBar = (): TemplateResult => {
@@ -216,9 +304,9 @@ const renderStatusBar = (): TemplateResult => {
  * this shadow root, otherwise its light DOM element would fall back to the
  * generic `slot="preview"` bucket and show up as an orphan.
  */
-export const renderParkedPreviews = (state: PrototypeState, activePreviewId: string | undefined): TemplateResult => {
+export const renderParkedPreviews = (state: PrototypeState, shownIds: readonly string[]): TemplateResult => {
   const parked = flattenSteps(state).flatMap((entry) =>
-    entry.step.previews.filter((preview) => preview.id !== activePreviewId),
+    entry.step.previews.filter((preview) => !shownIds.includes(preview.id)),
   );
   if (parked.length === 0) return html`${nothing}`;
   return html`<div class="parked" aria-hidden="true">

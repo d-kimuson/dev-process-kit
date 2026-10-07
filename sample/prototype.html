@@ -16,7 +16,7 @@
       by this page's own origin: the sample server is a separate origin on purpose,
       so the cross-origin (CORS) load is exercised locally too. A generated page
       loads the same files from jsDelivr instead, and so does this page on GitHub
-      Pages or with `?version=<version>` (`kit.js`).
+      Pages or with `?dpk-version=<version>` (`kit.js`).
     -->
     <script type="module">
       import { loadKit } from './kit.js';
@@ -49,10 +49,11 @@
         --sm-accent-soft: #e5efe9;
         --sm-warn: #a8552f;
         --sm-warn-soft: #f7e9df;
-        /* The frame stretches this to the preview height; centring the content is
-           enough, no percentage height that would defeat intrinsic sizing. */
+        /* The frame stretches this to the preview height (a maximized stage makes
+           it taller still). A page reads from the top, like the real screen; no
+           percentage height that would defeat intrinsic sizing. */
         display: grid;
-        align-content: center;
+        align-content: start;
         margin: 0;
         padding: 18px;
         background: var(--sm-bg);
@@ -317,13 +318,14 @@
       }
 
       .sm-note {
-        border-left: 3px solid var(--sm-accent);
-        padding: 2px 0 2px 12px;
-        color: var(--sm-dim);
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: var(--sm-accent-soft);
+        color: var(--sm-text);
       }
 
       .sm-note--warn {
-        border-left-color: var(--sm-warn);
+        background: var(--sm-warn-soft);
       }
 
       .sm-done {
@@ -345,6 +347,13 @@
 
       .sm-center {
         text-align: center;
+      }
+
+      /* A finished-state screen (order placed, cancel accepted): the site header
+         stays on top, the message sits in the middle of the room below it. */
+      .sm:has(> .sm-center) {
+        grid-template-rows: auto 1fr;
+        align-content: stretch;
       }
 
       .sm-steps {
@@ -436,8 +445,10 @@
       /* ------------------------------------------------------------------
          Shop admin (desktop only): side navigation + wide working area.
          ------------------------------------------------------------------ */
+      /* The admin screen fills the whole preview, however tall the frame is
+         (a maximized stage stretches it): the side navigation runs to the bottom. */
       .sm--admin {
-        align-content: start;
+        align-content: stretch;
         padding: 0;
         background: #f3f4f6;
       }
@@ -445,7 +456,6 @@
       .sm-admin {
         display: grid;
         grid-template-columns: 184px minmax(0, 1fr);
-        min-height: 520px;
       }
 
       .sm-side {
@@ -586,6 +596,109 @@
         width: auto;
         margin: 0;
       }
+
+      /* The body of a received mail: the frame draws the envelope, the page only the message. */
+      .sm-mail {
+        align-content: start;
+        gap: 12px;
+        background: #ffffff;
+      }
+
+      .sm-mail p {
+        margin: 0;
+      }
+
+      /* A sticky note next to the admin screen: drawn by the page, framed by nothing. */
+      .sticky {
+        display: grid;
+        justify-items: center;
+        padding: 6px 0;
+      }
+
+      .sticky-note {
+        width: min(260px, 100%);
+        padding: 16px 18px 20px;
+        background: #fff3a8;
+        color: #3a3320;
+        font-family: 'Klee One', 'Yomogi', 'Comic Sans MS', cursive;
+        font-size: 13.5px;
+        line-height: 1.7;
+        box-shadow:
+          0 1px 1px rgba(0, 0, 0, 0.08),
+          0 10px 18px rgba(80, 60, 0, 0.18);
+        transform: rotate(1.2deg);
+      }
+
+      .sticky-note ul {
+        margin: 8px 0;
+        padding-left: 1.1em;
+      }
+
+      .sticky-note p {
+        margin: 0;
+        font-weight: 600;
+      }
+
+      /* A FAX on the operator's desk: not a screen, so a `plain` preview draws the paper itself. */
+      .fax {
+        display: grid;
+        justify-items: center;
+        padding: 8px 0 18px;
+      }
+
+      .fax-sheet {
+        width: min(520px, 100%);
+        padding: 28px 34px 34px;
+        background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.018) 0 1px, transparent 1px 3px), #fbfaf6;
+        color: #2a2a2a;
+        font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+        font-size: 13px;
+        line-height: 1.75;
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.12),
+          0 12px 28px rgba(0, 0, 0, 0.14);
+        transform: rotate(-0.6deg);
+        filter: grayscale(1) contrast(1.05);
+      }
+
+      .fax-head {
+        display: flex;
+        justify-content: space-between;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #2a2a2a;
+        font-family: ui-monospace, monospace;
+        font-size: 10.5px;
+        letter-spacing: 0.04em;
+      }
+
+      .fax-sheet h2 {
+        margin: 16px 0 10px;
+        font-size: 18px;
+        letter-spacing: 0.2em;
+        text-align: center;
+      }
+
+      .fax-sheet table {
+        width: 100%;
+        margin: 12px 0;
+        border-collapse: collapse;
+        font-family: ui-monospace, monospace;
+        font-size: 11.5px;
+      }
+
+      .fax-sheet th,
+      .fax-sheet td {
+        padding: 4px 6px;
+        border: 1px solid #555;
+        text-align: left;
+      }
+
+      .fax-note {
+        margin-top: 14px;
+        padding: 6px 10px;
+        border: 1px dashed #555;
+        font-size: 12px;
+      }
     </style>
   </head>
   <body>
@@ -609,6 +722,7 @@
                       "id": "cart",
                       "name": "カートを確かめる",
                       "title": "カート",
+                      "situation": "9月18日の午前 10 時ごろ、仕事の合間の短い休憩中。前の晩にカートへ入れておいた 2 点を、スマホで買ってしまおうとする",
                       "previews": [
                         { "id": "cart-mobile", "viewport": "mobile", "url": "https://sora-market.example.com/cart" }
                       ]
@@ -617,6 +731,7 @@
                       "id": "delivery-payment",
                       "name": "配送先と支払い方法を選ぶ",
                       "title": "配送・支払い",
+                      "situation": "休憩は残り数分。配送先も支払い方法も前回のままでよく、何も変えずに先へ進みたい",
                       "previews": [
                         {
                           "id": "delivery-payment-mobile",
@@ -630,6 +745,7 @@
                       "name": "注文を確定する",
                       "title": "注文内容の確認",
                       "description": "キャンセルできる期限を、確定の前に一度だけ伝える",
+                      "situation": "確定ボタンを押す直前。合計とお届け日を流し見していて、細かい注意書きはほとんど読まない",
                       "previews": [
                         {
                           "id": "review-mobile",
@@ -642,6 +758,7 @@
                       "id": "order-complete",
                       "name": "注文の完了を確かめる",
                       "title": "注文完了",
+                      "situation": "注文を確定した直後。休憩が終わる前に画面を閉じようとしている",
                       "previews": [
                         {
                           "id": "order-complete-mobile",
@@ -662,6 +779,7 @@
                       "name": "注文履歴を開く",
                       "title": "注文履歴",
                       "description": "キャンセルできる注文は一覧の時点で分かる",
+                      "situation": "同じ日の夜 21 時半、自宅のソファで。テーブルクロスのサイズを選び間違えたと気づき、慌てて注文履歴を開く",
                       "previews": [
                         {
                           "id": "order-history-mobile",
@@ -674,6 +792,7 @@
                       "id": "order-detail",
                       "name": "注文詳細からキャンセルを選ぶ",
                       "title": "注文詳細",
+                      "situation": "取り消せるのか、一部だけ直せるのかが分からず、不安なまま注文を開いている",
                       "previews": [
                         {
                           "id": "order-detail-mobile",
@@ -687,6 +806,7 @@
                       "name": "返金額と返金先を確かめて確定する",
                       "title": "キャンセルの確認",
                       "description": "理由の選択は任意。確定を妨げない",
+                      "situation": "あとで注文し直すつもりなので、お金がいつ、どこへ戻るかだけが気になっている",
                       "previews": [
                         {
                           "id": "cancel-confirm-mobile",
@@ -700,6 +820,7 @@
                       "name": "受付を確かめる",
                       "title": "キャンセル受付",
                       "description": "返金の完了を待たずに受付だけを伝える。注文は「返金待ち」になる",
+                      "situation": "21 時 40 分、確定を押した直後。返金がもう済んだのか、まだなのかを知りたい",
                       "previews": [
                         {
                           "id": "cancel-accepted-mobile",
@@ -719,14 +840,28 @@
                       "name": "返金完了のメールを受け取る",
                       "title": "返金完了のお知らせ",
                       "description": "受付と返金完了は別のメールで届く",
+                      "situation": "キャンセルした翌朝、通勤中の電車でスマホに通知が届く",
                       "previews": [
-                        { "id": "refund-mail-native", "kind": "native", "viewport": "mobile", "label": "通知" }
+                        { "id": "refund-mail-native", "kind": "native", "viewport": "mobile", "label": "通知" },
+                        {
+                          "id": "refund-mail-message",
+                          "kind": "mail",
+                          "viewport": "mobile",
+                          "label": "メール",
+                          "mail": {
+                            "from": "Sora Market <order@sora-market.example.com>",
+                            "to": "hanako.sato@example.com",
+                            "subject": "【Sora Market】返金が完了しました（注文 SM-0918-0342）",
+                            "date": "2025/09/19 9:41"
+                          }
+                        }
                       ]
                     },
                     {
                       "id": "refunded-detail",
                       "name": "注文が取消済みになったのを確かめる",
                       "title": "注文詳細（取消済み）",
+                      "situation": "通知を開いたついでに、注文がきちんと取り消されたかを電車の中で確かめる",
                       "previews": [
                         {
                           "id": "refunded-detail-mobile",
@@ -747,6 +882,7 @@
                       "name": "キャンセルできない理由を知る",
                       "title": "注文詳細（出荷済み）",
                       "description": "キャンセルのボタンは出さず、理由と次にできることを示す",
+                      "situation": "9月15日の夜。12 日に頼んだペーパーウェイトが要らなくなり、届く前に取り消せないかと注文を開く",
                       "previews": [
                         {
                           "id": "shipped-detail-mobile",
@@ -760,6 +896,7 @@
                       "name": "問い合わせを送る",
                       "title": "お問い合わせ",
                       "description": "注文番号と用件を埋めた状態で開く",
+                      "situation": "キャンセルできないと分かったが、どうにかならないか運営に直接聞きたい。翌日の昼休み、会社のデスクで入力している",
                       "previews": [
                         {
                           "id": "contact-mobile",
@@ -787,6 +924,7 @@
                       "name": "注文を状態で絞り込む",
                       "title": "注文一覧",
                       "description": "状態は購入者に見せるものと同じ名前にそろえる",
+                      "situation": "9月19日の朝 10 時半、事務所の PC で。前の晩に入ったキャンセルが片付いたかを、朝いちばんの確認として見る",
                       "previews": [
                         {
                           "id": "admin-orders-desktop",
@@ -800,6 +938,7 @@
                       "name": "キャンセルの経緯をたどる",
                       "title": "注文詳細",
                       "description": "誰がいつ取り消し、いつ返金と引当の解除が済んだかを一列で追える",
+                      "situation": "購入者から「返金はいつ戻るのか」と問い合わせが来たときに、返事を書くために経緯を確かめている",
                       "previews": [
                         {
                           "id": "admin-order-detail-desktop",
@@ -815,10 +954,19 @@
                   "name": "滞っている返金に対応する",
                   "steps": [
                     {
+                      "id": "refund-fax",
+                      "name": "返金失敗の連絡を FAX で受け取る",
+                      "title": "返金不能のお知らせ（FAX）",
+                      "description": "決済代行は返金に失敗した取引を翌朝 FAX で知らせてくる。画面の外で始まる対応",
+                      "situation": "朝 8 時、事務所の FAX に決済代行から 1 枚届く。運営者は出社してすぐ紙で気づく",
+                      "previews": [{ "id": "refund-fax-paper", "kind": "plain", "label": "FAX" }]
+                    },
+                    {
                       "id": "admin-refunds",
                       "name": "返金待ちが長い注文を見つける",
                       "title": "返金待ち一覧",
                       "description": "経過時間の長い順に並べ、24 時間を超えたものを目立たせる",
+                      "situation": "FAX に書かれた注文番号を手元に置き、出社してすぐ管理画面で返金待ちの一覧を開く",
                       "previews": [
                         {
                           "id": "admin-refunds-desktop",
@@ -832,10 +980,19 @@
                       "name": "失敗が続く返金を調べる",
                       "title": "返金の詳細",
                       "description": "失敗が続いたときの扱いは未決。ここでは「返金待ち」のまま残し、運営が照会と連絡をする案で描いた",
+                      "situation": "FAX を手元に置き、決済代行のサポートに電話で照会しながら管理画面で試行の履歴を確かめる",
+                      "layout": "side-by-side",
                       "previews": [
+                        {
+                          "id": "admin-refund-stuck-memo",
+                          "kind": "plain",
+                          "viewport": "fluid",
+                          "label": "手元のメモ"
+                        },
                         {
                           "id": "admin-refund-stuck-desktop",
                           "viewport": "desktop",
+                          "label": "管理画面",
                           "url": "https://admin.sora-market.example.com/refunds/SM-0915-0288"
                         }
                       ]
@@ -1096,7 +1253,7 @@
       <div slot="preview" data-preview-id="refund-mail-native">
         <div class="sm sm-lock">
           <div class="sm-clock">9:41<small>9月19日（金）</small></div>
-          <a class="sm-push" href="#step=refunded-detail" data-dpk-navigate="step=refunded-detail">
+          <a class="sm-push" href="#preview=refund-mail-message" data-dpk-navigate="preview=refund-mail-message">
             <span class="sm-logo">S</span>
             <div>
               <b>メール</b> <small>いま</small>
@@ -1112,6 +1269,22 @@
               <small>返金の手続きを進めています。完了したらあらためてお知らせします。</small>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="refund-mail-message">
+        <div class="sm sm-mail">
+          <p>佐藤 花子 様</p>
+          <p>
+            ご注文 SM-0918-0342
+            のキャンセルにともなう返金が完了しました。カード会社の処理により、明細への反映まで数日かかることがあります。
+          </p>
+          <div class="sm-card">
+            <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
+            <div class="sm-row"><span>返金先</span><span>VISA •••• 4242</span></div>
+          </div>
+          <a class="sm-btn" href="#step=refunded-detail" data-dpk-navigate="step=refunded-detail">注文を確認する</a>
+          <p class="sm-sub">このメールは送信専用です。お問い合わせは注文詳細の「お問い合わせ」からどうぞ。</p>
         </div>
       </div>
 
@@ -1262,7 +1435,9 @@
                       <td>購入者 · 9/18 21:40</td>
                     </tr>
                     <tr>
-                      <td><a>SM-0916-0301</a></td>
+                      <td>
+                        <a href="#step=admin-order-detail" data-dpk-navigate="step=admin-order-detail">SM-0916-0301</a>
+                      </td>
                       <td>9/16 19:48</td>
                       <td>雲井 たける</td>
                       <td class="sm-num">¥2,980</td>
@@ -1270,7 +1445,9 @@
                       <td>購入者 · 9/16 20:02</td>
                     </tr>
                     <tr>
-                      <td><a>SM-0914-0210</a></td>
+                      <td>
+                        <a href="#step=admin-order-detail" data-dpk-navigate="step=admin-order-detail">SM-0914-0210</a>
+                      </td>
                       <td>9/14 08:15</td>
                       <td>晴海 さき</td>
                       <td class="sm-num">¥6,600</td>
@@ -1374,7 +1551,9 @@
                       <td>タイムアウト</td>
                     </tr>
                     <tr>
-                      <td><a>SM-0919-0012</a></td>
+                      <td>
+                        <a href="#step=admin-refund-stuck" data-dpk-navigate="step=admin-refund-stuck">SM-0919-0012</a>
+                      </td>
                       <td>9/19 09:48</td>
                       <td>42 分</td>
                       <td class="sm-num">¥5,390</td>
@@ -1382,7 +1561,9 @@
                       <td>照会中</td>
                     </tr>
                     <tr>
-                      <td><a>SM-0919-0020</a></td>
+                      <td>
+                        <a href="#step=admin-refund-stuck" data-dpk-navigate="step=admin-refund-stuck">SM-0919-0020</a>
+                      </td>
                       <td>9/19 10:24</td>
                       <td>6 分</td>
                       <td class="sm-num">¥1,650</td>
@@ -1393,6 +1574,51 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="refund-fax-paper">
+        <div class="fax">
+          <div class="fax-sheet">
+            <div class="fax-head">
+              <span>FROM: ソラペイ決済 加盟店サポート 03-5555-0142</span>
+              <span>2025/09/19 08:12 P.01/01</span>
+            </div>
+            <h2>返金不能のお知らせ</h2>
+            <p>Sora Market 御中</p>
+            <p>下記のお取引について、カード会社の応答がなく返金を完了できませんでした。</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>加盟店取引番号</th>
+                  <th>金額</th>
+                  <th>状態</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>SM-0915-0288</td>
+                  <td>¥24,200</td>
+                  <td>応答なし（6 回）</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="fax-note">ご不明点は管理画面の「返金照会」またはお電話にてお問い合わせください。</p>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="admin-refund-stuck-memo">
+        <div class="sticky">
+          <div class="sticky-note">
+            <b>9/19 ソラペイ 電話</b>
+            <ul>
+              <li>SM-0915-0288 → カード会社側で保留</li>
+              <li>再送は止めてほしい（二重返金の恐れ）</li>
+              <li>結果は 9/22 までに FAX で</li>
+            </ul>
+            <p>→ 購入者に連絡する？</p>
           </div>
         </div>
       </div>
@@ -1459,7 +1685,7 @@
                   </p>
                   <div class="sm-actions">
                     <button class="sm-btn">いま結果を照会する</button>
-                    <button class="sm-btn sm-btn--ghost">購入者に連絡する</button>
+                    <button class="sm-btn sm-btn--ghost" data-dpk-navigate="story=inquiries">購入者に連絡する</button>
                   </div>
                 </div>
               </div>

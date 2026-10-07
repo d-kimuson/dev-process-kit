@@ -71,9 +71,19 @@ export const taskBoardStyles = css`
       border-top: 1px solid var(--dpk-rule);
     }
 
-    /* Stacked, the rail takes the full width: there is no edge to drag. */
-    .dpk-sidebar-resizer {
+    /* Stacked, the rail takes the full width: there is no edge to drag or
+       fold on. A rail folded on a wider screen is a bar to unfold it. */
+    .dpk-sidebar-resizer,
+    .dpk-body > .dpk-sidebar-toggle {
       display: none;
+    }
+
+    .dpk-sidebar-strip {
+      width: auto;
+      padding: 8px 14px;
+      justify-content: flex-start;
+      border-left: 0;
+      border-top: 1px solid var(--dpk-rule);
     }
 
     /* The body scrolls here, so an absolute panel would scroll away with it:

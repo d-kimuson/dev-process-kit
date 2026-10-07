@@ -17,8 +17,11 @@ export const erDiagramMessages = defineMessages({
     legendAdded: 'Added',
     legendRemoved: 'Removed',
     legendChanged: 'Changed',
+    legendCardinality:
+      'Crow’s foot: | one · ○ zero · fork many — each end counts that table’s rows per row across the line',
     statusLabel: (status: ErStatus) => label(status, true),
-    edgeLabel: (from: string, to: string) => `${from} and ${to}, related`,
+    edgeLabel: (from: string, to: string, cardinality: string) => `${from} and ${to}, related ${cardinality}`,
+    was: (previous: string) => `was ${previous}`,
     nullable: 'nullable',
   },
   ja: {
@@ -30,8 +33,11 @@ export const erDiagramMessages = defineMessages({
     legendAdded: '追加',
     legendRemoved: '削除',
     legendChanged: '変更',
+    legendCardinality:
+      'カラスの足記法: | 1 · ○ 0 · 三叉 多 — 各端の記号と数字は、相手側 1 行に対するその端のテーブルの行数',
     statusLabel: (status: ErStatus) => label(status, false),
-    edgeLabel: (from: string, to: string) => `${from} と ${to} の関連`,
+    edgeLabel: (from: string, to: string, cardinality: string) => `${from} と ${to} の関連 (${cardinality})`,
+    was: (previous: string) => `変更前 ${previous}`,
     nullable: 'null可',
   },
 });

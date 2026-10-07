@@ -10,7 +10,7 @@ import { createEntityId } from '../../../core/target';
 import { onCommit, onSelectChange } from '../../../lib/dom/events';
 import { prototypeAction } from '../actions';
 import { allStepIds, stepRef, stepRefOf, storyRef, type PrototypeState } from '../model';
-import { locatePrototype } from '../present';
+import { locatePrototype, prototypeUiCommentCount } from '../present';
 
 /** Activity select -> UserStory select -> step list of the selected story. */
 export const renderNav = (context: TemplateRenderContext<PrototypeState>, m: PrototypeMessages): TemplateResult => {
@@ -60,7 +60,13 @@ export const renderNav = (context: TemplateRenderContext<PrototypeState>, m: Pro
           (step) => stepRefOf(activity, story, step),
           (step, index) => {
             const ref = stepRefOf(activity, story, step);
-            const notes = context.commentCount({ type: 'step', id: ref });
+            // Comments on the UI of the step's previews are about the step too.
+            const notes =
+              context.commentCount({ type: 'step', id: ref }) +
+              prototypeUiCommentCount(
+                context.comments,
+                step.previews.map((preview) => preview.id),
+              );
             return html`
               <li class="step-row" data-current=${String(step.id === current?.id)}>
                 <a class="step-link" href=${context.hashFor({ activity: activity.id, story: story.id, step: step.id })}>

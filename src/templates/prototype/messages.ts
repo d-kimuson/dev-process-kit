@@ -29,6 +29,7 @@ export const prototypeMessages = defineMessages({
     stepGroup: 'Step',
     previewGroup: 'Preview',
     pageGroup: 'Page',
+    uiGroup: 'UI',
     targetLabel: (group: string, name: string) => `${group} · ${name}`,
     targetMissing: (group: string, id: string) => `${group} · ${id} (missing)`,
 
@@ -50,9 +51,17 @@ export const prototypeMessages = defineMessages({
     storyWithoutSteps:
       'This UserStory has no Steps yet, so there is no screen to show. Add one with + Step, or ask the agent to prototype it.',
     pageActor: (actor: string) => `Used by ${actor}`,
-    fullscreen: 'Full screen',
-    exitFullscreen: 'Exit full screen',
-    fullscreenHint: 'Show the preview alone · Esc to leave',
+    maximize: 'Maximize',
+    restore: 'Restore size',
+    maximizeHint: 'Show the preview alone across the tab · Esc to restore',
+    situation: 'Situation',
+    uiComment: 'Comment on UI',
+    uiCommentHint: 'Click any part of the preview to comment on it · Esc to finish',
+    uiCommentPin: (number: number, body: string) => `Comment ${number}: ${body}`,
+    mailFrom: 'From',
+    mailTo: 'To',
+    mailCc: 'Cc',
+    mailDate: 'Date',
   },
   ja: {
     renameActivity: 'Activity 名を変更',
@@ -79,6 +88,7 @@ export const prototypeMessages = defineMessages({
     stepGroup: 'Step',
     previewGroup: 'Preview',
     pageGroup: 'Page',
+    uiGroup: 'UI',
     targetLabel: (group: string, name: string) => `${group} · ${name}`,
     targetMissing: (group: string, id: string) => `${group} · ${id} (missing)`,
 
@@ -98,9 +108,17 @@ export const prototypeMessages = defineMessages({
     storyWithoutSteps:
       'この UserStory にはまだ Step がなく、見せる画面がありません。+ Step で追加するか、Agent にプロトタイプを依頼してください。',
     pageActor: (actor: string) => `利用者: ${actor}`,
-    fullscreen: '全画面表示',
-    exitFullscreen: '全画面を終了',
-    fullscreenHint: 'プレビューだけを表示 · Esc で戻る',
+    maximize: '最大化',
+    restore: '元のサイズに戻す',
+    maximizeHint: 'プレビューだけをタブいっぱいに表示 · Esc で戻る',
+    situation: '状況',
+    uiComment: 'UI にコメント',
+    uiCommentHint: 'プレビューの要素をクリックしてコメント · Esc で終了',
+    uiCommentPin: (number: number, body: string) => `コメント ${number}: ${body}`,
+    mailFrom: '差出人',
+    mailTo: '宛先',
+    mailCc: 'Cc',
+    mailDate: '日時',
   },
 });
 

@@ -9,7 +9,7 @@ import {
   type ActionSpecs,
   type TemplateAction,
 } from '../../core/schema';
-import { PREVIEW_KINDS, PREVIEW_VIEWPORTS, type PrototypePreview } from './model';
+import { PREVIEW_KINDS, PREVIEW_VIEWPORTS, previewEntries, type PrototypePreview } from './model';
 
 /**
  * Prototype action vocabulary.
@@ -85,32 +85,11 @@ export const prototypeActions = {
       id: entityIdSchema,
       name: v.pipe(v.string(), v.minLength(1)),
       description: v.exactOptional(v.string()),
-      previews: v.exactOptional(
-        v.array(
-          v.object({
-            id: entityIdSchema,
-            kind: v.optional(v.picklist(PREVIEW_KINDS), 'browser'),
-            viewport: v.optional(v.picklist(PREVIEW_VIEWPORTS), 'fluid'),
-            label: v.exactOptional(v.string()),
-            url: v.exactOptional(v.string()),
-          }),
-        ),
-      ),
+      previews: v.exactOptional(v.array(v.object(previewEntries))),
     }),
     { dedupeKey: entityDedupeKey },
   ),
-  ADD_PREVIEW: defineAction(
-    'ADD_PREVIEW',
-    'step',
-    v.object({
-      id: entityIdSchema,
-      kind: v.optional(v.picklist(PREVIEW_KINDS), 'browser'),
-      viewport: v.optional(v.picklist(PREVIEW_VIEWPORTS), 'fluid'),
-      label: v.exactOptional(v.string()),
-      url: v.exactOptional(v.string()),
-    }),
-    { dedupeKey: entityDedupeKey },
-  ),
+  ADD_PREVIEW: defineAction('ADD_PREVIEW', 'step', v.object(previewEntries), { dedupeKey: entityDedupeKey }),
 
   DELETE_ACTIVITY: defineAction('DELETE_ACTIVITY', 'activity', v.object({})),
   DELETE_STORY: defineAction('DELETE_STORY', 'story', v.object({})),

@@ -217,6 +217,9 @@ export const erStyles = css`
     grid-area: key;
     display: grid;
     place-items: center;
+    /* A column with several roles (FK + UQ) stacks one badge line per key. */
+    line-height: 1.25;
+    padding: 1px 0;
     border-radius: 3px;
     background: var(--dpk-paper-inset);
     font-family: var(--dpk-mono);
@@ -289,10 +292,11 @@ export const erStyles = css`
   .er-cardinality {
     font-family: var(--dpk-mono);
     font-size: 10px;
-    fill: var(--dpk-ink-faint);
+    fill: var(--dpk-ink-soft);
     paint-order: stroke;
-    stroke: var(--dpk-paper-raised);
-    stroke-width: 4px;
+    stroke: var(--dpk-paper-sunken);
+    stroke-width: 5px;
+    stroke-linejoin: round;
   }
 
   .er-cardinality.is-added {
@@ -301,6 +305,68 @@ export const erStyles = css`
 
   .er-cardinality.is-removed {
     fill: var(--dpk-accent);
+  }
+
+  .er-relation-label {
+    font-size: 10px;
+    font-style: italic;
+    fill: var(--dpk-ink-soft);
+    paint-order: stroke;
+    stroke: var(--dpk-paper-sunken);
+    stroke-width: 4px;
+  }
+
+  .er-relation-label.is-added {
+    fill: var(--dpk-green);
+  }
+
+  .er-relation-label.is-removed {
+    fill: var(--dpk-accent);
+  }
+
+  .er-cardinality.is-changed,
+  .er-relation-label.is-changed {
+    fill: var(--dpk-amber);
+  }
+
+  .er-was {
+    fill: var(--dpk-accent);
+    text-decoration: line-through;
+  }
+
+  .er-edge.is-changed .d-edge-path {
+    stroke: var(--dpk-amber);
+  }
+
+  /* Crow's foot ends take the line's colour; the "zero" circle is hollow. */
+  .er-end {
+    pointer-events: none;
+    fill: var(--dpk-paper-raised);
+    stroke: var(--dpk-ink-faint);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+  }
+
+  .er-edge.is-added .er-end {
+    stroke: var(--dpk-green);
+  }
+
+  .er-edge.is-removed .er-end {
+    stroke: var(--dpk-accent);
+  }
+
+  .er-edge.is-changed .er-end {
+    stroke: var(--dpk-amber);
+  }
+
+  .er-edge.is-selected .er-end {
+    stroke: var(--dpk-blue);
+    stroke-width: 2;
+  }
+
+  .diagram-legend .er-legend-cardinality {
+    font-family: var(--dpk-mono);
+    font-size: 9px;
   }
 
   .diagram-legend .er-swatch-added {
@@ -313,25 +379,5 @@ export const erStyles = css`
 
   .diagram-legend .er-swatch-changed {
     border-color: var(--dpk-amber);
-  }
-
-  #er-neutral .diagram-arrow {
-    fill: var(--dpk-rule-strong);
-    stroke: var(--dpk-rule-strong);
-  }
-
-  #er-added .diagram-arrow {
-    fill: var(--dpk-green);
-    stroke: var(--dpk-green);
-  }
-
-  #er-removed .diagram-arrow {
-    fill: var(--dpk-accent);
-    stroke: var(--dpk-accent);
-  }
-
-  #er-selected .diagram-arrow {
-    fill: var(--dpk-blue);
-    stroke: var(--dpk-blue);
   }
 `;

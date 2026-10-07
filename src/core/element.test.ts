@@ -372,6 +372,80 @@ describe('color scheme', () => {
   });
 });
 
+describe('editing a review comment', () => {
+  const STORAGE_KEY = 'edit-test';
+  const mountStored = (): DpkTemplatePrototype => {
+    document.body.innerHTML = `
+      <dpk-template-prototype storage-key="${STORAGE_KEY}" notes="on">
+        <script type="application/json">${JSON.stringify(base)}</script>
+      </dpk-template-prototype>`;
+    return document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+  };
+  const panelOf = async (el: DpkTemplatePrototype): Promise<DpkComponentCommentPanel> => {
+    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    await panel.updateComplete;
+    return panel;
+  };
+
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+    localStorage.clear();
+  });
+
+  it('rewrites a comment from the review rail, and the new text survives a reload', async () => {
+    const el = mountStored();
+    await settle(el);
+    const posted = el.api.comment('step:landing', 'first thought');
+    if (!posted.ok) throw new Error('comment rejected');
+    await settle(el);
+    const target = el.api.comments[0]?.target;
+    const panel = await panelOf(el);
+    panel.shadowRoot?.querySelector<HTMLButtonElement>('.item-edit')?.click();
+    await panel.updateComplete;
+    const area = panel.shadowRoot?.querySelector<HTMLTextAreaElement>('.item-editor textarea');
+    if (!area) throw new Error('no editor');
+    area.value = 'second thought';
+    area.dispatchEvent(new Event('input'));
+    await panel.updateComplete;
+    area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
+    await settle(el);
+    expect(el.api.comments).toMatchObject([{ id: posted.id, target, payload: { body: 'second thought' } }]);
+
+    const reloaded = mountStored();
+    await settle(reloaded);
+    expect(reloaded.api.comments).toMatchObject([{ id: posted.id, payload: { body: 'second thought' } }]);
+  });
+
+  it('edits a comment stored by an earlier version of the kit', async () => {
+    const stored = {
+      id: 'old-comment',
+      type: 'comment',
+      target: { type: 'page', id: 'prototype' },
+      payload: { body: 'written before edits existed' },
+      createdAt: '2026-09-01T00:00:00.000Z',
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 1, template: 'prototype', actions: [stored] }));
+    const el = mountStored();
+    await settle(el);
+    expect(el.api.editComment('old-comment', 'rewritten')).toEqual({ ok: true, id: 'old-comment' });
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).toEqual({
+      v: 1,
+      template: 'prototype',
+      actions: [{ ...stored, payload: { body: 'rewritten' } }],
+    });
+  });
+
+  it('reports a rejected edit with dpk-error', async () => {
+    const el = mountStored();
+    await settle(el);
+    const errors = vi.fn();
+    el.addEventListener('dpk-error', errors);
+    expect(el.api.editComment('missing', 'text').ok).toBe(false);
+    expect(errors).toHaveBeenCalledOnce();
+  });
+});
+
 describe('sidebar width', () => {
   const sidebar = (el: Element): HTMLElement => el.shadowRoot?.querySelector('.dpk-sidebar') as HTMLElement;
   const width = (el: Element): string => sidebar(el).style.getPropertyValue('--dpk-sidebar-width');
@@ -472,6 +546,107 @@ describe('sidebar width', () => {
     await settle(el);
     expect(sidebar(el).hidden).toBe(true);
     expect(edge(el)).toBeNull();
+  });
+});
+
+describe('sidebar collapse', () => {
+  const sidebar = (el: Element): HTMLElement => el.shadowRoot?.querySelector('.dpk-sidebar') as HTMLElement;
+  const toggle = (el: Element): HTMLButtonElement | null =>
+    el.shadowRoot?.querySelector<HTMLButtonElement>('.dpk-sidebar-toggle') ?? null;
+  const edge = (el: Element): HTMLElement | null => el.shadowRoot?.querySelector('.dpk-sidebar-resizer') ?? null;
+  const messages = coreMessages('en');
+
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+    localStorage.clear();
+  });
+
+  it('folds the sidebar away with a labelled button and brings it back', async () => {
+    const el = mount();
+    await settle(el);
+    const button = toggle(el) as HTMLButtonElement;
+    expect(button.getAttribute('aria-label')).toBe(messages.collapseSidebar);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(button.getAttribute('aria-controls')).toBe(sidebar(el).id);
+
+    button.click();
+    await settle(el);
+    expect(sidebar(el).hidden).toBe(true);
+    expect(edge(el)).toBeNull();
+    const expand = toggle(el) as HTMLButtonElement;
+    expect(expand.getAttribute('aria-label')).toBe(messages.expandSidebar);
+    expect(expand.getAttribute('aria-expanded')).toBe('false');
+    expect(expand.closest('.dpk-sidebar-strip')).not.toBeNull();
+    expect(el.shadowRoot?.activeElement).toBe(expand);
+
+    expand.click();
+    await settle(el);
+    expect(sidebar(el).hidden).toBe(false);
+    expect(edge(el)).not.toBeNull();
+    expect(toggle(el)?.getAttribute('aria-label')).toBe(messages.collapseSidebar);
+  });
+
+  it('keeps the resizable edge working once expanded again', async () => {
+    const el = mount();
+    await settle(el);
+    (toggle(el) as HTMLButtonElement).click();
+    await settle(el);
+    (toggle(el) as HTMLButtonElement).click();
+    await settle(el);
+    (edge(el) as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    await settle(el);
+    expect(sidebar(el).style.getPropertyValue('--dpk-sidebar-width')).toBe(`${SIDEBAR_WIDTH.max}px`);
+  });
+
+  it("remembers the reader's choice for every page of the same template", async () => {
+    document.body.innerHTML = '<dpk-template-prototype storage-key="first"></dpk-template-prototype>';
+    const first = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    await settle(first);
+    (toggle(first) as HTMLButtonElement).click();
+    await settle(first);
+
+    document.body.innerHTML = '<dpk-template-prototype storage-key="second"></dpk-template-prototype>';
+    const second = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    await settle(second);
+    expect(sidebar(second).hidden).toBe(true);
+
+    (toggle(second) as HTMLButtonElement).click();
+    await settle(second);
+    expect(localStorage.getItem('dev-process-kit:sidebar-collapsed:prototype')).toBeNull();
+  });
+
+  it('keeps the choice to the page load with storage="memory"', async () => {
+    const el = mount();
+    await settle(el);
+    (toggle(el) as HTMLButtonElement).click();
+    await settle(el);
+    expect(localStorage.getItem('dev-process-kit:sidebar-collapsed:prototype')).toBeNull();
+  });
+
+  it('folds a right-hand sidebar towards the right', async () => {
+    document.body.innerHTML = '<dpk-template-task-board storage="memory"></dpk-template-task-board>';
+    const el = document.querySelector('dpk-template-task-board') as DpkTemplatePrototype;
+    await settle(el);
+    const button = toggle(el) as HTMLButtonElement;
+    expect(button.nextElementSibling).toBe(edge(el));
+    button.click();
+    await settle(el);
+    expect(sidebar(el).hidden).toBe(true);
+    expect(toggle(el)?.closest('.dpk-sidebar-strip')?.nextElementSibling).toBe(sidebar(el));
+  });
+
+  it('offers no fold button when the template shows no sidebar or folds it itself', async () => {
+    document.body.innerHTML = '<dpk-template-usm storage="memory"></dpk-template-usm>';
+    const usm = document.querySelector('dpk-template-usm') as DpkTemplatePrototype;
+    await settle(usm);
+    expect(toggle(usm)).toBeNull();
+
+    document.body.innerHTML = '<dpk-template-grill storage="memory"></dpk-template-grill>';
+    const grill = document.querySelector('dpk-template-grill') as DpkTemplatePrototype;
+    await settle(grill);
+    expect(toggle(grill)).toBeNull();
+    expect(edge(grill)).not.toBeNull();
   });
 });
 

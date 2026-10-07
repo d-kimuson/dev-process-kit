@@ -11,8 +11,7 @@
  */
 import { defineCommentPanel } from '../components/comment-panel/index';
 import { defineInlineEdit } from '../components/inline-edit';
-import { FRAMEWORK_VERSION } from '../core/index';
-import { announce } from '../lib/announce';
+import { startEntry } from '../core/version-loader';
 import { defineEventStormingElement } from '../templates/event-storming';
 
 export * from '../core/index';
@@ -21,7 +20,12 @@ export type { CommentPanelCallbacks } from '../components/comment-panel/index';
 export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as eventStorming from '../templates/event-storming';
 
-defineCommentPanel();
-defineInlineEdit();
-defineEventStormingElement();
-announce(FRAMEWORK_VERSION, ['event-storming']);
+startEntry({
+  entry: 'templates/event-storming.js',
+  templates: ['event-storming'],
+  register: () => {
+    defineCommentPanel();
+    defineInlineEdit();
+    defineEventStormingElement();
+  },
+});

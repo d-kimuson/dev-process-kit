@@ -5,22 +5,28 @@ export const usmStyles = css`
   :host {
     --dpk-usm-accent: var(--dpk-blue);
   }
+  /*
+   * A wide table must scroll inside itself and never widen the template shell.
+   * It scrolls both ways so the backbone can stick to its top and the
+   * milestone column to its left: a box that scrolls only sideways still
+   * becomes the sticky ancestor, and its top would never move. Capped near the
+   * viewport height, it fits under the tab bar once the page brings it up.
+   */
   .map-scroll {
-    /* A wide table must scroll inside itself and never widen the template shell. */
     min-width: 0;
     max-width: 100%;
-    overflow-x: auto;
-    padding-bottom: 12px;
+    max-height: max(320px, calc(100dvh - 170px));
+    overflow: auto;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-sunken);
+    box-shadow: var(--dpk-shadow);
   }
   .map {
     display: grid;
     gap: 0;
     min-width: max-content;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius-lg);
-    background: var(--dpk-paper-sunken);
-    box-shadow: var(--dpk-shadow);
-    overflow: hidden;
   }
   .map-row {
     display: grid;
@@ -28,6 +34,61 @@ export const usmStyles = css`
   }
   .map-row + .map-row {
     border-top: 1px solid var(--dpk-rule);
+  }
+
+  /* The backbone (activities and steps) stays at the top while the rows scroll. */
+  .map-head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    border-bottom: 1px solid var(--dpk-rule-strong);
+    box-shadow: 0 8px 14px -12px var(--dpk-shade-3);
+  }
+
+  /* The leading column (axis corners and milestone labels) stays at the left
+     while the steps scroll sideways; it is opaque so cards pass under it. */
+  .corner:first-child,
+  .row-lead {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    box-shadow: 1px 0 0 var(--dpk-rule);
+  }
+  .row-lead {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    padding: 8px 6px 8px 4px;
+    background: var(--dpk-paper-sunken);
+  }
+  /* Row names and their meta line share one column: past the grip (15px), its
+     gap (6px) and the inline edit's own padding (4px). */
+  .row-lead {
+    --usm-row-indent: 25px;
+  }
+  .row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+    padding-left: var(--usm-row-indent);
+    font-size: 10.5px;
+    color: var(--dpk-ink-faint);
+  }
+  .row-timeframe {
+    color: var(--dpk-ink-soft);
+    font-weight: 600;
+  }
+  .row-count {
+    font-family: var(--dpk-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  /* An activity name spans its steps; keep it in view beside the sticky column. */
+  .act-head > dpk-component-inline-edit {
+    position: sticky;
+    left: 150px;
   }
   .corner,
   .act-head,
@@ -43,14 +104,96 @@ export const usmStyles = css`
     align-content: start;
   }
 
-  /* Unit toggle above the table (group band vs one column per activity): a
-     sunken track with the selected segment raised on top of it. */
-  .view-tabs {
+  /* Above the content: the page tabs (map / milestones) and, on the map, the
+     unit toggle (group band vs one column per activity). */
+  .board-bar {
+    border-bottom: 1px solid var(--dpk-rule);
+    /* Stays on top while a long milestone list scrolls under it. */
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: -24px -24px 0;
+    padding: 12px 24px;
+    background: var(--dpk-glass);
+    backdrop-filter: saturate(1.6) blur(14px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    min-width: 0;
+  }
+
+  /* The two pages: an underlined tab strip, heavier than the view toggle. */
+  .page-tabs {
     display: inline-flex;
-    justify-self: start;
+    gap: 4px;
+    margin-right: auto;
+  }
+  .page-tabs [role='tab'] {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: var(--dpk-radius-sm);
+    color: var(--dpk-ink-soft);
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      color 160ms var(--dpk-ease),
+      background 160ms var(--dpk-ease);
+  }
+  .page-tabs [role='tab']:hover {
+    color: var(--dpk-ink);
+    background: var(--dpk-paper-inset);
+  }
+  .page-tabs [role='tab']:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+  .page-tabs [role='tab'][aria-selected='true'] {
+    color: var(--dpk-ink);
+    font-weight: 700;
+  }
+  .page-tabs [role='tab'][aria-selected='true']::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: -13px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--dpk-usm-accent);
+  }
+  .page-tab-count {
+    min-width: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--dpk-rule);
+    color: var(--dpk-ink-soft);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    line-height: 17px;
+    text-align: center;
+  }
+  [role='tab'][aria-selected='true'] .page-tab-count {
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
+  }
+
+  /* A sunken track with the selected segment raised on top of it. */
+  .segmented {
+    display: inline-flex;
     gap: 2px;
     padding: 3px;
-    margin-bottom: 14px;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
     border: 1px solid var(--dpk-rule);
     border-radius: 999px;
     background: var(--dpk-paper-sunken);
@@ -88,35 +231,53 @@ export const usmStyles = css`
   .act-head {
     position: relative;
     border-left: 1px solid var(--dpk-rule);
-    background: var(--dpk-paper-raised);
     box-shadow:
       var(--dpk-bevel),
       inset 0 -1px 0 var(--dpk-rule-strong);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 4px;
+    gap: 8px;
     font-size: 13px;
     font-weight: 650;
     letter-spacing: -0.005em;
   }
-  .act-head::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: color-mix(in srgb, var(--dpk-usm-accent) 55%, transparent);
+  .act-head {
+    background: var(--dpk-paper-raised);
+  }
+  .act-head > dpk-component-inline-edit {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .act-dot {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 3px;
+    background: var(--usm-tone, var(--dpk-usm-accent));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--usm-tone, var(--dpk-usm-accent)) 18%, transparent);
+  }
+  .act-head .count,
+  .col-head .count {
+    flex: 0 0 auto;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--dpk-rule);
+    line-height: 16px;
   }
   .col-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     border-left: 1px solid var(--dpk-rule);
     background: var(--dpk-paper-sunken);
     transition: background 160ms var(--dpk-ease);
   }
+  .col-head h4 {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
   .col-head[data-current='true'] {
-    background: color-mix(in srgb, var(--dpk-usm-accent) 7%, var(--dpk-paper-sunken));
-    box-shadow: inset 0 2px 0 var(--dpk-usm-accent);
+    background: color-mix(in srgb, var(--dpk-usm-accent) 8%, var(--dpk-paper-sunken));
   }
   .col-head h4 {
     font-size: 13px;
@@ -130,28 +291,16 @@ export const usmStyles = css`
     gap: 6px;
   }
 
-  /* Milestone row label: a floating release chip in the sunken rail, not a
-     flat table cell. The "add milestone" row reuses \`.row-head\` for its
-     ghost button and stays a plain cell. */
+  /* Milestone row label: plain text with a grip, not a chip. The "add
+     milestone" row reuses \`.row-head\` for its ghost button. */
   .row-head[data-milestone] {
-    display: inline-flex;
-    justify-self: start;
-    align-self: center;
-    margin: 6px 4px;
-    padding: 6px 12px;
-    border: 1px solid var(--dpk-rule);
-    border-radius: 999px;
-    background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    align-self: stretch;
+    margin: 0;
+    padding: 0 6px 0 0;
     color: var(--dpk-ink);
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 650;
-    letter-spacing: 0.01em;
     max-width: 100%;
-    transition:
-      background 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease),
-      border-color 160ms var(--dpk-ease);
   }
 
   .row-head[draggable='true'] {
@@ -180,14 +329,7 @@ export const usmStyles = css`
     height: 15px;
   }
 
-  /* Row-level drag affordance: hover highlights the entire .map-row. */
-  .map-row[data-draggable='true']:hover > .row-head {
-    border-color: color-mix(in srgb, var(--dpk-blue) 45%, var(--dpk-rule));
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
-  }
-  .map-row[data-draggable='true']:hover > .cell {
-    background: var(--dpk-dots), color-mix(in srgb, var(--dpk-blue) 3%, var(--dpk-paper-sunken));
-  }
+  /* Row-level drag affordance: only the grip answers the hover. */
   .map-row[data-draggable='true']:hover .row-grip {
     color: var(--dpk-blue);
   }
@@ -213,12 +355,11 @@ export const usmStyles = css`
     outline: 2px dashed var(--dpk-blue);
     outline-offset: -2px;
   }
-  .map-row[data-row-drop='true'] > .row-head {
-    border-color: var(--dpk-blue);
-    background: var(--dpk-blue-soft);
-  }
-  .map-row[data-row-drop='true'] > .cell {
-    background: var(--dpk-dots), color-mix(in srgb, var(--dpk-blue) 6%, var(--dpk-paper-sunken));
+
+  /* Unassigned is a holding area, not a release: its label is quieter. */
+  .map-row[data-unassigned='true'] .row-head {
+    padding-left: var(--usm-row-indent);
+    color: var(--dpk-ink-soft);
   }
 
   /* Cells are the working canvas: sunken, with a quiet dot lattice, so raised
@@ -234,13 +375,12 @@ export const usmStyles = css`
     transition: background 160ms var(--dpk-ease);
   }
   .cell[data-drop='true'] {
-    background: var(--dpk-dots), color-mix(in srgb, var(--dpk-blue) 8%, var(--dpk-paper-sunken));
     outline: 2px dashed var(--dpk-blue);
     outline-offset: -2px;
   }
   .card-list {
     display: grid;
-    gap: 8px;
+    gap: 10px;
     align-content: start;
     flex: 1 1 auto;
   }
@@ -283,51 +423,297 @@ export const usmStyles = css`
     color: var(--dpk-ink-faint);
   }
 
-  /* Milestone legend under the map: a plain reference table, not a board. */
-  .milestone-defs {
+  /* ------------------------------------------------------ milestones tab */
+
+  /* The release slices as a timeline, like the experience section of a
+     portfolio: when on the left, one node per slice on a single rail, what
+     and how big on the right. Nothing is boxed; the rail carries the order. */
+  .ms-overview {
+    --ms-node: 30px;
+    --ms-when: 132px;
+    --ms-gap: 44px;
     display: grid;
-    gap: 8px;
-    margin-top: 20px;
-    max-width: 880px;
+    gap: 28px;
+    max-width: 920px;
+    padding: 28px 0 40px;
   }
-  .milestone-defs h2 {
+  .ms-lead {
+    margin: 0 0 0 calc(var(--ms-when) + var(--ms-node) + 48px);
+    max-width: 60ch;
+    color: var(--dpk-ink-soft);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .ms-timeline {
     margin: 0;
+    padding: 0;
+    list-style: none;
   }
-  .milestone-defs table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    overflow: hidden;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius-lg);
+  .ms-entry,
+  .ms-add {
+    display: grid;
+    grid-template-columns: var(--ms-when) var(--ms-node) minmax(0, 1fr);
+    grid-template-areas: 'when rail body';
+    column-gap: 24px;
+  }
+  .ms-entry {
+    padding-bottom: var(--ms-gap);
+  }
+  .ms-when {
+    grid-area: when;
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 5px;
+  }
+  .ms-timeframe {
+    color: var(--dpk-ink);
+    font-size: 13px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    text-align: right;
+  }
+  .ms-timeframe[data-empty='true'] {
+    color: var(--dpk-ink-faint);
+    font-weight: 500;
+  }
+
+  /* The rail runs through every entry's padding, so the nodes read as one line;
+     it starts at the first node and fades out into the add node. */
+  .ms-rail {
+    grid-area: rail;
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+  .ms-rail::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: calc(-1 * var(--ms-gap));
+    left: calc(50% - 1px);
+    width: 2px;
+    border-radius: 1px;
+    background: var(--dpk-rule-strong);
+  }
+  .ms-entry:first-child .ms-rail::before {
+    top: calc(var(--ms-node) / 2);
+  }
+  .ms-add .ms-rail::before {
+    bottom: auto;
+    height: calc(var(--ms-node) / 2);
+    background: repeating-linear-gradient(to bottom, var(--dpk-rule-strong) 0 3px, transparent 3px 7px);
+  }
+  .ms-node {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: var(--ms-node);
+    height: var(--ms-node);
+    box-sizing: border-box;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: 50%;
     background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
+    font-family: var(--dpk-mono);
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    /* A ring of page color cuts the rail around the node. */
+    box-shadow:
+      0 0 0 5px var(--dpk-paper),
+      var(--dpk-bevel),
+      var(--dpk-shadow-xs);
+    transition:
+      border-color 160ms var(--dpk-ease),
+      color 160ms var(--dpk-ease);
+  }
+  .ms-entry:hover .ms-node,
+  .ms-entry:focus-within .ms-node {
+    border-color: var(--dpk-blue);
+    color: var(--dpk-blue-strong);
+  }
+  .ms-node--add {
+    border-style: dashed;
+    background: var(--dpk-paper);
+    box-shadow: 0 0 0 5px var(--dpk-paper);
+  }
+  .ms-node--add::before,
+  .ms-node--add::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 10px;
+    height: 1.5px;
+    border-radius: 1px;
+    background: var(--dpk-ink-faint);
+    transform: translate(-50%, -50%);
+  }
+  .ms-node--add::after {
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+  .ms-add .ms-body {
+    display: flex;
+    align-items: center;
+    min-height: var(--ms-node);
+  }
+  /* The label lines up with the names above; the button's padding hangs out. */
+  .ms-add .dpk-btn {
+    margin-left: -12px;
+  }
+
+  .ms-body {
+    grid-area: body;
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    justify-items: start;
+  }
+  .ms-name {
+    justify-self: stretch;
+    min-width: 0;
+    margin: 0;
+    padding-top: 1px;
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: -0.015em;
+  }
+  /* The field pads its text by 4px; pull it out by as much so the name lines
+     up with the description and keeps its place when editing starts. */
+  .ms-name dpk-component-inline-edit {
+    display: block;
+    margin: 0 -4px;
+  }
+  .ms-description {
+    margin: 0;
+    max-width: 64ch;
+    color: var(--dpk-ink-soft);
+    font-size: 14px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+  }
+  .ms-description[data-empty='true'] {
+    color: var(--dpk-ink-faint);
     font-size: 13px;
   }
-  .milestone-defs th,
-  .milestone-defs td {
-    padding: 8px 12px;
-    text-align: left;
-    vertical-align: top;
-    border-top: 1px solid var(--dpk-rule);
+  .ms-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 36px;
+    margin: 6px 0 0;
   }
-  .milestone-defs thead th {
-    border-top: 0;
-    background: var(--dpk-paper-sunken);
-    color: var(--dpk-ink-soft);
-    font-size: 11.5px;
+  .ms-facts dt {
+    margin-bottom: 3px;
+    color: var(--dpk-ink-faint);
+    font-size: 11px;
     font-weight: 600;
-    white-space: nowrap;
+    letter-spacing: 0.02em;
   }
-  .milestone-defs tbody th {
+  .ms-facts dd {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    color: var(--dpk-ink-faint);
+    font-size: 12px;
+  }
+  .ms-facts strong {
+    color: var(--dpk-ink);
+    font-size: 15px;
     font-weight: 650;
-    white-space: nowrap;
-  }
-  .milestone-defs .timeframe {
-    white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
-  .milestone-defs .description {
-    white-space: pre-line;
+  .ms-meter {
+    display: block;
+    width: 72px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--dpk-paper-inset);
+    overflow: hidden;
+  }
+  .ms-meter > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--dpk-blue);
+  }
+
+  /* Where the slice's stories sit across the backbone, in activity tones. */
+  .ms-breakdown {
+    display: grid;
+    gap: 10px;
+    width: min(100%, 460px);
+    margin-top: 4px;
+  }
+  .ms-bar {
+    display: flex;
+    gap: 2px;
+    height: 6px;
+  }
+  .ms-bar-part {
+    min-width: 6px;
+    border-radius: 3px;
+    background: var(--usm-tone);
+  }
+  .ms-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ms-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dpk-ink-soft);
+    font-size: 12px;
+  }
+  .ms-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--usm-tone);
+  }
+  .ms-breakdown-count {
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Narrow: the date moves above the name, the rail stays on the left. */
+  @media (max-width: 640px) {
+    .ms-overview {
+      --ms-node: 26px;
+    }
+    .ms-lead {
+      margin-left: calc(var(--ms-node) + 16px);
+    }
+    .ms-entry,
+    .ms-add {
+      grid-template-columns: var(--ms-node) minmax(0, 1fr);
+      grid-template-areas:
+        'rail when'
+        'rail body';
+      column-gap: 16px;
+    }
+    .ms-add {
+      grid-template-areas: 'rail body';
+    }
+    .ms-add .ms-when {
+      display: none;
+    }
+    .ms-when {
+      justify-content: flex-start;
+      padding: 4px 0 2px;
+    }
+    .ms-timeframe {
+      text-align: left;
+    }
   }
 
   /* Step picker shown after a cross-activity drop. */

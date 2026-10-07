@@ -34,7 +34,8 @@
     "./templates/plain": "./dist/templates/plain.js",
     "./templates/slides": "./dist/templates/slides.js",
     "./templates/task-board": "./dist/templates/task-board.js",
-    "./templates/delegation-poker": "./dist/templates/delegation-poker.js"
+    "./templates/delegation-poker": "./dist/templates/delegation-poker.js",
+    "./templates/whiteboard": "./dist/templates/whiteboard.js"
   },
   "scripts": {
     "dev": "run-p 'dev:*'",

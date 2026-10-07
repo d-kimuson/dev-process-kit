@@ -30,6 +30,28 @@ const base = {
               ],
             },
             { id: 'auth', name: 'Auth', previews: [{ id: 'auth-native', kind: 'native', viewport: 'mobile' }] },
+            {
+              id: 'memo',
+              name: 'Memo',
+              situation: 'The clerk receives a FAX.\nIt is 8 am.',
+              previews: [{ id: 'memo-plain', kind: 'plain' }],
+            },
+            {
+              id: 'mail',
+              name: 'Mail',
+              previews: [
+                { id: 'mail-inbox', kind: 'mail', mail: { from: 'Demo <hi@demo.example>', subject: 'Welcome' } },
+              ],
+            },
+            {
+              id: 'desk',
+              name: 'Desk',
+              layout: 'side-by-side',
+              previews: [
+                { id: 'desk-memo', kind: 'plain', label: 'Memo in hand' },
+                { id: 'desk-screen', viewport: 'desktop' },
+              ],
+            },
           ],
         },
         { id: 'billing', name: 'Billing', steps: [{ id: 'invoice', name: 'Invoice', previews: [] }] },
@@ -69,7 +91,7 @@ describe('<dpk-template-prototype> layout', () => {
     const selects = root.querySelectorAll<HTMLSelectElement>('.nav select');
     expect(selects).toHaveLength(2);
     expect([...selects[1]!.options].map((o) => o.value)).toEqual(['account', 'billing', 'tasks']);
-    expect(root.querySelectorAll('.step-row')).toHaveLength(2);
+    expect(root.querySelectorAll('.step-row')).toHaveLength(5);
     expect(root.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Landing');
     expect(root.querySelectorAll('.detail dpk-component-inline-edit')).toHaveLength(2);
   });
@@ -86,7 +108,14 @@ describe('<dpk-template-prototype> layout', () => {
     expect(frame.querySelector('.frame-placeholder')).toBeNull();
     // every other preview keeps a parked slot
     const parked = [...root.querySelectorAll('.parked slot')].map((slot) => slot.getAttribute('name'));
-    expect(parked).toEqual(['preview:landing-desktop', 'preview:auth-native']);
+    expect(parked).toEqual([
+      'preview:landing-desktop',
+      'preview:auth-native',
+      'preview:memo-plain',
+      'preview:mail-inbox',
+      'preview:desk-memo',
+      'preview:desk-screen',
+    ]);
     // the step without previews says so instead of rendering an empty frame
     el.api.navigate({ story: 'billing', step: 'invoice' });
     await settle(el);
@@ -117,6 +146,64 @@ describe('<dpk-template-prototype> layout', () => {
     expect(frame.querySelector('.status-bar')).not.toBeNull();
     expect(frame.querySelector('.frame-placeholder')?.textContent).toContain('auth-native');
     expect(root.querySelector('.tabs')).toBeNull();
+  });
+
+  it('draws a mail preview as a message: subject and envelope above the body', async () => {
+    const el = mount('#step=mail');
+    await settle(el);
+    const frame = el.shadowRoot!.querySelector('figure.frame')!;
+    expect(frame.getAttribute('data-kind')).toBe('mail');
+    expect(frame.querySelector('.chrome .url')).toBeNull();
+    expect(frame.querySelector('.mail-subject')?.textContent?.trim()).toBe('Welcome');
+    expect([...frame.querySelectorAll('.mail-meta dt')].map((dt) => dt.textContent?.trim())).toEqual([m.mailFrom]);
+    expect(frame.querySelector('.mail-meta dd')?.textContent?.trim()).toBe('Demo <hi@demo.example>');
+    expect(frame.querySelector('.viewport slot')?.getAttribute('name')).toBe('preview:mail-inbox');
+  });
+
+  it('describes the situation of the scene just above the preview', async () => {
+    const el = mount('#step=memo');
+    await settle(el);
+    const root = el.shadowRoot!;
+    const situation = root.querySelector('.stage .situation')!;
+    expect(situation.querySelector('.situation-label')?.textContent?.trim()).toBe(m.situation);
+    expect(situation.querySelector('.situation-text')?.textContent).toBe('The clerk receives a FAX.\nIt is 8 am.');
+    // between the page head and the canvas
+    expect(situation.previousElementSibling?.classList.contains('stage-bar')).toBe(true);
+    expect(situation.nextElementSibling?.classList.contains('canvas')).toBe(true);
+    // a step without one has no empty box
+    el.api.navigate({ step: 'landing' });
+    await settle(el);
+    expect(root.querySelector('.stage .situation')).toBeNull();
+  });
+
+  it('lays the previews of a side-by-side step out next to each other', async () => {
+    const el = mount('#step=desk');
+    await settle(el);
+    const root = el.shadowRoot!;
+    expect(root.querySelector('.tabs')).toBeNull();
+    const panes = [...root.querySelectorAll('.canvas .pane')];
+    expect(panes.map((pane) => pane.querySelector('figure.frame slot')?.getAttribute('name'))).toEqual([
+      'preview:desk-memo',
+      'preview:desk-screen',
+    ]);
+    expect(root.querySelector('.canvas')?.getAttribute('data-layout')).toBe('side-by-side');
+    // a label captions its pane; a pane without one has no caption
+    expect(panes[0]?.querySelector('.pane-label')?.textContent?.trim()).toBe('Memo in hand');
+    expect(panes[1]?.querySelector('.pane-label')).toBeNull();
+    // nothing on screen is parked
+    const parked = [...root.querySelectorAll('.parked slot')].map((slot) => slot.getAttribute('name'));
+    expect(parked).not.toContain('preview:desk-memo');
+    expect(parked).not.toContain('preview:desk-screen');
+  });
+
+  it('draws a plain preview without any device chrome', async () => {
+    const el = mount('#step=memo');
+    await settle(el);
+    const frame = el.shadowRoot!.querySelector('figure.frame')!;
+    expect(frame.getAttribute('data-kind')).toBe('plain');
+    expect(frame.querySelector('.chrome')).toBeNull();
+    expect(frame.querySelector('.status-bar')).toBeNull();
+    expect(frame.querySelector('slot')?.getAttribute('name')).toBe('preview:memo-plain');
   });
 
   it('navigates through the selects and adds a step', async () => {
@@ -182,53 +269,217 @@ describe('<dpk-template-prototype> layout', () => {
     );
   });
 
-  describe('full screen', () => {
-    const allowFullscreen = (): void => {
-      Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: true });
+  it('warns once on the console about links in the previews that lead nowhere', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    window.location.hash = '';
+    document.body.innerHTML = `
+      <dpk-template-prototype storage="memory">
+        <script type="application/json">${JSON.stringify(base)}</script>
+        <div slot="preview" data-preview-id="landing-mobile">
+          <a href="#">Home</a><a data-dpk-navigate="step=nope">Next</a><a data-dpk-navigate="story=billing">Billing</a>
+        </div>
+      </dpk-template-prototype>`;
+    const el = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    await settle(el);
+    el.api.navigate({ step: 'auth' });
+    await settle(el);
+    const warnings = warn.mock.calls.map((call) => String(call[0])).filter((text) => text.includes('lead nowhere'));
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('2 link(s)');
+    expect(warnings[0]).toContain('landing-mobile: <a> "Home" → # (no-destination)');
+    expect(warnings[0]).toContain('landing-mobile: <a> "Next" → step=nope (unknown-target)');
+    warn.mockRestore();
+  });
+
+  describe('comment on UI', () => {
+    const withMock = async (): Promise<DpkTemplatePrototype> => {
+      const el = mount('#step=landing');
+      await settle(el);
+      el.querySelector('[data-preview-id="landing-mobile"]')!.innerHTML =
+        '<nav><a href="#story=billing" data-dpk-navigate="story=billing"><span>Billing</span></a></nav><button class="pay">Pay now</button>';
+      return el;
     };
+    const toggle = (el: DpkTemplatePrototype): HTMLButtonElement =>
+      el.shadowRoot!.querySelector<HTMLButtonElement>('.ui-comment-toggle')!;
+
+    it('turns the mode on and off from the stage tools, with a hint while it is on', async () => {
+      const el = await withMock();
+      const root = el.shadowRoot!;
+      expect(toggle(el).getAttribute('aria-pressed')).toBe('false');
+      expect(root.querySelector('.ui-comment-hint')).toBeNull();
+      toggle(el).click();
+      await settle(el);
+      expect(toggle(el).getAttribute('aria-pressed')).toBe('true');
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('picking');
+      expect(root.querySelector('.ui-comment-hint')?.textContent).toContain(m.uiCommentHint);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await settle(el);
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('off');
+    });
+
+    it('takes a click on the mock as a pick: the link does not navigate and a comment lands on the element', async () => {
+      const el = await withMock();
+      toggle(el).click();
+      await settle(el);
+      el.querySelector<HTMLElement>('nav a span')!.click();
+      await settle(el);
+      // the mock's own link did not run
+      expect(el.api.navigation['step']).toBe('landing');
+      const root = el.shadowRoot!;
+      const composer = root.querySelector('.comment-pop')!;
+      expect(composer.querySelector('.comment-target')?.textContent).toBe('landing-mobile › "Billing"');
+      const textarea = composer.querySelector('textarea')!;
+      textarea.value = 'Should say Invoices';
+      textarea.dispatchEvent(new Event('input'));
+      await settle(el);
+      root.querySelector<HTMLButtonElement>('.comment-pop .dpk-btn--accent')!.click();
+      await settle(el);
+      expect(el.api.comments.map((action) => [action.target, action.payload])).toEqual([
+        [{ type: 'ui', id: 'landing-mobile/a "Billing"' }, { body: 'Should say Invoices' }],
+      ]);
+      // still picking, composer closed, and a pin marks the element
+      expect(root.querySelector('.comment-pop')).toBeNull();
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('picking');
+      expect(root.querySelector('.ui-pin')?.textContent?.trim()).toBe('1');
+      expect(root.querySelector('.ui-pin')?.getAttribute('data-selector')).toBe('a');
+      // the step counts it
+      expect(root.querySelector('.step-row[data-current="true"] .step-note')?.textContent).toBe('1');
+      // the review names the element
+      expect(el.api.exportBrief()).toContain('**UI · landing-mobile › "Billing"** — `ui:landing-mobile/a "Billing"`');
+    });
+
+    it('leaves the mock working while the mode is off', async () => {
+      const el = await withMock();
+      el.querySelector<HTMLElement>('nav a span')!.click();
+      await settle(el);
+      expect(el.api.navigation).toMatchObject({ story: 'billing' });
+      expect(el.shadowRoot!.querySelector('.comment-pop')).toBeNull();
+    });
+  });
+
+  describe('maximize', () => {
+    let shown: Element[] = [];
+    let hidden: Element[] = [];
+
+    beforeEach(() => {
+      shown = [];
+      hidden = [];
+      HTMLElement.prototype.showPopover = function (this: HTMLElement) {
+        shown.push(this);
+      };
+      HTMLElement.prototype.hidePopover = function (this: HTMLElement) {
+        hidden.push(this);
+      };
+    });
 
     afterEach(() => {
-      Reflect.deleteProperty(document, 'fullscreenEnabled');
-      vi.restoreAllMocks();
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
     });
 
-    it('hides the full screen button where the browser does not allow it', async () => {
-      const el = mount();
-      await settle(el);
-      expect(el.shadowRoot!.querySelector('.stage-fullscreen')).toBeNull();
-    });
+    const escape = (): void => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    };
 
-    it('shows the stage alone when the reader asks for full screen', async () => {
-      allowFullscreen();
-      const requestFullscreen = vi.fn(() => Promise.resolve());
-      HTMLElement.prototype.requestFullscreen = requestFullscreen;
+    it('fills the tab with the stage and restores it from the same button', async () => {
       const el = mount();
       await settle(el);
       const root = el.shadowRoot!;
-      const button = root.querySelector<HTMLButtonElement>('.stage-bar .stage-fullscreen')!;
-      expect(button.textContent).toContain(m.fullscreen);
-      button.click();
-      expect(requestFullscreen).toHaveBeenCalledTimes(1);
-      expect(requestFullscreen.mock.contexts[0]).toBe(root.querySelector('.stage'));
+      const button = (): HTMLButtonElement => root.querySelector<HTMLButtonElement>('.stage-bar .stage-maximize')!;
+      expect(button().textContent).toContain(m.maximize);
+      expect(button().getAttribute('aria-pressed')).toBe('false');
+
+      button().click();
+      await settle(el);
+      const stage = root.querySelector<HTMLElement>('.stage')!;
+      expect(stage.classList.contains('is-maximized')).toBe(true);
+      // Lifted into the top layer, so no ancestor of the page can clip it.
+      expect(stage.getAttribute('popover')).toBe('manual');
+      expect(shown).toEqual([stage]);
+      // The page keeps the room the stage took, so nothing behind it reflows.
+      expect(root.querySelector('.stage-placeholder')).not.toBeNull();
+      expect(button().textContent).toContain(m.restore);
+      expect(button().getAttribute('aria-pressed')).toBe('true');
+
+      button().click();
+      await settle(el);
+      expect(root.querySelector('.stage')!.classList.contains('is-maximized')).toBe(false);
+      expect(root.querySelector('.stage')!.hasAttribute('popover')).toBe(false);
+      expect(root.querySelector('.stage-placeholder')).toBeNull();
     });
 
-    it('leaves full screen from the same button', async () => {
-      allowFullscreen();
-      const exitFullscreen = vi.fn(() => Promise.resolve());
-      document.exitFullscreen = exitFullscreen;
+    it('restores on Esc', async () => {
       const el = mount();
       await settle(el);
       const root = el.shadowRoot!;
-      Object.defineProperty(root, 'fullscreenElement', { configurable: true, value: root.querySelector('.stage') });
-      root.querySelector<HTMLButtonElement>('.stage-fullscreen')!.click();
-      expect(exitFullscreen).toHaveBeenCalledTimes(1);
+      root.querySelector<HTMLButtonElement>('.stage-maximize')!.click();
+      await settle(el);
+      escape();
+      await settle(el);
+      expect(root.querySelector('.stage')!.classList.contains('is-maximized')).toBe(false);
     });
 
-    it('offers no full screen for a step without a preview', async () => {
-      allowFullscreen();
+    it('lets Esc end commenting on the UI before it restores', async () => {
+      const el = mount('#step=landing');
+      await settle(el);
+      const root = el.shadowRoot!;
+      root.querySelector<HTMLButtonElement>('.stage-maximize')!.click();
+      await settle(el);
+      root.querySelector<HTMLButtonElement>('.ui-comment-toggle')!.click();
+      await settle(el);
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('picking');
+
+      escape();
+      await settle(el);
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('off');
+      expect(root.querySelector('.stage')!.classList.contains('is-maximized')).toBe(true);
+
+      escape();
+      await settle(el);
+      expect(root.querySelector('.stage')!.classList.contains('is-maximized')).toBe(false);
+    });
+
+    it('opens the composer above the maximized stage', async () => {
+      const el = mount('#step=landing');
+      await settle(el);
+      el.querySelector('[data-preview-id="landing-mobile"]')!.innerHTML = '<button class="pay">Pay now</button>';
+      const root = el.shadowRoot!;
+      root.querySelector<HTMLButtonElement>('.stage-maximize')!.click();
+      await settle(el);
+      root.querySelector<HTMLButtonElement>('.ui-comment-toggle')!.click();
+      await settle(el);
+      el.querySelector<HTMLElement>('.pay')!.click();
+      await settle(el);
+      const composer = root.querySelector('.comment-pop')!;
+      // The top layer stacks in the order things entered it: the stage first, the composer over it.
+      expect(shown).toEqual([root.querySelector('.stage'), composer]);
+      expect(root.activeElement).toBe(composer.querySelector('textarea'));
+    });
+
+    it('raises a composer opened before the stage was maximized above it', async () => {
+      const el = mount('#step=landing');
+      await settle(el);
+      el.querySelector('[data-preview-id="landing-mobile"]')!.innerHTML = '<button class="pay">Pay now</button>';
+      const root = el.shadowRoot!;
+      root.querySelector<HTMLButtonElement>('.ui-comment-toggle')!.click();
+      await settle(el);
+      el.querySelector<HTMLElement>('.pay')!.click();
+      await settle(el);
+      const composer = root.querySelector('.comment-pop')!;
+      expect(shown).toEqual([composer]);
+
+      root.querySelector<HTMLButtonElement>('.stage-maximize')!.click();
+      await settle(el);
+
+      expect(hidden).toEqual([composer]);
+      expect(shown).toEqual([composer, root.querySelector('.stage'), composer]);
+      expect(root.activeElement).toBe(composer.querySelector('textarea'));
+    });
+
+    it('offers no maximize for a step without a preview', async () => {
       const el = mount('#story=billing&step=invoice');
       await settle(el);
-      expect(el.shadowRoot!.querySelector('.stage-fullscreen')).toBeNull();
+      expect(el.shadowRoot!.querySelector('.stage-maximize')).toBeNull();
     });
   });
 });

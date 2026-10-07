@@ -11,6 +11,7 @@ import type { UsmMessages } from './messages';
 import { payloadFor, type ActionName } from '../../core/schema';
 import { targetRef } from '../../core/target';
 import { usmActions } from './actions';
+import { usmTabOf } from './board-tabs';
 import { findActivity, findMilestone, findStep, findStory, stepRefOf, type UsmState } from './model';
 
 type Summary = {
@@ -278,5 +279,8 @@ export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigati
   else delete next['story'];
   // The table grouping is navigation state: which unit the map groups by.
   next['view'] = nav['view'] === 'group' ? 'group' : 'activity';
+  // The page tab is navigation too; the map is the default and needs no key.
+  if (usmTabOf(nav) === 'milestones') next['tab'] = 'milestones';
+  else delete next['tab'];
   return next;
 };

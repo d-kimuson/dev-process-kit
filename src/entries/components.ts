@@ -13,11 +13,15 @@
  * `components.js`.
  */
 import { registerComponentElements } from '../components/index';
-import { FRAMEWORK_VERSION } from '../core/index';
-import { announce } from '../lib/announce';
+import { startEntry } from '../core/version-loader';
 
 export * from '../core/index';
 export * from '../components/index';
 
-registerComponentElements();
-announce(FRAMEWORK_VERSION, []);
+startEntry({
+  entry: 'components.js',
+  templates: [],
+  register: () => {
+    registerComponentElements();
+  },
+});

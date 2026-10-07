@@ -209,6 +209,11 @@ describe('usm template', () => {
     const cell = root.querySelector('[data-testid="group-cell-a1-mvp"]');
     expect(cell).not.toBeNull();
     expect(cell!.querySelectorAll('dpk-internal-usm-story-card').length).toBe(2);
+    // without step columns, each card names its step; it wears its activity's tone
+    const groupCard = cell!.querySelector('dpk-internal-usm-story-card') as LitElement;
+    await groupCard.updateComplete;
+    expect(groupCard.shadowRoot!.querySelector('.card-step')?.textContent?.trim()).toBe('S1');
+    expect(groupCard.style.getPropertyValue('--usm-tone').trim()).toBe('var(--dpk-blue)');
     // dropping inside the activity view keeps the dragged story's own step.
     // jsdom has no DataTransfer/DragEvent, and it swallows a synthetic dragstart
     // outright — so the pointer wiring is verified in a real browser, and here the
@@ -254,6 +259,30 @@ describe('usm template', () => {
     expect(state).toBeDefined();
   });
 
+  it('splits the page into the map and the milestones tabs', async () => {
+    const el = mount();
+    await settle(el);
+    const root = el.shadowRoot!;
+    // no per-milestone filter any more: every slice is always on the map
+    expect(root.querySelector('.milestone-tabs')).toBeNull();
+    const tabs = [...root.querySelectorAll('.page-tabs [role="tab"]')];
+    expect(tabs.map((t) => t.getAttribute('data-tab'))).toEqual(['map', 'milestones']);
+    expect(root.querySelector('.page-tabs [aria-selected="true"]')?.getAttribute('data-tab')).toBe('map');
+    expect(root.querySelector('[data-testid="usm-map"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="usm-milestones"]')).toBeNull();
+
+    expect((tabs[1] as HTMLAnchorElement).hash).toContain('tab=milestones');
+    el.api.navigate({ tab: 'milestones' });
+    await settle(el);
+    expect(el.api.navigation).toMatchObject({ tab: 'milestones' });
+    expect(root.querySelector('[data-testid="usm-map"]')).toBeNull();
+    expect(root.querySelector('.view-tabs')).toBeNull();
+    expect(root.querySelector('[data-testid="usm-milestones"]')).not.toBeNull();
+    // switching tabs is navigation, not a draft action
+    expect(el.api.actions).toHaveLength(0);
+    document.body.innerHTML = '';
+  });
+
   it('makes milestone rows draggable and button-free', async () => {
     const el = mount();
     await settle(el);
@@ -296,6 +325,9 @@ describe('usm template', () => {
     const buttons = cards[0]!.shadowRoot!.querySelectorAll('.dpk-icon-btn');
     expect(buttons.length).toBe(3);
     expect([...buttons].every((b) => b.textContent?.trim() === '' && !!b.getAttribute('aria-label'))).toBe(true);
+    // the step column already names the step
+    expect(cards[0]!.shadowRoot!.querySelector('.card-step')).toBeNull();
+    expect((cards[0] as HTMLElement).style.getPropertyValue('--usm-tone').trim()).toBe('var(--dpk-blue)');
     // Open the comment composer and dispatch a comment for that story.
     const cardBefore = cards[0]!.getBoundingClientRect().height;
     (buttons[1] as HTMLButtonElement).click();
@@ -350,11 +382,12 @@ describe('usm template', () => {
     expect(own.locale).toBe('ja');
   });
 
-  it('lists the milestone definitions under the map, only with the columns the author filled', async () => {
+  it('defines each milestone on the milestones tab without repeating its stories', async () => {
+    window.location.hash = '#tab=milestones';
     const withDetails = {
       ...base,
       milestones: [
-        { id: 'mvp', name: 'MVP', description: 'Minimum feature set' },
+        { id: 'mvp', name: 'MVP', timeframe: '2026-10', description: 'Minimum feature set' },
         { id: 'v1', name: 'v1' },
       ],
     };
@@ -366,21 +399,40 @@ describe('usm template', () => {
     await settle(el);
     el.api.dispatch({ type: 'SET_MILESTONE_NAME', target: 'milestone:mvp', payload: { name: 'MVP+' } });
     await settle(el);
-    const section = el.shadowRoot!.querySelector('[data-testid="usm-milestone-definitions"]');
-    expect(section?.querySelector('h2')?.textContent?.trim()).toBe(m.milestoneDefinitionsTitle);
-    const text = (cell: Element) => cell.textContent?.trim();
-    expect([...section!.querySelectorAll('thead th')].map(text)).toEqual([m.milestoneGroup, m.descriptionColumn]);
-    expect([...section!.querySelectorAll('tbody tr')].map((row) => [...row.children].map(text))).toEqual([
-      ['MVP+', 'Minimum feature set'],
-      ['v1', ''],
+    const section = el.shadowRoot!.querySelector('[data-testid="usm-milestones"]')!;
+    const cards = [...section.querySelectorAll('[data-milestone-card]')];
+    expect(cards.map((card) => card.getAttribute('data-milestone-card'))).toEqual(['mvp', 'v1']);
+    const mvp = cards[0]!;
+    expect((mvp.querySelector('dpk-component-inline-edit') as unknown as { value: string }).value).toBe('MVP+');
+    expect(mvp.querySelector('.ms-timeframe')?.textContent).toContain('2026-10');
+    expect(mvp.querySelector('.ms-description')?.textContent?.trim()).toBe('Minimum feature set');
+    // the tab defines the slices; the stories themselves stay on the map
+    expect(section.querySelector('dpk-internal-usm-story-card, a[href*="story="]')).toBeNull();
+    // a milestone without a description says so
+    expect(cards[1]!.querySelector('.ms-description[data-empty="true"]')?.textContent?.trim()).toBe(
+      m.milestoneNoDescription,
+    );
+    // read as a timeline: one node per milestone on a single rail, in map order
+    const timeline = section.querySelector('ol.ms-timeline')!;
+    expect([...timeline.querySelectorAll('[data-milestone-card] .ms-node')].map((n) => n.textContent?.trim())).toEqual([
+      '1',
+      '2',
     ]);
+    // a milestone without a timeframe says it is not set yet
+    expect(cards[1]!.querySelector('.ms-timeframe[data-empty="true"]')?.textContent?.trim()).toBe(m.timeframeUnset);
+    // how its stories spread over the activities; none, no breakdown
+    expect(
+      [...mvp.querySelectorAll('.ms-breakdown [data-activity]')].map((item) => [
+        item.getAttribute('data-activity'),
+        item.querySelector('.ms-breakdown-count')?.textContent?.trim(),
+      ]),
+    ).toEqual([['a1', '2']]);
+    expect(cards[1]!.querySelector('.ms-breakdown')).toBeNull();
+    // the next milestone is added at the end of the rail
+    const last = timeline.lastElementChild!;
+    expect(last.classList.contains('ms-add')).toBe(true);
+    expect(last.querySelector('button')?.textContent?.trim()).toBe(m.newMilestoneButton);
     document.body.innerHTML = '';
-  });
-
-  it('omits the milestone definitions when no milestone defines more than its name', async () => {
-    const el = mount();
-    await settle(el);
-    expect(el.shadowRoot!.querySelector('[data-testid="usm-milestone-definitions"]')).toBeNull();
   });
 
   it('opens the step picker on a cross-activity drop and moves on submit', async () => {

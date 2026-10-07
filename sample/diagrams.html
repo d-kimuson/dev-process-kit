@@ -9,7 +9,7 @@
       by this page's own origin: the sample server is a separate origin on purpose,
       so the cross-origin (CORS) load is exercised locally too. A generated page
       loads the same files from jsDelivr instead, and so does this page on GitHub
-      Pages or with `?version=<version>` (`kit.js`).
+      Pages or with `?dpk-version=<version>` (`kit.js`).
 
       The page is an dpk-template-plain: the header and the review pipeline come from
       the template, the diagrams from components.js.
@@ -815,7 +815,13 @@
                       "tags": ["注文", "今回の設計"],
                       "fields": [
                         { "id": "id", "type": "uuid", "key": "PK" },
-                        { "id": "customer_id", "type": "uuid", "key": "FK", "ref": "customers.id" },
+                        {
+                          "id": "customer_id",
+                          "type": "uuid",
+                          "key": "FK",
+                          "ref": "customers.id",
+                          "label": "発注する"
+                        },
                         { "id": "status", "type": "order_status" },
                         { "id": "total_amount", "type": "bigint" },
                         { "id": "currency", "type": "char(3)", "nullable": true }
@@ -836,9 +842,26 @@
                       "tags": ["在庫", "今回の設計"],
                       "fields": [
                         { "id": "id", "type": "uuid", "key": "PK" },
-                        { "id": "order_id", "type": "uuid", "key": "FK", "ref": "orders.id" },
+                        {
+                          "id": "order_id",
+                          "type": "uuid",
+                          "key": "FK",
+                          "ref": "orders.id",
+                          "cardinality": "1:1..N",
+                          "label": "確保する"
+                        },
                         { "id": "product_id", "type": "uuid", "key": "FK", "ref": "products.id" },
                         { "id": "expires_at", "type": "timestamptz" }
+                      ]
+                    },
+                    {
+                      "id": "customer_profiles",
+                      "name": "顧客プロフィール",
+                      "tags": ["顧客", "今回の設計"],
+                      "fields": [
+                        { "id": "customer_id", "type": "uuid", "key": ["PK", "FK"], "ref": "customers.id" },
+                        { "id": "display_name", "type": "varchar" },
+                        { "id": "referrer_id", "type": "uuid", "key": "FK", "ref": "customers.id", "nullable": true }
                       ]
                     }
                   ]

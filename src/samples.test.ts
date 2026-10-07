@@ -15,6 +15,7 @@ import { parseGrillBase } from './templates/grill/model';
 import { parsePlainBase } from './templates/plain/model';
 import { parseSlidesBase } from './templates/slides/model';
 import { parseTaskBoardBase } from './templates/task-board/model';
+import { frameOf, parseWhiteboardBase } from './templates/whiteboard/model';
 
 /**
  * The samples are what a reader opens first, and their data is hand-written JSON
@@ -206,5 +207,22 @@ describe('sample pages', () => {
     expect(poker.decisions.some((decision) => decision.agreed !== undefined)).toBe(true);
     // The cards spread out somewhere, so the lowest and the highest have something to explain.
     expect(poker.decisions.some((decision) => new Set(decision.cards.map((card) => card.level)).size > 1)).toBe(true);
+  });
+
+  it('whiteboard.html lays out a brainstorm on the whiteboard template', () => {
+    const html = sample('whiteboard.html');
+    expect(entriesOf(html)).toContain('templates/whiteboard.js');
+    const board = parseWhiteboardBase(jsonChild(html, 'dpk-template-whiteboard'));
+    expect(board.title).not.toBe('');
+    // Every kind of item, and connectors with and without a label.
+    expect(new Set(board.items.map((item) => item.kind))).toEqual(new Set(['sticky', 'text', 'shape', 'frame']));
+    expect(board.connectors.some((connector) => connector.label !== undefined)).toBe(true);
+    expect(board.connectors.some((connector) => connector.label === undefined)).toBe(true);
+    // Each frame holds stickies, so moving one between frames has something to say.
+    const frames = board.items.filter((item) => item.kind === 'frame');
+    expect(frames.length).toBeGreaterThan(1);
+    for (const frame of frames) {
+      expect(board.items.some((item) => item.kind === 'sticky' && frameOf(board, item)?.id === frame.id)).toBe(true);
+    }
   });
 });
