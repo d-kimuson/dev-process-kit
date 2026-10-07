@@ -254,6 +254,32 @@ describe('usm template', () => {
     expect(state).toBeDefined();
   });
 
+  it('shows one milestone at a time from the milestone tabs', async () => {
+    const el = mount('#milestone=mvp');
+    await settle(el);
+    const root = el.shadowRoot!;
+    const tabs = [...root.querySelectorAll('.milestone-tabs .tab')];
+    expect(tabs.map((t) => t.getAttribute('data-milestone-tab'))).toEqual(['', 'mvp', '~unassigned']);
+    expect(root.querySelector('.milestone-tabs .tab[data-current="true"]')?.getAttribute('data-milestone-tab')).toBe(
+      'mvp',
+    );
+    // only the chosen slice: no Unassigned row, no "+ Milestone", and no row dragging
+    const heads = [...root.querySelectorAll('.row-head[data-milestone]')];
+    expect(heads.map((h) => h.getAttribute('data-milestone'))).toEqual(['mvp']);
+    expect(heads[0]!.getAttribute('draggable')).toBe('false');
+    expect(root.textContent).not.toContain(m.newMilestoneButton);
+    expect(
+      root.querySelector('[data-testid="cell-s1-mvp"]')!.querySelectorAll('dpk-internal-usm-story-card').length,
+    ).toBe(2);
+    expect(root.querySelector('[data-testid="cell-s1-unassigned"]')).toBeNull();
+    // the backbone stays
+    expect(root.querySelectorAll('.col-head').length).toBe(2);
+    // the selection is navigation, not a draft action
+    expect(el.api.actions).toHaveLength(0);
+    expect(el.api.navigation).toMatchObject({ milestone: 'mvp' });
+    document.body.innerHTML = '';
+  });
+
   it('makes milestone rows draggable and button-free', async () => {
     const el = mount();
     await settle(el);

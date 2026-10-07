@@ -43,14 +43,25 @@ export const usmStyles = css`
     align-content: start;
   }
 
-  /* Unit toggle above the table (group band vs one column per activity): a
-     sunken track with the selected segment raised on top of it. */
-  .view-tabs {
+  /* Above the table: the unit toggle (group band vs one column per activity)
+     and the milestone tabs (every slice, or one at a time). */
+  .board-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    min-width: 0;
+    margin-bottom: 14px;
+  }
+
+  /* A sunken track with the selected segment raised on top of it. */
+  .segmented {
     display: inline-flex;
-    justify-self: start;
     gap: 2px;
     padding: 3px;
-    margin-bottom: 14px;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
     border: 1px solid var(--dpk-rule);
     border-radius: 999px;
     background: var(--dpk-paper-sunken);
@@ -74,6 +85,10 @@ export const usmStyles = css`
   .tab:hover {
     color: var(--dpk-ink);
     background: var(--dpk-paper-inset);
+  }
+
+  .tab .count {
+    margin-left: 6px;
   }
 
   .tab[data-current='true'] {

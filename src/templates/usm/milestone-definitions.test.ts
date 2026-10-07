@@ -41,4 +41,17 @@ describe('milestone definitions', () => {
     expect(presentMilestoneDefinitions(stateWith([{ id: 'mvp', name: 'MVP' }]))).toBeNull();
     expect(presentMilestoneDefinitions(stateWith([]))).toBeNull();
   });
+
+  it('follows the milestone tab: only the selected milestone, nothing for Unassigned', () => {
+    const state = stateWith([
+      { id: 'mvp', name: 'MVP', timeframe: '2026-10', description: 'Minimum feature set' },
+      { id: 'v1', name: 'v1', description: 'Polish' },
+    ]);
+    expect(presentMilestoneDefinitions(state, { kind: 'milestone', id: 'v1' })).toEqual({
+      columns: { timeframe: false, description: true },
+      rows: [{ id: 'v1', name: 'v1', timeframe: '', description: 'Polish' }],
+    });
+    expect(presentMilestoneDefinitions(state, { kind: 'all' })?.rows).toHaveLength(2);
+    expect(presentMilestoneDefinitions(state, { kind: 'unassigned' })).toBeNull();
+  });
 });

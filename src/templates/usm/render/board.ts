@@ -9,6 +9,7 @@ import type { UsmMessages } from '../messages';
 import { iconGrip, iconPlus } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { addActivity, addMilestone, addStep, addStory } from '../commands';
+import { milestoneFilterOf, presentMilestoneTabs, rowVisible, type MilestoneTab } from '../milestone-tabs';
 import { flatSteps, storiesInActivity, storiesInCell, type UserStory, type UsmState } from '../model';
 import { cardModeOf, type CardIntent, type UsmUiMode } from '../ui-mode';
 
@@ -36,8 +37,23 @@ export type MilestoneRow = {
   readonly name: string;
 };
 
-export const milestoneRows = (m: UsmMessages, state: UsmState): readonly MilestoneRow[] => {
-  return [...state.milestones.map(({ id, name }) => ({ id, name })), { id: undefined, name: m.unassigned }];
+/** The rows the milestone tab keeps on screen, in map order. */
+export const milestoneRows = (m: UsmMessages, context: TemplateRenderContext<UsmState>): readonly MilestoneRow[] => {
+  const { state, navigation } = context;
+  const filter = milestoneFilterOf(state, navigation);
+  const rows: MilestoneRow[] = [
+    ...state.milestones.map(({ id, name }) => ({ id, name })),
+    { id: undefined, name: m.unassigned },
+  ];
+  return rows.filter((row) => rowVisible(filter, row.id));
+};
+
+/**
+ * Reordering and adding milestones only make sense with every slice on screen:
+ * a single slice has no neighbour to swap with, and a new one would be hidden.
+ */
+const showsAllMilestones = (context: TemplateRenderContext<UsmState>): boolean => {
+  return milestoneFilterOf(context.state, context.navigation).kind === 'all';
 };
 
 export const renderEmptyBoard = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult => {
@@ -52,19 +68,40 @@ export const renderEmptyBoard = (m: UsmMessages, context: TemplateRenderContext<
   `;
 };
 
-/** View tabs plus the map in the requested grouping. */
+/** View and milestone tabs plus the map in the requested grouping. */
 export const renderBoard = (props: BoardProps): TemplateResult => {
   const { m, context } = props;
   const columns = flatSteps(context.state);
   if (columns.length === 0) return renderEmptyBoard(m, context);
   const view: 'group' | 'activity' = context.navigation['view'] === 'group' ? 'group' : 'activity';
   return html`
-    <div class="view-tabs" role="tablist" aria-label=${m.groupingLabel}>
-      ${renderViewTab(context, 'activity', view, m.activityGroup)}
-      ${renderViewTab(context, 'group', view, m.groupViewTab)}
+    <div class="board-bar">
+      <div class="segmented view-tabs" role="tablist" aria-label=${m.groupingLabel}>
+        ${renderViewTab(context, 'activity', view, m.activityGroup)}
+        ${renderViewTab(context, 'group', view, m.groupViewTab)}
+      </div>
+      <div class="segmented milestone-tabs" role="tablist" aria-label=${m.milestoneTabsLabel}>
+        ${repeat(
+          presentMilestoneTabs(m, context.state, context.navigation),
+          (tab) => tab.value ?? '',
+          (tab) => renderMilestoneTab(context, tab),
+        )}
+      </div>
     </div>
     ${view === 'activity' ? renderActivityView(props, columns) : renderGroupView(props)}
   `;
+};
+
+const renderMilestoneTab = (context: TemplateRenderContext<UsmState>, tab: MilestoneTab): TemplateResult => {
+  return html`<a
+    class="tab"
+    role="tab"
+    data-milestone-tab=${tab.value ?? ''}
+    data-current=${String(tab.selected)}
+    aria-selected=${tab.selected ? 'true' : 'false'}
+    href=${context.hashFor({ milestone: tab.value })}
+    >${tab.label}<span class="count">${tab.count}</span></a
+  >`;
 };
 
 const renderViewTab = (
@@ -91,7 +128,7 @@ const renderViewTab = (
 const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSteps>): TemplateResult => {
   const { m, context } = props;
   const { state } = context;
-  const rows = milestoneRows(m, state);
+  const rows = milestoneRows(m, context);
   return html`
     <div class="map-scroll">
       <div class="map" style=${`--cols:${columns.length + 1}`} data-testid="usm-map">
@@ -148,7 +185,7 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
               )}`,
             ),
         )}
-        ${renderAddMilestoneRow(m, context, columns.length)}
+        ${showsAllMilestones(context) ? renderAddMilestoneRow(m, context, columns.length) : nothing}
       </div>
     </div>
   `;
@@ -162,7 +199,7 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
 const renderGroupView = (props: BoardProps): TemplateResult => {
   const { m, context } = props;
   const { state } = context;
-  const rows = milestoneRows(m, state);
+  const rows = milestoneRows(m, context);
   return html`
     <div class="map-scroll">
       <div class="map" style=${`--cols:${state.activities.length + 1}`} data-testid="usm-map-group">
@@ -189,7 +226,7 @@ const renderGroupView = (props: BoardProps): TemplateResult => {
               )}`,
             ),
         )}
-        ${renderAddMilestoneRow(m, context, state.activities.length)}
+        ${showsAllMilestones(context) ? renderAddMilestoneRow(m, context, state.activities.length) : nothing}
       </div>
     </div>
   `;
@@ -274,6 +311,14 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
       <div class="cell"></div>
     </div>`;
   }
+  const rename = renderMilestoneName(m, context, milestoneId, row.name);
+  if (!showsAllMilestones(context)) {
+    return html`<div class="map-row" data-draggable="false" data-row-dragging="false" data-row-drop="false">
+      <div class="row-head" data-milestone=${milestoneId} draggable="false">${rename}</div>
+      ${cells}
+      <div class="cell"></div>
+    </div>`;
+  }
   const key = `row:${milestoneId}`;
   const target = drag.target({
     key,
@@ -303,24 +348,32 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
         }}
         @dragend=${source.dragend}
       >
-        <span class="row-grip" aria-hidden="true">${iconGrip()}</span
-        ><dpk-component-inline-edit
-          draggable="false"
-          .value=${row.name}
-          .label=${m.milestoneNameLabel}
-          @dpk-commit=${onCommit((name) =>
-            context.dispatch({
-              type: 'SET_MILESTONE_NAME',
-              target: { type: 'milestone', id: milestoneId },
-              payload: { name },
-            }),
-          )}
-        ></dpk-component-inline-edit>
+        <span class="row-grip" aria-hidden="true">${iconGrip()}</span>${rename}
       </div>
       ${cells}
       <div class="cell"></div>
     </div>
   `;
+};
+
+const renderMilestoneName = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  milestoneId: string,
+  name: string,
+): TemplateResult => {
+  return html`<dpk-component-inline-edit
+    draggable="false"
+    .value=${name}
+    .label=${m.milestoneNameLabel}
+    @dpk-commit=${onCommit((next) =>
+      context.dispatch({
+        type: 'SET_MILESTONE_NAME',
+        target: { type: 'milestone', id: milestoneId },
+        payload: { name: next },
+      }),
+    )}
+  ></dpk-component-inline-edit>`;
 };
 
 const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
