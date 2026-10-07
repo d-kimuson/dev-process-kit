@@ -101,6 +101,7 @@ export * as plain from './templates/plain';
 export * as slides from './templates/slides';
 export * as taskBoard from './templates/task-board';
 export * as delegationPoker from './templates/delegation-poker';
+export * as whiteboard from './templates/whiteboard';
 
 /** The template elements this entry registers, for `window.devProcessKit`. */
 const TEMPLATES = [
@@ -113,6 +114,7 @@ const TEMPLATES = [
   'slides',
   'task-board',
   'delegation-poker',
+  'whiteboard',
 ] as const;
 
 /** Registers every `dpk-*` custom element. Idempotent. */

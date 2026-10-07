@@ -19,7 +19,8 @@ const sizeOf = (kind: NewItemKind): { readonly w: number; readonly h: number } =
 /** A new item centered on `center` (nudged off anything already there), with a fresh id. */
 export const newItem = (state: WhiteboardState, m: WhiteboardMessages, kind: NewItemKind, center: Point): WbItem => {
   const { w, h } = sizeOf(kind);
-  const spot = freeSpot(state, { x: Math.round(center.x - w / 2), y: Math.round(center.y - h / 2) });
+  const at = { x: Math.round(center.x - w / 2), y: Math.round(center.y - h / 2) };
+  const spot = freeSpot(state, { ...at, w, h }, kind === 'frame');
   const prefix = kind === 'rect' || kind === 'ellipse' ? 'shape' : kind;
   const id = createEntityId(`new-${prefix}`, allIds(state));
   const box = { id, x: spot.x, y: spot.y, w, h };

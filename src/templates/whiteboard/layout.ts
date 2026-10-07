@@ -82,15 +82,33 @@ export const itemAt = (state: WhiteboardState, point: Point, except?: string): W
   return frame;
 };
 
-/** A box that does not cover anything already at `point`, nudged down-right until it is free. */
-export const freeSpot = (state: WhiteboardState, at: Point, step = 24, limit = 20): Point => {
-  let spot = at;
-  for (let attempt = 0; attempt < limit; attempt += 1) {
-    const taken = state.items.some(
-      (item) => item.kind !== 'frame' && Math.abs(item.x - spot.x) < 4 && Math.abs(item.y - spot.y) < 4,
-    );
-    if (!taken) return spot;
-    spot = { x: spot.x + step, y: spot.y + step };
+const overlaps = (a: Rect, b: Rect, gap: number): boolean =>
+  a.x < b.x + b.w + gap && b.x < a.x + a.w + gap && a.y < b.y + b.h + gap && b.y < a.y + a.h + gap;
+
+/**
+ * Where a new box of `box`'s size lands near `box`: there if it covers
+ * nothing, else the nearest free spot on rings around it. Frames are areas to
+ * drop things into, so they only stand in the way of a new frame (which would
+ * otherwise swallow what it lands on). Falls back to `box` itself.
+ */
+export const freeSpot = (state: WhiteboardState, box: Rect, avoidFrames = false, gap = 16, rings = 6): Point => {
+  const obstacles = avoidFrames ? state.items : state.items.filter((item) => item.kind !== 'frame');
+  const free = (candidate: Rect): boolean => !obstacles.some((item) => overlaps(candidate, item, gap));
+  if (free(box)) return { x: box.x, y: box.y };
+  const stepX = box.w + gap;
+  const stepY = box.h + gap;
+  for (let ring = 1; ring <= rings; ring += 1) {
+    const candidates: Point[] = [];
+    for (let dy = -ring; dy <= ring; dy += 1) {
+      for (let dx = -ring; dx <= ring; dx += 1) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) === ring)
+          candidates.push({ x: box.x + dx * stepX, y: box.y + dy * stepY });
+      }
+    }
+    // Nearest first, so the new box stays where the reader is looking.
+    candidates.sort((a, b) => Math.hypot(a.x - box.x, a.y - box.y) - Math.hypot(b.x - box.x, b.y - box.y));
+    const spot = candidates.find((candidate) => free({ ...box, ...candidate }));
+    if (spot !== undefined) return spot;
   }
-  return spot;
+  return { x: box.x, y: box.y };
 };

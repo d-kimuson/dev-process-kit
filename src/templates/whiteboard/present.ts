@@ -86,7 +86,8 @@ const summarize = (
   const kind = current?.kind ?? 'sticky';
   switch (action.type) {
     case 'ADD_ITEM': {
-      const added = action.payload;
+      // The item as it ends up: text typed into a fresh sticky reads as part of adding it.
+      const added = findItem(state, action.payload.id) ?? action.payload;
       const frame = frameOf(state, added);
       const body = m.added(excerpt(m, itemText(added)));
       return {

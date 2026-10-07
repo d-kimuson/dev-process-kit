@@ -178,6 +178,14 @@ const resizedSize = (gesture: Extract<WbGesture, { kind: 'resize' }>): { w: numb
   h: Math.max(MIN_ITEM_SIZE, snap(gesture.origin.h + gesture.current.y - gesture.start.y)),
 });
 
+/** A keyboard nudge: the same moves a drag by `(dx, dy)` would dispatch, frame contents included. */
+export const moveBy = (state: WhiteboardState, itemId: string, dx: number, dy: number): readonly ActionInput[] => {
+  const picked = startMove(state, itemId, 0, { x: 0, y: 0 });
+  if (picked?.kind !== 'move') return [];
+  const outcome = finishGesture(state, { ...picked, current: { x: dx, y: dy }, moved: true });
+  return outcome.kind === 'dispatch' ? outcome.inputs : [];
+};
+
 export type GestureOutcome =
   | { readonly kind: 'none' }
   /** The press never became a drag: a click on the item (or on the canvas). */

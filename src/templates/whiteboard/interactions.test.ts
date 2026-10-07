@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { newItem } from './commands';
 import { constrainViewport, fitRect, toCanvas, toScreen, zoomAt, ZOOM_MAX } from './interactions';
 import { boardBounds, connectorGeometry, itemAt, outlinePoint } from './layout';
+import { whiteboardMessages } from './messages';
 import { parseWhiteboardBase } from './model';
 
 describe('whiteboard viewport', () => {
@@ -60,5 +62,20 @@ describe('whiteboard layout', () => {
     expect(itemAt(state, { x: 50, y: 50 })?.id).toBe('a');
     expect(itemAt(state, { x: 50, y: 50 }, 'a')?.id).toBe('frame');
     expect(itemAt(state, { x: 900, y: 50 })).toBeUndefined();
+  });
+
+  it('lands a new item on free canvas near where it was asked for', () => {
+    const m = whiteboardMessages('en');
+    // Inside the frame, on top of nothing: right there.
+    expect(newItem(state, m, 'sticky', { x: 200, y: 220 })).toMatchObject({ x: 120, y: 140, kind: 'sticky' });
+    // On top of sticky "a": the nearest spot that covers nothing.
+    const moved = newItem(state, m, 'sticky', { x: 70, y: 70 });
+    expect(moved.id).toBe('new-sticky');
+    expect(itemAt(state, { x: moved.x + 80, y: moved.y + 80 })?.kind ?? 'none').not.toBe('sticky');
+    // A frame does not land over what is there, or it would swallow it.
+    const frame = newItem(state, m, 'frame', { x: 200, y: 150 });
+    expect(frame).toMatchObject({ kind: 'frame', title: 'New frame' });
+    expect([frame.x, frame.y]).not.toEqual([-120, -60]);
+    expect(itemAt({ ...state, items: [frame] }, { x: 70, y: 70 })).toBeUndefined();
   });
 });

@@ -7,6 +7,7 @@ import { definePrototypeElement } from './prototype';
 import { defineSlidesElement } from './slides';
 import { defineTaskBoardElement } from './task-board';
 import { defineUsmElement } from './usm';
+import { defineWhiteboardElement } from './whiteboard';
 
 /**
  * Template registry.
@@ -26,4 +27,5 @@ export const registerTemplateElements = (): void => {
   defineSlidesElement();
   defineTaskBoardElement();
   defineDelegationPokerElement();
+  defineWhiteboardElement();
 };
