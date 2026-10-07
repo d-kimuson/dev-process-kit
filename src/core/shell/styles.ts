@@ -495,12 +495,11 @@ export const chromeStyles = [
     .dpk-memo ::slotted(*) {
       display: block;
       max-width: 100%;
-      padding: 12px 16px 12px 18px;
-      border: 1px solid var(--dpk-rule-strong);
+      padding: 12px 16px;
+      /* A faint amber wash over the whole note marks it as the author's aside. */
+      border: 1px solid color-mix(in srgb, var(--dpk-amber) 28%, var(--dpk-rule-strong));
       border-radius: var(--dpk-radius-lg);
-      background:
-        linear-gradient(90deg, var(--dpk-amber) 0 3px, transparent 3px),
-        color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent);
+      background: color-mix(in srgb, color-mix(in srgb, var(--dpk-amber) 7%, var(--dpk-paper-raised)) 90%, transparent);
       backdrop-filter: blur(12px);
       box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
       font-size: 12.5px;
