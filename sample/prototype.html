@@ -586,6 +586,67 @@
         width: auto;
         margin: 0;
       }
+
+      /* A FAX on the operator's desk: not a screen, so a `plain` preview draws the paper itself. */
+      .fax {
+        display: grid;
+        justify-items: center;
+        padding: 8px 0 18px;
+      }
+
+      .fax-sheet {
+        width: min(520px, 100%);
+        padding: 28px 34px 34px;
+        background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.018) 0 1px, transparent 1px 3px), #fbfaf6;
+        color: #2a2a2a;
+        font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+        font-size: 13px;
+        line-height: 1.75;
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.12),
+          0 12px 28px rgba(0, 0, 0, 0.14);
+        transform: rotate(-0.6deg);
+        filter: grayscale(1) contrast(1.05);
+      }
+
+      .fax-head {
+        display: flex;
+        justify-content: space-between;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #2a2a2a;
+        font-family: ui-monospace, monospace;
+        font-size: 10.5px;
+        letter-spacing: 0.04em;
+      }
+
+      .fax-sheet h2 {
+        margin: 16px 0 10px;
+        font-size: 18px;
+        letter-spacing: 0.2em;
+        text-align: center;
+      }
+
+      .fax-sheet table {
+        width: 100%;
+        margin: 12px 0;
+        border-collapse: collapse;
+        font-family: ui-monospace, monospace;
+        font-size: 11.5px;
+      }
+
+      .fax-sheet th,
+      .fax-sheet td {
+        padding: 4px 6px;
+        border: 1px solid #555;
+        text-align: left;
+      }
+
+      .fax-note {
+        margin-top: 14px;
+        padding: 6px 10px;
+        border: 1px dashed #555;
+        font-size: 12px;
+      }
     </style>
   </head>
   <body>
@@ -814,6 +875,13 @@
                   "id": "refunds",
                   "name": "滞っている返金に対応する",
                   "steps": [
+                    {
+                      "id": "refund-fax",
+                      "name": "返金失敗の連絡を FAX で受け取る",
+                      "title": "返金不能のお知らせ（FAX）",
+                      "description": "決済代行は返金に失敗した取引を翌朝 FAX で知らせてくる。画面の外で始まる対応",
+                      "previews": [{ "id": "refund-fax-paper", "kind": "plain", "label": "FAX" }]
+                    },
                     {
                       "id": "admin-refunds",
                       "name": "返金待ちが長い注文を見つける",
@@ -1393,6 +1461,37 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="refund-fax-paper">
+        <div class="fax">
+          <div class="fax-sheet">
+            <div class="fax-head">
+              <span>FROM: ソラペイ決済 加盟店サポート 03-5555-0142</span>
+              <span>2025/09/19 08:12 P.01/01</span>
+            </div>
+            <h2>返金不能のお知らせ</h2>
+            <p>Sora Market 御中</p>
+            <p>下記のお取引について、カード会社の応答がなく返金を完了できませんでした。</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>加盟店取引番号</th>
+                  <th>金額</th>
+                  <th>状態</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>SM-0915-0288</td>
+                  <td>¥24,200</td>
+                  <td>応答なし（6 回）</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="fax-note">ご不明点は管理画面の「返金照会」またはお電話にてお問い合わせください。</p>
           </div>
         </div>
       </div>

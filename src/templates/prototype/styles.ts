@@ -377,13 +377,13 @@ export const prototypeStyles = css`
     overflow: auto;
   }
 
-  .stage:fullscreen .frame:not([data-kind='native']) {
+  .stage:fullscreen .frame:not([data-kind='native'], [data-kind='plain']) {
     display: flex;
     flex-direction: column;
     min-height: 100%;
   }
 
-  .stage:fullscreen .frame:not([data-kind='native']) .viewport {
+  .stage:fullscreen .frame:not([data-kind='native'], [data-kind='plain']) .viewport {
     flex: 1 0 auto;
   }
 
@@ -479,6 +479,28 @@ export const prototypeStyles = css`
      instead of reusing the browser preview heights. */
   .frame[data-kind='native'][data-viewport='mobile'] .viewport {
     min-height: calc((var(--frame-width, 390px) - 16px) * 2.05);
+  }
+
+  /*
+   * A plain preview is not a screen: no chrome, no bezel, no frame of its own.
+   * The light DOM draws the whole object (a memo, a FAX, a paper form) and the
+   * canvas is its desk, so it is as tall as its content.
+   */
+  .frame[data-kind='plain'] {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .frame[data-kind='plain'] .viewport {
+    min-height: 0;
+    background: transparent;
+  }
+
+  .frame[data-kind='plain'][data-empty] .viewport {
+    min-height: 180px;
   }
 
   .status-bar {

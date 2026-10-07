@@ -161,6 +161,7 @@ export const renderFrame = (
       class="frame"
       data-kind=${preview.kind}
       data-viewport=${preview.viewport}
+      ?data-empty=${!hasContent}
       style=${`--frame-width:${VIEWPORT_WIDTH[preview.viewport]};--frame-min-height:${VIEWPORT_MIN_HEIGHT[preview.viewport]}`}
     >
       ${

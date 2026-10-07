@@ -110,6 +110,19 @@ describe('prototype base parsing', () => {
     });
     expect(parsePrototypeBase({})).toEqual({ activities: [] });
   });
+
+  it('accepts a plain preview for what is not a screen (a memo, a FAX, a paper form)', () => {
+    const parsed = parsePrototypeBase({
+      activities: [
+        {
+          id: 'a',
+          name: 'A',
+          stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', previews: [{ id: 'memo', kind: 'plain' }] }] }],
+        },
+      ],
+    });
+    expect(parsed.activities[0]?.stories[0]?.steps[0]?.previews[0]).toMatchObject({ kind: 'plain' });
+  });
 });
 
 describe('prototype preview url', () => {

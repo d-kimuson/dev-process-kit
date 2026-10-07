@@ -2,7 +2,12 @@ import * as v from 'valibot';
 
 import { entityIdSchema, splitPath } from '../../core/schema';
 
-export const PREVIEW_KINDS = ['browser', 'native'] as const;
+/**
+ * What a preview looks like: a browser window, a phone app, or `plain` — no
+ * device at all, for what is not a screen (a handwritten memo, a FAX, a paper
+ * form), whose look the light DOM draws itself.
+ */
+export const PREVIEW_KINDS = ['browser', 'native', 'plain'] as const;
 export const PREVIEW_VIEWPORTS = ['mobile', 'tablet', 'desktop', 'fluid'] as const;
 
 export type PreviewKind = (typeof PREVIEW_KINDS)[number];
