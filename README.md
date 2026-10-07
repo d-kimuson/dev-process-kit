@@ -93,6 +93,7 @@ dev-process-kit ships **templates**, which make up a whole page, and **component
 | Slides             | `dpk-template-slides`           | A slide deck for explaining something step by step: slide titles and points are base data, richer bodies are your own markup, comments go on the slide on screen                                                                                                                                                   |
 | Task Context Board | `dpk-template-task-board`       | Where a task shared by an agent and a person stands: why and what (a short design doc, with diagrams), todos with assignees and proposals, outputs (URLs / paths), the conversation log with the current status, and questions the agent works around on an assumption; replies and todo changes go back as drafts |
 | Delegation Poker   | `dpk-template-delegation-poker` | Management 3.0 delegation poker: for each decision area, everyone plays one of seven delegation levels (Tell … Delegate); played straight on the delegation board, whose row stays face down until the reader plays on it, then settled on one agreed level per row; `mode="strict"` makes the played card final   |
+| Whiteboard         | `dpk-template-whiteboard`       | A free-form board like Miro: sticky notes, text, shapes and titled frames anywhere on a pannable, zoomable canvas, joined by labeled connectors; the reader drags, resizes, recolors, adds, edits and connects them, and a move is described by the frame it leaves and joins                                      |
 
 ### Components
 

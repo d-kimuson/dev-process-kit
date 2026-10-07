@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Whiteboard — オンボーディング改善のブレスト | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too. A generated page
+      loads the same files from jsDelivr instead, and so does this page on GitHub
+      Pages or with `?version=<version>` (`kit.js`).
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['templates/whiteboard.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-template-whiteboard {
+        display: block;
+        height: 100dvh;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-template-whiteboard storage-key="sample-whiteboard-onboarding">
+      <script type="application/json">
+        {
+          "title": "Sora Market — オンボーディング改善のブレスト",
+          "items": [
+            {
+              "id": "heading",
+              "kind": "text",
+              "x": 0,
+              "y": -110,
+              "w": 760,
+              "h": 48,
+              "text": "新規ユーザーが初回購入まで進めない理由と打ち手"
+            },
+            {
+              "id": "issues",
+              "kind": "frame",
+              "x": 0,
+              "y": 0,
+              "w": 560,
+              "h": 420,
+              "title": "現状の課題",
+              "color": "pink"
+            },
+            {
+              "id": "email-drop",
+              "kind": "sticky",
+              "x": 390,
+              "y": 50,
+              "text": "メール認証の画面で 4 割が離脱している",
+              "color": "pink"
+            },
+            {
+              "id": "long-form",
+              "kind": "sticky",
+              "x": 210,
+              "y": 50,
+              "text": "プロフィール入力の項目が 12 個もある",
+              "color": "pink"
+            },
+            {
+              "id": "no-value",
+              "kind": "sticky",
+              "x": 30,
+              "y": 50,
+              "text": "登録しても何が得なのか伝わっていない",
+              "color": "pink"
+            },
+            {
+              "id": "support-load",
+              "kind": "sticky",
+              "x": 30,
+              "y": 240,
+              "text": "「認証メールが届かない」問い合わせが週 80 件",
+              "color": "orange"
+            },
+            {
+              "id": "ideas",
+              "kind": "frame",
+              "x": 620,
+              "y": 0,
+              "w": 560,
+              "h": 420,
+              "title": "アイデア",
+              "color": "yellow"
+            },
+            { "id": "magic-link", "kind": "sticky", "x": 650, "y": 50, "text": "メール認証をマジックリンクにする" },
+            { "id": "defer-profile", "kind": "sticky", "x": 830, "y": 50, "text": "プロフィールは初回購入の後で聞く" },
+            {
+              "id": "welcome-coupon",
+              "kind": "sticky",
+              "x": 1010,
+              "y": 50,
+              "text": "登録直後に初回 500 円クーポンを見せる"
+            },
+            {
+              "id": "social-login",
+              "kind": "sticky",
+              "x": 650,
+              "y": 240,
+              "text": "Google / Apple でログイン",
+              "color": "blue"
+            },
+            {
+              "id": "guest-checkout",
+              "kind": "sticky",
+              "x": 830,
+              "y": 240,
+              "text": "登録せずに買えるゲスト購入？",
+              "color": "purple"
+            },
+            {
+              "id": "next",
+              "kind": "frame",
+              "x": 1240,
+              "y": 0,
+              "w": 420,
+              "h": 420,
+              "title": "次のアクション",
+              "color": "green"
+            },
+            {
+              "id": "ab-test",
+              "kind": "sticky",
+              "x": 1450,
+              "y": 50,
+              "text": "マジックリンクを 2 週間 A/B テスト",
+              "color": "green"
+            },
+            {
+              "id": "measure",
+              "kind": "sticky",
+              "x": 1270,
+              "y": 50,
+              "text": "登録→初回購入の歩留まりを計測する",
+              "color": "green"
+            },
+            { "id": "step-signup", "kind": "shape", "x": 0, "y": 540, "w": 180, "h": 90, "text": "サインアップ" },
+            {
+              "id": "step-verify",
+              "kind": "shape",
+              "x": 300,
+              "y": 540,
+              "w": 180,
+              "h": 90,
+              "text": "メール認証",
+              "color": "pink"
+            },
+            {
+              "id": "step-profile",
+              "kind": "shape",
+              "x": 600,
+              "y": 540,
+              "w": 180,
+              "h": 90,
+              "text": "プロフィール入力"
+            },
+            {
+              "id": "step-first-order",
+              "kind": "shape",
+              "shape": "ellipse",
+              "x": 900,
+              "y": 530,
+              "w": 200,
+              "h": 110,
+              "text": "初回購入",
+              "color": "green"
+            }
+          ],
+          "connectors": [
+            { "id": "signup-verify", "from": "step-signup", "to": "step-verify" },
+            { "id": "verify-profile", "from": "step-verify", "to": "step-profile", "label": "離脱 40%" },
+            { "id": "profile-order", "from": "step-profile", "to": "step-first-order", "label": "離脱 25%" },
+            { "id": "drop-magic", "from": "email-drop", "to": "magic-link", "label": "打ち手" },
+            { "id": "coupon-measure", "from": "welcome-coupon", "to": "measure", "label": "効果を測る" }
+          ]
+        }
+      </script>
+    </dpk-template-whiteboard>
+  </body>
+</html>
