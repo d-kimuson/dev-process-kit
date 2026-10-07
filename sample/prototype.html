@@ -49,10 +49,11 @@
         --sm-accent-soft: #e5efe9;
         --sm-warn: #a8552f;
         --sm-warn-soft: #f7e9df;
-        /* The frame stretches this to the preview height; centring the content is
-           enough, no percentage height that would defeat intrinsic sizing. */
+        /* The frame stretches this to the preview height (a maximized stage makes
+           it taller still). A page reads from the top, like the real screen; no
+           percentage height that would defeat intrinsic sizing. */
         display: grid;
-        align-content: center;
+        align-content: start;
         margin: 0;
         padding: 18px;
         background: var(--sm-bg);
@@ -317,13 +318,14 @@
       }
 
       .sm-note {
-        border-left: 3px solid var(--sm-accent);
-        padding: 2px 0 2px 12px;
-        color: var(--sm-dim);
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: var(--sm-accent-soft);
+        color: var(--sm-text);
       }
 
       .sm-note--warn {
-        border-left-color: var(--sm-warn);
+        background: var(--sm-warn-soft);
       }
 
       .sm-done {
@@ -345,6 +347,13 @@
 
       .sm-center {
         text-align: center;
+      }
+
+      /* A finished-state screen (order placed, cancel accepted): the site header
+         stays on top, the message sits in the middle of the room below it. */
+      .sm:has(> .sm-center) {
+        grid-template-rows: auto 1fr;
+        align-content: stretch;
       }
 
       .sm-steps {
@@ -436,8 +445,10 @@
       /* ------------------------------------------------------------------
          Shop admin (desktop only): side navigation + wide working area.
          ------------------------------------------------------------------ */
+      /* The admin screen fills the whole preview, however tall the frame is
+         (a maximized stage stretches it): the side navigation runs to the bottom. */
       .sm--admin {
-        align-content: start;
+        align-content: stretch;
         padding: 0;
         background: #f3f4f6;
       }
@@ -445,7 +456,6 @@
       .sm-admin {
         display: grid;
         grid-template-columns: 184px minmax(0, 1fr);
-        min-height: 520px;
       }
 
       .sm-side {
@@ -712,6 +722,7 @@
                       "id": "cart",
                       "name": "カートを確かめる",
                       "title": "カート",
+                      "situation": "9月18日の午前 10 時ごろ、仕事の合間の短い休憩中。前の晩にカートへ入れておいた 2 点を、スマホで買ってしまおうとする",
                       "previews": [
                         { "id": "cart-mobile", "viewport": "mobile", "url": "https://sora-market.example.com/cart" }
                       ]
@@ -720,6 +731,7 @@
                       "id": "delivery-payment",
                       "name": "配送先と支払い方法を選ぶ",
                       "title": "配送・支払い",
+                      "situation": "休憩は残り数分。配送先も支払い方法も前回のままでよく、何も変えずに先へ進みたい",
                       "previews": [
                         {
                           "id": "delivery-payment-mobile",
@@ -733,6 +745,7 @@
                       "name": "注文を確定する",
                       "title": "注文内容の確認",
                       "description": "キャンセルできる期限を、確定の前に一度だけ伝える",
+                      "situation": "確定ボタンを押す直前。合計とお届け日を流し見していて、細かい注意書きはほとんど読まない",
                       "previews": [
                         {
                           "id": "review-mobile",
@@ -745,6 +758,7 @@
                       "id": "order-complete",
                       "name": "注文の完了を確かめる",
                       "title": "注文完了",
+                      "situation": "注文を確定した直後。休憩が終わる前に画面を閉じようとしている",
                       "previews": [
                         {
                           "id": "order-complete-mobile",
@@ -765,6 +779,7 @@
                       "name": "注文履歴を開く",
                       "title": "注文履歴",
                       "description": "キャンセルできる注文は一覧の時点で分かる",
+                      "situation": "同じ日の夜 21 時半、自宅のソファで。テーブルクロスのサイズを選び間違えたと気づき、慌てて注文履歴を開く",
                       "previews": [
                         {
                           "id": "order-history-mobile",
@@ -777,6 +792,7 @@
                       "id": "order-detail",
                       "name": "注文詳細からキャンセルを選ぶ",
                       "title": "注文詳細",
+                      "situation": "取り消せるのか、一部だけ直せるのかが分からず、不安なまま注文を開いている",
                       "previews": [
                         {
                           "id": "order-detail-mobile",
@@ -790,6 +806,7 @@
                       "name": "返金額と返金先を確かめて確定する",
                       "title": "キャンセルの確認",
                       "description": "理由の選択は任意。確定を妨げない",
+                      "situation": "あとで注文し直すつもりなので、お金がいつ、どこへ戻るかだけが気になっている",
                       "previews": [
                         {
                           "id": "cancel-confirm-mobile",
@@ -803,6 +820,7 @@
                       "name": "受付を確かめる",
                       "title": "キャンセル受付",
                       "description": "返金の完了を待たずに受付だけを伝える。注文は「返金待ち」になる",
+                      "situation": "21 時 40 分、確定を押した直後。返金がもう済んだのか、まだなのかを知りたい",
                       "previews": [
                         {
                           "id": "cancel-accepted-mobile",
@@ -822,7 +840,7 @@
                       "name": "返金完了のメールを受け取る",
                       "title": "返金完了のお知らせ",
                       "description": "受付と返金完了は別のメールで届く",
-                      "situation": "キャンセルから 3 日後の朝、通勤中の電車でスマホに通知が届く",
+                      "situation": "キャンセルした翌朝、通勤中の電車でスマホに通知が届く",
                       "previews": [
                         { "id": "refund-mail-native", "kind": "native", "viewport": "mobile", "label": "通知" },
                         {
@@ -843,6 +861,7 @@
                       "id": "refunded-detail",
                       "name": "注文が取消済みになったのを確かめる",
                       "title": "注文詳細（取消済み）",
+                      "situation": "通知を開いたついでに、注文がきちんと取り消されたかを電車の中で確かめる",
                       "previews": [
                         {
                           "id": "refunded-detail-mobile",
@@ -863,6 +882,7 @@
                       "name": "キャンセルできない理由を知る",
                       "title": "注文詳細（出荷済み）",
                       "description": "キャンセルのボタンは出さず、理由と次にできることを示す",
+                      "situation": "9月15日の夜。12 日に頼んだペーパーウェイトが要らなくなり、届く前に取り消せないかと注文を開く",
                       "previews": [
                         {
                           "id": "shipped-detail-mobile",
@@ -876,6 +896,7 @@
                       "name": "問い合わせを送る",
                       "title": "お問い合わせ",
                       "description": "注文番号と用件を埋めた状態で開く",
+                      "situation": "キャンセルできないと分かったが、どうにかならないか運営に直接聞きたい。翌日の昼休み、会社のデスクで入力している",
                       "previews": [
                         {
                           "id": "contact-mobile",
@@ -903,6 +924,7 @@
                       "name": "注文を状態で絞り込む",
                       "title": "注文一覧",
                       "description": "状態は購入者に見せるものと同じ名前にそろえる",
+                      "situation": "9月19日の朝 10 時半、事務所の PC で。前の晩に入ったキャンセルが片付いたかを、朝いちばんの確認として見る",
                       "previews": [
                         {
                           "id": "admin-orders-desktop",
@@ -916,6 +938,7 @@
                       "name": "キャンセルの経緯をたどる",
                       "title": "注文詳細",
                       "description": "誰がいつ取り消し、いつ返金と引当の解除が済んだかを一列で追える",
+                      "situation": "購入者から「返金はいつ戻るのか」と問い合わせが来たときに、返事を書くために経緯を確かめている",
                       "previews": [
                         {
                           "id": "admin-order-detail-desktop",
@@ -943,6 +966,7 @@
                       "name": "返金待ちが長い注文を見つける",
                       "title": "返金待ち一覧",
                       "description": "経過時間の長い順に並べ、24 時間を超えたものを目立たせる",
+                      "situation": "FAX に書かれた注文番号を手元に置き、出社してすぐ管理画面で返金待ちの一覧を開く",
                       "previews": [
                         {
                           "id": "admin-refunds-desktop",

@@ -9,6 +9,7 @@ import { TemplateElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface } from '../../core/theme';
 import { findLocated, locateElement, pickableElement } from '../../lib/dom/locator';
+import { closePopover } from '../../lib/dom/popover';
 import { prototypeDefinitionFor } from './definition';
 import { prototypeMessages } from './messages';
 import { findPreview, uiTargetId, UI_TARGET, type PrototypeState, type UiTarget } from './model';
@@ -43,8 +44,8 @@ const COMPOSER_SIZE = { width: 300, height: 300 };
  * Everything the template shows is a function of the template state and the
  * navigation hash, except the reader's "comment on UI" mode: an ephemeral
  * picking state (see `ui-mode.ts`) whose comments enter the draft like any
- * other. Whether the stage is full screen belongs to the browser
- * (`:fullscreen`), not to this element.
+ * other. Whether the stage is maximized (it fills the tab, like a diagram's
+ * maximize) is ephemeral view state of this element too.
  */
 export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   static override styles = [TemplateElement.styles, popoverSurface, prototypeStyles];
@@ -57,6 +58,13 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   #shownIds: readonly string[] = [];
   readonly #popovers = new PopoverController(this);
   #linksChecked = false;
+  /**
+   * Set while the stage fills the tab (in the top layer where the browser has
+   * one). `height` is what the stage took in the page, kept by a placeholder.
+   */
+  #maximized: { readonly height: number } | null = null;
+  /** The stage element shown in the top layer, so it is shown there once. */
+  #liftedStage: Element | null = null;
 
   protected override definitionFor(locale: Locale) {
     return prototypeDefinitionFor(locale);
@@ -85,8 +93,9 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
       sidebar: renderNav(context, m),
       main: renderStage(context, m, {
         hasPreviewContent: (previewId) => this.#hasPreviewContent(previewId),
-        canFullscreen: document.fullscreenEnabled === true,
-        onToggleFullscreen: () => this.#toggleFullscreen(),
+        maximized: this.#maximized,
+        onToggleMaximize: () => this.#setMaximized(this.#maximized === null),
+        onMaximizedWheel: this.#onMaximizedWheel,
         uiComment: this.#uiCommentView(context),
         canvasEvents: {
           click: this.#onCanvasClick,
@@ -107,6 +116,8 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
       this.#send({ kind: 'dismiss' });
       return;
     }
+    // The stage enters the top layer before the composer, so the composer stacks above it.
+    this.#syncMaximized();
     this.#placeUiLayer();
     const opened = mode.kind === 'composing' && !this.#composerOpen;
     this.#composerOpen = mode.kind === 'composing';
@@ -199,9 +210,11 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     this.#placeBox('.ui-hover', null);
   };
 
+  /** Escape ends commenting on the UI first; with that off, it restores a maximized stage. */
   #onKeydown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape' || event.defaultPrevented || this.#uiComment.kind === 'off') return;
-    this.#send({ kind: 'exit' });
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    if (this.#uiComment.kind !== 'off') this.#send({ kind: 'exit' });
+    else this.#setMaximized(false);
   };
 
   #onLayoutChange = (): void => {
@@ -291,15 +304,45 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     );
   }
 
-  // ---------------------------------------------------------------- full screen
+  // ------------------------------------------------------------------ maximize
 
-  #toggleFullscreen(): void {
-    const stage = this.renderRoot.querySelector('.stage');
-    if (!(stage instanceof HTMLElement)) return;
-    // Refused when the frame is not allowed full screen; the page stays as it is.
-    if (this.shadowRoot?.fullscreenElement === stage) document.exitFullscreen().catch(() => undefined);
-    else stage.requestFullscreen().catch(() => undefined);
+  #setMaximized(maximized: boolean): void {
+    if (maximized === (this.#maximized !== null)) return;
+    const stage = this.renderRoot.querySelector<HTMLElement>('.stage');
+    this.#maximized = maximized ? { height: stage?.offsetHeight ?? 0 } : null;
+    this.#liftedStage = null;
+    if (maximized && this.#uiComment.kind === 'composing') {
+      // The top layer stacks in the order things entered it: an open composer
+      // would stay beneath the lifted stage, so it is shown again above it.
+      closePopover(this.renderRoot.querySelector<HTMLElement>('.comment-pop'));
+      this.#composerOpen = false;
+    }
+    this.requestUpdate();
   }
+
+  /**
+   * Lifts the maximized stage into the top layer, so no ancestor's overflow,
+   * transform or stacking context can clip it. Without the Popover API the
+   * fixed positioning of `.is-maximized` alone covers the tab. Restoring drops
+   * the `popover` attribute, which takes the stage out of the top layer again.
+   */
+  #syncMaximized(): void {
+    const stage = this.renderRoot.querySelector<HTMLElement>('.stage');
+    if (this.#maximized === null || !stage || typeof stage.showPopover !== 'function') return;
+    if (stage === this.#liftedStage) return;
+    this.#liftedStage = stage;
+    try {
+      stage.showPopover();
+    } catch {
+      /* not in a document yet */
+    }
+  }
+
+  /** Nothing of the page shows behind the maximized stage, so only the canvas scrolls. */
+  #onMaximizedWheel = (event: WheelEvent): void => {
+    const canvas = this.renderRoot.querySelector('.canvas');
+    if (canvas === null || !event.composedPath().includes(canvas)) event.preventDefault();
+  };
 
   #hasPreviewContent(previewId: string): boolean {
     return Array.from(this.querySelectorAll('[data-preview-id]')).some(

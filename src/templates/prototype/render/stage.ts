@@ -45,10 +45,15 @@ export const VIEWPORT_MIN_HEIGHT: Record<PreviewViewport, string> = {
 export type StageOptions = {
   /** Whether the light DOM holds markup for the preview (else a placeholder is shown). */
   readonly hasPreviewContent: (previewId: string) => boolean;
-  /** Whether the browser lets this page go full screen (a sandboxed frame may not). */
-  readonly canFullscreen: boolean;
-  /** Enters full screen, or leaves it when the stage is already there. */
-  readonly onToggleFullscreen: () => void;
+  /**
+   * Set while the stage fills the tab. `height` is what the stage took in the
+   * page: a placeholder keeps it, so the page behind neither reflows nor scrolls.
+   */
+  readonly maximized: { readonly height: number } | null;
+  /** Maximizes the stage, or restores it when it already fills the tab. */
+  readonly onToggleMaximize: () => void;
+  /** A wheel over the maximized stage, which must not scroll the hidden page. */
+  readonly onMaximizedWheel: (event: WheelEvent) => void;
   /** Commenting on the UI: the mode, the pins and the composer. */
   readonly uiComment: UiCommentView;
   /** Pointer events on the canvas, read by the element while the reader comments on the UI. */
@@ -102,14 +107,23 @@ export const renderStage = (
 
   const { layout, shown, tabs, activeId } = frames ?? prototypeStageFrames(location.step, navigation);
   const ui = options.uiComment;
+  const maximized = options.maximized;
   return html`
-    <div class="stage" data-ui-comment=${ui.mode.kind}>
+    ${
+      maximized === null ? nothing : html`<div class="stage-placeholder" style=${`height:${maximized.height}px`}></div>`
+    }
+    <div
+      class=${maximized === null ? 'stage' : 'stage is-maximized'}
+      data-ui-comment=${ui.mode.kind}
+      popover=${maximized === null ? nothing : 'manual'}
+      @wheel=${maximized === null ? nothing : { handleEvent: options.onMaximizedWheel, passive: false }}
+    >
       <div class="stage-bar">
         ${renderPageHead(m, prototypePageHeading(location))}
         <div class="stage-tools">
           ${tabs.length > 0 ? renderPreviewTabs(context, tabs, activeId) : nothing}
           ${shown.length > 0 ? renderUiCommentToggle(m, ui) : nothing}
-          ${shown.length > 0 && options.canFullscreen ? renderFullscreenToggle(m, options.onToggleFullscreen) : nothing}
+          ${shown.length > 0 ? renderMaximizeToggle(m, maximized !== null, options.onToggleMaximize) : nothing}
         </div>
       </div>
       ${location.step.situation === undefined ? nothing : renderSituation(m, location.step.situation)}
@@ -189,15 +203,16 @@ const renderPreviewTabs = (
   </div>`;
 };
 
-/**
- * One button both enters and leaves full screen. Which label shows is decided by
- * `.stage:fullscreen` in the styles, so the browser stays the only owner of
- * whether the stage is full screen.
- */
-const renderFullscreenToggle = (m: PrototypeMessages, onToggle: () => void): TemplateResult => {
-  return html`<button class="dpk-btn stage-fullscreen" type="button" title=${m.fullscreenHint} @click=${onToggle}>
-    <span class="fullscreen-enter">${iconMaximize()} ${m.fullscreen}</span>
-    <span class="fullscreen-exit">${iconMinimize()} ${m.exitFullscreen}</span>
+/** One button both maximizes the stage within the tab and restores it, like a diagram's. */
+const renderMaximizeToggle = (m: PrototypeMessages, maximized: boolean, onToggle: () => void): TemplateResult => {
+  return html`<button
+    class="dpk-btn stage-maximize"
+    type="button"
+    aria-pressed=${maximized ? 'true' : 'false'}
+    title=${m.maximizeHint}
+    @click=${onToggle}
+  >
+    ${maximized ? html`${iconMinimize()} ${m.restore}` : html`${iconMaximize()} ${m.maximize}`}
   </button>`;
 };
 

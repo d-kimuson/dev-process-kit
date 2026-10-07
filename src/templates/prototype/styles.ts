@@ -263,24 +263,9 @@ export const prototypeStyles = css`
     margin-left: auto;
   }
 
-  .stage-fullscreen svg {
+  .stage-maximize svg {
     width: 13px;
     height: 13px;
-  }
-
-  .stage-fullscreen > span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .stage-fullscreen .fullscreen-exit,
-  .stage:fullscreen .stage-fullscreen .fullscreen-enter {
-    display: none;
-  }
-
-  .stage:fullscreen .stage-fullscreen .fullscreen-exit {
-    display: inline-flex;
   }
 
   .tabs {
@@ -347,21 +332,28 @@ export const prototypeStyles = css`
 
   /* -------------------------------------------------------------- situation */
 
-  /* What is going on around the previews: a stage direction, read before them. */
+  /*
+   * What is going on around the previews: a stage direction, read before them.
+   * The band spans the stage at any width (a maximized stage too); only the
+   * text keeps a readable line length.
+   */
   .situation {
     display: flex;
     align-items: baseline;
     gap: 10px;
-    max-width: 90ch;
     margin: -4px 0 -2px;
-    padding: 9px 14px;
-    border-left: 3px solid color-mix(in srgb, var(--dpk-prototype-accent) 55%, transparent);
-    border-radius: 0 var(--dpk-radius) var(--dpk-radius) 0;
-    background: color-mix(in srgb, var(--dpk-prototype-accent) 6%, var(--dpk-paper-raised));
+    padding: 8px 14px 8px 10px;
+    border: 1px solid color-mix(in srgb, var(--dpk-prototype-accent) 16%, var(--dpk-rule));
+    border-radius: var(--dpk-radius);
+    background: color-mix(in srgb, var(--dpk-prototype-accent) 5%, var(--dpk-paper-raised));
+    box-shadow: var(--dpk-bevel);
   }
 
   .situation-label {
     flex: none;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--dpk-prototype-accent) 13%, transparent);
     font-size: 10.5px;
     font-weight: 650;
     letter-spacing: 0.06em;
@@ -369,6 +361,7 @@ export const prototypeStyles = css`
   }
 
   .situation-text {
+    max-width: 90ch;
     margin: 0;
     min-width: 0;
     font-size: 13px;
@@ -538,33 +531,51 @@ export const prototypeStyles = css`
   }
 
   /*
-   * Full screen: the page head, the tabs and the canvas fill the screen. The
-   * canvas scrolls instead of the page, and a browser preview is at least as tall
-   * as the screen allows; a phone keeps its device shape.
+   * Maximized: the stage covers the tab — the page head, the tabs and the canvas
+   * alone. It is also a manual popover in the top layer, so the UA popover box
+   * (fit-content, margin, border, padding, colors) is reset here. The canvas
+   * scrolls instead of the page, and a browser preview is at least as tall as
+   * the tab allows; a phone keeps its device shape. Whatever sits above the
+   * canvas (the situation, the comment-on-UI hint) keeps its own height, and the
+   * canvas takes the rest.
    */
-  .stage:fullscreen {
-    grid-template-rows: auto minmax(0, 1fr);
+  .stage.is-maximized {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: flex;
+    flex-direction: column;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
     padding: 16px 20px 20px;
+    border: 0;
+    color: var(--dpk-ink);
     background: var(--dpk-paper);
     overflow: hidden;
   }
 
-  .stage:fullscreen:has(> .situation) {
-    grid-template-rows: auto auto minmax(0, 1fr);
+  .stage.is-maximized > * {
+    flex: none;
   }
 
-  .stage:fullscreen .canvas {
+  .stage.is-maximized > .canvas {
+    flex: 1 1 0;
+    min-height: 0;
     align-items: flex-start;
     overflow: auto;
+    overscroll-behavior: contain;
   }
 
-  .stage:fullscreen .frame:not([data-kind='native'], [data-kind='plain']) {
+  .stage.is-maximized .frame:not([data-kind='native'], [data-kind='plain']) {
     display: flex;
     flex-direction: column;
     min-height: 100%;
   }
 
-  .stage:fullscreen .frame:not([data-kind='native'], [data-kind='plain']) .viewport {
+  .stage.is-maximized .frame:not([data-kind='native'], [data-kind='plain']) .viewport {
     flex: 1 0 auto;
   }
 

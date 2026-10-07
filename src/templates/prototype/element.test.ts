@@ -357,53 +357,129 @@ describe('<dpk-template-prototype> layout', () => {
     });
   });
 
-  describe('full screen', () => {
-    const allowFullscreen = (): void => {
-      Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: true });
-    };
+  describe('maximize', () => {
+    let shown: Element[] = [];
+    let hidden: Element[] = [];
+
+    beforeEach(() => {
+      shown = [];
+      hidden = [];
+      HTMLElement.prototype.showPopover = function (this: HTMLElement) {
+        shown.push(this);
+      };
+      HTMLElement.prototype.hidePopover = function (this: HTMLElement) {
+        hidden.push(this);
+      };
+    });
 
     afterEach(() => {
-      Reflect.deleteProperty(document, 'fullscreenEnabled');
-      vi.restoreAllMocks();
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
     });
 
-    it('hides the full screen button where the browser does not allow it', async () => {
-      const el = mount();
-      await settle(el);
-      expect(el.shadowRoot!.querySelector('.stage-fullscreen')).toBeNull();
-    });
+    const escape = (): void => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    };
 
-    it('shows the stage alone when the reader asks for full screen', async () => {
-      allowFullscreen();
-      const requestFullscreen = vi.fn(() => Promise.resolve());
-      HTMLElement.prototype.requestFullscreen = requestFullscreen;
+    it('fills the tab with the stage and restores it from the same button', async () => {
       const el = mount();
       await settle(el);
       const root = el.shadowRoot!;
-      const button = root.querySelector<HTMLButtonElement>('.stage-bar .stage-fullscreen')!;
-      expect(button.textContent).toContain(m.fullscreen);
-      button.click();
-      expect(requestFullscreen).toHaveBeenCalledTimes(1);
-      expect(requestFullscreen.mock.contexts[0]).toBe(root.querySelector('.stage'));
+      const button = (): HTMLButtonElement => root.querySelector<HTMLButtonElement>('.stage-bar .stage-maximize')!;
+      expect(button().textContent).toContain(m.maximize);
+      expect(button().getAttribute('aria-pressed')).toBe('false');
+
+      button().click();
+      await settle(el);
+      const stage = root.querySelector<HTMLElement>('.stage')!;
+      expect(stage.classList.contains('is-maximized')).toBe(true);
+      // Lifted into the top layer, so no ancestor of the page can clip it.
+      expect(stage.getAttribute('popover')).toBe('manual');
+      expect(shown).toEqual([stage]);
+      // The page keeps the room the stage took, so nothing behind it reflows.
+      expect(root.querySelector('.stage-placeholder')).not.toBeNull();
+      expect(button().textContent).toContain(m.restore);
+      expect(button().getAttribute('aria-pressed')).toBe('true');
+
+      button().click();
+      await settle(el);
+      expect(root.querySelector('.stage')!.classList.contains('is-maximized')).toBe(false);
+      expect(root.querySelector('.stage')!.hasAttribute('popover')).toBe(false);
+      expect(root.querySelector('.stage-placeholder')).toBeNull();
     });
 
-    it('leaves full screen from the same button', async () => {
-      allowFullscreen();
-      const exitFullscreen = vi.fn(() => Promise.resolve());
-      document.exitFullscreen = exitFullscreen;
+    it('restores on Esc', async () => {
       const el = mount();
       await settle(el);
       const root = el.shadowRoot!;
-      Object.defineProperty(root, 'fullscreenElement', { configurable: true, value: root.querySelector('.stage') });
-      root.querySelector<HTMLButtonElement>('.stage-fullscreen')!.click();
-      expect(exitFullscreen).toHaveBeenCalledTimes(1);
+      root.querySelector<HTMLButtonElement>('.stage-maximize')!.click();
+      await settle(el);
+      escape();
+      await settle(el);
+      expect(root.querySelector('.stage')!.classList.contains('is-maximized')).toBe(false);
     });
 
-    it('offers no full screen for a step without a preview', async () => {
-      allowFullscreen();
+    it('lets Esc end commenting on the UI before it restores', async () => {
+      const el = mount('#step=landing');
+      await settle(el);
+      const root = el.shadowRoot!;
+      root.querySelector<HTMLButtonElement>('.stage-maximize')!.click();
+      await settle(el);
+      root.querySelector<HTMLButtonElement>('.ui-comment-toggle')!.click();
+      await settle(el);
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('picking');
+
+      escape();
+      await settle(el);
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('off');
+      expect(root.querySelector('.stage')!.classList.contains('is-maximized')).toBe(true);
+
+      escape();
+      await settle(el);
+      expect(root.querySelector('.stage')!.classList.contains('is-maximized')).toBe(false);
+    });
+
+    it('opens the composer above the maximized stage', async () => {
+      const el = mount('#step=landing');
+      await settle(el);
+      el.querySelector('[data-preview-id="landing-mobile"]')!.innerHTML = '<button class="pay">Pay now</button>';
+      const root = el.shadowRoot!;
+      root.querySelector<HTMLButtonElement>('.stage-maximize')!.click();
+      await settle(el);
+      root.querySelector<HTMLButtonElement>('.ui-comment-toggle')!.click();
+      await settle(el);
+      el.querySelector<HTMLElement>('.pay')!.click();
+      await settle(el);
+      const composer = root.querySelector('.comment-pop')!;
+      // The top layer stacks in the order things entered it: the stage first, the composer over it.
+      expect(shown).toEqual([root.querySelector('.stage'), composer]);
+      expect(root.activeElement).toBe(composer.querySelector('textarea'));
+    });
+
+    it('raises a composer opened before the stage was maximized above it', async () => {
+      const el = mount('#step=landing');
+      await settle(el);
+      el.querySelector('[data-preview-id="landing-mobile"]')!.innerHTML = '<button class="pay">Pay now</button>';
+      const root = el.shadowRoot!;
+      root.querySelector<HTMLButtonElement>('.ui-comment-toggle')!.click();
+      await settle(el);
+      el.querySelector<HTMLElement>('.pay')!.click();
+      await settle(el);
+      const composer = root.querySelector('.comment-pop')!;
+      expect(shown).toEqual([composer]);
+
+      root.querySelector<HTMLButtonElement>('.stage-maximize')!.click();
+      await settle(el);
+
+      expect(hidden).toEqual([composer]);
+      expect(shown).toEqual([composer, root.querySelector('.stage'), composer]);
+      expect(root.activeElement).toBe(composer.querySelector('textarea'));
+    });
+
+    it('offers no maximize for a step without a preview', async () => {
       const el = mount('#story=billing&step=invoice');
       await settle(el);
-      expect(el.shadowRoot!.querySelector('.stage-fullscreen')).toBeNull();
+      expect(el.shadowRoot!.querySelector('.stage-maximize')).toBeNull();
     });
   });
 });
