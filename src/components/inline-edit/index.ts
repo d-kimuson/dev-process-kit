@@ -1,7 +1,8 @@
-import { LitElement, css, html, type TemplateResult } from 'lit';
+import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
+import { live } from 'lit/directives/live.js';
 
 import { LocaleController } from '../../core/locale-controller';
-import { controls, tokens } from '../../core/theme';
+import { tokens } from '../../core/theme';
 import { elementOf } from '../../lib/dom/element';
 import { inlineEditMessages } from './messages';
 
@@ -13,10 +14,15 @@ import { inlineEditMessages } from './messages';
 export class DpkComponentInlineEdit extends LitElement {
   static override styles = [
     tokens,
-    controls,
     css`
+      /* One atomic box in both states, so the text can be edited where it sits:
+         while editing, the text stays (hidden) underneath and keeps sizing the
+         box, and the field lies over it. Starting an edit moves nothing; the
+         box grows only as the draft does. */
       :host {
-        display: inline;
+        display: inline-block;
+        max-width: 100%;
+        vertical-align: baseline;
         /* Inherit the surrounding type scale instead of forcing the chrome size:
            an inline edit inside a 17px heading must look like a 17px heading.
            Color comes along too, so an edit on a colored card stays legible. */
@@ -27,92 +33,96 @@ export class DpkComponentInlineEdit extends LitElement {
         color: inherit;
       }
 
+      .box {
+        position: relative;
+        display: block;
+      }
+
+      /* No vertical padding or border: the box is exactly the lines of text.
+         The underline and ring are shadows, which never move the layout. */
       .view {
-        cursor: text;
-        border-bottom: 1px dashed transparent;
+        display: block;
+        padding: 0 4px;
         border-radius: var(--dpk-radius-xs);
-        padding: 1px 4px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        cursor: text;
         transition:
           background 140ms var(--dpk-ease),
-          border-color 140ms var(--dpk-ease),
           box-shadow 140ms var(--dpk-ease);
       }
 
       .view:hover {
-        border-bottom-color: var(--dpk-blue);
         background: var(--dpk-blue-soft);
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
+        box-shadow:
+          inset 0 -1px 0 var(--dpk-blue),
+          inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
       }
 
       .view[data-empty='true'] {
-        border-bottom-color: var(--dpk-rule-strong);
+        box-shadow: inset 0 -1px 0 var(--dpk-rule-strong);
         color: var(--dpk-ink-faint);
         font-style: italic;
       }
 
       .view[data-empty='true']:hover {
-        border-bottom-color: var(--dpk-blue);
+        box-shadow: inset 0 -1px 0 var(--dpk-blue);
       }
 
-      input,
-      textarea {
-        font: inherit;
-        color: inherit;
-        background: var(--dpk-paper-raised);
-        border: 1px solid var(--dpk-blue);
-        border-radius: var(--dpk-radius-sm);
-        box-shadow: var(--dpk-focus);
-        padding: 3px 7px;
-        min-width: 0;
+      .view[aria-hidden='true'] {
+        visibility: hidden;
+        transition: none;
+      }
+
+      .field {
+        position: absolute;
+        inset: 0;
+        box-sizing: border-box;
         width: 100%;
-        transition: box-shadow 140ms var(--dpk-ease);
+        height: 100%;
+        min-width: 0;
+        margin: 0;
+        padding: 0 4px;
+        border: none;
+        border-radius: var(--dpk-radius-xs);
+        outline: none;
+        background: var(--dpk-paper-raised);
+        box-shadow:
+          inset 0 0 0 1px var(--dpk-blue),
+          var(--dpk-focus);
+        font: inherit;
+        line-height: inherit;
+        letter-spacing: inherit;
+        color: inherit;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        overflow: hidden;
+        resize: none;
         animation: dpk-inline-edit-in 140ms var(--dpk-ease) backwards;
+      }
+
+      .field::placeholder {
+        color: var(--dpk-ink-faint);
+        font-style: italic;
+        opacity: 1;
       }
 
       @keyframes dpk-inline-edit-in {
         from {
           opacity: 0;
-          transform: translateY(1px) scale(0.99);
         }
       }
 
-      textarea {
-        min-height: var(--dpk-inline-textarea-min-height, 90px);
-        resize: vertical;
-        font-family: var(--dpk-body);
-        line-height: 1.5;
-      }
-
-      /* wrap: the field wraps like the text it replaces, and Enter still
-         commits, so a one-line value is edited without losing sight of it. */
-      :host([wrap]) textarea {
-        min-height: 0;
-        resize: none;
-        line-height: inherit;
-      }
-
-      /* seamless: no field chrome at all — the text is edited where it sits.
-         The chrome theme paints fields with its own ink and size, so the
-         seamless field re-states the inherited type and color. */
-      :host([seamless]) input,
-      :host([seamless]) textarea {
+      /* seamless: no field chrome at all — the text is edited where it sits. */
+      :host([seamless]) .view,
+      :host([seamless]) .field {
         padding: 0;
-        border: none;
+      }
+
+      :host([seamless]) .field {
         border-radius: 0;
         background: transparent;
         box-shadow: none;
-        height: 100%;
-        min-height: 0;
-        overflow: auto;
-        resize: none;
-        font: inherit;
-        font-size: inherit;
-        line-height: inherit;
-        color: inherit;
-      }
-
-      :host([seamless]) .view {
-        padding: 0;
       }
     `,
   ];
@@ -173,7 +183,7 @@ export class DpkComponentInlineEdit extends LitElement {
 
   protected override updated(): void {
     if (!this.editing) return;
-    const field = this.renderRoot.querySelector<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
+    const field = this.renderRoot.querySelector<HTMLInputElement | HTMLTextAreaElement>('.field');
     const root = this.renderRoot;
     const active = root instanceof ShadowRoot ? root.activeElement : document.activeElement;
     if (field && active !== field) {
@@ -184,50 +194,59 @@ export class DpkComponentInlineEdit extends LitElement {
 
   protected override render(): TemplateResult {
     const m = inlineEditMessages(this.#i18n.locale);
-    if (!this.editing) {
-      const empty = this.value.length === 0;
-      return html`<span
+    const hint = this.placeholder || m.unset;
+    const { editing } = this;
+    const text = editing ? this.#draft : this.value;
+    // While editing, the same text element stays underneath, hidden, and keeps
+    // sizing the box: the hint while empty, and a last empty line still takes a line.
+    const shown = text === '' ? hint : editing && text.endsWith('\n') ? `${text}\u200b` : text;
+    return html`<span class="box"
+      ><span
         class="view"
-        data-empty=${String(empty)}
-        role="button"
-        tabindex="0"
-        title=${m.clickToEdit}
+        data-empty=${String(text === '')}
+        aria-hidden=${editing ? 'true' : nothing}
+        role=${editing ? nothing : 'button'}
+        tabindex=${editing ? nothing : '0'}
+        title=${editing ? nothing : m.clickToEdit}
         @click=${this.#start}
         @keydown=${this.#onKeydownView}
-        >${empty ? this.placeholder || m.unset : this.value}</span
-      >`;
-    }
-    const name = this.label || this.placeholder || m.edit;
-    return html`
-      ${
-        this.multiline || this.wrap
-          ? html`<textarea
-              class="dpk-textarea"
-              .value=${this.#draft}
-              aria-label=${name}
-              @input=${this.#onInput}
-              @keydown=${this.#onKeydownField}
-              @blur=${this.#onBlur}
-            ></textarea>`
-          : html`<input
-              class="dpk-input"
-              .value=${this.#draft}
-              aria-label=${name}
-              @input=${this.#onInput}
-              @keydown=${this.#onKeydownField}
-              @blur=${this.#onBlur}
-            />`
-      }
-    `;
+        >${shown}</span
+      >${editing ? this.#renderField(this.label || this.placeholder || m.edit, hint) : nothing}</span
+    >`;
+  }
+
+  #renderField(name: string, hint: string): TemplateResult {
+    return this.multiline || this.wrap
+      ? html`<textarea
+          class="field"
+          rows="1"
+          .value=${live(this.#draft)}
+          placeholder=${hint}
+          aria-label=${name}
+          @input=${this.#onInput}
+          @keydown=${this.#onKeydownField}
+          @blur=${this.#onBlur}
+        ></textarea>`
+      : html`<input
+          class="field"
+          .value=${live(this.#draft)}
+          placeholder=${hint}
+          aria-label=${name}
+          @input=${this.#onInput}
+          @keydown=${this.#onKeydownField}
+          @blur=${this.#onBlur}
+        />`;
   }
 
   #start = (event: Event): void => {
     event.stopPropagation();
+    if (this.editing) return;
+    this.#draft = this.value;
     this.editing = true;
   };
 
   #onKeydownView = (event: KeyboardEvent): void => {
-    if (event.isComposing) return;
+    if (event.isComposing || this.editing) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       this.editing = true;
@@ -236,7 +255,9 @@ export class DpkComponentInlineEdit extends LitElement {
 
   #onInput = (event: Event): void => {
     const target = elementOf(event.target, HTMLInputElement) ?? elementOf(event.target, HTMLTextAreaElement);
-    if (target !== null) this.#draft = target.value;
+    if (target === null) return;
+    this.#draft = target.value;
+    this.requestUpdate();
   };
 
   #onKeydownField = (event: KeyboardEvent): void => {
