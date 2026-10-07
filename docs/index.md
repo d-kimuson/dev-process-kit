@@ -140,6 +140,7 @@ el.api.issues; // issues from the last rejected dispatch
 
 el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
 el.api.comment('step:landing', 'ここに説明がほしい');
+el.api.editComment(id, '言い直したコメント'); // new body; the comment keeps its target and place
 el.api.dispatchBatch(inputs); // compound command, committed atomically
 el.api.removeAction(id);
 el.api.clearActions();

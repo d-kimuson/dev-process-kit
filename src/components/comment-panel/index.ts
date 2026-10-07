@@ -9,7 +9,14 @@ import { LocaleController } from '../../core/locale-controller';
 import { FRAMEWORK_VERSION } from '../../core/version';
 import { copyText } from '../../lib/dom/clipboard';
 import { panelMessages } from './messages';
-import { commentSubmission, initialPanelState, reducePanel, type PanelEvent, type PanelIntent } from './model';
+import {
+  commentEditSubmission,
+  commentSubmission,
+  initialPanelState,
+  reducePanel,
+  type PanelEvent,
+  type PanelIntent,
+} from './model';
 import { presentPanel, type PanelInputs } from './present';
 import { panelStyles } from './styles';
 import { renderPanel } from './view';
@@ -18,6 +25,8 @@ export type CommentPanelCallbacks = {
   readonly onDelete?: (id: string) => void;
   readonly onClear?: () => void;
   readonly onComment?: (target: string, body: string) => DispatchOutcome;
+  /** Rewrites a posted comment; without it the comments have no edit button. */
+  readonly onEditComment?: (id: string, body: string) => DispatchOutcome;
 };
 
 /** Public adapter: owns state references, lifecycle and effects, not presentation rules. */
@@ -33,6 +42,7 @@ export class DpkComponentCommentPanel extends LitElement {
     onDelete: { attribute: false },
     onClear: { attribute: false },
     onComment: { attribute: false },
+    onEditComment: { attribute: false },
     exportBrief: { attribute: false },
     sendToClaude: { attribute: false },
     embedded: { type: Boolean },
@@ -48,10 +58,13 @@ export class DpkComponentCommentPanel extends LitElement {
   declare onDelete: CommentPanelCallbacks['onDelete'];
   declare onClear: CommentPanelCallbacks['onClear'];
   declare onComment: CommentPanelCallbacks['onComment'];
+  declare onEditComment: CommentPanelCallbacks['onEditComment'];
   declare exportBrief: (() => string) | undefined;
   /** Set by the template inside a Claude Artifact that can reach Claude; shows the send button. */
   declare sendToClaude: (() => Promise<HandoffOutcome>) | undefined;
   #ui = initialPanelState();
+  /** Where focus goes after the next render: an editor that just opened, or the edit button it closed into. */
+  #focus: { readonly kind: 'editor' | 'edit-button'; readonly id: string } | null = null;
   readonly #i18n = new LocaleController(this);
 
   constructor() {
@@ -75,6 +88,14 @@ export class DpkComponentCommentPanel extends LitElement {
     if (changed.has('pendingTarget') && this.pendingTarget && this.isConnected) {
       this.renderRoot.querySelector('textarea')?.focus();
     }
+    const focus = this.#focus;
+    if (focus) {
+      this.#focus = null;
+      const item = [...this.renderRoot.querySelectorAll<HTMLElement>('.item')].find(
+        (element) => element.dataset['id'] === focus.id,
+      );
+      item?.querySelector<HTMLElement>(focus.kind === 'editor' ? '.item-editor textarea' : '.item-edit')?.focus();
+    }
   }
 
   #inputs(): PanelInputs<unknown> | null {
@@ -86,6 +107,7 @@ export class DpkComponentCommentPanel extends LitElement {
       derivation: this.derivation,
       issues: this.issues,
       sendable: this.sendToClaude !== undefined,
+      editable: this.onEditComment !== undefined,
       locale: this.#i18n.locale,
     };
   }
@@ -116,6 +138,25 @@ export class DpkComponentCommentPanel extends LitElement {
       case 'send':
         void this.#sendToClaude();
         return;
+      case 'edit-start':
+        this.#focus = { kind: 'editor', id: intent.id };
+        this.#update(intent);
+        return;
+      case 'edit-cancel': {
+        const editing = this.#ui.editing;
+        if (editing) this.#focus = { kind: 'edit-button', id: editing.id };
+        this.#update(intent);
+        return;
+      }
+      case 'edit-save': {
+        const edit = commentEditSubmission(this.#ui);
+        if (!edit || !this.onEditComment) return;
+        // A rejected edit keeps the editor and its text, like a rejected comment.
+        if (!this.onEditComment(edit.id, edit.body).ok) return;
+        this.#focus = { kind: 'edit-button', id: edit.id };
+        this.#update({ kind: 'edited' });
+        return;
+      }
       case 'submit': {
         const inputs = this.#inputs();
         if (!inputs || !this.onComment) return;

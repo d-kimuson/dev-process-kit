@@ -372,6 +372,80 @@ describe('color scheme', () => {
   });
 });
 
+describe('editing a review comment', () => {
+  const STORAGE_KEY = 'edit-test';
+  const mountStored = (): DpkTemplatePrototype => {
+    document.body.innerHTML = `
+      <dpk-template-prototype storage-key="${STORAGE_KEY}" notes="on">
+        <script type="application/json">${JSON.stringify(base)}</script>
+      </dpk-template-prototype>`;
+    return document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+  };
+  const panelOf = async (el: DpkTemplatePrototype): Promise<DpkComponentCommentPanel> => {
+    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    await panel.updateComplete;
+    return panel;
+  };
+
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+    localStorage.clear();
+  });
+
+  it('rewrites a comment from the review rail, and the new text survives a reload', async () => {
+    const el = mountStored();
+    await settle(el);
+    const posted = el.api.comment('step:landing', 'first thought');
+    if (!posted.ok) throw new Error('comment rejected');
+    await settle(el);
+    const target = el.api.comments[0]?.target;
+    const panel = await panelOf(el);
+    panel.shadowRoot?.querySelector<HTMLButtonElement>('.item-edit')?.click();
+    await panel.updateComplete;
+    const area = panel.shadowRoot?.querySelector<HTMLTextAreaElement>('.item-editor textarea');
+    if (!area) throw new Error('no editor');
+    area.value = 'second thought';
+    area.dispatchEvent(new Event('input'));
+    await panel.updateComplete;
+    area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
+    await settle(el);
+    expect(el.api.comments).toMatchObject([{ id: posted.id, target, payload: { body: 'second thought' } }]);
+
+    const reloaded = mountStored();
+    await settle(reloaded);
+    expect(reloaded.api.comments).toMatchObject([{ id: posted.id, payload: { body: 'second thought' } }]);
+  });
+
+  it('edits a comment stored by an earlier version of the kit', async () => {
+    const stored = {
+      id: 'old-comment',
+      type: 'comment',
+      target: { type: 'page', id: 'prototype' },
+      payload: { body: 'written before edits existed' },
+      createdAt: '2026-09-01T00:00:00.000Z',
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 1, template: 'prototype', actions: [stored] }));
+    const el = mountStored();
+    await settle(el);
+    expect(el.api.editComment('old-comment', 'rewritten')).toEqual({ ok: true, id: 'old-comment' });
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).toEqual({
+      v: 1,
+      template: 'prototype',
+      actions: [{ ...stored, payload: { body: 'rewritten' } }],
+    });
+  });
+
+  it('reports a rejected edit with dpk-error', async () => {
+    const el = mountStored();
+    await settle(el);
+    const errors = vi.fn();
+    el.addEventListener('dpk-error', errors);
+    expect(el.api.editComment('missing', 'text').ok).toBe(false);
+    expect(errors).toHaveBeenCalledOnce();
+  });
+});
+
 describe('sidebar width', () => {
   const sidebar = (el: Element): HTMLElement => el.shadowRoot?.querySelector('.dpk-sidebar') as HTMLElement;
   const width = (el: Element): string => sidebar(el).style.getPropertyValue('--dpk-sidebar-width');

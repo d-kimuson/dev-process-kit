@@ -11,8 +11,12 @@ export type SendStatus =
   | { readonly kind: 'idle' | 'pending' | 'sent' }
   | { readonly kind: 'failed'; readonly reason: HandoffFailure };
 
+/** A posted comment being rewritten in place, with its unsaved text. */
+export type CommentEdit = { readonly id: string; readonly body: string };
+
 export type PanelState = {
   readonly body: string;
+  readonly editing: CommentEdit | null;
   readonly attachment: Attachment;
   readonly copy: CopyStatus;
   readonly copyRequest: number;
@@ -23,11 +27,15 @@ export type PanelState = {
 export type PanelEdit =
   | { readonly kind: 'input'; readonly body: string }
   | { readonly kind: 'attach'; readonly current: boolean }
-  | { readonly kind: 'clear-target' };
+  | { readonly kind: 'clear-target' }
+  | { readonly kind: 'edit-start'; readonly id: string; readonly body: string }
+  | { readonly kind: 'edit-input'; readonly body: string }
+  | { readonly kind: 'edit-cancel' };
 
 export type PanelIntent =
   | PanelEdit
   | { readonly kind: 'submit' }
+  | { readonly kind: 'edit-save' }
   | { readonly kind: 'delete'; readonly id: string }
   | { readonly kind: 'clear' }
   | { readonly kind: 'copy' }
@@ -37,6 +45,7 @@ export type PanelEvent =
   | PanelEdit
   | { readonly kind: 'target-requested'; readonly ref: string }
   | { readonly kind: 'submitted' }
+  | { readonly kind: 'edited' }
   | { readonly kind: 'copy-started' }
   | { readonly kind: 'copy-finished'; readonly request: number; readonly ok: boolean }
   | { readonly kind: 'send-started' }
@@ -44,6 +53,7 @@ export type PanelEvent =
 
 export const initialPanelState = (): PanelState => ({
   body: '',
+  editing: null,
   attachment: { kind: 'page' },
   copy: { kind: 'idle' },
   copyRequest: 0,
@@ -62,6 +72,14 @@ export const reducePanel = (state: PanelState, event: PanelEvent): PanelState =>
       return { ...state, attachment: { kind: event.current ? 'current' : 'page' } };
     case 'clear-target':
       return { ...state, attachment: clearExplicit(state.attachment) };
+    // One comment at a time: starting another edit drops the unsaved one.
+    case 'edit-start':
+      return { ...state, editing: { id: event.id, body: event.body } };
+    case 'edit-input':
+      return state.editing ? { ...state, editing: { ...state.editing, body: event.body } } : state;
+    case 'edit-cancel':
+    case 'edited':
+      return { ...state, editing: null };
     case 'target-requested':
       return {
         ...state,
@@ -113,4 +131,11 @@ export const commentSubmission = (
 ): { readonly target: string; readonly body: string } | null => {
   const body = state.body.trim();
   return body === '' ? null : { target, body };
+};
+
+/** The edit to save, or `null` while there is none or its text is blank. */
+export const commentEditSubmission = (state: PanelState): CommentEdit | null => {
+  if (!state.editing) return null;
+  const body = state.editing.body.trim();
+  return body === '' ? null : { id: state.editing.id, body };
 };

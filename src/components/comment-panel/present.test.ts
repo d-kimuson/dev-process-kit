@@ -83,4 +83,22 @@ describe('panel presentation', () => {
     });
     expect(presentPanel(inputs, ui).flash).toBe(coreMessages('en').handoffTooLarge);
   });
+  it('offers editing on comments only, and only when the host takes edits', () => {
+    const actions = [
+      { id: 'c', type: 'comment', target: { type: 'page', id: 'tiny' }, payload: { body: 'hi' }, createdAt: 'now' },
+      { id: 'r', type: 'SET_NAME', target: { type: 'item', id: 'a' }, payload: { name: 'New' }, createdAt: 'now' },
+    ];
+    const withDraft = { ...inputs, derivation: derive(definition, base, actions) };
+    const kinds = (vm: ReturnType<typeof presentPanel>) => vm.items.map((item) => item.edit.kind);
+    expect(kinds(presentPanel(withDraft, initialPanelState()))).toEqual(['none', 'none']);
+    expect(kinds(presentPanel({ ...withDraft, editable: true }, initialPanelState()))).toEqual(['available', 'none']);
+    const editing = reducePanel(initialPanelState(), { kind: 'edit-start', id: 'c', body: 'hi' });
+    expect(presentPanel({ ...withDraft, editable: true }, editing).items[0]?.edit).toEqual({
+      kind: 'editing',
+      body: 'hi',
+      canSave: true,
+    });
+    const blank = reducePanel(editing, { kind: 'edit-input', body: ' ' });
+    expect(presentPanel({ ...withDraft, editable: true }, blank).items[0]?.edit).toMatchObject({ canSave: false });
+  });
 });

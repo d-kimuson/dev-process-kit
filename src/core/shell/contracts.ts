@@ -60,6 +60,8 @@ export type TemplateApi<S> = {
   dispatch(input: ActionInput): DispatchOutcome;
   dispatchBatch(inputs: readonly ActionInput[]): BatchDispatchOutcome;
   comment(target: string | ActionTarget, body: string): DispatchOutcome;
+  /** Replaces the body of a comment already in the draft; its target and place stay. */
+  editComment(id: string, body: string): DispatchOutcome;
   removeAction(id: string): void;
   clearActions(): void;
   importDraft(actions: readonly DraftAction[]): void;

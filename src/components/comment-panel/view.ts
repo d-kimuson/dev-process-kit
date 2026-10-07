@@ -155,11 +155,24 @@ export const renderPanel = (
 `;
 
 const renderItem = (m: PanelMessages, item: PanelItem, send: PanelSend): TemplateResult => html`
-  <li class="item" data-tone=${item.tone} data-stale=${String(item.stale !== null)}>
+  <li class="item" data-tone=${item.tone} data-stale=${String(item.stale !== null)} data-id=${item.id}>
     <div class="item-head">
       <span class="item-icon">${iconForTone(item.tone)}</span>
       <span class="item-title">${item.title}</span>
       ${item.stale ? html`<span class="stale-badge">${item.stale}</span>` : nothing}
+      ${
+        item.edit.kind === 'available'
+          ? html`<button
+              class="dpk-icon-btn item-edit"
+              type="button"
+              aria-label=${m.editComment}
+              title=${m.editComment}
+              @click=${() => send({ kind: 'edit-start', id: item.id, body: item.text.body })}
+            >
+              ${iconPencil()}
+            </button>`
+          : nothing
+      }
       <button
         class="dpk-icon-btn"
         type="button"
@@ -171,12 +184,57 @@ const renderItem = (m: PanelMessages, item: PanelItem, send: PanelSend): Templat
     </div>
     <div class="item-target">${item.targetLabel}</div>
     ${
-      item.text.kind === 'comment'
-        ? html`<p class="item-body">${item.text.body}</p>`
-        : item.text.body
-          ? html`<div class="item-summary">${item.text.body}</div>`
-          : nothing
+      item.edit.kind === 'editing'
+        ? renderEditor(m, item.edit, send)
+        : item.text.kind === 'comment'
+          ? html`<p class="item-body">${item.text.body}</p>`
+          : item.text.body
+            ? html`<div class="item-summary">${item.text.body}</div>`
+            : nothing
     }
     <code class="item-code">${item.code}</code>
   </li>
+`;
+
+const renderEditor = (
+  m: PanelMessages,
+  edit: { readonly body: string; readonly canSave: boolean },
+  send: PanelSend,
+): TemplateResult => html`
+  <div class="item-editor">
+    <textarea
+      class="dpk-textarea"
+      aria-label=${m.editLabel}
+      title=${m.editHint}
+      .value=${edit.body}
+      @input=${(event: Event) => {
+        if (event.currentTarget instanceof HTMLTextAreaElement)
+          send({ kind: 'edit-input', body: event.currentTarget.value });
+      }}
+      @keydown=${(event: KeyboardEvent) => {
+        if (event.isComposing) return;
+        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          send({ kind: 'edit-save' });
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          send({ kind: 'edit-cancel' });
+        }
+      }}
+    ></textarea>
+    <div class="row item-editor-actions">
+      <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => send({ kind: 'edit-cancel' })}>
+        ${m.cancelEdit}
+      </button>
+      <button
+        class="dpk-btn dpk-btn--accent"
+        type="button"
+        ?disabled=${!edit.canSave}
+        @click=${() => send({ kind: 'edit-save' })}
+      >
+        ${m.saveEdit}
+      </button>
+    </div>
+  </div>
 `;

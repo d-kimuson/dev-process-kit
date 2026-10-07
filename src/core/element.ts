@@ -247,6 +247,19 @@ export abstract class TemplateElement<S> extends LitElement {
     return outcome;
   }
 
+  /** Rewrites a posted comment's body; a rejected edit is reported like a rejected dispatch. */
+  editComment(id: string, body: string): DispatchOutcome {
+    const outcome = this.controller.editComment(id, body);
+    if (!outcome.ok) {
+      this.requestUpdate();
+      this.dispatchEvent(
+        new CustomEvent('dpk-error', { detail: { issues: outcome.issues }, bubbles: true, composed: true }),
+      );
+      this.#notify();
+    }
+    return outcome;
+  }
+
   removeAction(id: string): void {
     this.controller.removeAction(id);
   }
@@ -326,6 +339,7 @@ export abstract class TemplateElement<S> extends LitElement {
       .pendingTarget=${this.#pendingCommentTarget}
       .embedded=${this.integratedReview}
       .onDelete=${(id: string) => this.removeAction(id)}
+      .onEditComment=${(id: string, body: string) => this.editComment(id, body)}
       .onClear=${() => this.clearActions()}
       .onComment=${(target: string, body: string) => {
         const outcome = this.dispatch({ type: COMMENT_ACTION, target, payload: { body } });
@@ -623,6 +637,7 @@ export abstract class TemplateElement<S> extends LitElement {
           this.#listeners.delete(listener);
         };
       },
+      editComment: (id, body) => this.editComment(id, body),
       removeAction: (id) => this.removeAction(id),
       clearActions: () => this.clearActions(),
       navigate: (patch, options) => this.navigate(patch, options),
