@@ -67,7 +67,7 @@ Two snapshots of the same shape: `{ tables: [{ id, name, tags?, fields }] }`.
 
 ## Cardinality
 
-Every relation is labelled `parent : child` at its FK end, each side a multiplicity — `1`, `0..1`, `1..N` or `0..N`:
+Every relation has two multiplicities — `1`, `0..1`, `1..N` or `0..N` — one at each end of its line, written here as `parent : child`:
 
 - **parent** — how many referenced rows one FK row has: `1`, or `0..1` when the FK is `nullable`.
 - **child** — how many FK rows one referenced row has: `0..1` when the FK column is unique on its own (`UQ` among its keys, or it is the table's only `PK` column, as in a shared primary key), otherwise `0..N`. A `PK` column of a composite key (several `PK` columns in the table) is not unique on its own.
@@ -85,7 +85,7 @@ Every relation is labelled `parent : child` at its FK end, each side a multiplic
 ## Reading it
 
 - **Change marks** — `+` added, `−` removed, `~` changed, on both the table card and the field row; a removed field row is struck through.
-- **Relations** are drawn from the referenced field to the FK field that points at it, colored by the relation's status. The FK end carries `parent : child` above the line and the `label` below it; they sit at that end because each FK column receives exactly one relation, while one referenced column often sends several. A changed relation is amber and keeps its previous value struck through.
+- **Relations** are drawn from the referenced field to the FK field that points at it, colored by the relation's status, in crow's foot notation — no arrowheads. Each end carries the symbol and the multiplicity of the table it touches: the **parent** multiplicity at the referenced end, the **child** multiplicity at the FK end. Against the table sits the maximum (a bar for one, a three-pronged foot for many) and just outside it the minimum (a bar for one, a circle for zero), so `1` is two bars, `0..1` a bar and a circle, `1..N` a foot and a bar, `0..N` a foot and a circle. The number is written beside its symbol, along the line; the `label` sits under the FK end's number. Relations leaving the same referenced column fan out a little so their ends and numbers stay apart. A changed relation is amber and keeps its previous value struck through.
 - **Search** narrows the diagram to tables whose id, name or field matches, and marks the matching rows.
 - **Selection** highlights the tables connected to the selected one (either direction) and dims the rest. It never adds a detail panel below the canvas.
 - **Comments** — give the diagram a stable HTML `id` and place it inside a template. Hover a table or relationship to reveal its comment icon, then activate the icon to open the shared composer beside it. Selection alone does not open the input. Keyboard focus also reveals the icon, and it stays visible on devices without hover. The composer follows pan/zoom without resizing the diagram. Send there with the button or `Ctrl`/`Cmd+Enter`; the comment is saved to the template's Review without opening its rail. Escape/cancel closes the surface, and switching selections preserves unsent text per target for the mounted component. Fields are not separate comment targets.

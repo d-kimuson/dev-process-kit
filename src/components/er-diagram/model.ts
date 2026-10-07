@@ -199,6 +199,27 @@ export const fieldOffset = (fields: readonly ErFieldDiff[], fieldId: string): nu
   return TABLE_HEAD_HEIGHT / 2;
 };
 
+const FAN_GAP = 14;
+
+/**
+ * Vertical offset of the `index`-th of `count` relations that leave one
+ * referenced column. Each gets its own short stub, so the crow's foot symbol
+ * and multiplicity at that end never sit on top of a sibling's.
+ */
+export const fanOffset = (index: number, count: number): number => (index - (count - 1) / 2) * FAN_GAP;
+
+/** Each relation's {@link fanOffset} among those leaving the same referenced column. */
+export const outgoingFan = (edges: readonly ErRelation[]): ReadonlyMap<string, number> => {
+  const groups = new Map<string, string[]>();
+  for (const edge of edges) {
+    const key = `${edge.from}.${edge.sourceField}`;
+    groups.set(key, [...(groups.get(key) ?? []), edge.id]);
+  }
+  return new Map(
+    [...groups.values()].flatMap((ids) => ids.map((id, index) => [id, fanOffset(index, ids.length)] as const)),
+  );
+};
+
 type SnapshotRelation = ErRelationMeaning & {
   readonly id: string;
   readonly from: string;
@@ -325,6 +346,7 @@ export const parseErData = (input: unknown): ErData => {
     ];
   });
 
+  const fan = outgoingFan(edges);
   const portsOf = (
     table: ErTableDiff,
   ): {
@@ -335,7 +357,10 @@ export const parseErData = (input: unknown): ErData => {
     const incoming: Record<string, { x: number; y: number }> = {};
     for (const edge of edges) {
       if (edge.from === table.id)
-        out[`${edge.id}:out`] = { x: TABLE_WIDTH, y: fieldOffset(table.fields, edge.sourceField) };
+        out[`${edge.id}:out`] = {
+          x: TABLE_WIDTH,
+          y: fieldOffset(table.fields, edge.sourceField) + (fan.get(edge.id) ?? 0),
+        };
       if (edge.to === table.id) incoming[`${edge.id}:in`] = { x: 0, y: fieldOffset(table.fields, edge.targetField) };
     }
     return { out, in: incoming };

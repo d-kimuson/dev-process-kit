@@ -10,6 +10,7 @@ import { erDiagramMessages, type ErDiagramMessages } from './messages';
 import {
   cardinalityText,
   emptyErData,
+  outgoingFan,
   parseErData,
   type ErData,
   type ErField,
@@ -17,15 +18,11 @@ import {
   type ErRelation,
   type ErTableDiff,
 } from './model';
+import { CIRCLE_RADIUS, endGlyph, type ErEnd } from './notation';
 import { erStyles } from './styles';
 
-const ARROWS = [
-  { id: 'er-neutral' },
-  { id: 'er-added' },
-  { id: 'er-removed' },
-  { id: 'er-changed' },
-  { id: 'er-selected' },
-] as const;
+/** Distance from a line to the centre of the text beside it. */
+const LABEL_LIFT = 7;
 
 const SYMBOLS = { same: '', added: '+', removed: '−', changed: '~' } as const;
 
@@ -83,6 +80,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
 
   protected override filtered(): ErData {
     const data = super.filtered();
+    const fan = outgoingFan(data.edges);
     return {
       ...data,
       nodes: data.nodes.map((node) => {
@@ -92,7 +90,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
         for (const edge of data.edges) {
           if (edge.from === node.id && edge.fromPort !== undefined) {
             const y = size.rows[node.fields.findIndex((field) => field.id === edge.sourceField)];
-            if (y !== undefined) ports[edge.fromPort] = { x: node.width, y };
+            if (y !== undefined) ports[edge.fromPort] = { x: node.width, y: y + (fan.get(edge.id) ?? 0) };
           }
           if (edge.to === node.id && edge.toPort !== undefined) {
             const y = size.rows[node.fields.findIndex((field) => field.id === edge.targetField)];
@@ -177,14 +175,10 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
     </div>`;
   }
 
-  #marker(relation: ErRelation, selected: boolean): string {
-    if (selected) return 'er-selected';
-    return `er-${relation.status === 'same' ? 'neutral' : relation.status}`;
-  }
-
   protected override renderCanvas(): TemplateResult {
     const m = erDiagramMessages(this.locale);
     const visible = this.visible;
+    const fan = outgoingFan(visible.edges);
     const edges = visible.edges.map((relation) => {
       const state = this.edgeState(relation.id);
       const points = this.routeOf(relation.id);
@@ -204,7 +198,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
           ]
             .filter(Boolean)
             .join(' · ')}</title>
-          <path class="d-edge-path" d=${d} marker-end=${`url(#${this.#marker(relation, state.selected)})`}></path>
+          <path class="d-edge-path" d=${d}></path>
           <path
             class="d-edge-hit"
             d=${d}
@@ -218,7 +212,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
               select();
             }}
           ></path>
-          ${points.length > 0 ? this.#renderCardinality(points, relation) : nothing}
+          ${points.length > 0 ? this.#renderEnds(points, relation, fan.get(relation.id) ?? 0) : nothing}
           ${this.renderEdgeCommentTrigger(
             { kind: 'edge', id: relation.id },
             `${relation.from}.${relation.sourceField} → ${relation.to}.${relation.targetField}`,
@@ -227,38 +221,61 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
         </g>
       `;
     });
-    return html`${this.renderEdges(edges, ARROWS)}${visible.nodes.map((table) => this.#renderTable(table, m))}`;
+    return html`${this.renderEdges(edges, [])}${visible.nodes.map((table) => this.#renderTable(table, m))}`;
   }
 
   /**
-   * `parent : child` above the line and the relation's label below it, both at
-   * the FK end: one referenced column often has several relations whose lines
-   * leave it together, but every FK column receives exactly one, so only that
-   * end can say which relation a value belongs to. A changed value keeps its
-   * previous one, struck through.
+   * Crow's foot symbols with their multiplicity beside each end: the
+   * referenced table's (`parent`) where the line leaves it, the FK table's
+   * (`child`) where it arrives. The relation's label sits under the FK end:
+   * one referenced column often sends several relations whose lines leave it
+   * together, but every FK column receives exactly one. Relations fanned out
+   * of one column put the lower ones' start text under their line, clear of
+   * the sibling above. A changed value keeps its previous one, struck through.
    */
-  #renderCardinality(points: readonly LayoutPoint[], relation: ErRelation): TemplateResult {
-    const end = points.at(-1);
-    if (!end) return html``;
+  #renderEnds(points: readonly LayoutPoint[], relation: ErRelation, fan: number): TemplateResult {
     const previous = relation.before;
     const value = (now: string | null, was: string | null | undefined) =>
       svg`${
         was !== undefined && was !== null && was !== now ? svg`<tspan class="er-was">${was}</tspan> ` : nothing
       }${now ?? nothing}`;
+    const end = (side: ErEnd) => {
+      const multiplicity = side === 'start' ? relation.cardinality.parent : relation.cardinality.child;
+      const was = previous && (side === 'start' ? previous.cardinality.parent : previous.cardinality.child);
+      const glyph = endGlyph(points, side, multiplicity);
+      return {
+        glyph,
+        content: svg`
+          <g class="er-end" data-end=${side} data-multiplicity=${multiplicity}>
+            ${glyph.segments.map(([a, b]) => svg`<line x1=${a.x} y1=${a.y} x2=${b.x} y2=${b.y}></line>`)}
+            ${glyph.circle === null ? nothing : svg`<circle cx=${glyph.circle.x} cy=${glyph.circle.y} r=${CIRCLE_RADIUS}></circle>`}
+          </g>
+          <text
+            class="er-cardinality is-${relation.status}"
+            data-end=${side}
+            text-anchor=${glyph.label.anchor}
+            dominant-baseline="central"
+            x=${glyph.label.x}
+            y=${glyph.label.y + (side === 'start' && fan > 0 ? LABEL_LIFT : -LABEL_LIFT)}
+          >${value(multiplicity, was)}</text>
+        `,
+      };
+    };
+    const start = end('start');
+    const finish = end('end');
     const label = relation.label ?? previous?.label ?? null;
-    const x = end.x - 12;
     return svg`
-      <text class="er-cardinality is-${relation.status}" text-anchor="end" x=${x} y=${end.y - 6}>${value(
-        cardinalityText(relation.cardinality),
-        previous && cardinalityText(previous.cardinality),
-      )}</text>
+      ${start.content}${finish.content}
       ${
         label === null
           ? nothing
-          : svg`<text class="er-relation-label is-${relation.status}" text-anchor="end" x=${x} y=${end.y + 14}>${value(
-              relation.label,
-              previous?.label,
-            )}</text>`
+          : svg`<text
+              class="er-relation-label is-${relation.status}"
+              text-anchor=${finish.glyph.label.anchor}
+              x=${finish.glyph.label.x}
+              dominant-baseline="central"
+              y=${finish.glyph.label.y + LABEL_LIFT}
+            >${value(relation.label, previous?.label)}</text>`
       }
     `;
   }

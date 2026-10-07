@@ -4,7 +4,7 @@ import { diagramMessages } from '../diagram/messages';
 import { DpkComponentErDiagram } from './element';
 import { defineErDiagram } from './index';
 import { erDiagramMessages } from './messages';
-import { parseErData, tableHeight } from './model';
+import { fanOffset, fieldOffset, parseErData, tableHeight } from './model';
 
 defineErDiagram();
 
@@ -258,6 +258,37 @@ describe('er diagram cardinality', () => {
   });
 });
 
+describe('er diagram ports', () => {
+  it('spreads relations that leave one referenced column so each end keeps its own symbol', () => {
+    const data = parseErData({
+      after: schema([
+        { id: 'order_id', type: 'uuid', key: 'FK', ref: 'orders.id' },
+        { id: 'previous_id', type: 'uuid', key: 'FK', ref: 'orders.id', nullable: true },
+      ]),
+    });
+    const orders = data.nodes.find((node) => node.id === 'orders');
+    const child = data.nodes.find((node) => node.id === 'child');
+    const centre = fieldOffset(orders?.fields ?? [], 'id');
+    const out = data.edges.map((edge) => orders?.ports?.[edge.fromPort ?? '']?.y ?? Number.NaN);
+    expect(out[0]).toBeLessThan(centre);
+    expect(out[1]).toBeGreaterThan(centre);
+    expect(((out[0] ?? 0) + (out[1] ?? 0)) / 2).toBe(centre);
+    // Every FK column receives one relation: its end stays on the row's centre.
+    expect(data.edges.map((edge) => child?.ports?.[edge.toPort ?? '']?.y)).toEqual([
+      fieldOffset(child?.fields ?? [], 'order_id'),
+      fieldOffset(child?.fields ?? [], 'previous_id'),
+    ]);
+  });
+
+  it.each([
+    [1, [0]],
+    [2, [-7, 7]],
+    [3, [-14, 0, 14]],
+  ])('fans %i relations evenly around the row centre', (count, offsets) => {
+    expect(Array.from({ length: count }, (_, index) => fanOffset(index, count))).toEqual(offsets);
+  });
+});
+
 const openComment = async (element: DpkComponentErDiagram, kind: 'node' | 'edge', id: string) => {
   await settle(element);
   const button = [...element.renderRoot.querySelectorAll<HTMLButtonElement>('[data-comment-kind]')].find(
@@ -379,7 +410,9 @@ describe('dpk-component-er-diagram', () => {
     await settle(element);
     const edge = element.renderRoot.querySelector('.d-edge-hit');
     expect(edge?.namespaceURI).toBe('http://www.w3.org/2000/svg');
-    expect(element.renderRoot.querySelector('marker')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
+    expect(element.renderRoot.querySelector('.er-end')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
+    // Crow's foot ends replace arrow heads.
+    expect(element.renderRoot.querySelector('marker')).toBeNull();
     expect(element.renderRoot.querySelector('.er-cardinality')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
     edge?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await settle(element);
@@ -401,7 +434,7 @@ describe('dpk-component-er-diagram', () => {
     expect(classes(element, 'payment_attempts')).toContain('is-removed');
     expect(element.renderRoot.querySelectorAll('.er-edge.is-added')).toHaveLength(1);
     expect(element.renderRoot.querySelectorAll('.er-edge.is-removed')).toHaveLength(1);
-    expect(element.renderRoot.querySelectorAll('.er-cardinality')).toHaveLength(3);
+    expect(element.renderRoot.querySelectorAll('.er-cardinality')).toHaveLength(6);
     expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`4 ${m.node} · 3 ${m.edge}`);
     expect(
       element.renderRoot.querySelector('[data-er-table="orders"] .er-field.is-changed del')?.textContent,
@@ -414,13 +447,26 @@ describe('dpk-component-er-diagram', () => {
     );
   });
 
-  it('labels each relation at its FK end with both multiplicities, and a changed one with its previous value', async () => {
+  it('draws each multiplicity in crow’s foot notation at its own end, and a changed one with its previous value', async () => {
     const element = await mount();
     const ends = (relation: string) =>
-      [...element.renderRoot.querySelectorAll(`[data-relation="${relation}"] .er-cardinality`)].map((end) =>
+      [...element.renderRoot.querySelectorAll(`[data-relation="${relation}"] .er-cardinality`)].map((end) => [
+        end.getAttribute('data-end'),
         end.textContent?.replace(/\s+/g, ' ').trim(),
-      );
-    expect(ends('customers:id>orders:customer_id')).toEqual(['1 : 0..N']);
+      ]);
+    const symbols = (relation: string) =>
+      [...element.renderRoot.querySelectorAll(`[data-relation="${relation}"] .er-end`)].map((end) => [
+        end.getAttribute('data-end'),
+        end.getAttribute('data-multiplicity'),
+      ]);
+    expect(ends('customers:id>orders:customer_id')).toEqual([
+      ['start', '1'],
+      ['end', '0..N'],
+    ]);
+    expect(symbols('customers:id>orders:customer_id')).toEqual([
+      ['start', '1'],
+      ['end', '0..N'],
+    ]);
     const fk = { id: 'order_id', type: 'uuid', key: 'FK', ref: 'orders.id' };
     element.data = parseErData({
       before: schema([fk]),
@@ -429,8 +475,11 @@ describe('dpk-component-er-diagram', () => {
     await settle(element);
     const relation = 'orders:id>child:order_id';
     expect(element.renderRoot.querySelector(`[data-relation="${relation}"]`)?.classList).toContain('is-changed');
-    expect(ends(relation)).toEqual(['1 : 0..N 1 : 0..1']);
-    expect(element.renderRoot.querySelector(`[data-relation="${relation}"] .er-was`)?.textContent).toBe('1 : 0..N');
+    expect(ends(relation)).toEqual([
+      ['start', '1'],
+      ['end', '0..N 0..1'],
+    ]);
+    expect(element.renderRoot.querySelector(`[data-relation="${relation}"] .er-was`)?.textContent).toBe('0..N');
     expect(element.renderRoot.querySelector(`[data-relation="${relation}"] .er-relation-label`)?.textContent).toBe(
       'settles',
     );
