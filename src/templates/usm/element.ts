@@ -13,6 +13,7 @@ import { usmDefinitionFor } from './definition';
 import { resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove, type CellRef } from './drop';
 import { usmMessages } from './messages';
 import { presentMilestoneDefinitions } from './milestone-definitions';
+import { milestoneFilterOf } from './milestone-tabs';
 import { findStory, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
 import { renderMilestoneDefinitions } from './render/milestone-definitions';
@@ -80,7 +81,10 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
           dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
         },
       })}
-      ${renderMilestoneDefinitions(m, presentMilestoneDefinitions(context.state))}
+      ${renderMilestoneDefinitions(
+        m,
+        presentMilestoneDefinitions(context.state, milestoneFilterOf(context.state, context.navigation)),
+      )}
       ${renderMoveDialog(m, context, this.mode, {
         confirm: (stepId) => this.#confirmPickedStep(stepId),
         cancel: () => (this.mode = IDLE_MODE),

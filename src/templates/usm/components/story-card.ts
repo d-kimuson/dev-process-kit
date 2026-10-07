@@ -27,23 +27,12 @@ const cardStyles = css`
     border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius);
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
-    padding: 10px 12px 8px 14px;
+    padding: 10px 12px 8px;
     cursor: pointer;
     transition:
       box-shadow 200ms var(--dpk-ease),
       transform 200ms var(--dpk-ease),
       border-color 200ms var(--dpk-ease);
-  }
-
-  /* Left accent: a quiet claim that this card belongs to the board's story
-     lane, without a hard border changing the card's shape. */
-  :host::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--dpk-usm-accent) 65%, transparent);
-    pointer-events: none;
   }
 
   :host(:hover) {
