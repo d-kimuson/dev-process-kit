@@ -3,15 +3,18 @@
  *
  * Under `pnpm dev` a sample loads the bundle built from the working tree (`local`) by default, from the dev asset
  * server's origin. Anywhere else (GitHub Pages) it loads the latest version published to npm, from jsDelivr, the way
- * a generated page does. `?version=<version>` picks a published version in both. Only the bundle changes: the
- * markup stays this checkout's, so a version older than it may not render every sample.
+ * a generated page does. `?dpk-version=<version>` (the parameter the kit's own version select sets; the older
+ * `?version=` still works) picks a published version in both. Only the bundle changes: the markup stays this
+ * checkout's, so a version older than it may not render every sample.
  *
- * The version select goes into the template's `header` slot, a public slot every version has, so it stays on the
- * page whichever version is loaded. The samples' own helper, not part of the package.
+ * A version that renders its own version select in the template header (it announces `versionParam`) needs nothing
+ * more. For one from before that, this helper puts a select into the template's `header` slot, a public slot every
+ * version has, so the reader can always switch back. The samples' own helper, not part of the package.
  */
 
 const LOCAL_BASE = 'https://dev-process-kit.localhost/';
-const VERSION_PARAM = 'version';
+const VERSION_PARAM = 'dpk-version';
+const LEGACY_VERSION_PARAM = 'version';
 const VERSIONS_API = 'https://data.jsdelivr.com/v1/packages/npm/dev-process-kit';
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
@@ -20,7 +23,8 @@ const hasLocalBuild = location.hostname.endsWith('.localhost');
 
 /** The published version this page asks for, or `null` for the default. */
 const requestedVersion = () => {
-  const value = new URLSearchParams(location.search).get(VERSION_PARAM);
+  const params = new URLSearchParams(location.search);
+  const value = params.get(VERSION_PARAM) ?? params.get(LEGACY_VERSION_PARAM);
   return value !== null && SEMVER.test(value) ? value : null;
 };
 
@@ -57,6 +61,7 @@ const bundleBase = (version) =>
 /** This page's URL with the given version (or none, for the default) in its query. */
 const pageFor = (version) => {
   const url = new URL(location.href);
+  url.searchParams.delete(LEGACY_VERSION_PARAM);
   if (version === null) url.searchParams.delete(VERSION_PARAM);
   else url.searchParams.set(VERSION_PARAM, version);
   return url.href;
@@ -199,6 +204,8 @@ export const loadKit = async (entries) => {
     if (missing.length > 0) showNote(`dev-process-kit@${version ?? 'local'} has no ${missing.join(', ')}`);
     return frameworkVersion;
   }
+  // The bundle renders its own version select, which sets the same parameter.
+  if (missing.length === 0 && window.devProcessKit?.versionParam !== undefined) return frameworkVersion;
   const select = versionSelect(version);
   const rendered = customElements.get(template.localName) !== undefined;
   if (rendered) {
