@@ -49,8 +49,6 @@ export const usmMessages = defineMessages({
     firstActivityButton: '+ First activity',
     groupingLabel: 'Group by',
     groupViewTab: 'Activity group',
-    milestoneTabsLabel: 'Milestone shown',
-    allMilestonesTab: 'All',
     groupAxisHeader: 'Activity group →',
     activityAxis: 'Activity →',
     milestoneAxis: 'Milestone ↓',
@@ -63,10 +61,26 @@ export const usmMessages = defineMessages({
     addCellButton: '+ Add',
     addStoryCellAria: 'Add a story to this cell',
 
-    // ------------------------------------------------ milestone definitions
-    milestoneDefinitionsTitle: 'Milestones',
-    timeframeColumn: 'Timeframe',
-    descriptionColumn: 'Description',
+    storyCount: (count: number) => (count === 1 ? '1 story' : `${count} stories`),
+
+    // ------------------------------------------------------------ page tabs
+    pageTabsLabel: 'Page',
+    mapTab: 'User Story Mapping',
+    milestonesTab: 'Milestones',
+
+    // ---------------------------------------------------- milestones tab
+    milestonesLead: 'What each release slice is for, and when it is due. The stories live on the map.',
+    shareOfStories: (percent: number) => `${percent}% of all stories`,
+    coverageLabel: 'Backbone coverage',
+    coverage: (covered: number, total: number) => `${covered} / ${total} steps`,
+    storiesLabel: 'Stories',
+    timeframeUnset: 'Timing not set',
+    breakdownLabel: 'By activity',
+    breakdownItem: (name: string, count: number) => `${name}: ${count} ${count === 1 ? 'story' : 'stories'}`,
+    milestoneNoDescription: 'No description yet.',
+    noMilestonesTitle: 'No milestones yet',
+    noMilestonesBody: 'Add a milestone to slice the map into releases.',
+    commentCountAria: (count: number) => (count === 1 ? '1 comment' : `${count} comments`),
 
     // ---------------------------------------------------------- move dialog
     moveDialogLabel: 'Step to move to',
@@ -130,8 +144,6 @@ export const usmMessages = defineMessages({
     firstActivityButton: '+ 最初のアクティビティ',
     groupingLabel: 'まとめる単位',
     groupViewTab: 'アクティビティグループ',
-    milestoneTabsLabel: '表示するマイルストーン',
-    allMilestonesTab: 'すべて',
     groupAxisHeader: 'アクティビティグループ →',
     activityAxis: 'アクティビティ →',
     milestoneAxis: 'マイルストーン ↓',
@@ -144,9 +156,24 @@ export const usmMessages = defineMessages({
     addCellButton: '+ 追加',
     addStoryCellAria: 'このマスにストーリーを追加',
 
-    milestoneDefinitionsTitle: 'マイルストーン',
-    timeframeColumn: '時期',
-    descriptionColumn: '説明',
+    storyCount: (count: number) => `${count} ストーリー`,
+
+    pageTabsLabel: 'ページ',
+    mapTab: 'User Story Mapping',
+    milestonesTab: 'マイルストーン',
+
+    milestonesLead: 'リリースの区切りごとの目的と時期。ストーリーはマップで扱います。',
+    shareOfStories: (percent: number) => `全ストーリーの ${percent}%`,
+    coverageLabel: 'バックボーンの網羅',
+    coverage: (covered: number, total: number) => `${covered} / ${total} ステップ`,
+    storiesLabel: 'ストーリー',
+    timeframeUnset: '時期未定',
+    breakdownLabel: 'アクティビティ別',
+    breakdownItem: (name: string, count: number) => `${name}: ${count} ストーリー`,
+    milestoneNoDescription: '説明はまだありません。',
+    noMilestonesTitle: 'マイルストーンがまだありません',
+    noMilestonesBody: 'マイルストーンを追加すると、マップをリリースごとに区切れます。',
+    commentCountAria: (count: number) => `コメント ${count} 件`,
 
     moveDialogLabel: '移動先のアクティビティ',
     moveDialogSelectLabel: '移動先',

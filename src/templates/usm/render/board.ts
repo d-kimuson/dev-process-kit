@@ -8,10 +8,18 @@ import type { UsmMessages } from '../messages';
 
 import { iconGrip, iconPlus } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
+import { activityTones } from '../activity-tone';
 import { addActivity, addMilestone, addStep, addStory } from '../commands';
-import { milestoneFilterOf, presentMilestoneTabs, rowVisible, type MilestoneTab } from '../milestone-tabs';
-import { flatSteps, storiesInActivity, storiesInCell, type UserStory, type UsmState } from '../model';
+import {
+  flatSteps,
+  storiesInActivity,
+  storiesInCell,
+  storyCountForStep,
+  type UserStory,
+  type UsmState,
+} from '../model';
 import { cardModeOf, type CardIntent, type UsmUiMode } from '../ui-mode';
+import { toneStyle } from './tone';
 
 /** The two kinds of things that move on the board. */
 export type UsmDragType = 'story' | 'milestone';
@@ -35,25 +43,23 @@ export type BoardProps = {
 export type MilestoneRow = {
   readonly id: string | undefined;
   readonly name: string;
+  /** `''` when the milestone leaves it out. */
+  readonly timeframe: string;
+  readonly storyCount: number;
 };
 
-/** The rows the milestone tab keeps on screen, in map order. */
-export const milestoneRows = (m: UsmMessages, context: TemplateRenderContext<UsmState>): readonly MilestoneRow[] => {
-  const { state, navigation } = context;
-  const filter = milestoneFilterOf(state, navigation);
-  const rows: MilestoneRow[] = [
-    ...state.milestones.map(({ id, name }) => ({ id, name })),
-    { id: undefined, name: m.unassigned },
+/** Every milestone in map order, then Unassigned. */
+export const milestoneRows = (m: UsmMessages, state: UsmState): readonly MilestoneRow[] => {
+  const countOf = (id: string | undefined): number => state.stories.filter((story) => story.milestoneId === id).length;
+  return [
+    ...state.milestones.map(({ id, name, timeframe }) => ({
+      id,
+      name,
+      timeframe: timeframe?.trim() ?? '',
+      storyCount: countOf(id),
+    })),
+    { id: undefined, name: m.unassigned, timeframe: '', storyCount: countOf(undefined) },
   ];
-  return rows.filter((row) => rowVisible(filter, row.id));
-};
-
-/**
- * Reordering and adding milestones only make sense with every slice on screen:
- * a single slice has no neighbour to swap with, and a new one would be hidden.
- */
-const showsAllMilestones = (context: TemplateRenderContext<UsmState>): boolean => {
-  return milestoneFilterOf(context.state, context.navigation).kind === 'all';
 };
 
 export const renderEmptyBoard = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult => {
@@ -68,40 +74,25 @@ export const renderEmptyBoard = (m: UsmMessages, context: TemplateRenderContext<
   `;
 };
 
-/** View and milestone tabs plus the map in the requested grouping. */
+/** The map in the requested grouping (`view`), or the empty state before there is a backbone. */
 export const renderBoard = (props: BoardProps): TemplateResult => {
   const { m, context } = props;
   const columns = flatSteps(context.state);
   if (columns.length === 0) return renderEmptyBoard(m, context);
-  const view: 'group' | 'activity' = context.navigation['view'] === 'group' ? 'group' : 'activity';
-  return html`
-    <div class="board-bar">
-      <div class="segmented view-tabs" role="tablist" aria-label=${m.groupingLabel}>
-        ${renderViewTab(context, 'activity', view, m.activityGroup)}
-        ${renderViewTab(context, 'group', view, m.groupViewTab)}
-      </div>
-      <div class="segmented milestone-tabs" role="tablist" aria-label=${m.milestoneTabsLabel}>
-        ${repeat(
-          presentMilestoneTabs(m, context.state, context.navigation),
-          (tab) => tab.value ?? '',
-          (tab) => renderMilestoneTab(context, tab),
-        )}
-      </div>
-    </div>
-    ${view === 'activity' ? renderActivityView(props, columns) : renderGroupView(props)}
-  `;
+  return usmViewOf(context) === 'activity' ? renderActivityView(props, columns) : renderGroupView(props);
 };
 
-const renderMilestoneTab = (context: TemplateRenderContext<UsmState>, tab: MilestoneTab): TemplateResult => {
-  return html`<a
-    class="tab"
-    role="tab"
-    data-milestone-tab=${tab.value ?? ''}
-    data-current=${String(tab.selected)}
-    aria-selected=${tab.selected ? 'true' : 'false'}
-    href=${context.hashFor({ milestone: tab.value })}
-    >${tab.label}<span class="count">${tab.count}</span></a
-  >`;
+export const usmViewOf = (context: TemplateRenderContext<UsmState>): 'group' | 'activity' => {
+  return context.navigation['view'] === 'group' ? 'group' : 'activity';
+};
+
+/** Activity columns vs one column per activity group; only shown on the map tab. */
+export const renderViewTabs = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult => {
+  const view = usmViewOf(context);
+  return html`<div class="segmented view-tabs" role="tablist" aria-label=${m.groupingLabel}>
+    ${renderViewTab(context, 'activity', view, m.activityGroup)}
+    ${renderViewTab(context, 'group', view, m.groupViewTab)}
+  </div>`;
 };
 
 const renderViewTab = (
@@ -128,7 +119,8 @@ const renderViewTab = (
 const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSteps>): TemplateResult => {
   const { m, context } = props;
   const { state } = context;
-  const rows = milestoneRows(m, context);
+  const rows = milestoneRows(m, state);
+  const tones = activityTones(state);
   return html`
     <div class="map-scroll">
       <div class="map" style=${`--cols:${columns.length + 1}`} data-testid="usm-map">
@@ -150,8 +142,12 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
             ${repeat(
               columns,
               ({ activity, step }) => `${activity.id}.${step.id}`,
-              ({ step }) => html`
-                <div class="col-head" data-current=${String(context.navigation['step'] === step.id)}>
+              ({ activity, step }) => html`
+                <div
+                  class="col-head"
+                  style=${toneStyle(tones.get(activity.id))}
+                  data-current=${String(context.navigation['step'] === step.id)}
+                >
                   <h4>
                     <dpk-component-inline-edit
                       .value=${step.name}
@@ -166,6 +162,7 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
                       @click=${(e: Event) => e.stopPropagation()}
                     ></dpk-component-inline-edit>
                   </h4>
+                  <span class="count">${storyCountForStep(state, step.id)}</span>
                 </div>
               `,
             )}
@@ -187,7 +184,7 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
               )}`,
             ),
         )}
-        ${showsAllMilestones(context) ? renderAddMilestoneRow(m, context, columns.length) : nothing}
+        ${renderAddMilestoneRow(m, context, columns.length)}
       </div>
     </div>
   `;
@@ -201,7 +198,7 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
 const renderGroupView = (props: BoardProps): TemplateResult => {
   const { m, context } = props;
   const { state } = context;
-  const rows = milestoneRows(m, context);
+  const rows = milestoneRows(m, state);
   return html`
     <div class="map-scroll">
       <div class="map" style=${`--cols:${state.activities.length + 1}`} data-testid="usm-map-group">
@@ -230,7 +227,7 @@ const renderGroupView = (props: BoardProps): TemplateResult => {
               )}`,
             ),
         )}
-        ${showsAllMilestones(context) ? renderAddMilestoneRow(m, context, state.activities.length) : nothing}
+        ${renderAddMilestoneRow(m, context, state.activities.length)}
       </div>
     </div>
   `;
@@ -249,10 +246,14 @@ const renderActivityHead = (
   activityId: string,
   style?: string,
 ): TemplateResult => {
-  const activity = context.state.activities.find((candidate) => candidate.id === activityId);
+  const { state } = context;
+  const activity = state.activities.find((candidate) => candidate.id === activityId);
   if (!activity) return html`<div class="act-head"></div>`;
+  const storyCount = state.stories.filter((story) => story.activityId === activity.id).length;
+  const tone = toneStyle(activityTones(state).get(activity.id));
   return html`
-    <div class="act-head" style=${style ?? nothing}>
+    <div class="act-head" style=${style === undefined ? tone : `${tone}; ${style}`}>
+      <span class="act-dot" aria-hidden="true"></span>
       <dpk-component-inline-edit
         .value=${activity.name}
         .label=${m.activityNameLabel}
@@ -264,6 +265,7 @@ const renderActivityHead = (
           }),
         )}
       ></dpk-component-inline-edit>
+      <span class="count">${storyCount}</span>
       <button
         class="dpk-icon-btn"
         type="button"
@@ -311,24 +313,22 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
   const { m, context, drag, handlers } = props;
   const milestoneId = row.id;
   if (milestoneId === undefined) {
-    return html`<div class="map-row" data-draggable="false" data-row-dragging="false" data-row-drop="false">
+    return html`<div
+      class="map-row"
+      data-unassigned="true"
+      data-draggable="false"
+      data-row-dragging="false"
+      data-row-drop="false"
+    >
       <div class="row-lead">
         <div class="row-head" data-milestone="" draggable="false"><span>${row.name}</span></div>
+        ${renderRowMeta(m, row)}
       </div>
       ${cells}
       <div class="cell"></div>
     </div>`;
   }
   const rename = renderMilestoneName(m, context, milestoneId, row.name);
-  if (!showsAllMilestones(context)) {
-    return html`<div class="map-row" data-draggable="false" data-row-dragging="false" data-row-drop="false">
-      <div class="row-lead">
-        <div class="row-head" data-milestone=${milestoneId} draggable="false">${rename}</div>
-      </div>
-      ${cells}
-      <div class="cell"></div>
-    </div>`;
-  }
   const key = `row:${milestoneId}`;
   const target = drag.target({
     key,
@@ -361,11 +361,20 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
         >
           <span class="row-grip" aria-hidden="true">${iconGrip()}</span>${rename}
         </div>
+        ${renderRowMeta(m, row)}
       </div>
       ${cells}
       <div class="cell"></div>
     </div>
   `;
+};
+
+/** When the slice is due and how much it holds, under its name. */
+const renderRowMeta = (m: UsmMessages, row: MilestoneRow): TemplateResult => {
+  return html`<div class="row-meta">
+    ${row.timeframe === '' ? nothing : html`<span class="row-timeframe">${row.timeframe}</span>`}
+    <span class="row-count">${m.storyCount(row.storyCount)}</span>
+  </div>`;
 };
 
 const renderMilestoneName = (
@@ -391,6 +400,7 @@ const renderMilestoneName = (
 const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
   const { m, context, drag, handlers } = props;
   const stories = storiesInCell(context.state, cell.stepId, cell.milestoneId);
+  const tone = toneStyle(activityTones(context.state).get(cell.activityId));
   const key = `cell:${cell.stepId}:${cell.milestoneId ?? ''}`;
   const target = drag.target({
     key,
@@ -413,7 +423,7 @@ const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
         ${repeat(
           stories,
           (story) => story.id,
-          (story) => renderCard(props, story),
+          (story) => renderCard(props, story, { tone, stepName: '' }),
         )}
       </div>
       <button
@@ -432,7 +442,10 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
   const { m, context, drag, handlers } = props;
   const { state } = context;
   const stories = storiesInActivity(state, activityId, milestoneId);
-  const firstStep = state.activities.find((candidate) => candidate.id === activityId)?.steps[0];
+  const steps = state.activities.find((candidate) => candidate.id === activityId)?.steps ?? [];
+  const firstStep = steps[0];
+  const tone = toneStyle(activityTones(state).get(activityId));
+  const stepNameOf = (stepId: string): string => steps.find((step) => step.id === stepId)?.name ?? '';
   const key = `group:${activityId}:${milestoneId ?? ''}`;
   const target = drag.target({
     key,
@@ -455,7 +468,7 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
         ${repeat(
           stories,
           (story) => story.id,
-          (story) => renderCard(props, story),
+          (story) => renderCard(props, story, { tone, stepName: stepNameOf(story.stepId) }),
         )}
       </div>
       ${
@@ -474,14 +487,22 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
   `;
 };
 
-const renderCard = (props: BoardProps, story: UserStory): TemplateResult => {
+/**
+ * Where a card sits on the map: its activity's tone, and its step's name when
+ * the column does not already say it (the group view).
+ */
+type CardPlace = { readonly tone: string; readonly stepName: string };
+
+const renderCard = (props: BoardProps, story: UserStory, place: CardPlace): TemplateResult => {
   const { context, mode, drag, handlers } = props;
   const notes = context.comments.filter((c) => c.target.type === 'story' && c.target.id === story.id);
   const source = drag.source({ type: 'story', id: story.id });
   return html`<dpk-internal-usm-story-card
     data-story=${story.id}
     draggable="true"
+    style=${place.tone}
     .story=${story}
+    .stepName=${place.stepName}
     .notes=${notes}
     .mode=${cardModeOf(mode, story.id)}
     .onIntent=${(intent: CardIntent) => handlers.cardIntent(story.id, intent)}

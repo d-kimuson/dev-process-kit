@@ -8,16 +8,17 @@ import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface } from '../../core/theme';
 import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
+import { usmTabOf } from './board-tabs';
 import { defineUsmStoryCard } from './components/story-card';
 import { usmDefinitionFor } from './definition';
 import { resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove, type CellRef } from './drop';
-import { usmMessages } from './messages';
-import { presentMilestoneDefinitions } from './milestone-definitions';
-import { milestoneFilterOf } from './milestone-tabs';
+import { usmMessages, type UsmMessages } from './messages';
+import { presentMilestoneOverview } from './milestone-overview';
 import { findStory, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
-import { renderMilestoneDefinitions } from './render/milestone-definitions';
+import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
+import { renderBoardBar } from './render/page-tabs';
 import { usmStyles } from './styles';
 import { IDLE_MODE, reduceCardIntent, type CardIntent, type UsmUiMode } from './ui-mode';
 
@@ -68,28 +69,34 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
   #renderMain(context: TemplateRenderContext<UsmState>): TemplateResult {
     const m = usmMessages(this.locale);
+    const tab = usmTabOf(context.navigation);
     return html`
-      ${renderBoard({
-        m,
-        context,
-        mode: this.mode,
-        drag: this.#drag,
-        handlers: {
-          cardIntent: (storyId, intent) => this.#onCardIntent(storyId, intent),
-          dropOnCell: (cell, drop) => this.#onCellDrop(cell, drop),
-          dropOnGroupCell: (activityId, milestoneId, drop) => this.#onGroupDrop(activityId, milestoneId, drop),
-          dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
-        },
-      })}
-      ${renderMilestoneDefinitions(
-        m,
-        presentMilestoneDefinitions(context.state, milestoneFilterOf(context.state, context.navigation)),
-      )}
+      ${renderBoardBar(m, context, tab)}
+      ${
+        tab === 'milestones'
+          ? renderMilestoneOverview(m, context, presentMilestoneOverview(context.state))
+          : this.#renderMap(m, context)
+      }
       ${renderMoveDialog(m, context, this.mode, {
         confirm: (stepId) => this.#confirmPickedStep(stepId),
         cancel: () => (this.mode = IDLE_MODE),
       })}
     `;
+  }
+
+  #renderMap(m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult {
+    return renderBoard({
+      m,
+      context,
+      mode: this.mode,
+      drag: this.#drag,
+      handlers: {
+        cardIntent: (storyId, intent) => this.#onCardIntent(storyId, intent),
+        dropOnCell: (cell, drop) => this.#onCellDrop(cell, drop),
+        dropOnGroupCell: (activityId, milestoneId, drop) => this.#onGroupDrop(activityId, milestoneId, drop),
+        dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
+      },
+    });
   }
 
   /** A card asked for something: apply the side effect, then the mode transition. */
