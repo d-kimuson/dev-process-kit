@@ -166,6 +166,32 @@ export const chromeStyles = [
       border-left: 1px solid var(--dpk-rule);
     }
 
+    .dpk-version-select {
+      margin: -3px 0;
+      padding: 3px 14px 3px 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 12 12'><path d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23878e9e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+        no-repeat right 2px center;
+      appearance: none;
+      /* As wide as the version shown, not the longest prerelease in the list. */
+      field-sizing: content;
+      color: inherit;
+      font: inherit;
+      letter-spacing: inherit;
+      cursor: pointer;
+    }
+
+    .dpk-version-select:hover {
+      color: var(--dpk-ink-soft);
+    }
+
+    .dpk-version-select:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
     .dpk-header-meta .dpk-meta-count {
       margin-left: 2px;
       border-left: 0;

@@ -1,5 +1,7 @@
 import { registerComponentElements } from './components/index';
 import { FRAMEWORK_VERSION } from './core/index';
+import { startEntry } from './core/version-loader';
+import { VERSION_PARAM } from './core/version-switch';
 /**
  * dev-process-kit.
  *
@@ -119,7 +121,14 @@ const TEMPLATES = [
 export const registerAllElements = (): void => {
   registerComponentElements();
   registerTemplateElements();
-  announce(FRAMEWORK_VERSION, TEMPLATES);
+  announce(FRAMEWORK_VERSION, TEMPLATES, VERSION_PARAM);
 };
 
-registerAllElements();
+startEntry({
+  entry: 'index.js',
+  templates: TEMPLATES,
+  register: () => {
+    registerComponentElements();
+    registerTemplateElements();
+  },
+});

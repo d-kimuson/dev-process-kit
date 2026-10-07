@@ -10,8 +10,7 @@
  */
 import { defineCommentPanel } from '../components/comment-panel/index';
 import { defineInlineEdit } from '../components/inline-edit';
-import { FRAMEWORK_VERSION } from '../core/index';
-import { announce } from '../lib/announce';
+import { startEntry } from '../core/version-loader';
 import { defineTaskBoardElement } from '../templates/task-board';
 
 export * from '../core/index';
@@ -20,7 +19,12 @@ export type { CommentPanelCallbacks } from '../components/comment-panel/index';
 export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as taskBoard from '../templates/task-board';
 
-defineCommentPanel();
-defineInlineEdit();
-defineTaskBoardElement();
-announce(FRAMEWORK_VERSION, ['task-board']);
+startEntry({
+  entry: 'templates/task-board.js',
+  templates: ['task-board'],
+  register: () => {
+    defineCommentPanel();
+    defineInlineEdit();
+    defineTaskBoardElement();
+  },
+});

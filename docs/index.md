@@ -229,6 +229,16 @@ The reader can resize the template sidebar by dragging the edge that faces the m
 
 The round button on that edge folds the sidebar away and leaves a narrow strip with a button that brings it back (both are ordinary buttons, so Tab and Enter / Space work, and they carry `aria-expanded`). The folded state is remembered the same way as the width (`localStorage` key `dev-process-kit:sidebar-collapsed:<template>`). Grill has no such button: its own Questions / Review button already folds its rail.
 
+### Version
+
+The template header shows the version running the page (`dev-process-kit@<version>`) as a select. When the reader first reaches for it, it lists every version published to npm (from jsDelivr's API, `data.jsdelivr.com`), the `latest` one marked; where that API cannot be reached, only the running version is listed. Picking a version reloads the page with `?dpk-version=<version>`, and the entry the page loads hands the page to that version's same entry on jsDelivr instead of defining its own elements: a document defines a custom element once, so switching needs a fresh page. Nothing else about the page changes — the markup and base data stay the ones you wrote, so a version older than the page may not render everything in it.
+
+- Only an exact version is honoured (`1.2.3`, `1.2.3-beta.1`); anything else, or the version already running, leaves the page on its pinned version. When the version asked for cannot be loaded (it does not exist, or lacks that entry), the pinned version runs the page and logs why.
+- While the URL overrides the version, the select also offers `Pinned by the page`, which drops the parameter.
+- A version from before this select renders none of its own; the entry that handed the page over then puts one into the template's `header` slot, so the reader can always come back.
+- Your pinned URL stays the contract: never write `?dpk-version=` into a link to make a page run another version, and never load `@latest`. The parameter is for the reader trying a version out.
+- `window.devProcessKit` names the version that defined the elements (`version`), the templates it registered (`templates`), and the query parameter above (`versionParam`).
+
 ## Review and the hand-off
 
 The review rail's `Copy changes & comments` button puts the hand-off brief on the clipboard: readable markdown that ends with the canonical draft JSON. Once there is a draft, the same `Copy changes & comments` (and `Send to Claude`, below) also floats at the bottom right while the rail is closed, so a reader who only wants to hand the review back does not have to open it. Hand the brief to the agent: it applies the requested end state to the base HTML, keeps the ids of the concepts that survived, and drops the draft envelope from the JSON. The page never mutates its own base data, so the HTML the agent writes back is the new source of truth.

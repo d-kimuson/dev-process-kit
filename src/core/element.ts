@@ -36,9 +36,9 @@ import { PreviewRouter } from './shell/preview-router';
 import { SidebarCollapseController } from './shell/sidebar-collapse-controller';
 import { SidebarResizeController } from './shell/sidebar-resize-controller';
 import { chromeStyles } from './shell/styles';
+import { VersionChoiceController } from './shell/version-choice-controller';
 import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, sidebarToggle, type SidebarLayout } from './sidebar-width';
 import { targetRef } from './target';
-import { FRAMEWORK_VERSION } from './version';
 
 export abstract class TemplateElement<S> extends LitElement {
   static override styles: CSSResultGroup = chromeStyles;
@@ -95,6 +95,7 @@ export abstract class TemplateElement<S> extends LitElement {
    */
   protected abstract definitionFor(locale: Locale): TemplateDefinition<S>;
 
+  #versionChoice = new VersionChoiceController(this);
   #localeChoice = new LocaleChoiceController(
     this,
     () => this.storage !== 'off' && this.storage !== 'memory',
@@ -370,7 +371,7 @@ export abstract class TemplateElement<S> extends LitElement {
             <slot name="header"></slot>
           </div>
           <div class="dpk-header-meta">
-            <span>dev-process-kit@${FRAMEWORK_VERSION}</span>
+            ${this.#versionChoice.render(this.locale)}
             <span>${this.definition.name}</span>
             <span class="dpk-meta-count" data-active=${draftCount > 0 ? 'true' : 'false'}>
               ${draftCount} draft · ${commentCount} note

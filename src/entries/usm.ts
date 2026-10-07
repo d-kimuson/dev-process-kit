@@ -11,8 +11,7 @@
  */
 import { defineCommentPanel } from '../components/comment-panel/index';
 import { defineInlineEdit } from '../components/inline-edit';
-import { FRAMEWORK_VERSION } from '../core/index';
-import { announce } from '../lib/announce';
+import { startEntry } from '../core/version-loader';
 import { defineUsmElement } from '../templates/usm';
 
 export * from '../core/index';
@@ -21,7 +20,12 @@ export type { CommentPanelCallbacks } from '../components/comment-panel/index';
 export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as usm from '../templates/usm';
 
-defineCommentPanel();
-defineInlineEdit();
-defineUsmElement();
-announce(FRAMEWORK_VERSION, ['usm']);
+startEntry({
+  entry: 'templates/usm.js',
+  templates: ['usm'],
+  register: () => {
+    defineCommentPanel();
+    defineInlineEdit();
+    defineUsmElement();
+  },
+});
