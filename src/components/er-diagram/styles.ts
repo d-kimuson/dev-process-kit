@@ -217,6 +217,9 @@ export const erStyles = css`
     grid-area: key;
     display: grid;
     place-items: center;
+    /* A column with several roles (FK + UQ) stacks one badge line per key. */
+    line-height: 1.25;
+    padding: 1px 0;
     border-radius: 3px;
     background: var(--dpk-paper-inset);
     font-family: var(--dpk-mono);
@@ -301,6 +304,47 @@ export const erStyles = css`
 
   .er-cardinality.is-removed {
     fill: var(--dpk-accent);
+  }
+
+  .er-relation-label {
+    font-size: 10px;
+    font-style: italic;
+    fill: var(--dpk-ink-soft);
+    paint-order: stroke;
+    stroke: var(--dpk-paper-sunken);
+    stroke-width: 4px;
+  }
+
+  .er-relation-label.is-added {
+    fill: var(--dpk-green);
+  }
+
+  .er-relation-label.is-removed {
+    fill: var(--dpk-accent);
+  }
+
+  .er-cardinality.is-changed,
+  .er-relation-label.is-changed {
+    fill: var(--dpk-amber);
+  }
+
+  .er-was {
+    fill: var(--dpk-accent);
+    text-decoration: line-through;
+  }
+
+  .er-edge.is-changed .d-edge-path {
+    stroke: var(--dpk-amber);
+  }
+
+  #er-changed .diagram-arrow {
+    fill: var(--dpk-amber);
+    stroke: var(--dpk-amber);
+  }
+
+  .diagram-legend .er-legend-cardinality {
+    font-family: var(--dpk-mono);
+    font-size: 9px;
   }
 
   .diagram-legend .er-swatch-added {

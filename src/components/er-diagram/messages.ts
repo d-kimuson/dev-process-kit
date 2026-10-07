@@ -17,8 +17,10 @@ export const erDiagramMessages = defineMessages({
     legendAdded: 'Added',
     legendRemoved: 'Removed',
     legendChanged: 'Changed',
+    legendCardinality: '1 : 0..N at the FK end — referenced rows per FK row : FK rows per referenced row',
     statusLabel: (status: ErStatus) => label(status, true),
-    edgeLabel: (from: string, to: string) => `${from} and ${to}, related`,
+    edgeLabel: (from: string, to: string, cardinality: string) => `${from} and ${to}, related ${cardinality}`,
+    was: (previous: string) => `was ${previous}`,
     nullable: 'nullable',
   },
   ja: {
@@ -30,8 +32,10 @@ export const erDiagramMessages = defineMessages({
     legendAdded: '追加',
     legendRemoved: '削除',
     legendChanged: '変更',
+    legendCardinality: 'FK 側の端の 1 : 0..N — FK 1 行あたりの参照先の行数 : 参照先 1 行あたりの FK 側の行数',
     statusLabel: (status: ErStatus) => label(status, false),
-    edgeLabel: (from: string, to: string) => `${from} と ${to} の関連`,
+    edgeLabel: (from: string, to: string, cardinality: string) => `${from} と ${to} の関連 (${cardinality})`,
+    was: (previous: string) => `変更前 ${previous}`,
     nullable: 'null可',
   },
 });

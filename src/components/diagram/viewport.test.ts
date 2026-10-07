@@ -135,6 +135,34 @@ describe('viewport controller', () => {
     }
   });
 
+  it('starts a mouse pan without starting a text selection, and still focuses the canvas', () => {
+    const { canvas, world, viewport } = mount();
+    canvas.tabIndex = 0;
+    canvas.setPointerCapture = vi.fn();
+    const card = document.createElement('div');
+    card.textContent = 'customer_id';
+    const button = document.createElement('button');
+    world.append(card, button);
+    const press = (target: Element, pointerType: string, pointerId: number): boolean => {
+      const allowed = target.dispatchEvent(
+        new PointerEvent('pointerdown', { pointerId, pointerType, bubbles: true, cancelable: true }),
+      );
+      canvas.dispatchEvent(new PointerEvent('pointerup', { pointerId, bubbles: true }));
+      return allowed;
+    };
+    try {
+      // A cancelled pointerdown suppresses the mousedown whose default action selects text.
+      expect(press(card, 'mouse', 1)).toBe(false);
+      expect(document.activeElement).toBe(canvas);
+      expect(press(canvas, 'pen', 2)).toBe(false);
+      // Controls keep their own press behavior, and touch never selects on a pan.
+      expect(press(button, 'mouse', 3)).toBe(true);
+      expect(press(card, 'touch', 4)).toBe(true);
+    } finally {
+      viewport.destroy();
+    }
+  });
+
   it('opens at 100% and returns to it after zooming or fitting', () => {
     const { canvas, world, viewport } = mount();
     try {

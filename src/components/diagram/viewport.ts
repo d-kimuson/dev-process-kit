@@ -226,6 +226,13 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     gesture = geometry();
     if (interactive === null) canvas.setPointerCapture(event.pointerId);
+    if (event.pointerType !== 'touch' && interactive === null) {
+      // A press on the canvas or a card is a pan: without this the drag also
+      // selects every card's text it sweeps over. Cancelling the press skips the
+      // mouse default actions, focus included, so focus the canvas ourselves.
+      event.preventDefault();
+      canvas.focus({ preventScroll: true });
+    }
   };
 
   const onPointerMove = (event: PointerEvent): void => {
