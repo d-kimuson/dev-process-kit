@@ -11,8 +11,7 @@
  */
 import { defineCommentPanel } from '../components/comment-panel/index';
 import { defineInlineEdit } from '../components/inline-edit';
-import { FRAMEWORK_VERSION } from '../core/index';
-import { announce } from '../lib/announce';
+import { startEntry } from '../core/version-loader';
 import { definePrototypeElement } from '../templates/prototype';
 
 export * from '../core/index';
@@ -21,7 +20,12 @@ export type { CommentPanelCallbacks } from '../components/comment-panel/index';
 export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as prototype from '../templates/prototype';
 
-defineCommentPanel();
-defineInlineEdit();
-definePrototypeElement();
-announce(FRAMEWORK_VERSION, ['prototype']);
+startEntry({
+  entry: 'templates/prototype.js',
+  templates: ['prototype'],
+  register: () => {
+    defineCommentPanel();
+    defineInlineEdit();
+    definePrototypeElement();
+  },
+});
