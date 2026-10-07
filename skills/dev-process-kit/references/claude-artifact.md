@@ -28,7 +28,7 @@ Write the page content only. The viewer adds `<!doctype html>`, `<html>`, `<head
 - **Height is `100%`, never `100vh` / `100dvh`.** The viewer pads `:root` by the device's safe-area insets, so a viewport-sized template element overflows by that padding: the page gets a second scrollbar and the rail and header jump while scrolling. Give `html` and `body` `height: 100%` and the template element `height: 100%`.
 - **`lang` on the template element.** You do not control the viewer's `<html>`, so declare the page's language on the template element; the kit's own UI follows it and falls back to English.
 - **Leave the ground and the theme to the template.** The viewer stamps the reader's claude.ai theme on `<html data-theme>`, and the template follows it (the reader can still flip it with the header toggle). Do not paint `html` / `body` or force `color-scheme`, and write your own CSS with `var(--dpk-*)` so it switches too.
-- **Scripts from jsDelivr only.** The CSP admits `cdn.jsdelivr.net/npm/` for scripts; the kit fetches nothing else at runtime, so the pinned entries are all it needs.
+- **Scripts from jsDelivr only.** The CSP admits `cdn.jsdelivr.net/npm/` for scripts, so the pinned entries are all the page needs. The only other request the kit makes is the version list behind the header's version select (`data.jsdelivr.com`), and only when the reader opens that select; where the viewer blocks it, the select lists the running version alone.
 
 ## Sending the review to Claude
 
