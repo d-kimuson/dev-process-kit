@@ -11,8 +11,7 @@
  */
 import { defineCommentPanel } from '../components/comment-panel/index';
 import { defineInlineEdit } from '../components/inline-edit';
-import { FRAMEWORK_VERSION } from '../core/index';
-import { announce } from '../lib/announce';
+import { startEntry } from '../core/version-loader';
 import { defineWhiteboardElement } from '../templates/whiteboard';
 
 export * from '../core/index';
@@ -21,7 +20,12 @@ export type { CommentPanelCallbacks } from '../components/comment-panel/index';
 export { DpkComponentInlineEdit } from '../components/inline-edit';
 export * as whiteboard from '../templates/whiteboard';
 
-defineCommentPanel();
-defineInlineEdit();
-defineWhiteboardElement();
-announce(FRAMEWORK_VERSION, ['whiteboard']);
+startEntry({
+  entry: 'templates/whiteboard.js',
+  templates: ['whiteboard'],
+  register: () => {
+    defineCommentPanel();
+    defineInlineEdit();
+    defineWhiteboardElement();
+  },
+});
