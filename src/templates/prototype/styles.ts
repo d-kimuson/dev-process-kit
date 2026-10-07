@@ -179,6 +179,8 @@ export const prototypeStyles = css`
 
   .stage {
     display: grid;
+    /* One column no wider than the main area: a wide row of panes scrolls inside the canvas. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
     width: 100%;
     min-width: 0;
@@ -392,6 +394,93 @@ export const prototypeStyles = css`
     box-shadow: inset 0 1px 3px var(--dpk-shade-1);
   }
 
+  /* ---------------------------------------------------------- comment on UI */
+
+  .ui-comment-toggle svg,
+  .ui-comment-hint svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .ui-comment-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ui-comment-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -4px 0 -2px;
+    padding: 7px 12px;
+    border-radius: var(--dpk-radius);
+    background: var(--dpk-accent-soft);
+    color: var(--dpk-accent-strong, var(--dpk-accent));
+    font-size: 12.5px;
+    font-weight: 550;
+  }
+
+  .canvas {
+    position: relative;
+  }
+
+  .stage:not([data-ui-comment='off']) .canvas ::slotted(*) {
+    cursor: crosshair;
+  }
+
+  /* Positioned against the canvas by the element, which measures the author's markup. */
+  .ui-layer {
+    display: contents;
+  }
+
+  .ui-box {
+    position: absolute;
+    z-index: 2;
+    box-sizing: border-box;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+
+  .ui-hover {
+    outline: 2px solid var(--dpk-accent);
+    outline-offset: 1px;
+    background: color-mix(in srgb, var(--dpk-accent) 8%, transparent);
+  }
+
+  .ui-picked {
+    outline: 2px solid var(--dpk-accent);
+    outline-offset: 2px;
+    background: color-mix(in srgb, var(--dpk-accent) 14%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--dpk-accent) 18%, transparent);
+  }
+
+  .ui-pin {
+    position: absolute;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+    border: 2px solid var(--dpk-paper-raised);
+    border-radius: 999px 999px 999px 2px;
+    background: var(--dpk-accent);
+    color: var(--dpk-accent-ink);
+    box-shadow: var(--dpk-shadow-sm);
+    font-family: var(--dpk-mono);
+    font-size: 10px;
+    font-weight: 700;
+    pointer-events: auto;
+  }
+
+  .ui-box[hidden],
+  .ui-pin[hidden] {
+    display: none;
+  }
+
   /*
    * Side by side: what the user sees together, in one row. A fixed viewport
    * keeps its width as long as the row allows it, a fluid one takes the rest;
@@ -400,7 +489,7 @@ export const prototypeStyles = css`
   .panes {
     display: flex;
     align-items: flex-start;
-    justify-content: center;
+    justify-content: safe center;
     gap: 28px;
     width: 100%;
     min-width: 0;
@@ -408,11 +497,12 @@ export const prototypeStyles = css`
     padding-bottom: 4px;
   }
 
+  /* A device shrinks at most to a width its layout still reads at, then the row scrolls. */
   .pane {
     display: grid;
     gap: 8px;
     flex: 0 1 var(--pane-width);
-    min-width: min(var(--pane-width), 300px);
+    min-width: min(var(--pane-width), 720px);
   }
 
   .pane[data-viewport='mobile'] {
@@ -429,7 +519,7 @@ export const prototypeStyles = css`
 
   .pane[data-viewport='fluid'] {
     flex: 1 1 0;
-    min-width: 280px;
+    min-width: 240px;
   }
 
   .pane .frame {

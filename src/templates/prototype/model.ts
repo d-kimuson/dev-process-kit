@@ -177,6 +177,38 @@ const findDuplicateId = (state: v.InferOutput<typeof prototypeBaseSchema>): stri
   return null;
 };
 
+/** Target type of a comment on one element of a preview's markup. */
+export const UI_TARGET = 'ui';
+
+/**
+ * One element of a preview's markup, as a comment target id:
+ * `<preview id>/<selector> "<text>"`, e.g. `cart-mobile/a.sm-btn "レジに進む"`.
+ * The selector is relative to the preview's light DOM element and the text is
+ * what the element said, so the agent can find it either way.
+ */
+export type UiTarget = {
+  readonly previewId: string;
+  readonly selector: string;
+  readonly text?: string;
+};
+
+export const uiTargetId = (target: UiTarget): string => {
+  const text = target.text?.replaceAll('"', "'");
+  return `${target.previewId}/${target.selector}${text === undefined ? '' : ` "${text}"`}`;
+};
+
+export const parseUiTargetId = (id: string): UiTarget | undefined => {
+  const slash = id.indexOf('/');
+  if (slash <= 0) return undefined;
+  const previewId = id.slice(0, slash);
+  if (!v.is(entityIdSchema, previewId)) return undefined;
+  const rest = id.slice(slash + 1);
+  const quoted = / "([^"]*)"$/.exec(rest);
+  const selector = (quoted ? rest.slice(0, quoted.index) : rest).trim();
+  if (selector === '') return undefined;
+  return quoted?.[1] === undefined ? { previewId, selector } : { previewId, selector, text: quoted[1] };
+};
+
 export const parsePrototypeBase = (input: unknown): PrototypeState => {
   const parsed = v.parse(prototypeBaseSchema, input);
   const duplicate = findDuplicateId(parsed);

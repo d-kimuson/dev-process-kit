@@ -15,6 +15,13 @@ import {
   type MailHeader,
   type PageHeading,
 } from '../present';
+import {
+  renderUiCommentHint,
+  renderUiCommentLayer,
+  renderUiCommentToggle,
+  renderUiComposer,
+  type UiCommentView,
+} from './ui-comment';
 
 export const VIEWPORT_WIDTH: Record<PreviewViewport, string> = {
   mobile: '390px',
@@ -42,6 +49,16 @@ export type StageOptions = {
   readonly canFullscreen: boolean;
   /** Enters full screen, or leaves it when the stage is already there. */
   readonly onToggleFullscreen: () => void;
+  /** Commenting on the UI: the mode, the pins and the composer. */
+  readonly uiComment: UiCommentView;
+  /** Pointer events on the canvas, read by the element while the reader comments on the UI. */
+  readonly canvasEvents: {
+    readonly click: (event: MouseEvent) => void;
+    readonly pointermove: (event: PointerEvent) => void;
+    readonly pointerleave: () => void;
+    /** A row of panes scrolled sideways: what is drawn over it follows. */
+    readonly scroll: () => void;
+  };
 };
 
 /** Tabs or panes (when a step has several previews), the frames on screen and the parked slots. */
@@ -84,17 +101,27 @@ export const renderStage = (
   }
 
   const { layout, shown, tabs, activeId } = frames ?? prototypeStageFrames(location.step, navigation);
+  const ui = options.uiComment;
   return html`
-    <div class="stage">
+    <div class="stage" data-ui-comment=${ui.mode.kind}>
       <div class="stage-bar">
         ${renderPageHead(m, prototypePageHeading(location))}
         <div class="stage-tools">
           ${tabs.length > 0 ? renderPreviewTabs(context, tabs, activeId) : nothing}
+          ${shown.length > 0 ? renderUiCommentToggle(m, ui) : nothing}
           ${shown.length > 0 && options.canFullscreen ? renderFullscreenToggle(m, options.onToggleFullscreen) : nothing}
         </div>
       </div>
       ${location.step.situation === undefined ? nothing : renderSituation(m, location.step.situation)}
-      <div class="canvas" data-layout=${layout}>
+      ${renderUiCommentHint(m, ui)}
+      <div
+        class="canvas"
+        data-layout=${layout}
+        @click=${{ handleEvent: options.canvasEvents.click, capture: true }}
+        @pointermove=${{ handleEvent: options.canvasEvents.pointermove, capture: true }}
+        @pointerleave=${options.canvasEvents.pointerleave}
+        @scroll=${{ handleEvent: options.canvasEvents.scroll, capture: true }}
+      >
         ${
           layout === 'side-by-side'
             ? html`<div class="panes">
@@ -109,8 +136,9 @@ export const renderStage = (
             : shown.map((preview) => renderFrame(context, m, preview, options.hasPreviewContent(preview.id)))
         }
         ${shown.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
+        ${renderUiCommentLayer(m, ui)}
       </div>
-      ${parked}
+      ${renderUiComposer(ui)} ${parked}
     </div>
   `;
 };

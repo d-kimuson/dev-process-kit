@@ -269,6 +269,72 @@ describe('<dpk-template-prototype> layout', () => {
     );
   });
 
+  describe('comment on UI', () => {
+    const withMock = async (): Promise<DpkTemplatePrototype> => {
+      const el = mount('#step=landing');
+      await settle(el);
+      el.querySelector('[data-preview-id="landing-mobile"]')!.innerHTML =
+        '<nav><a href="#story=billing" data-dpk-navigate="story=billing"><span>Billing</span></a></nav><button class="pay">Pay now</button>';
+      return el;
+    };
+    const toggle = (el: DpkTemplatePrototype): HTMLButtonElement =>
+      el.shadowRoot!.querySelector<HTMLButtonElement>('.ui-comment-toggle')!;
+
+    it('turns the mode on and off from the stage tools, with a hint while it is on', async () => {
+      const el = await withMock();
+      const root = el.shadowRoot!;
+      expect(toggle(el).getAttribute('aria-pressed')).toBe('false');
+      expect(root.querySelector('.ui-comment-hint')).toBeNull();
+      toggle(el).click();
+      await settle(el);
+      expect(toggle(el).getAttribute('aria-pressed')).toBe('true');
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('picking');
+      expect(root.querySelector('.ui-comment-hint')?.textContent).toContain(m.uiCommentHint);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await settle(el);
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('off');
+    });
+
+    it('takes a click on the mock as a pick: the link does not navigate and a comment lands on the element', async () => {
+      const el = await withMock();
+      toggle(el).click();
+      await settle(el);
+      el.querySelector<HTMLElement>('nav a span')!.click();
+      await settle(el);
+      // the mock's own link did not run
+      expect(el.api.navigation['step']).toBe('landing');
+      const root = el.shadowRoot!;
+      const composer = root.querySelector('.comment-pop')!;
+      expect(composer.querySelector('.comment-target')?.textContent).toBe('landing-mobile › "Billing"');
+      const textarea = composer.querySelector('textarea')!;
+      textarea.value = 'Should say Invoices';
+      textarea.dispatchEvent(new Event('input'));
+      await settle(el);
+      root.querySelector<HTMLButtonElement>('.comment-pop .dpk-btn--accent')!.click();
+      await settle(el);
+      expect(el.api.comments.map((action) => [action.target, action.payload])).toEqual([
+        [{ type: 'ui', id: 'landing-mobile/a "Billing"' }, { body: 'Should say Invoices' }],
+      ]);
+      // still picking, composer closed, and a pin marks the element
+      expect(root.querySelector('.comment-pop')).toBeNull();
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('picking');
+      expect(root.querySelector('.ui-pin')?.textContent?.trim()).toBe('1');
+      expect(root.querySelector('.ui-pin')?.getAttribute('data-selector')).toBe('a');
+      // the step counts it
+      expect(root.querySelector('.step-row[data-current="true"] .step-note')?.textContent).toBe('1');
+      // the review names the element
+      expect(el.api.exportBrief()).toContain('**UI · landing-mobile › "Billing"** — `ui:landing-mobile/a "Billing"`');
+    });
+
+    it('leaves the mock working while the mode is off', async () => {
+      const el = await withMock();
+      el.querySelector<HTMLElement>('nav a span')!.click();
+      await settle(el);
+      expect(el.api.navigation).toMatchObject({ story: 'billing' });
+      expect(el.shadowRoot!.querySelector('.comment-pop')).toBeNull();
+    });
+  });
+
   describe('full screen', () => {
     const allowFullscreen = (): void => {
       Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: true });

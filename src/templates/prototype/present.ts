@@ -8,6 +8,7 @@ import type {
 } from '../../core/types';
 import type { PrototypeMessages } from './messages';
 
+import { commentBody } from '../../core/comment';
 import { payloadFor, type ActionName } from '../../core/schema';
 import { slugify, targetRef } from '../../core/target';
 import { prototypeActions } from './actions';
@@ -26,6 +27,9 @@ import {
   type PrototypeState,
   type PrototypeStory,
   type StepLocation,
+  type UiTarget,
+  parseUiTargetId,
+  UI_TARGET,
 } from './model';
 
 type Summary = {
@@ -215,9 +219,58 @@ export const prototypeTargetLabel = (m: PrototypeMessages, state: PrototypeState
     }
     case 'page':
       return m.targetLabel(m.pageGroup, prototypeTitle(state));
+    case UI_TARGET: {
+      const ui = parseUiTargetId(target.id);
+      const preview = ui ? findPreview(state, ui.previewId)?.preview : undefined;
+      return ui && preview
+        ? m.targetLabel(m.uiGroup, prototypeUiTargetName(preview, ui))
+        : m.targetMissing(m.uiGroup, target.id);
+    }
     default:
       return m.targetLabel(target.type, target.id);
   }
+};
+
+/** `Desktop › "Save"`: the preview it is on, then what the element says (or its selector). */
+export const prototypeUiTargetName = (preview: PrototypePreview, target: UiTarget): string => {
+  const element = target.text === undefined ? target.selector : `"${target.text}"`;
+  return `${preview.label ?? preview.id} › ${element}`;
+};
+
+export type UiCommentPin = {
+  /** The comment action. */
+  readonly id: string;
+  readonly previewId: string;
+  readonly selector: string;
+  /** 1-based number of the pin among the comments on screen. */
+  readonly number: number;
+  readonly body: string;
+};
+
+/** The UI comments on the given previews, numbered in draft order, for the pins drawn over them. */
+export const prototypeUiCommentPins = (
+  comments: readonly DraftAction[],
+  previewIds: readonly string[],
+): readonly UiCommentPin[] => {
+  const pins: UiCommentPin[] = [];
+  for (const comment of comments) {
+    if (comment.target.type !== UI_TARGET) continue;
+    const ui = parseUiTargetId(comment.target.id);
+    if (!ui || !previewIds.includes(ui.previewId)) continue;
+    pins.push({
+      id: comment.id,
+      previewId: ui.previewId,
+      selector: ui.selector,
+      number: pins.length + 1,
+      body: commentBody(comment),
+    });
+  }
+  return pins;
+};
+
+/** How many UI comments sit on the given previews: the step list counts them with the step's own. */
+export const prototypeUiCommentCount = (comments: readonly DraftAction[], previewIds: readonly string[]): number => {
+  return prototypeUiCommentPins(comments, previewIds).length;
 };
 
 /**
