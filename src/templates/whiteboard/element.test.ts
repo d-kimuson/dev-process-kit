@@ -46,11 +46,21 @@ const q = <T extends Element = HTMLElement>(el: DpkTemplateWhiteboard, selector:
   return found;
 };
 
-const pointer = (target: Element, type: string, x: number, y: number): void => {
+const pointer = (target: Element, type: string, x: number, y: number, init: PointerEventInit = {}): void => {
   target.dispatchEvent(
-    new PointerEvent(type, { pointerId: 1, button: 0, clientX: x, clientY: y, bubbles: true, composed: true }),
+    new PointerEvent(type, { pointerId: 1, button: 0, clientX: x, clientY: y, bubbles: true, composed: true, ...init }),
   );
 };
+
+/** A press released where it started; the release lands on the canvas, as pointer capture sends it. */
+const click = async (el: DpkTemplateWhiteboard, on: Element, at: [number, number], init: PointerEventInit = {}) => {
+  pointer(on, 'pointerdown', ...at, init);
+  pointer(q(el, '.wb-canvas'), 'pointerup', ...at, init);
+  await settle(el);
+};
+
+const editor = (el: DpkTemplateWhiteboard, itemId: string): HTMLTextAreaElement =>
+  q<HTMLTextAreaElement>(el, `[data-item-id="${itemId}"] textarea.wb-editor`);
 
 /** Press on `from`, then move and release over the canvas (where pointer capture sends them). */
 const drag = async (el: DpkTemplateWhiteboard, from: Element, start: [number, number], end: [number, number]) => {
@@ -108,6 +118,23 @@ describe('<dpk-template-whiteboard>', () => {
     ]);
   });
 
+  it('moves a selected frame by its empty inside, and selects it there first', async () => {
+    const el = mount();
+    await settle(el);
+    const frame = q(el, '[data-item-id="went-well"]');
+    // Not selected yet: a drag inside draws a selection area, a click selects the frame.
+    await drag(el, frame, [300, 250], [390, 290]);
+    expect(el.api.actions).toEqual([]);
+    await click(el, frame, [300, 250]);
+    expect(el.api.navigation['item']).toBe('went-well');
+    await drag(el, frame, [300, 250], [300, 350]);
+    expect(el.api.actions.map((action) => [action.target.id, action.payload])).toEqual([
+      ['went-well', { x: 0, y: 100 }],
+      ['pairing', { x: 20, y: 160 }],
+    ]);
+    expect(el.api.navigation['item']).toBe('went-well');
+  });
+
   it('adds a sticky from the toolbar and types into it', async () => {
     const el = mount();
     await settle(el);
@@ -117,13 +144,98 @@ describe('<dpk-template-whiteboard>', () => {
     expect(added?.type).toBe('ADD_ITEM');
     const id = added?.target.type === 'page' ? (added.payload as { id: string }).id : '';
     expect(el.api.navigation['item']).toBe(id);
-    const editor = q(el, `[data-item-id="${id}"] dpk-component-inline-edit`);
-    editor.dispatchEvent(
-      new CustomEvent('dpk-commit', { detail: { value: 'Retry less' }, bubbles: true, composed: true }),
-    );
-    await settle(el);
+    const field = editor(el, id);
+    expect(root(el).activeElement).toBe(field);
+    field.value = 'Retry less';
+    // A press on the canvas re-renders the board at once; the text must still land.
+    await click(el, q(el, '.wb-canvas'), [2000, 2000]);
+    expect(root(el).querySelector('textarea.wb-editor')).toBeNull();
     // Adding then typing is one net change: an item with that text.
     expect(el.api.state.items.find((item) => item.id === id)).toMatchObject({ kind: 'sticky', text: 'Retry less' });
+  });
+
+  it('edits a sticky on a second click or a double-click, never adding one', async () => {
+    const el = mount();
+    await settle(el);
+    const sticky = q(el, '[data-item-id="pairing"]');
+    await click(el, sticky, [100, 150]);
+    expect(el.api.navigation['item']).toBe('pairing');
+    expect(root(el).querySelector('.wb-editor')).toBeNull();
+    // The second press of a double-click starts the edit; the dblclick itself reaches the canvas.
+    await click(el, sticky, [100, 150]);
+    q(el, '.wb-canvas').dispatchEvent(
+      new MouseEvent('dblclick', { clientX: 100, clientY: 150, bubbles: true, composed: true }),
+    );
+    await settle(el);
+    const field = editor(el, 'pairing');
+    expect(root(el).activeElement).toBe(field);
+    // The caret is placed, never the whole text selected.
+    expect(field.selectionStart).toBe(field.selectionEnd);
+    field.value = 'Pairing daily';
+    field.dispatchEvent(new FocusEvent('blur'));
+    await settle(el);
+    expect(el.api.actions.map((action) => [action.type, action.payload])).toEqual([
+      ['SET_ITEM_TEXT', { text: 'Pairing daily' }],
+    ]);
+    // On open ground (a frame's inside too) a double-click adds a sticky.
+    await click(el, q(el, '.wb-canvas'), [300, 250]);
+    q(el, '.wb-canvas').dispatchEvent(
+      new MouseEvent('dblclick', { clientX: 300, clientY: 250, bubbles: true, composed: true }),
+    );
+    await settle(el);
+    expect(el.api.actions.map((action) => action.type)).toEqual(['SET_ITEM_TEXT', 'ADD_ITEM']);
+  });
+
+  it('cancels an edit with Escape and keeps the text as it was', async () => {
+    const el = mount({ hash: '#item=goal' });
+    await settle(el);
+    q(el, '.wb-canvas').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle(el);
+    const field = editor(el, 'goal');
+    field.value = 'Ship v2';
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+    await settle(el);
+    expect(root(el).querySelector('.wb-editor')).toBeNull();
+    expect(el.api.actions).toEqual([]);
+  });
+
+  it('selects with a dragged-out area and moves the selection together', async () => {
+    const el = mount();
+    await settle(el);
+    // Starting on a frame's empty inside draws an area; it does not pan or pick the frame.
+    await drag(el, q(el, '.wb-canvas'), [10, 50], [600, 100]);
+    expect(el.api.navigation['item']).toBe('pairing,flaky');
+    expect(root(el).querySelectorAll('.wb-item.is-selected')).toHaveLength(2);
+    expect(q(el, '.wb-toolbar').getAttribute('aria-label')).toBe('2 items selected');
+    await drag(el, q(el, '[data-item-id="pairing"]'), [30, 70], [40, 80]);
+    expect(el.api.actions.map((action) => [action.target.id, action.payload])).toEqual([
+      ['pairing', { x: 30, y: 70 }],
+      ['flaky', { x: 530, y: 70 }],
+    ]);
+    // Shift-click takes one out again; a click on a frame's empty inside selects the frame.
+    await click(el, q(el, '[data-item-id="flaky"]'), [540, 80], { shiftKey: true });
+    expect(el.api.navigation['item']).toBe('pairing');
+    await click(el, q(el, '.wb-canvas'), [300, 250]);
+    expect(el.api.navigation['item']).toBe('went-well');
+    await click(el, q(el, '.wb-canvas'), [2000, 2000]);
+    expect(el.api.navigation['item']).toBeUndefined();
+  });
+
+  it('pans instead of selecting while Space is held', async () => {
+    const el = mount();
+    await settle(el);
+    const canvas = q(el, '.wb-canvas');
+    const world = q(el, '.wb-world');
+    const before = world.style.transform;
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    await settle(el);
+    expect(canvas.classList.contains('wb-canvas--pan-ready')).toBe(true);
+    await drag(el, canvas, [10, 50], [60, 120]);
+    expect(world.style.transform).not.toBe(before);
+    expect(el.api.navigation['item']).toBeUndefined();
+    canvas.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
+    await settle(el);
+    expect(canvas.classList.contains('wb-canvas--pan-ready')).toBe(false);
   });
 
   it('connects two items by dragging out of the connect handle', async () => {
@@ -173,18 +285,57 @@ describe('<dpk-template-whiteboard>', () => {
     expect(el.api.navigation['item']).toBeUndefined();
   });
 
-  it('connects through the toolbar, then a click on the other end', async () => {
+  it('sizes the text and restacks the selection from its toolbar', async () => {
     const el = mount({ hash: '#item=pairing' });
     await settle(el);
-    q(el, '.wb-toolbar [data-role="connect"]').click();
+    expect(root(el).querySelector('.wb-toolbar [data-role="edit"], .wb-toolbar [data-role="connect"]')).toBeNull();
+    q(el, '.wb-toolbar [data-font-size="large"]').click();
     await settle(el);
-    expect(q(el, '.wb-hint').textContent).toContain('Click the item to connect to');
-    pointer(q(el, '[data-item-id="goal"]'), 'pointerdown', 1010, 50);
+    expect(q(el, '[data-item-id="pairing"]').style.getPropertyValue('--wb-font-scale')).toBe('1.4');
+    expect(q(el, '.wb-toolbar [data-font-size="large"]').getAttribute('aria-checked')).toBe('true');
+    // Nothing overlaps pairing, so restacking it would change nothing: no control for it.
+    expect(root(el).querySelector('.wb-toolbar [data-role="arrange"]')).toBeNull();
+    // Laid over flaky, pairing is under it: the menu offers only the moves up.
+    await drag(el, q(el, '[data-item-id="pairing"]'), [30, 70], [530, 90]);
+    q(el, '.wb-toolbar [data-role="arrange"]').click();
     await settle(el);
-    expect(el.api.state.connectors.map((connector) => [connector.from, connector.to])).toEqual([
-      ['flaky', 'goal'],
-      ['pairing', 'goal'],
+    const enabled = [...root(el).querySelectorAll<HTMLButtonElement>('.wb-menu [data-arrange]')].map((item) => [
+      item.dataset['arrange'],
+      !item.disabled,
     ]);
+    expect(enabled).toEqual([
+      ['front', true],
+      ['forward', true],
+      ['backward', false],
+      ['back', false],
+    ]);
+    q(el, '.wb-menu [data-arrange="front"]').click();
+    await settle(el);
+    expect(root(el).querySelector('.wb-menu')).toBeNull();
+    expect(el.api.actions.map((action) => [action.type, action.payload])).toEqual([
+      ['SET_ITEM_FONT_SIZE', { fontSize: 'large' }],
+      ['MOVE_ITEM', { x: 520, y: 80 }],
+      ['REORDER_ITEM', { after: 'goal' }],
+    ]);
+    const ids = [...root(el).querySelectorAll('.wb-item')].map((item) => item.getAttribute('data-item-id'));
+    expect(ids).toEqual(['went-well', 'to-improve', 'flaky', 'goal', 'pairing']);
+    // ⌘[ / Ctrl+[ sends it back to the bottom, which cancels the restack.
+    q(el, '.wb-canvas').dispatchEvent(new KeyboardEvent('keydown', { key: '[', ctrlKey: true, bubbles: true }));
+    await settle(el);
+    expect(el.api.actions.map((action) => action.type)).toEqual(['SET_ITEM_FONT_SIZE', 'MOVE_ITEM']);
+  });
+
+  it('reshapes a connector from its toolbar', async () => {
+    const el = mount({ hash: '#item=flaky-goal' });
+    await settle(el);
+    q(el, '.wb-toolbar [data-route="elbow"]').click();
+    await settle(el);
+    expect(el.api.actions.map((action) => [action.type, action.payload])).toEqual([
+      ['SET_CONNECTOR_ROUTE', { route: 'elbow' }],
+    ]);
+    const d = q(el, '[data-connector-id="flaky-goal"] .wb-link').getAttribute('d') ?? '';
+    expect(d.match(/ L /g)).toHaveLength(3);
+    expect(q(el, '.wb-toolbar [data-route="elbow"]').getAttribute('aria-checked')).toBe('true');
   });
 
   it('deletes the selected connector with the Delete key', async () => {

@@ -16,11 +16,13 @@ import {
   findItem,
   frameOf,
   hasColor,
+  hasFontSize,
   itemText,
   type WbConnector,
   type WbItem,
   type WhiteboardState,
 } from './model';
+import { parseSelection, serializeSelection } from './selection';
 
 const QUOTE_LENGTH = 40;
 
@@ -125,6 +127,23 @@ const summarize = (
         body: before !== undefined && hasColor(before) ? m.plain(m.colorLabel(before.color), after) : `→ ${after}`,
       };
     }
+    case 'SET_ITEM_FONT_SIZE': {
+      const after = m.fontSizeLabel(action.payload.fontSize);
+      return {
+        title: m.resizedTextTitle(kind),
+        tone: 'update',
+        body:
+          before !== undefined && hasFontSize(before) ? m.plain(m.fontSizeLabel(before.fontSize), after) : `→ ${after}`,
+      };
+    }
+    case 'REORDER_ITEM': {
+      const anchorId = action.payload.after;
+      return {
+        title: m.restackedTitle(kind),
+        tone: 'move',
+        body: anchorId === null ? m.toBack : m.inFrontOf(endName(m, state, base, anchorId)),
+      };
+    }
     case 'DELETE_ITEM':
       return {
         title: m.deletedTitle(kind),
@@ -147,6 +166,15 @@ const summarize = (
         title: m.relabeledTitle,
         tone: 'update',
         body: previous === undefined ? m.arrowTo(after) : m.arrowFrom(previous, after),
+      };
+    }
+    case 'SET_CONNECTOR_ROUTE': {
+      const previous = findConnector(base, id)?.route;
+      const after = m.routeLabel(action.payload.route);
+      return {
+        title: m.reroutedTitle,
+        tone: 'update',
+        body: previous === undefined ? `→ ${after}` : m.plain(m.routeLabel(previous), after),
       };
     }
     case 'DELETE_CONNECTOR': {
@@ -238,13 +266,18 @@ export const whiteboardCommentTargets = (
   return options;
 };
 
-/** The selected item or connector, else the frame in focus: what a composer note attaches to. */
+/**
+ * The selected item or connector, else the frame in focus: what a composer
+ * note attaches to. Several selected items have no single one to attach to.
+ */
 export const whiteboardCurrentTarget = (
   m: WhiteboardMessages,
   state: WhiteboardState,
   nav: Navigation,
 ): CommentTargetOption | null => {
-  const item = findItem(state, nav['item']) ?? findItem(state, nav['frame']);
+  const selection = parseSelection(nav['item']);
+  const selected = selection.length === 1 ? selection[0] : undefined;
+  const item = findItem(state, selected) ?? findItem(state, nav['frame']);
   if (item !== undefined) {
     return {
       value: targetRef({ type: 'item', id: item.id }),
@@ -252,7 +285,7 @@ export const whiteboardCurrentTarget = (
       group: m.kindLabel(item.kind),
     };
   }
-  const connector = findConnector(state, nav['item']);
+  const connector = findConnector(state, selected);
   if (connector === undefined) return null;
   return {
     value: targetRef({ type: 'connector', id: connector.id }),
@@ -264,13 +297,17 @@ export const whiteboardCurrentTarget = (
 export const whiteboardTitle = (state: WhiteboardState): string => state.title ?? 'Whiteboard';
 
 /**
- * `frame` brings a frame into view, `item` selects an item or a connector.
- * Ids that no longer exist are dropped, so the hash stays canonical.
+ * `frame` brings a frame into view, `item` selects items (`a,b,c`) or one
+ * connector. Ids that no longer exist are dropped, so the hash stays canonical.
  */
 export const resolveWhiteboardNavigation = (state: WhiteboardState, nav: Navigation): Navigation => {
   const next: Record<string, string> = { ...nav };
   if (findItem(state, nav['frame'])?.kind !== 'frame') delete next['frame'];
-  const selected = nav['item'];
-  if (findItem(state, selected) === undefined && findConnector(state, selected) === undefined) delete next['item'];
+  const selection = parseSelection(nav['item']);
+  const items = selection.filter((id) => findItem(state, id) !== undefined);
+  const connector = selection.length === 1 ? findConnector(state, selection[0]) : undefined;
+  const kept = serializeSelection(connector === undefined ? items : [connector.id]);
+  if (kept === undefined) delete next['item'];
+  else next['item'] = kept;
   return next;
 };

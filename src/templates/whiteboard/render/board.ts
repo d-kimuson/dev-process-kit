@@ -3,13 +3,20 @@ import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { WbGesture } from '../gesture';
-import type { Viewport } from '../interactions';
 import type { WhiteboardMessages } from '../messages';
 
-import { onCommit } from '../../../lib/dom/events';
 import { NEW_ITEM_KINDS, type NewItemKind } from '../commands';
-import { centerOf, connectorGeometry, outlinePoint, paintOrder } from '../layout';
-import { findItem, itemText, type WbConnector, type WbItem, type WhiteboardState } from '../model';
+import { toScreen, type Viewport } from '../interactions';
+import { centerOf, connectorPath, outlinePoint, paintOrder, type Rect } from '../layout';
+import {
+  findItem,
+  hasFontSize,
+  itemText,
+  type WbConnector,
+  type WbFontSize,
+  type WbItem,
+  type WhiteboardState,
+} from '../model';
 import { isEditing, type WbMode } from '../ui-mode';
 import { colorStyle } from './palette';
 
@@ -21,15 +28,15 @@ export type WbBoardHandlers = {
   readonly canvasWheel: (event: WheelEvent) => void;
   readonly canvasDblClick: (event: MouseEvent) => void;
   readonly canvasKeyDown: (event: KeyboardEvent) => void;
+  readonly canvasKeyUp: (event: KeyboardEvent) => void;
+  readonly canvasBlur: (event: FocusEvent) => void;
   readonly itemPointerDown: (itemId: string, event: PointerEvent) => void;
-  readonly itemDblClick: (itemId: string, event: MouseEvent) => void;
   readonly resizePointerDown: (itemId: string, event: PointerEvent) => void;
   readonly connectPointerDown: (itemId: string, event: PointerEvent) => void;
   readonly connectorPointerDown: (connectorId: string, event: PointerEvent) => void;
-  /** The in-place editor committed a changed text. */
-  readonly commitText: (itemId: string, text: string) => void;
-  /** The in-place editor lost focus or was cancelled. */
-  readonly editEnded: (itemId: string) => void;
+  /** The in-place editor lost focus: what it holds is the text to commit. */
+  readonly editBlur: (itemId: string, value: string) => void;
+  readonly editKeyDown: (itemId: string, event: KeyboardEvent) => void;
   readonly addItem: (kind: NewItemKind) => void;
   readonly zoomStep: (direction: 1 | -1) => void;
   readonly zoomFit: () => void;
@@ -44,8 +51,12 @@ export type WbBoardProps = {
   readonly viewport: Viewport;
   readonly gesture: WbGesture | undefined;
   readonly mode: WbMode;
-  /** The selected item or connector (`#item=`). */
-  readonly selectedId: string | undefined;
+  /** The selected items or connector (`#item=`), or what a marquee in flight picks. */
+  readonly selectedIds: ReadonlySet<string>;
+  /** The marquee being dragged out, in canvas coordinates. */
+  readonly marquee: Rect | undefined;
+  /** Space is held: a drag pans the board. */
+  readonly panReady: boolean;
   /** The selection toolbar and composer, already positioned in screen space. */
   readonly overlay: TemplateResult | typeof nothing;
   readonly handlers: WbBoardHandlers;
@@ -59,6 +70,14 @@ const ADD_LABEL = {
   frame: 'addFrame',
 } as const satisfies Record<NewItemKind, keyof WhiteboardMessages>;
 
+/** How much larger than the kind's own type an item's text is drawn. */
+export const FONT_SCALE = {
+  small: 0.8,
+  medium: 1,
+  large: 1.4,
+  xlarge: 2,
+} as const satisfies Record<WbFontSize, number>;
+
 /** The dot grid scrolls and scales with the canvas, so panning reads as moving the board. */
 const surfaceStyle = (viewport: Viewport): string => {
   const dot = 24 * viewport.zoom;
@@ -66,11 +85,12 @@ const surfaceStyle = (viewport: Viewport): string => {
 };
 
 export const renderWhiteboard = (props: WbBoardProps): TemplateResult => {
-  const { m, state, viewport, gesture, mode, handlers } = props;
+  const { m, state, viewport, gesture, handlers } = props;
   const classes = ['wb-canvas'];
   if (gesture?.moved === true) classes.push('wb-canvas--gesturing');
   if (gesture?.kind === 'pan' && gesture.moved) classes.push('wb-canvas--panning');
-  if (mode.kind === 'connecting' || gesture?.kind === 'connect') classes.push('wb-canvas--connecting');
+  if (gesture?.kind === 'connect') classes.push('wb-canvas--connecting');
+  if (props.panReady || gesture?.kind === 'pan') classes.push('wb-canvas--pan-ready');
   const ordered = paintOrder(state);
   return html`<div
     class=${classes.join(' ')}
@@ -86,6 +106,8 @@ export const renderWhiteboard = (props: WbBoardProps): TemplateResult => {
     @wheel=${handlers.canvasWheel}
     @dblclick=${handlers.canvasDblClick}
     @keydown=${handlers.canvasKeyDown}
+    @keyup=${handlers.canvasKeyUp}
+    @blur=${handlers.canvasBlur}
   >
     <div
       class="wb-world"
@@ -99,18 +121,28 @@ export const renderWhiteboard = (props: WbBoardProps): TemplateResult => {
       ${renderConnectors(props)} ${renderLabels(props)}
     </div>
     ${state.items.length === 0 ? html`<p class="wb-hint wb-hint--empty">${m.emptyHint}</p>` : nothing}
-    ${mode.kind === 'connecting' ? html`<p class="wb-hint" role="status">${m.connectingHint}</p>` : nothing}
-    ${gesture?.moved === true ? nothing : props.overlay} ${renderTools(m, handlers)}
+    ${renderMarquee(props)} ${gesture?.moved === true ? nothing : props.overlay} ${renderTools(m, handlers)}
     ${renderZoom(m, viewport, handlers)}
   </div>`;
 };
 
 /* ------------------------------------------------------------------ items */
 
+const renderMarquee = ({ marquee, viewport }: WbBoardProps): TemplateResult | typeof nothing => {
+  if (marquee === undefined) return nothing;
+  const corner = toScreen(viewport, marquee);
+  const size = `width:${marquee.w * viewport.zoom}px;height:${marquee.h * viewport.zoom}px`;
+  return html`<div
+    class="wb-marquee"
+    aria-hidden="true"
+    style=${`left:${corner.x}px;top:${corner.y}px;${size}`}
+  ></div>`;
+};
+
 const itemClass = (props: WbBoardProps, item: WbItem): string => {
   const classes = ['wb-item', `wb-item--${item.kind}`];
   if (item.kind === 'shape') classes.push(`wb-item--${item.shape}`);
-  if (props.selectedId === item.id) classes.push('is-selected');
+  if (props.selectedIds.has(item.id)) classes.push('is-selected');
   if (isEditing(props.mode, item.id)) classes.push('is-editing');
   const gesture = props.gesture;
   if (gesture?.kind === 'move' && gesture.moved && gesture.origins.some((origin) => origin.id === item.id)) {
@@ -123,17 +155,19 @@ const itemClass = (props: WbBoardProps, item: WbItem): string => {
 const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
   const { m, context, handlers } = props;
   const box = `left:${item.x}px;top:${item.y}px;width:${item.w}px;height:${item.h}px`;
-  const style = item.kind === 'text' ? box : `${box};${colorStyle(item.color)}`;
+  const color = item.kind === 'text' ? '' : `;${colorStyle(item.color)}`;
+  const scale = hasFontSize(item) ? `;--wb-font-scale:${FONT_SCALE[item.fontSize]}` : '';
   const comments = context.commentCount({ type: 'item', id: item.id });
-  const selected = props.selectedId === item.id && props.gesture?.moved !== true;
+  // Handles belong to a single selected item; a group only moves together.
+  const selected = props.selectedIds.size === 1 && props.selectedIds.has(item.id) && props.gesture?.moved !== true;
   const press = (event: PointerEvent): void => handlers.itemPointerDown(item.id, event);
+  // A frame's inside is ground to start a selection area on: only its title is pressed as the frame.
   return html`<div
     class=${itemClass(props, item)}
-    style=${style}
+    style=${`${box}${color}${scale}`}
     data-item-id=${item.id}
     data-kind=${item.kind}
     @pointerdown=${item.kind === 'frame' ? nothing : press}
-    @dblclick=${(event: MouseEvent) => handlers.itemDblClick(item.id, event)}
   >
     ${
       item.kind === 'frame'
@@ -160,24 +194,54 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
   </div>`;
 };
 
+/** A wheel over the editor scrolls its text, not the board. */
+const keepWheel = (event: WheelEvent): void => event.stopPropagation();
+
+/**
+ * The text, or while it is being edited a bare field in its place: same type,
+ * same box and same wrapping, so nothing moves when editing starts. The field
+ * commits on blur (the element reads its value) and owns no state of its own.
+ */
 const renderText = (props: WbBoardProps, item: WbItem): TemplateResult => {
   const { m, handlers } = props;
   const text = itemText(item);
   if (!isEditing(props.mode, item.id)) return html`<span class="wb-text">${text}</span>`;
-  return html`<dpk-component-inline-edit
-    class="wb-editor"
-    ?seamless=${true}
-    ?multiline=${item.kind !== 'frame'}
-    ?wrap=${item.kind === 'frame'}
-    .value=${text}
-    .placeholder=${m.textPlaceholder}
-    .label=${item.kind === 'frame' ? m.renameFrame : m.editText}
-    @dpk-commit=${onCommit((value) => handlers.commitText(item.id, value))}
-    @focusout=${() => handlers.editEnded(item.id)}
-    @keydown=${(event: KeyboardEvent) => {
-      if (event.key === 'Escape') handlers.editEnded(item.id);
-    }}
-  ></dpk-component-inline-edit>`;
+  const blur = (event: FocusEvent): void => {
+    const field = event.currentTarget;
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)
+      handlers.editBlur(item.id, field.value);
+  };
+  const key = (event: KeyboardEvent): void => handlers.editKeyDown(item.id, event);
+  // A frame's title chip is as wide as its name: a hidden copy of the draft
+  // keeps sizing it, and the field lies over that copy.
+  const copy = (event: Event): void => {
+    const field = event.currentTarget;
+    if (field instanceof HTMLInputElement)
+      field.previousElementSibling?.setAttribute('data-copy', field.value || m.textPlaceholder);
+  };
+  return item.kind === 'frame'
+    ? html`<span class="wb-title-edit"
+        ><span class="wb-text" aria-hidden="true" data-copy=${text || m.textPlaceholder}></span
+        ><input
+          class="wb-editor"
+          type="text"
+          .value=${text}
+          placeholder=${m.textPlaceholder}
+          aria-label=${m.renameFrame}
+          @input=${copy}
+          @blur=${blur}
+          @keydown=${key}
+      /></span>`
+    : html`<textarea
+        class="wb-editor"
+        .value=${text}
+        placeholder=${m.textPlaceholder}
+        aria-label=${m.editText}
+        spellcheck="false"
+        @blur=${blur}
+        @keydown=${key}
+        @wheel=${keepWheel}
+      ></textarea>`;
 };
 
 /* ------------------------------------------------------------- connectors */
@@ -198,9 +262,8 @@ const renderConnectors = (props: WbBoardProps): TemplateResult => {
   const strokes = state.connectors.map((connector) => {
     const pair = ends(state, connector);
     if (pair === undefined) return nothing;
-    const { start, end } = connectorGeometry(...pair);
-    const d = `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
-    const selected = props.selectedId === connector.id ? ' is-selected' : '';
+    const { d } = connectorPath(...pair, connector.route);
+    const selected = props.selectedIds.has(connector.id) ? ' is-selected' : '';
     return svg`<g data-connector-id=${connector.id}>
       <path class="wb-link-hit" d=${d} @pointerdown=${(event: PointerEvent) =>
         handlers.connectorPointerDown(connector.id, event)}></path>
@@ -230,8 +293,8 @@ const renderLabels = (props: WbBoardProps): TemplateResult[] => {
     const pair = ends(state, connector);
     const comments = context.commentCount({ type: 'connector', id: connector.id });
     if (pair === undefined || (connector.label === undefined && comments === 0)) return [];
-    const { mid } = connectorGeometry(...pair);
-    const selected = props.selectedId === connector.id ? ' is-selected' : '';
+    const { mid } = connectorPath(...pair, connector.route);
+    const selected = props.selectedIds.has(connector.id) ? ' is-selected' : '';
     return [
       html`<div
         class=${`wb-link-label${selected}`}

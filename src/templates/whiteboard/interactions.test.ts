@@ -1,8 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
 import { newItem } from './commands';
-import { constrainViewport, fitRect, revealRect, toCanvas, toScreen, zoomAt, ZOOM_MAX } from './interactions';
-import { boardBounds, connectorGeometry, itemAt, outlinePoint } from './layout';
+import {
+  constrainViewport,
+  fitRect,
+  keepInside,
+  revealRect,
+  toCanvas,
+  toScreen,
+  zoomAt,
+  ZOOM_MAX,
+} from './interactions';
+import {
+  boardBounds,
+  connectorGeometry,
+  connectorPath,
+  grownToHold,
+  itemAt,
+  itemsInRect,
+  outlinePoint,
+  rectBetween,
+} from './layout';
 import { whiteboardMessages } from './messages';
 import { parseWhiteboardBase } from './model';
 
@@ -28,6 +46,16 @@ describe('whiteboard viewport', () => {
     expect(revealRect(viewport, { x: 100, y: -700, w: 160, h: 160 }, view)).toEqual({ x: 220, y: 920, zoom: 1 });
   });
 
+  it('shifts a floating bar back inside the view, and leaves one that fits alone', () => {
+    // Overflows on the right: pulled left so its end sits at the margin.
+    expect(keepInside(1084, 410, 1440, 8)).toBe(-62);
+    // Overflows on the left: pushed right.
+    expect(keepInside(-30, 200, 1440, 8)).toBe(38);
+    expect(keepInside(100, 200, 1440, 8)).toBe(0);
+    // Wider than the view: its start stays visible.
+    expect(keepInside(-30, 2000, 1440, 8)).toBe(38);
+  });
+
   it('lets the board wander but keeps a strip of it on screen', () => {
     const board = { x: 0, y: 0, w: 500, h: 500 };
     const view = { width: 800, height: 600 };
@@ -48,6 +76,14 @@ describe('whiteboard layout', () => {
   const [, a, e] = state.items;
   if (a === undefined || e === undefined) throw new Error('fixture');
 
+  it('grows an item down just enough to hold its text, and never shrinks it', () => {
+    expect(grownToHold(a, 37.2)).toEqual({ w: 100, h: 138 });
+    expect(grownToHold(a, 0)).toBeUndefined();
+    // Sub-pixel rounding noise is not overflow.
+    expect(grownToHold(a, 0.4)).toBeUndefined();
+    expect(grownToHold(a, -20)).toBeUndefined();
+  });
+
   it('measures the board around every item', () => {
     expect(boardBounds([])).toBeNull();
     expect(boardBounds(state.items)).toEqual({ x: 0, y: 0, w: 400, h: 300 });
@@ -65,10 +101,37 @@ describe('whiteboard layout', () => {
     });
   });
 
+  it('routes a connector straight, at right angles, or as an S-curve between facing sides', () => {
+    if (a === undefined || e === undefined) throw new Error('expected items');
+    expect(connectorPath(a, e, 'straight')).toEqual({ d: 'M 120 70 L 300 70', mid: { x: 210, y: 70 } });
+    const below = { ...e, x: 400, y: 300 };
+    // Wider apart than tall: leave through the right side, enter through the left.
+    expect(connectorPath(a, below, 'elbow')).toEqual({
+      d: 'M 120 70 L 260 70 L 260 350 L 400 350',
+      mid: { x: 260, y: 210 },
+    });
+    expect(connectorPath(a, below, 'curve')).toEqual({
+      d: 'M 120 70 C 260 70 260 350 400 350',
+      mid: { x: 260, y: 210 },
+    });
+    // Taller apart than wide: bottom side to top side.
+    const under = { ...e, x: 60, y: 400 };
+    expect(connectorPath(a, under, 'elbow').d).toBe('M 70 120 L 70 260 L 110 260 L 110 400');
+  });
+
   it('finds what lies on top under a point', () => {
     expect(itemAt(state, { x: 50, y: 50 })?.id).toBe('a');
     expect(itemAt(state, { x: 50, y: 50 }, 'a')?.id).toBe('frame');
     expect(itemAt(state, { x: 900, y: 50 })).toBeUndefined();
+  });
+
+  it('selects what a dragged-out area touches, but a frame only when it encloses it whole', () => {
+    expect(rectBetween({ x: 50, y: 60 }, { x: 10, y: 0 })).toEqual({ x: 10, y: 0, w: 40, h: 60 });
+    const ids = (rect: { x: number; y: number; w: number; h: number }) =>
+      itemsInRect(state, rect).map((item) => item.id);
+    expect(ids({ x: 100, y: 100, w: 250, h: 10 })).toEqual(['a', 'e']);
+    expect(ids({ x: 500, y: 0, w: 100, h: 100 })).toEqual([]);
+    expect(ids({ x: -10, y: -10, w: 420, h: 320 })).toEqual(['frame', 'a', 'e']);
   });
 
   it('lands a new item on free canvas near where it was asked for', () => {

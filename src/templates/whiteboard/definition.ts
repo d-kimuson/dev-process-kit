@@ -3,6 +3,7 @@ import type { ActionTarget, TemplateDefinition } from '../../core/types';
 
 import { whiteboardActions } from './actions';
 import { applyWhiteboardAction } from './apply';
+import { paintOrder } from './layout';
 import { whiteboardMessages } from './messages';
 import { emptyWhiteboardBase, findConnector, findItem, parseWhiteboardBase, type WhiteboardState } from './model';
 import {
@@ -37,6 +38,8 @@ export const whiteboardDefinitionFor = (locale: Locale): TemplateDefinition<Whit
     emptyBase: emptyWhiteboardBase,
     actions: whiteboardActions,
     apply: applyWhiteboardAction,
+    // Frames are painted first wherever they sit in `items`: only the order the reader sees counts.
+    canonicalState: (state) => ({ ...state, items: paintOrder(state) }),
     hasTarget: whiteboardHasTarget,
     describe: (action, state, base) => describeWhiteboardAction(m, action, state, base),
     serialize: serializeWhiteboardAction,

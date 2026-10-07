@@ -3,7 +3,7 @@
  * leaves and enters its items, and what lies under a point. Everything here is
  * in canvas coordinates.
  */
-import type { WbItem, WhiteboardState } from './model';
+import type { WbConnectorRoute, WbItem, WhiteboardState } from './model';
 
 export type Point = { readonly x: number; readonly y: number };
 export type Rect = { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
@@ -60,8 +60,61 @@ export const connectorGeometry = (from: WbItem, to: WbItem): ConnectorGeometry =
   return { start, end, mid: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 } };
 };
 
+export type ConnectorPath = {
+  /** The SVG path data of the stroke. */
+  readonly d: string;
+  /** Where the label sits: the middle of the stroke. */
+  readonly mid: Point;
+};
+
+const xy = (point: Point): string => `${point.x} ${point.y}`;
+
+/**
+ * The stroke for a route. A straight line runs outline to outline; an elbow
+ * and an S-curve leave and enter through the facing sides (left/right when the
+ * items are further apart across than down, top/bottom otherwise) and turn,
+ * or bend, halfway between them.
+ */
+export const connectorPath = (from: WbItem, to: WbItem, route: WbConnectorRoute): ConnectorPath => {
+  if (route === 'straight') {
+    const { start, end, mid } = connectorGeometry(from, to);
+    return { d: `M ${xy(start)} L ${xy(end)}`, mid };
+  }
+  const a = centerOf(from);
+  const b = centerOf(to);
+  const across = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+  const forward = across ? b.x >= a.x : b.y >= a.y;
+  const side = (item: WbItem, leading: boolean): Point => {
+    const center = centerOf(item);
+    return across
+      ? { x: leading ? item.x + item.w : item.x, y: center.y }
+      : { x: center.x, y: leading ? item.y + item.h : item.y };
+  };
+  const start = side(from, forward);
+  const end = side(to, !forward);
+  const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const bend1 = across ? { x: mid.x, y: start.y } : { x: start.x, y: mid.y };
+  const bend2 = across ? { x: mid.x, y: end.y } : { x: end.x, y: mid.y };
+  const d =
+    route === 'elbow'
+      ? `M ${xy(start)} L ${xy(bend1)} L ${xy(bend2)} L ${xy(end)}`
+      : `M ${xy(start)} C ${xy(bend1)} ${xy(bend2)} ${xy(end)}`;
+  return { d, mid };
+};
+
 const inside = (rect: Rect, point: Point): boolean =>
   point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y && point.y <= rect.y + rect.h;
+
+/**
+ * The size that holds `overflow` more of an item's content: taller by just
+ * that much, the width kept. `undefined` when it already fits.
+ */
+export const grownToHold = (item: Rect, overflow: number): { w: number; h: number } | undefined =>
+  overflow > 0.5 ? { w: item.w, h: Math.ceil(item.h + overflow) } : undefined;
+
+/** The frames whose area holds a point, innermost (smallest) first. */
+export const framesAt = (state: WhiteboardState, point: Point): readonly WbItem[] =>
+  state.items.filter((item) => item.kind === 'frame' && inside(item, point)).sort((a, b) => a.w * a.h - b.w * b.h);
 
 /**
  * The topmost item under a point: anything painted over a frame wins, and of
@@ -82,7 +135,29 @@ export const itemAt = (state: WhiteboardState, point: Point, except?: string): W
   return frame;
 };
 
-const overlaps = (a: Rect, b: Rect, gap: number): boolean =>
+/** The box spanned by two corners, whichever way they were dragged out. */
+export const rectBetween = (a: Point, b: Point): Rect => ({
+  x: Math.min(a.x, b.x),
+  y: Math.min(a.y, b.y),
+  w: Math.abs(a.x - b.x),
+  h: Math.abs(a.y - b.y),
+});
+
+const encloses = (outer: Rect, inner: Rect): boolean =>
+  inner.x >= outer.x &&
+  inner.y >= outer.y &&
+  inner.x + inner.w <= outer.x + outer.w &&
+  inner.y + inner.h <= outer.y + outer.h;
+
+/**
+ * What a dragged-out selection area picks, in `items` order: anything it
+ * touches, but a frame only when the area holds it whole — a frame is the
+ * ground the reader starts the drag on, not a target.
+ */
+export const itemsInRect = (state: WhiteboardState, rect: Rect): readonly WbItem[] =>
+  state.items.filter((item) => (item.kind === 'frame' ? encloses(rect, item) : overlaps(rect, item, 0)));
+
+export const overlaps = (a: Rect, b: Rect, gap: number): boolean =>
   a.x < b.x + b.w + gap && b.x < a.x + a.w + gap && a.y < b.y + b.h + gap && b.y < a.y + a.h + gap;
 
 /**

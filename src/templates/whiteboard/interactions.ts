@@ -88,4 +88,15 @@ export const revealRect = (viewport: Viewport, rect: Rect, view: Size, margin = 
   };
 };
 
+/**
+ * How far to shift a floating bar spanning `start`..`start + length` along one
+ * axis so it stays within `0`..`limit` (with `margin` to spare); when it cannot
+ * fit, its start wins.
+ */
+export const keepInside = (start: number, length: number, limit: number, margin: number): number => {
+  const over = start + length - (limit - margin);
+  const pulled = over > 0 ? -over : 0;
+  return start + pulled < margin ? margin - start : pulled;
+};
+
 export const sameViewport = (a: Viewport, b: Viewport): boolean => a.x === b.x && a.y === b.y && a.zoom === b.zoom;

@@ -12,8 +12,17 @@ export type WbShape = (typeof WB_SHAPES)[number];
 export const WB_ITEM_KINDS = ['sticky', 'text', 'shape', 'frame'] as const;
 export type WbItemKind = (typeof WB_ITEM_KINDS)[number];
 
+/** Text sizes a sticky, a text box or a shape may take; the board scales its own type by each. */
+export const WB_FONT_SIZES = ['small', 'medium', 'large', 'xlarge'] as const;
+export type WbFontSize = (typeof WB_FONT_SIZES)[number];
+export const DEFAULT_FONT_SIZE: WbFontSize = 'medium';
+
 export const WB_CONNECTOR_STYLES = ['arrow', 'line'] as const;
 export type WbConnectorStyle = (typeof WB_CONNECTOR_STYLES)[number];
+
+/** How a connector runs between its items: a straight line, right angles, or an S-curve. */
+export const WB_CONNECTOR_ROUTES = ['straight', 'elbow', 'curve'] as const;
+export type WbConnectorRoute = (typeof WB_CONNECTOR_ROUTES)[number];
 
 /** Smallest box the reader may resize an item to, in canvas units. */
 export const MIN_ITEM_SIZE = 24;
@@ -41,13 +50,19 @@ type Box = {
   readonly h: number;
 };
 
-export type WbSticky = Box & { readonly kind: 'sticky'; readonly text: string; readonly color: WbColor };
-export type WbText = Box & { readonly kind: 'text'; readonly text: string };
+export type WbSticky = Box & {
+  readonly kind: 'sticky';
+  readonly text: string;
+  readonly color: WbColor;
+  readonly fontSize: WbFontSize;
+};
+export type WbText = Box & { readonly kind: 'text'; readonly text: string; readonly fontSize: WbFontSize };
 export type WbShapeItem = Box & {
   readonly kind: 'shape';
   readonly shape: WbShape;
   readonly text: string;
   readonly color: WbColor;
+  readonly fontSize: WbFontSize;
 };
 /** A titled area. Whatever sits inside its box belongs to it, and moves with it. */
 export type WbFrame = Box & { readonly kind: 'frame'; readonly title: string; readonly color: WbColor };
@@ -60,6 +75,7 @@ export type WbConnector = {
   readonly to: string;
   readonly label?: string;
   readonly style: WbConnectorStyle;
+  readonly route: WbConnectorRoute;
 };
 
 export type WhiteboardState = {
@@ -72,6 +88,7 @@ export type WhiteboardState = {
 const coordinate = v.pipe(v.number(), v.finite());
 const size = v.pipe(v.number(), v.finite(), v.minValue(MIN_ITEM_SIZE));
 const color = v.picklist(WB_COLORS);
+const fontSize = v.optional(v.picklist(WB_FONT_SIZES), DEFAULT_FONT_SIZE);
 
 const box = {
   id: entityIdSchema,
@@ -86,6 +103,7 @@ const stickySchema = v.strictObject({
   h: v.optional(size, DEFAULT_SIZE.sticky.h),
   text: v.optional(v.string(), ''),
   color: v.optional(color, DEFAULT_COLOR.sticky),
+  fontSize,
 });
 
 const textSchema = v.strictObject({
@@ -94,6 +112,7 @@ const textSchema = v.strictObject({
   w: v.optional(size, DEFAULT_SIZE.text.w),
   h: v.optional(size, DEFAULT_SIZE.text.h),
   text: v.optional(v.string(), ''),
+  fontSize,
 });
 
 const shapeSchema = v.strictObject({
@@ -104,6 +123,7 @@ const shapeSchema = v.strictObject({
   h: v.optional(size, DEFAULT_SIZE.shape.h),
   text: v.optional(v.string(), ''),
   color: v.optional(color, DEFAULT_COLOR.shape),
+  fontSize,
 });
 
 const frameSchema = v.strictObject({
@@ -125,6 +145,7 @@ const connectorSchema = v.strictObject({
   to: v.pipe(v.string(), v.minLength(1)),
   label: v.exactOptional(v.string()),
   style: v.optional(v.picklist(WB_CONNECTOR_STYLES), 'arrow'),
+  route: v.optional(v.picklist(WB_CONNECTOR_ROUTES), 'straight'),
 });
 
 export const whiteboardBaseSchema = v.strictObject({
@@ -172,6 +193,9 @@ export const allIds = (state: WhiteboardState): string[] => [
 export const itemText = (item: WbItem): string => (item.kind === 'frame' ? item.title : item.text);
 
 export const hasColor = (item: WbItem): item is WbSticky | WbShapeItem | WbFrame => item.kind !== 'text';
+
+/** Everything but a frame carries body text, and so a text size. */
+export const hasFontSize = (item: WbItem): item is WbSticky | WbText | WbShapeItem => item.kind !== 'frame';
 
 /* ----------------------------------------------------------------- frames */
 

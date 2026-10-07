@@ -41,7 +41,7 @@ describe('whiteboard base data', () => {
     expect(findItem(parsed, 'pairing')).toMatchObject({ w: 160, h: 160, color: 'yellow' });
     expect(findItem(parsed, 'goal')).toMatchObject({ shape: 'ellipse', color: 'blue', w: 180, h: 110 });
     expect(findItem(parsed, 'went-well')).toMatchObject({ color: 'gray' });
-    expect(parsed.connectors[0]).toMatchObject({ style: 'arrow', label: 'blocks' });
+    expect(parsed.connectors[0]).toMatchObject({ style: 'arrow', route: 'straight', label: 'blocks' });
   });
 
   it('rejects unknown kinds, fields and dangling or duplicate references', () => {
@@ -104,6 +104,47 @@ describe('whiteboard actions', () => {
     expect(apply(state(), whiteboardAction.setColor('note', 'green'))).toBeNull();
   });
 
+  it('sets the font size of a sticky, a text box or a shape, but a frame title keeps its size', () => {
+    expect(findItem(state(), 'pairing')).toMatchObject({ fontSize: 'medium' });
+    const larger = apply(state(), whiteboardAction.setFontSize('pairing', 'large'));
+    expect(findItem(larger!, 'pairing')).toMatchObject({ fontSize: 'large' });
+    expect(findItem(apply(state(), whiteboardAction.setFontSize('note', 'xlarge'))!, 'note')).toMatchObject({
+      fontSize: 'xlarge',
+    });
+    expect(apply(state(), whiteboardAction.setFontSize('went-well', 'large'))).toBeNull();
+    expect(apply(state(), whiteboardAction.setFontSize('nope', 'large'))).toBeNull();
+    expect(() => parseWhiteboardBase({ items: [{ id: 'a', kind: 'sticky', x: 0, y: 0, fontSize: 'huge' }] })).toThrow();
+  });
+
+  it('reorders an item after an anchor, or to the very back', () => {
+    const ids = (s: WhiteboardState | null) => s?.items.map((item) => item.id);
+    expect(ids(apply(state(), whiteboardAction.reorder('pairing', 'goal')))).toEqual([
+      'went-well',
+      'to-improve',
+      'flaky',
+      'note',
+      'goal',
+      'pairing',
+    ]);
+    expect(ids(apply(state(), whiteboardAction.reorder('goal', null)))).toEqual([
+      'goal',
+      'went-well',
+      'to-improve',
+      'pairing',
+      'flaky',
+      'note',
+    ]);
+    expect(apply(state(), whiteboardAction.reorder('goal', 'nope'))).toBeNull();
+    expect(apply(state(), whiteboardAction.reorder('goal', 'goal'))).toBeNull();
+    expect(apply(state(), whiteboardAction.reorder('nope', null))).toBeNull();
+  });
+
+  it('treats frames as painted first, so a reorder across them changes nothing', () => {
+    const definition = whiteboardDefinitionFor('en');
+    const moved = apply(state(), whiteboardAction.reorder('pairing', null))!;
+    expect(definition.canonicalState?.(moved)).toEqual(definition.canonicalState?.(state()));
+  });
+
   it('deletes an item together with its connectors', () => {
     const next = apply(state(), whiteboardAction.deleteItem('goal'));
     expect(findItem(next!, 'goal')).toBeUndefined();
@@ -118,14 +159,36 @@ describe('whiteboard actions', () => {
       from: 'pairing',
       to: 'flaky',
       style: 'arrow',
+      route: 'straight',
       label: 'helps',
     });
     expect(apply(state(), whiteboardAction.connect('x', 'pairing', 'nope'))).toBeNull();
     expect(apply(state(), whiteboardAction.connect('x', 'pairing', 'pairing'))).toBeNull();
     const relabeled = apply(state(), whiteboardAction.setConnectorLabel('flaky-goal', ''));
-    expect(relabeled?.connectors[0]).toEqual({ id: 'flaky-goal', from: 'flaky', to: 'goal', style: 'arrow' });
+    expect(relabeled?.connectors[0]).toEqual({
+      id: 'flaky-goal',
+      from: 'flaky',
+      to: 'goal',
+      style: 'arrow',
+      route: 'straight',
+    });
     expect(apply(state(), whiteboardAction.deleteConnector('flaky-goal'))?.connectors).toEqual([]);
     expect(apply(state(), whiteboardAction.deleteConnector('nope'))).toBeNull();
+  });
+});
+
+describe('whiteboard connector routes', () => {
+  it('draws a connector straight unless told to bend it', () => {
+    const elbow = apply(state(), whiteboardAction.setConnectorRoute('flaky-goal', 'elbow'));
+    expect(elbow?.connectors[0]).toMatchObject({ route: 'elbow' });
+    expect(apply(state(), whiteboardAction.setConnectorRoute('nope', 'curve'))).toBeNull();
+    expect(
+      parseWhiteboardBase({ ...SAMPLE_BASE, connectors: [{ id: 'c', from: 'flaky', to: 'goal', route: 'curve' }] })
+        .connectors[0],
+    ).toMatchObject({ route: 'curve' });
+    expect(() =>
+      parseWhiteboardBase({ ...SAMPLE_BASE, connectors: [{ id: 'c', from: 'flaky', to: 'goal', route: 'zigzag' }] }),
+    ).toThrow();
   });
 });
 
@@ -161,6 +224,17 @@ describe('whiteboard descriptions', () => {
       targetLabel: 'Ellipse · Ship v1',
     });
     expect(describeOn(whiteboardAction.setColor('flaky', 'pink'))).toMatchObject({ summary: 'Orange → Pink' });
+    expect(describeOn(whiteboardAction.setFontSize('flaky', 'large'))).toMatchObject({
+      title: 'Changed the text size of the sticky note',
+      tone: 'update',
+      summary: 'Medium → Large',
+    });
+    expect(describeOn(whiteboardAction.reorder('pairing', 'goal'))).toMatchObject({
+      title: 'Changed the stacking order of the sticky note',
+      tone: 'move',
+      summary: 'in front of “Ship v1”',
+    });
+    expect(describeOn(whiteboardAction.reorder('goal', null)).summary).toBe('to the very back');
     expect(describeOn(whiteboardAction.deleteItem('flaky'))).toMatchObject({
       title: 'Deleted the sticky note',
       tone: 'delete',
@@ -176,6 +250,11 @@ describe('whiteboard descriptions', () => {
     expect(describeOn(whiteboardAction.setConnectorLabel('flaky-goal', 'delays'))).toMatchObject({
       summary: '“blocks” → “delays”',
       targetLabel: 'Connector · “Flaky CI” → “Ship v1”',
+    });
+    expect(describeOn(whiteboardAction.setConnectorRoute('flaky-goal', 'curve'))).toMatchObject({
+      title: 'Changed the connector line',
+      tone: 'update',
+      summary: 'Straight → Curved',
     });
     expect(describeOn(whiteboardAction.deleteConnector('flaky-goal'))).toMatchObject({
       title: 'Removed the connector',
@@ -207,6 +286,12 @@ describe('whiteboard navigation and comment targets', () => {
     });
   });
 
+  it('keeps every selected item that exists, and a connector only on its own', () => {
+    expect(resolveWhiteboardNavigation(state(), { item: 'pairing,nope,goal' })).toEqual({ item: 'pairing,goal' });
+    expect(resolveWhiteboardNavigation(state(), { item: 'nope,gone' })).toEqual({});
+    expect(resolveWhiteboardNavigation(state(), { item: 'pairing,flaky-goal' })).toEqual({ item: 'pairing' });
+  });
+
   it('lists the board, every item (frames first) and every connector', () => {
     const targets = whiteboardCommentTargets(m, state());
     expect(targets.map((target) => target.value)).toEqual([
@@ -227,5 +312,10 @@ describe('whiteboard navigation and comment targets', () => {
     expect(whiteboardCurrentTarget(m, state(), { item: 'flaky-goal' })?.value).toBe('connector:flaky-goal');
     expect(whiteboardCurrentTarget(m, state(), { frame: 'went-well' })?.value).toBe('item:went-well');
     expect(whiteboardCurrentTarget(m, state(), {})).toBeNull();
+    // Several items selected: a note has no single one to attach to, so it falls back to the frame.
+    expect(whiteboardCurrentTarget(m, state(), { item: 'flaky,goal' })).toBeNull();
+    expect(whiteboardCurrentTarget(m, state(), { item: 'flaky,goal', frame: 'went-well' })?.value).toBe(
+      'item:went-well',
+    );
   });
 });

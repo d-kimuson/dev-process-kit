@@ -1,4 +1,4 @@
-import type { WbColor, WbItemKind, WbShape } from './model';
+import type { WbColor, WbConnectorRoute, WbFontSize, WbItemKind, WbShape } from './model';
 
 import { defineMessages } from '../../core/i18n';
 
@@ -45,11 +45,32 @@ const COLOR_LABEL_JA: Record<WbColor, string> = {
   gray: 'グレー',
 };
 
+const FONT_SIZE_LABEL_EN: Record<WbFontSize, string> = {
+  small: 'Small',
+  medium: 'Medium',
+  large: 'Large',
+  xlarge: 'Extra large',
+};
+const FONT_SIZE_LABEL_JA: Record<WbFontSize, string> = {
+  small: '小',
+  medium: '中',
+  large: '大',
+  xlarge: '特大',
+};
+const ROUTE_LABEL_EN: Record<WbConnectorRoute, string> = { straight: 'Straight', elbow: 'Elbow', curve: 'Curved' };
+const ROUTE_LABEL_JA: Record<WbConnectorRoute, string> = { straight: '直線', elbow: 'カギ線', curve: '曲線' };
+
+/** What a size button shows; its accessible name is the full label. */
+const FONT_SIZE_SHORT: Record<WbFontSize, string> = { small: 'S', medium: 'M', large: 'L', xlarge: 'XL' };
+
 export const whiteboardMessages = defineMessages({
   en: {
     kindLabel: (kind: WbItemKind) => KIND_LABEL_EN[kind],
     shapeLabel: (shape: WbShape) => SHAPE_LABEL_EN[shape],
     colorLabel: (color: WbColor) => COLOR_LABEL_EN[color],
+    fontSizeLabel: (fontSize: WbFontSize) => FONT_SIZE_LABEL_EN[fontSize],
+    fontSizeShort: (fontSize: WbFontSize) => FONT_SIZE_SHORT[fontSize],
+    routeLabel: (route: WbConnectorRoute) => ROUTE_LABEL_EN[route],
     connector: 'Connector',
     board: 'Board',
     wholeBoard: 'Whole board',
@@ -57,7 +78,6 @@ export const whiteboardMessages = defineMessages({
     // ---------------------------------------------------------- canvas
     canvasLabel: 'Whiteboard canvas',
     emptyHint: 'Double-click anywhere to add a sticky note, or pick something from the toolbar.',
-    connectingHint: 'Click the item to connect to. Esc cancels.',
     toolsLabel: 'Add to the board',
     addSticky: 'Sticky note',
     addText: 'Text',
@@ -69,12 +89,19 @@ export const whiteboardMessages = defineMessages({
 
     // ------------------------------------------------- selection toolbar
     selectionLabel: 'Selected item',
+    selectionCount: (count: number) => `${count} items selected`,
     editText: 'Edit text',
     renameFrame: 'Rename frame',
-    connect: 'Connect to another item',
     comment: 'Comment',
     delete: 'Delete',
     colorLabelPrefix: 'Color',
+    fontSizeLabelPrefix: 'Text size',
+    arrangeLabel: 'Stacking order',
+    bringToFront: 'Bring to front',
+    bringForward: 'Bring forward',
+    sendBackward: 'Send backward',
+    sendToBack: 'Send to back',
+    routeLabelPrefix: 'Line',
     labelField: 'Connector label',
     labelPlaceholder: 'Add a label',
     resizeHandle: 'Resize',
@@ -99,9 +126,12 @@ export const whiteboardMessages = defineMessages({
     movedTitle: (kind: WbItemKind) => `Moved the ${KIND_NOUN_EN[kind]}`,
     resizedTitle: (kind: WbItemKind) => `Resized the ${KIND_NOUN_EN[kind]}`,
     recoloredTitle: (kind: WbItemKind) => `Changed the color of the ${KIND_NOUN_EN[kind]}`,
+    resizedTextTitle: (kind: WbItemKind) => `Changed the text size of the ${KIND_NOUN_EN[kind]}`,
+    restackedTitle: (kind: WbItemKind) => `Changed the stacking order of the ${KIND_NOUN_EN[kind]}`,
     deletedTitle: (kind: WbItemKind) => `Deleted the ${KIND_NOUN_EN[kind]}`,
     connectedTitle: 'Connected two items',
     relabeledTitle: 'Relabeled the connector',
+    reroutedTitle: 'Changed the connector line',
     disconnectedTitle: 'Removed the connector',
 
     // ------------------------------------------------- action summaries
@@ -118,6 +148,8 @@ export const whiteboardMessages = defineMessages({
     size: (w: number, h: number) => `${w}×${h}`,
     connection: (from: string, to: string) => `“${from}” → “${to}”`,
     labeled: (label: string) => `labeled “${label}”`,
+    inFrontOf: (text: string) => `in front of “${text}”`,
+    toBack: 'to the very back',
     empty: '(empty)',
     noLabel: '(no label)',
   },
@@ -125,13 +157,15 @@ export const whiteboardMessages = defineMessages({
     kindLabel: (kind: WbItemKind) => KIND_LABEL_JA[kind],
     shapeLabel: (shape: WbShape) => SHAPE_LABEL_JA[shape],
     colorLabel: (color: WbColor) => COLOR_LABEL_JA[color],
+    fontSizeLabel: (fontSize: WbFontSize) => FONT_SIZE_LABEL_JA[fontSize],
+    fontSizeShort: (fontSize: WbFontSize) => FONT_SIZE_SHORT[fontSize],
+    routeLabel: (route: WbConnectorRoute) => ROUTE_LABEL_JA[route],
     connector: 'コネクタ',
     board: 'ボード',
     wholeBoard: 'ボード全体',
 
     canvasLabel: 'ホワイトボード',
     emptyHint: 'ダブルクリックで付箋を置くか、ツールバーから追加します。',
-    connectingHint: 'つなぐ先をクリックしてください。Esc で取り消します。',
     toolsLabel: 'ボードに追加',
     addSticky: '付箋',
     addText: 'テキスト',
@@ -142,12 +176,19 @@ export const whiteboardMessages = defineMessages({
     textPlaceholder: '入力してください',
 
     selectionLabel: '選択中の要素',
+    selectionCount: (count: number) => `${count} 件を選択中`,
     editText: 'テキストを編集',
     renameFrame: 'フレーム名を変更',
-    connect: '別の要素とつなぐ',
     comment: 'コメント',
     delete: '削除',
     colorLabelPrefix: '色',
+    fontSizeLabelPrefix: '文字サイズ',
+    arrangeLabel: '重なり順',
+    bringToFront: '最前面へ',
+    bringForward: '前面へ',
+    sendBackward: '背面へ',
+    sendToBack: '最背面へ',
+    routeLabelPrefix: '線の形',
     labelField: 'コネクタのラベル',
     labelPlaceholder: 'ラベルを追加',
     resizeHandle: 'サイズを変更',
@@ -169,9 +210,12 @@ export const whiteboardMessages = defineMessages({
     movedTitle: (kind: WbItemKind) => `${KIND_LABEL_JA[kind]}を移動`,
     resizedTitle: (kind: WbItemKind) => `${KIND_LABEL_JA[kind]}のサイズを変更`,
     recoloredTitle: (kind: WbItemKind) => `${KIND_LABEL_JA[kind]}の色を変更`,
+    resizedTextTitle: (kind: WbItemKind) => `${KIND_LABEL_JA[kind]}の文字サイズを変更`,
+    restackedTitle: (kind: WbItemKind) => `${KIND_LABEL_JA[kind]}の重なり順を変更`,
     deletedTitle: (kind: WbItemKind) => `${KIND_LABEL_JA[kind]}を削除`,
     connectedTitle: '要素をつないだ',
     relabeledTitle: 'コネクタのラベルを変更',
+    reroutedTitle: 'コネクタの線の形を変更',
     disconnectedTitle: 'コネクタを削除',
 
     arrowTo: (after: string) => `→ 「${after}」`,
@@ -187,6 +231,8 @@ export const whiteboardMessages = defineMessages({
     size: (w: number, h: number) => `${w}×${h}`,
     connection: (from: string, to: string) => `「${from}」→「${to}」`,
     labeled: (label: string) => `ラベル「${label}」`,
+    inFrontOf: (text: string) => `「${text}」の前面へ`,
+    toBack: '最背面へ',
     empty: '（空）',
     noLabel: '（ラベルなし）',
   },

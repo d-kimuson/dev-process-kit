@@ -9,7 +9,17 @@ import {
   type ActionSpecs,
   type TemplateAction,
 } from '../../core/schema';
-import { itemSchema, MIN_ITEM_SIZE, WB_COLORS, WB_CONNECTOR_STYLES, type WbColor } from './model';
+import {
+  itemSchema,
+  MIN_ITEM_SIZE,
+  WB_COLORS,
+  WB_CONNECTOR_ROUTES,
+  WB_CONNECTOR_STYLES,
+  WB_FONT_SIZES,
+  type WbColor,
+  type WbConnectorRoute,
+  type WbFontSize,
+} from './model';
 
 const coordinate = v.pipe(v.number(), v.finite());
 const size = v.pipe(v.number(), v.finite(), v.minValue(MIN_ITEM_SIZE));
@@ -24,6 +34,13 @@ export const whiteboardActions = {
   MOVE_ITEM: defineAction('MOVE_ITEM', 'item', v.object({ x: coordinate, y: coordinate })),
   RESIZE_ITEM: defineAction('RESIZE_ITEM', 'item', v.object({ w: size, h: size })),
   SET_ITEM_COLOR: defineAction('SET_ITEM_COLOR', 'item', v.object({ color: v.picklist(WB_COLORS) })),
+  SET_ITEM_FONT_SIZE: defineAction('SET_ITEM_FONT_SIZE', 'item', v.object({ fontSize: v.picklist(WB_FONT_SIZES) })),
+  /** Stacking order: just in front of the `after` item, or behind everything for `null`. */
+  REORDER_ITEM: defineAction(
+    'REORDER_ITEM',
+    'item',
+    v.object({ after: v.nullable(v.pipe(v.string(), v.minLength(1))) }),
+  ),
   DELETE_ITEM: defineAction('DELETE_ITEM', 'item', v.object({})),
   CONNECT_ITEMS: defineAction(
     'CONNECT_ITEMS',
@@ -34,10 +51,16 @@ export const whiteboardActions = {
       to: v.pipe(v.string(), v.minLength(1)),
       label: v.exactOptional(v.string()),
       style: v.exactOptional(v.picklist(WB_CONNECTOR_STYLES)),
+      route: v.exactOptional(v.picklist(WB_CONNECTOR_ROUTES)),
     }),
     { dedupeKey: entityDedupeKey },
   ),
   SET_CONNECTOR_LABEL: defineAction('SET_CONNECTOR_LABEL', 'connector', v.object({ label: v.string() })),
+  SET_CONNECTOR_ROUTE: defineAction(
+    'SET_CONNECTOR_ROUTE',
+    'connector',
+    v.object({ route: v.picklist(WB_CONNECTOR_ROUTES) }),
+  ),
   DELETE_CONNECTOR: defineAction('DELETE_CONNECTOR', 'connector', v.object({})),
 } satisfies ActionSpecs;
 
@@ -69,6 +92,16 @@ export const whiteboardAction = {
     target: item(id),
     payload: { color },
   }),
+  setFontSize: (id: string, fontSize: WbFontSize): ActionInput => ({
+    type: 'SET_ITEM_FONT_SIZE',
+    target: item(id),
+    payload: { fontSize },
+  }),
+  reorder: (id: string, after: string | null): ActionInput => ({
+    type: 'REORDER_ITEM',
+    target: item(id),
+    payload: { after },
+  }),
   deleteItem: (id: string): ActionInput => ({ type: 'DELETE_ITEM', target: item(id), payload: {} }),
   connect: (id: string, from: string, to: string, label?: string): ActionInput => ({
     type: 'CONNECT_ITEMS',
@@ -79,6 +112,11 @@ export const whiteboardAction = {
     type: 'SET_CONNECTOR_LABEL',
     target: { type: 'connector', id },
     payload: { label },
+  }),
+  setConnectorRoute: (id: string, route: WbConnectorRoute): ActionInput => ({
+    type: 'SET_CONNECTOR_ROUTE',
+    target: { type: 'connector', id },
+    payload: { route },
   }),
   deleteConnector: (id: string): ActionInput => ({
     type: 'DELETE_CONNECTOR',

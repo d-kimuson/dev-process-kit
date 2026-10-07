@@ -33,7 +33,15 @@ export const whiteboardStyles = css`
     box-shadow: inset var(--dpk-focus);
   }
 
-  .wb-canvas--panning {
+  /* Space held (or a pan under way): the whole board, items included, is a handle. */
+  .wb-canvas--pan-ready,
+  .wb-canvas--pan-ready .wb-item,
+  .wb-canvas--pan-ready .wb-frame-title {
+    cursor: grab;
+  }
+
+  .wb-canvas--panning,
+  .wb-canvas--panning .wb-item {
     cursor: grabbing;
   }
 
@@ -46,7 +54,11 @@ export const whiteboardStyles = css`
     cursor: crosshair;
   }
 
+  /* Items are things to pick up, not text to select: a press on the board
+     never starts a text selection. Only the in-place editor takes one. */
   .wb-world {
+    -webkit-user-select: none;
+    user-select: none;
     position: absolute;
     left: 0;
     top: 0;
@@ -80,11 +92,68 @@ export const whiteboardStyles = css`
     overflow-wrap: anywhere;
   }
 
+  /* The in-place editor is a bare field over the item's whole body, typeset
+     exactly like the text it replaces, so starting an edit moves nothing. */
   .wb-editor {
     flex: 1 1 auto;
     display: block;
+    box-sizing: border-box;
+    width: 100%;
     min-width: 0;
-    --dpk-inline-textarea-min-height: 100%;
+    align-self: stretch;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-align: inherit;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    resize: none;
+    overflow: auto;
+    scrollbar-width: none;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  .wb-editor::placeholder {
+    color: currentColor;
+    opacity: 0.45;
+  }
+
+  /* A shape centers its text, so the field grows with the text and stays centered. */
+  .wb-item--shape .wb-editor {
+    align-self: center;
+    max-height: 100%;
+    field-sizing: content;
+  }
+
+  .wb-title-edit {
+    position: relative;
+    display: block;
+  }
+
+  .wb-title-edit > .wb-text {
+    display: block;
+    visibility: hidden;
+    white-space: pre;
+  }
+
+  .wb-title-edit > .wb-text::before {
+    content: attr(data-copy);
+  }
+
+  /* A hair wider than the copy, so the caret at the end never scrolls the text. */
+  .wb-title-edit > .wb-editor {
+    position: absolute;
+    inset: 0 -2px 0 0;
+    width: auto;
+    white-space: nowrap;
+    overflow: hidden;
   }
 
   .wb-item.is-editing {
@@ -117,7 +186,7 @@ export const whiteboardStyles = css`
     border-radius: 3px;
     background: linear-gradient(170deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 45%), var(--wb-paper);
     color: var(--wb-ink);
-    font-size: 15px;
+    font-size: calc(15px * var(--wb-font-scale, 1));
     font-weight: 560;
     line-height: 1.35;
     box-shadow:
@@ -134,7 +203,7 @@ export const whiteboardStyles = css`
   .wb-item--text {
     padding: 4px 6px;
     color: var(--dpk-ink);
-    font-size: 20px;
+    font-size: calc(20px * var(--wb-font-scale, 1));
     font-weight: 650;
     line-height: 1.3;
     letter-spacing: -0.01em;
@@ -147,7 +216,7 @@ export const whiteboardStyles = css`
     border-radius: 8px;
     background: color-mix(in srgb, var(--wb-stroke) 16%, var(--dpk-paper-raised));
     color: var(--dpk-ink);
-    font-size: 14px;
+    font-size: calc(14px * var(--wb-font-scale, 1));
     font-weight: 600;
     line-height: 1.35;
     text-align: center;
@@ -163,13 +232,19 @@ export const whiteboardStyles = css`
     justify-content: center;
   }
 
-  /* Frame: a titled area drawn behind everything; only its title is a handle,
-     so a drag on its empty inside still pans the board. */
+  /* Frame: a titled area drawn behind everything; its title is a handle.
+     A click on its empty inside selects it; a drag there draws a selection
+     area, or moves the frame once it is selected. */
   .wb-item--frame {
     border: 1.5px solid color-mix(in srgb, var(--wb-stroke) 55%, transparent);
     border-radius: 10px;
     background: color-mix(in srgb, var(--wb-stroke) 7%, transparent);
     cursor: default;
+  }
+
+  /* Selected, the whole frame is a handle. */
+  .wb-item--frame.is-selected {
+    cursor: grab;
   }
 
   .wb-frame-title {
@@ -192,7 +267,6 @@ export const whiteboardStyles = css`
   }
 
   .wb-item--frame.is-editing .wb-frame-title {
-    min-width: 160px;
     overflow: visible;
     cursor: text;
   }
@@ -249,6 +323,17 @@ export const whiteboardStyles = css`
     transform: translateY(-50%);
     background: var(--dpk-blue);
     cursor: crosshair;
+  }
+
+  /* A selection area being dragged out, in screen space over the board. */
+  .wb-marquee {
+    position: absolute;
+    z-index: 35;
+    box-sizing: border-box;
+    border: 1px solid var(--dpk-blue);
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--dpk-blue) 10%, transparent);
+    pointer-events: none;
   }
 
   /* ------------------------------------------------------------ connectors */
@@ -444,6 +529,7 @@ export const whiteboardStyles = css`
   /* The floating toolbar over the selection. */
   .wb-toolbar {
     transform: translate(-50%, -100%);
+    translate: var(--wb-nudge-x, 0) var(--wb-nudge-y, 0);
     gap: 2px;
     padding: 4px;
     white-space: nowrap;
@@ -479,6 +565,171 @@ export const whiteboardStyles = css`
     min-width: 120px;
     padding: 0 6px;
     font-size: 12.5px;
+  }
+
+  /* A segmented choice (text size, line shape): a sunken track, the current
+     option raised out of it. */
+  .wb-choice {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-inset);
+  }
+
+  .wb-choice-btn {
+    display: grid;
+    place-items: center;
+    min-width: 28px;
+    height: 24px;
+    padding: 0 6px;
+    border: none;
+    border-radius: var(--dpk-radius-xs);
+    background: transparent;
+    color: var(--dpk-ink-soft);
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease),
+      box-shadow 140ms var(--dpk-ease);
+  }
+
+  .wb-choice-btn--icon {
+    padding: 0;
+  }
+
+  .wb-choice-btn svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+  }
+
+  .wb-choice-btn:hover {
+    color: var(--dpk-ink);
+  }
+
+  .wb-choice-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  .wb-choice-btn[aria-checked='true'] {
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-blue-strong);
+    box-shadow:
+      0 0 0 0.5px var(--dpk-rule),
+      0 1px 2px rgba(15, 23, 42, 0.12);
+  }
+
+  /* Stacking order: a button that drops a menu of named moves. */
+  .wb-menu-anchor {
+    position: relative;
+    display: flex;
+  }
+
+  .wb-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    height: 26px;
+    padding: 0 4px 0 6px;
+    border: none;
+    border-radius: var(--dpk-radius-xs);
+    background: transparent;
+    color: var(--dpk-ink-soft);
+    cursor: pointer;
+  }
+
+  .wb-menu-btn svg {
+    display: block;
+    width: 15px;
+    height: 15px;
+  }
+
+  .wb-menu-btn svg:last-child {
+    width: 11px;
+    height: 11px;
+    opacity: 0.7;
+  }
+
+  .wb-menu-btn:hover,
+  .wb-menu-btn[aria-expanded='true'] {
+    background: var(--dpk-paper-inset);
+    color: var(--dpk-ink);
+  }
+
+  .wb-menu-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  /* Opens toward the toolbar's middle: its button sits near the right end. */
+  .wb-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    padding: 4px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow);
+  }
+
+  .wb-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border: none;
+    border-radius: var(--dpk-radius-xs);
+    background: transparent;
+    color: var(--dpk-ink);
+    font: inherit;
+    font-size: 12.5px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .wb-menu-item svg {
+    flex: none;
+    width: 15px;
+    height: 15px;
+    color: var(--dpk-ink-soft);
+  }
+
+  .wb-menu-item:hover:not([disabled]),
+  .wb-menu-item:focus-visible {
+    outline: none;
+    background: var(--dpk-blue-soft);
+  }
+
+  .wb-menu-item[disabled] {
+    color: var(--dpk-ink-faint);
+    cursor: default;
+  }
+
+  .wb-menu-item[disabled] svg {
+    opacity: 0.5;
+  }
+
+  .wb-menu-label {
+    flex: 1 1 auto;
+  }
+
+  .wb-menu-key {
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
   }
 
   .wb-swatches {

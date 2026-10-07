@@ -6,7 +6,7 @@ import type { WhiteboardMessages } from './messages';
 
 import { createEntityId } from '../../core/target';
 import { freeSpot, type Point } from './layout';
-import { allIds, DEFAULT_COLOR, DEFAULT_SIZE, type WbItem, type WhiteboardState } from './model';
+import { allIds, DEFAULT_COLOR, DEFAULT_FONT_SIZE, DEFAULT_SIZE, type WbItem, type WhiteboardState } from './model';
 
 /** What the toolbar can add. */
 export type NewItemKind = 'sticky' | 'text' | 'rect' | 'ellipse' | 'frame';
@@ -26,12 +26,12 @@ export const newItem = (state: WhiteboardState, m: WhiteboardMessages, kind: New
   const box = { id, x: spot.x, y: spot.y, w, h };
   switch (kind) {
     case 'sticky':
-      return { ...box, kind: 'sticky', text: '', color: DEFAULT_COLOR.sticky };
+      return { ...box, kind: 'sticky', text: '', color: DEFAULT_COLOR.sticky, fontSize: DEFAULT_FONT_SIZE };
     case 'text':
-      return { ...box, kind: 'text', text: '' };
+      return { ...box, kind: 'text', text: '', fontSize: DEFAULT_FONT_SIZE };
     case 'rect':
     case 'ellipse':
-      return { ...box, kind: 'shape', shape: kind, text: '', color: DEFAULT_COLOR.shape };
+      return { ...box, kind: 'shape', shape: kind, text: '', color: DEFAULT_COLOR.shape, fontSize: DEFAULT_FONT_SIZE };
     case 'frame':
       return { ...box, kind: 'frame', title: m.newFrameTitle, color: DEFAULT_COLOR.frame };
   }

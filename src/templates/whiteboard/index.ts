@@ -23,6 +23,8 @@ export {
   frameOf,
   frameMembers,
   WB_COLORS,
+  WB_CONNECTOR_ROUTES,
+  WB_FONT_SIZES,
   WB_SHAPES,
   WB_ITEM_KINDS,
 } from './model';
@@ -35,9 +37,11 @@ export type {
   WbFrame,
   WbConnector,
   WbColor,
+  WbConnectorRoute,
+  WbFontSize,
   WbShape,
   WbItemKind,
 } from './model';
-export { boardBounds, connectorGeometry, itemAt, outlinePoint } from './layout';
+export { boardBounds, connectorGeometry, connectorPath, itemAt, outlinePoint } from './layout';
 export { constrainViewport, fitRect, panBy, zoomAt, ZOOM_MIN, ZOOM_MAX } from './interactions';
 export type { Viewport } from './interactions';
