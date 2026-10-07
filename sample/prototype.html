@@ -587,6 +587,17 @@
         margin: 0;
       }
 
+      /* The body of a received mail: the frame draws the envelope, the page only the message. */
+      .sm-mail {
+        align-content: start;
+        gap: 12px;
+        background: #ffffff;
+      }
+
+      .sm-mail p {
+        margin: 0;
+      }
+
       /* A FAX on the operator's desk: not a screen, so a `plain` preview draws the paper itself. */
       .fax {
         display: grid;
@@ -781,7 +792,19 @@
                       "title": "返金完了のお知らせ",
                       "description": "受付と返金完了は別のメールで届く",
                       "previews": [
-                        { "id": "refund-mail-native", "kind": "native", "viewport": "mobile", "label": "通知" }
+                        { "id": "refund-mail-native", "kind": "native", "viewport": "mobile", "label": "通知" },
+                        {
+                          "id": "refund-mail-message",
+                          "kind": "mail",
+                          "viewport": "mobile",
+                          "label": "メール",
+                          "mail": {
+                            "from": "Sora Market <order@sora-market.example.com>",
+                            "to": "hanako.sato@example.com",
+                            "subject": "【Sora Market】返金が完了しました（注文 SM-0918-0342）",
+                            "date": "2025/09/19 9:41"
+                          }
+                        }
                       ]
                     },
                     {
@@ -1164,7 +1187,7 @@
       <div slot="preview" data-preview-id="refund-mail-native">
         <div class="sm sm-lock">
           <div class="sm-clock">9:41<small>9月19日（金）</small></div>
-          <a class="sm-push" href="#step=refunded-detail" data-dpk-navigate="step=refunded-detail">
+          <a class="sm-push" href="#preview=refund-mail-message" data-dpk-navigate="preview=refund-mail-message">
             <span class="sm-logo">S</span>
             <div>
               <b>メール</b> <small>いま</small>
@@ -1180,6 +1203,22 @@
               <small>返金の手続きを進めています。完了したらあらためてお知らせします。</small>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="refund-mail-message">
+        <div class="sm sm-mail">
+          <p>佐藤 花子 様</p>
+          <p>
+            ご注文 SM-0918-0342
+            のキャンセルにともなう返金が完了しました。カード会社の処理により、明細への反映まで数日かかることがあります。
+          </p>
+          <div class="sm-card">
+            <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
+            <div class="sm-row"><span>返金先</span><span>VISA •••• 4242</span></div>
+          </div>
+          <a class="sm-btn" href="#step=refunded-detail" data-dpk-navigate="step=refunded-detail">注文を確認する</a>
+          <p class="sm-sub">このメールは送信専用です。お問い合わせは注文詳細の「お問い合わせ」からどうぞ。</p>
         </div>
       </div>
 

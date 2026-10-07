@@ -482,6 +482,80 @@ export const prototypeStyles = css`
   }
 
   /*
+   * A mail preview reads as one opened message in a mail client: the subject,
+   * the sender's avatar and the envelope rows, then the body (the light DOM).
+   */
+  .mail-head {
+    display: grid;
+    gap: 12px;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid #e3e6ec;
+    background: #fff;
+    color: #1f2430;
+    color-scheme: light;
+  }
+
+  .mail-subject {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 650;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  .mail-envelope {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .mail-avatar {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, #6b8af5, #3f5fd8);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 650;
+  }
+
+  .mail-meta {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .mail-row {
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .mail-row dt {
+    flex: none;
+    min-width: 3.5em;
+    color: #7a8294;
+  }
+
+  .mail-row dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: #1f2430;
+  }
+
+  .mail-row:first-child dd {
+    font-weight: 600;
+  }
+
+  /*
    * A plain preview is not a screen: no chrome, no bezel, no frame of its own.
    * The light DOM draws the whole object (a memo, a FAX, a paper form) and the
    * canvas is its desk, so it is as tall as its content.

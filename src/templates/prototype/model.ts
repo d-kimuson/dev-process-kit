@@ -3,15 +3,24 @@ import * as v from 'valibot';
 import { entityIdSchema, splitPath } from '../../core/schema';
 
 /**
- * What a preview looks like: a browser window, a phone app, or `plain` — no
- * device at all, for what is not a screen (a handwritten memo, a FAX, a paper
- * form), whose look the light DOM draws itself.
+ * What a preview looks like: a browser window, a phone app, a received e-mail,
+ * or `plain` — no device at all, for what is not a screen (a handwritten memo, a
+ * FAX, a paper form), whose look the light DOM draws itself.
  */
-export const PREVIEW_KINDS = ['browser', 'native', 'plain'] as const;
+export const PREVIEW_KINDS = ['browser', 'native', 'mail', 'plain'] as const;
 export const PREVIEW_VIEWPORTS = ['mobile', 'tablet', 'desktop', 'fluid'] as const;
 
 export type PreviewKind = (typeof PREVIEW_KINDS)[number];
 export type PreviewViewport = (typeof PREVIEW_VIEWPORTS)[number];
+
+/** The envelope a `mail` preview shows above its body. Every field is cosmetic. */
+export type PreviewMail = {
+  readonly from?: string;
+  readonly to?: string;
+  readonly cc?: string;
+  readonly subject?: string;
+  readonly date?: string;
+};
 
 export type PrototypePreview = {
   readonly id: string;
@@ -19,6 +28,8 @@ export type PrototypePreview = {
   readonly viewport: PreviewViewport;
   readonly label?: string;
   readonly url?: string;
+  /** Only for `kind: "mail"`. */
+  readonly mail?: PreviewMail;
 };
 
 export type PrototypeStep = {
@@ -60,13 +71,31 @@ export type PrototypeState = {
   readonly activities: readonly PrototypeActivity[];
 };
 
-const previewSchema = v.strictObject({
+export const previewMailSchema = v.strictObject({
+  from: v.exactOptional(v.string()),
+  to: v.exactOptional(v.string()),
+  cc: v.exactOptional(v.string()),
+  subject: v.exactOptional(v.string()),
+  date: v.exactOptional(v.string()),
+});
+
+/** The fields of a preview, shared by the base and the actions that add one. */
+export const previewEntries = {
   id: entityIdSchema,
   kind: v.optional(v.picklist(PREVIEW_KINDS), 'browser'),
   viewport: v.optional(v.picklist(PREVIEW_VIEWPORTS), 'fluid'),
   label: v.exactOptional(v.string()),
   url: v.exactOptional(v.string()),
-});
+  mail: v.exactOptional(previewMailSchema),
+};
+
+const previewSchema = v.pipe(
+  v.strictObject(previewEntries),
+  v.check(
+    (preview) => preview.mail === undefined || preview.kind === 'mail',
+    'a preview `mail` envelope needs `"kind": "mail"`',
+  ),
+);
 
 const stepSchema = v.strictObject({
   id: entityIdSchema,

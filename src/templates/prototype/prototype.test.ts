@@ -9,6 +9,7 @@ import { prototypeMessages } from './messages';
 import { findStep, parsePrototypeBase, stepRef, type PrototypeState } from './model';
 import {
   describePrototypeAction,
+  prototypeMailHeader,
   prototypePageHeading,
   prototypePreviewUrl,
   resolvePrototypeNavigation,
@@ -122,6 +123,60 @@ describe('prototype base parsing', () => {
       ],
     });
     expect(parsed.activities[0]?.stories[0]?.steps[0]?.previews[0]).toMatchObject({ kind: 'plain' });
+  });
+});
+
+const onePreview = (preview: Record<string, unknown>): unknown => ({
+  activities: [
+    { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', previews: [preview] }] }] },
+  ],
+});
+
+describe('prototype mail preview', () => {
+  it('parses the envelope of a mail preview', () => {
+    const parsed = parsePrototypeBase(
+      onePreview({
+        id: 'm',
+        kind: 'mail',
+        mail: { from: 'Shop <no-reply@shop.example>', to: 'me@example.com', subject: 'Refunded' },
+      }),
+    );
+    expect(parsed.activities[0]?.stories[0]?.steps[0]?.previews[0]).toEqual({
+      id: 'm',
+      kind: 'mail',
+      viewport: 'fluid',
+      mail: { from: 'Shop <no-reply@shop.example>', to: 'me@example.com', subject: 'Refunded' },
+    });
+  });
+
+  it('rejects an envelope on a preview that is not a mail, and unknown envelope keys', () => {
+    expect(() => parsePrototypeBase(onePreview({ id: 'm', kind: 'browser', mail: { subject: 'x' } }))).toThrow(/mail/);
+    expect(() => parsePrototypeBase(onePreview({ id: 'm', kind: 'mail', mail: { title: 'x' } }))).toThrow();
+  });
+
+  it('presents the header rows in mail-client order and only those given', () => {
+    const header = prototypeMailHeader(m, {
+      id: 'm',
+      kind: 'mail',
+      viewport: 'fluid',
+      mail: {
+        from: 'Sora Market <info@sora.example>',
+        to: 'hanako@example.com',
+        date: '2025/09/19 10:02',
+        cc: 'ops@sora.example',
+      },
+    });
+    expect(header.subject).toBeUndefined();
+    expect(header.sender).toBe('Sora Market');
+    expect(header.initial).toBe('S');
+    expect(header.rows).toEqual([
+      { label: m.mailFrom, value: 'Sora Market <info@sora.example>' },
+      { label: m.mailTo, value: 'hanako@example.com' },
+      { label: m.mailCc, value: 'ops@sora.example' },
+      { label: m.mailDate, value: '2025/09/19 10:02' },
+    ]);
+    const bare = prototypeMailHeader(m, { id: 'm', kind: 'mail', viewport: 'fluid' });
+    expect(bare).toEqual({ rows: [] });
   });
 });
 

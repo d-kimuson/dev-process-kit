@@ -7,9 +7,11 @@ import { iconMaximize, iconMinimize } from '../../../core/icons';
 import { flattenSteps, type PreviewViewport, type PrototypePreview, type PrototypeState } from '../model';
 import {
   locatePrototype,
+  prototypeMailHeader,
   prototypePageHeading,
   prototypePreviewUrl,
   prototypeStoryHeading,
+  type MailHeader,
   type PageHeading,
 } from '../present';
 
@@ -93,7 +95,7 @@ export const renderStage = (
         </div>
       </div>
       <div class="canvas">
-        ${active ? renderFrame(context, active, options.hasPreviewContent(active.id)) : nothing}
+        ${active ? renderFrame(context, m, active, options.hasPreviewContent(active.id)) : nothing}
         ${previews.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
       </div>
       ${parked}
@@ -153,6 +155,7 @@ const renderFullscreenToggle = (m: PrototypeMessages, onToggle: () => void): Tem
 
 export const renderFrame = (
   context: TemplateRenderContext<PrototypeState>,
+  m: PrototypeMessages,
   preview: PrototypePreview,
   hasContent: boolean,
 ): TemplateResult => {
@@ -170,7 +173,9 @@ export const renderFrame = (
               <span class="dots"><i></i><i></i><i></i></span>
               <span class="url">${prototypePreviewUrl(context.state, preview)}</span>
             </div>`
-          : nothing
+          : preview.kind === 'mail'
+            ? renderMailHeader(prototypeMailHeader(m, preview))
+            : nothing
       }
       <div class="viewport">
         ${preview.kind === 'native' ? renderStatusBar() : nothing}
@@ -186,6 +191,25 @@ export const renderFrame = (
       </div>
     </figure>
   `;
+};
+
+/** A received message: subject, the sender's avatar and the envelope rows, above the body. */
+const renderMailHeader = (header: MailHeader): TemplateResult => {
+  return html`<header class="mail-head">
+    ${header.subject === undefined ? nothing : html`<h3 class="mail-subject">${header.subject}</h3>`}
+    <div class="mail-envelope">
+      ${header.initial === undefined ? nothing : html`<span class="mail-avatar" aria-hidden="true">${header.initial}</span>`}
+      <dl class="mail-meta">
+        ${header.rows.map(
+          (row) =>
+            html`<div class="mail-row">
+              <dt>${row.label}</dt>
+              <dd>${row.value}</dd>
+            </div>`,
+        )}
+      </dl>
+    </div>
+  </header>`;
 };
 
 const renderStatusBar = (): TemplateResult => {

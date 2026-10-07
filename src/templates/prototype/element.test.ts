@@ -31,6 +31,13 @@ const base = {
             },
             { id: 'auth', name: 'Auth', previews: [{ id: 'auth-native', kind: 'native', viewport: 'mobile' }] },
             { id: 'memo', name: 'Memo', previews: [{ id: 'memo-plain', kind: 'plain' }] },
+            {
+              id: 'mail',
+              name: 'Mail',
+              previews: [
+                { id: 'mail-inbox', kind: 'mail', mail: { from: 'Demo <hi@demo.example>', subject: 'Welcome' } },
+              ],
+            },
           ],
         },
         { id: 'billing', name: 'Billing', steps: [{ id: 'invoice', name: 'Invoice', previews: [] }] },
@@ -70,7 +77,7 @@ describe('<dpk-template-prototype> layout', () => {
     const selects = root.querySelectorAll<HTMLSelectElement>('.nav select');
     expect(selects).toHaveLength(2);
     expect([...selects[1]!.options].map((o) => o.value)).toEqual(['account', 'billing', 'tasks']);
-    expect(root.querySelectorAll('.step-row')).toHaveLength(3);
+    expect(root.querySelectorAll('.step-row')).toHaveLength(4);
     expect(root.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Landing');
     expect(root.querySelectorAll('.detail dpk-component-inline-edit')).toHaveLength(2);
   });
@@ -87,7 +94,12 @@ describe('<dpk-template-prototype> layout', () => {
     expect(frame.querySelector('.frame-placeholder')).toBeNull();
     // every other preview keeps a parked slot
     const parked = [...root.querySelectorAll('.parked slot')].map((slot) => slot.getAttribute('name'));
-    expect(parked).toEqual(['preview:landing-desktop', 'preview:auth-native', 'preview:memo-plain']);
+    expect(parked).toEqual([
+      'preview:landing-desktop',
+      'preview:auth-native',
+      'preview:memo-plain',
+      'preview:mail-inbox',
+    ]);
     // the step without previews says so instead of rendering an empty frame
     el.api.navigate({ story: 'billing', step: 'invoice' });
     await settle(el);
@@ -118,6 +130,18 @@ describe('<dpk-template-prototype> layout', () => {
     expect(frame.querySelector('.status-bar')).not.toBeNull();
     expect(frame.querySelector('.frame-placeholder')?.textContent).toContain('auth-native');
     expect(root.querySelector('.tabs')).toBeNull();
+  });
+
+  it('draws a mail preview as a message: subject and envelope above the body', async () => {
+    const el = mount('#step=mail');
+    await settle(el);
+    const frame = el.shadowRoot!.querySelector('figure.frame')!;
+    expect(frame.getAttribute('data-kind')).toBe('mail');
+    expect(frame.querySelector('.chrome .url')).toBeNull();
+    expect(frame.querySelector('.mail-subject')?.textContent?.trim()).toBe('Welcome');
+    expect([...frame.querySelectorAll('.mail-meta dt')].map((dt) => dt.textContent?.trim())).toEqual([m.mailFrom]);
+    expect(frame.querySelector('.mail-meta dd')?.textContent?.trim()).toBe('Demo <hi@demo.example>');
+    expect(frame.querySelector('.viewport slot')?.getAttribute('name')).toBe('preview:mail-inbox');
   });
 
   it('draws a plain preview without any device chrome', async () => {

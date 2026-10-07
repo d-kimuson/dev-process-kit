@@ -53,10 +53,11 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
 | `steps[].title`            | no       | title of the page the step shows, headed above the frame (e.g. `ユーザー一覧`). Defaults to the step name       |
 | `actor`                    | no       | who uses the page (e.g. `管理者`), on an activity, story or step. The nearest one wins: step › story › activity |
 | `previews[].id`            | yes      | must equal the `data-preview-id` of the light DOM below                                                         |
-| `previews[].kind`          | no       | `browser` (default, address bar), `native` (phone bezel, no address bar) or `plain` (no device: see below)      |
+| `previews[].kind`          | no       | `browser` (default, address bar), `native` (phone bezel), `mail` (a received e-mail) or `plain` (no device)     |
 | `previews[].viewport`      | no       | `mobile` (390px) · `tablet` (834px) · `desktop` (1180px) · `fluid` (default)                                    |
 | `previews[].label`         | no       | caption and tab label; defaults to the viewport name                                                            |
 | `previews[].url`           | no       | overrides the address shown in the browser chrome (cosmetic)                                                    |
+| `previews[].mail`          | no       | `kind: "mail"` only: `{ "from", "to", "cc", "subject", "date" }`, all optional strings, shown above the body    |
 
 Ids use `[A-Za-z0-9_-]+`. An activity id and a preview id are unique across the whole page (a preview id names a light DOM slot), while a story id and a step id are unique within their parent.
 
@@ -70,9 +71,26 @@ Pick the kind from what the user is looking at, not from how you will draw it:
 | -------------------------------------------------------------------------------- | --------- |
 | a web page or web app                                                            | `browser` |
 | a phone app, a push notification, a lock screen                                  | `native`  |
+| an e-mail the user received (or sends)                                           | `mail`    |
 | something that is not a screen: a handwritten memo, a FAX, a paper form, a label | `plain`   |
 
 Do not put a memo or a FAX in a `browser` frame: the address bar tells the reader it is a web page. A `plain` preview has no chrome, no bezel and no background of its own — the light DOM draws the whole object (the paper, its shadow, the handwriting) on the canvas, and the frame is only as tall as that content.
+
+A `mail` preview is one opened message: the frame draws the subject, the sender's avatar and the envelope rows from `mail`, and your light DOM is only the body. Put a mail in a `mail` frame rather than drawing a mail client in a `browser` one, and link its buttons like any other screen:
+
+```json
+{
+  "id": "refund-mail-message",
+  "kind": "mail",
+  "viewport": "mobile",
+  "mail": {
+    "from": "Sora Market <order@sora-market.example.com>",
+    "to": "hanako.sato@example.com",
+    "subject": "【Sora Market】返金が完了しました",
+    "date": "2025/09/19 9:41"
+  }
+}
+```
 
 ## Preview content (light DOM)
 
@@ -126,7 +144,7 @@ A story does not need steps. Declare the stories the UI points to even before th
 | `SET_STORY_DESCRIPTION`    | story    | `{ "description": string }`                                    |
 | `SET_STEP_NAME`            | step     | `{ "name": string }`                                           |
 | `SET_STEP_DESCRIPTION`     | step     | `{ "description": string }`                                    |
-| `SET_PREVIEW_KIND`         | preview  | `{ "kind": "browser" \| "native" \| "plain" }`                 |
+| `SET_PREVIEW_KIND`         | preview  | `{ "kind": "browser" \| "native" \| "mail" \| "plain" }`       |
 | `SET_PREVIEW_VIEWPORT`     | preview  | `{ "viewport": "mobile" \| "tablet" \| "desktop" \| "fluid" }` |
 | `SET_PREVIEW_LABEL`        | preview  | `{ "label": string }`                                          |
 | `REORDER_ACTIVITY`         | activity | `{ "after": string \| null }` (`null` = first)                 |
@@ -137,7 +155,7 @@ A story does not need steps. Declare the stories the UI points to even before th
 | `ADD_ACTIVITY`             | page     | `{ "id", "name", "description"? }`                             |
 | `ADD_STORY`                | activity | `{ "id", "name", "description"? }`                             |
 | `ADD_STEP`                 | story    | `{ "id", "name", "description"?, "previews"? }`                |
-| `ADD_PREVIEW`              | step     | `{ "id", "kind"?, "viewport"?, "label"?, "url"? }`             |
+| `ADD_PREVIEW`              | step     | `{ "id", "kind"?, "viewport"?, "label"?, "url"?, "mail"? }`    |
 | `DELETE_ACTIVITY`          | activity | `{}`                                                           |
 | `DELETE_STORY`             | story    | `{}`                                                           |
 | `DELETE_STEP`              | step     | `{}`                                                           |
@@ -159,11 +177,11 @@ Only `step` is required (`#step=google-auth` resolves the containing activity an
 
 ## UI provided by the template
 
-| Region  | Content                                                                                                                                                                                         |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| sidebar | Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description                                                                             |
-| main    | page head (the `actor` chip and the page `title`), preview tabs (only when the step has more than one preview), a "Full screen" button, plus the frame of the selected preview                  |
-| frame   | browser chrome (traffic dots + address bar); for `native`, a device bezel with a phone status bar and a home indicator; for `plain`, nothing. There is no caption: what you see is the preview. |
+| Region  | Content                                                                                                                                                                                                                               |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| sidebar | Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description                                                                                                                   |
+| main    | page head (the `actor` chip and the page `title`), preview tabs (only when the step has more than one preview), a "Full screen" button, plus the frame of the selected preview                                                        |
+| frame   | browser chrome (traffic dots + address bar); for `native`, a device bezel with a phone status bar and a home indicator; for `mail`, the subject and envelope; for `plain`, nothing. There is no caption: what you see is the preview. |
 
 Frames are sized by content, not by a fixed height: the viewport has a per-kind minimum height (mobile 620 · tablet 640 · desktop 520 · fluid 420) and grows with the mock, so a preview never scrolls inside its own frame — the page main column scrolls instead. A `plain` preview has no minimum: it is exactly as tall as what it draws. The author wrapper element is stretched to fill the frame, so a mock can rely on being at least as tall as that minimum without using a percentage height.
 

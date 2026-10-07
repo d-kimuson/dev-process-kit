@@ -53,6 +53,10 @@ export const prototypeMessages = defineMessages({
     fullscreen: 'Full screen',
     exitFullscreen: 'Exit full screen',
     fullscreenHint: 'Show the preview alone · Esc to leave',
+    mailFrom: 'From',
+    mailTo: 'To',
+    mailCc: 'Cc',
+    mailDate: 'Date',
   },
   ja: {
     renameActivity: 'Activity 名を変更',
@@ -101,6 +105,10 @@ export const prototypeMessages = defineMessages({
     fullscreen: '全画面表示',
     exitFullscreen: '全画面を終了',
     fullscreenHint: 'プレビューだけを表示 · Esc で戻る',
+    mailFrom: '差出人',
+    mailTo: '宛先',
+    mailCc: 'Cc',
+    mailDate: '日時',
   },
 });
 

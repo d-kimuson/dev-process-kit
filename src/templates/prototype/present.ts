@@ -237,6 +237,40 @@ export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePre
   return `${origin.replace(/\/+$/, '')}/${preview.id}`;
 };
 
+export type MailHeader = {
+  readonly subject?: string;
+  /** The sender's display name (`Shop <a@b>` -> `Shop`), shown next to the avatar. */
+  readonly sender?: string;
+  /** First letter of the sender, drawn as the avatar. */
+  readonly initial?: string;
+  readonly rows: readonly { readonly label: string; readonly value: string }[];
+};
+
+/** The envelope of a `mail` preview in the order a mail client shows it, without empty rows. */
+export const prototypeMailHeader = (m: PrototypeMessages, preview: PrototypePreview): MailHeader => {
+  const mail = preview.mail ?? {};
+  const rows = [
+    { label: m.mailFrom, value: mail.from },
+    { label: m.mailTo, value: mail.to },
+    { label: m.mailCc, value: mail.cc },
+    { label: m.mailDate, value: mail.date },
+  ].flatMap((row) =>
+    row.value === undefined || row.value.trim() === '' ? [] : [{ label: row.label, value: row.value }],
+  );
+  const sender =
+    mail.from
+      ?.replace(/<[^>]*>/g, '')
+      .replace(/["']/g, '')
+      .trim() || mail.from?.trim();
+  const initial = sender ? Array.from(sender)[0]?.toUpperCase() : undefined;
+  return {
+    ...(mail.subject === undefined || mail.subject.trim() === '' ? {} : { subject: mail.subject }),
+    ...(sender ? { sender } : {}),
+    ...(initial === undefined ? {} : { initial }),
+    rows,
+  };
+};
+
 export const prototypeCommentTargets = (
   m: PrototypeMessages,
   state: PrototypeState,
