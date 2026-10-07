@@ -393,6 +393,61 @@ export const prototypeStyles = css`
   }
 
   /*
+   * Side by side: what the user sees together, in one row. A fixed viewport
+   * keeps its width as long as the row allows it, a fluid one takes the rest;
+   * a row wider than the canvas scrolls sideways instead of squeezing a device.
+   */
+  .panes {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 28px;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .pane {
+    display: grid;
+    gap: 8px;
+    flex: 0 1 var(--pane-width);
+    min-width: min(var(--pane-width), 300px);
+  }
+
+  .pane[data-viewport='mobile'] {
+    --pane-width: 390px;
+  }
+
+  .pane[data-viewport='tablet'] {
+    --pane-width: 834px;
+  }
+
+  .pane[data-viewport='desktop'] {
+    --pane-width: 1180px;
+  }
+
+  .pane[data-viewport='fluid'] {
+    flex: 1 1 0;
+    min-width: 280px;
+  }
+
+  .pane .frame {
+    width: 100%;
+  }
+
+  .pane-label {
+    justify-self: start;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--dpk-ink-soft);
+  }
+
+  /*
    * Full screen: the page head, the tabs and the canvas fill the screen. The
    * canvas scrolls instead of the page, and a browser preview is at least as tall
    * as the screen allows; a phone keeps its device shape.

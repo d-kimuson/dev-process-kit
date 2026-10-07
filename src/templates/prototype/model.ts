@@ -9,9 +9,16 @@ import { entityIdSchema, splitPath } from '../../core/schema';
  */
 export const PREVIEW_KINDS = ['browser', 'native', 'mail', 'plain'] as const;
 export const PREVIEW_VIEWPORTS = ['mobile', 'tablet', 'desktop', 'fluid'] as const;
+/**
+ * How a step shows several previews: `tabs` — alternatives of the same moment,
+ * one at a time (mobile / desktop) — or `side-by-side` — things the user sees
+ * together (the memo in hand next to the screen).
+ */
+export const PREVIEW_LAYOUTS = ['tabs', 'side-by-side'] as const;
 
 export type PreviewKind = (typeof PREVIEW_KINDS)[number];
 export type PreviewViewport = (typeof PREVIEW_VIEWPORTS)[number];
+export type PreviewLayout = (typeof PREVIEW_LAYOUTS)[number];
 
 /** The envelope a `mail` preview shows above its body. Every field is cosmetic. */
 export type PreviewMail = {
@@ -45,6 +52,8 @@ export type PrototypeStep = {
    * the customer`. Shown just above them.
    */
   readonly situation?: string;
+  /** How several previews are shown. Defaults to `tabs`. */
+  readonly layout?: PreviewLayout;
   readonly previews: readonly PrototypePreview[];
 };
 
@@ -109,6 +118,7 @@ const stepSchema = v.strictObject({
   title: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   situation: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  layout: v.exactOptional(v.picklist(PREVIEW_LAYOUTS)),
   previews: v.optional(v.array(previewSchema), []),
 });
 

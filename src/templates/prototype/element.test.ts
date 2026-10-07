@@ -43,6 +43,15 @@ const base = {
                 { id: 'mail-inbox', kind: 'mail', mail: { from: 'Demo <hi@demo.example>', subject: 'Welcome' } },
               ],
             },
+            {
+              id: 'desk',
+              name: 'Desk',
+              layout: 'side-by-side',
+              previews: [
+                { id: 'desk-memo', kind: 'plain', label: 'Memo in hand' },
+                { id: 'desk-screen', viewport: 'desktop' },
+              ],
+            },
           ],
         },
         { id: 'billing', name: 'Billing', steps: [{ id: 'invoice', name: 'Invoice', previews: [] }] },
@@ -82,7 +91,7 @@ describe('<dpk-template-prototype> layout', () => {
     const selects = root.querySelectorAll<HTMLSelectElement>('.nav select');
     expect(selects).toHaveLength(2);
     expect([...selects[1]!.options].map((o) => o.value)).toEqual(['account', 'billing', 'tasks']);
-    expect(root.querySelectorAll('.step-row')).toHaveLength(4);
+    expect(root.querySelectorAll('.step-row')).toHaveLength(5);
     expect(root.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Landing');
     expect(root.querySelectorAll('.detail dpk-component-inline-edit')).toHaveLength(2);
   });
@@ -104,6 +113,8 @@ describe('<dpk-template-prototype> layout', () => {
       'preview:auth-native',
       'preview:memo-plain',
       'preview:mail-inbox',
+      'preview:desk-memo',
+      'preview:desk-screen',
     ]);
     // the step without previews says so instead of rendering an empty frame
     el.api.navigate({ story: 'billing', step: 'invoice' });
@@ -163,6 +174,26 @@ describe('<dpk-template-prototype> layout', () => {
     el.api.navigate({ step: 'landing' });
     await settle(el);
     expect(root.querySelector('.stage .situation')).toBeNull();
+  });
+
+  it('lays the previews of a side-by-side step out next to each other', async () => {
+    const el = mount('#step=desk');
+    await settle(el);
+    const root = el.shadowRoot!;
+    expect(root.querySelector('.tabs')).toBeNull();
+    const panes = [...root.querySelectorAll('.canvas .pane')];
+    expect(panes.map((pane) => pane.querySelector('figure.frame slot')?.getAttribute('name'))).toEqual([
+      'preview:desk-memo',
+      'preview:desk-screen',
+    ]);
+    expect(root.querySelector('.canvas')?.getAttribute('data-layout')).toBe('side-by-side');
+    // a label captions its pane; a pane without one has no caption
+    expect(panes[0]?.querySelector('.pane-label')?.textContent?.trim()).toBe('Memo in hand');
+    expect(panes[1]?.querySelector('.pane-label')).toBeNull();
+    // nothing on screen is parked
+    const parked = [...root.querySelectorAll('.parked slot')].map((slot) => slot.getAttribute('name'));
+    expect(parked).not.toContain('preview:desk-memo');
+    expect(parked).not.toContain('preview:desk-screen');
   });
 
   it('draws a plain preview without any device chrome', async () => {

@@ -19,8 +19,10 @@ import {
   stepRef,
   stepRefOf,
   storyRef,
+  type PreviewLayout,
   type PrototypeActivity,
   type PrototypePreview,
+  type PrototypeStep,
   type PrototypeState,
   type PrototypeStory,
   type StepLocation,
@@ -237,6 +239,28 @@ export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePre
   return `${origin.replace(/\/+$/, '')}/${preview.id}`;
 };
 
+export type StageFrames = {
+  readonly layout: PreviewLayout;
+  /** The previews on screen: the selected tab, or every preview side by side. */
+  readonly shown: readonly PrototypePreview[];
+  /** The tabs to switch between; empty when there is nothing to switch. */
+  readonly tabs: readonly PrototypePreview[];
+  /** The selected tab. */
+  readonly activeId?: string;
+};
+
+/** Which previews of a step are on screen, and whether tabs switch between them. */
+export const prototypeStageFrames = (step: PrototypeStep, nav: Navigation): StageFrames => {
+  if (step.layout === 'side-by-side') return { layout: 'side-by-side', shown: step.previews, tabs: [] };
+  const active = step.previews.find((preview) => preview.id === nav['preview']) ?? step.previews[0];
+  return {
+    layout: 'tabs',
+    shown: active ? [active] : [],
+    tabs: step.previews.length > 1 ? step.previews : [],
+    ...(active ? { activeId: active.id } : {}),
+  };
+};
+
 export type MailHeader = {
   readonly subject?: string;
   /** The sender's display name (`Shop <a@b>` -> `Shop`), shown next to the avatar. */
@@ -387,10 +411,13 @@ export const resolvePrototypeNavigation = (state: PrototypeState, nav: Navigatio
   else delete next['step'];
   // The preview tab is navigation state too: it must be shareable and survive
   // back/forward, so it lives in the hash and falls back to the first preview.
+  // Side by side, every preview is on screen at once: there is no tab to keep.
   const preview =
-    step && nav['preview'] && step.previews.some((entry) => entry.id === nav['preview'])
-      ? nav['preview']
-      : step?.previews[0]?.id;
+    step?.layout === 'side-by-side'
+      ? undefined
+      : step && nav['preview'] && step.previews.some((entry) => entry.id === nav['preview'])
+        ? nav['preview']
+        : step?.previews[0]?.id;
   if (preview) next['preview'] = preview;
   else delete next['preview'];
   return next;

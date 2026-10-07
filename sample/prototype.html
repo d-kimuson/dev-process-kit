@@ -598,6 +598,37 @@
         margin: 0;
       }
 
+      /* A sticky note next to the admin screen: drawn by the page, framed by nothing. */
+      .sticky {
+        display: grid;
+        justify-items: center;
+        padding: 6px 0;
+      }
+
+      .sticky-note {
+        width: min(260px, 100%);
+        padding: 16px 18px 20px;
+        background: #fff3a8;
+        color: #3a3320;
+        font-family: 'Klee One', 'Yomogi', 'Comic Sans MS', cursive;
+        font-size: 13.5px;
+        line-height: 1.7;
+        box-shadow:
+          0 1px 1px rgba(0, 0, 0, 0.08),
+          0 10px 18px rgba(80, 60, 0, 0.18);
+        transform: rotate(1.2deg);
+      }
+
+      .sticky-note ul {
+        margin: 8px 0;
+        padding-left: 1.1em;
+      }
+
+      .sticky-note p {
+        margin: 0;
+        font-weight: 600;
+      }
+
       /* A FAX on the operator's desk: not a screen, so a `plain` preview draws the paper itself. */
       .fax {
         display: grid;
@@ -925,10 +956,19 @@
                       "name": "失敗が続く返金を調べる",
                       "title": "返金の詳細",
                       "description": "失敗が続いたときの扱いは未決。ここでは「返金待ち」のまま残し、運営が照会と連絡をする案で描いた",
+                      "situation": "FAX を手元に置き、決済代行のサポートに電話で照会しながら管理画面で試行の履歴を確かめる",
+                      "layout": "side-by-side",
                       "previews": [
+                        {
+                          "id": "admin-refund-stuck-memo",
+                          "kind": "plain",
+                          "viewport": "fluid",
+                          "label": "手元のメモ"
+                        },
                         {
                           "id": "admin-refund-stuck-desktop",
                           "viewport": "desktop",
+                          "label": "管理画面",
                           "url": "https://admin.sora-market.example.com/refunds/SM-0915-0288"
                         }
                       ]
@@ -1533,6 +1573,20 @@
               </tbody>
             </table>
             <p class="fax-note">ご不明点は管理画面の「返金照会」またはお電話にてお問い合わせください。</p>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="admin-refund-stuck-memo">
+        <div class="sticky">
+          <div class="sticky-note">
+            <b>9/19 ソラペイ 電話</b>
+            <ul>
+              <li>SM-0915-0288 → カード会社側で保留</li>
+              <li>再送は止めてほしい（二重返金の恐れ）</li>
+              <li>結果は 9/22 までに FAX で</li>
+            </ul>
+            <p>→ 購入者に連絡する？</p>
           </div>
         </div>
       </div>

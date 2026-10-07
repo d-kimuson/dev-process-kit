@@ -53,10 +53,11 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
 | `steps[].title`            | no       | title of the page the step shows, headed above the frame (e.g. `ユーザー一覧`). Defaults to the step name       |
 | `actor`                    | no       | who uses the page (e.g. `管理者`), on an activity, story or step. The nearest one wins: step › story › activity |
 | `steps[].situation`        | no       | what is going on around the screen (e.g. `朝 8 時、店舗の FAX に注文書が届く`), shown just above the previews   |
+| `steps[].layout`           | no       | `tabs` (default: one preview at a time) or `side-by-side` (every preview at once, in one row)                   |
 | `previews[].id`            | yes      | must equal the `data-preview-id` of the light DOM below                                                         |
 | `previews[].kind`          | no       | `browser` (default, address bar), `native` (phone bezel), `mail` (a received e-mail) or `plain` (no device)     |
 | `previews[].viewport`      | no       | `mobile` (390px) · `tablet` (834px) · `desktop` (1180px) · `fluid` (default)                                    |
-| `previews[].label`         | no       | caption and tab label; defaults to the viewport name                                                            |
+| `previews[].label`         | no       | tab label (defaults to the viewport name), or the caption of a side-by-side pane                                |
 | `previews[].url`           | no       | overrides the address shown in the browser chrome (cosmetic)                                                    |
 | `previews[].mail`          | no       | `kind: "mail"` only: `{ "from", "to", "cc", "subject", "date" }`, all optional strings, shown above the body    |
 
@@ -174,7 +175,7 @@ A story does not need steps. Declare the stories the UI points to even before th
 #activity=onboarding&preview=google-auth-mobile&step=google-auth&story=account
 ```
 
-Only `step` is required (`#step=google-auth` resolves the containing activity and story); `#story=account` alone opens the first step of that story, or the story itself when it has none. `preview` is the selected preview tab of that step; it is navigation state, so it lives in the hash and is shareable like everything else, and an unknown id falls back to the first preview.
+Only `step` is required (`#step=google-auth` resolves the containing activity and story); `#story=account` alone opens the first step of that story, or the story itself when it has none. `preview` is the selected preview tab of that step (absent for a `side-by-side` step); it is navigation state, so it lives in the hash and is shareable like everything else, and an unknown id falls back to the first preview.
 
 ## UI provided by the template
 
@@ -200,6 +201,27 @@ https://app.kumoma.example.com/signin        # preview.url, resolved against bas
 ```
 
 `preview.url` wins, then `${baseUrl}/${preview.id}`, then the placeholder domain derived from `title`. A `baseUrl` without a scheme gets `https://` prepended.
+
+### Several previews: tabs or side by side
+
+A step with several previews shows them in one of two ways, chosen by `layout`:
+
+- `tabs` (default) — **alternatives of the same moment**: the mobile and the desktop version of one page. The reader sees one at a time and switches with the tabs.
+- `side-by-side` — **things the user has in front of them at the same time**: the memo in hand next to the screen, the FAX next to the admin page, two windows. Every preview is on screen at once, in one row, each with its own `kind` and `viewport`, captioned by its `label`.
+
+```json
+{
+  "id": "admin-refund-stuck",
+  "name": "失敗が続く返金を調べる",
+  "layout": "side-by-side",
+  "previews": [
+    { "id": "admin-refund-stuck-memo", "kind": "plain", "label": "手元のメモ" },
+    { "id": "admin-refund-stuck-desktop", "viewport": "desktop", "label": "管理画面" }
+  ]
+}
+```
+
+A fixed viewport keeps its width while the row has room and a `fluid` one takes what is left; a row wider than the canvas scrolls sideways (or use full screen). Side by side there is no tab, so the hash carries no `preview`.
 
 ### Situation
 

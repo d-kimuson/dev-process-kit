@@ -10,6 +10,7 @@ import {
   prototypeMailHeader,
   prototypePageHeading,
   prototypePreviewUrl,
+  prototypeStageFrames,
   prototypeStoryHeading,
   type MailHeader,
   type PageHeading,
@@ -43,7 +44,7 @@ export type StageOptions = {
   readonly onToggleFullscreen: () => void;
 };
 
-/** Tabs (when a step has several previews), the active frame and the parked slots. */
+/** Tabs or panes (when a step has several previews), the frames on screen and the parked slots. */
 export const renderStage = (
   context: TemplateRenderContext<PrototypeState>,
   m: PrototypeMessages,
@@ -52,10 +53,8 @@ export const renderStage = (
   const { state, navigation } = context;
   const located = locatePrototype(state, navigation);
   const location = located?.kind === 'step' ? located : undefined;
-  const active = location
-    ? (location.step.previews.find((preview) => preview.id === navigation['preview']) ?? location.step.previews[0])
-    : undefined;
-  const parked = renderParkedPreviews(state, active?.id);
+  const frames = location ? prototypeStageFrames(location.step, navigation) : undefined;
+  const parked = renderParkedPreviews(state, frames?.shown.map((preview) => preview.id) ?? []);
 
   if (located?.kind === 'story') {
     // A story nothing has prototyped yet is still a destination: a mock links
@@ -84,20 +83,32 @@ export const renderStage = (
     `;
   }
 
-  const previews = location.step.previews;
+  const { layout, shown, tabs, activeId } = frames ?? prototypeStageFrames(location.step, navigation);
   return html`
     <div class="stage">
       <div class="stage-bar">
         ${renderPageHead(m, prototypePageHeading(location))}
         <div class="stage-tools">
-          ${previews.length > 1 ? renderPreviewTabs(context, previews, active?.id) : nothing}
-          ${active !== undefined && options.canFullscreen ? renderFullscreenToggle(m, options.onToggleFullscreen) : nothing}
+          ${tabs.length > 0 ? renderPreviewTabs(context, tabs, activeId) : nothing}
+          ${shown.length > 0 && options.canFullscreen ? renderFullscreenToggle(m, options.onToggleFullscreen) : nothing}
         </div>
       </div>
       ${location.step.situation === undefined ? nothing : renderSituation(m, location.step.situation)}
-      <div class="canvas">
-        ${active ? renderFrame(context, m, active, options.hasPreviewContent(active.id)) : nothing}
-        ${previews.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
+      <div class="canvas" data-layout=${layout}>
+        ${
+          layout === 'side-by-side'
+            ? html`<div class="panes">
+                ${shown.map(
+                  (preview) =>
+                    html`<div class="pane" data-viewport=${preview.viewport}>
+                      ${preview.label === undefined ? nothing : html`<span class="pane-label">${preview.label}</span>`}
+                      ${renderFrame(context, m, preview, options.hasPreviewContent(preview.id))}
+                    </div>`,
+                )}
+              </div>`
+            : shown.map((preview) => renderFrame(context, m, preview, options.hasPreviewContent(preview.id)))
+        }
+        ${shown.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
       </div>
       ${parked}
     </div>
@@ -250,9 +261,9 @@ const renderStatusBar = (): TemplateResult => {
  * this shadow root, otherwise its light DOM element would fall back to the
  * generic `slot="preview"` bucket and show up as an orphan.
  */
-export const renderParkedPreviews = (state: PrototypeState, activePreviewId: string | undefined): TemplateResult => {
+export const renderParkedPreviews = (state: PrototypeState, shownIds: readonly string[]): TemplateResult => {
   const parked = flattenSteps(state).flatMap((entry) =>
-    entry.step.previews.filter((preview) => preview.id !== activePreviewId),
+    entry.step.previews.filter((preview) => !shownIds.includes(preview.id)),
   );
   if (parked.length === 0) return html`${nothing}`;
   return html`<div class="parked" aria-hidden="true">

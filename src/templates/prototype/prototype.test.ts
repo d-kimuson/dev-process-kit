@@ -11,6 +11,7 @@ import {
   describePrototypeAction,
   prototypeMailHeader,
   prototypePageHeading,
+  prototypeStageFrames,
   prototypePreviewUrl,
   resolvePrototypeNavigation,
   serializePrototypeAction,
@@ -143,6 +144,60 @@ describe('prototype situation', () => {
       'A FAX arrives',
     );
     expect(() => parsePrototypeBase(withSituation(''))).toThrow();
+  });
+});
+
+describe('prototype stage frames', () => {
+  const step = (layout?: 'tabs' | 'side-by-side'): PrototypeState =>
+    parsePrototypeBase({
+      activities: [
+        {
+          id: 'a',
+          name: 'A',
+          stories: [
+            {
+              id: 's',
+              name: 'S',
+              steps: [
+                {
+                  id: 'x',
+                  name: 'X',
+                  ...(layout === undefined ? {} : { layout }),
+                  previews: [
+                    { id: 'memo', kind: 'plain', label: 'Memo' },
+                    { id: 'screen', viewport: 'desktop' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  const xOf = (s: PrototypeState) => findStep(s, 'x')!.step;
+
+  it('shows one preview at a time as tabs by default', () => {
+    const frames = prototypeStageFrames(xOf(step()), { step: 'x', preview: 'screen' });
+    expect(frames.layout).toBe('tabs');
+    expect(frames.shown.map((preview) => preview.id)).toEqual(['screen']);
+    expect(frames.tabs.map((preview) => preview.id)).toEqual(['memo', 'screen']);
+    expect(frames.activeId).toBe('screen');
+    // an unknown tab falls back to the first preview
+    expect(prototypeStageFrames(xOf(step()), { preview: 'nope' }).activeId).toBe('memo');
+  });
+
+  it('puts every preview side by side, with no tabs to switch', () => {
+    const frames = prototypeStageFrames(xOf(step('side-by-side')), { step: 'x', preview: 'screen' });
+    expect(frames.layout).toBe('side-by-side');
+    expect(frames.shown.map((preview) => preview.id)).toEqual(['memo', 'screen']);
+    expect(frames.tabs).toEqual([]);
+    expect(frames.activeId).toBeUndefined();
+  });
+
+  it('keeps no preview tab in the hash of a side-by-side step', () => {
+    const nav = resolvePrototypeNavigation(step('side-by-side'), { step: 'x', preview: 'screen' });
+    expect(nav).toEqual({ activity: 'a', story: 's', step: 'x' });
+    expect(resolvePrototypeNavigation(step(), { step: 'x', preview: 'screen' })['preview']).toBe('screen');
   });
 });
 
