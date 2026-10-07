@@ -9,6 +9,7 @@ import { prototypeMessages } from './messages';
 import { findStep, parsePrototypeBase, stepRef, type PrototypeState } from './model';
 import {
   describePrototypeAction,
+  prototypeLinkProblem,
   prototypeMailHeader,
   prototypePageHeading,
   prototypeStageFrames,
@@ -131,6 +132,36 @@ const onePreview = (preview: Record<string, unknown>): unknown => ({
   activities: [
     { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', previews: [preview] }] }] },
   ],
+});
+
+describe('prototype preview links', () => {
+  const link = (navigate: string | null, href: string | null = null) =>
+    prototypeLinkProblem(state(), { href, navigate });
+
+  it('accepts a link to a step, a story, an activity or a preview the page has', () => {
+    expect(link('step=b')).toBeNull();
+    expect(link('b')).toBeNull();
+    expect(link('story=profile')).toBeNull();
+    expect(link('story=onboarding.profile')).toBeNull();
+    expect(link('activity=daily&story=notes')).toBeNull();
+    expect(link('preview=a-mobile')).toBeNull();
+    expect(link(null, '#step=c')).toBeNull();
+    expect(link(null, 'https://example.com/help')).toBeNull();
+  });
+
+  it('flags a link that names no destination', () => {
+    expect(link(null, null)).toBe('no-destination');
+    expect(link(null, '#')).toBe('no-destination');
+    expect(link(null, '')).toBe('no-destination');
+    expect(link(null, 'javascript:void(0)')).toBe('no-destination');
+  });
+
+  it('flags a link to something the page does not have', () => {
+    expect(link('step=nope')).toBe('unknown-target');
+    expect(link('story=billing')).toBe('unknown-target');
+    expect(link('foo=bar')).toBe('unknown-target');
+    expect(link(null, '#step=nope')).toBe('unknown-target');
+  });
 });
 
 describe('prototype situation', () => {

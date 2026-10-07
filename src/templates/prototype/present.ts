@@ -9,6 +9,7 @@ import type {
 import type { PrototypeMessages } from './messages';
 
 import { commentBody } from '../../core/comment';
+import { parseHash } from '../../core/navigation';
 import { payloadFor, type ActionName } from '../../core/schema';
 import { slugify, targetRef } from '../../core/target';
 import { prototypeActions } from './actions';
@@ -17,6 +18,7 @@ import {
   findPreview,
   findStep,
   findStory,
+  flattenSteps,
   stepRef,
   stepRefOf,
   storyRef,
@@ -312,6 +314,52 @@ export const prototypeStageFrames = (step: PrototypeStep, nav: Navigation): Stag
     tabs: step.previews.length > 1 ? step.previews : [],
     ...(active ? { activeId: active.id } : {}),
   };
+};
+
+/** Why a link in a preview leads nowhere: it names no destination, or one the page does not have. */
+export type LinkProblem = 'no-destination' | 'unknown-target';
+
+const NAVIGATION_KEYS = ['activity', 'story', 'step', 'preview'] as const;
+
+const destinationExists = (state: PrototypeState, key: (typeof NAVIGATION_KEYS)[number], id: string): boolean => {
+  switch (key) {
+    case 'activity':
+      return findActivity(state, id) !== undefined;
+    case 'story':
+      // A bare id two activities share still resolves: the current activity wins.
+      return (
+        findStory(state, id) !== undefined ||
+        state.activities.some((activity) => activity.stories.some((story) => story.id === id))
+      );
+    case 'step':
+      return findStep(state, id) !== undefined || flattenSteps(state).some((location) => location.step.id === id);
+    case 'preview':
+      return findPreview(state, id) !== undefined;
+    default:
+      return false;
+  }
+};
+
+/**
+ * Checks a link of a preview against the page: `data-dpk-navigate` first, then
+ * an `href` hash. `null` when it goes somewhere (an external URL counts).
+ */
+export const prototypeLinkProblem = (
+  state: PrototypeState,
+  link: { readonly href: string | null; readonly navigate: string | null },
+): LinkProblem | null => {
+  let target: string;
+  if (link.navigate !== null) target = link.navigate.includes('=') ? link.navigate : `step=${link.navigate}`;
+  else {
+    const href = link.href?.trim() ?? '';
+    if (href === '' || href === '#' || href.toLowerCase().startsWith('javascript:')) return 'no-destination';
+    if (!href.startsWith('#')) return null;
+    target = href;
+  }
+  const navigation = parseHash(target);
+  const keys = NAVIGATION_KEYS.filter((key) => navigation[key] !== undefined);
+  if (keys.length === 0) return link.navigate === null ? null : 'unknown-target';
+  return keys.every((key) => destinationExists(state, key, navigation[key] ?? '')) ? null : 'unknown-target';
 };
 
 export type MailHeader = {

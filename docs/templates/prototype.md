@@ -11,6 +11,14 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
 - Definition name: `prototype`
 - Accent token: `--dpk-blue`
 
+Check before you hand the page over:
+
+- [ ] **Every link leads somewhere** — primary actions to the next step, list rows to a detail step, and every item of a sidebar, menu or tab bar to the step or user story behind it ([Wire every link](#wire-every-link-required)). The console warns about the ones that do not.
+- [ ] Each preview has the `kind` of what the user is looking at: `plain` for a memo, a FAX or paper, `mail` for an e-mail ([Choosing the kind](#choosing-the-kind)).
+- [ ] What is seen together is `side-by-side`; only alternatives are tabs ([Several previews](#several-previews-tabs-or-side-by-side)).
+- [ ] A step whose when / where / why is not obvious has a `situation` ([Situation](#situation)).
+- [ ] Steps are named as verb phrases ([Step naming](#step-naming)).
+
 ## Base data
 
 ```json
@@ -106,9 +114,9 @@ The prototype itself is authored by you, in the light DOM, so your CSS, JS, `loc
 
 `slot="preview"` plus `data-preview-id` is the whole contract: the framework re-points the element to the frame slot of that preview id, and an element whose id is unknown to the base is reported in the "previews without metadata" area instead of silently disappearing.
 
-### Prototype-internal navigation
+### Wire every link (required)
 
-Step flow inside your own mock is plain navigation, not a draft action:
+A prototype is **clicked through**, not looked at. The reader judges the flow by clicking what looks clickable, so every link, button, menu item, tab and list row in a preview must lead somewhere. A sidebar item that does nothing reads as a dead end — or as a feature that does not exist. Wiring is plain navigation, not a draft action: add `data-dpk-navigate` (and the same hash in `href` on an `<a>`):
 
 ```html
 <a href="#step=google-auth-done" data-dpk-navigate="step=google-auth-done">続行</a>
@@ -117,24 +125,41 @@ Step flow inside your own mock is plain navigation, not a draft action:
 
 `data-dpk-navigate` accepts the same `key=value&key2=value2` syntax as the hash, and the framework resolves the activity/story automatically while keeping the URL canonical.
 
-### Linking the UI back to its user story
+Pick the destination by what the element is:
 
-A step links to the next screen of its own flow. Shared UI — a global menu, a tab bar, a "see all" link — instead leads to the **user story** behind it. Link it with `story=` so the reader can follow the UI back to the story it serves:
+| Element in the mock                                                           | Leads to                                    | Write                                      |
+| ----------------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------ |
+| the primary action of the screen (続行, 保存, 注文を確定する)                 | the next step of the same story             | `data-dpk-navigate="step=<next step>"`     |
+| back / cancel / a breadcrumb                                                  | the step it returns to                      | `data-dpk-navigate="step=<that step>"`     |
+| a row of a list, a card, "詳細"                                               | the detail step (one drawn example is fine) | `data-dpk-navigate="step=<detail step>"`   |
+| shared UI: sidebar, global menu, tab bar, header links, "すべて見る"          | the **user story** the destination serves   | `data-dpk-navigate="story=<story>"`        |
+| a notification, a mail button, a link in a FAX — anything that opens a screen | that screen's step                          | `data-dpk-navigate="step=<step>"`          |
+| switching to another preview of the same step (e.g. the mail behind a push)   | that preview                                | `data-dpk-navigate="preview=<preview id>"` |
+
+Shared UI is the case that is easiest to forget: link **every** item of a sidebar or menu, including the current page and the pages nobody has drawn yet. This is a complete sidebar of an admin screen:
 
 ```html
-<nav>
-  <a href="#story=tasks" data-dpk-navigate="story=tasks">タスク一覧</a>
-  <a href="#story=reports" data-dpk-navigate="story=reports">レポート</a>
+<nav class="side">
+  <a href="#step=admin-orders" data-dpk-navigate="step=admin-orders" aria-current="page">注文</a>
+  <a href="#step=admin-refunds" data-dpk-navigate="step=admin-refunds">返金</a>
+  <a href="#story=inventory" data-dpk-navigate="story=inventory">在庫</a>
+  <a href="#story=inquiries" data-dpk-navigate="story=inquiries">お問い合わせ</a>
 </nav>
 ```
 
 `story=` lands on the first step of that story (a bare id is looked up in the current activity first, then across the page; `activity.story` is always unambiguous). Naming a level drops the deeper ones: `story=` forgets the current step, `activity=` the current story.
 
-A story does not need steps. Declare the stories the UI points to even before they are prototyped — the link then shows the story's name and description with a note that nothing is drawn yet — rather than leaving the menu item dead:
+A story does not need steps. **Declare a story for every place the UI points to**, even before it is prototyped — the link then shows the story's name and description with a note that nothing is drawn yet — rather than leaving the menu item dead:
 
 ```json
-{ "id": "tasks", "name": "タスク一覧を確認する", "description": "自分に割り当てられたタスクを期限順に見る" }
+{
+  "id": "inventory",
+  "name": "在庫の残りを確かめる",
+  "description": "引当が解除された在庫が販売可能数に戻ったかを確かめる"
+}
 ```
+
+Leave an element inert only when it changes nothing but the screen itself (a toggle, an input) or ends the flow. Never write `href="#"` or an `<a>` without a destination. When the page loads, the template checks the links of every preview and warns on the console about each one that names no destination or a step, story, activity or preview the page does not have.
 
 ## Action vocabulary
 

@@ -269,6 +269,28 @@ describe('<dpk-template-prototype> layout', () => {
     );
   });
 
+  it('warns once on the console about links in the previews that lead nowhere', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    window.location.hash = '';
+    document.body.innerHTML = `
+      <dpk-template-prototype storage="memory">
+        <script type="application/json">${JSON.stringify(base)}</script>
+        <div slot="preview" data-preview-id="landing-mobile">
+          <a href="#">Home</a><a data-dpk-navigate="step=nope">Next</a><a data-dpk-navigate="story=billing">Billing</a>
+        </div>
+      </dpk-template-prototype>`;
+    const el = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    await settle(el);
+    el.api.navigate({ step: 'auth' });
+    await settle(el);
+    const warnings = warn.mock.calls.map((call) => String(call[0])).filter((text) => text.includes('lead nowhere'));
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('2 link(s)');
+    expect(warnings[0]).toContain('landing-mobile: <a> "Home" → # (no-destination)');
+    expect(warnings[0]).toContain('landing-mobile: <a> "Next" → step=nope (unknown-target)');
+    warn.mockRestore();
+  });
+
   describe('comment on UI', () => {
     const withMock = async (): Promise<DpkTemplatePrototype> => {
       const el = mount('#step=landing');

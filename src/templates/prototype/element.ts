@@ -12,7 +12,13 @@ import { findLocated, locateElement, pickableElement } from '../../lib/dom/locat
 import { prototypeDefinitionFor } from './definition';
 import { prototypeMessages } from './messages';
 import { findPreview, uiTargetId, UI_TARGET, type PrototypeState, type UiTarget } from './model';
-import { locatePrototype, prototypeStageFrames, prototypeUiCommentPins, prototypeUiTargetName } from './present';
+import {
+  locatePrototype,
+  prototypeLinkProblem,
+  prototypeStageFrames,
+  prototypeUiCommentPins,
+  prototypeUiTargetName,
+} from './present';
 import { renderNav } from './render/nav';
 import { renderStage } from './render/stage';
 import { prototypeStyles } from './styles';
@@ -50,6 +56,7 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   /** Ids of the previews on screen at the last render. */
   #shownIds: readonly string[] = [];
   readonly #popovers = new PopoverController(this);
+  #linksChecked = false;
 
   protected override definitionFor(locale: Locale) {
     return prototypeDefinitionFor(locale);
@@ -93,6 +100,7 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
 
   protected override updated(): void {
     super.updated();
+    this.#checkLinks();
     const mode = this.#uiComment;
     // The step changed under an open composer: its element is no longer on screen.
     if (mode.kind === 'composing' && !this.#shownIds.includes(mode.target.previewId)) {
@@ -249,6 +257,38 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
 
   #previewElement(previewId: string): Element | undefined {
     return Array.from(this.children).find((child) => child.getAttribute('data-preview-id') === previewId);
+  }
+
+  /**
+   * A prototype is clicked through: a link that leads nowhere reads as a dead
+   * end to the reader. Reported once, on the console, for the author.
+   */
+  #checkLinks(): void {
+    if (this.#linksChecked || this.renderRoot.querySelector('.stage') === null) return;
+    this.#linksChecked = true;
+    const state = this.derivation.state;
+    const problems: string[] = [];
+    for (const wrapper of Array.from(this.children)) {
+      const previewId = wrapper.getAttribute('data-preview-id');
+      if (previewId === null) continue;
+      for (const link of wrapper.querySelectorAll('a, [data-dpk-navigate]')) {
+        const problem = prototypeLinkProblem(state, {
+          href: link.getAttribute('href'),
+          navigate: link.getAttribute('data-dpk-navigate'),
+        });
+        if (problem === null) continue;
+        const text = (link.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
+        const where = link.getAttribute('data-dpk-navigate') ?? link.getAttribute('href') ?? '(no href)';
+        problems.push(`  ${previewId}: <${link.tagName.toLowerCase()}> "${text}" → ${where} (${problem})`);
+      }
+    }
+    if (problems.length === 0) return;
+    console.warn(
+      `[dev-process-kit] <dpk-template-prototype>: ${problems.length} link(s) in the previews lead nowhere. ` +
+        'Point each at the step it leads to (data-dpk-navigate="step=…") or the user story it serves ' +
+        '(data-dpk-navigate="story=…"):\n' +
+        problems.join('\n'),
+    );
   }
 
   // ---------------------------------------------------------------- full screen
