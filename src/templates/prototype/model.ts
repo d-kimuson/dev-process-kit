@@ -40,6 +40,11 @@ export type PrototypeStep = {
   readonly title?: string;
   /** Who uses the page, e.g. `Administrator`. Overrides the story's and activity's. */
   readonly actor?: string;
+  /**
+   * What is going on around the previews, e.g. `The clerk receives a FAX from
+   * the customer`. Shown just above them.
+   */
+  readonly situation?: string;
   readonly previews: readonly PrototypePreview[];
 };
 
@@ -103,6 +108,7 @@ const stepSchema = v.strictObject({
   description: v.exactOptional(v.string()),
   title: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  situation: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   previews: v.optional(v.array(previewSchema), []),
 });
 

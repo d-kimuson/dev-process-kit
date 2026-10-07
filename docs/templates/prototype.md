@@ -52,6 +52,7 @@ UX prototypes: `Activity › UserStory › Step › Preview[]`.
 | `steps[].id` / `name`      | yes      | `description` optional                                                                                          |
 | `steps[].title`            | no       | title of the page the step shows, headed above the frame (e.g. `ユーザー一覧`). Defaults to the step name       |
 | `actor`                    | no       | who uses the page (e.g. `管理者`), on an activity, story or step. The nearest one wins: step › story › activity |
+| `steps[].situation`        | no       | what is going on around the screen (e.g. `朝 8 時、店舗の FAX に注文書が届く`), shown just above the previews   |
 | `previews[].id`            | yes      | must equal the `data-preview-id` of the light DOM below                                                         |
 | `previews[].kind`          | no       | `browser` (default, address bar), `native` (phone bezel), `mail` (a received e-mail) or `plain` (no device)     |
 | `previews[].viewport`      | no       | `mobile` (390px) · `tablet` (834px) · `desktop` (1180px) · `fluid` (default)                                    |
@@ -187,7 +188,7 @@ Frames are sized by content, not by a fixed height: the viewport has a per-kind 
 
 **Full screen** shows the page head, the preview tabs and the frame alone on the whole screen; the canvas scrolls instead of the page, and a browser preview is at least as tall as the screen. The same button (or `Esc`) leaves. The button is hidden where the browser does not allow full screen (for example a sandboxed frame).
 
-The UI edits step name/description, adds steps, and comments. Adding previews, deleting previews, reordering steps and switching a preview's kind or viewport are deliberately not UI affordances: an empty frame or a reordered flow is a structural change, so it goes through the agent as natural language. A preview's `label` only names its tab, so it is edited through a draft action too. A step's `title` and the `actor` are base data with no draft action; a reviewer asks for a change with a comment on the step.
+The UI edits step name/description, adds steps, and comments. Adding previews, deleting previews, reordering steps and switching a preview's kind or viewport are deliberately not UI affordances: an empty frame or a reordered flow is a structural change, so it goes through the agent as natural language. A preview's `label` only names its tab, so it is edited through a draft action too. A step's `title` and `situation` and the `actor` are base data with no draft action; a reviewer asks for a change with a comment on the step.
 
 ### Preview address
 
@@ -199,6 +200,10 @@ https://app.kumoma.example.com/signin        # preview.url, resolved against bas
 ```
 
 `preview.url` wins, then `${baseUrl}/${preview.id}`, then the placeholder domain derived from `title`. A `baseUrl` without a scheme gets `https://` prepended.
+
+### Situation
+
+A screen alone does not say when, where or why the user is looking at it. Write that in `situation`, one or two sentences, whenever it is not obvious from the flow: `朝 8 時、事務所の FAX に決済代行から 1 枚届く`, `レジ待ちの列で、片手でスマホを操作している`. It is shown just above the previews as a stage direction, and the reader comments on it like any other part of the step. Keep what the UI does in the preview and what the step is for in `description`.
 
 ### Step naming
 

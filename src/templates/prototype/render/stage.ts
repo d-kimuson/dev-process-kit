@@ -94,6 +94,7 @@ export const renderStage = (
           ${active !== undefined && options.canFullscreen ? renderFullscreenToggle(m, options.onToggleFullscreen) : nothing}
         </div>
       </div>
+      ${location.step.situation === undefined ? nothing : renderSituation(m, location.step.situation)}
       <div class="canvas">
         ${active ? renderFrame(context, m, active, options.hasPreviewContent(active.id)) : nothing}
         ${previews.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
@@ -119,6 +120,14 @@ const renderPageHead = (m: PrototypeMessages, heading: PageHeading): TemplateRes
     }
     <h2 class="page-title">${heading.title}</h2>
   </div>`;
+};
+
+/** The scene around the previews, read just before looking at them. */
+const renderSituation = (m: PrototypeMessages, situation: string): TemplateResult => {
+  return html`<aside class="situation">
+    <span class="situation-label">${m.situation}</span>
+    <p class="situation-text">${situation}</p>
+  </aside>`;
 };
 
 const renderPreviewTabs = (

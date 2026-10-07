@@ -343,6 +343,38 @@ export const prototypeStyles = css`
     white-space: pre-wrap;
   }
 
+  /* -------------------------------------------------------------- situation */
+
+  /* What is going on around the previews: a stage direction, read before them. */
+  .situation {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    max-width: 90ch;
+    margin: -4px 0 -2px;
+    padding: 9px 14px;
+    border-left: 3px solid color-mix(in srgb, var(--dpk-prototype-accent) 55%, transparent);
+    border-radius: 0 var(--dpk-radius) var(--dpk-radius) 0;
+    background: color-mix(in srgb, var(--dpk-prototype-accent) 6%, var(--dpk-paper-raised));
+  }
+
+  .situation-label {
+    flex: none;
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    color: var(--dpk-prototype-accent);
+  }
+
+  .situation-text {
+    margin: 0;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--dpk-ink);
+    white-space: pre-line;
+  }
+
   /* ----------------------------------------------------------------- canvas */
 
   /*
@@ -370,6 +402,10 @@ export const prototypeStyles = css`
     padding: 16px 20px 20px;
     background: var(--dpk-paper);
     overflow: hidden;
+  }
+
+  .stage:fullscreen:has(> .situation) {
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
 
   .stage:fullscreen .canvas {

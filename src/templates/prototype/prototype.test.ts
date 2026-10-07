@@ -132,6 +132,20 @@ const onePreview = (preview: Record<string, unknown>): unknown => ({
   ],
 });
 
+describe('prototype situation', () => {
+  it('keeps the situation of a step and rejects an empty one', () => {
+    const withSituation = (situation: string): unknown => ({
+      activities: [
+        { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', situation }] }] },
+      ],
+    });
+    expect(parsePrototypeBase(withSituation('A FAX arrives')).activities[0]?.stories[0]?.steps[0]?.situation).toBe(
+      'A FAX arrives',
+    );
+    expect(() => parsePrototypeBase(withSituation(''))).toThrow();
+  });
+});
+
 describe('prototype mail preview', () => {
   it('parses the envelope of a mail preview', () => {
     const parsed = parsePrototypeBase(

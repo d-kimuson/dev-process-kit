@@ -30,7 +30,12 @@ const base = {
               ],
             },
             { id: 'auth', name: 'Auth', previews: [{ id: 'auth-native', kind: 'native', viewport: 'mobile' }] },
-            { id: 'memo', name: 'Memo', previews: [{ id: 'memo-plain', kind: 'plain' }] },
+            {
+              id: 'memo',
+              name: 'Memo',
+              situation: 'The clerk receives a FAX.\nIt is 8 am.',
+              previews: [{ id: 'memo-plain', kind: 'plain' }],
+            },
             {
               id: 'mail',
               name: 'Mail',
@@ -142,6 +147,22 @@ describe('<dpk-template-prototype> layout', () => {
     expect([...frame.querySelectorAll('.mail-meta dt')].map((dt) => dt.textContent?.trim())).toEqual([m.mailFrom]);
     expect(frame.querySelector('.mail-meta dd')?.textContent?.trim()).toBe('Demo <hi@demo.example>');
     expect(frame.querySelector('.viewport slot')?.getAttribute('name')).toBe('preview:mail-inbox');
+  });
+
+  it('describes the situation of the scene just above the preview', async () => {
+    const el = mount('#step=memo');
+    await settle(el);
+    const root = el.shadowRoot!;
+    const situation = root.querySelector('.stage .situation')!;
+    expect(situation.querySelector('.situation-label')?.textContent?.trim()).toBe(m.situation);
+    expect(situation.querySelector('.situation-text')?.textContent).toBe('The clerk receives a FAX.\nIt is 8 am.');
+    // between the page head and the canvas
+    expect(situation.previousElementSibling?.classList.contains('stage-bar')).toBe(true);
+    expect(situation.nextElementSibling?.classList.contains('canvas')).toBe(true);
+    // a step without one has no empty box
+    el.api.navigate({ step: 'landing' });
+    await settle(el);
+    expect(root.querySelector('.stage .situation')).toBeNull();
   });
 
   it('draws a plain preview without any device chrome', async () => {
