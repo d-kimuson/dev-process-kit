@@ -33,4 +33,5 @@ Humans have little context and do not read long text well.
 | An explanation walked through step by step | `slides`                         |
 | Where a task shared with the user stands   | `task-board`                     |
 | Who decides what, between you and the user | `delegation-poker`               |
+| Loose ideas to group, cluster and connect  | `whiteboard`                     |
 | Anything else                              | `plain`, with diagram components |

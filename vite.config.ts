@@ -24,6 +24,7 @@ const ENTRIES = {
   'templates/slides': 'src/entries/slides.ts',
   'templates/task-board': 'src/entries/task-board.ts',
   'templates/delegation-poker': 'src/entries/delegation-poker.ts',
+  'templates/whiteboard': 'src/entries/whiteboard.ts',
 } as const satisfies Record<string, string>;
 
 // `exports` in package.json is the same list seen from a bundler; keep the two from drifting.
