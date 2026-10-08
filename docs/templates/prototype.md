@@ -202,13 +202,13 @@ Leave an element inert only when it changes nothing but the screen itself (a tog
 #activity=onboarding&preview=google-auth-mobile&step=google-auth&story=account
 ```
 
-Only `step` is required (`#step=google-auth` resolves the containing activity and story); `#story=account` alone opens the first step of that story, or the story itself when it has none. `preview` is the selected preview tab of that step (absent for a `side-by-side` step); it is navigation state, so it lives in the hash and is shareable like everything else, and an unknown id falls back to the first preview.
+Only `step` is required (`#step=google-auth` resolves the containing activity and story); `#story=account` alone opens the first step of that story, or the story itself when it has none. `preview` is the selected preview tab of that step (absent for a `side-by-side` step); it is navigation state, so it lives in the hash and is shareable like everything else, and an unknown id falls back to the first preview. `view=app` opens the [app view](#scenario-and-app-views); the scenario view is the default and leaves no `view` in the hash.
 
 ## UI provided by the template
 
 | Region  | Content                                                                                                                                                                                                                                            |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| sidebar | Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description                                                                                                                                |
+| sidebar | the Scenario / App switch, then — in the scenario view — Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description; in the app view, the app's screens grouped by actor                  |
 | main    | page head (the `actor` chip and the page `title`), preview tabs (only for several previews in `tabs` layout), "Comment on UI" and "Maximize" buttons, the step's `situation`, plus the frame of the selected preview — or every frame side by side |
 | frame   | browser chrome (traffic dots + address bar); for `native`, a device bezel with a phone status bar and a home indicator; for `mail`, the subject and envelope; for `plain`, nothing. Only a side-by-side pane has a caption (its `label`).          |
 
@@ -217,6 +217,15 @@ Frames are sized by content, not by a fixed height: the viewport has a per-kind 
 **Maximize** fills the browser tab with the page head, the preview tabs and the frame alone, the way a diagram's maximize does (it is not the browser's full screen mode); the canvas scrolls instead of the page, and a browser preview is at least as tall as the tab. The same button ("Restore size") or `Esc` restores it. "Comment on UI" works while maximized as well; there `Esc` ends commenting first and a second `Esc` restores. The button is shown whenever the step has a preview.
 
 The UI edits step name/description, adds steps, and comments — on a step, or on any element of a preview (see below). Adding previews, deleting previews, reordering steps and switching a preview's kind or viewport are deliberately not UI affordances: an empty frame or a reordered flow is a structural change, so it goes through the agent as natural language. A preview's `label` only names its tab, so it is edited through a draft action too. A step's `title` and `situation` and the `actor` are base data with no draft action; a reviewer asks for a change with a comment on the step.
+
+### Scenario and app views
+
+The switch at the top of the sidebar picks how the reader goes through the prototype:
+
+- **Scenario** (default) follows one user story: the Activity and UserStory selects, the story's steps in order, and each step's `situation`.
+- **App** uses the UI as one app, whatever the scenario. The sidebar lists the app's screens grouped by `actor`; the steps that show the same page `title` to the same actor are one screen, opened at its first step in page order (a step without previews is left out). The reader picks a screen to start from and moves around through the mock's own links, which keep the app view. The stage shows the page alone, without the `situation`.
+
+The app view needs nothing more from you than [wired links](#wire-every-link-required) and a `title` per page: give the steps that show the same page the same `title`, and the screen list reads like the app's own menu.
 
 ### Commenting on the UI
 

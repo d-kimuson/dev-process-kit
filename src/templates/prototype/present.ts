@@ -33,6 +33,7 @@ import {
   parseUiTargetId,
   UI_TARGET,
 } from './model';
+import { VIEW_KEY } from './view-mode';
 
 type Summary = {
   readonly title: string;
@@ -521,5 +522,61 @@ export const resolvePrototypeNavigation = (state: PrototypeState, nav: Navigatio
         : step?.previews[0]?.id;
   if (preview) next['preview'] = preview;
   else delete next['preview'];
+  // Only the app view is written: the scenario view is the default.
+  if (next[VIEW_KEY] !== 'app') delete next[VIEW_KEY];
   return next;
+};
+
+/** One screen of the app: the steps that show the same page to the same actor. */
+export type AppScreen = {
+  readonly title: string;
+  /** Where the screen opens: its first step in page order. */
+  readonly opensAt: StepLocation;
+  /** Every step showing this screen, so the one on stage marks it current. */
+  readonly stepRefs: readonly string[];
+  /** The previews of those steps, whose UI comments count for the screen. */
+  readonly previewIds: readonly string[];
+};
+
+export type AppScreenGroup = {
+  /** Who uses these screens; absent for the screens no level names an actor for. */
+  readonly actor?: string;
+  readonly screens: readonly AppScreen[];
+};
+
+/**
+ * The app view's sidebar: the screens of the whole prototype, grouped by who
+ * uses them, whatever story they appear in. A page several steps show (the
+ * order list in its states) is one screen, opened at its first step; the
+ * mock's links reach the others.
+ */
+export const prototypeAppScreens = (state: PrototypeState): readonly AppScreenGroup[] => {
+  const groups = new Map<string, { actor?: string; screens: Map<string, AppScreen> }>();
+  for (const location of flattenSteps(state)) {
+    if (location.step.previews.length === 0) continue;
+    const heading = prototypePageHeading(location);
+    const groupKey = heading.actor ?? '';
+    const group = groups.get(groupKey) ?? {
+      ...(heading.actor === undefined ? {} : { actor: heading.actor }),
+      screens: new Map<string, AppScreen>(),
+    };
+    groups.set(groupKey, group);
+    const screen = group.screens.get(heading.title);
+    const ref = stepRef(location);
+    const previewIds = location.step.previews.map((preview) => preview.id);
+    group.screens.set(
+      heading.title,
+      screen === undefined
+        ? { title: heading.title, opensAt: location, stepRefs: [ref], previewIds }
+        : {
+            ...screen,
+            stepRefs: [...screen.stepRefs, ref],
+            previewIds: [...screen.previewIds, ...previewIds],
+          },
+    );
+  }
+  return [...groups.values()].map((group) => ({
+    ...(group.actor === undefined ? {} : { actor: group.actor }),
+    screens: [...group.screens.values()],
+  }));
 };

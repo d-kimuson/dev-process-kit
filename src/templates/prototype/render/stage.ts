@@ -15,6 +15,7 @@ import {
   type MailHeader,
   type PageHeading,
 } from '../present';
+import { prototypeViewOf } from '../view-mode';
 import {
   renderUiCommentHint,
   renderUiCommentLayer,
@@ -128,7 +129,12 @@ export const renderStage = (
           ${shown.length > 0 ? renderMaximizeToggle(m, maximized !== null, options.onToggleMaximize) : nothing}
         </div>
       </div>
-      ${location.step.situation === undefined ? nothing : renderSituation(m, location.step.situation)}
+      ${
+        // The situation belongs to the scenario: the app view is the UI alone.
+        location.step.situation === undefined || prototypeViewOf(navigation) === 'app'
+          ? nothing
+          : renderSituation(m, location.step.situation)
+      }
       ${renderUiCommentHint(m, ui)}
       <div
         class="canvas"

@@ -42,6 +42,14 @@ export const prototypeMessages = defineMessages({
     descriptionLabel: 'Description',
     descriptionPlaceholder: 'What happens in this Step (click to edit)',
     newStepName: 'New step',
+    viewLabel: 'View',
+    viewScenario: 'Scenario',
+    viewApp: 'App',
+    viewScenarioHint: 'Follow one user story step by step',
+    viewAppHint: 'Use the UI as one app, whatever the scenario',
+    appScreens: 'Screens',
+    appScreensHint: 'Pick a screen to start from, then move around through the UI itself.',
+    appNoActor: 'Anyone',
 
     // ----------------------------------------------------------------- stage
     noStepBefore: 'There are no Steps yet. A Prototype has the meaning structure ',
@@ -100,6 +108,14 @@ export const prototypeMessages = defineMessages({
     descriptionLabel: '説明',
     descriptionPlaceholder: 'この Step で何が起きるか（クリックして編集）',
     newStepName: '新しいステップ',
+    viewLabel: '表示',
+    viewScenario: 'シナリオ',
+    viewApp: 'アプリ',
+    viewScenarioHint: 'ユーザーストーリーに沿って Step を順にたどる',
+    viewAppHint: 'シナリオに関係なく、UI を 1 つのアプリとして触る',
+    appScreens: '画面',
+    appScreensHint: '起点にする画面を選び、あとは UI のリンクで移動します。',
+    appNoActor: '利用者の指定なし',
 
     noStepBefore: 'Step がまだありません。Prototype は ',
     noStepAfter:

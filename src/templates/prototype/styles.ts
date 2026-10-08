@@ -22,6 +22,73 @@ export const prototypeStyles = css`
     gap: 5px;
   }
 
+  /* Scenario or app: a segmented control at the top of the sidebar. */
+  .view-switch {
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius);
+    background: var(--dpk-paper-inset);
+    box-shadow: inset 0 1px 2px var(--dpk-shade-1);
+  }
+
+  .view-option {
+    flex: 1 1 0;
+    padding: 6px 9px;
+    border: 1px solid transparent;
+    border-radius: var(--dpk-radius-sm);
+    color: var(--dpk-ink-soft);
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    transition:
+      background 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease),
+      box-shadow 140ms var(--dpk-ease);
+  }
+
+  .view-option:hover {
+    color: var(--dpk-ink);
+  }
+
+  .view-option[aria-current='page'] {
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
+    font-weight: 600;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+  }
+
+  .view-option:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  .app-hint {
+    margin: -6px 0 0;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--dpk-ink-faint);
+  }
+
+  .app-group {
+    display: grid;
+    gap: 4px;
+  }
+
+  .app-actor {
+    margin: 0;
+    padding-left: 9px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--dpk-ink-soft);
+  }
+
+  .steps.app-screens {
+    max-height: none;
+  }
+
   .steps-head {
     display: flex;
     align-items: baseline;
