@@ -45,13 +45,17 @@ export const renderUiCommentHint = (m: PrototypeMessages, view: UiCommentView): 
 
 /**
  * Drawn over the canvas while the mode is on: the box under the pointer, the
- * box of the element being commented on, and a numbered pin on every element
- * that already has a comment. The element positions them, since only it can
- * measure the author's markup.
+ * box of the element being commented on, a numbered pin on every element that
+ * already has a comment, and over them all a clear sheet that takes the
+ * pointer. The element positions them, since only it can measure the author's
+ * markup, and finds what is under the sheet by hit testing: so a disabled
+ * button, a select, a pin's corner or the mock's own pointer handlers cannot
+ * keep an element from being picked.
  */
 export const renderUiCommentLayer = (m: PrototypeMessages, view: UiCommentView): TemplateResult | typeof nothing => {
   if (view.mode.kind === 'off') return nothing;
   return html`<div class="ui-layer" aria-hidden="true">
+    <div class="ui-catcher"></div>
     <div class="ui-box ui-hover" hidden></div>
     <div class="ui-box ui-picked" hidden></div>
     ${view.pins.map(

@@ -1,5 +1,7 @@
 import { css } from 'lit';
 
+import { CONTAINED_DIALOG } from '../../lib/dom/contained-dialog';
+
 /** Sidebar navigation, stage and preview frames of `<dpk-template-prototype>`. */
 export const prototypeStyles = css`
   :host {
@@ -422,6 +424,15 @@ export const prototypeStyles = css`
     cursor: crosshair;
   }
 
+  /* Sized to the canvas's scroll area by the element; the boxes and pins show through. */
+  .ui-catcher {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 4;
+    cursor: crosshair;
+  }
+
   /* Positioned against the canvas by the element, which measures the author's markup. */
   .ui-layer {
     display: contents;
@@ -466,7 +477,7 @@ export const prototypeStyles = css`
     font-family: var(--dpk-mono);
     font-size: 10px;
     font-weight: 700;
-    pointer-events: auto;
+    pointer-events: none;
   }
 
   .ui-box[hidden],
@@ -590,6 +601,8 @@ export const prototypeStyles = css`
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
     overflow: hidden;
+    /* However high the mock stacks its own layers, they stay under what the stage draws over the frame. */
+    isolation: isolate;
     transition: box-shadow 200ms var(--dpk-ease);
   }
 
@@ -879,5 +892,34 @@ export const prototypeStyles = css`
 
   .parked {
     display: none;
+  }
+`;
+
+/**
+ * A mock's modal dialog, opened inside its preview (see
+ * `lib/dom/contained-dialog.ts`). The dialog is light DOM, which the shadow
+ * styles cannot reach below the wrapper, so this sheet goes to the document:
+ * the wrapper is the dialog's backdrop, and the frame clips both.
+ */
+export const containedDialogDocumentStyles = `
+  dpk-template-prototype > [data-preview-id]:has(dialog[${CONTAINED_DIALOG}][open]) {
+    position: relative;
+  }
+
+  dpk-template-prototype > [data-preview-id]:has(dialog[${CONTAINED_DIALOG}][open])::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: color-mix(in srgb, var(--dpk-ink, #111827) 38%, transparent);
+  }
+
+  dpk-template-prototype > [data-preview-id] dialog[${CONTAINED_DIALOG}][open] {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    max-width: calc(100% - 32px);
+    max-height: calc(100% - 32px);
+    margin: auto;
   }
 `;

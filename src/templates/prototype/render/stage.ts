@@ -61,6 +61,8 @@ export type StageOptions = {
     readonly click: (event: MouseEvent) => void;
     readonly pointermove: (event: PointerEvent) => void;
     readonly pointerleave: () => void;
+    /** A wheel over the sheet that takes the pointer while the reader comments on the UI. */
+    readonly wheel: (event: WheelEvent) => void;
     /** A row of panes scrolled sideways: what is drawn over it follows. */
     readonly scroll: () => void;
   };
@@ -134,6 +136,7 @@ export const renderStage = (
         @click=${{ handleEvent: options.canvasEvents.click, capture: true }}
         @pointermove=${{ handleEvent: options.canvasEvents.pointermove, capture: true }}
         @pointerleave=${options.canvasEvents.pointerleave}
+        @wheel=${{ handleEvent: options.canvasEvents.wheel, passive: false }}
         @scroll=${{ handleEvent: options.canvasEvents.scroll, capture: true }}
       >
         ${

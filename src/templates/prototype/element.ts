@@ -8,6 +8,7 @@ import { commentBody } from '../../core/comment';
 import { TemplateElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface } from '../../core/theme';
+import { containDialog, releaseModalDialog } from '../../lib/dom/contained-dialog';
 import { findLocated, locateElement, pickableElement } from '../../lib/dom/locator';
 import { closePopover } from '../../lib/dom/popover';
 import { prototypeDefinitionFor } from './definition';
@@ -22,10 +23,41 @@ import {
 } from './present';
 import { renderNav } from './render/nav';
 import { renderStage } from './render/stage';
-import { prototypeStyles } from './styles';
+import { containedDialogDocumentStyles, prototypeStyles } from './styles';
 import { reduceUiComment, UI_COMMENT_OFF, type UiCommentIntent, type UiCommentMode } from './ui-mode';
 
 const COMPOSER_SIZE = { width: 300, height: 300 };
+const DOCUMENT_STYLES_ID = 'dpk-template-prototype-document-styles';
+
+/** The document half of the template's styles, added once per document. */
+const installDocumentStyles = (): void => {
+  if (document.getElementById(DOCUMENT_STYLES_ID) !== null) return;
+  const style = Object.assign(document.createElement('style'), {
+    id: DOCUMENT_STYLES_ID,
+    textContent: containedDialogDocumentStyles,
+  });
+  document.head.append(style);
+};
+
+/** Whether `element` can still scroll by the wheel's delta. */
+const scrollsBy = (element: Element, dx: number, dy: number): boolean => {
+  const style = getComputedStyle(element);
+  const canX = /auto|scroll/.test(style.overflowX) && element.scrollWidth > element.clientWidth;
+  const canY = /auto|scroll/.test(style.overflowY) && element.scrollHeight > element.clientHeight;
+  const roomX =
+    dx < 0 ? element.scrollLeft > 0 : dx > 0 && element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
+  const roomY =
+    dy < 0 ? element.scrollTop > 0 : dy > 0 && element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+  return (canX && roomX) || (canY && roomY);
+};
+
+/** The parent in the flat tree: a slotted element sits in its slot, a shadow root's child under its host. */
+const flatParent = (element: Element): Element | null => {
+  if (element.assignedSlot !== null) return element.assignedSlot;
+  if (element.parentElement !== null) return element.parentElement;
+  const root = element.getRootNode();
+  return root instanceof ShadowRoot ? root.host : null;
+};
 
 /**
  * `<dpk-template-prototype>`.
@@ -74,12 +106,16 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     super.connectedCallback();
     window.addEventListener('keydown', this.#onKeydown);
     window.addEventListener('resize', this.#onLayoutChange);
+    // `toggle` does not bubble: caught on the way down to a dialog the mock opens.
+    this.addEventListener('toggle', this.#onToggle, true);
+    installDocumentStyles();
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('keydown', this.#onKeydown);
     window.removeEventListener('resize', this.#onLayoutChange);
+    this.removeEventListener('toggle', this.#onToggle, true);
   }
 
   protected override renderRegions(context: TemplateRenderContext<PrototypeState>): ShellRegions {
@@ -101,6 +137,7 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
           click: this.#onCanvasClick,
           pointermove: this.#onCanvasPointerMove,
           pointerleave: this.#onCanvasPointerLeave,
+          wheel: this.#onCanvasWheel,
           scroll: this.#onLayoutChange,
         },
       }),
@@ -110,6 +147,7 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   protected override updated(): void {
     super.updated();
     this.#checkLinks();
+    this.#containDialogs();
     const mode = this.#uiComment;
     // The step changed under an open composer: its element is no longer on screen.
     if (mode.kind === 'composing' && !this.#shownIds.includes(mode.target.previewId)) {
@@ -167,16 +205,46 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     if (outcome.ok) this.#send({ kind: 'submitted' });
   }
 
-  /** The author's preview element the event happened in, and the element it is about. */
-  #pickFrom(event: Event): { readonly element: Element; readonly target: UiTarget } | null {
+  /**
+   * The author's preview element under the pointer, and the element it is
+   * about. Over the canvas the pointer is on the catcher sheet, so what lies
+   * beneath it is hit tested; what the mock shows above the page (its own
+   * popover) receives the event itself.
+   */
+  #pickFrom(event: MouseEvent): { readonly element: Element; readonly target: UiTarget } | null {
     const path = event.composedPath();
+    const origin = path[0];
+    if (origin instanceof Element && origin.classList.contains('ui-catcher')) {
+      return this.#pickAt(event.clientX, event.clientY);
+    }
     const wrapper = path.find(
       (node): node is Element =>
         node instanceof Element && node.parentElement === this && node.hasAttribute('data-preview-id'),
     );
-    const previewId = wrapper?.getAttribute('data-preview-id');
-    const origin = path[0];
-    if (!wrapper || !previewId || !(origin instanceof Element) || !wrapper.contains(origin)) return null;
+    if (!wrapper || !(origin instanceof Element) || !wrapper.contains(origin)) return null;
+    return this.#picked(origin, wrapper);
+  }
+
+  #pickAt(x: number, y: number): { readonly element: Element; readonly target: UiTarget } | null {
+    const hit = this.#hitAt(x, y);
+    return hit === null ? null : this.#picked(hit.element, hit.wrapper);
+  }
+
+  /** The topmost element of a preview at a point of the viewport. */
+  #hitAt(x: number, y: number): { readonly element: Element; readonly wrapper: Element } | null {
+    if (typeof document.elementsFromPoint !== 'function') return null;
+    const wrappers = this.#previewWrappers();
+    // The shadow root's own elements come back as this host, so the first light DOM hit is the mock's.
+    for (const element of document.elementsFromPoint(x, y)) {
+      const wrapper = wrappers.find((candidate) => candidate.contains(element));
+      if (wrapper !== undefined) return { element, wrapper };
+    }
+    return null;
+  }
+
+  #picked(origin: Element, wrapper: Element): { readonly element: Element; readonly target: UiTarget } | null {
+    const previewId = wrapper.getAttribute('data-preview-id');
+    if (!previewId) return null;
     const element = pickableElement(origin, wrapper);
     const location = locateElement(element, wrapper);
     return {
@@ -187,6 +255,14 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
         ...(location.text === undefined ? {} : { text: location.text }),
       },
     };
+  }
+
+  /** The preview wrappers on screen. */
+  #previewWrappers(): readonly Element[] {
+    return Array.from(this.children).filter((child) => {
+      const id = child.getAttribute('data-preview-id');
+      return id !== null && this.#shownIds.includes(id);
+    });
   }
 
   /** While picking, a click inside a preview is a pick: the mock's own links and handlers do not run. */
@@ -210,6 +286,26 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     this.#placeBox('.ui-hover', null);
   };
 
+  /**
+   * The catcher sheet lies over the mock, so a wheel over it would scroll the
+   * canvas only: it is handed to the scrolling area of the mock (a long list,
+   * a row of panes) under the pointer, as if the sheet were not there.
+   */
+  #onCanvasWheel = (event: WheelEvent): void => {
+    const origin = event.composedPath()[0];
+    if (!(origin instanceof Element) || !origin.classList.contains('ui-catcher')) return;
+    const canvas = this.renderRoot.querySelector('.canvas');
+    let node = this.#hitAt(event.clientX, event.clientY)?.element ?? null;
+    while (node !== null && node !== canvas) {
+      if (scrollsBy(node, event.deltaX, event.deltaY)) {
+        event.preventDefault();
+        node.scrollBy({ left: event.deltaX, top: event.deltaY });
+        return;
+      }
+      node = flatParent(node);
+    }
+  };
+
   /** Escape ends commenting on the UI first; with that off, it restores a maximized stage. */
   #onKeydown = (event: KeyboardEvent): void => {
     if (event.key !== 'Escape' || event.defaultPrevented) return;
@@ -227,6 +323,11 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     this.#placeBox('.ui-picked', this.#anchor);
     const canvas = this.renderRoot.querySelector<HTMLElement>('.canvas');
     if (!canvas) return;
+    const catcher = this.renderRoot.querySelector<HTMLElement>('.ui-catcher');
+    if (catcher) {
+      catcher.style.width = `${canvas.scrollWidth}px`;
+      catcher.style.height = `${canvas.scrollHeight}px`;
+    }
     for (const pin of this.renderRoot.querySelectorAll<HTMLElement>('.ui-pin')) {
       const wrapper = this.#previewElement(pin.dataset['preview'] ?? '');
       const element = wrapper ? findLocated(wrapper, pin.dataset['selector'] ?? '') : null;
@@ -267,6 +368,28 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
       top: rect.top + canvas.clientTop - canvas.scrollTop,
     };
   }
+
+  // ------------------------------------------------------------ modal dialogs
+
+  /** A mock's modal dialog opens inside its frame; see `lib/dom/contained-dialog.ts`. */
+  #containDialogs(): void {
+    for (const wrapper of this.querySelectorAll(':scope > [data-preview-id]')) {
+      for (const dialog of wrapper.querySelectorAll('dialog')) {
+        containDialog(dialog);
+        releaseModalDialog(this, dialog);
+      }
+    }
+  }
+
+  /** A dialog the mock made modal some other way (one it created after the last render). */
+  #onToggle = (event: Event): void => {
+    const dialog = event.target;
+    if (!(dialog instanceof HTMLDialogElement) || !dialog.open) return;
+    if (!Array.from(this.children).some((child) => child.hasAttribute('data-preview-id') && child.contains(dialog)))
+      return;
+    containDialog(dialog);
+    releaseModalDialog(this, dialog);
+  };
 
   #previewElement(previewId: string): Element | undefined {
     return Array.from(this.children).find((child) => child.getAttribute('data-preview-id') === previewId);

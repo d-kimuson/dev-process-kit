@@ -159,6 +159,8 @@ A story does not need steps. **Declare a story for every place the UI points to*
 }
 ```
 
+A `<dialog>` the mock opens with `showModal()` opens inside its frame, dimming the preview behind it, instead of covering the whole page: a modal dialog in the browser's top layer would make the review page around the mock unusable. Open it from the mock's own script as you would in the real screen, or mark a step's dialog state up as `<dialog open>`.
+
 Leave an element inert only when it changes nothing but the screen itself (a toggle, an input) or ends the flow. Never write `href="#"` or an `<a>` without a destination. When the page loads, the template checks the links of every preview and warns on the console about each one that names no destination or a step, story, activity or preview the page does not have.
 
 ## Action vocabulary
@@ -218,7 +220,7 @@ The UI edits step name/description, adds steps, and comments — on a step, or o
 
 ### Commenting on the UI
 
-"Comment on UI" in the stage tools turns on a mode for commenting on the mock itself: the reader clicks any element of a preview (a click inside a control counts for the control), writes the comment in a box next to it, and keeps clicking for the next one; `Esc` or the same button ends the mode. While it is on, clicks in a preview do not reach your mock (links and handlers stay still), and every element that already has a comment carries a numbered pin. The step list counts these comments with the step's own.
+"Comment on UI" in the stage tools turns on a mode for commenting on the mock itself: the reader clicks any element of a preview (a click inside a control counts for the control), writes the comment in a box next to it, and keeps clicking for the next one; `Esc` or the same button ends the mode. While it is on, a clear sheet lies over the previews and takes the pointer, so nothing reaches your mock (links, `mousedown` and click handlers stay still, a select does not open) and any element can be picked, a disabled button included; the wheel still scrolls the part of the mock under the pointer. Every element that already has a comment carries a numbered pin. The step list counts these comments with the step's own.
 
 The comment enters the draft like any other, on a `ui` target that names the element:
 
