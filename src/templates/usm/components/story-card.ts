@@ -320,7 +320,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
   #renderComposer(): TemplateResult {
     return renderComposer(
       composerMessages(this.#i18n.locale),
-      presentComposer(this.#draft, this.notes.map(commentBody)),
+      presentComposer(this.#draft, this.notes.map(commentBody), this.story ? { key: `story:${this.story.id}` } : {}),
       (intent) => {
         if (intent.kind === 'input') {
           this.#draft = intent.body;

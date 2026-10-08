@@ -42,6 +42,7 @@ export const renderComposer = (
     <textarea
       class="dpk-textarea"
       aria-label=${m.comment}
+      data-dpk-text-key=${vm.key ?? nothing}
       .value=${vm.body}
       @input=${(event: Event) => {
         if (event.currentTarget instanceof HTMLTextAreaElement)

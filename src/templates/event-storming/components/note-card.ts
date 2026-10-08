@@ -352,12 +352,16 @@ export class DpkInternalEventStormingNote extends LitElement {
   }
 
   #renderComposer(cm: ComposerMessages): TemplateResult {
-    return renderComposer(cm, presentComposer(this.#draft, this.notes.map(commentBody)), (intent) => {
-      if (intent.kind === 'input') {
-        this.#draft = intent.body;
-        this.requestUpdate();
-      } else this.#report(intent);
-    });
+    return renderComposer(
+      cm,
+      presentComposer(this.#draft, this.notes.map(commentBody), this.note ? { key: `note:${this.note.id}` } : {}),
+      (intent) => {
+        if (intent.kind === 'input') {
+          this.#draft = intent.body;
+          this.requestUpdate();
+        } else this.#report(intent);
+      },
+    );
   }
 
   /** Tool buttons must not also select the note. */

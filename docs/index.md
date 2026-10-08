@@ -107,6 +107,8 @@ The path states _where_ the target lives, which is the difference between "renam
 
 Drafts live in `LocalStorage`, so a reload keeps the review in progress. A stored draft is ignored when its template does not match or when it is not version 1; an action that no longer validates is dropped on its own, not with the rest of the draft. Drafts are per-browser, and nothing is uploaded anywhere.
 
+Text the reader has typed but not sent yet — a comment in a composer, a name in an inline edit, any text field the kit renders — is kept in `sessionStorage` (key `<storage key>:unsent-text`) for the tab's session. When a reload, a republished page or a stray `Esc` closes the field, opening the same field again puts the text back, as long as the field starts from the same text it did then. Sending the text into the draft forgets it. Your own markup (a prototype's mock form) is left alone. Under `storage="off"` / `"memory"` it is kept for this page load only.
+
 | Attribute     | Values            | Meaning                                                                   |
 | ------------- | ----------------- | ------------------------------------------------------------------------- |
 | `storage-key` | string            | LocalStorage key override (recommended for anything a human will re-open) |

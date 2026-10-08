@@ -69,3 +69,13 @@ export const defaultJsonStore = <T>(parse: (input: unknown) => T | null): JsonSt
   }
   return memoryJsonStore(parse);
 };
+
+/** Kept for the tab's session only: survives a reload, not a closed tab. */
+export const sessionJsonStore = <T>(parse: (input: unknown) => T | null): JsonStore<T> => {
+  try {
+    if (typeof sessionStorage !== 'undefined') return jsonStoreOver(sessionStorage, parse);
+  } catch {
+    /* access can throw when cookies are blocked */
+  }
+  return memoryJsonStore(parse);
+};

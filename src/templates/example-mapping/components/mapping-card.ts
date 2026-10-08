@@ -290,7 +290,7 @@ export class DpkInternalExampleMappingCard extends LitElement {
   #renderComposer(card: MappingCard): TemplateResult {
     return renderComposer(
       composerMessages(this.#i18n.locale),
-      presentComposer(this.#draft, this.notes.map(commentBody), { label: card.name }),
+      presentComposer(this.#draft, this.notes.map(commentBody), { label: card.name, key: `card:${card.id}` }),
       (intent) => {
         if (intent.kind === 'input') {
           this.#draft = intent.body;

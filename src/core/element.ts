@@ -24,7 +24,7 @@ import { LOCALES, type Locale } from './i18n';
 import { iconChevronLeft, iconChevronRight, iconMoon, iconSun } from './icons';
 import { coreMessages, LANGUAGE_NAMES } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
-import { defaultStorage, MemoryDraftStorage, type DraftStorage } from './persistence';
+import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSource } from './shell/api';
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
@@ -36,6 +36,7 @@ import { PreviewRouter } from './shell/preview-router';
 import { SidebarCollapseController } from './shell/sidebar-collapse-controller';
 import { SidebarResizeController } from './shell/sidebar-resize-controller';
 import { chromeStyles } from './shell/styles';
+import { TextRecoveryController } from './shell/text-recovery-controller';
 import { VersionChoiceController } from './shell/version-choice-controller';
 import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, sidebarToggle, type SidebarLayout } from './sidebar-width';
 import { targetRef } from './target';
@@ -85,6 +86,10 @@ export abstract class TemplateElement<S> extends LitElement {
   #sidebarCollapse = new SidebarCollapseController(this, {
     persist: () => this.storage !== 'off' && this.storage !== 'memory',
     template: () => this.definition.name,
+  });
+  #textRecovery = new TextRecoveryController(this, {
+    persist: () => this.storage !== 'off' && this.storage !== 'memory',
+    storageKey: () => `${this.storageKey ?? defaultStorageKey(this.definition.name)}:unsent-text`,
   });
   /** The fold button is replaced as the sidebar folds; focus follows it to the new one. */
   #focusSidebarToggle = false;
@@ -222,6 +227,7 @@ export abstract class TemplateElement<S> extends LitElement {
 
   dispatch(input: ActionInput): DispatchOutcome {
     const outcome = this.controller.dispatch(input);
+    if (outcome.ok) this.#textRecovery.settle([input.payload, input.note]);
     if (!outcome.ok) {
       this.requestUpdate();
       this.dispatchEvent(
@@ -238,6 +244,7 @@ export abstract class TemplateElement<S> extends LitElement {
 
   dispatchBatch(inputs: readonly ActionInput[]): BatchDispatchOutcome {
     const outcome = this.controller.dispatchBatch(inputs);
+    if (outcome.ok) this.#textRecovery.settle(inputs.flatMap((input) => [input.payload, input.note]));
     if (!outcome.ok) {
       this.requestUpdate();
       this.dispatchEvent(
@@ -251,6 +258,7 @@ export abstract class TemplateElement<S> extends LitElement {
   /** Rewrites a posted comment's body; a rejected edit is reported like a rejected dispatch. */
   editComment(id: string, body: string): DispatchOutcome {
     const outcome = this.controller.editComment(id, body);
+    if (outcome.ok) this.#textRecovery.settle([body]);
     if (!outcome.ok) {
       this.requestUpdate();
       this.dispatchEvent(

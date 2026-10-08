@@ -583,6 +583,7 @@ export class DpkComponentFormalSpec extends LitElement {
     if (ref === null || label === undefined) return nothing;
     const vm = presentComposer(this.#drafts.get(ref) ?? '', [], {
       label,
+      key: ref,
       ...(this.#failedTarget === ref ? { error: this.#m.sendFailed } : {}),
     });
     return html`${keyed(

@@ -387,6 +387,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     if (ref === null || label === undefined) return nothing;
     const vm = presentComposer(this.#drafts.get(ref) ?? '', [], {
       label,
+      key: ref,
       ...(this.#failedTarget === ref ? { error: this.chromeMessages.sendFailed } : {}),
     });
     return html`${keyed(

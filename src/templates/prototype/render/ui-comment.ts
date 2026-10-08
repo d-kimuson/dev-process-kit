@@ -72,7 +72,10 @@ export const renderUiCommentLayer = (m: PrototypeMessages, view: UiCommentView):
 export const renderUiComposer = (view: UiCommentView): TemplateResult | typeof nothing => {
   const mode = view.mode;
   if (mode.kind !== 'composing') return nothing;
-  const vm = presentComposer(mode.body, view.notes, view.targetLabel === undefined ? {} : { label: view.targetLabel });
+  const vm = presentComposer(mode.body, view.notes, {
+    key: `ui:${mode.target.previewId}/${mode.target.selector}`,
+    ...(view.targetLabel === undefined ? {} : { label: view.targetLabel }),
+  });
   return html`${keyed(
     `${mode.target.previewId}/${mode.target.selector}`,
     renderComposer(view.composer, vm, (intent) => {

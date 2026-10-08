@@ -324,7 +324,7 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     const label = this.definition.commentTargets(context.state, context.navigation).find((t) => t.value === ref)?.label;
     return renderComposer(
       composerMessages(this.locale),
-      presentComposer(this.#composerDraft, notes, label === undefined ? {} : { label }),
+      presentComposer(this.#composerDraft, notes, { key: ref, ...(label === undefined ? {} : { label }) }),
       (intent) => {
         if (intent.kind === 'input') {
           this.#composerDraft = intent.body;
