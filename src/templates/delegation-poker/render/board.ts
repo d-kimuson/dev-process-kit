@@ -58,13 +58,15 @@ export const renderBoard = (props: BoardProps): TemplateResult => {
       <h2 id="dp-board-title">${m.board}</h2>
       <p class="board-hint">${m.boardHint(mode)}</p>
     </header>
-    <div class="board-scroll">
-      <div class="board" role="table" aria-labelledby="dp-board-title" data-testid="board">
+    <div class="board" role="table" aria-labelledby="dp-board-title" data-testid="board">
+      <div class="board-head-scroll" role="rowgroup">
         <div class="board-row board-row--head" role="row">
           <span class="cell-name" role="columnheader">${m.decisionColumn}</span>
           ${board.levels.map(renderLevelHead)}
           <span class="cell-agree" role="columnheader">${m.agreeColumn}</span>
         </div>
+      </div>
+      <div class="board-scroll" role="rowgroup" @scroll=${followBoardScroll}>
         ${repeat(
           board.rows,
           (row) => row.id,
@@ -76,6 +78,18 @@ export const renderBoard = (props: BoardProps): TemplateResult => {
       ${m.addDecision}
     </button>
   </section>`;
+};
+
+/**
+ * The level heads stay at the top of the main column while the decisions
+ * scroll by, so they live outside the board's sideways scroller (which would
+ * otherwise be what they stick to) and follow it across instead.
+ */
+const followBoardScroll = (event: Event): void => {
+  const scroller = event.currentTarget;
+  if (!(scroller instanceof HTMLElement)) return;
+  const head = scroller.previousElementSibling;
+  if (head instanceof HTMLElement) head.scrollLeft = scroller.scrollLeft;
 };
 
 const renderLevelHead = (level: BoardLevel): TemplateResult => html`<span

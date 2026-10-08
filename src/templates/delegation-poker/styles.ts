@@ -185,17 +185,38 @@ export const delegationPokerStyles = css`
     color: var(--dpk-ink-soft);
   }
 
-  .board-scroll {
-    overflow-x: auto;
+  .board {
+    display: grid;
     border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius-lg);
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-shadow-sm);
   }
 
-  .board {
-    display: grid;
+  /* The level heads stay in sight while the decisions scroll under them. */
+  .board-head-scroll {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    overflow: hidden;
+    border-bottom: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg) var(--dpk-radius-lg) 0 0;
+    background: var(--dpk-paper-raised);
+    box-shadow: 0 6px 14px -12px var(--dpk-shade-3);
+  }
+
+  .board-scroll {
+    overflow-x: auto;
+    border-radius: 0 0 var(--dpk-radius-lg) var(--dpk-radius-lg);
+  }
+
+  .board-head-scroll > .board-row,
+  .board-scroll > .board-row {
     min-width: 980px;
+  }
+
+  .board-scroll > .board-row:first-child {
+    border-top: 0;
   }
 
   .board-row {
