@@ -5,6 +5,7 @@ import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { WbGesture } from '../gesture';
 import type { WhiteboardMessages } from '../messages';
 
+import { iconMinus, iconPlus } from '../../../core/icons';
 import { NEW_ITEM_KINDS, type NewItemKind } from '../commands';
 import { toScreen, type Viewport } from '../interactions';
 import { centerOf, connectorPath, outlinePoint, paintOrder, type Rect } from '../layout';
@@ -18,6 +19,7 @@ import {
   type WhiteboardState,
 } from '../model';
 import { isEditing, type WbMode } from '../ui-mode';
+import { iconFit } from './icons';
 import { colorStyle } from './palette';
 
 export type WbBoardHandlers = {
@@ -332,10 +334,12 @@ const renderTools = (m: WhiteboardMessages, handlers: WbBoardHandlers): Template
 
 const renderZoom = (m: WhiteboardMessages, viewport: Viewport, handlers: WbBoardHandlers): TemplateResult =>
   html`<div class="wb-zoom" @pointerdown=${stopPress} @dblclick=${stopPress}>
-    <button type="button" aria-label=${m.zoomOut} @click=${() => handlers.zoomStep(-1)}>−</button>
+    <button type="button" aria-label=${m.zoomOut} @click=${() => handlers.zoomStep(-1)}>${iconMinus()}</button>
     <button type="button" class="wb-zoom-pct" title=${m.zoomReset} @click=${() => handlers.zoomReset()}>
       ${Math.round(viewport.zoom * 100)}%
     </button>
-    <button type="button" aria-label=${m.zoomIn} @click=${() => handlers.zoomStep(1)}>+</button>
-    <button type="button" aria-label=${m.zoomFit} title=${m.zoomFit} @click=${() => handlers.zoomFit()}>⛶</button>
+    <button type="button" aria-label=${m.zoomIn} @click=${() => handlers.zoomStep(1)}>${iconPlus()}</button>
+    <button type="button" aria-label=${m.zoomFit} title=${m.zoomFit} @click=${() => handlers.zoomFit()}>
+      ${iconFit()}
+    </button>
   </div>`;

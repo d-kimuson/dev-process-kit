@@ -426,7 +426,6 @@ export const prototypeStyles = css`
   .page-actor svg {
     width: 13px;
     height: 13px;
-    fill: currentColor;
     opacity: 0.9;
   }
 
@@ -486,10 +485,6 @@ export const prototypeStyles = css`
     flex: none;
     width: 14px;
     height: 14px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.4;
-    stroke-linecap: round;
   }
 
   .device-select {

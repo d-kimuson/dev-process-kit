@@ -507,6 +507,9 @@ export const whiteboardStyles = css`
   }
 
   .wb-zoom button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: none;
     background: transparent;
     padding: 6px 10px;
@@ -514,6 +517,11 @@ export const whiteboardStyles = css`
     line-height: 1;
     color: var(--dpk-ink-soft);
     cursor: pointer;
+  }
+
+  .wb-zoom button svg {
+    width: 13px;
+    height: 13px;
   }
 
   .wb-zoom button:hover {

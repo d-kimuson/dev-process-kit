@@ -6,6 +6,8 @@ import type { DiagramMessages } from './messages';
 import type { DiagramIntent, SelectionRef, TagMatch } from './model';
 import type { TagViewModel } from './present';
 
+import { iconMinus, iconPlus } from '../../core/icons';
+
 export type DiagramSend<S extends SelectionRef = SelectionRef> = (intent: DiagramIntent<S>) => void;
 
 export const pathData = (points: readonly LayoutPoint[]): string =>
@@ -107,7 +109,7 @@ export const renderZoom = <S extends SelectionRef>(m: DiagramMessages, send?: Di
         send?.({ kind: 'zoom', factor: 1 / 1.1 });
       }}
     >
-      −
+      ${iconMinus()}
     </button>
     <button
       type="button"
@@ -126,7 +128,7 @@ export const renderZoom = <S extends SelectionRef>(m: DiagramMessages, send?: Di
         send?.({ kind: 'zoom', factor: 1.1 });
       }}
     >
-      +
+      ${iconPlus()}
     </button>
   </div>
 `;
