@@ -6,6 +6,7 @@ import {
   expandedBounds,
   MAX_SCALE,
   MIN_SCALE,
+  openingCorner,
   wheelPan,
   type ViewportBounds,
 } from './viewport';
@@ -65,6 +66,27 @@ describe('viewport geometry', () => {
     const wide = expandedBounds([{ x: 0, y: 0, width: 900, height: 200 }]);
     const view = { x: -100, y: 0, scale: 1 };
     expect(constrainView(view, wide, 500, 350, 'start').x).toBe(constrainView(view, wide, 500, 350).x);
+  });
+});
+
+describe('openingCorner', () => {
+  const box = (x: number, y: number) => ({ x, y, width: 200, height: 100 });
+
+  it('is the top-left of the content when something stands there', () => {
+    expect(openingCorner([box(0, 0), box(300, 200)], 500)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('skips an outlier further down the left than the first screenful reaches', () => {
+    // Everything starts at y 0 from x 400, but one box sits far down at x 0.
+    expect(openingCorner([box(400, 0), box(800, 0), box(0, 800)], 500)).toEqual({ x: 400, y: 0 });
+  });
+
+  it('keeps a box on the left that the first screenful does reach', () => {
+    expect(openingCorner([box(400, 0), box(0, 300)], 500)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('has nothing to open on without content', () => {
+    expect(openingCorner([], 500)).toBeNull();
   });
 });
 
@@ -181,6 +203,17 @@ describe('viewport controller', () => {
       expect(viewport.view().scale).toBeGreaterThanOrEqual(MIN_SCALE);
       viewport.fitWidth();
       expect(canvas.style.transform).toBe('');
+    } finally {
+      viewport.destroy();
+    }
+  });
+
+  it('opens on a given corner of the content instead of the content box’s own', () => {
+    const { viewport } = mount();
+    try {
+      viewport.setContent({ x: 0, y: 0, width: 1200, height: 900 });
+      viewport.reset({ x: 200, y: 0 });
+      expect(viewport.view()).toEqual({ x: 16 - 200, y: 16, scale: 1 });
     } finally {
       viewport.destroy();
     }

@@ -87,6 +87,16 @@ export const diagramStyles = [
       color: var(--dpk-ink);
     }
 
+    /* A long heading or subject elides (the full text is its tooltip) instead of pushing the actions off the toolbar. */
+    .diagram-title,
+    .diagram-subject {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .diagram-subject {
       font-size: 10px;
       color: var(--dpk-ink-faint);
@@ -168,6 +178,7 @@ export const diagramStyles = [
       display: inline-flex;
       align-items: center;
       gap: 5px;
+      max-width: 100%;
       padding: 4px 9px;
       border: 1px solid transparent;
       border-radius: var(--dpk-radius-xs);
@@ -195,7 +206,15 @@ export const diagramStyles = [
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 20%, transparent);
     }
 
+    .dpk-tag-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .dpk-tag-count {
+      flex: none;
       font-family: var(--dpk-mono);
       font-size: 9px;
       opacity: 0.7;

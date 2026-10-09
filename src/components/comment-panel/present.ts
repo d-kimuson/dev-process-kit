@@ -33,7 +33,8 @@ export type PanelItem = {
   readonly targetLabel: string;
   readonly tone: ActionTone;
   readonly text: { readonly kind: 'comment' | 'summary'; readonly body: string };
-  readonly code: string;
+  /** The line the agent receives; none for a comment, whose body is the line's substance and is shown already. */
+  readonly code: string | null;
   readonly stale: StaleReason | null;
   /** Only a comment can be rewritten; `editing` holds its unsaved text. */
   readonly edit:
@@ -97,7 +98,7 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
           kind: comment ? 'comment' : 'summary',
           body: comment ? commentBody(action) : (description.summary ?? ''),
         },
-        code: definition.serialize(action),
+        code: comment ? null : definition.serialize(action),
         stale: stale.get(action.id) ?? null,
         edit:
           !comment || inputs.editable !== true

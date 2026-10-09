@@ -205,6 +205,16 @@ describe('sequence diagram data', () => {
     const ys = layout.rows.map((row) => row.y);
     expect([...ys].sort((a, b) => a - b)).toEqual(ys);
   });
+
+  it('bounds a branch or fold label by its frame, so a long one cannot run across other lanes', () => {
+    const layout = layoutSequence(parseSequenceData(raw), () => true);
+    expect(layout.branches.length + layout.folds.length).toBeGreaterThan(1);
+    for (const label of [...layout.branches, ...layout.folds]) {
+      const frame = layout.frames.find((box) => label.x >= box.x && label.y > box.y && label.y < box.y + box.height);
+      expect(frame).toBeDefined();
+      expect(label.x + label.width).toBeLessThanOrEqual((frame?.x ?? 0) + (frame?.width ?? 0));
+    }
+  });
 });
 
 describe('dpk-component-sequence-diagram', () => {

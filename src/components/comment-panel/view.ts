@@ -192,7 +192,7 @@ const renderItem = (m: PanelMessages, item: PanelItem, send: PanelSend): Templat
             ? html`<div class="item-summary">${item.text.body}</div>`
             : nothing
     }
-    <code class="item-code">${item.code}</code>
+    ${item.code === null ? nothing : html`<code class="item-code">${item.code}</code>`}
   </li>
 `;
 

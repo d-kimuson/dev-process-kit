@@ -171,4 +171,13 @@ describe('inline editing', () => {
       expect(view?.getAttribute('data-empty')).toBe('true');
     });
   });
+  it('names the whole value on a truncated view, where the line may end in an ellipsis', async () => {
+    const editor = new DpkComponentInlineEdit();
+    editor.value = 'a label far too long for its chip';
+    editor.truncate = true;
+    document.body.append(editor);
+    await editor.updateComplete;
+    expect(editor.hasAttribute('truncate')).toBe(true);
+    expect(editor.shadowRoot?.querySelector('.view')?.getAttribute('title')).toBe('a label far too long for its chip');
+  });
 });

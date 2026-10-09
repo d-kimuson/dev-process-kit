@@ -30,6 +30,12 @@ export const architectureStyles = css`
     position: absolute;
     top: 9px;
     left: 14px;
+    /* Stays inside its own boundary, eliding a long label, rather than running over its neighbours. */
+    box-sizing: border-box;
+    max-width: calc(100% - 28px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     padding: 2px 7px;
     border-radius: 999px;
     background: var(--dpk-glass);

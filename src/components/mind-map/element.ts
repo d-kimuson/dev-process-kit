@@ -27,6 +27,9 @@ import { mindMapStyles } from './styles';
 /** Branch colors cycle through the theme's accent tokens. */
 const BRANCH_COLORS = 5;
 
+/** The smallest zoom the map opens at: below it a topic's label no longer reads. */
+const READABLE_SCALE = 0.6;
+
 /**
  * `<dpk-component-mind-map>` — a central topic and a tree of subtopics.
  *
@@ -132,15 +135,20 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
   /**
    * The central topic sits in the middle, so opening at 100% from the top-left
    * corner would hide half the map: fit it once, then leave the reader's view
-   * alone while they fold and filter.
+   * alone while they fold and filter. A map too big to fit legibly opens on its
+   * centre at the readable zoom instead, with the rest a pan away.
    */
   protected override initialView(): void {
+    const viewport = this.viewport;
+    if (viewport === null) return;
     if (this.#fitted) {
-      this.viewport?.apply();
+      viewport.apply();
       return;
     }
     this.#fitted = true;
-    this.viewport?.fit();
+    viewport.fit();
+    const { scale } = viewport.view();
+    if (scale < READABLE_SCALE) viewport.zoom(READABLE_SCALE / scale);
   }
 
   protected override commentItems(): readonly CommentTargetOption[] {

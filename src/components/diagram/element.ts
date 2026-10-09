@@ -709,11 +709,15 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
         @keydown=${maximized === null ? nothing : this.#restoreOnEscape}
       >
         <div class="diagram-toolbar">
-          <span class="diagram-title">${this.heading ?? this.defaultHeading()}</span>
+          <span class="diagram-title" title=${this.heading ?? this.defaultHeading()}
+            >${this.heading ?? this.defaultHeading()}</span
+          >
           ${
             (this.subject ?? this.defaultSubject()) === ''
               ? nothing
-              : html`<span class="diagram-subject">${this.subject ?? this.defaultSubject()}</span>`
+              : html`<span class="diagram-subject" title=${this.subject ?? this.defaultSubject()}
+                  >${this.subject ?? this.defaultSubject()}</span
+                >`
           }
           <div class="diagram-toolbar-actions">
             ${this.renderToolbarActions()}

@@ -243,7 +243,7 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
         @click=${() => this.select({ kind: 'participant', id: participant.id })}
       >
         <span class="sequence-symbol" aria-hidden="true">${participant.symbol ?? participant.name.slice(0, 2)}</span>
-        <span>
+        <span class="sequence-names">
           <span class="sequence-name">${participant.name}</span>
           ${participant.role === null ? nothing : html`<span class="sequence-role">${participant.role}</span>`}
         </span>
@@ -271,15 +271,22 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
         this.#renderFrameHeader(frame.fragment, frame.x, frame.y, frame.width, frame.count, m),
       )}
       ${layout.branches.map(
-        (branch) => html`<span class="sequence-branch" style="left:${branch.x}px; top:${branch.y}px"
+        (branch) => html`<span
+          class="sequence-branch"
+          style="left:${branch.x}px; top:${branch.y}px; max-width:${branch.width}px"
+          title=${branch.label}
           >[${branch.label}]</span
         >`,
       )}
-      ${layout.folds.map(
-        (fold) => html`<span class="sequence-fold" style="left:${fold.x}px; top:${fold.y}px"
-          >${fold.fragment.branches.map((branch) => `[${branch.label}]`).join(' / ')}</span
-        >`,
-      )}
+      ${layout.folds.map((fold) => {
+        const labels = fold.fragment.branches.map((branch) => `[${branch.label}]`).join(' / ');
+        return html`<span
+          class="sequence-fold"
+          style="left:${fold.x}px; top:${fold.y}px; max-width:${fold.width}px"
+          title=${labels}
+          >${labels}</span
+        >`;
+      })}
       ${layout.rows.map((row) => this.#renderMessage(row.y, row.message, layout, m))}
     `;
   }

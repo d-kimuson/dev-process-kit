@@ -224,9 +224,15 @@ export type FrameBox = {
   readonly count: number;
 };
 
-export type BranchRow = { readonly label: string; readonly x: number; readonly y: number };
+/** `width` is the room the label has inside its frame. */
+export type BranchRow = { readonly label: string; readonly x: number; readonly y: number; readonly width: number };
 export type DividerRow = { readonly x: number; readonly y: number; readonly width: number };
-export type FoldRow = { readonly fragment: SequenceFragment; readonly x: number; readonly y: number };
+export type FoldRow = {
+  readonly fragment: SequenceFragment;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+};
 
 export type SequenceLayout = {
   readonly width: number;
@@ -279,7 +285,7 @@ export const layoutSequence = (
       const frameWidth = width - 44 - depth * 26;
       y += FRAME_HEADER;
       if (entry.collapsed) {
-        folds.push({ fragment: entry, x: frameX, y: y + 6 });
+        folds.push({ fragment: entry, x: frameX, y: y + 6, width: frameWidth });
         y += FOLD_ROW;
       } else {
         entry.branches.forEach((branch, index) => {
@@ -287,7 +293,7 @@ export const layoutSequence = (
             dividers.push({ x: frameX, y, width: frameWidth });
             y += 8;
           }
-          branches.push({ label: branch.label, x: frameX + 12, y });
+          branches.push({ label: branch.label, x: frameX + 12, y, width: frameWidth - 24 });
           y += BRANCH_ROW;
           walk(branch.items, depth + 1);
           y += 8;

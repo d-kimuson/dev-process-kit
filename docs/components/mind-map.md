@@ -50,7 +50,7 @@ Duplicate ids, `side` below a main topic and unknown keys are errors, and the el
 
 The central topic sits in the middle. Main topics without a `side` go to whichever half has fewer leaves so far, so the map stays balanced; authored sides count towards that balance. Subtrees are stacked so they never overlap, and each main topic gives its whole branch one color.
 
-The map opens fitted to the canvas (the centre is in the middle, so 100% from the top-left corner would hide half of it). Folding and filtering keep the reader's current pan and zoom.
+The map opens fitted to the canvas (the centre is in the middle, so 100% from the top-left corner would hide half of it). A map too big to fit at 60% opens on its centre at 60% instead, so the labels stay readable and the rest is a pan away. Folding and filtering keep the reader's current pan and zoom.
 
 ## Tags
 

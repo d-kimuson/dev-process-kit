@@ -85,7 +85,7 @@ export const renderTagBar = <S extends SelectionRef>(
           aria-pressed=${tag.selected ? 'true' : 'false'}
           @click=${() => send({ kind: 'tag', tag: tag.tag })}
         >
-          ${tag.tag}<span class="dpk-tag-count">${tag.count}</span>
+          <span class="dpk-tag-name" title=${tag.tag}>${tag.tag}</span><span class="dpk-tag-count">${tag.count}</span>
         </button>
       `,
     )}

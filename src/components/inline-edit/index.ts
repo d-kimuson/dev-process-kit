@@ -121,6 +121,21 @@ export class DpkComponentInlineEdit extends LitElement {
         }
       }
 
+      :host([truncate]) .view {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: pre;
+      }
+
+      /* Wrapped, it keeps --dpk-inline-edit-lines lines; the hidden text under a
+         field still sizes the box to the whole draft. */
+      :host([truncate][wrap]) .view:not([aria-hidden='true']) {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: var(--dpk-inline-edit-lines, 3);
+        white-space: pre-wrap;
+      }
+
       /* seamless: no field chrome at all — the text is edited where it sits. */
       :host([seamless]) .view,
       :host([seamless]) .field {
@@ -141,6 +156,11 @@ export class DpkComponentInlineEdit extends LitElement {
     multiline: { type: Boolean },
     /** A wrapping field whose value stays one line: Enter commits. */
     wrap: { type: Boolean, reflect: true },
+    /**
+     * Ends in an ellipsis where the value does not fit; hovering names the whole value.
+     * One line, or with `wrap` as many as `--dpk-inline-edit-lines` (3 unless set).
+     */
+    truncate: { type: Boolean, reflect: true },
     /** Chromeless: the field looks like the text it edits. */
     seamless: { type: Boolean, reflect: true },
     /** Shows the value as Markdown while not editing; the field edits the source. */
@@ -153,6 +173,7 @@ export class DpkComponentInlineEdit extends LitElement {
   declare placeholder: string;
   declare multiline: boolean;
   declare wrap: boolean;
+  declare truncate: boolean;
   declare seamless: boolean;
   declare markdown: boolean;
   declare label: string;
@@ -173,6 +194,7 @@ export class DpkComponentInlineEdit extends LitElement {
     this.placeholder = '';
     this.multiline = false;
     this.wrap = false;
+    this.truncate = false;
     this.seamless = false;
     this.markdown = false;
     this.label = '';
@@ -200,7 +222,11 @@ export class DpkComponentInlineEdit extends LitElement {
     const active = root instanceof ShadowRoot ? root.activeElement : document.activeElement;
     if (field && active !== field) {
       field.focus();
-      field.select();
+      // All of it selected, with the caret at the start: a long value shows its beginning, not its end.
+      field.setSelectionRange(0, field.value.length, 'backward');
+      // Engines may still have scrolled the field to the end while focusing it.
+      field.scrollLeft = 0;
+      field.scrollTop = 0;
     }
   }
 
@@ -234,7 +260,7 @@ export class DpkComponentInlineEdit extends LitElement {
         aria-hidden=${editing ? 'true' : nothing}
         role=${editing ? nothing : 'button'}
         tabindex=${editing ? nothing : '0'}
-        title=${editing ? nothing : m.clickToEdit}
+        title=${editing ? nothing : this.truncate && text !== '' ? text : m.clickToEdit}
         @click=${this.#start}
         @keydown=${this.#onKeydownView}
         >${shown}</span

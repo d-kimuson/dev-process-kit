@@ -64,6 +64,20 @@ describe('panel presentation', () => {
     );
     expect(vm.items[0]).toMatchObject({ title: 'Alpha', stale: 'target-missing' });
   });
+  it('shows the serialized line for a change but not for a comment, whose body is already shown', () => {
+    const actions = [
+      { id: 'c', type: 'comment', target: { type: 'page', id: 'tiny' }, payload: { body: 'hi' }, createdAt: 'now' },
+      {
+        id: 'rename',
+        type: 'SET_NAME',
+        target: { type: 'item', id: 'a' },
+        payload: { name: 'New' },
+        createdAt: 'now',
+      },
+    ];
+    const vm = presentPanel({ ...inputs, derivation: derive(definition, base, actions) }, initialPanelState());
+    expect(vm.items.map((item) => item.code === null)).toEqual([true, false]);
+  });
   it('offers the send to Claude only when the host provides it and there is something to send', () => {
     const actions = [
       { id: 'c', type: 'comment', target: { type: 'page', id: 'tiny' }, payload: { body: 'hi' }, createdAt: 'now' },

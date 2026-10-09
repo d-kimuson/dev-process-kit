@@ -6,6 +6,7 @@ import { DiagramElement } from '../diagram/element';
 import { EMPTY_REACH, reach, type DiagramSelection, type Reach } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
 import { pathData } from '../diagram/view';
+import { openingCorner } from '../diagram/viewport';
 import { architectureMapMessages } from './messages';
 import {
   boundaryBoxes,
@@ -72,6 +73,20 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
       width: Math.max(size.width, ...boxes.map((box) => box.x + box.width)),
       height: Math.max(size.height, ...boxes.map((box) => box.y + box.height)),
     };
+  }
+
+  /**
+   * Services sit where the author put them, so one far down the left must not
+   * open the map on empty space: it opens on what the first screenful shows.
+   */
+  protected override initialView(): void {
+    const nodes = this.visible.nodes.flatMap((node) => {
+      const placed = this.placedNode(node.id);
+      return placed ? [placed] : [];
+    });
+    const canvas = this.renderRoot.querySelector<HTMLElement>('.diagram-canvas');
+    const corner = openingCorner([...nodes, ...this.#boundaryBoxes()], canvas?.clientHeight ?? 0);
+    this.viewport?.reset(corner ?? undefined);
   }
 
   protected override relations(selection: DiagramSelection, visible: ArchitectureData): Reach {

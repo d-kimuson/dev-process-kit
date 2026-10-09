@@ -83,6 +83,11 @@ export const sequenceStyles = css`
     color: var(--dpk-amber);
   }
 
+  /* The lane is a fixed width: a long name or role elides inside it (the button's title has it whole). */
+  .sequence-names {
+    min-width: 0;
+  }
+
   .sequence-name {
     display: block;
     font-size: 11.5px;
@@ -97,6 +102,9 @@ export const sequenceStyles = css`
     margin-top: 2px;
     font-size: 9px;
     color: var(--dpk-ink-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .sequence-lifeline {
@@ -183,6 +191,7 @@ export const sequenceStyles = css`
   }
 
   .sequence-operator {
+    flex: none;
     min-width: 26px;
     font-family: var(--dpk-mono);
     font-weight: 700;
@@ -190,10 +199,18 @@ export const sequenceStyles = css`
   }
 
   .sequence-frame-count {
+    flex: none;
     margin-left: auto;
     font-family: var(--dpk-mono);
     font-size: 9px;
     color: var(--dpk-ink-faint);
+  }
+
+  /* A branch or fold label is bounded by its frame (an inline max-width) and elides past it. */
+  :is(.sequence-branch, .sequence-fold) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .sequence-branch {

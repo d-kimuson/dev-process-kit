@@ -10,6 +10,7 @@ export const panelStyles = [
       display: flex;
       flex-direction: column;
       min-height: 0;
+      min-width: 0;
       width: 100%;
       background: var(--dpk-paper-raised);
     }
@@ -52,8 +53,10 @@ export const panelStyles = [
         inset 0 1px 2px var(--dpk-shade-1);
     }
 
+    /* Wraps on a narrow rail rather than pushing the add button out of it. */
     .composer .row {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 8px;
     }
@@ -110,7 +113,9 @@ export const panelStyles = [
     }
 
     .target-line {
+      min-width: 0;
       margin-right: auto;
+      overflow-wrap: anywhere;
       padding: 3px 9px;
       border-radius: 999px;
       background: var(--dpk-paper-inset);
@@ -123,11 +128,14 @@ export const panelStyles = [
     .list {
       list-style: none;
       margin: 0;
-      padding: 10px 12px;
+      /* The page's hand-off dock may float over the bottom of the list. */
+      padding: 10px 12px calc(10px + var(--dpk-dock-clearance, 0px));
       overflow: auto;
       flex: 1;
       min-height: 0;
       display: grid;
+      /* One unbroken comment must not widen the column every item shares. */
+      grid-template-columns: minmax(0, 1fr);
       gap: 8px;
       align-content: start;
     }
@@ -135,6 +143,7 @@ export const panelStyles = [
     .item {
       position: relative;
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: 5px;
       padding: 10px 12px 11px 16px;
       border: 1px solid var(--dpk-rule);
@@ -275,6 +284,7 @@ export const panelStyles = [
       border-left: 2px solid var(--dpk-accent);
       font-size: 12.5px;
       white-space: pre-wrap;
+      overflow-wrap: anywhere;
     }
 
     .item-editor {

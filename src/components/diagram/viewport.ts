@@ -34,6 +34,21 @@ export const expandedBounds = (boxes: readonly ViewportBox[]): ViewportBounds =>
 /** Where the content begins inside a box grown by `expandedBounds`, along one axis. */
 const contentStart = (start: number, size: number): number => start + size / 12;
 
+export type ViewportPoint = { readonly x: number; readonly y: number };
+
+/**
+ * The world point a diagram opens on at 100%: the top of its content, and the
+ * left of whatever stands within the first `height` below that. Opening on the
+ * content box's own corner would show empty space when an outlier sits far down
+ * the left.
+ */
+export const openingCorner = (boxes: readonly ViewportBox[], height: number): ViewportPoint | null => {
+  if (boxes.length === 0) return null;
+  const y = Math.min(...boxes.map((box) => box.y));
+  const reached = boxes.filter((box) => box.y < y + height);
+  return { x: Math.min(...reached.map((box) => box.x)), y };
+};
+
 /** Gap between the canvas edge and content opened at, or pinned to, its start. */
 const START_MARGIN = 16;
 
@@ -103,8 +118,8 @@ export type ViewportController = {
   apply(): void;
   fit(): void;
   fitWidth(): void;
-  /** 100% scale, anchored to the content origin: the view a diagram opens in. */
-  reset(): void;
+  /** 100% scale, anchored to `corner` (the content origin unless given): the view a diagram opens in. */
+  reset(corner?: ViewportPoint): void;
   zoom(factor: number, x?: number, y?: number): void;
   view(): ViewState;
   destroy(): void;
@@ -159,11 +174,11 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
     apply();
   };
 
-  const reset = (): void => {
+  const reset = (corner?: ViewportPoint): void => {
     view = {
       scale: 1,
-      x: START_MARGIN - contentStart(area.x, area.width),
-      y: START_MARGIN - contentStart(area.y, area.height),
+      x: START_MARGIN - (corner?.x ?? contentStart(area.x, area.width)),
+      y: START_MARGIN - (corner?.y ?? contentStart(area.y, area.height)),
     };
     apply();
   };
