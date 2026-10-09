@@ -32,6 +32,7 @@ export const exampleMappingStyles = css`
     border-radius: 999px;
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    white-space: nowrap;
   }
 
   .legend-swatch {
@@ -161,6 +162,19 @@ export const exampleMappingStyles = css`
     overflow-x: auto;
     padding: 4px 4px 16px;
     border-radius: var(--dpk-radius);
+  }
+
+  /* A fade pinned to the row's right edge says more rules are a scroll away;
+     scrolled to the end, it rests on the empty room after the last one. */
+  .rules-row::after {
+    content: '';
+    position: sticky;
+    right: -4px;
+    flex: 0 0 36px;
+    align-self: stretch;
+    margin-left: -14px;
+    background: linear-gradient(90deg, transparent, var(--dpk-paper-raised));
+    pointer-events: none;
   }
 
   .rules-row[data-drop='true'] {

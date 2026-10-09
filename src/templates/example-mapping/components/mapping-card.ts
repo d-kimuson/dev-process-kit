@@ -118,6 +118,7 @@ const cardStyles = css`
     line-height: 1.5;
     opacity: 0.72;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   /* Comments already left: a corner flag, readable without hover. */
