@@ -85,6 +85,120 @@ export const prototypeStyles = css`
     color: var(--dpk-ink-soft);
   }
 
+  .app-description {
+    margin: 2px 0 0;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--dpk-ink-faint);
+  }
+
+  .app-tree {
+    display: grid;
+    gap: 4px;
+  }
+
+  .app-origin {
+    margin: 0;
+    padding-left: 9px;
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--dpk-ink-faint);
+    overflow-wrap: anywhere;
+  }
+
+  .tree {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  /* A path below another one is indented under it, with a guide line. */
+  .tree .tree {
+    margin-left: 14px;
+    padding-left: 6px;
+    border-left: 1px solid var(--dpk-rule);
+  }
+
+  .tree-node {
+    display: grid;
+    gap: 2px;
+  }
+
+  .tree-row {
+    position: relative;
+    border-radius: var(--dpk-radius-sm);
+    transition: background 140ms ease;
+  }
+
+  .tree-row:has(a):hover {
+    background: var(--dpk-paper-inset);
+  }
+
+  .tree-row[data-current='true'] {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--dpk-prototype-accent) 10%, var(--dpk-paper-raised)),
+      color-mix(in srgb, var(--dpk-prototype-accent) 5%, var(--dpk-paper-raised))
+    );
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--dpk-prototype-accent) 22%, transparent),
+      var(--dpk-shadow-xs);
+  }
+
+  .tree-link {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+    padding: 6px 4px 6px 9px;
+    text-decoration: none;
+    color: var(--dpk-ink-soft);
+    font-size: 12.5px;
+  }
+
+  .tree-path {
+    font-family: var(--dpk-mono);
+    font-size: 11.5px;
+    color: var(--dpk-ink);
+    overflow-wrap: anywhere;
+  }
+
+  span.tree-link .tree-path {
+    color: var(--dpk-ink-faint);
+  }
+
+  .tree-title {
+    min-width: 0;
+    color: var(--dpk-ink-soft);
+  }
+
+  .tree-row[data-current='true'] .tree-path,
+  .tree-row[data-current='true'] .tree-title {
+    color: var(--dpk-ink);
+    font-weight: 550;
+  }
+
+  .tree-actor {
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--dpk-paper-inset);
+    font-size: 10px;
+    color: var(--dpk-ink-faint);
+  }
+
+  .tree-link .step-note {
+    align-self: center;
+  }
+
+  .tree-link:focus-visible {
+    outline: none;
+    border-radius: var(--dpk-radius-sm);
+    box-shadow: var(--dpk-focus);
+  }
+
   .steps.app-screens {
     max-height: none;
   }

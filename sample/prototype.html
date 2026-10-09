@@ -20,7 +20,7 @@
     -->
     <script type="module">
       import { loadKit } from './kit.js';
-      loadKit(['templates/prototype.js']);
+      loadKit(['templates/prototype.js', 'components.js']);
     </script>
 
     <style>
@@ -707,11 +707,20 @@
         {
           "title": "Sora Market — 注文とキャンセル",
           "baseUrl": "https://sora-market.example.com",
+          "apps": [
+            {
+              "id": "shop",
+              "name": "ショップ（購入者向け）",
+              "description": "スマホのブラウザで使う購入者向けのサイト"
+            },
+            { "id": "admin", "name": "管理画面（運営者向け）", "description": "ショップ運営者が PC で使う管理画面" }
+          ],
           "activities": [
             {
               "id": "buyer",
               "name": "購入者（スマホ）",
               "actor": "購入者",
+              "app": "shop",
               "description": "スマホのブラウザで買い物をし、注文を自分で取り消す",
               "stories": [
                 {
@@ -913,6 +922,7 @@
               "id": "ops",
               "name": "ショップ運営（PC）",
               "actor": "ショップ運営者",
+              "app": "admin",
               "description": "管理画面で注文の状態と返金の進み具合を見る",
               "stories": [
                 {
@@ -1016,8 +1026,54 @@
       </script>
 
       <div slot="memo">
-        <strong>メモ</strong> — 購入者はスマホ、ショップ運営は PC
-        で使う前提。キャンセルできるかは注文の状態だけで決まるので、できない注文にはボタンを出さず、理由と次にできることを示す。返金は決済代行の都合で数日かかることがあるため、受付と返金完了は別々に知らせる。
+        <p>
+          <strong>前提</strong> — 購入者はスマホ、ショップ運営は PC
+          で使う。キャンセルできるかは注文の状態だけで決まるので、できない注文にはボタンを出さず、理由と次にできることを示す。返金は決済代行の都合で数日かかることがあるため、受付と返金完了は別々に知らせる。
+        </p>
+        <dpk-component-er-diagram heading="ERD" subject="注文と返金">
+          <script type="application/json">
+            {
+              "before": {
+                "tables": [
+                  {
+                    "id": "orders",
+                    "name": "注文",
+                    "fields": [
+                      { "id": "id", "type": "varchar", "key": "PK" },
+                      { "id": "status", "type": "varchar" },
+                      { "id": "paid_at", "type": "timestamptz", "nullable": true }
+                    ]
+                  }
+                ]
+              },
+              "after": {
+                "tables": [
+                  {
+                    "id": "orders",
+                    "name": "注文",
+                    "fields": [
+                      { "id": "id", "type": "varchar", "key": "PK" },
+                      { "id": "status", "type": "order_status" },
+                      { "id": "paid_at", "type": "timestamptz", "nullable": true },
+                      { "id": "cancelled_at", "type": "timestamptz", "nullable": true }
+                    ]
+                  },
+                  {
+                    "id": "refunds",
+                    "name": "返金",
+                    "fields": [
+                      { "id": "id", "type": "uuid", "key": "PK" },
+                      { "id": "order_id", "type": "varchar", "key": "FK", "ref": "orders.id" },
+                      { "id": "amount", "type": "integer" },
+                      { "id": "status", "type": "refund_status" },
+                      { "id": "completed_at", "type": "timestamptz", "nullable": true }
+                    ]
+                  }
+                ]
+              }
+            }
+          </script>
+        </dpk-component-er-diagram>
       </div>
 
       <!-- ================================================================ -->

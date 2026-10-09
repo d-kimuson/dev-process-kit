@@ -51,23 +51,27 @@ Check before you hand the page over:
 }
 ```
 
-| Field                      | Required | Notes                                                                                                           |
-| -------------------------- | -------- | --------------------------------------------------------------------------------------------------------------- |
-| `title`                    | no       | shown in the page header, and the source of the placeholder preview domain                                      |
-| `baseUrl`                  | no       | origin used for preview URLs, e.g. `https://app.kumoma.io`. Defaults to `https://<slugified title>.example.com` |
-| `activities[].id` / `name` | yes      | `description` optional                                                                                          |
-| `stories[].id` / `name`    | yes      | `description` optional. `steps` defaults to `[]`: a story with no steps yet is still a navigation destination   |
-| `steps[].id` / `name`      | yes      | `description` optional                                                                                          |
-| `steps[].title`            | no       | title of the page the step shows, headed above the frame (e.g. `ユーザー一覧`). Defaults to the step name       |
-| `actor`                    | no       | who uses the page (e.g. `管理者`), on an activity, story or step. The nearest one wins: step › story › activity |
-| `steps[].situation`        | no       | what is going on around the screen (e.g. `朝 8 時、店舗の FAX に注文書が届く`), shown just above the previews   |
-| `steps[].layout`           | no       | `tabs` (default: one preview at a time) or `side-by-side` (every preview at once, in one row)                   |
-| `previews[].id`            | yes      | must equal the `data-preview-id` of the light DOM below                                                         |
-| `previews[].kind`          | no       | `browser` (default, address bar), `native` (phone bezel), `mail` (a received e-mail) or `plain` (no device)     |
-| `previews[].viewport`      | no       | `mobile` (390px) · `tablet` (834px) · `desktop` (1180px) · `fluid` (default)                                    |
-| `previews[].label`         | no       | tab label (defaults to the viewport name), or the caption of a side-by-side pane                                |
-| `previews[].url`           | no       | overrides the address shown in the browser chrome (cosmetic)                                                    |
-| `previews[].mail`          | no       | `kind: "mail"` only: `{ "from", "to", "cc", "subject", "date" }`, all optional strings, shown above the body    |
+| Field                      | Required | Notes                                                                                                                                                |
+| -------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`                    | no       | shown in the page header, and the source of the placeholder preview domain                                                                           |
+| `baseUrl`                  | no       | origin used for preview URLs, e.g. `https://app.kumoma.io`. Defaults to `https://<slugified title>.example.com`                                      |
+| `apps[].id` / `name`       | no       | the sub-applications of the product, e.g. the shop for buyers and the admin console, for the [app view](#sub-applications). `description` optional   |
+| `app`                      | no       | id of the sub-application the page belongs to, on an activity, story or step. The nearest one wins: step › story › activity. Must name one of `apps` |
+| `activities[].id` / `name` | yes      | `description` optional                                                                                                                               |
+| `stories[].id` / `name`    | yes      | `description` optional (Markdown). `steps` defaults to `[]`: a story with no steps yet is still a navigation destination                             |
+| `steps[].id` / `name`      | yes      | `description` optional (Markdown)                                                                                                                    |
+| `steps[].title`            | no       | title of the page the step shows, headed above the frame (e.g. `ユーザー一覧`). Defaults to the step name                                            |
+| `actor`                    | no       | who uses the page (e.g. `管理者`), on an activity, story or step. The nearest one wins: step › story › activity                                      |
+| `steps[].situation`        | no       | what is going on around the screen (e.g. `朝 8 時、店舗の FAX に注文書が届く`), shown just above the previews                                        |
+| `steps[].layout`           | no       | `tabs` (default: one preview at a time) or `side-by-side` (every preview at once, in one row)                                                        |
+| `previews[].id`            | yes      | must equal the `data-preview-id` of the light DOM below                                                                                              |
+| `previews[].kind`          | no       | `browser` (default, address bar), `native` (phone bezel), `mail` (a received e-mail) or `plain` (no device)                                          |
+| `previews[].viewport`      | no       | `mobile` (390px) · `tablet` (834px) · `desktop` (1180px) · `fluid` (default)                                                                         |
+| `previews[].label`         | no       | tab label (defaults to the viewport name), or the caption of a side-by-side pane                                                                     |
+| `previews[].url`           | no       | overrides the address shown in the browser chrome (cosmetic)                                                                                         |
+| `previews[].mail`          | no       | `kind: "mail"` only: `{ "from", "to", "cc", "subject", "date" }`, all optional strings, shown above the body                                         |
+
+A step's `description` and the `description` of a story without steps are shown as Markdown (GFM; a single line break stays a break), so write lists and emphasis there rather than one long line. Raw HTML is shown as text, and a link keeps only a `http(s)`, `mailto` or in-page address.
 
 Ids use `[A-Za-z0-9_-]+`. An activity id and a preview id are unique across the whole page (a preview id names a light DOM slot), while a story id and a step id are unique within their parent.
 
@@ -206,11 +210,11 @@ Only `step` is required (`#step=google-auth` resolves the containing activity an
 
 ## UI provided by the template
 
-| Region  | Content                                                                                                                                                                                                                                            |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| sidebar | the Scenario / App switch, then — in the scenario view — Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description; in the app view, the app's screens grouped by actor                  |
-| main    | page head (the `actor` chip and the page `title`), preview tabs (only for several previews in `tabs` layout), "Comment on UI" and "Maximize" buttons, the step's `situation`, plus the frame of the selected preview — or every frame side by side |
-| frame   | browser chrome (traffic dots + address bar); for `native`, a device bezel with a phone status bar and a home indicator; for `mail`, the subject and envelope; for `plain`, nothing. Only a side-by-side pane has a caption (its `label`).          |
+| Region  | Content                                                                                                                                                                                                                                                |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| sidebar | the Scenario / App switch, then — in the scenario view — Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description; in the app view, the sub-application select and its screens as URL trees |
+| main    | page head (the `actor` chip and the page `title`), preview tabs (only for several previews in `tabs` layout), "Comment on UI" and "Maximize" buttons, the step's `situation`, plus the frame of the selected preview — or every frame side by side     |
+| frame   | browser chrome (traffic dots + address bar); for `native`, a device bezel with a phone status bar and a home indicator; for `mail`, the subject and envelope; for `plain`, nothing. Only a side-by-side pane has a caption (its `label`).              |
 
 Frames are sized by content, not by a fixed height: the viewport has a per-kind minimum height (mobile 620 · tablet 640 · desktop 520 · fluid 420) and grows with the mock, so a preview never scrolls inside its own frame — the page main column scrolls instead. A `plain` preview has no minimum: it is exactly as tall as what it draws. The author wrapper element is stretched to fill the frame, so a mock can rely on being at least as tall as that minimum without using a percentage height. A maximized stage makes the frame as tall as the screen, so lay the mock out to stretch (a grid or flex column whose side navigation and backgrounds fill the wrapper) rather than pinning a fixed `min-height`, and start the page content at the top as the real screen would.
 
@@ -223,9 +227,28 @@ The UI edits step name/description, adds steps, and comments — on a step, or o
 The switch at the top of the sidebar picks how the reader goes through the prototype:
 
 - **Scenario** (default) follows one user story: the Activity and UserStory selects, the story's steps in order, and each step's `situation`.
-- **App** uses the UI as one app, whatever the scenario. The sidebar lists the app's screens grouped by `actor`; the steps that show the same page `title` to the same actor are one screen, opened at its first step in page order (a step without previews is left out). The reader picks a screen to start from and moves around through the mock's own links, which keep the app view. The stage shows the page alone, without the `situation`.
+- **App** uses the UI as one app, whatever the scenario. The sidebar lists the app's screens; the steps that show the same page `title` to the same actor are one screen, opened at its first step in page order (a step without previews is left out). The reader picks a screen to start from and moves around through the mock's own links, which keep the app view. The stage shows the page alone, without the `situation`.
 
-The app view needs nothing more from you than [wired links](#wire-every-link-required) and a `title` per page: give the steps that show the same page the same `title`, and the screen list reads like the app's own menu.
+The screens shown in a `browser` preview are laid out as a URL tree per origin, each path followed by the page `title` (`/orders 注文一覧`), from the address of the screen's first browser preview ([Preview address](#preview-address)) without its query. A path no screen sits at folds into its only child (`/checkout/done`), and several screens at one path (a page and its states) each get a row. Every other screen (`native`, `mail`, `plain`) is listed below the tree.
+
+The app view needs nothing more from you than [wired links](#wire-every-link-required) and a `title` per page: give the steps that show the same page the same `title`, and give browser previews the `url` of the page they show, so the tree reads like the app's own sitemap.
+
+#### Sub-applications
+
+A product is often several apps for different people — the shop buyers use and the admin console operators use. Declare them in `apps` and put `app` on the activities (or a story or step that belongs elsewhere); the app view then shows one app at a time, picked with a select that opens its first screen. The app of the step on stage is the current one. Screens no level names an app for are gathered under "Other".
+
+```json
+{
+  "apps": [
+    { "id": "shop", "name": "ショップ（購入者向け）" },
+    { "id": "admin", "name": "管理画面（運営者向け）", "description": "ショップ運営者が PC で使う" }
+  ],
+  "activities": [
+    { "id": "buyer", "name": "購入者", "app": "shop", "stories": [] },
+    { "id": "ops", "name": "ショップ運営", "app": "admin", "stories": [] }
+  ]
+}
+```
 
 ### Commenting on the UI
 

@@ -6,7 +6,7 @@ import { prototypeAction } from './actions';
 import { applyPrototypeAction } from './apply';
 import { prototypeDefinitionFor } from './definition';
 import { prototypeMessages } from './messages';
-import { findStep, parsePrototypeBase, stepRef, type PrototypeState } from './model';
+import { findStep, parsePrototypeBase, stepAppId, stepRef, type PrototypeState } from './model';
 import {
   describePrototypeAction,
   prototypeLinkProblem,
@@ -125,6 +125,71 @@ describe('prototype base parsing', () => {
       ],
     });
     expect(parsed.activities[0]?.stories[0]?.steps[0]?.previews[0]).toMatchObject({ kind: 'plain' });
+  });
+});
+
+describe('prototype apps', () => {
+  const withApps = (
+    activities: unknown,
+    apps: unknown = [
+      { id: 'shop', name: 'Shop', description: 'For buyers' },
+      { id: 'admin', name: 'Admin' },
+    ],
+  ): unknown => ({ apps, activities });
+
+  it('keeps the sub-applications and the app each level belongs to, the nearest one winning', () => {
+    const parsed = parsePrototypeBase(
+      withApps([
+        {
+          id: 'buy',
+          name: 'Buy',
+          app: 'shop',
+          stories: [
+            {
+              id: 'order',
+              name: 'Order',
+              steps: [
+                { id: 'cart', name: 'Cart' },
+                { id: 'notify', name: 'Notify the shop', app: 'admin' },
+              ],
+            },
+            { id: 'ops', name: 'Ops', app: 'admin', steps: [{ id: 'check', name: 'Check' }] },
+          ],
+        },
+        { id: 'misc', name: 'Misc', stories: [{ id: 'm', name: 'M', steps: [{ id: 'x', name: 'X' }] }] },
+      ]),
+    );
+    expect(parsed.apps).toEqual([
+      { id: 'shop', name: 'Shop', description: 'For buyers' },
+      { id: 'admin', name: 'Admin' },
+    ]);
+    const appOf = (ref: string): string | undefined => {
+      const location = findStep(parsed, ref);
+      return location && stepAppId(location);
+    };
+    expect(appOf('buy.order.cart')).toBe('shop');
+    expect(appOf('buy.order.notify')).toBe('admin');
+    expect(appOf('buy.ops.check')).toBe('admin');
+    expect(appOf('misc.m.x')).toBeUndefined();
+  });
+
+  it('rejects an app the page does not declare, and duplicate app ids', () => {
+    const story = (app: string): unknown => [
+      { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', app }] }] },
+    ];
+    expect(() => parsePrototypeBase(withApps(story('shpo')))).toThrow(/unknown app "shpo"/);
+    expect(() => parsePrototypeBase({ activities: story('shop') })).toThrow(/unknown app "shop"/);
+    expect(() =>
+      parsePrototypeBase(
+        withApps(
+          [],
+          [
+            { id: 'shop', name: 'Shop' },
+            { id: 'shop', name: 'Shop again' },
+          ],
+        ),
+      ),
+    ).toThrow(/duplicate app id "shop"/);
   });
 });
 

@@ -50,6 +50,9 @@ export const prototypeMessages = defineMessages({
     appScreens: 'Screens',
     appScreensHint: 'Pick a screen to start from, then move around through the UI itself.',
     appNoActor: 'Anyone',
+    appSelectLabel: 'App',
+    appUnassigned: 'Other',
+    appOutsideBrowser: 'Outside the browser',
 
     // ----------------------------------------------------------------- stage
     noStepBefore: 'There are no Steps yet. A Prototype has the meaning structure ',
@@ -116,6 +119,9 @@ export const prototypeMessages = defineMessages({
     appScreens: '画面',
     appScreensHint: '起点にする画面を選び、あとは UI のリンクで移動します。',
     appNoActor: '利用者の指定なし',
+    appSelectLabel: 'アプリ',
+    appUnassigned: 'その他',
+    appOutsideBrowser: 'ブラウザ以外',
 
     noStepBefore: 'Step がまだありません。Prototype は ',
     noStepAfter:

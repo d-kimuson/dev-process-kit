@@ -47,6 +47,8 @@ export type PrototypeStep = {
   readonly title?: string;
   /** Who uses the page, e.g. `Administrator`. Overrides the story's and activity's. */
   readonly actor?: string;
+  /** Id of the sub-application the page belongs to. Overrides the story's and activity's. */
+  readonly app?: string;
   /**
    * What is going on around the previews, e.g. `The clerk receives a FAX from
    * the customer`. Shown just above them.
@@ -63,6 +65,8 @@ export type PrototypeStory = {
   readonly description?: string;
   /** Who uses the story's pages unless a step says otherwise. */
   readonly actor?: string;
+  /** The sub-application of the story's pages unless a step says otherwise. */
+  readonly app?: string;
   readonly steps: readonly PrototypeStep[];
 };
 
@@ -72,7 +76,19 @@ export type PrototypeActivity = {
   readonly description?: string;
   /** Who uses the activity's pages unless a story or step says otherwise. */
   readonly actor?: string;
+  /** The sub-application of the activity's pages unless a story or step says otherwise. */
+  readonly app?: string;
   readonly stories: readonly PrototypeStory[];
+};
+
+/**
+ * One application of the product, typically per audience: the shop buyers
+ * use, the admin console operators use. The app view shows one at a time.
+ */
+export type PrototypeApp = {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
 };
 
 export type PrototypeState = {
@@ -82,6 +98,8 @@ export type PrototypeState = {
    * Defaults to `https://<slugified title>.example.com`.
    */
   readonly baseUrl?: string;
+  /** The sub-applications the steps' `app` names. */
+  readonly apps?: readonly PrototypeApp[];
   readonly activities: readonly PrototypeActivity[];
 };
 
@@ -117,6 +135,7 @@ const stepSchema = v.strictObject({
   description: v.exactOptional(v.string()),
   title: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  app: v.exactOptional(entityIdSchema),
   situation: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   layout: v.exactOptional(v.picklist(PREVIEW_LAYOUTS)),
   previews: v.optional(v.array(previewSchema), []),
@@ -127,6 +146,7 @@ const storySchema = v.strictObject({
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  app: v.exactOptional(entityIdSchema),
   steps: v.optional(v.array(stepSchema), []),
 });
 
@@ -135,12 +155,20 @@ const activitySchema = v.strictObject({
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  app: v.exactOptional(entityIdSchema),
   stories: v.optional(v.array(storySchema), []),
+});
+
+const appSchema = v.strictObject({
+  id: entityIdSchema,
+  name: v.pipe(v.string(), v.minLength(1)),
+  description: v.exactOptional(v.string()),
 });
 
 export const prototypeBaseSchema = v.strictObject({
   title: v.exactOptional(v.string()),
   baseUrl: v.exactOptional(v.string()),
+  apps: v.exactOptional(v.array(appSchema)),
   activities: v.optional(v.array(activitySchema), []),
 });
 
@@ -209,10 +237,25 @@ export const parseUiTargetId = (id: string): UiTarget | undefined => {
   return quoted?.[1] === undefined ? { previewId, selector } : { previewId, selector, text: quoted[1] };
 };
 
+/** Every `app` must name a declared app, and app ids must be unique. */
+const findAppProblem = (state: v.InferOutput<typeof prototypeBaseSchema>): string | null => {
+  const appIds = new Set<string>();
+  for (const app of state.apps ?? []) {
+    if (appIds.has(app.id)) return `duplicate app id "${app.id}"`;
+    appIds.add(app.id);
+  }
+  const levels = state.activities.flatMap((activity) => [
+    activity,
+    ...activity.stories.flatMap((story) => [story, ...story.steps]),
+  ]);
+  const unknown = levels.find((level) => level.app !== undefined && !appIds.has(level.app));
+  return unknown ? `unknown app "${unknown.app}" on "${unknown.id}": declare it in \`apps\`` : null;
+};
+
 export const parsePrototypeBase = (input: unknown): PrototypeState => {
   const parsed = v.parse(prototypeBaseSchema, input);
-  const duplicate = findDuplicateId(parsed);
-  if (duplicate !== null) throw new Error(duplicate);
+  const problem = findDuplicateId(parsed) ?? findAppProblem(parsed);
+  if (problem !== null) throw new Error(problem);
   return parsed;
 };
 
@@ -225,6 +268,11 @@ export type StepLocation = {
   readonly story: PrototypeStory;
   readonly step: PrototypeStep;
   readonly stepIndex: number;
+};
+
+/** The sub-application a step's page belongs to: the nearest `app` of step, story and activity. */
+export const stepAppId = (location: StepLocation): string | undefined => {
+  return location.step.app ?? location.story.app ?? location.activity.app;
 };
 
 export const findActivity = (state: PrototypeState, id: string | undefined): PrototypeActivity | undefined => {

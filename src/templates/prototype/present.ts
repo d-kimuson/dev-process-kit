@@ -19,11 +19,13 @@ import {
   findStep,
   findStory,
   flattenSteps,
+  stepAppId,
   stepRef,
   stepRefOf,
   storyRef,
   type PreviewLayout,
   type PrototypeActivity,
+  type PrototypeApp,
   type PrototypePreview,
   type PrototypeStep,
   type PrototypeState,
@@ -530,6 +532,8 @@ export const resolvePrototypeNavigation = (state: PrototypeState, nav: Navigatio
 /** One screen of the app: the steps that show the same page to the same actor. */
 export type AppScreen = {
   readonly title: string;
+  /** Who uses the screen; absent when no level names an actor. */
+  readonly actor?: string;
   /** Where the screen opens: its first step in page order. */
   readonly opensAt: StepLocation;
   /** Every step showing this screen, so the one on stage marks it current. */
@@ -545,38 +549,182 @@ export type AppScreenGroup = {
 };
 
 /**
- * The app view's sidebar: the screens of the whole prototype, grouped by who
- * uses them, whatever story they appear in. A page several steps show (the
- * order list in its states) is one screen, opened at its first step; the
- * mock's links reach the others.
+ * One path of a URL tree. A path no screen sits at folds into its only child
+ * (`/checkout` + `/done` -> `/checkout/done`), so the tree only branches where
+ * the app does.
  */
-export const prototypeAppScreens = (state: PrototypeState): readonly AppScreenGroup[] => {
-  const groups = new Map<string, { actor?: string; screens: Map<string, AppScreen> }>();
-  for (const location of flattenSteps(state)) {
+export type ScreenTreeNode = {
+  /** The part of the path below the parent, e.g. `/orders`; `/` for the root. */
+  readonly segment: string;
+  /** The whole path, e.g. `/mypage/orders`. */
+  readonly path: string;
+  /** The screens whose page has this path, e.g. a list and its empty state. */
+  readonly screens: readonly AppScreen[];
+  readonly children: readonly ScreenTreeNode[];
+};
+
+/** The web pages of one origin, from its root path. */
+export type ScreenTree = {
+  readonly origin: string;
+  readonly root: ScreenTreeNode;
+};
+
+/** The screens of one sub-application. */
+export type AppSection = {
+  /** Absent for the screens no level names an app for, or when the page declares none. */
+  readonly app?: PrototypeApp;
+  /** Every screen, in page order. */
+  readonly screens: readonly AppScreen[];
+  /** The screens shown in a browser, as URL trees. */
+  readonly trees: readonly ScreenTree[];
+  /** The other screens (a phone app, a mail, a paper), grouped by who uses them. */
+  readonly others: readonly AppScreenGroup[];
+};
+
+/** Collects the screens of steps: a page several steps show (a list in its states) is one screen. */
+const collectScreens = (locations: readonly StepLocation[]): readonly AppScreen[] => {
+  const screens = new Map<string, AppScreen>();
+  for (const location of locations) {
     if (location.step.previews.length === 0) continue;
     const heading = prototypePageHeading(location);
-    const groupKey = heading.actor ?? '';
-    const group = groups.get(groupKey) ?? {
-      ...(heading.actor === undefined ? {} : { actor: heading.actor }),
-      screens: new Map<string, AppScreen>(),
-    };
-    groups.set(groupKey, group);
-    const screen = group.screens.get(heading.title);
+    const key = JSON.stringify([heading.actor ?? null, heading.title]);
+    const screen = screens.get(key);
     const ref = stepRef(location);
     const previewIds = location.step.previews.map((preview) => preview.id);
-    group.screens.set(
-      heading.title,
+    screens.set(
+      key,
       screen === undefined
-        ? { title: heading.title, opensAt: location, stepRefs: [ref], previewIds }
-        : {
-            ...screen,
-            stepRefs: [...screen.stepRefs, ref],
-            previewIds: [...screen.previewIds, ...previewIds],
-          },
+        ? { ...heading, opensAt: location, stepRefs: [ref], previewIds }
+        : { ...screen, stepRefs: [...screen.stepRefs, ref], previewIds: [...screen.previewIds, ...previewIds] },
     );
   }
-  return [...groups.values()].map((group) => ({
-    ...(group.actor === undefined ? {} : { actor: group.actor }),
-    screens: [...group.screens.values()],
-  }));
+  return [...screens.values()];
+};
+
+const groupByActor = (screens: readonly AppScreen[]): readonly AppScreenGroup[] => {
+  const groups = new Map<string, AppScreen[]>();
+  for (const screen of screens) {
+    const key = screen.actor ?? '';
+    groups.set(key, [...(groups.get(key) ?? []), screen]);
+  }
+  return [...groups.entries()].map(([actor, members]) =>
+    actor === '' ? { screens: members } : { actor, screens: members },
+  );
+};
+
+type WebAddress = { readonly origin: string; readonly segments: readonly string[] };
+
+/** Where a screen lives on the web: the address of its first browser preview. */
+const webAddressOf = (state: PrototypeState, screen: AppScreen): WebAddress | undefined => {
+  const preview = screen.opensAt.step.previews.find((entry) => entry.kind === 'browser');
+  if (!preview) return undefined;
+  let url: URL;
+  try {
+    url = new URL(prototypePreviewUrl(state, preview), 'https://page.example.com');
+  } catch {
+    return undefined;
+  }
+  const segments = url.pathname
+    .split('/')
+    .filter((segment) => segment !== '')
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment);
+      } catch {
+        return segment;
+      }
+    });
+  return { origin: url.origin, segments };
+};
+
+type MutableNode = { readonly screens: AppScreen[]; readonly children: Map<string, MutableNode> };
+
+const emptyNode = (): MutableNode => ({ screens: [], children: new Map<string, MutableNode>() });
+
+const freezeNode = (node: MutableNode, segment: string, path: string): ScreenTreeNode => {
+  // A path no screen sits at, with one way down, is only a step towards it.
+  const [only, ...rest] = node.children.entries();
+  if (node.screens.length === 0 && only && rest.length === 0 && path !== '/') {
+    const [childSegment, child] = only;
+    return freezeNode(child, `${segment}/${childSegment}`, `${path}/${childSegment}`);
+  }
+  return {
+    segment,
+    path,
+    screens: node.screens,
+    children: [...node.children.entries()].map(([childSegment, child]) =>
+      freezeNode(child, `/${childSegment}`, `${path === '/' ? '' : path}/${childSegment}`),
+    ),
+  };
+};
+
+const buildTrees = (entries: readonly (readonly [AppScreen, WebAddress])[]): readonly ScreenTree[] => {
+  const roots = new Map<string, MutableNode>();
+  for (const [screen, address] of entries) {
+    const root = roots.get(address.origin) ?? emptyNode();
+    roots.set(address.origin, root);
+    let node = root;
+    for (const segment of address.segments) {
+      const child = node.children.get(segment) ?? emptyNode();
+      node.children.set(segment, child);
+      node = child;
+    }
+    node.screens.push(screen);
+  }
+  return [...roots.entries()].map(([origin, root]) => ({ origin, root: freezeNode(root, '/', '/') }));
+};
+
+const appSection = (
+  state: PrototypeState,
+  app: PrototypeApp | undefined,
+  locations: readonly StepLocation[],
+): AppSection => {
+  const screens = collectScreens(locations);
+  const web: (readonly [AppScreen, WebAddress])[] = [];
+  const others: AppScreen[] = [];
+  for (const screen of screens) {
+    const address = webAddressOf(state, screen);
+    if (address) web.push([screen, address]);
+    else others.push(screen);
+  }
+  const section: AppSection = { screens, trees: buildTrees(web), others: groupByActor(others) };
+  return app === undefined ? section : { app, ...section };
+};
+
+/**
+ * The app view's sidebar: the screens of the whole prototype, whatever story
+ * they appear in, one section per sub-application in declared order, then the
+ * screens no level names an app for. A page several steps show is one screen,
+ * opened at its first step; the mock's links reach the others.
+ */
+export const prototypeAppSections = (state: PrototypeState): readonly AppSection[] => {
+  const locations = flattenSteps(state);
+  const sections = (state.apps ?? []).map((app) =>
+    appSection(
+      state,
+      app,
+      locations.filter((location) => stepAppId(location) === app.id),
+    ),
+  );
+  const unassigned = appSection(
+    state,
+    undefined,
+    locations.filter((location) => stepAppId(location) === undefined),
+  );
+  return [...sections, unassigned].filter((section) => section.screens.length > 0);
+};
+
+/** The section the reader is in: the one showing the step on stage, else that step's app, else the first. */
+export const prototypeCurrentAppSection = (
+  sections: readonly AppSection[],
+  location: PrototypeLocation | undefined,
+): AppSection | undefined => {
+  if (location?.kind !== 'step') return sections[0];
+  const ref = stepRef(location);
+  const appId = stepAppId(location);
+  return (
+    sections.find((section) => section.screens.some((screen) => screen.stepRefs.includes(ref))) ??
+    sections.find((section) => section.app?.id === appId) ??
+    sections[0]
+  );
 };
