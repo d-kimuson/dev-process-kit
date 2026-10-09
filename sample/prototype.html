@@ -374,6 +374,74 @@
         text-decoration: underline;
       }
 
+      /* App rendition of a shop screen: the frame already draws the phone status bar
+         and home indicator, so this only lays out an app bar on top and a tab bar
+         pinned to the bottom, with the same body content as the browser rendition
+         in between. */
+      .sm--app {
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+      }
+
+      .sm--app > .sm-shot {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 18px;
+      }
+
+      /* An app screen starts under its bar; only a finished state sits in the middle. */
+      .sm--app > .sm-shot:not(.sm-center) {
+        align-content: start;
+      }
+
+      .sm-appbar {
+        display: grid;
+        grid-template-columns: 28px 1fr 28px;
+        align-items: center;
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid var(--sm-line);
+        background: var(--sm-panel);
+      }
+
+      .sm-appbar-back {
+        color: var(--sm-dim);
+        font-size: 20px;
+        line-height: 1;
+      }
+
+      .sm-appbar-title {
+        justify-self: center;
+        max-width: 100%;
+        overflow: hidden;
+        color: var(--sm-text);
+        font-size: 14px;
+        font-weight: 650;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .sm-tabbar {
+        display: flex;
+        margin-top: auto;
+        padding: 10px 4px;
+        border-top: 1px solid var(--sm-line);
+        background: var(--sm-panel);
+      }
+
+      .sm-tab {
+        flex: 1;
+        text-align: center;
+        color: var(--sm-dim);
+        font-size: 10.5px;
+        text-decoration: none;
+      }
+
+      .sm-tab[aria-current='page'] {
+        color: var(--sm-accent);
+        font-weight: 650;
+      }
+
       /* Native preview: a lock-screen notification rather than a web page. */
       .sm-lock {
         display: grid;
@@ -711,105 +779,125 @@
             {
               "id": "shop",
               "name": "ショップ（購入者向け）",
-              "description": "スマホのブラウザで使う購入者向けのサイト",
+              "description": "スマホのブラウザとアプリで使う購入者向けのサイト",
               "actor": "購入者",
               "screens": [
                 {
                   "id": "cart",
                   "title": "カート",
+                  "description": "カートの中身と合計を確かめ、レジへ進む入口。\n\n- 商品ごとに **バリエーション（色・サイズ）と数量** を出す\n- 送料込みの **合計（税込）** をいちばん下に太く出す\n- 主ボタンは「レジに進む」の 1 つだけ",
                   "previews": [
                     {
                       "id": "cart-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/cart"
-                    }
+                      "url": "https://sora-market.example.com/cart",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "cart-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 },
                 {
                   "id": "delivery-payment",
                   "title": "配送・支払い",
+                  "description": "前回の配送先と支払い方法を **選んだ状態で** 開く。リピーターは何も触らずに先へ進める。\n\n| 項目 | 初期値 |\n| --- | --- |\n| 配送先 | 前回の住所 |\n| 支払い | 前回のカード |\n\n> 住所の追加・カードの登録はこの画面の中で完結させ、別ページに飛ばさない",
                   "previews": [
                     {
                       "id": "delivery-payment-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/checkout/delivery"
-                    }
+                      "url": "https://sora-market.example.com/checkout/delivery",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "delivery-payment-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 },
                 {
                   "id": "review",
                   "title": "注文内容の確認",
-                  "description": "キャンセルできる期限を、確定の前に一度だけ伝える",
+                  "description": "キャンセルできる期限を、確定の前に **一度だけ** 伝える。\n\n- 期限は「出荷の準備が始まる前（通常はご注文の翌朝まで）」と書き、時刻は約束しない\n- 確認用のチェックボックスは置かない。読まずに押されても困らない文面にする\n\n**未決:** 予約商品の期限をどう書くか",
                   "previews": [
                     {
                       "id": "review-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/checkout/review"
-                    }
+                      "url": "https://sora-market.example.com/checkout/review",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "review-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 },
                 {
                   "id": "order-complete",
                   "title": "注文完了",
+                  "description": "注文番号と、次に何が届くかだけを伝える。\n\n1. 注文番号 `SM-0918-0342`\n2. 確認メールが届くこと\n3. 注文履歴からキャンセルできること",
                   "previews": [
                     {
                       "id": "order-complete-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/orders/SM-0918-0342/thanks"
-                    }
+                      "url": "https://sora-market.example.com/orders/SM-0918-0342/thanks",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "order-complete-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 },
                 {
                   "id": "order-history",
                   "title": "注文履歴",
-                  "description": "キャンセルできる注文は一覧の時点で分かる",
+                  "description": "キャンセルできる注文は **一覧の時点で分かる**。\n\n- 状態のバッジは管理画面の [注文一覧](#view=app&screen=admin-orders) と同じ名前にそろえる\n- 「キャンセル可」は出荷指示の前だけ。期限が近いものから上に出す",
                   "previews": [
                     {
                       "id": "order-history-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/mypage/orders"
-                    }
+                      "url": "https://sora-market.example.com/mypage/orders",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "order-history-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 },
                 {
                   "id": "order-detail",
                   "title": "注文詳細",
+                  "description": "注文 1 件の中身と、いまできること。\n\n- キャンセルは **注文全体** の操作。商品ごとの取り消しは扱わない\n- ボタンは出荷指示の前だけ出す（出荷後は [出荷済みの注文詳細](#view=app&screen=shipped-detail) を参照）",
                   "previews": [
                     {
                       "id": "order-detail-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342"
-                    }
+                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "order-detail-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 },
                 {
                   "id": "cancel-confirm",
                   "title": "キャンセルの確認",
-                  "description": "理由の選択は任意。確定を妨げない",
+                  "description": "返金額と返金先を見せてから確定させる。\n\n- 理由の選択は **任意**。未選択でも確定できる\n- 返金先は支払いに使ったカードのみ。変更はできない\n- 確定ボタンの文言は「キャンセルを確定する」。「送信」などの汎用語にしない",
                   "previews": [
                     {
                       "id": "cancel-confirm-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342/cancel"
-                    }
+                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342/cancel",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "cancel-confirm-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 },
                 {
                   "id": "cancel-accepted",
                   "title": "キャンセル受付",
-                  "description": "返金の完了を待たずに受付だけを伝える。注文は「返金待ち」になる",
+                  "description": "返金の完了を待たずに **受付だけ** を伝える。注文は「返金待ち」になる。\n\n- [x] 受付メールを送る\n- [x] 在庫の引当を解除する\n- [ ] 返金の完了（決済代行の処理を待つ。通常 1〜2 日）",
                   "previews": [
                     {
                       "id": "cancel-accepted-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342/cancel/accepted"
-                    }
+                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342/cancel/accepted",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "cancel-accepted-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 },
                 {
                   "id": "refund-mail",
                   "title": "返金完了のお知らせ",
-                  "description": "受付と返金完了は別のメールで届く",
+                  "description": "受付と返金完了は **別のメール** で届く。\n\n件名に注文番号を入れ、本文の 1 行目で「いくら・どこへ」を言い切る:\n\n> 【Sora Market】返金が完了しました（注文 SM-0918-0342）",
                   "previews": [
                     {
                       "id": "refund-mail-message",
@@ -827,36 +915,43 @@
                 {
                   "id": "refunded-detail",
                   "title": "注文詳細（取消済み）",
+                  "description": "返金が済んだ注文の詳細。状態は「取消済み」。\n\n- 返金額・返金先・返金日を **最初のカード** に出す\n- 経過（注文 → キャンセル受付 → 返金完了）を時系列で残す\n- カード明細への反映が遅れる場合があることを、最後に一文だけ添える",
                   "previews": [
                     {
                       "id": "refunded-detail-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342"
-                    }
+                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "refunded-detail-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 },
                 {
                   "id": "shipped-detail",
                   "title": "注文詳細（出荷済み）",
-                  "description": "キャンセルのボタンは出さず、理由と次にできることを示す",
+                  "description": "キャンセルのボタンは出さず、**理由と次にできること** を示す。\n\n- 理由: 出荷の準備が始まっているため\n- 次にできること:\n  - 届いたあとに返品する（返品は別機能。ここでは案内だけ）\n  - 問い合わせる → 注文番号を埋めた [お問い合わせ](#view=app&screen=contact) を開く",
                   "previews": [
                     {
                       "id": "shipped-detail-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/mypage/orders/SM-0912-0127"
-                    }
+                      "url": "https://sora-market.example.com/mypage/orders/SM-0912-0127",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "shipped-detail-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 },
                 {
                   "id": "contact",
                   "title": "お問い合わせ",
-                  "description": "注文番号と用件を埋めた状態で開く",
+                  "description": "注文番号と用件を **埋めた状態で** 開く。\n\n| 項目 | 初期値 |\n| --- | --- |\n| 注文番号 | 開いた注文の番号 |\n| 用件 | キャンセルについて |\n\n返信の目安（翌営業日まで）を送信ボタンの上に書く。",
                   "previews": [
                     {
                       "id": "contact-mobile",
                       "viewport": "mobile",
-                      "url": "https://sora-market.example.com/contact?order=SM-0912-0127"
-                    }
+                      "url": "https://sora-market.example.com/contact?order=SM-0912-0127",
+                      "label": "ブラウザ"
+                    },
+                    { "id": "contact-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
                   ]
                 }
               ]
@@ -870,7 +965,7 @@
                 {
                   "id": "admin-orders",
                   "title": "注文一覧",
-                  "description": "状態は購入者に見せるものと同じ名前にそろえる",
+                  "description": "状態は **購入者に見せるものと同じ名前** にそろえる。\n\n- 絞り込み: すべて / 支払済み / 返金待ち / 取消済み / 出荷済み\n- 朝の確認で見たいのは「返金待ち」。件数をタブに出す",
                   "previews": [
                     {
                       "id": "admin-orders-desktop",
@@ -882,7 +977,7 @@
                 {
                   "id": "admin-order-detail",
                   "title": "注文詳細",
-                  "description": "誰がいつ取り消し、いつ返金と引当の解除が済んだかを一列で追える",
+                  "description": "誰がいつ取り消し、いつ返金と引当の解除が済んだかを **一列で** 追える。\n\n- 購入者の操作と、システム・決済代行の処理を同じ時系列に並べる\n- 問い合わせへの返事は、ここを見ながら書く想定",
                   "previews": [
                     {
                       "id": "admin-order-detail-desktop",
@@ -894,7 +989,7 @@
                 {
                   "id": "admin-refunds",
                   "title": "返金待ち一覧",
-                  "description": "経過時間の長い順に並べ、24 時間を超えたものを目立たせる",
+                  "description": "経過時間の長い順に並べ、**24 時間を超えたもの** を目立たせる。\n\n- 列: 注文番号 / 金額 / 返金先 / 経過 / 最後の試行\n- 行を開くと [返金の詳細](#view=app&screen=admin-refund)",
                   "previews": [
                     {
                       "id": "admin-refunds-desktop",
@@ -906,7 +1001,7 @@
                 {
                   "id": "admin-refund",
                   "title": "返金の詳細",
-                  "description": "失敗が続いたときの扱いは未決。ここでは「返金待ち」のまま残し、運営が照会と連絡をする案で描いた",
+                  "description": "失敗が続いたときの扱いは **未決**。ここでは「返金待ち」のまま残し、運営が照会と連絡をする案で描いた。\n\n**検討中の案**\n\n1. 自動再試行を続ける（いまの案）\n2. 一定回数で止め、手動の返金に切り替える\n3. 購入者に別の返金先を聞く\n\n> 二重返金を避けるため、決済代行の結果が出るまで手動の返金はできないようにする",
                   "previews": [
                     {
                       "id": "admin-refund-desktop",
@@ -918,7 +1013,7 @@
                 {
                   "id": "admin-inventory",
                   "title": "在庫",
-                  "description": "まだ描いていない。キャンセルで引当が解除された在庫が、販売可能数に戻ったかを確かめる画面になる",
+                  "description": "**まだ描いていない。** キャンセルで引当が解除された在庫が、販売可能数に戻ったかを確かめる画面になる。\n\n- [ ] 引当中 / 販売可能の数を商品ごとに出す\n- [ ] キャンセルで戻った数を当日分だけ強調する",
                   "previews": [
                     {
                       "id": "admin-inventory-desktop",
@@ -930,7 +1025,7 @@
                 {
                   "id": "admin-inquiries",
                   "title": "お問い合わせ",
-                  "description": "まだ描いていない。購入者からの問い合わせに、注文を見ながら返信する画面になる",
+                  "description": "**まだ描いていない。** 購入者からの問い合わせに、注文を見ながら返信する画面になる。\n\n- 問い合わせから注文詳細へ 1 クリックで行ける\n- よくある返事（出荷後のキャンセル依頼など）をテンプレートで選べる",
                   "previews": [
                     {
                       "id": "admin-inquiries-desktop",
@@ -955,24 +1050,28 @@
                     {
                       "id": "cart",
                       "name": "カートを確かめる",
+                      "description": "休憩中に、前の晩に入れておいた 2 点をそのまま買う。\n\n**確かめたいこと**\n- 合計（送料込み）が一目で分かるか\n- 「レジに進む」以外に迷う要素がないか",
                       "situation": "9月18日の午前 10 時ごろ、仕事の合間の短い休憩中。前の晩にカートへ入れておいた 2 点を、スマホで買ってしまおうとする",
                       "panes": [{ "screen": "cart" }]
                     },
                     {
                       "id": "delivery-payment",
                       "name": "配送先と支払い方法を選ぶ",
+                      "description": "前回のままで良いので、何も変えずに先へ進む。\n\n- 配送先・支払いが **選ばれた状態** で開くこと\n- 変更したい人の導線は残しつつ、主ボタンを邪魔しないこと",
                       "situation": "休憩は残り数分。配送先も支払い方法も前回のままでよく、何も変えずに先へ進みたい",
                       "panes": [{ "screen": "delivery-payment" }]
                     },
                     {
                       "id": "review",
                       "name": "注文を確定する",
+                      "description": "合計とお届け日だけ見て確定する。\n\n細かい注意書きは読まれない前提で、**キャンセルの期限** だけは目に入る位置に置く。",
                       "situation": "確定ボタンを押す直前。合計とお届け日を流し見していて、細かい注意書きはほとんど読まない",
                       "panes": [{ "screen": "review" }]
                     },
                     {
                       "id": "order-complete",
                       "name": "注文の完了を確かめる",
+                      "description": "注文が通ったことだけ確かめて画面を閉じる。\n\n- 注文番号\n- 確認メールが届くこと",
                       "situation": "注文を確定した直後。休憩が終わる前に画面を閉じようとしている",
                       "panes": [{ "screen": "order-complete" }]
                     }
@@ -986,24 +1085,28 @@
                     {
                       "id": "order-history",
                       "name": "注文履歴を開く",
+                      "description": "サイズの選び間違いに気づき、慌てて注文履歴を開く。\n\n一覧の時点で **この注文はまだ取り消せる** と分かることが大事。",
                       "situation": "同じ日の夜 21 時半、自宅のソファで。テーブルクロスのサイズを選び間違えたと気づき、慌てて注文履歴を開く",
                       "panes": [{ "screen": "order-history" }]
                     },
                     {
                       "id": "order-detail",
                       "name": "注文詳細からキャンセルを選ぶ",
+                      "description": "取り消せるのか、一部だけ直せるのか分からないまま注文を開く。\n\n- キャンセルは注文全体のみ（一部だけの変更はできない）\n- できないことは書かず、**できること** をボタンで示す",
                       "situation": "取り消せるのか、一部だけ直せるのかが分からず、不安なまま注文を開いている",
                       "panes": [{ "screen": "order-detail" }]
                     },
                     {
                       "id": "cancel-confirm",
                       "name": "返金額と返金先を確かめて確定する",
+                      "description": "お金が **いつ・どこへ** 戻るかを確かめてから確定する。\n\n| 確かめること | 画面での答え |\n| --- | --- |\n| いくら | 返金額（送料込み） |\n| どこへ | 支払いに使ったカード |\n| いつ | 通常 1〜2 日 |",
                       "situation": "あとで注文し直すつもりなので、お金がいつ、どこへ戻るかだけが気になっている",
                       "panes": [{ "screen": "cancel-confirm" }]
                     },
                     {
                       "id": "cancel-accepted",
                       "name": "受付を確かめる",
+                      "description": "確定を押した直後。返金がもう済んだのかを知りたい。\n\n> 受付と返金完了を **分けて伝える** ことで、「まだ戻っていない」という問い合わせを減らしたい",
                       "situation": "21 時 40 分、確定を押した直後。返金がもう済んだのか、まだなのかを知りたい",
                       "panes": [{ "screen": "cancel-accepted" }]
                     }
@@ -1016,6 +1119,7 @@
                     {
                       "id": "refund-notice",
                       "name": "返金完了の通知に気づく",
+                      "description": "プロダクトの外で始まる場面。ロック画面の通知だけを見せる。\n\n画面（screen）はなく、手元のもの（material）だけを並べている。",
                       "situation": "キャンセルした翌朝、通勤中の電車でスマホに通知が届く",
                       "panes": [
                         {
@@ -1031,12 +1135,14 @@
                     {
                       "id": "refund-mail",
                       "name": "返金完了のメールを開く",
+                      "description": "通知からメールを開き、いくら・どこへ戻ったかだけを確かめる。",
                       "situation": "通知をタップしてメールを開く。いくら、どこへ戻ったのかだけを確かめたい",
                       "panes": [{ "screen": "refund-mail" }]
                     },
                     {
                       "id": "refunded-detail",
                       "name": "注文が取消済みになったのを確かめる",
+                      "description": "注文がきちんと取り消されたかを、ついでに確かめる。\n\n- 状態が「取消済み」になっている\n- 返金日が入っている",
                       "situation": "通知を開いたついでに、注文がきちんと取り消されたかを電車の中で確かめる",
                       "panes": [{ "screen": "refunded-detail" }]
                     }
@@ -1050,12 +1156,14 @@
                     {
                       "id": "shipped-detail",
                       "name": "キャンセルできない理由を知る",
+                      "description": "届く前に取り消せないかと注文を開くが、もう出荷の準備が始まっている。\n\n**確かめたいこと**\n- 取り消せない **理由** が分かるか\n- 次にできること（返品・問い合わせ）に迷わず進めるか",
                       "situation": "9月15日の夜。12 日に頼んだペーパーウェイトが要らなくなり、届く前に取り消せないかと注文を開く",
                       "panes": [{ "screen": "shipped-detail" }]
                     },
                     {
                       "id": "contact",
                       "name": "問い合わせを送る",
+                      "description": "どうにかならないか運営に直接聞く。\n\n注文番号と用件が **最初から埋まっている** ので、本文だけ書けば送れる。",
                       "situation": "キャンセルできないと分かったが、どうにかならないか運営に直接聞きたい。翌日の昼休み、会社のデスクで入力している",
                       "panes": [{ "screen": "contact" }]
                     }
@@ -1075,19 +1183,21 @@
                     {
                       "id": "admin-orders",
                       "name": "注文を状態で絞り込む",
+                      "description": "前の晩に入ったキャンセルが片付いたかを、朝いちばんに確かめる。\n\n1. 「返金待ち」で絞り込む\n2. 経過が長いものがないかを見る",
                       "situation": "9月19日の朝 10 時半、事務所の PC で。前の晩に入ったキャンセルが片付いたかを、朝いちばんの確認として見る",
                       "panes": [{ "screen": "admin-orders" }]
                     },
                     {
                       "id": "admin-order-detail",
                       "name": "キャンセルの経緯をたどる",
+                      "description": "問い合わせへの返事を書くために、キャンセルの経緯をたどる。\n\n- いつ取り消されたか\n- 返金はどこまで進んだか\n- 引当は解除されたか",
                       "situation": "購入者から「返金はいつ戻るのか」と問い合わせが来たときに、返事を書くために経緯を確かめている",
                       "panes": [{ "screen": "admin-order-detail" }]
                     },
                     {
                       "id": "admin-buyer-view",
                       "name": "購入者に見えている状態と照らし合わせる",
-                      "description": "管理画面の状態と、購入者のスマホに出ている表示を並べて、返事の言葉を揃える",
+                      "description": "管理画面の状態と、購入者のスマホに出ている表示を **並べて**、返事の言葉を揃える。\n\n2 つの画面を並べた step の例です（`panes` に screen を 2 つ）。右の購入者画面は `preview` でスマホのブラウザに固定しています。",
                       "situation": "返事を書く前に、購入者がスマホで見ている注文詳細を管理画面の横に開いて見比べる",
                       "panes": [
                         { "screen": "admin-order-detail" },
@@ -1103,7 +1213,7 @@
                     {
                       "id": "refund-fax",
                       "name": "返金失敗の連絡を FAX で受け取る",
-                      "description": "決済代行は返金に失敗した取引を翌朝 FAX で知らせてくる。画面の外で始まる対応",
+                      "description": "決済代行は返金に失敗した取引を **翌朝 FAX** で知らせてくる。画面の外で始まる対応。\n\n手元のもの（FAX）だけを見せる step。",
                       "situation": "朝 8 時、事務所の FAX に決済代行から 1 枚届く。運営者は出社してすぐ紙で気づく",
                       "panes": [
                         {
@@ -1118,12 +1228,14 @@
                     {
                       "id": "admin-refunds",
                       "name": "返金待ちが長い注文を見つける",
+                      "description": "FAX の注文番号を手元に置き、返金待ちの一覧から探す。\n\n- 24 時間を超えたものが目立つか\n- FAX の注文番号ですぐ見つけられるか",
                       "situation": "FAX に書かれた注文番号を手元に置き、出社してすぐ管理画面で返金待ちの一覧を開く",
                       "panes": [{ "screen": "admin-refunds" }]
                     },
                     {
                       "id": "admin-refund-stuck",
                       "name": "失敗が続く返金を調べる",
+                      "description": "決済代行に電話で照会しながら、試行の履歴を確かめる。\n\n左に **手元のメモ**（material）、右に管理画面（screen）を並べた step の例。\n\n**未決:** 失敗が続いたときに購入者へ連絡するか、いつするか",
                       "situation": "FAX を手元に置き、決済代行のサポートに電話で照会しながら管理画面で試行の履歴を確かめる",
                       "panes": [
                         {
@@ -1142,12 +1254,12 @@
                 {
                   "id": "inventory",
                   "name": "在庫の残りを確かめる",
-                  "description": "キャンセルで引当が解除された在庫が、販売可能数に戻ったかを確かめる。画面はまだ描いていない"
+                  "description": "キャンセルで引当が解除された在庫が、販売可能数に戻ったかを確かめる。\n\n**画面はまだ描いていない。** 描くときに確かめたいこと:\n\n- [ ] 戻った数が当日分だけ分かる\n- [ ] 販売可能数と引当中の数を並べて見られる"
                 },
                 {
                   "id": "inquiries",
                   "name": "問い合わせに返信する",
-                  "description": "出荷後のキャンセル依頼など、購入者からの問い合わせに注文を見ながら返信する。画面はまだ描いていない"
+                  "description": "出荷後のキャンセル依頼など、購入者からの問い合わせに注文を見ながら返信する。\n\n**画面はまだ描いていない。** 想定している流れ:\n\n1. 問い合わせを開く\n2. 注文詳細を横に開いて経緯を確かめる\n3. テンプレートを選び、言葉を直して返信する"
                 }
               ]
             }
@@ -1241,6 +1353,44 @@
         </div>
       </div>
 
+      <div slot="preview" data-preview-id="cart-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back"></span>
+            <span class="sm-appbar-title">カート</span>
+            <span></span>
+          </div>
+          <div class="sm-shot">
+            <h1 class="sm-title">カート（2 点）</h1>
+            <div class="sm-card">
+              <div class="sm-item">
+                <span class="sm-thumb"></span>
+                <div>手織りリネンのテーブルクロス<small>ナチュラル / 140×180cm · 数量 1</small></div>
+                <b>¥6,800</b>
+              </div>
+              <div class="sm-item">
+                <span class="sm-thumb sm-thumb--mug"></span>
+                <div>波佐見焼 マグカップ 2 個セット<small>藍 · 数量 1</small></div>
+                <b>¥4,400</b>
+              </div>
+            </div>
+            <div class="sm-card">
+              <div class="sm-row"><span>小計</span><b>¥11,200</b></div>
+              <div class="sm-row"><span>送料</span><b>¥550</b></div>
+              <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
+            </div>
+            <a class="sm-btn" href="#screen=delivery-payment" data-dpk-navigate="screen=delivery-payment">レジに進む</a>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart" aria-current="page">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history">注文履歴</a>
+            <span class="sm-tab">マイページ</span>
+          </nav>
+        </div>
+      </div>
+
       <div slot="preview" data-preview-id="delivery-payment-mobile">
         <div class="sm">
           <div class="sm-nav"><span class="sm-logo">S</span><span class="sm-brand">Sora Market</span></div>
@@ -1268,6 +1418,44 @@
         </div>
       </div>
 
+      <div slot="preview" data-preview-id="delivery-payment-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back">‹</span>
+            <span class="sm-appbar-title">配送・支払い</span>
+            <span></span>
+          </div>
+          <div class="sm-shot">
+            <div>
+              <div class="sm-steps">
+                <span>カート</span>›<span aria-current="step">配送・支払い</span>›<span>確認</span>
+              </div>
+              <h1 class="sm-title">配送先と支払い方法</h1>
+            </div>
+            <div class="sm-card">
+              <h2>配送先</h2>
+              <div class="sm-choice" data-selected="true">
+                <div>空野 ひかり<br /><small style="color: var(--sm-dim)">東京都架空区そら町 1-2-3</small></div>
+              </div>
+              <div class="sm-choice">別の住所を追加</div>
+            </div>
+            <div class="sm-card">
+              <h2>支払い方法</h2>
+              <div class="sm-choice" data-selected="true">クレジットカード VISA •••• 4242</div>
+              <div class="sm-choice">コンビニ払い</div>
+            </div>
+            <a class="sm-btn" href="#screen=review" data-dpk-navigate="screen=review">確認画面へ</a>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart" aria-current="page">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history">注文履歴</a>
+            <span class="sm-tab">マイページ</span>
+          </nav>
+        </div>
+      </div>
+
       <div slot="preview" data-preview-id="review-mobile">
         <div class="sm">
           <div class="sm-nav"><span class="sm-logo">S</span><span class="sm-brand">Sora Market</span></div>
@@ -1292,6 +1480,41 @@
         </div>
       </div>
 
+      <div slot="preview" data-preview-id="review-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back">‹</span>
+            <span class="sm-appbar-title">注文内容の確認</span>
+            <span></span>
+          </div>
+          <div class="sm-shot">
+            <div>
+              <div class="sm-steps">
+                <span>カート</span>›<span>配送・支払い</span>›<span aria-current="step">確認</span>
+              </div>
+              <h1 class="sm-title">ご注文内容の確認</h1>
+            </div>
+            <div class="sm-card">
+              <div class="sm-row"><span>お届け先</span><b>空野 ひかり</b></div>
+              <div class="sm-row"><span>お届け予定</span><b>9月27日（土）</b></div>
+              <div class="sm-row"><span>お支払い</span><b>VISA •••• 4242</b></div>
+              <div class="sm-row"><span>商品（2 点）</span><b>¥11,200</b></div>
+              <div class="sm-row"><span>送料</span><b>¥550</b></div>
+              <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
+            </div>
+            <p class="sm-note">出荷の準備が始まる前（通常はご注文の翌朝まで）なら、注文履歴からキャンセルできます。</p>
+            <button class="sm-btn" data-dpk-navigate="screen=order-complete">注文を確定する</button>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart" aria-current="page">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history">注文履歴</a>
+            <span class="sm-tab">マイページ</span>
+          </nav>
+        </div>
+      </div>
+
       <div slot="preview" data-preview-id="order-complete-mobile">
         <div class="sm">
           <div class="sm-nav"><span class="sm-logo">S</span><span class="sm-brand">Sora Market</span></div>
@@ -1309,6 +1532,37 @@
               注文履歴を見る
             </a>
           </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="order-complete-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back"></span>
+            <span class="sm-appbar-title">注文完了</span>
+            <span></span>
+          </div>
+          <div class="sm-shot sm-center">
+            <div>
+              <div class="sm-done">✓</div>
+              <h1 class="sm-title">ご注文ありがとうございます</h1>
+              <p class="sm-sub">注文番号 SM-0918-0342 · 確認メールをお送りしました。</p>
+            </div>
+            <div class="sm-card" style="text-align: left">
+              <div class="sm-row"><span>合計（税込）</span><b>¥11,750</b></div>
+              <div class="sm-row"><span>お届け予定</span><b>9月27日（土）</b></div>
+            </div>
+            <a class="sm-btn sm-btn--ghost" href="#screen=order-history" data-dpk-navigate="screen=order-history">
+              注文履歴を見る
+            </a>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart" aria-current="page">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history">注文履歴</a>
+            <span class="sm-tab">マイページ</span>
+          </nav>
         </div>
       </div>
 
@@ -1338,6 +1592,44 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="order-history-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back"></span>
+            <span class="sm-appbar-title">注文履歴</span>
+            <span></span>
+          </div>
+          <div class="sm-shot">
+            <h1 class="sm-title">注文履歴</h1>
+            <div class="sm-card">
+              <a class="sm-order" href="#screen=order-detail" data-dpk-navigate="screen=order-detail">
+                <div class="sm-order-head"><b>SM-0918-0342</b><span class="sm-status">支払済み</span></div>
+                <small>9月18日 · 2 点 · ¥11,750 — キャンセルできます</small>
+              </a>
+              <a class="sm-order" href="#screen=shipped-detail" data-dpk-navigate="screen=shipped-detail">
+                <div class="sm-order-head">
+                  <b>SM-0912-0127</b><span class="sm-status sm-status--shipped">出荷中</span>
+                </div>
+                <small>9月12日 · 1 点 · ¥3,300</small>
+              </a>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0830-0981</b><span class="sm-status">お届け済み</span></div>
+                <small>8月30日 · 3 点 · ¥8,970</small>
+              </div>
+            </div>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history" aria-current="page">
+              注文履歴
+            </a>
+            <span class="sm-tab">マイページ</span>
+          </nav>
         </div>
       </div>
 
@@ -1378,6 +1670,53 @@
         </div>
       </div>
 
+      <div slot="preview" data-preview-id="order-detail-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back">‹</span>
+            <span class="sm-appbar-title">注文詳細</span>
+            <span></span>
+          </div>
+          <div class="sm-shot">
+            <div>
+              <span class="sm-status">支払済み</span>
+              <h1 class="sm-title" style="margin-top: 6px">SM-0918-0342</h1>
+              <p class="sm-sub">9月18日のご注文 · お届け予定 9月27日（土）</p>
+            </div>
+            <div class="sm-card">
+              <div class="sm-item">
+                <span class="sm-thumb"></span>
+                <div>手織りリネンのテーブルクロス<small>数量 1</small></div>
+                <b>¥6,800</b>
+              </div>
+              <div class="sm-item">
+                <span class="sm-thumb sm-thumb--mug"></span>
+                <div>波佐見焼 マグカップ 2 個セット<small>数量 1</small></div>
+                <b>¥4,400</b>
+              </div>
+              <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
+            </div>
+            <div>
+              <a class="sm-btn sm-btn--ghost" href="#screen=cancel-confirm" data-dpk-navigate="screen=cancel-confirm">
+                この注文をキャンセルする
+              </a>
+              <p class="sm-sub" style="margin-top: 8px; font-size: 11.5px">
+                出荷の準備が始まるとキャンセルできなくなります。一部の商品だけのキャンセルはできません。
+              </p>
+            </div>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history" aria-current="page">
+              注文履歴
+            </a>
+            <span class="sm-tab">マイページ</span>
+          </nav>
+        </div>
+      </div>
+
       <div slot="preview" data-preview-id="cancel-confirm-mobile">
         <div class="sm">
           <div class="sm-nav">
@@ -1412,6 +1751,50 @@
         </div>
       </div>
 
+      <div slot="preview" data-preview-id="cancel-confirm-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back">‹</span>
+            <span class="sm-appbar-title">キャンセルの確認</span>
+            <span></span>
+          </div>
+          <div class="sm-shot">
+            <div>
+              <h1 class="sm-title">注文をキャンセルしますか？</h1>
+              <p class="sm-sub">SM-0918-0342 のすべての商品がキャンセルになります。</p>
+            </div>
+            <div class="sm-card">
+              <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
+              <div class="sm-row"><span>返金先</span><b>VISA •••• 4242</b></div>
+              <div class="sm-row"><span>返金の目安</span><b>数日〜1 週間</b></div>
+            </div>
+            <div class="sm-card">
+              <div class="sm-field" style="margin-bottom: 0">
+                <span>キャンセルの理由（任意）</span>
+                <div class="sm-input">選択してください ▾</div>
+              </div>
+            </div>
+            <div>
+              <button class="sm-btn sm-btn--danger" data-dpk-navigate="screen=cancel-accepted">
+                キャンセルを確定する
+              </button>
+              <a class="sm-btn sm-btn--ghost" href="#screen=order-detail" data-dpk-navigate="screen=order-detail">
+                注文詳細に戻る
+              </a>
+            </div>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history" aria-current="page">
+              注文履歴
+            </a>
+            <span class="sm-tab">マイページ</span>
+          </nav>
+        </div>
+      </div>
+
       <div slot="preview" data-preview-id="cancel-accepted-mobile">
         <div class="sm">
           <div class="sm-nav"><span class="sm-logo">S</span><span class="sm-brand">Sora Market</span></div>
@@ -1432,6 +1815,42 @@
               注文履歴に戻る
             </a>
           </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="cancel-accepted-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back"></span>
+            <span class="sm-appbar-title">キャンセル受付</span>
+            <span></span>
+          </div>
+          <div class="sm-shot sm-center">
+            <div>
+              <div class="sm-done sm-done--pending">↺</div>
+              <h1 class="sm-title">キャンセルを受け付けました</h1>
+              <p class="sm-sub">返金の手続きを進めています。完了したらメールでお知らせします。</p>
+            </div>
+            <div class="sm-card" style="text-align: left">
+              <div class="sm-row">
+                <span>注文の状態</span><span class="sm-status sm-status--pending">返金待ち</span>
+              </div>
+              <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
+              <div class="sm-row"><span>返金先</span><b>VISA •••• 4242</b></div>
+            </div>
+            <a class="sm-btn sm-btn--ghost" href="#screen=order-history" data-dpk-navigate="screen=order-history">
+              注文履歴に戻る
+            </a>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history" aria-current="page">
+              注文履歴
+            </a>
+            <span class="sm-tab">マイページ</span>
+          </nav>
         </div>
       </div>
 
@@ -1507,6 +1926,49 @@
         </div>
       </div>
 
+      <div slot="preview" data-preview-id="refunded-detail-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back">‹</span>
+            <span class="sm-appbar-title">注文詳細（取消済み）</span>
+            <span></span>
+          </div>
+          <div class="sm-shot">
+            <div>
+              <span class="sm-status sm-status--shipped">取消済み</span>
+              <h1 class="sm-title" style="margin-top: 6px">SM-0918-0342</h1>
+              <p class="sm-sub">9月18日のご注文 · 2 点</p>
+            </div>
+            <div class="sm-card">
+              <h2>返金</h2>
+              <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
+              <div class="sm-row"><span>返金先</span><b>VISA •••• 4242</b></div>
+              <div class="sm-row"><span>返金日</span><b>9月19日（金）</b></div>
+            </div>
+            <div class="sm-card">
+              <h2>経過</h2>
+              <ol class="sm-timeline">
+                <li><time>9/18 10:12</time><span>ご注文</span></li>
+                <li><time>9/18 21:40</time><span>キャンセルを受け付けました</span></li>
+                <li><time>9/19 09:05</time><span>返金が完了しました</span></li>
+              </ol>
+            </div>
+            <p class="sm-sub" style="font-size: 11.5px">
+              カード明細への反映は、カード会社によって数日遅れることがあります。
+            </p>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history" aria-current="page">
+              注文履歴
+            </a>
+            <span class="sm-tab">マイページ</span>
+          </nav>
+        </div>
+      </div>
+
       <!-- story: 出荷後の注文について問い合わせる -->
       <div slot="preview" data-preview-id="shipped-detail-mobile">
         <div class="sm">
@@ -1540,6 +2002,48 @@
         </div>
       </div>
 
+      <div slot="preview" data-preview-id="shipped-detail-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back">‹</span>
+            <span class="sm-appbar-title">注文詳細（出荷済み）</span>
+            <span></span>
+          </div>
+          <div class="sm-shot">
+            <div>
+              <span class="sm-status sm-status--shipped">出荷中</span>
+              <h1 class="sm-title" style="margin-top: 6px">SM-0912-0127</h1>
+              <p class="sm-sub">9月12日のご注文 · 9月14日に出荷しました</p>
+            </div>
+            <div class="sm-card">
+              <div class="sm-item">
+                <span class="sm-thumb"></span>
+                <div>真鍮のペーパーウェイト<small>数量 1</small></div>
+                <b>¥3,300</b>
+              </div>
+            </div>
+            <p class="sm-note sm-note--warn">
+              出荷の準備が始まったため、この注文はキャンセルできません。お届け後の返品は、商品が届いてからお申し込みいただけます。
+            </p>
+            <div>
+              <a class="sm-btn sm-btn--ghost" href="#screen=contact" data-dpk-navigate="screen=contact">
+                この注文について問い合わせる
+              </a>
+              <div class="sm-btn sm-btn--ghost">返品について</div>
+            </div>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history" aria-current="page">
+              注文履歴
+            </a>
+            <span class="sm-tab">マイページ</span>
+          </nav>
+        </div>
+      </div>
+
       <div slot="preview" data-preview-id="contact-mobile">
         <div class="sm">
           <div class="sm-nav">
@@ -1565,6 +2069,42 @@
             <p class="sm-sub" style="font-size: 11.5px">通常 1 営業日以内にメールでお返事します。</p>
             <button class="sm-btn">送信する</button>
           </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="contact-app">
+        <div class="sm sm--app">
+          <div class="sm-appbar">
+            <span class="sm-appbar-back">‹</span>
+            <span class="sm-appbar-title">お問い合わせ</span>
+            <span></span>
+          </div>
+          <div class="sm-shot">
+            <h1 class="sm-title">お問い合わせ</h1>
+            <div class="sm-card">
+              <div class="sm-field">
+                <span>注文番号</span>
+                <div class="sm-input">SM-0912-0127</div>
+              </div>
+              <div class="sm-field">
+                <span>ご用件</span>
+                <div class="sm-input">出荷後の注文のキャンセル・返品 ▾</div>
+              </div>
+              <div class="sm-field" style="margin-bottom: 0">
+                <span>内容</span>
+                <div class="sm-input" style="min-height: 96px; color: var(--sm-dim)">ご用件の詳細をご記入ください</div>
+              </div>
+            </div>
+            <p class="sm-sub" style="font-size: 11.5px">通常 1 営業日以内にメールでお返事します。</p>
+            <button class="sm-btn">送信する</button>
+          </div>
+          <nav class="sm-tabbar">
+            <span class="sm-tab">ホーム</span>
+            <span class="sm-tab">さがす</span>
+            <a class="sm-tab" href="#screen=cart" data-dpk-navigate="screen=cart">カート</a>
+            <a class="sm-tab" href="#screen=order-history" data-dpk-navigate="screen=order-history">注文履歴</a>
+            <span class="sm-tab" aria-current="page">マイページ</span>
+          </nav>
         </div>
       </div>
 
