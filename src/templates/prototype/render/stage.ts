@@ -259,8 +259,8 @@ const renderPageHead = (m: PrototypeMessages, heading: PageHeading): TemplateRes
     ${
       heading.actor === undefined
         ? nothing
-        : html`<span class="page-actor" role="note" aria-label=${m.pageActor(heading.actor)}>
-            ${iconActor()} ${heading.actor}
+        : html`<span class="page-actor" role="note" aria-label=${m.pageActor(heading.actor)} title=${heading.actor}>
+            ${iconActor()} <span class="page-actor-name">${heading.actor}</span>
           </span>`
     }
     <h2 class="page-title">${heading.title}</h2>
@@ -306,10 +306,12 @@ const renderPaneHead = (
   pane: StagePane,
 ): TemplateResult | typeof nothing => {
   if (pane.kind === 'material') {
-    return pane.preview.label === undefined ? nothing : html`<span class="pane-label">${pane.preview.label}</span>`;
+    return pane.preview.label === undefined
+      ? nothing
+      : html`<span class="pane-label" title=${pane.preview.label}>${pane.preview.label}</span>`;
   }
   return html`<div class="pane-head">
-    <span class="pane-label">${pane.screen.screen.title}</span>
+    <span class="pane-label" title=${pane.screen.screen.title}>${pane.screen.screen.title}</span>
     ${pane.tabs.length > 0 ? renderPreviewTabs(context, frames, pane) : nothing}
   </div>`;
 };

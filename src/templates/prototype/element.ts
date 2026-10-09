@@ -41,7 +41,7 @@ import {
 } from './present';
 import { renderNav } from './render/nav';
 import { renderStage, type StageLift, type StageOptions } from './render/stage';
-import { containedDialogDocumentStyles, prototypeStyles } from './styles';
+import { prototypeDocumentStyles, prototypeStyles } from './styles';
 import { reduceUiComment, UI_COMMENT_OFF, type UiCommentIntent, type UiCommentMode } from './ui-mode';
 import { prototypeViewOf } from './view-mode';
 
@@ -57,7 +57,7 @@ const installDocumentStyles = (): void => {
   if (document.getElementById(DOCUMENT_STYLES_ID) !== null) return;
   const style = Object.assign(document.createElement('style'), {
     id: DOCUMENT_STYLES_ID,
-    textContent: containedDialogDocumentStyles,
+    textContent: prototypeDocumentStyles,
   });
   document.head.append(style);
 };

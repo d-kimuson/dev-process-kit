@@ -232,6 +232,8 @@ export const prototypeStyles = css`
     margin: 0;
     padding: 0;
     display: grid;
+    /* A row is no wider than the list: a long step name ends in an ellipsis. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 2px;
     max-height: 38vh;
     overflow: auto;
@@ -350,6 +352,8 @@ export const prototypeStyles = css`
 
   .detail {
     display: grid;
+    /* As wide as the panel, not as a description's widest table or code line: those scroll. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
     padding: 12px 12px 14px;
     border: 1px solid var(--dpk-rule);
@@ -360,6 +364,7 @@ export const prototypeStyles = css`
 
   .detail-row {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 4px;
   }
 
@@ -436,7 +441,9 @@ export const prototypeStyles = css`
 
   .page-actor {
     display: inline-flex;
-    flex: none;
+    /* A long role name gives way to the title first, down to a recognizable stub. */
+    flex: 0 1000 auto;
+    min-width: 72px;
     align-items: center;
     gap: 6px;
     height: 26px;
@@ -456,9 +463,17 @@ export const prototypeStyles = css`
     font-weight: 650;
     letter-spacing: 0.01em;
     white-space: nowrap;
+    max-width: 280px;
+  }
+
+  .page-actor-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .page-actor svg {
+    flex: none;
     width: 13px;
     height: 13px;
     opacity: 0.9;
@@ -477,10 +492,14 @@ export const prototypeStyles = css`
     white-space: nowrap;
   }
 
+  /* Wraps on a phone rather than pushing the last tools off the screen. */
   .stage-tools {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     align-items: center;
     gap: 8px;
+    min-width: 0;
     margin-left: auto;
   }
 
@@ -647,6 +666,7 @@ export const prototypeStyles = css`
     line-height: 1.65;
     color: var(--dpk-ink);
     white-space: pre-line;
+    overflow-wrap: anywhere;
   }
 
   /* ----------------------------------------------------------------- canvas */
@@ -778,9 +798,36 @@ export const prototypeStyles = css`
     padding-bottom: 4px;
   }
 
+  /*
+   * A row wider than the stage fades out at the edge it scrolls toward, so the
+   * panes past it read as a scroll away rather than cut off. The scroll timeline
+   * is inactive while the row fits, which leaves it unmasked.
+   */
+  @supports (animation-timeline: scroll()) {
+    .panes {
+      animation: panes-edge linear both;
+      animation-timeline: scroll(self inline);
+    }
+
+    @keyframes panes-edge {
+      0% {
+        mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+      }
+      2%,
+      98% {
+        mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+      }
+      100% {
+        mask-image: linear-gradient(90deg, transparent, #000 40px);
+      }
+    }
+  }
+
   /* A device shrinks at most to a width its layout still reads at, then the row scrolls. */
   .pane {
     display: grid;
+    /* The pane's width is the device's: a long label never widens it. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     flex: 0 1 var(--pane-width);
     min-width: min(var(--pane-width), 720px);
@@ -824,8 +871,14 @@ export const prototypeStyles = css`
     font-size: 11.5px;
   }
 
+  /* One line over the pane; hovering names the whole label. */
   .pane-label {
     justify-self: start;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     padding: 2px 9px;
     border-radius: 999px;
     background: var(--dpk-paper-raised);
@@ -1260,6 +1313,8 @@ export const prototypeStyles = css`
     /* A preview is the product's screen, not the kit's chrome: it stays light in a dark theme. */
     color-scheme: light;
     background: #fff;
+    /* …and so does its ink: the kit's dark-theme text color would be invisible on it. */
+    color: #1f2430;
   }
 
   /*
@@ -1869,12 +1924,27 @@ export const prototypeStyles = css`
 `;
 
 /**
- * A mock's modal dialog, opened inside its preview (see
- * `lib/dom/contained-dialog.ts`). The dialog is light DOM, which the shadow
- * styles cannot reach below the wrapper, so this sheet goes to the document:
- * the wrapper is the dialog's backdrop, and the frame clips both.
+ * The rules about the author's light DOM below the wrapper, which the shadow
+ * styles cannot reach, so this sheet goes to the document. A mock's modal
+ * dialog opens inside its preview (see `lib/dom/contained-dialog.ts`): the
+ * wrapper is the dialog's backdrop, and the frame clips both.
  */
-export const containedDialogDocumentStyles = `
+export const prototypeDocumentStyles = `
+  /*
+   * The wrapper is a stretch grid (see \`.viewport ::slotted(*)\`): one child
+   * fills the frame, but several would share the extra height as gaps between
+   * them, so they stack from the top instead (a \`<style>\` or \`<script>\` beside
+   * the one child draws nothing and does not count). A shadow tree cannot see a
+   * slotted element's children, hence the document rule; \`:where\` lets the
+   * author's own \`align-content\` win.
+   */
+  :where(
+      dpk-template-prototype
+        > [data-preview-id]:has(> :not(style, script, template, link) ~ :not(style, script, template, link))
+    ) {
+    align-content: start;
+  }
+
   dpk-template-prototype > [data-preview-id]:has(dialog[${CONTAINED_DIALOG}][open]) {
     position: relative;
   }
