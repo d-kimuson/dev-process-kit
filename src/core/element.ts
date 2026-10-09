@@ -417,7 +417,10 @@ export abstract class TemplateElement<S> extends LitElement {
               </section>
             </div>
             <div class="dpk-memo" ?hidden=${!this.hasMemoContent()}>
-              <slot name="memo"></slot>
+              <details class="dpk-memo-fold">
+                <summary class="dpk-memo-bar">${iconChevronRight()} ${messages.memo}</summary>
+                <div class="dpk-memo-body"><slot name="memo"></slot></div>
+              </details>
             </div>
           </main>
           ${

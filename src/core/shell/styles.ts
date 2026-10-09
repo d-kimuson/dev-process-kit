@@ -476,8 +476,10 @@ export const chromeStyles = [
 
     /*
      * Author memo. It sits at the end of the main column and sticks to the
-     * bottom of the scrollport: always visible, floating over whatever scrolls
-     * behind it, and never stealing height from the preview.
+     * bottom of the scrollport, folded into a small bar: always in reach,
+     * floating over whatever scrolls behind it, and never stealing height from
+     * the preview. Opened, it spans the column and scrolls on its own, so a
+     * long memo (a diagram, a table) stays readable without leaving the page.
      */
     .dpk-memo {
       position: sticky;
@@ -492,20 +494,72 @@ export const chromeStyles = [
       display: none;
     }
 
-    .dpk-memo ::slotted(*) {
-      display: block;
+    .dpk-memo-fold {
+      width: fit-content;
       max-width: 100%;
-      padding: 12px 16px;
       /* A faint amber wash over the whole note marks it as the author's aside. */
       border: 1px solid color-mix(in srgb, var(--dpk-amber) 28%, var(--dpk-rule-strong));
       border-radius: var(--dpk-radius-lg);
-      background: color-mix(in srgb, color-mix(in srgb, var(--dpk-amber) 7%, var(--dpk-paper-raised)) 90%, transparent);
+      background: color-mix(in srgb, color-mix(in srgb, var(--dpk-amber) 7%, var(--dpk-paper-raised)) 92%, transparent);
       backdrop-filter: blur(12px);
       box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
+      pointer-events: auto;
+    }
+
+    .dpk-memo-fold[open] {
+      width: auto;
+    }
+
+    .dpk-memo-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px 7px 10px;
+      border-radius: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--dpk-ink-soft);
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+
+    .dpk-memo-bar::-webkit-details-marker {
+      display: none;
+    }
+
+    .dpk-memo-bar:hover {
+      color: var(--dpk-ink);
+    }
+
+    .dpk-memo-bar:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
+    .dpk-memo-bar svg {
+      width: 14px;
+      height: 14px;
+      transition: transform 160ms var(--dpk-ease);
+    }
+
+    .dpk-memo-fold[open] .dpk-memo-bar svg {
+      transform: rotate(90deg);
+    }
+
+    .dpk-memo-body {
+      max-height: min(60vh, 640px);
+      overflow: auto;
+      overscroll-behavior: contain;
+      padding: 0 16px 14px;
       font-size: 12.5px;
       line-height: 1.7;
       color: var(--dpk-ink-soft);
-      pointer-events: auto;
+    }
+
+    .dpk-memo ::slotted(*) {
+      display: block;
+      max-width: 100%;
     }
 
     .dpk-orphans {

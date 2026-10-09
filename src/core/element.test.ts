@@ -276,6 +276,24 @@ describe('<dpk-template-prototype>', () => {
     expect(el.shadowRoot?.querySelector('.dpk-memo')?.hasAttribute('hidden')).toBe(false);
   });
 
+  it('keeps the memo folded into a labelled bar until the reader opens it', async () => {
+    const el = mount();
+    const memo = document.createElement('div');
+    memo.setAttribute('slot', 'memo');
+    memo.textContent = '前提メモ';
+    el.append(memo);
+    el.requestUpdate();
+    await settle(el);
+    const fold = el.shadowRoot?.querySelector<HTMLDetailsElement>('.dpk-memo details');
+    expect(fold?.open).toBe(false);
+    expect(fold?.querySelector('summary')?.textContent?.trim()).toBe(coreMessages('en').memo);
+    expect(fold?.querySelector('slot[name="memo"]')).not.toBeNull();
+
+    fold?.querySelector('summary')?.click();
+    await settle(el);
+    expect(fold?.open).toBe(true);
+  });
+
   it('falls back to an empty state with a visible error when base data is invalid', async () => {
     document.body.innerHTML = `
       <dpk-template-prototype storage="memory">
