@@ -337,17 +337,36 @@ const PREVIEW_SEPARATOR = ',';
 
 const requestedRenditions = (nav: Navigation): readonly string[] => nav['preview']?.split(PREVIEW_SEPARATOR) ?? [];
 
-/** The rendition the hash selects among a screen's, else its first one. */
+const sameRendition = (a: PrototypePreview, b: PrototypePreview): boolean =>
+  a.kind === b.kind && a.viewport === b.viewport;
+
+/**
+ * The rendition the hash selects among a screen's. A link from another screen
+ * carries that screen's rendition, so the reader stays on the same kind of
+ * rendition (the phone app, the PC browser) when the screen has one; else the
+ * screen opens on its first.
+ */
 const selectRendition = (
+  state: PrototypeState,
   renditions: readonly PrototypePreview[],
   requested: readonly string[],
-): PrototypePreview | undefined => renditions.find((preview) => requested.includes(preview.id)) ?? renditions[0];
+): PrototypePreview | undefined => {
+  const named = renditions.find((preview) => requested.includes(preview.id));
+  if (named) return named;
+  const carried = requested.flatMap((id) => findPreview(state, id)?.preview ?? []);
+  return renditions.find((preview) => carried.some((other) => sameRendition(preview, other))) ?? renditions[0];
+};
 
-const screenPane = (screen: ScreenLocation, pinned: string | undefined, nav: Navigation): StagePane | undefined => {
+const screenPane = (
+  state: PrototypeState,
+  screen: ScreenLocation,
+  pinned: string | undefined,
+  nav: Navigation,
+): StagePane | undefined => {
   const renditions = screen.screen.previews;
   const preview =
     pinned === undefined
-      ? selectRendition(renditions, requestedRenditions(nav))
+      ? selectRendition(state, renditions, requestedRenditions(nav))
       : renditions.find((candidate) => candidate.id === pinned);
   if (!preview) return undefined;
   const switchable = pinned === undefined && renditions.length > 1;
@@ -364,7 +383,7 @@ const stepPanes = (state: PrototypeState, step: PrototypeStep, nav: Navigation):
   step.panes.flatMap((pane): StagePane[] => {
     if (!isScreenPane(pane)) return [{ kind: 'material', preview: pane.material }];
     const screen = findScreen(state, pane.screen);
-    const shown = screen && screenPane(screen, pane.preview, nav);
+    const shown = screen && screenPane(state, screen, pane.preview, nav);
     return shown ? [shown] : [];
   });
 
@@ -375,7 +394,7 @@ const stepPanes = (state: PrototypeState, step: PrototypeStep, nav: Navigation):
  */
 export const prototypeStageFrames = (state: PrototypeState, located: StageLocation, nav: Navigation): StageFrames => {
   if (located.kind === 'screen') {
-    const pane = screenPane(located, undefined, nav);
+    const pane = screenPane(state, located, undefined, nav);
     return stageFrames(pane ? [pane] : []);
   }
   return stageFrames(stepPanes(state, located.step, nav));
@@ -627,7 +646,7 @@ const resolveAppNavigation = (state: PrototypeState, nav: Navigation): Navigatio
   for (const key of ['activity', 'story', 'step'] as const) delete next[key];
   if (screen) next['screen'] = screen.screen.id;
   else delete next['screen'];
-  return withPreview(next, screen && selectRendition(screen.screen.previews, requestedRenditions(nav))?.id);
+  return withPreview(next, screen && selectRendition(state, screen.screen.previews, requestedRenditions(nav))?.id);
 };
 
 /**

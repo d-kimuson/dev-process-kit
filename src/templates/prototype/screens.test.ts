@@ -463,6 +463,83 @@ describe('prototype navigation to a screen', () => {
   });
 });
 
+describe('prototype navigation between screens with the same kinds of rendition', () => {
+  /** A shop the buyer uses both in the phone's browser and as its app. */
+  const shop = () =>
+    parsePrototypeBase({
+      apps: [
+        {
+          id: 'shop',
+          name: 'Shop',
+          screens: [
+            {
+              id: 'home',
+              title: 'Home',
+              previews: [
+                { id: 'home-web', viewport: 'mobile', url: 'https://shop.test/' },
+                { id: 'home-app', kind: 'native', viewport: 'mobile' },
+              ],
+            },
+            {
+              id: 'item',
+              title: 'Item',
+              previews: [
+                { id: 'item-web', viewport: 'mobile', url: 'https://shop.test/items/1' },
+                { id: 'item-desktop', viewport: 'desktop', url: 'https://shop.test/items/1' },
+                { id: 'item-app', kind: 'native', viewport: 'mobile' },
+              ],
+            },
+          ],
+        },
+      ],
+      activities: [
+        {
+          id: 'buyer',
+          name: 'Buyer',
+          stories: [
+            {
+              id: 'browse',
+              name: 'Browse',
+              steps: [
+                { id: 'open', name: 'Open the shop', panes: [{ screen: 'home' }] },
+                { id: 'pick', name: 'Pick an item', panes: [{ screen: 'item' }] },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  const resolve = (nav: Navigation) => resolvePrototypeNavigation(shop(), nav);
+
+  it('keeps the reader in the app when a link of the app leads to another screen', () => {
+    expect(resolve({ view: 'app', screen: 'item', preview: 'home-app' })['preview']).toBe('item-app');
+    expect(resolve({ view: 'app', screen: 'item', preview: 'home-web' })['preview']).toBe('item-web');
+    expect(resolve({ step: 'open', screen: 'item', preview: 'home-app' })).toMatchObject({
+      step: 'pick',
+      preview: 'item-app',
+    });
+  });
+
+  it('falls back to the first rendition when the screen has none of the same kind and viewport', () => {
+    const state = shop();
+    const desktopOnly = parsePrototypeBase({
+      ...state,
+      apps: [
+        {
+          ...state.apps[0],
+          screens: [
+            ...(state.apps[0]?.screens ?? []),
+            { id: 'help', title: 'Help', previews: [{ id: 'help-desktop', viewport: 'desktop' }] },
+          ],
+        },
+      ],
+    });
+    expect(
+      resolvePrototypeNavigation(desktopOnly, { view: 'app', screen: 'help', preview: 'home-app' })['preview'],
+    ).toBe('help-desktop');
+  });
+});
+
 describe('prototype app sections', () => {
   it('lists the screens of each app, and nothing a step holds', () => {
     const sections = prototypeAppSections(product());
