@@ -6,6 +6,15 @@ import type { PrototypeMessages } from '../messages';
 
 import { iconClose, iconMaximize, iconMinimize } from '../../../core/icons';
 import { renderMarkdown } from '../../../lib/markdown';
+import {
+  deviceClassOf,
+  deviceFor,
+  deviceLabel,
+  devicesOf,
+  hasDevice,
+  type DeviceChoice,
+  type DevicePreset,
+} from '../devices';
 import { allScreens, flattenSteps, stepMaterials, type PrototypePreview, type PrototypeState } from '../model';
 import {
   locatePrototype,
@@ -22,7 +31,7 @@ import {
 } from '../present';
 import { prototypeViewOf } from '../view-mode';
 import { renderBrowser, type BrowserFrame } from './browser';
-import { VIEWPORT_MIN_HEIGHT, VIEWPORT_WIDTH } from './frame-size';
+import { frameStyle, type FrameWindow } from './frame-size';
 import {
   renderUiCommentHint,
   renderUiCommentLayer,
@@ -41,6 +50,13 @@ export { VIEWPORT_MIN_HEIGHT, VIEWPORT_WIDTH } from './frame-size';
  */
 export type StageLift = { readonly mode: 'maximized' | 'demo'; readonly height: number };
 
+/** The app view's devices: the reader's pick for each class, and how much smaller the one on stage is drawn. */
+export type StageDevices = {
+  readonly choice: DeviceChoice;
+  readonly zoom: number;
+  readonly onPick: (id: string) => void;
+};
+
 export type StageOptions = {
   /** Whether the light DOM holds markup for the preview (else a placeholder is shown). */
   readonly hasPreviewContent: (previewId: string) => boolean;
@@ -53,7 +69,9 @@ export type StageOptions = {
   /** A wheel over the lifted stage, which must not scroll the hidden page. */
   readonly onLiftedWheel: (event: WheelEvent) => void;
   /** The browser the app view runs its web page in; `null` for any other frame. */
-  readonly browser: Omit<BrowserFrame, 'preview' | 'hasContent' | 'viewport' | 'onExitDemo'> | null;
+  readonly browser: Omit<BrowserFrame, 'preview' | 'hasContent' | 'viewport' | 'window' | 'onExitDemo'> | null;
+  /** Set in the app view, where a screen runs in a window of a fixed size; `null` in the scenario view. */
+  readonly devices: StageDevices | null;
   /** Commenting on the UI: the mode, the pins and the composer. */
   readonly uiComment: UiCommentView;
   /** Pointer events on the canvas, read by the element while the reader comments on the UI. */
@@ -129,6 +147,18 @@ export const renderStage = (
   const viewport = (browserPreview ?? shown[0])?.viewport ?? 'desktop';
   // A desktop browser has room for the way out at the free end of its tab strip.
   const exitInBrowser = demo && browser !== null && viewport !== 'mobile';
+  const devicePreview = browserPreview ?? shown[0];
+  const kind = browser !== null ? 'browser' : (devicePreview?.kind ?? 'browser');
+  // A demo's desktop browser is the reader's own screen: it fills the tab rather than a device's size.
+  const fills = demo && kind === 'browser' && deviceClassOf(viewport) === 'desktop';
+  const devices = options.devices;
+  const device = devices === null || fills || !hasDevice(kind) ? null : deviceFor(viewport, devices.choice);
+  const frameWindow: FrameWindow | null =
+    device !== null && devices !== null
+      ? { kind: 'device', width: device.width, height: device.height, zoom: devices.zoom }
+      : fills
+        ? { kind: 'fill' }
+        : null;
   return html`
     ${lift === null ? nothing : html`<div class="stage-placeholder" style=${`height:${lift.height}px`}></div>`}
     <div
@@ -149,6 +179,7 @@ export const renderStage = (
               ${renderPageHead(m, prototypePageHeading(state, location))}
               <div class="stage-tools">
                 ${single?.kind === 'screen' && single.tabs.length > 0 ? renderPreviewTabs(context, frames, single) : nothing}
+                ${device !== null && devices !== null ? renderDevicePicker(m, device, devices) : nothing}
                 ${shown.length > 0 ? renderUiCommentToggle(m, ui) : nothing}
                 ${
                   shown.length === 0
@@ -184,6 +215,7 @@ export const renderStage = (
                 ...(exitInBrowser ? { onExitDemo: options.onToggleDemo } : {}),
                 hasContent: browserPreview === undefined || options.hasPreviewContent(browserPreview.id),
                 viewport,
+                window: frameWindow ?? { kind: 'fill' },
               })
             : layout === 'side-by-side'
               ? html`<div class="panes">
@@ -195,7 +227,9 @@ export const renderStage = (
                       </div>`,
                   )}
                 </div>`
-              : shown.map((preview) => renderFrame(context, m, preview, options.hasPreviewContent(preview.id)))
+              : shown.map((preview) =>
+                  renderFrame(context, m, preview, options.hasPreviewContent(preview.id), frameWindow),
+                )
         }
         ${shown.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
         ${renderUiCommentLayer(m, ui)}
@@ -274,6 +308,35 @@ const renderPaneHead = (
   </div>`;
 };
 
+/**
+ * The device the app view runs the screen on, among the common ones of its
+ * class, and how much smaller it is drawn when it is wider than the stage.
+ */
+const renderDevicePicker = (m: PrototypeMessages, device: DevicePreset, devices: StageDevices): TemplateResult => {
+  const percent = Math.round(devices.zoom * 100);
+  return html`<span class="device-pick" title=${m.deviceHint}>
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="8.5" rx="1.2" />
+      <path d="M6 14h4M8 11.5V14" />
+    </svg>
+    <select
+      class="device-select"
+      aria-label=${m.device}
+      @change=${(event: Event) => {
+        if (event.currentTarget instanceof HTMLSelectElement) devices.onPick(event.currentTarget.value);
+      }}
+    >
+      ${devicesOf(device.deviceClass).map(
+        (candidate) =>
+          html`<option value=${candidate.id} ?selected=${candidate.id === device.id}>
+            ${deviceLabel(m, candidate)}
+          </option>`,
+      )}
+    </select>
+    ${percent < 100 ? html`<span class="device-zoom" title=${m.deviceZoom(percent)}>${percent}%</span>` : nothing}
+  </span>`;
+};
+
 /** The app view's demo: the browser alone across the tab, as if the reader were using the app. */
 const renderDemoToggle = (m: PrototypeMessages, onToggle: () => void): TemplateResult => {
   return html`<button class="dpk-btn stage-demo" type="button" title=${m.demoHint} @click=${onToggle}>
@@ -300,14 +363,17 @@ export const renderFrame = (
   m: PrototypeMessages,
   preview: PrototypePreview,
   hasContent: boolean,
+  /** The app view's window; `null` in the scenario view, where the frame is as tall as its content. */
+  frameWindow: FrameWindow | null = null,
 ): TemplateResult => {
   return html`
     <figure
       class="frame"
       data-kind=${preview.kind}
       data-viewport=${preview.viewport}
+      data-window=${frameWindow?.kind ?? nothing}
       ?data-empty=${!hasContent}
-      style=${`--frame-width:${VIEWPORT_WIDTH[preview.viewport]};--frame-min-height:${VIEWPORT_MIN_HEIGHT[preview.viewport]}`}
+      style=${frameStyle(preview.kind, preview.viewport, frameWindow)}
     >
       ${
         preview.kind === 'browser'

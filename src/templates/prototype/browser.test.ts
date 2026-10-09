@@ -126,6 +126,48 @@ describe('the browser of the app view', () => {
     expect(el.shadowRoot!.querySelector('.chrome .url')?.textContent).toBe('https://shop.test/');
   });
 
+  it('runs a screen in a window of a fixed size, a device the reader picks', async () => {
+    const el = mount('#view=app&screen=phone');
+    await settle(el);
+    const root = el.shadowRoot!;
+    const frame = (): HTMLElement => root.querySelector<HTMLElement>('.frame')!;
+    const select = (): HTMLSelectElement => root.querySelector<HTMLSelectElement>('.device-select')!;
+    expect(frame().dataset['window']).toBe('device');
+    expect(frame().style.getPropertyValue('--device-width')).toBe('393px');
+    expect(frame().style.getPropertyValue('--device-height')).toBe('852px');
+    expect(select().value).toBe('iphone-16');
+    expect([...select().options].map((option) => option.textContent?.trim())).toContain('iPhone SE · 375×667');
+
+    select().value = 'iphone-se';
+    select().dispatchEvent(new Event('change'));
+    await settle(el);
+    expect(frame().style.getPropertyValue('--device-width')).toBe('375px');
+
+    // The pick is per class: a desktop page runs in a desktop window, and a phone page keeps the phone.
+    el.api.navigate({ screen: 'top' });
+    await settle(el);
+    expect(select().value).toBe('laptop-13');
+    expect(frame().style.getPropertyValue('--device-height')).toBe('800px');
+    el.api.navigate({ screen: 'phone-orders' });
+    await settle(el);
+    expect(select().value).toBe('iphone-se');
+  });
+
+  it('puts a phone app’s bezel around the device’s screen', async () => {
+    const el = mount('#view=app&screen=app-home');
+    await settle(el);
+    const frame = el.shadowRoot!.querySelector<HTMLElement>('.frame[data-kind="native"]')!;
+    expect(frame.dataset['window']).toBe('device');
+    expect(frame.style.getPropertyValue('--device-width')).toBe(`${393 + 22}px`);
+  });
+
+  it('leaves the scenario view content sized, without a device', async () => {
+    const el = mount('#step=top');
+    await settle(el);
+    expect(el.shadowRoot!.querySelector('.frame')?.hasAttribute('data-window')).toBe(false);
+    expect(el.shadowRoot!.querySelector('.device-select')).toBeNull();
+  });
+
   it('goes back and forward through the pages the reader visited', async () => {
     const el = mount('#view=app&screen=top');
     await settle(el);

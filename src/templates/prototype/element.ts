@@ -29,6 +29,7 @@ import {
   prototypePageAt,
 } from './browser-view';
 import { prototypeDefinitionFor } from './definition';
+import { chooseDevice, deviceZoom, type DeviceChoice } from './devices';
 import { prototypeMessages } from './messages';
 import { findPreview, uiTargetId, UI_TARGET, type PrototypeState, type UiTarget } from './model';
 import {
@@ -48,6 +49,8 @@ const COMPOSER_SIZE = { width: 300, height: 300 };
 /** How long a reload of the app view's browser takes, so the reader sees it happen. */
 const RELOAD_MS = 360;
 const DOCUMENT_STYLES_ID = 'dpk-template-prototype-document-styles';
+/** The room a demo leaves around a device, on each side (the stage's `.is-demo` styles match it). */
+const DEMO_DEVICE_MARGIN = 24;
 
 /** The document half of the template's styles, added once per document. */
 const installDocumentStyles = (): void => {
@@ -125,6 +128,13 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   #pendingReload: { readonly page: string; readonly timer: ReturnType<typeof setTimeout> } | null = null;
   /** The stage element shown in the top layer, so it is shown there once. */
   #liftedStage: Element | null = null;
+  /** The app view's device for each class, as the reader picked it. */
+  #devices: DeviceChoice = {};
+  /** How much smaller the device on stage is drawn, so it fits the stage. */
+  #deviceZoom = 1;
+  /** Measures the stage again when its width changes (the window, the sidebar). */
+  readonly #canvasSize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.#fitDevice());
+  #observedCanvas: Element | null = null;
 
   protected override definitionFor(locale: Locale) {
     return prototypeDefinitionFor(locale);
@@ -149,6 +159,8 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     this.removeEventListener('toggle', this.#onToggle, true);
     this.removeEventListener('click', this.#onLinkClick, true);
     this.removeEventListener('auxclick', this.#onLinkClick, true);
+    this.#canvasSize?.disconnect();
+    this.#observedCanvas = null;
     this.#stopReload();
   }
 
@@ -176,6 +188,16 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
         onLiftedWheel: this.#onLiftedWheel,
         // Read after the check above: leaving the page has just stopped its reload.
         browser: browser === null ? null : { ...browser, loading: this.#pendingReload !== null },
+        devices: app
+          ? {
+              choice: this.#devices,
+              zoom: this.#deviceZoom,
+              onPick: (id) => {
+                this.#devices = chooseDevice(this.#devices, id);
+                this.requestUpdate();
+              },
+            }
+          : null,
         uiComment: this.#uiCommentView(context),
         canvasEvents: {
           click: this.#onCanvasClick,
@@ -192,6 +214,8 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     super.updated();
     this.#checkLinks();
     this.#containDialogs();
+    this.#observeCanvas();
+    this.#fitDevice();
     const mode = this.#uiComment;
     // The step changed under an open composer: its element is no longer on screen.
     if (mode.kind === 'composing' && !this.#shownIds.includes(mode.target.previewId)) {
@@ -415,6 +439,43 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
       left: rect.left + canvas.clientLeft - canvas.scrollLeft,
       top: rect.top + canvas.clientTop - canvas.scrollTop,
     };
+  }
+
+  // ------------------------------------------------------------------ devices
+
+  #observeCanvas(): void {
+    const canvas = this.renderRoot.querySelector('.canvas');
+    if (canvas === this.#observedCanvas || this.#canvasSize === null) return;
+    if (this.#observedCanvas !== null) this.#canvasSize.unobserve(this.#observedCanvas);
+    this.#observedCanvas = canvas;
+    if (canvas !== null) this.#canvasSize.observe(canvas);
+  }
+
+  /**
+   * Draws the device on stage smaller when it is wider than the stage, like a
+   * browser's device mode; a demo fits it to the height of the tab as well.
+   */
+  #fitDevice(): void {
+    const frame = this.renderRoot.querySelector<HTMLElement>('.frame[data-window="device"]');
+    const canvas = frame?.closest('.canvas');
+    if (!frame || !(canvas instanceof HTMLElement)) return;
+    const frameStyle = getComputedStyle(frame);
+    const size = {
+      width: parseFloat(frameStyle.getPropertyValue('--device-width')),
+      height: parseFloat(frameStyle.getPropertyValue('--device-height')),
+    };
+    const canvasStyle = getComputedStyle(canvas);
+    const width = canvas.clientWidth - parseFloat(canvasStyle.paddingLeft) - parseFloat(canvasStyle.paddingRight);
+    const demo = this.#lift?.mode === 'demo';
+    // A demo has no padding of its own: the device keeps a margin from the edges of the tab.
+    const margin = demo ? DEMO_DEVICE_MARGIN * 2 : 0;
+    const zoom = deviceZoom(size, {
+      width: width - margin,
+      ...(demo ? { height: canvas.clientHeight - margin } : {}),
+    });
+    if (zoom === this.#deviceZoom) return;
+    this.#deviceZoom = zoom;
+    this.requestUpdate();
   }
 
   // ------------------------------------------------------------ modal dialogs
