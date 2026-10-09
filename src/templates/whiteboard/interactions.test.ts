@@ -4,6 +4,7 @@ import { newItem } from './commands';
 import {
   constrainViewport,
   fitRect,
+  focusRect,
   keepInside,
   revealRect,
   toCanvas,
@@ -39,6 +40,25 @@ describe('whiteboard viewport', () => {
     expect(fitRect({ x: 0, y: 0, w: 1800, h: 200 }, { width: 1000, height: 600 }, 50).zoom).toBe(0.5);
   });
 
+  it('shows the whole board when the least zoom can hold it', () => {
+    const items = [
+      { x: 0, y: 0, w: 160, h: 160 },
+      { x: 3000, y: 2000, w: 160, h: 160 },
+    ];
+    expect(focusRect(items, { width: 1000, height: 600 }, 50)).toEqual({ x: 0, y: 0, w: 3160, h: 2160 });
+  });
+
+  it('leaves out an item too far away to fit, rather than show a board of empty space', () => {
+    const near = [
+      { x: 0, y: 0, w: 160, h: 160 },
+      { x: 400, y: 100, w: 160, h: 160 },
+      { x: 200, y: 300, w: 160, h: 160 },
+    ];
+    const far = { x: 1_000_000, y: -1_000_000, w: 160, h: 160 };
+    expect(focusRect([...near, far], { width: 1000, height: 600 }, 50)).toEqual({ x: 0, y: 0, w: 560, h: 460 });
+    expect(focusRect([], { width: 1000, height: 600 }, 50)).toBeNull();
+  });
+
   it('brings an off-screen rect into view, and leaves a visible one alone', () => {
     const view = { width: 800, height: 600 };
     const viewport = { x: 0, y: 0, zoom: 1 };
@@ -54,6 +74,13 @@ describe('whiteboard viewport', () => {
     expect(keepInside(100, 200, 1440, 8)).toBe(0);
     // Wider than the view: its start stays visible.
     expect(keepInside(-30, 2000, 1440, 8)).toBe(38);
+  });
+
+  it('keeps a floating bar right of a floor, such as the add-toolbar along the left edge', () => {
+    expect(keepInside(20, 200, 390, 8, 56)).toBe(44);
+    expect(keepInside(100, 200, 390, 8, 56)).toBe(0);
+    // No room right of the floor: its start still clears the floor.
+    expect(keepInside(20, 400, 390, 8, 56)).toBe(44);
   });
 
   it('lets the board wander but keeps a strip of it on screen', () => {

@@ -2,9 +2,9 @@
  * Pure pan / zoom arithmetic for the board. A viewport maps a canvas point `p`
  * to the screen point `p * zoom + (x, y)`, relative to the canvas element.
  */
-import { clamp } from 'es-toolkit/math';
+import { clamp, median } from 'es-toolkit/math';
 
-import type { Point, Rect } from './layout';
+import { boardBounds, type Point, type Rect } from './layout';
 
 export type Viewport = { readonly x: number; readonly y: number; readonly zoom: number };
 export type Size = { readonly width: number; readonly height: number };
@@ -52,6 +52,29 @@ export const fitRect = (rect: Rect, view: Size, padding = 48, maxZoom = 1): View
 };
 
 /**
+ * What fitting the board shows: all of it, unless even the least zoom cannot
+ * hold it in `view` — then the items around the board's middle, so one item
+ * flung far away does not leave the view on empty space between them.
+ */
+export const focusRect = (items: readonly Rect[], view: Size, padding = 48): Rect | null => {
+  const board = boardBounds(items);
+  if (board === null) return null;
+  const reachX = Math.max(1, view.width - padding * 2) / ZOOM_MIN;
+  const reachY = Math.max(1, view.height - padding * 2) / ZOOM_MIN;
+  if (board.w <= reachX && board.h <= reachY) return board;
+  const x = median(items.map((item) => item.x + item.w / 2));
+  const y = median(items.map((item) => item.y + item.h / 2));
+  const near = items.filter(
+    (item) =>
+      item.x < x + reachX / 2 &&
+      item.x + item.w > x - reachX / 2 &&
+      item.y < y + reachY / 2 &&
+      item.y + item.h > y - reachY / 2,
+  );
+  return boardBounds(near) ?? board;
+};
+
+/**
  * The canvas is open-ended, but not endless: the reader may pan anywhere as
  * long as a strip of the board stays on screen, so it can never get lost.
  */
@@ -90,13 +113,13 @@ export const revealRect = (viewport: Viewport, rect: Rect, view: Size, margin = 
 
 /**
  * How far to shift a floating bar spanning `start`..`start + length` along one
- * axis so it stays within `0`..`limit` (with `margin` to spare); when it cannot
- * fit, its start wins.
+ * axis so it stays within `floor`..`limit` (with `margin` to spare); when it
+ * cannot fit, its start wins.
  */
-export const keepInside = (start: number, length: number, limit: number, margin: number): number => {
+export const keepInside = (start: number, length: number, limit: number, margin: number, floor = 0): number => {
   const over = start + length - (limit - margin);
   const pulled = over > 0 ? -over : 0;
-  return start + pulled < margin ? margin - start : pulled;
+  return start + pulled < floor + margin ? floor + margin - start : pulled;
 };
 
 export const sameViewport = (a: Viewport, b: Viewport): boolean => a.x === b.x && a.y === b.y && a.zoom === b.zoom;

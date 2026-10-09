@@ -37,6 +37,7 @@ import {
 import {
   constrainViewport,
   fitRect,
+  focusRect,
   INITIAL_VIEWPORT,
   keepInside,
   panBy,
@@ -72,6 +73,8 @@ const stop = (event: Event): void => event.stopPropagation();
 const NUDGE = 10;
 /** Room the selection toolbar keeps from the edges of the view. */
 const TOOLBAR_MARGIN = 8;
+/** Wide enough a margin around a fitted view that the add toolbar on the left never covers the board. */
+const FIT_PADDING = 72;
 
 type Context = TemplateRenderContext<WhiteboardState>;
 
@@ -121,6 +124,11 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
   /** Whether the view has been placed once, and for which frame it was placed last. */
   #placed = false;
   #placedFrame: string | undefined;
+  /** The view is still the one a fit chose: until the reader pans or zooms, a canvas that changes size fits again. */
+  #fitted = false;
+  /** Watches the canvas, once it is drawn, for a change of size. */
+  #resize: ResizeObserver | undefined;
+  #observed: HTMLElement | undefined;
   /** The item whose in-place editor has been focused for the current edit. */
   #editorOpened: string | undefined;
   /** Where the caret goes when the editor opens; `undefined` puts it at the end. */
@@ -214,7 +222,9 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
   protected override updated(): void {
     super.updated();
     // Nothing is drawn until the base data has been read.
-    if (this.#canvasEl() === null) return;
+    const canvas = this.#canvasEl();
+    if (canvas === null) return;
+    this.#observeCanvas(canvas);
     this.#placeView();
     this.#fitToolbar();
     this.#openEditor();
@@ -232,8 +242,16 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     if (canvas === null || bar === null) return;
     const nudge = (axis: 'x' | 'y'): number => Number.parseFloat(bar.style.getPropertyValue(`--wb-nudge-${axis}`)) || 0;
     const view = canvas.getBoundingClientRect();
+    const first = bar.getBoundingClientRect();
+    // Level with the add-toolbar on the left, the bar keeps to its right instead of covering it.
+    const tools = this.renderRoot.querySelector('.wb-tools')?.getBoundingClientRect();
+    const top = first.top - nudge('y');
+    const beside = tools !== undefined && top < tools.bottom && top + first.height > tools.top;
+    const floor = beside ? tools.right - view.left : 0;
+    bar.style.setProperty('--wb-toolbar-floor', `${floor}px`);
+    // Measured again: the floor narrows how wide the bar may grow.
     const box = bar.getBoundingClientRect();
-    const x = keepInside(box.left - nudge('x') - view.left, box.width, view.width, TOOLBAR_MARGIN);
+    const x = keepInside(box.left - nudge('x') - view.left, box.width, view.width, TOOLBAR_MARGIN, floor);
     const y = keepInside(box.top - nudge('y') - view.top, box.height, view.height, TOOLBAR_MARGIN);
     bar.style.setProperty('--wb-nudge-x', `${x}px`);
     bar.style.setProperty('--wb-nudge-y', `${y}px`);
@@ -822,6 +840,7 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
   /* ------------------------------------------------------------- viewport */
 
   #setViewport(next: Viewport): void {
+    this.#fitted = false;
     const clamped = constrainViewport(next, boardBounds(this.context().state.items), this.#canvasSize());
     if (!sameViewport(clamped, this.viewport)) this.viewport = clamped;
   }
@@ -834,9 +853,40 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
   #fit(rect: Rect | null): boolean {
     const size = this.#canvasSize();
     if (rect === null || size.width <= 0 || size.height <= 0) return false;
-    // Wide enough a margin that the add toolbar on the left never covers the board.
-    this.#setViewport(fitRect(rect, size, 72));
+    this.#setViewport(fitRect(rect, size, FIT_PADDING));
+    this.#fitted = true;
     return true;
+  }
+
+  /** The board, or the part of it a fit can show (see `focusRect`). */
+  #boardFocus(): Rect | null {
+    return focusRect(this.context().state.items, this.#canvasSize(), FIT_PADDING);
+  }
+
+  #observeCanvas(canvas: HTMLElement): void {
+    if (this.#observed === canvas || typeof ResizeObserver === 'undefined') return;
+    this.#resize ??= new ResizeObserver(() => this.#refit());
+    if (this.#observed) this.#resize.unobserve(this.#observed);
+    this.#resize.observe(canvas);
+    this.#observed = canvas;
+  }
+
+  /** The canvas changed size: place the view if it never was, and fit it again if the reader has not moved it. */
+  #refit(): void {
+    if (!this.#placed) {
+      this.#placeView();
+      return;
+    }
+    if (!this.#fitted) return;
+    const frame = this.#placedFrame;
+    this.#fit(frame === undefined ? this.#boardFocus() : (findItem(this.context().state, frame) ?? null));
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.#resize?.disconnect();
+    this.#resize = undefined;
+    this.#observed = undefined;
   }
 
   #focusFrame(frameId: string): void {
@@ -850,7 +900,7 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     const context = this.context();
     if (context.navigation['frame'] !== undefined) context.navigate({ frame: null });
     this.#placedFrame = undefined;
-    this.#fit(boardBounds(context.state.items));
+    this.#fit(this.#boardFocus());
   }
 
   /**
@@ -866,7 +916,7 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
       this.#placedFrame = undefined;
       return;
     }
-    const target = frame === undefined ? boardBounds(context.state.items) : (findItem(context.state, frame) ?? null);
+    const target = frame === undefined ? this.#boardFocus() : (findItem(context.state, frame) ?? null);
     const size = this.#canvasSize();
     if (size.width <= 0 || size.height <= 0) return;
     // An empty board opens with its origin in the middle, where the first item lands.

@@ -20,6 +20,8 @@ export const whiteboardStyles = css`
 
   .wb-canvas {
     position: relative;
+    /* The board's own floating controls stack inside it, under the page's overlays (the review rail). */
+    isolation: isolate;
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
@@ -502,7 +504,8 @@ export const whiteboardStyles = css`
 
   .wb-zoom {
     right: 12px;
-    bottom: 12px;
+    /* Above the page's hand-off dock while it floats over this corner. */
+    bottom: calc(12px + var(--dpk-dock-clearance, 0px));
     overflow: hidden;
   }
 
@@ -535,10 +538,16 @@ export const whiteboardStyles = css`
   }
 
   /* The floating toolbar over the selection. */
+  /* One row, unless the canvas is narrower than that: then it wraps rather
+     than leave its last controls off screen. */
   .wb-toolbar {
     transform: translate(-50%, -100%);
     translate: var(--wb-nudge-x, 0) var(--wb-nudge-y, 0);
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 2px;
+    width: max-content;
+    max-width: calc(100% - 16px - var(--wb-toolbar-floor, 0px));
     padding: 4px;
     white-space: nowrap;
   }
