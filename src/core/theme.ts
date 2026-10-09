@@ -481,6 +481,17 @@ export const prose = css`
     margin-top: 0.15em;
   }
 
+  /* A task list item: its checkbox is the marker, so it has no bullet of its own. */
+  .dpk-prose li:has(> input[type='checkbox']:first-child) {
+    margin-left: -1.3em;
+    list-style: none;
+  }
+
+  .dpk-prose li > input[type='checkbox']:first-child {
+    margin: 0 0.4em 0 0;
+    vertical-align: -0.1em;
+  }
+
   .dpk-prose strong {
     font-weight: 650;
     color: var(--dpk-ink);
