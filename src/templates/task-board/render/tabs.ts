@@ -77,7 +77,8 @@ export const renderTabs = (
         @click=${() => select(tab)}
         @keydown=${keydown}
       >
-        ${tabLabel(m, tab)}${count === null || count === 0 ? nothing : html`<span class="board-tab-count">${count}</span>`}
+        <span class="board-tab-label">${tabLabel(m, tab)}</span
+        >${count === null || count === 0 ? nothing : html`<span class="board-tab-count">${count}</span>`}
       </button>`;
     })}
   </div>

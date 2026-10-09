@@ -71,6 +71,11 @@ export const taskBoardStyles = css`
       border-top: 1px solid var(--dpk-rule);
     }
 
+    /* Stacked, the rail is what ends the page: it clears the hand-off dock, not the board above it. */
+    .dpk-main-body {
+      padding-bottom: 24px;
+    }
+
     /* Stacked, the rail takes the full width: there is no edge to drag or
        fold on. A rail folded on a wider screen is a bar to unfold it. */
     .dpk-sidebar-resizer,
@@ -221,7 +226,22 @@ export const taskBoardStyles = css`
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
+  @media (max-width: 400px) {
+    .board-tabs [role='tab'] {
+      gap: 5px;
+      padding-inline: 6px;
+    }
+  }
+
+  /* Too narrow for every label whole, a label gives way before its count does. */
+  .board-tab-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .board-tab-count {
+    flex: none;
     min-width: 18px;
     padding: 0 6px;
     border-radius: 999px;
@@ -656,6 +676,7 @@ export const taskBoardStyles = css`
 
   .board-todos {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -743,6 +764,7 @@ export const taskBoardStyles = css`
     display: grid;
     gap: 4px;
     min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .board-todo-title {

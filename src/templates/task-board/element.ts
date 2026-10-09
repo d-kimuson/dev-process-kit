@@ -65,7 +65,7 @@ export class DpkTemplateTaskBoard extends TemplateElement<TaskBoardState> {
   }
 
   protected override get sidebarLayout(): SidebarLayout {
-    return { side: 'right', defaultWidth: 360 };
+    return { side: 'right', defaultWidth: 360, narrow: 'stack' };
   }
 
   protected override definitionFor(locale: Locale) {
