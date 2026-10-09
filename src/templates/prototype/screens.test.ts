@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import type { Navigation } from '../../core/types';
 
+import { patchNavigation } from '../../core/navigation';
 import { allScreens, findPreview, findScreen, findStep, parsePrototypeBase, stepScreens } from './model';
 import {
   locatePrototype,
   prototypeAppSections,
   prototypeCurrentAppSection,
   prototypeLinkProblem,
+  prototypeNavigationHierarchy,
   prototypePageHeading,
   prototypeRenditionSelection,
   prototypeStageFrames,
@@ -510,6 +512,16 @@ describe('prototype navigation between screens with the same kinds of rendition'
       ],
     });
   const resolve = (nav: Navigation) => resolvePrototypeNavigation(shop(), nav);
+  /** Where a link of a mock leads: the shell patches the hash with it, then the template resolves it. */
+  const follow = (from: Navigation, link: Navigation) =>
+    resolve(patchNavigation(resolve(from), link, prototypeNavigationHierarchy));
+
+  it('keeps the rendition the reader is on when the shell follows a link to another screen', () => {
+    expect(follow({ view: 'app', screen: 'home', preview: 'home-app' }, { screen: 'item' })['preview']).toBe(
+      'item-app',
+    );
+    expect(follow({ step: 'open', preview: 'home-app' }, { step: 'pick' })['preview']).toBe('item-app');
+  });
 
   it('keeps the reader in the app when a link of the app leads to another screen', () => {
     expect(resolve({ view: 'app', screen: 'item', preview: 'home-app' })['preview']).toBe('item-app');

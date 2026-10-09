@@ -720,6 +720,14 @@ const resolveScenarioNavigation = (state: PrototypeState, nav: Navigation): Navi
   return withPreview(next, stepRenditions(state, step, nav));
 };
 
+/**
+ * The keys of the hash from the outermost: moving to another place drops the
+ * keys beneath it. `preview` is not one of them: it names the renditions the
+ * reader is on, which a move to another screen or step carries over to the
+ * same kind of rendition there (`resolvePrototypeNavigation`).
+ */
+export const prototypeNavigationHierarchy: readonly string[] = ['activity', 'story', 'step', 'screen'];
+
 export const resolvePrototypeNavigation = (state: PrototypeState, nav: Navigation): Navigation => {
   return prototypeViewOf(nav) === 'app' ? resolveAppNavigation(state, nav) : resolveScenarioNavigation(state, nav);
 };
