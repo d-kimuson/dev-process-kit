@@ -6,6 +6,7 @@ export const usmMessages = defineMessages({
   en: {
     // -------------------------------------------------------- action titles
     renameActivity: 'Rename activity',
+    changeActivityActor: 'Change whose experience',
     renameStep: 'Rename step',
     reorderStep: 'Reorder step',
     addActivity: 'Add activity',
@@ -79,27 +80,27 @@ export const usmMessages = defineMessages({
     statusesTab: 'Statuses',
 
     // ---------------------------------------------------- milestones tab
-    milestonesLead: 'What each release slice is for, and when it is due. The stories live on the map.',
     shareOfStories: (percent: number) => `${percent}% of all stories`,
     coverageLabel: 'Backbone coverage',
     coverage: (covered: number, total: number) => `${covered} / ${total} steps`,
     storiesLabel: 'Stories',
     timeframeUnset: 'Timing not set',
-    breakdownLabel: 'By activity',
-    breakdownItem: (name: string, count: number) => `${name}: ${count} ${count === 1 ? 'story' : 'stories'}`,
     milestoneNoDescription: 'No description yet.',
     noMilestonesTitle: 'No milestones yet',
     noMilestonesBody: 'Add a milestone to slice the map into releases.',
     commentCountAria: (count: number) => (count === 1 ? '1 comment' : `${count} comments`),
 
     // ------------------------------------------------------- statuses tab
-    statusesLead: 'Where a story stands. Each status colors its stories on the map; set one from the card.',
     statusNameLabel: 'Status name',
     statusToneLabel: 'Color',
     toneName: (tone: StatusTone) =>
       ({ gray: 'Gray', blue: 'Blue', violet: 'Violet', green: 'Green', amber: 'Amber', accent: 'Orange' })[tone],
     statusShare: (count: number, percent: number) => `${count === 1 ? '1 story' : `${count} stories`} · ${percent}%`,
     statusUnset: 'No status',
+    statusFilterLabel: 'Status',
+    clearFilter: 'Clear',
+    progressAria: (parts: string) => `Progress: ${parts}`,
+    activityActorLabel: 'Who',
     noStatusesTitle: 'No statuses yet',
     noStatusesBody: 'Add statuses such as Idea / Ready / Done, and the map colors each story by where it stands.',
     newStatusButton: '+ Status',
@@ -119,6 +120,7 @@ export const usmMessages = defineMessages({
     commentAria: 'Comment',
     deleteAria: 'Delete',
     storyStatusLabel: 'Status',
+    storyStatusAria: (name: string) => `Status: ${name}`,
 
     // -------------------------------------------------------------- commands
     newActivityName: 'New activity',
@@ -129,6 +131,7 @@ export const usmMessages = defineMessages({
   },
   ja: {
     renameActivity: 'アクティビティ名を変更',
+    changeActivityActor: '体験する人を変更',
     renameStep: 'ステップ名を変更',
     reorderStep: 'ステップの順序を変更',
     addActivity: 'アクティビティを追加',
@@ -197,27 +200,26 @@ export const usmMessages = defineMessages({
     milestonesTab: 'マイルストーン',
     statusesTab: 'ステータス',
 
-    milestonesLead: 'リリースの区切りごとの目的と時期。ストーリーはマップで扱います。',
     shareOfStories: (percent: number) => `全ストーリーの ${percent}%`,
     coverageLabel: 'バックボーンの網羅',
     coverage: (covered: number, total: number) => `${covered} / ${total} ステップ`,
     storiesLabel: 'ストーリー',
     timeframeUnset: '時期未定',
-    breakdownLabel: 'アクティビティ別',
-    breakdownItem: (name: string, count: number) => `${name}: ${count} ストーリー`,
     milestoneNoDescription: '説明はまだありません。',
     noMilestonesTitle: 'マイルストーンがまだありません',
     noMilestonesBody: 'マイルストーンを追加すると、マップをリリースごとに区切れます。',
     commentCountAria: (count: number) => `コメント ${count} 件`,
 
-    statusesLead:
-      'ストーリーがどこまで進んだか。ステータスごとにマップのカードが色分けされ、カードから切り替えられます。',
     statusNameLabel: 'ステータス名',
     statusToneLabel: '色',
     toneName: (tone: StatusTone) =>
       ({ gray: 'グレー', blue: '青', violet: '紫', green: '緑', amber: '黄', accent: 'オレンジ' })[tone],
     statusShare: (count: number, percent: number) => `${count} ストーリー · ${percent}%`,
     statusUnset: 'ステータスなし',
+    statusFilterLabel: 'ステータス',
+    clearFilter: 'クリア',
+    progressAria: (parts: string) => `進み具合: ${parts}`,
+    activityActorLabel: '誰の体験',
     noStatusesTitle: 'ステータスがまだありません',
     noStatusesBody: 'Idea / Ready / Done のようなステータスを追加すると、マップのカードが進み具合で色分けされます。',
     newStatusButton: '+ ステータス',
@@ -235,6 +237,7 @@ export const usmMessages = defineMessages({
     commentAria: 'コメント',
     deleteAria: '削除',
     storyStatusLabel: 'ステータス',
+    storyStatusAria: (name: string) => `ステータス: ${name}`,
 
     newActivityName: '新しいアクティビティ',
     newStepName: '新しいステップ',

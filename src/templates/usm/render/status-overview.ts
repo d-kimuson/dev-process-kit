@@ -1,4 +1,4 @@
-import { html, type TemplateResult } from 'lit';
+import { html, nothing, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
@@ -9,7 +9,7 @@ import { iconTrash } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { addStatus } from '../commands';
 import { STATUS_TONES, type UsmState } from '../model';
-import { statusToneStyle } from './tone';
+import { statusIcon, statusToneStyle } from './tone';
 
 /**
  * The statuses tab: the statuses a story can stand in, in order, each with its
@@ -29,7 +29,7 @@ export const renderStatusOverview = (
               <h2>${m.noStatusesTitle}</h2>
               <p>${m.noStatusesBody}</p>
             </div>`
-          : html`<p class="st-lead">${m.statusesLead}</p>`
+          : nothing
       }
       <ol class="st-list">
         ${repeat(
@@ -38,7 +38,7 @@ export const renderStatusOverview = (
           (row) => renderStatusRow(m, context, row),
         )}
         <li class="st-row st-row--unset" style=${statusToneStyle(undefined)}>
-          <span class="st-swatch" aria-hidden="true"></span>
+          ${statusIcon(undefined)}
           <span class="st-name">${m.statusUnset}</span>
           ${renderShare(m, overview.unsetCount, overview.unsetShare)}
         </li>
@@ -59,7 +59,7 @@ const renderStatusRow = (m: UsmMessages, context: TemplateRenderContext<UsmState
   };
   return html`
     <li class="st-row" data-status=${row.id} style=${statusToneStyle(row.tone)}>
-      <span class="st-swatch" aria-hidden="true"></span>
+      ${statusIcon(row.progress)}
       <span class="st-name">
         <dpk-component-inline-edit
           .value=${row.name}

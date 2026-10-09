@@ -2,45 +2,50 @@ import { css, html, LitElement, nothing, type PropertyValues, type TemplateResul
 
 import type { DpkComponentInlineEdit } from '../../../components/inline-edit';
 import type { DraftAction } from '../../../core/types';
-import type { StoryStatus, UserStory } from '../model';
+import type { UserStory } from '../model';
 import type { CardIntent, CardMode } from '../ui-mode';
 
 import { composerMessages } from '../../../components/comment-composer/messages';
 import { presentComposer } from '../../../components/comment-composer/present';
 import { renderComposer } from '../../../components/comment-composer/view';
 import { commentBody } from '../../../core/comment';
-import { iconComment, iconPencil, iconTrash } from '../../../core/icons';
+import { iconCheck, iconComment, iconPencil, iconTrash } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
 import { PopoverController } from '../../../core/popover-controller';
 import { controls, popoverSurface } from '../../../core/theme';
 import { onCommit } from '../../../lib/dom/events';
-import { usmMessages } from '../messages';
+import { usmMessages, type UsmMessages } from '../messages';
+import { statusIcon, statusStyles, statusToneStyle } from '../render/tone';
+import { statusViewOf, type StatusView } from '../status-view';
 
 const COMPOSER_SIZE = { width: 300, height: 260 };
+const STATUS_OPTION_HEIGHT = 36;
 
 const cardStyles = css`
   /*
-   * The card takes its activity's tone (--usm-tone, set by the map) over its
-   * whole surface, like a sticky note of that activity's color: a tinted face
-   * and a tinted edge, never a colored strip down one side. The tools float
-   * above the top edge on hover instead of reserving an empty strip at the
-   * bottom of every card.
+   * The card takes its status's color (--usm-tone, set by the map) over its
+   * whole surface, like a sticky note of that color: a tinted face, a tinted
+   * edge and a tinted foot, never a colored strip down one side. The status
+   * icon leads the title; the tools float above the top edge on hover.
    */
   :host {
     --card-tone: var(--usm-tone, var(--dpk-ink-faint));
     position: relative;
     display: grid;
-    gap: 6px;
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card-tone) 15%, var(--dpk-paper-raised)),
-      color-mix(in srgb, var(--card-tone) 6%, var(--dpk-paper-raised)) 75%
-    );
-    border: 1px solid color-mix(in srgb, var(--card-tone) 34%, var(--dpk-rule));
+    gap: 7px;
+    background:
+      radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--card-tone) 16%, transparent), transparent 70%),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--card-tone) 9%, var(--dpk-paper-raised)),
+        var(--dpk-paper-raised) 80%
+      );
+    border: 1px solid color-mix(in srgb, var(--card-tone) 30%, var(--dpk-rule));
     border-radius: var(--dpk-radius);
     box-shadow:
       var(--dpk-bevel),
-      0 1px 0 color-mix(in srgb, var(--card-tone) 10%, transparent),
+      0 1px 0 color-mix(in srgb, var(--card-tone) 12%, transparent),
+      0 6px 14px -10px color-mix(in srgb, var(--card-tone) 55%, transparent),
       var(--dpk-shadow-xs);
     padding: 11px 12px 10px;
     cursor: pointer;
@@ -51,8 +56,11 @@ const cardStyles = css`
   }
 
   :host(:hover) {
-    border-color: color-mix(in srgb, var(--card-tone) 46%, var(--dpk-rule-strong));
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+    border-color: color-mix(in srgb, var(--card-tone) 50%, var(--dpk-rule-strong));
+    box-shadow:
+      var(--dpk-bevel),
+      0 10px 22px -12px color-mix(in srgb, var(--card-tone) 65%, transparent),
+      var(--dpk-shadow-sm);
     transform: translateY(-2px);
   }
 
@@ -69,36 +77,44 @@ const cardStyles = css`
     transform: none;
   }
 
-  /* The step a card belongs to, where the column does not already say it. */
-  .card-step {
+  .card-head {
     display: flex;
-    align-items: center;
-    gap: 6px;
+    align-items: flex-start;
+    gap: 7px;
     min-width: 0;
-    color: color-mix(in srgb, var(--card-tone) 55%, var(--dpk-ink-soft));
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.3;
   }
 
-  .card-step::before {
-    content: '';
+  /* The status icon is also the button that opens the status menu. */
+  .card-status {
     flex: none;
-    width: 6px;
-    height: 6px;
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin: -2px -3px -2px -4px;
+    padding: 0;
+    border: 0;
     border-radius: 50%;
-    background: var(--card-tone);
+    background: transparent;
+    cursor: pointer;
+    transition: background 140ms var(--dpk-ease);
   }
 
-  .card-step span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .card-status:hover,
+  .card-status[aria-expanded='true'] {
+    background: color-mix(in srgb, var(--card-tone) 18%, transparent);
+  }
+
+  .card-status:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
   }
 
   .card-name {
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 13px;
-    font-weight: 620;
+    font-weight: 640;
     letter-spacing: -0.01em;
     line-height: 1.4;
     overflow-wrap: anywhere;
@@ -114,7 +130,7 @@ const cardStyles = css`
   .card-text {
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     overflow: hidden;
     font-size: 11.5px;
     line-height: 1.55;
@@ -122,85 +138,45 @@ const cardStyles = css`
     white-space: pre-wrap;
   }
 
-  /* The story's status as a tinted pill; the native select inside it opens the choices. */
-  .card-status {
-    justify-self: start;
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    max-width: 100%;
-    padding: 0 8px 0 7px;
-    border: 1px solid color-mix(in srgb, var(--card-tone) 40%, transparent);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--card-tone) 16%, var(--dpk-paper-raised));
-    color: color-mix(in srgb, var(--card-tone) 70%, var(--dpk-ink));
-    font-size: 10.5px;
-    font-weight: 650;
-    line-height: 18px;
-    cursor: pointer;
-  }
-
-  .card-status:hover {
-    border-color: color-mix(in srgb, var(--card-tone) 65%, transparent);
-  }
-
-  .card-status:focus-within {
-    box-shadow: var(--dpk-focus);
-  }
-
-  .card-status-dot {
-    flex: none;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--card-tone);
-  }
-
-  .card-status select {
-    appearance: none;
-    field-sizing: content;
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-    outline: none;
-  }
-
-  /* A card with no status yet stays quiet. */
-  :host([data-status='']) .card-status {
-    border-style: dashed;
-    background: transparent;
-    color: var(--dpk-ink-faint);
-    font-weight: 500;
-  }
-
-  /* Comments already left, as a small tinted chip at the foot of the card. */
-  .card-meta {
+  /* Where the story sits and what was said about it, under a tinted rule. */
+  .card-foot {
     display: flex;
-    justify-content: flex-end;
-    margin-top: 2px;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin-top: 1px;
+    padding-top: 7px;
+    border-top: 1px dashed color-mix(in srgb, var(--card-tone) 28%, var(--dpk-rule));
   }
 
-  .card-meta-chip {
+  .card-chip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 1px 7px 1px 6px;
+    min-width: 0;
+    padding: 1px 7px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--card-tone) 12%, var(--dpk-paper-sunken));
     color: var(--dpk-ink-soft);
-    font-family: var(--dpk-mono);
     font-size: 10.5px;
-    font-variant-numeric: tabular-nums;
+    font-weight: 600;
     line-height: 18px;
   }
 
-  .card-meta svg {
+  .card-chip span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card-chip[data-kind='comments'] {
+    margin-left: auto;
+    font-family: var(--dpk-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card-chip svg {
+    flex: none;
     width: 12px;
     height: 12px;
   }
@@ -239,22 +215,71 @@ const cardStyles = css`
     transform: none;
     pointer-events: auto;
   }
+
+  /* The status menu: every status with its icon, the current one checked. */
+  .comment-pop.status-pop {
+    gap: 2px;
+    padding: 6px;
+  }
+
+  .status-option {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-height: 30px;
+    padding: 4px 10px 4px 8px;
+    border: 0;
+    border-radius: var(--dpk-radius-sm);
+    background: transparent;
+    color: var(--dpk-ink);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 560;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .status-option:hover,
+  .status-option:focus-visible {
+    outline: none;
+    background: color-mix(in srgb, var(--usm-tone) 14%, var(--dpk-paper-inset));
+  }
+
+  .status-option[aria-checked='true'] {
+    background: color-mix(in srgb, var(--usm-tone) 12%, transparent);
+  }
+
+  .status-option .status-check {
+    display: inline-flex;
+    margin-left: auto;
+    color: var(--dpk-ink-soft);
+  }
+
+  .status-option .status-check svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .status-option[data-status=''] {
+    color: var(--dpk-ink-soft);
+  }
 `;
 
 /**
  * `<dpk-internal-usm-story-card>` — one user story on the map.
  *
  * The card owns only what is ephemeral *to itself*: the comment draft while it
- * is typed and the placement of its composer popover. Which card is being
- * edited or commented on is the host's decision (`UsmUiMode`); the card just
- * renders the `mode` it is given and reports `CardIntent`s through `onIntent`.
- * It never dispatches actions.
+ * is typed and the placement of its popovers. Which card is being edited,
+ * commented on or re-statused is the host's decision (`UsmUiMode`); the card
+ * just renders the `mode` it is given and reports `CardIntent`s through
+ * `onIntent`. It never dispatches actions.
  *
  * Drag & drop is bound by the host on this element (it is the draggable), so
  * `dragging` is a plain reflected input like `focused`.
  */
 export class DpkInternalUsmStoryCard extends LitElement {
-  static override styles = [controls, cardStyles, popoverSurface];
+  static override styles = [controls, statusStyles, cardStyles, popoverSurface];
 
   static override properties = {
     story: { attribute: false },
@@ -271,7 +296,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
   /** The story's step, shown where the column does not already say it; `''` hides it. */
   declare stepName: string;
   /** The statuses the map defines; with none, the card shows no status. */
-  declare statuses: readonly StoryStatus[];
+  declare statuses: readonly StatusView[];
   /** Comments already left on this story. */
   declare notes: readonly DraftAction[];
   declare mode: CardMode;
@@ -304,12 +329,22 @@ export class DpkInternalUsmStoryCard extends LitElement {
         this.renderRoot.querySelector<DpkComponentInlineEdit>('dpk-component-inline-edit')?.startEditing();
       }
     }
-    if (this.mode !== 'commenting') return;
-    // The composer floats in the top layer so opening it never moves the card;
-    // it hangs off the comment button that opened it.
-    const composer = this.renderRoot.querySelector<HTMLElement>('.comment-pop');
-    const button = this.renderRoot.querySelector('[data-role="comment"]');
-    if (composer && button) this.#popovers.open(composer, button, COMPOSER_SIZE);
+    // Popovers float in the top layer so opening one never moves the card;
+    // each hangs off the button that opened it.
+    if (this.mode === 'commenting')
+      this.#float('.comment-pop:not(.status-pop)', '[data-role="comment"]', COMPOSER_SIZE);
+    if (this.mode === 'status') {
+      const size = { width: 200, height: 16 + (this.statuses.length + 1) * STATUS_OPTION_HEIGHT };
+      this.#float('.status-pop', '[data-role="status"]', size);
+      if (changed.has('mode'))
+        this.renderRoot.querySelector<HTMLElement>('.status-option[aria-checked="true"]')?.focus();
+    }
+  }
+
+  #float(surfaceSelector: string, anchorSelector: string, size: { width: number; height: number }): void {
+    const surface = this.renderRoot.querySelector<HTMLElement>(surfaceSelector);
+    const anchor = this.renderRoot.querySelector(anchorSelector);
+    if (surface && anchor) this.#popovers.open(surface, anchor, size);
   }
 
   protected override render(): TemplateResult | typeof nothing {
@@ -318,28 +353,39 @@ export class DpkInternalUsmStoryCard extends LitElement {
     const m = usmMessages(this.#i18n.locale);
     const editing = this.mode === 'editing';
     const commenting = this.mode === 'commenting';
+    const hasFoot = this.stepName !== '' || this.notes.length > 0;
     return html`
-      ${this.stepName === '' ? nothing : html`<div class="card-step"><span>${this.stepName}</span></div>`}
-      ${this.statuses.length === 0 ? nothing : this.#renderStatus(m, story)}
-      <div class="card-name">
-        ${
-          editing
-            ? html`<dpk-component-inline-edit
-                wrap
-                .value=${story.name}
-                .label=${m.storyNameLabel}
-                @dpk-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
-              ></dpk-component-inline-edit>`
-            : html`<span>${story.name}</span>`
-        }
+      <div class="card-head">
+        ${this.statuses.length === 0 ? nothing : this.#renderStatusButton(m, story)}
+        <div class="card-name">
+          ${
+            editing
+              ? html`<dpk-component-inline-edit
+                  wrap
+                  .value=${story.name}
+                  .label=${m.storyNameLabel}
+                  @dpk-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
+                ></dpk-component-inline-edit>`
+              : html`<span>${story.name}</span>`
+          }
+        </div>
       </div>
       ${story.description ? html`<div class="card-text">${story.description}</div>` : nothing}
       ${
-        this.notes.length > 0
-          ? html`<div class="card-meta">
-              <span class="card-meta-chip" aria-label=${m.commentCountAria(this.notes.length)}>
-                ${iconComment()}<span>${this.notes.length}</span>
-              </span>
+        hasFoot
+          ? html`<div class="card-foot">
+              ${this.stepName === '' ? nothing : html`<span class="card-chip" data-kind="step"><span>${this.stepName}</span></span>`}
+              ${
+                this.notes.length > 0
+                  ? html`<span
+                      class="card-chip"
+                      data-kind="comments"
+                      aria-label=${m.commentCountAria(this.notes.length)}
+                    >
+                      ${iconComment()}<span>${this.notes.length}</span>
+                    </span>`
+                  : nothing
+              }
             </div>`
           : nothing
       }
@@ -375,30 +421,66 @@ export class DpkInternalUsmStoryCard extends LitElement {
           ${iconTrash()}
         </button>
       </div>
+      ${this.mode === 'status' ? this.#renderStatusMenu(m, story) : nothing}
       ${commenting ? this.#renderComposer() : nothing}
     `;
   }
 
-  /** The story's status as a pill; picking another one reports it, the host turns it into an action. */
-  #renderStatus(m: ReturnType<typeof usmMessages>, story: UserStory): TemplateResult {
-    const current = story.statusId ?? '';
-    return html`<label class="card-status" @click=${(event: Event) => event.stopPropagation()}>
-      <span class="card-status-dot" aria-hidden="true"></span>
-      <select
-        aria-label=${m.storyStatusLabel}
-        draggable="false"
-        @mousedown=${(event: Event) => event.stopPropagation()}
-        @change=${(event: Event) => {
-          const value = event.target instanceof HTMLSelectElement ? event.target.value : current;
-          if (value !== current) this.#report({ kind: 'set-status', statusId: value === '' ? null : value });
-        }}
-      >
-        <option value="" ?selected=${current === ''}>${m.statusUnset}</option>
-        ${this.statuses.map(
-          (status) => html`<option value=${status.id} ?selected=${status.id === current}>${status.name}</option>`,
-        )}
-      </select>
-    </label>`;
+  #renderStatusButton(m: UsmMessages, story: UserStory): TemplateResult {
+    const current = statusViewOf(this.statuses, story);
+    return html`<button
+      class="card-status"
+      type="button"
+      data-role="status"
+      aria-haspopup="menu"
+      aria-expanded=${String(this.mode === 'status')}
+      aria-label=${m.storyStatusAria(current?.name ?? m.statusUnset)}
+      title=${current?.name ?? m.statusUnset}
+      @click=${this.#tool({ kind: 'toggle-status' })}
+    >
+      ${statusIcon(current?.progress)}
+    </button>`;
+  }
+
+  /** Every status, then "no status"; picking one reports it and the host turns it into an action. */
+  #renderStatusMenu(m: UsmMessages, story: UserStory): TemplateResult {
+    const current = story.statusId ?? null;
+    const options = [
+      ...this.statuses.map((status) => ({ id: status.id as string | null, name: status.name, view: status })),
+      { id: null, name: m.statusUnset, view: undefined },
+    ];
+    return html`<div
+      class="comment-pop status-pop"
+      popover="manual"
+      role="menu"
+      aria-label=${m.storyStatusLabel}
+      @click=${(event: Event) => event.stopPropagation()}
+      @keydown=${(event: KeyboardEvent) => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        event.stopPropagation();
+        this.#report({ kind: 'toggle-status' });
+      }}
+    >
+      ${options.map(
+        (option) => html`<button
+          class="status-option"
+          type="button"
+          role="menuitemradio"
+          data-status=${option.id ?? ''}
+          aria-checked=${String(option.id === current)}
+          style=${statusToneStyle(option.view?.tone)}
+          @click=${() => {
+            if (option.id === current) this.#report({ kind: 'toggle-status' });
+            else this.#report({ kind: 'set-status', statusId: option.id });
+          }}
+        >
+          ${statusIcon(option.view?.progress)}
+          <span>${option.name}</span>
+          ${option.id === current ? html`<span class="status-check" aria-hidden="true">${iconCheck()}</span>` : nothing}
+        </button>`,
+      )}
+    </div>`;
   }
 
   #renderComposer(): TemplateResult {

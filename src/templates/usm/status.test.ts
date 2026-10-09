@@ -10,6 +10,7 @@ import { usmDefinitionFor } from './definition';
 import { usmMessages } from './messages';
 import { parseUsmBase, type UsmState } from './model';
 import { presentStatusOverview } from './status-overview';
+import { statusDistribution } from './status-view';
 
 const m = usmMessages('en');
 const definition = usmDefinitionFor('en');
@@ -111,6 +112,17 @@ describe('usm statuses: actions', () => {
   });
 });
 
+describe('usm statuses: distribution', () => {
+  it('spreads stories over the statuses in workflow order, then the ones without a status', () => {
+    expect(statusDistribution(base, base.stories, 'None').map((part) => [part.id, part.progress, part.count])).toEqual([
+      ['ready', 0.5, 1],
+      ['done', 1, 2],
+      [null, undefined, 1],
+    ]);
+    expect(statusDistribution({ ...base, statuses: [] }, base.stories, 'None')).toEqual([]);
+  });
+});
+
 describe('usm statuses: overview', () => {
   it('counts the stories per status and those without one', () => {
     const overview = presentStatusOverview(base);
@@ -144,24 +156,86 @@ describe('usm statuses: element', () => {
     document.body.innerHTML = '';
   });
 
-  it('colors cards by status and sets a status from the card', async () => {
+  it('colors cards by status and sets a status from the card menu', async () => {
     const el = await mount('');
     const root = el.shadowRoot!;
-    const card = root.querySelector('dpk-internal-usm-story-card[data-story="u1"]') as HTMLElement & {
-      updateComplete: Promise<boolean>;
-    };
-    expect(card.getAttribute('style')).toContain('--dpk-green');
-    const plain = root.querySelector('dpk-internal-usm-story-card[data-story="u4"]')!;
-    expect(plain.getAttribute('style')).toContain('--dpk-ink-faint');
-    const select = card.shadowRoot!.querySelector('.card-status select') as HTMLSelectElement;
-    expect([...select.options].map((option) => option.textContent)).toEqual([m.statusUnset, 'Idea', 'Ready', 'Done']);
-    select.value = 'idea';
-    select.dispatchEvent(new Event('change'));
-    await el.updateComplete;
-    expect(el.api.actions.map((action) => [action.type, action.payload])).toEqual([
-      ['SET_STORY_STATUS', { statusId: 'idea' }],
-    ]);
+    const cardOf = (id: string) =>
+      root.querySelector(`dpk-internal-usm-story-card[data-story="${id}"]`) as HTMLElement & {
+        updateComplete: Promise<boolean>;
+      };
+    const card = cardOf('u4');
+    expect(cardOf('u1').getAttribute('style')).toContain('--dpk-green');
     expect(card.getAttribute('style')).toContain('--dpk-ink-faint');
+    // no status name on the card: the icon carries it, the filter is the legend
+    expect(card.shadowRoot!.textContent).not.toContain('Idea');
+    const button = card.shadowRoot!.querySelector('[data-role="status"]') as HTMLButtonElement;
+    expect(button.getAttribute('aria-label')).toBe(m.storyStatusAria(m.statusUnset));
+    button.click();
+    await el.updateComplete;
+    await card.updateComplete;
+    const options = [...card.shadowRoot!.querySelectorAll('.status-pop [role="menuitemradio"]')];
+    expect(options.map((option) => option.textContent?.trim())).toEqual(['Idea', 'Ready', 'Done', m.statusUnset]);
+    expect(options[3]?.getAttribute('aria-checked')).toBe('true');
+    (options[1] as HTMLButtonElement).click();
+    await el.updateComplete;
+    await card.updateComplete;
+    expect(el.api.actions.map((action) => [action.type, action.payload])).toEqual([
+      ['SET_STORY_STATUS', { statusId: 'ready' }],
+    ]);
+    expect(card.getAttribute('style')).toContain('--dpk-amber');
+    // picking closes the menu
+    expect(card.shadowRoot!.querySelector('.status-pop')).toBeNull();
+  });
+
+  it('filters the grid by status, and the filter doubles as the legend', async () => {
+    const el = await mount('#status=done');
+    const root = el.shadowRoot!;
+    const filter = root.querySelector('[data-testid="usm-status-filter"]')!;
+    expect(
+      [...filter.querySelectorAll('.filter-chip')].map((chip) => [
+        chip.getAttribute('data-status'),
+        chip.getAttribute('aria-checked'),
+        chip.querySelector('.filter-count')?.textContent,
+      ]),
+    ).toEqual([
+      ['idea', 'false', '0'],
+      ['ready', 'false', '1'],
+      ['done', 'true', '2'],
+      ['~', 'false', '1'],
+    ]);
+    const shown = () =>
+      [...root.querySelectorAll('dpk-internal-usm-story-card')].map((c) => c.getAttribute('data-story'));
+    expect(shown()).toEqual(expect.arrayContaining(['u1', 'u3']));
+    expect(shown()).toHaveLength(2);
+    // turning another one on keeps the canonical order
+    expect(filter.querySelector('[data-status="~"]')?.getAttribute('href')).toContain('status=done%2C%7E');
+    window.location.hash = '#status=~,nope';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await el.updateComplete;
+    expect(el.api.navigation['status']).toBe('~');
+    expect(shown()).toEqual(['u4']);
+  });
+
+  it('shows whose experience an activity is and how far its stories have come', async () => {
+    const el = await mount('');
+    const head = el.shadowRoot!.querySelector('.act-head[data-activity="a1"]')!;
+    expect(
+      [...head.querySelectorAll('.status-bar-part')].map((part) => [
+        part.getAttribute('data-status'),
+        (part as HTMLElement).style.flexGrow,
+      ]),
+    ).toEqual([
+      ['ready', '1'],
+      ['done', '2'],
+      ['', '1'],
+    ]);
+    expect(head.querySelector('.act-actor')?.getAttribute('data-empty')).toBe('true');
+    el.api.dispatch({ type: 'SET_ACTIVITY_ACTOR', target: 'activity:a1', payload: { actor: ' Admin ' } });
+    await el.updateComplete;
+    expect(el.api.state.activities[0]?.actor).toBe('Admin');
+    expect(head.querySelector('.act-actor')?.getAttribute('data-empty')).toBe('false');
+    el.api.dispatch({ type: 'SET_ACTIVITY_ACTOR', target: 'activity:a1', payload: { actor: '' } });
+    expect(el.api.state.activities[0]).not.toHaveProperty('actor');
   });
 
   it('edits the statuses on their own tab', async () => {

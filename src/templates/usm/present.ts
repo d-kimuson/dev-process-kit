@@ -13,6 +13,7 @@ import { targetRef } from '../../core/target';
 import { usmActions } from './actions';
 import { usmTabOf } from './board-tabs';
 import { findActivity, findMilestone, findStatus, findStep, findStory, stepRefOf, type UsmState } from './model';
+import { statusFilterOf, statusFilterParam } from './status-view';
 
 type Summary = {
   readonly title: string;
@@ -41,6 +42,17 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
       payloadFor(usmActions.SET_ACTIVITY_NAME, action)['name'] ?? '',
     ),
   }),
+  SET_ACTIVITY_ACTOR: (m, action, state) => {
+    const actor = payloadFor(usmActions.SET_ACTIVITY_ACTOR, action)['actor'].trim();
+    return {
+      title: m.changeActivityActor,
+      tone: 'update',
+      body:
+        actor === ''
+          ? m.removed(findActivity(state, action.target.id)?.actor ?? '')
+          : arrow(m, findActivity(state, action.target.id)?.actor, actor),
+    };
+  },
   SET_STEP_NAME: (m, action, state) => ({
     title: m.renameStep,
     tone: 'update',
@@ -324,6 +336,10 @@ export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigati
   // The table grouping is navigation state: which unit the map groups by.
   next['view'] = nav['view'] === 'group' ? 'group' : 'activity';
   // The page tab is navigation too; the map is the default and needs no key.
+  // The status filter is navigation too: what the reader looks at, never a change.
+  const filter = statusFilterParam(state, statusFilterOf(state, nav));
+  if (filter === null) delete next['status'];
+  else next['status'] = filter;
   const tab = usmTabOf(nav);
   if (tab === 'map') delete next['tab'];
   else next['tab'] = tab;

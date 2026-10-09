@@ -1,4 +1,5 @@
 import { flatSteps, type UsmState } from './model';
+import { statusDistribution, type StatusSegment } from './status-view';
 
 export type MilestoneCard = {
   readonly id: string;
@@ -14,21 +15,15 @@ export type MilestoneCard = {
   readonly share: number;
   /** Backbone steps with at least one story of this milestone, of all steps. */
   readonly coverage: { readonly covered: number; readonly total: number };
-  /** Its stories per activity, in backbone order; activities without any are left out. */
-  readonly breakdown: readonly MilestoneShare[];
-};
-
-export type MilestoneShare = {
-  readonly activityId: string;
-  readonly name: string;
-  readonly count: number;
+  /** How far its stories have come: their spread over the statuses; empty without statuses. */
+  readonly progress: readonly StatusSegment[];
 };
 
 /**
  * The milestones tab: what each slice is for, when it is due and how big it
  * is. The stories themselves stay on the map.
  */
-export const presentMilestoneOverview = (state: UsmState): readonly MilestoneCard[] => {
+export const presentMilestoneOverview = (state: UsmState, unsetName: string): readonly MilestoneCard[] => {
   const totalStories = state.stories.length;
   const steps = flatSteps(state);
   return state.milestones.map((milestone, index) => {
@@ -43,10 +38,7 @@ export const presentMilestoneOverview = (state: UsmState): readonly MilestoneCar
       storyCount: stories.length,
       share: totalStories === 0 ? 0 : stories.length / totalStories,
       coverage: { covered: steps.filter(({ step }) => coveredSteps.has(step.id)).length, total: steps.length },
-      breakdown: state.activities.flatMap((activity) => {
-        const count = stories.filter((story) => story.activityId === activity.id).length;
-        return count === 0 ? [] : [{ activityId: activity.id, name: activity.name, count }];
-      }),
+      progress: statusDistribution(state, stories, unsetName),
     };
   });
 };

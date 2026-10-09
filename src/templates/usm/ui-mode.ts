@@ -10,6 +10,8 @@ export type UsmUiMode =
   | { readonly kind: 'idle' }
   | { readonly kind: 'editing'; readonly storyId: string }
   | { readonly kind: 'commenting'; readonly storyId: string }
+  /** The status menu of one card is open. */
+  | { readonly kind: 'picking-status'; readonly storyId: string }
   | {
       /** A cross-activity drop: the column named no step, so the reader picks one. */
       readonly kind: 'picking-step';
@@ -26,6 +28,7 @@ export type CardIntent =
   | { readonly kind: 'select' }
   | { readonly kind: 'toggle-edit' }
   | { readonly kind: 'toggle-comment' }
+  | { readonly kind: 'toggle-status' }
   | { readonly kind: 'dismiss' }
   | { readonly kind: 'rename'; readonly name: string }
   | { readonly kind: 'set-status'; readonly statusId: string | null }
@@ -33,7 +36,7 @@ export type CardIntent =
   | { readonly kind: 'delete' };
 
 /** The slice of the mode a single card renders. */
-export type CardMode = 'view' | 'editing' | 'commenting';
+export type CardMode = 'view' | 'editing' | 'commenting' | 'status';
 
 export const modeConcerns = (mode: UsmUiMode, storyId: string): boolean => {
   return mode.kind !== 'idle' && mode.storyId === storyId;
@@ -41,7 +44,15 @@ export const modeConcerns = (mode: UsmUiMode, storyId: string): boolean => {
 
 export const cardModeOf = (mode: UsmUiMode, storyId: string): CardMode => {
   if (!modeConcerns(mode, storyId)) return 'view';
-  return mode.kind === 'editing' || mode.kind === 'commenting' ? mode.kind : 'view';
+  switch (mode.kind) {
+    case 'editing':
+    case 'commenting':
+      return mode.kind;
+    case 'picking-status':
+      return 'status';
+    default:
+      return 'view';
+  }
 };
 
 /** Pure transition: the next mode after a card reported `intent`. */
@@ -51,13 +62,17 @@ export const reduceCardIntent = (mode: UsmUiMode, storyId: string, intent: CardI
       return mode.kind === 'editing' && mode.storyId === storyId ? IDLE_MODE : { kind: 'editing', storyId };
     case 'toggle-comment':
       return mode.kind === 'commenting' && mode.storyId === storyId ? IDLE_MODE : { kind: 'commenting', storyId };
+    case 'toggle-status':
+      return mode.kind === 'picking-status' && mode.storyId === storyId
+        ? IDLE_MODE
+        : { kind: 'picking-status', storyId };
+    case 'set-status':
     case 'rename':
     case 'comment':
     case 'dismiss':
     case 'delete':
       return modeConcerns(mode, storyId) ? IDLE_MODE : mode;
     case 'select':
-    case 'set-status':
       return mode;
   }
 };

@@ -4,6 +4,8 @@ export type StatusRow = {
   readonly id: string;
   readonly name: string;
   readonly tone: StatusTone;
+  /** Where it sits in the workflow, for its icon (see `StatusView`). */
+  readonly progress: number;
   /** The status right before it, `null` for the first: where "move up" goes. */
   readonly previousId: string | null;
   /** The status right after it, `null` for the last: where "move down" goes. */
@@ -31,6 +33,7 @@ export const presentStatusOverview = (state: UsmState): StatusOverview => {
       id: status.id,
       name: status.name,
       tone: status.tone,
+      progress: state.statuses.length <= 1 ? 1 : index / (state.statuses.length - 1),
       previousId: state.statuses[index - 1]?.id ?? null,
       nextId: state.statuses[index + 1]?.id ?? null,
       storyCount,

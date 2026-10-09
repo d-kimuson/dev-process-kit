@@ -85,11 +85,6 @@ export const usmStyles = css`
     font-family: var(--dpk-mono);
     font-variant-numeric: tabular-nums;
   }
-  /* An activity name spans its steps; keep it in view beside the sticky column. */
-  .act-head > dpk-component-inline-edit {
-    position: sticky;
-    left: 150px;
-  }
   .corner,
   .act-head,
   .col-head,
@@ -106,6 +101,70 @@ export const usmStyles = css`
 
   /* Above the content: the page tabs (map / milestones) and, on the map, the
      unit toggle (group band vs one column per activity). */
+  /* The grid's status filter: one toggle per status, which also reads as the
+     legend of the card colors. */
+  .map-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 16px 0 12px;
+  }
+  .filter-label {
+    margin-right: 4px;
+    color: var(--dpk-ink-faint);
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px 3px 7px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    color: var(--dpk-ink);
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      background 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease);
+  }
+  .filter-chip:hover {
+    border-color: color-mix(in srgb, var(--usm-tone) 60%, var(--dpk-rule-strong));
+  }
+  .filter-chip:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+  .filter-chip[aria-checked='true'] {
+    border-color: var(--usm-tone);
+    background: color-mix(in srgb, var(--usm-tone) 14%, var(--dpk-paper-raised));
+    box-shadow: inset 0 0 0 1px var(--usm-tone);
+  }
+  .filter-count {
+    line-height: 1;
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .filter-clear {
+    margin-left: 4px;
+    color: var(--dpk-blue);
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .filter-clear:hover {
+    text-decoration: underline;
+  }
+
   .board-bar {
     border-bottom: 1px solid var(--dpk-rule);
     /* Stays on top while a long milestone list scrolls under it. */
@@ -226,35 +285,84 @@ export const usmStyles = css`
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
-  /* Activity band: raised above the working canvas and marked with a quiet
-     accent edge so the grouping reads at a glance. */
+  /* Activity band: raised above the working canvas. A head spans its steps,
+     so its contents stay in view beside the sticky column while the map
+     scrolls sideways. */
   .act-head {
     position: relative;
+    display: grid;
+    align-content: start;
+    gap: 7px;
     border-left: 1px solid var(--dpk-rule);
+    background: var(--dpk-paper-raised);
     box-shadow:
       var(--dpk-bevel),
       inset 0 -1px 0 var(--dpk-rule-strong);
-    display: flex;
-    align-items: center;
-    gap: 8px;
     font-size: 13px;
     font-weight: 650;
     letter-spacing: -0.005em;
   }
-  .act-head {
-    background: var(--dpk-paper-raised);
+  .act-title,
+  .act-meta,
+  .act-steps {
+    position: sticky;
+    left: 150px;
+    width: min(100%, 340px);
+    min-width: 0;
   }
-  .act-head > dpk-component-inline-edit {
+  .act-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .act-title > dpk-component-inline-edit {
     flex: 1 1 auto;
     min-width: 0;
   }
-  .act-dot {
-    flex: 0 0 auto;
-    width: 8px;
-    height: 8px;
-    border-radius: 3px;
-    background: var(--usm-tone, var(--dpk-usm-accent));
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--usm-tone, var(--dpk-usm-accent)) 18%, transparent);
+  .act-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .act-meta .status-bar {
+    flex: 1 1 auto;
+  }
+  /* Whose experience the activity is: a label, editable in place. */
+  .act-actor {
+    flex: none;
+    max-width: 60%;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 20px;
+  }
+  .act-actor[data-empty='true'] {
+    background: transparent;
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+  .act-head:hover .act-actor[data-empty='true'],
+  .act-actor[data-empty='true']:focus-within {
+    opacity: 1;
+  }
+  /* The group view gives the steps no columns; the head lists them instead. */
+  .act-steps {
+    display: grid;
+    gap: 3px;
+    margin: 0;
+    padding: 0 0 0 18px;
+    color: var(--dpk-ink-soft);
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.45;
+  }
+  .act-steps li::marker {
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 10px;
   }
   .act-head .count,
   .col-head .count {
@@ -436,13 +544,6 @@ export const usmStyles = css`
     gap: 28px;
     max-width: 920px;
     padding: 28px 0 40px;
-  }
-  .ms-lead {
-    margin: 0 0 0 calc(var(--ms-when) + var(--ms-node) + 48px);
-    max-width: 60ch;
-    color: var(--dpk-ink-soft);
-    font-size: 13px;
-    line-height: 1.6;
   }
   .ms-timeline {
     margin: 0;
@@ -647,15 +748,8 @@ export const usmStyles = css`
     width: min(100%, 460px);
     margin-top: 4px;
   }
-  .ms-bar {
-    display: flex;
-    gap: 2px;
-    height: 6px;
-  }
-  .ms-bar-part {
-    min-width: 6px;
-    border-radius: 3px;
-    background: var(--usm-tone);
+  .ms-breakdown .status-bar {
+    height: 8px;
   }
   .ms-legend {
     display: flex;
@@ -672,12 +766,6 @@ export const usmStyles = css`
     color: var(--dpk-ink-soft);
     font-size: 12px;
   }
-  .ms-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--usm-tone);
-  }
   .ms-breakdown-count {
     color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
@@ -689,9 +777,6 @@ export const usmStyles = css`
   @media (max-width: 640px) {
     .ms-overview {
       --ms-node: 26px;
-    }
-    .ms-lead {
-      margin-left: calc(var(--ms-node) + 16px);
     }
     .ms-entry,
     .ms-add {
@@ -726,11 +811,6 @@ export const usmStyles = css`
     max-width: 860px;
     padding: 28px 0 40px;
   }
-  .st-lead {
-    margin: 0;
-    color: var(--dpk-ink-soft);
-    font-size: 13px;
-  }
   .st-list {
     display: grid;
     margin: 0;
@@ -744,7 +824,7 @@ export const usmStyles = css`
   .st-row {
     display: grid;
     /* Fixed tool columns keep the unset row, which has no tools, in line. */
-    grid-template-columns: 14px minmax(120px, 1fr) minmax(140px, 200px) 136px 84px;
+    grid-template-columns: 16px minmax(120px, 1fr) minmax(140px, 200px) 136px 84px;
     align-items: center;
     gap: 14px;
     padding: 12px 16px;
@@ -760,18 +840,6 @@ export const usmStyles = css`
   .st-row--unset .st-name {
     padding-left: 4px;
     font-weight: 500;
-  }
-  .st-swatch {
-    width: 12px;
-    height: 12px;
-    border-radius: 4px;
-    background: var(--usm-tone);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--usm-tone) 18%, transparent);
-  }
-  .st-row--unset .st-swatch {
-    background: transparent;
-    border: 1px dashed var(--dpk-ink-faint);
-    box-shadow: none;
   }
   .st-name {
     min-width: 0;
@@ -836,7 +904,7 @@ export const usmStyles = css`
   }
   @media (max-width: 640px) {
     .st-row {
-      grid-template-columns: 14px minmax(0, 1fr) auto;
+      grid-template-columns: 16px minmax(0, 1fr) auto;
       row-gap: 8px;
     }
     .st-share,

@@ -7,9 +7,8 @@ import type { MilestoneCard } from '../milestone-overview';
 import type { UsmState } from '../model';
 
 import { onCommit } from '../../../lib/dom/events';
-import { activityTones } from '../activity-tone';
 import { addMilestone } from '../commands';
-import { toneStyle } from './tone';
+import { statusBar, statusIcon, statusToneStyle } from './tone';
 
 /**
  * The milestones tab: the release slices as a timeline, one node per slice on
@@ -22,7 +21,6 @@ export const renderMilestoneOverview = (
   context: TemplateRenderContext<UsmState>,
   cards: readonly MilestoneCard[],
 ): TemplateResult => {
-  const tones = activityTones(context.state);
   return html`
     <section class="ms-overview" data-testid="usm-milestones">
       ${
@@ -31,13 +29,13 @@ export const renderMilestoneOverview = (
               <h2>${m.noMilestonesTitle}</h2>
               <p>${m.noMilestonesBody}</p>
             </div>`
-          : html`<p class="ms-lead">${m.milestonesLead}</p>`
+          : nothing
       }
       <ol class="ms-timeline">
         ${repeat(
           cards,
           (card) => card.id,
-          (card) => renderMilestoneEntry(m, context, tones, card),
+          (card) => renderMilestoneEntry(m, context, card),
         )}
         <li class="ms-add">
           <span class="ms-when" aria-hidden="true"></span>
@@ -56,7 +54,6 @@ export const renderMilestoneOverview = (
 const renderMilestoneEntry = (
   m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
-  tones: ReturnType<typeof activityTones>,
   card: MilestoneCard,
 ): TemplateResult => {
   const id = card.id;
@@ -105,39 +102,23 @@ const renderMilestoneEntry = (
             </dd>
           </div>
         </dl>
-        ${card.breakdown.length === 0 ? nothing : renderBreakdown(m, tones, card)}
+        ${card.progress.length === 0 ? nothing : renderProgress(m, card)}
       </article>
     </li>
   `;
 };
 
-/** How the slice's stories spread over the activities: one bar, then a legend that names each share. */
-const renderBreakdown = (
-  m: UsmMessages,
-  tones: ReturnType<typeof activityTones>,
-  card: MilestoneCard,
-): TemplateResult => html`
+/** How far the slice has come: one bar in status colors, then a legend that names each share. */
+const renderProgress = (m: UsmMessages, card: MilestoneCard): TemplateResult => html`
   <div class="ms-breakdown">
-    <span class="ms-bar" aria-hidden="true">
-      ${card.breakdown.map(
-        (share) =>
-          html`<span
-            class="ms-bar-part"
-            style=${`${toneStyle(tones.get(share.activityId))};flex-grow:${share.count}`}
-          ></span>`,
-      )}
-    </span>
-    <ul class="ms-legend" aria-label=${m.breakdownLabel}>
-      ${card.breakdown.map(
-        (share) =>
-          html`<li
-            data-activity=${share.activityId}
-            style=${toneStyle(tones.get(share.activityId))}
-            aria-label=${m.breakdownItem(share.name, share.count)}
-          >
-            <span class="ms-dot" aria-hidden="true"></span>
-            <span class="ms-breakdown-name" aria-hidden="true">${share.name}</span>
-            <span class="ms-breakdown-count" aria-hidden="true">${share.count}</span>
+    ${statusBar(card.progress, m.progressAria(card.progress.map((part) => `${part.name} ${part.count}`).join(', ')))}
+    <ul class="ms-legend" aria-hidden="true">
+      ${card.progress.map(
+        (part) =>
+          html`<li data-status=${part.id ?? ''} style=${statusToneStyle(part.tone)}>
+            ${statusIcon(part.progress)}
+            <span class="ms-breakdown-name">${part.name}</span>
+            <span class="ms-breakdown-count">${part.count}</span>
           </li>`,
       )}
     </ul>

@@ -20,6 +20,7 @@ import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
 import { renderBoardBar } from './render/page-tabs';
 import { renderStatusOverview } from './render/status-overview';
+import { statusStyles } from './render/tone';
 import { presentStatusOverview } from './status-overview';
 import { usmStyles } from './styles';
 import { IDLE_MODE, reduceCardIntent, type CardIntent, type UsmUiMode } from './ui-mode';
@@ -36,7 +37,7 @@ const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
  * `components/`, and every drop decision in `drop.ts`.
  */
 export class DpkTemplateUsm extends TemplateElement<UsmState> {
-  static override styles = [TemplateElement.styles, usmStyles, popoverSurface];
+  static override styles = [TemplateElement.styles, usmStyles, statusStyles, popoverSurface];
 
   protected override definitionFor(locale: Locale) {
     return usmDefinitionFor(locale);
@@ -84,7 +85,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   #renderTab(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult {
     switch (tab) {
       case 'milestones':
-        return renderMilestoneOverview(m, context, presentMilestoneOverview(context.state));
+        return renderMilestoneOverview(m, context, presentMilestoneOverview(context.state, m.statusUnset));
       case 'statuses':
         return renderStatusOverview(m, context, presentStatusOverview(context.state));
       case 'map':
@@ -138,6 +139,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         break;
       case 'toggle-edit':
       case 'toggle-comment':
+      case 'toggle-status':
       case 'dismiss':
         break;
     }

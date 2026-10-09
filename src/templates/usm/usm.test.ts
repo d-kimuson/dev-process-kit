@@ -203,7 +203,9 @@ describe('usm template', () => {
     expect(tabs).toEqual([m.activityGroup, m.groupViewTab]);
     expect(root.querySelector('.view-tabs .tab[data-current="true"]')?.textContent?.trim()).toBe(m.groupViewTab);
     // one header per activity, no step columns
-    expect(root.querySelectorAll('.act-head dpk-component-inline-edit').length).toBe(1);
+    expect(root.querySelectorAll('.act-title dpk-component-inline-edit').length).toBe(1);
+    // the head lists the steps the column holds
+    expect([...root.querySelectorAll('.act-steps li')].map((li) => li.textContent?.trim())).toEqual(['S1', 'S2']);
     expect(root.querySelectorAll('.col-head').length).toBe(0);
     // u1/u2 share the activity column and the unassigned + mvp rows resolve
     const cell = root.querySelector('[data-testid="group-cell-a1-mvp"]');
@@ -212,8 +214,9 @@ describe('usm template', () => {
     // without step columns, each card names its step; it wears its activity's tone
     const groupCard = cell!.querySelector('dpk-internal-usm-story-card') as LitElement;
     await groupCard.updateComplete;
-    expect(groupCard.shadowRoot!.querySelector('.card-step')?.textContent?.trim()).toBe('S1');
-    expect(groupCard.style.getPropertyValue('--usm-tone').trim()).toBe('var(--dpk-blue)');
+    expect(groupCard.shadowRoot!.querySelector('[data-kind="step"]')?.textContent?.trim()).toBe('S1');
+    // without statuses a card is neutral: color only ever means status
+    expect(groupCard.style.getPropertyValue('--usm-tone').trim()).toBe('var(--dpk-ink-faint)');
     // dropping inside the activity view keeps the dragged story's own step.
     // jsdom has no DataTransfer/DragEvent, and it swallows a synthetic dragstart
     // outright — so the pointer wiring is verified in a real browser, and here the
@@ -326,8 +329,8 @@ describe('usm template', () => {
     expect(buttons.length).toBe(3);
     expect([...buttons].every((b) => b.textContent?.trim() === '' && !!b.getAttribute('aria-label'))).toBe(true);
     // the step column already names the step
-    expect(cards[0]!.shadowRoot!.querySelector('.card-step')).toBeNull();
-    expect((cards[0] as HTMLElement).style.getPropertyValue('--usm-tone').trim()).toBe('var(--dpk-blue)');
+    expect(cards[0]!.shadowRoot!.querySelector('[data-kind="step"]')).toBeNull();
+    expect((cards[0] as HTMLElement).style.getPropertyValue('--usm-tone').trim()).toBe('var(--dpk-ink-faint)');
     // Open the comment composer and dispatch a comment for that story.
     const cardBefore = cards[0]!.getBoundingClientRect().height;
     (buttons[1] as HTMLButtonElement).click();
@@ -420,13 +423,8 @@ describe('usm template', () => {
     ]);
     // a milestone without a timeframe says it is not set yet
     expect(cards[1]!.querySelector('.ms-timeframe[data-empty="true"]')?.textContent?.trim()).toBe(m.timeframeUnset);
-    // how its stories spread over the activities; none, no breakdown
-    expect(
-      [...mvp.querySelectorAll('.ms-breakdown [data-activity]')].map((item) => [
-        item.getAttribute('data-activity'),
-        item.querySelector('.ms-breakdown-count')?.textContent?.trim(),
-      ]),
-    ).toEqual([['a1', '2']]);
+    // without statuses there is no progress to show
+    expect(mvp.querySelector('.ms-breakdown')).toBeNull();
     expect(cards[1]!.querySelector('.ms-breakdown')).toBeNull();
     // the next milestone is added at the end of the rail
     const last = timeline.lastElementChild!;

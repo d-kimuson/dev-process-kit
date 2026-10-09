@@ -11,6 +11,8 @@ export type BackboneStep = {
 export type BackboneActivity = {
   readonly id: string;
   readonly name: string;
+  /** Whose experience it is (`管理者`, `一般ユーザー`), shown as a label. */
+  readonly actor?: string;
   readonly steps: readonly BackboneStep[];
 };
 
@@ -64,6 +66,7 @@ const stepSchema = v.strictObject({ id: v.pipe(v.string(), v.minLength(1)), name
 const activitySchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
+  actor: v.exactOptional(v.string()),
   steps: v.optional(v.array(stepSchema), []),
 });
 const milestoneSchema = v.strictObject({

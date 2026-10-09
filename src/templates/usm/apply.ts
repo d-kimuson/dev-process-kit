@@ -26,6 +26,19 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
         activities: state.activities.map((activity) => (activity.id === id ? { ...activity, name } : activity)),
       };
     }
+    case 'SET_ACTIVITY_ACTOR': {
+      // An empty actor removes the label rather than storing an empty one.
+      const actor = typed.payload.actor.trim();
+      if (!state.activities.some((activity) => activity.id === id)) return null;
+      return {
+        ...state,
+        activities: state.activities.map((activity) => {
+          if (activity.id !== id) return activity;
+          const { actor: _actor, ...rest } = activity;
+          return actor === '' ? rest : { ...rest, actor };
+        }),
+      };
+    }
     case 'SET_STEP_NAME': {
       const { name } = typed.payload;
       const located = findStep(state, id);
