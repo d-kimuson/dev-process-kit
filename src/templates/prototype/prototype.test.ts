@@ -265,6 +265,26 @@ describe('prototype preview url', () => {
       'https://page.example.com/x',
     );
   });
+
+  it('resolves a url written as a path against the base url, or else the placeholder domain', () => {
+    const at = (url: string, base?: string) =>
+      prototypePreviewUrl(base === undefined ? state() : { ...state(), baseUrl: base }, {
+        id: 'x',
+        kind: 'browser',
+        viewport: 'fluid',
+        url,
+      });
+    expect(at('/cart', 'https://shop.example.jp')).toBe('https://shop.example.jp/cart');
+    expect(at('/mypage/orders?tab=open', 'shop.example.jp/')).toBe('https://shop.example.jp/mypage/orders?tab=open');
+    expect(at('cart', 'https://shop.example.jp/store')).toBe('https://shop.example.jp/store/cart');
+    expect(at('/cart')).toBe('https://demo.example.com/cart');
+  });
+
+  it('shows a url as written: an absolute one untouched, a path without percent-encoding', () => {
+    const at = (url: string) => prototypePreviewUrl(state(), { id: 'x', kind: 'browser', viewport: 'fluid', url });
+    expect(at('https://a.example.com')).toBe('https://a.example.com');
+    expect(at('/menu/café crème')).toBe('https://demo.example.com/menu/café crème');
+  });
 });
 
 describe('prototype applyAction', () => {

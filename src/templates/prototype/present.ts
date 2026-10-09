@@ -287,14 +287,10 @@ export const prototypeUiCommentCount = (comments: readonly DraftAction[], previe
   return prototypeUiCommentPins(comments, previewIds).length;
 };
 
-/**
- * Address shown in the browser chrome. `preview.url` wins, then `baseUrl`, then
- * a placeholder domain derived from the page title
- * (`https://kumoma.example.com/<preview id>`), so a preview never shows an
- * internal id as if it were a protocol.
- */
-export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePreview): string => {
-  if (preview.url) return preview.url;
+const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:/i;
+
+/** Where the page's addresses start: `baseUrl`, else a placeholder domain from the title. Ends with `/`. */
+const siteBase = (state: PrototypeState): string => {
   const configured = state.baseUrl?.trim();
   // `slugify` answers 'item' when nothing usable is left; read that as "unnamed".
   const slug = slugify(state.title ?? '');
@@ -303,7 +299,25 @@ export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePre
       ? configured
       : `https://${configured}`
     : `https://${slug === 'item' ? 'page' : slug}.example.com`;
-  return `${origin.replace(/\/+$/, '')}/${preview.id}`;
+  return `${origin.replace(/\/+$/, '')}/`;
+};
+
+/**
+ * Address shown in the browser chrome. `preview.url` wins, resolved against
+ * the site's base when it is a path (`/cart`), then `baseUrl`, then a
+ * placeholder domain derived from the page title
+ * (`https://kumoma.example.com/<preview id>`), so a preview never shows an
+ * internal id as if it were a protocol.
+ */
+export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePreview): string => {
+  const base = siteBase(state);
+  if (!preview.url) return `${base}${preview.id}`;
+  if (ABSOLUTE_URL.test(preview.url)) return preview.url;
+  try {
+    return decodeURI(new URL(preview.url, base).href);
+  } catch {
+    return preview.url;
+  }
 };
 
 /** One pane on stage: a rendition of a screen of the product, or a material at hand. */

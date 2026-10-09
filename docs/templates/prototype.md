@@ -87,7 +87,7 @@ Check before you hand the page over:
 | `previews[].kind`               | no       | `browser` (default, address bar), `native` (phone bezel), `mail` (a received e-mail) or `plain` (no device)                                                                                                                                                                                                                                      |
 | `previews[].viewport`           | no       | `mobile` (390px) · `tablet` (834px) · `desktop` (1180px) · `fluid` (default)                                                                                                                                                                                                                                                                     |
 | `previews[].label`              | no       | tab label (defaults to the viewport name), or the caption of a side-by-side pane                                                                                                                                                                                                                                                                 |
-| `previews[].url`                | no       | overrides the address shown in the browser chrome (cosmetic)                                                                                                                                                                                                                                                                                     |
+| `previews[].url`                | no       | the address of the page, absolute or a path resolved against `baseUrl` (`/cart`); shown in the browser chrome                                                                                                                                                                                                                                    |
 | `previews[].mail`               | no       | `kind: "mail"` only: `{ "from", "to", "cc", "subject", "date" }`, all optional strings, shown above the body                                                                                                                                                                                                                                     |
 
 A step's `description`, a screen's `description`, and the `description` of a story without steps are shown as Markdown (GFM; a single line break stays a break), so write lists and emphasis there rather than one long line. Raw HTML is shown as text, and a link keeps only a `http(s)`, `mailto` or in-page address.
@@ -351,7 +351,7 @@ https://kumoma.example.com/signin-mobile    # title slug -> ${name}.example.com
 https://app.kumoma.example.com/signin        # preview.url, resolved against baseUrl
 ```
 
-`preview.url` wins, then `${baseUrl}/${preview.id}`, then the placeholder domain derived from `title`. A `baseUrl` without a scheme gets `https://` prepended.
+`preview.url` wins, then `${baseUrl}/${preview.id}`, then the placeholder domain derived from `title`. A `url` written as a path (`/mypage/orders`) resolves against `baseUrl` — or the placeholder domain without one — like a link on that site, so write paths and set the origin once; an absolute `url` is shown as written. A `baseUrl` without a scheme gets `https://` prepended.
 
 ### A step's panes
 

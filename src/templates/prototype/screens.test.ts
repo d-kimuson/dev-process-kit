@@ -563,6 +563,22 @@ describe('prototype app sections', () => {
     expect(shop?.trees.map((tree) => tree.origin)).toEqual(['https://shop.test']);
   });
 
+  it('places a screen whose url is a path on the site of the base url', () => {
+    const sections = prototypeAppSections(
+      parsePrototypeBase({
+        baseUrl: 'https://shop.example.jp',
+        apps: [
+          {
+            id: 'shop',
+            name: 'Shop',
+            screens: [{ id: 'cart', title: 'Cart', previews: [{ id: 'cart-web', viewport: 'mobile', url: '/cart' }] }],
+          },
+        ],
+      }),
+    );
+    expect(sections[0]?.trees.map((tree) => tree.origin)).toEqual(['https://shop.example.jp']);
+  });
+
   it('is in the app of the screen on stage, else the first', () => {
     const state = product();
     const sections = prototypeAppSections(state);
