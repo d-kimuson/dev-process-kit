@@ -395,7 +395,11 @@
         align-content: start;
       }
 
+      /* The app view scrolls a screen inside the device: the bars stay put, as in the real app. */
       .sm-appbar {
+        position: sticky;
+        top: 0;
+        z-index: 1;
         display: grid;
         grid-template-columns: 28px 1fr 28px;
         align-items: center;
@@ -422,6 +426,9 @@
       }
 
       .sm-tabbar {
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
         display: flex;
         margin-top: auto;
         padding: 10px 4px;
@@ -1590,6 +1597,30 @@
                 <div class="sm-order-head"><b>SM-0830-0981</b><span class="sm-status">お届け済み</span></div>
                 <small>8月30日 · 3 点 · ¥8,970</small>
               </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0817-0455</b><span class="sm-status">お届け済み</span></div>
+                <small>8月17日 · 1 点 · ¥2,480</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0802-0310</b><span class="sm-status">お届け済み</span></div>
+                <small>8月2日 · 2 点 · ¥5,600</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0721-0128</b><span class="sm-status">お届け済み</span></div>
+                <small>7月21日 · 1 点 · ¥4,400</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0705-0093</b><span class="sm-status">お届け済み</span></div>
+                <small>7月5日 · 4 点 · ¥12,360</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0619-0042</b><span class="sm-status">お届け済み</span></div>
+                <small>6月19日 · 1 点 · ¥1,980</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0603-0017</b><span class="sm-status">お届け済み</span></div>
+                <small>6月3日 · 2 点 · ¥7,150</small>
+              </div>
             </div>
           </div>
         </div>
@@ -1618,6 +1649,30 @@
               <div class="sm-order">
                 <div class="sm-order-head"><b>SM-0830-0981</b><span class="sm-status">お届け済み</span></div>
                 <small>8月30日 · 3 点 · ¥8,970</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0817-0455</b><span class="sm-status">お届け済み</span></div>
+                <small>8月17日 · 1 点 · ¥2,480</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0802-0310</b><span class="sm-status">お届け済み</span></div>
+                <small>8月2日 · 2 点 · ¥5,600</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0721-0128</b><span class="sm-status">お届け済み</span></div>
+                <small>7月21日 · 1 点 · ¥4,400</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0705-0093</b><span class="sm-status">お届け済み</span></div>
+                <small>7月5日 · 4 点 · ¥12,360</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0619-0042</b><span class="sm-status">お届け済み</span></div>
+                <small>6月19日 · 1 点 · ¥1,980</small>
+              </div>
+              <div class="sm-order">
+                <div class="sm-order-head"><b>SM-0603-0017</b><span class="sm-status">お届け済み</span></div>
+                <small>6月3日 · 2 点 · ¥7,150</small>
               </div>
             </div>
           </div>
