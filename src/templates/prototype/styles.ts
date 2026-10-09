@@ -8,6 +8,18 @@ export const prototypeStyles = css`
     --dpk-prototype-accent: var(--dpk-blue);
   }
 
+  /*
+   * The sidebar and the main column scroll on their own, with the memo pinned
+   * to the bottom of the main column, only inside a bounded shell. A page that
+   * gives the host no height would grow the shell to its longest column and
+   * scroll the whole document, carrying the memo off screen; the viewport
+   * height is the fallback. A host with a height still wins: the shell's own
+   * min/max-height pin it to that.
+   */
+  .dpk-shell {
+    height: 100dvh;
+  }
+
   /* ---------------------------------------------------------------- sidebar */
 
   .nav {
