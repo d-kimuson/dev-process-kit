@@ -173,8 +173,10 @@ export const slidesStyles = css`
     display: flex;
     flex-direction: column;
     gap: 2.2cqw;
-    padding: 5.5cqw 6.5cqw 5cqw;
+    /* The bottom keeps the last line clear of the page number once it scrolls. */
+    padding: 5.5cqw 6.5cqw 6cqw;
     overflow: auto;
+    overflow-wrap: anywhere;
     font-size: 2.1cqw;
     line-height: 1.55;
     color: var(--dpk-ink-soft);
@@ -230,10 +232,15 @@ export const slidesStyles = css`
     margin: 0;
   }
 
+  /* Over the content, which may scroll beneath it: a backdrop keeps both legible. */
   .slide-number {
     position: absolute;
-    right: 2.6cqw;
-    bottom: 2cqw;
+    right: 2cqw;
+    bottom: 1.6cqw;
+    z-index: 1;
+    padding: 0.3cqw 0.7cqw;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--dpk-paper-raised) 88%, transparent);
     font-family: var(--dpk-mono);
     font-size: 1.2cqw;
     font-variant-numeric: tabular-nums;
@@ -241,8 +248,9 @@ export const slidesStyles = css`
   }
 
   /* The cover: large title, the subtitle beneath, an accent rule on the left. */
+  /* \`safe\`: content taller than the slide starts at the top, where scrolling reaches it. */
   .slide[data-layout='title'] .slide-content {
-    justify-content: center;
+    justify-content: safe center;
     padding-left: 9cqw;
   }
 
@@ -274,7 +282,7 @@ export const slidesStyles = css`
   }
 
   .slide[data-layout='section'] .slide-content {
-    justify-content: center;
+    justify-content: safe center;
   }
 
   .slide[data-layout='section'] .slide-title {
