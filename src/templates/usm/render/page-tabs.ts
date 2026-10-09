@@ -8,7 +8,7 @@ import type { UsmState } from '../model';
 import { renderViewTabs } from './board';
 
 /**
- * The bar above the content: the page tabs (map / milestones), and on the map
+ * The bar above the content: the page tabs (map / milestones / statuses), and on the map
  * the grouping toggle that only makes sense there.
  */
 export const renderBoardBar = (
@@ -22,6 +22,7 @@ export const renderBoardBar = (
       <div class="page-tabs" role="tablist" aria-label=${m.pageTabsLabel}>
         ${renderPageTab(context, 'map', current, m.mapTab, state.stories.length)}
         ${renderPageTab(context, 'milestones', current, m.milestonesTab, state.milestones.length)}
+        ${renderPageTab(context, 'statuses', current, m.statusesTab, state.statuses.length)}
       </div>
       ${
         current === 'map' && state.activities.some((activity) => activity.steps.length > 0)

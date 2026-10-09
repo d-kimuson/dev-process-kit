@@ -11,6 +11,8 @@ export type BackboneStep = {
 export type BackboneActivity = {
   readonly id: string;
   readonly name: string;
+  /** Whose experience it is (`管理者`, `一般ユーザー`), shown as a label. */
+  readonly actor?: string;
   readonly steps: readonly BackboneStep[];
 };
 
@@ -23,6 +25,51 @@ export type Milestone = {
   readonly description?: string;
 };
 
+/**
+ * Palette tokens (`--dpk-<tone>`) a status may color its stories with. `gray`
+ * is the neutral ink, for a status that should not draw the eye.
+ */
+export const STATUS_TONES = ['gray', 'blue', 'violet', 'green', 'amber', 'accent'] as const;
+
+export type StatusTone = (typeof STATUS_TONES)[number];
+
+/**
+ * Icons a status may show. `progress` is a ring that fills up with the
+ * status's place in the workflow (a check at the end); the rest are fixed.
+ */
+export const STATUS_ICONS = [
+  'progress',
+  'circle',
+  'lightbulb',
+  'flag',
+  'play',
+  'clock',
+  'eye',
+  'pause',
+  'check',
+  'x',
+] as const;
+
+export type StatusIcon = (typeof STATUS_ICONS)[number];
+
+/**
+ * Where a story stands (`Idea`, `Ready`, `Done` …). The set is data, so the
+ * author and the reader decide which statuses the map has.
+ */
+export type StoryStatus = {
+  readonly id: string;
+  readonly name: string;
+  readonly tone: StatusTone;
+  readonly icon: StatusIcon;
+};
+
+/** Something the story points at: an issue, a pull request, a design, a doc. */
+export type StoryLink = {
+  readonly url: string;
+  /** Shown instead of the label derived from the URL. */
+  readonly label?: string;
+};
+
 export type UserStory = {
   readonly id: string;
   readonly name: string;
@@ -30,12 +77,20 @@ export type UserStory = {
   readonly activityId: string;
   readonly stepId: string;
   readonly milestoneId?: string;
+  /**
+   * Where the story stands. Once the map has statuses every story has one
+   * (base data that leaves it out starts at the first status); a map without
+   * statuses has none.
+   */
+  readonly statusId?: string;
+  readonly links?: readonly StoryLink[];
 };
 
 export type UsmState = {
   readonly title?: string;
   readonly activities: readonly BackboneActivity[];
   readonly milestones: readonly Milestone[];
+  readonly statuses: readonly StoryStatus[];
   readonly stories: readonly UserStory[];
 };
 
@@ -43,6 +98,7 @@ const stepSchema = v.strictObject({ id: v.pipe(v.string(), v.minLength(1)), name
 const activitySchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
+  actor: v.exactOptional(v.string()),
   steps: v.optional(v.array(stepSchema), []),
 });
 const milestoneSchema = v.strictObject({
@@ -51,6 +107,21 @@ const milestoneSchema = v.strictObject({
   timeframe: v.exactOptional(v.string()),
   description: v.exactOptional(v.string()),
 });
+export const statusToneSchema = v.picklist(STATUS_TONES);
+export const statusIconSchema = v.picklist(STATUS_ICONS);
+/** Only web links: a story never points at `javascript:` or a local file. */
+export const linkUrlSchema = v.pipe(
+  v.string(),
+  v.url(),
+  v.check((url) => /^https?:\/\//i.test(url), 'a link must be an http(s) URL'),
+);
+const linkSchema = v.strictObject({ url: linkUrlSchema, label: v.exactOptional(v.pipe(v.string(), v.minLength(1))) });
+const statusSchema = v.strictObject({
+  id: entityIdSchema,
+  name: v.pipe(v.string(), v.minLength(1)),
+  tone: v.optional(statusToneSchema),
+  icon: v.optional(statusIconSchema),
+});
 const storySchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
@@ -58,22 +129,42 @@ const storySchema = v.strictObject({
   activityId: v.pipe(v.string(), v.minLength(1)),
   stepId: v.pipe(v.string(), v.minLength(1)),
   milestoneId: v.exactOptional(v.string()),
+  statusId: v.exactOptional(v.string()),
+  links: v.exactOptional(v.array(linkSchema)),
 });
 
 export const usmBaseSchema = v.strictObject({
   title: v.exactOptional(v.string()),
   activities: v.optional(v.array(activitySchema), []),
   milestones: v.optional(v.array(milestoneSchema), []),
+  statuses: v.optional(v.array(statusSchema), []),
   stories: v.optional(v.array(storySchema), []),
 });
 
+/** A status without its own tone takes the palette's next one by position. */
+export const defaultStatusTone = (index: number): StatusTone => STATUS_TONES[index % STATUS_TONES.length] ?? 'gray';
+
 export const parseUsmBase = (input: unknown): UsmState => {
-  const parsed = v.parse(usmBaseSchema, input);
+  const raw = v.parse(usmBaseSchema, input);
+  const firstStatus = raw.statuses[0]?.id;
+  const parsed: UsmState = {
+    ...raw,
+    stories:
+      firstStatus === undefined
+        ? raw.stories
+        : raw.stories.map((story) => (story.statusId === undefined ? { ...story, statusId: firstStatus } : story)),
+    statuses: raw.statuses.map((status, index) => ({
+      ...status,
+      tone: status.tone ?? defaultStatusTone(index),
+      icon: status.icon ?? 'progress',
+    })),
+  };
   const stepIds = new Map<string, string>();
   for (const activity of parsed.activities) {
     for (const step of activity.steps) stepIds.set(step.id, activity.id);
   }
   const milestoneIds = new Set(parsed.milestones.map((milestone) => milestone.id));
+  const statusIds = new Set(parsed.statuses.map((status) => status.id));
   const seen = new Set<string>();
   const checkDuplicate = (kind: string, id: string): void => {
     if (seen.has(id)) throw new Error(`duplicate id "${id}" in ${kind}`);
@@ -84,6 +175,7 @@ export const parseUsmBase = (input: unknown): UsmState => {
     for (const step of activity.steps) checkDuplicate('steps', step.id);
   }
   for (const milestone of parsed.milestones) checkDuplicate('milestones', milestone.id);
+  for (const status of parsed.statuses) checkDuplicate('statuses', status.id);
   for (const story of parsed.stories) {
     checkDuplicate('stories', story.id);
     const ownerActivity = stepIds.get(story.stepId);
@@ -93,12 +185,17 @@ export const parseUsmBase = (input: unknown): UsmState => {
     if (story.milestoneId !== undefined && !milestoneIds.has(story.milestoneId)) {
       throw new Error(`story "${story.id}" references unknown milestoneId "${story.milestoneId}"`);
     }
+    const urls = (story.links ?? []).map((link) => link.url);
+    if (new Set(urls).size !== urls.length) throw new Error(`story "${story.id}" links the same URL twice`);
+    if (story.statusId !== undefined && !statusIds.has(story.statusId)) {
+      throw new Error(`story "${story.id}" references unknown statusId "${story.statusId}"`);
+    }
   }
   return parsed;
 };
 
 export const emptyUsmBase = (): UsmState => {
-  return { activities: [], milestones: [], stories: [] };
+  return { activities: [], milestones: [], statuses: [], stories: [] };
 };
 
 export const findActivity = (state: UsmState, id: string | undefined): BackboneActivity | undefined => {
@@ -141,6 +238,11 @@ export const findStep = (
 export const findMilestone = (state: UsmState, id: string | undefined): Milestone | undefined => {
   if (id === undefined) return undefined;
   return state.milestones.find((milestone) => milestone.id === id);
+};
+
+export const findStatus = (state: UsmState, id: string | undefined): StoryStatus | undefined => {
+  if (id === undefined) return undefined;
+  return state.statuses.find((status) => status.id === id);
 };
 
 export const findStory = (state: UsmState, id: string | undefined): UserStory | undefined => {
@@ -187,6 +289,7 @@ export const allUsmIds = (state: UsmState): string[] => {
     ...state.activities.map((activity) => activity.id),
     ...state.activities.flatMap((activity) => activity.steps.map((step) => step.id)),
     ...state.milestones.map((milestone) => milestone.id),
+    ...state.statuses.map((status) => status.id),
     ...state.stories.map((story) => story.id),
   ];
 };

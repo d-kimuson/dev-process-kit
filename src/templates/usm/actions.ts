@@ -9,6 +9,7 @@ import {
   type ActionSpecs,
   type TemplateAction,
 } from '../../core/schema';
+import { linkUrlSchema, statusIconSchema, statusToneSchema } from './model';
 
 // Domain vocabulary for User Story Mapping. No generic SET_FIELD / MOVE.
 export const usmActions = {
@@ -17,6 +18,7 @@ export const usmActions = {
     'activity',
     v.object({ name: v.pipe(v.string(), v.minLength(1)) }),
   ),
+  SET_ACTIVITY_ACTOR: defineAction('SET_ACTIVITY_ACTOR', 'activity', v.object({ actor: v.string() })),
   SET_STEP_NAME: defineAction('SET_STEP_NAME', 'step', v.object({ name: v.pipe(v.string(), v.minLength(1)) })),
   REORDER_STEP: defineAction('REORDER_STEP', 'step', v.object({ after: v.nullable(v.string()) }), { mode: 'sequence' }),
   ADD_ACTIVITY: defineAction(
@@ -67,6 +69,17 @@ export const usmActions = {
     { dedupeKey: entityDedupeKey },
   ),
   DELETE_STORY: defineAction('DELETE_STORY', 'story', v.object({})),
+  ADD_STORY_LINK: defineAction(
+    'ADD_STORY_LINK',
+    'story',
+    v.object({ url: linkUrlSchema, label: v.exactOptional(v.pipe(v.string(), v.minLength(1))) }),
+  ),
+  REMOVE_STORY_LINK: defineAction('REMOVE_STORY_LINK', 'story', v.object({ url: v.string() })),
+  SET_STORY_STATUS: defineAction(
+    'SET_STORY_STATUS',
+    'story',
+    v.object({ statusId: v.pipe(v.string(), v.minLength(1)) }),
+  ),
 
   SET_MILESTONE_NAME: defineAction(
     'SET_MILESTONE_NAME',
@@ -83,6 +96,25 @@ export const usmActions = {
   ),
   DELETE_MILESTONE: defineAction('DELETE_MILESTONE', 'milestone', v.object({})),
   REORDER_MILESTONE: defineAction('REORDER_MILESTONE', 'milestone', v.object({ after: v.nullable(v.string()) }), {
+    mode: 'sequence',
+  }),
+
+  ADD_STATUS: defineAction(
+    'ADD_STATUS',
+    'page',
+    v.object({
+      id: entityIdSchema,
+      name: v.pipe(v.string(), v.minLength(1)),
+      tone: statusToneSchema,
+      icon: v.exactOptional(statusIconSchema),
+    }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  SET_STATUS_NAME: defineAction('SET_STATUS_NAME', 'status', v.object({ name: v.pipe(v.string(), v.minLength(1)) })),
+  SET_STATUS_TONE: defineAction('SET_STATUS_TONE', 'status', v.object({ tone: statusToneSchema })),
+  SET_STATUS_ICON: defineAction('SET_STATUS_ICON', 'status', v.object({ icon: statusIconSchema })),
+  DELETE_STATUS: defineAction('DELETE_STATUS', 'status', v.object({})),
+  REORDER_STATUS: defineAction('REORDER_STATUS', 'status', v.object({ after: v.nullable(v.string()) }), {
     mode: 'sequence',
   }),
 } satisfies ActionSpecs;

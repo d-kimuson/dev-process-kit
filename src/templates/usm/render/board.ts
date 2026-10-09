@@ -8,7 +8,6 @@ import type { UsmMessages } from '../messages';
 
 import { iconGrip, iconPlus } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
-import { activityTones } from '../activity-tone';
 import { addActivity, addMilestone, addStep, addStory } from '../commands';
 import {
   flatSteps,
@@ -18,14 +17,24 @@ import {
   type UserStory,
   type UsmState,
 } from '../model';
-import { cardModeOf, type CardIntent, type UsmUiMode } from '../ui-mode';
-import { toneStyle } from './tone';
+import {
+  passesStatusFilter,
+  statusDistribution,
+  statusFilterOf,
+  statusFilterParam,
+  statusViewOf,
+  statusViews,
+  toggleStatusFilter,
+  type StatusView,
+} from '../status-view';
+import { statusBar, statusIcon, statusToneStyle } from './tone';
 
 /** The two kinds of things that move on the board. */
 export type UsmDragType = 'story' | 'milestone';
 
 export type BoardHandlers = {
-  readonly cardIntent: (storyId: string, intent: CardIntent) => void;
+  /** A card was clicked: open its story in the panel. */
+  readonly selectStory: (storyId: string) => void;
   readonly dropOnCell: (cell: CellRef, drop: Drop<'story'>) => void;
   readonly dropOnGroupCell: (activityId: string, milestoneId: string | undefined, drop: Drop<'story'>) => void;
   readonly dropOnMilestoneRow: (milestoneId: string, drop: Drop<'milestone'>) => void;
@@ -34,7 +43,6 @@ export type BoardHandlers = {
 export type BoardProps = {
   readonly m: UsmMessages;
   readonly context: TemplateRenderContext<UsmState>;
-  readonly mode: UsmUiMode;
   readonly drag: DragController<UsmDragType>;
   readonly handlers: BoardHandlers;
 };
@@ -79,7 +87,45 @@ export const renderBoard = (props: BoardProps): TemplateResult => {
   const { m, context } = props;
   const columns = flatSteps(context.state);
   if (columns.length === 0) return renderEmptyBoard(m, context);
-  return usmViewOf(context) === 'activity' ? renderActivityView(props, columns) : renderGroupView(props);
+  return html`${renderStatusFilter(m, context)}
+  ${usmViewOf(context) === 'activity' ? renderActivityView(props, columns) : renderGroupView(props)}`;
+};
+
+/**
+ * The grid's filter by status, one toggle per status with its icon and count.
+ * Nothing on = every story; it doubles as the legend of the card colors.
+ */
+const renderStatusFilter = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+): TemplateResult | typeof nothing => {
+  const { state } = context;
+  if (state.statuses.length === 0) return nothing;
+  const filter = statusFilterOf(state, context.navigation);
+  const views = statusViews(state);
+  const countOf = (id: string): number => state.stories.filter((story) => story.statusId === id).length;
+  const option = (view: StatusView): TemplateResult => {
+    const id = view.id;
+    const on = filter.has(id);
+    return html`<a
+      class="filter-chip"
+      role="checkbox"
+      data-status=${id}
+      aria-checked=${String(on)}
+      style=${statusToneStyle(view.tone)}
+      href=${context.hashFor({ status: statusFilterParam(state, toggleStatusFilter(filter, id)) })}
+      >${statusIcon(view)}<span>${view.name}</span><span class="filter-count">${countOf(id)}</span></a
+    >`;
+  };
+  return html`<div class="map-toolbar" role="group" aria-label=${m.statusFilterLabel} data-testid="usm-status-filter">
+    <span class="filter-label">${m.statusFilterLabel}</span>
+    ${views.map(option)}
+    ${
+      filter.size === 0
+        ? nothing
+        : html`<a class="filter-clear" href=${context.hashFor({ status: null })}>${m.clearFilter}</a>`
+    }
+  </div>`;
 };
 
 export const usmViewOf = (context: TemplateRenderContext<UsmState>): 'group' | 'activity' => {
@@ -120,7 +166,6 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
   const { m, context } = props;
   const { state } = context;
   const rows = milestoneRows(m, state);
-  const tones = activityTones(state);
   return html`
     <div class="map-scroll">
       <div class="map" style=${`--cols:${columns.length + 1}`} data-testid="usm-map">
@@ -142,12 +187,8 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
             ${repeat(
               columns,
               ({ activity, step }) => `${activity.id}.${step.id}`,
-              ({ activity, step }) => html`
-                <div
-                  class="col-head"
-                  style=${toneStyle(tones.get(activity.id))}
-                  data-current=${String(context.navigation['step'] === step.id)}
-                >
+              ({ step }) => html`
+                <div class="col-head" data-current=${String(context.navigation['step'] === step.id)}>
                   <h4>
                     <dpk-component-inline-edit
                       .value=${step.name}
@@ -208,7 +249,7 @@ const renderGroupView = (props: BoardProps): TemplateResult => {
             ${repeat(
               state.activities,
               (activity) => activity.id,
-              (activity) => renderActivityHead(m, context, activity.id),
+              (activity) => renderActivityHead(m, context, activity.id, undefined, true),
             )}
             ${renderAddActivityHead(m, context)}
           </div>
@@ -240,40 +281,71 @@ const renderAxisCorner = (m: UsmMessages): TemplateResult => {
   </div>`;
 };
 
+/**
+ * An activity group's head: its name, whose experience it is, how far its
+ * stories have come (a bar in status colors) and, in the group view where the
+ * steps have no columns of their own, the steps it holds.
+ */
 const renderActivityHead = (
   m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
   activityId: string,
   style?: string,
+  listSteps = false,
 ): TemplateResult => {
   const { state } = context;
   const activity = state.activities.find((candidate) => candidate.id === activityId);
   if (!activity) return html`<div class="act-head"></div>`;
-  const storyCount = state.stories.filter((story) => story.activityId === activity.id).length;
-  const tone = toneStyle(activityTones(state).get(activity.id));
+  const stories = state.stories.filter((story) => story.activityId === activity.id);
+  const progress = statusDistribution(state, stories);
   return html`
-    <div class="act-head" style=${style === undefined ? tone : `${tone}; ${style}`}>
-      <span class="act-dot" aria-hidden="true"></span>
-      <dpk-component-inline-edit
-        .value=${activity.name}
-        .label=${m.activityNameLabel}
-        @dpk-commit=${onCommit((name) =>
-          context.dispatch({
-            type: 'SET_ACTIVITY_NAME',
-            target: { type: 'activity', id: activity.id },
-            payload: { name },
-          }),
-        )}
-      ></dpk-component-inline-edit>
-      <span class="count">${storyCount}</span>
-      <button
-        class="dpk-icon-btn"
-        type="button"
-        aria-label=${m.addStepAria}
-        @click=${() => addStep(m, context, activity.id)}
-      >
-        ${iconPlus()}
-      </button>
+    <div class="act-head" style=${style ?? ''} data-activity=${activity.id}>
+      <div class="act-title">
+        <dpk-component-inline-edit
+          .value=${activity.name}
+          .label=${m.activityNameLabel}
+          @dpk-commit=${onCommit((name) =>
+            context.dispatch({
+              type: 'SET_ACTIVITY_NAME',
+              target: { type: 'activity', id: activity.id },
+              payload: { name },
+            }),
+          )}
+        ></dpk-component-inline-edit>
+        <span class="count">${stories.length}</span>
+        <button
+          class="dpk-icon-btn"
+          type="button"
+          aria-label=${m.addStepAria}
+          @click=${() => addStep(m, context, activity.id)}
+        >
+          ${iconPlus()}
+        </button>
+      </div>
+      <div class="act-meta">
+        <span class="act-actor" data-empty=${String(activity.actor === undefined)}>
+          <dpk-component-inline-edit
+            .value=${activity.actor ?? ''}
+            .label=${m.activityActorLabel}
+            .placeholder=${m.activityActorLabel}
+            @dpk-commit=${onCommit((actor) =>
+              context.dispatch({
+                type: 'SET_ACTIVITY_ACTOR',
+                target: { type: 'activity', id: activity.id },
+                payload: { actor },
+              }),
+            )}
+          ></dpk-component-inline-edit>
+        </span>
+        ${statusBar(progress, m.progressAria(progress.map((part) => `${part.name} ${part.count}`).join(', ')))}
+      </div>
+      ${
+        listSteps && activity.steps.length > 0
+          ? html`<ol class="act-steps">
+              ${activity.steps.map((step) => html`<li>${step.name}</li>`)}
+            </ol>`
+          : nothing
+      }
     </div>
   `;
 };
@@ -399,8 +471,10 @@ const renderMilestoneName = (
 
 const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
   const { m, context, drag, handlers } = props;
-  const stories = storiesInCell(context.state, cell.stepId, cell.milestoneId);
-  const tone = toneStyle(activityTones(context.state).get(cell.activityId));
+  const filter = statusFilterOf(context.state, context.navigation);
+  const stories = storiesInCell(context.state, cell.stepId, cell.milestoneId).filter((story) =>
+    passesStatusFilter(filter, story),
+  );
   const key = `cell:${cell.stepId}:${cell.milestoneId ?? ''}`;
   const target = drag.target({
     key,
@@ -423,7 +497,7 @@ const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
         ${repeat(
           stories,
           (story) => story.id,
-          (story) => renderCard(props, story, { tone, stepName: '' }),
+          (story) => renderCard(props, story, ''),
         )}
       </div>
       <button
@@ -441,10 +515,12 @@ const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
 const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: string | undefined): TemplateResult => {
   const { m, context, drag, handlers } = props;
   const { state } = context;
-  const stories = storiesInActivity(state, activityId, milestoneId);
+  const filter = statusFilterOf(state, context.navigation);
+  const stories = storiesInActivity(state, activityId, milestoneId).filter((story) =>
+    passesStatusFilter(filter, story),
+  );
   const steps = state.activities.find((candidate) => candidate.id === activityId)?.steps ?? [];
   const firstStep = steps[0];
-  const tone = toneStyle(activityTones(state).get(activityId));
   const stepNameOf = (stepId: string): string => steps.find((step) => step.id === stepId)?.name ?? '';
   const key = `group:${activityId}:${milestoneId ?? ''}`;
   const target = drag.target({
@@ -468,7 +544,7 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
         ${repeat(
           stories,
           (story) => story.id,
-          (story) => renderCard(props, story, { tone, stepName: stepNameOf(story.stepId) }),
+          (story) => renderCard(props, story, stepNameOf(story.stepId)),
         )}
       </div>
       ${
@@ -488,24 +564,24 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
 };
 
 /**
- * Where a card sits on the map: its activity's tone, and its step's name when
- * the column does not already say it (the group view).
+ * A card takes its status's color; the column already says the activity.
+ * `stepName` names the step where the column does not (the group view).
  */
-type CardPlace = { readonly tone: string; readonly stepName: string };
-
-const renderCard = (props: BoardProps, story: UserStory, place: CardPlace): TemplateResult => {
-  const { context, mode, drag, handlers } = props;
+const renderCard = (props: BoardProps, story: UserStory, stepName: string): TemplateResult => {
+  const { context, drag, handlers } = props;
+  const views = statusViews(context.state);
   const notes = context.comments.filter((c) => c.target.type === 'story' && c.target.id === story.id);
   const source = drag.source({ type: 'story', id: story.id });
   return html`<dpk-internal-usm-story-card
     data-story=${story.id}
+    data-status=${story.statusId ?? ''}
     draggable="true"
-    style=${place.tone}
+    style=${statusToneStyle(statusViewOf(views, story)?.tone)}
     .story=${story}
-    .stepName=${place.stepName}
+    .stepName=${stepName}
+    .statuses=${views}
     .notes=${notes}
-    .mode=${cardModeOf(mode, story.id)}
-    .onIntent=${(intent: CardIntent) => handlers.cardIntent(story.id, intent)}
+    @click=${() => handlers.selectStory(story.id)}
     ?focused=${context.navigation['story'] === story.id}
     ?dragging=${drag.isDragging('story', story.id)}
     @dragstart=${source.dragstart}

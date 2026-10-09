@@ -10,9 +10,11 @@ import type { UsmMessages } from './messages';
 
 import { payloadFor, type ActionName } from '../../core/schema';
 import { targetRef } from '../../core/target';
+import { describeLink } from '../../lib/link-label';
 import { usmActions } from './actions';
 import { usmTabOf } from './board-tabs';
-import { findActivity, findMilestone, findStep, findStory, stepRefOf, type UsmState } from './model';
+import { findActivity, findMilestone, findStatus, findStep, findStory, stepRefOf, type UsmState } from './model';
+import { statusFilterOf, statusFilterParam } from './status-view';
 
 type Summary = {
   readonly title: string;
@@ -41,6 +43,17 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
       payloadFor(usmActions.SET_ACTIVITY_NAME, action)['name'] ?? '',
     ),
   }),
+  SET_ACTIVITY_ACTOR: (m, action, state) => {
+    const actor = payloadFor(usmActions.SET_ACTIVITY_ACTOR, action)['actor'].trim();
+    return {
+      title: m.changeActivityActor,
+      tone: 'update',
+      body:
+        actor === ''
+          ? m.removed(findActivity(state, action.target.id)?.actor ?? '')
+          : arrow(m, findActivity(state, action.target.id)?.actor, actor),
+    };
+  },
   SET_STEP_NAME: (m, action, state) => ({
     title: m.renameStep,
     tone: 'update',
@@ -147,6 +160,61 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
     tone: 'move',
     body: reorderBody(m, payloadFor(usmActions.REORDER_MILESTONE, action)['after']),
   }),
+  ADD_STORY_LINK: (m, action) => {
+    const { url, label } = payloadFor(usmActions.ADD_STORY_LINK, action);
+    return { title: m.addStoryLink, tone: 'create', body: m.added(label ?? describeLink(url).title) };
+  },
+  REMOVE_STORY_LINK: (m, action, state) => {
+    const { url } = payloadFor(usmActions.REMOVE_STORY_LINK, action);
+    const link = findStory(state, action.target.id)?.links?.find((candidate) => candidate.url === url);
+    return { title: m.removeStoryLink, tone: 'delete', body: m.removed(link?.label ?? describeLink(url).title) };
+  },
+  SET_STORY_STATUS: (m, action, state) => {
+    const statusId = payloadFor(usmActions.SET_STORY_STATUS, action)['statusId'];
+    return {
+      title: m.changeStoryStatus,
+      tone: 'update',
+      body: m.toName(findStatus(state, statusId)?.name ?? statusId),
+    };
+  },
+  ADD_STATUS: (m, action) => ({
+    title: m.addStatus,
+    tone: 'create',
+    body: m.added(payloadFor(usmActions.ADD_STATUS, action)['name']),
+  }),
+  SET_STATUS_NAME: (m, action, state) => ({
+    title: m.renameStatus,
+    tone: 'update',
+    body: arrow(m, findStatus(state, action.target.id)?.name, payloadFor(usmActions.SET_STATUS_NAME, action)['name']),
+  }),
+  SET_STATUS_TONE: (m, action, state) => {
+    const before = findStatus(state, action.target.id)?.tone;
+    const after = payloadFor(usmActions.SET_STATUS_TONE, action)['tone'];
+    return {
+      title: m.changeStatusTone,
+      tone: 'update',
+      body: arrow(m, before === undefined ? undefined : m.toneName(before), m.toneName(after)),
+    };
+  },
+  SET_STATUS_ICON: (m, action, state) => {
+    const before = findStatus(state, action.target.id)?.icon;
+    const after = payloadFor(usmActions.SET_STATUS_ICON, action)['icon'];
+    return {
+      title: m.changeStatusIcon,
+      tone: 'update',
+      body: arrow(m, before === undefined ? undefined : m.iconName(before), m.iconName(after)),
+    };
+  },
+  DELETE_STATUS: (m, action, state) => ({
+    title: m.deleteStatus,
+    tone: 'delete',
+    body: m.removed(findStatus(state, action.target.id)?.name ?? action.target.id),
+  }),
+  REORDER_STATUS: (m, action) => ({
+    title: m.reorderStatus,
+    tone: 'move',
+    body: reorderBody(m, payloadFor(usmActions.REORDER_STATUS, action)['after']),
+  }),
 } satisfies Record<ActionName<typeof usmActions>, (m: UsmMessages, action: DraftAction, state: UsmState) => Summary>;
 
 export const describeUsmAction = (
@@ -196,6 +264,10 @@ export const usmTargetLabel = (m: UsmMessages, state: UsmState, target: ActionTa
           ? m.targetLabel(m.milestoneGroup, milestone.name)
           : m.targetMissing(m.milestoneGroup, target.id);
       }
+      case 'status': {
+        const status = findStatus(state, target.id);
+        return status ? m.targetLabel(m.statusGroup, status.name) : m.targetMissing(m.statusGroup, target.id);
+      }
       case 'page':
         return m.targetLabel(m.mapGroup, usmTitle(state));
       default:
@@ -232,6 +304,9 @@ export const usmCommentTargets = (
       label: milestone.name,
       group: m.milestoneGroup,
     });
+  }
+  for (const status of state.statuses) {
+    options.push({ value: targetRef({ type: 'status', id: status.id }), label: status.name, group: m.statusGroup });
   }
   for (const story of state.stories) {
     options.push({ value: targetRef({ type: 'story', id: story.id }), label: story.name, group: m.storyGroup });
@@ -280,7 +355,12 @@ export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigati
   // The table grouping is navigation state: which unit the map groups by.
   next['view'] = nav['view'] === 'group' ? 'group' : 'activity';
   // The page tab is navigation too; the map is the default and needs no key.
-  if (usmTabOf(nav) === 'milestones') next['tab'] = 'milestones';
-  else delete next['tab'];
+  // The status filter is navigation too: what the reader looks at, never a change.
+  const filter = statusFilterParam(state, statusFilterOf(state, nav));
+  if (filter === null) delete next['status'];
+  else next['status'] = filter;
+  const tab = usmTabOf(nav);
+  if (tab === 'map') delete next['tab'];
+  else next['tab'] = tab;
   return next;
 };

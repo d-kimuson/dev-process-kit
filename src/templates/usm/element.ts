@@ -1,4 +1,4 @@
-import { html, type TemplateResult } from 'lit';
+import { html, nothing, type TemplateResult } from 'lit';
 
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
@@ -8,7 +8,7 @@ import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface } from '../../core/theme';
 import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
-import { usmTabOf } from './board-tabs';
+import { usmTabOf, type UsmTab } from './board-tabs';
 import { defineUsmStoryCard } from './components/story-card';
 import { usmDefinitionFor } from './definition';
 import { resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove, type CellRef } from './drop';
@@ -16,13 +16,19 @@ import { usmMessages, type UsmMessages } from './messages';
 import { presentMilestoneOverview } from './milestone-overview';
 import { findStory, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
+import { linkStyles } from './render/link-icon';
 import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
 import { renderBoardBar } from './render/page-tabs';
+import { renderStatusOverview } from './render/status-overview';
+import { panelStoryOf, renderStoryPanel, storyPanelStyles } from './render/story-panel';
+import { statusStyles } from './render/tone';
+import { presentStatusOverview } from './status-overview';
 import { usmStyles } from './styles';
-import { IDLE_MODE, reduceCardIntent, type CardIntent, type UsmUiMode } from './ui-mode';
+import { IDLE_MODE, type UsmUiMode } from './ui-mode';
 
 const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
+const ICON_MENU_SIZE = { width: 228, height: 116 };
 
 /**
  * `<dpk-template-usm>` — the user story map.
@@ -34,7 +40,14 @@ const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
  * `components/`, and every drop decision in `drop.ts`.
  */
 export class DpkTemplateUsm extends TemplateElement<UsmState> {
-  static override styles = [TemplateElement.styles, usmStyles, popoverSurface];
+  static override styles = [
+    TemplateElement.styles,
+    usmStyles,
+    statusStyles,
+    linkStyles,
+    storyPanelStyles,
+    popoverSurface,
+  ];
 
   protected override definitionFor(locale: Locale) {
     return usmDefinitionFor(locale);
@@ -60,6 +73,13 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
   protected override updated(): void {
     super.updated();
+    // A status's icon menu hangs off the icon that opened it.
+    if (this.mode.kind === 'picking-icon') {
+      const menu = this.renderRoot.querySelector<HTMLElement>('#icon-menu');
+      const trigger = this.renderRoot.querySelector(`[data-icon-trigger="${CSS.escape(this.mode.statusId)}"]`);
+      if (menu && trigger) this.#popovers.open(menu, trigger, ICON_MENU_SIZE);
+      return;
+    }
     // The step picker floats where the story was dropped (top layer) until the
     // reader picks or cancels; leaving the mode removes it from the DOM.
     if (this.mode.kind !== 'picking-step') return;
@@ -71,12 +91,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     const m = usmMessages(this.locale);
     const tab = usmTabOf(context.navigation);
     return html`
-      ${renderBoardBar(m, context, tab)}
-      ${
-        tab === 'milestones'
-          ? renderMilestoneOverview(m, context, presentMilestoneOverview(context.state))
-          : this.#renderMap(m, context)
-      }
+      ${renderBoardBar(m, context, tab)} ${this.#renderTab(m, context, tab)} ${this.#renderPanel(m, context, tab)}
       ${renderMoveDialog(m, context, this.mode, {
         confirm: (stepId) => this.#confirmPickedStep(stepId),
         cancel: () => (this.mode = IDLE_MODE),
@@ -84,14 +99,38 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     `;
   }
 
+  /** The story panel, on the map only: the stories live there. */
+  #renderPanel(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult | typeof nothing {
+    if (tab !== 'map') return nothing;
+    const story = panelStoryOf(context);
+    return story ? renderStoryPanel(m, context, story) : nothing;
+  }
+
+  #renderTab(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult {
+    switch (tab) {
+      case 'milestones':
+        return renderMilestoneOverview(m, context, presentMilestoneOverview(context.state));
+      case 'statuses':
+        return renderStatusOverview(m, context, presentStatusOverview(context.state), {
+          openFor: this.mode.kind === 'picking-icon' ? this.mode.statusId : null,
+          toggle: (statusId) => {
+            const open = this.mode.kind === 'picking-icon' && this.mode.statusId === statusId;
+            this.mode = open ? IDLE_MODE : { kind: 'picking-icon', statusId };
+          },
+          close: () => (this.mode = IDLE_MODE),
+        });
+      case 'map':
+        return this.#renderMap(m, context);
+    }
+  }
+
   #renderMap(m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult {
     return renderBoard({
       m,
       context,
-      mode: this.mode,
       drag: this.#drag,
       handlers: {
-        cardIntent: (storyId, intent) => this.#onCardIntent(storyId, intent),
+        selectStory: (storyId) => this.#onSelectStory(storyId),
         dropOnCell: (cell, drop) => this.#onCellDrop(cell, drop),
         dropOnGroupCell: (activityId, milestoneId, drop) => this.#onGroupDrop(activityId, milestoneId, drop),
         dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
@@ -99,34 +138,11 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     });
   }
 
-  /** A card asked for something: apply the side effect, then the mode transition. */
-  #onCardIntent(storyId: string, intent: CardIntent): void {
+  /** A click on a card opens its story in the panel. */
+  #onSelectStory(storyId: string): void {
     const context = this.context();
-    switch (intent.kind) {
-      case 'select': {
-        const story = findStory(context.state, storyId);
-        if (story) context.navigate({ step: story.stepId, story: story.id });
-        break;
-      }
-      case 'rename':
-        context.dispatch({
-          type: 'SET_STORY_NAME',
-          target: { type: 'story', id: storyId },
-          payload: { name: intent.name },
-        });
-        break;
-      case 'comment':
-        context.dispatch({ type: 'comment', target: `story:${storyId}`, payload: { body: intent.body } });
-        break;
-      case 'delete':
-        context.dispatch({ type: 'DELETE_STORY', target: { type: 'story', id: storyId }, payload: {} });
-        break;
-      case 'toggle-edit':
-      case 'toggle-comment':
-      case 'dismiss':
-        break;
-    }
-    this.mode = reduceCardIntent(this.mode, storyId, intent);
+    const story = findStory(context.state, storyId);
+    if (story) context.navigate({ step: story.stepId, story: story.id });
   }
 
   #onCellDrop(cell: CellRef, drop: Drop<'story'>): void {

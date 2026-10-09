@@ -32,5 +32,5 @@ export {
 export { DpkTemplateUsm, defineUsmElement } from './element';
 export { dropAfter, resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove } from './drop';
 export type { CellRef, MoveStoryInput, MilestoneDropInput } from './drop';
-export { IDLE_MODE, cardModeOf, modeConcerns, reduceCardIntent } from './ui-mode';
-export type { CardIntent, CardMode, UsmUiMode } from './ui-mode';
+export { IDLE_MODE } from './ui-mode';
+export type { UsmUiMode } from './ui-mode';

@@ -44,13 +44,31 @@ describe('milestone overview', () => {
     expect(v1?.coverage).toEqual({ covered: 0, total: 3 });
   });
 
-  it('breaks a milestone down by activity, in backbone order, leaving out the activities it skips', () => {
-    const [mvp, v1] = presentMilestoneOverview(state);
-    expect(mvp?.breakdown).toEqual([
-      { activityId: 'find', name: 'Find', count: 2 },
-      { activityId: 'buy', name: 'Buy', count: 1 },
+  it('reports no progress while the map has no statuses', () => {
+    const [mvp] = presentMilestoneOverview(state);
+    expect(mvp?.progress).toEqual([]);
+  });
+
+  it('spreads a milestone over the statuses, in workflow order', () => {
+    const withStatuses = parseUsmBase({
+      activities: [{ id: 'find', name: 'Find', steps: [{ id: 'search', name: 'Search' }] }],
+      milestones: [{ id: 'mvp', name: 'MVP' }],
+      statuses: [
+        { id: 'idea', name: 'Idea' },
+        { id: 'done', name: 'Done', tone: 'green' },
+      ],
+      stories: [
+        { id: 'u1', name: 'A', activityId: 'find', stepId: 'search', milestoneId: 'mvp', statusId: 'done' },
+        { id: 'u2', name: 'B', activityId: 'find', stepId: 'search', milestoneId: 'mvp' },
+        { id: 'u3', name: 'C', activityId: 'find', stepId: 'search', milestoneId: 'mvp', statusId: 'done' },
+      ],
+    });
+    const [mvp] = presentMilestoneOverview(withStatuses);
+    // u2 left its status out, so it starts at the first one
+    expect(mvp?.progress.map((part) => [part.id, part.tone, part.progress, part.count])).toEqual([
+      ['idea', 'gray', 0, 1],
+      ['done', 'green', 1, 2],
     ]);
-    expect(v1?.breakdown).toEqual([]);
   });
 
   it('has no share to report on an empty map', () => {
