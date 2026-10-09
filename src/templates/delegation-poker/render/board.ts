@@ -24,7 +24,9 @@ export const renderSummary = (props: BoardProps): TemplateResult => {
   const { progress } = presentBoard(m, context.state, mode);
   const { delegator, delegate } = delegationParties(m, context.state);
   return html`<div class="summary">
-    <span class="summary-chip" title=${m.partiesLabel}>${delegator} → ${delegate}</span>
+    <span class="summary-chip" title=${`${m.partiesLabel}\n${delegator} → ${delegate}`}
+      >${delegator} → ${delegate}</span
+    >
     <span class="summary-chip" data-testid="mode" data-mode=${mode} title=${m.modeTitle(mode)}
       >${m.modeLabel(mode)}</span
     >

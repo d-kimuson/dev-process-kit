@@ -35,12 +35,19 @@ export const delegationPokerStyles = css`
   .summary {
     display: flex;
     flex-wrap: wrap;
+    min-width: 0;
     gap: 6px;
     font-size: 12px;
     color: var(--dpk-ink-soft);
   }
 
+  /* A chip stays one line: a party name too long for the header ellipsizes,
+     its title has it whole. */
   .summary-chip {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     padding: 4px 10px;
     border: 1px solid var(--dpk-rule);
     border-radius: 999px;
