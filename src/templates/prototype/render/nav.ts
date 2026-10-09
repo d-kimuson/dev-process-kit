@@ -194,6 +194,7 @@ const renderScenarioNav = (
                 <span class="detail-value">
                   <dpk-component-inline-edit
                     multiline
+                    markdown
                     .value=${current.description ?? ''}
                     .placeholder=${m.descriptionPlaceholder}
                     .label=${m.descriptionLabel}

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { DpkComponentInlineEdit } from '../../components/inline-edit';
 import type { DpkTemplatePrototype } from './element';
 
 import '../../index';
+import { prototypeAction } from './actions';
 import { prototypeMessages } from './messages';
 
 const m = prototypeMessages('en');
@@ -250,6 +252,29 @@ describe('<dpk-template-prototype> layout', () => {
     expect(story.textContent).toContain('All open tasks on one list');
     expect(story.textContent).toContain(m.storyWithoutSteps);
     expect(root.querySelector('figure.frame')).toBeNull();
+  });
+
+  it('formats the descriptions as Markdown, and edits a step description as its source', async () => {
+    const el = mount('#step=landing');
+    await settle(el);
+    el.api.dispatch(
+      prototypeAction.setStepDescription('onboarding.account.landing', '**Sign up** first\n- name\n- mail'),
+    );
+    await settle(el);
+    const root = el.shadowRoot!;
+    const editor = root.querySelectorAll<DpkComponentInlineEdit>('.detail dpk-component-inline-edit')[1]!;
+    expect(editor.markdown).toBe(true);
+    await editor.updateComplete;
+    const view = editor.shadowRoot!.querySelector('.view')!;
+    expect(view.querySelector('strong')?.textContent).toBe('Sign up');
+    expect(view.querySelectorAll('li')).toHaveLength(2);
+
+    el.api.dispatch(prototypeAction.setStoryDescription('onboarding.tasks', 'All open tasks\n\n- **today**\n- later'));
+    el.api.navigate({ story: 'tasks' });
+    await settle(el);
+    const story = root.querySelector('.stage .story-description')!;
+    expect(story.querySelector('strong')?.textContent).toBe('today');
+    expect(story.querySelectorAll('li')).toHaveLength(2);
   });
 
   it('renders the ja dictionary text under lang="ja", and en without one', async () => {

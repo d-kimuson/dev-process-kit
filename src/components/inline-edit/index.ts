@@ -1,9 +1,11 @@
 import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { live } from 'lit/directives/live.js';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import { LocaleController } from '../../core/locale-controller';
-import { tokens } from '../../core/theme';
+import { prose, tokens } from '../../core/theme';
 import { elementOf } from '../../lib/dom/element';
+import { renderMarkdown } from '../../lib/markdown';
 import { inlineEditMessages } from './messages';
 
 /**
@@ -14,6 +16,7 @@ import { inlineEditMessages } from './messages';
 export class DpkComponentInlineEdit extends LitElement {
   static override styles = [
     tokens,
+    prose,
     css`
       /* One atomic box in both states, so the text can be edited where it sits:
          while editing, the text stays (hidden) underneath and keeps sizing the
@@ -57,6 +60,11 @@ export class DpkComponentInlineEdit extends LitElement {
         box-shadow:
           inset 0 -1px 0 var(--dpk-blue),
           inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
+      }
+
+      /* Formatted text keeps its own line breaks: a break in the source is a <br>. */
+      .view.dpk-prose {
+        white-space: normal;
       }
 
       .view[data-empty='true'] {
@@ -135,6 +143,8 @@ export class DpkComponentInlineEdit extends LitElement {
     wrap: { type: Boolean, reflect: true },
     /** Chromeless: the field looks like the text it edits. */
     seamless: { type: Boolean, reflect: true },
+    /** Shows the value as Markdown while not editing; the field edits the source. */
+    markdown: { type: Boolean },
     label: { type: String },
     editing: { state: true },
   };
@@ -144,6 +154,7 @@ export class DpkComponentInlineEdit extends LitElement {
   declare multiline: boolean;
   declare wrap: boolean;
   declare seamless: boolean;
+  declare markdown: boolean;
   declare label: string;
   declare private editing: boolean;
 
@@ -163,6 +174,7 @@ export class DpkComponentInlineEdit extends LitElement {
     this.multiline = false;
     this.wrap = false;
     this.seamless = false;
+    this.markdown = false;
     this.label = '';
     this.editing = false;
     this.#draft = '';
@@ -200,6 +212,21 @@ export class DpkComponentInlineEdit extends LitElement {
     // While editing, the same text element stays underneath, hidden, and keeps
     // sizing the box: the hint while empty, and a last empty line still takes a line.
     const shown = text === '' ? hint : editing && text.endsWith('\n') ? `${text}\u200b` : text;
+    if (this.markdown && !editing && text !== '') {
+      return html`<span class="box"
+        ><div
+          class="view dpk-prose"
+          data-empty="false"
+          role="button"
+          tabindex="0"
+          title=${m.clickToEdit}
+          @click=${this.#start}
+          @keydown=${this.#onKeydownView}
+        >
+          ${unsafeHTML(renderMarkdown(text))}
+        </div></span
+      >`;
+    }
     return html`<span class="box"
       ><span
         class="view"
@@ -239,6 +266,8 @@ export class DpkComponentInlineEdit extends LitElement {
   }
 
   #start = (event: Event): void => {
+    // A link in formatted text goes where it points; the rest of the text edits.
+    if (event.composedPath().some((node) => node instanceof HTMLAnchorElement)) return;
     event.stopPropagation();
     if (this.editing) return;
     this.#draft = this.value;
@@ -246,7 +275,7 @@ export class DpkComponentInlineEdit extends LitElement {
   };
 
   #onKeydownView = (event: KeyboardEvent): void => {
-    if (event.isComposing || this.editing) return;
+    if (event.isComposing || this.editing || event.target instanceof HTMLAnchorElement) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       this.editing = true;

@@ -7,7 +7,7 @@ import { COMMENT_ACTION } from '../../core/action';
 import { commentBody } from '../../core/comment';
 import { TemplateElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
-import { popoverSurface } from '../../core/theme';
+import { popoverSurface, prose } from '../../core/theme';
 import { containDialog, releaseModalDialog } from '../../lib/dom/contained-dialog';
 import { findLocated, locateElement, pickableElement } from '../../lib/dom/locator';
 import { closePopover } from '../../lib/dom/popover';
@@ -80,7 +80,7 @@ const flatParent = (element: Element): Element | null => {
  * maximize) is ephemeral view state of this element too.
  */
 export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
-  static override styles = [TemplateElement.styles, popoverSurface, prototypeStyles];
+  static override styles = [TemplateElement.styles, popoverSurface, prose, prototypeStyles];
 
   #uiComment: UiCommentMode = UI_COMMENT_OFF;
   #composerOpen = false;

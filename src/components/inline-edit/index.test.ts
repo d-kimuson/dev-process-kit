@@ -119,4 +119,56 @@ describe('inline editing', () => {
     expect(editor.shadowRoot?.querySelector('.field')).toBeNull();
     expect(editor.shadowRoot?.querySelector('.view')?.getAttribute('aria-hidden')).toBeNull();
   });
+  describe('markdown', () => {
+    const mountMarkdown = async (value: string): Promise<DpkComponentInlineEdit> => {
+      const editor = new DpkComponentInlineEdit();
+      editor.value = value;
+      editor.multiline = true;
+      editor.markdown = true;
+      document.body.append(editor);
+      await editor.updateComplete;
+      return editor;
+    };
+
+    it('shows the value as formatted text, and the source while editing', async () => {
+      const editor = await mountMarkdown('**Note**\n- one\n- two');
+      const view = editor.shadowRoot?.querySelector('.view');
+      expect(view?.querySelector('strong')?.textContent).toBe('Note');
+      expect(view?.querySelectorAll('li')).toHaveLength(2);
+
+      editor.startEditing();
+      await editor.updateComplete;
+      expect(editor.shadowRoot?.querySelector('textarea')?.value).toBe('**Note**\n- one\n- two');
+      expect(sizer(editor)?.textContent).toBe('**Note**\n- one\n- two');
+    });
+
+    it('never runs markup in the value', async () => {
+      const editor = await mountMarkdown('<img src=x onerror="alert(1)">');
+      expect(editor.shadowRoot?.querySelector('.view img')).toBeNull();
+      expect(editor.shadowRoot?.querySelector('.view')?.textContent).toContain('<img');
+    });
+
+    it('follows a link in the text instead of starting an edit', async () => {
+      const editor = await mountMarkdown('[next](#step=confirm)');
+      const link = editor.shadowRoot?.querySelector<HTMLAnchorElement>('.view a');
+      expect(link?.getAttribute('href')).toBe('#step=confirm');
+      link?.addEventListener('click', (event) => event.preventDefault());
+      link?.click();
+      await editor.updateComplete;
+      expect(editor.shadowRoot?.querySelector('textarea')).toBeNull();
+
+      editor.shadowRoot?.querySelector<HTMLElement>('.view')?.click();
+      await editor.updateComplete;
+      expect(editor.shadowRoot?.querySelector('textarea')).not.toBeNull();
+    });
+
+    it('shows the placeholder while there is nothing to format', async () => {
+      const editor = await mountMarkdown('');
+      editor.placeholder = 'Add a note';
+      await editor.updateComplete;
+      const view = editor.shadowRoot?.querySelector('.view');
+      expect(view?.textContent?.trim()).toBe('Add a note');
+      expect(view?.getAttribute('data-empty')).toBe('true');
+    });
+  });
 });

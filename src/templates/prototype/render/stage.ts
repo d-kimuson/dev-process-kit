@@ -1,9 +1,11 @@
 import { html, nothing, type TemplateResult } from 'lit';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { PrototypeMessages } from '../messages';
 
 import { iconMaximize, iconMinimize } from '../../../core/icons';
+import { renderMarkdown } from '../../../lib/markdown';
 import { flattenSteps, type PreviewViewport, type PrototypePreview, type PrototypeState } from '../model';
 import {
   locatePrototype,
@@ -89,7 +91,11 @@ export const renderStage = (
       <div class="stage">
         <section class="stage-story">
           ${renderPageHead(m, prototypeStoryHeading(activity, story))}
-          ${story.description ? html`<p class="story-description">${story.description}</p>` : nothing}
+          ${
+            story.description
+              ? html`<div class="story-description dpk-prose">${unsafeHTML(renderMarkdown(story.description))}</div>`
+              : nothing
+          }
           <p class="stage-empty">${m.storyWithoutSteps}</p>
         </section>
         ${parked}

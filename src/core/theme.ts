@@ -443,3 +443,97 @@ export const popoverSurface = css`
     justify-content: flex-end;
   }
 `;
+
+/**
+ * Formatted text (`lib/markdown`) inside a `.dpk-prose` box: compact enough
+ * for a sidebar, with the spacing taken from the surrounding type scale.
+ */
+export const prose = css`
+  .dpk-prose {
+    overflow-wrap: anywhere;
+  }
+
+  .dpk-prose > :first-child {
+    margin-top: 0;
+  }
+
+  .dpk-prose > :last-child {
+    margin-bottom: 0;
+  }
+
+  .dpk-prose :is(p, ul, ol, pre, blockquote, table) {
+    margin: 0 0 0.6em;
+  }
+
+  .dpk-prose :is(h1, h2, h3, h4, h5, h6) {
+    margin: 0.8em 0 0.3em;
+    font-size: 1em;
+    font-weight: 650;
+    line-height: 1.4;
+    color: var(--dpk-ink);
+  }
+
+  .dpk-prose :is(ul, ol) {
+    padding-left: 1.3em;
+  }
+
+  .dpk-prose li + li {
+    margin-top: 0.15em;
+  }
+
+  .dpk-prose strong {
+    font-weight: 650;
+    color: var(--dpk-ink);
+  }
+
+  .dpk-prose a {
+    color: var(--dpk-blue);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .dpk-prose code {
+    padding: 0.05em 0.3em;
+    border-radius: var(--dpk-radius-xs);
+    background: var(--dpk-paper-sunken);
+    font-family: var(--dpk-mono);
+    font-size: 0.9em;
+  }
+
+  .dpk-prose pre {
+    padding: 8px 10px;
+    border-radius: var(--dpk-radius-xs);
+    background: var(--dpk-paper-sunken);
+    overflow: auto;
+  }
+
+  .dpk-prose pre code {
+    padding: 0;
+    background: none;
+  }
+
+  .dpk-prose blockquote {
+    padding-left: 0.8em;
+    border-left: 2px solid var(--dpk-rule-strong);
+    color: var(--dpk-ink-soft);
+  }
+
+  .dpk-prose table {
+    border-collapse: collapse;
+  }
+
+  .dpk-prose :is(th, td) {
+    padding: 2px 8px;
+    border: 1px solid var(--dpk-rule);
+    text-align: left;
+  }
+
+  .dpk-prose hr {
+    border: none;
+    border-top: 1px solid var(--dpk-rule);
+  }
+
+  .dpk-prose img {
+    max-width: 100%;
+  }
+`;

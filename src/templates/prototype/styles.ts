@@ -396,7 +396,6 @@ export const prototypeStyles = css`
     font-size: 14px;
     line-height: 1.7;
     color: var(--dpk-ink);
-    white-space: pre-wrap;
   }
 
   /* -------------------------------------------------------------- situation */
