@@ -16,10 +16,18 @@ import { statusIcon, statusToneStyle } from './tone';
  * color and how many stories stand there. Names, colors and order are edited
  * here; which status a story has is set on its card.
  */
+/** The one icon menu the tab may have open, and how to open or close it. */
+export type IconMenu = {
+  readonly openFor: string | null;
+  readonly toggle: (statusId: string) => void;
+  readonly close: () => void;
+};
+
 export const renderStatusOverview = (
   m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
   overview: StatusOverview,
+  iconMenu: IconMenu,
 ): TemplateResult => {
   return html`
     <section class="st-overview" data-testid="usm-statuses">
@@ -35,13 +43,8 @@ export const renderStatusOverview = (
         ${repeat(
           overview.rows,
           (row) => row.id,
-          (row) => renderStatusRow(m, context, row),
+          (row) => renderStatusRow(m, context, row, iconMenu),
         )}
-        <li class="st-row st-row--unset" style=${statusToneStyle(undefined)}>
-          ${statusIcon(undefined)}
-          <span class="st-name">${m.statusUnset}</span>
-          ${renderShare(m, overview.unsetCount, overview.unsetShare)}
-        </li>
       </ol>
       <div>
         <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addStatus(m, context)}>
@@ -52,14 +55,32 @@ export const renderStatusOverview = (
   `;
 };
 
-const renderStatusRow = (m: UsmMessages, context: TemplateRenderContext<UsmState>, row: StatusRow): TemplateResult => {
+const renderStatusRow = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  row: StatusRow,
+  iconMenu: IconMenu,
+): TemplateResult => {
+  const open = iconMenu.openFor === row.id;
   const target = { type: 'status', id: row.id };
   const reorder = (after: string | null): void => {
     context.dispatch({ type: 'REORDER_STATUS', target, payload: { after } });
   };
   return html`
     <li class="st-row" data-status=${row.id} style=${statusToneStyle(row.tone)}>
-      ${statusIcon(row)}
+      <button
+        class="st-icon-trigger"
+        type="button"
+        data-icon-trigger=${row.id}
+        aria-haspopup="menu"
+        aria-expanded=${String(open)}
+        aria-label=${`${m.statusIconLabel}: ${m.iconName(row.icon)}`}
+        title=${m.iconName(row.icon)}
+        @click=${() => iconMenu.toggle(row.id)}
+      >
+        ${statusIcon(row)}
+      </button>
+      ${open ? renderIconMenu(m, context, row, iconMenu) : nothing}
       <span class="st-name">
         <dpk-component-inline-edit
           .value=${row.name}
@@ -68,42 +89,22 @@ const renderStatusRow = (m: UsmMessages, context: TemplateRenderContext<UsmState
         ></dpk-component-inline-edit>
       </span>
       ${renderShare(m, row.storyCount, row.share)}
-      <span class="st-pickers">
-        <span class="st-icons" role="radiogroup" aria-label=${m.statusIconLabel}>
-          ${STATUS_ICONS.map(
-            (icon) => html`<button
-              class="st-icon"
-              type="button"
-              role="radio"
-              data-icon=${icon}
-              title=${m.iconName(icon)}
-              aria-label=${m.iconName(icon)}
-              aria-checked=${icon === row.icon ? 'true' : 'false'}
-              @click=${() => {
-                if (icon !== row.icon) context.dispatch({ type: 'SET_STATUS_ICON', target, payload: { icon } });
-              }}
-            >
-              ${statusIcon({ icon, progress: row.progress })}
-            </button>`,
-          )}
-        </span>
-        <span class="st-tones" role="radiogroup" aria-label=${m.statusToneLabel}>
-          ${STATUS_TONES.map(
-            (tone) => html`<button
-              class="st-tone"
-              type="button"
-              role="radio"
-              data-tone=${tone}
-              style=${statusToneStyle(tone)}
-              title=${m.toneName(tone)}
-              aria-label=${m.toneName(tone)}
-              aria-checked=${tone === row.tone ? 'true' : 'false'}
-              @click=${() => {
-                if (tone !== row.tone) context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } });
-              }}
-            ></button>`,
-          )}
-        </span>
+      <span class="st-tones" role="radiogroup" aria-label=${m.statusToneLabel}>
+        ${STATUS_TONES.map(
+          (tone) => html`<button
+            class="st-tone"
+            type="button"
+            role="radio"
+            data-tone=${tone}
+            style=${statusToneStyle(tone)}
+            title=${m.toneName(tone)}
+            aria-label=${m.toneName(tone)}
+            aria-checked=${tone === row.tone ? 'true' : 'false'}
+            @click=${() => {
+              if (tone !== row.tone) context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } });
+            }}
+          ></button>`,
+        )}
       </span>
       <span class="st-tools">
         <button
@@ -137,6 +138,46 @@ const renderStatusRow = (m: UsmMessages, context: TemplateRenderContext<UsmState
     </li>
   `;
 };
+
+/** Every icon a status can take, drawn in its own color; picking one sets it and closes the menu. */
+const renderIconMenu = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  row: StatusRow,
+  iconMenu: IconMenu,
+): TemplateResult => html`<div
+  id="icon-menu"
+  class="comment-pop icon-menu"
+  popover="manual"
+  role="menu"
+  aria-label=${m.statusIconLabel}
+  style=${statusToneStyle(row.tone)}
+  @keydown=${(event: KeyboardEvent) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    iconMenu.close();
+  }}
+>
+  ${STATUS_ICONS.map(
+    (icon) => html`<button
+      class="icon-option"
+      type="button"
+      role="menuitemradio"
+      data-icon=${icon}
+      title=${m.iconName(icon)}
+      aria-label=${m.iconName(icon)}
+      aria-checked=${String(icon === row.icon)}
+      @click=${() => {
+        if (icon !== row.icon) {
+          context.dispatch({ type: 'SET_STATUS_ICON', target: { type: 'status', id: row.id }, payload: { icon } });
+        }
+        iconMenu.close();
+      }}
+    >
+      ${statusIcon({ icon, progress: row.progress })}
+    </button>`,
+  )}
+</div>`;
 
 /** Moving up places the status right after the one two places above (or first). */
 const beforePrevious = (state: UsmState, row: StatusRow): string | null => {

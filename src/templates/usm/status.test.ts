@@ -50,6 +50,10 @@ describe('usm statuses: model', () => {
     ]);
   });
 
+  it('starts a story without a status at the first status, so no story stands nowhere', () => {
+    expect(base.stories.find((story) => story.id === 'u4')?.statusId).toBe('idea');
+  });
+
   it('defaults to no statuses, so an existing map parses unchanged', () => {
     expect(parseUsmBase({ ...raw, statuses: undefined, stories: [] }).statuses).toEqual([]);
   });
@@ -64,12 +68,23 @@ describe('usm statuses: model', () => {
 });
 
 describe('usm statuses: actions', () => {
-  it('sets and clears a story status, and goes stale on an unknown one', () => {
-    const set = apply(base, 'SET_STORY_STATUS', { type: 'story', id: 'u4' }, { statusId: 'idea' });
-    expect(set?.stories.find((story) => story.id === 'u4')?.statusId).toBe('idea');
-    const cleared = apply(base, 'SET_STORY_STATUS', { type: 'story', id: 'u1' }, { statusId: null });
-    expect(cleared?.stories.find((story) => story.id === 'u1')).not.toHaveProperty('statusId');
+  it('sets a story status and never clears it', () => {
+    const set = apply(base, 'SET_STORY_STATUS', { type: 'story', id: 'u4' }, { statusId: 'done' });
+    expect(set?.stories.find((story) => story.id === 'u4')?.statusId).toBe('done');
+    expect(apply(base, 'SET_STORY_STATUS', { type: 'story', id: 'u1' }, { statusId: null })).toBeNull();
     expect(apply(base, 'SET_STORY_STATUS', { type: 'story', id: 'u1' }, { statusId: 'nope' })).toBeNull();
+  });
+
+  it('gives every story a status once the map has one, and a new story the first status', () => {
+    const plain = parseUsmBase({
+      ...raw,
+      statuses: [],
+      stories: raw.stories.map(({ statusId: _s, ...story }) => story),
+    });
+    const first = apply(plain, 'ADD_STATUS', { type: 'page', id: 'usm' }, { id: 'todo', name: 'Todo', tone: 'gray' });
+    expect(first?.stories.map((story) => story.statusId)).toEqual(['todo', 'todo', 'todo', 'todo']);
+    const added = apply(base, 'ADD_STORY', { type: 'step', id: 's1' }, { id: 'u5', name: 'U5', activityId: 'a1' });
+    expect(added?.stories.at(-1)?.statusId).toBe('idea');
   });
 
   it('adds, renames, recolors and reorders statuses', () => {
@@ -90,11 +105,14 @@ describe('usm statuses: actions', () => {
     expect(apply(base, 'SET_STATUS_TONE', { type: 'status', id: 'idea' }, { tone: 'pink' })).toBeNull();
   });
 
-  it('deleting a status leaves its stories without one instead of deleting them', () => {
+  it('moves the stories of a deleted status to the first status left, and drops statuses with the last one', () => {
     const state = apply(base, 'DELETE_STATUS', { type: 'status', id: 'done' }, {});
     expect(state?.statuses.map((status) => status.id)).toEqual(['idea', 'ready']);
-    expect(state?.stories).toHaveLength(4);
-    expect(state?.stories.filter((story) => story.statusId !== undefined).map((story) => story.id)).toEqual(['u2']);
+    expect(state?.stories.map((story) => story.statusId)).toEqual(['idea', 'ready', 'idea', 'idea']);
+    let only = apply(base, 'DELETE_STATUS', { type: 'status', id: 'ready' }, {});
+    only = apply(only!, 'DELETE_STATUS', { type: 'status', id: 'done' }, {});
+    only = apply(only!, 'DELETE_STATUS', { type: 'status', id: 'idea' }, {});
+    expect(only?.stories.every((story) => story.statusId === undefined)).toBe(true);
   });
 
   it('describes a status change by the status names', () => {
@@ -142,26 +160,26 @@ describe('usm story links', () => {
 });
 
 describe('usm statuses: distribution', () => {
-  it('spreads stories over the statuses in workflow order, then the ones without a status', () => {
-    expect(statusDistribution(base, base.stories, 'None').map((part) => [part.id, part.progress, part.count])).toEqual([
+  it('spreads stories over the statuses in workflow order, leaving out the empty ones', () => {
+    expect(statusDistribution(base, base.stories).map((part) => [part.id, part.progress, part.count])).toEqual([
+      ['idea', 0, 1],
       ['ready', 0.5, 1],
       ['done', 1, 2],
-      [null, undefined, 1],
     ]);
-    expect(statusDistribution({ ...base, statuses: [] }, base.stories, 'None')).toEqual([]);
+    expect(statusDistribution(base, base.stories.slice(0, 2)).map((part) => part.id)).toEqual(['ready', 'done']);
+    expect(statusDistribution({ ...base, statuses: [] }, base.stories)).toEqual([]);
   });
 });
 
 describe('usm statuses: overview', () => {
-  it('counts the stories per status and those without one', () => {
+  it('counts the stories per status', () => {
     const overview = presentStatusOverview(base);
     expect(overview.rows.map((row) => [row.id, row.storyCount, row.previousId, row.nextId])).toEqual([
-      ['idea', 0, null, 'ready'],
+      ['idea', 1, null, 'ready'],
       ['ready', 1, 'idea', 'done'],
       ['done', 2, 'ready', null],
     ]);
     expect(overview.rows[2]?.share).toBe(0.5);
-    expect(overview.unsetCount).toBe(1);
   });
 });
 
@@ -203,9 +221,7 @@ describe('usm statuses: element', () => {
     expect(card.getAttribute('style')).toContain('--dpk-ink-faint');
     // no status name on the card: the icon carries it, the filter is the legend
     expect(card.shadowRoot!.textContent).not.toContain('Idea');
-    expect(card.shadowRoot!.querySelector('.card-status')?.getAttribute('aria-label')).toBe(
-      m.storyStatusAria(m.statusUnset),
-    );
+    expect(card.shadowRoot!.querySelector('.card-status')?.getAttribute('aria-label')).toBe(m.storyStatusAria('Idea'));
     expect(root.querySelector('[data-testid="usm-story-panel"]')).toBeNull();
     card.click();
     await settle(el);
@@ -213,8 +229,9 @@ describe('usm statuses: element', () => {
     expect(panel().getAttribute('data-story')).toBe('u4');
     expect(el.api.navigation['story']).toBe('u4');
     const options = [...panel().querySelectorAll('.sp-status')];
-    expect(options.map((option) => option.textContent?.trim())).toEqual(['Idea', 'Ready', 'Done', m.statusUnset]);
-    expect(options[3]?.getAttribute('aria-checked')).toBe('true');
+    // a story always stands somewhere: there is no "no status" choice
+    expect(options.map((option) => option.textContent?.trim())).toEqual(['Idea', 'Ready', 'Done']);
+    expect(options[0]?.getAttribute('aria-checked')).toBe('true');
     (options[1] as HTMLButtonElement).click();
     await settle(el);
     expect(card.getAttribute('style')).toContain('--dpk-amber');
@@ -254,21 +271,20 @@ describe('usm statuses: element', () => {
         chip.querySelector('.filter-count')?.textContent,
       ]),
     ).toEqual([
-      ['idea', 'false', '0'],
+      ['idea', 'false', '1'],
       ['ready', 'false', '1'],
       ['done', 'true', '2'],
-      ['~', 'false', '1'],
     ]);
     const shown = () =>
       [...root.querySelectorAll('dpk-internal-usm-story-card')].map((c) => c.getAttribute('data-story'));
     expect(shown()).toEqual(expect.arrayContaining(['u1', 'u3']));
     expect(shown()).toHaveLength(2);
     // turning another one on keeps the canonical order
-    expect(filter.querySelector('[data-status="~"]')?.getAttribute('href')).toContain('status=done%2C%7E');
-    window.location.hash = '#status=~,nope';
+    expect(filter.querySelector('[data-status="idea"]')?.getAttribute('href')).toContain('status=idea%2Cdone');
+    window.location.hash = '#status=idea,nope';
     await new Promise((resolve) => setTimeout(resolve, 0));
     await el.updateComplete;
-    expect(el.api.navigation['status']).toBe('~');
+    expect(el.api.navigation['status']).toBe('idea');
     expect(shown()).toEqual(['u4']);
   });
 
@@ -281,9 +297,9 @@ describe('usm statuses: element', () => {
         (part as HTMLElement).style.flexGrow,
       ]),
     ).toEqual([
+      ['idea', '1'],
       ['ready', '1'],
       ['done', '2'],
-      ['', '1'],
     ]);
     expect(head.querySelector('.act-actor')?.getAttribute('data-empty')).toBe('true');
     el.api.dispatch({ type: 'SET_ACTIVITY_ACTOR', target: 'activity:a1', payload: { actor: ' Admin ' } });
@@ -312,5 +328,16 @@ describe('usm statuses: element', () => {
     ]);
     [...section.querySelectorAll('button')].find((button) => button.textContent?.trim() === m.newStatusButton)!.click();
     expect(el.api.state.statuses).toHaveLength(4);
+    // the icon is picked from a menu its own icon opens
+    expect(section.querySelector('#icon-menu')).toBeNull();
+    (section.querySelector('[data-icon-trigger="ready"]') as HTMLButtonElement).click();
+    await el.updateComplete;
+    const menu = el.shadowRoot!.querySelector('#icon-menu')!;
+    expect([...menu.querySelectorAll('[role="menuitemradio"]')]).toHaveLength(10);
+    expect(menu.querySelector('[aria-checked="true"]')?.getAttribute('data-icon')).toBe('progress');
+    (menu.querySelector('[data-icon="play"]') as HTMLButtonElement).click();
+    await el.updateComplete;
+    expect(el.api.state.statuses.find((status) => status.id === 'ready')?.icon).toBe('play');
+    expect(el.shadowRoot!.querySelector('#icon-menu')).toBeNull();
   });
 });

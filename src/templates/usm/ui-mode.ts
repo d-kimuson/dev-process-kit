@@ -10,6 +10,8 @@
 export type UsmUiMode =
   | { readonly kind: 'idle' }
   | { readonly kind: 'commenting'; readonly storyId: string }
+  /** The icon menu of one status (statuses tab) is open. */
+  | { readonly kind: 'picking-icon'; readonly statusId: string }
   | {
       /** A cross-activity drop: the column named no step, so the reader picks one. */
       readonly kind: 'picking-step';
@@ -33,7 +35,7 @@ export type CardIntent =
 export type CardMode = 'view' | 'commenting';
 
 export const modeConcerns = (mode: UsmUiMode, storyId: string): boolean => {
-  return mode.kind !== 'idle' && mode.storyId === storyId;
+  return 'storyId' in mode && mode.storyId === storyId;
 };
 
 export const cardModeOf = (mode: UsmUiMode, storyId: string): CardMode => {

@@ -18,7 +18,6 @@ import {
   type UsmState,
 } from '../model';
 import {
-  NO_STATUS,
   passesStatusFilter,
   statusDistribution,
   statusFilterOf,
@@ -105,26 +104,23 @@ const renderStatusFilter = (
   if (state.statuses.length === 0) return nothing;
   const filter = statusFilterOf(state, context.navigation);
   const views = statusViews(state);
-  const known = new Set(views.map((view) => view.id));
-  const countOf = (id: string): number =>
-    state.stories.filter((story) =>
-      id === NO_STATUS ? story.statusId === undefined || !known.has(story.statusId) : story.statusId === id,
-    ).length;
-  const option = (id: string, name: string, view: StatusView | undefined): TemplateResult => {
+  const countOf = (id: string): number => state.stories.filter((story) => story.statusId === id).length;
+  const option = (view: StatusView): TemplateResult => {
+    const id = view.id;
     const on = filter.has(id);
     return html`<a
       class="filter-chip"
       role="checkbox"
       data-status=${id}
       aria-checked=${String(on)}
-      style=${statusToneStyle(view?.tone)}
+      style=${statusToneStyle(view.tone)}
       href=${context.hashFor({ status: statusFilterParam(state, toggleStatusFilter(filter, id)) })}
-      >${statusIcon(view)}<span>${name}</span><span class="filter-count">${countOf(id)}</span></a
+      >${statusIcon(view)}<span>${view.name}</span><span class="filter-count">${countOf(id)}</span></a
     >`;
   };
   return html`<div class="map-toolbar" role="group" aria-label=${m.statusFilterLabel} data-testid="usm-status-filter">
     <span class="filter-label">${m.statusFilterLabel}</span>
-    ${views.map((view) => option(view.id, view.name, view))} ${option(NO_STATUS, m.statusUnset, undefined)}
+    ${views.map(option)}
     ${
       filter.size === 0
         ? nothing
@@ -302,7 +298,7 @@ const renderActivityHead = (
   const activity = state.activities.find((candidate) => candidate.id === activityId);
   if (!activity) return html`<div class="act-head"></div>`;
   const stories = state.stories.filter((story) => story.activityId === activity.id);
-  const progress = statusDistribution(state, stories, m.statusUnset);
+  const progress = statusDistribution(state, stories);
   return html`
     <div class="act-head" style=${style ?? ''} data-activity=${activity.id}>
       <div class="act-title">

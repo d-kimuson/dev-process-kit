@@ -28,6 +28,7 @@ import { usmStyles } from './styles';
 import { IDLE_MODE, reduceCardIntent, type CardIntent, type UsmUiMode } from './ui-mode';
 
 const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
+const ICON_MENU_SIZE = { width: 228, height: 116 };
 
 /**
  * `<dpk-template-usm>` — the user story map.
@@ -72,6 +73,13 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
   protected override updated(): void {
     super.updated();
+    // A status's icon menu hangs off the icon that opened it.
+    if (this.mode.kind === 'picking-icon') {
+      const menu = this.renderRoot.querySelector<HTMLElement>('#icon-menu');
+      const trigger = this.renderRoot.querySelector(`[data-icon-trigger="${CSS.escape(this.mode.statusId)}"]`);
+      if (menu && trigger) this.#popovers.open(menu, trigger, ICON_MENU_SIZE);
+      return;
+    }
     // The step picker floats where the story was dropped (top layer) until the
     // reader picks or cancels; leaving the mode removes it from the DOM.
     if (this.mode.kind !== 'picking-step') return;
@@ -101,9 +109,16 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   #renderTab(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult {
     switch (tab) {
       case 'milestones':
-        return renderMilestoneOverview(m, context, presentMilestoneOverview(context.state, m.statusUnset));
+        return renderMilestoneOverview(m, context, presentMilestoneOverview(context.state));
       case 'statuses':
-        return renderStatusOverview(m, context, presentStatusOverview(context.state));
+        return renderStatusOverview(m, context, presentStatusOverview(context.state), {
+          openFor: this.mode.kind === 'picking-icon' ? this.mode.statusId : null,
+          toggle: (statusId) => {
+            const open = this.mode.kind === 'picking-icon' && this.mode.statusId === statusId;
+            this.mode = open ? IDLE_MODE : { kind: 'picking-icon', statusId };
+          },
+          close: () => (this.mode = IDLE_MODE),
+        });
       case 'map':
         return this.#renderMap(m, context);
     }

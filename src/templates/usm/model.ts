@@ -77,7 +77,11 @@ export type UserStory = {
   readonly activityId: string;
   readonly stepId: string;
   readonly milestoneId?: string;
-  /** Omitted = no status yet. */
+  /**
+   * Where the story stands. Once the map has statuses every story has one
+   * (base data that leaves it out starts at the first status); a map without
+   * statuses has none.
+   */
   readonly statusId?: string;
   readonly links?: readonly StoryLink[];
 };
@@ -142,8 +146,13 @@ export const defaultStatusTone = (index: number): StatusTone => STATUS_TONES[ind
 
 export const parseUsmBase = (input: unknown): UsmState => {
   const raw = v.parse(usmBaseSchema, input);
+  const firstStatus = raw.statuses[0]?.id;
   const parsed: UsmState = {
     ...raw,
+    stories:
+      firstStatus === undefined
+        ? raw.stories
+        : raw.stories.map((story) => (story.statusId === undefined ? { ...story, statusId: firstStatus } : story)),
     statuses: raw.statuses.map((status, index) => ({
       ...status,
       tone: status.tone ?? defaultStatusTone(index),

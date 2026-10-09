@@ -8,7 +8,6 @@ import type { UsmState } from '../model';
 
 import { onCommit } from '../../../lib/dom/events';
 import { addMilestone } from '../commands';
-import { segmentIcon } from '../status-view';
 import { statusBar, statusIcon, statusToneStyle } from './tone';
 
 /**
@@ -116,8 +115,8 @@ const renderProgress = (m: UsmMessages, card: MilestoneCard): TemplateResult => 
     <ul class="ms-legend" aria-hidden="true">
       ${card.progress.map(
         (part) =>
-          html`<li data-status=${part.id ?? ''} style=${statusToneStyle(part.tone)}>
-            ${statusIcon(segmentIcon(part))}
+          html`<li data-status=${part.id} style=${statusToneStyle(part.tone)}>
+            ${statusIcon(part)}
             <span class="ms-breakdown-name">${part.name}</span>
             <span class="ms-breakdown-count">${part.count}</span>
           </li>`,

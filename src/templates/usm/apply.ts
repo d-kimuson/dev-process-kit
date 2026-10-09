@@ -162,6 +162,8 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
         activityId: payload.activityId,
         stepId: located.step.id,
         ...(payload.milestoneId === undefined ? {} : { milestoneId: payload.milestoneId }),
+        // A new story starts at the first status, if the map has statuses.
+        ...(state.statuses[0] === undefined ? {} : { statusId: state.statuses[0].id }),
       };
       return { ...state, stories: [...state.stories, story] };
     }
@@ -191,8 +193,8 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
     }
     case 'SET_STORY_STATUS': {
       const { statusId } = typed.payload;
-      if (statusId !== null && !findStatus(state, statusId)) return null;
-      return updateStory(state, id, (story) => (statusId === null ? stripStatus(story) : { ...story, statusId }));
+      if (!findStatus(state, statusId)) return null;
+      return updateStory(state, id, (story) => ({ ...story, statusId }));
     }
 
     case 'SET_MILESTONE_NAME': {
@@ -225,7 +227,12 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
     case 'ADD_STATUS': {
       const { id: statusId, name, tone, icon } = typed.payload;
       if (state.statuses.some((status) => status.id === statusId)) return state;
-      return { ...state, statuses: [...state.statuses, { id: statusId, name, tone, icon: icon ?? 'progress' }] };
+      const statuses = [...state.statuses, { id: statusId, name, tone, icon: icon ?? 'progress' }];
+      // The map's first status: from now on every story stands somewhere.
+      if (state.statuses.length === 0) {
+        return { ...state, statuses, stories: state.stories.map((story) => ({ ...story, statusId })) };
+      }
+      return { ...state, statuses };
     }
     case 'SET_STATUS_NAME': {
       const { name } = typed.payload;
@@ -244,10 +251,16 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
     }
     case 'DELETE_STATUS': {
       if (!findStatus(state, id)) return null;
+      const statuses = state.statuses.filter((status) => status.id !== id);
+      // Its stories fall back to the first status left; with none left the map has no statuses at all.
+      const fallback = statuses[0]?.id;
       return {
         ...state,
-        statuses: state.statuses.filter((status) => status.id !== id),
-        stories: state.stories.map((story) => (story.statusId === id ? stripStatus(story) : story)),
+        statuses,
+        stories: state.stories.map((story) => {
+          if (story.statusId !== id) return story;
+          return fallback === undefined ? stripStatus(story) : { ...story, statusId: fallback };
+        }),
       };
     }
     case 'REORDER_STATUS': {

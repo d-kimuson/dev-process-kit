@@ -174,7 +174,7 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
     return {
       title: m.changeStoryStatus,
       tone: 'update',
-      body: statusId === null ? m.toName(m.statusUnset) : m.toName(findStatus(state, statusId)?.name ?? statusId),
+      body: m.toName(findStatus(state, statusId)?.name ?? statusId),
     };
   },
   ADD_STATUS: (m, action) => ({

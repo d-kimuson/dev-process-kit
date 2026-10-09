@@ -171,7 +171,7 @@
             {
               "id": "keyword-search",
               "name": "キーワードで商品を探す",
-              "description": "商品名・ブランド・型番で検索できる。0 件のときは近いキーワードを提案する",
+              "description": "商品名・ブランド・**型番**で検索できる。\n- 0 件のときは近いキーワードを提案する\n- 全角 / 半角の表記ゆれを吸収する",
               "activityId": "discover",
               "stepId": "search",
               "milestoneId": "mvp",
@@ -278,7 +278,7 @@
             {
               "id": "confirm-order",
               "name": "内容を確認して注文を確定する",
-              "description": "確定時に在庫を引き当てる",
+              "description": "確定時に在庫を**引き当てる**。\n- 引き当てに失敗したら確定せず、在庫切れの商品を示す\n- 二重送信は注文番号で弾く",
               "activityId": "order",
               "stepId": "review",
               "milestoneId": "mvp",
@@ -307,7 +307,7 @@
             {
               "id": "pay-card",
               "name": "クレジットカードで払う",
-              "description": "カード情報は決済代行のトークンで扱い、自社では保持しない",
+              "description": "カード情報は決済代行のトークンで扱い、自社では**保持しない**。3-D セキュアに対応する",
               "activityId": "pay",
               "stepId": "payment-method",
               "milestoneId": "mvp",
@@ -398,7 +398,7 @@
             {
               "id": "self-cancel",
               "name": "出荷指示前なら自分でキャンセルする",
-              "description": "いまは問い合わせフォーム経由。出荷指示後はボタンを出さない",
+              "description": "いまは問い合わせフォーム経由。\n- 出荷指示**前**だけボタンを出す\n- キャンセル後は `refund_pending` に移す",
               "activityId": "manage",
               "stepId": "cancel",
               "milestoneId": "v1",
@@ -451,7 +451,7 @@
             {
               "id": "refund-status",
               "name": "返金の進み具合を注文詳細で見る",
-              "description": "返金待ち → 取消済み",
+              "description": "`返金待ち` → `取消済み` の 2 段階で見せる",
               "activityId": "manage",
               "stepId": "refund",
               "milestoneId": "v1",

@@ -136,7 +136,7 @@ export const usmStyles = css`
       border-color 140ms var(--dpk-ease);
   }
   .filter-chip:hover {
-    border-color: color-mix(in srgb, var(--usm-tone) 60%, var(--dpk-rule-strong));
+    border-color: color-mix(in oklch, var(--usm-tone) 60%, var(--dpk-rule-strong));
   }
   .filter-chip:focus-visible {
     outline: none;
@@ -144,7 +144,7 @@ export const usmStyles = css`
   }
   .filter-chip[aria-checked='true'] {
     border-color: var(--usm-tone);
-    background: color-mix(in srgb, var(--usm-tone) 14%, var(--dpk-paper-raised));
+    background: color-mix(in oklch, var(--usm-tone) 14%, var(--dpk-paper-raised));
     box-shadow: inset 0 0 0 1px var(--usm-tone);
   }
   .filter-count {
@@ -824,22 +824,13 @@ export const usmStyles = css`
   .st-row {
     display: grid;
     /* Fixed tool columns keep the unset row, which has no tools, in line. */
-    grid-template-columns: 16px minmax(120px, 1fr) minmax(140px, 200px) 272px 84px;
+    grid-template-columns: 16px minmax(120px, 1fr) minmax(140px, 200px) 150px 84px;
     align-items: center;
     gap: 14px;
     padding: 12px 16px;
   }
   .st-row + .st-row {
     border-top: 1px solid var(--dpk-rule);
-  }
-  .st-row--unset {
-    background: var(--dpk-paper-sunken);
-    border-radius: 0 0 var(--dpk-radius-lg) var(--dpk-radius-lg);
-    color: var(--dpk-ink-faint);
-  }
-  .st-row--unset .st-name {
-    padding-left: 4px;
-    font-weight: 500;
   }
   .st-name {
     min-width: 0;
@@ -868,37 +859,65 @@ export const usmStyles = css`
     border-radius: 3px;
     background: var(--usm-tone);
   }
-  .st-pickers {
-    display: grid;
-    gap: 6px;
-  }
-  .st-icons,
   .st-tones {
     display: inline-flex;
     flex-wrap: wrap;
     gap: 5px;
   }
-  .st-icon {
+  /* The status's own icon opens the menu of icons. */
+  .st-icon-trigger {
     display: inline-grid;
     place-items: center;
-    width: 22px;
-    height: 22px;
+    width: 30px;
+    height: 30px;
+    margin: -7px;
     padding: 0;
     border: 1px solid transparent;
-    border-radius: var(--dpk-radius-xs);
+    border-radius: var(--dpk-radius-sm);
+    background: transparent;
+    cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease);
+  }
+  .st-icon-trigger:hover,
+  .st-icon-trigger[aria-expanded='true'] {
+    border-color: var(--dpk-rule-strong);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow-xs);
+  }
+  .st-icon-trigger:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+  .comment-pop.icon-menu {
+    grid-template-columns: repeat(5, 36px);
+    gap: 4px;
+    padding: 8px;
+  }
+  .icon-option {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--dpk-radius-sm);
     background: transparent;
     cursor: pointer;
   }
-  .st-icon:hover {
+  .icon-option .status-icon {
+    width: 18px;
+    height: 18px;
+  }
+  .icon-option:hover,
+  .icon-option:focus-visible {
+    outline: none;
     background: var(--dpk-paper-inset);
   }
-  .st-icon[aria-checked='true'] {
-    border-color: var(--usm-tone);
-    background: color-mix(in srgb, var(--usm-tone) 12%, transparent);
-  }
-  .st-icon:focus-visible {
-    outline: none;
-    box-shadow: var(--dpk-focus);
+  .icon-option[aria-checked='true'] {
+    border-color: color-mix(in oklch, var(--usm-tone) 55%, transparent);
+    background: color-mix(in oklch, var(--usm-tone) 12%, transparent);
   }
   .st-tone {
     width: 18px;
@@ -936,11 +955,7 @@ export const usmStyles = css`
       row-gap: 8px;
     }
     .st-share,
-    .st-pickers {
-      grid-column: 2 / -1;
-    }
-  }
-
+  
   /* Step picker shown after a cross-activity drop. */
   .move-dialog {
     min-width: 220px;

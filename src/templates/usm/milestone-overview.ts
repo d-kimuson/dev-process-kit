@@ -23,7 +23,7 @@ export type MilestoneCard = {
  * The milestones tab: what each slice is for, when it is due and how big it
  * is. The stories themselves stay on the map.
  */
-export const presentMilestoneOverview = (state: UsmState, unsetName: string): readonly MilestoneCard[] => {
+export const presentMilestoneOverview = (state: UsmState): readonly MilestoneCard[] => {
   const totalStories = state.stories.length;
   const steps = flatSteps(state);
   return state.milestones.map((milestone, index) => {
@@ -38,7 +38,7 @@ export const presentMilestoneOverview = (state: UsmState, unsetName: string): re
       storyCount: stories.length,
       share: totalStories === 0 ? 0 : stories.length / totalStories,
       coverage: { covered: steps.filter(({ step }) => coveredSteps.has(step.id)).length, total: steps.length },
-      progress: statusDistribution(state, stories, unsetName),
+      progress: statusDistribution(state, stories),
     };
   });
 };

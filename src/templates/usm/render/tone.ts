@@ -88,7 +88,7 @@ export const statusBar = (segments: readonly StatusSegment[], label: string): Te
       (segment) =>
         html`<span
           class="status-bar-part"
-          data-status=${segment.id ?? ''}
+          data-status=${segment.id}
           title=${`${segment.name}: ${segment.count}`}
           style=${`${statusToneStyle(segment.tone)};flex-grow:${segment.count}`}
         ></span>`,
@@ -128,7 +128,7 @@ export const statusStyles = css`
     fill: var(--usm-tone);
   }
   .status-icon .si-tint {
-    fill: color-mix(in srgb, var(--usm-tone) 22%, transparent);
+    fill: color-mix(in oklch, var(--usm-tone) 22%, transparent);
   }
   .status-icon .si-knock {
     stroke: var(--dpk-paper-raised);

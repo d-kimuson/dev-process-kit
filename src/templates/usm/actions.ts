@@ -75,7 +75,11 @@ export const usmActions = {
     v.object({ url: linkUrlSchema, label: v.exactOptional(v.pipe(v.string(), v.minLength(1))) }),
   ),
   REMOVE_STORY_LINK: defineAction('REMOVE_STORY_LINK', 'story', v.object({ url: v.string() })),
-  SET_STORY_STATUS: defineAction('SET_STORY_STATUS', 'story', v.object({ statusId: v.nullable(v.string()) })),
+  SET_STORY_STATUS: defineAction(
+    'SET_STORY_STATUS',
+    'story',
+    v.object({ statusId: v.pipe(v.string(), v.minLength(1)) }),
+  ),
 
   SET_MILESTONE_NAME: defineAction(
     'SET_MILESTONE_NAME',

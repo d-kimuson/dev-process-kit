@@ -1,4 +1,5 @@
 import { css, html, LitElement, nothing, type PropertyValues, type TemplateResult } from 'lit';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import type { DraftAction } from '../../../core/types';
 import type { StoryLink, UserStory } from '../model';
@@ -13,6 +14,7 @@ import { LocaleController } from '../../../core/locale-controller';
 import { PopoverController } from '../../../core/popover-controller';
 import { controls, popoverSurface } from '../../../core/theme';
 import { describeLink } from '../../../lib/link-label';
+import { renderMarkdown } from '../../../lib/markdown';
 import { usmMessages, type UsmMessages } from '../messages';
 import { linkIcon, linkStyles } from '../render/link-icon';
 import { statusIcon, statusStyles } from '../render/tone';
@@ -24,53 +26,43 @@ const MAX_LINK_CHIPS = 3;
 
 const cardStyles = css`
   /*
-   * The card takes its status's color (--usm-tone, set by the map) over its
-   * whole surface, like a sticky note of that color: a tinted face, a tinted
-   * edge and a tinted foot, never a colored strip down one side. The status
-   * icon leads the title; the tools float above the top edge on hover.
+   * The card wears its status's color the way a modern board does: a flat,
+   * barely tinted face and a hairline edge in that hue, with a neutral, soft
+   * elevation. Tints are mixed in OKLCH so every hue stays clean instead of
+   * turning muddy. The tools float above the top edge on hover.
    */
   :host {
     --card-tone: var(--usm-tone, var(--dpk-ink-faint));
     position: relative;
     display: grid;
-    gap: 7px;
-    background:
-      radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--card-tone) 16%, transparent), transparent 70%),
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--card-tone) 9%, var(--dpk-paper-raised)),
-        var(--dpk-paper-raised) 80%
-      );
-    border: 1px solid color-mix(in srgb, var(--card-tone) 30%, var(--dpk-rule));
-    border-radius: var(--dpk-radius);
+    gap: 8px;
+    padding: 12px 13px;
+    border: 1px solid color-mix(in oklch, var(--card-tone) 24%, var(--dpk-rule));
+    border-radius: 12px;
+    background: color-mix(in oklch, var(--card-tone) 6%, var(--dpk-paper-raised));
     box-shadow:
-      var(--dpk-bevel),
-      0 1px 0 color-mix(in srgb, var(--card-tone) 12%, transparent),
-      0 6px 14px -10px color-mix(in srgb, var(--card-tone) 55%, transparent),
-      var(--dpk-shadow-xs);
-    padding: 11px 12px 10px;
+      0 1px 1px var(--dpk-shade-1),
+      0 2px 6px -3px var(--dpk-shade-2);
     cursor: pointer;
     transition:
-      box-shadow 200ms var(--dpk-ease),
-      transform 200ms var(--dpk-ease),
-      border-color 200ms var(--dpk-ease);
+      box-shadow 180ms var(--dpk-ease),
+      transform 180ms var(--dpk-ease),
+      border-color 180ms var(--dpk-ease);
   }
 
   :host(:hover) {
-    border-color: color-mix(in srgb, var(--card-tone) 50%, var(--dpk-rule-strong));
+    border-color: color-mix(in oklch, var(--card-tone) 45%, var(--dpk-rule));
     box-shadow:
-      var(--dpk-bevel),
-      0 10px 22px -12px color-mix(in srgb, var(--card-tone) 65%, transparent),
-      var(--dpk-shadow-sm);
-    transform: translateY(-2px);
+      0 1px 2px var(--dpk-shade-1),
+      0 8px 20px -10px var(--dpk-shade-3);
+    transform: translateY(-1px);
   }
 
   :host([focused]) {
     border-color: var(--dpk-blue);
     box-shadow:
-      var(--dpk-bevel),
-      var(--dpk-shadow),
-      0 0 0 2px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
+      0 0 0 3px color-mix(in oklch, var(--dpk-blue) 20%, transparent),
+      0 8px 20px -10px var(--dpk-shade-3);
   }
 
   :host([dragging]) {
@@ -81,58 +73,66 @@ const cardStyles = css`
   .card-head {
     display: flex;
     align-items: flex-start;
-    gap: 7px;
+    gap: 8px;
     min-width: 0;
   }
 
   .card-status {
     flex: none;
     display: inline-flex;
-    margin-top: 2px;
+    margin-top: 1.5px;
   }
 
   .card-name {
     flex: 1 1 auto;
     min-width: 0;
+    color: var(--dpk-ink);
     font-size: 13px;
-    font-weight: 640;
+    font-weight: 600;
     letter-spacing: -0.01em;
-    line-height: 1.4;
+    line-height: 1.45;
     overflow-wrap: anywhere;
   }
 
+  /* The description, rendered from Markdown and cut after three lines. */
   .card-text {
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
     overflow: hidden;
-    font-size: 11.5px;
-    line-height: 1.55;
     color: var(--dpk-ink-soft);
-    white-space: pre-wrap;
+    font-size: 12px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
   }
 
-  .card-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    min-width: 0;
+  .card-text > * {
+    margin: 0;
   }
 
-  .card-links .link-chip {
-    border-color: color-mix(in srgb, var(--card-tone) 30%, var(--dpk-rule));
-    background: color-mix(in srgb, var(--card-tone) 5%, var(--dpk-paper-raised));
+  .card-text ul,
+  .card-text ol {
+    padding-left: 1.2em;
   }
 
-  /* Where the story sits and what was said about it, under a tinted rule. */
+  .card-text code {
+    padding: 0 3px;
+    border-radius: 4px;
+    background: var(--dpk-paper-inset);
+    font-family: var(--dpk-mono);
+    font-size: 0.92em;
+  }
+
+  .card-text a {
+    color: var(--dpk-blue);
+  }
+
+  /* Where the story sits and what was said about it. */
   .card-foot {
     display: flex;
     align-items: center;
     gap: 6px;
     min-width: 0;
-    margin-top: 1px;
-    padding-top: 7px;
-    border-top: 1px dashed color-mix(in srgb, var(--card-tone) 28%, var(--dpk-rule));
   }
 
   .card-chip {
@@ -141,8 +141,8 @@ const cardStyles = css`
     gap: 4px;
     min-width: 0;
     padding: 1px 7px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--card-tone) 12%, var(--dpk-paper-sunken));
+    border-radius: 6px;
+    background: color-mix(in oklch, var(--card-tone) 10%, var(--dpk-paper-sunken));
     color: var(--dpk-ink-soft);
     font-size: 10.5px;
     font-weight: 600;
@@ -157,6 +157,8 @@ const cardStyles = css`
 
   .card-chip[data-kind='comments'] {
     margin-left: auto;
+    background: transparent;
+    color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
     font-variant-numeric: tabular-nums;
   }
@@ -165,6 +167,18 @@ const cardStyles = css`
     flex: none;
     width: 12px;
     height: 12px;
+  }
+
+  .card-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .card-links .link-chip {
+    border-color: color-mix(in oklch, var(--card-tone) 16%, var(--dpk-rule));
+    background: var(--dpk-paper-raised);
   }
 
   .card-tools {
@@ -280,7 +294,11 @@ export class DpkInternalUsmStoryCard extends LitElement {
         ${this.statuses.length === 0 ? nothing : this.#renderStatus(m, story)}
         <div class="card-name"><span>${story.name}</span></div>
       </div>
-      ${story.description ? html`<div class="card-text">${story.description}</div>` : nothing}
+      ${
+        story.description
+          ? html`<div class="card-text" @click=${stopLinkClicks}>${unsafeHTML(renderMarkdown(story.description))}</div>`
+          : nothing
+      }
       ${story.links && story.links.length > 0 ? this.#renderLinks(story.links) : nothing}
       ${
         hasFoot
@@ -330,9 +348,10 @@ export class DpkInternalUsmStoryCard extends LitElement {
     `;
   }
 
-  #renderStatus(m: UsmMessages, story: UserStory): TemplateResult {
+  #renderStatus(m: UsmMessages, story: UserStory): TemplateResult | typeof nothing {
     const current = statusViewOf(this.statuses, story);
-    const name = current?.name ?? m.statusUnset;
+    if (!current) return nothing;
+    const name = current.name;
     return html`<span class="card-status" role="img" aria-label=${m.storyStatusAria(name)} title=${name}>
       ${statusIcon(current)}
     </span>`;
@@ -385,6 +404,11 @@ export class DpkInternalUsmStoryCard extends LitElement {
     this.onIntent?.(intent);
   }
 }
+
+/** A link inside the description opens the link, not the story panel. */
+const stopLinkClicks = (event: Event): void => {
+  if (event.target instanceof Element && event.target.closest('a')) event.stopPropagation();
+};
 
 export const defineUsmStoryCard = (): void => {
   if (!customElements.get('dpk-internal-usm-story-card'))

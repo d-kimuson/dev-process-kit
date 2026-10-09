@@ -67,6 +67,7 @@ export const renderStoryPanel = (
         <h3>${m.storyDescriptionLabel}</h3>
         <dpk-component-inline-edit
           multiline
+          markdown
           class="sp-description"
           .value=${story.description ?? ''}
           .label=${m.storyDescriptionLabel}
@@ -97,11 +98,8 @@ const renderStatusField = (
   context: TemplateRenderContext<UsmState>,
   story: UserStory,
 ): TemplateResult => {
-  const options = [
-    ...statusViews(context.state).map((view) => ({ id: view.id as string | null, name: view.name, view })),
-    { id: null, name: m.statusUnset, view: undefined },
-  ];
-  const current = story.statusId ?? null;
+  const options = statusViews(context.state);
+  const current = story.statusId;
   return html`<section class="sp-field">
     <h3 id="sp-status-label">${m.storyStatusLabel}</h3>
     <div class="sp-statuses" role="radiogroup" aria-labelledby="sp-status-label">
@@ -110,9 +108,9 @@ const renderStatusField = (
           class="sp-status"
           type="button"
           role="radio"
-          data-status=${option.id ?? ''}
+          data-status=${option.id}
           aria-checked=${String(option.id === current)}
-          style=${statusToneStyle(option.view?.tone)}
+          style=${statusToneStyle(option.tone)}
           @click=${() => {
             if (option.id === current) return;
             context.dispatch({
@@ -122,7 +120,7 @@ const renderStatusField = (
             });
           }}
         >
-          ${statusIcon(option.view)}<span>${option.name}</span>
+          ${statusIcon(option)}<span>${option.name}</span>
         </button>`,
       )}
     </div>
@@ -294,7 +292,7 @@ export const storyPanelStyles = css`
       border-color 140ms var(--dpk-ease);
   }
   .sp-status:hover {
-    border-color: color-mix(in srgb, var(--usm-tone) 60%, var(--dpk-rule-strong));
+    border-color: color-mix(in oklch, var(--usm-tone) 60%, var(--dpk-rule-strong));
   }
   .sp-status:focus-visible {
     outline: none;
@@ -302,7 +300,7 @@ export const storyPanelStyles = css`
   }
   .sp-status[aria-checked='true'] {
     border-color: var(--usm-tone);
-    background: color-mix(in srgb, var(--usm-tone) 14%, var(--dpk-paper-raised));
+    background: color-mix(in oklch, var(--usm-tone) 14%, var(--dpk-paper-raised));
     box-shadow: inset 0 0 0 1px var(--usm-tone);
   }
   .sp-description {

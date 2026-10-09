@@ -29,7 +29,7 @@ const state = parseUsmBase({
 
 describe('milestone overview', () => {
   it('defines every milestone in map order: what it is, when it is due and how big it is', () => {
-    const cards = presentMilestoneOverview(state, 'None');
+    const cards = presentMilestoneOverview(state);
     expect(cards.map((card) => [card.id, card.ordinal, card.name, card.storyCount, card.share])).toEqual([
       ['mvp', 1, 'MVP', 3, 0.75],
       ['v1', 2, 'v1', 0, 0],
@@ -39,17 +39,17 @@ describe('milestone overview', () => {
   });
 
   it('counts how many backbone steps a milestone walks through', () => {
-    const [mvp, v1] = presentMilestoneOverview(state, 'None');
+    const [mvp, v1] = presentMilestoneOverview(state);
     expect(mvp?.coverage).toEqual({ covered: 2, total: 3 });
     expect(v1?.coverage).toEqual({ covered: 0, total: 3 });
   });
 
   it('reports no progress while the map has no statuses', () => {
-    const [mvp] = presentMilestoneOverview(state, 'None');
+    const [mvp] = presentMilestoneOverview(state);
     expect(mvp?.progress).toEqual([]);
   });
 
-  it('spreads a milestone over the statuses, in workflow order, then the stories without one', () => {
+  it('spreads a milestone over the statuses, in workflow order', () => {
     const withStatuses = parseUsmBase({
       activities: [{ id: 'find', name: 'Find', steps: [{ id: 'search', name: 'Search' }] }],
       milestones: [{ id: 'mvp', name: 'MVP' }],
@@ -63,15 +63,16 @@ describe('milestone overview', () => {
         { id: 'u3', name: 'C', activityId: 'find', stepId: 'search', milestoneId: 'mvp', statusId: 'done' },
       ],
     });
-    const [mvp] = presentMilestoneOverview(withStatuses, 'None');
+    const [mvp] = presentMilestoneOverview(withStatuses);
+    // u2 left its status out, so it starts at the first one
     expect(mvp?.progress.map((part) => [part.id, part.tone, part.progress, part.count])).toEqual([
+      ['idea', 'gray', 0, 1],
       ['done', 'green', 1, 2],
-      [null, null, undefined, 1],
     ]);
   });
 
   it('has no share to report on an empty map', () => {
     const empty = parseUsmBase({ milestones: [{ id: 'mvp', name: 'MVP' }] });
-    expect(presentMilestoneOverview(empty, 'None')).toMatchObject([{ id: 'mvp', storyCount: 0, share: 0 }]);
+    expect(presentMilestoneOverview(empty)).toMatchObject([{ id: 'mvp', storyCount: 0, share: 0 }]);
   });
 });

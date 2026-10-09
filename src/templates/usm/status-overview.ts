@@ -18,16 +18,13 @@ export type StatusRow = {
 
 export type StatusOverview = {
   readonly rows: readonly StatusRow[];
-  /** Stories that have no status yet. */
-  readonly unsetCount: number;
-  readonly unsetShare: number;
 };
 
-/** The statuses tab: each status in order, how many stories stand there, and how many stand nowhere yet. */
+/** The statuses tab: each status in order and how many stories stand there. */
 export const presentStatusOverview = (state: UsmState): StatusOverview => {
   const total = state.stories.length;
   const shareOf = (count: number): number => (total === 0 ? 0 : count / total);
-  const countOf = (id: string | undefined): number => state.stories.filter((story) => story.statusId === id).length;
+  const countOf = (id: string): number => state.stories.filter((story) => story.statusId === id).length;
   const rows = state.statuses.map((status, index) => {
     const storyCount = countOf(status.id);
     return {
@@ -42,6 +39,5 @@ export const presentStatusOverview = (state: UsmState): StatusOverview => {
       share: shareOf(storyCount),
     };
   });
-  const unsetCount = countOf(undefined);
-  return { rows, unsetCount, unsetShare: shareOf(unsetCount) };
+  return { rows };
 };
