@@ -103,6 +103,12 @@ const cardStyles = css`
     margin: 0;
   }
 
+  /* A heading in the description reads as a line of the preview, not a title over the card. */
+  .card-text :is(h1, h2, h3, h4, h5, h6) {
+    font-size: inherit;
+    font-weight: 650;
+  }
+
   .card-text ul,
   .card-text ol {
     padding-left: 1.2em;

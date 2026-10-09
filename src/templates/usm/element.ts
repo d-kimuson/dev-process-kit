@@ -8,6 +8,7 @@ import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface } from '../../core/theme';
 import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
+import { revealInlineWithin } from '../../lib/dom/scroll';
 import { usmTabOf, type UsmTab } from './board-tabs';
 import { defineUsmStoryCard } from './components/story-card';
 import { usmDefinitionFor } from './definition';
@@ -61,6 +62,8 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
   readonly #drag = new DragController<UsmDragType>(this);
   readonly #popovers = new PopoverController(this);
+  /** The page tab last scrolled into the strip, so the reader's own scrolling is left alone. */
+  #revealedTab: string | null = null;
 
   constructor() {
     super();
@@ -73,6 +76,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
   protected override updated(): void {
     super.updated();
+    this.#revealSelectedTab();
     // A status's icon menu hangs off the icon that opened it.
     if (this.mode.kind === 'picking-icon') {
       const menu = this.renderRoot.querySelector<HTMLElement>('#icon-menu');
@@ -85,6 +89,16 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     if (this.mode.kind !== 'picking-step') return;
     const dialog = this.renderRoot.querySelector<HTMLElement>('#move-dialog');
     if (dialog) this.#popovers.open(dialog, pointAnchor(this.mode.point.x, this.mode.point.y), MOVE_DIALOG_SIZE);
+  }
+
+  /** On a phone the tab strip scrolls sideways; a deep link to its last tab must not leave it out of sight. */
+  #revealSelectedTab(): void {
+    const strip = this.renderRoot.querySelector('.page-tabs');
+    const tab = strip?.querySelector<HTMLElement>('[aria-selected="true"]');
+    const key = tab?.getAttribute('href') ?? null;
+    if (!strip || !tab || key === this.#revealedTab) return;
+    this.#revealedTab = key;
+    revealInlineWithin(strip, tab);
   }
 
   #renderMain(context: TemplateRenderContext<UsmState>): TemplateResult {

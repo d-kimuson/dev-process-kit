@@ -27,6 +27,8 @@ export const usmStyles = css`
     display: grid;
     gap: 0;
     min-width: max-content;
+    /* The map scrolls on its own: its last row clears the hand-off dock at the end of that scroll. */
+    padding-bottom: var(--dpk-dock-clearance, 0px);
   }
   .map-row {
     display: grid;
@@ -122,6 +124,8 @@ export const usmStyles = css`
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
+    max-width: 100%;
     padding: 3px 9px 3px 7px;
     border: 1px solid var(--dpk-rule-strong);
     border-radius: 999px;
@@ -134,6 +138,16 @@ export const usmStyles = css`
     transition:
       background 140ms var(--dpk-ease),
       border-color 140ms var(--dpk-ease);
+  }
+  /* A long status name ends in an ellipsis; the chip stays a one-line pill. */
+  .filter-chip > :not(.filter-name) {
+    flex: none;
+  }
+  .filter-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .filter-chip:hover {
     border-color: color-mix(in oklab, var(--usm-tone) 60%, var(--dpk-rule-strong));
@@ -182,11 +196,19 @@ export const usmStyles = css`
     min-width: 0;
   }
 
-  /* The two pages: an underlined tab strip, heavier than the view toggle. */
+  /* The two pages: an underlined tab strip, heavier than the view toggle. It
+     scrolls sideways on a phone rather than cutting off the last tab; the
+     bottom padding keeps the selected tab's underline inside the scroller. */
   .page-tabs {
     display: inline-flex;
     gap: 4px;
+    min-width: 0;
+    max-width: 100%;
     margin-right: auto;
+    margin-bottom: -13px;
+    padding-bottom: 13px;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
   .page-tabs [role='tab'] {
     position: relative;
@@ -955,7 +977,16 @@ export const usmStyles = css`
       row-gap: 8px;
     }
     .st-share,
-  
+    .st-tones {
+      grid-column: 2 / -1;
+    }
+    /* The tools stay on the name's row, so the rows below are the name's width. */
+    .st-tools {
+      grid-column: 3;
+      grid-row: 1;
+    }
+  }
+
   /* Step picker shown after a cross-activity drop. */
   .move-dialog {
     min-width: 220px;

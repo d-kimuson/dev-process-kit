@@ -114,7 +114,8 @@ const renderStatusFilter = (
       aria-checked=${String(on)}
       style=${statusToneStyle(view.tone)}
       href=${context.hashFor({ status: statusFilterParam(state, toggleStatusFilter(filter, id)) })}
-      >${statusIcon(view)}<span>${view.name}</span><span class="filter-count">${countOf(id)}</span></a
+      >${statusIcon(view)}<span class="filter-name" title=${view.name}>${view.name}</span
+      ><span class="filter-count">${countOf(id)}</span></a
     >`;
   };
   return html`<div class="map-toolbar" role="group" aria-label=${m.statusFilterLabel} data-testid="usm-status-filter">
@@ -325,6 +326,7 @@ const renderActivityHead = (
       <div class="act-meta">
         <span class="act-actor" data-empty=${String(activity.actor === undefined)}>
           <dpk-component-inline-edit
+            truncate
             .value=${activity.actor ?? ''}
             .label=${m.activityActorLabel}
             .placeholder=${m.activityActorLabel}

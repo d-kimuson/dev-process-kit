@@ -244,15 +244,16 @@ const renderComments = (m: UsmMessages, context: TemplateRenderContext<UsmState>
 };
 
 export const storyPanelStyles = css`
+  /* Over the main column's edge, below the header: the page's own controls stay in reach. */
   .story-panel {
-    position: fixed;
+    position: absolute;
     top: 0;
     right: 0;
     bottom: 0;
     z-index: 20;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    width: min(420px, 100vw);
+    width: min(420px, 100%);
     border-left: 1px solid var(--dpk-rule-strong);
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-shadow-lg);
@@ -268,8 +269,7 @@ export const storyPanelStyles = css`
     display: flex;
     align-items: center;
     gap: 10px;
-    /* Like the shell header, stay clear of the fixed review button. */
-    padding: 14px 72px 12px 22px;
+    padding: 14px 22px 12px;
     min-height: 60px;
     box-sizing: border-box;
     border-bottom: 1px solid var(--dpk-rule);
