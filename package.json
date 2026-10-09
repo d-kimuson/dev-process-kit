@@ -57,7 +57,8 @@
     "fmt": "run-p 'fmt:*'",
     "fmt:oxfmt": "oxfmt --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "test": "vitest run",
-    "qa:browser": "node dev/qa/browser-smoke.ts"
+    "qa:browser": "node dev/qa/browser-smoke.ts",
+    "qa:chaos": "node dev/qa/chaos-capture.ts"
   },
   "devDependencies": {
     "@floating-ui/dom": "1.8.0",

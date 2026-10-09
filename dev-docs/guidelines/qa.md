@@ -18,6 +18,8 @@ Do not move a check to a heavier layer merely because that layer is available. C
 
 Follow the shared `browser-ops` skill for browser lifecycle, profiles, and authentication. Start development servers through `pueue`, and use the repository's browser smoke script for the repeatable baseline. Add direct browser interaction only for behavior outside that script's coverage.
 
+To look at how a template or component actually renders an arbitrary data pattern — the analog of swapping a backend response — rather than asserting pass/fail, use the chaos harness (`sample/chaos/`, driven headlessly by `dev/qa/chaos-capture.ts`). It is not a regression test; see its own header comment for usage.
+
 Exercise the built bundle from the sample's separate origin. This preserves the deployment boundary and catches failures hidden by importing source modules directly. For a typical change, verify the affected scenarios among:
 
 - the sample renders without an error banner or console error;

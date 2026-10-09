@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dev-process-kit — chaos harness</title>
+    <!--
+      Internal dev tool, not part of the published samples: see chaos.js for the URL contract
+      and dev/qa/chaos-capture.ts for the headless screenshot matrix this page feeds.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+
+      body {
+        margin: 0;
+        font:
+          14px/1.5 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+
+      #app {
+        display: block;
+      }
+
+      #app > h1 {
+        margin: 16px;
+      }
+
+      #app > p {
+        margin: 0 16px 16px;
+      }
+
+      #app section {
+        margin: 0 16px 20px;
+      }
+
+      #app .chaos-empty {
+        color: #888;
+        font-style: italic;
+      }
+
+      dpk-template-prototype,
+      dpk-template-usm,
+      dpk-template-event-storming,
+      dpk-template-example-mapping,
+      dpk-template-grill,
+      dpk-template-plain,
+      dpk-template-slides,
+      dpk-template-task-board,
+      dpk-template-delegation-poker,
+      dpk-template-whiteboard {
+        display: block;
+        height: 100dvh;
+      }
+    </style>
+    <script type="module" src="./chaos.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>
