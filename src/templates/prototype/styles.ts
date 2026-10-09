@@ -8,6 +8,18 @@ export const prototypeStyles = css`
     --dpk-prototype-accent: var(--dpk-blue);
   }
 
+  /*
+   * The sidebar and the main column scroll on their own, with the memo pinned
+   * to the bottom of the main column, only inside a bounded shell. A page that
+   * gives the host no height would grow the shell to its longest column and
+   * scroll the whole document, carrying the memo off screen; the viewport
+   * height is the fallback. A host with a height still wins: the shell's own
+   * min/max-height pin it to that.
+   */
+  .dpk-shell {
+    height: 100dvh;
+  }
+
   /* ---------------------------------------------------------------- sidebar */
 
   .nav {
@@ -373,6 +385,11 @@ export const prototypeStyles = css`
     min-width: 0;
   }
 
+  /* A tighter top than the shell's leaves the preview more of the main column. */
+  .dpk-main-body {
+    padding-top: 12px;
+  }
+
   .stage-bar {
     display: flex;
     align-items: center;
@@ -380,6 +397,24 @@ export const prototypeStyles = css`
     gap: 10px 16px;
     min-width: 0;
     flex-wrap: wrap;
+  }
+
+  /*
+   * The page head and its tools stick to the top of the main column, so they
+   * stay in reach while a tall preview scrolls under them; the situation and
+   * the canvas scroll on. The bar spans the column edge to edge (cancelling
+   * the body's padding) on a frosted ground the content passes beneath. Above
+   * the UI-comment layer, below the memo, which opens over everything.
+   */
+  .stage:not(.is-maximized) > .stage-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: -12px -24px 0;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--dpk-rule);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 92%, transparent);
+    backdrop-filter: saturate(1.6) blur(14px);
   }
 
   /* ------------------------------------------------------------- page head */
