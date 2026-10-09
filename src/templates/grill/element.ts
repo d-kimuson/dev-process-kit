@@ -366,7 +366,7 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
    */
   #renderStage(context: TemplateRenderContext<GrillState>, bindings: readonly LabelBinding[]): TemplateResult {
     return html`
-      <div class="grill-stage">
+      <div class="grill-stage" ?data-gutter=${bindings.some((binding) => this.contains(binding.target))}>
         <slot name="main"></slot>
         <div class="grill-labels">
           ${bindings.map(

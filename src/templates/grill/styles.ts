@@ -42,6 +42,23 @@ export const grillStyles = css`
     display: none;
   }
 
+  /* A phone has no room for the main area beside the questions: they open
+     over it, and the corner control folds them away to show it. */
+  @media (max-width: 760px) {
+    .dpk-sidebar {
+      position: absolute;
+      inset: 0;
+      z-index: 25;
+      width: auto;
+      max-width: none;
+      border-left: 0;
+    }
+
+    .dpk-sidebar-resizer {
+      display: none;
+    }
+  }
+
   .grill-tab-panel dpk-component-comment-panel {
     flex: 1;
   }
@@ -689,6 +706,12 @@ export const grillStyles = css`
   .grill-stage {
     position: relative;
     min-width: 0;
+  }
+
+  /* Badges on the author's own markup stand in a column of their own on the
+     right, beside the line they mark, so they never cover its words. */
+  .grill-stage[data-gutter] {
+    padding-right: 48px;
   }
 
   /* The author's own markup lands in slot="main": nudge its prose toward the

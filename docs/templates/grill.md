@@ -139,7 +139,7 @@ The second one reaches into a diagram's shadow root to place the badge on the ex
 - **Copy answers and review**: available below either tab; copies the canonical agent brief with answers, all comments, target references and draft JSON, independent of the selected tab. Also works for a review containing only comments.
 - **Send answers and review to Claude**: replaces the copy button inside a Claude Artifact that can send comments to Claude, and sends the same brief (`docs/index.md`, Review and the hand-off). A small **Copy** button stays beside it, and a failed send explains the reason below the buttons.
 - **Questions / Review button** (top right): a round button with an `answered / total` badge that folds the whole column away.
-- **Q badges** (main): one per reference, red until the question is answered and green after; clicking opens the question.
+- **Q badges** (main): one per reference, red until the question is answered and green after; clicking opens the question. Badges on your own markup stand in a column on the right of the main area, level with the element they mark, so they never cover its text; badges on a diagram's node sit on its top-right corner, wrapping into rows above it when the node is too narrow for them all.
 - **Auto-advance**: choosing an option records it and opens the next unanswered question. Free text is not interrupted while typing — `⌘/Ctrl+Enter` moves on — and when nothing is left unanswered the review stays where it is.
 
 Answers and submitted comments survive reload through the common draft storage. The separate core floating review button is not rendered; there is only one integrated rail.

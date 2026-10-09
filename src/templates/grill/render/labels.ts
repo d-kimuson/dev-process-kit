@@ -1,8 +1,7 @@
-import { clamp } from 'es-toolkit/math';
-
 import type { Navigation } from '../../../core/types';
 
 import { isAnswered, type GrillQuestion, type GrillState } from '../model';
+import { gutterBottom, layoutBadges, type BadgeGroup } from './badge-layout';
 
 /** Attribute on any element inside the main slot: `data-grill-questions="Q1 Q4"`. */
 export const GRILL_QUESTIONS_ATTRIBUTE = 'data-grill-questions';
@@ -62,43 +61,67 @@ export const collectLabelBindings = (
 };
 
 /**
- * Places each badge on the top-right corner of its target. The layer never
- * affects layout, and a target that is not visible (filtered away, or panned out
- * of a diagram's canvas) takes its badge with it.
+ * Measures the badges and their targets, and moves each badge where
+ * `layoutBadges` puts it: beside the author's own markup in the stage's right
+ * gutter, on the corner of a diagram node. The layer affects layout only by
+ * stretching the stage down to its last gutter badge, and a target that is not
+ * visible (filtered away, or panned out of a diagram's canvas) takes its badge
+ * with it.
  */
 export const positionLabels = (layer: HTMLElement, bindings: readonly LabelBinding[]): void => {
   const box = layer.getBoundingClientRect();
-  const groups = new Map<Element, HTMLButtonElement[]>();
+  const root = layer.getRootNode();
+  const host = root instanceof ShadowRoot ? root.host : null;
+  const byTarget = new Map<Element, HTMLButtonElement[]>();
   bindings.forEach((binding, index) => {
     const button = layer.querySelector<HTMLButtonElement>(`[data-label="${index}"]`);
     if (!button) return;
-    const list = groups.get(binding.target) ?? [];
+    const list = byTarget.get(binding.target) ?? [];
     list.push(button);
-    groups.set(binding.target, list);
+    byTarget.set(binding.target, list);
   });
-  const clips = new Map<Element, DOMRect>();
-  for (const [target, buttons] of groups) {
+  const shown: { readonly buttons: readonly HTMLButtonElement[]; readonly group: BadgeGroup }[] = [];
+  for (const [target, buttons] of byTarget) {
     const rect = target.getBoundingClientRect();
-    const measured = rect.width > 0 || rect.height > 0;
-    const cached = clips.get(target);
-    const clip = cached ?? visibleAreaOf(target, layer);
-    clips.set(target, clip);
-    const inView = rect.bottom > box.top && rect.top < box.bottom && rect.right > box.left && rect.left < box.right;
-    const inCanvas = rect.bottom > clip.top && rect.top < clip.bottom;
-    buttons.forEach((button, index) => {
-      button.dataset['visible'] = String(measured && inView && inCanvas);
-      if (!measured || !inView || !inCanvas) return;
-      const width = button.offsetWidth;
-      const height = button.offsetHeight;
-      const right = rect.right - box.left - width + 8 - (buttons.length - 1 - index) * (width + 5);
-      const top = rect.top - box.top - height / 2;
-      button.style.transform = `translate(${clamp(right, 0, Math.max(0, layer.clientWidth - width))}px, ${clamp(
-        top,
-        0,
-        Math.max(0, layer.clientHeight - height),
-      )}px)`;
+    const clip = visibleAreaOf(target, layer);
+    const visible =
+      (rect.width > 0 || rect.height > 0) &&
+      rect.bottom > box.top &&
+      rect.top < box.bottom &&
+      rect.right > box.left &&
+      rect.left < box.right &&
+      rect.bottom > clip.top &&
+      rect.top < clip.bottom;
+    for (const button of buttons) button.dataset['visible'] = String(visible);
+    if (!visible) continue;
+    shown.push({
+      buttons,
+      group: {
+        target: {
+          left: rect.left - box.left,
+          top: rect.top - box.top,
+          right: rect.right - box.left,
+          bottom: rect.bottom - box.top,
+        },
+        widths: buttons.map((button) => button.offsetWidth),
+        // `contains` stops at shadow boundaries: a diagram's nodes are not the author's markup.
+        gutter: host?.contains(target) === true,
+      },
     });
   }
+  const badgeHeight = shown[0]?.buttons[0]?.offsetHeight ?? 0;
+  const groups = shown.map(({ group }) => group);
+  const bounds = { width: layer.clientWidth, height: layer.clientHeight, badgeHeight };
+  // The stage reaches down to its last gutter badge; the layer spans the stage.
+  const bottom = gutterBottom(groups, bounds);
+  if (layer.parentElement) layer.parentElement.style.minHeight = bottom > 0 ? `${Math.ceil(bottom)}px` : '';
+  const placed = layoutBadges(groups, { ...bounds, height: Math.max(bounds.height, bottom) });
+  shown.forEach(({ buttons }, index) => {
+    buttons.forEach((button, badge) => {
+      const point = placed[index]?.[badge];
+      if (point) button.style.transform = `translate(${point.x}px, ${point.y}px)`;
+    });
+  });
 };
 
 /**
