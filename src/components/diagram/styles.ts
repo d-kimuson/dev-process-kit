@@ -257,6 +257,9 @@ export const diagramStyles = [
     }
 
     .diagram-zoom button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       border: 0;
       border-radius: 0;
       padding: 6px 9px;
@@ -267,6 +270,11 @@ export const diagramStyles = [
       transition:
         background 140ms var(--dpk-ease),
         color 140ms var(--dpk-ease);
+    }
+
+    .diagram-zoom button svg {
+      width: 12px;
+      height: 12px;
     }
 
     .diagram-zoom button + button {

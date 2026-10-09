@@ -2,7 +2,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 
 import type { WhiteboardMessages } from '../messages';
 
-import { iconComment, iconTrash } from '../../../core/icons';
+import { iconChevronDown, iconComment, iconTrash } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { ARRANGE_DIRECTIONS, type ArrangeDirection } from '../arrange';
 import { toScreen, type Viewport } from '../interactions';
@@ -21,7 +21,7 @@ import {
   type WbItem,
   type WhiteboardState,
 } from '../model';
-import { iconArrange, iconChevronDown, iconLayers, iconRoute } from './icons';
+import { iconArrange, iconLayers, iconRoute } from './icons';
 import { colorStyle } from './palette';
 
 export type WbToolbarHandlers = {

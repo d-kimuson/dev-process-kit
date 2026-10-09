@@ -3,6 +3,7 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 import type { CommentTargetOption } from '../../core/types';
 import type { ViewState } from '../diagram/viewport';
 
+import { iconChevronDown, iconChevronRight } from '../../core/icons';
 import { DiagramChromeElement } from '../diagram/element';
 import { tagStateMatches, type ElementState } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
@@ -351,7 +352,7 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
         aria-label=${m.frameHeaderLabel(fragment.operator, fragment.title, collapsed)}
         @click=${() => this.#toggleFragment(fragment)}
       >
-        <span aria-hidden="true">${collapsed ? '▸' : '▾'}</span>
+        <span class="sequence-frame-chevron">${collapsed ? iconChevronRight() : iconChevronDown()}</span>
         <span class="sequence-operator">${fragment.operator}</span>
         <span class="sequence-text">${fragment.title}</span>
         <span class="sequence-frame-count">${m.frameCount(count)}</span>

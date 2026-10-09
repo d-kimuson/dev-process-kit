@@ -1,5 +1,6 @@
-import { html, nothing, svg, type TemplateResult } from 'lit';
+import { html, nothing, type TemplateResult } from 'lit';
 import { live } from 'lit/directives/live.js';
+import { ArrowLeft, ArrowRight, Globe, Lock, RotateCw } from 'lucide';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { BrowserPage } from '../browser-sim';
@@ -7,7 +8,7 @@ import type { BrowserView, NewTabShortcut } from '../browser-view';
 import type { PrototypeMessages } from '../messages';
 import type { PrototypePreview, PrototypeState } from '../model';
 
-import { iconClose, iconPlus } from '../../../core/icons';
+import { iconClose, iconPlus, lucide } from '../../../core/icons';
 import { frameStyle, type FrameWindow } from './frame-size';
 
 /** What the reader does with the browser; the element turns it into history and navigation. */
@@ -44,29 +45,11 @@ export type BrowserFrame = {
   readonly send: (command: BrowserCommand) => void;
 };
 
-const ICON = (body: TemplateResult): TemplateResult =>
-  html`<svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    aria-hidden="true"
-    focusable="false"
-  >
-    ${body}
-  </svg>`;
-
-const iconBack = (): TemplateResult => ICON(svg`<path d="M13 8H3.5M7.5 3.5 3 8l4.5 4.5" />`);
-const iconForward = (): TemplateResult => ICON(svg`<path d="M3 8h9.5M8.5 3.5 13 8l-4.5 4.5" />`);
-const iconReload = (): TemplateResult => ICON(svg`<path d="M13 8a5 5 0 1 1-1.6-3.7" /><path d="M13 2.8v2.7h-2.7" />`);
-const iconLock = (): TemplateResult =>
-  ICON(svg`<rect x="4" y="7" width="8" height="6" rx="1.4" /><path d="M5.8 7V5.3a2.2 2.2 0 0 1 4.4 0V7" />`);
-const iconGlobe = (): TemplateResult =>
-  ICON(
-    svg`<circle cx="8" cy="8" r="5.5" /><path d="M2.5 8h11M8 2.5c1.6 1.6 2.3 3.5 2.3 5.5S9.6 11.9 8 13.5M8 2.5C6.4 4.1 5.7 6 5.7 8s.7 3.9 2.3 5.5" />`,
-  );
+const iconBack = lucide(ArrowLeft);
+const iconForward = lucide(ArrowRight);
+const iconReload = lucide(RotateCw);
+const iconLock = lucide(Lock);
+const iconGlobe = lucide(Globe);
 
 /** The tab a key moves to in the tab strip: arrows go round, Home and End go to either end. */
 const tabFor = (key: string, tabs: BrowserView['tabs'], index: number): BrowserView['tabs'][number] | undefined => {

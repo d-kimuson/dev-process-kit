@@ -149,6 +149,15 @@ export const sequenceStyles = css`
     pointer-events: none;
   }
 
+  .sequence-frame-chevron {
+    display: inline-flex;
+  }
+
+  .sequence-frame-chevron svg {
+    width: 11px;
+    height: 11px;
+  }
+
   .sequence-frame-header {
     position: absolute;
     display: flex;

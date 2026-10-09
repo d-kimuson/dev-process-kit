@@ -1,10 +1,11 @@
 import { html, nothing, type TemplateResult } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
+import { Monitor, Play, Smartphone, Tablet, User } from 'lucide';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { PrototypeMessages } from '../messages';
 
-import { iconClose, iconMaximize, iconMinimize } from '../../../core/icons';
+import { iconClose, iconMaximize, iconMinimize, lucide } from '../../../core/icons';
 import { renderMarkdown } from '../../../lib/markdown';
 import {
   deviceClassOf,
@@ -13,6 +14,7 @@ import {
   devicesOf,
   hasDevice,
   type DeviceChoice,
+  type DeviceClass,
   type DevicePreset,
 } from '../devices';
 import { allScreens, flattenSteps, stepMaterials, type PrototypePreview, type PrototypeState } from '../model';
@@ -243,6 +245,14 @@ export const renderStage = (
   `;
 };
 
+const iconActor = lucide(User);
+const iconPlay = lucide(Play);
+const DEVICE_ICONS = {
+  phone: lucide(Smartphone),
+  tablet: lucide(Tablet),
+  desktop: lucide(Monitor),
+} as const satisfies Record<DeviceClass, () => TemplateResult>;
+
 /** Who uses the page and its title, above the frame like the top of a real screen spec. */
 const renderPageHead = (m: PrototypeMessages, heading: PageHeading): TemplateResult => {
   return html`<div class="page-head">
@@ -250,11 +260,7 @@ const renderPageHead = (m: PrototypeMessages, heading: PageHeading): TemplateRes
       heading.actor === undefined
         ? nothing
         : html`<span class="page-actor" role="note" aria-label=${m.pageActor(heading.actor)}>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <circle cx="8" cy="5.2" r="2.7" />
-              <path d="M2.8 14c.5-3 2.6-4.6 5.2-4.6s4.7 1.6 5.2 4.6Z" />
-            </svg>
-            ${heading.actor}
+            ${iconActor()} ${heading.actor}
           </span>`
     }
     <h2 class="page-title">${heading.title}</h2>
@@ -315,10 +321,7 @@ const renderPaneHead = (
 const renderDevicePicker = (m: PrototypeMessages, device: DevicePreset, devices: StageDevices): TemplateResult => {
   const percent = Math.round(devices.zoom * 100);
   return html`<span class="device-pick" title=${m.deviceHint}>
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <rect x="2" y="3" width="12" height="8.5" rx="1.2" />
-      <path d="M6 14h4M8 11.5V14" />
-    </svg>
+    ${DEVICE_ICONS[device.deviceClass]()}
     <select
       class="device-select"
       aria-label=${m.device}
@@ -340,8 +343,7 @@ const renderDevicePicker = (m: PrototypeMessages, device: DevicePreset, devices:
 /** The app view's demo: the browser alone across the tab, as if the reader were using the app. */
 const renderDemoToggle = (m: PrototypeMessages, onToggle: () => void): TemplateResult => {
   return html`<button class="dpk-btn stage-demo" type="button" title=${m.demoHint} @click=${onToggle}>
-    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5v9l7.5-4.5Z" fill="currentColor" /></svg>
-    ${m.demo}
+    ${iconPlay()} ${m.demo}
   </button>`;
 };
 
