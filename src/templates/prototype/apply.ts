@@ -342,7 +342,8 @@ const mapPreviews = (
 ): PrototypeState | null => {
   if (owner.kind === 'step') {
     return updateStep(state, stepRef(owner), (step) => {
-      // Materials keep their place among the screens: the rewrite maps or drops them by id.
+      // Materials keep their place among the screens: the rewrite maps or drops them by id,
+      // which holds because no action changes a preview's id.
       const rewritten = new Map(fn([...stepMaterials(step)]).map((preview) => [preview.id, preview]));
       return {
         ...step,

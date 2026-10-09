@@ -322,6 +322,30 @@ describe('prototype applyAction', () => {
         action(prototypeAction.addStep('account', 'd', 'D', [{ screen: 'screen-a', preview: 'ghost' }])),
       ),
     ).toBeNull();
+    // the same screen twice needs a distinct pinned rendition on each pane
+    expect(
+      applyPrototypeAction(
+        state(),
+        action(prototypeAction.addStep('account', 'd', 'D', [{ screen: 'screen-a' }, { screen: 'screen-a' }])),
+      ),
+    ).toBeNull();
+    // a material is checked like a preview of the base: an envelope needs a mail
+    expect(
+      applyPrototypeAction(
+        state(),
+        action(
+          prototypeAction.addStep('account', 'd', 'D', [
+            { material: { id: 'd-memo', kind: 'plain', viewport: 'fluid', mail: {} } },
+          ]),
+        ),
+      ),
+    ).toBeNull();
+    expect(
+      applyPrototypeAction(
+        state(),
+        action(prototypeAction.addPreview('a', { id: 'a-memo', kind: 'plain', viewport: 'fluid', mail: {} })),
+      ),
+    ).toBeNull();
     const panes = [
       { material: { id: 'd-memo', kind: 'plain', viewport: 'fluid' } },
       { screen: 'screen-a', preview: 'a-mobile' },

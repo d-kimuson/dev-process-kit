@@ -137,8 +137,7 @@ export const previewMailSchema = v.strictObject({
   date: v.exactOptional(v.string()),
 });
 
-/** The fields of a preview, shared by the base and the actions that add one. */
-export const previewEntries = {
+const previewEntries = {
   id: entityIdSchema,
   kind: v.optional(v.picklist(PREVIEW_KINDS), 'browser'),
   viewport: v.optional(v.picklist(PREVIEW_VIEWPORTS), 'fluid'),
@@ -147,7 +146,8 @@ export const previewEntries = {
   mail: v.exactOptional(previewMailSchema),
 };
 
-const previewSchema = v.pipe(
+/** A preview, shared by the base and the actions that add one, so the two cannot drift. */
+export const previewSchema = v.pipe(
   v.strictObject(previewEntries),
   v.check(
     (preview) => preview.mail === undefined || preview.kind === 'mail',
@@ -155,7 +155,8 @@ const previewSchema = v.pipe(
   ),
 );
 
-const paneSchema = v.union([
+/** A step's pane, shared by the base and `ADD_STEP`. */
+export const paneSchema = v.union([
   v.strictObject({ screen: entityIdSchema, preview: v.exactOptional(entityIdSchema) }),
   v.strictObject({ material: previewSchema }),
 ]);

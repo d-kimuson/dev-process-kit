@@ -9,7 +9,14 @@ import {
   type ActionSpecs,
   type TemplateAction,
 } from '../../core/schema';
-import { PREVIEW_KINDS, PREVIEW_VIEWPORTS, previewEntries, type PrototypePreview, type StepPane } from './model';
+import {
+  PREVIEW_KINDS,
+  PREVIEW_VIEWPORTS,
+  paneSchema,
+  previewSchema,
+  type PrototypePreview,
+  type StepPane,
+} from './model';
 
 /**
  * Prototype action vocabulary.
@@ -89,19 +96,12 @@ export const prototypeActions = {
        * What the user sees, in order: screens declared under `apps[].screens`
        * (optionally pinned to one rendition) and materials at hand.
        */
-      panes: v.exactOptional(
-        v.array(
-          v.union([
-            v.strictObject({ screen: entityIdSchema, preview: v.exactOptional(entityIdSchema) }),
-            v.strictObject({ material: v.strictObject(previewEntries) }),
-          ]),
-        ),
-      ),
+      panes: v.exactOptional(v.array(paneSchema)),
     }),
     { dedupeKey: entityDedupeKey },
   ),
   /** Adds a material at the end of a step's panes; the product's screens are base data only. */
-  ADD_PREVIEW: defineAction('ADD_PREVIEW', 'step', v.object(previewEntries), { dedupeKey: entityDedupeKey }),
+  ADD_PREVIEW: defineAction('ADD_PREVIEW', 'step', previewSchema, { dedupeKey: entityDedupeKey }),
 
   DELETE_ACTIVITY: defineAction('DELETE_ACTIVITY', 'activity', v.object({})),
   DELETE_STORY: defineAction('DELETE_STORY', 'story', v.object({})),
