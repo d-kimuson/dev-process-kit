@@ -9,16 +9,8 @@ import { entityIdSchema, splitPath } from '../../core/schema';
  */
 export const PREVIEW_KINDS = ['browser', 'native', 'mail', 'plain'] as const;
 export const PREVIEW_VIEWPORTS = ['mobile', 'tablet', 'desktop', 'fluid'] as const;
-/**
- * How a step shows several previews: `tabs` — alternatives of the same moment,
- * one at a time (mobile / desktop) — or `side-by-side` — things the user sees
- * together (the memo in hand next to the screen).
- */
-export const PREVIEW_LAYOUTS = ['tabs', 'side-by-side'] as const;
-
 export type PreviewKind = (typeof PREVIEW_KINDS)[number];
 export type PreviewViewport = (typeof PREVIEW_VIEWPORTS)[number];
-export type PreviewLayout = (typeof PREVIEW_LAYOUTS)[number];
 
 /** The envelope a `mail` preview shows above its body. Every field is cosmetic. */
 export type PreviewMail = {
@@ -39,46 +31,18 @@ export type PrototypePreview = {
   readonly mail?: PreviewMail;
 };
 
-export type PrototypeStep = {
+/**
+ * One page or state of the product, e.g. `Refunds`, or the cart and its empty
+ * state as two screens. Its previews are renditions of the same screen
+ * (mobile, desktop), so the reader switches between them with tabs. A screen
+ * knows nothing of the scenarios that pass through it.
+ */
+export type PrototypeScreen = {
   readonly id: string;
-  readonly name: string;
+  /** Title of the page, e.g. `Users`. */
+  readonly title: string;
   readonly description?: string;
-  /** Title of the page this step shows, e.g. `Users`. Defaults to the step name. */
-  readonly title?: string;
-  /** Who uses the page, e.g. `Administrator`. Overrides the story's and activity's. */
-  readonly actor?: string;
-  /** Id of the sub-application the page belongs to. Overrides the story's and activity's. */
-  readonly app?: string;
-  /**
-   * What is going on around the previews, e.g. `The clerk receives a FAX from
-   * the customer`. Shown just above them.
-   */
-  readonly situation?: string;
-  /** How several previews are shown. Defaults to `tabs`. */
-  readonly layout?: PreviewLayout;
   readonly previews: readonly PrototypePreview[];
-};
-
-export type PrototypeStory = {
-  readonly id: string;
-  readonly name: string;
-  readonly description?: string;
-  /** Who uses the story's pages unless a step says otherwise. */
-  readonly actor?: string;
-  /** The sub-application of the story's pages unless a step says otherwise. */
-  readonly app?: string;
-  readonly steps: readonly PrototypeStep[];
-};
-
-export type PrototypeActivity = {
-  readonly id: string;
-  readonly name: string;
-  readonly description?: string;
-  /** Who uses the activity's pages unless a story or step says otherwise. */
-  readonly actor?: string;
-  /** The sub-application of the activity's pages unless a story or step says otherwise. */
-  readonly app?: string;
-  readonly stories: readonly PrototypeStory[];
 };
 
 /**
@@ -89,6 +53,49 @@ export type PrototypeApp = {
   readonly id: string;
   readonly name: string;
   readonly description?: string;
+  /** Who the app is for, e.g. `Administrator`: the profile its browser is signed in with. */
+  readonly actor?: string;
+  readonly screens: readonly PrototypeScreen[];
+};
+
+/**
+ * One moment of a user story. It names the screen the user is on and keeps
+ * what only the story knows: when and where it happens (`situation`) and what
+ * the user has at hand outside the product (`materials`: a handwritten memo, a
+ * FAX), shown beside the screen.
+ */
+export type PrototypeStep = {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+  /** Who acts in the step, e.g. `Administrator`. Overrides the story's and activity's. */
+  readonly actor?: string;
+  /**
+   * What is going on around the previews, e.g. `The clerk receives a FAX from
+   * the customer`. Shown just above them.
+   */
+  readonly situation?: string;
+  /** Id of the screen the user is on; absent for a moment away from the product. */
+  readonly screen?: string;
+  readonly materials: readonly PrototypePreview[];
+};
+
+export type PrototypeStory = {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+  /** Who acts in the story's steps unless a step says otherwise. */
+  readonly actor?: string;
+  readonly steps: readonly PrototypeStep[];
+};
+
+export type PrototypeActivity = {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+  /** Who acts in the activity's steps unless a story or step says otherwise. */
+  readonly actor?: string;
+  readonly stories: readonly PrototypeStory[];
 };
 
 export type PrototypeState = {
@@ -98,8 +105,9 @@ export type PrototypeState = {
    * Defaults to `https://<slugified title>.example.com`.
    */
   readonly baseUrl?: string;
-  /** The sub-applications the steps' `app` names. */
-  readonly apps?: readonly PrototypeApp[];
+  /** The product: its applications and their screens. */
+  readonly apps: readonly PrototypeApp[];
+  /** The scenarios that go through the product. */
   readonly activities: readonly PrototypeActivity[];
 };
 
@@ -133,12 +141,10 @@ const stepSchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
-  title: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
-  app: v.exactOptional(entityIdSchema),
   situation: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
-  layout: v.exactOptional(v.picklist(PREVIEW_LAYOUTS)),
-  previews: v.optional(v.array(previewSchema), []),
+  screen: v.exactOptional(entityIdSchema),
+  materials: v.optional(v.array(previewSchema), []),
 });
 
 const storySchema = v.strictObject({
@@ -146,7 +152,6 @@ const storySchema = v.strictObject({
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
-  app: v.exactOptional(entityIdSchema),
   steps: v.optional(v.array(stepSchema), []),
 });
 
@@ -155,30 +160,62 @@ const activitySchema = v.strictObject({
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
-  app: v.exactOptional(entityIdSchema),
   stories: v.optional(v.array(storySchema), []),
+});
+
+const screenSchema = v.strictObject({
+  id: entityIdSchema,
+  title: v.pipe(v.string(), v.minLength(1)),
+  description: v.exactOptional(v.string()),
+  previews: v.optional(v.array(previewSchema), []),
 });
 
 const appSchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
+  actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  screens: v.optional(v.array(screenSchema), []),
 });
 
 export const prototypeBaseSchema = v.strictObject({
   title: v.exactOptional(v.string()),
   baseUrl: v.exactOptional(v.string()),
-  apps: v.exactOptional(v.array(appSchema)),
+  apps: v.optional(v.array(appSchema), []),
   activities: v.optional(v.array(activitySchema), []),
 });
 
+type ParsedBase = v.InferOutput<typeof prototypeBaseSchema>;
+
 /**
- * Ids must be unique where they identify a path element or a slot. Story and
- * step ids are unique within their parent; preview ids are global because they
- * name a light DOM slot.
+ * Ids must be unique where they identify a path element, a destination or a
+ * slot. Story and step ids are unique within their parent; app and screen ids
+ * are global because a screen is a destination of its own, and preview ids
+ * are global because they name a light DOM slot.
  */
-const findDuplicateId = (state: v.InferOutput<typeof prototypeBaseSchema>): string | null => {
+const findDuplicateId = (state: ParsedBase): string | null => {
   const previewIds = new Set<string>();
+  const previewProblem = (previews: readonly { readonly id: string }[]): string | null => {
+    for (const preview of previews) {
+      if (previewIds.has(preview.id)) {
+        return `duplicate preview id "${preview.id}": preview ids are global, they name a light DOM slot`;
+      }
+      previewIds.add(preview.id);
+    }
+    return null;
+  };
+  const appIds = new Set<string>();
+  const screenIds = new Set<string>();
+  for (const app of state.apps) {
+    if (appIds.has(app.id)) return `duplicate app id "${app.id}"`;
+    appIds.add(app.id);
+    for (const screen of app.screens) {
+      if (screenIds.has(screen.id)) return `duplicate screen id "${screen.id}": screen ids are global`;
+      screenIds.add(screen.id);
+      const problem = previewProblem(screen.previews);
+      if (problem !== null) return problem;
+    }
+  }
   const activityIds = new Set<string>();
   for (const activity of state.activities) {
     if (activityIds.has(activity.id)) return `duplicate activity id "${activity.id}"`;
@@ -192,14 +229,21 @@ const findDuplicateId = (state: v.InferOutput<typeof prototypeBaseSchema>): stri
       for (const step of story.steps) {
         if (stepIds.has(step.id)) return `duplicate step id "${step.id}" in story "${story.id}"`;
         stepIds.add(step.id);
-
-        for (const preview of step.previews) {
-          if (previewIds.has(preview.id)) {
-            return `duplicate preview id "${preview.id}": preview ids are global, they name a light DOM slot`;
-          }
-          previewIds.add(preview.id);
-        }
+        const problem = previewProblem(step.materials);
+        if (problem !== null) return problem;
       }
+    }
+  }
+  return null;
+};
+
+/** Every step's `screen` must name a screen of an app. */
+const findScreenProblem = (state: ParsedBase): string | null => {
+  const screenIds = new Set(state.apps.flatMap((app) => app.screens.map((screen) => screen.id)));
+  for (const activity of state.activities) {
+    for (const story of activity.stories) {
+      const step = story.steps.find((candidate) => candidate.screen !== undefined && !screenIds.has(candidate.screen));
+      if (step) return `unknown screen "${step.screen}" on step "${step.id}": declare it under \`apps[].screens\``;
     }
   }
   return null;
@@ -237,30 +281,15 @@ export const parseUiTargetId = (id: string): UiTarget | undefined => {
   return quoted?.[1] === undefined ? { previewId, selector } : { previewId, selector, text: quoted[1] };
 };
 
-/** Every `app` must name a declared app, and app ids must be unique. */
-const findAppProblem = (state: v.InferOutput<typeof prototypeBaseSchema>): string | null => {
-  const appIds = new Set<string>();
-  for (const app of state.apps ?? []) {
-    if (appIds.has(app.id)) return `duplicate app id "${app.id}"`;
-    appIds.add(app.id);
-  }
-  const levels = state.activities.flatMap((activity) => [
-    activity,
-    ...activity.stories.flatMap((story) => [story, ...story.steps]),
-  ]);
-  const unknown = levels.find((level) => level.app !== undefined && !appIds.has(level.app));
-  return unknown ? `unknown app "${unknown.app}" on "${unknown.id}": declare it in \`apps\`` : null;
-};
-
 export const parsePrototypeBase = (input: unknown): PrototypeState => {
   const parsed = v.parse(prototypeBaseSchema, input);
-  const problem = findDuplicateId(parsed) ?? findAppProblem(parsed);
+  const problem = findDuplicateId(parsed) ?? findScreenProblem(parsed);
   if (problem !== null) throw new Error(problem);
   return parsed;
 };
 
 export const emptyPrototypeBase = (): PrototypeState => {
-  return { activities: [] };
+  return { apps: [], activities: [] };
 };
 
 export type StepLocation = {
@@ -270,9 +299,25 @@ export type StepLocation = {
   readonly stepIndex: number;
 };
 
-/** The sub-application a step's page belongs to: the nearest `app` of step, story and activity. */
-export const stepAppId = (location: StepLocation): string | undefined => {
-  return location.step.app ?? location.story.app ?? location.activity.app;
+/** A screen and the app it belongs to. */
+export type ScreenLocation = {
+  readonly app: PrototypeApp;
+  readonly screen: PrototypeScreen;
+};
+
+/** Every screen of the product, app by app, in page order. */
+export const allScreens = (state: PrototypeState): readonly ScreenLocation[] => {
+  return state.apps.flatMap((app) => app.screens.map((screen) => ({ app, screen })));
+};
+
+export const findScreen = (state: PrototypeState, id: string | undefined): ScreenLocation | undefined => {
+  if (id === undefined) return undefined;
+  return allScreens(state).find((entry) => entry.screen.id === id);
+};
+
+/** The screen a step shows, if it shows one. */
+export const stepScreen = (state: PrototypeState, step: PrototypeStep): ScreenLocation | undefined => {
+  return findScreen(state, step.screen);
 };
 
 export const findActivity = (state: PrototypeState, id: string | undefined): PrototypeActivity | undefined => {
@@ -345,33 +390,22 @@ export const findStep = (state: PrototypeState, ref: string | undefined): StepLo
   return matches.length === 1 ? matches[0] : undefined;
 };
 
-/**
- * Preview refs are global: a preview id names a light DOM slot, so the base
- * schema rejects duplicates. `<step path>.<preview id>` is also accepted.
- */
+/** Where a preview lives: a rendition of a screen, or a material of a step. */
+export type PreviewOwner = ({ readonly kind: 'screen' } & ScreenLocation) | ({ readonly kind: 'step' } & StepLocation);
+
+/** Preview ids are global: a preview id names a light DOM slot, so the base schema rejects duplicates. */
 export const findPreview = (
   state: PrototypeState,
   id: string | undefined,
-): { location: StepLocation; preview: PrototypePreview } | undefined => {
+): { owner: PreviewOwner; preview: PrototypePreview } | undefined => {
   if (id === undefined) return undefined;
-  const path = splitPath(id, 4);
-  if (path) {
-    const [activityId, storyId, stepId, previewId] = path;
-    if (activityId === undefined || storyId === undefined || stepId === undefined || previewId === undefined) {
-      return undefined;
-    }
-    const location = findStep(state, `${activityId}.${storyId}.${stepId}`);
-    const preview = location?.step.previews.find((candidate) => candidate.id === previewId);
-    return location && preview ? { location, preview } : undefined;
+  for (const entry of allScreens(state)) {
+    const preview = entry.screen.previews.find((candidate) => candidate.id === id);
+    if (preview) return { owner: { kind: 'screen', ...entry }, preview };
   }
-  if (id.includes('.')) return undefined;
-  for (const activity of state.activities) {
-    for (const story of activity.stories) {
-      for (const [stepIndex, step] of story.steps.entries()) {
-        const preview = step.previews.find((candidate) => candidate.id === id);
-        if (preview) return { location: { activity, story, step, stepIndex }, preview };
-      }
-    }
+  for (const location of flattenSteps(state)) {
+    const preview = location.step.materials.find((candidate) => candidate.id === id);
+    if (preview) return { owner: { kind: 'step', ...location }, preview };
   }
   return undefined;
 };

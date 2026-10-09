@@ -711,16 +711,241 @@
             {
               "id": "shop",
               "name": "ショップ（購入者向け）",
-              "description": "スマホのブラウザで使う購入者向けのサイト"
+              "description": "スマホのブラウザで使う購入者向けのサイト",
+              "actor": "購入者",
+              "screens": [
+                {
+                  "id": "cart",
+                  "title": "カート",
+                  "previews": [
+                    {
+                      "id": "cart-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/cart"
+                    }
+                  ]
+                },
+                {
+                  "id": "delivery-payment",
+                  "title": "配送・支払い",
+                  "previews": [
+                    {
+                      "id": "delivery-payment-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/checkout/delivery"
+                    }
+                  ]
+                },
+                {
+                  "id": "review",
+                  "title": "注文内容の確認",
+                  "description": "キャンセルできる期限を、確定の前に一度だけ伝える",
+                  "previews": [
+                    {
+                      "id": "review-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/checkout/review"
+                    }
+                  ]
+                },
+                {
+                  "id": "order-complete",
+                  "title": "注文完了",
+                  "previews": [
+                    {
+                      "id": "order-complete-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/orders/SM-0918-0342/thanks"
+                    }
+                  ]
+                },
+                {
+                  "id": "order-history",
+                  "title": "注文履歴",
+                  "description": "キャンセルできる注文は一覧の時点で分かる",
+                  "previews": [
+                    {
+                      "id": "order-history-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/mypage/orders"
+                    }
+                  ]
+                },
+                {
+                  "id": "order-detail",
+                  "title": "注文詳細",
+                  "previews": [
+                    {
+                      "id": "order-detail-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342"
+                    }
+                  ]
+                },
+                {
+                  "id": "cancel-confirm",
+                  "title": "キャンセルの確認",
+                  "description": "理由の選択は任意。確定を妨げない",
+                  "previews": [
+                    {
+                      "id": "cancel-confirm-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342/cancel"
+                    }
+                  ]
+                },
+                {
+                  "id": "cancel-accepted",
+                  "title": "キャンセル受付",
+                  "description": "返金の完了を待たずに受付だけを伝える。注文は「返金待ち」になる",
+                  "previews": [
+                    {
+                      "id": "cancel-accepted-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342/cancel/accepted"
+                    }
+                  ]
+                },
+                {
+                  "id": "refund-mail",
+                  "title": "返金完了のお知らせ",
+                  "description": "受付と返金完了は別のメールで届く",
+                  "previews": [
+                    {
+                      "id": "refund-mail-message",
+                      "kind": "mail",
+                      "viewport": "mobile",
+                      "mail": {
+                        "from": "Sora Market <order@sora-market.example.com>",
+                        "to": "hanako.sato@example.com",
+                        "subject": "【Sora Market】返金が完了しました（注文 SM-0918-0342）",
+                        "date": "2025/09/19 9:41"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "refunded-detail",
+                  "title": "注文詳細（取消済み）",
+                  "previews": [
+                    {
+                      "id": "refunded-detail-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342"
+                    }
+                  ]
+                },
+                {
+                  "id": "shipped-detail",
+                  "title": "注文詳細（出荷済み）",
+                  "description": "キャンセルのボタンは出さず、理由と次にできることを示す",
+                  "previews": [
+                    {
+                      "id": "shipped-detail-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/mypage/orders/SM-0912-0127"
+                    }
+                  ]
+                },
+                {
+                  "id": "contact",
+                  "title": "お問い合わせ",
+                  "description": "注文番号と用件を埋めた状態で開く",
+                  "previews": [
+                    {
+                      "id": "contact-mobile",
+                      "viewport": "mobile",
+                      "url": "https://sora-market.example.com/contact?order=SM-0912-0127"
+                    }
+                  ]
+                }
+              ]
             },
-            { "id": "admin", "name": "管理画面（運営者向け）", "description": "ショップ運営者が PC で使う管理画面" }
+            {
+              "id": "admin",
+              "name": "管理画面（運営者向け）",
+              "description": "ショップ運営者が PC で使う管理画面",
+              "actor": "ショップ運営者",
+              "screens": [
+                {
+                  "id": "admin-orders",
+                  "title": "注文一覧",
+                  "description": "状態は購入者に見せるものと同じ名前にそろえる",
+                  "previews": [
+                    {
+                      "id": "admin-orders-desktop",
+                      "viewport": "desktop",
+                      "url": "https://admin.sora-market.example.com/orders"
+                    }
+                  ]
+                },
+                {
+                  "id": "admin-order-detail",
+                  "title": "注文詳細",
+                  "description": "誰がいつ取り消し、いつ返金と引当の解除が済んだかを一列で追える",
+                  "previews": [
+                    {
+                      "id": "admin-order-detail-desktop",
+                      "viewport": "desktop",
+                      "url": "https://admin.sora-market.example.com/orders/SM-0918-0342"
+                    }
+                  ]
+                },
+                {
+                  "id": "admin-refunds",
+                  "title": "返金待ち一覧",
+                  "description": "経過時間の長い順に並べ、24 時間を超えたものを目立たせる",
+                  "previews": [
+                    {
+                      "id": "admin-refunds-desktop",
+                      "viewport": "desktop",
+                      "url": "https://admin.sora-market.example.com/refunds?status=pending"
+                    }
+                  ]
+                },
+                {
+                  "id": "admin-refund",
+                  "title": "返金の詳細",
+                  "description": "失敗が続いたときの扱いは未決。ここでは「返金待ち」のまま残し、運営が照会と連絡をする案で描いた",
+                  "previews": [
+                    {
+                      "id": "admin-refund-desktop",
+                      "viewport": "desktop",
+                      "url": "https://admin.sora-market.example.com/refunds/SM-0915-0288"
+                    }
+                  ]
+                },
+                {
+                  "id": "admin-inventory",
+                  "title": "在庫",
+                  "description": "まだ描いていない。キャンセルで引当が解除された在庫が、販売可能数に戻ったかを確かめる画面になる",
+                  "previews": [
+                    {
+                      "id": "admin-inventory-desktop",
+                      "viewport": "desktop",
+                      "url": "https://admin.sora-market.example.com/inventory"
+                    }
+                  ]
+                },
+                {
+                  "id": "admin-inquiries",
+                  "title": "お問い合わせ",
+                  "description": "まだ描いていない。購入者からの問い合わせに、注文を見ながら返信する画面になる",
+                  "previews": [
+                    {
+                      "id": "admin-inquiries-desktop",
+                      "viewport": "desktop",
+                      "url": "https://admin.sora-market.example.com/inquiries"
+                    }
+                  ]
+                }
+              ]
+            }
           ],
           "activities": [
             {
               "id": "buyer",
               "name": "購入者（スマホ）",
-              "actor": "購入者",
-              "app": "shop",
               "description": "スマホのブラウザで買い物をし、注文を自分で取り消す",
               "stories": [
                 {
@@ -730,51 +955,26 @@
                     {
                       "id": "cart",
                       "name": "カートを確かめる",
-                      "title": "カート",
                       "situation": "9月18日の午前 10 時ごろ、仕事の合間の短い休憩中。前の晩にカートへ入れておいた 2 点を、スマホで買ってしまおうとする",
-                      "previews": [
-                        { "id": "cart-mobile", "viewport": "mobile", "url": "https://sora-market.example.com/cart" }
-                      ]
+                      "screen": "cart"
                     },
                     {
                       "id": "delivery-payment",
                       "name": "配送先と支払い方法を選ぶ",
-                      "title": "配送・支払い",
                       "situation": "休憩は残り数分。配送先も支払い方法も前回のままでよく、何も変えずに先へ進みたい",
-                      "previews": [
-                        {
-                          "id": "delivery-payment-mobile",
-                          "viewport": "mobile",
-                          "url": "https://sora-market.example.com/checkout/delivery"
-                        }
-                      ]
+                      "screen": "delivery-payment"
                     },
                     {
                       "id": "review",
                       "name": "注文を確定する",
-                      "title": "注文内容の確認",
-                      "description": "キャンセルできる期限を、確定の前に一度だけ伝える",
                       "situation": "確定ボタンを押す直前。合計とお届け日を流し見していて、細かい注意書きはほとんど読まない",
-                      "previews": [
-                        {
-                          "id": "review-mobile",
-                          "viewport": "mobile",
-                          "url": "https://sora-market.example.com/checkout/review"
-                        }
-                      ]
+                      "screen": "review"
                     },
                     {
                       "id": "order-complete",
                       "name": "注文の完了を確かめる",
-                      "title": "注文完了",
                       "situation": "注文を確定した直後。休憩が終わる前に画面を閉じようとしている",
-                      "previews": [
-                        {
-                          "id": "order-complete-mobile",
-                          "viewport": "mobile",
-                          "url": "https://sora-market.example.com/orders/SM-0918-0342/thanks"
-                        }
-                      ]
+                      "screen": "order-complete"
                     }
                   ]
                 },
@@ -786,57 +986,26 @@
                     {
                       "id": "order-history",
                       "name": "注文履歴を開く",
-                      "title": "注文履歴",
-                      "description": "キャンセルできる注文は一覧の時点で分かる",
                       "situation": "同じ日の夜 21 時半、自宅のソファで。テーブルクロスのサイズを選び間違えたと気づき、慌てて注文履歴を開く",
-                      "previews": [
-                        {
-                          "id": "order-history-mobile",
-                          "viewport": "mobile",
-                          "url": "https://sora-market.example.com/mypage/orders"
-                        }
-                      ]
+                      "screen": "order-history"
                     },
                     {
                       "id": "order-detail",
                       "name": "注文詳細からキャンセルを選ぶ",
-                      "title": "注文詳細",
                       "situation": "取り消せるのか、一部だけ直せるのかが分からず、不安なまま注文を開いている",
-                      "previews": [
-                        {
-                          "id": "order-detail-mobile",
-                          "viewport": "mobile",
-                          "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342"
-                        }
-                      ]
+                      "screen": "order-detail"
                     },
                     {
                       "id": "cancel-confirm",
                       "name": "返金額と返金先を確かめて確定する",
-                      "title": "キャンセルの確認",
-                      "description": "理由の選択は任意。確定を妨げない",
                       "situation": "あとで注文し直すつもりなので、お金がいつ、どこへ戻るかだけが気になっている",
-                      "previews": [
-                        {
-                          "id": "cancel-confirm-mobile",
-                          "viewport": "mobile",
-                          "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342/cancel"
-                        }
-                      ]
+                      "screen": "cancel-confirm"
                     },
                     {
                       "id": "cancel-accepted",
                       "name": "受付を確かめる",
-                      "title": "キャンセル受付",
-                      "description": "返金の完了を待たずに受付だけを伝える。注文は「返金待ち」になる",
                       "situation": "21 時 40 分、確定を押した直後。返金がもう済んだのか、まだなのかを知りたい",
-                      "previews": [
-                        {
-                          "id": "cancel-accepted-mobile",
-                          "viewport": "mobile",
-                          "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342/cancel/accepted"
-                        }
-                      ]
+                      "screen": "cancel-accepted"
                     }
                   ]
                 },
@@ -845,39 +1014,29 @@
                   "name": "返金を確かめる",
                   "steps": [
                     {
-                      "id": "refund-mail",
-                      "name": "返金完了のメールを受け取る",
-                      "title": "返金完了のお知らせ",
-                      "description": "受付と返金完了は別のメールで届く",
+                      "id": "refund-notice",
+                      "name": "返金完了の通知に気づく",
                       "situation": "キャンセルした翌朝、通勤中の電車でスマホに通知が届く",
-                      "previews": [
-                        { "id": "refund-mail-native", "kind": "native", "viewport": "mobile", "label": "通知" },
+                      "materials": [
                         {
-                          "id": "refund-mail-message",
-                          "kind": "mail",
+                          "id": "refund-mail-native",
+                          "kind": "native",
                           "viewport": "mobile",
-                          "label": "メール",
-                          "mail": {
-                            "from": "Sora Market <order@sora-market.example.com>",
-                            "to": "hanako.sato@example.com",
-                            "subject": "【Sora Market】返金が完了しました（注文 SM-0918-0342）",
-                            "date": "2025/09/19 9:41"
-                          }
+                          "label": "ロック画面"
                         }
                       ]
                     },
                     {
+                      "id": "refund-mail",
+                      "name": "返金完了のメールを開く",
+                      "situation": "通知をタップしてメールを開く。いくら、どこへ戻ったのかだけを確かめたい",
+                      "screen": "refund-mail"
+                    },
+                    {
                       "id": "refunded-detail",
                       "name": "注文が取消済みになったのを確かめる",
-                      "title": "注文詳細（取消済み）",
                       "situation": "通知を開いたついでに、注文がきちんと取り消されたかを電車の中で確かめる",
-                      "previews": [
-                        {
-                          "id": "refunded-detail-mobile",
-                          "viewport": "mobile",
-                          "url": "https://sora-market.example.com/mypage/orders/SM-0918-0342"
-                        }
-                      ]
+                      "screen": "refunded-detail"
                     }
                   ]
                 },
@@ -889,30 +1048,14 @@
                     {
                       "id": "shipped-detail",
                       "name": "キャンセルできない理由を知る",
-                      "title": "注文詳細（出荷済み）",
-                      "description": "キャンセルのボタンは出さず、理由と次にできることを示す",
                       "situation": "9月15日の夜。12 日に頼んだペーパーウェイトが要らなくなり、届く前に取り消せないかと注文を開く",
-                      "previews": [
-                        {
-                          "id": "shipped-detail-mobile",
-                          "viewport": "mobile",
-                          "url": "https://sora-market.example.com/mypage/orders/SM-0912-0127"
-                        }
-                      ]
+                      "screen": "shipped-detail"
                     },
                     {
                       "id": "contact",
                       "name": "問い合わせを送る",
-                      "title": "お問い合わせ",
-                      "description": "注文番号と用件を埋めた状態で開く",
                       "situation": "キャンセルできないと分かったが、どうにかならないか運営に直接聞きたい。翌日の昼休み、会社のデスクで入力している",
-                      "previews": [
-                        {
-                          "id": "contact-mobile",
-                          "viewport": "mobile",
-                          "url": "https://sora-market.example.com/contact?order=SM-0912-0127"
-                        }
-                      ]
+                      "screen": "contact"
                     }
                   ]
                 }
@@ -921,8 +1064,6 @@
             {
               "id": "ops",
               "name": "ショップ運営（PC）",
-              "actor": "ショップ運営者",
-              "app": "admin",
               "description": "管理画面で注文の状態と返金の進み具合を見る",
               "stories": [
                 {
@@ -932,30 +1073,14 @@
                     {
                       "id": "admin-orders",
                       "name": "注文を状態で絞り込む",
-                      "title": "注文一覧",
-                      "description": "状態は購入者に見せるものと同じ名前にそろえる",
                       "situation": "9月19日の朝 10 時半、事務所の PC で。前の晩に入ったキャンセルが片付いたかを、朝いちばんの確認として見る",
-                      "previews": [
-                        {
-                          "id": "admin-orders-desktop",
-                          "viewport": "desktop",
-                          "url": "https://admin.sora-market.example.com/orders"
-                        }
-                      ]
+                      "screen": "admin-orders"
                     },
                     {
                       "id": "admin-order-detail",
                       "name": "キャンセルの経緯をたどる",
-                      "title": "注文詳細",
-                      "description": "誰がいつ取り消し、いつ返金と引当の解除が済んだかを一列で追える",
                       "situation": "購入者から「返金はいつ戻るのか」と問い合わせが来たときに、返事を書くために経緯を確かめている",
-                      "previews": [
-                        {
-                          "id": "admin-order-detail-desktop",
-                          "viewport": "desktop",
-                          "url": "https://admin.sora-market.example.com/orders/SM-0918-0342"
-                        }
-                      ]
+                      "screen": "admin-order-detail"
                     }
                   ]
                 },
@@ -966,44 +1091,33 @@
                     {
                       "id": "refund-fax",
                       "name": "返金失敗の連絡を FAX で受け取る",
-                      "title": "返金不能のお知らせ（FAX）",
                       "description": "決済代行は返金に失敗した取引を翌朝 FAX で知らせてくる。画面の外で始まる対応",
                       "situation": "朝 8 時、事務所の FAX に決済代行から 1 枚届く。運営者は出社してすぐ紙で気づく",
-                      "previews": [{ "id": "refund-fax-paper", "kind": "plain", "label": "FAX" }]
-                    },
-                    {
-                      "id": "admin-refunds",
-                      "name": "返金待ちが長い注文を見つける",
-                      "title": "返金待ち一覧",
-                      "description": "経過時間の長い順に並べ、24 時間を超えたものを目立たせる",
-                      "situation": "FAX に書かれた注文番号を手元に置き、出社してすぐ管理画面で返金待ちの一覧を開く",
-                      "previews": [
+                      "materials": [
                         {
-                          "id": "admin-refunds-desktop",
-                          "viewport": "desktop",
-                          "url": "https://admin.sora-market.example.com/refunds?status=pending"
+                          "id": "refund-fax-paper",
+                          "kind": "plain",
+                          "label": "FAX"
                         }
                       ]
                     },
                     {
+                      "id": "admin-refunds",
+                      "name": "返金待ちが長い注文を見つける",
+                      "situation": "FAX に書かれた注文番号を手元に置き、出社してすぐ管理画面で返金待ちの一覧を開く",
+                      "screen": "admin-refunds"
+                    },
+                    {
                       "id": "admin-refund-stuck",
                       "name": "失敗が続く返金を調べる",
-                      "title": "返金の詳細",
-                      "description": "失敗が続いたときの扱いは未決。ここでは「返金待ち」のまま残し、運営が照会と連絡をする案で描いた",
                       "situation": "FAX を手元に置き、決済代行のサポートに電話で照会しながら管理画面で試行の履歴を確かめる",
-                      "layout": "side-by-side",
-                      "previews": [
+                      "screen": "admin-refund",
+                      "materials": [
                         {
                           "id": "admin-refund-stuck-memo",
                           "kind": "plain",
                           "viewport": "fluid",
                           "label": "手元のメモ"
-                        },
-                        {
-                          "id": "admin-refund-stuck-desktop",
-                          "viewport": "desktop",
-                          "label": "管理画面",
-                          "url": "https://admin.sora-market.example.com/refunds/SM-0915-0288"
                         }
                       ]
                     }
@@ -1106,7 +1220,7 @@
               <div class="sm-row"><span>送料</span><b>¥550</b></div>
               <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
             </div>
-            <a class="sm-btn" href="#step=delivery-payment" data-dpk-navigate="step=delivery-payment">レジに進む</a>
+            <a class="sm-btn" href="#screen=delivery-payment" data-dpk-navigate="screen=delivery-payment">レジに進む</a>
           </div>
         </div>
       </div>
@@ -1133,7 +1247,7 @@
               <div class="sm-choice" data-selected="true">クレジットカード VISA •••• 4242</div>
               <div class="sm-choice">コンビニ払い</div>
             </div>
-            <a class="sm-btn" href="#step=review" data-dpk-navigate="step=review">確認画面へ</a>
+            <a class="sm-btn" href="#screen=review" data-dpk-navigate="screen=review">確認画面へ</a>
           </div>
         </div>
       </div>
@@ -1157,7 +1271,7 @@
               <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
             </div>
             <p class="sm-note">出荷の準備が始まる前（通常はご注文の翌朝まで）なら、注文履歴からキャンセルできます。</p>
-            <button class="sm-btn" data-dpk-navigate="step=order-complete">注文を確定する</button>
+            <button class="sm-btn" data-dpk-navigate="screen=order-complete">注文を確定する</button>
           </div>
         </div>
       </div>
@@ -1175,7 +1289,7 @@
               <div class="sm-row"><span>合計（税込）</span><b>¥11,750</b></div>
               <div class="sm-row"><span>お届け予定</span><b>9月27日（土）</b></div>
             </div>
-            <a class="sm-btn sm-btn--ghost" href="#step=order-history" data-dpk-navigate="step=order-history">
+            <a class="sm-btn sm-btn--ghost" href="#screen=order-history" data-dpk-navigate="screen=order-history">
               注文履歴を見る
             </a>
           </div>
@@ -1192,11 +1306,11 @@
           <div class="sm-shot">
             <h1 class="sm-title">注文履歴</h1>
             <div class="sm-card">
-              <a class="sm-order" href="#step=order-detail" data-dpk-navigate="step=order-detail">
+              <a class="sm-order" href="#screen=order-detail" data-dpk-navigate="screen=order-detail">
                 <div class="sm-order-head"><b>SM-0918-0342</b><span class="sm-status">支払済み</span></div>
                 <small>9月18日 · 2 点 · ¥11,750 — キャンセルできます</small>
               </a>
-              <a class="sm-order" href="#step=shipped-detail" data-dpk-navigate="step=shipped-detail">
+              <a class="sm-order" href="#screen=shipped-detail" data-dpk-navigate="screen=shipped-detail">
                 <div class="sm-order-head">
                   <b>SM-0912-0127</b><span class="sm-status sm-status--shipped">出荷中</span>
                 </div>
@@ -1237,7 +1351,7 @@
               <div class="sm-row sm-row--total"><span>合計（税込）</span><b>¥11,750</b></div>
             </div>
             <div>
-              <a class="sm-btn sm-btn--ghost" href="#step=cancel-confirm" data-dpk-navigate="step=cancel-confirm">
+              <a class="sm-btn sm-btn--ghost" href="#screen=cancel-confirm" data-dpk-navigate="screen=cancel-confirm">
                 この注文をキャンセルする
               </a>
               <p class="sm-sub" style="margin-top: 8px; font-size: 11.5px">
@@ -1271,10 +1385,10 @@
               </div>
             </div>
             <div>
-              <button class="sm-btn sm-btn--danger" data-dpk-navigate="step=cancel-accepted">
+              <button class="sm-btn sm-btn--danger" data-dpk-navigate="screen=cancel-accepted">
                 キャンセルを確定する
               </button>
-              <a class="sm-btn sm-btn--ghost" href="#step=order-detail" data-dpk-navigate="step=order-detail">
+              <a class="sm-btn sm-btn--ghost" href="#screen=order-detail" data-dpk-navigate="screen=order-detail">
                 注文詳細に戻る
               </a>
             </div>
@@ -1298,7 +1412,7 @@
               <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
               <div class="sm-row"><span>返金先</span><b>VISA •••• 4242</b></div>
             </div>
-            <a class="sm-btn sm-btn--ghost" href="#step=order-history" data-dpk-navigate="step=order-history">
+            <a class="sm-btn sm-btn--ghost" href="#screen=order-history" data-dpk-navigate="screen=order-history">
               注文履歴に戻る
             </a>
           </div>
@@ -1309,7 +1423,7 @@
       <div slot="preview" data-preview-id="refund-mail-native">
         <div class="sm sm-lock">
           <div class="sm-clock">9:41<small>9月19日（金）</small></div>
-          <a class="sm-push" href="#preview=refund-mail-message" data-dpk-navigate="preview=refund-mail-message">
+          <a class="sm-push" href="#step=refund-mail" data-dpk-navigate="step=refund-mail">
             <span class="sm-logo">S</span>
             <div>
               <b>メール</b> <small>いま</small>
@@ -1339,7 +1453,7 @@
             <div class="sm-row"><span>返金額</span><b>¥11,750</b></div>
             <div class="sm-row"><span>返金先</span><span>VISA •••• 4242</span></div>
           </div>
-          <a class="sm-btn" href="#step=refunded-detail" data-dpk-navigate="step=refunded-detail">注文を確認する</a>
+          <a class="sm-btn" href="#screen=refunded-detail" data-dpk-navigate="screen=refunded-detail">注文を確認する</a>
           <p class="sm-sub">このメールは送信専用です。お問い合わせは注文詳細の「お問い合わせ」からどうぞ。</p>
         </div>
       </div>
@@ -1401,7 +1515,7 @@
               出荷の準備が始まったため、この注文はキャンセルできません。お届け後の返品は、商品が届いてからお申し込みいただけます。
             </p>
             <div>
-              <a class="sm-btn sm-btn--ghost" href="#step=contact" data-dpk-navigate="step=contact">
+              <a class="sm-btn sm-btn--ghost" href="#screen=contact" data-dpk-navigate="screen=contact">
                 この注文について問い合わせる
               </a>
               <div class="sm-btn sm-btn--ghost">返品について</div>
@@ -1448,12 +1562,12 @@
           <div class="sm-admin">
             <nav class="sm-side">
               <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
-              <a href="#step=admin-orders" data-dpk-navigate="step=admin-orders" aria-current="page">注文</a>
-              <a href="#step=admin-refunds" data-dpk-navigate="step=admin-refunds"
+              <a href="#screen=admin-orders" data-dpk-navigate="screen=admin-orders" aria-current="page">注文</a>
+              <a href="#screen=admin-refunds" data-dpk-navigate="screen=admin-refunds"
                 >返金 <span class="sm-count">3</span></a
               >
-              <a href="#story=inventory" data-dpk-navigate="story=inventory">在庫</a>
-              <a href="#story=inquiries" data-dpk-navigate="story=inquiries">お問い合わせ</a>
+              <a href="#screen=admin-inventory" data-dpk-navigate="screen=admin-inventory">在庫</a>
+              <a href="#screen=admin-inquiries" data-dpk-navigate="screen=admin-inquiries">お問い合わせ</a>
             </nav>
             <div class="sm-work">
               <div class="sm-work-head">
@@ -1482,7 +1596,12 @@
                   <tbody>
                     <tr>
                       <td>
-                        <a href="#step=admin-order-detail" data-dpk-navigate="step=admin-order-detail">SM-0918-0342</a>
+                        <a
+                          href="#screen=admin-order-detail"
+                          data-dpk-navigate="screen=admin-order-detail"
+                          target="_blank"
+                          >SM-0918-0342</a
+                        >
                       </td>
                       <td>9/18 10:12</td>
                       <td>空野 ひかり</td>
@@ -1492,7 +1611,12 @@
                     </tr>
                     <tr>
                       <td>
-                        <a href="#step=admin-order-detail" data-dpk-navigate="step=admin-order-detail">SM-0916-0301</a>
+                        <a
+                          href="#screen=admin-order-detail"
+                          data-dpk-navigate="screen=admin-order-detail"
+                          target="_blank"
+                          >SM-0916-0301</a
+                        >
                       </td>
                       <td>9/16 19:48</td>
                       <td>雲井 たける</td>
@@ -1502,7 +1626,12 @@
                     </tr>
                     <tr>
                       <td>
-                        <a href="#step=admin-order-detail" data-dpk-navigate="step=admin-order-detail">SM-0914-0210</a>
+                        <a
+                          href="#screen=admin-order-detail"
+                          data-dpk-navigate="screen=admin-order-detail"
+                          target="_blank"
+                          >SM-0914-0210</a
+                        >
                       </td>
                       <td>9/14 08:15</td>
                       <td>晴海 さき</td>
@@ -1523,12 +1652,12 @@
           <div class="sm-admin">
             <nav class="sm-side">
               <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
-              <a href="#step=admin-orders" data-dpk-navigate="step=admin-orders" aria-current="page">注文</a>
-              <a href="#step=admin-refunds" data-dpk-navigate="step=admin-refunds"
+              <a href="#screen=admin-orders" data-dpk-navigate="screen=admin-orders" aria-current="page">注文</a>
+              <a href="#screen=admin-refunds" data-dpk-navigate="screen=admin-refunds"
                 >返金 <span class="sm-count">3</span></a
               >
-              <a href="#story=inventory" data-dpk-navigate="story=inventory">在庫</a>
-              <a href="#story=inquiries" data-dpk-navigate="story=inquiries">お問い合わせ</a>
+              <a href="#screen=admin-inventory" data-dpk-navigate="screen=admin-inventory">在庫</a>
+              <a href="#screen=admin-inquiries" data-dpk-navigate="screen=admin-inquiries">お問い合わせ</a>
             </nav>
             <div class="sm-work">
               <div class="sm-work-head">
@@ -1570,12 +1699,12 @@
           <div class="sm-admin">
             <nav class="sm-side">
               <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
-              <a href="#step=admin-orders" data-dpk-navigate="step=admin-orders">注文</a>
-              <a href="#step=admin-refunds" data-dpk-navigate="step=admin-refunds" aria-current="page"
+              <a href="#screen=admin-orders" data-dpk-navigate="screen=admin-orders">注文</a>
+              <a href="#screen=admin-refunds" data-dpk-navigate="screen=admin-refunds" aria-current="page"
                 >返金 <span class="sm-count">3</span></a
               >
-              <a href="#story=inventory" data-dpk-navigate="story=inventory">在庫</a>
-              <a href="#story=inquiries" data-dpk-navigate="story=inquiries">お問い合わせ</a>
+              <a href="#screen=admin-inventory" data-dpk-navigate="screen=admin-inventory">在庫</a>
+              <a href="#screen=admin-inquiries" data-dpk-navigate="screen=admin-inquiries">お問い合わせ</a>
             </nav>
             <div class="sm-work">
               <div class="sm-work-head">
@@ -1598,7 +1727,7 @@
                   <tbody>
                     <tr data-alert>
                       <td>
-                        <a href="#step=admin-refund-stuck" data-dpk-navigate="step=admin-refund-stuck">SM-0915-0288</a>
+                        <a href="#screen=admin-refund" data-dpk-navigate="screen=admin-refund">SM-0915-0288</a>
                       </td>
                       <td>9/16 07:55</td>
                       <td><b>3 日 2 時間</b></td>
@@ -1608,7 +1737,7 @@
                     </tr>
                     <tr>
                       <td>
-                        <a href="#step=admin-refund-stuck" data-dpk-navigate="step=admin-refund-stuck">SM-0919-0012</a>
+                        <a href="#screen=admin-refund" data-dpk-navigate="screen=admin-refund">SM-0919-0012</a>
                       </td>
                       <td>9/19 09:48</td>
                       <td>42 分</td>
@@ -1618,7 +1747,7 @@
                     </tr>
                     <tr>
                       <td>
-                        <a href="#step=admin-refund-stuck" data-dpk-navigate="step=admin-refund-stuck">SM-0919-0020</a>
+                        <a href="#screen=admin-refund" data-dpk-navigate="screen=admin-refund">SM-0919-0020</a>
                       </td>
                       <td>9/19 10:24</td>
                       <td>6 分</td>
@@ -1679,17 +1808,17 @@
         </div>
       </div>
 
-      <div slot="preview" data-preview-id="admin-refund-stuck-desktop">
+      <div slot="preview" data-preview-id="admin-refund-desktop">
         <div class="sm sm--admin">
           <div class="sm-admin">
             <nav class="sm-side">
               <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
-              <a href="#step=admin-orders" data-dpk-navigate="step=admin-orders">注文</a>
-              <a href="#step=admin-refunds" data-dpk-navigate="step=admin-refunds" aria-current="page"
+              <a href="#screen=admin-orders" data-dpk-navigate="screen=admin-orders">注文</a>
+              <a href="#screen=admin-refunds" data-dpk-navigate="screen=admin-refunds" aria-current="page"
                 >返金 <span class="sm-count">3</span></a
               >
-              <a href="#story=inventory" data-dpk-navigate="story=inventory">在庫</a>
-              <a href="#story=inquiries" data-dpk-navigate="story=inquiries">お問い合わせ</a>
+              <a href="#screen=admin-inventory" data-dpk-navigate="screen=admin-inventory">在庫</a>
+              <a href="#screen=admin-inquiries" data-dpk-navigate="screen=admin-inquiries">お問い合わせ</a>
             </nav>
             <div class="sm-work">
               <div class="sm-work-head">
@@ -1741,9 +1870,66 @@
                   </p>
                   <div class="sm-actions">
                     <button class="sm-btn">いま結果を照会する</button>
-                    <button class="sm-btn sm-btn--ghost" data-dpk-navigate="story=inquiries">購入者に連絡する</button>
+                    <button class="sm-btn sm-btn--ghost" data-dpk-navigate="screen=admin-inquiries">
+                      購入者に連絡する
+                    </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- まだ描いていない画面：メニューから辿れるように枠だけ置く -->
+      <div slot="preview" data-preview-id="admin-inventory-desktop">
+        <div class="sm sm--admin">
+          <div class="sm-admin">
+            <nav class="sm-side">
+              <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
+              <a href="#screen=admin-orders" data-dpk-navigate="screen=admin-orders">注文</a>
+              <a href="#screen=admin-refunds" data-dpk-navigate="screen=admin-refunds"
+                >返金 <span class="sm-count">3</span></a
+              >
+              <a href="#screen=admin-inventory" data-dpk-navigate="screen=admin-inventory" aria-current="page">在庫</a>
+              <a href="#screen=admin-inquiries" data-dpk-navigate="screen=admin-inquiries">お問い合わせ</a>
+            </nav>
+            <div class="sm-work">
+              <div class="sm-work-head">
+                <h1 class="sm-title">在庫</h1>
+              </div>
+              <div class="sm-card">
+                <p class="sm-sub">
+                  この画面はまだ描いていません。キャンセルで引当が解除された在庫が、販売可能数に戻ったかを確かめる画面になります。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div slot="preview" data-preview-id="admin-inquiries-desktop">
+        <div class="sm sm--admin">
+          <div class="sm-admin">
+            <nav class="sm-side">
+              <span class="sm-brand"><span class="sm-logo">S</span>Sora Market 管理</span>
+              <a href="#screen=admin-orders" data-dpk-navigate="screen=admin-orders">注文</a>
+              <a href="#screen=admin-refunds" data-dpk-navigate="screen=admin-refunds"
+                >返金 <span class="sm-count">3</span></a
+              >
+              <a href="#screen=admin-inventory" data-dpk-navigate="screen=admin-inventory">在庫</a>
+              <a href="#screen=admin-inquiries" data-dpk-navigate="screen=admin-inquiries" aria-current="page"
+                >お問い合わせ</a
+              >
+            </nav>
+            <div class="sm-work">
+              <div class="sm-work-head">
+                <h1 class="sm-title">お問い合わせ</h1>
+              </div>
+              <div class="sm-card">
+                <p class="sm-sub">
+                  この画面はまだ描いていません。購入者からの問い合わせに、注文を見ながら返信する画面になります。
+                </p>
               </div>
             </div>
           </div>

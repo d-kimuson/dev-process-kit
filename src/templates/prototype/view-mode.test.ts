@@ -10,96 +10,52 @@ import '../../index';
 
 const base = {
   title: 'Shop',
-  activities: [
+  apps: [
     {
-      id: 'buy',
-      name: 'Buy',
+      id: 'shop',
+      name: 'Shop',
+      description: 'For buyers',
       actor: 'Shopper',
-      stories: [
+      screens: [
+        { id: 'top', title: 'Top', previews: [{ id: 'top', url: 'https://shop.test/' }] },
+        { id: 'list', title: 'Orders', previews: [{ id: 'list', url: 'https://shop.test/mypage/orders?page=1' }] },
         {
-          id: 'order',
-          name: 'Order',
-          steps: [
-            {
-              id: 'list',
-              name: 'Open the list',
-              title: 'Orders',
-              situation: 'On the train',
-              previews: [{ id: 'list-mobile' }],
-            },
-            { id: 'detail', name: 'Open an order', title: 'Order detail', previews: [{ id: 'detail-mobile' }] },
-          ],
+          id: 'detail',
+          title: 'Order detail',
+          description: 'One **order**, with its items.',
+          previews: [{ id: 'detail', url: 'https://shop.test/mypage/orders/42' }],
         },
-        {
-          id: 'cancel',
-          name: 'Cancel',
-          steps: [
-            { id: 'list-again', name: 'Find the order', title: 'Orders', previews: [{ id: 'list-again-mobile' }] },
-            { id: 'memo', name: 'Read the memo', title: 'Memo' },
-          ],
-        },
+        { id: 'thanks', title: 'Thanks', previews: [{ id: 'thanks', url: 'https://shop.test/checkout/done/thanks' }] },
+        { id: 'mail', title: 'Order mail', previews: [{ id: 'mail', kind: 'mail' }] },
       ],
     },
     {
       id: 'admin',
-      name: 'Admin',
+      name: 'Admin console',
       actor: 'Operator',
-      stories: [
-        {
-          id: 'refunds',
-          name: 'Refunds',
-          steps: [{ id: 'refunds', name: 'Check refunds', title: 'Orders', previews: [{ id: 'refunds-desktop' }] }],
-        },
-      ],
+      screens: [{ id: 'new-order', title: 'New order', previews: [{ id: 'ops', url: 'https://admin.test/orders' }] }],
     },
-  ],
-};
-
-const appsBase = {
-  title: 'Shop',
-  apps: [
-    { id: 'shop', name: 'Shop', description: 'For buyers' },
-    { id: 'admin', name: 'Admin console' },
   ],
   activities: [
     {
       id: 'buy',
       name: 'Buy',
-      app: 'shop',
       stories: [
         {
           id: 'order',
           name: 'Order',
           steps: [
-            { id: 'top', name: 'Open the shop', title: 'Top', previews: [{ id: 'top', url: 'https://shop.test/' }] },
+            { id: 'open-list', name: 'Open the list', screen: 'list', situation: 'On the train' },
+            { id: 'open-detail', name: 'Open an order', screen: 'detail' },
             {
-              id: 'list',
-              name: 'Open the orders',
-              title: 'Orders',
-              previews: [{ id: 'list', url: 'https://shop.test/mypage/orders?page=1' }],
+              id: 'check',
+              name: 'Check against the memo',
+              screen: 'detail',
+              materials: [{ id: 'memo', kind: 'plain', label: 'Memo' }],
             },
-            {
-              id: 'detail',
-              name: 'Open an order',
-              title: 'Order detail',
-              previews: [{ id: 'detail', url: 'https://shop.test/mypage/orders/42' }],
-            },
-            {
-              id: 'thanks',
-              name: 'Finish',
-              title: 'Thanks',
-              previews: [{ id: 'thanks', url: 'https://shop.test/checkout/done/thanks' }],
-            },
-            { id: 'mail', name: 'Get a mail', title: 'Order mail', previews: [{ id: 'mail', kind: 'mail' }] },
-            { id: 'shop-ops', name: 'The shop is told', title: 'New order', app: 'admin', previews: [{ id: 'ops' }] },
           ],
         },
       ],
-    },
-    {
-      id: 'misc',
-      name: 'Misc',
-      stories: [{ id: 'm', name: 'M', steps: [{ id: 'fax', name: 'Fax', previews: [{ id: 'fax', kind: 'plain' }] }] }],
     },
   ],
 };
@@ -107,39 +63,21 @@ const appsBase = {
 type TreeOutline = { label: string; screens: string[]; children: TreeOutline[] };
 const outline = (node: ScreenTreeNode): TreeOutline => ({
   label: node.segment,
-  screens: node.screens.map((screen) => screen.title),
+  screens: node.screens.map((entry) => entry.screen.title),
   children: node.children.map(outline),
 });
 
 describe('the app view', () => {
-  it('lists each screen once per actor, opened at its first step, and skips steps with nothing to show', () => {
+  it('lists the screens of each app, in the order the page declares them', () => {
     const sections = prototypeAppSections(parsePrototypeBase(base));
-    expect(sections).toHaveLength(1);
-    expect(sections[0]?.app).toBeUndefined();
-    const screens = sections[0]?.screens ?? [];
-    expect(screens.map((screen) => [screen.actor, screen.title])).toEqual([
-      ['Shopper', 'Orders'],
-      ['Shopper', 'Order detail'],
-      ['Operator', 'Orders'],
-    ]);
-    const orders = screens[0];
-    expect(orders?.opensAt.step.id).toBe('list');
-    expect(orders?.stepRefs).toEqual(['buy.order.list', 'buy.cancel.list-again']);
-    expect(orders?.previewIds).toEqual(['list-mobile', 'list-again-mobile']);
-  });
-
-  it('splits the screens per sub-application, in the order the page declares them', () => {
-    const sections = prototypeAppSections(parsePrototypeBase(appsBase));
-    expect(sections.map((section) => [section.app?.id, section.screens.map((screen) => screen.title)])).toEqual([
+    expect(sections.map((section) => [section.app.id, section.screens.map((entry) => entry.screen.title)])).toEqual([
       ['shop', ['Top', 'Orders', 'Order detail', 'Thanks', 'Order mail']],
       ['admin', ['New order']],
-      // Screens no level names an app for come last, on their own.
-      [undefined, ['Fax']],
     ]);
   });
 
   it('lays the web pages out as a URL tree per origin, folding paths that lead to one page', () => {
-    const [shop] = prototypeAppSections(parsePrototypeBase(appsBase));
+    const [shop] = prototypeAppSections(parsePrototypeBase(base));
     expect(shop?.trees.map((tree) => tree.origin)).toEqual(['https://shop.test']);
     expect(outline(shop!.trees[0]!.root)).toEqual({
       label: '/',
@@ -154,8 +92,8 @@ describe('the app view', () => {
       ],
     });
     expect(shop?.trees[0]?.root.children[0]?.children[0]?.path).toBe('/mypage/orders/42');
-    // What is not a web page keeps the list grouped by who uses it.
-    expect(shop?.others.map((group) => group.screens.map((screen) => screen.title))).toEqual([['Order mail']]);
+    // What is not a web page stays in a list of its own.
+    expect(shop?.others.map((entry) => entry.screen.title)).toEqual(['Order mail']);
   });
 
   it('keeps view=app in the hash and drops any other view', () => {
@@ -173,7 +111,7 @@ describe('<dpk-template-prototype> views', () => {
     document.body.innerHTML = `
       <dpk-template-prototype storage="memory">
         <script type="application/json">${JSON.stringify(base)}</script>
-        <div slot="preview" data-preview-id="list-mobile"><a data-dpk-navigate="step=detail">Order 1</a></div>
+        <div slot="preview" data-preview-id="list"><a data-dpk-navigate="screen=detail">Order 1</a></div>
       </dpk-template-prototype>`;
     return document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
   };
@@ -202,48 +140,62 @@ describe('<dpk-template-prototype> views', () => {
     el.api.navigate({ view: 'app' });
     await settle(el);
     expect(location.hash).toContain('view=app');
+    // The app view names a screen, nothing of the scenario.
+    expect(location.hash).toContain('screen=list');
+    expect(location.hash).not.toContain('step=');
     expect(root.querySelector('.view-option[aria-current="page"]')?.getAttribute('data-view')).toBe('app');
-    // With no sub-applications declared there is nothing to pick between.
-    expect(root.querySelectorAll('.nav select')).toHaveLength(0);
-    expect(root.querySelector('.app-origin')?.textContent).toBe('shop.example.com');
-    // Two people use a page called Orders: each row says whose it is.
-    expect(
-      [...root.querySelectorAll('.tree-row')].map((row) => [
-        row.querySelector('.tree-path')?.textContent,
-        row.querySelector('.tree-title')?.textContent,
-        row.querySelector('.tree-actor')?.textContent,
-      ]),
-    ).toEqual([
-      ['/list-mobile', 'Orders', 'Shopper'],
-      ['/detail-mobile', 'Order detail', 'Shopper'],
-      ['/refunds-desktop', 'Orders', 'Operator'],
-    ]);
     expect(root.querySelector('.tree-row[data-current="true"] .tree-title')?.textContent).toBe('Orders');
-    // The app is the UI alone: the scenario's situation band is not shown.
+    // A screen has no situation: that belongs to the scenario.
     expect(root.querySelector('.situation')).toBeNull();
 
     // A link of the mock moves around the app and stays in the app view.
     el.querySelector<HTMLAnchorElement>('[data-dpk-navigate]')!.click();
     await settle(el);
-    expect(location.hash).toContain('step=detail');
+    expect(location.hash).toContain('screen=detail');
     expect(location.hash).toContain('view=app');
     expect(root.querySelector('.tree-row[data-current="true"] .tree-title')?.textContent).toBe('Order detail');
+    // The screen's description follows the list.
+    expect(root.querySelector('.screen-description strong')?.textContent).toBe('order');
   });
 
-  it('shows one sub-application at a time, picked with a select, its web pages as a URL tree', async () => {
+  it('shows a screen alone, never the materials a step holds beside it', async () => {
+    window.location.hash = '#step=check';
+    const el = mount();
+    await settle(el);
+    const root = el.shadowRoot!;
+    expect(root.querySelector('.canvas')?.getAttribute('data-layout')).toBe('side-by-side');
+    expect([...root.querySelectorAll('.canvas slot')].map((slot) => slot.getAttribute('name'))).toEqual([
+      'preview:memo',
+      'preview:detail',
+    ]);
+
+    el.api.navigate({ view: 'app' });
+    await settle(el);
+    expect(location.hash).toContain('screen=detail');
+    expect([...root.querySelectorAll('.canvas slot')].map((slot) => slot.getAttribute('name'))).toEqual([
+      'preview:detail',
+    ]);
+  });
+
+  it('moves the scenario to the step that shows the screen a link names', async () => {
+    const el = mount();
+    await settle(el);
+    el.querySelector<HTMLAnchorElement>('[data-dpk-navigate]')!.click();
+    await settle(el);
+    expect(location.hash).toContain('step=open-detail');
+    expect(location.hash).not.toContain('screen=');
+    expect(location.hash).not.toContain('view=app');
+  });
+
+  it('shows one app at a time, picked with a select, its web pages as a URL tree', async () => {
     window.location.hash = '#view=app';
-    document.body.innerHTML = `
-      <dpk-template-prototype storage="memory">
-        <script type="application/json">${JSON.stringify(appsBase)}</script>
-      </dpk-template-prototype>`;
-    const el = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    const el = mount();
     await settle(el);
     const root = el.shadowRoot!;
     const select = root.querySelector<HTMLSelectElement>('.nav select[aria-label="App"]')!;
     expect([...select.options].map((option) => [option.text, option.selected])).toEqual([
       ['Shop', true],
       ['Admin console', false],
-      ['Other', false],
     ]);
     expect(root.querySelector('.app-description')?.textContent).toBe('For buyers');
     expect(root.querySelector('.app-origin')?.textContent).toBe('shop.test');
@@ -262,16 +214,14 @@ describe('<dpk-template-prototype> views', () => {
     ]);
     // A row names its whole path, since the tree only shows the end of it.
     expect(rows[2]?.querySelector('a')?.title).toBe('/mypage/orders/42');
-    // Only the shop's people use it: no row needs to say who.
-    expect(root.querySelector('.tree-actor')).toBeNull();
     // A mail is no web page: it stays in a list below the tree.
     expect(root.querySelector('.app-screens .step-name')?.textContent).toBe('Order mail');
-    expect(root.querySelector('.app-group .app-actor')?.textContent).toBe('Outside the browser');
+    expect(root.querySelector('.app-group .app-group-heading')?.textContent).toBe('Outside the browser');
 
     select.value = '1';
     select.dispatchEvent(new Event('change'));
     await settle(el);
-    expect(location.hash).toContain('step=shop-ops');
+    expect(location.hash).toContain('screen=new-order');
     expect(location.hash).toContain('view=app');
     expect(root.querySelector<HTMLSelectElement>('.nav select[aria-label="App"]')?.selectedOptions[0]?.text).toBe(
       'Admin console',

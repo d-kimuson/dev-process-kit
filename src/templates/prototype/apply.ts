@@ -4,11 +4,13 @@ import { assertNever, parseTemplateAction } from '../../core/schema';
 import { prototypeActions } from './actions';
 import {
   findPreview,
+  findScreen,
   findStep,
   findStory,
   localId,
   stepRef,
   storyRef,
+  type PreviewOwner,
   type PrototypeActivity,
   type PrototypePreview,
   type PrototypeState,
@@ -200,13 +202,15 @@ export const applyPrototypeAction = (state: PrototypeState, action: DraftAction)
       const story = findStory(state, id)?.story;
       if (!story) return null;
       if (story.steps.some((step) => step.id === payload.id)) return state;
-      const ids = (payload.previews ?? []).map((preview) => preview.id);
+      if (payload.screen !== undefined && !findScreen(state, payload.screen)) return null;
+      const ids = (payload.materials ?? []).map((preview) => preview.id);
       if (new Set(ids).size !== ids.length || ids.some((previewId) => findPreview(state, previewId))) return null;
       const step: PrototypeStep = {
         id: payload.id,
         name: payload.name,
         ...(payload.description === undefined ? {} : { description: payload.description }),
-        previews: payload.previews ?? [],
+        ...(payload.screen === undefined ? {} : { screen: payload.screen }),
+        materials: payload.materials ?? [],
       };
       return updateStory(state, id, (candidate) => ({
         ...candidate,
@@ -217,11 +221,11 @@ export const applyPrototypeAction = (state: PrototypeState, action: DraftAction)
       const payload = typed.payload;
       const step = findStep(state, id)?.step;
       if (!step) return null;
-      if (step.previews.some((preview) => preview.id === payload.id)) return state;
+      if (step.materials.some((preview) => preview.id === payload.id)) return state;
       if (findPreview(state, payload.id)) return null;
       return updateStep(state, id, (candidate) => ({
         ...candidate,
-        previews: [...candidate.previews, payload],
+        materials: [...candidate.materials, payload],
       }));
     }
 
@@ -252,10 +256,9 @@ export const applyPrototypeAction = (state: PrototypeState, action: DraftAction)
     case 'DELETE_PREVIEW': {
       const found = findPreview(state, id);
       if (!found) return null;
-      return updateStep(state, stepRef(found.location), (step) => ({
-        ...step,
-        previews: step.previews.filter((preview) => preview.id !== found.preview.id),
-      }));
+      return mapPreviews(state, found.owner, (previews) =>
+        previews.filter((preview) => preview.id !== found.preview.id),
+      );
     }
     default:
       return assertNever(typed);
@@ -315,10 +318,34 @@ const updatePreview = (
   const found = findPreview(state, ref);
   if (!found) return null;
   const id = found.preview.id;
-  return updateStep(state, stepRef(found.location), (step) => ({
-    ...step,
-    previews: step.previews.map((preview) => (preview.id === id ? fn(preview) : preview)),
-  }));
+  return mapPreviews(state, found.owner, (previews) =>
+    previews.map((preview) => (preview.id === id ? fn(preview) : preview)),
+  );
+};
+
+/** Rewrites the previews of whatever owns them: a screen's renditions or a step's materials. */
+const mapPreviews = (
+  state: PrototypeState,
+  owner: PreviewOwner,
+  fn: (previews: readonly PrototypePreview[]) => PrototypePreview[],
+): PrototypeState | null => {
+  if (owner.kind === 'step') {
+    return updateStep(state, stepRef(owner), (step) => ({ ...step, materials: fn(step.materials) }));
+  }
+  const screenId = owner.screen.id;
+  return {
+    ...state,
+    apps: state.apps.map((app) =>
+      app.id === owner.app.id
+        ? {
+            ...app,
+            screens: app.screens.map((screen) =>
+              screen.id === screenId ? { ...screen, previews: fn(screen.previews) } : screen,
+            ),
+          }
+        : app,
+    ),
+  };
 };
 
 /** Moves `id` directly after `after` (`null` = first). `null` when an anchor is unknown. */

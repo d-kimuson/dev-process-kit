@@ -8,6 +8,7 @@ import {
   emptyPrototypeBase,
   findActivity,
   findPreview,
+  findScreen,
   findStep,
   findStory,
   parsePrototypeBase,
@@ -34,6 +35,8 @@ export const prototypeHasTarget = (state: PrototypeState, target: ActionTarget):
       return findStory(state, target.id) !== undefined;
     case 'step':
       return findStep(state, target.id) !== undefined;
+    case 'screen':
+      return findScreen(state, target.id) !== undefined;
     case 'preview':
       return findPreview(state, target.id) !== undefined;
     case 'page':
@@ -49,8 +52,10 @@ export const prototypeHasTarget = (state: PrototypeState, target: ActionTarget):
 };
 
 /**
- * Prototype template: Activity > UserStory > Step > Preview[].
- * `Step` is one page / experience state; a Step owns the previews it needs.
+ * Prototype template: the product as App > Screen > Preview[] (renditions),
+ * and its scenarios as Activity > UserStory > Step. A step names the screen
+ * the user is on and owns only what the scenario adds: the situation and the
+ * materials at hand.
  */
 export const prototypeDefinitionFor = (locale: Locale): TemplateDefinition<PrototypeState> => {
   const m = prototypeMessages(locale);
@@ -80,7 +85,7 @@ export const prototypeDefinitionFor = (locale: Locale): TemplateDefinition<Proto
     describe: (action, state, base) => describePrototypeAction(m, action, state, base),
     serialize: serializePrototypeAction,
     resolveNavigation: resolvePrototypeNavigation,
-    navigationHierarchy: ['activity', 'story', 'step', 'preview'],
+    navigationHierarchy: ['activity', 'story', 'step', 'screen', 'preview'],
     commentTargets: (state: PrototypeState, _navigation: Navigation) => prototypeCommentTargets(m, state),
     currentTarget: (state: PrototypeState, navigation: Navigation) => prototypeCurrentTarget(m, state, navigation),
     title: prototypeTitle,

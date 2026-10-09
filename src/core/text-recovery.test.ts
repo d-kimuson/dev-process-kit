@@ -52,6 +52,9 @@ describe('unsent text records', () => {
 describe('keeping unsent text through a reload', () => {
   const base = {
     title: 'Demo',
+    apps: [
+      { id: 'web', name: 'Web', screens: [{ id: 'landing', title: 'Landing', previews: [{ id: 'landing-mobile' }] }] },
+    ],
     activities: [
       {
         id: 'onboarding',
@@ -60,7 +63,7 @@ describe('keeping unsent text through a reload', () => {
           {
             id: 'account',
             name: 'Account',
-            steps: [{ id: 'landing', name: 'Landing', previews: [{ id: 'landing-mobile' }] }],
+            steps: [{ id: 'landing', name: 'Landing', screen: 'landing' }],
           },
         ],
       },

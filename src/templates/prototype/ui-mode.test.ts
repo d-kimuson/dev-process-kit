@@ -11,6 +11,13 @@ import { reduceUiComment, UI_COMMENT_OFF, type UiCommentMode } from './ui-mode';
 const m = prototypeMessages('en');
 
 const state = parsePrototypeBase({
+  apps: [
+    {
+      id: 'shop',
+      name: 'Shop',
+      screens: [{ id: 'cart-screen', title: 'Cart', previews: [{ id: 'cart', viewport: 'mobile', label: 'Cart' }] }],
+    },
+  ],
   activities: [
     {
       id: 'a',
@@ -23,10 +30,8 @@ const state = parsePrototypeBase({
             {
               id: 'x',
               name: 'X',
-              previews: [
-                { id: 'cart', viewport: 'mobile', label: 'Cart' },
-                { id: 'memo', kind: 'plain' },
-              ],
+              screen: 'cart-screen',
+              materials: [{ id: 'memo', kind: 'plain' }],
             },
           ],
         },

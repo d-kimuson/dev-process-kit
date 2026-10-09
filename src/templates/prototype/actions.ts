@@ -85,10 +85,14 @@ export const prototypeActions = {
       id: entityIdSchema,
       name: v.pipe(v.string(), v.minLength(1)),
       description: v.exactOptional(v.string()),
-      previews: v.exactOptional(v.array(v.object(previewEntries))),
+      /** The screen the user is on; it must be declared under `apps[].screens`. */
+      screen: v.exactOptional(entityIdSchema),
+      /** What the user has at hand outside the product. */
+      materials: v.exactOptional(v.array(v.object(previewEntries))),
     }),
     { dedupeKey: entityDedupeKey },
   ),
+  /** Adds a material to a step; the product's screens are base data only. */
   ADD_PREVIEW: defineAction('ADD_PREVIEW', 'step', v.object(previewEntries), { dedupeKey: entityDedupeKey }),
 
   DELETE_ACTIVITY: defineAction('DELETE_ACTIVITY', 'activity', v.object({})),
@@ -193,10 +197,20 @@ export const prototypeAction = {
       ...(description === undefined ? {} : { description }),
     },
   }),
-  addStep: (storyId: string, id: string, name: string, previews?: readonly PrototypePreview[]): ActionInput => ({
+  addStep: (
+    storyId: string,
+    id: string,
+    name: string,
+    scene: { readonly screen?: string; readonly materials?: readonly PrototypePreview[] } = {},
+  ): ActionInput => ({
     type: 'ADD_STEP',
     target: { type: 'story', id: storyId },
-    payload: { id, name, ...(previews === undefined ? {} : { previews }) },
+    payload: {
+      id,
+      name,
+      ...(scene.screen === undefined ? {} : { screen: scene.screen }),
+      ...(scene.materials === undefined ? {} : { materials: scene.materials }),
+    },
   }),
   addPreview: (stepId: string, preview: PrototypePreview): ActionInput => ({
     type: 'ADD_PREVIEW',

@@ -4,9 +4,9 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { PrototypeMessages } from '../messages';
 
-import { iconMaximize, iconMinimize } from '../../../core/icons';
+import { iconClose, iconMaximize, iconMinimize } from '../../../core/icons';
 import { renderMarkdown } from '../../../lib/markdown';
-import { flattenSteps, type PreviewViewport, type PrototypePreview, type PrototypeState } from '../model';
+import { allScreens, flattenSteps, type PrototypePreview, type PrototypeState } from '../model';
 import {
   locatePrototype,
   prototypeMailHeader,
@@ -18,6 +18,8 @@ import {
   type PageHeading,
 } from '../present';
 import { prototypeViewOf } from '../view-mode';
+import { renderBrowser, type BrowserFrame } from './browser';
+import { VIEWPORT_MIN_HEIGHT, VIEWPORT_WIDTH } from './frame-size';
 import {
   renderUiCommentHint,
   renderUiCommentLayer,
@@ -26,37 +28,29 @@ import {
   type UiCommentView,
 } from './ui-comment';
 
-export const VIEWPORT_WIDTH: Record<PreviewViewport, string> = {
-  mobile: '390px',
-  tablet: '834px',
-  desktop: '1180px',
-  fluid: '100%',
-};
+export { VIEWPORT_MIN_HEIGHT, VIEWPORT_WIDTH } from './frame-size';
 
 /**
- * Preview frames are content sized: a mock that is taller than this simply makes
- * the frame taller and the page scrolls as a whole. The minimum only keeps a
- * short mock looking like a device screen.
+ * How the stage is lifted over the page into the top layer: maximized (the
+ * scenario's stage across the tab) or a demo (the app view's browser alone,
+ * edge to edge). `height` is what the stage took in the page: a placeholder
+ * keeps it, so the page behind neither reflows nor scrolls.
  */
-export const VIEWPORT_MIN_HEIGHT: Record<PreviewViewport, string> = {
-  mobile: '620px',
-  tablet: '640px',
-  desktop: '520px',
-  fluid: '420px',
-};
+export type StageLift = { readonly mode: 'maximized' | 'demo'; readonly height: number };
 
 export type StageOptions = {
   /** Whether the light DOM holds markup for the preview (else a placeholder is shown). */
   readonly hasPreviewContent: (previewId: string) => boolean;
-  /**
-   * Set while the stage fills the tab. `height` is what the stage took in the
-   * page: a placeholder keeps it, so the page behind neither reflows nor scrolls.
-   */
-  readonly maximized: { readonly height: number } | null;
-  /** Maximizes the stage, or restores it when it already fills the tab. */
+  /** Set while the stage fills the tab. */
+  readonly lift: StageLift | null;
+  /** Maximizes the stage, or restores it when it already fills the tab (the scenario view). */
   readonly onToggleMaximize: () => void;
-  /** A wheel over the maximized stage, which must not scroll the hidden page. */
-  readonly onMaximizedWheel: (event: WheelEvent) => void;
+  /** Starts the demo, or ends it (the app view). */
+  readonly onToggleDemo: () => void;
+  /** A wheel over the lifted stage, which must not scroll the hidden page. */
+  readonly onLiftedWheel: (event: WheelEvent) => void;
+  /** The browser the app view runs its web page in; `null` for any other frame. */
+  readonly browser: Omit<BrowserFrame, 'preview' | 'hasContent' | 'viewport' | 'onExitDemo'> | null;
   /** Commenting on the UI: the mode, the pins and the composer. */
   readonly uiComment: UiCommentView;
   /** Pointer events on the canvas, read by the element while the reader comments on the UI. */
@@ -71,7 +65,7 @@ export type StageOptions = {
   };
 };
 
-/** Tabs or panes (when a step has several previews), the frames on screen and the parked slots. */
+/** The renditions of the screen as tabs, the materials at hand beside it, and the parked slots. */
 export const renderStage = (
   context: TemplateRenderContext<PrototypeState>,
   m: PrototypeMessages,
@@ -79,9 +73,9 @@ export const renderStage = (
 ): TemplateResult => {
   const { state, navigation } = context;
   const located = locatePrototype(state, navigation);
-  const location = located?.kind === 'step' ? located : undefined;
-  const frames = location ? prototypeStageFrames(location.step, navigation) : undefined;
-  const parked = renderParkedPreviews(state, frames?.shown.map((preview) => preview.id) ?? []);
+  const location = located === undefined || located.kind === 'story' ? undefined : located;
+  const app = prototypeViewOf(navigation) === 'app';
+  const parked = renderParkedPreviews(state, []);
 
   if (located?.kind === 'story') {
     // A story nothing has prototyped yet is still a destination: a mock links
@@ -106,42 +100,67 @@ export const renderStage = (
   if (!location) {
     return html`
       <div class="stage">
-        <p class="stage-empty">
-          ${m.noStepBefore}<strong>Activity › UserStory › Step › Preview</strong>${m.noStepAfter}
-        </p>
+        ${
+          app
+            ? html`<p class="stage-empty">${m.noScreens}</p>`
+            : html`<p class="stage-empty">
+                ${m.noStepBefore}<strong>Activity › UserStory › Step</strong>${m.noStepAfter}
+              </p>`
+        }
         ${parked}
       </div>
     `;
   }
 
-  const { layout, shown, tabs, activeId } = frames ?? prototypeStageFrames(location.step, navigation);
+  const { layout, shown, tabs, activeId } = prototypeStageFrames(state, location, navigation);
   const ui = options.uiComment;
-  const maximized = options.maximized;
+  const lift = options.lift;
+  const demo = lift?.mode === 'demo';
+  const browser = options.browser;
+  // The new tab page (or an unreachable address) covers the page the hash names.
+  const onScreen = browser !== null && browser.view.entry?.kind !== 'page' ? [] : shown;
+  const [browserPreview] = onScreen;
+  const viewport = (browserPreview ?? shown[0])?.viewport ?? 'desktop';
+  // A desktop browser has room for the way out at the free end of its tab strip.
+  const exitInBrowser = demo && browser !== null && viewport !== 'mobile';
   return html`
-    ${
-      maximized === null ? nothing : html`<div class="stage-placeholder" style=${`height:${maximized.height}px`}></div>`
-    }
+    ${lift === null ? nothing : html`<div class="stage-placeholder" style=${`height:${lift.height}px`}></div>`}
     <div
-      class=${maximized === null ? 'stage' : 'stage is-maximized'}
+      class=${lift === null ? 'stage' : demo ? 'stage is-demo' : 'stage is-maximized'}
       data-ui-comment=${ui.mode.kind}
-      popover=${maximized === null ? nothing : 'manual'}
-      @wheel=${maximized === null ? nothing : { handleEvent: options.onMaximizedWheel, passive: false }}
+      popover=${lift === null ? nothing : 'manual'}
+      @wheel=${lift === null ? nothing : { handleEvent: options.onLiftedWheel, passive: false }}
     >
-      <div class="stage-bar">
-        ${renderPageHead(m, prototypePageHeading(location))}
-        <div class="stage-tools">
-          ${tabs.length > 0 ? renderPreviewTabs(context, tabs, activeId) : nothing}
-          ${shown.length > 0 ? renderUiCommentToggle(m, ui) : nothing}
-          ${shown.length > 0 ? renderMaximizeToggle(m, maximized !== null, options.onToggleMaximize) : nothing}
-        </div>
-      </div>
       ${
-        // The situation belongs to the scenario: the app view is the UI alone.
-        location.step.situation === undefined || prototypeViewOf(navigation) === 'app'
-          ? nothing
-          : renderSituation(m, location.step.situation)
+        demo
+          ? // A demo is the app alone: no title, no tools, only a way out.
+            exitInBrowser
+            ? nothing
+            : html`<button class="demo-exit" type="button" title=${m.exitDemo} @click=${options.onToggleDemo}>
+                ${iconClose()} ${m.exitDemo} <kbd>Esc</kbd>
+              </button>`
+          : html`<div class="stage-bar">
+              ${renderPageHead(m, prototypePageHeading(state, location))}
+              <div class="stage-tools">
+                ${tabs.length > 0 ? renderPreviewTabs(context, tabs, activeId) : nothing}
+                ${shown.length > 0 ? renderUiCommentToggle(m, ui) : nothing}
+                ${
+                  shown.length === 0
+                    ? nothing
+                    : app
+                      ? renderDemoToggle(m, options.onToggleDemo)
+                      : renderMaximizeToggle(m, lift !== null, options.onToggleMaximize)
+                }
+              </div>
+            </div>`
       }
-      ${renderUiCommentHint(m, ui)}
+      ${
+        // The situation belongs to the scenario: a screen of the app view has none.
+        location.kind === 'step' && location.step.situation !== undefined
+          ? renderSituation(m, location.step.situation)
+          : nothing
+      }
+      ${demo ? nothing : renderUiCommentHint(m, ui)}
       <div
         class="canvas"
         data-layout=${layout}
@@ -152,22 +171,34 @@ export const renderStage = (
         @scroll=${{ handleEvent: options.canvasEvents.scroll, capture: true }}
       >
         ${
-          layout === 'side-by-side'
-            ? html`<div class="panes">
-                ${shown.map(
-                  (preview) =>
-                    html`<div class="pane" data-viewport=${preview.viewport}>
-                      ${preview.label === undefined ? nothing : html`<span class="pane-label">${preview.label}</span>`}
-                      ${renderFrame(context, m, preview, options.hasPreviewContent(preview.id))}
-                    </div>`,
-                )}
-              </div>`
-            : shown.map((preview) => renderFrame(context, m, preview, options.hasPreviewContent(preview.id)))
+          browser !== null
+            ? renderBrowser(context, m, {
+                ...browser,
+                ...(browserPreview === undefined ? {} : { preview: browserPreview }),
+                ...(exitInBrowser ? { onExitDemo: options.onToggleDemo } : {}),
+                hasContent: browserPreview === undefined || options.hasPreviewContent(browserPreview.id),
+                viewport,
+              })
+            : layout === 'side-by-side'
+              ? html`<div class="panes">
+                  ${shown.map(
+                    (preview) =>
+                      html`<div class="pane" data-viewport=${preview.viewport}>
+                        ${preview.label === undefined ? nothing : html`<span class="pane-label">${preview.label}</span>`}
+                        ${renderFrame(context, m, preview, options.hasPreviewContent(preview.id))}
+                      </div>`,
+                  )}
+                </div>`
+              : shown.map((preview) => renderFrame(context, m, preview, options.hasPreviewContent(preview.id)))
         }
         ${shown.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
         ${renderUiCommentLayer(m, ui)}
       </div>
-      ${renderUiComposer(ui)} ${parked}
+      ${renderUiComposer(ui)}
+      ${renderParkedPreviews(
+        state,
+        onScreen.map((preview) => preview.id),
+      )}
     </div>
   `;
 };
@@ -216,6 +247,14 @@ const renderPreviewTabs = (
         >`,
     )}
   </div>`;
+};
+
+/** The app view's demo: the browser alone across the tab, as if the reader were using the app. */
+const renderDemoToggle = (m: PrototypeMessages, onToggle: () => void): TemplateResult => {
+  return html`<button class="dpk-btn stage-demo" type="button" title=${m.demoHint} @click=${onToggle}>
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5v9l7.5-4.5Z" fill="currentColor" /></svg>
+    ${m.demo}
+  </button>`;
 };
 
 /** One button both maximizes the stage within the tab and restores it, like a diagram's. */
@@ -320,9 +359,11 @@ const renderStatusBar = (): TemplateResult => {
  * generic `slot="preview"` bucket and show up as an orphan.
  */
 export const renderParkedPreviews = (state: PrototypeState, shownIds: readonly string[]): TemplateResult => {
-  const parked = flattenSteps(state).flatMap((entry) =>
-    entry.step.previews.filter((preview) => !shownIds.includes(preview.id)),
-  );
+  const declared = [
+    ...allScreens(state).flatMap((entry) => entry.screen.previews),
+    ...flattenSteps(state).flatMap((entry) => entry.step.materials),
+  ];
+  const parked = declared.filter((preview) => !shownIds.includes(preview.id));
   if (parked.length === 0) return html`${nothing}`;
   return html`<div class="parked" aria-hidden="true">
     ${parked.map((preview) => html`<slot name=${`preview:${preview.id}`}></slot>`)}

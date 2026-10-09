@@ -24,11 +24,16 @@ export {
   findStep,
   findStory,
   findPreview,
+  findScreen,
+  allScreens,
   flattenSteps,
   allStepIds,
 } from './model';
 export type {
   PrototypeActivity,
+  PrototypeApp,
+  PrototypeScreen,
+  ScreenLocation,
   PrototypePreview,
   PrototypeState,
   PrototypeStep,

@@ -6,13 +6,12 @@ import { prototypeAction } from './actions';
 import { applyPrototypeAction } from './apply';
 import { prototypeDefinitionFor } from './definition';
 import { prototypeMessages } from './messages';
-import { findStep, parsePrototypeBase, stepAppId, stepRef, type PrototypeState } from './model';
+import { findStep, parsePrototypeBase, stepRef, type PrototypeState } from './model';
 import {
   describePrototypeAction,
   prototypeLinkProblem,
   prototypeMailHeader,
   prototypePageHeading,
-  prototypeStageFrames,
   prototypePreviewUrl,
   resolvePrototypeNavigation,
   serializePrototypeAction,
@@ -23,6 +22,13 @@ const m = prototypeMessages('en');
 const state = (): PrototypeState => {
   return parsePrototypeBase({
     title: 'Demo',
+    apps: [
+      {
+        id: 'app',
+        name: 'App',
+        screens: [{ id: 'screen-a', title: 'A', previews: [{ id: 'a-mobile', kind: 'browser', viewport: 'mobile' }] }],
+      },
+    ],
     activities: [
       {
         id: 'onboarding',
@@ -32,11 +38,7 @@ const state = (): PrototypeState => {
             id: 'account',
             name: 'Account',
             steps: [
-              {
-                id: 'a',
-                name: 'A',
-                previews: [{ id: 'a-mobile', kind: 'browser', viewport: 'mobile' }],
-              },
+              { id: 'a', name: 'A', screen: 'screen-a' },
               { id: 'b', name: 'B' },
               { id: 'c', name: 'C' },
             ],
@@ -82,7 +84,7 @@ describe('prototype base parsing', () => {
               {
                 id: 's',
                 name: 'S',
-                steps: [{ id: 'x', name: 'X', previews: [{}] }],
+                steps: [{ id: 'x', name: 'X', materials: [{}] }],
               },
             ],
           },
@@ -101,17 +103,17 @@ describe('prototype base parsing', () => {
             {
               id: 's',
               name: 'S',
-              steps: [{ id: 'x', name: 'X', previews: [{ id: 'p' }] }],
+              steps: [{ id: 'x', name: 'X', materials: [{ id: 'p' }] }],
             },
           ],
         },
       ],
     });
-    expect(parsed.activities[0]?.stories[0]?.steps[0]?.previews[0]).toMatchObject({
+    expect(parsed.activities[0]?.stories[0]?.steps[0]?.materials[0]).toMatchObject({
       kind: 'browser',
       viewport: 'fluid',
     });
-    expect(parsePrototypeBase({})).toEqual({ activities: [] });
+    expect(parsePrototypeBase({})).toEqual({ apps: [], activities: [] });
   });
 
   it('accepts a plain preview for what is not a screen (a memo, a FAX, a paper form)', () => {
@@ -120,82 +122,19 @@ describe('prototype base parsing', () => {
         {
           id: 'a',
           name: 'A',
-          stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', previews: [{ id: 'memo', kind: 'plain' }] }] }],
+          stories: [
+            { id: 's', name: 'S', steps: [{ id: 'x', name: 'X', materials: [{ id: 'memo', kind: 'plain' }] }] },
+          ],
         },
       ],
     });
-    expect(parsed.activities[0]?.stories[0]?.steps[0]?.previews[0]).toMatchObject({ kind: 'plain' });
-  });
-});
-
-describe('prototype apps', () => {
-  const withApps = (
-    activities: unknown,
-    apps: unknown = [
-      { id: 'shop', name: 'Shop', description: 'For buyers' },
-      { id: 'admin', name: 'Admin' },
-    ],
-  ): unknown => ({ apps, activities });
-
-  it('keeps the sub-applications and the app each level belongs to, the nearest one winning', () => {
-    const parsed = parsePrototypeBase(
-      withApps([
-        {
-          id: 'buy',
-          name: 'Buy',
-          app: 'shop',
-          stories: [
-            {
-              id: 'order',
-              name: 'Order',
-              steps: [
-                { id: 'cart', name: 'Cart' },
-                { id: 'notify', name: 'Notify the shop', app: 'admin' },
-              ],
-            },
-            { id: 'ops', name: 'Ops', app: 'admin', steps: [{ id: 'check', name: 'Check' }] },
-          ],
-        },
-        { id: 'misc', name: 'Misc', stories: [{ id: 'm', name: 'M', steps: [{ id: 'x', name: 'X' }] }] },
-      ]),
-    );
-    expect(parsed.apps).toEqual([
-      { id: 'shop', name: 'Shop', description: 'For buyers' },
-      { id: 'admin', name: 'Admin' },
-    ]);
-    const appOf = (ref: string): string | undefined => {
-      const location = findStep(parsed, ref);
-      return location && stepAppId(location);
-    };
-    expect(appOf('buy.order.cart')).toBe('shop');
-    expect(appOf('buy.order.notify')).toBe('admin');
-    expect(appOf('buy.ops.check')).toBe('admin');
-    expect(appOf('misc.m.x')).toBeUndefined();
-  });
-
-  it('rejects an app the page does not declare, and duplicate app ids', () => {
-    const story = (app: string): unknown => [
-      { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', app }] }] },
-    ];
-    expect(() => parsePrototypeBase(withApps(story('shpo')))).toThrow(/unknown app "shpo"/);
-    expect(() => parsePrototypeBase({ activities: story('shop') })).toThrow(/unknown app "shop"/);
-    expect(() =>
-      parsePrototypeBase(
-        withApps(
-          [],
-          [
-            { id: 'shop', name: 'Shop' },
-            { id: 'shop', name: 'Shop again' },
-          ],
-        ),
-      ),
-    ).toThrow(/duplicate app id "shop"/);
+    expect(parsed.activities[0]?.stories[0]?.steps[0]?.materials[0]).toMatchObject({ kind: 'plain' });
   });
 });
 
 const onePreview = (preview: Record<string, unknown>): unknown => ({
   activities: [
-    { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', previews: [preview] }] }] },
+    { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', materials: [preview] }] }] },
   ],
 });
 
@@ -243,60 +182,6 @@ describe('prototype situation', () => {
   });
 });
 
-describe('prototype stage frames', () => {
-  const step = (layout?: 'tabs' | 'side-by-side'): PrototypeState =>
-    parsePrototypeBase({
-      activities: [
-        {
-          id: 'a',
-          name: 'A',
-          stories: [
-            {
-              id: 's',
-              name: 'S',
-              steps: [
-                {
-                  id: 'x',
-                  name: 'X',
-                  ...(layout === undefined ? {} : { layout }),
-                  previews: [
-                    { id: 'memo', kind: 'plain', label: 'Memo' },
-                    { id: 'screen', viewport: 'desktop' },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-  const xOf = (s: PrototypeState) => findStep(s, 'x')!.step;
-
-  it('shows one preview at a time as tabs by default', () => {
-    const frames = prototypeStageFrames(xOf(step()), { step: 'x', preview: 'screen' });
-    expect(frames.layout).toBe('tabs');
-    expect(frames.shown.map((preview) => preview.id)).toEqual(['screen']);
-    expect(frames.tabs.map((preview) => preview.id)).toEqual(['memo', 'screen']);
-    expect(frames.activeId).toBe('screen');
-    // an unknown tab falls back to the first preview
-    expect(prototypeStageFrames(xOf(step()), { preview: 'nope' }).activeId).toBe('memo');
-  });
-
-  it('puts every preview side by side, with no tabs to switch', () => {
-    const frames = prototypeStageFrames(xOf(step('side-by-side')), { step: 'x', preview: 'screen' });
-    expect(frames.layout).toBe('side-by-side');
-    expect(frames.shown.map((preview) => preview.id)).toEqual(['memo', 'screen']);
-    expect(frames.tabs).toEqual([]);
-    expect(frames.activeId).toBeUndefined();
-  });
-
-  it('keeps no preview tab in the hash of a side-by-side step', () => {
-    const nav = resolvePrototypeNavigation(step('side-by-side'), { step: 'x', preview: 'screen' });
-    expect(nav).toEqual({ activity: 'a', story: 's', step: 'x' });
-    expect(resolvePrototypeNavigation(step(), { step: 'x', preview: 'screen' })['preview']).toBe('screen');
-  });
-});
-
 describe('prototype mail preview', () => {
   it('parses the envelope of a mail preview', () => {
     const parsed = parsePrototypeBase(
@@ -306,7 +191,7 @@ describe('prototype mail preview', () => {
         mail: { from: 'Shop <no-reply@shop.example>', to: 'me@example.com', subject: 'Refunded' },
       }),
     );
-    expect(parsed.activities[0]?.stories[0]?.steps[0]?.previews[0]).toEqual({
+    expect(parsed.activities[0]?.stories[0]?.steps[0]?.materials[0]).toEqual({
       id: 'm',
       kind: 'mail',
       viewport: 'fluid',
@@ -367,7 +252,7 @@ describe('prototype preview url', () => {
     expect(
       prototypePreviewUrl(state(), { id: 'x', kind: 'browser', viewport: 'fluid', url: 'https://a.example.com/x' }),
     ).toBe('https://a.example.com/x');
-    expect(prototypePreviewUrl({ activities: [] }, { id: 'x', kind: 'browser', viewport: 'fluid' })).toBe(
+    expect(prototypePreviewUrl({ apps: [], activities: [] }, { id: 'x', kind: 'browser', viewport: 'fluid' })).toBe(
       'https://page.example.com/x',
     );
   });
@@ -418,7 +303,24 @@ describe('prototype applyAction', () => {
     expect(applyPrototypeAction(base, action(prototypeAction.addStep('account', 'a', 'dup')))).toBe(base);
   });
 
-  it('adds and deletes previews and steps', () => {
+  it('rejects adding a step with a screen the page does not have, and adds one with its screen and materials', () => {
+    expect(
+      applyPrototypeAction(state(), action(prototypeAction.addStep('account', 'd', 'D', { screen: 'ghost' }))),
+    ).toBeNull();
+    const added = applyPrototypeAction(
+      state(),
+      action(
+        prototypeAction.addStep('account', 'd', 'D', {
+          screen: 'screen-a',
+          materials: [{ id: 'd-memo', kind: 'plain', viewport: 'fluid' }],
+        }),
+      ),
+    );
+    expect(added?.activities[0]?.stories[0]?.steps[3]).toMatchObject({ screen: 'screen-a' });
+    expect(added?.activities[0]?.stories[0]?.steps[3]?.materials.map((material) => material.id)).toEqual(['d-memo']);
+  });
+
+  it('adds and deletes a material of a step', () => {
     const added = applyPrototypeAction(state(), action(prototypeAction.addStep('account', 'd', 'D')));
     expect(stepIds(added ?? state())).toEqual(['a', 'b', 'c', 'd']);
     const withPreview = applyPrototypeAction(
@@ -431,9 +333,16 @@ describe('prototype applyAction', () => {
         }),
       ),
     );
-    expect(withPreview?.activities[0]?.stories[0]?.steps[3]?.previews).toHaveLength(1);
+    expect(withPreview?.activities[0]?.stories[0]?.steps[3]?.materials).toHaveLength(1);
     const deleted = applyPrototypeAction(withPreview ?? state(), action(prototypeAction.deletePreview('d-mobile')));
-    expect(deleted?.activities[0]?.stories[0]?.steps[3]?.previews).toHaveLength(0);
+    expect(deleted?.activities[0]?.stories[0]?.steps[3]?.materials).toHaveLength(0);
+  });
+
+  it('updates and deletes a preview that is a screen rendition, not only a step material', () => {
+    const relabeled = applyPrototypeAction(state(), action(prototypeAction.setPreviewLabel('a-mobile', 'Mobile')));
+    expect(relabeled?.apps[0]?.screens[0]?.previews[0]).toMatchObject({ label: 'Mobile' });
+    const deleted = applyPrototypeAction(state(), action(prototypeAction.deletePreview('a-mobile')));
+    expect(deleted?.apps[0]?.screens[0]?.previews).toHaveLength(0);
   });
 
   it('deletes an activity and everything below it', () => {
@@ -469,7 +378,7 @@ describe('prototype presentation', () => {
     );
   });
 
-  it('offers comment targets for activity, story and step', () => {
+  it('offers comment targets for activity, story, step and screen', () => {
     // Step refs carry the path: a bare step id is not unique across stories.
     expect(
       prototypeDefinitionFor('en')
@@ -486,12 +395,14 @@ describe('prototype presentation', () => {
       'activity:daily',
       'story:daily.notes',
       'step:daily.notes.n',
+      'screen:screen-a',
     ]);
   });
 });
 
 describe('prototype page heading', () => {
   const heading = parsePrototypeBase({
+    apps: [{ id: 'admin-app', name: 'Admin console', screens: [{ id: 'users', title: 'Users' }] }],
     activities: [
       {
         id: 'admin',
@@ -502,7 +413,7 @@ describe('prototype page heading', () => {
             id: 'users',
             name: 'Users',
             steps: [
-              { id: 'list', name: 'Open the user list', title: 'Users' },
+              { id: 'list', name: 'Open the user list', screen: 'users' },
               { id: 'invite', name: 'Invite a user', actor: 'Owner' },
             ],
           },
@@ -521,7 +432,10 @@ describe('prototype page heading', () => {
       },
     ],
   });
-  const of = (stepId: string) => prototypePageHeading(findStep(heading, stepId)!);
+  const of = (stepId: string) => {
+    const location = findStep(heading, stepId)!;
+    return prototypePageHeading(heading, { kind: 'step', ...location });
+  };
 
   it('shows who uses the page: the nearest actor of step, story and activity', () => {
     expect(of('list')).toEqual({ actor: 'Administrator', title: 'Users' });
@@ -569,12 +483,12 @@ describe('prototype target refs', () => {
         {
           id: 'a',
           name: 'A',
-          stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', previews: [{ id: 'p' }] }] }],
+          stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', materials: [{ id: 'p' }] }] }],
         },
         {
           id: 'b',
           name: 'B',
-          stories: [{ id: 's', name: 'S', steps: [{ id: 'y', name: 'Y', previews: [{ id: 'p' }] }] }],
+          stories: [{ id: 's', name: 'S', steps: [{ id: 'y', name: 'Y', materials: [{ id: 'p' }] }] }],
         },
       ],
     };
@@ -643,11 +557,11 @@ describe('prototype navigation', () => {
     expect(resolvePrototypeNavigation(state(), { step: 'a', preview: 'a-mobile' })).toMatchObject({
       preview: 'a-mobile',
     });
-    // an unknown preview id falls back to the first preview of the step
+    // an unknown preview id falls back to the first preview of the step's screen
     expect(resolvePrototypeNavigation(state(), { step: 'a', preview: 'nope' })).toMatchObject({
       preview: 'a-mobile',
     });
-    // a step without previews drops the key entirely
+    // a step without a screen drops the key entirely
     expect(resolvePrototypeNavigation(state(), { step: 'b', preview: 'a-mobile' })).not.toHaveProperty('preview');
   });
 });

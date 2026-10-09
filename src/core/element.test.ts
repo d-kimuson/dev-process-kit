@@ -13,6 +13,27 @@ import '../index';
 
 const base = {
   title: 'Demo',
+  apps: [
+    {
+      id: 'web',
+      name: 'Web',
+      screens: [
+        {
+          id: 'landing',
+          title: 'LP',
+          previews: [{ id: 'landing-mobile', kind: 'browser', viewport: 'mobile' }],
+        },
+        {
+          id: 'google-auth',
+          title: 'Google auth',
+          previews: [
+            { id: 'auth-mobile', kind: 'browser', viewport: 'mobile' },
+            { id: 'auth-desktop', kind: 'browser', viewport: 'desktop' },
+          ],
+        },
+      ],
+    },
+  ],
   activities: [
     {
       id: 'onboarding',
@@ -22,19 +43,8 @@ const base = {
           id: 'account',
           name: 'Account',
           steps: [
-            {
-              id: 'landing',
-              name: 'Landing',
-              previews: [{ id: 'landing-mobile', kind: 'browser', viewport: 'mobile' }],
-            },
-            {
-              id: 'google-auth',
-              name: 'Google auth',
-              previews: [
-                { id: 'auth-mobile', kind: 'browser', viewport: 'mobile' },
-                { id: 'auth-desktop', kind: 'browser', viewport: 'desktop' },
-              ],
-            },
+            { id: 'landing', name: 'Landing', screen: 'landing' },
+            { id: 'google-auth', name: 'Google auth', screen: 'google-auth' },
           ],
         },
       ],

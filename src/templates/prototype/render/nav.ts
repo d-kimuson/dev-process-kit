@@ -1,6 +1,7 @@
 import { html, nothing, type TemplateResult } from 'lit';
 import { keyed } from 'lit/directives/keyed.js';
 import { repeat } from 'lit/directives/repeat.js';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { PrototypeMessages } from '../messages';
@@ -8,16 +9,25 @@ import type { PrototypeMessages } from '../messages';
 import { iconClose } from '../../../core/icons';
 import { createEntityId } from '../../../core/target';
 import { onCommit, onSelectChange } from '../../../lib/dom/events';
+import { renderMarkdown } from '../../../lib/markdown';
 import { prototypeAction } from '../actions';
-import { allStepIds, stepRef, stepRefOf, storyRef, type PrototypeState } from '../model';
+import {
+  allStepIds,
+  stepRef,
+  stepRefOf,
+  stepScreen,
+  storyRef,
+  type PrototypeState,
+  type PrototypeStep,
+} from '../model';
 import {
   locatePrototype,
   prototypeAppSections,
   prototypeCurrentAppSection,
   prototypeUiCommentCount,
   type AppScreen,
-  type AppScreenGroup,
   type AppSection,
+  type PrototypeLocation,
   type ScreenTreeNode,
 } from '../present';
 import { PROTOTYPE_VIEWS, prototypeViewOf, viewPatch, type PrototypeView } from '../view-mode';
@@ -29,14 +39,17 @@ import { PROTOTYPE_VIEWS, prototypeViewOf, viewPatch, type PrototypeView } from 
 export const renderNav = (context: TemplateRenderContext<PrototypeState>, m: PrototypeMessages): TemplateResult => {
   const { state, navigation } = context;
   const location = locatePrototype(state, navigation);
-  if (!location) {
-    return html`<p class="nav-empty">${m.noActivityBefore}<code>activities</code>${m.noActivityAfter}</p>`;
-  }
   const view = prototypeViewOf(navigation);
   return html`
     <div class="nav">
       ${renderViewSwitch(context, m, view)}
-      ${view === 'app' ? renderAppScreens(context, m) : renderScenarioNav(context, m, location)}
+      ${
+        view === 'app'
+          ? renderAppScreens(context, m, location)
+          : location !== undefined && location.kind !== 'screen'
+            ? renderScenarioNav(context, m, location)
+            : html`<p class="nav-empty">${m.noActivityBefore}<code>activities</code>${m.noActivityAfter}</p>`
+      }
     </div>
   `;
 };
@@ -64,23 +77,27 @@ const renderViewSwitch = (
 </nav>`;
 
 /**
- * The screens of one sub-application, picked with a select when the page has
- * several: its web pages as URL trees, then the other screens by who uses them.
- * The one on stage is current.
+ * The screens of one app, picked with a select when the product has several:
+ * its web pages as URL trees, then the screens outside the browser. The one on
+ * stage is current, and its description follows.
  */
-const renderAppScreens = (context: TemplateRenderContext<PrototypeState>, m: PrototypeMessages): TemplateResult => {
-  const location = locatePrototype(context.state, context.navigation);
-  const currentRef = location?.kind === 'step' ? stepRef(location) : undefined;
+const renderAppScreens = (
+  context: TemplateRenderContext<PrototypeState>,
+  m: PrototypeMessages,
+  location: PrototypeLocation | undefined,
+): TemplateResult => {
+  const current = location?.kind === 'screen' ? location : undefined;
   const sections = prototypeAppSections(context.state);
   const section = prototypeCurrentAppSection(sections, location);
-  const row: ScreenRow = { context, currentRef, showActor: new Set(section?.screens.map((s) => s.actor)).size > 1 };
-  // Below a tree, the other screens are told apart from it; by person when several use them.
+  const row: ScreenRow = { context, currentId: current?.screen.id };
   const others = section?.others ?? [];
-  const byActor = others.length > 1;
-  const othersHeading = (group: AppScreenGroup): string | undefined =>
-    byActor ? (group.actor ?? m.appNoActor) : (section?.trees.length ?? 0) > 0 ? m.appOutsideBrowser : group.actor;
   return html`
-    ${(context.state.apps ?? []).length > 0 && section ? renderAppSelect(context, m, sections, section) : nothing}
+    ${sections.length > 1 && section ? renderAppSelect(context, m, sections, section) : nothing}
+    ${
+      sections.length === 1 && section?.app.description
+        ? html`<p class="app-description">${section.app.description}</p>`
+        : nothing
+    }
     <div class="steps-head">
       <span class="dpk-label">${m.appScreens}</span>
       <span class="dpk-label">${section?.screens.length ?? 0}</span>
@@ -94,26 +111,35 @@ const renderAppScreens = (context: TemplateRenderContext<PrototypeState>, m: Pro
         </ul>
       </section>`,
     )}
-    ${others.map(
-      (group) => html`<section class="app-group">
-        ${othersHeading(group) === undefined ? nothing : html`<h3 class="app-actor">${othersHeading(group)}</h3>`}
-        <ul class="steps app-screens">
-          ${group.screens.map((screen) => {
-            const current = isCurrent(row, screen);
-            return html`<li class="step-row" data-current=${String(current)}>
-              <a class="step-link" href=${screenHref(context, screen)} aria-current=${current ? 'page' : nothing}>
-                <span class="step-name">${screen.title}</span>
-                ${renderNotes(context, screen)}
-              </a>
-            </li>`;
-          })}
-        </ul>
-      </section>`,
-    )}
+    ${
+      others.length === 0
+        ? nothing
+        : html`<section class="app-group">
+            ${(section?.trees.length ?? 0) > 0 ? html`<h3 class="app-group-heading">${m.appOutsideBrowser}</h3>` : nothing}
+            <ul class="steps app-screens">
+              ${others.map((screen) => {
+                const isOn = isCurrent(row, screen);
+                return html`<li class="step-row" data-current=${String(isOn)}>
+                  <a class="step-link" href=${screenHref(context, screen)} aria-current=${isOn ? 'page' : nothing}>
+                    <span class="step-name">${screen.screen.title}</span>
+                    ${renderNotes(context, screen)}
+                  </a>
+                </li>`;
+              })}
+            </ul>
+          </section>`
+    }
+    ${
+      current?.screen.description
+        ? html`<div class="detail">
+            <div class="screen-description dpk-prose">${unsafeHTML(renderMarkdown(current.screen.description))}</div>
+          </div>`
+        : nothing
+    }
   `;
 };
 
-/** Which sub-application to show; picking one opens its first screen. */
+/** Which app to show; picking one opens its first screen. */
 const renderAppSelect = (
   context: TemplateRenderContext<PrototypeState>,
   m: PrototypeMessages,
@@ -125,25 +151,22 @@ const renderAppSelect = (
     class="dpk-select"
     aria-label=${m.appSelectLabel}
     @change=${onSelectChange((value) => {
-      const opensAt = sections[Number(value)]?.screens[0]?.opensAt;
-      if (opensAt) context.navigate(screenPatch(opensAt));
+      const first = sections[Number(value)]?.screens[0];
+      if (first) context.navigate(screenPatch(first));
     })}
   >
     ${sections.map(
       (section, index) =>
-        html`<option value=${String(index)} ?selected=${section === current}>
-          ${section.app?.name ?? m.appUnassigned}
-        </option>`,
+        html`<option value=${String(index)} ?selected=${section === current}>${section.app.name}</option>`,
     )}
   </select>
-  ${current.app?.description ? html`<p class="app-description">${current.app.description}</p>` : nothing}
+  ${current.app.description ? html`<p class="app-description">${current.app.description}</p>` : nothing}
 </div>`;
 
 type ScreenRow = {
   readonly context: TemplateRenderContext<PrototypeState>;
-  readonly currentRef: string | undefined;
-  /** Whether the section's screens have several users, so a row says whose it is. */
-  readonly showActor: boolean;
+  /** The screen on stage. */
+  readonly currentId: string | undefined;
 };
 
 /**
@@ -170,8 +193,7 @@ const renderTreeNode = (row: ScreenRow, node: ScreenTreeNode, depth: number): Te
                 aria-current=${current ? 'page' : nothing}
               >
                 <code class="tree-path">${node.segment}</code>
-                <span class="tree-title">${screen.title}</span>
-                ${row.showActor && screen.actor ? html`<span class="tree-actor">${screen.actor}</span>` : nothing}
+                <span class="tree-title">${screen.screen.title}</span>
                 ${renderNotes(row.context, screen)}
               </a>
             </div>`;
@@ -186,26 +208,27 @@ const renderTreeNode = (row: ScreenRow, node: ScreenTreeNode, depth: number): Te
   }
 </li>`;
 
-const isCurrent = (row: ScreenRow, screen: AppScreen): boolean =>
-  row.currentRef !== undefined && screen.stepRefs.includes(row.currentRef);
+const isCurrent = (row: ScreenRow, entry: AppScreen): boolean => entry.screen.id === row.currentId;
 
-const screenPatch = (opensAt: AppScreen['opensAt']): Readonly<Record<string, string>> => ({
-  activity: opensAt.activity.id,
-  story: opensAt.story.id,
-  step: opensAt.step.id,
+const screenPatch = (entry: AppScreen): Readonly<Record<string, string | null>> => ({
+  screen: entry.screen.id,
+  preview: null,
 });
 
-const screenHref = (context: TemplateRenderContext<PrototypeState>, screen: AppScreen): string =>
-  context.hashFor(screenPatch(screen.opensAt));
+const screenHref = (context: TemplateRenderContext<PrototypeState>, entry: AppScreen): string =>
+  context.hashFor(screenPatch(entry));
 
-/** Comments on the screen's steps and on the UI of their previews. */
+/** Comments on the screen and on the UI of its renditions. */
 const renderNotes = (
   context: TemplateRenderContext<PrototypeState>,
-  screen: AppScreen,
+  entry: AppScreen,
 ): TemplateResult | typeof nothing => {
   const notes =
-    screen.stepRefs.reduce((sum, ref) => sum + context.commentCount({ type: 'step', id: ref }), 0) +
-    prototypeUiCommentCount(context.comments, screen.previewIds);
+    context.commentCount({ type: 'screen', id: entry.screen.id }) +
+    prototypeUiCommentCount(
+      context.comments,
+      entry.screen.previews.map((preview) => preview.id),
+    );
   return notes > 0 ? html`<span class="step-note">${notes}</span>` : nothing;
 };
 
@@ -215,7 +238,7 @@ const hostOf = (origin: string): string => origin.replace(/^[a-z][a-z0-9+.-]*:\/
 const renderScenarioNav = (
   context: TemplateRenderContext<PrototypeState>,
   m: PrototypeMessages,
-  location: NonNullable<ReturnType<typeof locatePrototype>>,
+  location: Exclude<PrototypeLocation, { readonly kind: 'screen' }>,
 ): TemplateResult => {
   const { state } = context;
   const { activity, story } = location;
@@ -258,12 +281,13 @@ const renderScenarioNav = (
         (step) => stepRefOf(activity, story, step),
         (step, index) => {
           const ref = stepRefOf(activity, story, step);
-          // Comments on the UI of the step's previews are about the step too.
+          // Comments on the UI of what the step shows are about the step too.
+          const shown = [...step.materials, ...(stepScreen(state, step)?.screen.previews ?? [])];
           const notes =
             context.commentCount({ type: 'step', id: ref }) +
             prototypeUiCommentCount(
               context.comments,
-              step.previews.map((preview) => preview.id),
+              shown.map((preview) => preview.id),
             );
           return html`
             <li class="step-row" data-current=${String(step.id === current?.id)}>
@@ -322,11 +346,36 @@ const renderScenarioNav = (
                   ></dpk-component-inline-edit>
                 </span>
               </div>
+              ${renderStepScreen(context, m, current)}
             </div>`,
           )
         : nothing
     }
   `;
+};
+
+/** The screen the step shows: a way into the app view, and what the screen is for. */
+const renderStepScreen = (
+  context: TemplateRenderContext<PrototypeState>,
+  m: PrototypeMessages,
+  step: PrototypeStep,
+): TemplateResult | typeof nothing => {
+  const located = stepScreen(context.state, step);
+  if (!located) return nothing;
+  const { app, screen } = located;
+  return html`<div class="detail-row">
+    <span class="dpk-label">${m.screenGroup}</span>
+    <span class="detail-value">
+      <a class="step-screen" href=${context.hashFor({ ...viewPatch('app'), screen: screen.id })} title=${m.openInApp}
+        >${app.name} › ${screen.title}</a
+      >
+      ${
+        screen.description
+          ? html`<div class="screen-description dpk-prose">${unsafeHTML(renderMarkdown(screen.description))}</div>`
+          : nothing
+      }
+    </span>
+  </div>`;
 };
 
 /** Appends a step to the story and navigates to it. */

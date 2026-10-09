@@ -12,6 +12,28 @@ const m = prototypeMessages('en');
 
 const base = {
   title: 'Demo',
+  apps: [
+    {
+      id: 'app',
+      name: 'App',
+      screens: [
+        {
+          id: 'landing',
+          title: 'Welcome',
+          previews: [
+            { id: 'landing-mobile', kind: 'browser', viewport: 'mobile' },
+            { id: 'landing-desktop', kind: 'browser', viewport: 'desktop' },
+          ],
+        },
+        {
+          id: 'mail',
+          title: 'Mail',
+          previews: [{ id: 'mail-inbox', kind: 'mail', mail: { from: 'Demo <hi@demo.example>', subject: 'Welcome' } }],
+        },
+        { id: 'desk', title: 'Desk', previews: [{ id: 'desk-screen', viewport: 'desktop' }] },
+      ],
+    },
+  ],
   activities: [
     {
       id: 'onboarding',
@@ -22,41 +44,24 @@ const base = {
           id: 'account',
           name: 'Account',
           steps: [
-            {
-              id: 'landing',
-              name: 'Landing',
-              title: 'Welcome',
-              previews: [
-                { id: 'landing-mobile', kind: 'browser', viewport: 'mobile' },
-                { id: 'landing-desktop', kind: 'browser', viewport: 'desktop' },
-              ],
-            },
-            { id: 'auth', name: 'Auth', previews: [{ id: 'auth-native', kind: 'native', viewport: 'mobile' }] },
+            { id: 'landing', name: 'Landing', screen: 'landing' },
+            { id: 'auth', name: 'Auth', materials: [{ id: 'auth-native', kind: 'native', viewport: 'mobile' }] },
             {
               id: 'memo',
               name: 'Memo',
               situation: 'The clerk receives a FAX.\nIt is 8 am.',
-              previews: [{ id: 'memo-plain', kind: 'plain' }],
+              materials: [{ id: 'memo-plain', kind: 'plain' }],
             },
-            {
-              id: 'mail',
-              name: 'Mail',
-              previews: [
-                { id: 'mail-inbox', kind: 'mail', mail: { from: 'Demo <hi@demo.example>', subject: 'Welcome' } },
-              ],
-            },
+            { id: 'mail', name: 'Mail', screen: 'mail' },
             {
               id: 'desk',
               name: 'Desk',
-              layout: 'side-by-side',
-              previews: [
-                { id: 'desk-memo', kind: 'plain', label: 'Memo in hand' },
-                { id: 'desk-screen', viewport: 'desktop' },
-              ],
+              screen: 'desk',
+              materials: [{ id: 'desk-memo', kind: 'plain', label: 'Memo in hand' }],
             },
           ],
         },
-        { id: 'billing', name: 'Billing', steps: [{ id: 'invoice', name: 'Invoice', previews: [] }] },
+        { id: 'billing', name: 'Billing', steps: [{ id: 'invoice', name: 'Invoice' }] },
         { id: 'tasks', name: 'Check every task', description: 'All open tasks on one list' },
       ],
     },
@@ -108,15 +113,15 @@ describe('<dpk-template-prototype> layout', () => {
     expect(frame.querySelector('slot')?.getAttribute('name')).toBe('preview:landing-mobile');
     // light DOM exists for the active preview, so no placeholder
     expect(frame.querySelector('.frame-placeholder')).toBeNull();
-    // every other preview keeps a parked slot
+    // every other preview keeps a parked slot: every screen's renditions first, then every step's materials
     const parked = [...root.querySelectorAll('.parked slot')].map((slot) => slot.getAttribute('name'));
     expect(parked).toEqual([
       'preview:landing-desktop',
+      'preview:mail-inbox',
+      'preview:desk-screen',
       'preview:auth-native',
       'preview:memo-plain',
-      'preview:mail-inbox',
       'preview:desk-memo',
-      'preview:desk-screen',
     ]);
     // the step without previews says so instead of rendering an empty frame
     el.api.navigate({ story: 'billing', step: 'invoice' });
@@ -133,7 +138,7 @@ describe('<dpk-template-prototype> layout', () => {
     expect(head.querySelector('.page-actor')?.textContent?.trim()).toBe('Visitor');
     expect(head.querySelector('.page-actor')?.getAttribute('aria-label')).toBe(m.pageActor('Visitor'));
     expect(head.querySelector('.page-title')?.textContent?.trim()).toBe('Welcome');
-    // without a title the step name heads the page
+    // away from the product, the step name heads the page
     el.api.navigate({ step: 'auth' });
     await settle(el);
     expect(root.querySelector('.page-head .page-title')?.textContent?.trim()).toBe('Auth');
@@ -178,7 +183,7 @@ describe('<dpk-template-prototype> layout', () => {
     expect(root.querySelector('.stage .situation')).toBeNull();
   });
 
-  it('lays the previews of a side-by-side step out next to each other', async () => {
+  it('lays the materials of a step out beside its screen', async () => {
     const el = mount('#step=desk');
     await settle(el);
     const root = el.shadowRoot!;

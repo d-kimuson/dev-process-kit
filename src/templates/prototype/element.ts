@@ -1,16 +1,33 @@
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
+import type { BrowserCommand } from './render/browser';
 import type { UiCommentView } from './render/ui-comment';
 
 import { composerMessages } from '../../components/comment-composer/messages';
 import { COMMENT_ACTION } from '../../core/action';
 import { commentBody } from '../../core/comment';
 import { TemplateElement } from '../../core/element';
+import { parseHash } from '../../core/navigation';
 import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface, prose } from '../../core/theme';
 import { containDialog, releaseModalDialog } from '../../lib/dom/contained-dialog';
 import { findLocated, locateElement, pickableElement } from '../../lib/dom/locator';
 import { closePopover } from '../../lib/dom/popover';
+import {
+  activeEntry,
+  reduceBrowser,
+  startBrowser,
+  type BrowserIntent,
+  type BrowserPage,
+  type BrowserSim,
+} from './browser-sim';
+import {
+  presentBrowser,
+  prototypeBrowserHome,
+  prototypeBrowserPage,
+  prototypeNewTabShortcuts,
+  prototypePageAt,
+} from './browser-view';
 import { prototypeDefinitionFor } from './definition';
 import { prototypeMessages } from './messages';
 import { findPreview, uiTargetId, UI_TARGET, type PrototypeState, type UiTarget } from './model';
@@ -22,11 +39,14 @@ import {
   prototypeUiTargetName,
 } from './present';
 import { renderNav } from './render/nav';
-import { renderStage } from './render/stage';
+import { renderStage, type StageLift, type StageOptions } from './render/stage';
 import { containedDialogDocumentStyles, prototypeStyles } from './styles';
 import { reduceUiComment, UI_COMMENT_OFF, type UiCommentIntent, type UiCommentMode } from './ui-mode';
+import { prototypeViewOf } from './view-mode';
 
 const COMPOSER_SIZE = { width: 300, height: 300 };
+/** How long a reload of the app view's browser takes, so the reader sees it happen. */
+const RELOAD_MS = 360;
 const DOCUMENT_STYLES_ID = 'dpk-template-prototype-document-styles';
 
 /** The document half of the template's styles, added once per document. */
@@ -77,7 +97,8 @@ const flatParent = (element: Element): Element | null => {
  * navigation hash, except the reader's "comment on UI" mode: an ephemeral
  * picking state (see `ui-mode.ts`) whose comments enter the draft like any
  * other. Whether the stage is maximized (it fills the tab, like a diagram's
- * maximize) is ephemeral view state of this element too.
+ * maximize) or runs a demo is ephemeral view state of this element too, and so
+ * is the app view's browser: its tabs and their history (see `browser-sim.ts`).
  */
 export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   static override styles = [TemplateElement.styles, popoverSurface, prose, prototypeStyles];
@@ -90,11 +111,18 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   #shownIds: readonly string[] = [];
   readonly #popovers = new PopoverController(this);
   #linksChecked = false;
-  /**
-   * Set while the stage fills the tab (in the top layer where the browser has
-   * one). `height` is what the stage took in the page, kept by a placeholder.
-   */
-  #maximized: { readonly height: number } | null = null;
+  /** Set while the stage fills the tab (in the top layer where the browser has one). */
+  #lift: StageLift | null = null;
+  /** The app view's browser, from the first web page the app view showed. */
+  #browser: BrowserSim | null = null;
+  /** Whether the browser was on stage at the last render, so its links open tabs. */
+  #browserShown = false;
+  /** Whether a phone browser shows its tab overview. */
+  #tabSwitcher = false;
+  /** Set when the keyboard picked a tab: the focus moves to it once it is drawn. */
+  #focusTab = false;
+  /** A reload under way: the page it reloads, and the moment it is done. */
+  #pendingReload: { readonly page: string; readonly timer: ReturnType<typeof setTimeout> } | null = null;
   /** The stage element shown in the top layer, so it is shown there once. */
   #liftedStage: Element | null = null;
 
@@ -108,6 +136,9 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     window.addEventListener('resize', this.#onLayoutChange);
     // `toggle` does not bubble: caught on the way down to a dialog the mock opens.
     this.addEventListener('toggle', this.#onToggle, true);
+    // Before the shell's own link handling, which navigates in place.
+    this.addEventListener('click', this.#onLinkClick, true);
+    this.addEventListener('auxclick', this.#onLinkClick, true);
     installDocumentStyles();
   }
 
@@ -116,22 +147,35 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     window.removeEventListener('keydown', this.#onKeydown);
     window.removeEventListener('resize', this.#onLayoutChange);
     this.removeEventListener('toggle', this.#onToggle, true);
+    this.removeEventListener('click', this.#onLinkClick, true);
+    this.removeEventListener('auxclick', this.#onLinkClick, true);
+    this.#stopReload();
   }
 
   protected override renderRegions(context: TemplateRenderContext<PrototypeState>): ShellRegions {
     const m = prototypeMessages(this.locale);
     const located = locatePrototype(context.state, context.navigation);
+    const app = prototypeViewOf(context.navigation) === 'app';
+    // Maximize belongs to the scenario view and the demo to the app view.
+    if (this.#lift !== null && (this.#lift.mode === 'demo') !== app) this.#dropLift();
+    const browser = app ? this.#browserFrame(context, m) : null;
+    this.#browserShown = browser !== null;
     this.#shownIds =
-      located?.kind === 'step'
-        ? prototypeStageFrames(located.step, context.navigation).shown.map((preview) => preview.id)
+      located !== undefined && located.kind !== 'story' && (browser === null || browser.view.entry?.kind === 'page')
+        ? prototypeStageFrames(context.state, located, context.navigation).shown.map((preview) => preview.id)
         : [];
+    // Leaving the page before it is back stops the reload, as in a browser.
+    if (this.#pendingReload !== null && this.#pendingReload.page !== this.#shownIds.join(' ')) this.#stopReload();
     return {
       sidebar: renderNav(context, m),
       main: renderStage(context, m, {
         hasPreviewContent: (previewId) => this.#hasPreviewContent(previewId),
-        maximized: this.#maximized,
-        onToggleMaximize: () => this.#setMaximized(this.#maximized === null),
-        onMaximizedWheel: this.#onMaximizedWheel,
+        lift: this.#lift,
+        onToggleMaximize: () => this.#setLift(this.#lift === null ? 'maximized' : null),
+        onToggleDemo: () => this.#setLift(this.#lift === null ? 'demo' : null),
+        onLiftedWheel: this.#onLiftedWheel,
+        // Read after the check above: leaving the page has just stopped its reload.
+        browser: browser === null ? null : { ...browser, loading: this.#pendingReload !== null },
         uiComment: this.#uiCommentView(context),
         canvasEvents: {
           click: this.#onCanvasClick,
@@ -155,7 +199,11 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
       return;
     }
     // The stage enters the top layer before the composer, so the composer stacks above it.
-    this.#syncMaximized();
+    this.#syncLift();
+    if (this.#focusTab) {
+      this.#focusTab = false;
+      this.renderRoot.querySelector<HTMLElement>('.browser-tab[aria-selected="true"]')?.focus();
+    }
     this.#placeUiLayer();
     const opened = mode.kind === 'composing' && !this.#composerOpen;
     this.#composerOpen = mode.kind === 'composing';
@@ -306,11 +354,11 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     }
   };
 
-  /** Escape ends commenting on the UI first; with that off, it restores a maximized stage. */
+  /** Escape ends commenting on the UI first; with that off, it restores a maximized stage or ends the demo. */
   #onKeydown = (event: KeyboardEvent): void => {
     if (event.key !== 'Escape' || event.defaultPrevented) return;
     if (this.#uiComment.kind !== 'off') this.#send({ kind: 'exit' });
-    else this.#setMaximized(false);
+    else this.#setLift(null);
   };
 
   #onLayoutChange = (): void => {
@@ -421,20 +469,23 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     if (problems.length === 0) return;
     console.warn(
       `[dev-process-kit] <dpk-template-prototype>: ${problems.length} link(s) in the previews lead nowhere. ` +
-        'Point each at the step it leads to (data-dpk-navigate="step=…") or the user story it serves ' +
-        '(data-dpk-navigate="story=…"):\n' +
+        'Point each at the screen it opens (data-dpk-navigate="screen=…"); a link that only moves the ' +
+        'scenario on can name a step (data-dpk-navigate="step=…") or a user story (data-dpk-navigate="story=…"):\n' +
         problems.join('\n'),
     );
   }
 
-  // ------------------------------------------------------------------ maximize
+  // ------------------------------------------------------------ maximize, demo
 
-  #setMaximized(maximized: boolean): void {
-    if (maximized === (this.#maximized !== null)) return;
+  #setLift(mode: StageLift['mode'] | null): void {
+    if (mode === (this.#lift?.mode ?? null)) return;
     const stage = this.renderRoot.querySelector<HTMLElement>('.stage');
-    this.#maximized = maximized ? { height: stage?.offsetHeight ?? 0 } : null;
-    this.#liftedStage = null;
-    if (maximized && this.#uiComment.kind === 'composing') {
+    // Going from one lift to the other passes through the page first.
+    const height = this.#lift?.height ?? stage?.offsetHeight ?? 0;
+    this.#dropLift();
+    if (mode === 'demo' && this.#uiComment.kind !== 'off') this.#send({ kind: 'exit' });
+    if (mode !== null) this.#lift = { mode, height };
+    if (mode !== null && this.#uiComment.kind === 'composing') {
       // The top layer stacks in the order things entered it: an open composer
       // would stay beneath the lifted stage, so it is shown again above it.
       closePopover(this.renderRoot.querySelector<HTMLElement>('.comment-pop'));
@@ -443,15 +494,20 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     this.requestUpdate();
   }
 
+  /** Back into the page; the next render drops the `popover` attribute, which leaves the top layer. */
+  #dropLift(): void {
+    this.#lift = null;
+    this.#liftedStage = null;
+  }
+
   /**
-   * Lifts the maximized stage into the top layer, so no ancestor's overflow,
-   * transform or stacking context can clip it. Without the Popover API the
-   * fixed positioning of `.is-maximized` alone covers the tab. Restoring drops
-   * the `popover` attribute, which takes the stage out of the top layer again.
+   * Lifts the stage into the top layer, so no ancestor's overflow, transform
+   * or stacking context can clip it. Without the Popover API the fixed
+   * positioning of `.is-maximized` / `.is-demo` alone covers the tab.
    */
-  #syncMaximized(): void {
+  #syncLift(): void {
     const stage = this.renderRoot.querySelector<HTMLElement>('.stage');
-    if (this.#maximized === null || !stage || typeof stage.showPopover !== 'function') return;
+    if (this.#lift === null || !stage || typeof stage.showPopover !== 'function') return;
     if (stage === this.#liftedStage) return;
     this.#liftedStage = stage;
     try {
@@ -461,11 +517,186 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     }
   }
 
-  /** Nothing of the page shows behind the maximized stage, so only the canvas scrolls. */
-  #onMaximizedWheel = (event: WheelEvent): void => {
+  /** Nothing of the page shows behind the lifted stage, so only the canvas scrolls. */
+  #onLiftedWheel = (event: WheelEvent): void => {
     const canvas = this.renderRoot.querySelector('.canvas');
     if (canvas === null || !event.composedPath().includes(canvas)) event.preventDefault();
   };
+
+  // ------------------------------------------------------------ app view browser
+
+  /**
+   * The browser around the app view's web page. Every page the hash shows is
+   * observed into the history of the active tab; a screen outside the browser
+   * (a mail, a phone app) is shown in its own frame and leaves it alone.
+   */
+  #browserFrame(
+    context: TemplateRenderContext<PrototypeState>,
+    m: ReturnType<typeof prototypeMessages>,
+  ): Omit<NonNullable<StageOptions['browser']>, 'loading'> | null {
+    const page = prototypeBrowserPage(context.state, context.navigation);
+    this.#browser =
+      this.#browser === null
+        ? page === null
+          ? null
+          : startBrowser(page)
+        : reduceBrowser(this.#browser, { kind: 'observe', page });
+    const sim = this.#browser;
+    if (sim === null) return null;
+    const entry = activeEntry(sim);
+    // On the new tab page the hash still names the page it covers.
+    const covering = entry?.kind !== 'page' && sim.seen !== null;
+    if (page === null && !covering) return null;
+    // With no page left in any tab, the page the hash names still tells whose window it is.
+    const home = prototypeBrowserHome(sim) ?? page;
+    return {
+      view: presentBrowser(context.state, sim, m, home),
+      shortcuts: entry?.kind === 'new-tab' ? prototypeNewTabShortcuts(context.state, home) : [],
+      switcher: this.#tabSwitcher,
+      send: (command) => this.#onBrowserCommand(command),
+    };
+  }
+
+  #sendBrowser(intent: BrowserIntent): void {
+    if (this.#browser === null) return;
+    const next = reduceBrowser(this.#browser, intent);
+    if (next === this.#browser) return;
+    this.#browser = next;
+    const entry = activeEntry(next);
+    // The hash follows the page the tab now shows; anything else is drawn by the browser itself.
+    if (entry?.kind === 'page') this.#goTo(entry.page);
+    this.requestUpdate();
+  }
+
+  #goTo(page: BrowserPage): void {
+    this.navigate({ screen: page.screen ?? null, preview: page.preview ?? null });
+  }
+
+  #onBrowserCommand(command: BrowserCommand): void {
+    switch (command.kind) {
+      case 'reload':
+        this.#reload();
+        return;
+      case 'address':
+        this.#openAddress(command.input);
+        return;
+      case 'back':
+      case 'forward':
+      case 'new-tab':
+        this.#tabSwitcher = false;
+        this.#sendBrowser({ kind: command.kind });
+        return;
+      case 'switcher':
+        this.#tabSwitcher = command.open;
+        this.requestUpdate();
+        return;
+      case 'activate':
+        // Picking a tab on the overview goes back to the page.
+        this.#tabSwitcher = false;
+        this.#focusTab = command.focus === true;
+        this.#sendBrowser({ kind: 'activate', id: command.id });
+        // The tab was already the active one: nothing redraws, so nothing is left to focus.
+        this.requestUpdate();
+        return;
+      case 'close-tab':
+        this.#sendBrowser({ kind: command.kind, id: command.id });
+        return;
+      case 'visit':
+        this.#sendBrowser({ kind: 'visit', page: command.page });
+        return;
+      default:
+        return;
+    }
+  }
+
+  #openAddress(input: string): void {
+    const sim = this.#browser;
+    if (sim === null) return;
+    const state = this.derivation.state;
+    const current = presentBrowser(state, sim, prototypeMessages(this.locale)).url || 'https://page.example.com/';
+    const page = prototypePageAt(state, input, current);
+    if (page !== null) {
+      this.#sendBrowser({ kind: 'visit', page });
+      return;
+    }
+    const text = input.trim();
+    const url = text.startsWith('/')
+      ? new URL(text, current).href
+      : /^[a-z][a-z0-9+.-]*:\/\//i.test(text)
+        ? text
+        : `https://${text}`;
+    this.#sendBrowser({ kind: 'unreachable', url });
+  }
+
+  /**
+   * Reloads the page on screen: a moment of loading, then its forms start
+   * over, its dialogs close, it scrolls back to the top, and the mock hears a
+   * `dpk-reload` event to reset whatever else it keeps.
+   */
+  #reload(): void {
+    if (this.#pendingReload !== null) return;
+    const timer = setTimeout(() => {
+      this.#pendingReload = null;
+      for (const wrapper of this.#previewWrappers()) {
+        for (const form of wrapper.querySelectorAll('form')) form.reset();
+        for (const dialog of wrapper.querySelectorAll('dialog')) dialog.close();
+        wrapper.scrollTop = 0;
+        wrapper.dispatchEvent(new CustomEvent('dpk-reload', { bubbles: true }));
+      }
+      this.renderRoot.querySelector('.browser .viewport')?.scrollTo?.({ top: 0 });
+      this.requestUpdate();
+    }, RELOAD_MS);
+    this.#pendingReload = { page: this.#shownIds.join(' '), timer };
+    this.requestUpdate();
+  }
+
+  #stopReload(): void {
+    if (this.#pendingReload === null) return;
+    clearTimeout(this.#pendingReload.timer);
+    this.#pendingReload = null;
+  }
+
+  /**
+   * A link of the mock that opens a new tab: `target="_blank"`, a Ctrl / Cmd
+   * click or a middle click (a background tab). Any other click is the shell's
+   * to navigate in place.
+   */
+  #onLinkClick = (event: MouseEvent): void => {
+    if (!this.#browserShown || this.#uiComment.kind !== 'off' || this.#browser === null) return;
+    if (event.type === 'auxclick' && event.button !== 1) return;
+    const link = this.#mockLink(event);
+    if (link === null) return;
+    const background = event.metaKey || event.ctrlKey || event.button === 1;
+    if (!link.blank && !background) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const page = prototypeBrowserPage(this.derivation.state, parseHash(this.hashFor(link.patch)));
+    if (page === null) {
+      // A screen outside the browser opens where it is, whatever the link asks.
+      if (!background) this.navigate(link.patch);
+      return;
+    }
+    this.#sendBrowser({ kind: 'open-tab', entry: { kind: 'page', page }, background });
+  };
+
+  /** The link of a preview the event went through, and where it leads. */
+  #mockLink(event: Event): { readonly patch: Record<string, string>; readonly blank: boolean } | null {
+    const path = event.composedPath();
+    const inPreview = path.some(
+      (node) => node instanceof Element && node.parentElement === this && node.hasAttribute('data-preview-id'),
+    );
+    if (!inPreview) return null;
+    for (const node of path) {
+      if (!(node instanceof Element) || node === this) break;
+      const nav = node.getAttribute('data-dpk-navigate');
+      const href = node instanceof HTMLAnchorElement ? node.getAttribute('href') : null;
+      const target = nav ?? (href?.startsWith('#') ? href : null);
+      if (target === null) continue;
+      const hash = nav !== null && !nav.includes('=') ? `step=${nav}` : target;
+      return { patch: { ...parseHash(hash) }, blank: node.getAttribute('target') === '_blank' };
+    }
+    return null;
+  }
 
   #hasPreviewContent(previewId: string): boolean {
     return Array.from(this.querySelectorAll('[data-preview-id]')).some(
