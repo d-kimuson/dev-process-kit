@@ -23,6 +23,8 @@ export const eventStormingStyles = css`
      quiet sunken tray reads as the working surface under the wall. */
   .board-viewport {
     position: relative;
+    /* The board's own floating controls stack inside it, under the page's overlays (the review rail). */
+    isolation: isolate;
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
@@ -262,7 +264,11 @@ export const eventStormingStyles = css`
     gap: 4px;
   }
 
+  /* No wider than its region (the element sets the label's max-width); a long name ends in an ellipsis. */
   .context-label-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     border: none;
     border-radius: 999px;
     padding: 3px 10px;
@@ -288,6 +294,7 @@ export const eventStormingStyles = css`
   }
 
   .context-label-x {
+    flex: none;
     width: 18px;
     height: 18px;
     border: none;
@@ -404,11 +411,15 @@ export const eventStormingStyles = css`
 
   /* ------------------------------------------------------------ floating UI */
 
+  /* Keeps clear of the zoom control on the right: the hint's ellipsis gives way first. */
   .board-hud {
     position: absolute;
     left: 12px;
     bottom: 12px;
     z-index: 40;
+    max-width: calc(100% - 200px);
+    overflow: hidden;
+    white-space: nowrap;
     display: flex;
     gap: 10px;
     align-items: center;
@@ -438,9 +449,18 @@ export const eventStormingStyles = css`
   }
 
   .board-hint {
+    overflow: hidden;
+    text-overflow: ellipsis;
     color: var(--dpk-ink-faint);
     opacity: 0.8;
     letter-spacing: 0.02em;
+  }
+
+  /* A phone has no room beside the zoom control for the stats; the counts are in the review. */
+  @media (max-width: 760px) {
+    .board-hud {
+      display: none;
+    }
   }
 
   @keyframes dpk-hud-in {
@@ -450,10 +470,12 @@ export const eventStormingStyles = css`
     }
   }
 
+  /* Above the shell's hand-off dock while it floats in the same corner. */
   .board-zoom {
     position: absolute;
     right: 12px;
-    bottom: 12px;
+    /* Above the page's hand-off dock while it floats over this corner. */
+    bottom: calc(12px + var(--dpk-dock-clearance, 0px));
     z-index: 40;
     display: flex;
     align-items: center;

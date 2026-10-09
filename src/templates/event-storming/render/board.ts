@@ -11,7 +11,11 @@ import { elementOf } from '../../../lib/dom/element';
 import { notePaletteStyle } from '../components/note-card';
 import { buildSlices, planSliceBands, sliceArrows, type EsSlice, type SliceArrow } from '../layout';
 import { noteCardModeOf, type EsGesture, type EsUiMode, type NoteIntent, type Point } from '../ui-mode';
+import { clipLabel } from './link-label';
 import { PIN_H, PIN_W, stackPins } from './pin-stack';
+
+/** The most room a label gets where its route leaves more: it stays a label, not a sentence. */
+const LINK_LABEL_MAX_W = 240;
 
 export const SLOT_W = 132;
 export const SLOT_H = 96;
@@ -38,8 +42,12 @@ const WALL_PAD = 8;
 /** Vertical gap between two bands. */
 const BAND_GAP = 6;
 
-/** Head room a band needs so its notes' stacked pins stay inside it. */
-const bandHead = (pinExtent: number): number => Math.max(ROW_TOP, pinExtent - SLICE_PAD_Y);
+/** How far down a band's context labels reach; pins hang below them, never across one. */
+const CONTEXT_LABEL_ROOM = 26;
+
+/** Head room a band needs so its notes' stacked pins stay inside it, under any context label. */
+const bandHead = (pinExtent: number, labelled: boolean): number =>
+  Math.max(ROW_TOP, pinExtent - SLICE_PAD_Y + (labelled ? CONTEXT_LABEL_ROOM : 0));
 /** A band always keeps room for one pin, so pinning the first does not shift the wall. */
 const ONE_PIN_EXTENT = stackPins([PIN_H]).extent;
 
@@ -161,6 +169,7 @@ const wallGeometry = (
   const bandOf = new Map<string, number>();
   const pinLiftOf = new Map<string, number>();
   const pinExtentOf = new Map<string, number>();
+  const contextOf = new Map(slices.map((slice) => [slice.id, slice.contextId] as const));
   for (const slice of slices) {
     const pins = slicePins(slice, (pinId) => pinHeights.get(pinId) ?? PIN_H);
     for (const [pinId, lift] of pins.liftOf) pinLiftOf.set(pinId, lift);
@@ -174,7 +183,10 @@ const wallGeometry = (
     const bandX = cutAt === undefined ? 0 : Math.max(0, cutAt - ROW_PAD_X);
     let cursor = bandX + ROW_PAD_X;
     // Pins stack upward, so a note carrying several or wordy ones needs head room.
-    const head = bandHead(Math.max(ONE_PIN_EXTENT, ...band.sliceIds.map((id) => pinExtentOf.get(id) ?? 0)));
+    const head = bandHead(
+      Math.max(ONE_PIN_EXTENT, ...band.sliceIds.map((id) => pinExtentOf.get(id) ?? 0)),
+      band.sliceIds.some((id) => contextOf.get(id) !== undefined),
+    );
     for (const id of band.sliceIds) {
       xOf.set(id, cursor - bandX);
       absXOf.set(id, cursor);
@@ -414,13 +426,13 @@ const renderContextRegions = (
         <div
           class="context-label"
           data-hue=${hue}
-          style=${`left:${left + 10}px;top:${top}px`}
+          style=${`left:${left + 10}px;top:${top}px;max-width:${right - left - 20}px`}
           @pointerdown=${(event: PointerEvent) => event.stopPropagation()}
         >
           <button
             class="context-label-name"
             type="button"
-            title=${m.renameContextHint}
+            title=${`${boundedContext.name}\n${m.renameContextHint}`}
             @click=${(event: MouseEvent) =>
               handlers.renameContext(boundedContext.id, { x: event.clientX, y: event.clientY })}
           >
@@ -598,7 +610,8 @@ const renderArrows = (props: EsBoardProps, geometry: WallGeometry): TemplateResu
     const band = geometry.bands[bandIndex];
     return band === undefined ? 0 : band.y + band.height;
   };
-  const push = (arrow: SliceArrow, d: string, label: Pt, anchor: 'middle' | 'start' | 'end'): void => {
+  /** `room` is how wide the label may run along its route without crossing a note. */
+  const push = (arrow: SliceArrow, d: string, label: Pt, anchor: 'middle' | 'start' | 'end', room: number): void => {
     parts.push(
       svg`<path class="link-hit" d=${d} @pointerdown=${(event: PointerEvent) => event.stopPropagation()} @click=${(
         event: MouseEvent,
@@ -609,7 +622,7 @@ const renderArrows = (props: EsBoardProps, geometry: WallGeometry): TemplateResu
     if (arrow.label === undefined) return;
     const dx = { start: 6, end: -6, middle: 0 }[anchor];
     parts.push(
-      svg`<text class="link-label" x=${label.x + dx} y=${label.y - 6} text-anchor=${anchor}>${arrow.label}</text>`,
+      svg`<text class="link-label" x=${label.x + dx} y=${label.y - 6} text-anchor=${anchor}><title>${arrow.label}</title>${clipLabel(arrow.label, Math.min(room, LINK_LABEL_MAX_W))}</text>`,
     );
   };
   for (const arrow of geometry.arrows) {
@@ -623,11 +636,11 @@ const renderArrows = (props: EsBoardProps, geometry: WallGeometry): TemplateResu
         const y = from.y + SLICE_H / 2;
         const start = forward ? from.x + from.w : from.x;
         const end = forward ? to.x : to.x + to.w;
-        push(arrow, `M ${start} ${y} L ${end} ${y}`, { x: (start + end) / 2, y }, 'middle');
+        push(arrow, `M ${start} ${y} L ${end} ${y}`, { x: (start + end) / 2, y }, 'middle', Math.abs(end - start) - 4);
         continue;
       }
       const curve = bandArc(from, to, bandBottom(from.band) - ROW_BOTTOM / 2);
-      push(arrow, curve.d, curve.mid, 'middle');
+      push(arrow, curve.d, curve.mid, 'middle', apart + 2 * SLICE_PAD_X);
       continue;
     }
     // Wrapped: drop (or rise) straight into the target from the gap between the
@@ -645,6 +658,7 @@ const renderArrows = (props: EsBoardProps, geometry: WallGeometry): TemplateResu
       roundedPath([start, { x: start.x, y: gapY }, { x: end.x, y: gapY }, end]),
       { x: end.x - 6, y: gapY },
       'end',
+      LINK_LABEL_MAX_W,
     );
   }
   return svg`<svg class="links-layer" width=${geometry.width} height=${geometry.height}>

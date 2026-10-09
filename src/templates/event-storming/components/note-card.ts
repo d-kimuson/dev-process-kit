@@ -133,6 +133,8 @@ const cardStyles = css`
     line-height: 1.32;
     letter-spacing: -0.01em;
     overflow-wrap: anywhere;
+    /* As many lines as the fixed-size card holds; the rest ends in an ellipsis. */
+    --dpk-inline-edit-lines: 4;
   }
 
   :host([compact]) .note-name {
@@ -307,6 +309,7 @@ export class DpkInternalEventStormingNote extends LitElement {
       <dpk-component-inline-edit
         class="note-name"
         ?wrap=${true}
+        ?truncate=${!this.compact}
         ?seamless=${true}
         .value=${note.name}
         .label=${m.noteNameLabel}
