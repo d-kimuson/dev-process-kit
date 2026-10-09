@@ -7,6 +7,7 @@ import type { DpkTemplatePrototype } from '../templates/prototype/element';
 import { panelMessages } from '../components/comment-panel/messages';
 import { prototypeDefinitionFor } from '../templates/prototype/definition';
 import { prototypeMessages } from '../templates/prototype/messages';
+import { COMMENT_ACTION } from './action';
 import { coreMessages } from './messages';
 import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH } from './sidebar-width';
 import '../index';
@@ -243,6 +244,17 @@ describe('<dpk-template-prototype>', () => {
     el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
     await settle(el);
     expect(el.shadowRoot?.querySelector('.dpk-fab-badge')?.textContent?.trim()).toBe('1');
+  });
+
+  it('counts the changes and the comments of the draft apart in the header', async () => {
+    const el = mount();
+    await settle(el);
+    el.api.dispatch({ type: COMMENT_ACTION, target: 'page:prototype', payload: { body: 'one' } });
+    el.api.dispatch({ type: COMMENT_ACTION, target: 'page:prototype', payload: { body: 'two' } });
+    el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
+    await settle(el);
+    const count = el.shadowRoot?.querySelector('.dpk-meta-count')?.textContent?.trim();
+    expect(count).toBe(coreMessages('en').draftCount(1, 2));
   });
 
   it('offers the hand-off beside the closed rail once there is a draft', async () => {

@@ -20,3 +20,15 @@ export const revealWithin = (container: Element, child: Element): void => {
     child.getBoundingClientRect(),
   );
 };
+
+/** {@link revealWithin} along the inline axis: a tab strip that scrolls sideways shows its selected tab. */
+export const revealInlineWithin = (container: Element, child: Element): void => {
+  const box = container.getBoundingClientRect();
+  const left = box.left + container.clientLeft;
+  const target = child.getBoundingClientRect();
+  container.scrollLeft = nearestScrollTop(
+    container.scrollLeft,
+    { top: left, bottom: left + container.clientWidth },
+    { top: target.left, bottom: target.right },
+  );
+};

@@ -39,8 +39,9 @@ export const chromeStyles = [
       position: relative;
       z-index: 20;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 14px;
+      gap: 8px 14px;
       min-height: 60px;
       /* Right padding keeps the header content clear of the fixed review button. */
       padding: 10px 72px 10px 16px;
@@ -107,11 +108,16 @@ export const chromeStyles = [
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
     }
 
+    /* The title takes what the header has left: the template's header content
+       keeps its own width, and only a title too long for the rest ellipsizes.
+       Header content with no room beside the title wraps to a row of its own
+       rather than being squeezed. */
     .dpk-title {
+      flex: 1 1 0%;
       display: flex;
       flex-direction: column;
       gap: 3px;
-      min-width: 0;
+      min-width: min(160px, 100%);
     }
 
     .dpk-title h1 {
@@ -135,7 +141,7 @@ export const chromeStyles = [
     }
 
     .dpk-header-slot {
-      flex: 1;
+      flex: 0 1 auto;
       min-width: 0;
       display: flex;
       align-items: center;
@@ -285,7 +291,9 @@ export const chromeStyles = [
 
     /* --------------------------------------------------------------- body */
 
+    /* Positioned: the sidebar drawer and a narrow screen's review open over it. */
     .dpk-body {
+      position: relative;
       display: flex;
       min-height: 0;
     }
@@ -425,6 +433,34 @@ export const chromeStyles = [
       outline: none;
     }
 
+    /*
+     * A phone-width screen has no room for a column beside the main one: the
+     * sidebar is a drawer that the strip's button slides over the main column,
+     * leaving a sliver of it to tap the drawer shut.
+     */
+    .dpk-body[data-sidebar-drawer] > .dpk-sidebar {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 36px;
+      z-index: 25;
+      width: min(var(--dpk-sidebar-width), calc(100% - 36px - 48px));
+      max-width: none;
+      box-shadow: var(--dpk-shadow-lg);
+    }
+
+    .dpk-body[data-sidebar-drawer][data-sidebar-side='right'] > .dpk-sidebar {
+      left: auto;
+      right: 36px;
+    }
+
+    .dpk-sidebar-scrim {
+      position: absolute;
+      inset: 0;
+      z-index: 24;
+      background: color-mix(in srgb, var(--dpk-ink) 16%, transparent);
+    }
+
     /* While dragging, the cursor stays put and nothing underneath (text, preview frames) reacts. */
     .dpk-shell[data-resizing] {
       cursor: col-resize;
@@ -460,11 +496,31 @@ export const chromeStyles = [
     .dpk-main-body {
       flex: 1 0 auto;
       display: grid;
+      /* The column is as wide as the page, not as its widest unbreakable line. */
+      grid-template-columns: minmax(0, 1fr);
       align-content: start;
       gap: 16px;
       min-width: 0;
       padding: 24px;
       animation: dpk-rise 420ms var(--dpk-ease) backwards;
+    }
+
+    /*
+     * Scrolled to the end, the last of the content clears the hand-off dock
+     * floating over the bottom right. \`--dpk-dock-clearance\` is how far up
+     * that is; it reaches into components too, and a template's own floating
+     * controls rise by it. \`:where\` lets a full-bleed template keep no padding.
+     */
+    .dpk-shell:has(> .dpk-dock) {
+      --dpk-dock-clearance: 64px;
+    }
+
+    :where(.dpk-shell:has(> .dpk-dock)) .dpk-main-body {
+      padding-bottom: calc(24px + var(--dpk-dock-clearance));
+    }
+
+    :where(.dpk-shell:has(> .dpk-dock)) .dpk-sidebar {
+      padding-bottom: calc(18px + var(--dpk-dock-clearance));
     }
 
     @keyframes dpk-rise {
@@ -602,6 +658,47 @@ export const chromeStyles = [
 
     .dpk-notes[hidden] {
       display: none;
+    }
+
+    /*
+     * Where a column of its own would leave the main column too little room,
+     * the review opens over the main column's edge instead; on a phone it
+     * takes the screen, below the review button that closes it.
+     */
+    @media (max-width: 1100px) {
+      .dpk-body:has(> .dpk-sidebar:not([hidden])) > .dpk-notes {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 30;
+        max-width: 100%;
+        box-shadow: var(--dpk-shadow-lg);
+      }
+    }
+
+    @media (max-width: 860px) {
+      .dpk-notes {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 30;
+        max-width: 100%;
+        box-shadow: var(--dpk-shadow-lg);
+      }
+    }
+
+    @media (max-width: 760px) {
+      .dpk-notes,
+      .dpk-body:has(> .dpk-sidebar:not([hidden])) > .dpk-notes {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        width: auto;
+        padding-top: 60px;
+        border-left: 0;
+      }
     }
 
     /* ------------------------------------------------------------- footer */
@@ -771,24 +868,55 @@ export const chromeStyles = [
       line-height: 1.6;
     }
 
+    /* The template's name repeats the mark above the title; the title needs the room more. */
+    @media (max-width: 1100px) {
+      .dpk-header-meta > .dpk-meta-name {
+        display: none;
+      }
+    }
+
     @media (max-width: 720px) {
-      /* The version select stays: it is the reader's only way to switch versions. */
-      .dpk-header-meta > :not(.dpk-version) {
+      /* The version select stays: it is the reader's only way to switch
+         versions; so do the counts, the review's progress at a glance. */
+      .dpk-header-meta > :not(.dpk-version, .dpk-meta-count) {
         display: none;
       }
 
-      /* The title takes the first row whole; the version select and tools wrap below it. */
-      .dpk-header {
-        flex-wrap: wrap;
-        row-gap: 8px;
+      /* On a phone the row may be narrower than both: the counts stay whole and
+         the version select gives up its width instead. */
+      .dpk-header-meta {
+        min-width: 0;
+        max-width: 100%;
       }
 
+      .dpk-header-meta > .dpk-version {
+        display: flex;
+        min-width: 0;
+      }
+
+      .dpk-header-meta .dpk-version-select {
+        width: 100%;
+        min-width: 0;
+        text-overflow: ellipsis;
+      }
+
+      .dpk-header-meta > .dpk-meta-count {
+        flex: none;
+      }
+
+      /* The title takes the first row whole; the version select and tools wrap below it. */
       .dpk-title {
         flex: 1 0 100%;
       }
 
       .dpk-brand {
         display: none;
+      }
+
+      /* The page's own content goes last, so a long one cannot push the version
+         select and tools below it. */
+      .dpk-header-slot {
+        order: 1;
       }
     }
   `,

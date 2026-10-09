@@ -28,6 +28,12 @@ export type SidebarLayout = {
    * Defaults to `true`; a template with its own fold control sets `false`.
    */
   readonly collapsible?: boolean;
+  /**
+   * The sidebar on a phone-width screen. `'drawer'` (the default, for a
+   * collapsible sidebar) folds it into a strip whose button slides it over the
+   * main column; `'stack'` leaves the layout to the template's own styles.
+   */
+  readonly narrow?: 'drawer' | 'stack';
 };
 
 export const DEFAULT_SIDEBAR_LAYOUT: SidebarLayout = { side: 'left', defaultWidth: 260 };

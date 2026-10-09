@@ -31,6 +31,7 @@ import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
 import { HandoffDockController } from './shell/handoff-dock-controller';
 import { LocaleChoiceController } from './shell/locale-choice-controller';
+import { NarrowScreenController } from './shell/narrow-screen-controller';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
 import { PreviewRouter } from './shell/preview-router';
 import { SidebarCollapseController } from './shell/sidebar-collapse-controller';
@@ -87,6 +88,7 @@ export abstract class TemplateElement<S> extends LitElement {
     persist: () => this.storage !== 'off' && this.storage !== 'memory',
     template: () => this.definition.name,
   });
+  #narrowScreen = new NarrowScreenController(this);
   #textRecovery = new TextRecoveryController(this, {
     persist: () => this.storage !== 'off' && this.storage !== 'memory',
     storageKey: () => `${this.storageKey ?? defaultStorageKey(this.definition.name)}:unsent-text`,
@@ -360,19 +362,27 @@ export abstract class TemplateElement<S> extends LitElement {
 
   protected renderChrome(context: TemplateRenderContext<S>, regions: ShellRegions): TemplateResult {
     const draftCount = context.actions.length;
-    const commentCount = context.comments.length;
+    // The draft holds both; the header names its changes and its comments apart.
+    const commentCount = context.actions.filter((action) => action.type === COMMENT_ACTION).length;
+    const changeCount = draftCount - commentCount;
     const messages = coreMessages(this.locale);
     const sidebarHidden = regions.sidebarHidden === true || (!regions.sidebar && !this.hasSidebarContent());
     const side = this.sidebarLayout.side;
-    const collapsed = !sidebarHidden && this.#sidebarCollapsible && this.#sidebarCollapse.collapsed;
-    const edge = sidebarHidden ? nothing : this.#renderSidebarEdge(collapsed);
+    const drawer = this.#sidebarDrawer;
+    const collapsed =
+      !sidebarHidden &&
+      this.#sidebarCollapsible &&
+      (drawer ? !this.#sidebarCollapse.drawerOpen : this.#sidebarCollapse.collapsed);
+    const edge = sidebarHidden ? nothing : this.#renderSidebarEdge(collapsed, drawer);
+    // The header ellipsizes a long title; the tooltip has it whole.
+    const title = this.definition.title(context.state);
     return html`
       <div class="dpk-shell" ?data-resizing=${this.#sidebarWidth.dragging}>
         <header class="dpk-header">
           <span class="dpk-brand" aria-hidden="true"></span>
           <div class="dpk-title">
             <span class="dpk-template-mark">${this.definition.label}</span>
-            <h1>${this.definition.title(context.state)}</h1>
+            <h1 title=${title}>${title}</h1>
           </div>
           <div class="dpk-header-slot">
             ${regions.header ?? nothing}
@@ -380,14 +390,14 @@ export abstract class TemplateElement<S> extends LitElement {
           </div>
           <div class="dpk-header-meta">
             ${this.#versionChoice.render(this.locale)}
-            <span>${this.definition.name}</span>
+            <span class="dpk-meta-name">${this.definition.name}</span>
             <span class="dpk-meta-count" data-active=${draftCount > 0 ? 'true' : 'false'}>
-              ${draftCount} draft · ${commentCount} note
+              ${messages.draftCount(changeCount, commentCount)}
             </span>
           </div>
           <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
         </header>
-        <div class="dpk-body" data-sidebar-side=${side}>
+        <div class="dpk-body" data-sidebar-side=${side} ?data-sidebar-drawer=${drawer}>
           ${side === 'right' ? edge : nothing}
           <aside
             id="dpk-sidebar"
@@ -399,6 +409,11 @@ export abstract class TemplateElement<S> extends LitElement {
             <slot name="sidebar"></slot>
           </aside>
           ${side === 'left' ? edge : nothing}
+          ${
+            drawer && !collapsed && !sidebarHidden
+              ? html`<div class="dpk-sidebar-scrim" @click=${() => this.#sidebarCollapse.closeDrawer()}></div>`
+              : nothing
+          }
           <main class="dpk-main">
             <div class="dpk-main-body">
               ${
@@ -540,21 +555,27 @@ export abstract class TemplateElement<S> extends LitElement {
     return this.sidebarLayout.collapsible !== false;
   }
 
+  /** On a phone-width screen a collapsible sidebar is a drawer, unless the template stacks it itself. */
+  get #sidebarDrawer(): boolean {
+    return this.#narrowScreen.narrow && this.#sidebarCollapsible && this.sidebarLayout.narrow !== 'stack';
+  }
+
   /**
    * What sits between the sidebar and the main column: the resizable edge and
    * the fold button on it, or, once folded, a narrow strip holding the button
    * that brings the sidebar back. The resizer stays next to the sidebar, on
    * whichever side that is.
    */
-  #renderSidebarEdge(collapsed: boolean): TemplateResult {
-    const toggle = this.#sidebarCollapsible ? this.#renderSidebarToggle(collapsed) : nothing;
-    if (collapsed) return html`<div class="dpk-sidebar-strip">${toggle}</div>`;
+  #renderSidebarEdge(collapsed: boolean, drawer: boolean): TemplateResult {
+    const toggle = this.#sidebarCollapsible ? this.#renderSidebarToggle(collapsed, drawer) : nothing;
+    // A drawer slides over the main column from its strip, so the strip stays.
+    if (collapsed || drawer) return html`<div class="dpk-sidebar-strip">${toggle}</div>`;
     return this.sidebarLayout.side === 'left'
       ? html`${this.#renderSidebarResizer()}${toggle}`
       : html`${toggle}${this.#renderSidebarResizer()}`;
   }
 
-  #renderSidebarToggle(collapsed: boolean): TemplateResult {
+  #renderSidebarToggle(collapsed: boolean, drawer: boolean): TemplateResult {
     const messages = coreMessages(this.locale);
     const toggle = sidebarToggle(this.sidebarLayout.side, collapsed);
     const label = toggle.action === 'collapse' ? messages.collapseSidebar : messages.expandSidebar;
@@ -567,7 +588,8 @@ export abstract class TemplateElement<S> extends LitElement {
       title=${label}
       @click=${() => {
         this.#focusSidebarToggle = true;
-        this.#sidebarCollapse.toggle();
+        if (drawer) this.#sidebarCollapse.toggleDrawer();
+        else this.#sidebarCollapse.toggle();
       }}
     >
       ${toggle.points === 'left' ? iconChevronLeft() : iconChevronRight()}

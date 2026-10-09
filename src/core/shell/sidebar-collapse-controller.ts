@@ -1,6 +1,10 @@
 /**
  * Whether the reader folded the shell's sidebar away, and the persistence of
  * that choice. Kept beside the width, the same way: one key per template.
+ *
+ * On a phone-width screen the sidebar is a drawer over the main column
+ * instead: closed on load and never stored, so opening it there does not
+ * unfold it on a wider screen.
  */
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
@@ -22,6 +26,7 @@ export class SidebarCollapseController implements ReactiveController {
   #store: JsonStore<boolean> | null = null;
   #key = '';
   #collapsed = false;
+  #drawerOpen = false;
 
   constructor(host: ReactiveControllerHost, options: SidebarCollapseOptions) {
     this.#host = host;
@@ -40,6 +45,21 @@ export class SidebarCollapseController implements ReactiveController {
 
   get collapsed(): boolean {
     return this.#collapsed;
+  }
+
+  get drawerOpen(): boolean {
+    return this.#drawerOpen;
+  }
+
+  toggleDrawer(): void {
+    this.#drawerOpen = !this.#drawerOpen;
+    this.#host.requestUpdate();
+  }
+
+  closeDrawer(): void {
+    if (!this.#drawerOpen) return;
+    this.#drawerOpen = false;
+    this.#host.requestUpdate();
   }
 
   toggle(): void {

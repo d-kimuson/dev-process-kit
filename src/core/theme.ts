@@ -529,11 +529,18 @@ export const prose = css`
     color: var(--dpk-ink-soft);
   }
 
+  /* A table wider than its box scrolls on its own instead of being clipped by it. */
   .dpk-prose table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
     border-collapse: collapse;
   }
 
+  /* A cell breaks a word only once it runs out of room: the box's 'anywhere' would
+     let the table shrink a column to one letter rather than scroll. */
   .dpk-prose :is(th, td) {
+    overflow-wrap: break-word;
     padding: 2px 8px;
     border: 1px solid var(--dpk-rule);
     text-align: left;
