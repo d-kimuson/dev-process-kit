@@ -141,20 +141,39 @@
               "description": "パーソナライズと返品の自己解決"
             }
           ],
+          "statuses": [
+            {
+              "id": "idea",
+              "name": "Idea",
+              "tone": "gray"
+            },
+            {
+              "id": "ready",
+              "name": "Ready",
+              "tone": "amber"
+            },
+            {
+              "id": "done",
+              "name": "Done",
+              "tone": "green"
+            }
+          ],
           "stories": [
             {
               "id": "keyword-search",
               "name": "キーワードで商品を探す",
               "activityId": "discover",
               "stepId": "search",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "done"
             },
             {
               "id": "category-browse",
               "name": "カテゴリから絞り込む",
               "activityId": "discover",
               "stepId": "search",
-              "milestoneId": "v1"
+              "milestoneId": "v1",
+              "statusId": "ready"
             },
             {
               "id": "see-stock",
@@ -162,49 +181,56 @@
               "description": "在庫切れは購入ボタンを出さない",
               "activityId": "discover",
               "stepId": "product-detail",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "done"
             },
             {
               "id": "read-reviews",
               "name": "レビューを読んで比べる",
               "activityId": "discover",
               "stepId": "product-detail",
-              "milestoneId": "v2"
+              "milestoneId": "v2",
+              "statusId": "idea"
             },
             {
               "id": "add-item",
               "name": "商品をカートに入れる",
               "activityId": "cart",
               "stepId": "add-to-cart",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "done"
             },
             {
               "id": "change-quantity",
               "name": "数量を変える・外す",
               "activityId": "cart",
               "stepId": "edit-cart",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "ready"
             },
             {
               "id": "keep-cart",
               "name": "ログインし直してもカートが残る",
               "activityId": "cart",
               "stepId": "edit-cart",
-              "milestoneId": "v1"
+              "milestoneId": "v1",
+              "statusId": "idea"
             },
             {
               "id": "enter-address",
               "name": "届け先住所を入力する",
               "activityId": "order",
               "stepId": "delivery",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "done"
             },
             {
               "id": "saved-address",
               "name": "登録済みの住所から選ぶ",
               "activityId": "order",
               "stepId": "delivery",
-              "milestoneId": "v1"
+              "milestoneId": "v1",
+              "statusId": "ready"
             },
             {
               "id": "confirm-order",
@@ -212,70 +238,80 @@
               "description": "確定時に在庫を引き当てる",
               "activityId": "order",
               "stepId": "review",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "ready"
             },
             {
               "id": "order-mail",
               "name": "注文確認メールを受け取る",
               "activityId": "order",
               "stepId": "review",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "ready"
             },
             {
               "id": "pay-card",
               "name": "クレジットカードで払う",
               "activityId": "pay",
               "stepId": "payment-method",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "done"
             },
             {
               "id": "pay-convenience",
               "name": "コンビニ払いを選ぶ",
               "activityId": "pay",
               "stepId": "payment-method",
-              "milestoneId": "v2"
+              "milestoneId": "v2",
+              "statusId": "idea"
             },
             {
               "id": "payment-failed",
               "name": "決済に失敗したら別の方法でやり直す",
               "activityId": "pay",
               "stepId": "authorize",
-              "milestoneId": "v1"
+              "milestoneId": "v1",
+              "statusId": "idea"
             },
             {
               "id": "shipping-status",
               "name": "配送状況を注文詳細で見る",
               "activityId": "receive",
               "stepId": "track",
-              "milestoneId": "v1"
+              "milestoneId": "v1",
+              "statusId": "ready"
             },
             {
               "id": "shipped-mail",
               "name": "出荷のお知らせを受け取る",
               "activityId": "receive",
               "stepId": "track",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "idea"
             },
             {
               "id": "receive-item",
               "name": "商品を受け取る",
               "activityId": "receive",
               "stepId": "delivered",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "ready"
             },
             {
               "id": "order-list",
               "name": "過去の注文を一覧で見る",
               "activityId": "manage",
               "stepId": "history",
-              "milestoneId": "mvp"
+              "milestoneId": "mvp",
+              "statusId": "ready"
             },
             {
               "id": "order-detail",
               "name": "注文の状態と明細を見る",
               "activityId": "manage",
               "stepId": "history",
-              "milestoneId": "v1"
+              "milestoneId": "v1",
+              "statusId": "idea"
             },
             {
               "id": "self-cancel",
@@ -283,14 +319,16 @@
               "description": "いまは問い合わせフォーム経由。出荷指示後はボタンを出さない",
               "activityId": "manage",
               "stepId": "cancel",
-              "milestoneId": "v1"
+              "milestoneId": "v1",
+              "statusId": "ready"
             },
             {
               "id": "cancel-reason",
               "name": "キャンセル理由を選ぶ",
               "activityId": "manage",
               "stepId": "cancel",
-              "milestoneId": "v1"
+              "milestoneId": "v1",
+              "statusId": "idea"
             },
             {
               "id": "partial-cancel",
@@ -298,21 +336,24 @@
               "description": "初回リリースの対象外",
               "activityId": "manage",
               "stepId": "cancel",
-              "milestoneId": "v2"
+              "milestoneId": "v2",
+              "statusId": "idea"
             },
             {
               "id": "return-after-ship",
               "name": "出荷後に返品を申し込む",
               "activityId": "manage",
               "stepId": "cancel",
-              "milestoneId": "v2"
+              "milestoneId": "v2",
+              "statusId": "idea"
             },
             {
               "id": "refund-mail",
               "name": "返金完了のメールを受け取る",
               "activityId": "manage",
               "stepId": "refund",
-              "milestoneId": "v1"
+              "milestoneId": "v1",
+              "statusId": "idea"
             },
             {
               "id": "refund-status",
@@ -320,14 +361,16 @@
               "description": "返金待ち → 取消済み",
               "activityId": "manage",
               "stepId": "refund",
-              "milestoneId": "v1"
+              "milestoneId": "v1",
+              "statusId": "idea"
             },
             {
               "id": "point-refund",
               "name": "使ったポイント・クーポンが戻る",
               "activityId": "manage",
               "stepId": "refund",
-              "milestoneId": "v2"
+              "milestoneId": "v2",
+              "statusId": "idea"
             },
             {
               "id": "refund-other-method",

@@ -8,7 +8,7 @@ import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface } from '../../core/theme';
 import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
-import { usmTabOf } from './board-tabs';
+import { usmTabOf, type UsmTab } from './board-tabs';
 import { defineUsmStoryCard } from './components/story-card';
 import { usmDefinitionFor } from './definition';
 import { resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove, type CellRef } from './drop';
@@ -19,6 +19,8 @@ import { renderBoard, type UsmDragType } from './render/board';
 import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
 import { renderBoardBar } from './render/page-tabs';
+import { renderStatusOverview } from './render/status-overview';
+import { presentStatusOverview } from './status-overview';
 import { usmStyles } from './styles';
 import { IDLE_MODE, reduceCardIntent, type CardIntent, type UsmUiMode } from './ui-mode';
 
@@ -71,17 +73,23 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     const m = usmMessages(this.locale);
     const tab = usmTabOf(context.navigation);
     return html`
-      ${renderBoardBar(m, context, tab)}
-      ${
-        tab === 'milestones'
-          ? renderMilestoneOverview(m, context, presentMilestoneOverview(context.state))
-          : this.#renderMap(m, context)
-      }
+      ${renderBoardBar(m, context, tab)} ${this.#renderTab(m, context, tab)}
       ${renderMoveDialog(m, context, this.mode, {
         confirm: (stepId) => this.#confirmPickedStep(stepId),
         cancel: () => (this.mode = IDLE_MODE),
       })}
     `;
+  }
+
+  #renderTab(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult {
+    switch (tab) {
+      case 'milestones':
+        return renderMilestoneOverview(m, context, presentMilestoneOverview(context.state));
+      case 'statuses':
+        return renderStatusOverview(m, context, presentStatusOverview(context.state));
+      case 'map':
+        return this.#renderMap(m, context);
+    }
   }
 
   #renderMap(m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult {
@@ -113,6 +121,13 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
           type: 'SET_STORY_NAME',
           target: { type: 'story', id: storyId },
           payload: { name: intent.name },
+        });
+        break;
+      case 'set-status':
+        context.dispatch({
+          type: 'SET_STORY_STATUS',
+          target: { type: 'story', id: storyId },
+          payload: { statusId: intent.statusId },
         });
         break;
       case 'comment':

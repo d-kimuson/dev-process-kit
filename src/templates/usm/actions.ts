@@ -9,6 +9,7 @@ import {
   type ActionSpecs,
   type TemplateAction,
 } from '../../core/schema';
+import { statusToneSchema } from './model';
 
 // Domain vocabulary for User Story Mapping. No generic SET_FIELD / MOVE.
 export const usmActions = {
@@ -67,6 +68,7 @@ export const usmActions = {
     { dedupeKey: entityDedupeKey },
   ),
   DELETE_STORY: defineAction('DELETE_STORY', 'story', v.object({})),
+  SET_STORY_STATUS: defineAction('SET_STORY_STATUS', 'story', v.object({ statusId: v.nullable(v.string()) })),
 
   SET_MILESTONE_NAME: defineAction(
     'SET_MILESTONE_NAME',
@@ -83,6 +85,19 @@ export const usmActions = {
   ),
   DELETE_MILESTONE: defineAction('DELETE_MILESTONE', 'milestone', v.object({})),
   REORDER_MILESTONE: defineAction('REORDER_MILESTONE', 'milestone', v.object({ after: v.nullable(v.string()) }), {
+    mode: 'sequence',
+  }),
+
+  ADD_STATUS: defineAction(
+    'ADD_STATUS',
+    'page',
+    v.object({ id: entityIdSchema, name: v.pipe(v.string(), v.minLength(1)), tone: statusToneSchema }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  SET_STATUS_NAME: defineAction('SET_STATUS_NAME', 'status', v.object({ name: v.pipe(v.string(), v.minLength(1)) })),
+  SET_STATUS_TONE: defineAction('SET_STATUS_TONE', 'status', v.object({ tone: statusToneSchema })),
+  DELETE_STATUS: defineAction('DELETE_STATUS', 'status', v.object({})),
+  REORDER_STATUS: defineAction('REORDER_STATUS', 'status', v.object({ after: v.nullable(v.string()) }), {
     mode: 'sequence',
   }),
 } satisfies ActionSpecs;

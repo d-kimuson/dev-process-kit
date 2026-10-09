@@ -716,6 +716,135 @@ export const usmStyles = css`
     }
   }
 
+  /* ------------------------------------------------------- statuses tab */
+
+  /* The statuses in order, one row each: color, name, how many stories stand
+     there, the palette to recolor it, and the order / delete tools. */
+  .st-overview {
+    display: grid;
+    gap: 20px;
+    max-width: 860px;
+    padding: 28px 0 40px;
+  }
+  .st-lead {
+    margin: 0;
+    color: var(--dpk-ink-soft);
+    font-size: 13px;
+  }
+  .st-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow-xs);
+  }
+  .st-row {
+    display: grid;
+    /* Fixed tool columns keep the unset row, which has no tools, in line. */
+    grid-template-columns: 14px minmax(120px, 1fr) minmax(140px, 200px) 136px 84px;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+  }
+  .st-row + .st-row {
+    border-top: 1px solid var(--dpk-rule);
+  }
+  .st-row--unset {
+    background: var(--dpk-paper-sunken);
+    border-radius: 0 0 var(--dpk-radius-lg) var(--dpk-radius-lg);
+    color: var(--dpk-ink-faint);
+  }
+  .st-row--unset .st-name {
+    padding-left: 4px;
+    font-weight: 500;
+  }
+  .st-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    background: var(--usm-tone);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--usm-tone) 18%, transparent);
+  }
+  .st-row--unset .st-swatch {
+    background: transparent;
+    border: 1px dashed var(--dpk-ink-faint);
+    box-shadow: none;
+  }
+  .st-name {
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 650;
+  }
+  .st-share {
+    display: grid;
+    gap: 5px;
+  }
+  .st-share-text {
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .st-meter {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--dpk-paper-sunken);
+    overflow: hidden;
+  }
+  .st-meter > span {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: var(--usm-tone);
+  }
+  .st-tones {
+    display: inline-flex;
+    gap: 5px;
+  }
+  .st-tone {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 2px solid var(--dpk-paper-raised);
+    border-radius: 50%;
+    background: var(--usm-tone);
+    box-shadow: 0 0 0 1px var(--dpk-rule-strong);
+    cursor: pointer;
+    transition: box-shadow 150ms ease;
+  }
+  .st-tone:hover {
+    box-shadow: 0 0 0 1px var(--usm-tone);
+  }
+  .st-tone[aria-checked='true'] {
+    box-shadow: 0 0 0 2px var(--usm-tone);
+  }
+  .st-tone:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+  .st-tools {
+    display: inline-flex;
+    gap: 2px;
+  }
+  .st-tools .dpk-icon-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+  }
+  @media (max-width: 640px) {
+    .st-row {
+      grid-template-columns: 14px minmax(0, 1fr) auto;
+      row-gap: 8px;
+    }
+    .st-share,
+    .st-tones {
+      grid-column: 2 / -1;
+    }
+  }
+
   /* Step picker shown after a cross-activity drop. */
   .move-dialog {
     min-width: 220px;

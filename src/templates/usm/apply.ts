@@ -2,7 +2,15 @@ import type { ApplyResult, DraftAction } from '../../core/types';
 
 import { assertNever, parseTemplateAction } from '../../core/schema';
 import { usmActions } from './actions';
-import { findMilestone, findStep, findStory, type BackboneActivity, type UsmState, type UserStory } from './model';
+import {
+  findMilestone,
+  findStatus,
+  findStep,
+  findStory,
+  type BackboneActivity,
+  type UsmState,
+  type UserStory,
+} from './model';
 
 // Pure reducer: (state, action) => state | null. No DOM, no I/O.
 export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResult<UsmState> => {
@@ -149,6 +157,12 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       return { ...state, stories: state.stories.filter((story) => story.id !== id) };
     }
 
+    case 'SET_STORY_STATUS': {
+      const { statusId } = typed.payload;
+      if (statusId !== null && !findStatus(state, statusId)) return null;
+      return updateStory(state, id, (story) => (statusId === null ? stripStatus(story) : { ...story, statusId }));
+    }
+
     case 'SET_MILESTONE_NAME': {
       const { name } = typed.payload;
       if (!state.milestones.some((milestone) => milestone.id === id)) return null;
@@ -175,6 +189,35 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       const next = reorderById(state.milestones, id, after);
       return next === null ? null : { ...state, milestones: next };
     }
+
+    case 'ADD_STATUS': {
+      const { id: statusId, name, tone } = typed.payload;
+      if (state.statuses.some((status) => status.id === statusId)) return state;
+      return { ...state, statuses: [...state.statuses, { id: statusId, name, tone }] };
+    }
+    case 'SET_STATUS_NAME': {
+      const { name } = typed.payload;
+      if (!findStatus(state, id)) return null;
+      return { ...state, statuses: state.statuses.map((status) => (status.id === id ? { ...status, name } : status)) };
+    }
+    case 'SET_STATUS_TONE': {
+      const { tone } = typed.payload;
+      if (!findStatus(state, id)) return null;
+      return { ...state, statuses: state.statuses.map((status) => (status.id === id ? { ...status, tone } : status)) };
+    }
+    case 'DELETE_STATUS': {
+      if (!findStatus(state, id)) return null;
+      return {
+        ...state,
+        statuses: state.statuses.filter((status) => status.id !== id),
+        stories: state.stories.map((story) => (story.statusId === id ? stripStatus(story) : story)),
+      };
+    }
+    case 'REORDER_STATUS': {
+      const { after } = typed.payload;
+      const next = reorderById(state.statuses, id, after);
+      return next === null ? null : { ...state, statuses: next };
+    }
     default:
       return assertNever(typed);
   }
@@ -187,6 +230,11 @@ const updateStory = (state: UsmState, id: string, fn: (story: UserStory) => User
 
 const stripMilestone = (story: UserStory): UserStory => {
   const { milestoneId: _milestoneId, ...rest } = story;
+  return rest;
+};
+
+const stripStatus = (story: UserStory): UserStory => {
+  const { statusId: _statusId, ...rest } = story;
   return rest;
 };
 

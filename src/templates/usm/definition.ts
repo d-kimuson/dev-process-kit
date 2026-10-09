@@ -9,6 +9,7 @@ import {
   emptyUsmBase,
   findActivity,
   findMilestone,
+  findStatus,
   findStep,
   findStory,
   parseUsmBase,
@@ -34,6 +35,8 @@ export const usmHasTarget = (state: UsmState, target: ActionTarget): boolean => 
       return findStory(state, target.id) !== undefined;
     case 'milestone':
       return findMilestone(state, target.id) !== undefined;
+    case 'status':
+      return findStatus(state, target.id) !== undefined;
     case 'page':
       return true;
     default:

@@ -1,3 +1,5 @@
+import type { StatusTone } from './model';
+
 import { defineMessages } from '../../core/i18n';
 
 export const usmMessages = defineMessages({
@@ -21,6 +23,12 @@ export const usmMessages = defineMessages({
     addMilestone: 'Add milestone',
     deleteMilestone: 'Delete milestone',
     reorderMilestone: 'Reorder milestone',
+    changeStoryStatus: 'Change story status',
+    addStatus: 'Add status',
+    renameStatus: 'Rename status',
+    changeStatusTone: 'Change status color',
+    deleteStatus: 'Delete status',
+    reorderStatus: 'Reorder status',
 
     // ------------------------------------------------- action summary bodies
     toValue: (value: string) => `→ “${value}”`,
@@ -37,6 +45,7 @@ export const usmMessages = defineMessages({
     stepGroup: 'Step',
     storyGroup: 'Story',
     milestoneGroup: 'Milestone',
+    statusGroup: 'Status',
     mapGroup: 'Map',
     targetLabel: (group: string, name: string) => `${group} · ${name}`,
     targetMissing: (group: string, id: string) => `${group} · ${id} (missing)`,
@@ -67,6 +76,7 @@ export const usmMessages = defineMessages({
     pageTabsLabel: 'Page',
     mapTab: 'User Story Mapping',
     milestonesTab: 'Milestones',
+    statusesTab: 'Statuses',
 
     // ---------------------------------------------------- milestones tab
     milestonesLead: 'What each release slice is for, and when it is due. The stories live on the map.',
@@ -82,6 +92,21 @@ export const usmMessages = defineMessages({
     noMilestonesBody: 'Add a milestone to slice the map into releases.',
     commentCountAria: (count: number) => (count === 1 ? '1 comment' : `${count} comments`),
 
+    // ------------------------------------------------------- statuses tab
+    statusesLead: 'Where a story stands. Each status colors its stories on the map; set one from the card.',
+    statusNameLabel: 'Status name',
+    statusToneLabel: 'Color',
+    toneName: (tone: StatusTone) =>
+      ({ gray: 'Gray', blue: 'Blue', violet: 'Violet', green: 'Green', amber: 'Amber', accent: 'Orange' })[tone],
+    statusShare: (count: number, percent: number) => `${count === 1 ? '1 story' : `${count} stories`} · ${percent}%`,
+    statusUnset: 'No status',
+    noStatusesTitle: 'No statuses yet',
+    noStatusesBody: 'Add statuses such as Idea / Ready / Done, and the map colors each story by where it stands.',
+    newStatusButton: '+ Status',
+    moveUpAria: 'Move up',
+    moveDownAria: 'Move down',
+    deleteStatusAria: 'Delete this status',
+
     // ---------------------------------------------------------- move dialog
     moveDialogLabel: 'Step to move to',
     moveDialogSelectLabel: 'Destination',
@@ -93,12 +118,14 @@ export const usmMessages = defineMessages({
     editTitleAria: 'Edit title',
     commentAria: 'Comment',
     deleteAria: 'Delete',
+    storyStatusLabel: 'Status',
 
     // -------------------------------------------------------------- commands
     newActivityName: 'New activity',
     newStepName: 'New step',
     newMilestoneName: 'New milestone',
     newStoryName: 'New story',
+    newStatusName: 'New status',
   },
   ja: {
     renameActivity: 'アクティビティ名を変更',
@@ -119,6 +146,12 @@ export const usmMessages = defineMessages({
     addMilestone: 'マイルストーンを追加',
     deleteMilestone: 'マイルストーンを削除',
     reorderMilestone: 'マイルストーンの順序を変更',
+    changeStoryStatus: 'ストーリーのステータスを変更',
+    addStatus: 'ステータスを追加',
+    renameStatus: 'ステータス名を変更',
+    changeStatusTone: 'ステータスの色を変更',
+    deleteStatus: 'ステータスを削除',
+    reorderStatus: 'ステータスの順序を変更',
 
     toValue: (value: string) => `→ 「${value}」`,
     fromTo: (before: string, value: string) => `「${before}」→「${value}」`,
@@ -133,6 +166,7 @@ export const usmMessages = defineMessages({
     stepGroup: 'ステップ',
     storyGroup: 'ストーリー',
     milestoneGroup: 'マイルストーン',
+    statusGroup: 'ステータス',
     mapGroup: 'マップ',
     targetLabel: (group: string, name: string) => `${group} · ${name}`,
     targetMissing: (group: string, id: string) => `${group} · ${id} (missing)`,
@@ -161,6 +195,7 @@ export const usmMessages = defineMessages({
     pageTabsLabel: 'ページ',
     mapTab: 'User Story Mapping',
     milestonesTab: 'マイルストーン',
+    statusesTab: 'ステータス',
 
     milestonesLead: 'リリースの区切りごとの目的と時期。ストーリーはマップで扱います。',
     shareOfStories: (percent: number) => `全ストーリーの ${percent}%`,
@@ -175,6 +210,21 @@ export const usmMessages = defineMessages({
     noMilestonesBody: 'マイルストーンを追加すると、マップをリリースごとに区切れます。',
     commentCountAria: (count: number) => `コメント ${count} 件`,
 
+    statusesLead:
+      'ストーリーがどこまで進んだか。ステータスごとにマップのカードが色分けされ、カードから切り替えられます。',
+    statusNameLabel: 'ステータス名',
+    statusToneLabel: '色',
+    toneName: (tone: StatusTone) =>
+      ({ gray: 'グレー', blue: '青', violet: '紫', green: '緑', amber: '黄', accent: 'オレンジ' })[tone],
+    statusShare: (count: number, percent: number) => `${count} ストーリー · ${percent}%`,
+    statusUnset: 'ステータスなし',
+    noStatusesTitle: 'ステータスがまだありません',
+    noStatusesBody: 'Idea / Ready / Done のようなステータスを追加すると、マップのカードが進み具合で色分けされます。',
+    newStatusButton: '+ ステータス',
+    moveUpAria: '上へ移動',
+    moveDownAria: '下へ移動',
+    deleteStatusAria: 'このステータスを削除',
+
     moveDialogLabel: '移動先のアクティビティ',
     moveDialogSelectLabel: '移動先',
     moveConfirm: '移動する',
@@ -184,11 +234,13 @@ export const usmMessages = defineMessages({
     editTitleAria: 'タイトルを編集',
     commentAria: 'コメント',
     deleteAria: '削除',
+    storyStatusLabel: 'ステータス',
 
     newActivityName: '新しいアクティビティ',
     newStepName: '新しいステップ',
     newMilestoneName: '新しいマイルストーン',
     newStoryName: '新しいストーリー',
+    newStatusName: '新しいステータス',
   },
 });
 

@@ -259,14 +259,14 @@ describe('usm template', () => {
     expect(state).toBeDefined();
   });
 
-  it('splits the page into the map and the milestones tabs', async () => {
+  it('splits the page into the map, milestones and statuses tabs', async () => {
     const el = mount();
     await settle(el);
     const root = el.shadowRoot!;
     // no per-milestone filter any more: every slice is always on the map
     expect(root.querySelector('.milestone-tabs')).toBeNull();
     const tabs = [...root.querySelectorAll('.page-tabs [role="tab"]')];
-    expect(tabs.map((t) => t.getAttribute('data-tab'))).toEqual(['map', 'milestones']);
+    expect(tabs.map((t) => t.getAttribute('data-tab'))).toEqual(['map', 'milestones', 'statuses']);
     expect(root.querySelector('.page-tabs [aria-selected="true"]')?.getAttribute('data-tab')).toBe('map');
     expect(root.querySelector('[data-testid="usm-map"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="usm-milestones"]')).toBeNull();

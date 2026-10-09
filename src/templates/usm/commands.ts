@@ -2,7 +2,7 @@ import type { TemplateRenderContext } from '../../core/shell/contracts';
 import type { UsmMessages } from './messages';
 
 import { createEntityId } from '../../core/target';
-import { allUsmIds, type UsmState } from './model';
+import { allUsmIds, defaultStatusTone, type UsmState } from './model';
 
 /**
  * The "add" affordances of the board as pure functions of the render context.
@@ -57,4 +57,13 @@ export const addStory = (
     payload: { id, name: m.newStoryName, activityId, ...(milestoneId === undefined ? {} : { milestoneId }) },
   });
   if (outcome.ok) context.navigate({ activity: activityId, step: stepId, story: id });
+};
+
+export const addStatus = (m: UsmMessages, context: TemplateRenderContext<UsmState>): void => {
+  const id = createEntityId('new-status', allUsmIds(context.state));
+  context.dispatch({
+    type: 'ADD_STATUS',
+    target: { type: 'page', id: 'usm' },
+    payload: { id, name: m.newStatusName, tone: defaultStatusTone(context.state.statuses.length) },
+  });
 };

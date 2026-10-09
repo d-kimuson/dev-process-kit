@@ -2,7 +2,7 @@ import { css, html, LitElement, nothing, type PropertyValues, type TemplateResul
 
 import type { DpkComponentInlineEdit } from '../../../components/inline-edit';
 import type { DraftAction } from '../../../core/types';
-import type { UserStory } from '../model';
+import type { StoryStatus, UserStory } from '../model';
 import type { CardIntent, CardMode } from '../ui-mode';
 
 import { composerMessages } from '../../../components/comment-composer/messages';
@@ -122,6 +122,63 @@ const cardStyles = css`
     white-space: pre-wrap;
   }
 
+  /* The story's status as a tinted pill; the native select inside it opens the choices. */
+  .card-status {
+    justify-self: start;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    padding: 0 8px 0 7px;
+    border: 1px solid color-mix(in srgb, var(--card-tone) 40%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--card-tone) 16%, var(--dpk-paper-raised));
+    color: color-mix(in srgb, var(--card-tone) 70%, var(--dpk-ink));
+    font-size: 10.5px;
+    font-weight: 650;
+    line-height: 18px;
+    cursor: pointer;
+  }
+
+  .card-status:hover {
+    border-color: color-mix(in srgb, var(--card-tone) 65%, transparent);
+  }
+
+  .card-status:focus-within {
+    box-shadow: var(--dpk-focus);
+  }
+
+  .card-status-dot {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--card-tone);
+  }
+
+  .card-status select {
+    appearance: none;
+    field-sizing: content;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    outline: none;
+  }
+
+  /* A card with no status yet stays quiet. */
+  :host([data-status='']) .card-status {
+    border-style: dashed;
+    background: transparent;
+    color: var(--dpk-ink-faint);
+    font-weight: 500;
+  }
+
   /* Comments already left, as a small tinted chip at the foot of the card. */
   .card-meta {
     display: flex;
@@ -202,6 +259,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
   static override properties = {
     story: { attribute: false },
     stepName: { attribute: false },
+    statuses: { attribute: false },
     notes: { attribute: false },
     mode: { type: String, reflect: true, attribute: 'data-mode' },
     focused: { type: Boolean, reflect: true },
@@ -212,6 +270,8 @@ export class DpkInternalUsmStoryCard extends LitElement {
   declare story: UserStory | null;
   /** The story's step, shown where the column does not already say it; `''` hides it. */
   declare stepName: string;
+  /** The statuses the map defines; with none, the card shows no status. */
+  declare statuses: readonly StoryStatus[];
   /** Comments already left on this story. */
   declare notes: readonly DraftAction[];
   declare mode: CardMode;
@@ -228,6 +288,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
     super();
     this.story = null;
     this.stepName = '';
+    this.statuses = [];
     this.notes = [];
     this.mode = 'view';
     this.focused = false;
@@ -259,6 +320,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
     const commenting = this.mode === 'commenting';
     return html`
       ${this.stepName === '' ? nothing : html`<div class="card-step"><span>${this.stepName}</span></div>`}
+      ${this.statuses.length === 0 ? nothing : this.#renderStatus(m, story)}
       <div class="card-name">
         ${
           editing
@@ -315,6 +377,28 @@ export class DpkInternalUsmStoryCard extends LitElement {
       </div>
       ${commenting ? this.#renderComposer() : nothing}
     `;
+  }
+
+  /** The story's status as a pill; picking another one reports it, the host turns it into an action. */
+  #renderStatus(m: ReturnType<typeof usmMessages>, story: UserStory): TemplateResult {
+    const current = story.statusId ?? '';
+    return html`<label class="card-status" @click=${(event: Event) => event.stopPropagation()}>
+      <span class="card-status-dot" aria-hidden="true"></span>
+      <select
+        aria-label=${m.storyStatusLabel}
+        draggable="false"
+        @mousedown=${(event: Event) => event.stopPropagation()}
+        @change=${(event: Event) => {
+          const value = event.target instanceof HTMLSelectElement ? event.target.value : current;
+          if (value !== current) this.#report({ kind: 'set-status', statusId: value === '' ? null : value });
+        }}
+      >
+        <option value="" ?selected=${current === ''}>${m.statusUnset}</option>
+        ${this.statuses.map(
+          (status) => html`<option value=${status.id} ?selected=${status.id === current}>${status.name}</option>`,
+        )}
+      </select>
+    </label>`;
   }
 
   #renderComposer(): TemplateResult {

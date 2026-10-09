@@ -19,7 +19,7 @@ import {
   type UsmState,
 } from '../model';
 import { cardModeOf, type CardIntent, type UsmUiMode } from '../ui-mode';
-import { toneStyle } from './tone';
+import { statusToneStyle, toneStyle } from './tone';
 
 /** The two kinds of things that move on the board. */
 export type UsmDragType = 'story' | 'milestone';
@@ -493,6 +493,16 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
  */
 type CardPlace = { readonly tone: string; readonly stepName: string };
 
+/**
+ * Once the map has statuses, a card takes its status's color instead of its
+ * activity's: the column already says the activity, the color says how far
+ * the story has come.
+ */
+const cardToneOf = (state: UsmState, story: UserStory, activityTone: string): string => {
+  if (state.statuses.length === 0) return activityTone;
+  return statusToneStyle(state.statuses.find((status) => status.id === story.statusId)?.tone);
+};
+
 const renderCard = (props: BoardProps, story: UserStory, place: CardPlace): TemplateResult => {
   const { context, mode, drag, handlers } = props;
   const notes = context.comments.filter((c) => c.target.type === 'story' && c.target.id === story.id);
@@ -500,8 +510,10 @@ const renderCard = (props: BoardProps, story: UserStory, place: CardPlace): Temp
   return html`<dpk-internal-usm-story-card
     data-story=${story.id}
     draggable="true"
-    style=${place.tone}
+    style=${cardToneOf(context.state, story, place.tone)}
+    data-status=${story.statusId ?? ''}
     .story=${story}
+    .statuses=${context.state.statuses}
     .stepName=${place.stepName}
     .notes=${notes}
     .mode=${cardModeOf(mode, story.id)}

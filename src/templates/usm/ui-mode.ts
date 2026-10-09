@@ -28,6 +28,7 @@ export type CardIntent =
   | { readonly kind: 'toggle-comment' }
   | { readonly kind: 'dismiss' }
   | { readonly kind: 'rename'; readonly name: string }
+  | { readonly kind: 'set-status'; readonly statusId: string | null }
   | { readonly kind: 'comment'; readonly body: string }
   | { readonly kind: 'delete' };
 
@@ -56,6 +57,7 @@ export const reduceCardIntent = (mode: UsmUiMode, storyId: string, intent: CardI
     case 'delete':
       return modeConcerns(mode, storyId) ? IDLE_MODE : mode;
     case 'select':
+    case 'set-status':
       return mode;
   }
 };
