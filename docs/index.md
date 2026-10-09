@@ -177,7 +177,7 @@ All events bubble and are composed. `dpk-component-comment-panel` (the review ra
 | `main`    | appended after the template main content                                                                                                                                                                            |
 | `footer`  | appended after the framework footer                                                                                                                                                                                 |
 | `preview` | template-specific; the template documents how it matches your markup                                                                                                                                                |
-| `memo`    | author memo, folded into a "Memo" bar stuck to the bottom of the main column; the reader opens it to read. Only rendered when you slot content into it. It may hold the diagram elements (load `components.js` too) |
+| `memo`    | author memo, folded into a "Memo" bar the full width of the main column, pinned to its bottom; the reader opens it upward to read. Only rendered when you slot content into it. It may hold the diagram elements (load `components.js` too) |
 
 Framework chrome (shell, sidebar, review rail, preview frames) is Shadow DOM; everything you write stays in the light DOM, so your CSS and JS work normally. The `--dpk-*` custom properties declared on `:host` are inherited into your content, so you can reuse the palette without importing anything:
 

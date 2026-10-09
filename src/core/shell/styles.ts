@@ -476,18 +476,16 @@ export const chromeStyles = [
 
     /*
      * Author memo. It sits at the end of the main column and sticks to the
-     * bottom of the scrollport, folded into a small bar: always in reach,
-     * floating over whatever scrolls behind it, and never stealing height from
-     * the preview. Opened, it spans the column and scrolls on its own, so a
-     * long memo (a diagram, a table) stays readable without leaving the page.
+     * bottom of the scrollport as a bar the full width of the column, edge to
+     * edge: always in reach and never stealing height from the preview. Opened,
+     * it grows upward over the content and shows the memo whole; only a memo
+     * taller than the window scrolls, so its top stays reachable.
      */
     .dpk-memo {
       position: sticky;
       bottom: 0;
       z-index: 5;
-      /* Clear of the hand-off dock at the bottom right while it is shown. */
-      padding: 0 calc(20px + var(--dpk-dock-space, 0px)) 20px 20px;
-      pointer-events: none;
+      margin-top: auto;
     }
 
     .dpk-memo[hidden] {
@@ -495,27 +493,19 @@ export const chromeStyles = [
     }
 
     .dpk-memo-fold {
-      width: fit-content;
-      max-width: 100%;
       /* A faint amber wash over the whole note marks it as the author's aside. */
-      border: 1px solid color-mix(in srgb, var(--dpk-amber) 28%, var(--dpk-rule-strong));
-      border-radius: var(--dpk-radius-lg);
-      background: color-mix(in srgb, color-mix(in srgb, var(--dpk-amber) 7%, var(--dpk-paper-raised)) 92%, transparent);
+      border-top: 1px solid color-mix(in srgb, var(--dpk-amber) 28%, var(--dpk-rule-strong));
+      background: color-mix(in srgb, color-mix(in srgb, var(--dpk-amber) 7%, var(--dpk-paper-raised)) 94%, transparent);
       backdrop-filter: blur(12px);
-      box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
-      pointer-events: auto;
-    }
-
-    .dpk-memo-fold[open] {
-      width: auto;
+      box-shadow: 0 -8px 24px -18px color-mix(in srgb, var(--dpk-ink) 40%, transparent);
     }
 
     .dpk-memo-bar {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 7px 14px 7px 10px;
-      border-radius: inherit;
+      /* Clear of the hand-off dock at the bottom right while it is shown. */
+      padding: 8px calc(16px + var(--dpk-dock-space, 0px)) 8px 16px;
       font-size: 12.5px;
       font-weight: 600;
       color: var(--dpk-ink-soft);
@@ -548,10 +538,10 @@ export const chromeStyles = [
     }
 
     .dpk-memo-body {
-      max-height: min(60vh, 640px);
+      max-height: calc(100dvh - 120px);
       overflow: auto;
       overscroll-behavior: contain;
-      padding: 0 16px 14px;
+      padding: 0 calc(16px + var(--dpk-dock-space, 0px)) 16px 16px;
       font-size: 12.5px;
       line-height: 1.7;
       color: var(--dpk-ink-soft);
