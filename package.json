@@ -1,6 +1,6 @@
 {
   "name": "dev-process-kit",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "Web Components for single-file HTML pages that a human reviews in the browser, with a structured draft/feedback loop back to an agent.",
   "keywords": [
     "agent",
