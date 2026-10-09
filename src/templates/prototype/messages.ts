@@ -1,5 +1,34 @@
 import { defineMessages } from '../../core/i18n';
 
+/** Product names, the same in every language. */
+const DEVICE_NAMES: Readonly<Record<string, string>> = {
+  'iphone-se': 'iPhone SE',
+  'iphone-16': 'iPhone 16',
+  'iphone-16-pro-max': 'iPhone 16 Pro Max',
+  'pixel-7': 'Pixel 7',
+  'galaxy-s24': 'Galaxy S24',
+  'ipad-mini': 'iPad mini',
+  'ipad-air-11': 'iPad Air 11"',
+  'ipad-pro-11': 'iPad Pro 11"',
+  'ipad-pro-13': 'iPad Pro 13"',
+};
+
+const DESKTOP_NAMES_EN: Readonly<Record<string, string>> = {
+  'laptop-13': '13" laptop',
+  'laptop-15': '15" laptop',
+  'full-hd': 'Full HD',
+  'monitor-27': '27" monitor',
+  ultrawide: 'Ultrawide',
+};
+
+const DESKTOP_NAMES_JA: Readonly<Record<string, string>> = {
+  'laptop-13': '13 インチ ノート',
+  'laptop-15': '15 インチ ノート',
+  'full-hd': 'フル HD',
+  'monitor-27': '27 インチ モニター',
+  ultrawide: 'ウルトラワイド',
+};
+
 export const prototypeMessages = defineMessages({
   en: {
     // -------------------------------------------------------- action titles
@@ -90,6 +119,10 @@ export const prototypeMessages = defineMessages({
     newTabShortcuts: 'Pages of this app',
     unreachableTitle: 'This site can’t be reached',
     unreachableBody: 'No page of the prototype has this address.',
+    device: 'Device',
+    deviceHint: 'The window the app runs in: a page taller than it scrolls inside, as on the device',
+    deviceName: (id: string) => DEVICE_NAMES[id] ?? DESKTOP_NAMES_EN[id] ?? id,
+    deviceZoom: (percent: number) => `Shown at ${percent}% to fit`,
   },
   ja: {
     renameActivity: 'Activity 名を変更',
@@ -175,6 +208,10 @@ export const prototypeMessages = defineMessages({
     newTabShortcuts: 'このアプリのページ',
     unreachableTitle: 'このサイトにアクセスできません',
     unreachableBody: 'プロトタイプにこのアドレスのページはありません。',
+    device: 'デバイス',
+    deviceHint: 'アプリを動かす画面の大きさ。収まらないページは実機と同じく画面の中でスクロールする',
+    deviceName: (id: string) => DEVICE_NAMES[id] ?? DESKTOP_NAMES_JA[id] ?? id,
+    deviceZoom: (percent: number) => `収まるよう ${percent}% で表示`,
   },
 });
 

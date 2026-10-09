@@ -462,6 +462,62 @@ export const prototypeStyles = css`
     gap: 6px;
   }
 
+  /* The app view's device: a pill like the rendition tabs, with the zoom it is drawn at. */
+  .device-pick {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 6px 0 10px;
+    box-sizing: border-box;
+    border: 1px solid var(--dpk-rule);
+    border-radius: 999px;
+    background: var(--dpk-paper-sunken);
+    box-shadow: inset 0 1px 2px rgba(20, 28, 44, 0.04);
+    color: var(--dpk-ink-soft);
+  }
+
+  .device-pick:focus-within {
+    box-shadow: var(--dpk-focus);
+  }
+
+  .device-pick svg {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+  }
+
+  .device-select {
+    min-width: 0;
+    padding: 0 18px 0 0;
+    border: 0;
+    outline: none;
+    background: transparent
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'><path d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23878e9e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+      no-repeat right 2px center;
+    appearance: none;
+    /* As wide as the device shown, not the longest name in the list. */
+    field-sizing: content;
+    color: var(--dpk-ink);
+    font: 600 12px/1 var(--dpk-body);
+    cursor: pointer;
+  }
+
+  .device-zoom {
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    font: 600 10.5px/1 var(--dpk-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--dpk-ink-soft);
+  }
+
   .tabs {
     display: inline-flex;
     gap: 2px;
@@ -780,6 +836,13 @@ export const prototypeStyles = css`
     flex: none;
   }
 
+  .canvas:has(> .frame[data-window='device']) {
+    align-items: flex-start;
+    /* A device wider than the stage is drawn smaller to fit it, so it never widens the page. */
+    min-width: 0;
+    contain: inline-size;
+  }
+
   .stage.is-maximized > .canvas {
     flex: 1 1 0;
     min-height: 0;
@@ -833,7 +896,7 @@ export const prototypeStyles = css`
     overscroll-behavior: contain;
   }
 
-  .stage.is-demo .frame.browser {
+  .stage.is-demo .frame[data-window='fill'] {
     width: 100%;
     height: 100%;
     border: 0;
@@ -841,20 +904,12 @@ export const prototypeStyles = css`
     box-shadow: none;
   }
 
-  .stage.is-demo .frame.browser[data-viewport='mobile'] {
-    width: min(var(--frame-width), 100%);
-    border-inline: 1px solid var(--dpk-rule-strong);
-    box-shadow: var(--dpk-shadow-lg);
+  /* A device keeps its size, in the middle of the tab (the element leaves 24px around it). */
+  .stage.is-demo > .canvas > .frame[data-window='device'] {
+    margin: auto;
   }
 
-  .stage.is-demo .frame.browser .viewport {
-    flex: 1 1 0;
-    min-height: 0;
-    overflow: auto;
-    overscroll-behavior: contain;
-  }
-
-  .stage.is-demo > .canvas > .frame:not(.browser) {
+  .stage.is-demo > .canvas > .frame:not([data-window]) {
     margin: 24px auto;
   }
 
@@ -1167,6 +1222,7 @@ export const prototypeStyles = css`
    */
   .viewport {
     position: relative;
+    contain: layout;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -1191,6 +1247,40 @@ export const prototypeStyles = css`
     display: grid;
     flex: 1 0 auto;
     min-width: 0;
+  }
+
+  /*
+   * The app view is a simulation: a screen runs in a window of a fixed size (a
+   * device's screen, or the whole demo) and what does not fit scrolls inside
+   * the author's wrapper, the way the real page scrolls under the device's own
+   * chrome — the status bar, the address bar and a phone browser's bottom bar
+   * stay where they are. The viewport contains layout, so a mock's
+   * fixed position element (a tab bar, a modal) stays on the device screen.
+   */
+  .frame[data-window] {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    box-sizing: border-box;
+    max-width: none;
+  }
+
+  .frame[data-window='device'] {
+    width: var(--device-width);
+    height: var(--device-height);
+  }
+
+  .frame[data-kind][data-window] .viewport {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .frame[data-window] .viewport ::slotted(*) {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
   }
 
   .frame-placeholder {

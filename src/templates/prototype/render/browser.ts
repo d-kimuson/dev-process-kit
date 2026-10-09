@@ -8,7 +8,7 @@ import type { PrototypeMessages } from '../messages';
 import type { PrototypePreview, PrototypeState } from '../model';
 
 import { iconClose, iconPlus } from '../../../core/icons';
-import { VIEWPORT_MIN_HEIGHT, VIEWPORT_WIDTH } from './frame-size';
+import { frameStyle, type FrameWindow } from './frame-size';
 
 /** What the reader does with the browser; the element turns it into history and navigation. */
 export type BrowserCommand =
@@ -31,6 +31,8 @@ export type BrowserFrame = {
   readonly hasContent: boolean;
   /** The window's size: the page's, or on a page of its own (new tab, unreachable) the page it covers. */
   readonly viewport: PrototypePreview['viewport'];
+  /** The window the browser is: a device's size, or the whole demo. */
+  readonly window: FrameWindow;
   /** The pages offered on the new tab page. */
   readonly shortcuts: readonly NewTabShortcut[];
   /** Set for the moment a reload takes. */
@@ -306,7 +308,8 @@ export const renderBrowser = (
     data-viewport=${viewport}
     ?data-loading=${frame.loading}
     ?data-empty=${preview !== undefined && !frame.hasContent}
-    style=${`--frame-width:${VIEWPORT_WIDTH[viewport]};--frame-min-height:${VIEWPORT_MIN_HEIGHT[viewport]}`}
+    data-window=${frame.window.kind}
+    style=${frameStyle('browser', viewport, frame.window)}
   >
     ${phone ? nothing : renderTabs(m, frame)} ${renderToolbar(m, frame, phone)}
     <div class="browser-progress" aria-hidden="true"></div>
