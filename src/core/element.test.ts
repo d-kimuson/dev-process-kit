@@ -43,8 +43,8 @@ const base = {
           id: 'account',
           name: 'Account',
           steps: [
-            { id: 'landing', name: 'Landing', screen: 'landing' },
-            { id: 'google-auth', name: 'Google auth', screen: 'google-auth' },
+            { id: 'landing', name: 'Landing', panes: [{ screen: 'landing' }] },
+            { id: 'google-auth', name: 'Google auth', panes: [{ screen: 'google-auth' }] },
           ],
         },
       ],

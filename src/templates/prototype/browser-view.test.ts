@@ -42,12 +42,11 @@ const state = parsePrototypeBase({
           id: 'order',
           name: 'Order',
           steps: [
-            { id: 'open', name: 'Open', screen: 'top' },
+            { id: 'open', name: 'Open', panes: [{ screen: 'top' }] },
             {
               id: 'memo',
               name: 'With a memo',
-              screen: 'list',
-              materials: [{ id: 'memo-paper', kind: 'plain' }],
+              panes: [{ material: { id: 'memo-paper', kind: 'plain' } }, { screen: 'list' }],
             },
           ],
         },

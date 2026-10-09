@@ -9,7 +9,7 @@ import {
   type ActionSpecs,
   type TemplateAction,
 } from '../../core/schema';
-import { PREVIEW_KINDS, PREVIEW_VIEWPORTS, previewEntries, type PrototypePreview } from './model';
+import { PREVIEW_KINDS, PREVIEW_VIEWPORTS, previewEntries, type PrototypePreview, type StepPane } from './model';
 
 /**
  * Prototype action vocabulary.
@@ -85,14 +85,22 @@ export const prototypeActions = {
       id: entityIdSchema,
       name: v.pipe(v.string(), v.minLength(1)),
       description: v.exactOptional(v.string()),
-      /** The screen the user is on; it must be declared under `apps[].screens`. */
-      screen: v.exactOptional(entityIdSchema),
-      /** What the user has at hand outside the product. */
-      materials: v.exactOptional(v.array(v.object(previewEntries))),
+      /**
+       * What the user sees, in order: screens declared under `apps[].screens`
+       * (optionally pinned to one rendition) and materials at hand.
+       */
+      panes: v.exactOptional(
+        v.array(
+          v.union([
+            v.strictObject({ screen: entityIdSchema, preview: v.exactOptional(entityIdSchema) }),
+            v.strictObject({ material: v.strictObject(previewEntries) }),
+          ]),
+        ),
+      ),
     }),
     { dedupeKey: entityDedupeKey },
   ),
-  /** Adds a material to a step; the product's screens are base data only. */
+  /** Adds a material at the end of a step's panes; the product's screens are base data only. */
   ADD_PREVIEW: defineAction('ADD_PREVIEW', 'step', v.object(previewEntries), { dedupeKey: entityDedupeKey }),
 
   DELETE_ACTIVITY: defineAction('DELETE_ACTIVITY', 'activity', v.object({})),
@@ -197,19 +205,13 @@ export const prototypeAction = {
       ...(description === undefined ? {} : { description }),
     },
   }),
-  addStep: (
-    storyId: string,
-    id: string,
-    name: string,
-    scene: { readonly screen?: string; readonly materials?: readonly PrototypePreview[] } = {},
-  ): ActionInput => ({
+  addStep: (storyId: string, id: string, name: string, panes?: readonly StepPane[]): ActionInput => ({
     type: 'ADD_STEP',
     target: { type: 'story', id: storyId },
     payload: {
       id,
       name,
-      ...(scene.screen === undefined ? {} : { screen: scene.screen }),
-      ...(scene.materials === undefined ? {} : { materials: scene.materials }),
+      ...(panes === undefined ? {} : { panes }),
     },
   }),
   addPreview: (stepId: string, preview: PrototypePreview): ActionInput => ({

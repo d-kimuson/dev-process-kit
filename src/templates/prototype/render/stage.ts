@@ -6,16 +6,19 @@ import type { PrototypeMessages } from '../messages';
 
 import { iconClose, iconMaximize, iconMinimize } from '../../../core/icons';
 import { renderMarkdown } from '../../../lib/markdown';
-import { allScreens, flattenSteps, type PrototypePreview, type PrototypeState } from '../model';
+import { allScreens, flattenSteps, stepMaterials, type PrototypePreview, type PrototypeState } from '../model';
 import {
   locatePrototype,
   prototypeMailHeader,
   prototypePageHeading,
   prototypePreviewUrl,
+  prototypeRenditionSelection,
   prototypeStageFrames,
   prototypeStoryHeading,
   type MailHeader,
   type PageHeading,
+  type StageFrames,
+  type StagePane,
 } from '../present';
 import { prototypeViewOf } from '../view-mode';
 import { renderBrowser, type BrowserFrame } from './browser';
@@ -65,7 +68,7 @@ export type StageOptions = {
   };
 };
 
-/** The renditions of the screen as tabs, the materials at hand beside it, and the parked slots. */
+/** The panes of what is on stage, a screen's renditions as tabs, and the parked slots. */
 export const renderStage = (
   context: TemplateRenderContext<PrototypeState>,
   m: PrototypeMessages,
@@ -112,7 +115,10 @@ export const renderStage = (
     `;
   }
 
-  const { layout, shown, tabs, activeId } = prototypeStageFrames(state, location, navigation);
+  const frames = prototypeStageFrames(state, location, navigation);
+  const { layout, panes, shown } = frames;
+  // Alone on stage, a screen's tabs sit in the stage bar; side by side, each pane carries its own.
+  const [single] = layout === 'single' ? panes : [];
   const ui = options.uiComment;
   const lift = options.lift;
   const demo = lift?.mode === 'demo';
@@ -142,7 +148,7 @@ export const renderStage = (
           : html`<div class="stage-bar">
               ${renderPageHead(m, prototypePageHeading(state, location))}
               <div class="stage-tools">
-                ${tabs.length > 0 ? renderPreviewTabs(context, tabs, activeId) : nothing}
+                ${single?.kind === 'screen' && single.tabs.length > 0 ? renderPreviewTabs(context, frames, single) : nothing}
                 ${shown.length > 0 ? renderUiCommentToggle(m, ui) : nothing}
                 ${
                   shown.length === 0
@@ -181,11 +187,11 @@ export const renderStage = (
               })
             : layout === 'side-by-side'
               ? html`<div class="panes">
-                  ${shown.map(
-                    (preview) =>
-                      html`<div class="pane" data-viewport=${preview.viewport}>
-                        ${preview.label === undefined ? nothing : html`<span class="pane-label">${preview.label}</span>`}
-                        ${renderFrame(context, m, preview, options.hasPreviewContent(preview.id))}
+                  ${panes.map(
+                    (pane) =>
+                      html`<div class="pane" data-viewport=${pane.preview.viewport} data-pane=${pane.kind}>
+                        ${renderPaneHead(context, frames, pane)}
+                        ${renderFrame(context, m, pane.preview, options.hasPreviewContent(pane.preview.id))}
                       </div>`,
                   )}
                 </div>`
@@ -229,23 +235,42 @@ const renderSituation = (m: PrototypeMessages, situation: string): TemplateResul
   </aside>`;
 };
 
+/** The renditions of one screen pane; switching one keeps what the other panes show. */
 const renderPreviewTabs = (
   context: TemplateRenderContext<PrototypeState>,
-  previews: readonly PrototypePreview[],
-  activeId: string | undefined,
+  frames: StageFrames,
+  pane: Extract<StagePane, { kind: 'screen' }>,
 ): TemplateResult => {
   return html`<div class="tabs" role="tablist">
-    ${previews.map(
-      (preview) =>
-        html`<a
-          class="tab"
-          role="tab"
-          data-current=${String(preview.id === activeId)}
-          aria-selected=${preview.id === activeId ? 'true' : 'false'}
-          href=${context.hashFor({ preview: preview.id })}
-          >${preview.label ?? preview.viewport}</a
-        >`,
-    )}
+    ${pane.tabs.map((preview) => {
+      const current = preview.id === pane.preview.id;
+      return html`<a
+        class="tab"
+        role="tab"
+        data-current=${String(current)}
+        aria-selected=${current ? 'true' : 'false'}
+        href=${context.hashFor({ preview: prototypeRenditionSelection(frames, preview.id) })}
+        >${preview.label ?? preview.viewport}</a
+      >`;
+    })}
+  </div>`;
+};
+
+/**
+ * Above a pane side by side: which screen of the product it is, with its
+ * renditions to switch between, or the label of a material at hand.
+ */
+const renderPaneHead = (
+  context: TemplateRenderContext<PrototypeState>,
+  frames: StageFrames,
+  pane: StagePane,
+): TemplateResult | typeof nothing => {
+  if (pane.kind === 'material') {
+    return pane.preview.label === undefined ? nothing : html`<span class="pane-label">${pane.preview.label}</span>`;
+  }
+  return html`<div class="pane-head">
+    <span class="pane-label">${pane.screen.screen.title}</span>
+    ${pane.tabs.length > 0 ? renderPreviewTabs(context, frames, pane) : nothing}
   </div>`;
 };
 
@@ -361,7 +386,7 @@ const renderStatusBar = (): TemplateResult => {
 export const renderParkedPreviews = (state: PrototypeState, shownIds: readonly string[]): TemplateResult => {
   const declared = [
     ...allScreens(state).flatMap((entry) => entry.screen.previews),
-    ...flattenSteps(state).flatMap((entry) => entry.step.materials),
+    ...flattenSteps(state).flatMap((entry) => stepMaterials(entry.step)),
   ];
   const parked = declared.filter((preview) => !shownIds.includes(preview.id));
   if (parked.length === 0) return html`${nothing}`;

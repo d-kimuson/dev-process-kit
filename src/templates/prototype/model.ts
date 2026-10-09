@@ -59,10 +59,29 @@ export type PrototypeApp = {
 };
 
 /**
- * One moment of a user story. It names the screen the user is on and keeps
- * what only the story knows: when and where it happens (`situation`) and what
- * the user has at hand outside the product (`materials`: a handwritten memo, a
- * FAX), shown beside the screen.
+ * A screen of the product shown in a step. Without `preview` the reader
+ * switches between the screen's renditions with tabs; with one, the step
+ * shows that rendition alone.
+ */
+export type ScreenPane = {
+  readonly screen: string;
+  readonly preview?: string;
+};
+
+/** Something the user has at hand outside the product: a handwritten memo, a FAX. */
+export type MaterialPane = {
+  readonly material: PrototypePreview;
+};
+
+/** One pane of a step: a screen of the product, or a material only the story knows. */
+export type StepPane = ScreenPane | MaterialPane;
+
+export const isScreenPane = (pane: StepPane): pane is ScreenPane => 'screen' in pane;
+
+/**
+ * One moment of a user story: what the user sees, laid out as panes side by
+ * side (`panes`: screens of the product, materials at hand), and what only the
+ * story knows (`situation`: when and where it happens).
  */
 export type PrototypeStep = {
   readonly id: string;
@@ -75,9 +94,8 @@ export type PrototypeStep = {
    * the customer`. Shown just above them.
    */
   readonly situation?: string;
-  /** Id of the screen the user is on; absent for a moment away from the product. */
-  readonly screen?: string;
-  readonly materials: readonly PrototypePreview[];
+  /** What the user sees, in order; empty until someone prototypes the step. */
+  readonly panes: readonly StepPane[];
 };
 
 export type PrototypeStory = {
@@ -137,14 +155,18 @@ const previewSchema = v.pipe(
   ),
 );
 
+const paneSchema = v.union([
+  v.strictObject({ screen: entityIdSchema, preview: v.exactOptional(entityIdSchema) }),
+  v.strictObject({ material: previewSchema }),
+]);
+
 const stepSchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   situation: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
-  screen: v.exactOptional(entityIdSchema),
-  materials: v.optional(v.array(previewSchema), []),
+  panes: v.optional(v.array(paneSchema), []),
 });
 
 const storySchema = v.strictObject({
@@ -186,6 +208,9 @@ export const prototypeBaseSchema = v.strictObject({
 });
 
 type ParsedBase = v.InferOutput<typeof prototypeBaseSchema>;
+
+const materialsOf = (panes: readonly StepPane[]): PrototypePreview[] =>
+  panes.flatMap((pane) => (isScreenPane(pane) ? [] : [pane.material]));
 
 /**
  * Ids must be unique where they identify a path element, a destination or a
@@ -229,7 +254,7 @@ const findDuplicateId = (state: ParsedBase): string | null => {
       for (const step of story.steps) {
         if (stepIds.has(step.id)) return `duplicate step id "${step.id}" in story "${story.id}"`;
         stepIds.add(step.id);
-        const problem = previewProblem(step.materials);
+        const problem = previewProblem(materialsOf(step.panes));
         if (problem !== null) return problem;
       }
     }
@@ -237,17 +262,51 @@ const findDuplicateId = (state: ParsedBase): string | null => {
   return null;
 };
 
-/** Every step's `screen` must name a screen of an app. */
-const findScreenProblem = (state: ParsedBase): string | null => {
-  const screenIds = new Set(state.apps.flatMap((app) => app.screens.map((screen) => screen.id)));
-  for (const activity of state.activities) {
-    for (const story of activity.stories) {
-      const step = story.steps.find((candidate) => candidate.screen !== undefined && !screenIds.has(candidate.screen));
-      if (step) return `unknown screen "${step.screen}" on step "${step.id}": declare it under \`apps[].screens\``;
+/**
+ * A screen pane must name a screen of an app, and a rendition of that screen
+ * if it pins one. A step shows a screen at most once unless every pane of it
+ * pins a different rendition: one preview fills one slot.
+ */
+const paneProblem = (
+  renditionsOf: (screenId: string) => readonly string[] | undefined,
+  step: Pick<PrototypeStep, 'id' | 'panes'>,
+): string | null => {
+  const shown = new Map<string, (string | undefined)[]>();
+  for (const pane of step.panes) {
+    if (!isScreenPane(pane)) continue;
+    const previews = renditionsOf(pane.screen);
+    if (previews === undefined) {
+      return `unknown screen "${pane.screen}" on step "${step.id}": declare it under \`apps[].screens\``;
     }
+    if (pane.preview !== undefined && !previews.includes(pane.preview)) {
+      return `preview "${pane.preview}" on step "${step.id}" is not a rendition of screen "${pane.screen}"`;
+    }
+    const before = shown.get(pane.screen) ?? [];
+    if (
+      before.length > 0 &&
+      (pane.preview === undefined || before.includes(pane.preview) || before.includes(undefined))
+    ) {
+      return `screen "${pane.screen}" is shown twice on step "${step.id}": give each pane a different \`preview\``;
+    }
+    shown.set(pane.screen, [...before, pane.preview]);
   }
   return null;
 };
+
+const findPaneProblem = (state: ParsedBase): string | null => {
+  const renditions = new Map(
+    state.apps.flatMap((app) => app.screens.map((screen) => [screen.id, screen.previews.map((preview) => preview.id)])),
+  );
+  for (const step of state.activities.flatMap((activity) => activity.stories.flatMap((story) => story.steps))) {
+    const problem = paneProblem((screenId) => renditions.get(screenId), step);
+    if (problem !== null) return problem;
+  }
+  return null;
+};
+
+/** Why the panes of a step do not fit the product, or `null` when they do. */
+export const stepPaneProblem = (state: PrototypeState, step: Pick<PrototypeStep, 'id' | 'panes'>): string | null =>
+  paneProblem((screenId) => findScreen(state, screenId)?.screen.previews.map((preview) => preview.id), step);
 
 /** Target type of a comment on one element of a preview's markup. */
 export const UI_TARGET = 'ui';
@@ -283,7 +342,7 @@ export const parseUiTargetId = (id: string): UiTarget | undefined => {
 
 export const parsePrototypeBase = (input: unknown): PrototypeState => {
   const parsed = v.parse(prototypeBaseSchema, input);
-  const problem = findDuplicateId(parsed) ?? findScreenProblem(parsed);
+  const problem = findDuplicateId(parsed) ?? findPaneProblem(parsed);
   if (problem !== null) throw new Error(problem);
   return parsed;
 };
@@ -315,10 +374,19 @@ export const findScreen = (state: PrototypeState, id: string | undefined): Scree
   return allScreens(state).find((entry) => entry.screen.id === id);
 };
 
-/** The screen a step shows, if it shows one. */
-export const stepScreen = (state: PrototypeState, step: PrototypeStep): ScreenLocation | undefined => {
-  return findScreen(state, step.screen);
+/** The screens a step shows, in pane order. */
+export const stepScreens = (state: PrototypeState, step: PrototypeStep): readonly ScreenLocation[] => {
+  return step.panes.flatMap((pane) => {
+    const located = isScreenPane(pane) ? findScreen(state, pane.screen) : undefined;
+    return located ? [located] : [];
+  });
 };
+
+/** What the user has at hand in a step, in pane order. */
+export const stepMaterials = (step: PrototypeStep): readonly PrototypePreview[] => materialsOf(step.panes);
+
+export const stepShowsScreen = (step: PrototypeStep, screenId: string): boolean =>
+  step.panes.some((pane) => isScreenPane(pane) && pane.screen === screenId);
 
 export const findActivity = (state: PrototypeState, id: string | undefined): PrototypeActivity | undefined => {
   if (id === undefined) return undefined;
@@ -404,7 +472,7 @@ export const findPreview = (
     if (preview) return { owner: { kind: 'screen', ...entry }, preview };
   }
   for (const location of flattenSteps(state)) {
-    const preview = location.step.materials.find((candidate) => candidate.id === id);
+    const preview = stepMaterials(location.step).find((candidate) => candidate.id === id);
     if (preview) return { owner: { kind: 'step', ...location }, preview };
   }
   return undefined;

@@ -20,11 +20,11 @@ Check before you hand the page over:
 - [ ] **Every page the product has is a screen under an app** — drawn or not. A page the UI links to that nothing has prototyped yet is still declared, with just an id and a title ([Stub screens](#stub-screens)).
 - [ ] **Every link leads somewhere** — primary actions to the next screen, list rows to a detail screen, and every item of a sidebar, menu or tab bar to the screen (or story) behind it ([Wire every link](#wire-every-link-required)). The console warns about the ones that do not.
 - [ ] Each preview has the `kind` of what the user is looking at: `plain` for a memo, a FAX or paper, `mail` for an e-mail ([Choosing the kind](#choosing-the-kind)).
-- [ ] What belongs to the product is a screen's `previews`; what the user has at hand outside the product is the step's `materials` ([Screen renditions vs. step materials](#screen-renditions-vs-step-materials)).
+- [ ] What belongs to the product is a screen's `previews`; a step lays out the screens it shows and what the user has at hand outside the product as its `panes` ([A step's panes](#a-steps-panes)).
 - [ ] A step whose when / where / why is not obvious has a `situation` ([Situation](#situation)).
 - [ ] Steps are named as verb phrases ([Step naming](#step-naming)).
 
-> Pages written before this change no longer parse: a step's `title`, `layout` and `previews`, and `app` on any level, are rejected. Move each step's previews of the product into a screen under an app and keep the rest as `materials` — see the [ADR](../../dev-docs/adr/20261009_prototype-screens-apart-from-scenarios.md#consequences) for the full mapping.
+> Pages written before this change no longer parse: a step's `title`, `layout` and `previews`, and `app` on any level, are rejected. Move each step's previews of the product into a screen under an app, and list the screens and the rest as the step's `panes` — see the [ADR](../../dev-docs/adr/20261009_prototype-screens-apart-from-scenarios.md#consequences) for the full mapping.
 
 ## Base data
 
@@ -70,30 +70,29 @@ Check before you hand the page over:
 }
 ```
 
-| Field                           | Required | Notes                                                                                                                                                                      |
-| ------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `title`                         | no       | shown in the page header, and the source of the placeholder preview domain                                                                                                 |
-| `baseUrl`                       | no       | origin used for preview URLs, e.g. `https://app.kumoma.io`. Defaults to `https://<slugified title>.example.com`                                                            |
-| `apps[].id` / `name`            | no       | one application of the product, e.g. the shop for buyers, the admin console for operators. `description` optional. `apps` defaults to `[]`                                 |
-| `apps[].screens[].id` / `title` | no       | one page or state of that app, e.g. `カート`, or the cart and its empty state as two screens. `description` optional (Markdown). `screens` defaults to `[]`                |
-| `apps[].screens[].previews[]`   | no       | renditions of that screen (mobile, desktop, …); see the preview fields below. Defaults to `[]`                                                                             |
-| `activities[].id` / `name`      | yes      | `description` optional                                                                                                                                                     |
-| `stories[].id` / `name`         | yes      | `description` optional (Markdown). `steps` defaults to `[]`: a story with no steps yet is still a navigation destination                                                   |
-| `steps[].id` / `name`           | yes      | `description` optional (Markdown)                                                                                                                                          |
-| `steps[].screen`                | no       | id of the screen the user is on at this step; must name a screen declared under `apps[].screens`. Absent for a moment away from the product                                |
-| `steps[].materials[]`           | no       | what the user has at hand that is **not** the product (a memo, a FAX, a lock-screen notification), shown beside the screen; see the preview fields below. Defaults to `[]` |
-| `actor`                         | no       | who uses the page (e.g. `管理者`), on an app, activity, story or step. The nearest one wins: step › story › activity, falling back to the screen's app                     |
-| `steps[].situation`             | no       | what is going on around the screen (e.g. `朝 8 時、店舗の FAX に注文書が届く`), shown just above it                                                                        |
-| `previews[].id`                 | yes      | must equal the `data-preview-id` of the light DOM below                                                                                                                    |
-| `previews[].kind`               | no       | `browser` (default, address bar), `native` (phone bezel), `mail` (a received e-mail) or `plain` (no device)                                                                |
-| `previews[].viewport`           | no       | `mobile` (390px) · `tablet` (834px) · `desktop` (1180px) · `fluid` (default)                                                                                               |
-| `previews[].label`              | no       | tab label (defaults to the viewport name), or the caption of a side-by-side pane                                                                                           |
-| `previews[].url`                | no       | overrides the address shown in the browser chrome (cosmetic)                                                                                                               |
-| `previews[].mail`               | no       | `kind: "mail"` only: `{ "from", "to", "cc", "subject", "date" }`, all optional strings, shown above the body                                                               |
+| Field                           | Required | Notes                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `title`                         | no       | shown in the page header, and the source of the placeholder preview domain                                                                                                                                                                                                                                                                       |
+| `baseUrl`                       | no       | origin used for preview URLs, e.g. `https://app.kumoma.io`. Defaults to `https://<slugified title>.example.com`                                                                                                                                                                                                                                  |
+| `apps[].id` / `name`            | no       | one application of the product, e.g. the shop for buyers, the admin console for operators. `description` optional. `apps` defaults to `[]`                                                                                                                                                                                                       |
+| `apps[].screens[].id` / `title` | no       | one page or state of that app, e.g. `カート`, or the cart and its empty state as two screens. `description` optional (Markdown). `screens` defaults to `[]`                                                                                                                                                                                      |
+| `apps[].screens[].previews[]`   | no       | renditions of that screen (mobile, desktop, …); see the preview fields below. Defaults to `[]`                                                                                                                                                                                                                                                   |
+| `activities[].id` / `name`      | yes      | `description` optional                                                                                                                                                                                                                                                                                                                           |
+| `stories[].id` / `name`         | yes      | `description` optional (Markdown). `steps` defaults to `[]`: a story with no steps yet is still a navigation destination                                                                                                                                                                                                                         |
+| `steps[].id` / `name`           | yes      | `description` optional (Markdown)                                                                                                                                                                                                                                                                                                                |
+| `steps[].panes[]`               | no       | what the step shows, left to right: `{ "screen", "preview"? }` names a screen declared under `apps[].screens` (`preview` pins one of its renditions), `{ "material" }` is a preview of what the user has at hand that is **not** the product (a memo, a FAX, a lock-screen notification). Defaults to `[]`; see [A step's panes](#a-steps-panes) |
+| `actor`                         | no       | who uses the page (e.g. `管理者`), on an app, activity, story or step. The nearest one wins: step › story › activity, falling back to the screen's app                                                                                                                                                                                           |
+| `steps[].situation`             | no       | what is going on around the screen (e.g. `朝 8 時、店舗の FAX に注文書が届く`), shown just above it                                                                                                                                                                                                                                              |
+| `previews[].id`                 | yes      | must equal the `data-preview-id` of the light DOM below                                                                                                                                                                                                                                                                                          |
+| `previews[].kind`               | no       | `browser` (default, address bar), `native` (phone bezel), `mail` (a received e-mail) or `plain` (no device)                                                                                                                                                                                                                                      |
+| `previews[].viewport`           | no       | `mobile` (390px) · `tablet` (834px) · `desktop` (1180px) · `fluid` (default)                                                                                                                                                                                                                                                                     |
+| `previews[].label`              | no       | tab label (defaults to the viewport name), or the caption of a side-by-side pane                                                                                                                                                                                                                                                                 |
+| `previews[].url`                | no       | overrides the address shown in the browser chrome (cosmetic)                                                                                                                                                                                                                                                                                     |
+| `previews[].mail`               | no       | `kind: "mail"` only: `{ "from", "to", "cc", "subject", "date" }`, all optional strings, shown above the body                                                                                                                                                                                                                                     |
 
 A step's `description`, a screen's `description`, and the `description` of a story without steps are shown as Markdown (GFM; a single line break stays a break), so write lists and emphasis there rather than one long line. Raw HTML is shown as text, and a link keeps only a `http(s)`, `mailto` or in-page address.
 
-Ids use `[A-Za-z0-9_-]+`. An activity id, an app id, a screen id and a preview id are each unique across the whole page — a screen is a navigation destination and a preview id names a light DOM slot, so both are global whether the preview sits under a screen or a step's `materials`. A story id and a step id are unique within their parent.
+Ids use `[A-Za-z0-9_-]+`. An activity id, an app id, a screen id and a preview id are each unique across the whole page — a screen is a navigation destination and a preview id names a light DOM slot, so both are global whether the preview is a screen's rendition or a step's material. A story id and a step id are unique within their parent.
 
 Every preview declared in the base gets a frame; a preview without matching light DOM shows an empty frame with a hint. That is also how a [stub screen](#stub-screens) looks before it is drawn.
 
@@ -201,7 +200,7 @@ A product's menus often point at pages you have not drawn yet. Declare them anyw
 }
 ```
 
-Leave its preview without matching light DOM, and it shows the ordinary empty-frame placeholder. As long as no step's `screen` names it, `data-dpk-navigate="screen=admin-inventory"` opens it straight in the app view instead of failing or stalling in the scenario — a menu's link to a page nobody has told a story about still goes somewhere.
+Leave its preview without matching light DOM, and it shows the ordinary empty-frame placeholder. As long as no step's pane shows it, `data-dpk-navigate="screen=admin-inventory"` opens it straight in the app view instead of failing or stalling in the scenario — a menu's link to a page nobody has told a story about still goes somewhere.
 
 This is a different gap from **a story with no steps yet**, which is about the scenario rather than the product: declare one for a user story you know exists but have not walked through step by step —
 
@@ -235,7 +234,7 @@ This is a different gap from **a story with no steps yet**, which is about the s
 | `MOVE_STEP`                | step     | `{ "toStory": string, "after": string \| null }`               |
 | `ADD_ACTIVITY`             | page     | `{ "id", "name", "description"? }`                             |
 | `ADD_STORY`                | activity | `{ "id", "name", "description"? }`                             |
-| `ADD_STEP`                 | story    | `{ "id", "name", "description"?, "screen"?, "materials"? }`    |
+| `ADD_STEP`                 | story    | `{ "id", "name", "description"?, "panes"? }`                   |
 | `ADD_PREVIEW`              | step     | `{ "id", "kind"?, "viewport"?, "label"?, "url"?, "mail"? }`    |
 | `DELETE_ACTIVITY`          | activity | `{}`                                                           |
 | `DELETE_STORY`             | story    | `{}`                                                           |
@@ -245,7 +244,7 @@ This is a different gap from **a story with no steps yet**, which is about the s
 - `after` is an anchor id, not an offset: `{ "after": "login" }` means "directly after login" and `{ "after": null }` means "first". An anchor that does not exist makes the action stale instead of silently landing somewhere.
 - `MOVE_STEP` / `MOVE_STORY` move the entity; combined with `after` they replace "move A from X to B" with an idempotent statement.
 - Step targets are paths (`activityId.storyId.stepId`), and a bare step id is accepted only while it stays unique. Story targets use `activityId.storyId`; activity, preview and page targets stay bare.
-- `ADD_*` actions carry the new id, so re-applying one whose entity already exists is a pruned no-op. `ADD_STEP`'s `screen` must already be declared under `apps[].screens`, and `ADD_PREVIEW` always adds a **material** — there is no action to add a screen's rendition, an app or a screen itself: the product's apps and screens are base data only, edited by regenerating the page.
+- `ADD_*` actions carry the new id, so re-applying one whose entity already exists is a pruned no-op. `ADD_STEP`'s screen panes must name screens already declared under `apps[].screens` (and a pinned `preview` one of their renditions), and `ADD_PREVIEW` always adds a **material** — there is no action to add a screen's rendition, an app or a screen itself: the product's apps and screens are base data only, edited by regenerating the page.
 - `SET_PREVIEW_*` and `DELETE_PREVIEW` apply the same way to a screen's rendition and a step's material; they are found by preview id, which is global either way.
 - Deleting an activity deletes its stories and steps at render time, so a draft that deletes a parent and then edits a child leaves the child edit stale.
 
@@ -255,19 +254,19 @@ This is a different gap from **a story with no steps yet**, which is about the s
 #activity=onboarding&preview=signin-mobile&step=google-auth&story=account
 ```
 
-Only `step` is required (`#step=google-auth` resolves the containing activity and story); `#story=account` alone opens the first step of that story, or the story itself when it has none. `preview` is the selected rendition of the step's screen (absent for a step with no screen, or whose screen has only one rendition); it is navigation state, so it lives in the hash and is shareable like everything else, and an unknown id falls back to the first rendition. `view=app` opens the [app view](#scenario-and-app-views); the scenario view is the default and leaves no `view` in the hash. There, the hash instead carries `screen` and `preview` alone — `activity`, `story` and `step` are dropped, and a `step=`/`story=` hash resolves to the screen that step shows.
+Only `step` is required (`#step=google-auth` resolves the containing activity and story); `#story=account` alone opens the first step of that story, or the story itself when it has none. `preview` lists the selected rendition of each screen the step shows with tabs, comma-separated in pane order (`preview=cart-mobile,admin-refund-desktop`); a screen with one rendition or a pinned one has no entry, and a step with none has no `preview`. Preview ids are unique across the page, so each entry names its screen; an unknown id falls back to that screen's first rendition. It is navigation state, so it lives in the hash and is shareable like everything else. `view=app` opens the [app view](#scenario-and-app-views); the scenario view is the default and leaves no `view` in the hash. There, the hash instead carries `screen` and `preview` alone — `activity`, `story` and `step` are dropped, and a `step=`/`story=` hash resolves to the screen that step shows.
 
 ## UI provided by the template
 
-| Region  | Content                                                                                                                                                                                                                                                                                                                   |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| sidebar | the Scenario / App switch, then — in the scenario view — Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description; in the app view, the App select (when there is more than one), the app's screens as URL trees, and the screens outside a browser below them |
-| main    | page head (the `actor` chip and the page `title`), preview tabs (only when the screen has more than one rendition), "Comment on UI" and "Maximize" (scenario view) or "Demo" (app view) buttons, the step's `situation`, plus the frame of the selected rendition — or, with materials at hand, every frame side by side  |
-| frame   | browser chrome (traffic dots + address bar; in the app view, a [simulated browser](#the-app-views-browser)); for `native`, a device bezel with a phone status bar and a home indicator; for `mail`, the subject and envelope; for `plain`, nothing. Only a side-by-side pane has a caption (its `label`).                 |
+| Region  | Content                                                                                                                                                                                                                                                                                                                                                           |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| sidebar | the Scenario / App switch, then — in the scenario view — Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description; in the app view, the App select (when there is more than one), the app's screens as URL trees, and the screens outside a browser below them                                         |
+| main    | page head (the `actor` chip and the page `title`), preview tabs (only when the screen has more than one rendition), "Comment on UI" and "Maximize" (scenario view) or "Demo" (app view) buttons, the step's `situation`, plus the frame of the selected rendition — or, with more than one pane, every pane side by side                                          |
+| frame   | browser chrome (traffic dots + address bar; in the app view, a [simulated browser](#the-app-views-browser)); for `native`, a device bezel with a phone status bar and a home indicator; for `mail`, the subject and envelope; for `plain`, nothing. Only a side-by-side pane has a caption: a screen's `title` (with its rendition tabs) or a material's `label`. |
 
 Frames are sized by content, not by a fixed height: the viewport has a per-kind minimum height (mobile 620 · tablet 640 · desktop 520 · fluid 420) and grows with the mock, so a preview never scrolls inside its own frame — the page main column scrolls instead. A `plain` preview has no minimum: it is exactly as tall as what it draws. The author wrapper element is stretched to fill the frame, so a mock can rely on being at least as tall as that minimum without using a percentage height. A maximized stage or a demo makes the frame as tall as the screen, so lay the mock out to stretch (a grid or flex column whose side navigation and backgrounds fill the wrapper) rather than pinning a fixed `min-height`, and start the page content at the top as the real screen would.
 
-**Maximize** fills the browser tab with the page head, the preview tabs and the frame alone, the way a diagram's maximize does (it is not the browser's full screen mode); the canvas scrolls instead of the page, and a browser preview is at least as tall as the tab. The same button ("Restore size") or `Esc` restores it. "Comment on UI" works while maximized as well; there `Esc` ends commenting first and a second `Esc` restores. The button is shown in the scenario view whenever the step has a screen or materials; the app view has "Demo" in its place (see [The app view's browser](#the-app-views-browser)).
+**Maximize** fills the browser tab with the page head, the preview tabs and the frame alone, the way a diagram's maximize does (it is not the browser's full screen mode); the canvas scrolls instead of the page, and a browser preview is at least as tall as the tab. The same button ("Restore size") or `Esc` restores it. "Comment on UI" works while maximized as well; there `Esc` ends commenting first and a second `Esc` restores. The button is shown in the scenario view whenever the step has a pane; the app view has "Demo" in its place (see [The app view's browser](#the-app-views-browser)).
 
 The UI edits step name/description, adds steps, and comments — on a step, or on any element of a preview (see below). In the app view the same composer attaches to the **screen** on stage instead of a step, since there is no step there. Adding or deleting previews, reordering steps and switching a preview's kind or viewport are deliberately not UI affordances: an empty frame or a reordered flow is a structural change, so it goes through the agent as natural language. A preview's `label` only names its tab, so it is edited through a draft action too. A step's `situation`, a screen's `title`, and the `actor` of any level are base data with no draft action; a reviewer asks for a change with a comment on the step or the screen.
 
@@ -275,10 +274,10 @@ The UI edits step name/description, adds steps, and comments — on a step, or o
 
 The switch at the top of the sidebar picks how the reader goes through the prototype:
 
-- **Scenario** (default) follows one user story: the Activity and UserStory selects, the story's steps in order, and each step's `situation` and `materials` beside its screen.
-- **App** uses the UI as one app, whatever the scenario. The sidebar lists exactly the screens declared under `apps[].screens` — nothing derived from a story — picked with an App select when the product has more than one. The reader picks a screen to start from, or follows a `screen=` link, and moves around through the mock's own links, which stay in the app view. The stage shows the screen's renditions alone, as tabs; a step's `materials` and `situation` belong to the scenario and never reach it.
+- **Scenario** (default) follows one user story: the Activity and UserStory selects, the story's steps in order, and each step's `situation` above its panes.
+- **App** uses the UI as one app, whatever the scenario. The sidebar lists exactly the screens declared under `apps[].screens` — nothing derived from a story — picked with an App select when the product has more than one. The reader picks a screen to start from, or follows a `screen=` link, and moves around through the mock's own links, which stay in the app view. The stage shows the screen's renditions alone, as tabs; a step's materials and `situation` belong to the scenario and never reach it.
 
-The heading above the frame is the `title` of the screen on stage either way; its `actor` chip is the nearest of step › story › activity · the screen's own `actor`, falling back to the actor of the app the screen belongs to. A step away from the product (no `screen`) is headed by its own `name` instead.
+The heading above the frame is the `title` of the screen on stage either way; its `actor` chip is the nearest of step › story › activity, falling back to the actor of the app the screen belongs to. A step that shows several screens, or none (a moment away from the product), is headed by its own `name` instead, with the scenario's actor only.
 
 The screens shown in a `browser` preview are laid out as a URL tree per origin, each path followed by the screen's `title` (`/orders 注文一覧`), from the address of the screen's first browser preview ([Preview address](#preview-address)) without its query. A path no screen sits at folds into its only child (`/checkout/done`), and several screens at one path (a page and its states) each get a row. Every other screen (`native`, `mail`, `plain`) is listed below the tree, under "Outside the browser".
 
@@ -354,22 +353,35 @@ https://app.kumoma.example.com/signin        # preview.url, resolved against bas
 
 `preview.url` wins, then `${baseUrl}/${preview.id}`, then the placeholder domain derived from `title`. A `baseUrl` without a scheme gets `https://` prepended.
 
-### Screen renditions vs. step materials
+### A step's panes
 
-A screen's `previews` are **renditions of the same page** — the mobile and the desktop version of one screen, say, or a page and its loading state — and the reader switches between them with tabs; a step shows every rendition its screen has, not a per-step choice. A step's `materials` are **what the user has at hand that is not the product**: the memo next to the admin page, the FAX that starts a story, a second preview the user looks at side by side. They are always shown beside the screen's active rendition, each with its own `kind`, `viewport` and `label` as a caption — never as tabs, and never in the app view, which shows a screen's renditions alone.
+A screen's `previews` are **renditions of the same page** — the mobile and the desktop version of one screen, say, or a page and its loading state — and the reader switches between them with tabs. A step's `panes` say what the step shows, **left to right**:
 
-There is no `layout` to set any more: the stage lays a step's materials and its screen's active rendition side by side automatically whenever there is more than one thing to show at once, and falls back to the single frame otherwise. A screen's own rendition tabs (when it has more than one) are shown above that row regardless of how many materials there are.
+- `{ "screen": "<id>" }` — a screen of the product. With several renditions it gets tabs; add `"preview": "<rendition id>"` to pin the one this moment of the story is about, and the pane shows that rendition alone. A step may show two screens side by side (the buyer's phone next to the admin console), and the same screen twice only when each pane pins a different rendition.
+- `{ "material": { …preview fields } }` — **what the user has at hand that is not the product**: the memo next to the admin page, the FAX that starts a story. It has its own `kind`, `viewport` and `label` (its caption), and never appears in the app view, which shows a screen's renditions alone.
+
+There is no `layout` to set: one pane fills the stage, with its rendition tabs in the bar above it, and several are laid side by side in the order given, each screen pane captioned by its `title` and its own tabs.
 
 ```json
 {
   "id": "admin-refund-stuck",
   "name": "失敗が続く返金を調べる",
-  "screen": "admin-refund",
-  "materials": [{ "id": "admin-refund-stuck-memo", "kind": "plain", "label": "手元のメモ" }]
+  "panes": [
+    { "material": { "id": "admin-refund-stuck-memo", "kind": "plain", "label": "手元のメモ" } },
+    { "screen": "admin-refund" }
+  ]
 }
 ```
 
-Here the step shows the hand-written memo beside whichever rendition of the `admin-refund` screen is currently selected. A fixed viewport keeps its width while the row has room and a `fluid` one takes what is left; a row wider than the canvas scrolls sideways (or maximize the stage). The hash's `preview` key, when present, always names a screen rendition — a material is never selected through the hash.
+```json
+{
+  "id": "admin-buyer-view",
+  "name": "購入者に見えている状態と照らし合わせる",
+  "panes": [{ "screen": "admin-order-detail" }, { "screen": "refunded-detail", "preview": "refunded-detail-mobile" }]
+}
+```
+
+A fixed viewport keeps its width while the row has room and a `fluid` one takes what is left; a row wider than the canvas scrolls sideways (or maximize the stage). The hash's `preview` key only ever names screen renditions — a material is never selected through the hash.
 
 ### Situation
 

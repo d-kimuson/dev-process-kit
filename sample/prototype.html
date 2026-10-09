@@ -956,25 +956,25 @@
                       "id": "cart",
                       "name": "カートを確かめる",
                       "situation": "9月18日の午前 10 時ごろ、仕事の合間の短い休憩中。前の晩にカートへ入れておいた 2 点を、スマホで買ってしまおうとする",
-                      "screen": "cart"
+                      "panes": [{ "screen": "cart" }]
                     },
                     {
                       "id": "delivery-payment",
                       "name": "配送先と支払い方法を選ぶ",
                       "situation": "休憩は残り数分。配送先も支払い方法も前回のままでよく、何も変えずに先へ進みたい",
-                      "screen": "delivery-payment"
+                      "panes": [{ "screen": "delivery-payment" }]
                     },
                     {
                       "id": "review",
                       "name": "注文を確定する",
                       "situation": "確定ボタンを押す直前。合計とお届け日を流し見していて、細かい注意書きはほとんど読まない",
-                      "screen": "review"
+                      "panes": [{ "screen": "review" }]
                     },
                     {
                       "id": "order-complete",
                       "name": "注文の完了を確かめる",
                       "situation": "注文を確定した直後。休憩が終わる前に画面を閉じようとしている",
-                      "screen": "order-complete"
+                      "panes": [{ "screen": "order-complete" }]
                     }
                   ]
                 },
@@ -987,25 +987,25 @@
                       "id": "order-history",
                       "name": "注文履歴を開く",
                       "situation": "同じ日の夜 21 時半、自宅のソファで。テーブルクロスのサイズを選び間違えたと気づき、慌てて注文履歴を開く",
-                      "screen": "order-history"
+                      "panes": [{ "screen": "order-history" }]
                     },
                     {
                       "id": "order-detail",
                       "name": "注文詳細からキャンセルを選ぶ",
                       "situation": "取り消せるのか、一部だけ直せるのかが分からず、不安なまま注文を開いている",
-                      "screen": "order-detail"
+                      "panes": [{ "screen": "order-detail" }]
                     },
                     {
                       "id": "cancel-confirm",
                       "name": "返金額と返金先を確かめて確定する",
                       "situation": "あとで注文し直すつもりなので、お金がいつ、どこへ戻るかだけが気になっている",
-                      "screen": "cancel-confirm"
+                      "panes": [{ "screen": "cancel-confirm" }]
                     },
                     {
                       "id": "cancel-accepted",
                       "name": "受付を確かめる",
                       "situation": "21 時 40 分、確定を押した直後。返金がもう済んだのか、まだなのかを知りたい",
-                      "screen": "cancel-accepted"
+                      "panes": [{ "screen": "cancel-accepted" }]
                     }
                   ]
                 },
@@ -1017,12 +1017,14 @@
                       "id": "refund-notice",
                       "name": "返金完了の通知に気づく",
                       "situation": "キャンセルした翌朝、通勤中の電車でスマホに通知が届く",
-                      "materials": [
+                      "panes": [
                         {
-                          "id": "refund-mail-native",
-                          "kind": "native",
-                          "viewport": "mobile",
-                          "label": "ロック画面"
+                          "material": {
+                            "id": "refund-mail-native",
+                            "kind": "native",
+                            "viewport": "mobile",
+                            "label": "ロック画面"
+                          }
                         }
                       ]
                     },
@@ -1030,13 +1032,13 @@
                       "id": "refund-mail",
                       "name": "返金完了のメールを開く",
                       "situation": "通知をタップしてメールを開く。いくら、どこへ戻ったのかだけを確かめたい",
-                      "screen": "refund-mail"
+                      "panes": [{ "screen": "refund-mail" }]
                     },
                     {
                       "id": "refunded-detail",
                       "name": "注文が取消済みになったのを確かめる",
                       "situation": "通知を開いたついでに、注文がきちんと取り消されたかを電車の中で確かめる",
-                      "screen": "refunded-detail"
+                      "panes": [{ "screen": "refunded-detail" }]
                     }
                   ]
                 },
@@ -1049,13 +1051,13 @@
                       "id": "shipped-detail",
                       "name": "キャンセルできない理由を知る",
                       "situation": "9月15日の夜。12 日に頼んだペーパーウェイトが要らなくなり、届く前に取り消せないかと注文を開く",
-                      "screen": "shipped-detail"
+                      "panes": [{ "screen": "shipped-detail" }]
                     },
                     {
                       "id": "contact",
                       "name": "問い合わせを送る",
                       "situation": "キャンセルできないと分かったが、どうにかならないか運営に直接聞きたい。翌日の昼休み、会社のデスクで入力している",
-                      "screen": "contact"
+                      "panes": [{ "screen": "contact" }]
                     }
                   ]
                 }
@@ -1074,13 +1076,23 @@
                       "id": "admin-orders",
                       "name": "注文を状態で絞り込む",
                       "situation": "9月19日の朝 10 時半、事務所の PC で。前の晩に入ったキャンセルが片付いたかを、朝いちばんの確認として見る",
-                      "screen": "admin-orders"
+                      "panes": [{ "screen": "admin-orders" }]
                     },
                     {
                       "id": "admin-order-detail",
                       "name": "キャンセルの経緯をたどる",
                       "situation": "購入者から「返金はいつ戻るのか」と問い合わせが来たときに、返事を書くために経緯を確かめている",
-                      "screen": "admin-order-detail"
+                      "panes": [{ "screen": "admin-order-detail" }]
+                    },
+                    {
+                      "id": "admin-buyer-view",
+                      "name": "購入者に見えている状態と照らし合わせる",
+                      "description": "管理画面の状態と、購入者のスマホに出ている表示を並べて、返事の言葉を揃える",
+                      "situation": "返事を書く前に、購入者がスマホで見ている注文詳細を管理画面の横に開いて見比べる",
+                      "panes": [
+                        { "screen": "admin-order-detail" },
+                        { "screen": "refunded-detail", "preview": "refunded-detail-mobile" }
+                      ]
                     }
                   ]
                 },
@@ -1093,11 +1105,13 @@
                       "name": "返金失敗の連絡を FAX で受け取る",
                       "description": "決済代行は返金に失敗した取引を翌朝 FAX で知らせてくる。画面の外で始まる対応",
                       "situation": "朝 8 時、事務所の FAX に決済代行から 1 枚届く。運営者は出社してすぐ紙で気づく",
-                      "materials": [
+                      "panes": [
                         {
-                          "id": "refund-fax-paper",
-                          "kind": "plain",
-                          "label": "FAX"
+                          "material": {
+                            "id": "refund-fax-paper",
+                            "kind": "plain",
+                            "label": "FAX"
+                          }
                         }
                       ]
                     },
@@ -1105,20 +1119,22 @@
                       "id": "admin-refunds",
                       "name": "返金待ちが長い注文を見つける",
                       "situation": "FAX に書かれた注文番号を手元に置き、出社してすぐ管理画面で返金待ちの一覧を開く",
-                      "screen": "admin-refunds"
+                      "panes": [{ "screen": "admin-refunds" }]
                     },
                     {
                       "id": "admin-refund-stuck",
                       "name": "失敗が続く返金を調べる",
                       "situation": "FAX を手元に置き、決済代行のサポートに電話で照会しながら管理画面で試行の履歴を確かめる",
-                      "screen": "admin-refund",
-                      "materials": [
+                      "panes": [
                         {
-                          "id": "admin-refund-stuck-memo",
-                          "kind": "plain",
-                          "viewport": "fluid",
-                          "label": "手元のメモ"
-                        }
+                          "material": {
+                            "id": "admin-refund-stuck-memo",
+                            "kind": "plain",
+                            "viewport": "fluid",
+                            "label": "手元のメモ"
+                          }
+                        },
+                        { "screen": "admin-refund" }
                       ]
                     }
                   ]

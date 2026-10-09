@@ -73,8 +73,8 @@ describe('qualified prototype references', () => {
     const notify = vi.fn();
     c.subscribe(notify);
     const outcome = c.dispatchBatch([
-      { type: 'ADD_STEP', target: 'a.s', payload: { id: 'x', name: 'X', previews: [{ id: 'p1' }] } },
-      { type: 'ADD_STEP', target: 'a.s', payload: { id: 'x', name: 'X', previews: [{ id: 'p2' }] } },
+      { type: 'ADD_STEP', target: 'a.s', payload: { id: 'x', name: 'X', panes: [{ material: { id: 'p1' } }] } },
+      { type: 'ADD_STEP', target: 'a.s', payload: { id: 'x', name: 'X', panes: [{ material: { id: 'p2' } }] } },
       { type: 'SET_PREVIEW_LABEL', target: 'p1', payload: { label: 'Updated' } },
     ]);
     expect(outcome.ok).toBe(false);

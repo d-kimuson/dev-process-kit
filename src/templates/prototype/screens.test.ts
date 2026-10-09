@@ -2,21 +2,22 @@ import { describe, expect, it } from 'vitest';
 
 import type { Navigation } from '../../core/types';
 
-import { allScreens, findPreview, findScreen, findStep, parsePrototypeBase, stepScreen } from './model';
+import { allScreens, findPreview, findScreen, findStep, parsePrototypeBase, stepScreens } from './model';
 import {
   locatePrototype,
   prototypeAppSections,
   prototypeCurrentAppSection,
   prototypeLinkProblem,
   prototypePageHeading,
+  prototypeRenditionSelection,
   prototypeStageFrames,
   resolvePrototypeNavigation,
 } from './present';
 
 /**
  * The product's screens live under the app they belong to; a scenario step
- * names the screen the user is on and keeps only what belongs to the story
- * (the situation, the materials at hand). See the ADR
+ * lays out what the user sees as panes, each a screen of the product or a
+ * material only the story knows (a memo, a FAX). See the ADR
  * `20261009_prototype-screens-apart-from-scenarios.md`.
  */
 const base = (overrides: Record<string, unknown> = {}): unknown => ({
@@ -47,14 +48,13 @@ const base = (overrides: Record<string, unknown> = {}): unknown => ({
             {
               id: 'fax',
               name: 'Read the FAX',
-              materials: [{ id: 'fax-paper', kind: 'plain' }],
+              panes: [{ material: { id: 'fax-paper', kind: 'plain' } }],
             },
             {
               id: 'stuck',
               name: 'Look into the refund',
               situation: 'The FAX at hand',
-              screen: 'refund-detail',
-              materials: [{ id: 'stuck-memo', kind: 'plain', label: 'Memo' }],
+              panes: [{ material: { id: 'stuck-memo', kind: 'plain', label: 'Memo' } }, { screen: 'refund-detail' }],
             },
           ],
         },
@@ -79,15 +79,79 @@ describe('prototype screens', () => {
     expect(state.apps[0]?.screens).toEqual([]);
   });
 
-  it('lets a step name its screen and keep the materials at hand, with no previews of its own', () => {
+  it('lays a step out as panes, in order: screens of the product and materials at hand', () => {
     const state = parsePrototypeBase(base());
     const stuck = findStep(state, 'stuck');
-    expect(stuck?.step).toMatchObject({ screen: 'refund-detail', situation: 'The FAX at hand' });
-    expect(stuck?.step.materials.map((material) => material.id)).toEqual(['stuck-memo']);
-    expect(findStep(state, 'fax')?.step.screen).toBeUndefined();
+    expect(stuck?.step.situation).toBe('The FAX at hand');
+    expect(stuck?.step.panes).toEqual([
+      { material: { id: 'stuck-memo', kind: 'plain', viewport: 'fluid', label: 'Memo' } },
+      { screen: 'refund-detail' },
+    ]);
+    expect(findStep(state, 'fax')?.step.panes).toHaveLength(1);
+    const blank = parsePrototypeBase({
+      activities: [{ id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X' }] }] }],
+    });
+    expect(findStep(blank, 'x')?.step.panes).toEqual([]);
   });
 
-  it('rejects what the step no longer owns: a title, a layout, previews, an app', () => {
+  it('rejects a pane that is neither a screen nor a material, or both', () => {
+    const withPanes = (panes: unknown[]): unknown =>
+      base({
+        activities: [{ id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', panes }] }] }],
+      });
+    expect(() => parsePrototypeBase(withPanes([{}]))).toThrow();
+    expect(() => parsePrototypeBase(withPanes([{ screen: 'refunds', material: { id: 'm' } }]))).toThrow();
+    expect(() => parsePrototypeBase(withPanes([{ material: { id: 'm' }, preview: 'refunds-desktop' }]))).toThrow();
+  });
+
+  it('pins a rendition of the screen, and only one the screen has', () => {
+    const withPanes = (panes: unknown[]): unknown =>
+      base({
+        activities: [{ id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', panes }] }] }],
+      });
+    const state = parsePrototypeBase(withPanes([{ screen: 'refunds', preview: 'refunds-desktop' }]));
+    expect(findStep(state, 'x')?.step.panes).toEqual([{ screen: 'refunds', preview: 'refunds-desktop' }]);
+    expect(() => parsePrototypeBase(withPanes([{ screen: 'refunds', preview: 'refund-detail-desktop' }]))).toThrow(
+      /preview "refund-detail-desktop" on step "x" is not a rendition of screen "refunds"/,
+    );
+  });
+
+  it('shows a screen twice only as distinct pinned renditions, since a preview fills one slot', () => {
+    const twoRenditions = {
+      apps: [
+        {
+          id: 'shop',
+          name: 'Shop',
+          screens: [{ id: 'cart', title: 'Cart', previews: [{ id: 'cart-mobile' }, { id: 'cart-desktop' }] }],
+        },
+      ],
+    };
+    const withPanes = (panes: unknown[]): unknown => ({
+      ...twoRenditions,
+      activities: [{ id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', panes }] }] }],
+    });
+    expect(() =>
+      parsePrototypeBase(
+        withPanes([
+          { screen: 'cart', preview: 'cart-mobile' },
+          { screen: 'cart', preview: 'cart-desktop' },
+        ]),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      parsePrototypeBase(withPanes([{ screen: 'cart' }, { screen: 'cart', preview: 'cart-desktop' }])),
+    ).toThrow(/screen "cart" is shown twice on step "x"/);
+    expect(() =>
+      parsePrototypeBase(
+        withPanes([
+          { screen: 'cart', preview: 'cart-mobile' },
+          { screen: 'cart', preview: 'cart-mobile' },
+        ]),
+      ),
+    ).toThrow(/screen "cart" is shown twice on step "x"/);
+  });
+
+  it('rejects what the step no longer owns: a title, a layout, previews, a lone screen, materials, an app', () => {
     const withStep = (extra: Record<string, unknown>): unknown => ({
       activities: [
         { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', ...extra }] }] },
@@ -97,12 +161,16 @@ describe('prototype screens', () => {
     expect(() => parsePrototypeBase(withStep({ layout: 'tabs' }))).toThrow();
     expect(() => parsePrototypeBase(withStep({ previews: [] }))).toThrow();
     expect(() => parsePrototypeBase(withStep({ app: 'shop' }))).toThrow();
+    expect(() => parsePrototypeBase(withStep({ screen: 'refunds' }))).toThrow();
+    expect(() => parsePrototypeBase(withStep({ materials: [] }))).toThrow();
     expect(() => parsePrototypeBase({ activities: [{ id: 'a', name: 'A', app: 'shop' }] })).toThrow();
   });
 
   it('rejects a screen no app declares', () => {
     const state = base();
-    const broken = JSON.parse(JSON.stringify(state).replace('"screen":"refund-detail"', '"screen":"refund-detial"'));
+    const broken = JSON.parse(
+      JSON.stringify(state).replace('{"screen":"refund-detail"}', '{"screen":"refund-detial"}'),
+    );
     expect(() => parsePrototypeBase(broken)).toThrow(/unknown screen "refund-detial" on step "stuck"/);
   });
 
@@ -123,15 +191,15 @@ describe('prototype screens', () => {
     ).toThrow(/duplicate preview id "stuck-memo"/);
   });
 
-  it('finds a screen, the screen of a step, and every screen in page order', () => {
+  it('finds a screen, the screens of a step, and every screen in page order', () => {
     const state = parsePrototypeBase(base());
     expect(findScreen(state, 'refunds')?.app.id).toBe('admin');
     expect(findScreen(state, 'nope')).toBeUndefined();
     expect(findScreen(state, undefined)).toBeUndefined();
     const stuck = findStep(state, 'stuck');
-    expect(stuck && stepScreen(state, stuck.step)?.screen.id).toBe('refund-detail');
+    expect(stuck && stepScreens(state, stuck.step).map((entry) => entry.screen.id)).toEqual(['refund-detail']);
     const fax = findStep(state, 'fax');
-    expect(fax && stepScreen(state, fax.step)).toBeUndefined();
+    expect(fax && stepScreens(state, fax.step)).toEqual([]);
     expect(allScreens(state).map((entry) => entry.screen.id)).toEqual(['refunds', 'refund-detail']);
   });
 
@@ -180,7 +248,10 @@ const product = () =>
           {
             id: 'refund',
             title: 'Refund',
-            previews: [{ id: 'refund-desktop', url: 'https://admin.test/refunds/1' }],
+            previews: [
+              { id: 'refund-desktop', viewport: 'desktop', url: 'https://admin.test/refunds/1' },
+              { id: 'refund-mobile', viewport: 'mobile', url: 'https://admin.test/refunds/1' },
+            ],
           },
         ],
       },
@@ -194,9 +265,11 @@ const product = () =>
             id: 'checkout',
             name: 'Checkout',
             steps: [
-              { id: 'look', name: 'Look at the cart', screen: 'cart', situation: 'On the train' },
-              { id: 'buy', name: 'Buy', screen: 'order' },
-              { id: 'again', name: 'Look at the cart again', screen: 'cart' },
+              { id: 'look', name: 'Look at the cart', panes: [{ screen: 'cart' }], situation: 'On the train' },
+              { id: 'buy', name: 'Buy', panes: [{ screen: 'order' }] },
+              { id: 'again', name: 'Look at the cart again', panes: [{ screen: 'cart' }] },
+              { id: 'side', name: 'Buyer and operator', panes: [{ screen: 'cart' }, { screen: 'refund' }] },
+              { id: 'pinned', name: 'The cart on a PC', panes: [{ screen: 'cart', preview: 'cart-desktop' }] },
             ],
           },
         ],
@@ -210,13 +283,12 @@ const product = () =>
             id: 'refund',
             name: 'Refund',
             steps: [
-              { id: 'fax', name: 'Read the FAX', materials: [{ id: 'fax-paper', kind: 'plain' }] },
-              { id: 'list', name: 'Find the order', screen: 'refunds' },
+              { id: 'fax', name: 'Read the FAX', panes: [{ material: { id: 'fax-paper', kind: 'plain' } }] },
+              { id: 'list', name: 'Find the order', panes: [{ screen: 'refunds' }] },
               {
                 id: 'stuck',
                 name: 'Look into it',
-                screen: 'refund',
-                materials: [{ id: 'stuck-memo', kind: 'plain', label: 'Memo' }],
+                panes: [{ material: { id: 'stuck-memo', kind: 'plain', label: 'Memo' } }, { screen: 'refund' }],
               },
             ],
           },
@@ -235,26 +307,49 @@ const framesAt = (nav: Navigation) => {
   return prototypeStageFrames(state, located, resolved);
 };
 
+const tabsOf = (frames: ReturnType<typeof framesAt>): string[][] =>
+  frames.panes.map((pane) => (pane.kind === 'screen' ? ids(pane.tabs) : []));
+
 describe('prototype stage of a step', () => {
-  it('shows the renditions of its screen as tabs, one at a time', () => {
+  it('shows a screen alone, its renditions as tabs, one at a time', () => {
     const frames = framesAt({ step: 'look', preview: 'cart-desktop' });
-    expect(frames.layout).toBe('tabs');
+    expect(frames.layout).toBe('single');
     expect(ids(frames.shown)).toEqual(['cart-desktop']);
-    expect(ids(frames.tabs)).toEqual(['cart-mobile', 'cart-desktop']);
-    expect(frames.activeId).toBe('cart-desktop');
+    expect(tabsOf(frames)).toEqual([['cart-mobile', 'cart-desktop']]);
   });
 
-  it('puts the materials at hand beside the screen', () => {
+  it('lays the panes side by side in the order the step gives', () => {
     const frames = framesAt({ step: 'stuck' });
     expect(frames.layout).toBe('side-by-side');
+    expect(frames.panes.map((pane) => pane.kind)).toEqual(['material', 'screen']);
     expect(ids(frames.shown)).toEqual(['stuck-memo', 'refund-desktop']);
-    expect(frames.tabs).toEqual([]);
+    expect(tabsOf(frames)).toEqual([[], ['refund-desktop', 'refund-mobile']]);
+  });
+
+  it('shows two screens of the product side by side, each on its own rendition', () => {
+    expect(ids(framesAt({ step: 'side' }).shown)).toEqual(['cart-mobile', 'refund-desktop']);
+    const frames = framesAt({ step: 'side', preview: 'cart-desktop,refund-mobile' });
+    expect(ids(frames.shown)).toEqual(['cart-desktop', 'refund-mobile']);
+    const [cart] = frames.panes;
+    expect(cart?.kind === 'screen' && cart.screen.screen.id).toBe('cart');
+  });
+
+  it('shows a pinned rendition with no tabs', () => {
+    const frames = framesAt({ step: 'pinned', preview: 'cart-mobile' });
+    expect(ids(frames.shown)).toEqual(['cart-desktop']);
+    expect(tabsOf(frames)).toEqual([[]]);
   });
 
   it('shows a moment away from the product with its materials alone', () => {
     const frames = framesAt({ step: 'fax' });
-    expect(frames.layout).toBe('tabs');
+    expect(frames.layout).toBe('single');
     expect(ids(frames.shown)).toEqual(['fax-paper']);
+  });
+
+  it('switches the rendition of one pane and keeps the others', () => {
+    const frames = framesAt({ step: 'side', preview: 'cart-desktop,refund-mobile' });
+    expect(prototypeRenditionSelection(frames, 'cart-mobile')).toBe('cart-mobile,refund-mobile');
+    expect(prototypeRenditionSelection(frames, 'refund-desktop')).toBe('cart-desktop,refund-desktop');
   });
 });
 
@@ -262,7 +357,7 @@ describe('prototype stage of a screen in the app view', () => {
   it('shows the screen alone, nothing the scenario holds', () => {
     const frames = framesAt({ view: 'app', screen: 'refund' });
     expect(ids(frames.shown)).toEqual(['refund-desktop']);
-    expect(frames.layout).toBe('tabs');
+    expect(frames.layout).toBe('single');
   });
 
   it('heads the screen with its title and the user its app is for', () => {
@@ -291,6 +386,10 @@ describe('prototype heading of a step', () => {
   it('falls back to the step name away from the product', () => {
     expect(heading('fax')).toEqual({ actor: 'Shop owner', title: 'Read the FAX' });
   });
+
+  it('takes the step name when it shows several screens, with no app to name the user', () => {
+    expect(heading('side')).toEqual({ title: 'Buyer and operator' });
+  });
 });
 
 describe('prototype navigation to a screen', () => {
@@ -313,6 +412,15 @@ describe('prototype navigation to a screen', () => {
       preview: 'refund-desktop',
     });
     expect(resolve({ view: 'app', step: 'fax' })).toMatchObject({ screen: 'cart' });
+    // several screens: the first, on the rendition the scenario had
+    expect(resolve({ view: 'app', step: 'side', preview: 'cart-desktop,refund-mobile' })).toEqual({
+      view: 'app',
+      screen: 'cart',
+      preview: 'cart-desktop',
+    });
+    expect(resolve({ view: 'app', screen: 'refund', preview: 'cart-desktop,refund-mobile' })['preview']).toBe(
+      'refund-mobile',
+    );
     expect(resolve({ view: 'app', screen: 'ghost' })).toMatchObject({ screen: 'cart' });
   });
 
@@ -328,10 +436,11 @@ describe('prototype navigation to a screen', () => {
   it('stays on the step showing it, then goes back in the story, then anywhere on the page', () => {
     expect(resolve({ activity: 'buyer', story: 'checkout', step: 'again', screen: 'cart' })['step']).toBe('again');
     expect(resolve({ activity: 'buyer', story: 'checkout', step: 'again', screen: 'order' })['step']).toBe('buy');
-    expect(resolve({ activity: 'buyer', story: 'checkout', step: 'look', screen: 'refund' })).toMatchObject({
+    expect(resolve({ activity: 'buyer', story: 'checkout', step: 'look', screen: 'refund' })['step']).toBe('side');
+    expect(resolve({ activity: 'buyer', story: 'checkout', step: 'look', screen: 'refunds' })).toMatchObject({
       activity: 'ops',
       story: 'refund',
-      step: 'stuck',
+      step: 'list',
     });
     expect(resolve({ screen: 'refunds' })).toMatchObject({ step: 'list' });
   });
@@ -344,10 +453,13 @@ describe('prototype navigation to a screen', () => {
     });
   });
 
-  it('keeps the rendition of the screen in the scenario, and drops it for a step without one', () => {
+  it('keeps the rendition of each screen in the scenario, and drops it for a step with nothing to switch', () => {
     expect(resolve({ step: 'look', preview: 'cart-desktop' })['preview']).toBe('cart-desktop');
     expect(resolve({ step: 'stuck', preview: 'stuck-memo' })['preview']).toBe('refund-desktop');
+    expect(resolve({ step: 'side' })['preview']).toBe('cart-mobile,refund-desktop');
+    expect(resolve({ step: 'side', preview: 'refund-mobile' })['preview']).toBe('cart-mobile,refund-mobile');
     expect(resolve({ step: 'fax', preview: 'fax-paper' })).not.toHaveProperty('preview');
+    expect(resolve({ step: 'pinned', preview: 'cart-mobile' })).not.toHaveProperty('preview');
   });
 });
 

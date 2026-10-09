@@ -4,10 +4,12 @@ import { assertNever, parseTemplateAction } from '../../core/schema';
 import { prototypeActions } from './actions';
 import {
   findPreview,
-  findScreen,
+  isScreenPane,
   findStep,
   findStory,
   localId,
+  stepMaterials,
+  stepPaneProblem,
   stepRef,
   storyRef,
   type PreviewOwner,
@@ -16,6 +18,7 @@ import {
   type PrototypeState,
   type PrototypeStep,
   type PrototypeStory,
+  type StepPane,
 } from './model';
 
 /**
@@ -202,16 +205,14 @@ export const applyPrototypeAction = (state: PrototypeState, action: DraftAction)
       const story = findStory(state, id)?.story;
       if (!story) return null;
       if (story.steps.some((step) => step.id === payload.id)) return state;
-      if (payload.screen !== undefined && !findScreen(state, payload.screen)) return null;
-      const ids = (payload.materials ?? []).map((preview) => preview.id);
-      if (new Set(ids).size !== ids.length || ids.some((previewId) => findPreview(state, previewId))) return null;
+      const panes = payload.panes ?? [];
       const step: PrototypeStep = {
         id: payload.id,
         name: payload.name,
         ...(payload.description === undefined ? {} : { description: payload.description }),
-        ...(payload.screen === undefined ? {} : { screen: payload.screen }),
-        materials: payload.materials ?? [],
+        panes,
       };
+      if (!panesFit(state, step)) return null;
       return updateStory(state, id, (candidate) => ({
         ...candidate,
         steps: [...candidate.steps, step],
@@ -221,11 +222,11 @@ export const applyPrototypeAction = (state: PrototypeState, action: DraftAction)
       const payload = typed.payload;
       const step = findStep(state, id)?.step;
       if (!step) return null;
-      if (step.materials.some((preview) => preview.id === payload.id)) return state;
+      if (stepMaterials(step).some((preview) => preview.id === payload.id)) return state;
       if (findPreview(state, payload.id)) return null;
       return updateStep(state, id, (candidate) => ({
         ...candidate,
-        materials: [...candidate.materials, payload],
+        panes: [...candidate.panes, { material: payload }],
       }));
     }
 
@@ -323,6 +324,16 @@ const updatePreview = (
   );
 };
 
+/** A new step's panes must fit the product, and its materials must not reuse a preview id. */
+const panesFit = (state: PrototypeState, step: PrototypeStep): boolean => {
+  const ids = stepMaterials(step).map((preview) => preview.id);
+  return (
+    stepPaneProblem(state, step) === null &&
+    new Set(ids).size === ids.length &&
+    !ids.some((previewId) => findPreview(state, previewId))
+  );
+};
+
 /** Rewrites the previews of whatever owns them: a screen's renditions or a step's materials. */
 const mapPreviews = (
   state: PrototypeState,
@@ -330,7 +341,18 @@ const mapPreviews = (
   fn: (previews: readonly PrototypePreview[]) => PrototypePreview[],
 ): PrototypeState | null => {
   if (owner.kind === 'step') {
-    return updateStep(state, stepRef(owner), (step) => ({ ...step, materials: fn(step.materials) }));
+    return updateStep(state, stepRef(owner), (step) => {
+      // Materials keep their place among the screens: the rewrite maps or drops them by id.
+      const rewritten = new Map(fn([...stepMaterials(step)]).map((preview) => [preview.id, preview]));
+      return {
+        ...step,
+        panes: step.panes.flatMap((pane): StepPane[] => {
+          if (isScreenPane(pane)) return [pane];
+          const material = rewritten.get(pane.material.id);
+          return material ? [{ material }] : [];
+        }),
+      };
+    });
   }
   const screenId = owner.screen.id;
   return {

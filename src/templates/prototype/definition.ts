@@ -53,9 +53,9 @@ export const prototypeHasTarget = (state: PrototypeState, target: ActionTarget):
 
 /**
  * Prototype template: the product as App > Screen > Preview[] (renditions),
- * and its scenarios as Activity > UserStory > Step. A step names the screen
- * the user is on and owns only what the scenario adds: the situation and the
- * materials at hand.
+ * and its scenarios as Activity > UserStory > Step. A step lays out panes:
+ * the screens the user is on, and what only the scenario adds, the materials
+ * at hand; its situation is scenario context too.
  */
 export const prototypeDefinitionFor = (locale: Locale): TemplateDefinition<PrototypeState> => {
   const m = prototypeMessages(locale);

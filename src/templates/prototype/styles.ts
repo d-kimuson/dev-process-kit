@@ -721,6 +721,23 @@ export const prototypeStyles = css`
     width: 100%;
   }
 
+  .pane-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .pane-head .tabs {
+    padding: 2px;
+  }
+
+  .pane-head .tab {
+    padding: 3px 11px;
+    font-size: 11.5px;
+  }
+
   .pane-label {
     justify-self: start;
     padding: 2px 9px;

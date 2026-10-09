@@ -45,13 +45,12 @@ const base = {
           id: 'order',
           name: 'Order',
           steps: [
-            { id: 'open-list', name: 'Open the list', screen: 'list', situation: 'On the train' },
-            { id: 'open-detail', name: 'Open an order', screen: 'detail' },
+            { id: 'open-list', name: 'Open the list', panes: [{ screen: 'list' }], situation: 'On the train' },
+            { id: 'open-detail', name: 'Open an order', panes: [{ screen: 'detail' }] },
             {
               id: 'check',
               name: 'Check against the memo',
-              screen: 'detail',
-              materials: [{ id: 'memo', kind: 'plain', label: 'Memo' }],
+              panes: [{ material: { id: 'memo', kind: 'plain', label: 'Memo' } }, { screen: 'detail' }],
             },
           ],
         },

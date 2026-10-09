@@ -23,12 +23,16 @@ import {
   flattenSteps,
   stepRef,
   stepRefOf,
-  stepScreen,
+  isScreenPane,
+  stepMaterials,
+  stepScreens,
+  stepShowsScreen,
   storyRef,
   type PrototypeActivity,
   type PrototypeApp,
   type PrototypePreview,
   type PrototypeState,
+  type PrototypeStep,
   type PrototypeStory,
   type ScreenLocation,
   type StepLocation,
@@ -302,45 +306,94 @@ export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePre
   return `${origin.replace(/\/+$/, '')}/${preview.id}`;
 };
 
-export type StageFrames = {
-  /** `side-by-side` when the materials at hand sit beside the screen, else `tabs`. */
-  readonly layout: 'tabs' | 'side-by-side';
-  /** The previews on screen: the materials, then the selected rendition of the screen. */
-  readonly shown: readonly PrototypePreview[];
-  /** The renditions of the screen to switch between; empty when there is nothing to switch. */
-  readonly tabs: readonly PrototypePreview[];
-  /** The selected rendition. */
-  readonly activeId?: string;
-};
+/** One pane on stage: a rendition of a screen of the product, or a material at hand. */
+export type StagePane =
+  | {
+      readonly kind: 'screen';
+      readonly screen: ScreenLocation;
+      /** The rendition on screen. */
+      readonly preview: PrototypePreview;
+      /** Whether the step pins the rendition, so the hash does not select it. */
+      readonly pinned: boolean;
+      /** The renditions to switch between; empty when the step pins one or there is only one. */
+      readonly tabs: readonly PrototypePreview[];
+    }
+  | { readonly kind: 'material'; readonly preview: PrototypePreview };
 
-const stageFrames = (
-  materials: readonly PrototypePreview[],
-  renditions: readonly PrototypePreview[],
-  nav: Navigation,
-): StageFrames => {
-  const active = renditions.find((preview) => preview.id === nav['preview']) ?? renditions[0];
-  const shown = active ? [...materials, active] : materials;
-  return {
-    layout: shown.length > 1 ? 'side-by-side' : 'tabs',
-    shown,
-    tabs: renditions.length > 1 ? renditions : [],
-    ...(active ? { activeId: active.id } : {}),
-  };
+export type StageFrames = {
+  /** `side-by-side` when several panes share the stage. */
+  readonly layout: 'single' | 'side-by-side';
+  readonly panes: readonly StagePane[];
+  /** The previews on screen, pane by pane. */
+  readonly shown: readonly PrototypePreview[];
 };
 
 /**
- * What is on stage: in the scenario view, the materials a step has at hand
- * beside the screen it shows; in the app view, the screen alone. A screen's
- * renditions are tabs.
+ * The renditions the hash selects: `preview` lists one per switchable screen
+ * on stage (`cart-mobile,refund-desktop`). Preview ids are global, so each id
+ * names its screen as well.
  */
-export const prototypeStageFrames = (state: PrototypeState, located: StageLocation, nav: Navigation): StageFrames => {
-  if (located.kind === 'screen') return stageFrames([], located.screen.previews, nav);
-  return stageFrames(located.step.materials, stepScreen(state, located.step)?.screen.previews ?? [], nav);
+const PREVIEW_SEPARATOR = ',';
+
+const requestedRenditions = (nav: Navigation): readonly string[] => nav['preview']?.split(PREVIEW_SEPARATOR) ?? [];
+
+/** The rendition the hash selects among a screen's, else its first one. */
+const selectRendition = (
+  renditions: readonly PrototypePreview[],
+  requested: readonly string[],
+): PrototypePreview | undefined => renditions.find((preview) => requested.includes(preview.id)) ?? renditions[0];
+
+const screenPane = (screen: ScreenLocation, pinned: string | undefined, nav: Navigation): StagePane | undefined => {
+  const renditions = screen.screen.previews;
+  const preview =
+    pinned === undefined
+      ? selectRendition(renditions, requestedRenditions(nav))
+      : renditions.find((candidate) => candidate.id === pinned);
+  if (!preview) return undefined;
+  const switchable = pinned === undefined && renditions.length > 1;
+  return { kind: 'screen', screen, preview, pinned: pinned !== undefined, tabs: switchable ? renditions : [] };
 };
 
-/** Every preview a step can show: its materials and the renditions of its screen. */
-export const prototypeStepPreviews = (state: PrototypeState, location: StepLocation): readonly PrototypePreview[] => {
-  return [...location.step.materials, ...(stepScreen(state, location.step)?.screen.previews ?? [])];
+const stageFrames = (panes: readonly StagePane[]): StageFrames => ({
+  layout: panes.length > 1 ? 'side-by-side' : 'single',
+  panes,
+  shown: panes.map((pane) => pane.preview),
+});
+
+const stepPanes = (state: PrototypeState, step: PrototypeStep, nav: Navigation): readonly StagePane[] =>
+  step.panes.flatMap((pane): StagePane[] => {
+    if (!isScreenPane(pane)) return [{ kind: 'material', preview: pane.material }];
+    const screen = findScreen(state, pane.screen);
+    const shown = screen && screenPane(screen, pane.preview, nav);
+    return shown ? [shown] : [];
+  });
+
+/**
+ * What is on stage: in the scenario view, the panes of the step in its order;
+ * in the app view, the screen alone. A screen's renditions are tabs unless
+ * the step pins one.
+ */
+export const prototypeStageFrames = (state: PrototypeState, located: StageLocation, nav: Navigation): StageFrames => {
+  if (located.kind === 'screen') {
+    const pane = screenPane(located, undefined, nav);
+    return stageFrames(pane ? [pane] : []);
+  }
+  return stageFrames(stepPanes(state, located.step, nav));
+};
+
+/** The `preview` of the hash once the reader switches one pane to `previewId`; the other panes keep theirs. */
+export const prototypeRenditionSelection = (frames: StageFrames, previewId: string): string => {
+  return frames.panes
+    .flatMap((pane) => {
+      if (pane.kind !== 'screen' || pane.tabs.length === 0) return [];
+      return [pane.tabs.some((tab) => tab.id === previewId) ? previewId : pane.preview.id];
+    })
+    .join(PREVIEW_SEPARATOR);
+};
+
+/** Every preview a step can show: its materials and the renditions of its screens. */
+export const prototypeStepPreviews = (state: PrototypeState, step: PrototypeStep): readonly PrototypePreview[] => {
+  return [...stepMaterials(step), ...stepScreens(state, step).flatMap((entry) => entry.screen.previews)];
 };
 
 /** Why a link in a preview leads nowhere: it names no destination, or one the page does not have. */
@@ -515,15 +568,17 @@ export type PageHeading = {
 
 /**
  * The stage heading. A screen is headed by its title and the user its app is
- * for. A step is headed by the title of its screen, or its own name away from
- * the product, and the nearest actor of step › story › activity › app.
+ * for. A step showing one screen is headed by the screen's title, and the
+ * nearest actor of step › story › activity › app; a step showing several
+ * screens, or none, by its own name and the scenario's actor.
  */
 export const prototypePageHeading = (state: PrototypeState, located: StageLocation): PageHeading => {
   const heading = (title: string, actor: string | undefined): PageHeading =>
     actor === undefined ? { title } : { actor, title };
   if (located.kind === 'screen') return heading(located.screen.title, located.app.actor);
   const { activity, story, step } = located;
-  const screen = stepScreen(state, step);
+  const screens = stepScreens(state, step);
+  const screen = screens.length === 1 ? screens[0] : undefined;
   return heading(screen?.screen.title ?? step.name, step.actor ?? story.actor ?? activity.actor ?? screen?.app.actor);
 };
 
@@ -537,16 +592,23 @@ export const prototypeTitle = (state: PrototypeState): string => {
   return state.title ?? 'UX Prototype';
 };
 
-/** The rendition a hash names, if the screen has it, else its first one. */
-const renditionOf = (screen: ScreenLocation | undefined, requested: string | undefined): string | undefined => {
-  const previews = screen?.screen.previews ?? [];
-  return previews.find((entry) => entry.id === requested)?.id ?? previews[0]?.id;
-};
-
 const withPreview = (nav: Record<string, string>, preview: string | undefined): Navigation => {
   if (preview) nav['preview'] = preview;
   else delete nav['preview'];
   return nav;
+};
+
+/** The selected rendition of every screen of the step the step does not pin, in pane order. */
+const stepRenditions = (
+  state: PrototypeState,
+  step: PrototypeStep | undefined,
+  nav: Navigation,
+): string | undefined => {
+  if (!step) return undefined;
+  const selected = stepPanes(state, step, nav).flatMap((pane) =>
+    pane.kind === 'screen' && !pane.pinned ? [pane.preview.id] : [],
+  );
+  return selected.length === 0 ? undefined : selected.join(PREVIEW_SEPARATOR);
 };
 
 /**
@@ -558,14 +620,14 @@ const resolveAppNavigation = (state: PrototypeState, nav: Navigation): Navigatio
     if (nav['step'] === undefined && nav['story'] === undefined) return undefined;
     const scenario = resolveScenarioNavigation(state, { ...nav, [VIEW_KEY]: '' });
     const location = findStep(state, scenario['step']);
-    return location && stepScreen(state, location.step);
+    return location && stepScreens(state, location.step)[0];
   };
   const screen = findScreen(state, nav['screen']) ?? fromScenario() ?? allScreens(state)[0];
   const next: Record<string, string> = { ...nav, [VIEW_KEY]: 'app' };
   for (const key of ['activity', 'story', 'step'] as const) delete next[key];
   if (screen) next['screen'] = screen.screen.id;
   else delete next['screen'];
-  return withPreview(next, renditionOf(screen, nav['preview']));
+  return withPreview(next, screen && selectRendition(screen.screen.previews, requestedRenditions(nav))?.id);
 };
 
 /**
@@ -574,7 +636,7 @@ const resolveAppNavigation = (state: PrototypeState, nav: Navigation): Navigatio
  * earlier one, then the first on the page.
  */
 const stepShowing = (state: PrototypeState, screenId: string, current: StepLocation | undefined) => {
-  const shows = (location: StepLocation): boolean => location.step.screen === screenId;
+  const shows = (location: StepLocation): boolean => stepShowsScreen(location.step, screenId);
   if (current && shows(current)) return current;
   const steps = current?.story.steps ?? [];
   const inStory = (index: number): StepLocation | undefined => {
@@ -636,7 +698,7 @@ const resolveScenarioNavigation = (state: PrototypeState, nav: Navigation): Navi
   delete next[VIEW_KEY];
   // The rendition is navigation state too: it must be shareable and survive
   // back/forward, so it lives in the hash and falls back to the first one.
-  return withPreview(next, renditionOf(step && stepScreen(state, step), nav['preview']));
+  return withPreview(next, stepRenditions(state, step, nav));
 };
 
 export const resolvePrototypeNavigation = (state: PrototypeState, nav: Navigation): Navigation => {

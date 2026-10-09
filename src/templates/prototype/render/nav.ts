@@ -15,7 +15,7 @@ import {
   allStepIds,
   stepRef,
   stepRefOf,
-  stepScreen,
+  stepScreens,
   storyRef,
   type PrototypeState,
   type PrototypeStep,
@@ -24,6 +24,7 @@ import {
   locatePrototype,
   prototypeAppSections,
   prototypeCurrentAppSection,
+  prototypeStepPreviews,
   prototypeUiCommentCount,
   type AppScreen,
   type AppSection,
@@ -282,12 +283,11 @@ const renderScenarioNav = (
         (step, index) => {
           const ref = stepRefOf(activity, story, step);
           // Comments on the UI of what the step shows are about the step too.
-          const shown = [...step.materials, ...(stepScreen(state, step)?.screen.previews ?? [])];
           const notes =
             context.commentCount({ type: 'step', id: ref }) +
             prototypeUiCommentCount(
               context.comments,
-              shown.map((preview) => preview.id),
+              prototypeStepPreviews(state, step).map((preview) => preview.id),
             );
           return html`
             <li class="step-row" data-current=${String(step.id === current?.id)}>
@@ -346,7 +346,7 @@ const renderScenarioNav = (
                   ></dpk-component-inline-edit>
                 </span>
               </div>
-              ${renderStepScreen(context, m, current)}
+              ${renderStepScreens(context, m, current)}
             </div>`,
           )
         : nothing
@@ -354,26 +354,35 @@ const renderScenarioNav = (
   `;
 };
 
-/** The screen the step shows: a way into the app view, and what the screen is for. */
-const renderStepScreen = (
+/** The screens the step shows: each a way into the app view, with what the screen is for. */
+const renderStepScreens = (
   context: TemplateRenderContext<PrototypeState>,
   m: PrototypeMessages,
   step: PrototypeStep,
 ): TemplateResult | typeof nothing => {
-  const located = stepScreen(context.state, step);
-  if (!located) return nothing;
-  const { app, screen } = located;
+  const screens = stepScreens(context.state, step);
+  if (screens.length === 0) return nothing;
   return html`<div class="detail-row">
     <span class="dpk-label">${m.screenGroup}</span>
     <span class="detail-value">
-      <a class="step-screen" href=${context.hashFor({ ...viewPatch('app'), screen: screen.id })} title=${m.openInApp}
-        >${app.name} › ${screen.title}</a
-      >
-      ${
-        screen.description
-          ? html`<div class="screen-description dpk-prose">${unsafeHTML(renderMarkdown(screen.description))}</div>`
-          : nothing
-      }
+      ${screens.map(
+        ({ app, screen }) =>
+          html`<div class="step-screen-entry">
+            <a
+              class="step-screen"
+              href=${context.hashFor({ ...viewPatch('app'), screen: screen.id })}
+              title=${m.openInApp}
+              >${app.name} › ${screen.title}</a
+            >
+            ${
+              screen.description
+                ? html`<div class="screen-description dpk-prose">
+                    ${unsafeHTML(renderMarkdown(screen.description))}
+                  </div>`
+                : nothing
+            }
+          </div>`,
+      )}
     </span>
   </div>`;
 };

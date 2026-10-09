@@ -44,20 +44,23 @@ const base = {
           id: 'account',
           name: 'Account',
           steps: [
-            { id: 'landing', name: 'Landing', screen: 'landing' },
-            { id: 'auth', name: 'Auth', materials: [{ id: 'auth-native', kind: 'native', viewport: 'mobile' }] },
+            { id: 'landing', name: 'Landing', panes: [{ screen: 'landing' }] },
+            {
+              id: 'auth',
+              name: 'Auth',
+              panes: [{ material: { id: 'auth-native', kind: 'native', viewport: 'mobile' } }],
+            },
             {
               id: 'memo',
               name: 'Memo',
               situation: 'The clerk receives a FAX.\nIt is 8 am.',
-              materials: [{ id: 'memo-plain', kind: 'plain' }],
+              panes: [{ material: { id: 'memo-plain', kind: 'plain' } }],
             },
-            { id: 'mail', name: 'Mail', screen: 'mail' },
+            { id: 'mail', name: 'Mail', panes: [{ screen: 'mail' }] },
             {
               id: 'desk',
               name: 'Desk',
-              screen: 'desk',
-              materials: [{ id: 'desk-memo', kind: 'plain', label: 'Memo in hand' }],
+              panes: [{ material: { id: 'desk-memo', kind: 'plain', label: 'Memo in hand' } }, { screen: 'desk' }],
             },
           ],
         },
@@ -194,9 +197,9 @@ describe('<dpk-template-prototype> layout', () => {
       'preview:desk-screen',
     ]);
     expect(root.querySelector('.canvas')?.getAttribute('data-layout')).toBe('side-by-side');
-    // a label captions its pane; a pane without one has no caption
+    // a material is captioned by its label, a screen by its title
     expect(panes[0]?.querySelector('.pane-label')?.textContent?.trim()).toBe('Memo in hand');
-    expect(panes[1]?.querySelector('.pane-label')).toBeNull();
+    expect(panes[1]?.querySelector('.pane-head .pane-label')?.textContent?.trim()).toBe('Desk');
     // nothing on screen is parked
     const parked = [...root.querySelectorAll('.parked slot')].map((slot) => slot.getAttribute('name'));
     expect(parked).not.toContain('preview:desk-memo');

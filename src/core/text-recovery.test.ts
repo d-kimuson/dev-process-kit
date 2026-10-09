@@ -63,7 +63,7 @@ describe('keeping unsent text through a reload', () => {
           {
             id: 'account',
             name: 'Account',
-            steps: [{ id: 'landing', name: 'Landing', screen: 'landing' }],
+            steps: [{ id: 'landing', name: 'Landing', panes: [{ screen: 'landing' }] }],
           },
         ],
       },

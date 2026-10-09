@@ -38,7 +38,7 @@ const state = (): PrototypeState => {
             id: 'account',
             name: 'Account',
             steps: [
-              { id: 'a', name: 'A', screen: 'screen-a' },
+              { id: 'a', name: 'A', panes: [{ screen: 'screen-a' }] },
               { id: 'b', name: 'B' },
               { id: 'c', name: 'C' },
             ],
@@ -84,7 +84,7 @@ describe('prototype base parsing', () => {
               {
                 id: 's',
                 name: 'S',
-                steps: [{ id: 'x', name: 'X', materials: [{}] }],
+                steps: [{ id: 'x', name: 'X', panes: [{ material: {} }] }],
               },
             ],
           },
@@ -103,15 +103,14 @@ describe('prototype base parsing', () => {
             {
               id: 's',
               name: 'S',
-              steps: [{ id: 'x', name: 'X', materials: [{ id: 'p' }] }],
+              steps: [{ id: 'x', name: 'X', panes: [{ material: { id: 'p' } }] }],
             },
           ],
         },
       ],
     });
-    expect(parsed.activities[0]?.stories[0]?.steps[0]?.materials[0]).toMatchObject({
-      kind: 'browser',
-      viewport: 'fluid',
+    expect(parsed.activities[0]?.stories[0]?.steps[0]?.panes[0]).toMatchObject({
+      material: { kind: 'browser', viewport: 'fluid' },
     });
     expect(parsePrototypeBase({})).toEqual({ apps: [], activities: [] });
   });
@@ -123,18 +122,26 @@ describe('prototype base parsing', () => {
           id: 'a',
           name: 'A',
           stories: [
-            { id: 's', name: 'S', steps: [{ id: 'x', name: 'X', materials: [{ id: 'memo', kind: 'plain' }] }] },
+            {
+              id: 's',
+              name: 'S',
+              steps: [{ id: 'x', name: 'X', panes: [{ material: { id: 'memo', kind: 'plain' } }] }],
+            },
           ],
         },
       ],
     });
-    expect(parsed.activities[0]?.stories[0]?.steps[0]?.materials[0]).toMatchObject({ kind: 'plain' });
+    expect(parsed.activities[0]?.stories[0]?.steps[0]?.panes[0]).toMatchObject({ material: { kind: 'plain' } });
   });
 });
 
 const onePreview = (preview: Record<string, unknown>): unknown => ({
   activities: [
-    { id: 'a', name: 'A', stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', materials: [preview] }] }] },
+    {
+      id: 'a',
+      name: 'A',
+      stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', panes: [{ material: preview }] }] }],
+    },
   ],
 });
 
@@ -191,11 +198,13 @@ describe('prototype mail preview', () => {
         mail: { from: 'Shop <no-reply@shop.example>', to: 'me@example.com', subject: 'Refunded' },
       }),
     );
-    expect(parsed.activities[0]?.stories[0]?.steps[0]?.materials[0]).toEqual({
-      id: 'm',
-      kind: 'mail',
-      viewport: 'fluid',
-      mail: { from: 'Shop <no-reply@shop.example>', to: 'me@example.com', subject: 'Refunded' },
+    expect(parsed.activities[0]?.stories[0]?.steps[0]?.panes[0]).toEqual({
+      material: {
+        id: 'm',
+        kind: 'mail',
+        viewport: 'fluid',
+        mail: { from: 'Shop <no-reply@shop.example>', to: 'me@example.com', subject: 'Refunded' },
+      },
     });
   });
 
@@ -303,39 +312,54 @@ describe('prototype applyAction', () => {
     expect(applyPrototypeAction(base, action(prototypeAction.addStep('account', 'a', 'dup')))).toBe(base);
   });
 
-  it('rejects adding a step with a screen the page does not have, and adds one with its screen and materials', () => {
+  it('rejects adding a step with a screen the page does not have, and adds one with its panes', () => {
     expect(
-      applyPrototypeAction(state(), action(prototypeAction.addStep('account', 'd', 'D', { screen: 'ghost' }))),
+      applyPrototypeAction(state(), action(prototypeAction.addStep('account', 'd', 'D', [{ screen: 'ghost' }]))),
     ).toBeNull();
-    const added = applyPrototypeAction(
-      state(),
-      action(
-        prototypeAction.addStep('account', 'd', 'D', {
-          screen: 'screen-a',
-          materials: [{ id: 'd-memo', kind: 'plain', viewport: 'fluid' }],
-        }),
+    expect(
+      applyPrototypeAction(
+        state(),
+        action(prototypeAction.addStep('account', 'd', 'D', [{ screen: 'screen-a', preview: 'ghost' }])),
       ),
-    );
-    expect(added?.activities[0]?.stories[0]?.steps[3]).toMatchObject({ screen: 'screen-a' });
-    expect(added?.activities[0]?.stories[0]?.steps[3]?.materials.map((material) => material.id)).toEqual(['d-memo']);
+    ).toBeNull();
+    const panes = [
+      { material: { id: 'd-memo', kind: 'plain', viewport: 'fluid' } },
+      { screen: 'screen-a', preview: 'a-mobile' },
+    ] as const;
+    const added = applyPrototypeAction(state(), action(prototypeAction.addStep('account', 'd', 'D', panes)));
+    expect(added?.activities[0]?.stories[0]?.steps[3]?.panes).toEqual(panes);
   });
 
-  it('adds and deletes a material of a step', () => {
-    const added = applyPrototypeAction(state(), action(prototypeAction.addStep('account', 'd', 'D')));
+  it('adds, updates and deletes a material of a step, leaving its screens in place', () => {
+    const added = applyPrototypeAction(
+      state(),
+      action(prototypeAction.addStep('account', 'd', 'D', [{ screen: 'screen-a' }])),
+    );
     expect(stepIds(added ?? state())).toEqual(['a', 'b', 'c', 'd']);
     const withPreview = applyPrototypeAction(
       added ?? state(),
       action(
         prototypeAction.addPreview('d', {
-          id: 'd-mobile',
-          kind: 'browser',
-          viewport: 'mobile',
+          id: 'd-memo',
+          kind: 'plain',
+          viewport: 'fluid',
         }),
       ),
     );
-    expect(withPreview?.activities[0]?.stories[0]?.steps[3]?.materials).toHaveLength(1);
-    const deleted = applyPrototypeAction(withPreview ?? state(), action(prototypeAction.deletePreview('d-mobile')));
-    expect(deleted?.activities[0]?.stories[0]?.steps[3]?.materials).toHaveLength(0);
+    const panesOf = (next: typeof added) => next?.activities[0]?.stories[0]?.steps[3]?.panes;
+    expect(panesOf(withPreview)).toEqual([
+      { screen: 'screen-a' },
+      { material: { id: 'd-memo', kind: 'plain', viewport: 'fluid' } },
+    ]);
+    const relabeled = applyPrototypeAction(
+      withPreview ?? state(),
+      action(prototypeAction.setPreviewLabel('d-memo', 'Memo')),
+    );
+    expect(panesOf(relabeled)?.[1]).toEqual({
+      material: { id: 'd-memo', kind: 'plain', viewport: 'fluid', label: 'Memo' },
+    });
+    const deleted = applyPrototypeAction(withPreview ?? state(), action(prototypeAction.deletePreview('d-memo')));
+    expect(panesOf(deleted)).toEqual([{ screen: 'screen-a' }]);
   });
 
   it('updates and deletes a preview that is a screen rendition, not only a step material', () => {
@@ -413,7 +437,7 @@ describe('prototype page heading', () => {
             id: 'users',
             name: 'Users',
             steps: [
-              { id: 'list', name: 'Open the user list', screen: 'users' },
+              { id: 'list', name: 'Open the user list', panes: [{ screen: 'users' }] },
               { id: 'invite', name: 'Invite a user', actor: 'Owner' },
             ],
           },
@@ -483,12 +507,12 @@ describe('prototype target refs', () => {
         {
           id: 'a',
           name: 'A',
-          stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', materials: [{ id: 'p' }] }] }],
+          stories: [{ id: 's', name: 'S', steps: [{ id: 'x', name: 'X', panes: [{ material: { id: 'p' } }] }] }],
         },
         {
           id: 'b',
           name: 'B',
-          stories: [{ id: 's', name: 'S', steps: [{ id: 'y', name: 'Y', materials: [{ id: 'p' }] }] }],
+          stories: [{ id: 's', name: 'S', steps: [{ id: 'y', name: 'Y', panes: [{ material: { id: 'p' } }] }] }],
         },
       ],
     };

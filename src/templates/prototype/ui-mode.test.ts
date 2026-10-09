@@ -30,8 +30,7 @@ const state = parsePrototypeBase({
             {
               id: 'x',
               name: 'X',
-              screen: 'cart-screen',
-              materials: [{ id: 'memo', kind: 'plain' }],
+              panes: [{ material: { id: 'memo', kind: 'plain' } }, { screen: 'cart-screen' }],
             },
           ],
         },
