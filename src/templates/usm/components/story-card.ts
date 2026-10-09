@@ -1,18 +1,12 @@
-import { css, html, LitElement, nothing, type PropertyValues, type TemplateResult } from 'lit';
+import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import type { DraftAction } from '../../../core/types';
 import type { StoryLink, UserStory } from '../model';
-import type { CardIntent, CardMode } from '../ui-mode';
 
-import { composerMessages } from '../../../components/comment-composer/messages';
-import { presentComposer } from '../../../components/comment-composer/present';
-import { renderComposer } from '../../../components/comment-composer/view';
-import { commentBody } from '../../../core/comment';
-import { iconComment, iconTrash } from '../../../core/icons';
+import { iconComment } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
-import { PopoverController } from '../../../core/popover-controller';
-import { controls, popoverSurface } from '../../../core/theme';
+import { controls } from '../../../core/theme';
 import { describeLink } from '../../../lib/link-label';
 import { renderMarkdown } from '../../../lib/markdown';
 import { usmMessages, type UsmMessages } from '../messages';
@@ -20,7 +14,6 @@ import { linkIcon, linkStyles } from '../render/link-icon';
 import { statusIcon, statusStyles } from '../render/tone';
 import { statusViewOf, type StatusView } from '../status-view';
 
-const COMPOSER_SIZE = { width: 300, height: 260 };
 /** Links beyond this many collapse into a `+n` chip; the panel lists them all. */
 const MAX_LINK_CHIPS = 3;
 
@@ -28,8 +21,8 @@ const cardStyles = css`
   /*
    * The card wears its status's color the way a modern board does: a flat,
    * barely tinted face and a hairline edge in that hue, with a neutral, soft
-   * elevation. Tints are mixed in OKLCH so every hue stays clean instead of
-   * turning muddy. The tools float above the top edge on hover.
+   * elevation. Tints are mixed in OKLab so every hue stays clean instead of
+   * turning muddy.
    */
   :host {
     --card-tone: var(--usm-tone, var(--dpk-ink-faint));
@@ -37,9 +30,9 @@ const cardStyles = css`
     display: grid;
     gap: 8px;
     padding: 12px 13px;
-    border: 1px solid color-mix(in oklch, var(--card-tone) 24%, var(--dpk-rule));
+    border: 1px solid color-mix(in oklab, var(--card-tone) 24%, var(--dpk-rule));
     border-radius: 12px;
-    background: color-mix(in oklch, var(--card-tone) 6%, var(--dpk-paper-raised));
+    background: color-mix(in oklab, var(--card-tone) 6%, var(--dpk-paper-raised));
     box-shadow:
       0 1px 1px var(--dpk-shade-1),
       0 2px 6px -3px var(--dpk-shade-2);
@@ -51,7 +44,7 @@ const cardStyles = css`
   }
 
   :host(:hover) {
-    border-color: color-mix(in oklch, var(--card-tone) 45%, var(--dpk-rule));
+    border-color: color-mix(in oklab, var(--card-tone) 45%, var(--dpk-rule));
     box-shadow:
       0 1px 2px var(--dpk-shade-1),
       0 8px 20px -10px var(--dpk-shade-3);
@@ -61,7 +54,7 @@ const cardStyles = css`
   :host([focused]) {
     border-color: var(--dpk-blue);
     box-shadow:
-      0 0 0 3px color-mix(in oklch, var(--dpk-blue) 20%, transparent),
+      0 0 0 3px color-mix(in oklab, var(--dpk-blue) 20%, transparent),
       0 8px 20px -10px var(--dpk-shade-3);
   }
 
@@ -142,7 +135,7 @@ const cardStyles = css`
     min-width: 0;
     padding: 1px 7px;
     border-radius: 6px;
-    background: color-mix(in oklch, var(--card-tone) 10%, var(--dpk-paper-sunken));
+    background: color-mix(in oklab, var(--card-tone) 10%, var(--dpk-paper-sunken));
     color: var(--dpk-ink-soft);
     font-size: 10.5px;
     font-weight: 600;
@@ -177,70 +170,28 @@ const cardStyles = css`
   }
 
   .card-links .link-chip {
-    border-color: color-mix(in oklch, var(--card-tone) 16%, var(--dpk-rule));
+    border-color: color-mix(in oklab, var(--card-tone) 16%, var(--dpk-rule));
     background: var(--dpk-paper-raised);
-  }
-
-  .card-tools {
-    position: absolute;
-    top: -13px;
-    right: 8px;
-    z-index: 1;
-    display: flex;
-    gap: 1px;
-    padding: 2px;
-    border: 1px solid var(--dpk-rule-strong);
-    border-radius: var(--dpk-radius-sm);
-    background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
-    opacity: 0;
-    transform: translateY(3px);
-    pointer-events: none;
-    transition:
-      opacity 150ms ease,
-      transform 150ms var(--dpk-ease);
-  }
-
-  .card-tools .dpk-icon-btn {
-    width: 24px;
-    height: 24px;
-  }
-
-  :host(:hover) .card-tools,
-  :host(:focus-within) .card-tools,
-  :host([focused]) .card-tools,
-  :host([data-mode='commenting']) .card-tools {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
   }
 `;
 
 /**
- * `<dpk-internal-usm-story-card>` — one user story on the map.
+ * `<dpk-internal-usm-story-card>` — one user story on the map, read-only.
  *
- * The card shows a story; editing it happens in the story panel the card
- * opens on click. The card owns only what is ephemeral *to itself*: the
- * comment draft while it is typed and the placement of its composer. Which card is being edited,
- * commented on is the host's decision (`UsmUiMode`); the card
- * just renders the `mode` it is given and reports `CardIntent`s through
- * `onIntent`. It never dispatches actions.
- *
- * Drag & drop is bound by the host on this element (it is the draggable), so
- * `dragging` is a plain reflected input like `focused`.
+ * Everything about a story is edited in the story panel a click on the card
+ * opens; the host binds that click and the drag & drop on this element, so
+ * `focused` and `dragging` are plain reflected inputs.
  */
 export class DpkInternalUsmStoryCard extends LitElement {
-  static override styles = [controls, statusStyles, linkStyles, cardStyles, popoverSurface];
+  static override styles = [controls, statusStyles, linkStyles, cardStyles];
 
   static override properties = {
     story: { attribute: false },
     stepName: { attribute: false },
     statuses: { attribute: false },
     notes: { attribute: false },
-    mode: { type: String, reflect: true, attribute: 'data-mode' },
     focused: { type: Boolean, reflect: true },
     dragging: { type: Boolean, reflect: true },
-    onIntent: { attribute: false },
   };
 
   declare story: UserStory | null;
@@ -250,14 +201,9 @@ export class DpkInternalUsmStoryCard extends LitElement {
   declare statuses: readonly StatusView[];
   /** Comments already left on this story. */
   declare notes: readonly DraftAction[];
-  declare mode: CardMode;
   declare focused: boolean;
   declare dragging: boolean;
-  declare onIntent: ((intent: CardIntent) => void) | null;
 
-  /** Typed text is read on submit; the textarea owns it while typing. */
-  #draft = '';
-  readonly #popovers = new PopoverController(this);
   readonly #i18n = new LocaleController(this);
 
   constructor() {
@@ -266,28 +212,14 @@ export class DpkInternalUsmStoryCard extends LitElement {
     this.stepName = '';
     this.statuses = [];
     this.notes = [];
-    this.mode = 'view';
     this.focused = false;
     this.dragging = false;
-    this.onIntent = null;
-    this.addEventListener('click', () => this.#report({ kind: 'select' }));
-  }
-
-  protected override updated(changed: PropertyValues<this>): void {
-    if (changed.has('mode') && this.mode !== 'commenting') this.#draft = '';
-    if (this.mode !== 'commenting') return;
-    // The composer floats in the top layer so opening it never moves the card;
-    // it hangs off the comment button that opened it.
-    const composer = this.renderRoot.querySelector<HTMLElement>('.comment-pop');
-    const button = this.renderRoot.querySelector('[data-role="comment"]');
-    if (composer && button) this.#popovers.open(composer, button, COMPOSER_SIZE);
   }
 
   protected override render(): TemplateResult | typeof nothing {
     const story = this.story;
     if (!story) return nothing;
     const m = usmMessages(this.#i18n.locale);
-    const commenting = this.mode === 'commenting';
     const hasFoot = this.stepName !== '' || this.notes.length > 0;
     return html`
       <div class="card-head">
@@ -322,29 +254,6 @@ export class DpkInternalUsmStoryCard extends LitElement {
             </div>`
           : nothing
       }
-      <div class="card-tools">
-        <button
-          class="dpk-icon-btn"
-          type="button"
-          data-role="comment"
-          aria-label=${m.commentAria}
-          data-active=${String(commenting)}
-          @click=${this.#tool({ kind: 'toggle-comment' })}
-        >
-          ${iconComment()}
-          ${this.notes.length > 0 ? html`<span class="dpk-icon-badge">${this.notes.length}</span>` : nothing}
-        </button>
-        <button
-          class="dpk-icon-btn"
-          type="button"
-          data-role="delete"
-          aria-label=${m.deleteAria}
-          @click=${this.#tool({ kind: 'delete' })}
-        >
-          ${iconTrash()}
-        </button>
-      </div>
-      ${commenting ? this.#renderComposer() : nothing}
     `;
   }
 
@@ -377,31 +286,6 @@ export class DpkInternalUsmStoryCard extends LitElement {
       })}
       ${links.length > shown.length ? html`<span class="link-chip">+${links.length - shown.length}</span>` : nothing}
     </div>`;
-  }
-
-  #renderComposer(): TemplateResult {
-    return renderComposer(
-      composerMessages(this.#i18n.locale),
-      presentComposer(this.#draft, this.notes.map(commentBody), this.story ? { key: `story:${this.story.id}` } : {}),
-      (intent) => {
-        if (intent.kind === 'input') {
-          this.#draft = intent.body;
-          this.requestUpdate();
-        } else this.#report(intent);
-      },
-    );
-  }
-
-  /** Tool buttons must not also select the card. */
-  #tool(intent: CardIntent): (event: Event) => void {
-    return (event) => {
-      event.stopPropagation();
-      this.#report(intent);
-    };
-  }
-
-  #report(intent: CardIntent): void {
-    this.onIntent?.(intent);
   }
 }
 

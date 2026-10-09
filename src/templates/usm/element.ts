@@ -25,7 +25,7 @@ import { panelStoryOf, renderStoryPanel, storyPanelStyles } from './render/story
 import { statusStyles } from './render/tone';
 import { presentStatusOverview } from './status-overview';
 import { usmStyles } from './styles';
-import { IDLE_MODE, reduceCardIntent, type CardIntent, type UsmUiMode } from './ui-mode';
+import { IDLE_MODE, type UsmUiMode } from './ui-mode';
 
 const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
 const ICON_MENU_SIZE = { width: 228, height: 116 };
@@ -128,10 +128,9 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     return renderBoard({
       m,
       context,
-      mode: this.mode,
       drag: this.#drag,
       handlers: {
-        cardIntent: (storyId, intent) => this.#onCardIntent(storyId, intent),
+        selectStory: (storyId) => this.#onSelectStory(storyId),
         dropOnCell: (cell, drop) => this.#onCellDrop(cell, drop),
         dropOnGroupCell: (activityId, milestoneId, drop) => this.#onGroupDrop(activityId, milestoneId, drop),
         dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
@@ -139,26 +138,11 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     });
   }
 
-  /** A card asked for something: apply the side effect, then the mode transition. */
-  #onCardIntent(storyId: string, intent: CardIntent): void {
+  /** A click on a card opens its story in the panel. */
+  #onSelectStory(storyId: string): void {
     const context = this.context();
-    switch (intent.kind) {
-      case 'select': {
-        const story = findStory(context.state, storyId);
-        if (story) context.navigate({ step: story.stepId, story: story.id });
-        break;
-      }
-      case 'comment':
-        context.dispatch({ type: 'comment', target: `story:${storyId}`, payload: { body: intent.body } });
-        break;
-      case 'delete':
-        context.dispatch({ type: 'DELETE_STORY', target: { type: 'story', id: storyId }, payload: {} });
-        break;
-      case 'toggle-comment':
-      case 'dismiss':
-        break;
-    }
-    this.mode = reduceCardIntent(this.mode, storyId, intent);
+    const story = findStory(context.state, storyId);
+    if (story) context.navigate({ step: story.stepId, story: story.id });
   }
 
   #onCellDrop(cell: CellRef, drop: Drop<'story'>): void {

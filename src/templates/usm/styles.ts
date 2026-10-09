@@ -136,7 +136,7 @@ export const usmStyles = css`
       border-color 140ms var(--dpk-ease);
   }
   .filter-chip:hover {
-    border-color: color-mix(in oklch, var(--usm-tone) 60%, var(--dpk-rule-strong));
+    border-color: color-mix(in oklab, var(--usm-tone) 60%, var(--dpk-rule-strong));
   }
   .filter-chip:focus-visible {
     outline: none;
@@ -144,7 +144,7 @@ export const usmStyles = css`
   }
   .filter-chip[aria-checked='true'] {
     border-color: var(--usm-tone);
-    background: color-mix(in oklch, var(--usm-tone) 14%, var(--dpk-paper-raised));
+    background: color-mix(in oklab, var(--usm-tone) 14%, var(--dpk-paper-raised));
     box-shadow: inset 0 0 0 1px var(--usm-tone);
   }
   .filter-count {
@@ -916,8 +916,8 @@ export const usmStyles = css`
     background: var(--dpk-paper-inset);
   }
   .icon-option[aria-checked='true'] {
-    border-color: color-mix(in oklch, var(--usm-tone) 55%, transparent);
-    background: color-mix(in oklch, var(--usm-tone) 12%, transparent);
+    border-color: color-mix(in oklab, var(--usm-tone) 55%, transparent);
+    background: color-mix(in oklab, var(--usm-tone) 12%, transparent);
   }
   .st-tone {
     width: 18px;

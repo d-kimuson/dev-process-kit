@@ -128,7 +128,7 @@ export const statusStyles = css`
     fill: var(--usm-tone);
   }
   .status-icon .si-tint {
-    fill: color-mix(in oklch, var(--usm-tone) 22%, transparent);
+    fill: color-mix(in oklab, var(--usm-tone) 22%, transparent);
   }
   .status-icon .si-knock {
     stroke: var(--dpk-paper-raised);

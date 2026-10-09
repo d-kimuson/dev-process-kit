@@ -27,14 +27,14 @@ import {
   toggleStatusFilter,
   type StatusView,
 } from '../status-view';
-import { cardModeOf, type CardIntent, type UsmUiMode } from '../ui-mode';
 import { statusBar, statusIcon, statusToneStyle } from './tone';
 
 /** The two kinds of things that move on the board. */
 export type UsmDragType = 'story' | 'milestone';
 
 export type BoardHandlers = {
-  readonly cardIntent: (storyId: string, intent: CardIntent) => void;
+  /** A card was clicked: open its story in the panel. */
+  readonly selectStory: (storyId: string) => void;
   readonly dropOnCell: (cell: CellRef, drop: Drop<'story'>) => void;
   readonly dropOnGroupCell: (activityId: string, milestoneId: string | undefined, drop: Drop<'story'>) => void;
   readonly dropOnMilestoneRow: (milestoneId: string, drop: Drop<'milestone'>) => void;
@@ -43,7 +43,6 @@ export type BoardHandlers = {
 export type BoardProps = {
   readonly m: UsmMessages;
   readonly context: TemplateRenderContext<UsmState>;
-  readonly mode: UsmUiMode;
   readonly drag: DragController<UsmDragType>;
   readonly handlers: BoardHandlers;
 };
@@ -569,7 +568,7 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
  * `stepName` names the step where the column does not (the group view).
  */
 const renderCard = (props: BoardProps, story: UserStory, stepName: string): TemplateResult => {
-  const { context, mode, drag, handlers } = props;
+  const { context, drag, handlers } = props;
   const views = statusViews(context.state);
   const notes = context.comments.filter((c) => c.target.type === 'story' && c.target.id === story.id);
   const source = drag.source({ type: 'story', id: story.id });
@@ -582,8 +581,7 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     .stepName=${stepName}
     .statuses=${views}
     .notes=${notes}
-    .mode=${cardModeOf(mode, story.id)}
-    .onIntent=${(intent: CardIntent) => handlers.cardIntent(story.id, intent)}
+    @click=${() => handlers.selectStory(story.id)}
     ?focused=${context.navigation['story'] === story.id}
     ?dragging=${drag.isDragging('story', story.id)}
     @dragstart=${source.dragstart}

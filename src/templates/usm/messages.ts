@@ -131,10 +131,6 @@ export const usmMessages = defineMessages({
     moveCancel: 'Cancel',
 
     // ----------------------------------------------------------- story card
-    storyNameLabel: 'Story name',
-    editTitleAria: 'Edit title',
-    commentAria: 'Comment',
-    deleteAria: 'Delete',
     storyStatusLabel: 'Status',
     panelLabel: (name: string) => `Story: ${name}`,
     closePanelAria: 'Close',
@@ -145,6 +141,8 @@ export const usmMessages = defineMessages({
     addLinkButton: 'Add',
     removeLinkAria: (label: string) => `Remove ${label}`,
     deleteStoryButton: 'Delete story',
+    storyCommentsLabel: 'Comments',
+    commentSubmit: 'Comment',
     storyStatusAria: (name: string) => `Status: ${name}`,
 
     // -------------------------------------------------------------- commands
@@ -273,10 +271,6 @@ export const usmMessages = defineMessages({
     moveConfirm: '移動する',
     moveCancel: 'キャンセル',
 
-    storyNameLabel: 'ストーリー名',
-    editTitleAria: 'タイトルを編集',
-    commentAria: 'コメント',
-    deleteAria: '削除',
     storyStatusLabel: 'ステータス',
     panelLabel: (name: string) => `ストーリー: ${name}`,
     closePanelAria: '閉じる',
@@ -287,6 +281,8 @@ export const usmMessages = defineMessages({
     addLinkButton: '追加',
     removeLinkAria: (label: string) => `${label} を外す`,
     deleteStoryButton: 'ストーリーを削除',
+    storyCommentsLabel: 'コメント',
+    commentSubmit: 'コメントする',
     storyStatusAria: (name: string) => `ステータス: ${name}`,
 
     newActivityName: '新しいアクティビティ',

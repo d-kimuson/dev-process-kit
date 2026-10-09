@@ -4,6 +4,7 @@ import * as v from 'valibot';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { UsmMessages } from '../messages';
 
+import { commentBody } from '../../../core/comment';
 import { iconClose, iconTrash } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { describeLink } from '../../../lib/link-label';
@@ -76,7 +77,7 @@ export const renderStoryPanel = (
           )}
         ></dpk-component-inline-edit>
       </section>
-      ${renderLinksField(m, context, story)}
+      ${renderLinksField(m, context, story)} ${renderComments(m, context, story)}
     </div>
     <footer class="sp-foot">
       <button
@@ -193,6 +194,55 @@ const renderLinksField = (
   </section>`;
 };
 
+/**
+ * The story's comments, oldest first, and a field to add one. A comment is a
+ * draft action like any other, so it reaches the agent with the rest.
+ */
+const renderComments = (m: UsmMessages, context: TemplateRenderContext<UsmState>, story: UserStory): TemplateResult => {
+  const notes = context.comments.filter((note) => note.target.type === 'story' && note.target.id === story.id);
+  const send = (form: HTMLFormElement): void => {
+    const field = form.querySelector('textarea');
+    const body = field?.value.trim() ?? '';
+    if (!field || body === '') return;
+    // The text stays in the field unless the comment was taken.
+    const outcome = context.dispatch({ type: 'comment', target: `story:${story.id}`, payload: { body } });
+    if (outcome.ok) field.value = '';
+  };
+  return html`<section class="sp-field sp-comments">
+    <h3>${m.storyCommentsLabel}${notes.length > 0 ? html`<span class="sp-count">${notes.length}</span>` : nothing}</h3>
+    ${
+      notes.length === 0
+        ? nothing
+        : html`<ol class="sp-comment-list">
+            ${notes.map((note) => html`<li>${commentBody(note)}</li>`)}
+          </ol>`
+    }
+    <form
+      class="sp-comment-form"
+      @submit=${(event: Event) => {
+        event.preventDefault();
+        if (event.currentTarget instanceof HTMLFormElement) send(event.currentTarget);
+      }}
+    >
+      <textarea
+        class="dpk-textarea"
+        rows="3"
+        aria-label=${m.storyCommentsLabel}
+        data-dpk-text-key=${`story:${story.id}`}
+        @keydown=${(event: KeyboardEvent) => {
+          if (event.isComposing || event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
+          event.preventDefault();
+          const form = event.currentTarget instanceof HTMLElement ? event.currentTarget.closest('form') : null;
+          if (form) send(form);
+        }}
+      ></textarea>
+      <div class="sp-comment-actions">
+        <button class="dpk-btn dpk-btn--accent" type="submit">${m.commentSubmit}</button>
+      </div>
+    </form>
+  </section>`;
+};
+
 export const storyPanelStyles = css`
   .story-panel {
     position: fixed;
@@ -292,7 +342,7 @@ export const storyPanelStyles = css`
       border-color 140ms var(--dpk-ease);
   }
   .sp-status:hover {
-    border-color: color-mix(in oklch, var(--usm-tone) 60%, var(--dpk-rule-strong));
+    border-color: color-mix(in oklab, var(--usm-tone) 60%, var(--dpk-rule-strong));
   }
   .sp-status:focus-visible {
     outline: none;
@@ -300,7 +350,7 @@ export const storyPanelStyles = css`
   }
   .sp-status[aria-checked='true'] {
     border-color: var(--usm-tone);
-    background: color-mix(in oklch, var(--usm-tone) 14%, var(--dpk-paper-raised));
+    background: color-mix(in oklab, var(--usm-tone) 14%, var(--dpk-paper-raised));
     box-shadow: inset 0 0 0 1px var(--usm-tone);
   }
   .sp-description {
@@ -373,6 +423,40 @@ export const storyPanelStyles = css`
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--dpk-accent) 22%, transparent);
   }
   /* The handoff dock floats at the bottom right, so the footer keeps left. */
+  .sp-field h3 .sp-count {
+    margin-left: 6px;
+    font-family: var(--dpk-mono);
+    letter-spacing: 0;
+  }
+  .sp-comment-list {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .sp-comment-list li {
+    padding: 8px 11px;
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-sunken);
+    color: var(--dpk-ink);
+    font-size: 12.5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .sp-comment-form {
+    display: grid;
+    gap: 6px;
+  }
+  .sp-comment-form textarea {
+    resize: vertical;
+    min-height: 64px;
+  }
+  .sp-comment-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
   .sp-foot {
     display: flex;
     justify-content: flex-start;

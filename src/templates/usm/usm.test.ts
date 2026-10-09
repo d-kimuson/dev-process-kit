@@ -1,11 +1,10 @@
-import { LitElement } from 'lit';
+import { type LitElement } from 'lit';
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { DraftAction } from '../../core/types';
 import type { DpkTemplateUsm } from './element';
 
-import { composerMessages } from '../../components/comment-composer/messages';
 import { DpkComponentInlineEdit } from '../../components/inline-edit';
 import { applyUsmAction } from './apply';
 import '../../index';
@@ -16,7 +15,6 @@ import { parseUsmBase } from './model';
 
 const usmDefinition = usmDefinitionFor('en');
 const m = usmMessages('en');
-const composerM = composerMessages('en');
 
 const base = {
   title: 'Map',
@@ -320,40 +318,34 @@ describe('usm template', () => {
       (c) => c.querySelectorAll('dpk-internal-usm-story-card').length === 0 && c.textContent?.includes(m.addCellButton),
     );
     expect(emptyCell?.textContent).not.toContain('空マス');
-    // Two icon-only buttons per card: comment, delete (editing is in the story panel).
+    // A card has no tools of its own: a click opens the story panel, where it is edited and commented on.
     // (Moving across activities goes through the drop-triggered dialog.)
     const cards = root.querySelectorAll('dpk-internal-usm-story-card');
     expect(cards.length).toBe(2);
     await Promise.all([...cards].map((card) => (card as LitElement).updateComplete));
-    const buttons = cards[0]!.shadowRoot!.querySelectorAll('.dpk-icon-btn');
-    expect(buttons.length).toBe(2);
-    expect([...buttons].every((b) => b.textContent?.trim() === '' && !!b.getAttribute('aria-label'))).toBe(true);
+    expect(cards[0]!.shadowRoot!.querySelectorAll('button')).toHaveLength(0);
     // the step column already names the step
     expect(cards[0]!.shadowRoot!.querySelector('[data-kind="step"]')).toBeNull();
     expect((cards[0] as HTMLElement).style.getPropertyValue('--usm-tone').trim()).toBe('var(--dpk-ink-faint)');
-    // Open the comment composer and dispatch a comment for that story.
-    const cardBefore = cards[0]!.getBoundingClientRect().height;
-    (buttons[0] as HTMLButtonElement).click();
-    await el.updateComplete;
-    await (cards[0] as LitElement).updateComplete;
-    const composer = cards[0]!.shadowRoot!.querySelector('.comment-pop');
-    expect(composer).not.toBeNull();
-    // only the clicked card is in commenting mode
-    expect(cards[0]!.getAttribute('data-mode')).toBe('commenting');
-    expect(cards[1]!.getAttribute('data-mode')).toBe('view');
-    // The tooltip must not move the card.
-    expect(cards[0]!.getBoundingClientRect().height).toBe(cardBefore);
-    const textarea = composer!.querySelector('textarea')!;
+    (cards[0] as HTMLElement).click();
+    await settle(el);
+    const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
+    expect(panel.getAttribute('data-story')).toBe('u1');
+    const form = panel.querySelector('form.sp-comment-form') as HTMLFormElement;
+    const textarea = form.querySelector('textarea')!;
+    // an empty comment is not sent
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(el.api.actions.filter((a) => a.type === 'comment')).toHaveLength(0);
     textarea.value = 'hello';
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    if (cards[0] instanceof LitElement) await cards[0].updateComplete;
-    const send = Array.from(composer!.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes(composerM.submit),
-    )!;
-    expect(send).toBeTruthy();
-    send.click();
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
     await settle(el);
     expect(el.api.actions.some((a) => a.type === 'comment' && a.target.id === 'u1')).toBe(true);
+    expect(textarea.value).toBe('');
+    const thread = root.querySelector('[data-testid="usm-story-panel"] .sp-comment-list')!;
+    expect([...thread.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['hello']);
+    // the card counts the comments left on it
+    await (cards[0] as LitElement).updateComplete;
+    expect(cards[0]!.shadowRoot!.querySelector('[data-kind="comments"]')?.textContent?.trim()).toBe('1');
     // Navigation follows.
     el.api.navigate({ step: 's2', story: 'u2' });
     await settle(el);
