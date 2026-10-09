@@ -1,4 +1,4 @@
-import { html, type TemplateResult } from 'lit';
+import { html, nothing, type TemplateResult } from 'lit';
 
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
@@ -16,10 +16,12 @@ import { usmMessages, type UsmMessages } from './messages';
 import { presentMilestoneOverview } from './milestone-overview';
 import { findStory, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
+import { linkStyles } from './render/link-icon';
 import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
 import { renderBoardBar } from './render/page-tabs';
 import { renderStatusOverview } from './render/status-overview';
+import { panelStoryOf, renderStoryPanel, storyPanelStyles } from './render/story-panel';
 import { statusStyles } from './render/tone';
 import { presentStatusOverview } from './status-overview';
 import { usmStyles } from './styles';
@@ -37,7 +39,14 @@ const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
  * `components/`, and every drop decision in `drop.ts`.
  */
 export class DpkTemplateUsm extends TemplateElement<UsmState> {
-  static override styles = [TemplateElement.styles, usmStyles, statusStyles, popoverSurface];
+  static override styles = [
+    TemplateElement.styles,
+    usmStyles,
+    statusStyles,
+    linkStyles,
+    storyPanelStyles,
+    popoverSurface,
+  ];
 
   protected override definitionFor(locale: Locale) {
     return usmDefinitionFor(locale);
@@ -74,12 +83,19 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     const m = usmMessages(this.locale);
     const tab = usmTabOf(context.navigation);
     return html`
-      ${renderBoardBar(m, context, tab)} ${this.#renderTab(m, context, tab)}
+      ${renderBoardBar(m, context, tab)} ${this.#renderTab(m, context, tab)} ${this.#renderPanel(m, context, tab)}
       ${renderMoveDialog(m, context, this.mode, {
         confirm: (stepId) => this.#confirmPickedStep(stepId),
         cancel: () => (this.mode = IDLE_MODE),
       })}
     `;
+  }
+
+  /** The story panel, on the map only: the stories live there. */
+  #renderPanel(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult | typeof nothing {
+    if (tab !== 'map') return nothing;
+    const story = panelStoryOf(context);
+    return story ? renderStoryPanel(m, context, story) : nothing;
   }
 
   #renderTab(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult {
@@ -117,29 +133,13 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         if (story) context.navigate({ step: story.stepId, story: story.id });
         break;
       }
-      case 'rename':
-        context.dispatch({
-          type: 'SET_STORY_NAME',
-          target: { type: 'story', id: storyId },
-          payload: { name: intent.name },
-        });
-        break;
-      case 'set-status':
-        context.dispatch({
-          type: 'SET_STORY_STATUS',
-          target: { type: 'story', id: storyId },
-          payload: { statusId: intent.statusId },
-        });
-        break;
       case 'comment':
         context.dispatch({ type: 'comment', target: `story:${storyId}`, payload: { body: intent.body } });
         break;
       case 'delete':
         context.dispatch({ type: 'DELETE_STORY', target: { type: 'story', id: storyId }, payload: {} });
         break;
-      case 'toggle-edit':
       case 'toggle-comment':
-      case 'toggle-status':
       case 'dismiss':
         break;
     }

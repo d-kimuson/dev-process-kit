@@ -34,6 +34,25 @@ export const STATUS_TONES = ['gray', 'blue', 'violet', 'green', 'amber', 'accent
 export type StatusTone = (typeof STATUS_TONES)[number];
 
 /**
+ * Icons a status may show. `progress` is a ring that fills up with the
+ * status's place in the workflow (a check at the end); the rest are fixed.
+ */
+export const STATUS_ICONS = [
+  'progress',
+  'circle',
+  'lightbulb',
+  'flag',
+  'play',
+  'clock',
+  'eye',
+  'pause',
+  'check',
+  'x',
+] as const;
+
+export type StatusIcon = (typeof STATUS_ICONS)[number];
+
+/**
  * Where a story stands (`Idea`, `Ready`, `Done` …). The set is data, so the
  * author and the reader decide which statuses the map has.
  */
@@ -41,6 +60,14 @@ export type StoryStatus = {
   readonly id: string;
   readonly name: string;
   readonly tone: StatusTone;
+  readonly icon: StatusIcon;
+};
+
+/** Something the story points at: an issue, a pull request, a design, a doc. */
+export type StoryLink = {
+  readonly url: string;
+  /** Shown instead of the label derived from the URL. */
+  readonly label?: string;
 };
 
 export type UserStory = {
@@ -52,6 +79,7 @@ export type UserStory = {
   readonly milestoneId?: string;
   /** Omitted = no status yet. */
   readonly statusId?: string;
+  readonly links?: readonly StoryLink[];
 };
 
 export type UsmState = {
@@ -76,10 +104,19 @@ const milestoneSchema = v.strictObject({
   description: v.exactOptional(v.string()),
 });
 export const statusToneSchema = v.picklist(STATUS_TONES);
+export const statusIconSchema = v.picklist(STATUS_ICONS);
+/** Only web links: a story never points at `javascript:` or a local file. */
+export const linkUrlSchema = v.pipe(
+  v.string(),
+  v.url(),
+  v.check((url) => /^https?:\/\//i.test(url), 'a link must be an http(s) URL'),
+);
+const linkSchema = v.strictObject({ url: linkUrlSchema, label: v.exactOptional(v.pipe(v.string(), v.minLength(1))) });
 const statusSchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   tone: v.optional(statusToneSchema),
+  icon: v.optional(statusIconSchema),
 });
 const storySchema = v.strictObject({
   id: entityIdSchema,
@@ -89,6 +126,7 @@ const storySchema = v.strictObject({
   stepId: v.pipe(v.string(), v.minLength(1)),
   milestoneId: v.exactOptional(v.string()),
   statusId: v.exactOptional(v.string()),
+  links: v.exactOptional(v.array(linkSchema)),
 });
 
 export const usmBaseSchema = v.strictObject({
@@ -106,7 +144,11 @@ export const parseUsmBase = (input: unknown): UsmState => {
   const raw = v.parse(usmBaseSchema, input);
   const parsed: UsmState = {
     ...raw,
-    statuses: raw.statuses.map((status, index) => ({ ...status, tone: status.tone ?? defaultStatusTone(index) })),
+    statuses: raw.statuses.map((status, index) => ({
+      ...status,
+      tone: status.tone ?? defaultStatusTone(index),
+      icon: status.icon ?? 'progress',
+    })),
   };
   const stepIds = new Map<string, string>();
   for (const activity of parsed.activities) {
@@ -134,6 +176,8 @@ export const parseUsmBase = (input: unknown): UsmState => {
     if (story.milestoneId !== undefined && !milestoneIds.has(story.milestoneId)) {
       throw new Error(`story "${story.id}" references unknown milestoneId "${story.milestoneId}"`);
     }
+    const urls = (story.links ?? []).map((link) => link.url);
+    if (new Set(urls).size !== urls.length) throw new Error(`story "${story.id}" links the same URL twice`);
     if (story.statusId !== undefined && !statusIds.has(story.statusId)) {
       throw new Error(`story "${story.id}" references unknown statusId "${story.statusId}"`);
     }

@@ -320,20 +320,20 @@ describe('usm template', () => {
       (c) => c.querySelectorAll('dpk-internal-usm-story-card').length === 0 && c.textContent?.includes(m.addCellButton),
     );
     expect(emptyCell?.textContent).not.toContain('空マス');
-    // Three icon-only buttons per card: edit, comment, delete.
+    // Two icon-only buttons per card: comment, delete (editing is in the story panel).
     // (Moving across activities goes through the drop-triggered dialog.)
     const cards = root.querySelectorAll('dpk-internal-usm-story-card');
     expect(cards.length).toBe(2);
     await Promise.all([...cards].map((card) => (card as LitElement).updateComplete));
     const buttons = cards[0]!.shadowRoot!.querySelectorAll('.dpk-icon-btn');
-    expect(buttons.length).toBe(3);
+    expect(buttons.length).toBe(2);
     expect([...buttons].every((b) => b.textContent?.trim() === '' && !!b.getAttribute('aria-label'))).toBe(true);
     // the step column already names the step
     expect(cards[0]!.shadowRoot!.querySelector('[data-kind="step"]')).toBeNull();
     expect((cards[0] as HTMLElement).style.getPropertyValue('--usm-tone').trim()).toBe('var(--dpk-ink-faint)');
     // Open the comment composer and dispatch a comment for that story.
     const cardBefore = cards[0]!.getBoundingClientRect().height;
-    (buttons[1] as HTMLButtonElement).click();
+    (buttons[0] as HTMLButtonElement).click();
     await el.updateComplete;
     await (cards[0] as LitElement).updateComplete;
     const composer = cards[0]!.shadowRoot!.querySelector('.comment-pop');

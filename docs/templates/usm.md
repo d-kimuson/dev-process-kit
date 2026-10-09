@@ -30,9 +30,9 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
   ],
   "milestones": [{ "id": "mvp", "name": "MVP", "timeframe": "2026年10月", "description": "必要最低限の機能群" }],
   "statuses": [
-    { "id": "idea", "name": "Idea", "tone": "gray" },
-    { "id": "ready", "name": "Ready", "tone": "amber" },
-    { "id": "done", "name": "Done", "tone": "green" }
+    { "id": "idea", "name": "Idea", "tone": "gray", "icon": "lightbulb" },
+    { "id": "ready", "name": "Ready", "tone": "amber", "icon": "play" },
+    { "id": "done", "name": "Done", "tone": "green", "icon": "check" }
   ],
   "stories": [
     {
@@ -41,29 +41,32 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
       "activityId": "onboarding",
       "stepId": "signup",
       "milestoneId": "mvp",
-      "statusId": "ready"
+      "statusId": "ready",
+      "links": [{ "url": "https://github.com/acme/web/issues/86" }]
     },
     { "id": "public-page", "name": "公開ページとして読む", "activityId": "onboarding", "stepId": "landing" }
   ]
 }
 ```
 
-| Field                             | Required | Notes                                                                                                                                                                 |
-| --------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `title`                           | no       | ページのヘッダーに表示される                                                                                                                                          |
-| `activities[].id` / `name`        | yes      | バックボーンの最上段。id は `[A-Za-z0-9_-]+`                                                                                                                          |
-| `activities[].actor`              | no       | 誰の体験か（`管理者`、`一般ユーザー` など）。アクティビティグループの見出しにラベルとして出る                                                                         |
-| `activities[].steps[]`            | no       | 既定は `[]`。各要素は `id` / `name` が必須                                                                                                                            |
-| `milestones[].id` / `name`        | yes      | 水平スライス。空配列でもよい（「Unassigned」行は常にある）                                                                                                            |
-| `milestones[].timeframe`          | no       | 時期（自由記述。`2026年10月`、`Q4` など）。行ヘッダとマイルストーンタブに出る                                                                                         |
-| `milestones[].description`        | no       | そのスライスが何を表すか。マイルストーンタブに出る                                                                                                                    |
-| `statuses[].id` / `name`          | yes      | ストーリーの進み具合（`Idea` / `Ready` / `Done` など）。省略 = `[]`（ステータスを使わない）                                                                           |
-| `statuses[].tone`                 | no       | カードの色（色はステータスだけを表し、アクティビティには色をつけない）。`gray` / `blue` / `violet` / `green` / `amber` / `accent`。省略時は並び順でこの順に割り当てる |
-| `stories[].id` / `name`           | yes      | カードの見出し。id は `[A-Za-z0-9_-]+`                                                                                                                                |
-| `stories[].activityId` / `stepId` | yes      | 所属する列。`stepId` の持ち主と `activityId` が一致しないと reject                                                                                                    |
-| `stories[].milestoneId`           | no       | 省略 = Unassigned 行。存在しない id は reject                                                                                                                         |
-| `stories[].description`           | no       | カードに読み取り専用で表示される                                                                                                                                      |
-| `stories[].statusId`              | no       | 省略 = ステータスなし。存在しない id は reject                                                                                                                        |
+| Field                             | Required | Notes                                                                                                                                                                  |
+| --------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`                           | no       | ページのヘッダーに表示される                                                                                                                                           |
+| `activities[].id` / `name`        | yes      | バックボーンの最上段。id は `[A-Za-z0-9_-]+`                                                                                                                           |
+| `activities[].actor`              | no       | 誰の体験か（`管理者`、`一般ユーザー` など）。アクティビティグループの見出しにラベルとして出る                                                                          |
+| `activities[].steps[]`            | no       | 既定は `[]`。各要素は `id` / `name` が必須                                                                                                                             |
+| `milestones[].id` / `name`        | yes      | 水平スライス。空配列でもよい（「Unassigned」行は常にある）                                                                                                             |
+| `milestones[].timeframe`          | no       | 時期（自由記述。`2026年10月`、`Q4` など）。行ヘッダとマイルストーンタブに出る                                                                                          |
+| `milestones[].description`        | no       | そのスライスが何を表すか。マイルストーンタブに出る                                                                                                                     |
+| `statuses[].id` / `name`          | yes      | ストーリーの進み具合（`Idea` / `Ready` / `Done` など）。省略 = `[]`（ステータスを使わない）                                                                            |
+| `statuses[].tone`                 | no       | カードの色（色はステータスだけを表し、アクティビティには色をつけない）。`gray` / `blue` / `violet` / `green` / `amber` / `accent`。省略時は並び順でこの順に割り当てる  |
+| `stories[].id` / `name`           | yes      | カードの見出し。id は `[A-Za-z0-9_-]+`                                                                                                                                 |
+| `stories[].activityId` / `stepId` | yes      | 所属する列。`stepId` の持ち主と `activityId` が一致しないと reject                                                                                                     |
+| `stories[].milestoneId`           | no       | 省略 = Unassigned 行。存在しない id は reject                                                                                                                          |
+| `stories[].description`           | no       | カードに読み取り専用で表示される                                                                                                                                       |
+| `statuses[].icon`                 | no       | アイコン。`progress`（既定。ワークフロー上の位置で埋まるリング、最後はチェック）/ `circle` / `lightbulb` / `flag` / `play` / `clock` / `eye` / `pause` / `check` / `x` |
+| `stories[].links[]`               | no       | `{ "url", "label"? }`。http(s) の URL のみ、同じ URL は 1 ストーリーに 1 回。カードとストーリーパネルにリンクのラベルとして出る                                        |
+| `stories[].statusId`              | no       | 省略 = ステータスなし。存在しない id は reject                                                                                                                         |
 
 存在しない `activityId` / `stepId` / `milestoneId` / `statusId` を参照するストーリーは reject される。`activities` / `steps` / `milestones` / `statuses` / `stories` をまたぐ id の重複も reject される。
 
@@ -94,10 +97,13 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 | `ADD_MILESTONE`         | page      | `{ "id", "name" }`                                                                   |
 | `DELETE_MILESTONE`      | milestone | `{}`（所属ストーリーは Unassigned へ退避、削除しない）                               |
 | `REORDER_MILESTONE`     | milestone | `{ "after": string \| null }`                                                        |
+| `ADD_STORY_LINK`        | story     | `{ "url": string, "label"?: string }`（http(s) のみ。同じ URL は追加済みとして扱う） |
+| `REMOVE_STORY_LINK`     | story     | `{ "url": string }`                                                                  |
 | `SET_STORY_STATUS`      | story     | `{ "statusId": string \| null }`（`null` = ステータスなしへ）                        |
 | `ADD_STATUS`            | page      | `{ "id", "name", "tone" }`                                                           |
 | `SET_STATUS_NAME`       | status    | `{ "name": string }`                                                                 |
 | `SET_STATUS_TONE`       | status    | `{ "tone": "gray" \| "blue" \| "violet" \| "green" \| "amber" \| "accent" }`         |
+| `SET_STATUS_ICON`       | status    | `{ "icon": "progress" \| "circle" \| "lightbulb" \| … }`（`statuses[].icon` の値）   |
 | `DELETE_STATUS`         | status    | `{}`（そのステータスのストーリーは「ステータスなし」へ退避、削除しない）             |
 | `REORDER_STATUS`        | status    | `{ "after": string \| null }`                                                        |
 
@@ -116,7 +122,7 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 
 - `view` は表のまとめ単位で、`activity`（アクティビティごとの列 + group band、既定）か `group`（アクティビティグループごとに 1 列、step 分割なし）。表の上のタブで切り替える。
 - `group` ビューでは step を特定できないため、他アクティビティへのドロップではその場で step を選ぶ dialog が開く。milestone はドロップした位置のもので、移動先セルの末尾に置かれる。同じアクティビティ内のドロップは、ドラッグ中のストーリーの step を保ったまま milestone と順序だけを変える。
-- `step` の選択はその列をハイライトし、`story` の選択はカードをフォーカスする。
+- `step` の選択はその列をハイライトし、`story` の選択はカードをフォーカスして、マップの右にストーリーパネルを開く。パネルを閉じると `story` は外れる。
 
 ## UI provided by the template
 
@@ -134,9 +140,11 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 | セル                 | カード一覧（ステータスアイコン・名前・説明（2 行まで）・`group` ビューではステップ名とコメント数のフッター。編集はカード上部に浮くツールの鉛筆から）＋ 底部の `+ Add` ボタン。カードの色はステータスの色（ステータスがない / 未設定はグレー）。ステータスアイコンはワークフロー上の位置で埋まっていくリング（最後のステータスはチェック、未設定は破線）で、押すとステータスのメニューが開く                                                                |
 | マイルストーンタブ   | 各マイルストーンが何かを知るための定義を、マップの行順に縦のタイムラインで並べる（左に時期、1 本のレールに順番つきのノード、右に中身）。名前（inline-edit 可能）、説明、ストーリー数と全体に占める割合、バックボーンのステップをどれだけ含むか、ステータスがあればそのスライスのステータス構成（ステータス色の積み上げバーと凡例）。時期がなければ「時期未定」と出る。ストーリーカードは出さない（ストーリーはマップで扱う）。レールの末尾に `+ Milestone` |
 
-| ステータスタブ | ステータスを順に 1 行ずつ並べる。アイコン、名前（inline-edit 可能）、そのステータスのストーリー数と全体に占める割合、色の選択、上下の並び替え、削除。最終行に「ステータスなし」のストーリー数。末尾に `+ Status` |
+| ステータスタブ | ステータスを順に 1 行ずつ並べる。アイコン（選択可能）、名前（inline-edit 可能）、そのステータスのストーリー数と全体に占める割合、色の選択、上下の並び替え、削除。最終行に「ステータスなし」のストーリー数。末尾に `+ Status` |
 
-UI から編集できるのはストーリー名（inline-edit）、セルごとの追加、アクティビティ名 / actor / ステップ名 / マイルストーン名の変更とマイルストーンの並び替え、カードのドラッグ移動、カードの削除、カード上のコメント、カードのステータス、ステータスの追加・改名・色・並び替え・削除。
+UI から編集できるのはストーリー名・説明・ステータス・リンク（ストーリーパネル）、セルごとの追加、アクティビティ名 / actor / ステップ名 / マイルストーン名の変更とマイルストーンの並び替え、カードのドラッグ移動、カードの削除、カード上のコメント、ステータスの追加・改名・色・アイコン・並び替え・削除。
+
+リンクのラベルは URL から作る: GitHub の issue / PR は `#86`、GitLab は `#3` / `!7`、Jira（`*.atlassian.net`）と Linear は `PROJ-123`、Figma はファイル名、Notion はページ名、それ以外はホスト名。それぞれのサービスのアイコンがつく。`label` を書けばその文字列が優先される。
 
 ドラッグの並び替えは、同じ並び（同じ行 / 同じセル）の中ではドロップした要素の位置を取る（下へ動かせばその後ろ、上へ動かせばその前。要素のどこに落としても同じ）。別のセルから来たカードは、ドロップした要素の中央より上ならその前、下ならその後ろ、空き領域なら末尾に入る。
 

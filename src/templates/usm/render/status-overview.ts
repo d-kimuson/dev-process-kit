@@ -8,7 +8,7 @@ import type { StatusOverview, StatusRow } from '../status-overview';
 import { iconTrash } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { addStatus } from '../commands';
-import { STATUS_TONES, type UsmState } from '../model';
+import { STATUS_ICONS, STATUS_TONES, type UsmState } from '../model';
 import { statusIcon, statusToneStyle } from './tone';
 
 /**
@@ -59,7 +59,7 @@ const renderStatusRow = (m: UsmMessages, context: TemplateRenderContext<UsmState
   };
   return html`
     <li class="st-row" data-status=${row.id} style=${statusToneStyle(row.tone)}>
-      ${statusIcon(row.progress)}
+      ${statusIcon(row)}
       <span class="st-name">
         <dpk-component-inline-edit
           .value=${row.name}
@@ -68,22 +68,42 @@ const renderStatusRow = (m: UsmMessages, context: TemplateRenderContext<UsmState
         ></dpk-component-inline-edit>
       </span>
       ${renderShare(m, row.storyCount, row.share)}
-      <span class="st-tones" role="radiogroup" aria-label=${m.statusToneLabel}>
-        ${STATUS_TONES.map(
-          (tone) => html`<button
-            class="st-tone"
-            type="button"
-            role="radio"
-            data-tone=${tone}
-            style=${statusToneStyle(tone)}
-            title=${m.toneName(tone)}
-            aria-label=${m.toneName(tone)}
-            aria-checked=${tone === row.tone ? 'true' : 'false'}
-            @click=${() => {
-              if (tone !== row.tone) context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } });
-            }}
-          ></button>`,
-        )}
+      <span class="st-pickers">
+        <span class="st-icons" role="radiogroup" aria-label=${m.statusIconLabel}>
+          ${STATUS_ICONS.map(
+            (icon) => html`<button
+              class="st-icon"
+              type="button"
+              role="radio"
+              data-icon=${icon}
+              title=${m.iconName(icon)}
+              aria-label=${m.iconName(icon)}
+              aria-checked=${icon === row.icon ? 'true' : 'false'}
+              @click=${() => {
+                if (icon !== row.icon) context.dispatch({ type: 'SET_STATUS_ICON', target, payload: { icon } });
+              }}
+            >
+              ${statusIcon({ icon, progress: row.progress })}
+            </button>`,
+          )}
+        </span>
+        <span class="st-tones" role="radiogroup" aria-label=${m.statusToneLabel}>
+          ${STATUS_TONES.map(
+            (tone) => html`<button
+              class="st-tone"
+              type="button"
+              role="radio"
+              data-tone=${tone}
+              style=${statusToneStyle(tone)}
+              title=${m.toneName(tone)}
+              aria-label=${m.toneName(tone)}
+              aria-checked=${tone === row.tone ? 'true' : 'false'}
+              @click=${() => {
+                if (tone !== row.tone) context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } });
+              }}
+            ></button>`,
+          )}
+        </span>
       </span>
       <span class="st-tools">
         <button

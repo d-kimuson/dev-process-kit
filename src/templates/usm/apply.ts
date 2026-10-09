@@ -170,6 +170,25 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       return { ...state, stories: state.stories.filter((story) => story.id !== id) };
     }
 
+    case 'ADD_STORY_LINK': {
+      const { url, label } = typed.payload;
+      const story = findStory(state, id);
+      if (!story) return null;
+      // Linking the same URL again is already done: the draft stays as it is.
+      if (story.links?.some((link) => link.url === url)) return state;
+      const link = label === undefined ? { url } : { url, label };
+      return updateStory(state, id, (current) => ({ ...current, links: [...(current.links ?? []), link] }));
+    }
+    case 'REMOVE_STORY_LINK': {
+      const { url } = typed.payload;
+      const story = findStory(state, id);
+      if (!story?.links?.some((link) => link.url === url)) return null;
+      return updateStory(state, id, (current) => {
+        const links = (current.links ?? []).filter((link) => link.url !== url);
+        const { links: _links, ...rest } = current;
+        return links.length === 0 ? rest : { ...rest, links };
+      });
+    }
     case 'SET_STORY_STATUS': {
       const { statusId } = typed.payload;
       if (statusId !== null && !findStatus(state, statusId)) return null;
@@ -204,9 +223,9 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
     }
 
     case 'ADD_STATUS': {
-      const { id: statusId, name, tone } = typed.payload;
+      const { id: statusId, name, tone, icon } = typed.payload;
       if (state.statuses.some((status) => status.id === statusId)) return state;
-      return { ...state, statuses: [...state.statuses, { id: statusId, name, tone }] };
+      return { ...state, statuses: [...state.statuses, { id: statusId, name, tone, icon: icon ?? 'progress' }] };
     }
     case 'SET_STATUS_NAME': {
       const { name } = typed.payload;
@@ -217,6 +236,11 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       const { tone } = typed.payload;
       if (!findStatus(state, id)) return null;
       return { ...state, statuses: state.statuses.map((status) => (status.id === id ? { ...status, tone } : status)) };
+    }
+    case 'SET_STATUS_ICON': {
+      const { icon } = typed.payload;
+      if (!findStatus(state, id)) return null;
+      return { ...state, statuses: state.statuses.map((status) => (status.id === id ? { ...status, icon } : status)) };
     }
     case 'DELETE_STATUS': {
       if (!findStatus(state, id)) return null;

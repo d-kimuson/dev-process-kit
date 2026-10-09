@@ -119,7 +119,7 @@ const renderStatusFilter = (
       aria-checked=${String(on)}
       style=${statusToneStyle(view?.tone)}
       href=${context.hashFor({ status: statusFilterParam(state, toggleStatusFilter(filter, id)) })}
-      >${statusIcon(view?.progress)}<span>${name}</span><span class="filter-count">${countOf(id)}</span></a
+      >${statusIcon(view)}<span>${name}</span><span class="filter-count">${countOf(id)}</span></a
     >`;
   };
   return html`<div class="map-toolbar" role="group" aria-label=${m.statusFilterLabel} data-testid="usm-status-filter">

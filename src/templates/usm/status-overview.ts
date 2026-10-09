@@ -1,9 +1,10 @@
-import type { StatusTone, UsmState } from './model';
+import type { StatusIcon, StatusTone, UsmState } from './model';
 
 export type StatusRow = {
   readonly id: string;
   readonly name: string;
   readonly tone: StatusTone;
+  readonly icon: StatusIcon;
   /** Where it sits in the workflow, for its icon (see `StatusView`). */
   readonly progress: number;
   /** The status right before it, `null` for the first: where "move up" goes. */
@@ -33,6 +34,7 @@ export const presentStatusOverview = (state: UsmState): StatusOverview => {
       id: status.id,
       name: status.name,
       tone: status.tone,
+      icon: status.icon,
       progress: state.statuses.length <= 1 ? 1 : index / (state.statuses.length - 1),
       previousId: state.statuses[index - 1]?.id ?? null,
       nextId: state.statuses[index + 1]?.id ?? null,

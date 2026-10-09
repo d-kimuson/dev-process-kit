@@ -10,6 +10,7 @@ import type { UsmMessages } from './messages';
 
 import { payloadFor, type ActionName } from '../../core/schema';
 import { targetRef } from '../../core/target';
+import { describeLink } from '../../lib/link-label';
 import { usmActions } from './actions';
 import { usmTabOf } from './board-tabs';
 import { findActivity, findMilestone, findStatus, findStep, findStory, stepRefOf, type UsmState } from './model';
@@ -159,6 +160,15 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
     tone: 'move',
     body: reorderBody(m, payloadFor(usmActions.REORDER_MILESTONE, action)['after']),
   }),
+  ADD_STORY_LINK: (m, action) => {
+    const { url, label } = payloadFor(usmActions.ADD_STORY_LINK, action);
+    return { title: m.addStoryLink, tone: 'create', body: m.added(label ?? describeLink(url).title) };
+  },
+  REMOVE_STORY_LINK: (m, action, state) => {
+    const { url } = payloadFor(usmActions.REMOVE_STORY_LINK, action);
+    const link = findStory(state, action.target.id)?.links?.find((candidate) => candidate.url === url);
+    return { title: m.removeStoryLink, tone: 'delete', body: m.removed(link?.label ?? describeLink(url).title) };
+  },
   SET_STORY_STATUS: (m, action, state) => {
     const statusId = payloadFor(usmActions.SET_STORY_STATUS, action)['statusId'];
     return {
@@ -184,6 +194,15 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
       title: m.changeStatusTone,
       tone: 'update',
       body: arrow(m, before === undefined ? undefined : m.toneName(before), m.toneName(after)),
+    };
+  },
+  SET_STATUS_ICON: (m, action, state) => {
+    const before = findStatus(state, action.target.id)?.icon;
+    const after = payloadFor(usmActions.SET_STATUS_ICON, action)['icon'];
+    return {
+      title: m.changeStatusIcon,
+      tone: 'update',
+      body: arrow(m, before === undefined ? undefined : m.iconName(before), m.iconName(after)),
     };
   },
   DELETE_STATUS: (m, action, state) => ({

@@ -1,4 +1,4 @@
-import type { StatusTone } from './model';
+import type { StatusIcon, StatusTone } from './model';
 
 import { defineMessages } from '../../core/i18n';
 
@@ -28,6 +28,9 @@ export const usmMessages = defineMessages({
     addStatus: 'Add status',
     renameStatus: 'Rename status',
     changeStatusTone: 'Change status color',
+    changeStatusIcon: 'Change status icon',
+    addStoryLink: 'Link to story',
+    removeStoryLink: 'Unlink from story',
     deleteStatus: 'Delete status',
     reorderStatus: 'Reorder status',
 
@@ -95,6 +98,20 @@ export const usmMessages = defineMessages({
     statusToneLabel: 'Color',
     toneName: (tone: StatusTone) =>
       ({ gray: 'Gray', blue: 'Blue', violet: 'Violet', green: 'Green', amber: 'Amber', accent: 'Orange' })[tone],
+    statusIconLabel: 'Icon',
+    iconName: (icon: StatusIcon) =>
+      ({
+        progress: 'Progress ring',
+        circle: 'Circle',
+        lightbulb: 'Light bulb',
+        flag: 'Flag',
+        play: 'Play',
+        clock: 'Clock',
+        eye: 'Eye',
+        pause: 'Pause',
+        check: 'Check',
+        x: 'Cross',
+      })[icon],
     statusShare: (count: number, percent: number) => `${count === 1 ? '1 story' : `${count} stories`} · ${percent}%`,
     statusUnset: 'No status',
     statusFilterLabel: 'Status',
@@ -120,6 +137,15 @@ export const usmMessages = defineMessages({
     commentAria: 'Comment',
     deleteAria: 'Delete',
     storyStatusLabel: 'Status',
+    panelLabel: (name: string) => `Story: ${name}`,
+    closePanelAria: 'Close',
+    storyTitleLabel: 'Title',
+    storyDescriptionLabel: 'Description',
+    storyLinksLabel: 'Links',
+    linkUrlLabel: 'URL',
+    addLinkButton: 'Add',
+    removeLinkAria: (label: string) => `Remove ${label}`,
+    deleteStoryButton: 'Delete story',
     storyStatusAria: (name: string) => `Status: ${name}`,
 
     // -------------------------------------------------------------- commands
@@ -153,6 +179,9 @@ export const usmMessages = defineMessages({
     addStatus: 'ステータスを追加',
     renameStatus: 'ステータス名を変更',
     changeStatusTone: 'ステータスの色を変更',
+    changeStatusIcon: 'ステータスのアイコンを変更',
+    addStoryLink: 'ストーリーにリンクを追加',
+    removeStoryLink: 'ストーリーのリンクを削除',
     deleteStatus: 'ステータスを削除',
     reorderStatus: 'ステータスの順序を変更',
 
@@ -214,6 +243,20 @@ export const usmMessages = defineMessages({
     statusToneLabel: '色',
     toneName: (tone: StatusTone) =>
       ({ gray: 'グレー', blue: '青', violet: '紫', green: '緑', amber: '黄', accent: 'オレンジ' })[tone],
+    statusIconLabel: 'アイコン',
+    iconName: (icon: StatusIcon) =>
+      ({
+        progress: '進捗リング',
+        circle: '円',
+        lightbulb: '電球',
+        flag: '旗',
+        play: '再生',
+        clock: '時計',
+        eye: '目',
+        pause: '一時停止',
+        check: 'チェック',
+        x: 'バツ',
+      })[icon],
     statusShare: (count: number, percent: number) => `${count} ストーリー · ${percent}%`,
     statusUnset: 'ステータスなし',
     statusFilterLabel: 'ステータス',
@@ -237,6 +280,15 @@ export const usmMessages = defineMessages({
     commentAria: 'コメント',
     deleteAria: '削除',
     storyStatusLabel: 'ステータス',
+    panelLabel: (name: string) => `ストーリー: ${name}`,
+    closePanelAria: '閉じる',
+    storyTitleLabel: 'タイトル',
+    storyDescriptionLabel: '説明',
+    storyLinksLabel: 'リンク',
+    linkUrlLabel: 'URL',
+    addLinkButton: '追加',
+    removeLinkAria: (label: string) => `${label} を外す`,
+    deleteStoryButton: 'ストーリーを削除',
     storyStatusAria: (name: string) => `ステータス: ${name}`,
 
     newActivityName: '新しいアクティビティ',

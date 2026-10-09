@@ -1,5 +1,5 @@
 import type { Navigation } from '../../core/types';
-import type { StatusTone, UserStory, UsmState } from './model';
+import type { StatusIcon, StatusTone, UserStory, UsmState } from './model';
 
 /** The filter value that stands for "no status yet": never a valid entity id. */
 export const NO_STATUS = '~';
@@ -9,6 +9,7 @@ export type StatusView = {
   readonly id: string;
   readonly name: string;
   readonly tone: StatusTone;
+  readonly icon: StatusIcon;
   /** 0 for the first status, 1 for the last; the icon fills up accordingly. */
   readonly progress: number;
 };
@@ -18,6 +19,7 @@ export type StatusSegment = {
   readonly id: string | null;
   readonly name: string;
   readonly tone: StatusTone | null;
+  readonly icon: StatusIcon | null;
   /** Where the status sits in the workflow (see `StatusView`); `undefined` for no status. */
   readonly progress: number | undefined;
   readonly count: number;
@@ -29,6 +31,7 @@ export const statusViews = (state: UsmState): readonly StatusView[] => {
     id: status.id,
     name: status.name,
     tone: status.tone,
+    icon: status.icon,
     progress: last <= 0 ? 1 : index / last,
   }));
 };
@@ -52,6 +55,7 @@ export const statusDistribution = (
     id: status.id,
     name: status.name,
     tone: status.tone,
+    icon: status.icon,
     progress: status.progress,
     count: stories.filter((story) => story.statusId === status.id).length,
   }));
@@ -59,6 +63,7 @@ export const statusDistribution = (
     id: null,
     name: unsetName,
     tone: null,
+    icon: null,
     progress: undefined,
     count: stories.filter((story) => story.statusId === undefined || !known.has(story.statusId)).length,
   });
@@ -95,3 +100,7 @@ export const passesStatusFilter = (filter: ReadonlySet<string>, story: UserStory
   if (filter.size === 0) return true;
   return filter.has(story.statusId ?? NO_STATUS);
 };
+
+/** The icon source of a bar part or legend entry; `undefined` for no status. */
+export const segmentIcon = (segment: StatusSegment): { icon: StatusIcon; progress: number | undefined } | undefined =>
+  segment.icon === null ? undefined : { icon: segment.icon, progress: segment.progress };

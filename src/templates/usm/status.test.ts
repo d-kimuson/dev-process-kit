@@ -74,7 +74,10 @@ describe('usm statuses: actions', () => {
 
   it('adds, renames, recolors and reorders statuses', () => {
     let state = apply(base, 'ADD_STATUS', { type: 'page', id: 'usm' }, { id: 'doing', name: 'Doing', tone: 'blue' });
-    expect(state?.statuses.at(-1)).toEqual({ id: 'doing', name: 'Doing', tone: 'blue' });
+    expect(state?.statuses.at(-1)).toEqual({ id: 'doing', name: 'Doing', tone: 'blue', icon: 'progress' });
+    state = apply(state!, 'SET_STATUS_ICON', { type: 'status', id: 'doing' }, { icon: 'play' });
+    expect(state?.statuses.at(-1)?.icon).toBe('play');
+    expect(apply(state!, 'SET_STATUS_ICON', { type: 'status', id: 'doing' }, { icon: 'rocket' })).toBeNull();
     state = apply(state!, 'SET_STATUS_NAME', { type: 'status', id: 'doing' }, { name: 'In progress' });
     state = apply(state!, 'SET_STATUS_TONE', { type: 'status', id: 'doing' }, { tone: 'violet' });
     state = apply(state!, 'REORDER_STATUS', { type: 'status', id: 'doing' }, { after: 'ready' });
@@ -112,6 +115,32 @@ describe('usm statuses: actions', () => {
   });
 });
 
+describe('usm story links', () => {
+  const story = { id: 'u9', name: 'U', activityId: 'a1', stepId: 's1' };
+
+  it('accepts web links only, each URL once per story', () => {
+    expect(() => parseUsmBase({ ...raw, stories: [{ ...story, links: [{ url: 'javascript:alert(1)' }] }] })).toThrow();
+    const twice = [{ url: 'https://example.com/a' }, { url: 'https://example.com/a', label: 'A' }];
+    expect(() => parseUsmBase({ ...raw, stories: [{ ...story, links: twice }] })).toThrow(/same URL twice/);
+  });
+
+  it('adds a link once and removes it again', () => {
+    const target = { type: 'story', id: 'u1' };
+    const url = 'https://acme.atlassian.net/browse/SHOP-1';
+    const added = apply(base, 'ADD_STORY_LINK', target, { url, label: 'Spec' });
+    expect(added?.stories.find((s) => s.id === 'u1')?.links).toEqual([{ url, label: 'Spec' }]);
+    expect(apply(added!, 'ADD_STORY_LINK', target, { url })).toBe(added);
+    expect(apply(base, 'ADD_STORY_LINK', target, { url: 'file:///etc/passwd' })).toBeNull();
+    const removed = apply(added!, 'REMOVE_STORY_LINK', target, { url });
+    expect(removed?.stories.find((s) => s.id === 'u1')).not.toHaveProperty('links');
+    expect(apply(base, 'REMOVE_STORY_LINK', target, { url })).toBeNull();
+    expect(definition.describe(act('ADD_STORY_LINK', target, { url }), base, base)).toMatchObject({
+      title: m.addStoryLink,
+      summary: '+ “acme.atlassian.net SHOP-1”',
+    });
+  });
+});
+
 describe('usm statuses: distribution', () => {
   it('spreads stories over the statuses in workflow order, then the ones without a status', () => {
     expect(statusDistribution(base, base.stories, 'None').map((part) => [part.id, part.progress, part.count])).toEqual([
@@ -137,6 +166,12 @@ describe('usm statuses: overview', () => {
 });
 
 describe('usm statuses: element', () => {
+  const settle = async (el: DpkTemplateUsm): Promise<void> => {
+    await el.updateComplete;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await el.updateComplete;
+  };
+
   const mount = async (hash: string): Promise<DpkTemplateUsm> => {
     window.location.hash = hash;
     document.body.innerHTML = `
@@ -156,35 +191,56 @@ describe('usm statuses: element', () => {
     document.body.innerHTML = '';
   });
 
-  it('colors cards by status and sets a status from the card menu', async () => {
+  it('colors cards by status and edits a story in the panel a click opens', async () => {
     const el = await mount('');
     const root = el.shadowRoot!;
-    const cardOf = (id: string) =>
-      root.querySelector(`dpk-internal-usm-story-card[data-story="${id}"]`) as HTMLElement & {
-        updateComplete: Promise<boolean>;
-      };
-    const card = cardOf('u4');
-    expect(cardOf('u1').getAttribute('style')).toContain('--dpk-green');
+    const card = root.querySelector('dpk-internal-usm-story-card[data-story="u4"]') as HTMLElement & {
+      updateComplete: Promise<boolean>;
+    };
+    expect(root.querySelector('dpk-internal-usm-story-card[data-story="u1"]')?.getAttribute('style')).toContain(
+      '--dpk-green',
+    );
     expect(card.getAttribute('style')).toContain('--dpk-ink-faint');
     // no status name on the card: the icon carries it, the filter is the legend
     expect(card.shadowRoot!.textContent).not.toContain('Idea');
-    const button = card.shadowRoot!.querySelector('[data-role="status"]') as HTMLButtonElement;
-    expect(button.getAttribute('aria-label')).toBe(m.storyStatusAria(m.statusUnset));
-    button.click();
-    await el.updateComplete;
-    await card.updateComplete;
-    const options = [...card.shadowRoot!.querySelectorAll('.status-pop [role="menuitemradio"]')];
+    expect(card.shadowRoot!.querySelector('.card-status')?.getAttribute('aria-label')).toBe(
+      m.storyStatusAria(m.statusUnset),
+    );
+    expect(root.querySelector('[data-testid="usm-story-panel"]')).toBeNull();
+    card.click();
+    await settle(el);
+    const panel = () => root.querySelector('[data-testid="usm-story-panel"]')!;
+    expect(panel().getAttribute('data-story')).toBe('u4');
+    expect(el.api.navigation['story']).toBe('u4');
+    const options = [...panel().querySelectorAll('.sp-status')];
     expect(options.map((option) => option.textContent?.trim())).toEqual(['Idea', 'Ready', 'Done', m.statusUnset]);
     expect(options[3]?.getAttribute('aria-checked')).toBe('true');
     (options[1] as HTMLButtonElement).click();
-    await el.updateComplete;
-    await card.updateComplete;
+    await settle(el);
+    expect(card.getAttribute('style')).toContain('--dpk-amber');
+    expect(panel().querySelector('.sp-status[aria-checked="true"]')?.getAttribute('data-status')).toBe('ready');
+    // a link: an invalid URL stays in the field, a valid one is added
+    const form = panel().querySelector('form.sp-add-link') as HTMLFormElement;
+    const input = form.querySelector('input')!;
+    input.value = 'javascript:alert(1)';
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    input.value = 'https://github.com/acme/web/issues/86';
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle(el);
+    expect(input.value).toBe('');
     expect(el.api.actions.map((action) => [action.type, action.payload])).toEqual([
       ['SET_STORY_STATUS', { statusId: 'ready' }],
+      ['ADD_STORY_LINK', { url: 'https://github.com/acme/web/issues/86' }],
     ]);
-    expect(card.getAttribute('style')).toContain('--dpk-amber');
-    // picking closes the menu
-    expect(card.shadowRoot!.querySelector('.status-pop')).toBeNull();
+    await card.updateComplete;
+    expect(card.shadowRoot!.querySelector('.link-chip')?.textContent?.trim()).toBe('#86');
+    expect(panel().querySelector('.sp-link-text')?.textContent?.trim()).toBe('#86');
+    // closing clears the story from the navigation
+    (panel().querySelector('[data-role="close"]') as HTMLButtonElement).click();
+    await settle(el);
+    expect(root.querySelector('[data-testid="usm-story-panel"]')).toBeNull();
+    expect(el.api.navigation['story']).toBeUndefined();
   });
 
   it('filters the grid by status, and the filter doubles as the legend', async () => {

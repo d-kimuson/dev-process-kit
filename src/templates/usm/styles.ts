@@ -808,7 +808,7 @@ export const usmStyles = css`
   .st-overview {
     display: grid;
     gap: 20px;
-    max-width: 860px;
+    max-width: 1040px;
     padding: 28px 0 40px;
   }
   .st-list {
@@ -824,7 +824,7 @@ export const usmStyles = css`
   .st-row {
     display: grid;
     /* Fixed tool columns keep the unset row, which has no tools, in line. */
-    grid-template-columns: 16px minmax(120px, 1fr) minmax(140px, 200px) 136px 84px;
+    grid-template-columns: 16px minmax(120px, 1fr) minmax(140px, 200px) 272px 84px;
     align-items: center;
     gap: 14px;
     padding: 12px 16px;
@@ -868,9 +868,37 @@ export const usmStyles = css`
     border-radius: 3px;
     background: var(--usm-tone);
   }
+  .st-pickers {
+    display: grid;
+    gap: 6px;
+  }
+  .st-icons,
   .st-tones {
     display: inline-flex;
+    flex-wrap: wrap;
     gap: 5px;
+  }
+  .st-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--dpk-radius-xs);
+    background: transparent;
+    cursor: pointer;
+  }
+  .st-icon:hover {
+    background: var(--dpk-paper-inset);
+  }
+  .st-icon[aria-checked='true'] {
+    border-color: var(--usm-tone);
+    background: color-mix(in srgb, var(--usm-tone) 12%, transparent);
+  }
+  .st-icon:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
   }
   .st-tone {
     width: 18px;
@@ -908,7 +936,7 @@ export const usmStyles = css`
       row-gap: 8px;
     }
     .st-share,
-    .st-tones {
+    .st-pickers {
       grid-column: 2 / -1;
     }
   }
