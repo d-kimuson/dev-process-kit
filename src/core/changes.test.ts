@@ -76,7 +76,7 @@ describe('seen record', () => {
 
   it('writes back the keys that still exist', () => {
     const current = log('r2', 'a', 'b');
-    const state = reduceNotices(current, initialNotices(current, null), { kind: 'dismiss-toast', key: '1' });
+    const state = reduceNotices(current, initialNotices(current, null), { kind: 'jump', key: '1' });
     expect(seenRecordOf(current, state)).toEqual({ v: 1, revision: 'r2', seen: ['1'] });
   });
 });
@@ -103,14 +103,11 @@ describe('reduceNotices', () => {
     expect(reduceNotices(current, closed, { kind: 'open-list' }).list.fresh).toEqual(new Set());
   });
 
-  it('a dismissed toast counts as seen; one that times out stays unread', () => {
+  it('a toast that goes away, closed or timed out, leaves its change unread behind the bell', () => {
     const start = initialNotices(current, null);
-    const dismissed = reduceNotices(current, start, { kind: 'dismiss-toast', key: '0' });
-    expect(dismissed.toasts).toEqual(['1', '2']);
-    expect(unreadCount(current, dismissed)).toBe(2);
-    const expired = reduceNotices(current, dismissed, { kind: 'expire-toast', key: '1' });
-    expect(expired.toasts).toEqual(['2']);
-    expect(unreadCount(current, expired)).toBe(2);
+    const closed = reduceNotices(current, start, { kind: 'close-toast', key: '0' });
+    expect(closed.toasts).toEqual(['1', '2']);
+    expect(unreadCount(current, closed)).toBe(3);
   });
 
   it('jumping to a change marks it seen and closes the list and its toast', () => {

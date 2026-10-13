@@ -135,7 +135,7 @@ export abstract class TemplateElement<S> extends LitElement {
     toggleList: () => this.#notices.toggleList(),
     openList: () => this.#notices.send({ kind: 'open-list' }),
     show: (key) => this.#notices.show(key),
-    dismiss: (key) => this.#notices.send({ kind: 'dismiss-toast', key }),
+    dismiss: (key) => this.#notices.send({ kind: 'close-toast', key }),
     pause: (hold) => this.#notices.pause(hold),
     resume: (hold) => this.#notices.resume(hold),
   };

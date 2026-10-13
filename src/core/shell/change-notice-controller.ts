@@ -200,7 +200,7 @@ export class ChangeNoticeController implements ReactiveController {
     timer.deadline = Date.now() + timer.remaining;
     timer.handle = setTimeout(() => {
       timer.handle = null;
-      this.send({ kind: 'expire-toast', key });
+      this.send({ kind: 'close-toast', key });
     }, timer.remaining);
   }
 

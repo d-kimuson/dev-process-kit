@@ -94,10 +94,8 @@ export type NoticeState = {
 
 export type NoticeEvent =
   | { readonly kind: 'open-list' | 'close-list' }
-  /** The reader closed a toast: they have seen it. */
-  | { readonly kind: 'dismiss-toast'; readonly key: string }
-  /** A toast timed out unattended: it stays unread behind the bell. */
-  | { readonly kind: 'expire-toast'; readonly key: string }
+  /** A toast went away, closed by the reader or timed out: its change stays unread behind the bell. */
+  | { readonly kind: 'close-toast'; readonly key: string }
   /** The reader went to the change from its toast or its card. */
   | { readonly kind: 'jump'; readonly key: string };
 
@@ -129,9 +127,7 @@ export const reduceNotices = (log: ChangeLog, state: NoticeState, event: NoticeE
     }
     case 'close-list':
       return { ...state, list: CLOSED_LIST };
-    case 'dismiss-toast':
-      return { ...state, seen: withSeen(state, [event.key]), toasts: state.toasts.filter((key) => key !== event.key) };
-    case 'expire-toast':
+    case 'close-toast':
       return { ...state, toasts: state.toasts.filter((key) => key !== event.key) };
     case 'jump':
       return {

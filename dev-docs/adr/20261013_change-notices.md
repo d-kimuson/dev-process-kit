@@ -27,7 +27,7 @@ Alternatives considered:
 
 - **The change log is a separate, optional script element** marked `data-dpk-changes`, with a strict schema of its own (`revision`, and changes with `title`, optional `body`, `id`, `target`, `navigate`). The template never reads it; a malformed log is reported in a banner and leaves the page working.
 - **Only the changes since the previous version**, written by the agent at regeneration. The kit keeps no history.
-- **Read state is per revision and per browser**, stored under the page's storage key. A change is seen once the reader opens the list, closes its toast or follows it; a toast that times out unattended stays unread. A new revision starts unread.
+- **Read state is per revision and per browser**, stored under the page's storage key. A change is seen once the reader opens the list or follows it; a toast that is closed or times out only steps aside, and its change stays unread on the badge. A new revision starts unread.
 - **"Show" resolves a target through the template**: the template's `navigationFor` turns it into a navigation patch, its `showTarget` hook opens what navigation cannot (a tab it keeps to itself, a fold, a canvas viewport), and the shell then finds the element marked `data-dpk-target` (space-separated refs) across shadow roots, scrolls it into view and highlights it with a short animation.
 - **Toasts follow the Sonner pattern** (stacked, timed, paused on hover) but are built with Lit in the shell, since Sonner is React-only.
 

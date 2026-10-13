@@ -124,18 +124,18 @@ describe('change notices', () => {
     expect(badge(next)).toBe('2');
   });
 
-  it('a dismissed toast is seen; one that times out stays behind the badge', async () => {
+  it('a toast that goes away, closed or timed out, stays behind the badge', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     const element = mount(changeLog('r2'));
     await settle(element);
     click(root(element).querySelector('.dpk-toast[data-key="wording"] .dpk-toast-close'));
     await settle(element);
     expect(toasts(element)).toEqual(['Background rewritten']);
-    expect(badge(element)).toBe('1');
+    expect(badge(element)).toBe('2');
     vi.advanceTimersByTime(TOAST_MS);
     await settle(element);
     expect(toasts(element)).toEqual([]);
-    expect(badge(element)).toBe('1');
+    expect(badge(element)).toBe('2');
   });
 
   it('holds the toasts while the reader points at them', async () => {
