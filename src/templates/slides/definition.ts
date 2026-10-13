@@ -40,6 +40,7 @@ export const slidesDefinitionFor = (locale: Locale): TemplateDefinition<SlidesSt
     describe: (action, state) => describeSlidesAction(m, action, state),
     serialize: serializeSlidesAction,
     resolveNavigation: resolveSlidesNavigation,
+    navigationFor: (_state, target) => (target.type === 'slide' ? { slide: target.id } : null),
     commentTargets: (state) => slidesCommentTargets(m, state),
     currentTarget: (state, nav) => slidesCurrentTarget(m, state, nav),
     title: slidesTitle,

@@ -111,6 +111,7 @@ const renderRow = (props: BoardProps, levels: readonly BoardLevel[], row: BoardR
     class="board-row"
     role="row"
     data-decision=${row.id}
+    data-dpk-target=${target}
     data-status=${row.status}
     ?data-locked=${row.locked}
   >

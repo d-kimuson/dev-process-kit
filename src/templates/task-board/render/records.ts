@@ -127,6 +127,7 @@ const renderEntry = (
     <li
       class="board-log-entry"
       data-log=${entry.id}
+      data-dpk-target=${`log:${entry.id}`}
       data-from=${entry.author?.kind ?? 'agent'}
       data-latest=${String(entry.latest)}
     >

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { DpkTemplateSlides } from './element';
 
+import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import '../../index';
 import { slidesDefinitionFor, slidesHasTarget } from './definition';
 import { slideKeyStep, stepSlide } from './interactions';
@@ -175,10 +176,11 @@ describe('slides definition', () => {
   });
 });
 
-const mount = (hash = '', lang = ''): DpkTemplateSlides => {
+const mount = (hash = '', lang = '', change = ''): DpkTemplateSlides => {
   window.location.hash = hash;
   document.body.innerHTML = `
     <dpk-template-slides storage="memory"${lang === '' ? '' : ` lang="${lang}"`}>
+      ${change === '' ? '' : changeLogScript(change)}
       <script type="application/json">${JSON.stringify(base)}</script>
       <section slot="preview" data-preview-id="flow"><p class="flow-body">本文</p></section>
       <section slot="preview" data-preview-id="problem"><p>問題の図</p></section>
@@ -398,5 +400,19 @@ describe('<dpk-template-slides>', () => {
     await settle(element);
     expect(element.shadowRoot?.querySelector('.deck-empty')?.textContent).toContain('slides');
     expect(element.shadowRoot?.querySelector('.deck-bar')).toBeNull();
+  });
+});
+
+describe('slides change notices', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it('"Show" turns to the slide the change is about and highlights it', async () => {
+    const element = mount('#slide=cover', '', 'slide:how');
+    await settle(element);
+    const slide = await showChange(element);
+    expect(element.navigation['slide']).toBe('how');
+    expect(slide?.getAttribute('data-dpk-target')).toBe('slide:how');
   });
 });

@@ -22,6 +22,7 @@ import {
   serializeUsmAction,
   usmCommentTargets,
   usmCurrentTarget,
+  usmNavigationFor,
   usmTitle,
 } from './present';
 
@@ -64,6 +65,7 @@ export const usmDefinitionFor = (locale: Locale): TemplateDefinition<UsmState> =
     describe: (action, state, base) => describeUsmAction(m, action, state, base),
     serialize: serializeUsmAction,
     resolveNavigation: resolveUsmNavigation,
+    navigationFor: (_state, target) => usmNavigationFor(target),
     commentTargets: (state: UsmState, navigation) => usmCommentTargets(m, state, navigation),
     currentTarget: (state, navigation) => usmCurrentTarget(m, state, navigation),
     title: usmTitle,

@@ -5,6 +5,7 @@ import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { DragController, Drop } from '../../../lib/dom/drag';
 import type { ExampleMappingMessages } from '../messages';
 
+import { targetRef } from '../../../core/target';
 import { CARD_KINDS, cardPaletteStyle } from '../components/mapping-card';
 import {
   examplesOfRule,
@@ -91,6 +92,7 @@ const renderCard = (props: BoardProps, kind: MappingCardKind, entity: Entity): T
   return html`<dpk-internal-example-mapping-card
     data-card=${entity.id}
     data-card-kind=${kind}
+    data-dpk-target=${targetRef({ type: kind, id: entity.id })}
     draggable="true"
     .card=${{
       kind,

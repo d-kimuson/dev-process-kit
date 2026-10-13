@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ActionInput, DraftAction } from '../../core/types';
+import type { ActionInput, DraftAction, Navigation } from '../../core/types';
 
+import { patchNavigation } from '../../core/navigation';
+import { parseTargetRef } from '../../core/target';
 import { prototypeAction } from './actions';
 import { applyPrototypeAction } from './apply';
 import { prototypeDefinitionFor } from './definition';
@@ -11,8 +13,11 @@ import {
   describePrototypeAction,
   prototypeLinkProblem,
   prototypeMailHeader,
+  prototypeNavigationHierarchy,
   prototypePageHeading,
   prototypePreviewUrl,
+  prototypeStageFrames,
+  prototypeStageTargets,
   resolvePrototypeNavigation,
   serializePrototypeAction,
 } from './present';
@@ -631,5 +636,41 @@ describe('prototype navigation', () => {
     });
     // a step without a screen drops the key entirely
     expect(resolvePrototypeNavigation(state(), { step: 'b', preview: 'a-mobile' })).not.toHaveProperty('preview');
+  });
+});
+
+describe('prototype change targets', () => {
+  const definition = prototypeDefinitionFor('en');
+  /** Where "Show" on a change about `ref` lands, from `from`. */
+  const landing = (ref: string, from: Navigation = {}) => {
+    const target = parseTargetRef(ref);
+    const patch = definition.navigationFor?.(state(), definition.canonicalTarget?.(state(), target) ?? target);
+    if (!patch) return null;
+    return resolvePrototypeNavigation(state(), patchNavigation(from, patch, prototypeNavigationHierarchy));
+  };
+  const elsewhere: Navigation = { view: 'app', screen: 'screen-a' };
+
+  it('brings a step, a story or an activity on stage from wherever the reader is', () => {
+    expect(landing('step:onboarding.account.c', elsewhere)).toMatchObject({ story: 'account', step: 'c' });
+    expect(landing('step:onboarding.account.c', elsewhere)).not.toHaveProperty('view');
+    expect(landing('story:onboarding.profile', { step: 'n' })).toMatchObject({ story: 'profile', step: 'p' });
+    expect(landing('activity:daily', { step: 'b' })).toMatchObject({ activity: 'daily', step: 'n' });
+  });
+
+  it('brings a screen on stage in the view the reader is in', () => {
+    expect(landing('screen:screen-a', { step: 'n' })).toMatchObject({ step: 'a' });
+    expect(landing('screen:screen-a', elsewhere)).toMatchObject({ view: 'app', screen: 'screen-a' });
+  });
+
+  it('marks the stage with what it shows', () => {
+    const located = findStep(state(), 'onboarding.account.a');
+    if (!located) throw new Error('no step');
+    const step = { kind: 'step', ...located } as const;
+    expect(prototypeStageTargets(step, prototypeStageFrames(state(), step, {})).split(' ')).toEqual([
+      'activity:onboarding',
+      'story:onboarding.account',
+      'step:onboarding.account.a',
+      'screen:screen-a',
+    ]);
   });
 });

@@ -223,3 +223,14 @@ Give the host a height (for example `dpk-template-task-board { display: block; h
 - Give every question an assumption and keep working on it. Mark a question `blocking` only when no reasonable assumption lets the work go on, and set `status` to `waiting` while one is open.
 - Put what the agent was not asked to do in the todo list as `proposed: true` with a `reason`. Work the person asked for is a plain todo.
 - List every output the person may want to open or copy: PRs, documents, runs, preview URLs, and the files the agent wrote (as paths).
+
+## Change notices
+
+[Change notices](../index.md#change-notices)'s "Show" opens the tab the target lives on and highlights the entry:
+
+| Target           | Tab                                                      |
+| ---------------- | -------------------------------------------------------- |
+| `context:<part>` | Context                                                  |
+| `log:<id>`       | Work log                                                 |
+| `question:<id>`  | Questions                                                |
+| `todo:<id>`      | Todos — clears the All/People filter so it is not hidden |

@@ -131,6 +131,14 @@ export class DpkTemplateGrill extends TemplateElement<GrillState> {
     super.requestComment(target);
   }
 
+  /** A question lives in the current round of the questions tab. */
+  protected override showTarget(target: ActionTarget): void {
+    if (target.type !== 'question') return;
+    this.tab = 'questions';
+    this.folded = false;
+    this.round = 'current';
+  }
+
   #openQuestion(context: TemplateRenderContext<GrillState>, questionId: string): void {
     this.tab = 'questions';
     this.folded = false;

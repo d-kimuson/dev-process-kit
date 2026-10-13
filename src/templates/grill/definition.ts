@@ -38,6 +38,8 @@ export const grillDefinitionFor = (locale: Locale): TemplateDefinition<GrillStat
     describe: (action, state, base) => describeGrillAction(m, action, state, base),
     serialize: serializeGrillAction,
     resolveNavigation: resolveGrillNavigation,
+    navigationFor: (state, target) =>
+      target.type === 'question' && findQuestion(state, target.id) ? { question: target.id } : null,
     commentTargets: (state) => grillCommentTargets(m, state),
     title: grillTitle,
   };

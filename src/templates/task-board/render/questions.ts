@@ -53,6 +53,7 @@ const renderQuestion = (m: TaskBoardMessages, question: QuestionViewModel, handl
     <li
       class="board-card board-question"
       data-question=${question.id}
+      data-dpk-target=${`question:${question.id}`}
       data-blocking=${String(question.blocking)}
       data-reply=${question.reply}
       data-resolved=${String(question.resolved)}

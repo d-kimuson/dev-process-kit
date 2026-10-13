@@ -6,6 +6,7 @@ import type { DraftAction } from '../../core/types';
 import type { DpkTemplateUsm } from './element';
 
 import { DpkComponentInlineEdit } from '../../components/inline-edit';
+import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import { applyUsmAction } from './apply';
 import '../../index';
 import { usmDefinitionFor } from './definition';
@@ -464,5 +465,51 @@ describe('usm template', () => {
     });
     expect(root.querySelector('#move-dialog')).toBeNull();
     document.body.innerHTML = '';
+  });
+});
+
+describe('usm change notices', () => {
+  const mountWithChange = (target: string, hash = ''): DpkTemplateUsm => {
+    window.location.hash = hash;
+    document.body.innerHTML = `
+      <dpk-template-usm storage="memory">
+        ${changeLogScript(target)}
+        <script type="application/json">${JSON.stringify(base)}</script>
+      </dpk-template-usm>`;
+    return document.querySelector('dpk-template-usm') as DpkTemplateUsm;
+  };
+
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+  });
+
+  it('"Show" on a story goes back to the map and highlights its card', async () => {
+    const el = mountWithChange('story:u2', '#tab=milestones');
+    await settle(el);
+    const highlighted = await showChange(el);
+    expect(highlighted?.localName).toBe('dpk-internal-usm-story-card');
+    expect(highlighted?.getAttribute('data-story')).toBe('u2');
+    expect(el.navigation['tab']).toBeUndefined();
+  });
+
+  it('"Show" on a step or an activity highlights its head on the map', async () => {
+    const step = mountWithChange('step:s2');
+    await settle(step);
+    const column = await showChange(step);
+    expect(column?.classList.contains('col-head')).toBe(true);
+    expect(column?.getAttribute('data-dpk-target')).toBe('step:a1.s2');
+
+    const activity = mountWithChange('activity:a1', '#tab=statuses');
+    await settle(activity);
+    expect((await showChange(activity))?.classList.contains('act-head')).toBe(true);
+  });
+
+  it('"Show" on a milestone opens the milestones page at its entry', async () => {
+    const el = mountWithChange('milestone:mvp');
+    await settle(el);
+    const entry = await showChange(el);
+    expect(el.navigation['tab']).toBe('milestones');
+    expect(entry?.classList.contains('ms-entry')).toBe(true);
   });
 });

@@ -2,10 +2,12 @@ import { html, nothing, type TemplateResult } from 'lit';
 
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
+import type { ActionTarget } from '../../core/types';
 
 import { TemplateElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
-import { createEntityId } from '../../core/target';
+import { findTarget } from '../../core/shell/reveal';
+import { createEntityId, targetRef } from '../../core/target';
 import { popoverSurface } from '../../core/theme';
 import { pointAnchor } from '../../lib/dom/popover';
 import { eventStormingAction } from './actions';
@@ -18,6 +20,7 @@ import {
   hitRect,
   panBy,
   rectsInBand,
+  revealViewport,
   sliceMovePlan,
   sliceMoveSteps,
   zoomAt,
@@ -46,6 +49,8 @@ const CONTEXT_POP_SIZE = { width: 260, height: 150 };
 const APPEND_MENU_SIZE = { width: 236, height: 210 };
 /** Slack around the wall that the reader may still pan into. */
 const VIEW_BUFFER = 64;
+/** Room left around a note "Show" pans to. */
+const REVEAL_MARGIN = 48;
 
 /** Note types the connect port offers as the next step of a slice. */
 const APPEND_TYPES: readonly NoteType[] = ['event', 'command', 'aggregate', 'actor', 'policy', 'readmodel', 'external'];
@@ -371,6 +376,20 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
 
   #zoomStep(direction: 1 | -1): void {
     this.#zoomBy(direction === 1 ? 1.2 : 1 / 1.2);
+  }
+
+  /** The wall is panned, not scrolled: pans the changed note or context into view once it renders. */
+  protected override showTarget(target: ActionTarget): void {
+    void this.updateComplete.then(() => {
+      const viewport = this.#viewportEl();
+      const element = findTarget(this, targetRef(target));
+      if (viewport === null || element === null) return;
+      const view = viewport.getBoundingClientRect();
+      const box = element.getBoundingClientRect();
+      if (view.width === 0 || view.height === 0) return;
+      const local = { left: box.left - view.left, top: box.top - view.top, width: box.width, height: box.height };
+      this.#setViewport(revealViewport(this.viewport, local, view, REVEAL_MARGIN));
+    });
   }
 
   #zoomFit(): void {

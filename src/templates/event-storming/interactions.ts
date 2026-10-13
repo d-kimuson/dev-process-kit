@@ -19,6 +19,23 @@ export const panBy = (viewport: Viewport, dx: number, dy: number): Viewport => {
   return { ...viewport, panX: viewport.panX + dx, panY: viewport.panY + dy };
 };
 
+/** How far to move a span so it sits inside `size` with `margin` to spare; its start wins when it cannot fit. */
+const shiftIntoView = (start: number, length: number, size: number, margin: number): number => {
+  if (start >= margin && start + length <= size - margin) return 0;
+  if (start < margin || length > size - 2 * margin) return margin - start;
+  return size - margin - (start + length);
+};
+
+/**
+ * Pans just far enough to bring `box` (in viewport-local pixels) into view
+ * with `margin` around it; the same viewport when it is already in view.
+ */
+export const revealViewport = (viewport: Viewport, box: Rect, view: Size, margin: number): Viewport => {
+  const dx = shiftIntoView(box.left, box.width, view.width, margin);
+  const dy = shiftIntoView(box.top, box.height, view.height, margin);
+  return dx === 0 && dy === 0 ? viewport : panBy(viewport, dx, dy);
+};
+
 /** Zooms by `factor` while the world point under the cursor stays put. */
 export const zoomAt = (viewport: Viewport, cursorX: number, cursorY: number, factor: number): Viewport => {
   const zoom = clamp(viewport.zoom * factor, ZOOM_MIN, ZOOM_MAX);

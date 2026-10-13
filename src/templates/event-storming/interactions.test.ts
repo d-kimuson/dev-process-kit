@@ -9,6 +9,7 @@ import {
   hitRect,
   panBy,
   rectsInBand,
+  revealViewport,
   sliceMovePlan,
   sliceMoveSteps,
   zoomAt,
@@ -92,6 +93,25 @@ describe('event-storming viewport', () => {
       0,
     );
     expect(vp).toEqual({ panX: -500, panY: -400, zoom: 0.5 });
+  });
+
+  it('revealViewport leaves a box already in view where it is', () => {
+    const vp = { panX: 10, panY: 20, zoom: 1 };
+    expect(revealViewport(vp, rect(100, 100, 50, 40), { width: 500, height: 400 }, 24)).toBe(vp);
+  });
+
+  it('revealViewport pans just far enough to bring a box in with a margin', () => {
+    const vp = { panX: 0, panY: 0, zoom: 1 };
+    expect(revealViewport(vp, rect(600, -50, 80, 40), { width: 500, height: 400 }, 24)).toEqual({
+      panX: -204,
+      panY: 74,
+      zoom: 1,
+    });
+  });
+
+  it('revealViewport puts the start of a box wider than the view in sight', () => {
+    const vp = { panX: 0, panY: 0, zoom: 1 };
+    expect(revealViewport(vp, rect(-900, 100, 1000, 40), { width: 500, height: 400 }, 24).panX).toBe(924);
   });
 });
 

@@ -25,6 +25,7 @@ import {
   prototypePreviewUrl,
   prototypeRenditionSelection,
   prototypeStageFrames,
+  prototypeStageTargets,
   prototypeStoryHeading,
   type MailHeader,
   type PageHeading,
@@ -107,7 +108,7 @@ export const renderStage = (
     const { activity, story } = located;
     return html`
       <div class="stage">
-        <section class="stage-story">
+        <section class="stage-story" data-dpk-target=${prototypeStageTargets(located, null)}>
           ${renderPageHead(m, prototypeStoryHeading(activity, story))}
           ${
             story.description
@@ -203,6 +204,7 @@ export const renderStage = (
       <div
         class="canvas"
         data-layout=${layout}
+        data-dpk-target=${prototypeStageTargets(location, frames)}
         @click=${{ handleEvent: options.canvasEvents.click, capture: true }}
         @pointermove=${{ handleEvent: options.canvasEvents.pointermove, capture: true }}
         @pointerleave=${options.canvasEvents.pointerleave}

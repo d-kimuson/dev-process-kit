@@ -5,6 +5,7 @@ import type { DraftAction } from '../../core/types';
 import type { DpkTemplateDelegationPoker } from './element';
 
 import '../../index';
+import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import { delegationPokerAction } from './actions';
 import { applyDelegationPokerAction } from './apply';
 import { delegationPokerDefinitionFor } from './definition';
@@ -47,10 +48,11 @@ const apply = (s: DelegationPokerState, input: ReturnType<typeof delegationPoker
   return applyDelegationPokerAction(s, action(input.type, target, input.payload));
 };
 
-const mount = (hash = '', lang = '', mode = ''): DpkTemplateDelegationPoker => {
+const mount = (hash = '', lang = '', mode = '', change = ''): DpkTemplateDelegationPoker => {
   window.location.hash = hash;
   document.body.innerHTML = `
     <dpk-template-delegation-poker storage="memory"${lang === '' ? '' : ` lang="${lang}"`}${mode === '' ? '' : ` mode="${mode}"`}>
+      ${change === '' ? '' : changeLogScript(change)}
       <script type="application/json">${JSON.stringify(base)}</script>
     </dpk-template-delegation-poker>`;
   return document.querySelector('dpk-template-delegation-poker') as DpkTemplateDelegationPoker;
@@ -374,5 +376,13 @@ describe('<dpk-template-delegation-poker>', () => {
     const el = mount('', 'ja');
     await settle(el);
     expect(el.shadowRoot?.textContent).toContain('委任する');
+  });
+});
+
+describe('delegation poker change notices', () => {
+  it('"Show" highlights the decision the change is about', async () => {
+    const el = mount('', '', '', 'decision:release');
+    await settle(el);
+    expect((await showChange(el))?.getAttribute('data-decision')).toBe('release');
   });
 });

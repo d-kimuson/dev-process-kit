@@ -5,6 +5,7 @@ import type { DpkTemplateGrill } from './element';
 
 import '../../index';
 import { coreMessages } from '../../core/messages';
+import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import { answerQuestion } from './actions';
 import { applyGrillAction } from './apply';
 import { grillDefinitionFor } from './definition';
@@ -462,5 +463,24 @@ describe('dpk-template-grill', () => {
     other.api.importDraft(element.api.actions);
     await settle(other);
     expect(other.api.stale.map((entry) => entry.reason)).toEqual(['target-missing']);
+  });
+});
+
+describe('grill change notices', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it('"Show" unfolds the questions and highlights the question the change is about', async () => {
+    const element = mount(base, `${changeLogScript('question:cancel')}${mainSlot}`);
+    await settle(element);
+    const shadow = element.shadowRoot!;
+    shadow.querySelector<HTMLButtonElement>('.grill-toggle')?.click();
+    await settle(element);
+    expect(shadow.querySelector('.grill-toggle')?.getAttribute('aria-expanded')).toBe('false');
+    const question = await showChange(element);
+    expect(question?.getAttribute('data-question')).toBe('cancel');
+    expect(element.navigation['question']).toBe('cancel');
+    expect(shadow.querySelector('.grill-toggle')?.getAttribute('aria-expanded')).toBe('true');
   });
 });

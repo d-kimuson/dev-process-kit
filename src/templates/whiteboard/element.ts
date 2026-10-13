@@ -2,7 +2,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
-import type { ActionInput } from '../../core/types';
+import type { ActionInput, ActionTarget } from '../../core/types';
 
 import { composerMessages } from '../../components/comment-composer/messages';
 import { presentComposer } from '../../components/comment-composer/present';
@@ -887,6 +887,21 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     this.#resize?.disconnect();
     this.#resize = undefined;
     this.#observed = undefined;
+  }
+
+  /** The canvas pans rather than scrolls: a frame is focused, anything else panned into view. */
+  protected override showTarget(target: ActionTarget): void {
+    const { state } = this.context();
+    const item = target.type === 'item' ? findItem(state, target.id) : undefined;
+    if (item?.kind === 'frame') {
+      this.#focusFrame(item.id);
+      return;
+    }
+    const connector = target.type === 'connector' ? findConnector(state, target.id) : undefined;
+    const ends = connector === undefined ? [] : [findItem(state, connector.from), findItem(state, connector.to)];
+    const rect = item ?? boardBounds(ends.filter((end) => end !== undefined));
+    const size = this.#canvasSize();
+    if (rect && size.width > 0 && size.height > 0) this.#setViewport(revealRect(this.viewport, rect, size));
   }
 
   #focusFrame(frameId: string): void {

@@ -168,6 +168,7 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
     class=${itemClass(props, item)}
     style=${`${box}${color}${scale}`}
     data-item-id=${item.id}
+    data-dpk-target=${`item:${item.id}`}
     data-kind=${item.kind}
     @pointerdown=${item.kind === 'frame' ? nothing : press}
   >
@@ -259,6 +260,14 @@ const ends = (state: WhiteboardState, connector: WbConnector): [WbItem, WbItem] 
   return from === undefined || to === undefined ? undefined : [from, to];
 };
 
+/** A labelled or commented connector shows an HTML chip at its middle. */
+const hasChip = (props: WbBoardProps, connector: WbConnector): boolean =>
+  connector.label !== undefined || props.context.commentCount({ type: 'connector', id: connector.id }) > 0;
+
+/** "Show" points at the chip when there is one: a thin stroke behind it hardly glows. */
+const connectorTarget = (props: WbBoardProps, connector: WbConnector, onChip: boolean): string | typeof nothing =>
+  hasChip(props, connector) === onChip ? `connector:${connector.id}` : nothing;
+
 const renderConnectors = (props: WbBoardProps): TemplateResult => {
   const { state, handlers, gesture } = props;
   const strokes = state.connectors.map((connector) => {
@@ -266,7 +275,7 @@ const renderConnectors = (props: WbBoardProps): TemplateResult => {
     if (pair === undefined) return nothing;
     const { d } = connectorPath(...pair, connector.route);
     const selected = props.selectedIds.has(connector.id) ? ' is-selected' : '';
-    return svg`<g data-connector-id=${connector.id}>
+    return svg`<g data-connector-id=${connector.id} data-dpk-target=${connectorTarget(props, connector, false)}>
       <path class="wb-link-hit" d=${d} @pointerdown=${(event: PointerEvent) =>
         handlers.connectorPointerDown(connector.id, event)}></path>
       <path class=${`wb-link${selected}`} d=${d} marker-end=${connector.style === 'arrow' ? 'url(#wb-arrow)' : nothing}></path>
@@ -293,14 +302,15 @@ const renderLabels = (props: WbBoardProps): TemplateResult[] => {
   const { state, context, handlers } = props;
   return state.connectors.flatMap((connector) => {
     const pair = ends(state, connector);
+    if (pair === undefined || !hasChip(props, connector)) return [];
     const comments = context.commentCount({ type: 'connector', id: connector.id });
-    if (pair === undefined || (connector.label === undefined && comments === 0)) return [];
     const { mid } = connectorPath(...pair, connector.route);
     const selected = props.selectedIds.has(connector.id) ? ' is-selected' : '';
     return [
       html`<div
         class=${`wb-link-label${selected}`}
         data-connector-label=${connector.id}
+        data-dpk-target=${connectorTarget(props, connector, true)}
         style=${`left:${mid.x}px;top:${mid.y}px`}
         @pointerdown=${(event: PointerEvent) => handlers.connectorPointerDown(connector.id, event)}
       >

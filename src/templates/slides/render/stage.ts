@@ -7,6 +7,7 @@ import type { SlidesMessages } from '../messages';
 import type { Slide, SlidesState } from '../model';
 
 import { iconChevronLeft, iconChevronRight, iconClose, iconMaximize } from '../../../core/icons';
+import { targetRef } from '../../../core/target';
 import { slideComments, slidePosition, type SlideComment } from '../present';
 
 export type StageOptions = {
@@ -97,6 +98,7 @@ const renderSlide = (slide: Slide, index: number): TemplateResult => html`
   <article
     class="slide"
     data-layout=${slide.layout}
+    data-dpk-target=${targetRef({ type: 'slide', id: slide.id })}
     aria-roledescription="slide"
     aria-label=${`${index + 1}. ${slide.title}`}
   >

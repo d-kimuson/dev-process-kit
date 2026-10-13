@@ -52,6 +52,8 @@ export const eventStormingDefinitionFor = (locale: Locale): TemplateDefinition<E
     describe: (action, state, base) => describeEventStormingAction(m, action, state, base),
     serialize: serializeEventStormingAction,
     resolveNavigation: resolveEventStormingNavigation,
+    navigationFor: (state, target) =>
+      target.type === 'element' && findNote(state, target.id) !== undefined ? { note: target.id } : null,
     commentTargets: (state: EventStormingState, _nav: Navigation) => eventStormingCommentTargets(m, state),
     currentTarget: (state, navigation) => eventStormingCurrentTarget(m, state, navigation),
     title: eventStormingTitle,

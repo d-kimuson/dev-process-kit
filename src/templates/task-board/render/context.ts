@@ -36,7 +36,12 @@ export const renderContext = (
 `;
 
 const renderPart = (m: TaskBoardMessages, part: ContextPartViewModel, handlers: BoardHandlers): TemplateResult => html`
-  <article class="board-context-part" data-context=${part.id} aria-labelledby=${`board-context-${part.id}`}>
+  <article
+    class="board-context-part"
+    data-context=${part.id}
+    data-dpk-target=${`context:${part.id}`}
+    aria-labelledby=${`board-context-${part.id}`}
+  >
     <header class="board-context-head">
       <h3 class="board-context-title" id=${`board-context-${part.id}`}>${part.title}</h3>
       ${commentButton(`context:${part.id}`, m.commentOn(part.title), part.comments, handlers)}

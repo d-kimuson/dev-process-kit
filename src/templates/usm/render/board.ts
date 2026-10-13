@@ -7,10 +7,12 @@ import type { CellRef } from '../drop';
 import type { UsmMessages } from '../messages';
 
 import { iconGrip, iconPlus } from '../../../core/icons';
+import { targetRef } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { addActivity, addMilestone, addStep, addStory } from '../commands';
 import {
   flatSteps,
+  stepRefOf,
   storiesInActivity,
   storiesInCell,
   storyCountForStep,
@@ -188,8 +190,12 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
             ${repeat(
               columns,
               ({ activity, step }) => `${activity.id}.${step.id}`,
-              ({ step }) => html`
-                <div class="col-head" data-current=${String(context.navigation['step'] === step.id)}>
+              ({ activity, step }) => html`
+                <div
+                  class="col-head"
+                  data-current=${String(context.navigation['step'] === step.id)}
+                  data-dpk-target=${targetRef({ type: 'step', id: stepRefOf(activity.id, step.id) })}
+                >
                   <h4>
                     <dpk-component-inline-edit
                       .value=${step.name}
@@ -300,7 +306,12 @@ const renderActivityHead = (
   const stories = state.stories.filter((story) => story.activityId === activity.id);
   const progress = statusDistribution(state, stories);
   return html`
-    <div class="act-head" style=${style ?? ''} data-activity=${activity.id}>
+    <div
+      class="act-head"
+      style=${style ?? ''}
+      data-activity=${activity.id}
+      data-dpk-target=${targetRef({ type: 'activity', id: activity.id })}
+    >
       <div class="act-title">
         <dpk-component-inline-edit
           .value=${activity.name}
@@ -426,6 +437,7 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
         <div
           class="row-head"
           data-milestone=${milestoneId}
+          data-dpk-target=${targetRef({ type: 'milestone', id: milestoneId })}
           draggable="true"
           @dragstart=${(event: DragEvent) => {
             liftRow(event);
@@ -577,6 +589,7 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
   return html`<dpk-internal-usm-story-card
     data-story=${story.id}
     data-status=${story.statusId ?? ''}
+    data-dpk-target=${targetRef({ type: 'story', id: story.id })}
     draggable="true"
     style=${statusToneStyle(statusViewOf(views, story)?.tone)}
     .story=${story}

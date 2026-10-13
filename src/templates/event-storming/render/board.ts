@@ -306,6 +306,7 @@ const renderBand = (
       ?focused=${navigation['note'] === note.id}
       ?compact=${compact}
       data-pin=${compact ? note.id : nothing}
+      data-dpk-target=${`element:${note.id}`}
       .onIntent=${(intent: NoteIntent) => handlers.noteIntent(note.id, intent)}
     ></dpk-internal-event-storming-note>`;
   return html`
@@ -420,6 +421,7 @@ const renderContextRegions = (
       html`<div
           class="context-region"
           data-hue=${hue}
+          data-dpk-target=${`context:${boundedContext.id}`}
           style=${`left:${left}px;top:${top}px;width:${right - left}px;height:${bottom - top}px`}
           title=${boundedContext.description ?? boundedContext.name}
         ></div>
@@ -612,17 +614,20 @@ const renderArrows = (props: EsBoardProps, geometry: WallGeometry): TemplateResu
   };
   /** `room` is how wide the label may run along its route without crossing a note. */
   const push = (arrow: SliceArrow, d: string, label: Pt, anchor: 'middle' | 'start' | 'end', room: number): void => {
-    parts.push(
-      svg`<path class="link-hit" d=${d} @pointerdown=${(event: PointerEvent) => event.stopPropagation()} @click=${(
-        event: MouseEvent,
-      ) => props.handlers.linkClick(arrow.id, event.shiftKey || event.metaKey || event.ctrlKey)}></path>`,
-    );
     const selected = props.selectedLinkIds.includes(arrow.id) ? ' is-selected' : '';
-    parts.push(svg`<path class="link-path${selected}" d=${d} marker-end=${marker}></path>`);
-    if (arrow.label === undefined) return;
     const dx = { start: 6, end: -6, middle: 0 }[anchor];
     parts.push(
-      svg`<text class="link-label" x=${label.x + dx} y=${label.y - 6} text-anchor=${anchor}><title>${arrow.label}</title>${clipLabel(arrow.label, Math.min(room, LINK_LABEL_MAX_W))}</text>`,
+      svg`<g data-link-id=${arrow.id} data-dpk-target=${`link:${arrow.id}`}>
+        <path class="link-hit" d=${d} @pointerdown=${(event: PointerEvent) => event.stopPropagation()} @click=${(
+          event: MouseEvent,
+        ) => props.handlers.linkClick(arrow.id, event.shiftKey || event.metaKey || event.ctrlKey)}></path>
+        <path class=${`link-path${selected}`} d=${d} marker-end=${marker}></path>
+        ${
+          arrow.label === undefined
+            ? nothing
+            : svg`<text class="link-label" x=${label.x + dx} y=${label.y - 6} text-anchor=${anchor}><title>${arrow.label}</title>${clipLabel(arrow.label, Math.min(room, LINK_LABEL_MAX_W))}</text>`
+        }
+      </g>`,
     );
   };
   for (const arrow of geometry.arrows) {

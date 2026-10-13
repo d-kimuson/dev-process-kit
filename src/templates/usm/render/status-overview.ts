@@ -6,6 +6,7 @@ import type { UsmMessages } from '../messages';
 import type { StatusOverview, StatusRow } from '../status-overview';
 
 import { iconTrash } from '../../../core/icons';
+import { targetRef } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { addStatus } from '../commands';
 import { STATUS_ICONS, STATUS_TONES, type UsmState } from '../model';
@@ -67,7 +68,7 @@ const renderStatusRow = (
     context.dispatch({ type: 'REORDER_STATUS', target, payload: { after } });
   };
   return html`
-    <li class="st-row" data-status=${row.id} style=${statusToneStyle(row.tone)}>
+    <li class="st-row" data-status=${row.id} data-dpk-target=${targetRef(target)} style=${statusToneStyle(row.tone)}>
       <button
         class="st-icon-trigger"
         type="button"

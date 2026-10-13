@@ -406,3 +406,14 @@ A screen alone does not say when, where or why the user is looking at it. Write 
 ### Step naming
 
 A step is an experience state reached by an action, so name it as a verb phrase: `LP に到達する` → `Google でログインする` → `初期画面に到達する`. Names that describe a screen (`ランディング`) hide the intent and make the flow read as a list of pages instead of a user journey.
+
+## Change notices
+
+[Change notices](../index.md#change-notices)'s "Show" moves the scenario to the activity, story or step a change names, or opens the screen it names.
+
+| Target                                       | Where "Show" goes                                       |
+| -------------------------------------------- | ------------------------------------------------------- |
+| `activity:<id>` / `story:<id>` / `step:<id>` | That point in the scenario, on stage.                   |
+| `screen:<id>`                                | That screen, in whichever view is currently showing it. |
+
+The stage is marked with every target it currently shows — its step, story and activity, plus the screens of its panes — so a change about a screen also lights up the scenario stage that already has it on screen.

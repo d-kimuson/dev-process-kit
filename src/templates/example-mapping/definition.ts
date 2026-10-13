@@ -49,6 +49,8 @@ export const exampleMappingDefinitionFor = (locale: Locale): TemplateDefinition<
     describe: (action, state, base) => describeExampleMappingAction(m, action, state, base),
     serialize: serializeExampleMappingAction,
     resolveNavigation: resolveExampleMappingNavigation,
+    // Every card is on the board; focusing it is what brings it forward.
+    navigationFor: (state, target) => (findCard(state, target.id)?.kind === target.type ? { card: target.id } : null),
     commentTargets: (state, navigation) => exampleMappingCommentTargets(m, state, navigation),
     currentTarget: (state, navigation) => exampleMappingCurrentTarget(m, state, navigation),
     title: exampleMappingTitle,

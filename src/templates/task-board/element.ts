@@ -3,6 +3,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 import type { SidebarLayout } from '../../core/sidebar-width';
+import type { ActionTarget } from '../../core/types';
 import type { TaskBoardState } from './model';
 
 import { TemplateElement } from '../../core/element';
@@ -70,6 +71,22 @@ export class DpkTemplateTaskBoard extends TemplateElement<TaskBoardState> {
 
   protected override definitionFor(locale: Locale) {
     return taskBoardDefinitionFor(locale);
+  }
+
+  /** The board has no navigation: a change's target is brought forward by its tab, or by the todo filter. */
+  protected override showTarget(target: ActionTarget): void {
+    switch (target.type) {
+      case 'context':
+      case 'log':
+        this.tab = target.type;
+        return;
+      case 'question':
+        this.tab = 'questions';
+        return;
+      case 'todo':
+        this.todoFilter = 'all';
+        return;
+    }
   }
 
   override disconnectedCallback(): void {

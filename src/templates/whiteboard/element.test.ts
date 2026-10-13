@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DpkTemplateWhiteboard } from './element';
 
 import '../../index';
+import { changeLogScript, showChange } from '../../core/testing/change-notices';
 
 const base = {
   title: 'Retro',
@@ -16,11 +17,12 @@ const base = {
   connectors: [{ id: 'flaky-goal', from: 'flaky', to: 'goal', label: 'blocks' }],
 };
 
-const mount = (options: { hash?: string; storage?: string } = {}): DpkTemplateWhiteboard => {
+const mount = (options: { hash?: string; storage?: string; change?: string } = {}): DpkTemplateWhiteboard => {
   window.location.hash = options.hash ?? '';
   const storage = options.storage ?? 'storage="memory"';
   document.body.innerHTML = `
     <dpk-template-whiteboard lang="en" ${storage}>
+      ${options.change === undefined ? '' : changeLogScript(options.change)}
       <script type="application/json">${JSON.stringify(base)}</script>
     </dpk-template-whiteboard>`;
   const element = document.querySelector('dpk-template-whiteboard');
@@ -381,5 +383,53 @@ describe('<dpk-template-whiteboard>', () => {
       ['MOVE_ITEM', { x: 620, y: 460 }],
     ]);
     expect(q(second, '[data-item-id="flaky"]').style.left).toBe('620px');
+  });
+});
+
+describe('whiteboard change notices', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  /** Gives the canvas a size and lets the view open on the board. */
+  const sized = async (el: DpkTemplateWhiteboard): Promise<void> => {
+    await settle(el);
+    const canvas = q(el, '.wb-canvas');
+    Object.defineProperty(canvas, 'clientWidth', { configurable: true, value: 400 });
+    Object.defineProperty(canvas, 'clientHeight', { configurable: true, value: 300 });
+    el.requestUpdate();
+    await settle(el);
+  };
+
+  /** Where an item's left and right edges sit on the canvas. */
+  const onCanvas = (el: DpkTemplateWhiteboard, x: number, w: number): [number, number] => {
+    const match = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(q(el, '.wb-world').style.transform);
+    if (match === null) throw new Error('no transform');
+    const [, left, , zoom] = match.map(Number);
+    return [left! + x * zoom!, left! + (x + w) * zoom!];
+  };
+
+  it('"Show" pans the canvas to an item off screen and highlights it', async () => {
+    const el = mount({ change: 'item:goal' });
+    await sized(el);
+    const item = await showChange(el);
+    await settle(el);
+    expect(item?.getAttribute('data-item-id')).toBe('goal');
+    const [left, right] = onCanvas(el, 1000, item instanceof HTMLElement ? item.offsetWidth : 0);
+    expect(left).toBeGreaterThanOrEqual(0);
+    expect(right).toBeLessThanOrEqual(400);
+  });
+
+  it('"Show" on a frame focuses it', async () => {
+    const el = mount({ change: 'item:to-improve' });
+    await sized(el);
+    expect((await showChange(el))?.getAttribute('data-item-id')).toBe('to-improve');
+    expect(el.navigation['frame']).toBe('to-improve');
+  });
+
+  it('"Show" on a labelled connector highlights its label', async () => {
+    const el = mount({ change: 'connector:flaky-goal' });
+    await sized(el);
+    expect((await showChange(el))?.getAttribute('data-connector-label')).toBe('flaky-goal');
   });
 });

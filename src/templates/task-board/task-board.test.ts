@@ -5,6 +5,7 @@ import type { DraftAction } from '../../core/types';
 import type { DpkTemplateTaskBoard } from './element';
 
 import '../../index';
+import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import { addTodo, answerQuestion, decideProposal, deleteTodo, setTodoStatus } from './actions';
 import { applyTaskBoardAction } from './apply';
 import { taskBoardDefinitionFor, taskBoardHasTarget } from './definition';
@@ -434,9 +435,10 @@ describe('task board definition', () => {
 
 /* ---------------------------------------------------------------- element */
 
-const mountWith = (data: unknown, lang = 'en'): DpkTemplateTaskBoard => {
+const mountWith = (data: unknown, lang = 'en', change = ''): DpkTemplateTaskBoard => {
   document.body.innerHTML = `
     <dpk-template-task-board storage="memory" lang="${lang}">
+      ${change === '' ? '' : changeLogScript(change)}
       <script type="application/json">${JSON.stringify(data)}</script>
     </dpk-template-task-board>`;
   const element = document.querySelector('dpk-template-task-board');
@@ -784,5 +786,29 @@ describe('<dpk-template-task-board>', () => {
     expect(query(element, '#board-questions').textContent).toBe(ja.questions);
     expect(query(element, '[data-tab="log"]').textContent).toContain(ja.tabLog);
     expect(query(element, '[data-group="blocking"] .board-group-title').textContent).toBe(ja.blockingGroup);
+  });
+});
+
+describe('task-board change notices', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it('"Show" opens the tab the change is in and highlights it', async () => {
+    const element = mountWith(base, 'en', 'question:deadline');
+    await settle(element);
+    const question = await showChange(element);
+    expect(question?.getAttribute('data-question')).toBe('deadline');
+    expect(query(element, '[role="tab"][aria-selected="true"]').getAttribute('data-tab')).toBe('questions');
+  });
+
+  it('"Show" on a todo the filter hides shows every todo', async () => {
+    const element = mountWith(base, 'en', 'todo:design');
+    await settle(element);
+    query<HTMLButtonElement>(element, '[data-filter="human"]').click();
+    await settle(element);
+    const todo = await showChange(element);
+    expect(todo?.getAttribute('data-todo')).toBe('design');
+    expect(query(element, '[data-filter="all"]').getAttribute('aria-pressed')).toBe('true');
   });
 });

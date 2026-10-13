@@ -153,3 +153,7 @@ Give each diagram a stable, unique HTML `id`. Hover a table, state, participant,
 ## Naming
 
 Questions use `question:<id>`, page-wide comments use `page:grill`, and component-owned elements use `element:<reference>`. Preserve the diagram and element ids when revising the page so existing comments retain their targets.
+
+## Change notices
+
+[Change notices](../index.md#change-notices)'s "Show" on a `question:<id>` opens the Questions tab, unfolds the rail, switches to the current round, and selects that question.

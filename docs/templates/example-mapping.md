@@ -105,3 +105,7 @@ UI から編集できるのはカード名、追加、ドラッグ移動（ス�
 ## Naming
 
 Story はユーザーの達成したいこと（`注文する`）、rule はビジネスルール（`在庫があれば受ける`）、example は具体的な入出力の例（`在庫あり → 受注`）、question は未解決の疑問（`取り置きは可能？`）として書く。
+
+## Change notices
+
+[Change notices](../index.md#change-notices) の "Show" はカードを選ぶ（`#card=`）。`story:<id>` / `rule:<id>` / `example:<id>` / `question:<id>` のいずれも、対象のカードを選択してハイライトする。

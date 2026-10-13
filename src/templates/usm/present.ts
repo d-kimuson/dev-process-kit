@@ -5,6 +5,7 @@ import type {
   CommentTargetOption,
   DraftAction,
   Navigation,
+  NavigationPatch,
 } from '../../core/types';
 import type { UsmMessages } from './messages';
 
@@ -337,6 +338,27 @@ export const usmCurrentTarget = (m: UsmMessages, state: UsmState, nav: Navigatio
 
 export const usmTitle = (state: UsmState): string => {
   return state.title ?? 'User Story Mapping';
+};
+
+/**
+ * The navigation that brings a target on screen, for a change's "Show": a
+ * story, step or activity on the map grouped by activity, unfiltered so the
+ * story shows; a milestone or a status on its own page.
+ */
+export const usmNavigationFor = (target: ActionTarget): NavigationPatch | null => {
+  switch (target.type) {
+    case 'story':
+      return { tab: null, status: null };
+    case 'step':
+    case 'activity':
+      return { tab: null, view: null };
+    case 'milestone':
+      return { tab: 'milestones' };
+    case 'status':
+      return { tab: 'statuses' };
+    default:
+      return null;
+  }
 };
 
 export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigation => {

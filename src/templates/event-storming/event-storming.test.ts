@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { DraftAction } from '../../core/types';
 import type { DpkTemplateEventStorming } from './element';
 
+import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import { applyEventStormingAction } from './apply';
 import { eventStormingDefinitionFor } from './definition';
 import { eventStormingMessages } from './messages';
@@ -256,5 +257,35 @@ describe('event-storming', () => {
   beforeEach(() => {
     window.location.hash = '';
     document.body.innerHTML = '';
+  });
+});
+
+describe('event-storming change notices', () => {
+  const mount = async (change: string): Promise<DpkTemplateEventStorming> => {
+    window.location.hash = '';
+    document.body.innerHTML = `<dpk-template-event-storming storage="memory">${changeLogScript(change)}<script type="application/json">${JSON.stringify(base)}</script></dpk-template-event-storming>`;
+    const el = document.querySelector('dpk-template-event-storming') as unknown as DpkTemplateEventStorming;
+    await el.api.ready;
+    await el.updateComplete;
+    await Promise.resolve();
+    await el.updateComplete;
+    return el;
+  };
+
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('"Show" focuses the changed note and highlights it', async () => {
+    const el = await mount('element:n2');
+    const shown = await showChange(el);
+    expect(shown?.localName).toBe('dpk-internal-event-storming-note');
+    expect((shown as (Element & { note?: { id: string } }) | null)?.note?.id).toBe('n2');
+    expect(el.api.navigation['note']).toBe('n2');
+  });
+
+  it('"Show" highlights a changed bounded context and a changed link', async () => {
+    expect((await showChange(await mount('context:c1')))?.classList.contains('context-region')).toBe(true);
+    expect((await showChange(await mount('link:l1')))?.getAttribute('data-link-id')).toBe('l1');
   });
 });

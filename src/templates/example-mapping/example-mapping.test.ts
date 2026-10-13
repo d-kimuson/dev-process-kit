@@ -5,6 +5,7 @@ import type { DraftAction } from '../../core/types';
 import type { DpkInternalExampleMappingCard } from './components/mapping-card';
 import type { DpkTemplateExampleMapping } from './element';
 
+import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import '../../index';
 import { exampleMappingAction } from './actions';
 import { applyExampleMappingAction } from './apply';
@@ -49,10 +50,11 @@ const area = (root: ShadowRoot, testid: string): (string | null)[] =>
     card.getAttribute('data-card'),
   );
 
-const mount = (hash = '', lang = ''): DpkTemplateExampleMapping => {
+const mount = (hash = '', lang = '', change = ''): DpkTemplateExampleMapping => {
   window.location.hash = hash;
   document.body.innerHTML = `
     <dpk-template-example-mapping storage="memory"${lang === '' ? '' : ` lang="${lang}"`}>
+      ${change === '' ? '' : changeLogScript(change)}
       <script type="application/json">${JSON.stringify(base)}</script>
     </dpk-template-example-mapping>`;
   return document.querySelector('dpk-template-example-mapping') as DpkTemplateExampleMapping;
@@ -417,5 +419,20 @@ describe('example-mapping actions', () => {
     await settle(el);
     expect(location.hash).toContain('card=q2');
     document.body.innerHTML = '';
+  });
+});
+
+describe('example-mapping change notices', () => {
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+  });
+
+  it('"Show" focuses the card the change is about and highlights it', async () => {
+    const el = mount('', '', 'question:q3');
+    await settle(el);
+    const card = await showChange(el);
+    expect(card?.getAttribute('data-card')).toBe('q3');
+    expect(el.navigation['card']).toBe('q3');
   });
 });

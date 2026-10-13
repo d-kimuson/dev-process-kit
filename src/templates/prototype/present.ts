@@ -5,6 +5,7 @@ import type {
   CommentTargetOption,
   DraftAction,
   Navigation,
+  NavigationPatch,
 } from '../../core/types';
 import type { PrototypeMessages } from './messages';
 
@@ -318,6 +319,45 @@ export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePre
   } catch {
     return preview.url;
   }
+};
+
+/**
+ * The navigation that brings a target on stage, for a change's "Show". A
+ * screen stays in the reader's view: the scenario moves to a step showing it.
+ */
+export const prototypeNavigationFor = (target: ActionTarget): NavigationPatch | null => {
+  switch (target.type) {
+    case 'activity':
+      return { [VIEW_KEY]: null, activity: target.id };
+    case 'story':
+      return { [VIEW_KEY]: null, activity: null, story: target.id };
+    case 'step':
+      return { [VIEW_KEY]: null, activity: null, story: null, step: target.id };
+    case 'screen':
+      return { screen: target.id };
+    default:
+      return null;
+  }
+};
+
+/**
+ * What the stage shows, as space-separated target refs for the change
+ * notices to find: the step or screen on it, the story and activity around a
+ * step, and the screens of its panes.
+ */
+export const prototypeStageTargets = (located: PrototypeLocation, frames: StageFrames | null): string => {
+  const targets: ActionTarget[] =
+    located.kind === 'screen'
+      ? [{ type: 'screen', id: located.screen.id }]
+      : [
+          { type: 'activity', id: located.activity.id },
+          { type: 'story', id: storyRef(located.activity.id, located.story.id) },
+          ...(located.kind === 'step' ? [{ type: 'step', id: stepRef(located) }] : []),
+        ];
+  for (const pane of frames?.panes ?? []) {
+    if (pane.kind === 'screen') targets.push({ type: 'screen', id: pane.screen.screen.id });
+  }
+  return [...new Set(targets.map(targetRef))].join(' ');
 };
 
 /** One pane on stage: a rendition of a screen of the product, or a material at hand. */

@@ -12,6 +12,7 @@ import type {
 } from '../present';
 
 import { iconChevronRight } from '../../../core/icons';
+import { targetRef } from '../../../core/target';
 
 export type PanelHandlers = {
   readonly open: (questionId: string) => void;
@@ -47,7 +48,12 @@ const renderQuestion = (
   question: GrillQuestionViewModel,
   handlers: PanelHandlers,
 ): TemplateResult => html`
-  <section class="grill-question" data-question=${question.id} data-answered=${String(question.answered)}>
+  <section
+    class="grill-question"
+    data-question=${question.id}
+    data-answered=${String(question.answered)}
+    data-dpk-target=${targetRef({ type: 'question', id: question.id })}
+  >
     <button
       class="grill-heading"
       type="button"

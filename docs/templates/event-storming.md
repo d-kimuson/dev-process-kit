@@ -110,3 +110,13 @@ The board is a fixed grid — notes keep their size so the link lines never need
 ## Comment targets
 
 Elements and contexts: `element:<id>` labelled with the note name under group `Element`, `context:<id>` labelled with the context name under group `Bounded context`.
+
+## Change notices
+
+[Change notices](../index.md#change-notices)'s "Show" pans the wall into view rather than scrolling it, since notes sit on a fixed grid:
+
+| Target         | What "Show" does                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| `element:<id>` | Focuses the note (`#note=`) and pans the wall to it.                                                         |
+| `context:<id>` | Pans to and highlights the bounded context region.                                                           |
+| `link:<id>`    | Pans to and highlights the arrow — a link inside one slice draws no arrow, so there is nothing to highlight. |

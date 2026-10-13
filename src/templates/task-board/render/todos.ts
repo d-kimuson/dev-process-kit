@@ -123,6 +123,7 @@ const renderTodo = (
   <li
     class="board-todo"
     data-todo=${todo.id}
+    data-dpk-target=${`todo:${todo.id}`}
     data-status=${todo.status}
     data-proposal=${todo.proposal ?? 'none'}
     data-added=${String(todo.added)}

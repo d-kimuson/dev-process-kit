@@ -6,6 +6,7 @@ import type { UsmMessages } from '../messages';
 import type { MilestoneCard } from '../milestone-overview';
 import type { UsmState } from '../model';
 
+import { targetRef } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { addMilestone } from '../commands';
 import { statusBar, statusIcon, statusToneStyle } from './tone';
@@ -58,7 +59,7 @@ const renderMilestoneEntry = (
 ): TemplateResult => {
   const id = card.id;
   return html`
-    <li class="ms-entry" data-milestone-card=${id}>
+    <li class="ms-entry" data-milestone-card=${id} data-dpk-target=${targetRef({ type: 'milestone', id })}>
       <div class="ms-when">
         ${
           card.timeframe === ''
