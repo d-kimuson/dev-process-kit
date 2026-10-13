@@ -60,7 +60,7 @@ Check before you hand the page over:
             {
               "id": "google-auth",
               "name": "Google でログインする",
-              "screen": "signin"
+              "panes": [{ "screen": "signin" }]
             }
           ]
         }
