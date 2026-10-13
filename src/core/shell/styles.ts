@@ -31,6 +31,15 @@ export const chromeStyles = [
       grid-template-rows: auto minmax(0, 1fr) auto;
       min-height: 100%;
       max-height: 100%;
+      /*
+       * The fallback when the page gives the host no height: the viewport, less
+       * the safe-area insets a Claude Artifact pads its root by. Without it the
+       * shell grows with its content, leaving the page's own ground below a
+       * short page and scrolling the header and the memo away on a long one.
+       * A host with a height still wins: the min/max-height above pin the shell
+       * to it.
+       */
+      height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     }
 
     /* ------------------------------------------------------------- header */
