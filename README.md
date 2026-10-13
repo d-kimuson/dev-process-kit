@@ -59,7 +59,7 @@ Claude Code can publish the page as a Claude Artifact instead of a local file, a
 - **Fits the viewer.** The template follows the reader's claude.ai light / dark theme and sizes itself to the viewer's frame.
 - **Nothing to configure.** The page detects the Artifact at runtime; outside one, or when a send cannot land, the copy hand-off stays as it is.
 
-The skill's [Claude Artifact reference](skills/dev-process-kit/references/claude-artifact.md) tells the agent how to write and publish such a page.
+[docs/claude-artifact.md](docs/claude-artifact.md) tells the agent when to publish such a page and how to write it; the skill sends the agent there whenever it can publish an Artifact.
 
 ### Install the skill
 

@@ -144,7 +144,7 @@ The second one reaches into a diagram's shadow root to place the badge on the ex
 
 Answers and submitted comments survive reload through the common draft storage. The separate core floating review button is not rendered; there is only one integrated rail.
 
-The rail and the hand-off stay on screen because the shell is bounded. Give the page a height: `html, body { height: 100% }` and the element `height: 100%`. Without one, the template falls back to the viewport height (`100dvh`) instead of growing with its content and scrolling the rail off screen; that fallback does not subtract a Claude Artifact's safe-area padding, so still set the heights.
+The rail and the hand-off stay on screen because the shell is bounded. Give the host the page's height (`docs/index.md`, Page height). Without one, the template falls back to the window's height instead of growing with its content and scrolling the rail off screen.
 
 ## Diagram-element comments
 

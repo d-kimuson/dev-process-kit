@@ -45,6 +45,26 @@ A template entry registers that template, the review rail and inline editing. Ad
 
 One HTML file holds exactly one page root. What goes inside the base data, and which light DOM a template matches, is the template's business: each template documents its own shape under `docs/templates/`.
 
+## Page height
+
+Every template is a bounded shell: its header stays on top, the memo at the bottom of the main column, and the sidebar, main column and review rail each scroll on their own. That needs the page's height on the template element:
+
+```html
+<style>
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+  }
+  dpk-template-prototype {
+    display: block;
+    height: 100%;
+  }
+</style>
+```
+
+Put the element directly in `body`, with no wrapper or padding around it. This one form works in a local file and inside a Claude Artifact ([claude-artifact.md](claude-artifact.md)); do not size the element with `100vh` / `100dvh`, which overflows a host that pads the page. Without a height, the template falls back to the window's height (less a Claude Artifact's safe-area padding), so it still fills the window. Set the height anyway: the fallback assumes the element is the whole page, and only the height you give it follows the page you actually wrote.
+
 ## Base data
 
 The base data is the state the template would render with zero draft actions. It is JSON, baked into the HTML, and it has **no envelope**: the custom element already names the template and the script URL already pins the version, so `{ "activities": [] }` is the whole document, not `{ "template": …, "schema": …, "data": … }`. Keep it free of drafts, revisions and framework metadata.
@@ -122,6 +142,7 @@ Navigation is the URL hash and is completely separate from draft actions: select
 
 - The hash is the single source of truth: sidebar selection, internal links, browser back/forward and deep links all agree.
 - The element canonicalizes the hash — missing keys are filled from the template's defaults and written back with `replaceState` — so the URL is always shareable. After a draft removes the current target, the hash is re-canonicalized to something that still exists.
+- Inside a Claude Artifact all of this works within the page; only a deep link from outside does not reach it ([claude-artifact.md](claude-artifact.md)).
 - `data-dpk-navigate="step=next"` on any element inside the template element navigates on click; `data-dpk-comment="step:google-auth"` focuses the review composer for that target.
 
 ## Element API
@@ -287,5 +308,6 @@ The header gets a bell. Changes this reader has not seen pop up as toasts (three
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The template I am actually using  | `docs/templates/<name>.md` (prototype / usm / event-storming / example-mapping / grill / plain / slides / task-board / delegation-poker / whiteboard) |
 | The component I am actually using | `docs/components/<name>.md` (comment-panel / diagrams / formal-spec / …)                                                                              |
+| Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                             |
 
 Read the page for what you are actually using, plus this one.

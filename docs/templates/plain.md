@@ -54,7 +54,7 @@ Put anything in `slot="main"`. Load `components.js` alongside `templates/plain.j
 </dpk-template-plain>
 ```
 
-Give the host a height (for example `dpk-template-plain { display: block; height: 100dvh; }`): the main area scrolls inside the shell.
+Give the host the page's height (`docs/index.md`, Page height): the main area scrolls inside the shell.
 
 ## Comment targets
 

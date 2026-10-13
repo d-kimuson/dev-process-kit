@@ -71,7 +71,7 @@ The slide scales with the window, and its text scales with the slide. Size text 
 
 Diagram elements draw at a fixed pixel size and bring their own toolbar, so they only fit a slide with little else on it. Let the diagram take the height the slide has left — `height: 100%` on the body and on the diagram, with `--diagram-height: 100%` — and keep it to a few rows; a small figure made of your own markup, sized in `em`, often reads better.
 
-Give the host a height (for example `dpk-template-slides { display: block; height: 100dvh; }`): the deck scrolls inside the shell.
+Give the host the page's height (`docs/index.md`, Page height): the deck scrolls inside the shell.
 
 ## Comment targets
 

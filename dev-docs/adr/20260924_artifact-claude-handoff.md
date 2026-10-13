@@ -31,4 +31,4 @@ The hand-off has been the clipboard: the reader copies the brief and pastes it i
 
 ## References
 
-- [Publishing the page as a Claude Artifact](../../skills/dev-process-kit/references/claude-artifact.md)
+- [Publishing the page as a Claude Artifact](../../docs/claude-artifact.md)

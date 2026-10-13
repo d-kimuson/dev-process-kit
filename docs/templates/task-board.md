@@ -214,7 +214,7 @@ Outputs take no comments: the person opens or copies them, and comments on the w
 
 The board is one page and has no navigation state: the open tab and the todo filter are the reader's view, not part of the draft.
 
-Give the host a height (for example `dpk-template-task-board { display: block; height: 100dvh; }`): the main area and the side scroll inside the shell.
+Give the host the page's height (`docs/index.md`, Page height): the main area and the side scroll inside the shell.
 
 ## Writing the board
 

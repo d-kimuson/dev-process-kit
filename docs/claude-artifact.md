@@ -1,10 +1,14 @@
 # Publishing the page as a Claude Artifact
 
-Read this when the page goes to the user as a Claude Artifact instead of a local file. The Artifact viewer wraps the file in its own document and runs it in a locked-down frame; a page written like a local file renders, but the height breaks.
+When your session has the Artifact tool, publish the page as an Artifact and give the user its link. The user opens one link, reviews in place, and can send the review straight back to you. Hand over a local file only when there is no Artifact tool or the user asks for a file.
+
+The kit works inside the viewer. Navigation — the step list, the mock's links, every hash the template writes — works as in a local file; only a deep link from outside does not reach the page (see [What behaves differently](#what-behaves-differently)). Drafts are kept in the reader's browser there as well. None of the viewer's limits is a reason to fall back to a local file.
+
+Read this page before you write the file: the viewer wraps the file in its own document and runs it in a locked-down frame, so a page written like a local file renders, but its height and ground break.
 
 ## The file
 
-Write the page content only. The viewer adds `<!doctype html>`, `<html>`, `<head>` and `<body>` itself, with a charset / viewport meta and a small reset:
+Write the page content only. The viewer adds `<!doctype html>`, `<html>`, `<head>` and `<body>` itself, with a charset / viewport meta and a small reset that paints `body` an off-white:
 
 ```html
 <title>注文セルフキャンセルの論点</title>
@@ -25,9 +29,11 @@ Write the page content only. The viewer adds `<!doctype html>`, `<html>`, `<head
 ```
 
 - **`<title>` first.** Only the first 8 KB is scanned for it, and it names the artifact in the gallery: a short name for the subject, not "name — explanation".
-- **Height is `100%`, never `100vh` / `100dvh`.** The viewer pads `:root` by the device's safe-area insets, so a viewport-sized template element overflows by that padding: the page gets a second scrollbar and the rail and header jump while scrolling. Give `html` and `body` `height: 100%` and the template element `height: 100%`.
+- **The template element is the whole page.** Put it directly in the file, not inside a wrapper, and give `body` no padding: the element fills the window edge to edge and lays out its own gutters.
+- **Height is `100%` — never left out, never `100vh` / `100dvh`.** Give `html` and `body` `height: 100%` and the template element `height: 100%` ([Page height](index.md#page-height)). Without a height the template falls back to the window's height less the safe-area padding, which fits here, but the page then rests on a guess. A viewport-sized element overflows instead, because the viewer pads `:root` by the device's safe-area insets: the page gets a second scrollbar and the rail and header jump while scrolling.
 - **`lang` on the template element.** You do not control the viewer's `<html>`, so declare the page's language on the template element; the kit's own UI follows it and falls back to English.
 - **Leave the ground and the theme to the template.** The viewer stamps the reader's claude.ai theme on `<html data-theme>`, and the template follows it (the reader can still flip it with the header toggle). Do not paint `html` / `body` or force `color-scheme`, and write your own CSS with `var(--dpk-*)` so it switches too.
+- **This page's rules win over generic Artifact design guidance.** The Artifact tool has you load design guidance for any page (`artifact-design`): a token palette with dark-mode blocks, a background painted on `body`, a side gutter on `body`, your own fonts. On a kit page the template already does each of these for the page, so apply that guidance only inside your own mock content (a prototype's previews, plain's sections), never to `html`, `body` or the template element.
 - **Scripts from jsDelivr only.** The CSP admits `cdn.jsdelivr.net/npm/` for scripts, so the pinned entries are all the page needs. The only other request the kit makes is the version list behind the header's version select (`data.jsdelivr.com`), and only when the reader opens that select; where the viewer blocks it, the select lists the running version alone.
 
 ## Sending the review to Claude
@@ -48,7 +54,7 @@ The reader sees your answer only in that thread. The page never shows the databa
 
 ## What behaves differently
 
-- **No deep links.** Only a bare `#token` from the artifact's URL reaches the page, never `#question=deadline`. Navigation inside the page works as usual; do not hand the user a hash URL as a way to open a specific question or step.
+- **No deep links.** Only a bare `#token` from the artifact's URL reaches the page, never `#question=deadline`. Navigation inside the page works as usual — the template still keeps its state in the hash while the reader moves around — so do not hand the user a hash URL as a way to open a specific question or step, but do not avoid the Artifact for this either.
 - **Drafts stay in the reader's browser.** LocalStorage is per artifact and per reader: it survives republishing to the same URL, and never reaches Claude or other readers. Keep `storage-key` unchanged across versions so a review in progress survives your republish; what reaches you is the brief the reader sends or pastes.
 - **No browser dialogs.** `alert` / `confirm` / `prompt` never show; do not rely on them in slotted markup.
 
