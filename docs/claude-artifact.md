@@ -4,7 +4,7 @@ When your session has the Artifact tool, publish the page as an Artifact and giv
 
 The kit works inside the viewer. Navigation — the step list, the mock's links, every hash the template writes — works as in a local file; only a deep link from outside does not reach the page (see [What behaves differently](#what-behaves-differently)). Drafts are kept in the reader's browser there as well. None of the viewer's limits is a reason to fall back to a local file.
 
-Read this page before you write the file: the viewer wraps the file in its own document and runs it in a locked-down frame, so a page written like a local file renders, but its height and ground break.
+Read this page before you write the file: the viewer wraps the file in its own document and runs it in a locked-down frame, so a page written like a local file renders, but its height and ground break. Read it again before the first publish: the review comes back to you only when that publish declares the capabilities in [Sending the review to Claude](#sending-the-review-to-claude).
 
 ## The file
 
@@ -40,7 +40,8 @@ Write the page content only. The viewer adds `<!doctype html>`, `<html>`, `<head
 
 Declare `capabilities: { comments: {}, db: {} }` on the first publish, and the review rail (in grill: the footer) offers **Send to Claude** in place of copying: the brief arrives in your session as a comment sent to Claude, pinned to the template, and the user no longer pastes anything.
 
-- **`comments: {}` is the switch.** Its full form (not `composer_only`) is what lets the page send to Claude, and it makes the artifact organization-internal: a public link cannot be shared, and readers without comment access see the copy buttons only. Leave it out when the page has to be public; the page then works as a local file does.
+- **`comments: {}` is the switch.** Its full form (not `composer_only`) is what lets the page send to Claude, and it makes the artifact organization-internal: a public link cannot be shared, and readers without comment access see the copy buttons only. Leave it out only when the page has to be public; the page then works as a local file does, with no **Send to Claude** at all — the reader sees only the copy buttons, and nothing on the page says why.
+- **Forgot it?** Republish to the same artifact with the `capabilities` declared; the link stays the same and the button appears.
 - **`db: {}` carries long reviews.** One comment holds 4 KiB. A longer brief is stored as a document in the `reviews` collection and the comment names its path; without `db` the page asks the reader to copy instead.
 - **The button shows only when a send can land** — the reader can comment and your session is there to receive it. A failed send says why and leaves the copy buttons beside it.
 
@@ -60,4 +61,4 @@ The reader sees your answer only in that thread. The page never shows the databa
 
 ## Revising
 
-After a brief, rewrite the same file and republish it to the same artifact (same file path in the session, or the artifact's URL) so the user keeps one link. Against the new base, actions that no longer change anything drop out of the reader's draft; actions whose target you removed or changed become stale — they stay greyed out in the review rail until the reader removes them, and the next brief lists them under "Not applicable to the current base" instead of as requested changes. Do not re-apply those. Omit `capabilities` on a republish: the declaration carries forward.
+After a brief, rewrite the same file and republish it to the same artifact (same file path in the session, or the artifact's URL) so the user keeps one link. Against the new base, actions that no longer change anything drop out of the reader's draft; actions whose target you removed or changed become stale — they stay greyed out in the review rail until the reader removes them, and the next brief lists them under "Not applicable to the current base" instead of as requested changes. Do not re-apply those. Omit `capabilities` on a republish: the declaration carries forward (unless the first publish left it out; see above).
