@@ -9,6 +9,7 @@ import { parseKanbanData } from './components/kanban/model';
 import { parseMindMapData } from './components/mind-map/model';
 import { parseSequenceData } from './components/sequence-diagram/model';
 import { parseStateData } from './components/state-diagram/model';
+import { parseChangeLog } from './core/changes';
 import { parseDelegationPokerBase } from './templates/delegation-poker/model';
 import { parseExampleMappingBase } from './templates/example-mapping/model';
 import { parseGrillBase } from './templates/grill/model';
@@ -26,14 +27,23 @@ import { frameOf, parseWhiteboardBase } from './templates/whiteboard/model';
 // sample directory from the vitest root instead.
 const sample = (name: string): string => readFileSync(resolve('sample', name), 'utf8');
 
-/** The `n`-th `<script type="application/json">` child of a given element. */
+/** A change log, which a template element may carry before its base data. */
+const CHANGE_LOG = /<script type="application\/json" data-dpk-changes>([\s\S]*?)<\/script>/;
+
+/** The `n`-th `<script type="application/json">` base data child of a given element. */
 const jsonChild = (html: string, tag: string, index = 0): unknown => {
   const blocks = [
-    ...html.matchAll(new RegExp(`<${tag}\\b[^>]*>\\s*<script type="application/json">([\\s\\S]*?)</script>`, 'g')),
+    ...html.matchAll(
+      new RegExp(
+        `<${tag}\\b[^>]*>\\s*(?:${CHANGE_LOG.source}\\s*)?<script type="application/json">([\\s\\S]*?)</script>`,
+        'g',
+      ),
+    ),
   ];
-  const block = blocks[index];
-  if (!block?.[1]) throw new Error(`sample has no JSON child #${index} for <${tag}>`);
-  return JSON.parse(block[1]);
+  // The last group: the change log's own group comes first.
+  const json = blocks[index]?.at(-1);
+  if (!json) throw new Error(`sample has no JSON child #${index} for <${tag}>`);
+  return JSON.parse(json);
 };
 
 /** The bundle entries a sample loads through `sample/kit.js` (`loadKit([...])`). */
@@ -224,5 +234,14 @@ describe('sample pages', () => {
     for (const frame of frames) {
       expect(board.items.some((item) => item.kind === 'sticky' && frameOf(board, item)?.id === frame.id)).toBe(true);
     }
+  });
+
+  it.each(['usm.html', 'whiteboard.html'])('%s announces changes about things the page has', (name) => {
+    const html = sample(name);
+    const log = parseChangeLog(JSON.parse(CHANGE_LOG.exec(html)?.[1] ?? 'null'));
+    if (!log.ok) throw new Error(log.error);
+    expect(log.log.entries.length).toBeGreaterThan(0);
+    const ids = log.log.entries.flatMap((entry) => entry.target?.split(':')[1]?.split('.').at(-1) ?? []);
+    expect(ids.filter((id) => !html.includes(`"id": "${id}"`))).toEqual([]);
   });
 });

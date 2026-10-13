@@ -29,6 +29,33 @@
   </head>
   <body>
     <dpk-template-usm storage-key="sample-usm-sora-market">
+      <script type="application/json" data-dpk-changes>
+        {
+          "revision": "2026-10-13.1",
+          "changes": [
+            {
+              "id": "keyword-search",
+              "title": "キーワード検索の受け入れ条件を具体化",
+              "body": "レビューのコメントに沿って、0 件時の表示を追記。",
+              "target": "story:keyword-search"
+            },
+            {
+              "id": "payment-method",
+              "title": "「支払い方法を選ぶ」をステップとして分離",
+              "target": "step:payment-method"
+            },
+            {
+              "id": "v1",
+              "title": "v1 のゴールを書き直し",
+              "target": "milestone:v1"
+            },
+            {
+              "id": "wording",
+              "title": "全体の言い回しを統一"
+            }
+          ]
+        }
+      </script>
       <script type="application/json">
         {
           "title": "Sora Market — 購入者のストーリーマップ",
