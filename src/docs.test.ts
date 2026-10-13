@@ -70,3 +70,19 @@ describe('docs/templates/*.md "## Base data" examples parse', () => {
     expect(() => parseBase?.(data)).not.toThrow();
   });
 });
+
+/**
+ * The skill sends an agent to `docs/index.md` to pick a template, so its "## Choose a template"
+ * table is the only list of what each template is for. A template missing from it is one an
+ * agent never picks.
+ */
+describe('docs/index.md "## Choose a template" lists every template', () => {
+  const section = readFileSync(resolve('docs/index.md'), 'utf8')
+    .split(/^## Choose a template$/m)[1]
+    ?.split(/^## /m)[0];
+
+  it.each(TEMPLATE_NAMES)('%s', (name) => {
+    expect(section, 'docs/index.md has no "## Choose a template" section').toBeDefined();
+    expect(section).toMatch(new RegExp(`\\| \`${name}\``));
+  });
+});

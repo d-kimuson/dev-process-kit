@@ -12,6 +12,23 @@ Page = Base Data (JSON baked into the HTML)
 
 The template owns meaning: what a "step", a "story" or a sticky note _is_, and which actions apply to it. Your HTML owns the content. The public contract is custom elements, attributes, properties, DOM events and slots — Lit is an implementation detail.
 
+## Choose a template
+
+Pick the one template whose subject is what you need to agree on with the reader.
+
+| Agree on                                   | Template                         |
+| ------------------------------------------ | -------------------------------- |
+| Scope and release slicing                  | `usm`                            |
+| Domain events, commands and causality      | `event-storming`                 |
+| Rules of a story, with concrete examples   | `example-mapping`                |
+| Screen flow and what each step looks like  | `prototype`                      |
+| Decisions you need from the user           | `grill`                          |
+| An explanation walked through step by step | `slides`                         |
+| Where a task shared with the user stands   | `task-board`                     |
+| Who decides what, between you and the user | `delegation-poker`               |
+| Loose ideas to group, cluster and connect  | `whiteboard`                     |
+| Anything else                              | `plain`, with diagram components |
+
 ## Load it
 
 Load one entry from jsDelivr, with the version pinned: a page has to keep working when a new version is published, so never generate HTML against a floating URL such as `@latest`. `<version>` below is the version these docs belong to — the `v<version>` Git tag you are reading them at.
