@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Bell,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -83,3 +84,4 @@ export const iconMaximize = lucide(Maximize2);
 export const iconMinimize = lucide(Minimize2);
 export const iconSun = lucide(Sun);
 export const iconMoon = lucide(Moon);
+export const iconBell = lucide(Bell);

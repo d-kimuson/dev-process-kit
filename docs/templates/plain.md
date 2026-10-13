@@ -69,3 +69,7 @@ A comment on a section that disappears from the base data, or on a diagram eleme
 ## Navigation
 
 None. The template leaves the URL hash untouched; `data-dpk-navigate` on your markup has nothing to navigate to.
+
+## Change notices
+
+[Change notices](../index.md#change-notices)'s "Show" has nothing of its own to go on, since plain renders your own markup: mark the element a change is about with `data-dpk-target="type:id"` on it (space-separated when one element stands for several targets), e.g. `<section slot="main" data-dpk-target="section:background">`. Use `navigate` instead of (or alongside) `target` for anything a hash should open.

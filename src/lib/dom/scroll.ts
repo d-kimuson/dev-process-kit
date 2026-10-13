@@ -7,28 +7,33 @@ export const nearestScrollTop = (scrollTop: number, viewport: VerticalSpan, chil
   return scrollTop + Math.min(child.bottom - viewport.bottom, child.top - viewport.top);
 };
 
+/** Room kept from both ends of a scrollport, at most a quarter of it. */
+const inset = (start: number, size: number, margin: number): VerticalSpan => {
+  const room = Math.min(margin, size / 4);
+  return { top: start + room, bottom: start + size - room };
+};
+
 /**
- * Reveals `child` by scrolling `container` only. `scrollIntoView` also scrolls
- * every ancestor, up to a page that embeds this one in an iframe.
+ * Reveals `child` by scrolling `container` only, `margin` px clear of its edge.
+ * `scrollIntoView` also scrolls every ancestor, up to a page that embeds this
+ * one in an iframe.
  */
-export const revealWithin = (container: Element, child: Element): void => {
+export const revealWithin = (container: Element, child: Element, margin = 0): void => {
   const box = container.getBoundingClientRect();
-  const top = box.top + container.clientTop;
   container.scrollTop = nearestScrollTop(
     container.scrollTop,
-    { top, bottom: top + container.clientHeight },
+    inset(box.top + container.clientTop, container.clientHeight, margin),
     child.getBoundingClientRect(),
   );
 };
 
 /** {@link revealWithin} along the inline axis: a tab strip that scrolls sideways shows its selected tab. */
-export const revealInlineWithin = (container: Element, child: Element): void => {
+export const revealInlineWithin = (container: Element, child: Element, margin = 0): void => {
   const box = container.getBoundingClientRect();
-  const left = box.left + container.clientLeft;
   const target = child.getBoundingClientRect();
   container.scrollLeft = nearestScrollTop(
     container.scrollLeft,
-    { top: left, bottom: left + container.clientWidth },
+    inset(box.left + container.clientLeft, container.clientWidth, margin),
     { top: target.left, bottom: target.right },
   );
 };

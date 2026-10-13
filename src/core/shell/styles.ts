@@ -289,6 +289,259 @@ export const chromeStyles = [
       box-shadow: var(--dpk-focus);
     }
 
+    /* ------------------------------------------------------------ changes */
+
+    .dpk-bell {
+      position: relative;
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--dpk-ink-soft);
+      cursor: pointer;
+      transition:
+        color 160ms var(--dpk-ease),
+        background 160ms var(--dpk-ease);
+    }
+
+    .dpk-bell svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .dpk-bell:hover,
+    .dpk-bell[aria-expanded='true'] {
+      color: var(--dpk-ink);
+      background: var(--dpk-paper-raised);
+    }
+
+    .dpk-bell:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
+    .dpk-bell-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 3px;
+      border: 2px solid var(--dpk-paper);
+      border-radius: 999px;
+      background: linear-gradient(145deg, var(--dpk-accent-bright), var(--dpk-accent));
+      color: var(--dpk-accent-ink);
+      font-family: var(--dpk-mono);
+      font-size: 9px;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+      line-height: 12px;
+      text-align: center;
+      animation: dpk-pop 260ms var(--dpk-ease-spring);
+    }
+
+    .dpk-changes {
+      box-sizing: border-box;
+      overflow: auto;
+      position: fixed;
+      inset: auto;
+      margin: 0;
+      padding: 12px;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius-lg);
+      background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
+      color: var(--dpk-ink);
+      font-size: 12.5px;
+      animation: dpk-notice-in 180ms var(--dpk-ease);
+    }
+
+    .dpk-changes-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 2px 10px;
+    }
+
+    .dpk-changes-head span {
+      overflow: hidden;
+      color: var(--dpk-ink-faint);
+      font-family: var(--dpk-mono);
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dpk-changes-list {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .dpk-change {
+      display: grid;
+      gap: 4px;
+      padding: 9px 10px;
+      border: 1px solid var(--dpk-rule);
+      border-radius: var(--dpk-radius);
+      background: var(--dpk-paper);
+    }
+
+    .dpk-change[data-fresh] {
+      border-color: color-mix(in srgb, var(--dpk-accent) 35%, transparent);
+      background: var(--dpk-accent-soft);
+    }
+
+    .dpk-change .dpk-notice-show {
+      justify-self: end;
+    }
+
+    .dpk-change-title {
+      margin: 0;
+      font-weight: 600;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .dpk-change-new {
+      margin-right: 4px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: var(--dpk-accent);
+      color: var(--dpk-accent-ink);
+      font-size: 10px;
+      font-weight: 650;
+      vertical-align: 1px;
+    }
+
+    .dpk-change-body {
+      margin: 0;
+      color: var(--dpk-ink-soft);
+      line-height: 1.5;
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
+
+    /* Below the review button, at the top right where the bell is. */
+    .dpk-toasts {
+      position: fixed;
+      top: 64px;
+      right: 16px;
+      z-index: 70;
+      display: grid;
+      justify-items: end;
+      gap: 8px;
+      width: min(360px, calc(100vw - 32px));
+      pointer-events: none;
+    }
+
+    .dpk-toast {
+      box-sizing: border-box;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
+      align-items: start;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 8px 10px 12px;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius-lg);
+      background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
+      color: var(--dpk-ink);
+      font-size: 12.5px;
+      pointer-events: auto;
+      animation: dpk-notice-in 260ms var(--dpk-ease);
+    }
+
+    .dpk-toast-icon {
+      display: inline-flex;
+      padding-top: 2px;
+      color: var(--dpk-accent);
+    }
+
+    .dpk-toast-icon svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .dpk-toast-text {
+      display: grid;
+      gap: 2px;
+    }
+
+    .dpk-toast .dpk-change-body {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .dpk-toast-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--dpk-ink-faint);
+      cursor: pointer;
+    }
+
+    .dpk-toast-close svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .dpk-toast-close:hover {
+      color: var(--dpk-ink);
+      background: var(--dpk-paper-sunken);
+    }
+
+    .dpk-toast-close:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
+    .dpk-toast-more {
+      padding: 4px 10px;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: 999px;
+      background: var(--dpk-paper-raised);
+      color: var(--dpk-ink-soft);
+      font: inherit;
+      font-size: 11.5px;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .dpk-toast-more:hover {
+      color: var(--dpk-ink);
+    }
+
+    .dpk-toast-more:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
+    @keyframes dpk-notice-in {
+      from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+      }
+    }
+
     /* --------------------------------------------------------------- body */
 
     /* Positioned: the sidebar drawer and a narrow screen's review open over it. */

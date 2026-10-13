@@ -15,6 +15,7 @@ import type {
 
 import { onSelectChange } from '../lib/dom/events';
 import { COMMENT_ACTION, serializeDraft } from './action';
+import { CHANGES_ATTRIBUTE, jumpOf, type ChangeEntry } from './changes';
 import { parseColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
 import { DraftController } from './controller';
@@ -25,7 +26,16 @@ import { iconChevronLeft, iconChevronRight, iconMoon, iconSun } from './icons';
 import { coreMessages, LANGUAGE_NAMES } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
+import { PopoverController } from './popover-controller';
 import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSource } from './shell/api';
+import { ChangeNoticeController } from './shell/change-notice-controller';
+import {
+  NOTICE_LIST_ID,
+  renderNoticeBell,
+  renderNoticeList,
+  renderNoticeToasts,
+  type NoticeIntents,
+} from './shell/change-notices';
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
@@ -34,13 +44,30 @@ import { LocaleChoiceController } from './shell/locale-choice-controller';
 import { NarrowScreenController } from './shell/narrow-screen-controller';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
 import { PreviewRouter } from './shell/preview-router';
+import { findTarget, highlightTarget, revealTarget } from './shell/reveal';
 import { SidebarCollapseController } from './shell/sidebar-collapse-controller';
 import { SidebarResizeController } from './shell/sidebar-resize-controller';
 import { chromeStyles } from './shell/styles';
 import { TextRecoveryController } from './shell/text-recovery-controller';
 import { VersionChoiceController } from './shell/version-choice-controller';
 import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, sidebarToggle, type SidebarLayout } from './sidebar-width';
-import { targetRef } from './target';
+import { parseTargetRef, targetRef } from './target';
+
+/** Base data is the JSON child that is not the change log. */
+const BASE_SELECTOR = `script[type="application/json"]:not([${CHANGES_ATTRIBUTE}])`;
+/** Frames to wait for a target to render after navigating to it. */
+const REVEAL_FRAMES = 30;
+const NOTICE_LIST_SIZE = { width: 360, height: 480 };
+
+const isPopoverOpen = (element: Element): boolean => {
+  try {
+    return element.matches(':popover-open');
+  } catch {
+    return false;
+  }
+};
+
+const nextFrame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
 export abstract class TemplateElement<S> extends LitElement {
   static override styles: CSSResultGroup = chromeStyles;
@@ -93,6 +120,26 @@ export abstract class TemplateElement<S> extends LitElement {
     persist: () => this.storage !== 'off' && this.storage !== 'memory',
     storageKey: () => `${this.storageKey ?? defaultStorageKey(this.definition.name)}:unsent-text`,
   });
+  /** The latest "Show" still waiting for its target; earlier ones give up. */
+  #showing: object | null = null;
+  #notices = new ChangeNoticeController(this, {
+    persist: () => this.storage !== 'off' && this.storage !== 'memory',
+    storageKey: () => this.storageKey ?? defaultStorageKey(this.definition.name),
+    inside: (path) =>
+      path.some(
+        (node) => node instanceof Element && (node.id === NOTICE_LIST_ID || node.classList.contains('dpk-bell')),
+      ),
+    show: (entry) => void this.#showChange(entry),
+  });
+  readonly #noticeIntents: NoticeIntents = {
+    toggleList: () => this.#notices.toggleList(),
+    openList: () => this.#notices.send({ kind: 'open-list' }),
+    show: (key) => this.#notices.show(key),
+    dismiss: (key) => this.#notices.send({ kind: 'dismiss-toast', key }),
+    pause: (hold) => this.#notices.pause(hold),
+    resume: (hold) => this.#notices.resume(hold),
+  };
+  readonly #popovers = new PopoverController(this);
   /** The fold button is replaced as the sidebar folds; focus follows it to the new one. */
   #focusSidebarToggle = false;
 
@@ -201,6 +248,7 @@ export abstract class TemplateElement<S> extends LitElement {
   protected override updated(): void {
     this.#routePreviews();
     this.#reserveDockSpace();
+    this.#placeNoticeList();
     if (this.#focusSidebarToggle) {
       this.#focusSidebarToggle = false;
       this.renderRoot.querySelector<HTMLElement>('.dpk-sidebar-toggle')?.focus();
@@ -395,7 +443,9 @@ export abstract class TemplateElement<S> extends LitElement {
               ${messages.draftCount(changeCount, commentCount)}
             </span>
           </div>
-          <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
+          <div class="dpk-header-tools">
+            ${this.#renderNoticeBell()} ${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}
+          </div>
         </header>
         <div class="dpk-body" data-sidebar-side=${side} ?data-sidebar-drawer=${drawer}>
           ${side === 'right' ? edge : nothing}
@@ -423,6 +473,14 @@ export abstract class TemplateElement<S> extends LitElement {
                       <code>${this.#baseError}</code>
                     </div>`
                   : nothing
+              }
+              ${
+                this.#notices.error === null
+                  ? nothing
+                  : html`<div class="dpk-banner" role="alert">
+                      <strong>${messages.changesError}</strong>
+                      <code>${this.#notices.error}</code>
+                    </div>`
               }
               ${regions.main ?? nothing}
               <slot name="main"></slot>
@@ -474,10 +532,72 @@ export abstract class TemplateElement<S> extends LitElement {
                 ${draftCount > 0 ? html`<span class="dpk-fab-badge">${draftCount}</span>` : nothing}
               </button>`
         }
-        ${this.integratedReview ? nothing : this.#renderHandoffDock(draftCount)}
+        ${this.integratedReview ? nothing : this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
       </div>
     `;
   }
+
+  #renderNoticeBell(): TemplateResult | typeof nothing {
+    const vm = this.#notices.view;
+    if (!vm) return nothing;
+    const messages = coreMessages(this.locale);
+    return html`${renderNoticeBell(vm, messages, this.#noticeIntents)}
+    ${renderNoticeList(vm, this.#notices.revision, messages, this.#noticeIntents)}`;
+  }
+
+  #renderNoticeToasts(): TemplateResult | typeof nothing {
+    const vm = this.#notices.view;
+    return vm ? renderNoticeToasts(vm, coreMessages(this.locale), this.#noticeIntents) : nothing;
+  }
+
+  /** The open change list hangs off the bell in the top layer. */
+  #placeNoticeList(): void {
+    const list = this.renderRoot.querySelector<HTMLElement>(`#${NOTICE_LIST_ID}`);
+    const bell = this.renderRoot.querySelector('.dpk-bell');
+    if (!list || !bell || isPopoverOpen(list)) return;
+    this.#popovers.open(list, bell, {
+      width: NOTICE_LIST_SIZE.width,
+      height: Math.min(NOTICE_LIST_SIZE.height, window.innerHeight - 96),
+    });
+  }
+
+  /** Goes where the change is seen, then points at the element it is about. */
+  async #showChange(entry: ChangeEntry): Promise<void> {
+    // A later "Show" supersedes this one while it waits for the target to render.
+    const request = {};
+    this.#showing = request;
+    const state = this.derivation.state;
+    const target =
+      entry.target === null
+        ? null
+        : (this.definition.canonicalTarget?.(state, parseTargetRef(entry.target)) ?? parseTargetRef(entry.target));
+    const jump = jumpOf({ ...entry, target: target && targetRef(target) }, (candidate) =>
+      this.definition.navigationFor ? this.definition.navigationFor(state, candidate) : null,
+    );
+    if (!jump) return;
+    if (jump.navigate) this.navigate(jump.navigate);
+    if (target === null) return;
+    this.showTarget(target);
+    const ref = targetRef(target);
+    // The target renders once the navigation and the components below settle.
+    for (let frame = 0; frame < REVEAL_FRAMES; frame += 1) {
+      await this.updateComplete;
+      await nextFrame();
+      if (this.#showing !== request) return;
+      const element = findTarget(this, ref);
+      if (element === null || element.getClientRects().length === 0) continue;
+      revealTarget(this, element);
+      highlightTarget(element);
+      return;
+    }
+  }
+
+  /**
+   * Brings a target on screen where navigation cannot: a tab the template keeps
+   * to itself, a folded section, a canvas viewport. Runs after the template's
+   * `navigationFor` patch is applied, before the element is looked for.
+   */
+  protected showTarget(_target: ActionTarget): void {}
 
   /** Send or copy the draft without opening the rail; the rail has the same buttons when it is open. */
   #renderHandoffDock(draftCount: number): TemplateResult | typeof nothing {
@@ -721,7 +841,7 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   #readBase(): S {
-    const script = this.querySelector('script[type="application/json"]');
+    const script = this.querySelector(BASE_SELECTOR);
     if (!script?.textContent || script.textContent.trim().length === 0) {
       console.warn(`[dev-process-kit] <${this.tagName.toLowerCase()}> has no base JSON; starting from an empty state.`);
       this.#baseError = 'no <script type="application/json"> child found';
@@ -741,9 +861,9 @@ export abstract class TemplateElement<S> extends LitElement {
    * elements, streaming HTML). Re-read it once the JSON script shows up.
    */
   #observeBaseScript(): void {
-    if (this.querySelector('script[type="application/json"]')) return;
+    if (this.querySelector(BASE_SELECTOR)) return;
     this.#previewObserver = new MutationObserver(() => {
-      const script = this.querySelector('script[type="application/json"]');
+      const script = this.querySelector(BASE_SELECTOR);
       if (!script) return;
       this.#previewObserver?.disconnect();
       this.#previewObserver = undefined;

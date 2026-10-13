@@ -169,6 +169,13 @@ export type TemplateDefinition<S> = {
    */
   readonly navigationHierarchy?: readonly string[];
 
+  /**
+   * The navigation that brings a target on screen, for the change notices'
+   * "Show". `null` (or no implementation) when it is always on screen or the
+   * hash cannot reach it.
+   */
+  navigationFor?(state: S, target: ActionTarget): NavigationPatch | null;
+
   /** Selectable comment targets for the composer. */
   commentTargets(state: S, nav: Navigation): readonly CommentTargetOption[];
 

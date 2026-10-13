@@ -247,6 +247,40 @@ The review rail's `Copy changes & comments` button puts the hand-off brief on th
 
 Inside a Claude Artifact published with the `comments` capability, the rail also offers **Send to Claude**: the brief is posted as a comment sent to the Claude session that published the page, pinned to the template element. A brief over the 4 KiB comment limit is stored as a document in the `reviews` collection of the artifact's database (when the page also declares `db`), and the comment points at it; the document holds `brief` (the same markdown) and `draft` (the canonical JSON). The button appears only when the viewer can send to Claude right now; a failed send says why and leaves the copy button as the way on. Elsewhere nothing changes.
 
+## Change notices
+
+When you regenerate a page at the reader's request, tell them what changed since the version they last saw. Put a change log beside the base data, as another child of the template element:
+
+```html
+<dpk-template-usm storage-key="checkout-usm">
+  <script type="application/json" data-dpk-changes>
+    {
+      "revision": "2026-10-13.2",
+      "changes": [
+        {
+          "id": "guest-pay",
+          "title": "Added guest checkout",
+          "body": "Per the comment on step:pay.",
+          "target": "story:checkout.pay.guest"
+        },
+        { "id": "copy", "title": "Tightened the wording on every step" }
+      ]
+    }
+  </script>
+  <script type="application/json">
+    { "activities": [] }
+  </script>
+</dpk-template-usm>
+```
+
+- `revision` names this version of the page; change it on every regeneration. `changes` lists **only the changes since the previous version** — not a history. Leave the block out when there is nothing to announce.
+- Each change has a `title`, and optionally a `body`, an `id` (unique within the log; the position is used when omitted, so give ids when the list can be reordered), a `target` (`type:id`, as in [Targets](#targets)) and a `navigate` (hash syntax, `view=flow&screen=cart`) for where it is seen when the target alone does not say.
+- The change log is not base data: the template never reads it, and a malformed log shows a banner without touching the page.
+
+The header gets a bell. Changes this reader has not seen pop up as toasts (three at a time; each fades after a few seconds unless pointed at) and count on the bell's badge. Opening the bell lists every change of the revision and clears the badge; closing a toast or following its **Show** marks that change as seen, while a toast that fades unattended stays on the badge. What a reader has seen is remembered per revision (`localStorage` key `<storage key>:seen-changes`, or for this page load only under `storage="off"` / `"memory"`), so a new revision announces its changes again.
+
+**Show** (on a toast or in the list) navigates to where the target is seen, brings it into view and highlights it for a few seconds. Templates mark the elements their targets render as; each template page lists the targets it can show. In your own markup — plain's sections, a prototype's slotted screens — mark the element yourself with `data-dpk-target="type:id"` (space-separated when one element stands for several targets). A change with only `navigate` just navigates; one with neither has no **Show**.
+
 ## Read next
 
 | Question                          | Read                                                                                                                                                  |

@@ -37,6 +37,15 @@ export const coreMessages = defineMessages({
     handoffCopyTitle: 'Copy the review to paste it to the agent',
     handoffCopied: 'Copied ✓',
     handoffCopyFailed: 'Could not copy',
+    changes: 'Updates',
+    changesUnread: (count: number) => `Updates (${count} new)`,
+    changesTitle: 'Changed in this version',
+    changesNew: 'New',
+    changesShow: 'Show',
+    changesDismiss: 'Dismiss',
+    changesWaiting: (count: number) => `${count} more`,
+    changesSeeAll: 'See all',
+    changesError: 'Could not read the change log',
   },
   ja: {
     review: 'レビュー',
@@ -69,5 +78,16 @@ export const coreMessages = defineMessages({
     handoffCopyTitle: 'Review をコピーして Agent に貼り付ける',
     handoffCopied: 'コピーしました ✓',
     handoffCopyFailed: 'コピーできませんでした',
+    changes: '更新のお知らせ',
+    changesUnread: (count: number) => `更新のお知らせ（新着 ${count} 件）`,
+    changesTitle: 'この版での変更',
+    changesNew: '新着',
+    changesShow: '見る',
+    changesDismiss: '閉じる',
+    changesWaiting: (count: number) => `ほか ${count} 件`,
+    changesSeeAll: 'すべて見る',
+    changesError: '変更の一覧を読み込めませんでした',
   },
 });
+
+export type CoreMessages = ReturnType<typeof coreMessages>;
