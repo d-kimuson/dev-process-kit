@@ -90,16 +90,34 @@ describe('reduceNotices', () => {
     expect(unreadCount(current, state)).toBe(2);
   });
 
-  it('opening the list clears the badge and the toasts but keeps every change listed', () => {
+  it('opening the list clears the toasts but leaves each change to show unread until it is shown', () => {
+    const parsed = parseChangeLog({
+      revision: 'r2',
+      changes: [{ title: 'a', target: 'screen:a' }, { title: 'b' }, { title: 'c', navigate: 'view=flow' }],
+    });
+    if (!parsed.ok) throw new Error(parsed.error);
+    const mixed = parsed.log;
+    const opened = reduceNotices(mixed, initialNotices(mixed, null), { kind: 'open-list' });
+    expect(opened.list).toEqual({ open: true, fresh: new Set(['0', '1', '2']) });
+    expect(opened.toasts).toEqual([]);
+    // A change with nowhere to go is all there on its card; one with a Show waits for it.
+    expect(opened.seen).toEqual(new Set(['1']));
+    expect(unreadCount(mixed, opened)).toBe(2);
+    const shown = reduceNotices(mixed, opened, { kind: 'jump', key: '0' });
+    expect(shown.seen).toEqual(new Set(['0', '1']));
+    expect(unreadCount(mixed, shown)).toBe(1);
+    // Reopened, the change not shown yet is still new.
+    expect(reduceNotices(mixed, shown, { kind: 'open-list' }).list.fresh).toEqual(new Set(['2']));
+  });
+
+  it('closing the list keeps what was not shown unread', () => {
     const opened = reduceNotices(current, initialNotices(current, { v: 1, revision: 'r2', seen: ['1'] }), {
       kind: 'open-list',
     });
     expect(opened.list).toEqual({ open: true, fresh: new Set(['0', '2']) });
-    expect(opened.toasts).toEqual([]);
-    expect(unreadCount(current, opened)).toBe(0);
     const closed = reduceNotices(current, opened, { kind: 'close-list' });
     expect(closed.list).toEqual({ open: false, fresh: new Set() });
-    // Reopened, nothing is new any more.
+    // Changes without a Show were read on their cards, so they are not new any more.
     expect(reduceNotices(current, closed, { kind: 'open-list' }).list.fresh).toEqual(new Set());
   });
 

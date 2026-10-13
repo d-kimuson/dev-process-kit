@@ -106,6 +106,9 @@ const CLOSED_LIST: NoticeState['list'] = { open: false, fresh: new Set() };
 
 const isUnread = (state: NoticeState) => (entry: ChangeEntry) => !state.seen.has(entry.key);
 
+/** "Show" can take the reader somewhere; otherwise the card is all there is to see. */
+const isJumpable = (entry: ChangeEntry): boolean => entry.target !== null || entry.navigate !== null;
+
 export const initialNotices = (log: ChangeLog, record: SeenRecord | null): NoticeState => {
   const keys = new Set(log.entries.map((entry) => entry.key));
   const seen = new Set(record?.revision === log.revision ? record.seen.filter((key) => keys.has(key)) : []);
@@ -121,9 +124,12 @@ const withSeen = (state: NoticeState, keys: Iterable<string>): ReadonlySet<strin
 export const reduceNotices = (log: ChangeLog, state: NoticeState, event: NoticeEvent): NoticeState => {
   switch (event.kind) {
     case 'open-list': {
-      const fresh = new Set(log.entries.filter(isUnread(state)).map((entry) => entry.key));
+      const unread = log.entries.filter(isUnread(state));
+      const fresh = new Set(unread.map((entry) => entry.key));
+      // A change with a Show stays unread until the reader follows it; reading its card alone is not seeing it.
+      const read = unread.filter((entry) => !isJumpable(entry)).map((entry) => entry.key);
       // The list shows every toast's change, so the toasts step aside.
-      return { seen: withSeen(state, fresh), toasts: [], list: { open: true, fresh } };
+      return { seen: withSeen(state, read), toasts: [], list: { open: true, fresh } };
     }
     case 'close-list':
       return { ...state, list: CLOSED_LIST };
@@ -200,7 +206,7 @@ const cardOf =
     key: entry.key,
     title: entry.title,
     body: entry.body,
-    jumpable: entry.target !== null || entry.navigate !== null,
+    jumpable: isJumpable(entry),
     fresh: state.list.fresh.has(entry.key),
   });
 

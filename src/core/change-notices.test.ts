@@ -88,7 +88,7 @@ describe('change notices', () => {
     expect(toasts(element)).toEqual(['Background rewritten', 'Wording fixes']);
   });
 
-  it('opening the list clears the badge and the toasts, keeps the changes listed, and is remembered', async () => {
+  it('opening the list clears the toasts but leaves the badge to each "Show", and is remembered', async () => {
     const element = mount(changeLog('r2'));
     await settle(element);
     click(bell(element));
@@ -97,21 +97,47 @@ describe('change notices', () => {
     expect(
       cards.map((card) => card.querySelector('.dpk-change-title')?.textContent?.replace(/\s+/g, ' ').trim()),
     ).toEqual([`${m.changesNew} Background rewritten`, `${m.changesNew} Wording fixes`]);
-    expect(badge(element)).toBeUndefined();
+    // The change with nowhere to go is read on its card; the other waits for its "Show".
+    expect(badge(element)).toBe('1');
     expect(toasts(element)).toEqual([]);
-    // Elsewhere closes it; the bell still lists every change.
+    // Elsewhere closes it; the bell still lists every change, and the one not shown is still new.
     document.body.dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
     await settle(element);
     expect(root(element).querySelector('.dpk-changes')).toBeNull();
     click(bell(element));
     await settle(element);
     expect(root(element).querySelectorAll('.dpk-change')).toHaveLength(2);
-    expect(root(element).querySelectorAll('.dpk-change[data-fresh]')).toHaveLength(0);
+    expect(
+      [...root(element).querySelectorAll<HTMLElement>('.dpk-change[data-fresh]')].map((card) => card.dataset['key']),
+    ).toEqual(['background']);
 
     const reopened = mount(changeLog('r2'));
     await settle(reopened);
-    expect(badge(reopened)).toBeUndefined();
-    expect(toasts(reopened)).toEqual([]);
+    expect(badge(reopened)).toBe('1');
+    expect(toasts(reopened)).toEqual(['Background rewritten']);
+  });
+
+  it('"Show" in the list marks only that change seen', async () => {
+    const log = {
+      revision: 'r2',
+      changes: [
+        { id: 'background', title: 'Background rewritten', target: 'section:background' },
+        { id: 'goal', title: 'Goal added', target: 'section:goal' },
+      ],
+    };
+    const element = mount(log);
+    await settle(element);
+    click(bell(element));
+    await settle(element);
+    expect(badge(element)).toBe('2');
+    click(root(element).querySelector('.dpk-change[data-key="background"] .dpk-notice-show'));
+    await settle(element);
+    expect(badge(element)).toBe('1');
+
+    const reopened = mount(log);
+    await settle(reopened);
+    expect(badge(reopened)).toBe('1');
+    expect(toasts(reopened)).toEqual(['Goal added']);
   });
 
   it('announces the changes of a newer revision again', async () => {
