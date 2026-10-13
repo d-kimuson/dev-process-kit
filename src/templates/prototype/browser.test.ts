@@ -437,6 +437,21 @@ describe('maximize and demo', () => {
     expect(root.querySelector('.stage')?.classList.contains('is-demo')).toBe(false);
   });
 
+  it('leaves the demo controls clickable through the sheet that picks elements', async () => {
+    const el = mount('#view=app&screen=top');
+    await settle(el);
+    const root = el.shadowRoot!;
+    button(el, '.stage-demo').click();
+    await settle(el);
+    button(el, '.demo-controls .ui-comment-toggle').click();
+    await settle(el);
+    const catcher = root.querySelector<HTMLElement>('.ui-catcher')!;
+    catcher.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 800);
+    root.querySelector<HTMLElement>('.demo-controls')!.getBoundingClientRect = () => new DOMRect(800, 10, 180, 30);
+    window.dispatchEvent(new Event('resize'));
+    expect(catcher.style.clipPath).toContain('M800 10h180v30h-180Z');
+  });
+
   it('keeps commenting on the UI on when the demo starts', async () => {
     const el = mount('#view=app&screen=top');
     await settle(el);

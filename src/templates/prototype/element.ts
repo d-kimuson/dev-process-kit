@@ -10,6 +10,7 @@ import { TemplateElement } from '../../core/element';
 import { parseHash } from '../../core/navigation';
 import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface, prose } from '../../core/theme';
+import { clipOutRects } from '../../lib/dom/clip';
 import { containDialog, releaseModalDialog } from '../../lib/dom/contained-dialog';
 import { findLocated, locateElement, pickableElement } from '../../lib/dom/locator';
 import { closePopover } from '../../lib/dom/popover';
@@ -399,6 +400,11 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     if (catcher) {
       catcher.style.width = `${canvas.scrollWidth}px`;
       catcher.style.height = `${canvas.scrollHeight}px`;
+      // A demo's controls sit under the sheet (or inside the frame it covers); the reader still clicks them.
+      const controls = [...this.renderRoot.querySelectorAll('.demo-controls')].map((node) =>
+        node.getBoundingClientRect(),
+      );
+      catcher.style.clipPath = clipOutRects(catcher.getBoundingClientRect(), controls);
     }
     for (const pin of this.renderRoot.querySelectorAll<HTMLElement>('.ui-pin')) {
       const wrapper = this.#previewElement(pin.dataset['preview'] ?? '');
