@@ -9,6 +9,7 @@ import type { PrototypeMessages } from '../messages';
 import type { PrototypePreview, PrototypeState } from '../model';
 
 import { iconClose, iconPlus, lucide } from '../../../core/icons';
+import { renderDemoControls, type DemoControls } from './demo-controls';
 import { frameStyle, type FrameWindow } from './frame-size';
 
 /** What the reader does with the browser; the element turns it into history and navigation. */
@@ -40,8 +41,8 @@ export type BrowserFrame = {
   readonly loading: boolean;
   /** Whether a phone browser shows its tab overview over the page. */
   readonly switcher: boolean;
-  /** Ends the demo; set only while one runs, so the way out sits in the window itself. */
-  readonly onExitDemo?: () => void;
+  /** Set only while a demo runs, so its controls sit in the window itself. */
+  readonly demo?: DemoControls;
   readonly send: (command: BrowserCommand) => void;
 };
 
@@ -98,13 +99,7 @@ const renderTabs = (m: PrototypeMessages, frame: BrowserFrame): TemplateResult =
     >
       ${iconPlus()}
     </button>
-    ${
-      frame.onExitDemo === undefined
-        ? nothing
-        : html`<button class="demo-exit" type="button" title=${m.exitDemo} @click=${frame.onExitDemo}>
-            ${iconClose()} ${m.exitDemo} <kbd>Esc</kbd>
-          </button>`
-    }
+    ${frame.demo === undefined ? nothing : renderDemoControls(m, frame.demo)}
   </div>`;
 };
 

@@ -996,17 +996,26 @@ export const prototypeStyles = css`
     margin: 24px auto;
   }
 
-  /* Over a phone or a frame outside the browser, the way out floats at the top right. */
-  .demo-exit {
+  /*
+   * The demo's controls (commenting on the UI, the way out). Over a phone or a
+   * frame outside the browser, they float at the top right.
+   */
+  .demo-controls {
     position: absolute;
     top: 12px;
     right: 16px;
     z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .demo-control {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     height: 30px;
-    padding: 0 8px 0 10px;
+    padding: 0 10px;
     border: 1px solid var(--dpk-rule-strong);
     border-radius: 999px;
     background: color-mix(in srgb, var(--dpk-paper-raised) 82%, transparent);
@@ -1021,29 +1030,47 @@ export const prototypeStyles = css`
       color 160ms var(--dpk-ease);
   }
 
-  .demo-exit:hover,
-  .demo-exit:focus-visible {
+  .demo-exit {
+    padding-right: 8px;
+  }
+
+  .demo-control:hover,
+  .demo-control:focus-visible {
     opacity: 1;
     color: var(--dpk-ink);
   }
 
-  .demo-exit:focus-visible {
+  .demo-control:focus-visible {
     outline: none;
     box-shadow: var(--dpk-focus), var(--dpk-shadow);
   }
 
-  .demo-exit svg {
+  /* Commenting stays in sight: a click on the app now picks an element instead of using it. */
+  .demo-control[aria-pressed='true'] {
+    opacity: 1;
+    border-color: var(--dpk-accent-strong);
+    background: var(--dpk-accent);
+    color: var(--dpk-accent-ink);
+  }
+
+  .demo-control svg {
     width: 12px;
     height: 12px;
   }
 
-  /* A desktop browser has it at the free end of the tab strip, like a window control. */
-  .browser-tabs .demo-exit {
+  /* A desktop browser has them at the free end of the tab strip, like window controls. */
+  .browser-tabs .demo-controls {
     position: static;
     flex: none;
     align-self: center;
     margin: 0 0 3px auto;
+  }
+
+  .browser-tabs .demo-control {
     height: 26px;
+  }
+
+  .browser-tabs .demo-control:not([aria-pressed='true']) {
     opacity: 0.85;
   }
 

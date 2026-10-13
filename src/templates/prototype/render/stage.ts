@@ -5,7 +5,7 @@ import { Monitor, Play, Smartphone, Tablet, User } from 'lucide';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { PrototypeMessages } from '../messages';
 
-import { iconClose, iconMaximize, iconMinimize, lucide } from '../../../core/icons';
+import { iconMaximize, iconMinimize, lucide } from '../../../core/icons';
 import { renderMarkdown } from '../../../lib/markdown';
 import {
   deviceClassOf,
@@ -33,6 +33,7 @@ import {
 } from '../present';
 import { prototypeViewOf } from '../view-mode';
 import { renderBrowser, type BrowserFrame } from './browser';
+import { renderDemoControls, type DemoControls } from './demo-controls';
 import { frameStyle, type FrameWindow } from './frame-size';
 import {
   renderUiCommentHint,
@@ -71,7 +72,7 @@ export type StageOptions = {
   /** A wheel over the lifted stage, which must not scroll the hidden page. */
   readonly onLiftedWheel: (event: WheelEvent) => void;
   /** The browser the app view runs its web page in; `null` for any other frame. */
-  readonly browser: Omit<BrowserFrame, 'preview' | 'hasContent' | 'viewport' | 'window' | 'onExitDemo'> | null;
+  readonly browser: Omit<BrowserFrame, 'preview' | 'hasContent' | 'viewport' | 'window' | 'demo'> | null;
   /** Set in the app view, where a screen runs in a window of a fixed size; `null` in the scenario view. */
   readonly devices: StageDevices | null;
   /** Commenting on the UI: the mode, the pins and the composer. */
@@ -147,8 +148,9 @@ export const renderStage = (
   const onScreen = browser !== null && browser.view.entry?.kind !== 'page' ? [] : shown;
   const [browserPreview] = onScreen;
   const viewport = (browserPreview ?? shown[0])?.viewport ?? 'desktop';
-  // A desktop browser has room for the way out at the free end of its tab strip.
-  const exitInBrowser = demo && browser !== null && viewport !== 'mobile';
+  // A desktop browser has room for the demo's controls at the free end of its tab strip.
+  const controlsInBrowser = demo && browser !== null && viewport !== 'mobile';
+  const demoControls: DemoControls = { onExit: options.onToggleDemo, uiComment: ui };
   const devicePreview = browserPreview ?? shown[0];
   const kind = browser !== null ? 'browser' : (devicePreview?.kind ?? 'browser');
   // A demo's desktop browser is the reader's own screen: it fills the tab rather than a device's size.
@@ -171,12 +173,10 @@ export const renderStage = (
     >
       ${
         demo
-          ? // A demo is the app alone: no title, no tools, only a way out.
-            exitInBrowser
+          ? // A demo is the app alone: no title, no tools, only commenting on it and a way out.
+            controlsInBrowser
             ? nothing
-            : html`<button class="demo-exit" type="button" title=${m.exitDemo} @click=${options.onToggleDemo}>
-                ${iconClose()} ${m.exitDemo} <kbd>Esc</kbd>
-              </button>`
+            : renderDemoControls(m, demoControls)
           : html`<div class="stage-bar">
               ${renderPageHead(m, prototypePageHeading(state, location))}
               <div class="stage-tools">
@@ -214,7 +214,7 @@ export const renderStage = (
             ? renderBrowser(context, m, {
                 ...browser,
                 ...(browserPreview === undefined ? {} : { preview: browserPreview }),
-                ...(exitInBrowser ? { onExitDemo: options.onToggleDemo } : {}),
+                ...(controlsInBrowser ? { demo: demoControls } : {}),
                 hasContent: browserPreview === undefined || options.hasPreviewContent(browserPreview.id),
                 viewport,
                 window: frameWindow ?? { kind: 'fill' },

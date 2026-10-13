@@ -23,11 +23,19 @@ export type UiCommentView = {
   readonly submit: (body: string) => void;
 };
 
-/** Turns the mode on and off. Pressed while the reader is commenting on the UI. */
-export const renderUiCommentToggle = (m: PrototypeMessages, view: UiCommentView): TemplateResult => {
+/**
+ * Turns the mode on and off. Pressed while the reader is commenting on the UI.
+ * `demo` draws it as one of the controls floating over a running demo.
+ */
+export const renderUiCommentToggle = (
+  m: PrototypeMessages,
+  view: UiCommentView,
+  variant: 'bar' | 'demo' = 'bar',
+): TemplateResult => {
   const on = view.mode.kind !== 'off';
+  const look = variant === 'demo' ? 'demo-control' : on ? 'dpk-btn dpk-btn--accent' : 'dpk-btn';
   return html`<button
-    class=${on ? 'dpk-btn dpk-btn--accent ui-comment-toggle' : 'dpk-btn ui-comment-toggle'}
+    class=${`${look} ui-comment-toggle`}
     type="button"
     aria-pressed=${on ? 'true' : 'false'}
     title=${m.uiCommentHint}

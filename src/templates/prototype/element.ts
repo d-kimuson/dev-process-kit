@@ -544,7 +544,6 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     // Going from one lift to the other passes through the page first.
     const height = this.#lift?.height ?? stage?.offsetHeight ?? 0;
     this.#dropLift();
-    if (mode === 'demo' && this.#uiComment.kind !== 'off') this.#send({ kind: 'exit' });
     if (mode !== null) this.#lift = { mode, height };
     if (mode !== null && this.#uiComment.kind === 'composing') {
       // The top layer stacks in the order things entered it: an open composer

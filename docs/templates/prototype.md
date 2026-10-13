@@ -303,7 +303,7 @@ Screens outside a browser (`native`, `mail`, `plain`) keep their own frame — a
 <a href="#screen=order-detail" data-dpk-navigate="screen=order-detail" target="_blank">SM-0918-0342</a>
 ```
 
-**Demo** takes the browser alone across the browser tab — no title, no sidebar, no tools — as close to the real app as the prototype gets: the page scrolls inside the browser, a desktop page fills the tab, and a phone or a tablet keeps its device's size in the middle of the tab (drawn smaller when the tab is shorter). "Exit demo" at the free end of the tab strip (floating at the top right over a phone browser or a frame outside the browser) or `Esc` ends it. Entering the demo ends commenting on the UI.
+**Demo** takes the browser alone across the browser tab — no title, no sidebar, no tools — as close to the real app as the prototype gets: the page scrolls inside the browser, a desktop page fills the tab, and a phone or a tablet keeps its device's size in the middle of the tab (drawn smaller when the tab is shorter). "Comment on UI" and "Exit demo" sit at the free end of the tab strip (floating at the top right over a phone browser or a frame outside the browser): commenting on the UI works in the demo as it does on the page, and stays on when the demo starts. `Esc` ends commenting first, then the demo.
 
 #### Devices
 

@@ -406,6 +406,49 @@ describe('maximize and demo', () => {
     await settle(el);
     expect(root.querySelector('.stage')?.classList.contains('is-demo')).toBe(false);
   });
+
+  it('comments on the UI during the demo from a button beside the way out', async () => {
+    const el = mount('#view=app&screen=top');
+    await settle(el);
+    const root = el.shadowRoot!;
+    button(el, '.stage-demo').click();
+    await settle(el);
+    const controls = [...root.querySelectorAll('.browser-tabs .demo-controls > button')].map((control) =>
+      control.classList.contains('ui-comment-toggle')
+        ? 'comment'
+        : control.classList.contains('demo-exit')
+          ? 'exit'
+          : '?',
+    );
+    expect(controls).toEqual(['comment', 'exit']);
+
+    button(el, '.demo-controls .ui-comment-toggle').click();
+    await settle(el);
+    expect(root.querySelector('.ui-comment-toggle')?.getAttribute('aria-pressed')).toBe('true');
+    expect(root.querySelector('.ui-catcher')).not.toBeNull();
+
+    // Esc ends commenting first, and the demo only with the next one.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await settle(el);
+    expect(root.querySelector('.ui-catcher')).toBeNull();
+    expect(root.querySelector('.stage')?.classList.contains('is-demo')).toBe(true);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await settle(el);
+    expect(root.querySelector('.stage')?.classList.contains('is-demo')).toBe(false);
+  });
+
+  it('keeps commenting on the UI on when the demo starts', async () => {
+    const el = mount('#view=app&screen=top');
+    await settle(el);
+    const root = el.shadowRoot!;
+    button(el, '.ui-comment-toggle').click();
+    await settle(el);
+    button(el, '.stage-demo').click();
+    await settle(el);
+    expect(root.querySelector('.stage')?.classList.contains('is-demo')).toBe(true);
+    expect(root.querySelector('.demo-controls .ui-comment-toggle')?.getAttribute('aria-pressed')).toBe('true');
+    expect(root.querySelector('.ui-catcher')).not.toBeNull();
+  });
 });
 
 describe('the browser of a phone', () => {
@@ -475,7 +518,8 @@ describe('the browser of a phone', () => {
     await settle(el);
     button(el, '.stage-demo').click();
     await settle(el);
-    expect(el.shadowRoot!.querySelector('.stage > .demo-exit')).not.toBeNull();
+    expect(el.shadowRoot!.querySelector('.stage > .demo-controls > .demo-exit')).not.toBeNull();
+    expect(el.shadowRoot!.querySelector('.stage > .demo-controls > .ui-comment-toggle')).not.toBeNull();
     expect(el.shadowRoot!.querySelector('.browser-tabs')).toBeNull();
   });
 
