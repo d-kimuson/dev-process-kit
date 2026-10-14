@@ -12,6 +12,7 @@ import { onCommit } from '../../../lib/dom/events';
 import { addActivity, addMilestone, addStep, addStory } from '../commands';
 import {
   flatSteps,
+  labelsOfStory,
   stepRefOf,
   storiesInActivity,
   storiesInCell,
@@ -599,6 +600,7 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     .story=${story}
     .stepName=${stepName}
     .statuses=${views}
+    .labels=${labelsOfStory(context.state, story)}
     .notes=${notes}
     @click=${() => handlers.selectStory(story.id)}
     @keydown=${(event: KeyboardEvent) => {

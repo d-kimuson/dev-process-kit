@@ -2,7 +2,7 @@ import type { TemplateRenderContext } from '../../core/shell/contracts';
 import type { UsmMessages } from './messages';
 
 import { createEntityId } from '../../core/target';
-import { allUsmIds, defaultStatusTone, type UsmState } from './model';
+import { allUsmIds, defaultLabelTone, defaultStatusTone, type UsmState } from './model';
 
 /**
  * The "add" affordances of the board as pure functions of the render context.
@@ -65,5 +65,14 @@ export const addStatus = (m: UsmMessages, context: TemplateRenderContext<UsmStat
     type: 'ADD_STATUS',
     target: { type: 'page', id: 'usm' },
     payload: { id, name: m.newStatusName, tone: defaultStatusTone(context.state.statuses.length) },
+  });
+};
+
+export const addLabel = (m: UsmMessages, context: TemplateRenderContext<UsmState>): void => {
+  const id = createEntityId('new-label', allUsmIds(context.state));
+  context.dispatch({
+    type: 'ADD_LABEL',
+    target: { type: 'page', id: 'usm' },
+    payload: { id, name: m.newLabelName, tone: defaultLabelTone(context.state.labels.length) },
   });
 };

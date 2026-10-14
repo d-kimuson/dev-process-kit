@@ -962,6 +962,13 @@ export const usmStyles = css`
     outline: none;
     box-shadow: var(--dpk-focus);
   }
+  /* A label's color, where a status shows its icon. */
+  .label-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    background: var(--usm-tone);
+  }
   .st-tools {
     display: inline-flex;
     gap: 2px;

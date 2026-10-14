@@ -33,6 +33,13 @@ export const usmMessages = defineMessages({
     removeStoryLink: 'Unlink from story',
     deleteStatus: 'Delete status',
     reorderStatus: 'Reorder status',
+    addLabel: 'Add label',
+    renameLabel: 'Rename label',
+    changeLabelTone: 'Change label color',
+    deleteLabel: 'Delete label',
+    reorderLabel: 'Reorder label',
+    addStoryLabel: 'Label story',
+    removeStoryLabel: 'Unlabel story',
 
     // ------------------------------------------------- action summary bodies
     toValue: (value: string) => `→ “${value}”`,
@@ -50,6 +57,7 @@ export const usmMessages = defineMessages({
     storyGroup: 'Story',
     milestoneGroup: 'Milestone',
     statusGroup: 'Status',
+    labelGroup: 'Label',
     mapGroup: 'Map',
     targetLabel: (group: string, name: string) => `${group} · ${name}`,
     targetMissing: (group: string, id: string) => `${group} · ${id} (missing)`,
@@ -81,6 +89,7 @@ export const usmMessages = defineMessages({
     mapTab: 'User Story Mapping',
     milestonesTab: 'Milestones',
     statusesTab: 'Statuses',
+    labelsTab: 'Labels',
 
     // ---------------------------------------------------- milestones tab
     shareOfStories: (percent: number) => `${percent}% of all stories`,
@@ -124,6 +133,13 @@ export const usmMessages = defineMessages({
     moveDownAria: 'Move down',
     deleteStatusAria: 'Delete this status',
 
+    // --------------------------------------------------------- labels tab
+    labelNameLabel: 'Label name',
+    noLabelsTitle: 'No labels yet',
+    noLabelsBody: 'Add labels such as Dev / PdM to sort stories however the team likes. The kit gives them no meaning.',
+    newLabelButton: '+ Label',
+    deleteLabelAria: 'Delete this label',
+
     // ---------------------------------------------------------- move dialog
     moveDialogLabel: 'Step to move to',
     moveDialogSelectLabel: 'Destination',
@@ -137,6 +153,9 @@ export const usmMessages = defineMessages({
     storyTitleLabel: 'Title',
     storyDescriptionLabel: 'Description',
     storyLinksLabel: 'Links',
+    storyLabelsLabel: 'Labels',
+    storyNoLabels: 'No labels yet.',
+    manageLabels: 'Manage labels',
     linkUrlLabel: 'URL',
     addLinkButton: 'Add',
     removeLinkAria: (label: string) => `Remove ${label}`,
@@ -151,6 +170,7 @@ export const usmMessages = defineMessages({
     newMilestoneName: 'New milestone',
     newStoryName: 'New story',
     newStatusName: 'New status',
+    newLabelName: 'New label',
   },
   ja: {
     renameActivity: 'アクティビティ名を変更',
@@ -181,6 +201,13 @@ export const usmMessages = defineMessages({
     removeStoryLink: 'ストーリーのリンクを削除',
     deleteStatus: 'ステータスを削除',
     reorderStatus: 'ステータスの順序を変更',
+    addLabel: 'ラベルを追加',
+    renameLabel: 'ラベル名を変更',
+    changeLabelTone: 'ラベルの色を変更',
+    deleteLabel: 'ラベルを削除',
+    reorderLabel: 'ラベルの順序を変更',
+    addStoryLabel: 'ストーリーにラベルを付与',
+    removeStoryLabel: 'ストーリーのラベルを外す',
 
     toValue: (value: string) => `→ 「${value}」`,
     fromTo: (before: string, value: string) => `「${before}」→「${value}」`,
@@ -196,6 +223,7 @@ export const usmMessages = defineMessages({
     storyGroup: 'ストーリー',
     milestoneGroup: 'マイルストーン',
     statusGroup: 'ステータス',
+    labelGroup: 'ラベル',
     mapGroup: 'マップ',
     targetLabel: (group: string, name: string) => `${group} · ${name}`,
     targetMissing: (group: string, id: string) => `${group} · ${id} (missing)`,
@@ -225,6 +253,7 @@ export const usmMessages = defineMessages({
     mapTab: 'User Story Mapping',
     milestonesTab: 'マイルストーン',
     statusesTab: 'ステータス',
+    labelsTab: 'ラベル',
 
     shareOfStories: (percent: number) => `全ストーリーの ${percent}%`,
     coverageLabel: 'バックボーンの網羅',
@@ -266,6 +295,13 @@ export const usmMessages = defineMessages({
     moveDownAria: '下へ移動',
     deleteStatusAria: 'このステータスを削除',
 
+    labelNameLabel: 'ラベル名',
+    noLabelsTitle: 'ラベルがまだありません',
+    noLabelsBody:
+      'Dev / PdM のようなラベルを追加すると、チームの運用に合わせてストーリーを区分けできます。ラベルの意味は仕組み側では決めません。',
+    newLabelButton: '+ ラベル',
+    deleteLabelAria: 'このラベルを削除',
+
     moveDialogLabel: '移動先のアクティビティ',
     moveDialogSelectLabel: '移動先',
     moveConfirm: '移動する',
@@ -277,6 +313,9 @@ export const usmMessages = defineMessages({
     storyTitleLabel: 'タイトル',
     storyDescriptionLabel: '説明',
     storyLinksLabel: 'リンク',
+    storyLabelsLabel: 'ラベル',
+    storyNoLabels: 'ラベルはまだありません。',
+    manageLabels: 'ラベルを管理',
     linkUrlLabel: 'URL',
     addLinkButton: '追加',
     removeLinkAria: (label: string) => `${label} を外す`,
@@ -290,6 +329,7 @@ export const usmMessages = defineMessages({
     newMilestoneName: '新しいマイルストーン',
     newStoryName: '新しいストーリー',
     newStatusName: '新しいステータス',
+    newLabelName: '新しいラベル',
   },
 });
 

@@ -8,6 +8,7 @@ import {
   canonicalUsmState,
   emptyUsmBase,
   findActivity,
+  findLabel,
   findMilestone,
   findStatus,
   findStep,
@@ -38,6 +39,8 @@ export const usmHasTarget = (state: UsmState, target: ActionTarget): boolean => 
       return findMilestone(state, target.id) !== undefined;
     case 'status':
       return findStatus(state, target.id) !== undefined;
+    case 'label':
+      return findLabel(state, target.id) !== undefined;
     case 'page':
       return true;
     default:

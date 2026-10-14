@@ -9,7 +9,7 @@ import { iconTrash } from '../../../core/icons';
 import { targetRef } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { addStatus } from '../commands';
-import { STATUS_ICONS, STATUS_TONES, type UsmState } from '../model';
+import { STATUS_ICONS, STATUS_TONES, type StatusTone, type UsmState } from '../model';
 import { statusIcon, statusToneStyle } from './tone';
 
 /**
@@ -90,52 +90,14 @@ const renderStatusRow = (
         ></dpk-component-inline-edit>
       </span>
       ${renderShare(m, row.storyCount, row.share)}
-      <span class="st-tones" role="radiogroup" aria-label=${m.statusToneLabel}>
-        ${STATUS_TONES.map(
-          (tone) => html`<button
-            class="st-tone"
-            type="button"
-            role="radio"
-            data-tone=${tone}
-            style=${statusToneStyle(tone)}
-            title=${m.toneName(tone)}
-            aria-label=${m.toneName(tone)}
-            aria-checked=${tone === row.tone ? 'true' : 'false'}
-            @click=${() => {
-              if (tone !== row.tone) context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } });
-            }}
-          ></button>`,
-        )}
-      </span>
-      <span class="st-tools">
-        <button
-          class="dpk-icon-btn"
-          type="button"
-          aria-label=${m.moveUpAria}
-          ?disabled=${row.previousId === null}
-          @click=${() => reorder(beforePrevious(context.state, row))}
-        >
-          ↑
-        </button>
-        <button
-          class="dpk-icon-btn"
-          type="button"
-          aria-label=${m.moveDownAria}
-          ?disabled=${row.nextId === null}
-          @click=${() => reorder(row.nextId)}
-        >
-          ↓
-        </button>
-        <button
-          class="dpk-icon-btn"
-          type="button"
-          data-role="delete"
-          aria-label=${m.deleteStatusAria}
-          @click=${() => context.dispatch({ type: 'DELETE_STATUS', target, payload: {} })}
-        >
-          ${iconTrash()}
-        </button>
-      </span>
+      ${renderTonePicker(m, row.tone, (tone) => context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } }))}
+      ${renderRowTools(m, {
+        ids: context.state.statuses.map((status) => status.id),
+        row,
+        deleteLabel: m.deleteStatusAria,
+        reorder,
+        remove: () => context.dispatch({ type: 'DELETE_STATUS', target, payload: {} }),
+      })}
     </li>
   `;
 };
@@ -180,13 +142,72 @@ const renderIconMenu = (
   )}
 </div>`;
 
-/** Moving up places the status right after the one two places above (or first). */
-const beforePrevious = (state: UsmState, row: StatusRow): string | null => {
-  const index = state.statuses.findIndex((status) => status.id === row.previousId);
-  return index <= 0 ? null : (state.statuses[index - 1]?.id ?? null);
+/** The palette as a radio group; picking another tone than `current` calls `pick`. */
+export const renderTonePicker = (
+  m: UsmMessages,
+  current: StatusTone,
+  pick: (tone: StatusTone) => void,
+): TemplateResult => html`<span class="st-tones" role="radiogroup" aria-label=${m.statusToneLabel}>
+  ${STATUS_TONES.map(
+    (tone) => html`<button
+      class="st-tone"
+      type="button"
+      role="radio"
+      data-tone=${tone}
+      style=${statusToneStyle(tone)}
+      title=${m.toneName(tone)}
+      aria-label=${m.toneName(tone)}
+      aria-checked=${tone === current ? 'true' : 'false'}
+      @click=${() => {
+        if (tone !== current) pick(tone);
+      }}
+    ></button>`,
+  )}
+</span>`;
+
+/** A row of an ordered list (statuses, labels) and what its tools do. */
+export type RowTools = {
+  /** Every id of the list, in order. */
+  readonly ids: readonly string[];
+  readonly row: { readonly previousId: string | null; readonly nextId: string | null };
+  readonly deleteLabel: string;
+  /** Places the row right after `after`, or first for `null`. */
+  readonly reorder: (after: string | null) => void;
+  readonly remove: () => void;
 };
 
-const renderShare = (m: UsmMessages, count: number, share: number): TemplateResult => html`
+/** Move up, move down and delete. */
+export const renderRowTools = (m: UsmMessages, tools: RowTools): TemplateResult => html`<span class="st-tools">
+  <button
+    class="dpk-icon-btn"
+    type="button"
+    aria-label=${m.moveUpAria}
+    ?disabled=${tools.row.previousId === null}
+    @click=${() => tools.reorder(beforePrevious(tools.ids, tools.row.previousId))}
+  >
+    ↑
+  </button>
+  <button
+    class="dpk-icon-btn"
+    type="button"
+    aria-label=${m.moveDownAria}
+    ?disabled=${tools.row.nextId === null}
+    @click=${() => tools.reorder(tools.row.nextId)}
+  >
+    ↓
+  </button>
+  <button class="dpk-icon-btn" type="button" data-role="delete" aria-label=${tools.deleteLabel} @click=${tools.remove}>
+    ${iconTrash()}
+  </button>
+</span>`;
+
+/** Moving up places the row right after the one two places above (or first). */
+const beforePrevious = (ids: readonly string[], previousId: string | null): string | null => {
+  const index = previousId === null ? -1 : ids.indexOf(previousId);
+  return index <= 0 ? null : (ids[index - 1] ?? null);
+};
+
+export const renderShare = (m: UsmMessages, count: number, share: number): TemplateResult => html`
   <span class="st-share">
     <span class="st-share-text">${m.statusShare(count, Math.round(share * 100))}</span>
     <span class="st-meter" aria-hidden="true"><span style=${`width:${share * 100}%`}></span></span>

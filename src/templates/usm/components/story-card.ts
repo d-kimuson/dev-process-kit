@@ -2,7 +2,7 @@ import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import type { DraftAction } from '../../../core/types';
-import type { StoryLink, UserStory } from '../model';
+import type { StoryLabel, StoryLink, UserStory } from '../model';
 
 import { iconComment } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
@@ -11,7 +11,7 @@ import { describeLink } from '../../../lib/link-label';
 import { renderMarkdown } from '../../../lib/markdown';
 import { usmMessages, type UsmMessages } from '../messages';
 import { linkIcon, linkStyles } from '../render/link-icon';
-import { statusIcon, statusStyles } from '../render/tone';
+import { statusIcon, statusStyles, statusToneStyle } from '../render/tone';
 import { statusViewOf, type StatusView } from '../status-view';
 
 /** Links beyond this many collapse into a `+n` chip; the panel lists them all. */
@@ -175,6 +175,42 @@ const cardStyles = css`
     height: 12px;
   }
 
+  /* The labels the story carries, each in its own color. */
+  .card-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .label-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0 7px;
+    border: 1px solid color-mix(in oklab, var(--usm-tone) 35%, transparent);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--usm-tone) 12%, var(--dpk-paper-raised));
+    color: var(--dpk-ink);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 17px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .label-chip::before {
+    content: '';
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--usm-tone);
+  }
+
   .card-links {
     display: flex;
     flex-wrap: wrap;
@@ -204,6 +240,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
     story: { attribute: false },
     stepName: { attribute: false },
     statuses: { attribute: false },
+    labels: { attribute: false },
     notes: { attribute: false },
     focused: { type: Boolean, reflect: true },
     dragging: { type: Boolean, reflect: true },
@@ -214,6 +251,8 @@ export class DpkInternalUsmStoryCard extends LitElement {
   declare stepName: string;
   /** The statuses the map defines; with none, the card shows no status. */
   declare statuses: readonly StatusView[];
+  /** The labels the story carries, in the order of the labels tab. */
+  declare labels: readonly StoryLabel[];
   /** Comments already left on this story. */
   declare notes: readonly DraftAction[];
   declare focused: boolean;
@@ -226,6 +265,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
     this.story = null;
     this.stepName = '';
     this.statuses = [];
+    this.labels = [];
     this.notes = [];
     this.focused = false;
     this.dragging = false;
@@ -246,6 +286,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
           ? html`<div class="card-text" @click=${stopLinkClicks}>${unsafeHTML(renderMarkdown(story.description))}</div>`
           : nothing
       }
+      ${this.labels.length > 0 ? renderLabels(this.labels) : nothing}
       ${story.links && story.links.length > 0 ? this.#renderLinks(story.links) : nothing}
       ${
         hasFoot
@@ -304,6 +345,13 @@ export class DpkInternalUsmStoryCard extends LitElement {
     </div>`;
   }
 }
+
+const renderLabels = (labels: readonly StoryLabel[]): TemplateResult => html`<div class="card-labels">
+  ${labels.map(
+    (label) =>
+      html`<span class="label-chip" data-label=${label.id} style=${statusToneStyle(label.tone)}>${label.name}</span>`,
+  )}
+</div>`;
 
 /** A link inside the description opens the link, not the story panel. */
 const stopLinkClicks = (event: Event): void => {

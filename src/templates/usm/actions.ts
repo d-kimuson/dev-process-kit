@@ -117,6 +117,25 @@ export const usmActions = {
   REORDER_STATUS: defineAction('REORDER_STATUS', 'status', v.object({ after: v.nullable(v.string()) }), {
     mode: 'sequence',
   }),
+
+  ADD_LABEL: defineAction(
+    'ADD_LABEL',
+    'page',
+    v.object({ id: entityIdSchema, name: v.pipe(v.string(), v.minLength(1)), tone: statusToneSchema }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  SET_LABEL_NAME: defineAction('SET_LABEL_NAME', 'label', v.object({ name: v.pipe(v.string(), v.minLength(1)) })),
+  SET_LABEL_TONE: defineAction('SET_LABEL_TONE', 'label', v.object({ tone: statusToneSchema })),
+  DELETE_LABEL: defineAction('DELETE_LABEL', 'label', v.object({})),
+  REORDER_LABEL: defineAction('REORDER_LABEL', 'label', v.object({ after: v.nullable(v.string()) }), {
+    mode: 'sequence',
+  }),
+  ADD_STORY_LABEL: defineAction('ADD_STORY_LABEL', 'story', v.object({ labelId: v.pipe(v.string(), v.minLength(1)) })),
+  REMOVE_STORY_LABEL: defineAction(
+    'REMOVE_STORY_LABEL',
+    'story',
+    v.object({ labelId: v.pipe(v.string(), v.minLength(1)) }),
+  ),
 } satisfies ActionSpecs;
 
 /** The discriminated union of this template's actions. */

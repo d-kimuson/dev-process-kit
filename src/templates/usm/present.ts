@@ -14,7 +14,16 @@ import { targetRef } from '../../core/target';
 import { describeLink } from '../../lib/link-label';
 import { usmActions } from './actions';
 import { usmTabOf } from './board-tabs';
-import { findActivity, findMilestone, findStatus, findStep, findStory, stepRefOf, type UsmState } from './model';
+import {
+  findActivity,
+  findLabel,
+  findMilestone,
+  findStatus,
+  findStep,
+  findStory,
+  stepRefOf,
+  type UsmState,
+} from './model';
 import { statusFilterOf, statusFilterParam } from './status-view';
 
 type Summary = {
@@ -216,6 +225,43 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
     tone: 'move',
     body: reorderBody(m, payloadFor(usmActions.REORDER_STATUS, action)['after']),
   }),
+  ADD_LABEL: (m, action) => ({
+    title: m.addLabel,
+    tone: 'create',
+    body: m.added(payloadFor(usmActions.ADD_LABEL, action)['name']),
+  }),
+  SET_LABEL_NAME: (m, action, state) => ({
+    title: m.renameLabel,
+    tone: 'update',
+    body: arrow(m, findLabel(state, action.target.id)?.name, payloadFor(usmActions.SET_LABEL_NAME, action)['name']),
+  }),
+  SET_LABEL_TONE: (m, action, state) => {
+    const before = findLabel(state, action.target.id)?.tone;
+    const after = payloadFor(usmActions.SET_LABEL_TONE, action)['tone'];
+    return {
+      title: m.changeLabelTone,
+      tone: 'update',
+      body: arrow(m, before === undefined ? undefined : m.toneName(before), m.toneName(after)),
+    };
+  },
+  DELETE_LABEL: (m, action, state) => ({
+    title: m.deleteLabel,
+    tone: 'delete',
+    body: m.removed(findLabel(state, action.target.id)?.name ?? action.target.id),
+  }),
+  REORDER_LABEL: (m, action) => ({
+    title: m.reorderLabel,
+    tone: 'move',
+    body: reorderBody(m, payloadFor(usmActions.REORDER_LABEL, action)['after']),
+  }),
+  ADD_STORY_LABEL: (m, action, state) => {
+    const labelId = payloadFor(usmActions.ADD_STORY_LABEL, action)['labelId'];
+    return { title: m.addStoryLabel, tone: 'create', body: m.added(findLabel(state, labelId)?.name ?? labelId) };
+  },
+  REMOVE_STORY_LABEL: (m, action, state) => {
+    const labelId = payloadFor(usmActions.REMOVE_STORY_LABEL, action)['labelId'];
+    return { title: m.removeStoryLabel, tone: 'delete', body: m.removed(findLabel(state, labelId)?.name ?? labelId) };
+  },
 } satisfies Record<ActionName<typeof usmActions>, (m: UsmMessages, action: DraftAction, state: UsmState) => Summary>;
 
 export const describeUsmAction = (
@@ -269,6 +315,10 @@ export const usmTargetLabel = (m: UsmMessages, state: UsmState, target: ActionTa
         const status = findStatus(state, target.id);
         return status ? m.targetLabel(m.statusGroup, status.name) : m.targetMissing(m.statusGroup, target.id);
       }
+      case 'label': {
+        const label = findLabel(state, target.id);
+        return label ? m.targetLabel(m.labelGroup, label.name) : m.targetMissing(m.labelGroup, target.id);
+      }
       case 'page':
         return m.targetLabel(m.mapGroup, usmTitle(state));
       default:
@@ -309,6 +359,9 @@ export const usmCommentTargets = (
   for (const status of state.statuses) {
     options.push({ value: targetRef({ type: 'status', id: status.id }), label: status.name, group: m.statusGroup });
   }
+  for (const label of state.labels) {
+    options.push({ value: targetRef({ type: 'label', id: label.id }), label: label.name, group: m.labelGroup });
+  }
   for (const story of state.stories) {
     options.push({ value: targetRef({ type: 'story', id: story.id }), label: story.name, group: m.storyGroup });
   }
@@ -343,7 +396,7 @@ export const usmTitle = (state: UsmState): string => {
 /**
  * The navigation that brings a target on screen, for a change's "Show": a
  * story, step or activity on the map grouped by activity, unfiltered so the
- * story shows; a milestone or a status on its own page.
+ * story shows; a milestone, a status or a label on its own page.
  */
 export const usmNavigationFor = (target: ActionTarget): NavigationPatch | null => {
   switch (target.type) {
@@ -356,6 +409,8 @@ export const usmNavigationFor = (target: ActionTarget): NavigationPatch | null =
       return { tab: 'milestones' };
     case 'status':
       return { tab: 'statuses' };
+    case 'label':
+      return { tab: 'labels' };
     default:
       return null;
   }

@@ -63,6 +63,16 @@ export type StoryStatus = {
   readonly icon: StatusIcon;
 };
 
+/**
+ * A free tag a story may carry (`Dev`, `PdM`, `Spike` …). The kit attaches no
+ * meaning to it: what the labels sort stories by is up to the team.
+ */
+export type StoryLabel = {
+  readonly id: string;
+  readonly name: string;
+  readonly tone: StatusTone;
+};
+
 /** Something the story points at: an issue, a pull request, a design, a doc. */
 export type StoryLink = {
   readonly url: string;
@@ -84,6 +94,8 @@ export type UserStory = {
    */
   readonly statusId?: string;
   readonly links?: readonly StoryLink[];
+  /** The labels the story carries, each once. */
+  readonly labelIds?: readonly string[];
 };
 
 export type UsmState = {
@@ -91,6 +103,7 @@ export type UsmState = {
   readonly activities: readonly BackboneActivity[];
   readonly milestones: readonly Milestone[];
   readonly statuses: readonly StoryStatus[];
+  readonly labels: readonly StoryLabel[];
   readonly stories: readonly UserStory[];
 };
 
@@ -122,6 +135,11 @@ const statusSchema = v.strictObject({
   tone: v.optional(statusToneSchema),
   icon: v.optional(statusIconSchema),
 });
+const labelSchema = v.strictObject({
+  id: entityIdSchema,
+  name: v.pipe(v.string(), v.minLength(1)),
+  tone: v.optional(statusToneSchema),
+});
 const storySchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
@@ -131,6 +149,7 @@ const storySchema = v.strictObject({
   milestoneId: v.exactOptional(v.string()),
   statusId: v.exactOptional(v.string()),
   links: v.exactOptional(v.array(linkSchema)),
+  labelIds: v.exactOptional(v.array(v.pipe(v.string(), v.minLength(1)))),
 });
 
 export const usmBaseSchema = v.strictObject({
@@ -138,11 +157,18 @@ export const usmBaseSchema = v.strictObject({
   activities: v.optional(v.array(activitySchema), []),
   milestones: v.optional(v.array(milestoneSchema), []),
   statuses: v.optional(v.array(statusSchema), []),
+  labels: v.optional(v.array(labelSchema), []),
   stories: v.optional(v.array(storySchema), []),
 });
 
 /** A status without its own tone takes the palette's next one by position. */
 export const defaultStatusTone = (index: number): StatusTone => STATUS_TONES[index % STATUS_TONES.length] ?? 'gray';
+
+/**
+ * A label without its own tone takes the palette by position, skipping the
+ * neutral gray so a fresh label stands out from the card.
+ */
+export const defaultLabelTone = (index: number): StatusTone => defaultStatusTone(index + 1);
 
 export const parseUsmBase = (input: unknown): UsmState => {
   const raw = v.parse(usmBaseSchema, input);
@@ -158,6 +184,7 @@ export const parseUsmBase = (input: unknown): UsmState => {
       tone: status.tone ?? defaultStatusTone(index),
       icon: status.icon ?? 'progress',
     })),
+    labels: raw.labels.map((label, index) => ({ ...label, tone: label.tone ?? defaultLabelTone(index) })),
   };
   const stepIds = new Map<string, string>();
   for (const activity of parsed.activities) {
@@ -165,6 +192,7 @@ export const parseUsmBase = (input: unknown): UsmState => {
   }
   const milestoneIds = new Set(parsed.milestones.map((milestone) => milestone.id));
   const statusIds = new Set(parsed.statuses.map((status) => status.id));
+  const labelIds = new Set(parsed.labels.map((label) => label.id));
   const seen = new Set<string>();
   const checkDuplicate = (kind: string, id: string): void => {
     if (seen.has(id)) throw new Error(`duplicate id "${id}" in ${kind}`);
@@ -176,6 +204,7 @@ export const parseUsmBase = (input: unknown): UsmState => {
   }
   for (const milestone of parsed.milestones) checkDuplicate('milestones', milestone.id);
   for (const status of parsed.statuses) checkDuplicate('statuses', status.id);
+  for (const label of parsed.labels) checkDuplicate('labels', label.id);
   for (const story of parsed.stories) {
     checkDuplicate('stories', story.id);
     const ownerActivity = stepIds.get(story.stepId);
@@ -190,12 +219,18 @@ export const parseUsmBase = (input: unknown): UsmState => {
     if (story.statusId !== undefined && !statusIds.has(story.statusId)) {
       throw new Error(`story "${story.id}" references unknown statusId "${story.statusId}"`);
     }
+    const storyLabels = story.labelIds ?? [];
+    if (new Set(storyLabels).size !== storyLabels.length) throw new Error(`story "${story.id}" has a label twice`);
+    const unknownLabel = storyLabels.find((id) => !labelIds.has(id));
+    if (unknownLabel !== undefined) {
+      throw new Error(`story "${story.id}" references unknown labelId "${unknownLabel}"`);
+    }
   }
   return parsed;
 };
 
 export const emptyUsmBase = (): UsmState => {
-  return { activities: [], milestones: [], statuses: [], stories: [] };
+  return { activities: [], milestones: [], statuses: [], labels: [], stories: [] };
 };
 
 export const findActivity = (state: UsmState, id: string | undefined): BackboneActivity | undefined => {
@@ -245,6 +280,17 @@ export const findStatus = (state: UsmState, id: string | undefined): StoryStatus
   return state.statuses.find((status) => status.id === id);
 };
 
+export const findLabel = (state: UsmState, id: string | undefined): StoryLabel | undefined => {
+  if (id === undefined) return undefined;
+  return state.labels.find((label) => label.id === id);
+};
+
+/** The labels a story carries, in the order of the labels tab. */
+export const labelsOfStory = (state: UsmState, story: UserStory): readonly StoryLabel[] => {
+  const carried = new Set(story.labelIds ?? []);
+  return state.labels.filter((label) => carried.has(label.id));
+};
+
 export const findStory = (state: UsmState, id: string | undefined): UserStory | undefined => {
   if (id === undefined) return undefined;
   return state.stories.find((story) => story.id === id);
@@ -290,6 +336,7 @@ export const allUsmIds = (state: UsmState): string[] => {
     ...state.activities.flatMap((activity) => activity.steps.map((step) => step.id)),
     ...state.milestones.map((milestone) => milestone.id),
     ...state.statuses.map((status) => status.id),
+    ...state.labels.map((label) => label.id),
     ...state.stories.map((story) => story.id),
   ];
 };

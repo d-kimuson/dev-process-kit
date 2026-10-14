@@ -14,10 +14,12 @@ import { usmTabOf, type UsmTab } from './board-tabs';
 import { defineUsmStoryCard } from './components/story-card';
 import { usmDefinitionFor } from './definition';
 import { resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove, type CellRef } from './drop';
+import { presentLabelOverview } from './label-overview';
 import { usmMessages, type UsmMessages } from './messages';
 import { presentMilestoneOverview } from './milestone-overview';
 import { findStory, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
+import { renderLabelOverview } from './render/label-overview';
 import { linkStyles } from './render/link-icon';
 import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
@@ -187,6 +189,8 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
           },
           close: () => (this.mode = IDLE_MODE),
         });
+      case 'labels':
+        return renderLabelOverview(m, context, presentLabelOverview(context.state));
       case 'map':
         return this.#renderMap(m, context);
     }

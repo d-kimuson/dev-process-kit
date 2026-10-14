@@ -3,6 +3,7 @@ import type { ApplyResult, DraftAction } from '../../core/types';
 import { assertNever, parseTemplateAction } from '../../core/schema';
 import { usmActions } from './actions';
 import {
+  findLabel,
   findMilestone,
   findStatus,
   findStep,
@@ -268,6 +269,48 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       const next = reorderById(state.statuses, id, after);
       return next === null ? null : { ...state, statuses: next };
     }
+
+    case 'ADD_LABEL': {
+      const { id: labelId, name, tone } = typed.payload;
+      if (findLabel(state, labelId)) return state;
+      return { ...state, labels: [...state.labels, { id: labelId, name, tone }] };
+    }
+    case 'SET_LABEL_NAME': {
+      const { name } = typed.payload;
+      if (!findLabel(state, id)) return null;
+      return { ...state, labels: state.labels.map((label) => (label.id === id ? { ...label, name } : label)) };
+    }
+    case 'SET_LABEL_TONE': {
+      const { tone } = typed.payload;
+      if (!findLabel(state, id)) return null;
+      return { ...state, labels: state.labels.map((label) => (label.id === id ? { ...label, tone } : label)) };
+    }
+    case 'DELETE_LABEL': {
+      if (!findLabel(state, id)) return null;
+      return {
+        ...state,
+        labels: state.labels.filter((label) => label.id !== id),
+        stories: state.stories.map((story) => (story.labelIds?.includes(id) ? withoutLabel(story, id) : story)),
+      };
+    }
+    case 'REORDER_LABEL': {
+      const { after } = typed.payload;
+      const next = reorderById(state.labels, id, after);
+      return next === null ? null : { ...state, labels: next };
+    }
+    case 'ADD_STORY_LABEL': {
+      const { labelId } = typed.payload;
+      const story = findStory(state, id);
+      if (!story || !findLabel(state, labelId)) return null;
+      // Labelling a story again is already done: the draft stays as it is.
+      if (story.labelIds?.includes(labelId)) return state;
+      return updateStory(state, id, (current) => ({ ...current, labelIds: [...(current.labelIds ?? []), labelId] }));
+    }
+    case 'REMOVE_STORY_LABEL': {
+      const { labelId } = typed.payload;
+      if (!findStory(state, id)?.labelIds?.includes(labelId)) return null;
+      return updateStory(state, id, (current) => withoutLabel(current, labelId));
+    }
     default:
       return assertNever(typed);
   }
@@ -281,6 +324,13 @@ const updateStory = (state: UsmState, id: string, fn: (story: UserStory) => User
 const stripMilestone = (story: UserStory): UserStory => {
   const { milestoneId: _milestoneId, ...rest } = story;
   return rest;
+};
+
+/** The story without `labelId`; a story left with no labels carries no `labelIds` at all. */
+const withoutLabel = (story: UserStory, labelId: string): UserStory => {
+  const { labelIds = [], ...rest } = story;
+  const kept = labelIds.filter((candidate) => candidate !== labelId);
+  return kept.length === 0 ? rest : { ...rest, labelIds: kept };
 };
 
 const stripStatus = (story: UserStory): UserStory => {

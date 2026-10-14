@@ -20,7 +20,7 @@ export const panelStoryOf = (context: TemplateRenderContext<UsmState>): UserStor
 
 /**
  * The story panel: a drawer on the right that edits one story — its title,
- * status, description and links. A click on a card opens it (`#story=<id>`);
+ * status, labels, description and links. A click on a card opens it (`#story=<id>`);
  * closing it clears the story from the navigation. The host moves the focus
  * in and out and closes it on Escape or a press outside (`DismissController`).
  */
@@ -61,6 +61,7 @@ export const renderStoryPanel = (
         ></dpk-component-inline-edit>
       </h2>
       ${state.statuses.length === 0 ? nothing : renderStatusField(m, context, story)}
+      ${renderLabelsField(m, context, story)}
       <section class="sp-field">
         <h3>${m.storyDescriptionLabel}</h3>
         <dpk-component-inline-edit
@@ -122,6 +123,49 @@ const renderStatusField = (
         </button>`,
       )}
     </div>
+  </section>`;
+};
+
+/**
+ * Every label of the map as a toggle: pressing one puts it on the story or
+ * takes it off. The labels themselves are kept on the labels tab.
+ */
+const renderLabelsField = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  story: UserStory,
+): TemplateResult => {
+  const target = { type: 'story', id: story.id };
+  const carried = new Set(story.labelIds ?? []);
+  return html`<section class="sp-field">
+    <h3 id="sp-labels-label" class="sp-field-head">
+      <span>${m.storyLabelsLabel}</span>
+      <a class="sp-manage" href=${context.hashFor({ tab: 'labels', story: null })}>${m.manageLabels}</a>
+    </h3>
+    ${
+      context.state.labels.length === 0
+        ? html`<p class="sp-empty">${m.storyNoLabels}</p>`
+        : html`<div class="sp-labels" role="group" aria-labelledby="sp-labels-label">
+            ${context.state.labels.map((label) => {
+              const on = carried.has(label.id);
+              return html`<button
+                class="sp-label"
+                type="button"
+                data-label=${label.id}
+                aria-pressed=${String(on)}
+                style=${statusToneStyle(label.tone)}
+                @click=${() =>
+                  context.dispatch({
+                    type: on ? 'REMOVE_STORY_LABEL' : 'ADD_STORY_LABEL',
+                    target,
+                    payload: { labelId: label.id },
+                  })}
+              >
+                <span class="sp-label-dot" aria-hidden="true"></span><span>${label.name}</span>
+              </button>`;
+            })}
+          </div>`
+    }
   </section>`;
 };
 
@@ -353,6 +397,72 @@ export const storyPanelStyles = css`
     border-color: var(--usm-tone);
     background: color-mix(in oklab, var(--usm-tone) 14%, var(--dpk-paper-raised));
     box-shadow: inset 0 0 0 1px var(--usm-tone);
+  }
+  .sp-field-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .sp-manage {
+    color: var(--dpk-ink-faint);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .sp-manage:hover {
+    color: var(--dpk-blue);
+  }
+  .sp-empty {
+    margin: 0;
+    color: var(--dpk-ink-faint);
+    font-size: 12.5px;
+  }
+  .sp-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .sp-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px 3px 8px;
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--dpk-ink-soft);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease);
+  }
+  .sp-label:hover {
+    border-color: color-mix(in oklab, var(--usm-tone) 60%, var(--dpk-rule-strong));
+  }
+  .sp-label:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+  .sp-label[aria-pressed='true'] {
+    border-style: solid;
+    border-color: color-mix(in oklab, var(--usm-tone) 55%, transparent);
+    background: color-mix(in oklab, var(--usm-tone) 14%, var(--dpk-paper-raised));
+    color: var(--dpk-ink);
+  }
+  .sp-label-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--usm-tone);
+    opacity: 0.5;
+  }
+  .sp-label[aria-pressed='true'] .sp-label-dot {
+    opacity: 1;
   }
   .sp-description {
     display: block;

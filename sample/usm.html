@@ -194,11 +194,17 @@
               "icon": "check"
             }
           ],
+          "labels": [
+            { "id": "dev", "name": "Dev" },
+            { "id": "pdm", "name": "PdM", "tone": "violet" },
+            { "id": "design", "name": "Design", "tone": "amber" }
+          ],
           "stories": [
             {
               "id": "keyword-search",
               "name": "キーワードで商品を探す",
               "description": "商品名・ブランド・**型番**で検索できる。\n- 0 件のときは近いキーワードを提案する\n- 全角 / 半角の表記ゆれを吸収する",
+              "labelIds": ["dev"],
               "activityId": "discover",
               "stepId": "search",
               "milestoneId": "mvp",
@@ -216,6 +222,7 @@
               "id": "category-browse",
               "name": "カテゴリから絞り込む",
               "description": "カテゴリと価格帯・在庫ありで絞り込める",
+              "labelIds": ["dev", "pdm"],
               "activityId": "discover",
               "stepId": "search",
               "milestoneId": "v1",
@@ -239,6 +246,7 @@
               "id": "read-reviews",
               "name": "レビューを読んで比べる",
               "description": "星の分布と写真つきレビューを先に出す",
+              "labelIds": ["pdm", "design"],
               "activityId": "discover",
               "stepId": "product-detail",
               "milestoneId": "v2",
@@ -248,6 +256,7 @@
               "id": "add-item",
               "name": "商品をカートに入れる",
               "description": "商品ページと一覧のどちらからでも 1 タップで入れられる",
+              "labelIds": ["dev"],
               "activityId": "cart",
               "stepId": "add-to-cart",
               "milestoneId": "mvp",
@@ -306,6 +315,7 @@
               "id": "confirm-order",
               "name": "内容を確認して注文を確定する",
               "description": "確定時に在庫を**引き当てる**。\n- 引き当てに失敗したら確定せず、在庫切れの商品を示す\n- 二重送信は注文番号で弾く",
+              "labelIds": ["design"],
               "activityId": "order",
               "stepId": "review",
               "milestoneId": "mvp",
@@ -362,6 +372,7 @@
               "id": "payment-failed",
               "name": "決済に失敗したら別の方法でやり直す",
               "description": "失敗理由を伝え、カートを保ったまま支払い方法を選び直せる",
+              "labelIds": ["dev", "pdm"],
               "activityId": "pay",
               "stepId": "authorize",
               "milestoneId": "v1",
@@ -426,6 +437,7 @@
               "id": "self-cancel",
               "name": "出荷指示前なら自分でキャンセルする",
               "description": "いまは問い合わせフォーム経由。\n- 出荷指示**前**だけボタンを出す\n- キャンセル後は `refund_pending` に移す",
+              "labelIds": ["pdm"],
               "activityId": "manage",
               "stepId": "cancel",
               "milestoneId": "v1",
