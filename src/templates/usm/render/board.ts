@@ -591,12 +591,22 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     data-status=${story.statusId ?? ''}
     data-dpk-target=${targetRef({ type: 'story', id: story.id })}
     draggable="true"
+    tabindex="0"
+    role="button"
+    aria-haspopup="dialog"
+    aria-label=${story.name}
     style=${statusToneStyle(statusViewOf(views, story)?.tone)}
     .story=${story}
     .stepName=${stepName}
     .statuses=${views}
     .notes=${notes}
     @click=${() => handlers.selectStory(story.id)}
+    @keydown=${(event: KeyboardEvent) => {
+      // Only the card's own keys: a link inside it keeps Enter for itself.
+      if (event.composedPath()[0] !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      handlers.selectStory(story.id);
+    }}
     ?focused=${context.navigation['story'] === story.id}
     ?dragging=${drag.isDragging('story', story.id)}
     @dragstart=${source.dragstart}

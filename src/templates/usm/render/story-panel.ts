@@ -21,7 +21,8 @@ export const panelStoryOf = (context: TemplateRenderContext<UsmState>): UserStor
 /**
  * The story panel: a drawer on the right that edits one story — its title,
  * status, description and links. A click on a card opens it (`#story=<id>`);
- * closing it clears the story from the navigation.
+ * closing it clears the story from the navigation. The host moves the focus
+ * in and out and closes it on Escape or a press outside (`DismissController`).
  */
 export const renderStoryPanel = (
   m: UsmMessages,
@@ -39,11 +40,7 @@ export const renderStoryPanel = (
     aria-label=${m.panelLabel(story.name)}
     data-testid="usm-story-panel"
     data-story=${story.id}
-    @keydown=${(event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented) return;
-      event.preventDefault();
-      close();
-    }}
+    tabindex="-1"
   >
     <header class="sp-head">
       <span class="sp-where">
@@ -258,6 +255,10 @@ export const storyPanelStyles = css`
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-shadow-lg);
     animation: sp-slide-in 220ms var(--dpk-ease);
+  }
+  /* The panel takes the focus when it opens; the ring belongs to its controls. */
+  .story-panel:focus {
+    outline: none;
   }
   @keyframes sp-slide-in {
     from {

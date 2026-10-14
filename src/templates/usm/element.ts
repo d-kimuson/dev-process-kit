@@ -6,6 +6,7 @@ import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contr
 import { TemplateElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface } from '../../core/theme';
+import { DismissController } from '../../lib/dom/dismiss';
 import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
 import { revealInlineWithin } from '../../lib/dom/scroll';
@@ -62,12 +63,23 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
   readonly #drag = new DragController<UsmDragType>(this);
   readonly #popovers = new PopoverController(this);
+  /** The story the panel showed at the last update, to move the focus when that changes. */
+  #panelShown: string | null = null;
   /** The page tab last scrolled into the strip, so the reader's own scrolling is left alone. */
   #revealedTab: string | null = null;
 
   constructor() {
     super();
     this.mode = IDLE_MODE;
+    // The story panel closes on Escape and on a press on the page outside it.
+    new DismissController(this, {
+      open: () => this.#panel() !== null,
+      closesOn: (path) => this.#closesPanel(path),
+      ownsEscape: (path) =>
+        this.mode.kind === 'idle' &&
+        (path.includes(this) || path[0] === document.body || path[0] === document.documentElement),
+      dismiss: () => this.context().navigate({ story: null }),
+    });
   }
 
   protected override renderRegions(context: TemplateRenderContext<UsmState>): ShellRegions {
@@ -77,6 +89,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   protected override updated(): void {
     super.updated();
     this.#revealSelectedTab();
+    this.#syncPanelFocus();
     // A status's icon menu hangs off the icon that opened it.
     if (this.mode.kind === 'picking-icon') {
       const menu = this.renderRoot.querySelector<HTMLElement>('#icon-menu');
@@ -89,6 +102,47 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     if (this.mode.kind !== 'picking-step') return;
     const dialog = this.renderRoot.querySelector<HTMLElement>('#move-dialog');
     if (dialog) this.#popovers.open(dialog, pointAnchor(this.mode.point.x, this.mode.point.y), MOVE_DIALOG_SIZE);
+  }
+
+  #panel(): HTMLElement | null {
+    return this.renderRoot.querySelector<HTMLElement>('.story-panel');
+  }
+
+  /**
+   * A press on the page outside the panel closes it. A press on a card opens
+   * that card's story instead, and one on a popover (the step picker) or on
+   * the review rail beside the page keeps the panel open.
+   */
+  #closesPanel(path: readonly EventTarget[]): boolean {
+    const panel = this.#panel();
+    const main = this.renderRoot.querySelector('.dpk-main');
+    if (!panel || !main || path.includes(panel) || !path.includes(main)) return false;
+    return !path.some(
+      (node) =>
+        node instanceof Element && (node.localName === 'dpk-internal-usm-story-card' || node.hasAttribute('popover')),
+    );
+  }
+
+  /**
+   * The panel takes the focus when it opens on a story, so the keyboard goes
+   * on from there; once it closes, the focus goes back to the story's card
+   * unless the reader already put it elsewhere.
+   */
+  #syncPanelFocus(): void {
+    const panel = this.#panel();
+    const shown = panel?.dataset['story'] ?? null;
+    const previous = this.#panelShown;
+    if (shown === previous) return;
+    this.#panelShown = shown;
+    const active = this.shadowRoot?.activeElement ?? null;
+    if (panel) {
+      if (!active || !panel.contains(active)) panel.focus({ preventScroll: true });
+      return;
+    }
+    if (previous === null || (active !== null && active.isConnected)) return;
+    this.renderRoot
+      .querySelector<HTMLElement>(`dpk-internal-usm-story-card[data-story="${CSS.escape(previous)}"]`)
+      ?.focus({ preventScroll: true });
   }
 
   /** On a phone the tab strip scrolls sideways; a deep link to its last tab must not leave it out of sight. */

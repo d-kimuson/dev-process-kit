@@ -58,6 +58,13 @@ const cardStyles = css`
       0 8px 20px -10px var(--dpk-shade-3);
   }
 
+  /* The card is the button that opens its story; the keyboard ring is the focused look. */
+  :host(:focus-visible) {
+    outline: none;
+    border-color: var(--dpk-blue);
+    box-shadow: var(--dpk-focus);
+  }
+
   :host([dragging]) {
     opacity: 0.45;
     transform: none;
@@ -185,8 +192,10 @@ const cardStyles = css`
  * `<dpk-internal-usm-story-card>` — one user story on the map, read-only.
  *
  * Everything about a story is edited in the story panel a click on the card
- * opens; the host binds that click and the drag & drop on this element, so
- * `focused` and `dragging` are plain reflected inputs.
+ * opens; the host binds that click, the keys that do the same (the card is a
+ * button to the keyboard) and the drag & drop on this element, so `focused`
+ * and `dragging` are plain reflected inputs. Its link chips stay out of the
+ * tab order: the panel lists every link.
  */
 export class DpkInternalUsmStoryCard extends LitElement {
   static override styles = [controls, statusStyles, linkStyles, cardStyles];
@@ -286,6 +295,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
           rel="noopener noreferrer"
           title=${link.label ?? label.title}
           draggable="false"
+          tabindex="-1"
           @click=${(event: Event) => event.stopPropagation()}
           >${linkIcon(label.kind)}<span>${link.label ?? label.text}</span></a
         >`;
