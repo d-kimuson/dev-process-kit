@@ -287,21 +287,29 @@ Inside a Claude Artifact published with the `comments` capability, the rail also
 
 ## Change notices
 
-When you regenerate a page at the reader's request, tell them what changed since the version they last saw. Put a change log beside the base data, as another child of the template element:
+When you regenerate a page at the reader's request, tell them what changed. Put a change log beside the base data, as another child of the template element. It is the page's history: **each regeneration appends one version at the end**, and earlier versions stay as they were.
 
 ```html
 <dpk-template-usm storage-key="checkout-usm">
   <script type="application/json" data-dpk-changes>
     {
-      "revision": "2026-10-13.2",
-      "changes": [
+      "revisions": [
         {
-          "id": "guest-pay",
-          "title": "Added guest checkout",
-          "body": "Per the comment on step:pay.",
-          "target": "story:checkout.pay.guest"
+          "revision": "2026-10-12.1",
+          "changes": [{ "id": "flow", "title": "Split checkout into address and payment" }]
         },
-        { "id": "copy", "title": "Tightened the wording on every step" }
+        {
+          "revision": "2026-10-13.1",
+          "changes": [
+            {
+              "id": "guest-pay",
+              "title": "Added guest checkout",
+              "body": "Per the comment on step:pay.",
+              "target": "story:checkout.pay.guest"
+            },
+            { "id": "copy", "title": "Tightened the wording on every step" }
+          ]
+        }
       ]
     }
   </script>
@@ -311,11 +319,21 @@ When you regenerate a page at the reader's request, tell them what changed since
 </dpk-template-usm>
 ```
 
-- `revision` names this version of the page; change it on every regeneration. `changes` lists **only the changes since the previous version** — not a history. Leave the block out when there is nothing to announce.
-- Each change has a `title`, and optionally a `body`, an `id` (unique within the log; the position is used when omitted, so give ids when the list can be reordered), a `target` (`type:id`, as in [Targets](#targets)) and a `navigate` (hash syntax, `view=flow&screen=cart`) for where it is seen when the target alone does not say.
+- `revisions` lists the versions **oldest first**; the last one is this version of the page. On each regeneration, add a new entry at the end with a new `revision` name (unique in the log) and **only the changes made in that regeneration**. Do not edit, merge or repeat the changes of earlier versions. You may drop versions from the start once the log gets long.
+- Each change has a `title`, and optionally a `body`, an `id` (unique within its version; the position is used when omitted, so give ids when the list can be reordered), a `target` (`type:id`, as in [Targets](#targets)) and a `navigate` (hash syntax, `view=flow&screen=cart`) for where it is seen when the target alone does not say.
+- Leave the block out until there is something to announce. A log of one version may also be written as `{ "revision": "…", "changes": [ … ] }`.
 - The change log is not base data: the template never reads it, and a malformed log shows a banner without touching the page.
 
-The header gets a bell. Changes this reader has not seen pop up as toasts (three at a time; each fades after a few seconds unless pointed at) and count on the bell's badge. Opening the bell lists every change of the revision and clears the toasts. Each change is marked as seen on its own: one with a **Show** when the reader follows it (from its toast or its card), one without a **Show** when the list shows its card. A toast that is closed or fades away, and a card whose **Show** is not followed, leave their change on the badge. What a reader has seen is remembered per revision (`localStorage` key `<storage key>:seen-changes`, or for this page load only under `storage="off"` / `"memory"`), so a new revision announces its changes again.
+The header gets a bell, and each reader is told only what is new to them:
+
+- A reader who opens the page for the first time is told only this version's changes, not the whole history.
+- A returning reader is told every version since the one they left unread changes in. If that version has been dropped from the log, they are told every version kept.
+- Only this version's unread changes pop up as toasts (three at a time; each fades after a few seconds unless pointed at). Older unread changes wait on the bell.
+- The bell's badge counts every unread change. Opening the bell lists every version kept, newest first, and clears the toasts.
+- Each change is marked as seen on its own. One with a **Show** is seen when the reader follows it, from its toast or its card. One without a **Show** is seen when the list shows its card.
+- A toast that is closed or fades away, and a card whose **Show** is not followed, leave their change on the badge.
+- **Mark all as read** (in the list, and under the toasts when there are several) clears every unread change at once.
+- Where the reader is in the history is remembered in `localStorage` under the key `<storage key>:seen-changes`. Under `storage="off"` / `"memory"` it lasts only for this page load, so every load counts as a first visit.
 
 **Show** (on a toast or in the list) navigates to where the target is seen, brings it into view and highlights it for a few seconds. Templates mark the elements their targets render as; each template page lists the targets it can show. In your own markup — plain's sections, a prototype's slotted screens — mark the element yourself with `data-dpk-target="type:id"` (space-separated when one element stands for several targets). A change with only `navigate` just navigates; one with neither has no **Show**.
 

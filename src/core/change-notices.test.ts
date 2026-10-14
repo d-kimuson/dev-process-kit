@@ -150,6 +150,62 @@ describe('change notices', () => {
     expect(badge(next)).toBe('2');
   });
 
+  it('announces only what a version added, though the author keeps every version in the log', async () => {
+    const first = { revision: 'r1', changes: [{ id: 'draft', title: 'First draft' }] };
+    const appended = (...more: object[]) => ({ revisions: [first, changeLog('r2'), ...more] });
+    // A first visit is told only this version's changes, not the whole history.
+    const element = mount(appended());
+    await settle(element);
+    expect(badge(element)).toBe('2');
+    expect(toasts(element)).toEqual(['Background rewritten', 'Wording fixes']);
+    click(bell(element));
+    await settle(element);
+    expect(
+      [...root(element).querySelectorAll<HTMLElement>('.dpk-changes-group')].map((group) => group.dataset['revision']),
+    ).toEqual(['r2', 'r1']);
+    const readAll = root(element).querySelector('.dpk-changes .dpk-changes-read-all');
+    click(readAll);
+    await settle(element);
+    expect(badge(element)).toBeUndefined();
+    // The button stays where the reader's focus is, with nothing left to do.
+    expect(root(element).querySelector('.dpk-changes .dpk-changes-read-all')).toBe(readAll);
+    expect(readAll?.getAttribute('aria-disabled')).toBe('true');
+    expect(root(element).querySelectorAll('.dpk-change[data-fresh]')).toHaveLength(0);
+
+    // The next version announces its own changes, not r1's and r2's again.
+    const next = mount(appended({ revision: 'r3', changes: [{ id: 'goal', title: 'Goal added' }] }));
+    await settle(next);
+    expect(badge(next)).toBe('1');
+    expect(toasts(next)).toEqual(['Goal added']);
+  });
+
+  it('keeps what a reader left unread for the next version, behind the bell', async () => {
+    const first = {
+      revision: 'r1',
+      changes: [{ id: 'background', title: 'Background rewritten', target: 'section:background' }],
+    };
+    const element = mount({ revisions: [first] });
+    await settle(element);
+    expect(badge(element)).toBe('1');
+    const next = mount({ revisions: [first, { revision: 'r2', changes: [{ id: 'goal', title: 'Goal added' }] }] });
+    await settle(next);
+    expect(badge(next)).toBe('2');
+    // Only the new version toasts; the older change waits behind the bell.
+    expect(toasts(next)).toEqual(['Goal added']);
+  });
+
+  it('marks everything read from the toasts', async () => {
+    const element = mount(changeLog('r2'));
+    await settle(element);
+    click(root(element).querySelector('.dpk-toasts .dpk-changes-read-all'));
+    await settle(element);
+    expect(toasts(element)).toEqual([]);
+    expect(badge(element)).toBeUndefined();
+    const reopened = mount(changeLog('r2'));
+    await settle(reopened);
+    expect(badge(reopened)).toBeUndefined();
+  });
+
   it('a toast that goes away, closed or timed out, stays behind the badge', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     const element = mount(changeLog('r2'));

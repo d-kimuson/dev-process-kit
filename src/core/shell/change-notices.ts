@@ -5,7 +5,7 @@
 import { html, nothing, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type { NoticeCard, NoticeViewModel, ToastHold } from '../changes';
+import type { NoticeCard, NoticeGroup, NoticeViewModel, ToastHold } from '../changes';
 import type { CoreMessages } from '../messages';
 
 import { iconBell, iconClose } from '../icons';
@@ -15,6 +15,7 @@ export type NoticeIntents = {
   readonly openList: () => void;
   readonly show: (key: string) => void;
   readonly dismiss: (key: string) => void;
+  readonly readAll: () => void;
   readonly pause: (hold: ToastHold) => void;
   readonly resume: (hold: ToastHold) => void;
 };
@@ -43,21 +44,35 @@ const renderShow = (card: NoticeCard, m: CoreMessages, on: NoticeIntents): Templ
       </button>`
     : nothing;
 
-/** Rendered only while open; the shell lifts it to the top layer beside the bell. */
-export const renderNoticeList = (
-  vm: NoticeViewModel,
-  revision: string,
-  m: CoreMessages,
-  on: NoticeIntents,
-): TemplateResult | typeof nothing => {
-  if (!vm.open) return nothing;
-  return html`<div id=${NOTICE_LIST_ID} class="dpk-changes" popover="manual" role="dialog" aria-label=${m.changesTitle}>
-    <p class="dpk-changes-head"><strong>${m.changesTitle}</strong> <span>${revision}</span></p>
+/** In the list it stays once all is read, so focus is not lost with it; under the toasts it goes with them. */
+const renderReadAll = (vm: NoticeViewModel, m: CoreMessages, on: NoticeIntents, variant: 'list' | 'toasts') =>
+  variant === 'list' || vm.unread > 0
+    ? html`<button
+        class=${variant === 'list' ? 'dpk-btn dpk-changes-read-all' : 'dpk-toast-more dpk-changes-read-all'}
+        type="button"
+        aria-disabled=${vm.unread > 0 ? 'false' : 'true'}
+        @click=${on.readAll}
+      >
+        ${m.changesReadAll}
+      </button>`
+    : nothing;
+
+const renderGroup = (group: NoticeGroup, m: CoreMessages, on: NoticeIntents): TemplateResult => {
+  return html`<section class="dpk-changes-group" data-revision=${group.revision}>
+    <h3 class="dpk-changes-revision">
+      <span>${group.revision}</span>
+      ${group.latest ? html`<span class="dpk-changes-current">${m.changesCurrent}</span>` : nothing}
+    </h3>
     <ol class="dpk-changes-list">
       ${repeat(
-        vm.cards,
+        group.cards,
         (card) => card.key,
-        (card) => html`<li class="dpk-change" data-key=${card.key} ?data-fresh=${card.fresh}>
+        (card) => html`<li
+          class="dpk-change"
+          data-key=${card.id}
+          data-revision=${card.revision}
+          ?data-fresh=${card.fresh}
+        >
           <p class="dpk-change-title">
             ${card.fresh ? html`<span class="dpk-change-new">${m.changesNew}</span>` : nothing} ${card.title}
           </p>
@@ -65,6 +80,26 @@ export const renderNoticeList = (
         </li>`,
       )}
     </ol>
+  </section>`;
+};
+
+/** Rendered only while open; the shell lifts it to the top layer beside the bell. */
+export const renderNoticeList = (
+  vm: NoticeViewModel,
+  m: CoreMessages,
+  on: NoticeIntents,
+): TemplateResult | typeof nothing => {
+  if (!vm.open) return nothing;
+  return html`<div id=${NOTICE_LIST_ID} class="dpk-changes" popover="manual" role="dialog" aria-label=${m.changesTitle}>
+    <div class="dpk-changes-head">
+      <h2 class="dpk-changes-title">${m.changesTitle}</h2>
+      ${renderReadAll(vm, m, on, 'list')}
+    </div>
+    ${repeat(
+      vm.groups,
+      (group) => group.revision,
+      (group) => renderGroup(group, m, on),
+    )}
   </div>`;
 };
 
@@ -82,7 +117,7 @@ export const renderNoticeToasts = (vm: NoticeViewModel, m: CoreMessages, on: Not
     ${repeat(
       vm.toasts,
       (toast) => toast.key,
-      (toast) => html`<div class="dpk-toast" data-key=${toast.key}>
+      (toast) => html`<div class="dpk-toast" data-key=${toast.id}>
         <span class="dpk-toast-icon" aria-hidden="true">${iconBell()}</span>
         <div class="dpk-toast-text">
           <p class="dpk-change-title">${toast.title}</p>
@@ -101,10 +136,17 @@ export const renderNoticeToasts = (vm: NoticeViewModel, m: CoreMessages, on: Not
       </div>`,
     )}
     ${
-      vm.waiting > 0
-        ? html`<button class="dpk-toast-more" type="button" @click=${on.openList}>
-            ${m.changesWaiting(vm.waiting)} · ${m.changesSeeAll}
-          </button>`
+      vm.toasts.length + vm.waiting > 1
+        ? html`<div class="dpk-toast-actions">
+            ${
+              vm.waiting > 0
+                ? html`<button class="dpk-toast-more" type="button" @click=${on.openList}>
+                    ${m.changesWaiting(vm.waiting)} · ${m.changesSeeAll}
+                  </button>`
+                : nothing
+            }
+            ${renderReadAll(vm, m, on, 'toasts')}
+          </div>`
         : nothing
     }
   </section>`;

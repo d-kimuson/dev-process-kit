@@ -13,6 +13,7 @@ import {
   parseSeenRecord,
   presentNotices,
   reduceNotices,
+  revisionsOf,
   seenRecordOf,
   type ChangeEntry,
   type ChangeLog,
@@ -49,6 +50,8 @@ export class ChangeNoticeController implements ReactiveController {
   #error: string | null = null;
   #state: NoticeState | null = null;
   #store: JsonStore<SeenRecord> | null = null;
+  /** The record last written, so an event that changes nothing stored writes nothing. */
+  #written = '';
   #observer: MutationObserver | null = null;
   readonly #timers = new Map<string, ToastTimer>();
   /** Why the toasts hold still; they run again once nothing holds them. */
@@ -63,10 +66,6 @@ export class ChangeNoticeController implements ReactiveController {
   /** `null` when the page has no change log. */
   get view(): NoticeViewModel | null {
     return this.#log && this.#state ? presentNotices(this.#log, this.#state) : null;
-  }
-
-  get revision(): string {
-    return this.#log?.revision ?? '';
   }
 
   /** Why the change log could not be read, for the author. */
@@ -95,10 +94,8 @@ export class ChangeNoticeController implements ReactiveController {
 
   send(event: NoticeEvent): void {
     if (!this.#log || !this.#state) return;
-    const before = this.#state;
-    this.#state = reduceNotices(this.#log, before, event);
-    if (this.#state.seen.size !== before.seen.size)
-      this.#store?.write(this.#key(), seenRecordOf(this.#log, this.#state));
+    this.#state = reduceNotices(this.#log, this.#state, event);
+    this.#remember();
     this.#syncTimers();
     this.#host.requestUpdate();
   }
@@ -108,7 +105,11 @@ export class ChangeNoticeController implements ReactiveController {
   }
 
   show(key: string): void {
-    const entry = this.#log?.entries.find((candidate) => candidate.key === key);
+    const entry = this.#log
+      ? revisionsOf(this.#log)
+          .flatMap((revision) => revision.entries)
+          .find((candidate) => candidate.key === key)
+      : undefined;
     if (!entry) return;
     this.send({ kind: 'jump', key });
     this.#options.show(entry);
@@ -156,9 +157,20 @@ export class ChangeNoticeController implements ReactiveController {
     this.#log = parsed.log;
     this.#store = this.#options.persist() ? defaultJsonStore(parseSeenRecord) : memoryJsonStore(parseSeenRecord);
     this.#state = initialNotices(parsed.log, this.#store.read(this.#key()));
+    // Written at once: the next version is told from this one on, even if the reader looks at nothing now.
+    this.#remember();
     this.#syncTimers();
     this.#host.requestUpdate();
     return true;
+  }
+
+  #remember(): void {
+    if (!this.#log || !this.#state) return;
+    const record = seenRecordOf(this.#log, this.#state);
+    const serialized = JSON.stringify(record);
+    if (serialized === this.#written) return;
+    this.#written = serialized;
+    this.#store?.write(this.#key(), record);
   }
 
   #fail(message: string): true {

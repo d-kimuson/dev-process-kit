@@ -379,13 +379,56 @@ export const chromeStyles = [
       margin: 0 2px 10px;
     }
 
-    .dpk-changes-head span {
-      overflow: hidden;
+    .dpk-changes-head {
+      align-items: center;
+    }
+
+    .dpk-changes-title {
+      margin: 0;
+      font-size: inherit;
+      font-weight: 650;
+    }
+
+    .dpk-changes-read-all.dpk-btn {
+      flex: none;
+      font-size: 11.5px;
+    }
+
+    .dpk-changes-read-all[aria-disabled='true'] {
+      opacity: 0.5;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .dpk-changes-group + .dpk-changes-group {
+      margin-top: 14px;
+    }
+
+    .dpk-changes-revision {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 2px 6px;
       color: var(--dpk-ink-faint);
       font-family: var(--dpk-mono);
       font-size: 11px;
+      font-weight: 500;
+    }
+
+    .dpk-changes-revision span:first-child {
+      overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .dpk-changes-current {
+      flex: none;
+      padding: 1px 6px;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: 999px;
+      color: var(--dpk-ink-soft);
+      font-family: var(--dpk-body);
+      font-size: 10px;
     }
 
     .dpk-changes-list {
@@ -521,6 +564,13 @@ export const chromeStyles = [
     .dpk-toast-close:focus-visible {
       outline: none;
       box-shadow: var(--dpk-focus);
+    }
+
+    .dpk-toast-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: end;
+      gap: 6px;
     }
 
     .dpk-toast-more {

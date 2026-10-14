@@ -136,6 +136,7 @@ export abstract class TemplateElement<S> extends LitElement {
     openList: () => this.#notices.send({ kind: 'open-list' }),
     show: (key) => this.#notices.show(key),
     dismiss: (key) => this.#notices.send({ kind: 'close-toast', key }),
+    readAll: () => this.#notices.send({ kind: 'read-all' }),
     pause: (hold) => this.#notices.pause(hold),
     resume: (hold) => this.#notices.resume(hold),
   };
@@ -542,7 +543,7 @@ export abstract class TemplateElement<S> extends LitElement {
     if (!vm) return nothing;
     const messages = coreMessages(this.locale);
     return html`${renderNoticeBell(vm, messages, this.#noticeIntents)}
-    ${renderNoticeList(vm, this.#notices.revision, messages, this.#noticeIntents)}`;
+    ${renderNoticeList(vm, messages, this.#noticeIntents)}`;
   }
 
   #renderNoticeToasts(): TemplateResult | typeof nothing {

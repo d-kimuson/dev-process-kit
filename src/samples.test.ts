@@ -9,7 +9,7 @@ import { parseKanbanData } from './components/kanban/model';
 import { parseMindMapData } from './components/mind-map/model';
 import { parseSequenceData } from './components/sequence-diagram/model';
 import { parseStateData } from './components/state-diagram/model';
-import { parseChangeLog } from './core/changes';
+import { parseChangeLog, revisionsOf } from './core/changes';
 import { parseDelegationPokerBase } from './templates/delegation-poker/model';
 import { parseExampleMappingBase } from './templates/example-mapping/model';
 import { parseGrillBase } from './templates/grill/model';
@@ -240,8 +240,11 @@ describe('sample pages', () => {
     const html = sample(name);
     const log = parseChangeLog(JSON.parse(CHANGE_LOG.exec(html)?.[1] ?? 'null'));
     if (!log.ok) throw new Error(log.error);
-    expect(log.log.entries.length).toBeGreaterThan(0);
-    const ids = log.log.entries.flatMap((entry) => entry.target?.split(':')[1]?.split('.').at(-1) ?? []);
+    // A version before this one, so the bell shows how the history reads.
+    expect(log.log.earlier.length).toBeGreaterThan(0);
+    expect(log.log.latest.entries.length).toBeGreaterThan(0);
+    const entries = revisionsOf(log.log).flatMap((revision) => revision.entries);
+    const ids = entries.flatMap((entry) => entry.target?.split(':')[1]?.split('.').at(-1) ?? []);
     expect(ids.filter((id) => !html.includes(`"id": "${id}"`))).toEqual([]);
   });
 });
