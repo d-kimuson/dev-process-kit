@@ -1,5 +1,6 @@
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
+import type { ActionsMenuView } from './render/actions-menu';
 import type { BrowserCommand } from './render/browser';
 import type { UiCommentView } from './render/ui-comment';
 
@@ -12,6 +13,8 @@ import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface, prose } from '../../core/theme';
 import { clipOutRects } from '../../lib/dom/clip';
 import { containDialog, releaseModalDialog } from '../../lib/dom/contained-dialog';
+import { DismissController } from '../../lib/dom/dismiss';
+import { clickElements, fillFields } from '../../lib/dom/fill';
 import { findLocated, locateElement, pickableElement } from '../../lib/dom/locator';
 import { closePopover } from '../../lib/dom/popover';
 import {
@@ -36,6 +39,7 @@ import { findPreview, uiTargetId, UI_TARGET, type PrototypeState, type UiTarget 
 import {
   locatePrototype,
   prototypeLinkProblem,
+  prototypeScreenActions,
   prototypeStageFrames,
   prototypeUiCommentPins,
   prototypeUiTargetName,
@@ -49,6 +53,7 @@ import { prototypeViewOf } from './view-mode';
 const COMPOSER_SIZE = { width: 300, height: 300 };
 /** How long a reload of the app view's browser takes, so the reader sees it happen. */
 const RELOAD_MS = 360;
+const ACTIONS_MENU_SIZE = { width: 280, height: 360 };
 const DOCUMENT_STYLES_ID = 'dpk-template-prototype-document-styles';
 /** The room a demo leaves around a device, on each side (the stage's `.is-demo` styles match it). */
 const DEMO_DEVICE_MARGIN = 24;
@@ -136,6 +141,26 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   /** Measures the stage again when its width changes (the window, the sidebar). */
   readonly #canvasSize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.#fitDevice());
   #observedCanvas: Element | null = null;
+  /**
+   * The screens on stage when the menu of their actions was opened (ids,
+   * joined), or null when it is closed: the menu stays open only while they do.
+   */
+  #actionsOpenOn: string | null = null;
+  /** The menu shown in the top layer, so it is anchored once per opening. */
+  #actionsMenu: HTMLElement | null = null;
+  /** Set when the menu closed from the keyboard or by running an action: the focus goes back to its button. */
+  #refocusActions = false;
+
+  constructor() {
+    super();
+    // The actions menu closes on Escape (before the stage hears it) and on a press outside it.
+    new DismissController(this, {
+      open: () => this.#actionsMenu !== null,
+      closesOn: (path) => !path.some((node) => node instanceof Element && this.#keepsActionsOpen(node)),
+      ownsEscape: () => true,
+      dismiss: () => this.#closeActions(true),
+    });
+  }
 
   protected override definitionFor(locale: Locale) {
     return prototypeDefinitionFor(locale);
@@ -200,6 +225,7 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
             }
           : null,
         uiComment: this.#uiCommentView(context),
+        actions: this.#actionsView(context),
         canvasEvents: {
           click: this.#onCanvasClick,
           pointermove: this.#onCanvasPointerMove,
@@ -225,6 +251,7 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     }
     // The stage enters the top layer before the composer, so the composer stacks above it.
     this.#syncLift();
+    this.#syncActionsMenu();
     if (this.#focusTab) {
       this.#focusTab = false;
       this.renderRoot.querySelector<HTMLElement>('.browser-tab[aria-selected="true"]')?.focus();
@@ -237,6 +264,83 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     if (!surface) return;
     this.#popovers.open(surface, this.#anchor, COMPOSER_SIZE, { placement: 'right-start' });
     if (opened) surface.querySelector('textarea')?.focus({ preventScroll: true });
+  }
+
+  // ------------------------------------------------------------ screen actions
+
+  #actionsView(context: TemplateRenderContext<PrototypeState>): ActionsMenuView {
+    const groups = prototypeScreenActions(context.state, this.#shownIds);
+    const on = groups.map((group) => group.screen.id).join(' ');
+    // Another stage (a step, a screen, a rendition) closes it: the actions it listed may have left.
+    const open = groups.length > 0 && this.#actionsOpenOn === on;
+    return {
+      groups,
+      open,
+      toggle: () => (open ? this.#closeActions(false) : this.#openActions(on)),
+      run: (screenId, actionId) => this.#runAction(screenId, actionId),
+    };
+  }
+
+  #openActions(on: string): void {
+    this.#actionsOpenOn = on;
+    this.requestUpdate();
+  }
+
+  #closeActions(refocus: boolean): void {
+    if (this.#actionsOpenOn === null) return;
+    this.#actionsOpenOn = null;
+    this.#refocusActions = refocus;
+    this.requestUpdate();
+  }
+
+  #keepsActionsOpen(node: Element): boolean {
+    return node.classList.contains('actions-menu') || node.getAttribute('data-role') === 'actions';
+  }
+
+  /** Anchors a newly drawn menu under its button and puts the focus on its first item. */
+  #syncActionsMenu(): void {
+    const menu = this.renderRoot.querySelector<HTMLElement>('.actions-menu');
+    const trigger = this.renderRoot.querySelector<HTMLElement>('[data-role="actions"]');
+    if (menu === null) {
+      this.#actionsMenu = null;
+      if (this.#refocusActions) trigger?.focus({ preventScroll: true });
+      this.#refocusActions = false;
+      return;
+    }
+    if (menu === this.#actionsMenu || trigger === null) return;
+    this.#actionsMenu = menu;
+    this.#popovers.open(menu, trigger, ACTIONS_MENU_SIZE);
+    menu.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+  }
+
+  /**
+   * Plays an action of a screen on its renditions on screen: fills the fields,
+   * clicks what it names, and tells the mock with a `dpk-action` event. A
+   * selector that finds nothing in any of them is reported to the author.
+   */
+  #runAction(screenId: string, actionId: string): void {
+    this.#closeActions(true);
+    const group = prototypeScreenActions(this.derivation.state, this.#shownIds).find(
+      (candidate) => candidate.screen.id === screenId,
+    );
+    const action = group?.actions.find((candidate) => candidate.id === actionId);
+    if (group === undefined || action === undefined) return;
+    const wrappers = this.#previewWrappers().filter((wrapper) =>
+      group.previewIds.includes(wrapper.getAttribute('data-preview-id') ?? ''),
+    );
+    const missed = wrappers.map((wrapper) => {
+      const unmatched = [...fillFields(wrapper, action.fill ?? {}), ...clickElements(wrapper, action.click ?? [])];
+      wrapper.dispatchEvent(
+        new CustomEvent('dpk-action', { bubbles: true, detail: { id: action.id, screen: group.screen.id } }),
+      );
+      return unmatched;
+    });
+    const nowhere = (missed[0] ?? []).filter((selector) => missed.every((list) => list.includes(selector)));
+    if (nowhere.length === 0) return;
+    console.warn(
+      `[dev-process-kit] <dpk-template-prototype>: action "${action.id}" of screen "${group.screen.id}" ` +
+        `found nothing on screen for: ${nowhere.join(', ')}`,
+    );
   }
 
   // ------------------------------------------------------------ comment on UI
@@ -551,6 +655,8 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     const height = this.#lift?.height ?? stage?.offsetHeight ?? 0;
     this.#dropLift();
     if (mode !== null) this.#lift = { mode, height };
+    // The lifted stage would cover the menu: it is opened again from the stage's own bar.
+    this.#actionsOpenOn = null;
     if (mode !== null && this.#uiComment.kind === 'composing') {
       // The top layer stacks in the order things entered it: an open composer
       // would stay beneath the lifted stage, so it is shown again above it.

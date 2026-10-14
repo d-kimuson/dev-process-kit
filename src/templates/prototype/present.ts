@@ -35,6 +35,8 @@ import {
   type PrototypeState,
   type PrototypeStep,
   type PrototypeStory,
+  type PrototypeScreen,
+  type ScreenAction,
   type ScreenLocation,
   type StepLocation,
   type UiTarget,
@@ -462,6 +464,33 @@ export const prototypeRenditionSelection = (frames: StageFrames, previewId: stri
       return [pane.tabs.some((tab) => tab.id === previewId) ? previewId : pane.preview.id];
     })
     .join(PREVIEW_SEPARATOR);
+};
+
+/** The actions of one screen on stage, and the renditions of it on screen they play on. */
+export type ScreenActionGroup = {
+  readonly screen: PrototypeScreen;
+  readonly previewIds: readonly string[];
+  readonly actions: readonly ScreenAction[];
+};
+
+/**
+ * What the reader can make the screens on stage do, screen by screen in the
+ * order their previews are on screen (`shownIds`). A screen without actions,
+ * and a material (which is no screen of the product), offer nothing.
+ */
+export const prototypeScreenActions = (
+  state: PrototypeState,
+  shownIds: readonly string[],
+): readonly ScreenActionGroup[] => {
+  const groups = new Map<string, { screen: PrototypeScreen; previewIds: string[] }>();
+  for (const id of shownIds) {
+    const owner = findPreview(state, id)?.owner;
+    if (owner?.kind !== 'screen' || owner.screen.actions.length === 0) continue;
+    const group = groups.get(owner.screen.id) ?? { screen: owner.screen, previewIds: [] };
+    group.previewIds.push(id);
+    groups.set(owner.screen.id, group);
+  }
+  return [...groups.values()].map(({ screen, previewIds }) => ({ screen, previewIds, actions: screen.actions }));
 };
 
 /** Every preview a step can show: its materials and the renditions of its screens. */

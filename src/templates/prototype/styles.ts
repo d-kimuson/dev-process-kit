@@ -503,6 +503,89 @@ export const prototypeStyles = css`
     gap: 6px;
   }
 
+  .actions-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .actions-toggle svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .actions-toggle svg:last-child {
+    width: 12px;
+    height: 12px;
+    margin-left: -2px;
+    opacity: 0.7;
+  }
+
+  .actions-toggle[aria-expanded='true'] {
+    opacity: 1;
+    color: var(--dpk-ink);
+  }
+
+  /* A menu of what each screen on stage can do in one go. */
+  .actions-menu {
+    gap: 8px;
+    width: max-content;
+    min-width: 220px;
+    max-width: min(320px, calc(100vw - 24px));
+    padding: 6px;
+  }
+
+  .actions-group {
+    display: grid;
+    gap: 2px;
+  }
+
+  .actions-group + .actions-group {
+    padding-top: 6px;
+    border-top: 1px solid var(--dpk-rule);
+  }
+
+  .actions-group-title {
+    padding: 4px 10px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--dpk-ink-faint);
+  }
+
+  .actions-item {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: var(--dpk-radius-sm);
+    background: transparent;
+    color: var(--dpk-ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .actions-item:hover,
+  .actions-item:focus-visible {
+    background: var(--dpk-accent-soft);
+  }
+
+  .actions-item:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  .actions-label {
+    font-weight: 600;
+  }
+
+  .actions-description {
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: var(--dpk-ink-soft);
+  }
+
   /* The app view's device: a pill like the rendition tabs, with the zoom it is drawn at. */
   .device-pick {
     position: relative;

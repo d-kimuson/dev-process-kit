@@ -77,6 +77,7 @@ Check before you hand the page over:
 | `apps[].id` / `name`            | no       | one application of the product, e.g. the shop for buyers, the admin console for operators. `description` optional. `apps` defaults to `[]`                                                                                                                                                                                                       |
 | `apps[].screens[].id` / `title` | no       | one page or state of that app, e.g. `カート`, or the cart and its empty state as two screens. `description` optional (Markdown). `screens` defaults to `[]`                                                                                                                                                                                      |
 | `apps[].screens[].previews[]`   | no       | renditions of that screen (mobile, desktop, …); see the preview fields below. Defaults to `[]`                                                                                                                                                                                                                                                   |
+| `apps[].screens[].actions[]`    | no       | things the reader can make the screen do in one go, such as filling its form with sample data: `{ "id", "label", "description"?, "fill"?, "click"? }`. Defaults to `[]`; see [Screen actions](#screen-actions)                                                                                                                                   |
 | `activities[].id` / `name`      | yes      | `description` optional                                                                                                                                                                                                                                                                                                                           |
 | `stories[].id` / `name`         | yes      | `description` optional (Markdown). `steps` defaults to `[]`: a story with no steps yet is still a navigation destination                                                                                                                                                                                                                         |
 | `steps[].id` / `name`           | yes      | `description` optional (Markdown)                                                                                                                                                                                                                                                                                                                |
@@ -214,6 +215,40 @@ This is a different gap from **a story with no steps yet**, which is about the s
 
 — and `story=inventory` / `activity=…` opens its name and description with a note that nothing is drawn yet. Prefer a stub screen for anything your mock's own markup links to (it is, after all, a page); reach for a step-less story only when what is missing is the telling of a flow, not a page.
 
+### Screen actions
+
+A reviewer trying a form should not have to type a whole order to see what happens next. Give the screen **actions**: named, ready-made operations the reader runs from an "Actions" menu next to the stage's tools (and among a demo's controls).
+
+```json
+{
+  "id": "contact",
+  "title": "お問い合わせ",
+  "previews": [{ "id": "contact-mobile", "viewport": "mobile", "url": "/contact" }],
+  "actions": [
+    {
+      "id": "sample",
+      "label": "サンプルの問い合わせを入力",
+      "description": "配送の遅れを問い合わせる購入者",
+      "fill": {
+        "[name='order']": "SM-20481",
+        "[name='topic']": "late",
+        "[name='body']": "注文から 5 日たっても届きません。",
+        "[name='agree']": true
+      }
+    },
+    { "id": "reset", "label": "入力をクリア", "click": ["button[type='reset']"] }
+  ]
+}
+```
+
+- `fill` maps a CSS selector to a value. A text field, a textarea or a select gets the text (a select's option by its `value`); a radio given a string is checked when its `value` matches; a checkbox (or every radio matched) given `true` / `false` is checked or cleared; any other element gets the text as its content. Each field changed hears a bubbling `input` and `change` event, as typing does, so the mock's own script reacts.
+- `click` lists CSS selectors whose first match is clicked, in order, after `fill`.
+- Then the preview wrapper dispatches a bubbling `dpk-action` event whose `detail` is `{ "id", "screen" }`. A mock with its own state listens to it to do what a selector cannot (load a sample cart, jump to an error state).
+
+Selectors are relative to the preview wrapper (`[data-preview-id]`), and an action plays on the screen's renditions **on stage** only — a rendition behind another tab is left as it was. With several screens side by side, the menu groups the actions under each screen's title. An action is the reader's alone: it changes only the mock in front of them, never the draft, and a reload of the browser preview starts the form over. When a selector matches nothing on stage, the template warns on the console, naming the action and the selector.
+
+Name an action by what the reader sees afterwards (`エラーになる入力`, `上限ぎりぎりの注文`), not by how it works: it is a way into a state the scenario wants to discuss.
+
 ## Action vocabulary
 
 | Action                     | target   | payload                                                        |
@@ -258,11 +293,11 @@ Only `step` is required (`#step=google-auth` resolves the containing activity an
 
 ## UI provided by the template
 
-| Region  | Content                                                                                                                                                                                                                                                                                                                                                            |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| sidebar | the Scenario / App switch, then — in the scenario view — Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description; in the app view, the App select (when there is more than one), the app's screens as URL trees, and the screens outside a browser below them                                          |
-| main    | page head (the `actor` chip and the page `title`), preview tabs (only when the screen has more than one rendition), the [device](#devices) select (app view), "Comment on UI" and "Maximize" (scenario view) or "Demo" (app view) buttons, the step's `situation`, plus the frame of the selected rendition — or, with more than one pane, every pane side by side |
-| frame   | browser chrome (traffic dots + address bar; in the app view, a [simulated browser](#the-app-views-browser)); for `native`, a device bezel with a phone status bar and a home indicator; for `mail`, the subject and envelope; for `plain`, nothing. Only a side-by-side pane has a caption: a screen's `title` (with its rendition tabs) or a material's `label`.  |
+| Region  | Content                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| sidebar | the Scenario / App switch, then — in the scenario view — Activity select, UserStory select, numbered step list with comment badges, and the selected step's name/description; in the app view, the App select (when there is more than one), the app's screens as URL trees, and the screens outside a browser below them                                                                                                                    |
+| main    | page head (the `actor` chip and the page `title`), preview tabs (only when the screen has more than one rendition), the [device](#devices) select (app view), "Comment on UI" and "Maximize" (scenario view) or "Demo" (app view) buttons, the [Actions](#screen-actions) menu (when a screen on stage has actions), the step's `situation`, plus the frame of the selected rendition — or, with more than one pane, every pane side by side |
+| frame   | browser chrome (traffic dots + address bar; in the app view, a [simulated browser](#the-app-views-browser)); for `native`, a device bezel with a phone status bar and a home indicator; for `mail`, the subject and envelope; for `plain`, nothing. Only a side-by-side pane has a caption: a screen's `title` (with its rendition tabs) or a material's `label`.                                                                            |
 
 The sidebar and the main column each scroll on their own, because the shell is bounded: the page head and its tools stay at the top of the main column and the memo at its bottom, while the situation and the frame scroll between them. Give the host the page's height (`docs/index.md`, Page height). Without one, the template falls back to the window's height instead of growing with its longest column and scrolling the whole page.
 

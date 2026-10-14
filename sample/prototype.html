@@ -207,6 +207,25 @@
         padding: 9px 11px;
       }
 
+      input.sm-input,
+      select.sm-input,
+      textarea.sm-input {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        font: inherit;
+        color: inherit;
+      }
+
+      textarea.sm-input {
+        min-height: 96px;
+        resize: vertical;
+      }
+
+      .sm-input::placeholder {
+        color: var(--sm-dim);
+      }
+
       .sm-choice {
         display: flex;
         align-items: center;
@@ -959,6 +978,32 @@
                       "label": "ブラウザ"
                     },
                     { "id": "contact-app", "kind": "native", "viewport": "mobile", "label": "アプリ" }
+                  ],
+                  "actions": [
+                    {
+                      "id": "late",
+                      "label": "配送遅れの問い合わせを入力",
+                      "description": "出荷から 5 日たっても届かない購入者",
+                      "fill": {
+                        "[name='topic']": "late",
+                        "[name='body']": "9/12 に出荷のお知らせが届きましたが、5 日たってもまだ届いていません。配送状況を確認していただけますか。"
+                      }
+                    },
+                    {
+                      "id": "long",
+                      "label": "長い内容を入力",
+                      "description": "入力欄があふれたときの見え方を確かめる",
+                      "fill": {
+                        "[name='topic']": "item",
+                        "[name='body']": "届いた商品の色が商品ページの写真と違っていました。写真では落ち着いた紺色に見えましたが、実物はかなり明るい青です。返品するか交換するか迷っています。交換の場合、在庫はありますか。返品の場合、送料はどちらの負担になりますか。また、ギフト用に購入したため、納品書が同梱されていないか心配です。同梱されている場合は再送の際に外していただけますか。"
+                      }
+                    },
+                    {
+                      "id": "no-order",
+                      "label": "注文番号なしで開いた状態",
+                      "description": "注文を経由せずにお問い合わせを開いたとき",
+                      "fill": { "[name='order']": "", "[name='topic']": "other", "[name='body']": "" }
+                    }
                   ]
                 }
               ]
@@ -2107,22 +2152,27 @@
           </div>
           <div class="sm-shot">
             <h1 class="sm-title">お問い合わせ</h1>
-            <div class="sm-card">
-              <div class="sm-field">
+            <form class="sm-card" onsubmit="return false;">
+              <label class="sm-field">
                 <span>注文番号</span>
-                <div class="sm-input">SM-0912-0127</div>
-              </div>
-              <div class="sm-field">
+                <input class="sm-input" name="order" value="SM-0912-0127" />
+              </label>
+              <label class="sm-field">
                 <span>ご用件</span>
-                <div class="sm-input">出荷後の注文のキャンセル・返品 ▾</div>
-              </div>
-              <div class="sm-field" style="margin-bottom: 0">
+                <select class="sm-input" name="topic">
+                  <option value="cancel-shipped" selected>出荷後の注文のキャンセル・返品</option>
+                  <option value="late">配送の遅れ</option>
+                  <option value="item">商品について</option>
+                  <option value="other">その他</option>
+                </select>
+              </label>
+              <label class="sm-field" style="margin-bottom: 0">
                 <span>内容</span>
-                <div class="sm-input" style="min-height: 96px; color: var(--sm-dim)">ご用件の詳細をご記入ください</div>
-              </div>
-            </div>
+                <textarea class="sm-input" name="body" rows="4" placeholder="ご用件の詳細をご記入ください"></textarea>
+              </label>
+            </form>
             <p class="sm-sub" style="font-size: 11.5px">通常 1 営業日以内にメールでお返事します。</p>
-            <button class="sm-btn">送信する</button>
+            <button class="sm-btn" type="button">送信する</button>
           </div>
         </div>
       </div>
@@ -2136,22 +2186,27 @@
           </div>
           <div class="sm-shot">
             <h1 class="sm-title">お問い合わせ</h1>
-            <div class="sm-card">
-              <div class="sm-field">
+            <form class="sm-card" onsubmit="return false;">
+              <label class="sm-field">
                 <span>注文番号</span>
-                <div class="sm-input">SM-0912-0127</div>
-              </div>
-              <div class="sm-field">
+                <input class="sm-input" name="order" value="SM-0912-0127" />
+              </label>
+              <label class="sm-field">
                 <span>ご用件</span>
-                <div class="sm-input">出荷後の注文のキャンセル・返品 ▾</div>
-              </div>
-              <div class="sm-field" style="margin-bottom: 0">
+                <select class="sm-input" name="topic">
+                  <option value="cancel-shipped" selected>出荷後の注文のキャンセル・返品</option>
+                  <option value="late">配送の遅れ</option>
+                  <option value="item">商品について</option>
+                  <option value="other">その他</option>
+                </select>
+              </label>
+              <label class="sm-field" style="margin-bottom: 0">
                 <span>内容</span>
-                <div class="sm-input" style="min-height: 96px; color: var(--sm-dim)">ご用件の詳細をご記入ください</div>
-              </div>
-            </div>
+                <textarea class="sm-input" name="body" rows="4" placeholder="ご用件の詳細をご記入ください"></textarea>
+              </label>
+            </form>
             <p class="sm-sub" style="font-size: 11.5px">通常 1 営業日以内にメールでお返事します。</p>
-            <button class="sm-btn">送信する</button>
+            <button class="sm-btn" type="button">送信する</button>
           </div>
           <nav class="sm-tabbar">
             <span class="sm-tab">ホーム</span>

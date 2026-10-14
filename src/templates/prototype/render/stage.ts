@@ -33,6 +33,7 @@ import {
   type StagePane,
 } from '../present';
 import { prototypeViewOf } from '../view-mode';
+import { renderActionsMenu, renderActionsToggle, type ActionsMenuView } from './actions-menu';
 import { renderBrowser, type BrowserFrame } from './browser';
 import { renderDemoControls, type DemoControls } from './demo-controls';
 import { frameStyle, type FrameWindow } from './frame-size';
@@ -78,6 +79,8 @@ export type StageOptions = {
   readonly devices: StageDevices | null;
   /** Commenting on the UI: the mode, the pins and the composer. */
   readonly uiComment: UiCommentView;
+  /** What the reader can make the screens on stage do, and their menu. */
+  readonly actions: ActionsMenuView;
   /** Pointer events on the canvas, read by the element while the reader comments on the UI. */
   readonly canvasEvents: {
     readonly click: (event: MouseEvent) => void;
@@ -151,7 +154,7 @@ export const renderStage = (
   const viewport = (browserPreview ?? shown[0])?.viewport ?? 'desktop';
   // A desktop browser has room for the demo's controls at the free end of its tab strip.
   const controlsInBrowser = demo && browser !== null && viewport !== 'mobile';
-  const demoControls: DemoControls = { onExit: options.onToggleDemo, uiComment: ui };
+  const demoControls: DemoControls = { onExit: options.onToggleDemo, uiComment: ui, actions: options.actions };
   const devicePreview = browserPreview ?? shown[0];
   const kind = browser !== null ? 'browser' : (devicePreview?.kind ?? 'browser');
   // A demo's desktop browser is the reader's own screen: it fills the tab rather than a device's size.
@@ -183,6 +186,7 @@ export const renderStage = (
               <div class="stage-tools">
                 ${single?.kind === 'screen' && single.tabs.length > 0 ? renderPreviewTabs(context, frames, single) : nothing}
                 ${device !== null && devices !== null ? renderDevicePicker(m, device, devices) : nothing}
+                ${options.actions.groups.length > 0 ? renderActionsToggle(m, options.actions) : nothing}
                 ${shown.length > 0 ? renderUiCommentToggle(m, ui) : nothing}
                 ${
                   shown.length === 0
@@ -238,7 +242,7 @@ export const renderStage = (
         ${shown.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
         ${renderUiCommentLayer(m, ui)}
       </div>
-      ${renderUiComposer(ui)}
+      ${renderUiComposer(ui)} ${renderActionsMenu(m, options.actions)}
       ${renderParkedPreviews(
         state,
         onScreen.map((preview) => preview.id),

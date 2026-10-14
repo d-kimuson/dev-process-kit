@@ -32,6 +32,24 @@ export type PrototypePreview = {
 };
 
 /**
+ * Something the reader can make a screen do in one go, e.g. fill its form
+ * with sample data: each `fill` selector's fields get the value (text, the
+ * option or radio of that value, or whether a box is checked), then each
+ * `click` selector is clicked, and the mock hears a `dpk-action` event to do
+ * whatever else it scripts. Selectors are relative to the preview's light DOM
+ * element. It plays on the renditions on screen only and is not a change to
+ * the prototype: nothing enters the draft.
+ */
+export type ScreenAction = {
+  readonly id: string;
+  /** What the menu calls it, e.g. `Fill in a sample`. */
+  readonly label: string;
+  readonly description?: string;
+  readonly fill?: Readonly<Record<string, string | boolean>>;
+  readonly click?: readonly string[];
+};
+
+/**
  * One page or state of the product, e.g. `Refunds`, or the cart and its empty
  * state as two screens. Its previews are renditions of the same screen
  * (mobile, desktop), so the reader switches between them with tabs. A screen
@@ -43,6 +61,8 @@ export type PrototypeScreen = {
   readonly title: string;
   readonly description?: string;
   readonly previews: readonly PrototypePreview[];
+  /** What the reader can make the screen do, e.g. fill its form with sample data. */
+  readonly actions: readonly ScreenAction[];
 };
 
 /**
@@ -186,11 +206,22 @@ const activitySchema = v.strictObject({
   stories: v.optional(v.array(storySchema), []),
 });
 
+const selectorSchema = v.pipe(v.string(), v.minLength(1));
+
+const screenActionSchema = v.strictObject({
+  id: entityIdSchema,
+  label: v.pipe(v.string(), v.minLength(1)),
+  description: v.exactOptional(v.string()),
+  fill: v.exactOptional(v.record(selectorSchema, v.union([v.string(), v.boolean()]))),
+  click: v.exactOptional(v.array(selectorSchema)),
+});
+
 const screenSchema = v.strictObject({
   id: entityIdSchema,
   title: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
   previews: v.optional(v.array(previewSchema), []),
+  actions: v.optional(v.array(screenActionSchema), []),
 });
 
 const appSchema = v.strictObject({
@@ -215,9 +246,9 @@ const materialsOf = (panes: readonly StepPane[]): PrototypePreview[] =>
 
 /**
  * Ids must be unique where they identify a path element, a destination or a
- * slot. Story and step ids are unique within their parent; app and screen ids
- * are global because a screen is a destination of its own, and preview ids
- * are global because they name a light DOM slot.
+ * slot. Story and step ids are unique within their parent, as are a screen's
+ * action ids; app and screen ids are global because a screen is a destination
+ * of its own, and preview ids are global because they name a light DOM slot.
  */
 const findDuplicateId = (state: ParsedBase): string | null => {
   const previewIds = new Set<string>();
@@ -240,6 +271,11 @@ const findDuplicateId = (state: ParsedBase): string | null => {
       screenIds.add(screen.id);
       const problem = previewProblem(screen.previews);
       if (problem !== null) return problem;
+      const actionIds = new Set<string>();
+      for (const action of screen.actions) {
+        if (actionIds.has(action.id)) return `duplicate action id "${action.id}" on screen "${screen.id}"`;
+        actionIds.add(action.id);
+      }
     }
   }
   const activityIds = new Set<string>();

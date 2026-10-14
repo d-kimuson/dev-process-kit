@@ -123,6 +123,8 @@ export const prototypeMessages = defineMessages({
     deviceHint: 'The window the app runs in: a page taller than it scrolls inside, as on the device',
     deviceName: (id: string) => DEVICE_NAMES[id] ?? DESKTOP_NAMES_EN[id] ?? id,
     deviceZoom: (percent: number) => `Shown at ${percent}% to fit`,
+    actions: 'Actions',
+    actionsHint: 'Make the screen do something in one go, e.g. fill its form with sample data',
   },
   ja: {
     renameActivity: 'Activity 名を変更',
@@ -212,6 +214,8 @@ export const prototypeMessages = defineMessages({
     deviceHint: 'アプリを動かす画面の大きさ。収まらないページは実機と同じく画面の中でスクロールする',
     deviceName: (id: string) => DEVICE_NAMES[id] ?? DESKTOP_NAMES_JA[id] ?? id,
     deviceZoom: (percent: number) => `収まるよう ${percent}% で表示`,
+    actions: 'アクション',
+    actionsHint: 'フォームにサンプルデータを入れるなど、画面に用意された操作を一度に行う',
   },
 });
 
