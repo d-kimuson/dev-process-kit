@@ -37,6 +37,7 @@ export const elementActionSchema = v.object({
   payload: elementPayloadSchema,
   note: v.exactOptional(v.string()),
   createdAt: v.pipe(v.string(), v.minLength(1)),
+  author: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
 });
 
 /** Never deduped: each request is a step the component replays in order. */

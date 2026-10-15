@@ -15,6 +15,7 @@ export const commentActionSchema = v.object({
   payload: v.object({ body: v.pipe(v.string(), v.minLength(1)) }),
   note: v.exactOptional(v.string()),
   createdAt: v.pipe(v.string(), v.minLength(1)),
+  author: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
 });
 
 export type CommentPayload = v.InferOutput<typeof commentActionSchema>['payload'];

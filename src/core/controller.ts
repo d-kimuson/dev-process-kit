@@ -33,6 +33,8 @@ export type DraftControllerOptions<S> = {
   readonly storage?: DraftStorage | null;
   readonly storageKey?: string;
   readonly initialActions?: readonly DraftAction[];
+  /** Stamped on every action this reader authors. */
+  readonly author?: string;
 };
 
 export type DraftExport = {
@@ -57,6 +59,8 @@ export class DraftController<S> {
   #derivation: Derivation<S>;
   readonly #storage: DraftStorage | null;
   readonly #storageKey: string;
+  readonly #author: string | undefined;
+  readonly #unsubscribeStorage: (() => void) | undefined;
   readonly #listeners = new Set<ControllerListener>();
   #lastIssues: readonly ValidationIssue[] = [];
   #prunedCount = 0;
@@ -67,10 +71,34 @@ export class DraftController<S> {
     this.#base = options.base;
     this.#storageKey = options.storageKey ?? defaultStorageKey(options.definition.name);
     this.#storage = options.storage === undefined ? defaultStorage() : options.storage;
+    this.#author = options.author;
     const restored = options.initialActions ?? this.#storage?.load(this.#storageKey, this.definition.name) ?? [];
     this.#actions = normalizeRestored(this.definition, restored);
     this.#derivation = this.#derive(this.#actions);
     if (this.#normalize()) this.#persist();
+    this.#unsubscribeStorage = this.#storage?.subscribe?.(this.#storageKey, this.definition.name, (actions) =>
+      this.#receive(actions),
+    );
+  }
+
+  /** Stops listening to a shared store. */
+  dispose(): void {
+    this.#unsubscribeStorage?.();
+  }
+
+  /**
+   * Another reader changed the shared draft. It replaces ours as it is: it was
+   * normalized by the reader who wrote it, and normalizing or persisting it
+   * again here would echo it back to every reader.
+   */
+  #receive(input: readonly unknown[]): void {
+    const actions = normalizeRestored(this.definition, input);
+    if (isEqual(actions, this.#actions)) return;
+    this.#lastIssues = [];
+    this.#actions = actions;
+    this.#rewrap();
+    this.#derivation = this.#derive(this.#actions);
+    for (const listener of this.#listeners) listener();
   }
 
   get definition(): TemplateDefinition<S> {
@@ -187,7 +215,7 @@ export class DraftController<S> {
         ok: false,
         issue: { path: 'type', message: `unknown action type "${parsed.output.type}"` },
       };
-    const built = buildAction(parsed.output, descriptor);
+    const built = buildAction(parsed.output, descriptor, this.#author);
     if (!built.ok) return built;
     const target = this.definition.canonicalTarget?.(state, built.action.target) ?? built.action.target;
     return { ok: true, action: { ...built.action, target } };

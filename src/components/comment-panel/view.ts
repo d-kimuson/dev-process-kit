@@ -182,7 +182,10 @@ const renderItem = (m: PanelMessages, item: PanelItem, send: PanelSend): Templat
         ${iconClose()}
       </button>
     </div>
-    <div class="item-target">${item.targetLabel}</div>
+    <div class="item-meta">
+      <div class="item-target">${item.targetLabel}</div>
+      ${item.author === null ? nothing : html`<span class="item-author">${item.author}</span>`}
+    </div>
     ${
       item.edit.kind === 'editing'
         ? renderEditor(m, item.edit, send)

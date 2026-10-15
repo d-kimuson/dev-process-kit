@@ -23,6 +23,19 @@ const inputs = {
 };
 
 describe('panel presentation', () => {
+  it('names the author of each action when the draft records one', () => {
+    const comment = (id: string, author?: string) => ({
+      id,
+      type: 'comment',
+      target: { type: 'page', id: 'tiny' },
+      payload: { body: id },
+      createdAt: 'now',
+      ...(author === undefined ? {} : { author }),
+    });
+    const d = derive(definition, base, [comment('mine'), comment('bobs', 'bob@example.com')]);
+    const items = presentPanel({ ...inputs, derivation: d }, initialPanelState()).items;
+    expect(items.map((item) => item.author)).toEqual([null, 'bob@example.com']);
+  });
   it('derives targets from navigation instead of storing a second copy', () => {
     const ui = reducePanel(initialPanelState(), { kind: 'attach', current: true });
     expect(presentPanel(inputs, ui).target.ref).toBe('item:a');

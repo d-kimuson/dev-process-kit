@@ -25,7 +25,13 @@ import { LOCALES, type Locale } from './i18n';
 import { iconChevronLeft, iconChevronRight, iconMoon, iconSun } from './icons';
 import { coreMessages, LANGUAGE_NAMES } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
-import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
+import {
+  defaultStorage,
+  defaultStorageKey,
+  MemoryDraftStorage,
+  requestDraftStorage,
+  type ProvidedStorage,
+} from './persistence';
 import { PopoverController } from './popover-controller';
 import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSource } from './shell/api';
 import { ChangeNoticeController } from './shell/change-notice-controller';
@@ -821,11 +827,13 @@ export abstract class TemplateElement<S> extends LitElement {
     const base = this.#readBase();
     this.#navigation = readNavigationFromHash();
     const storageKey = this.storageKey;
+    const { storage, author } = this.#resolveStorage();
     this.#controller = new DraftController<S>({
       definition: this.definition,
       base,
-      storage: this.#resolveStorage(),
+      storage,
       ...(typeof storageKey === 'string' ? { storageKey } : {}),
+      ...(author === undefined ? {} : { author }),
     });
     this.#subscribe();
     this.#refreshCommentTargets();
@@ -835,10 +843,11 @@ export abstract class TemplateElement<S> extends LitElement {
     this.requestUpdate();
   }
 
-  #resolveStorage(): DraftStorage | null {
-    if (this.storage === 'off') return null;
-    if (this.storage === 'memory') return new MemoryDraftStorage();
-    return defaultStorage();
+  #resolveStorage(): { readonly storage: ProvidedStorage['storage'] | null; readonly author?: string } {
+    if (this.storage === 'off') return { storage: null };
+    if (this.storage === 'memory') return { storage: new MemoryDraftStorage() };
+    const name = this.definition.name;
+    return requestDraftStorage(this, name, this.storageKey ?? defaultStorageKey(name)) ?? { storage: defaultStorage() };
   }
 
   #readBase(): S {

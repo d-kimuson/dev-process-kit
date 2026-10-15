@@ -31,6 +31,8 @@ export type PanelItem = {
   readonly id: string;
   readonly title: string;
   readonly targetLabel: string;
+  /** Who wrote it, when the draft is shared by several readers. */
+  readonly author: string | null;
   readonly tone: ActionTone;
   readonly text: { readonly kind: 'comment' | 'summary'; readonly body: string };
   /** The line the agent receives; none for a comment, whose body is the line's substance and is shown already. */
@@ -93,6 +95,7 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
         id: action.id,
         title: comment ? m.comment : description.title,
         targetLabel: description.targetLabel,
+        author: action.author ?? null,
         tone: comment ? 'comment' : description.tone,
         text: {
           kind: comment ? 'comment' : 'summary',

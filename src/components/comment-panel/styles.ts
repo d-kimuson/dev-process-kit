@@ -260,6 +260,16 @@ export const panelStyles = [
       margin-left: -4px;
     }
 
+    .item-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+    .item-author {
+      font-size: 11px;
+      color: var(--dpk-ink-soft);
+    }
     .item-target {
       display: inline-flex;
       align-items: center;

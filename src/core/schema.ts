@@ -39,6 +39,7 @@ export const draftActionEnvelopeSchema = v.object({
   payload: v.unknown(),
   note: v.exactOptional(v.string()),
   createdAt: v.pipe(v.string(), v.minLength(1)),
+  author: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
 });
 
 /**
@@ -57,6 +58,7 @@ export type ActionEnvelope<T extends string, PL> = {
   readonly payload: PL;
   readonly note?: string;
   readonly createdAt: string;
+  readonly author?: string;
 };
 
 export type ActionSpec<T extends string = string, P extends v.GenericSchema = v.GenericSchema> = ActionDescriptor & {
@@ -90,6 +92,7 @@ export type TemplateAction<M extends ActionSpecs> = {
     readonly payload: PayloadOfSpec<M[K]>;
     readonly note?: string;
     readonly createdAt: string;
+    readonly author?: string;
   };
 }[ActionName<M>];
 
@@ -117,6 +120,7 @@ export const defineAction = <T extends string, P extends v.GenericSchema>(
     payload,
     note: v.exactOptional(v.string()),
     createdAt: v.pipe(v.string(), v.minLength(1)),
+    author: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   });
   const parse = (action: DraftAction): ActionEnvelope<T, v.InferOutput<P>> | null => {
     // The envelope and the payload are validated separately so the result is
@@ -132,6 +136,7 @@ export const defineAction = <T extends string, P extends v.GenericSchema>(
       payload: parsedPayload.output,
       ...(envelope.output.note === undefined ? {} : { note: envelope.output.note }),
       createdAt: envelope.output.createdAt,
+      ...(envelope.output.author === undefined ? {} : { author: envelope.output.author }),
     };
   };
   return {

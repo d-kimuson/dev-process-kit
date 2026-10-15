@@ -14,6 +14,12 @@ export type DraftStorage = {
   load(key: string, template: string): readonly DraftAction[];
   save(key: string, template: string, actions: readonly DraftAction[]): void;
   clear(key: string): void;
+  /**
+   * A store shared by several readers pushes the whole draft whenever another
+   * reader changes it. The snapshot is external input and is validated before
+   * it replaces the draft; it is never written back. Returns the unsubscribe.
+   */
+  subscribe?(key: string, template: string, onChange: (actions: readonly unknown[]) => void): () => void;
 };
 
 export type StorageLike = {
@@ -105,4 +111,51 @@ export const defaultStorage = (): DraftStorage => {
 export const defaultStorageKey = (template: string): string => {
   const path = typeof location === 'undefined' ? 'local' : `${location.pathname}${location.search}`;
   return `dev-process-kit:draft:${path}:${template}`;
+};
+
+/** Event a template element dispatches before it restores its draft. */
+export const STORAGE_REQUEST_EVENT = 'dpk-storage-request';
+
+export type ProvidedStorage = { readonly storage: DraftStorage; readonly author?: string };
+
+export type StorageRequestDetail = {
+  readonly template: string;
+  readonly storageKey: string;
+  provide(storage: DraftStorage, options?: { readonly author?: string }): void;
+};
+
+/** The provided value comes from page script: check its shape before the controller relies on it. */
+const isDraftStorage = (value: unknown): value is DraftStorage => {
+  if (typeof value !== 'object' || value === null) return false;
+  const store: Partial<Record<keyof DraftStorage, unknown>> = value;
+  return (
+    typeof store.load === 'function' &&
+    typeof store.save === 'function' &&
+    typeof store.clear === 'function' &&
+    (store.subscribe === undefined || typeof store.subscribe === 'function')
+  );
+};
+
+/**
+ * Lets the page that hosts the element keep the draft somewhere else, for
+ * example in a store several readers share. A listener answers synchronously
+ * with `provide`; with no answer the element keeps its default store.
+ */
+export const requestDraftStorage = (
+  host: EventTarget,
+  template: string,
+  storageKey: string,
+): ProvidedStorage | undefined => {
+  let provided: ProvidedStorage | undefined;
+  const detail: StorageRequestDetail = {
+    template,
+    storageKey,
+    provide(storage, options) {
+      if (provided !== undefined || !isDraftStorage(storage)) return;
+      const author = typeof options?.author === 'string' && options.author.length > 0 ? options.author : undefined;
+      provided = author === undefined ? { storage } : { storage, author };
+    },
+  };
+  host.dispatchEvent(new CustomEvent(STORAGE_REQUEST_EVENT, { detail, bubbles: true, composed: true }));
+  return provided;
 };

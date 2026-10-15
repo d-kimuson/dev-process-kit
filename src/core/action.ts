@@ -33,14 +33,16 @@ export const actionInputSchema = v.object({
   note: v.exactOptional(v.string()),
   id: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   createdAt: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  author: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
 });
 
 /** Validate + normalize. Invalid actions are never persisted. */
-export const buildAction = (input: unknown, descriptor: ActionDescriptor): BuildOutcome => {
+export const buildAction = (input: unknown, descriptor: ActionDescriptor, author?: string): BuildOutcome => {
   const validated = safeParse(actionInputSchema, input);
   if (!validated.success) return { ok: false, issue: firstIssue(validated.issues) };
   const fields = validated.output;
   const target = toTarget(fields.target, descriptor.targetType);
+  const by = fields.author ?? author;
   const candidate = {
     id: fields.id ?? createActionId(),
     type: fields.type,
@@ -48,6 +50,7 @@ export const buildAction = (input: unknown, descriptor: ActionDescriptor): Build
     payload: fields.payload ?? {},
     ...(fields.note === undefined ? {} : { note: fields.note }),
     createdAt: fields.createdAt ?? new Date().toISOString(),
+    ...(by === undefined ? {} : { author: by }),
   };
   const parsed = safeParse(descriptor.schema, candidate);
   if (!parsed.success) return { ok: false, issue: firstIssue(parsed.issues) };
@@ -98,6 +101,7 @@ export const serializeDraft = (actions: readonly DraftAction[]): string => {
       payload: action.payload,
       ...(action.note === undefined ? {} : { note: action.note }),
       createdAt: action.createdAt,
+      ...(action.author === undefined ? {} : { author: action.author }),
     })),
     null,
     2,

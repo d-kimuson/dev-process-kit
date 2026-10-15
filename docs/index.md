@@ -153,6 +153,12 @@ Text the reader has typed but not sent yet — a comment in a composer, a name i
 | `notes`       | `on`              | opens the review rail on load (default: closed)                           |
 | `theme`       | `light` \| `dark` | the default color scheme (see [Color scheme](#color-scheme))              |
 
+### Sharing the draft between readers
+
+A page that hosts the template (an internal sharing app, for example) can keep the draft in a store several readers share instead of `LocalStorage`. Before it restores its draft, the template element dispatches `dpk-storage-request` (bubbling, composed) with `detail: { template, storageKey, provide(storage, { author }) }`. A listener that answers synchronously with `provide` replaces the default store for that element; without an answer nothing changes. Under `storage="off"` / `"memory"` the element does not ask.
+
+`storage` has the same `load` / `save` / `clear` as the default store, plus an optional `subscribe(key, template, onChange)` that returns an unsubscribe function. Call `onChange` with the whole draft whenever another reader changes it; the element validates it, shows it, and never writes it back. `author` is stamped on every action this reader makes and shown beside it in the review rail and the draft JSON. Register the listener in a classic script that runs before the kit's module script. `sample/remote/` has a Firestore example.
+
 ## Navigation
 
 Navigation is the URL hash and is completely separate from draft actions: selecting an activity, story, step or note is not a page change.

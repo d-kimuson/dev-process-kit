@@ -28,7 +28,8 @@ export type { ActionName, ActionSpec, ActionSpecs, PayloadOfSpec, TemplateAction
 export { parseHash, formatHash, patchNavigation, EMPTY_NAVIGATION } from './navigation';
 export { createActionId, createEntityId, parseTargetRef, slugify, targetRef, toTarget } from './target';
 export { WebStorageDraftStorage, MemoryDraftStorage, defaultStorage, defaultStorageKey } from './persistence';
-export type { DraftStorage, StorageLike } from './persistence';
+export { STORAGE_REQUEST_EVENT, requestDraftStorage } from './persistence';
+export type { DraftStorage, StorageLike, StorageRequestDetail } from './persistence';
 export { tokens, controls } from './theme';
 export {
   iconArrowDown,

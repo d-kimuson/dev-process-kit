@@ -46,6 +46,8 @@ export type DraftAction = {
   readonly payload: unknown;
   readonly note?: string;
   readonly createdAt: string;
+  /** Who authored it, when the page knows its readers (a shared draft store). */
+  readonly author?: string;
 };
 
 /** Untrusted action shape accepted from user code / templates / agents. */
@@ -58,6 +60,7 @@ export type ActionInput = {
   /** Only used when re-importing an exported draft. Omit for new actions. */
   readonly id?: string;
   readonly createdAt?: string;
+  readonly author?: string;
 };
 
 /**
