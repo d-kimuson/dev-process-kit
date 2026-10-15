@@ -11,6 +11,8 @@
       loads the same files from jsDelivr instead, and so does this page on GitHub
       Pages or with `?dpk-version=<version>` (`kit.js`).
     -->
+    <!-- `?shared=<room>&as=<name>` shares the draft through the Firestore emulator (sample/remote/README.md). -->
+    <script src="./remote/firestore-draft-storage.js"></script>
     <script type="module">
       import { loadKit } from './kit.js';
       loadKit(['templates/whiteboard.js']);
