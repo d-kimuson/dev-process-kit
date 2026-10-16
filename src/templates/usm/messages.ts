@@ -166,7 +166,7 @@ export const usmMessages = defineMessages({
     // --------------------------------------------------------- labels tab
     labelNameLabel: 'Label name',
     noLabelsTitle: 'No labels yet',
-    noLabelsBody: 'Add labels such as Dev / PdM to sort stories however the team likes. The kit gives them no meaning.',
+    noLabelsBody: 'You can add labels here.',
     newLabelButton: '+ Label',
     deleteLabelAria: 'Delete this label',
 
@@ -449,8 +449,7 @@ export const usmMessages = defineMessages({
 
     labelNameLabel: 'ラベル名',
     noLabelsTitle: 'ラベルがまだありません',
-    noLabelsBody:
-      'Dev / PdM のようなラベルを追加すると、チームの運用に合わせてストーリーを区分けできます。ラベルの意味は仕組み側では決めません。',
+    noLabelsBody: 'ラベルを追加できます。',
     newLabelButton: '+ ラベル',
     deleteLabelAria: 'このラベルを削除',
 
