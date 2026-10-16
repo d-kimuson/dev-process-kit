@@ -17,6 +17,8 @@ export type UsmUiMode =
   | { readonly kind: 'filtering'; readonly key: MapFilterKey }
   /** The menu of the optional features is open. */
   | { readonly kind: 'choosing-features' }
+  /** The menu of the page tabs that do not fit on the bar is open. */
+  | { readonly kind: 'choosing-tab' }
   | {
       /** A cross-activity drop: the column named no step, so the reader picks one. */
       readonly kind: 'picking-step';

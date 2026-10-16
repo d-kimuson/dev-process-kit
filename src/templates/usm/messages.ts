@@ -273,6 +273,7 @@ export const usmMessages = defineMessages({
 
     // ----------------------------------------------------------------- features
     featuresButton: 'Features',
+    moreTabsLabel: 'More tabs',
     featuresMenuLabel: 'Optional features',
     enableFeature: 'Turn on feature',
     disableFeature: 'Turn off feature',
@@ -550,6 +551,7 @@ export const usmMessages = defineMessages({
     noAssigneeFilter: '担当者なし',
 
     featuresButton: '機能',
+    moreTabsLabel: 'ほかのタブ',
     featuresMenuLabel: '追加できる機能',
     enableFeature: '機能を有効化',
     disableFeature: '機能を無効化',

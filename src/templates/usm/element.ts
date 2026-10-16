@@ -9,6 +9,7 @@ import { popoverSurface } from '../../core/theme';
 import { DismissController } from '../../lib/dom/dismiss';
 import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
+import { PriorityOverflowController } from '../../lib/dom/priority-overflow';
 import { revealInlineWithin, revealWithin } from '../../lib/dom/scroll';
 import { usmTabOf, type UsmTab } from './board-tabs';
 import { defineUsmBurndownChart } from './components/burndown-chart';
@@ -40,7 +41,14 @@ import { mapToolbarStyles, renderMapToolbar } from './render/map-toolbar';
 import { renderMemberOverview } from './render/member-overview';
 import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
-import { renderBoardBar, renderBoardHead } from './render/page-tabs';
+import {
+  pageTabsStyles,
+  renderBoardBar,
+  renderBoardHead,
+  TABS_MENU_ITEM_HEIGHT,
+  TABS_MENU_PADDING,
+  TABS_MENU_WIDTH,
+} from './render/page-tabs';
 import { renderStatusOverview } from './render/status-overview';
 import { panelStoryOf, renderStoryPanel, storyPanelStyles } from './render/story-panel';
 import { statusStyles } from './render/tone';
@@ -79,6 +87,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     mapFilterStyles,
     highlightStyles,
     featuresMenuStyles,
+    pageTabsStyles,
     popoverSurface,
   ];
 
@@ -96,8 +105,14 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   readonly #popovers = new PopoverController(this);
   /** The story the panel showed at the last update, to move the focus when that changes. */
   #panelShown: string | null = null;
-  /** The page tab last scrolled into the strip, so the reader's own scrolling is left alone. */
-  #revealedTab: string | null = null;
+  /** Which page tabs do not fit on the bar's line, and so fold behind its more button. */
+  readonly #tabsFit = new PriorityOverflowController(this, {
+    row: () => this.renderRoot.querySelector('.page-nav'),
+    items: (row) => [...row.querySelectorAll('.page-tabs [role="tab"]')],
+    keyOf: (tab) => tab.getAttribute('data-tab') ?? '',
+    kept: (tab) => tab.getAttribute('aria-selected') === 'true',
+    more: (row) => row.querySelector('[data-tabs-more-trigger]'),
+  });
   /** Whether the map has brought its highlight into view since it was turned on, so the reader's own scrolling is left alone. */
   #revealedHighlight = false;
 
@@ -134,6 +149,16 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       ownsEscape: () => true,
       dismiss: () => (this.mode = IDLE_MODE),
     });
+    // And the menu of the folded page tabs.
+    new DismissController(this, {
+      open: () => this.mode.kind === 'choosing-tab',
+      closesOn: (path) =>
+        !path.some(
+          (node) => node instanceof Element && (node.id === 'tabs-menu' || node.hasAttribute('data-tabs-more-trigger')),
+        ),
+      ownsEscape: () => true,
+      dismiss: () => (this.mode = IDLE_MODE),
+    });
   }
 
   protected override renderRegions(context: TemplateRenderContext<UsmState>): ShellRegions {
@@ -142,7 +167,6 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
   protected override updated(): void {
     super.updated();
-    this.#revealSelectedTab();
     this.#revealHighlight();
     this.#syncPanelFocus();
     // A status's icon menu hangs off the icon that opened it.
@@ -158,6 +182,20 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       const trigger = this.renderRoot.querySelector(`[data-filter-trigger="${CSS.escape(this.mode.key)}"]`);
       const height = (menu?.childElementCount ?? 0) * FILTER_OPTION_HEIGHT + FILTER_MENU_PADDING;
       if (menu && trigger) this.#popovers.open(menu, trigger, { width: FILTER_MENU_WIDTH, height });
+      return;
+    }
+    // The folded page tabs hang below the more button, as many as there are.
+    if (this.mode.kind === 'choosing-tab') {
+      const menu = this.renderRoot.querySelector<HTMLElement>('#tabs-menu');
+      const trigger = this.renderRoot.querySelector('[data-tabs-more-trigger]');
+      // Once every tab fits again there is nothing left to choose from.
+      if (!menu) {
+        this.mode = IDLE_MODE;
+        return;
+      }
+      const height = menu.childElementCount * TABS_MENU_ITEM_HEIGHT + TABS_MENU_PADDING;
+      if (trigger)
+        this.#popovers.open(menu, trigger, { width: TABS_MENU_WIDTH, height }, { placement: 'bottom-start' });
       return;
     }
     if (this.mode.kind === 'choosing-features') {
@@ -214,16 +252,6 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       ?.focus({ preventScroll: true });
   }
 
-  /** On a phone the tab strip scrolls sideways; a deep link to its last tab must not leave it out of sight. */
-  #revealSelectedTab(): void {
-    const strip = this.renderRoot.querySelector('.page-tabs');
-    const tab = strip?.querySelector<HTMLElement>('[aria-selected="true"]');
-    const key = tab?.getAttribute('href') ?? null;
-    if (!strip || !tab || key === this.#revealedTab) return;
-    this.#revealedTab = key;
-    revealInlineWithin(strip, tab);
-  }
-
   /**
    * Scrolls the map to the first highlighted card once the highlight turns on:
    * on a wide map the path may start out of sight, leaving only dimmed cards.
@@ -249,12 +277,24 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     const tab = usmTabOf(context.state, context.navigation);
     return html`
       ${renderBoardHead(
-        renderBoardBar(m, context, tab, {
-          open: this.mode.kind === 'choosing-features',
-          toggle: () =>
-            (this.mode = this.mode.kind === 'choosing-features' ? IDLE_MODE : { kind: 'choosing-features' }),
-          close: () => (this.mode = IDLE_MODE),
-        }),
+        renderBoardBar(
+          m,
+          context,
+          tab,
+          {
+            open: this.mode.kind === 'choosing-features',
+            toggle: () =>
+              (this.mode = this.mode.kind === 'choosing-features' ? IDLE_MODE : { kind: 'choosing-features' }),
+            close: () => (this.mode = IDLE_MODE),
+          },
+          {
+            folded: this.#tabsFit.hidden,
+            minimum: this.#tabsFit.minimum,
+            open: this.mode.kind === 'choosing-tab',
+            toggle: () => (this.mode = this.mode.kind === 'choosing-tab' ? IDLE_MODE : { kind: 'choosing-tab' }),
+            close: () => (this.mode = IDLE_MODE),
+          },
+        ),
         this.#renderToolbar(m, context, tab),
       )}
       ${this.#renderTab(m, context, tab)} ${this.#renderPanel(m, context, tab)}

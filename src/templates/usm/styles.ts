@@ -134,19 +134,17 @@ export const usmStyles = css`
     min-width: 0;
   }
 
-  /* The two pages: an underlined tab strip, heavier than the view toggle. It
-     scrolls sideways on a phone rather than cutting off the last tab; the
-     bottom padding keeps the selected tab's underline inside the scroller. */
+  /* The pages: an underlined tab strip, heavier than the view toggle. The
+     tabs that do not fit fold behind the more button beside it (\`.page-nav\`);
+     the bottom padding keeps the selected tab's underline inside the clip. */
   .page-tabs {
+    position: relative;
     display: inline-flex;
     gap: 4px;
     min-width: 0;
-    max-width: 100%;
-    margin-right: auto;
     margin-bottom: -13px;
     padding-bottom: 13px;
-    overflow-x: auto;
-    scrollbar-width: none;
+    overflow: hidden;
   }
   .page-tabs [role='tab'] {
     position: relative;
