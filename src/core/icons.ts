@@ -16,6 +16,7 @@ import {
   Link,
   Maximize2,
   MessageSquare,
+  MessageSquareText,
   Minimize2,
   Minus,
   Moon,
@@ -67,6 +68,8 @@ export const iconClose = lucide(X);
 export const iconTrash = lucide(Trash);
 export const iconPencil = lucide(Pencil);
 export const iconComment = lucide(MessageSquare);
+/** A comment kept as part of the page's content, apart from a review comment for the agent. */
+export const iconNote = lucide(MessageSquareText);
 export const iconHistory = lucide(History);
 export const iconLink = lucide(Link);
 export const iconCopy = lucide(Copy);

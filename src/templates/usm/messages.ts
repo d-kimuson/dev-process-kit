@@ -34,6 +34,8 @@ export const usmMessages = defineMessages({
     changeStatusIcon: 'Change status icon',
     addStoryLink: 'Link to story',
     removeStoryLink: 'Unlink from story',
+    addStoryComment: 'Comment on story',
+    deleteStoryComment: 'Delete story comment',
     deleteStatus: 'Delete status',
     reorderStatus: 'Reorder status',
     addLabel: 'Add label',
@@ -121,6 +123,7 @@ export const usmMessages = defineMessages({
     noMilestonesTitle: 'No milestones yet',
     noMilestonesBody: 'Add a milestone to slice the map into releases.',
     commentCountAria: (count: number) => (count === 1 ? '1 comment' : `${count} comments`),
+    reviewCountAria: (count: number) => (count === 1 ? '1 review comment' : `${count} review comments`),
 
     // ------------------------------------------------------- statuses tab
     statusNameLabel: 'Status name',
@@ -201,6 +204,7 @@ export const usmMessages = defineMessages({
     chartActual: 'Actual',
     chartAbout: 'How this chart is counted',
     axisDate: (at: number, unit: AxisUnit) => axisDate('en-US', at, unit),
+    commentDate: (at: string) => commentDate('en-US', at),
     chartAria: (title: string, value: number) => `${title}: ${value} now`,
     chartLatest: (value: number) => `Now ${value}`,
     chartNeedsSnapshot: 'Record a snapshot to draw the line from.',
@@ -259,7 +263,11 @@ export const usmMessages = defineMessages({
     removeLinkAria: (label: string) => `Remove ${label}`,
     deleteStoryButton: 'Delete story',
     storyCommentsLabel: 'Comments',
-    commentSubmit: 'Comment',
+    storyCommentsHint: 'Kept on the story as part of the map. To ask the agent for a change, write a review comment.',
+    commentSubmit: 'Add comment',
+    deleteStoryCommentAria: 'Delete comment',
+    reviewStoryButton: 'Review comment',
+    reviewStoryTitle: 'Write a review comment on this story, asking the agent for a change',
     storyStatusAria: (name: string) => `Status: ${name}`,
 
     // ------------------------------------------------------ members & assignees
@@ -336,6 +344,8 @@ export const usmMessages = defineMessages({
     changeStatusIcon: 'ステータスのアイコンを変更',
     addStoryLink: 'ストーリーにリンクを追加',
     removeStoryLink: 'ストーリーのリンクを削除',
+    addStoryComment: 'ストーリーにコメントを追加',
+    deleteStoryComment: 'ストーリーのコメントを削除',
     deleteStatus: 'ステータスを削除',
     reorderStatus: 'ステータスの順序を変更',
     addLabel: 'ラベルを追加',
@@ -418,6 +428,7 @@ export const usmMessages = defineMessages({
     noMilestonesTitle: 'マイルストーンがまだありません',
     noMilestonesBody: 'マイルストーンを追加すると、マップをリリースごとに区切れます。',
     commentCountAria: (count: number) => `コメント ${count} 件`,
+    reviewCountAria: (count: number) => `レビューコメント ${count} 件`,
 
     statusNameLabel: 'ステータス名',
     statusToneLabel: '色',
@@ -495,6 +506,7 @@ export const usmMessages = defineMessages({
     chartActual: '実績',
     chartAbout: 'このチャートの数え方',
     axisDate: (at: number, unit: AxisUnit) => axisDate('ja-JP', at, unit),
+    commentDate: (at: string) => commentDate('ja-JP', at),
     chartAria: (title: string, value: number) => `${title}: 現在 ${value}`,
     chartLatest: (value: number) => `現在 ${value}`,
     chartNeedsSnapshot: 'スナップショットを記録すると線が引かれます。',
@@ -550,7 +562,11 @@ export const usmMessages = defineMessages({
     removeLinkAria: (label: string) => `${label} を外す`,
     deleteStoryButton: 'ストーリーを削除',
     storyCommentsLabel: 'コメント',
-    commentSubmit: 'コメントする',
+    storyCommentsHint: 'マップの一部としてストーリーに残ります。Agent に直してほしいことはレビューコメントに書きます。',
+    commentSubmit: 'コメントを追加',
+    deleteStoryCommentAria: 'コメントを削除',
+    reviewStoryButton: 'レビューコメント',
+    reviewStoryTitle: 'このストーリーについて Agent に直してほしいことをレビューコメントに書く',
     storyStatusAria: (name: string) => `ステータス: ${name}`,
 
     addMember: 'メンバーを追加',
@@ -599,6 +615,10 @@ export const usmMessages = defineMessages({
 });
 
 export type UsmMessages = ReturnType<typeof usmMessages>;
+
+/** When a story comment was written, to the minute. */
+const commentDate = (locale: string, at: string): string =>
+  new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(at));
 
 /**
  * A date on a chart's time axis, as precise as its ticks: the day for day and

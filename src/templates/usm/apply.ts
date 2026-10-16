@@ -4,6 +4,7 @@ import { assertNever, parseTemplateAction } from '../../core/schema';
 import { usmActions } from './actions';
 import { waitsOn } from './dependency-graph';
 import {
+  allUsmIds,
   findEstimate,
   findLabel,
   findMember,
@@ -202,6 +203,26 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
         const links = (current.links ?? []).filter((link) => link.url !== url);
         const { links: _links, ...rest } = current;
         return links.length === 0 ? rest : { ...rest, links };
+      });
+    }
+    case 'ADD_STORY_COMMENT': {
+      const { id: commentId, body, createdAt } = typed.payload;
+      const story = findStory(state, id);
+      if (!story) return null;
+      // Adding the same comment again is already done: the draft stays as it is.
+      if (story.comments?.some((comment) => comment.id === commentId)) return state;
+      if (allUsmIds(state).includes(commentId)) return null;
+      const comment = createdAt === undefined ? { id: commentId, body } : { id: commentId, body, createdAt };
+      return updateStory(state, id, (current) => ({ ...current, comments: [...(current.comments ?? []), comment] }));
+    }
+    case 'DELETE_STORY_COMMENT': {
+      const { commentId } = typed.payload;
+      const story = findStory(state, id);
+      if (!story?.comments?.some((comment) => comment.id === commentId)) return null;
+      return updateStory(state, id, (current) => {
+        const comments = (current.comments ?? []).filter((comment) => comment.id !== commentId);
+        const { comments: _comments, ...rest } = current;
+        return comments.length === 0 ? rest : { ...rest, comments };
       });
     }
     case 'SET_STORY_STATUS': {

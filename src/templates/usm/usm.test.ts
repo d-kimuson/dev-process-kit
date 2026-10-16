@@ -334,19 +334,37 @@ describe('usm template', () => {
     expect(panel.getAttribute('data-story')).toBe('u1');
     const form = panel.querySelector('form.sp-comment-form') as HTMLFormElement;
     const textarea = form.querySelector('textarea')!;
-    // an empty comment is not sent
+    // an empty comment is not added
     form.dispatchEvent(new Event('submit', { cancelable: true }));
-    expect(el.api.actions.filter((a) => a.type === 'comment')).toHaveLength(0);
+    expect(el.api.actions.filter((a) => a.type === 'ADD_STORY_COMMENT')).toHaveLength(0);
     textarea.value = 'hello';
     form.dispatchEvent(new Event('submit', { cancelable: true }));
     await settle(el);
-    expect(el.api.actions.some((a) => a.type === 'comment' && a.target.id === 'u1')).toBe(true);
+    // A story comment is part of the map, not a review comment for the agent.
+    expect(el.api.comments).toHaveLength(0);
+    const added = el.api.actions.find((a) => a.type === 'ADD_STORY_COMMENT');
+    expect(added?.target.id).toBe('u1');
+    expect(added?.payload).toMatchObject({ body: 'hello' });
     expect(textarea.value).toBe('');
-    const thread = root.querySelector('[data-testid="usm-story-panel"] .sp-comment-list')!;
-    expect([...thread.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['hello']);
-    // the card counts the comments left on it
+    const thread = () => root.querySelector('[data-testid="usm-story-panel"] .sp-comment-list');
+    expect([...thread()!.querySelectorAll('.sp-comment-body')].map((body) => body.textContent)).toEqual(['hello']);
+    // the card counts the comments kept on it
     await (cards[0] as LitElement).updateComplete;
     expect(cards[0]!.shadowRoot!.querySelector('[data-kind="comments"]')?.textContent?.trim()).toBe('1');
+    expect(cards[0]!.shadowRoot!.querySelector('[data-kind="review"]')).toBeNull();
+    // a review comment on the story is written in the review rail, and the card shows it apart
+    (panel.querySelector('[data-role="review-story"]') as HTMLButtonElement).click();
+    await settle(el);
+    expect(el.notesOpen).toBe(true);
+    el.api.comment('story:u1', 'split this story');
+    await settle(el);
+    await (cards[0] as LitElement).updateComplete;
+    expect(cards[0]!.shadowRoot!.querySelector('[data-kind="review"]')?.textContent?.trim()).toBe('1');
+    expect(cards[0]!.shadowRoot!.querySelector('[data-kind="comments"]')?.textContent?.trim()).toBe('1');
+    // a kept comment is deleted from the panel
+    (thread()!.querySelector('[data-role="delete-comment"]') as HTMLButtonElement).click();
+    await settle(el);
+    expect(thread()).toBeNull();
     // Navigation follows.
     el.api.navigate({ step: 's2', story: 'u2' });
     await settle(el);

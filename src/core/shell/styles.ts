@@ -593,6 +593,13 @@ export const chromeStyles = [
       position: relative;
       display: flex;
       min-height: 0;
+      /* How much of the body's right edge the open review takes as a column of its own;
+         what a template lays over the main column's edge stays clear of it. */
+      --dpk-notes-column: 0px;
+    }
+
+    .dpk-body:has(> .dpk-notes:not([hidden])) {
+      --dpk-notes-column: 360px;
     }
 
     .dpk-sidebar {
@@ -963,6 +970,10 @@ export const chromeStyles = [
      * takes the screen, below the review button that closes it.
      */
     @media (max-width: 1100px) {
+      .dpk-body:has(> .dpk-sidebar:not([hidden])) {
+        --dpk-notes-column: 0px;
+      }
+
       .dpk-body:has(> .dpk-sidebar:not([hidden])) > .dpk-notes {
         position: absolute;
         top: 0;
@@ -975,6 +986,10 @@ export const chromeStyles = [
     }
 
     @media (max-width: 860px) {
+      .dpk-body:has(> .dpk-notes:not([hidden])) {
+        --dpk-notes-column: 0px;
+      }
+
       .dpk-notes {
         position: absolute;
         top: 0;

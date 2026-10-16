@@ -4,12 +4,21 @@ import * as v from 'valibot';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { UsmMessages } from '../messages';
 
-import { commentBody } from '../../../core/comment';
-import { iconClose, iconTrash } from '../../../core/icons';
+import { iconClose, iconComment, iconTrash } from '../../../core/icons';
+import { createEntityId } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { describeLink } from '../../../lib/link-label';
 import { dependencyOf, isFinished } from '../dependencies';
-import { findMilestone, findStep, findStory, hasFeature, linkUrlSchema, type UserStory, type UsmState } from '../model';
+import {
+  allUsmIds,
+  findMilestone,
+  findStep,
+  findStory,
+  hasFeature,
+  linkUrlSchema,
+  type UserStory,
+  type UsmState,
+} from '../model';
 import { statusViews } from '../status-view';
 import { initialOf } from './avatar';
 import { renderDependencyPicker, type DependencyPicker } from './dependency-picker';
@@ -51,6 +60,7 @@ export const renderStoryPanel = (
         ${located ? html`<span>${located.activity.name}</span><span>${located.step.name}</span>` : nothing}
         <span>${milestone?.name ?? m.unassigned}</span>
       </span>
+      ${renderReviewButton(m, context, story)}
       <button class="dpk-icon-btn" type="button" data-role="close" aria-label=${m.closePanelAria} @click=${close}>
         ${iconClose()}
       </button>
@@ -417,26 +427,82 @@ const renderLinksField = (
 };
 
 /**
- * The story's comments, oldest first, and a field to add one. A comment is a
- * draft action like any other, so it reaches the agent with the rest.
+ * Opens the review rail at a review comment on this story: a request to the
+ * agent, which leaves with the draft. The count is the review comments on it.
+ */
+const renderReviewButton = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  story: UserStory,
+): TemplateResult => {
+  const count = context.commentCount({ type: 'story', id: story.id });
+  return html`<button
+    class="sp-review"
+    type="button"
+    data-role="review-story"
+    title=${m.reviewStoryTitle}
+    aria-label=${count > 0 ? `${m.reviewStoryButton} (${count})` : m.reviewStoryButton}
+    @click=${() => context.requestComment({ type: 'story', id: story.id })}
+  >
+    ${iconComment()}<span>${m.reviewStoryButton}</span>${
+      count > 0 ? html`<span class="sp-review-count">${count}</span>` : nothing
+    }
+  </button>`;
+};
+
+/**
+ * The comments kept on the story, oldest first, and a field to add one. They
+ * are part of the map, like the description: adding or deleting one is a
+ * change in the draft, which the agent writes into the base data.
  */
 const renderComments = (m: UsmMessages, context: TemplateRenderContext<UsmState>, story: UserStory): TemplateResult => {
-  const notes = context.comments.filter((note) => note.target.type === 'story' && note.target.id === story.id);
+  const target = { type: 'story', id: story.id };
+  const comments = story.comments ?? [];
   const send = (form: HTMLFormElement): void => {
     const field = form.querySelector('textarea');
     const body = field?.value.trim() ?? '';
     if (!field || body === '') return;
+    const id = createEntityId('comment', allUsmIds(context.state));
     // The text stays in the field unless the comment was taken.
-    const outcome = context.dispatch({ type: 'comment', target: `story:${story.id}`, payload: { body } });
+    const outcome = context.dispatch({
+      type: 'ADD_STORY_COMMENT',
+      target,
+      payload: { id, body, createdAt: new Date().toISOString() },
+    });
     if (outcome.ok) field.value = '';
   };
   return html`<section class="sp-field sp-comments">
-    <h3>${m.storyCommentsLabel}${notes.length > 0 ? html`<span class="sp-count">${notes.length}</span>` : nothing}</h3>
+    <h3>
+      ${m.storyCommentsLabel}${comments.length > 0 ? html`<span class="sp-count">${comments.length}</span>` : nothing}
+    </h3>
     ${
-      notes.length === 0
+      comments.length === 0
         ? nothing
         : html`<ol class="sp-comment-list">
-            ${notes.map((note) => html`<li>${commentBody(note)}</li>`)}
+            ${comments.map(
+              (comment) => html`<li data-id=${comment.id}>
+                <div class="sp-comment-main">
+                  <p class="sp-comment-body">${comment.body}</p>
+                  ${
+                    comment.createdAt === undefined
+                      ? nothing
+                      : html`<time class="sp-comment-time" datetime=${comment.createdAt}
+                          >${m.commentDate(comment.createdAt)}</time
+                        >`
+                  }
+                </div>
+                <button
+                  class="dpk-icon-btn"
+                  type="button"
+                  data-role="delete-comment"
+                  aria-label=${m.deleteStoryCommentAria}
+                  @click=${() =>
+                    context.dispatch({ type: 'DELETE_STORY_COMMENT', target, payload: { commentId: comment.id } })}
+                >
+                  ${iconTrash()}
+                </button>
+              </li>`,
+            )}
           </ol>`
     }
     <form
@@ -450,7 +516,8 @@ const renderComments = (m: UsmMessages, context: TemplateRenderContext<UsmState>
         class="dpk-textarea"
         rows="3"
         aria-label=${m.storyCommentsLabel}
-        data-dpk-text-key=${`story:${story.id}`}
+        aria-describedby="sp-comments-hint"
+        data-dpk-text-key=${`story-comment:${story.id}`}
         @keydown=${(event: KeyboardEvent) => {
           if (event.isComposing || event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
           event.preventDefault();
@@ -459,6 +526,7 @@ const renderComments = (m: UsmMessages, context: TemplateRenderContext<UsmState>
         }}
       ></textarea>
       <div class="sp-comment-actions">
+        <span class="sp-comment-hint" id="sp-comments-hint">${m.storyCommentsHint}</span>
         <button class="dpk-btn dpk-btn--accent" type="submit">${m.commentSubmit}</button>
       </div>
     </form>
@@ -466,16 +534,16 @@ const renderComments = (m: UsmMessages, context: TemplateRenderContext<UsmState>
 };
 
 export const storyPanelStyles = css`
-  /* Over the main column's edge, below the header: the page's own controls stay in reach. */
+  /* Over the main column's edge, below the header and beside an open review: the page's own controls stay in reach. */
   .story-panel {
     position: absolute;
     top: 0;
-    right: 0;
+    right: var(--dpk-notes-column, 0px);
     bottom: 0;
     z-index: 20;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    width: min(420px, 100%);
+    width: min(420px, 100% - var(--dpk-notes-column, 0px));
     border-left: 1px solid var(--dpk-rule-strong);
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-shadow-lg);
@@ -867,14 +935,32 @@ export const storyPanelStyles = css`
     list-style: none;
   }
   .sp-comment-list li {
-    padding: 8px 11px;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 8px 4px 8px 11px;
+    border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius-sm);
     background: var(--dpk-paper-sunken);
+  }
+  .sp-comment-main {
+    display: grid;
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .sp-comment-body {
+    margin: 0;
     color: var(--dpk-ink);
     font-size: 12.5px;
     line-height: 1.6;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+  }
+  .sp-comment-time {
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
   }
   .sp-comment-form {
     display: grid;
@@ -886,7 +972,57 @@ export const storyPanelStyles = css`
   }
   .sp-comment-actions {
     display: flex;
-    justify-content: flex-end;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .sp-comment-hint {
+    color: var(--dpk-ink-faint);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .sp-comment-actions .dpk-btn {
+    flex: none;
+  }
+  /* A request to the agent, not part of the story: it carries the review rail's comment icon. */
+  .sp-review {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .sp-review:hover {
+    color: var(--dpk-accent);
+    border-color: color-mix(in srgb, var(--dpk-accent) 45%, transparent);
+  }
+  .sp-review:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+  .sp-review svg {
+    width: 14px;
+    height: 14px;
+  }
+  .sp-review-count {
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--dpk-accent-soft);
+    color: var(--dpk-accent);
+    font-family: var(--dpk-mono);
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
   }
   .sp-foot {
     display: flex;

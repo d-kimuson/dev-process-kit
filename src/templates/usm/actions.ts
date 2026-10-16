@@ -17,6 +17,7 @@ import {
   statusIconSchema,
   statusToneSchema,
   statusWeightSchema,
+  storyCommentBodySchema,
   tallyRowSchema,
   usmFeatureSchema,
 } from './model';
@@ -90,6 +91,17 @@ export const usmActions = {
     v.object({ url: linkUrlSchema, label: v.exactOptional(v.pipe(v.string(), v.minLength(1))) }),
   ),
   REMOVE_STORY_LINK: defineAction('REMOVE_STORY_LINK', 'story', v.object({ url: v.string() })),
+  ADD_STORY_COMMENT: defineAction(
+    'ADD_STORY_COMMENT',
+    'story',
+    v.object({ id: entityIdSchema, body: storyCommentBodySchema, createdAt: v.exactOptional(snapshotAtSchema) }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  DELETE_STORY_COMMENT: defineAction(
+    'DELETE_STORY_COMMENT',
+    'story',
+    v.object({ commentId: v.pipe(v.string(), v.minLength(1)) }),
+  ),
   SET_STORY_STATUS: defineAction(
     'SET_STORY_STATUS',
     'story',

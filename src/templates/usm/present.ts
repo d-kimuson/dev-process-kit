@@ -195,6 +195,16 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
     const link = findStory(state, action.target.id)?.links?.find((candidate) => candidate.url === url);
     return { title: m.removeStoryLink, tone: 'delete', body: m.removed(link?.label ?? describeLink(url).title) };
   },
+  ADD_STORY_COMMENT: (m, action) => ({
+    title: m.addStoryComment,
+    tone: 'create',
+    body: m.added(payloadFor(usmActions.ADD_STORY_COMMENT, action).body),
+  }),
+  DELETE_STORY_COMMENT: (m, action, state) => {
+    const { commentId } = payloadFor(usmActions.DELETE_STORY_COMMENT, action);
+    const comment = findStory(state, action.target.id)?.comments?.find((candidate) => candidate.id === commentId);
+    return { title: m.deleteStoryComment, tone: 'delete', body: m.removed(comment?.body ?? commentId) };
+  },
   SET_STORY_STATUS: (m, action, state) => {
     const statusId = payloadFor(usmActions.SET_STORY_STATUS, action)['statusId'];
     return {

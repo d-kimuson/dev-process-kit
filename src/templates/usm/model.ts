@@ -138,6 +138,18 @@ export type StoryLink = {
   readonly label?: string;
 };
 
+/**
+ * A comment kept on a story as part of the map, like its description: a
+ * decision, a caveat, a note for the team. Unlike a review comment, which asks
+ * the agent for a change and leaves with the draft, it stays on the story.
+ */
+export type StoryComment = {
+  readonly id: string;
+  readonly body: string;
+  /** When it was written, as an ISO timestamp; left out, the time is not known. */
+  readonly createdAt?: string;
+};
+
 export type UserStory = {
   readonly id: string;
   readonly name: string;
@@ -160,6 +172,8 @@ export type UserStory = {
   readonly estimateId?: string;
   /** The member it is assigned to; left out, no one is. */
   readonly assigneeId?: string;
+  /** Comments kept on the story, oldest first. */
+  readonly comments?: readonly StoryComment[];
 };
 
 export type UsmState = {
@@ -241,6 +255,16 @@ const labelSchema = v.strictObject({
   name: v.pipe(v.string(), v.minLength(1)),
   tone: v.optional(statusToneSchema),
 });
+/** A comment's text: never blank. */
+export const storyCommentBodySchema = v.pipe(
+  v.string(),
+  v.check((body) => body.trim() !== '', 'a comment needs some text'),
+);
+const storyCommentSchema = v.strictObject({
+  id: entityIdSchema,
+  body: storyCommentBodySchema,
+  createdAt: v.exactOptional(snapshotAtSchema),
+});
 const storySchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
@@ -254,6 +278,7 @@ const storySchema = v.strictObject({
   blockedBy: v.exactOptional(v.array(v.pipe(v.string(), v.minLength(1)))),
   estimateId: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   assigneeId: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  comments: v.exactOptional(v.array(storyCommentSchema)),
 });
 const memberSchema = v.strictObject({
   id: entityIdSchema,
@@ -344,6 +369,7 @@ export const parseUsmBase = (input: unknown): UsmState => {
   const memberIds = new Set(parsed.members.map((member) => member.id));
   for (const story of parsed.stories) {
     checkDuplicate('stories', story.id);
+    for (const comment of story.comments ?? []) checkDuplicate('story comments', comment.id);
     const ownerActivity = stepIds.get(story.stepId);
     if (ownerActivity === undefined || ownerActivity !== story.activityId) {
       throw new Error(`story "${story.id}" references unknown activityId/stepId`);
@@ -558,6 +584,7 @@ export const allUsmIds = (state: UsmState): string[] => {
     ...state.members.map((member) => member.id),
     ...state.estimates.map((estimate) => estimate.id),
     ...state.stories.map((story) => story.id),
+    ...state.stories.flatMap((story) => (story.comments ?? []).map((comment) => comment.id)),
     ...state.snapshots.map((snapshot) => snapshot.id),
   ];
 };

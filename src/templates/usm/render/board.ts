@@ -683,7 +683,6 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
 const renderCard = (props: BoardProps, story: UserStory, stepName: string): TemplateResult => {
   const { context, drag, handlers } = props;
   const views = statusViews(context.state);
-  const notes = context.comments.filter((c) => c.target.type === 'story' && c.target.id === story.id);
   const source = drag.source({ type: 'story', id: story.id });
   const dependency = dependencyOf(context.state, story.id);
   return html`<dpk-internal-usm-story-card
@@ -702,7 +701,7 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     .stepName=${stepName}
     .statuses=${views}
     .labels=${labelsOfStory(context.state, story)}
-    .notes=${notes}
+    .reviewCount=${context.commentCount({ type: 'story', id: story.id })}
     .estimate=${hasFeature(context.state, 'estimates') ? (findEstimate(context.state, story.estimateId) ?? null) : null}
     .assignee=${hasFeature(context.state, 'assignees') ? (assigneeOf(context.state, story) ?? null) : null}
     .blocks=${dependency.dependents.length}

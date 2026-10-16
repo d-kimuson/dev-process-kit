@@ -2,10 +2,9 @@ import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { Lock, Network } from 'lucide';
 
-import type { DraftAction } from '../../../core/types';
 import type { Estimate, Member, StoryLabel, StoryLink, UserStory } from '../model';
 
-import { iconComment, lucide } from '../../../core/icons';
+import { iconComment, iconNote, lucide } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
 import { controls } from '../../../core/theme';
 import { describeLink } from '../../../lib/link-label';
@@ -223,12 +222,24 @@ const cardStyles = css`
     white-space: nowrap;
   }
 
-  .card-chip[data-kind='comments'] {
-    margin-left: auto;
+  .card-chip[data-kind='comments'],
+  .card-chip[data-kind='review'] {
     background: transparent;
     color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* The counts sit at the right end of the foot, the kept comments first. */
+  .card-chip[data-kind='comments'],
+  .card-chip[data-kind='review']:first-child,
+  .card-chip[data-kind='step'] + .card-chip[data-kind='review'] {
+    margin-left: auto;
+  }
+
+  /* Review comments ask the agent for a change: they take the accent, like the header's toggle. */
+  .card-chip[data-kind='review'] {
+    color: var(--dpk-accent);
   }
 
   .card-chip svg {
@@ -356,7 +367,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
     stepName: { attribute: false },
     statuses: { attribute: false },
     labels: { attribute: false },
-    notes: { attribute: false },
+    reviewCount: { type: Number },
     estimate: { attribute: false },
     assignee: { attribute: false },
     blocks: { type: Number },
@@ -372,8 +383,8 @@ export class DpkInternalUsmStoryCard extends LitElement {
   declare statuses: readonly StatusView[];
   /** The labels the story carries, in the order of the labels tab. */
   declare labels: readonly StoryLabel[];
-  /** Comments already left on this story. */
-  declare notes: readonly DraftAction[];
+  /** How many review comments in the draft ask the agent for a change to this story. */
+  declare reviewCount: number;
   /** The story's estimate, `null` while it has none (or estimates are off). */
   declare estimate: Estimate | null;
   /** Who the story is assigned to, `null` while no one is (or assignees are off). */
@@ -393,7 +404,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
     this.stepName = '';
     this.statuses = [];
     this.labels = [];
-    this.notes = [];
+    this.reviewCount = 0;
     this.estimate = null;
     this.assignee = null;
     this.blocks = 0;
@@ -406,7 +417,8 @@ export class DpkInternalUsmStoryCard extends LitElement {
     const story = this.story;
     if (!story) return nothing;
     const m = usmMessages(this.#i18n.locale);
-    const hasFoot = this.stepName !== '' || this.notes.length > 0;
+    const comments = story.comments?.length ?? 0;
+    const hasFoot = this.stepName !== '' || comments > 0 || this.reviewCount > 0;
     return html`
       <div class="card-head">
         ${this.statuses.length === 0 ? nothing : this.#renderStatus(m, story)}
@@ -430,13 +442,16 @@ export class DpkInternalUsmStoryCard extends LitElement {
                   : html`<span class="card-chip" data-kind="step"><span>${this.stepName}</span></span>`
               }
               ${
-                this.notes.length > 0
-                  ? html`<span
-                      class="card-chip"
-                      data-kind="comments"
-                      aria-label=${m.commentCountAria(this.notes.length)}
-                    >
-                      ${iconComment()}<span>${this.notes.length}</span>
+                comments > 0
+                  ? html`<span class="card-chip" data-kind="comments" aria-label=${m.commentCountAria(comments)}>
+                      ${iconNote()}<span>${comments}</span>
+                    </span>`
+                  : nothing
+              }
+              ${
+                this.reviewCount > 0
+                  ? html`<span class="card-chip" data-kind="review" aria-label=${m.reviewCountAria(this.reviewCount)}>
+                      ${iconComment()}<span>${this.reviewCount}</span>
                     </span>`
                   : nothing
               }
