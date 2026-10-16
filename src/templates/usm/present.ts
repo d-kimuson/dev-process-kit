@@ -15,6 +15,7 @@ import { describeLink } from '../../lib/link-label';
 import { usmActions } from './actions';
 import { usmTabOf } from './board-tabs';
 import { BURNDOWN_UNITS, momentLabel } from './burndown';
+import { highlightOf } from './critical-path';
 import { MAP_FILTER_KEYS, mapFilterOf, mapFilterParam } from './map-filter';
 import {
   findActivity,
@@ -563,15 +564,15 @@ export const usmTitle = (state: UsmState): string => {
 
 /**
  * The navigation that brings a target on screen, for a change's "Show": a
- * story, step or activity on the map grouped by activity, unfiltered so the
- * story shows; a milestone, a status, a label or a member on its own page; an
+ * story, step or activity on the map grouped by activity, unfiltered and
+ * without a highlight so the story shows plainly; a milestone, a status, a label or a member on its own page; an
  * estimate or a snapshot on the burndown. A target of a feature that is off is
  * not on screen anywhere.
  */
 export const usmNavigationFor = (state: UsmState, target: ActionTarget): NavigationPatch | null => {
   switch (target.type) {
     case 'story':
-      return { tab: null, ...Object.fromEntries(MAP_FILTER_KEYS.map((key) => [key, null])) };
+      return { tab: null, highlight: null, ...Object.fromEntries(MAP_FILTER_KEYS.map((key) => [key, null])) };
     case 'step':
     case 'activity':
       return { tab: null, view: null };
@@ -620,5 +621,9 @@ export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigati
   // Which milestone the burndown shows and what it counts: kept only while they name something real.
   if (!findMilestone(state, nav['milestone'])) delete next['milestone'];
   if (!BURNDOWN_UNITS.some((unit) => unit === nav['unit'])) delete next['unit'];
+  // What the map highlights is how the reader looks at it, never a change.
+  const highlight = highlightOf(nav);
+  if (highlight === null) delete next['highlight'];
+  else next['highlight'] = highlight;
   return next;
 };

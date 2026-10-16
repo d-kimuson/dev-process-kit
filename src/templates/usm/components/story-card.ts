@@ -45,7 +45,9 @@ const cardStyles = css`
     transition:
       box-shadow 180ms var(--dpk-ease),
       transform 180ms var(--dpk-ease),
-      border-color 180ms var(--dpk-ease);
+      border-color 180ms var(--dpk-ease),
+      opacity 180ms var(--dpk-ease),
+      filter 180ms var(--dpk-ease);
   }
 
   :host(:hover) {
@@ -68,6 +70,26 @@ const cardStyles = css`
     outline: none;
     border-color: var(--dpk-blue);
     box-shadow: var(--dpk-focus);
+  }
+
+  /* A highlight on the map (the critical path): the cards on it stand out, the rest step back. */
+  :host([data-highlight='on']) {
+    border-color: color-mix(in oklab, var(--dpk-accent) 70%, var(--dpk-rule));
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--dpk-accent) 28%, transparent),
+      0 8px 20px -10px var(--dpk-shade-3);
+  }
+
+  :host([data-highlight='dimmed']) {
+    opacity: 0.4;
+    filter: saturate(0.4);
+  }
+
+  :host([data-highlight='dimmed']:hover),
+  :host([data-highlight='dimmed']:focus-visible),
+  :host([data-highlight='dimmed'][focused]) {
+    opacity: 0.85;
+    filter: none;
   }
 
   :host([dragging]) {

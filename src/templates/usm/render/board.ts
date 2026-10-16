@@ -44,6 +44,8 @@ export type BoardProps = {
   readonly context: TemplateRenderContext<UsmState>;
   readonly drag: DragController<UsmDragType>;
   readonly handlers: BoardHandlers;
+  /** The stories the map highlights; `null` while it highlights nothing (the others dim while it does). */
+  readonly highlighted: ReadonlySet<string> | null;
 };
 
 /** A milestone row of the map; the trailing `undefined` row collects unassigned stories. */
@@ -547,6 +549,7 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     data-story=${story.id}
     data-status=${story.statusId ?? ''}
     data-relation=${relationTo(context.state, context.navigation['story'], story) ?? nothing}
+    data-highlight=${cardHighlightOf(props.highlighted, story.id) ?? nothing}
     data-dpk-target=${targetRef({ type: 'story', id: story.id })}
     draggable="true"
     tabindex="0"
@@ -575,6 +578,12 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     @dragstart=${source.dragstart}
     @dragend=${source.dragend}
   ></dpk-internal-usm-story-card>`;
+};
+
+/** How a card stands in the map's highlight: on it, dimmed beside it, or (with none) neither. */
+const cardHighlightOf = (highlighted: ReadonlySet<string> | null, storyId: string): 'on' | 'dimmed' | undefined => {
+  if (highlighted === null) return undefined;
+  return highlighted.has(storyId) ? 'on' : 'dimmed';
 };
 
 /** How a card relates to the open story: one it waits on, or one waiting on it. */

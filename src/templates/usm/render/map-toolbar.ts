@@ -4,18 +4,19 @@ import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { UsmMessages } from '../messages';
 import type { UsmState } from '../model';
 
+import { renderHighlightToggle } from './highlight';
 import { renderMapFilter, type FilterMenu } from './map-filter';
 
 /**
- * The row under the page tabs on the map, with the filters. It sticks with
- * the tabs while the page scrolls.
+ * The row under the page tabs on the map: the filters on the left, the
+ * highlight on the right. It sticks with the tabs while the page scrolls.
  */
 export const renderMapToolbar = (
   m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
   filterMenu: FilterMenu,
 ): TemplateResult => html`<div class="map-toolbar" data-testid="usm-map-toolbar">
-  ${renderMapFilter(m, context, filterMenu)}
+  ${renderMapFilter(m, context, filterMenu)} ${renderHighlightToggle(m, context)}
 </div>`;
 
 export const mapToolbarStyles = css`

@@ -9,10 +9,11 @@ import { popoverSurface } from '../../core/theme';
 import { DismissController } from '../../lib/dom/dismiss';
 import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
-import { revealInlineWithin } from '../../lib/dom/scroll';
+import { revealInlineWithin, revealWithin } from '../../lib/dom/scroll';
 import { usmTabOf, type UsmTab } from './board-tabs';
 import { defineUsmBurndownChart } from './components/burndown-chart';
 import { defineUsmStoryCard } from './components/story-card';
+import { highlightedStoriesOf, highlightOf } from './critical-path';
 import { usmDefinitionFor } from './definition';
 import { resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove, type CellRef } from './drop';
 import { presentLabelOverview } from './label-overview';
@@ -23,6 +24,7 @@ import { findStory, flatSteps, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
 import { burndownStyles, renderBurndown } from './render/burndown';
 import { featuresMenuStyles } from './render/features-menu';
+import { highlightStyles } from './render/highlight';
 import { renderLabelOverview } from './render/label-overview';
 import { linkStyles } from './render/link-icon';
 import { mapFilterStyles } from './render/map-filter';
@@ -45,6 +47,8 @@ const FILTER_MENU_WIDTH = 240;
 const FILTER_OPTION_HEIGHT = 31;
 const FILTER_MENU_PADDING = 14;
 const FEATURES_MENU_SIZE = { width: 320, height: 220 };
+/** Room kept around a highlighted card brought into view: about the backbone's height and the milestone column's width. */
+const HIGHLIGHT_REVEAL_MARGIN = 160;
 
 /**
  * `<dpk-template-usm>` — the user story map.
@@ -65,6 +69,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     burndownStyles,
     mapToolbarStyles,
     mapFilterStyles,
+    highlightStyles,
     featuresMenuStyles,
     popoverSurface,
   ];
@@ -85,6 +90,8 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   #panelShown: string | null = null;
   /** The page tab last scrolled into the strip, so the reader's own scrolling is left alone. */
   #revealedTab: string | null = null;
+  /** Whether the map has brought its highlight into view since it was turned on, so the reader's own scrolling is left alone. */
+  #revealedHighlight = false;
 
   constructor() {
     super();
@@ -128,6 +135,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   protected override updated(): void {
     super.updated();
     this.#revealSelectedTab();
+    this.#revealHighlight();
     this.#syncPanelFocus();
     // A status's icon menu hangs off the icon that opened it.
     if (this.mode.kind === 'picking-icon') {
@@ -208,6 +216,25 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     revealInlineWithin(strip, tab);
   }
 
+  /**
+   * Scrolls the map to the first highlighted card once the highlight turns on:
+   * on a wide map the path may start out of sight, leaving only dimmed cards.
+   * The margin clears the backbone and the milestone column stuck over the map.
+   */
+  #revealHighlight(): void {
+    const on = highlightOf(this.context().navigation) !== null;
+    if (!on) {
+      this.#revealedHighlight = false;
+      return;
+    }
+    const scroller = this.renderRoot.querySelector('.map-scroll');
+    const card = scroller?.querySelector('dpk-internal-usm-story-card[data-highlight="on"]');
+    if (this.#revealedHighlight || !scroller || !card) return;
+    this.#revealedHighlight = true;
+    revealWithin(scroller, card, HIGHLIGHT_REVEAL_MARGIN);
+    revealInlineWithin(scroller, card, HIGHLIGHT_REVEAL_MARGIN);
+  }
+
   #renderMain(context: TemplateRenderContext<UsmState>): TemplateResult {
     const m = usmMessages(this.locale);
     const tab = usmTabOf(context.state, context.navigation);
@@ -229,7 +256,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     `;
   }
 
-  /** The map's filters, on the map only and once it has steps to show stories under. */
+  /** The map's filters and highlight, on the map only and once it has steps to show stories under. */
   #renderToolbar(
     m: UsmMessages,
     context: TemplateRenderContext<UsmState>,
@@ -288,6 +315,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         dropOnGroupCell: (activityId, milestoneId, drop) => this.#onGroupDrop(activityId, milestoneId, drop),
         dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
       },
+      highlighted: highlightedStoriesOf(context.state, context.navigation),
     });
   }
 
