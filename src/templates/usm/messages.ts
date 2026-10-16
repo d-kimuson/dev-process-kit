@@ -161,8 +161,10 @@ export const usmMessages = defineMessages({
     moveUpAria: 'Move up',
     moveDownAria: 'Move down',
     deleteStatusAria: 'Delete this status',
-    statusWeightLabel: 'Weight',
-    statusWeightHint: 'The part of a story’s work done in this status, out of 10.',
+    statusWeightLabel: 'Status weights',
+    weightLineLabel: (before: string, after: string) => `Between ${before} and ${after}`,
+    weightLineValue: (before: string, beforeWeight: string, after: string, afterWeight: string) =>
+      `${before} ${beforeWeight}, ${after} ${afterWeight}`,
 
     // --------------------------------------------------------- labels tab
     labelNameLabel: 'Label name',
@@ -450,8 +452,10 @@ export const usmMessages = defineMessages({
     moveUpAria: '上へ移動',
     moveDownAria: '下へ移動',
     deleteStatusAria: 'このステータスを削除',
-    statusWeightLabel: '重み',
-    statusWeightHint: 'このステータスで進むストーリーの作業の割合（10 のうち）。',
+    statusWeightLabel: 'ステータスの重み',
+    weightLineLabel: (before: string, after: string) => `${before}と${after}の境目`,
+    weightLineValue: (before: string, beforeWeight: string, after: string, afterWeight: string) =>
+      `${before} ${beforeWeight}、${after} ${afterWeight}`,
 
     labelNameLabel: 'ラベル名',
     noLabelsTitle: 'ラベルがまだありません',

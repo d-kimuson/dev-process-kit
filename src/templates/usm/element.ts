@@ -14,6 +14,7 @@ import { revealInlineWithin, revealWithin } from '../../lib/dom/scroll';
 import { usmTabOf, type UsmTab } from './board-tabs';
 import { defineUsmBurndownChart } from './components/burndown-chart';
 import { defineUsmStoryCard } from './components/story-card';
+import { defineUsmWeightBar } from './components/weight-bar';
 import { highlightedStoriesOf, highlightOf } from './critical-path';
 import { usmDefinitionFor } from './definition';
 import {
@@ -464,5 +465,6 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 export const defineUsmElement = (): void => {
   defineUsmStoryCard();
   defineUsmBurndownChart();
+  defineUsmWeightBar();
   if (!customElements.get('dpk-template-usm')) customElements.define('dpk-template-usm', DpkTemplateUsm);
 };

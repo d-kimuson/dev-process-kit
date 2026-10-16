@@ -148,9 +148,9 @@ describe('usm features: element', () => {
     expect(root.querySelector('[data-filter-trigger="assignee"]')).toBeNull();
   });
 
-  it('leaves the status weights out while the burndown is off', async () => {
+  it('leaves the status weights out while they are off', async () => {
     const el = await mount('#tab=statuses');
-    expect(el.shadowRoot!.querySelector('[data-role="weight"]')).toBeNull();
+    expect(el.shadowRoot!.querySelector('dpk-internal-usm-weight-bar')).toBeNull();
   });
 
   it('turns a feature on from the features menu, as a change of the draft', async () => {

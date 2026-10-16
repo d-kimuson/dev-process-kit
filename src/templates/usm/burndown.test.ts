@@ -354,22 +354,83 @@ describe('usm estimates and burndown: element', () => {
     expect(el.api.state.stories.find((story) => story.id === 'e')?.estimateId).toBe('M');
   });
 
-  it('edits the weight of every status but the last while the weights are on', async () => {
+  it('splits 10 between the statuses on a bar while the weights are on', async () => {
     const el = await mount('#tab=statuses');
-    const inputs = () => [...el.shadowRoot!.querySelectorAll<HTMLInputElement>('input[data-role="weight"]')];
-    expect(inputs()).toEqual([]);
+    const bar = () =>
+      el.shadowRoot!.querySelector('dpk-internal-usm-weight-bar') as
+        | (HTMLElement & { updateComplete: Promise<boolean> })
+        | null;
+    expect(bar()).toBeNull();
     el.api.dispatch({
       type: 'SET_FEATURE',
       target: { type: 'page', id: 'usm' },
       payload: { feature: 'weights', enabled: true },
     });
     await settle(el);
-    expect(inputs().map((input) => input.value)).toEqual(['7', '2', '1']);
-    const demo = inputs()[1]!;
-    demo.value = '4';
-    demo.dispatchEvent(new Event('change'));
+    const root = bar()!.shadowRoot!;
+    const read = async () => {
+      await settle(el);
+      await bar()!.updateComplete;
+      return {
+        parts: [...root.querySelectorAll('[data-part]')].map((part) => [
+          part.getAttribute('data-part'),
+          part.querySelector('.wb-value')?.textContent,
+        ]),
+        lines: [...root.querySelectorAll('[role="slider"]')].map((line) => [
+          line.getAttribute('aria-valuemin'),
+          line.getAttribute('aria-valuenow'),
+          line.getAttribute('aria-valuemax'),
+        ]),
+      };
+    };
+    // the last status ends the bar and holds no part
+    expect(await read()).toEqual({
+      parts: [
+        ['idea', '7'],
+        ['demo', '2'],
+        ['ready', '1'],
+      ],
+      lines: [
+        ['0', '7', '9'],
+        ['7', '9', '10'],
+      ],
+    });
+    expect(root.querySelector('[data-end]')?.textContent?.trim()).toBe('Done');
+    expect(el.shadowRoot!.querySelector('input[data-role="weight"]')).toBeNull();
+    const line = (index: number) => root.querySelectorAll<HTMLElement>('[role="slider"]')[index]!;
+    // a key moves a line by one part, taking it from one side and giving it to the other
+    line(0).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect((await read()).parts).toEqual([
+      ['idea', '6'],
+      ['demo', '3'],
+      ['ready', '1'],
+    ]);
+    line(1).dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect((await read()).parts).toEqual([
+      ['idea', '6'],
+      ['demo', '4'],
+      ['ready', '0'],
+    ]);
+    expect(el.api.state.statuses.map((status) => status.weight)).toEqual([6, 4, 0, undefined]);
+    // a drag snaps the line to the whole part under the pointer and sets the weights once it is let go
+    const track = root.querySelector<HTMLElement>('.wb-track')!;
+    track.getBoundingClientRect = () => DOMRect.fromRect({ x: 100, y: 0, width: 200, height: 24 });
+    const pointer = (target: EventTarget, type: string, clientX: number) =>
+      target.dispatchEvent(new MouseEvent(type, { clientX, bubbles: true, composed: true }));
+    const before = el.api.actions.length;
+    pointer(line(0), 'pointerdown', 220);
+    // the line taken hold of keeps the focus, so the arrow keys go on from where it was let go
+    expect(root.activeElement).toBe(line(0));
+    pointer(document, 'pointermove', 141);
+    expect((await read()).parts).toEqual([
+      ['idea', '2'],
+      ['demo', '8'],
+      ['ready', '0'],
+    ]);
+    expect(el.api.actions).toHaveLength(before);
+    pointer(document, 'pointerup', 141);
     await settle(el);
-    expect(el.api.state.statuses[1]?.weight).toBe(4);
+    expect(el.api.state.statuses.map((status) => status.weight)).toEqual([2, 8, 0, undefined]);
   });
 
   it('draws the combined chart and one per status, and records a snapshot', async () => {

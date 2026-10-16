@@ -10,7 +10,8 @@ import { targetRef } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { addStatus } from '../commands';
 import { hasFeature, STATUS_ICONS, STATUS_TONES, type StatusTone, type UsmState } from '../model';
-import { onNumberChange } from './number-input';
+import { statusViews } from '../status-view';
+import { weightChangesOf, weightDividersOf } from '../weight-split';
 import { statusIcon, statusToneStyle } from './tone';
 
 /**
@@ -41,6 +42,7 @@ export const renderStatusOverview = (
             </div>`
           : nothing
       }
+      ${renderWeightBar(context)}
       <ol class="st-list">
         ${repeat(
           overview.rows,
@@ -68,14 +70,8 @@ const renderStatusRow = (
   const reorder = (after: string | null): void => {
     context.dispatch({ type: 'REORDER_STATUS', target, payload: { after } });
   };
-  const weighted = hasFeature(context.state, 'weights');
   return html`
-    <li
-      class=${weighted ? 'st-row st-row--weighted' : 'st-row'}
-      data-status=${row.id}
-      data-dpk-target=${targetRef(target)}
-      style=${statusToneStyle(row.tone)}
-    >
+    <li class="st-row" data-status=${row.id} data-dpk-target=${targetRef(target)} style=${statusToneStyle(row.tone)}>
       <button
         class="st-icon-trigger"
         type="button"
@@ -96,7 +92,7 @@ const renderStatusRow = (
           @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_STATUS_NAME', target, payload: { name } }))}
         ></dpk-component-inline-edit>
       </span>
-      ${renderShare(m, row.storyCount, row.share)} ${weighted ? renderWeight(m, context, row) : nothing}
+      ${renderShare(m, row.storyCount, row.share)}
       ${renderTonePicker(m, row.tone, (tone) => context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } }))}
       ${renderRowTools(m, {
         ids: context.state.statuses.map((status) => status.id),
@@ -109,25 +105,18 @@ const renderStatusRow = (
   `;
 };
 
-/** The weight of the step to the next status; the last status has no next, so it keeps the column empty. */
-const renderWeight = (m: UsmMessages, context: TemplateRenderContext<UsmState>, row: StatusRow): TemplateResult => {
-  if (row.weight === null) return html`<span class="st-weight" aria-hidden="true"></span>`;
-  const current = row.weight;
-  return html`<label class="st-weight" title=${m.statusWeightHint}>
-    <span class="st-weight-label">${m.statusWeightLabel}</span>
-    <input
-      class="dpk-input"
-      type="number"
-      min="0"
-      step="any"
-      inputmode="decimal"
-      data-role="weight"
-      .value=${String(current)}
-      @change=${onNumberChange(current, (weight) =>
-        context.dispatch({ type: 'SET_STATUS_WEIGHT', target: { type: 'status', id: row.id }, payload: { weight } }),
-      )}
-    />
-  </label>`;
+/** How a story's work is shared out between the statuses, while the weights are on and there is a status to share it. */
+const renderWeightBar = (context: TemplateRenderContext<UsmState>): TemplateResult | typeof nothing => {
+  const { state } = context;
+  if (!hasFeature(state, 'weights') || state.statuses.length < 2) return nothing;
+  return html`<dpk-internal-usm-weight-bar
+    .statuses=${statusViews(state)}
+    .dividers=${weightDividersOf(state.statuses)}
+    .commit=${(dividers: readonly number[]) => {
+      for (const { statusId, weight } of weightChangesOf(state.statuses, dividers))
+        context.dispatch({ type: 'SET_STATUS_WEIGHT', target: { type: 'status', id: statusId }, payload: { weight } });
+    }}
+  ></dpk-internal-usm-weight-bar>`;
 };
 
 /** Every icon a status can take, drawn in its own color; picking one sets it and closes the menu. */
