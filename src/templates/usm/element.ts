@@ -222,7 +222,8 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
    * The margin clears the backbone and the milestone column stuck over the map.
    */
   #revealHighlight(): void {
-    const on = highlightOf(this.context().navigation) !== null;
+    // The navigation, not the render context: this runs before the element is initialized too.
+    const on = highlightOf(this.navigation) !== null;
     if (!on) {
       this.#revealedHighlight = false;
       return;
