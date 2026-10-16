@@ -202,7 +202,7 @@ describe('usm template', () => {
     expect(tabs).toEqual([m.activityGroup, m.groupViewTab]);
     expect(root.querySelector('.view-tabs .tab[data-current="true"]')?.textContent?.trim()).toBe(m.groupViewTab);
     // one header per activity, no step columns
-    expect(root.querySelectorAll('.act-title dpk-component-inline-edit').length).toBe(1);
+    expect(root.querySelectorAll('.act-head[data-activity]').length).toBe(1);
     // the head lists the steps the column holds
     expect([...root.querySelectorAll('.act-steps li')].map((li) => li.textContent?.trim())).toEqual(['S1', 'S2']);
     expect(root.querySelectorAll('.col-head').length).toBe(0);

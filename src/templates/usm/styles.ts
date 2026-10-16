@@ -100,6 +100,14 @@ export const usmStyles = css`
     gap: 3px;
     align-content: start;
   }
+  /* The backbone is read on every scroll, so its rows are kept short: the
+     axis labels sit tight and the step names get a single slim line. */
+  .map-head .corner {
+    gap: 1px;
+    padding: 7px 10px;
+    line-height: 1.3;
+    text-wrap: balance;
+  }
 
   /* Above the content: the page tabs (map / milestones) and, on the map, the
      unit toggle (group band vs one column per activity). */
@@ -244,7 +252,8 @@ export const usmStyles = css`
     position: relative;
     display: grid;
     align-content: start;
-    gap: 7px;
+    gap: 4px;
+    padding: 7px 10px 11px;
     border-left: 1px solid var(--dpk-rule);
     background: var(--dpk-paper-raised);
     box-shadow:
@@ -255,7 +264,6 @@ export const usmStyles = css`
     letter-spacing: -0.005em;
   }
   .act-title,
-  .act-meta,
   .act-steps {
     position: sticky;
     left: 150px;
@@ -267,21 +275,37 @@ export const usmStyles = css`
     align-items: center;
     gap: 8px;
   }
-  .act-title > dpk-component-inline-edit {
+  /* The name keeps its whole line while it fits; the actor beside it gives
+     way (truncates) first, down to an ellipsis. */
+  .act-name {
+    display: flex;
     flex: 1 1 auto;
+    align-items: center;
+    gap: 8px;
     min-width: 0;
   }
-  .act-meta {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .act-meta .status-bar {
-    flex: 1 1 auto;
-  }
-  /* Whose experience the activity is: a label, editable in place. */
-  .act-actor {
+  .act-name > dpk-component-inline-edit {
     flex: none;
+    max-width: calc(100% - 32px);
+  }
+  /* How far the group's stories have come: a strip along the head's bottom
+     edge, as wide as the steps it spans, so it costs the band no line. */
+  .act-head > .status-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    gap: 1px;
+  }
+  .act-head > .status-bar .status-bar-part {
+    border-radius: 0;
+  }
+  /* Whose experience the activity is: a label beside the name, editable in place. */
+  .act-actor {
+    display: flex;
+    flex: 0 1 auto;
+    min-width: 24px;
     max-width: 60%;
     padding: 0 4px;
     border-radius: 999px;
@@ -290,6 +314,9 @@ export const usmStyles = css`
     font-size: 11px;
     font-weight: 650;
     line-height: 20px;
+  }
+  .act-actor > dpk-component-inline-edit {
+    min-width: 0;
   }
   .act-actor[data-empty='true'] {
     background: transparent;
@@ -328,6 +355,7 @@ export const usmStyles = css`
     display: flex;
     align-items: center;
     gap: 6px;
+    padding-block: 5px;
     border-left: 1px solid var(--dpk-rule);
     background: var(--dpk-paper-sunken);
     transition: background 160ms var(--dpk-ease);

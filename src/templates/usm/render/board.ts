@@ -250,8 +250,8 @@ const renderAxisCorner = (m: UsmMessages): TemplateResult => {
 
 /**
  * An activity group's head: its name, whose experience it is, how far its
- * stories have come (a bar in status colors) and, in the group view where the
- * steps have no columns of their own, the steps it holds.
+ * stories have come (a bar in status colors along its bottom edge) and, in the
+ * group view where the steps have no columns of their own, the steps it holds.
  */
 const renderActivityHead = (
   m: UsmMessages,
@@ -273,17 +273,34 @@ const renderActivityHead = (
       data-dpk-target=${targetRef({ type: 'activity', id: activity.id })}
     >
       <div class="act-title">
-        <dpk-component-inline-edit
-          .value=${activity.name}
-          .label=${m.activityNameLabel}
-          @dpk-commit=${onCommit((name) =>
-            context.dispatch({
-              type: 'SET_ACTIVITY_NAME',
-              target: { type: 'activity', id: activity.id },
-              payload: { name },
-            }),
-          )}
-        ></dpk-component-inline-edit>
+        <span class="act-name">
+          <dpk-component-inline-edit
+            .value=${activity.name}
+            .label=${m.activityNameLabel}
+            @dpk-commit=${onCommit((name) =>
+              context.dispatch({
+                type: 'SET_ACTIVITY_NAME',
+                target: { type: 'activity', id: activity.id },
+                payload: { name },
+              }),
+            )}
+          ></dpk-component-inline-edit>
+          <span class="act-actor" data-empty=${String(activity.actor === undefined)}>
+            <dpk-component-inline-edit
+              truncate
+              .value=${activity.actor ?? ''}
+              .label=${m.activityActorLabel}
+              .placeholder=${m.activityActorLabel}
+              @dpk-commit=${onCommit((actor) =>
+                context.dispatch({
+                  type: 'SET_ACTIVITY_ACTOR',
+                  target: { type: 'activity', id: activity.id },
+                  payload: { actor },
+                }),
+              )}
+            ></dpk-component-inline-edit>
+          </span>
+        </span>
         <span class="count">${stories.length}</span>
         <button
           class="dpk-icon-btn"
@@ -294,24 +311,7 @@ const renderActivityHead = (
           ${iconPlus()}
         </button>
       </div>
-      <div class="act-meta">
-        <span class="act-actor" data-empty=${String(activity.actor === undefined)}>
-          <dpk-component-inline-edit
-            truncate
-            .value=${activity.actor ?? ''}
-            .label=${m.activityActorLabel}
-            .placeholder=${m.activityActorLabel}
-            @dpk-commit=${onCommit((actor) =>
-              context.dispatch({
-                type: 'SET_ACTIVITY_ACTOR',
-                target: { type: 'activity', id: activity.id },
-                payload: { actor },
-              }),
-            )}
-          ></dpk-component-inline-edit>
-        </span>
-        ${statusBar(progress, m.progressAria(progress.map((part) => `${part.name} ${part.count}`).join(', ')))}
-      </div>
+      ${statusBar(progress, m.progressAria(progress.map((part) => `${part.name} ${part.count}`).join(', ')))}
       ${
         listSteps && activity.steps.length > 0
           ? html`<ol class="act-steps">
