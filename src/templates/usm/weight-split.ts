@@ -3,10 +3,11 @@ import type { StoryStatus } from './model';
 import { statusWeight, WEIGHT_TOTAL } from './burndown';
 
 /**
- * Where the lines between the statuses that share a story's work (every
- * status but the last) sit on a scale of 0 to `WEIGHT_TOTAL`: one line
- * between each two of them. Weights of another total are scaled to it, and
- * no weight at all splits it evenly.
+ * Where the lines between the statuses that share a story's work sit on a
+ * scale of 0 to `WEIGHT_TOTAL`: one line between each two of them. The
+ * statuses run up to the done one (see `statusesToDone`), which ends them
+ * and holds no work. Weights of another total are scaled to it, and no
+ * weight at all splits it evenly.
  */
 export const weightDividersOf = (statuses: readonly StoryStatus[]): readonly number[] => {
   const weights = statuses.slice(0, -1).map(statusWeight);

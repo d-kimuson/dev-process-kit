@@ -66,9 +66,9 @@ export type StoryStatus = {
   readonly icon: StatusIcon;
   /**
    * The share of a story's work done while it stands in this status, in parts
-   * of 10 across every status but the last (Idea 7, Demo 2, Ready 1). Another
-   * total is read as a ratio. Weighs the work left while the map is
-   * `weighted`; left out it counts 1, and the last status has no work left.
+   * of 10 across the statuses before the done one (Idea 7, Demo 2, Ready 1).
+   * Another total is read as a ratio. Weighs the work left while the map is
+   * `weighted`; left out it counts 1, and a story done has no work left.
    */
   readonly weight?: number;
 };
@@ -172,6 +172,11 @@ export type UsmState = {
    * estimates: while those are off it weighs nothing.
    */
   readonly weighted: boolean;
+  /**
+   * The status a story is done at; it and every status after it count as
+   * done. Left out, the last status is.
+   */
+  readonly doneStatusId?: string;
   readonly activities: readonly BackboneActivity[];
   readonly milestones: readonly Milestone[];
   readonly statuses: readonly StoryStatus[];
@@ -271,6 +276,7 @@ export const usmBaseSchema = v.strictObject({
   title: v.exactOptional(v.string()),
   features: v.optional(v.array(usmFeatureSchema), []),
   weighted: v.optional(v.boolean(), false),
+  doneStatusId: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   activities: v.optional(v.array(activitySchema), []),
   milestones: v.optional(v.array(milestoneSchema), []),
   statuses: v.optional(v.array(statusSchema), []),
@@ -316,6 +322,9 @@ export const parseUsmBase = (input: unknown): UsmState => {
   const milestoneIds = new Set(parsed.milestones.map((milestone) => milestone.id));
   const statusIds = new Set(parsed.statuses.map((status) => status.id));
   const labelIds = new Set(parsed.labels.map((label) => label.id));
+  if (parsed.doneStatusId !== undefined && !statusIds.has(parsed.doneStatusId)) {
+    throw new Error(`the base references unknown doneStatusId "${parsed.doneStatusId}"`);
+  }
   const seen = new Set<string>();
   const checkDuplicate = (kind: string, id: string): void => {
     if (seen.has(id)) throw new Error(`duplicate id "${id}" in ${kind}`);

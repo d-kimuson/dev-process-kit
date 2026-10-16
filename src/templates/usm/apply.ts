@@ -293,13 +293,18 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       // Switched the way it already stands, the draft stays as it is; switched off, the weights stay for later.
       return state.weighted === weighted ? state : { ...state, weighted };
     }
+    case 'SET_DONE_STATUS': {
+      if (!findStatus(state, id)) return null;
+      return state.doneStatusId === id ? state : { ...state, doneStatusId: id };
+    }
     case 'DELETE_STATUS': {
       if (!findStatus(state, id)) return null;
       const statuses = state.statuses.filter((status) => status.id !== id);
       // Its stories fall back to the first status left; with none left the map has no statuses at all.
       const fallback = statuses[0]?.id;
       return {
-        ...state,
+        // Deleted, the done status leaves the last status left to be the done one.
+        ...(state.doneStatusId === id ? withoutKey(state, 'doneStatusId') : state),
         statuses,
         stories: state.stories.map((story) => {
           if (story.statusId !== id) return story;

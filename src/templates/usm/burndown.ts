@@ -1,5 +1,6 @@
 import { sortBy } from 'es-toolkit/array';
 
+import { doneStatusIndexOf } from './done-status';
 import {
   findEstimate,
   hasFeature,
@@ -32,7 +33,7 @@ export const burndownUnitOf = (state: UsmState, nav: Readonly<Record<string, str
 /** A status's weight: its part of a story's work. One unless the map says otherwise. */
 export const statusWeight = (status: StoryStatus): number => status.weight ?? 1;
 
-/** What the weights of every status but the last add up to when they are read as parts. */
+/** What the weights of the statuses before the done one add up to when they are read as parts. */
 export const WEIGHT_TOTAL = 10;
 
 /** Whether the work left is weighted: switched on, and the estimates it is part of with it. */
@@ -40,14 +41,15 @@ export const isWeighted = (state: UsmState): boolean => state.weighted && hasFea
 
 /**
  * For each status, the share of a story's work still ahead of a story there.
- * Weighted, every status but the last holds its weight's part of the work
- * (equal parts while no status weighs anything); unweighted, the whole of
- * it is ahead until the story reaches the last status.
+ * Weighted, every status before the done one holds its weight's part of the
+ * work (equal parts while none weighs anything); unweighted, the whole of it
+ * is ahead until the story is done.
  */
 export const remainingSharesOf = (state: UsmState): readonly number[] => {
   const { statuses } = state;
-  if (!isWeighted(state)) return statuses.map((_status, index) => (index < statuses.length - 1 ? 1 : 0));
-  const weights = statuses.slice(0, -1).map(statusWeight);
+  const done = doneStatusIndexOf(state);
+  if (!isWeighted(state)) return statuses.map((_status, index) => (index < done ? 1 : 0));
+  const weights = statuses.slice(0, done).map(statusWeight);
   const total = sum(weights);
   const shares = weights.map((weight) => (total > 0 ? weight / total : 1 / weights.length));
   return statuses.map((_status, index) => sum(shares.slice(index)));

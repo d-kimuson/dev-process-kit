@@ -878,8 +878,33 @@ export const usmStyles = css`
     gap: 14px;
     padding: 12px 16px;
   }
+  /* A status also says whether stories are done there, before its tools. */
+  .st-row--status {
+    grid-template-columns: 16px minmax(120px, 1fr) minmax(140px, 200px) 150px auto 84px;
+  }
   .st-row + .st-row {
     border-top: 1px solid var(--dpk-rule);
+  }
+  .st-done {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dpk-ink-faint);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: color 140ms var(--dpk-ease);
+  }
+  .st-done:hover,
+  .st-done:has(:checked) {
+    color: var(--dpk-ink);
+  }
+  .st-done input {
+    margin: 0;
+    accent-color: var(--usm-tone);
+    cursor: inherit;
   }
   .st-name {
     min-width: 0;
@@ -1024,7 +1049,8 @@ export const usmStyles = css`
       row-gap: 8px;
     }
     .st-share,
-    .st-tones {
+    .st-tones,
+    .st-done {
       grid-column: 2 / -1;
     }
     /* The tools stay on the name's row, so the rows below are the name's width. */

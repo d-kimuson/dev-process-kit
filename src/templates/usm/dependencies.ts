@@ -1,4 +1,5 @@
 import { waitsOn } from './dependency-graph';
+import { isFinishedStatus } from './done-status';
 import { findStory, type UserStory, type UsmState } from './model';
 
 /** How a story sits in the dependency graph. */
@@ -12,13 +13,10 @@ export type StoryDependency = {
 };
 
 /**
- * A story is finished once it stands in the last status. A map without
- * statuses cannot tell, so every blocker stays open there.
+ * A story is finished once it stands in the done status or past it. A map
+ * without statuses cannot tell, so every blocker stays open there.
  */
-export const isFinished = (state: UsmState, story: UserStory): boolean => {
-  const last = state.statuses.at(-1);
-  return last !== undefined && story.statusId === last.id;
-};
+export const isFinished = (state: UsmState, story: UserStory): boolean => isFinishedStatus(state, story.statusId);
 
 export const dependencyOf = (state: UsmState, storyId: string): StoryDependency => {
   const blockers = findStory(state, storyId)?.blockedBy ?? [];

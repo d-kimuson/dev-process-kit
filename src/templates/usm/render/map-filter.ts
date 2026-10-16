@@ -4,9 +4,11 @@ import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { UsmMessages } from '../messages';
 
 import { iconCheck } from '../../../core/icons';
+import { isFinished } from '../dependencies';
+import { doneStatusOf } from '../done-status';
 import {
   filterOptionIds,
-  hiddenStatusOf,
+  hiddenStatusesOf,
   isFiltered,
   MAP_FILTER_KEYS,
   mapFilterOf,
@@ -59,19 +61,20 @@ export const renderMapFilter = (
 };
 
 /**
- * The checkbox that brings the finished stories (the last status) onto the
- * map, with how many there are. Like the filters it is navigation. A map
- * with fewer than two statuses leaves nothing out, so it has none.
+ * The checkbox that brings the finished stories (the done status and those
+ * past it) onto the map, with how many there are. Like the filters it is
+ * navigation. A map with fewer than two statuses leaves nothing out, so it
+ * has none.
  */
 const renderShowFinished = (
   m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
 ): TemplateResult | typeof nothing => {
   const { state } = context;
-  const last = state.statuses.at(-1);
-  if (!last || state.statuses.length < 2) return nothing;
-  const shown = hiddenStatusOf(state, context.navigation) === null;
-  const count = state.stories.filter((story) => story.statusId === last.id).length;
+  const done = doneStatusOf(state);
+  if (!done || state.statuses.length < 2) return nothing;
+  const shown = hiddenStatusesOf(state, context.navigation).size === 0;
+  const count = state.stories.filter((story) => isFinished(state, story)).length;
   return html`<label class="show-finished">
     <input
       type="checkbox"
@@ -82,7 +85,7 @@ const renderShowFinished = (
         context.navigate({ [SHOW_FINISHED.key]: on ? SHOW_FINISHED.value : null });
       }}
     />
-    <span>${m.showFinished(last.name)}</span>
+    <span>${m.showFinished(done.name)}</span>
     <span class="show-finished-count">${count}</span>
   </label>`;
 };
@@ -95,7 +98,7 @@ const renderFilterSelect = (
   menu: FilterMenu,
 ): TemplateResult => {
   const selected = filter[key];
-  const options = filterOptions(m, context.state, filter.hiddenStatusId, key);
+  const options = filterOptions(m, context.state, filter.hiddenStatusIds, key);
   const chosen = options.filter((option) => selected.has(option.id));
   const open = menu.openFor === key;
   return html`<span class="filter-field">
@@ -172,19 +175,20 @@ const renderFilterMenu = (
   })}
 </div>`;
 
-/** The choices of a filter, counting the stories on the map: none in the status left out, which is no choice either. */
+/** The choices of a filter, counting the stories on the map: none in a status left out, which is no choice either. */
 const filterOptions = (
   m: UsmMessages,
   state: UsmState,
-  hiddenStatusId: string | null,
+  hiddenStatusIds: ReadonlySet<string>,
   key: MapFilterKey,
 ): readonly FilterOption[] => {
   const count = (test: (story: UsmState['stories'][number]) => boolean): number =>
-    state.stories.filter((story) => story.statusId !== hiddenStatusId || hiddenStatusId === null).filter(test).length;
+    state.stories.filter((story) => story.statusId === undefined || !hiddenStatusIds.has(story.statusId)).filter(test)
+      .length;
   switch (key) {
     case 'status':
       return statusViews(state)
-        .filter((view) => view.id !== hiddenStatusId)
+        .filter((view) => !hiddenStatusIds.has(view.id))
         .map((view) => ({
           id: view.id,
           name: view.name,

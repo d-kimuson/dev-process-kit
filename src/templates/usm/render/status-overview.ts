@@ -14,8 +14,9 @@ import { statusIcon, statusToneStyle } from './tone';
 
 /**
  * The statuses tab: the statuses a story can stand in, in order, each with its
- * color and how many stories stand there. Names, colors and order are edited
- * here; which status a story has is set on its card.
+ * color and how many stories stand there. Names, colors, order and the status
+ * a story is done at are edited here; which status a story has is set on its
+ * card.
  */
 /** The one icon menu the tab may have open, and how to open or close it. */
 export type IconMenu = {
@@ -68,7 +69,12 @@ const renderStatusRow = (
     context.dispatch({ type: 'REORDER_STATUS', target, payload: { after } });
   };
   return html`
-    <li class="st-row" data-status=${row.id} data-dpk-target=${targetRef(target)} style=${statusToneStyle(row.tone)}>
+    <li
+      class="st-row st-row--status"
+      data-status=${row.id}
+      data-dpk-target=${targetRef(target)}
+      style=${statusToneStyle(row.tone)}
+    >
       <button
         class="st-icon-trigger"
         type="button"
@@ -91,6 +97,17 @@ const renderStatusRow = (
       </span>
       ${renderShare(m, row.storyCount, row.share)}
       ${renderTonePicker(m, row.tone, (tone) => context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } }))}
+      <label class="st-done" title=${m.doneStatusAria(row.name)}>
+        <input
+          type="radio"
+          name="usm-done-status"
+          data-role="done"
+          aria-label=${m.doneStatusAria(row.name)}
+          .checked=${row.done}
+          @change=${() => context.dispatch({ type: 'SET_DONE_STATUS', target, payload: {} })}
+        />
+        <span aria-hidden="true">${m.doneStatusMark}</span>
+      </label>
       ${renderRowTools(m, {
         ids: context.state.statuses.map((status) => status.id),
         row,

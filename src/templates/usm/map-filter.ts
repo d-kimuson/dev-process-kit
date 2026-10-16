@@ -1,5 +1,6 @@
 import type { Navigation } from '../../core/types';
 
+import { isFinishedStatus } from './done-status';
 import { hasFeature, type UserStory, type UsmState } from './model';
 
 /** What the map can be filtered by; each is its own navigation key (`#status=ready,done&label=dev`). */
@@ -15,18 +16,18 @@ export const SHOW_FINISHED = { key: 'done', value: 'show' } as const;
 
 /**
  * The choices on per filter (an empty set means that filter is off), and the
- * status whose stories are left out: the last one, the finished stories,
- * until the reader shows them. A map with fewer than two statuses leaves
- * nothing out.
+ * statuses whose stories are left out: the done one and those past it, the
+ * finished stories, until the reader shows them. A map with fewer than two
+ * statuses leaves nothing out.
  */
 export type MapFilter = { readonly [key in MapFilterKey]: ReadonlySet<string> } & {
-  readonly hiddenStatusId: string | null;
+  readonly hiddenStatusIds: ReadonlySet<string>;
 };
 
-/** The status the map leaves out: the last, unless the reader shows it or the map has a single status. */
-export const hiddenStatusOf = (state: UsmState, nav: Navigation): string | null => {
-  if (nav[SHOW_FINISHED.key] === SHOW_FINISHED.value || state.statuses.length < 2) return null;
-  return state.statuses.at(-1)?.id ?? null;
+/** The statuses the map leaves out: the finished ones, unless the reader shows them or the map has a single status. */
+export const hiddenStatusesOf = (state: UsmState, nav: Navigation): ReadonlySet<string> => {
+  if (nav[SHOW_FINISHED.key] === SHOW_FINISHED.value || state.statuses.length < 2) return new Set();
+  return new Set(state.statuses.filter((status) => isFinishedStatus(state, status.id)).map((status) => status.id));
 };
 
 /**
@@ -52,19 +53,19 @@ export const filterOptionIds = (state: UsmState, key: MapFilterKey): readonly st
 
 /** The filters the navigation names; ids the map does not offer are dropped. */
 export const mapFilterOf = (state: UsmState, nav: Navigation): MapFilter => {
-  const hiddenStatusId = hiddenStatusOf(state, nav);
+  const hiddenStatusIds = hiddenStatusesOf(state, nav);
   const read = (key: MapFilterKey): ReadonlySet<string> => {
     const raw = nav[key];
     if (raw === undefined || raw === '') return new Set();
     const wanted = new Set(raw.split(','));
-    return new Set(filterOptionIds(state, key).filter((id) => wanted.has(id) && id !== hiddenStatusId));
+    return new Set(filterOptionIds(state, key).filter((id) => wanted.has(id) && !hiddenStatusIds.has(id)));
   };
   return {
     status: read('status'),
     label: read('label'),
     estimate: read('estimate'),
     assignee: read('assignee'),
-    hiddenStatusId,
+    hiddenStatusIds,
   };
 };
 
@@ -83,11 +84,11 @@ export const toggleFilterValue = (selected: ReadonlySet<string>, id: string): Re
 
 export const isFiltered = (filter: MapFilter): boolean => MAP_FILTER_KEYS.some((key) => filter[key].size > 0);
 
-/** A story shows when it does not stand in the status left out and matches one choice of every filter that is on. */
+/** A story shows when it does not stand in a status left out and matches one choice of every filter that is on. */
 export const passesMapFilter = (filter: MapFilter, story: UserStory): boolean => {
   const labelIds = story.labelIds ?? [];
   return (
-    (filter.hiddenStatusId === null || story.statusId !== filter.hiddenStatusId) &&
+    (story.statusId === undefined || !filter.hiddenStatusIds.has(story.statusId)) &&
     matches(filter.status, story.statusId === undefined ? [] : [story.statusId]) &&
     matches(filter.label, labelIds.length === 0 ? [NO_VALUE] : labelIds) &&
     matches(filter.estimate, [story.estimateId ?? NO_VALUE]) &&

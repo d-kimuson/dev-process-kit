@@ -19,6 +19,7 @@ import {
 } from '../burndown';
 import { type ChartSize } from '../burndown-chart';
 import { addEstimate, recordSnapshot } from '../commands';
+import { statusesToDone } from '../done-status';
 import { type Estimate, type Milestone, type StatusTone, type UsmState } from '../model';
 import { statusViews } from '../status-view';
 import { weightChangesOf, weightDividersOf } from '../weight-split';
@@ -319,12 +320,13 @@ const renderEstimateRow = (
 
 /**
  * Whether the work left is weighted by the statuses, and if it is, a bar of
- * how a story's work is shared out between them. Nothing shows while there is
- * no status to share it.
+ * how a story's work is shared out between those before the done one.
+ * Nothing shows while there is no status before it to share the work.
  */
 const renderWeights = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult | typeof nothing => {
   const { state } = context;
-  if (state.statuses.length < 2) return nothing;
+  const statuses = statusesToDone(state);
+  if (statuses.length < 2) return nothing;
   const target = { type: 'page', id: 'usm' };
   return html`<section class="bd-panel bd-panel--wide" data-testid="usm-weights">
     <h3>
@@ -343,10 +345,10 @@ const renderWeights = (m: UsmMessages, context: TemplateRenderContext<UsmState>)
     ${
       state.weighted
         ? html`<dpk-internal-usm-weight-bar
-            .statuses=${statusViews(state)}
-            .dividers=${weightDividersOf(state.statuses)}
+            .statuses=${statusViews(state).slice(0, statuses.length)}
+            .dividers=${weightDividersOf(statuses)}
             .commit=${(dividers: readonly number[]) => {
-              for (const { statusId, weight } of weightChangesOf(state.statuses, dividers))
+              for (const { statusId, weight } of weightChangesOf(statuses, dividers))
                 context.dispatch({
                   type: 'SET_STATUS_WEIGHT',
                   target: { type: 'status', id: statusId },

@@ -17,6 +17,7 @@ import { usmTabOf } from './board-tabs';
 import { BURNDOWN_UNITS, momentLabel } from './burndown';
 import { highlightOf } from './critical-path';
 import { isFinished } from './dependencies';
+import { doneStatusOf } from './done-status';
 import { MAP_FILTER_KEYS, mapFilterOf, mapFilterParam, SHOW_FINISHED } from './map-filter';
 import {
   findActivity,
@@ -306,6 +307,11 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
       body: arrow(m, before === undefined ? undefined : String(before), String(after)),
     };
   },
+  SET_DONE_STATUS: (m, action, state) => ({
+    title: m.setDoneStatus,
+    tone: 'update',
+    body: arrow(m, doneStatusOf(state)?.name, findStatus(state, action.target.id)?.name ?? action.target.id),
+  }),
   SET_WEIGHTED: (m, action) => {
     const { weighted } = payloadFor(usmActions.SET_WEIGHTED, action);
     return {
