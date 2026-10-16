@@ -12,20 +12,20 @@ Write the page content only. The viewer adds `<!doctype html>`, `<html>`, `<head
 
 ```html
 <title>注文セルフキャンセルの論点</title>
-<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/grill.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/usm.js"></script>
 <style>
   html,
   body {
     height: 100%;
     margin: 0;
   }
-  dpk-template-grill {
+  dpk-template-usm {
     display: block;
     height: 100%;
   }
 </style>
 
-<dpk-template-grill lang="ja" storage-key="order-cancel-review">…</dpk-template-grill>
+<dpk-template-usm lang="ja" storage-key="order-cancel-review">…</dpk-template-usm>
 ```
 
 - **`<title>` first.** Only the first 8 KB is scanned for it, and it names the artifact in the gallery: a short name for the subject, not "name — explanation".
@@ -38,7 +38,7 @@ Write the page content only. The viewer adds `<!doctype html>`, `<html>`, `<head
 
 ## Sending the review to Claude
 
-Declare `capabilities: { comments: {}, db: {} }` on the first publish, and the review rail (in grill: the footer) offers **Send to Claude** in place of copying: the brief arrives in your session as a comment sent to Claude, pinned to the template, and the user no longer pastes anything.
+Declare `capabilities: { comments: {}, db: {} }` on the first publish, and the review rail (on a page with questions, also the Questions tab's own footer) offers **Send to Claude** in place of copying: the brief arrives in your session as a comment sent to Claude, pinned to the template, and the user no longer pastes anything.
 
 - **`comments: {}` is the switch.** Its full form (not `composer_only`) is what lets the page send to Claude, and it makes the artifact organization-internal: a public link cannot be shared, and readers without comment access see the copy buttons only. Leave it out only when the page has to be public; the page then works as a local file does, with no **Send to Claude** at all — the reader sees only the copy buttons, and nothing on the page says why.
 - **Forgot it?** Republish to the same artifact with the `capabilities` declared; the link stays the same and the button appears.

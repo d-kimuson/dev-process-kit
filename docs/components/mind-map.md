@@ -42,7 +42,7 @@ Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing):
 | `collapsed`   | no       | `true` opens the topic folded.                                                                        |
 | `side`        | no       | `left` \| `right`. Only on a main topic (a child of `root`); its subtopics follow it.                 |
 | `children`    | no       | Subtopics, in reading order (top to bottom).                                                          |
-| `questions`   | no       | Question references for the grill template.                                                           |
+| `questions`   | no       | Question references for the page's questions (`docs/index.md`, Questions (grill)).                    |
 
 Duplicate ids, `side` below a main topic and unknown keys are errors, and the element renders the reason instead of a wrong map.
 

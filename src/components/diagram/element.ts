@@ -478,8 +478,9 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
 
   /**
    * `data-grill-questions` for a rendered element, or `nothing` when the data
-   * carries no references. `dpk-template-grill` places a badge per reference;
-   * it reaches into this shadow root to find them.
+   * carries no references. The shell's grill (ADR 20261016_grill-in-core)
+   * places a badge per reference; it reaches into this shadow root to find
+   * them.
    */
   protected questionsOf(item: { readonly questions?: string | null }): string | typeof nothing {
     const value = item.questions?.trim();

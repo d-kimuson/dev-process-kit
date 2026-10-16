@@ -22,22 +22,23 @@ Pick the one template whose subject is what you need to agree on with the reader
 | Domain events, commands and causality      | `event-storming`                 |
 | Rules of a story, with concrete examples   | `example-mapping`                |
 | Screen flow and what each step looks like  | `prototype`                      |
-| Decisions you need from the user           | `grill`                          |
 | An explanation walked through step by step | `slides`                         |
 | Where a task shared with the user stands   | `task-board`                     |
 | Who decides what, between you and the user | `delegation-poker`               |
 | Loose ideas to group, cluster and connect  | `whiteboard`                     |
 | Anything else                              | `plain`, with diagram components |
 
+Decisions you still need from the reader are not a template of their own: any template can ask them with [Questions (grill)](#questions-grill).
+
 ## Load it
 
 Load one entry from jsDelivr, with the version pinned: a page has to keep working when a new version is published, so never generate HTML against a floating URL such as `@latest`. `<version>` below is the version these docs belong to — the `v<version>` Git tag you are reading them at.
 
-| Entry                                                                                                                                                                                                                                                                          | Use it when                                                                           |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `templates/prototype.js` / `templates/usm.js` / `templates/event-storming.js` / `templates/example-mapping.js` / `templates/grill.js` / `templates/plain.js` / `templates/slides.js` / `templates/task-board.js` / `templates/delegation-poker.js` / `templates/whiteboard.js` | the page is that template (`plain`: none of the others fits — header and review only) |
-| `components.js`                                                                                                                                                                                                                                                                | the page uses the review rail or the diagram elements without a template              |
-| `index.js`                                                                                                                                                                                                                                                                     | one URL for everything                                                                |
+| Entry                                                                                                                                                                                                                                                   | Use it when                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `templates/prototype.js` / `templates/usm.js` / `templates/event-storming.js` / `templates/example-mapping.js` / `templates/plain.js` / `templates/slides.js` / `templates/task-board.js` / `templates/delegation-poker.js` / `templates/whiteboard.js` | the page is that template (`plain`: none of the others fits — header and review only) |
+| `components.js`                                                                                                                                                                                                                                         | the page uses the review rail or the diagram elements without a template              |
+| `index.js`                                                                                                                                                                                                                                              | one URL for everything                                                                |
 
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/prototype.js"></script>
@@ -146,12 +147,12 @@ Drafts live in `LocalStorage`, so a reload keeps the review in progress. A store
 
 Text the reader has typed but not sent yet — a comment in a composer, a name in an inline edit, any text field the kit renders — is kept in `sessionStorage` (key `<storage key>:unsent-text`) for the tab's session. When a reload, a republished page or a stray `Esc` closes the field, opening the same field again puts the text back, as long as the field starts from the same text it did then. Sending the text into the draft forgets it. Your own markup (a prototype's mock form) is left alone. Under `storage="off"` / `"memory"` it is kept for this page load only.
 
-| Attribute     | Values            | Meaning                                                                                  |
-| ------------- | ----------------- | ---------------------------------------------------------------------------------------- |
-| `storage-key` | string            | LocalStorage key override (recommended for anything a human will re-open)                |
-| `storage`     | `off` \| `memory` | persistence mode (default: `localStorage`)                                               |
-| `notes`       | `on` \| `changes` | opens the review popover on load at the review comments or the changes (default: closed) |
-| `theme`       | `light` \| `dark` | the default color scheme (see [Color scheme](#color-scheme))                             |
+| Attribute     | Values                           | Meaning                                                                                                 |
+| ------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `storage-key` | string                           | LocalStorage key override (recommended for anything a human will re-open)                               |
+| `storage`     | `off` \| `memory`                | persistence mode (default: `localStorage`)                                                              |
+| `notes`       | `on` \| `changes` \| `questions` | opens the review popover on load at the review comments, the changes or the questions (default: closed) |
+| `theme`       | `light` \| `dark`                | the default color scheme (see [Color scheme](#color-scheme))                                            |
 
 ## Navigation
 
@@ -285,6 +286,105 @@ The review rail's `Copy changes & comments` button puts the hand-off brief on th
 
 Inside a Claude Artifact published with the `comments` capability, the rail also offers **Send to Claude**: the brief is posted as a comment sent to the Claude session that published the page, pinned to the template element. A brief over the 4 KiB comment limit is stored as a document in the `reviews` collection of the artifact's database (when the page also declares `db`), and the comment points at it; the document holds `brief` (the same markdown) and `draft` (the canonical JSON). The button appears only when the viewer can send to Claude right now; a failed send says why and leaves the copy button as the way on. Elsewhere nothing changes.
 
+## Questions (grill)
+
+Any template can ask the reader questions — decisions you still need from them — alongside its usual content ([ADR](../dev-docs/adr/20261016_grill-in-core.md)). Put them in a script of their own, another child of the template element, separate from the base data:
+
+```html
+<dpk-template-usm storage-key="checkout-usm">
+  <script type="application/json" data-dpk-grill>
+    {
+      "questions": [
+        {
+          "id": "reservation-table",
+          "ref": "Q1",
+          "title": "在庫予約テーブルは本当に必要？",
+          "description": "在庫数を直接減らす案と比べて、予約を第一級の概念にするかを決めます。",
+          "note": "予約が残ったまま消えると、在庫が永久に引当たままになる。",
+          "options": [
+            { "id": "own-table", "label": "専用テーブルで予約を持ち、有効期限と解放を明示的に管理する" },
+            { "id": "counter", "label": "在庫テーブルに確保数のカラムを足し、予約は持たない" }
+          ]
+        }
+      ]
+    }
+  </script>
+  <script type="application/json">
+    { "activities": [] }
+  </script>
+</dpk-template-usm>
+```
+
+Leave the block out until there is a question to ask. A malformed block renders an error banner; the base data keeps working regardless.
+
+| Field         | Required | Meaning                                          |
+| ------------- | -------- | ------------------------------------------------ |
+| `questions[]` | yes      | The current round's questions, in reading order. |
+| `history[]`   | no       | Earlier rounds, oldest first (see below).        |
+
+Per question:
+
+| Field         | Required | Meaning                                                               |
+| ------------- | -------- | --------------------------------------------------------------------- |
+| `id`          | yes      | Stable key. It is what an answer or a comment targets (`grill:<id>`). |
+| `ref`         | no       | Display label (`Q1`). Defaults to the 1-based position.               |
+| `title`       | yes      | The question.                                                         |
+| `description` | no       | Why it matters; shown when the question is open.                      |
+| `note`        | no       | One-line provocation shown with the description.                      |
+| `options`     | no       | `[{ id, label }]`, rendered as `(a)`, `(b)`, … choices.               |
+| `freeText`    | no       | `false` renders a select-only question (default `true`).              |
+
+Duplicate question ids and duplicate option ids are errors. Answers to the current questions never appear in the base JSON — they are what the reader produced.
+
+### Earlier rounds (`history`)
+
+When you revise the page with the next round of questions, move the answered round into `history` instead of dropping it, so the reader can look back at what was already decided:
+
+```json
+{
+  "questions": [{ "id": "refund-failure", "title": "返金が失敗し続けたらどうする？", "options": [] }],
+  "history": [
+    {
+      "label": "v1",
+      "questions": [
+        {
+          "id": "reservation-table",
+          "title": "在庫予約テーブルは本当に必要？",
+          "options": [],
+          "answer": { "kind": "option", "optionId": "own-table" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+`label` names the round in the round select (defaults to `v1`, `v2`, … by position), and each question carries the same fields as above plus `answer` (the recorded `option` / `free` payload, copied from the reader's `answer` action; omit when left unanswered). An earlier round is read-only — nothing can answer or comment on it, and it is not part of the hand-off — and its question ids may repeat ids of other rounds (ids are unique within a round). An `answer` naming an unknown option is an error.
+
+### Marking what a question is about
+
+Mark page content a question is about with `data-grill-questions="Q1 Q4"` (space-separated refs), either in your own light DOM markup or, inside a diagram component's data, on a node, field or message that supports it (see `docs/components/diagrams.md`, `docs/components/kanban.md`, `docs/components/mind-map.md`). The shell lays a badge for each reference over the main column — on the right, level with the element, for your own markup; on the diagram node's corner, following its pan and zoom. A reference no question matches is ignored, and pressing a badge opens that question.
+
+### The questions toggle
+
+A question-mark toggle appears in the header between **Changes** and **Review comments**, but only while the page has questions; its badge reads `answered / total`. It opens the same review popover, on a **Questions** tab instead of the comments list; `notes="questions"` on the template element opens the popover there on load (alongside the existing `"on"` / `"comments"` / `"changes"`). With `history`, the tab is a round select — current questions first, then earlier rounds newest first, each read-only.
+
+### Answers
+
+An answer is a core-owned draft action, `answer`, targeting `grill:<id>`:
+
+```json
+{
+  "type": "answer",
+  "target": { "type": "grill", "id": "reservation-table" },
+  "payload": { "kind": "option", "optionId": "own-table" }
+}
+```
+
+The payload is `{ kind: 'option', optionId }`, `{ kind: 'free', text }` or `{ kind: 'clear' }`. One answer per question: answering again replaces the previous answer, and `clear` returns it to unanswered. An answer naming a question or option that is gone in the next version is **stale**, exactly like any other draft action. Questions are also comment targets, so a reviewer can leave a note on one without answering it. Answers are exported in the brief with the hand-off, alongside the other requested changes.
+
+On the next round, move the questions the reader answered into `history` together with their `answer`, and put the new round in `questions`.
+
 ## Change notices
 
 When you regenerate a page at the reader's request, tell them what changed. Put a change log beside the base data, as another child of the template element. It is the page's history: **each regeneration appends one version at the end**, and earlier versions stay as they were.
@@ -339,10 +439,10 @@ The header gets a bell, and each reader is told only what is new to them:
 
 ## Read next
 
-| Question                          | Read                                                                                                                                                  |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The template I am actually using  | `docs/templates/<name>.md` (prototype / usm / event-storming / example-mapping / grill / plain / slides / task-board / delegation-poker / whiteboard) |
-| The component I am actually using | `docs/components/<name>.md` (comment-panel / diagrams / formal-spec / …)                                                                              |
-| Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                             |
+| Question                          | Read                                                                                                                                          |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| The template I am actually using  | `docs/templates/<name>.md` (prototype / usm / event-storming / example-mapping / plain / slides / task-board / delegation-poker / whiteboard) |
+| The component I am actually using | `docs/components/<name>.md` (comment-panel / diagrams / formal-spec / …)                                                                      |
+| Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                     |
 
 Read the page for what you are actually using, plus this one.

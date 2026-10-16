@@ -78,7 +78,7 @@ export type ErField = {
   /** The authored `parent:child` declaration, if any. */
   readonly cardinality: string | null;
   readonly label: string | null;
-  /** Space-separated `dpk-template-grill` question ids. */
+  /** Space-separated grill question ids. */
   readonly questions: string | null;
 };
 

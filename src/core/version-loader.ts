@@ -45,7 +45,7 @@ export const switchPageTo = (version: string | null): void => {
 };
 
 export type EntryStart = {
-  /** The entry's path under `dist/`, the same in every version: `templates/grill.js`. */
+  /** The entry's path under `dist/`, the same in every version: `templates/usm.js`. */
   readonly entry: string;
   /** The template elements the entry registers, for `window.devProcessKit`. */
   readonly templates: readonly string[];

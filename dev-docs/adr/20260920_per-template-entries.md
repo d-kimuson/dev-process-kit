@@ -41,7 +41,12 @@ The distribution moved to npm and jsDelivr ([ADR](20260924_npm-jsdelivr-distribu
 - **The single list.** It is `ENTRIES` in `vite.config.ts`. The build fails when the `exports` of `package.json` do not name exactly those entries.
 - **`public/`.** Nothing is committed per release any more, so the notes above about `public/` no longer apply.
 
+## Addendum (2026-10-16): the grill entry is gone
+
+`templates/grill.js` is removed: its questions moved into the core shell, available from every template entry instead of one of their own ([ADR](20261016_grill-in-core.md)). The sizes measured above for `grill` describe an entry that no longer exists; the current entry list is `ENTRIES` in `vite.config.ts`, as before.
+
 ## References
 
 - [ADR: Publish with Workers Static Assets](20260919_workers-static-assets-distribution.md)
+- [ADR: Move grill's questions into the core shell](20261016_grill-in-core.md)
 - [Vite library mode](https://vite.dev/guide/build.html#library-mode)

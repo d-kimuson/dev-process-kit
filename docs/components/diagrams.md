@@ -12,7 +12,7 @@ Seven reusable diagram elements. They share one interaction contract and differ 
 | `dpk-component-mind-map`         | How does one topic break down?              | `docs/components/mind-map.md`         |
 | `dpk-component-kanban`           | Where does each piece of work stand?        | `docs/components/kanban.md`           |
 
-A diagram pairs with the `dpk-template-grill` template when you want to review it with questions (`docs/templates/grill.md`), or with `dpk-template-plain` when you only want comments on it (`docs/templates/plain.md`). Load `components.js` for a page that uses them without a template; the entries are listed in `docs/index.md`. Verified properties are not a diagram: `dpk-component-formal-spec` (`docs/components/formal-spec.md`) restates them in prose and shares only the comment integration below.
+A diagram pairs with any template — `dpk-template-plain` for a page that is just the diagram and comments (`docs/templates/plain.md`), or another template whose own subject the diagram illustrates. Add questions over it with the shell's grill (`docs/index.md`, Questions (grill)) when you want to review it with questions instead of, or alongside, comments. Load `components.js` for a page that uses them without a template; the entries are listed in `docs/index.md`. Verified properties are not a diagram: `dpk-component-formal-spec` (`docs/components/formal-spec.md`) restates them in prose and shares only the comment integration below.
 
 ## Data
 
@@ -86,15 +86,15 @@ Shared interactions, with an ER-specific contextual composer:
 Give diagrams a unique, stable HTML `id` and put them inside a template, for example:
 
 ```html
-<dpk-template-grill storage-key="schema-review">
+<dpk-template-plain storage-key="schema-review">
   <script type="application/json">
-    { "title": "Schema review", "questions": [] }
+    { "title": "Schema review" }
   </script>
   <dpk-component-er-diagram id="orders-schema" slot="main">…</dpk-component-er-diagram>
-</dpk-template-grill>
+</dpk-template-plain>
 ```
 
-The enclosing template registers the diagram's targets and owns the comments and element actions. Requests open Grill's Review tab or another template's normal review rail. A diagram's contextual composer posts directly without opening that rail; submitted comments still appear in Review. All comments use the same storage, deletion, stale handling and agent brief as template actions. Standalone diagrams emit events but do not own a comment store; a local submission needs an accepting consumer, otherwise its input is retained with an error.
+The enclosing template registers the diagram's targets and owns the comments and element actions. Requests open the template's normal review rail (or its Questions tab, when the page also asks questions about the diagram). A diagram's contextual composer posts directly without opening that rail; submitted comments still appear in Review. All comments use the same storage, deletion, stale handling and agent brief as template actions. Standalone diagrams emit events but do not own a comment store; a local submission needs an accepting consumer, otherwise its input is retained with an error.
 
 Target references use `element:<diagram-id>/<kind>/<item-id>` (each segment is URI-encoded):
 
@@ -128,15 +128,15 @@ The shell is `var(--diagram-height, 560px)` tall and the canvas takes what is le
 <dpk-component-er-diagram style="--diagram-height: 720px">…</dpk-component-er-diagram>
 ```
 
-## Annotating for the grill template
+## Annotating for questions (grill)
 
-An annotatable element in the data may carry `questions`: a space-separated list of question references from the `dpk-template-grill` template's base data. Which elements those are is the diagram's rule (services, modules, tables, messages …), and its page says so.
+An annotatable element in the data may carry `questions`: a space-separated list of question references from the page's `data-dpk-grill` block (`docs/index.md`, Questions (grill)). Which elements those are is the diagram's rule (services, modules, tables, messages …), and its page says so.
 
 ```json
 { "id": "inventory_reservations", "name": "在庫予約", "questions": "Q1 Q4" }
 ```
 
-The element renders it as `data-grill-questions` on that card, which is what the grill template hangs its badges on — see `docs/templates/grill.md`.
+The element renders it as `data-grill-questions` on that card, which is what the shell hangs its Q badges on.
 
 ## Styling
 

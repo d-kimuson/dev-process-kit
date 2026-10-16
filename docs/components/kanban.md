@@ -52,7 +52,7 @@ Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing):
 | `description` | no       | Shown on the card (up to three lines) and in full as the tooltip.                                      |
 | `tags`        | no       | Tag filter values, shown on the card.                                                                  |
 | `assignee`    | no       | Shown at the card's bottom right.                                                                      |
-| `questions`   | no       | Question references for the grill template.                                                            |
+| `questions`   | no       | Question references for the page's questions (`docs/index.md`, Questions (grill)).                     |
 
 Duplicate column or card ids and unknown keys are errors, and the element renders the reason instead of a wrong board.
 

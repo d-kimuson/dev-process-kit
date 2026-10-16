@@ -50,7 +50,7 @@ export type KanbanCard = {
   readonly description: string | null;
   readonly tags: readonly string[];
   readonly assignee: string | null;
-  /** Space-separated `dpk-template-grill` question ids. */
+  /** Space-separated grill question ids. */
   readonly questions?: string;
   /** Id of the column the card is in now. */
   readonly column: string;
