@@ -2,6 +2,7 @@ import { sortBy } from 'es-toolkit/array';
 
 import {
   findEstimate,
+  hasFeature,
   tallyKey,
   type Milestone,
   type StoryStatus,
@@ -28,8 +29,26 @@ export const burndownMilestoneOf = (state: UsmState, nav: Readonly<Record<string
 export const burndownUnitOf = (state: UsmState, nav: Readonly<Record<string, string>>): BurndownUnit =>
   BURNDOWN_UNITS.find((unit) => unit === nav['unit']) ?? (state.estimates.length > 0 ? 'points' : 'stories');
 
-/** A status's weight: the cost of moving on to the next status. One unless the map says otherwise. */
+/** A status's weight: its part of a story's work. One unless the map says otherwise. */
 export const statusWeight = (status: StoryStatus): number => status.weight ?? 1;
+
+/** What the weights of every status but the last add up to when they are read as parts. */
+export const WEIGHT_TOTAL = 10;
+
+/**
+ * For each status, the share of a story's work still ahead of a story there.
+ * Weighted, every status but the last holds its weight's part of the work
+ * (equal parts while no status weighs anything); unweighted, the whole of
+ * it is ahead until the story reaches the last status.
+ */
+export const remainingSharesOf = (state: UsmState): readonly number[] => {
+  const { statuses } = state;
+  if (!hasFeature(state, 'weights')) return statuses.map((_status, index) => (index < statuses.length - 1 ? 1 : 0));
+  const weights = statuses.slice(0, -1).map(statusWeight);
+  const total = sum(weights);
+  const shares = weights.map((weight) => (total > 0 ? weight / total : 1 / weights.length));
+  return statuses.map((_status, index) => sum(shares.slice(index)));
+};
 
 /** What a story not estimated yet counts as: the smallest whole size, so it is never left out of the work. */
 const UNESTIMATED_POINTS = 1;
@@ -74,7 +93,7 @@ export type BurndownPoint = {
 export type Burndown = {
   /** The end of the milestone's due day, or `null` when it has none. */
   readonly due: number | null;
-  /** The work left, weighted by how far each story still has to go. */
+  /** The work left: each story's amount times the share of it still ahead (see `remainingSharesOf`). */
   readonly combined: readonly BurndownPoint[];
   /** For each status a story can reach (all but the first): how much has not reached it yet. */
   readonly byStatus: readonly { readonly status: StoryStatus; readonly points: readonly BurndownPoint[] }[];
@@ -102,7 +121,7 @@ export const burndownOf = (state: UsmState, milestoneId: string, unit: BurndownU
     ...(moment.snapshotId === undefined ? {} : { snapshotId: moment.snapshotId }),
     values: amountsByStatus(state.statuses, moment.tally, milestoneId, unit),
   }));
-  const ahead = weightAhead(state.statuses);
+  const ahead = remainingSharesOf(state);
   const point = (moment: (typeof amounts)[number], value: number): BurndownPoint => ({
     at: moment.at,
     value,
@@ -137,10 +156,6 @@ const amountsByStatus = (
         .map((row) => (unit === 'points' ? row.points : row.stories)),
     ),
   );
-
-/** For each status, the weight a story there still has ahead of it: its own and every later one but the last. */
-export const weightAhead = (statuses: readonly StoryStatus[]): readonly number[] =>
-  statuses.map((_status, index) => sum(statuses.slice(index, -1).map(statusWeight)));
 
 /** The last moment of the due day, in the reader's time zone. */
 export const dueAt = (dueDate: string | undefined): number | null => {

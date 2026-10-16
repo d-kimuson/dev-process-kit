@@ -65,9 +65,10 @@ export type StoryStatus = {
   readonly tone: StatusTone;
   readonly icon: StatusIcon;
   /**
-   * What it costs a story to move on from this status to the next, relative
-   * to the others (Idea → Demo 7, Demo → Ready 2 …). Weighs the combined
-   * burndown; left out it counts 1, and the last status has nowhere to go.
+   * The share of a story's work done while it stands in this status, in parts
+   * of 10 across every status but the last (Idea 7, Demo 2, Ready 1). Another
+   * total is read as a ratio. Weighs the work left while the `weights` feature
+   * is on; left out it counts 1, and the last status has no work left.
    */
   readonly weight?: number;
 };
@@ -122,11 +123,13 @@ export type Member = {
 
 /**
  * The parts of the map a team may do without, off unless the base turns them
- * on: `estimates` is the estimate scale, the status weights and the burndown;
- * `assignees` is the members and who each story is assigned to. While a
- * feature is off what it holds is kept, only left out of sight.
+ * on: `estimates` is the estimate scale and the burndown; `weights` shares a
+ * story's work out between the statuses by their weights (off, a story not
+ * finished has all of it ahead); `assignees` is the members and who each
+ * story is assigned to. While a feature is off what it holds is kept, only
+ * left out of sight.
  */
-export const USM_FEATURES = ['estimates', 'assignees'] as const;
+export const USM_FEATURES = ['estimates', 'weights', 'assignees'] as const;
 
 export type UsmFeature = (typeof USM_FEATURES)[number];
 

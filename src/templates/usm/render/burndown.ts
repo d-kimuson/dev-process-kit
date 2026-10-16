@@ -18,7 +18,7 @@ import {
 } from '../burndown';
 import { type ChartSize } from '../burndown-chart';
 import { addEstimate, recordSnapshot } from '../commands';
-import { type Estimate, type Milestone, type StatusTone, type UsmState } from '../model';
+import { hasFeature, type Estimate, type Milestone, type StatusTone, type UsmState } from '../model';
 import { onNumberChange } from './number-input';
 import { renderRowTools } from './status-overview';
 
@@ -61,6 +61,7 @@ const renderCharts = (
   const { state, navigation } = context;
   const unit = burndownUnitOf(state, navigation);
   const burndown = burndownOf(state, milestone.id, unit, now.getTime());
+  const weighted = hasFeature(state, 'weights');
   const unestimated = state.stories.filter(
     (story) => story.milestoneId === milestone.id && story.estimateId === undefined,
   ).length;
@@ -134,18 +135,20 @@ const renderCharts = (
     }
     <figure class="bd-chart bd-chart--combined">
       <figcaption>
-        <span class="bd-chart-title">${m.combinedChartTitle}</span>
+        <span class="bd-chart-title">${m.combinedChartTitle(weighted)}</span>
         <span class="bd-about">
           <button class="bd-about-btn" type="button" aria-label=${m.chartAbout} aria-describedby="bd-about-tip">
             ${iconAbout()}
           </button>
-          <span class="bd-about-tip" id="bd-about-tip" role="tooltip">${m.combinedChartHint(m.unitName(unit))}</span>
+          <span class="bd-about-tip" id="bd-about-tip" role="tooltip"
+            >${m.combinedChartHint(m.unitName(unit), weighted)}</span
+          >
         </span>
         <span class="bd-chart-latest">${m.chartLatest(latest(burndown.combined))}</span>
       </figcaption>
       ${renderChart({
         chart: 'combined',
-        title: m.combinedChartTitle,
+        title: m.combinedChartTitle(weighted),
         points: burndown.combined,
         due: burndown.due,
         now: now.getTime(),

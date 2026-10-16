@@ -39,25 +39,34 @@ const base = (stories: readonly object[], features: readonly string[] = ['estima
 const ids = (state: ReturnType<typeof base>) => criticalPathOf(state).ids;
 
 describe('usm critical path: remaining work', () => {
-  it('weighs a story by its points and the statuses it still has to pass', () => {
-    const state = base([
-      story('u-todo', 'todo', 'L'),
-      story('u-doing', 'doing', 'L'),
-      story('u-done', 'done', 'L'),
-      { id: 'loose', name: 'Loose', activityId: 'a1', stepId: 's1' },
-    ]);
-    expect(state.stories.map((each) => remainingWorkOf(state, each))).toEqual([15, 5, 0, 3]);
+  const stories = [
+    story('u-todo', 'todo', 'L'),
+    story('u-doing', 'doing', 'L'),
+    story('u-done', 'done', 'L'),
+    { id: 'loose', name: 'Loose', activityId: 'a1', stepId: 's1' },
+  ];
+  const left = (state: ReturnType<typeof base>) => state.stories.map((each) => remainingWorkOf(state, each));
+  /** Sums of fractions drift in the last bits; compare them to 9 places. */
+  const rounded = (values: readonly number[]) => values.map((value) => Math.round(value * 1e9) / 1e9);
+
+  it('counts the points of every story not finished yet', () => {
+    expect(left(base(stories))).toEqual([5, 5, 0, 1]);
   });
 
-  it('counts each unfinished story as one while estimates are off', () => {
-    const state = base([story('u-todo', 'todo', 'L'), story('u-done', 'done', 'L')], []);
-    expect(state.stories.map((each) => remainingWorkOf(state, each))).toEqual([1, 0]);
+  it('weighs a story by the share of its work the statuses it still has to pass hold', () => {
+    // Todo 2 and Doing 1: two thirds of a story is done in Todo, one third in Doing.
+    expect(rounded(left(base(stories, ['estimates', 'weights'])))).toEqual(rounded([5, 5 / 3, 0, 1]));
+  });
+
+  it('counts each unfinished story as one point while estimates are off', () => {
+    expect(left(base(stories, []))).toEqual([1, 1, 0, 1]);
+    expect(rounded(left(base(stories, ['weights'])))).toEqual(rounded([1, 1 / 3, 0, 1]));
   });
 });
 
 describe('usm critical path: the longest chain', () => {
   it('follows the chain of waiting stories with the most work left', () => {
-    // a → b → c is 3 + 3 + 3; a → d is 3 + 15; e stands alone with 15.
+    // a → b → c is 1 + 1 + 1; a → d is 1 + 5; e stands alone with 5.
     const state = base([
       story('a', 'todo', 'S'),
       story('b', 'todo', 'S', ['a']),
@@ -66,7 +75,7 @@ describe('usm critical path: the longest chain', () => {
       story('e', 'todo', 'L'),
     ]);
     expect(ids(state)).toEqual(new Set(['a', 'd']));
-    expect(criticalPathOf(state).work).toBe(18);
+    expect(criticalPathOf(state).work).toBe(6);
   });
 
   it('keeps every chain that ties for the longest', () => {

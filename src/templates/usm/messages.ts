@@ -161,8 +161,8 @@ export const usmMessages = defineMessages({
     moveUpAria: 'Move up',
     moveDownAria: 'Move down',
     deleteStatusAria: 'Delete this status',
-    statusWeightLabel: 'Weight to next',
-    statusWeightHint: 'The effort of moving a story on to the next status. The burndown weighs the work left by it.',
+    statusWeightLabel: 'Weight',
+    statusWeightHint: 'The part of a story’s work done in this status, out of 10.',
 
     // --------------------------------------------------------- labels tab
     labelNameLabel: 'Label name',
@@ -179,9 +179,11 @@ export const usmMessages = defineMessages({
     unitName: (unit: 'points' | 'stories') => ({ points: 'Points', stories: 'Stories' })[unit],
     recordSnapshotButton: 'Record snapshot',
     recordSnapshotHint: 'Keeps today’s totals per milestone and status, so the lines have a point to start from.',
-    combinedChartTitle: 'Weighted burndown',
-    combinedChartHint: (unit: string) =>
-      `${unit} of each story × the status weights it still has ahead of it. It reaches 0 when every story is done.`,
+    combinedChartTitle: (weighted: boolean): string => (weighted ? 'Weighted burndown' : 'Burndown'),
+    combinedChartHint: (unit: string, weighted: boolean) =>
+      weighted
+        ? `${unit} of each story × the share of it the status weights leave ahead. It reaches 0 when every story is done.`
+        : `${unit} of the stories not done yet. It reaches 0 when every story is done.`,
     statusChartTitle: (name: string) => `Left to reach “${name}”`,
     statusChartsLabel: 'By status',
     chartNow: 'Now',
@@ -280,10 +282,11 @@ export const usmMessages = defineMessages({
     enableFeature: 'Turn on feature',
     disableFeature: 'Turn off feature',
     featureName: (feature: UsmFeature) =>
-      ({ estimates: 'Estimates & burndown', assignees: 'Members & assignees' })[feature],
+      ({ estimates: 'Estimates & burndown', weights: 'Status weights', assignees: 'Members & assignees' })[feature],
     featureHint: (feature: UsmFeature) =>
       ({
-        estimates: 'An estimate scale for the stories, status weights and a burndown per milestone.',
+        estimates: 'An estimate scale for the stories and a burndown per milestone.',
+        weights: 'Counts a story partly done by the statuses it has passed, in parts of 10.',
         assignees: 'The members of the team and who each story is assigned to.',
       })[feature],
     featuresNote: 'Turning a feature off only hides it: what it holds is kept.',
@@ -447,8 +450,8 @@ export const usmMessages = defineMessages({
     moveUpAria: '上へ移動',
     moveDownAria: '下へ移動',
     deleteStatusAria: 'このステータスを削除',
-    statusWeightLabel: '次への重み',
-    statusWeightHint: 'ストーリーを次のステータスへ進める手間です。バーンダウンは残作業をこの重みで量ります。',
+    statusWeightLabel: '重み',
+    statusWeightHint: 'このステータスで進むストーリーの作業の割合（10 のうち）。',
 
     labelNameLabel: 'ラベル名',
     noLabelsTitle: 'ラベルがまだありません',
@@ -463,9 +466,11 @@ export const usmMessages = defineMessages({
     unitName: (unit: 'points' | 'stories') => ({ points: 'ポイント', stories: 'ストーリー数' })[unit],
     recordSnapshotButton: 'スナップショットを記録',
     recordSnapshotHint: '今のマイルストーン × ステータスごとの集計を残し、線の起点にします。',
-    combinedChartTitle: '重み付きバーンダウンチャート',
-    combinedChartHint: (unit: string) =>
-      `各ストーリーの${unit} × そのストーリーがこの先通るステータスの重み。すべて Done になると 0 です。`,
+    combinedChartTitle: (weighted: boolean) => (weighted ? '重み付きバーンダウンチャート' : 'バーンダウンチャート'),
+    combinedChartHint: (unit: string, weighted: boolean) =>
+      weighted
+        ? `各ストーリーの${unit} × ステータスの重みで決まる残りの割合。すべて Done になると 0 です。`
+        : `まだ Done でないストーリーの${unit}。すべて Done になると 0 です。`,
     statusChartTitle: (name: string) => `「${name}」に届くまでの残り`,
     statusChartsLabel: 'ステータス別',
     chartNow: '現在',
@@ -559,10 +564,11 @@ export const usmMessages = defineMessages({
     enableFeature: '機能を有効化',
     disableFeature: '機能を無効化',
     featureName: (feature: UsmFeature) =>
-      ({ estimates: '見積もりとバーンダウン', assignees: 'メンバーと担当者' })[feature],
+      ({ estimates: '見積もりとバーンダウン', weights: 'ステータスの重み', assignees: 'メンバーと担当者' })[feature],
     featureHint: (feature: UsmFeature) =>
       ({
-        estimates: 'ストーリーの見積もり、ステータスの重み、マイルストーンごとのバーンダウン。',
+        estimates: 'ストーリーの見積もりと、マイルストーンごとのバーンダウン。',
+        weights: '通り過ぎたステータスの分だけ、ストーリーを途中まで進んだものとして数えます（合計 10 の割合）。',
         assignees: 'チームのメンバーと、各ストーリーの担当者。',
       })[feature],
     featuresNote: '無効にしても隠すだけで、入力した内容は残ります。',

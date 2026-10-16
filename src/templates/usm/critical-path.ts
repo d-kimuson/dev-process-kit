@@ -1,6 +1,6 @@
 import type { Navigation } from '../../core/types';
 
-import { pointsOf, weightAhead } from './burndown';
+import { pointsOf, remainingSharesOf } from './burndown';
 import { isFinished } from './dependencies';
 import { hasFeature, type UserStory, type UsmState } from './model';
 
@@ -13,19 +13,18 @@ export const highlightOf = (nav: Navigation): Highlight | null =>
   HIGHLIGHTS.find((highlight) => highlight === nav['highlight']) ?? null;
 
 /**
- * The work a story has left: its points times the weight of every status it
- * still has to pass, the same measure the burndown uses. A story without a
- * status stands in the first one. While estimates are off every unfinished
- * story counts as one.
+ * The work a story has left: its points times the share of its work still
+ * ahead, the same measure the burndown uses. A story without a status stands
+ * in the first one. While estimates are off every story counts one point.
  */
 export const remainingWorkOf = (state: UsmState, story: UserStory): number => {
   if (isFinished(state, story)) return 0;
-  if (!hasFeature(state, 'estimates')) return 1;
+  const points = hasFeature(state, 'estimates') ? pointsOf(state, story) : 1;
   const index = Math.max(
     0,
     state.statuses.findIndex((status) => status.id === story.statusId),
   );
-  return pointsOf(state, story) * (weightAhead(state.statuses)[index] ?? 1);
+  return points * (remainingSharesOf(state)[index] ?? 1);
 };
 
 /** The stories the critical path runs through and the work left along it. */

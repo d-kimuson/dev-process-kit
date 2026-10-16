@@ -68,8 +68,7 @@ const renderStatusRow = (
   const reorder = (after: string | null): void => {
     context.dispatch({ type: 'REORDER_STATUS', target, payload: { after } });
   };
-  // The weights only feed the burndown, so they show while estimates are on.
-  const weighted = hasFeature(context.state, 'estimates');
+  const weighted = hasFeature(context.state, 'weights');
   return html`
     <li
       class=${weighted ? 'st-row st-row--weighted' : 'st-row'}

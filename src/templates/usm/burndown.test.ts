@@ -6,7 +6,7 @@ import type { DpkTemplateUsm } from './element';
 
 import '../../index';
 import { applyUsmAction } from './apply';
-import { burndownMilestoneOf, burndownOf, burndownUnitOf, tallyOf } from './burndown';
+import { burndownMilestoneOf, burndownOf, burndownUnitOf, remainingSharesOf, tallyOf } from './burndown';
 import { layoutChart, readoutAt, timeTicks, valueTicks } from './burndown-chart';
 import { usmDefinitionFor } from './definition';
 import { usmMessages } from './messages';
@@ -66,6 +66,9 @@ const apply = (state: UsmState, type: string, target: { type: string; id: string
   return applyUsmAction(state, act(type, target, payload));
 };
 
+/** Sums of fractions drift in the last bits; compare them to 9 places. */
+const rounded = (values: readonly number[]) => values.map((value) => Math.round(value * 1e9) / 1e9);
+
 const storyOf = (state: UsmState | null, id: string) => state?.stories.find((story) => story.id === id);
 
 describe('usm estimates and burndown: model', () => {
@@ -99,13 +102,41 @@ describe('usm estimates and burndown: model', () => {
     ]);
   });
 
-  it('burns down each status and the work the weights add up to, ending at today', () => {
+  it('shares a story out between the statuses by their weights, read as parts of 10', () => {
+    const shares = (weights: readonly (number | undefined)[], features = ['estimates', 'weights']) =>
+      remainingSharesOf(
+        parseUsmBase({
+          ...raw,
+          features,
+          statuses: [
+            ...weights.map((weight, index) => ({
+              id: `w${index}`,
+              name: `W${index}`,
+              ...(weight === undefined ? {} : { weight }),
+            })),
+            { id: 'done', name: 'Done' },
+          ],
+          stories: [],
+          snapshots: [],
+        }),
+      );
+    // 7 + 2 + 1 = 10: Idea still has all of it ahead, Demo 3 of 10, Ready 1 of 10, Done none.
+    expect(rounded(remainingSharesOf({ ...base, features: ['estimates', 'weights'] }))).toEqual([1, 0.3, 0.1, 0]);
+    // other totals read as a ratio, and no weight at all as equal shares
+    expect(shares([2, 1, 1])).toEqual([1, 0.5, 0.25, 0]);
+    expect(shares([0, 0])).toEqual([1, 0.5, 0]);
+    expect(shares([undefined, undefined])).toEqual([1, 0.5, 0]);
+    // unweighted, every status but the last still has the whole story ahead
+    expect(shares([7, 2, 1], ['estimates'])).toEqual([1, 1, 1, 0]);
+  });
+
+  it('burns down each status and the work left, ending at today', () => {
     const points = burndownOf(base, 'mvp', 'points', NOW);
     const snapAt = Date.parse('2026-10-01T00:00:00.000Z');
-    // Combined: points × the weight still ahead (Idea 10, Demo 3, Ready 1, Done 0).
+    // Unweighted: the points of every story not done yet.
     expect(points.combined).toEqual([
-      { at: snapAt, value: 12 * 10 + 3 * 3, snapshotId: 'snap1' },
-      { at: NOW, value: 6 * 10 + 3 * 3 + 1 * 1 },
+      { at: snapAt, value: 12 + 3, snapshotId: 'snap1' },
+      { at: NOW, value: 6 + 3 + 1 },
     ]);
     // One line per status a story can reach: what has not reached it yet.
     expect(points.byStatus.map((line) => [line.status.id, line.points.map((point) => point.value)])).toEqual([
@@ -115,8 +146,11 @@ describe('usm estimates and burndown: model', () => {
     ]);
     expect(points.due).toBe(new Date(2026, 10, 30, 23, 59, 59).getTime());
     const stories = burndownOf(base, 'mvp', 'stories', NOW);
-    expect(stories.combined.at(-1)?.value).toBe(2 * 10 + 1 * 3 + 1 * 1);
+    expect(stories.combined.at(-1)?.value).toBe(2 + 1 + 1);
     expect(burndownOf(base, 'v1', 'points', NOW).due).toBeNull();
+    // Weighted: points × the share still ahead (Idea 10/10, Demo 3/10, Ready 1/10, Done 0).
+    const weighted = burndownOf({ ...base, features: ['estimates', 'weights'] }, 'mvp', 'points', NOW);
+    expect(rounded(weighted.combined.map((point) => point.value))).toEqual([12.9, 7]);
   });
 });
 
@@ -320,11 +354,18 @@ describe('usm estimates and burndown: element', () => {
     expect(el.api.state.stories.find((story) => story.id === 'e')?.estimateId).toBe('M');
   });
 
-  it('edits the weight of every status but the last', async () => {
+  it('edits the weight of every status but the last while the weights are on', async () => {
     const el = await mount('#tab=statuses');
-    const inputs = [...el.shadowRoot!.querySelectorAll<HTMLInputElement>('input[data-role="weight"]')];
-    expect(inputs.map((input) => input.value)).toEqual(['7', '2', '1']);
-    const demo = inputs[1]!;
+    const inputs = () => [...el.shadowRoot!.querySelectorAll<HTMLInputElement>('input[data-role="weight"]')];
+    expect(inputs()).toEqual([]);
+    el.api.dispatch({
+      type: 'SET_FEATURE',
+      target: { type: 'page', id: 'usm' },
+      payload: { feature: 'weights', enabled: true },
+    });
+    await settle(el);
+    expect(inputs().map((input) => input.value)).toEqual(['7', '2', '1']);
+    const demo = inputs()[1]!;
     demo.value = '4';
     demo.dispatchEvent(new Event('change'));
     await settle(el);
