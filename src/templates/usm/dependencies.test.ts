@@ -8,6 +8,7 @@ import '../../index';
 import { applyUsmAction } from './apply';
 import { usmDefinitionFor } from './definition';
 import { blockerOptions, dependencyOf } from './dependencies';
+import { dependencyChoices } from './dependency-choices';
 import { usmMessages } from './messages';
 import { parseUsmBase, type UsmState } from './model';
 
@@ -75,6 +76,18 @@ describe('usm dependencies: model', () => {
     // u1 already waits on spike, and u2 waits on u1: neither may block it again or in turn.
     expect(blockerOptions(base, 'u1').map((story) => story.id)).toEqual(['done', 'u3']);
     expect(blockerOptions(base, 'spike').map((story) => story.id)).toEqual(['done', 'u3']);
+  });
+
+  it('narrows the choices of either side by the story name or where it sits on the map', () => {
+    const ids = (choices: ReturnType<typeof dependencyChoices>) => choices.map((choice) => choice.story.id);
+    expect(ids(dependencyChoices(base, 'u3', 'blocker', ''))).toEqual(['spike', 'u1', 'u2']);
+    expect(ids(dependencyChoices(base, 'u3', 'blocker', 'u'))).toEqual(['u1', 'u2']);
+    // u2 sits under S2; so does done, which u3 already waits on.
+    expect(ids(dependencyChoices(base, 'u3', 'blocker', 's2'))).toEqual(['u2']);
+    expect(ids(dependencyChoices(base, 'spike', 'dependent', 'u'))).toEqual(['u3']);
+    expect(dependencyChoices(base, 'u3', 'blocker', 'spike')).toEqual([
+      { story: base.stories[0], place: ['A1', 'S1'] },
+    ]);
   });
 });
 
@@ -162,30 +175,80 @@ describe('usm dependencies: element', () => {
     expect(card(el, 'u3').hasAttribute('data-relation')).toBe(false);
   });
 
-  it('edits the dependencies in the story panel', async () => {
+  const panelOf = (el: DpkTemplateUsm) => el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')!;
+  const pickerOf = (el: DpkTemplateUsm, role: 'add-blocker' | 'add-dependent') =>
+    panelOf(el).querySelector(`input[data-role="${role}"]`) as HTMLInputElement;
+  const type = async (el: DpkTemplateUsm, input: HTMLInputElement, query: string): Promise<void> => {
+    input.focus();
+    input.value = query;
+    input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    await settle(el);
+  };
+  const press = async (el: DpkTemplateUsm, input: HTMLInputElement, key: string): Promise<void> => {
+    input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, composed: true, cancelable: true }));
+    await settle(el);
+  };
+  const choicesOf = (el: DpkTemplateUsm) =>
+    [...panelOf(el).querySelectorAll('[role="listbox"] [role="option"]')].map((option) =>
+      option.getAttribute('data-story'),
+    );
+
+  it('edits the dependencies in the story panel, picking from the stories the query finds', async () => {
     const el = await mount('#story=u3');
-    const panel = () => el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')!;
-    const select = panel().querySelector('select[data-role="add-blocker"]') as HTMLSelectElement;
-    select.value = 'spike';
-    select.dispatchEvent(new Event('change'));
+    const input = pickerOf(el, 'add-blocker');
+    await type(el, input, 'spi');
+    expect(choicesOf(el)).toEqual(['spike']);
+    (panelOf(el).querySelector('[role="option"][data-story="spike"]') as HTMLElement).click();
     await settle(el);
     expect(el.api.state.stories.find((story) => story.id === 'u3')?.blockedBy).toEqual(['done', 'spike']);
-    const remove = panel().querySelector('[data-blocker="done"] [data-role="remove"]') as HTMLButtonElement;
+    expect(panelOf(el).querySelector('[role="listbox"]')).toBeNull();
+    expect(pickerOf(el, 'add-blocker').value).toBe('');
+    const remove = panelOf(el).querySelector('[data-blocker="done"] [data-role="remove"]') as HTMLButtonElement;
     remove.click();
     await settle(el);
     expect(el.api.state.stories.find((story) => story.id === 'u3')?.blockedBy).toEqual(['spike']);
   });
 
-  it('lets a story take on dependents from its panel', async () => {
+  it('lets a story take on dependents from its panel, by keyboard', async () => {
     const el = await mount('#story=done');
-    const panel = el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')!;
-    expect([...panel.querySelectorAll('[data-dependent]')].map((row) => row.getAttribute('data-dependent'))).toEqual([
-      'u3',
-    ]);
-    const select = panel.querySelector('select[data-role="add-dependent"]') as HTMLSelectElement;
-    select.value = 'u1';
-    select.dispatchEvent(new Event('change'));
+    expect(
+      [...panelOf(el).querySelectorAll('[data-dependent]')].map((row) => row.getAttribute('data-dependent')),
+    ).toEqual(['u3']);
+    const input = pickerOf(el, 'add-dependent');
+    await type(el, input, 'u');
+    expect(choicesOf(el)).toEqual(['u1', 'u2']);
+    await press(el, input, 'ArrowDown');
+    const active = input.getAttribute('aria-activedescendant');
+    expect(panelOf(el).querySelector(`#${active}`)?.getAttribute('data-story')).toBe('u2');
+    await press(el, input, 'Enter');
+    expect(el.api.state.stories.find((story) => story.id === 'u2')?.blockedBy).toEqual(['spike', 'u1', 'done']);
+  });
+
+  it('is a combobox whose list opens on focus and closes on Escape before the panel does', async () => {
+    const el = await mount('#story=u3');
+    const input = pickerOf(el, 'add-blocker');
+    expect(input.getAttribute('role')).toBe('combobox');
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    input.focus();
     await settle(el);
-    expect(el.api.state.stories.find((story) => story.id === 'u1')?.blockedBy).toEqual(['spike', 'done']);
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    expect(
+      panelOf(el)
+        .querySelector(`#${input.getAttribute('aria-controls')}`)
+        ?.getAttribute('role'),
+    ).toBe('listbox');
+    expect(choicesOf(el)).toEqual(['spike', 'u1', 'u2']);
+    await press(el, input, 'Escape');
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    expect(el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')).not.toBeNull();
+    await press(el, input, 'Escape');
+    expect(el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')).toBeNull();
+  });
+
+  it('says so when the query finds no story', async () => {
+    const el = await mount('#story=u3');
+    await type(el, pickerOf(el, 'add-blocker'), 'nothing like it');
+    expect(panelOf(el).querySelector('[role="listbox"]')).toBeNull();
+    expect(panelOf(el).querySelector('.sp-dep-none')?.textContent?.trim()).toBe(m.noDependencyMatch);
   });
 });

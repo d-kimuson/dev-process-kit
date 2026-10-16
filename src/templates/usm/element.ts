@@ -32,6 +32,7 @@ import { presentMilestoneOverview } from './milestone-overview';
 import { findStory, flatSteps, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
 import { burndownStyles, renderBurndown } from './render/burndown';
+import { dependencyPickerStyles, type DependencyPicker } from './render/dependency-picker';
 import { featuresMenuStyles } from './render/features-menu';
 import { highlightStyles } from './render/highlight';
 import { renderLabelOverview } from './render/label-overview';
@@ -82,6 +83,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     statusStyles,
     linkStyles,
     storyPanelStyles,
+    dependencyPickerStyles,
     burndownStyles,
     mapToolbarStyles,
     mapFilterStyles,
@@ -169,6 +171,10 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     super.updated();
     this.#revealHighlight();
     this.#syncPanelFocus();
+    if (this.mode.kind === 'picking-dependency') {
+      this.#syncDependencyChoices();
+      return;
+    }
     // A status's icon menu hangs off the icon that opened it.
     if (this.mode.kind === 'picking-icon') {
       const menu = this.renderRoot.querySelector<HTMLElement>('#icon-menu');
@@ -209,6 +215,21 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     if (this.mode.kind !== 'picking-step') return;
     const dialog = this.renderRoot.querySelector<HTMLElement>('#move-dialog');
     if (dialog) this.#popovers.open(dialog, pointAnchor(this.mode.point.x, this.mode.point.y), MOVE_DIALOG_SIZE);
+  }
+
+  /**
+   * A dependency picker's choices show while its field has the focus; once
+   * the field is gone (the panel closed) the search goes with it. The
+   * highlighted choice is kept in sight as the arrow keys move it.
+   */
+  #syncDependencyChoices(): void {
+    const field = this.renderRoot instanceof ShadowRoot ? this.renderRoot.activeElement : null;
+    if (!field?.matches('.sp-dep-search')) {
+      this.mode = IDLE_MODE;
+      return;
+    }
+    const active = field.getAttribute('aria-activedescendant');
+    if (active) this.renderRoot.querySelector(`#${CSS.escape(active)}`)?.scrollIntoView?.({ block: 'nearest' });
   }
 
   #panel(): HTMLElement | null {
@@ -326,7 +347,12 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   #renderPanel(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult | typeof nothing {
     if (tab !== 'map') return nothing;
     const story = panelStoryOf(context);
-    return story ? renderStoryPanel(m, context, story) : nothing;
+    if (!story) return nothing;
+    const picker: DependencyPicker = {
+      search: this.mode.kind === 'picking-dependency' ? this.mode.search : null,
+      set: (search) => (this.mode = search ? { kind: 'picking-dependency', search } : IDLE_MODE),
+    };
+    return renderStoryPanel(m, context, story, picker);
   }
 
   #renderTab(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult {

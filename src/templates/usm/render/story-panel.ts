@@ -8,10 +8,11 @@ import { commentBody } from '../../../core/comment';
 import { iconClose, iconTrash } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { describeLink } from '../../../lib/link-label';
-import { blockerOptions, dependencyOf, dependentOptions, isFinished } from '../dependencies';
+import { dependencyOf, isFinished } from '../dependencies';
 import { findMilestone, findStep, findStory, hasFeature, linkUrlSchema, type UserStory, type UsmState } from '../model';
 import { statusViews } from '../status-view';
 import { initialOf } from './avatar';
+import { renderDependencyPicker, type DependencyPicker } from './dependency-picker';
 import { linkIcon } from './link-icon';
 import { statusIcon, statusToneStyle } from './tone';
 
@@ -30,6 +31,7 @@ export const renderStoryPanel = (
   m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
   story: UserStory,
+  picker: DependencyPicker,
 ): TemplateResult => {
   const { state } = context;
   const target = { type: 'story', id: story.id };
@@ -65,7 +67,7 @@ export const renderStoryPanel = (
       ${state.statuses.length === 0 ? nothing : renderStatusField(m, context, story)}
       ${hasFeature(state, 'estimates') ? renderEstimateField(m, context, story) : nothing}
       ${hasFeature(state, 'assignees') ? renderAssigneeField(m, context, story) : nothing}
-      ${renderLabelsField(m, context, story)} ${renderDependenciesField(m, context, story)}
+      ${renderLabelsField(m, context, story)} ${renderDependenciesField(m, context, story, picker)}
       <section class="sp-field">
         <h3>${m.storyDescriptionLabel}</h3>
         <dpk-component-inline-edit
@@ -279,6 +281,7 @@ const renderDependenciesField = (
   m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
   story: UserStory,
+  picker: DependencyPicker,
 ): TemplateResult => {
   const { state } = context;
   const dependency = dependencyOf(state, story.id);
@@ -312,28 +315,6 @@ const renderDependenciesField = (
       </button>
     </li>`;
   };
-  const picker = (
-    role: 'add-blocker' | 'add-dependent',
-    placeholder: string,
-    options: readonly UserStory[],
-    pick: (id: string) => void,
-  ): TemplateResult | typeof nothing =>
-    options.length === 0
-      ? nothing
-      : html`<select
-          class="dpk-select sp-dep-add"
-          data-role=${role}
-          aria-label=${placeholder}
-          @change=${(event: Event) => {
-            const select = event.currentTarget instanceof HTMLSelectElement ? event.currentTarget : null;
-            if (!select || select.value === '') return;
-            pick(select.value);
-            select.value = '';
-          }}
-        >
-          <option value="" selected>${placeholder}</option>
-          ${options.map((option) => html`<option value=${option.id}>${option.name}</option>`)}
-        </select>`;
   return html`<section class="sp-field sp-deps">
     <h3>${m.storyDependenciesLabel}</h3>
     <div class="sp-dep-side">
@@ -347,7 +328,7 @@ const renderDependenciesField = (
               )}
             </ul>`
       }
-      ${picker('add-blocker', m.addBlockerPlaceholder, blockerOptions(state, story.id), (id) =>
+      ${renderDependencyPicker(m, context, story.id, 'blocker', picker, (id) =>
         edge('ADD_STORY_BLOCKER', story.id, id),
       )}
     </div>
@@ -362,7 +343,7 @@ const renderDependenciesField = (
               )}
             </ul>`
       }
-      ${picker('add-dependent', m.addDependentPlaceholder, dependentOptions(state, story.id), (id) =>
+      ${renderDependencyPicker(m, context, story.id, 'dependent', picker, (id) =>
         edge('ADD_STORY_BLOCKER', id, story.id),
       )}
     </div>
@@ -802,9 +783,6 @@ export const storyPanelStyles = css`
   .sp-dep-list li[data-finished='true'] .sp-dep-name span {
     color: var(--dpk-ink-faint);
     text-decoration: line-through;
-  }
-  .sp-dep-add {
-    width: 100%;
   }
   .sp-description {
     display: block;

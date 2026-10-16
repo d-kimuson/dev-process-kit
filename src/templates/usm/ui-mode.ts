@@ -1,3 +1,4 @@
+import type { DependencySide } from './dependency-choices';
 import type { MapFilterKey } from './map-filter';
 
 /**
@@ -19,6 +20,8 @@ export type UsmUiMode =
   | { readonly kind: 'choosing-features' }
   /** The menu of the page tabs that do not fit on the bar is open. */
   | { readonly kind: 'choosing-tab' }
+  /** The story panel's list of one side's dependency choices is open, narrowed by the query typed. */
+  | { readonly kind: 'picking-dependency'; readonly search: DependencySearch }
   | {
       /** A cross-activity drop: the column named no step, so the reader picks one. */
       readonly kind: 'picking-step';
@@ -27,5 +30,12 @@ export type UsmUiMode =
       readonly milestoneId: string | undefined;
       readonly point: { readonly x: number; readonly y: number };
     };
+
+/** What the reader typed into one of the story panel's dependency pickers, and which choice is highlighted. */
+export type DependencySearch = {
+  readonly side: DependencySide;
+  readonly query: string;
+  readonly active: number;
+};
 
 export const IDLE_MODE: UsmUiMode = { kind: 'idle' };
