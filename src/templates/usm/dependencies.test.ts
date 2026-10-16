@@ -184,8 +184,15 @@ describe('usm dependencies: element', () => {
     input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     await settle(el);
   };
-  const press = async (el: DpkTemplateUsm, input: HTMLInputElement, key: string): Promise<void> => {
-    input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, composed: true, cancelable: true }));
+  const press = async (
+    el: DpkTemplateUsm,
+    input: HTMLInputElement,
+    key: string,
+    modifiers: KeyboardEventInit = {},
+  ): Promise<void> => {
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key, bubbles: true, composed: true, cancelable: true, ...modifiers }),
+    );
     await settle(el);
   };
   const choicesOf = (el: DpkTemplateUsm) =>
@@ -222,6 +229,18 @@ describe('usm dependencies: element', () => {
     expect(panelOf(el).querySelector(`#${active}`)?.getAttribute('data-story')).toBe('u2');
     await press(el, input, 'Enter');
     expect(el.api.state.stories.find((story) => story.id === 'u2')?.blockedBy).toEqual(['spike', 'u1', 'done']);
+  });
+
+  it('moves through the choices with Ctrl+N and Ctrl+P as with the arrow keys', async () => {
+    const el = await mount('#story=done');
+    const input = pickerOf(el, 'add-dependent');
+    await type(el, input, 'u');
+    const highlighted = () => panelOf(el).querySelector(`#${input.getAttribute('aria-activedescendant')}`);
+    expect(highlighted()?.getAttribute('data-story')).toBe('u1');
+    await press(el, input, 'n', { ctrlKey: true });
+    expect(highlighted()?.getAttribute('data-story')).toBe('u2');
+    await press(el, input, 'p', { ctrlKey: true });
+    expect(highlighted()?.getAttribute('data-story')).toBe('u1');
   });
 
   it('is a combobox whose list opens on focus and closes on Escape before the panel does', async () => {

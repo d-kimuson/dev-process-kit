@@ -49,7 +49,7 @@ export const renderDependencyPicker = (
   };
   const onKeydown = (event: KeyboardEvent): void => {
     if (event.isComposing) return;
-    switch (event.key) {
+    switch (keyOf(event)) {
       case 'ArrowDown':
       case 'ArrowUp': {
         event.preventDefault();
@@ -58,7 +58,7 @@ export const renderDependencyPicker = (
           return;
         }
         if (choices.length === 0) return;
-        const step = event.key === 'ArrowDown' ? 1 : -1;
+        const step = keyOf(event) === 'ArrowDown' ? 1 : -1;
         picker.set({ ...search, active: (active + step + choices.length) % choices.length });
         return;
       }
@@ -111,6 +111,14 @@ export const renderDependencyPicker = (
             </ul>`
     }
   </div>`;
+};
+
+/** The key pressed, with Ctrl+N and Ctrl+P read as the arrow keys they stand for in a list of completions. */
+const keyOf = (event: KeyboardEvent): string => {
+  if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return event.key;
+  if (event.key === 'n') return 'ArrowDown';
+  if (event.key === 'p') return 'ArrowUp';
+  return event.key;
 };
 
 const renderChoice = (
