@@ -49,7 +49,13 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
       "labelIds": ["dev"],
       "links": [{ "url": "https://github.com/acme/web/issues/86" }]
     },
-    { "id": "public-page", "name": "公開ページとして読む", "activityId": "onboarding", "stepId": "landing" }
+    {
+      "id": "public-page",
+      "name": "公開ページとして読む",
+      "activityId": "onboarding",
+      "stepId": "landing",
+      "blockedBy": ["google-signup"]
+    }
   ]
 }
 ```
@@ -75,55 +81,61 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 | `labels[].id` / `name`            | yes      | ストーリーに任意で付けるラベル（`Dev` / `PdM` など）。省略 = `[]`。仕組み側はラベルに意味を持たせない（何で区分けするかは運用次第）                                    |
 | `labels[].tone`                   | no       | ラベルの色。値は `statuses[].tone` と同じ。省略時は並び順で `blue` から順に割り当てる                                                                                  |
 | `stories[].labelIds`              | no       | そのストーリーが持つラベルの id。同じラベルは 1 回まで。表示はラベルの並び順。存在しない id は reject                                                                  |
+| `stories[].blockedBy`             | no       | このストーリーより先に終える必要があるストーリーの id（依存先）。自分自身・同じ id の重複・存在しない id・循環（A が B を待ち B が A を待つ）は reject                 |
 
-存在しない `activityId` / `stepId` / `milestoneId` / `statusId` / `labelIds` を参照するストーリーは reject される。`activities` / `steps` / `milestones` / `statuses` / `labels` / `stories` をまたぐ id の重複も reject される。
+存在しない `activityId` / `stepId` / `milestoneId` / `statusId` / `labelIds` / `blockedBy` を参照するストーリーは reject される。`activities` / `steps` / `milestones` / `statuses` / `labels` / `stories` をまたぐ id の重複も reject される。
 
 ステータスの集合そのものもデータであり、Agent は base で定義し、利用者はステータスタブで追加・改名・色の変更・並び替え・削除ができる（いずれも draft action として Agent に返る）。ラベルも同じで、ラベルタブで追加・改名・色の変更・並び替え・削除ができ、どのストーリーに付けるかはストーリーパネルで切り替える。
+
+依存関係（`blockedBy`）はストーリー間の有向辺で、ストーリーパネルの「依存関係」で両方向から編集できる。最後のステータスに立つストーリーは「完了」とみなし、完了した依存先はもう待っていないものとして数える。
 
 参照形式: `step:<activityId>.<stepId>`（正準形。bare step id も解決できる）、`story:<id>`、`milestone:<id>`、`status:<id>`、`label:<id>`。
 
 ## Action vocabulary
 
-| Action                  | target    | payload                                                                                           |
-| ----------------------- | --------- | ------------------------------------------------------------------------------------------------- |
-| `SET_ACTIVITY_NAME`     | activity  | `{ "name": string }`                                                                              |
-| `SET_ACTIVITY_ACTOR`    | activity  | `{ "actor": string }`（前後の空白は除く。空文字 = ラベルを外す）                                  |
-| `SET_STEP_NAME`         | step      | `{ "name": string }`                                                                              |
-| `REORDER_STEP`          | step      | `{ "after": string \| null }`（`null` = 先頭、同一 Activity 内）                                  |
-| `ADD_ACTIVITY`          | page      | `{ "id", "name" }`                                                                                |
-| `ADD_STEP`              | activity  | `{ "id", "name" }`                                                                                |
-| `DELETE_ACTIVITY`       | activity  | `{}`（配下のステップとストーリーごと削除）                                                        |
-| `DELETE_STEP`           | step      | `{}`（配下のストーリーごと削除）                                                                  |
-| `SET_STORY_NAME`        | story     | `{ "name": string }`                                                                              |
-| `SET_STORY_DESCRIPTION` | story     | `{ "description": string }`                                                                       |
-| `SET_STORY_MILESTONE`   | story     | `{ "milestoneId": string \| null }`（`null` = Unassigned へ）                                     |
-| `MOVE_STORY`            | story     | `{ "activityId", "stepId", "milestoneId": string \| null, "after": string \| null }`              |
-| `REORDER_STORY`         | story     | `{ "after": string \| null }`（同一マス内のみ）                                                   |
-| `ADD_STORY`             | step      | `{ "id", "name", "activityId", "milestoneId"? }`（ステータスは最初のステータス）                  |
-| `DELETE_STORY`          | story     | `{}`                                                                                              |
-| `SET_MILESTONE_NAME`    | milestone | `{ "name": string }`                                                                              |
-| `ADD_MILESTONE`         | page      | `{ "id", "name" }`                                                                                |
-| `DELETE_MILESTONE`      | milestone | `{}`（所属ストーリーは Unassigned へ退避、削除しない）                                            |
-| `REORDER_MILESTONE`     | milestone | `{ "after": string \| null }`                                                                     |
-| `ADD_STORY_LINK`        | story     | `{ "url": string, "label"?: string }`（http(s) のみ。同じ URL は追加済みとして扱う）              |
-| `REMOVE_STORY_LINK`     | story     | `{ "url": string }`                                                                               |
-| `SET_STORY_STATUS`      | story     | `{ "statusId": string }`（ステータスを外すことはできない）                                        |
-| `ADD_STATUS`            | page      | `{ "id", "name", "tone", "icon"? }`（最初のステータスなら全ストーリーがそこに立つ）               |
-| `SET_STATUS_NAME`       | status    | `{ "name": string }`                                                                              |
-| `SET_STATUS_TONE`       | status    | `{ "tone": "gray" \| "blue" \| "violet" \| "green" \| "amber" \| "accent" }`                      |
-| `SET_STATUS_ICON`       | status    | `{ "icon": "progress" \| "circle" \| "lightbulb" \| … }`（`statuses[].icon` の値）                |
-| `DELETE_STATUS`         | status    | `{}`（そのストーリーは残る最初のステータスへ。最後の 1 つを消すとマップからステータスがなくなる） |
-| `REORDER_STATUS`        | status    | `{ "after": string \| null }`                                                                     |
-| `ADD_LABEL`             | page      | `{ "id", "name", "tone" }`                                                                        |
-| `SET_LABEL_NAME`        | label     | `{ "name": string }`                                                                              |
-| `SET_LABEL_TONE`        | label     | `{ "tone": "gray" \| "blue" \| "violet" \| "green" \| "amber" \| "accent" }`                      |
-| `DELETE_LABEL`          | label     | `{}`（全ストーリーからそのラベルが外れる）                                                        |
-| `REORDER_LABEL`         | label     | `{ "after": string \| null }`                                                                     |
-| `ADD_STORY_LABEL`       | story     | `{ "labelId": string }`（付いていれば何もしない）                                                 |
-| `REMOVE_STORY_LABEL`    | story     | `{ "labelId": string }`（付いていないと stale）                                                   |
+| Action                  | target    | payload                                                                                             |
+| ----------------------- | --------- | --------------------------------------------------------------------------------------------------- |
+| `SET_ACTIVITY_NAME`     | activity  | `{ "name": string }`                                                                                |
+| `SET_ACTIVITY_ACTOR`    | activity  | `{ "actor": string }`（前後の空白は除く。空文字 = ラベルを外す）                                    |
+| `SET_STEP_NAME`         | step      | `{ "name": string }`                                                                                |
+| `REORDER_STEP`          | step      | `{ "after": string \| null }`（`null` = 先頭、同一 Activity 内）                                    |
+| `ADD_ACTIVITY`          | page      | `{ "id", "name" }`                                                                                  |
+| `ADD_STEP`              | activity  | `{ "id", "name" }`                                                                                  |
+| `DELETE_ACTIVITY`       | activity  | `{}`（配下のステップとストーリーごと削除）                                                          |
+| `DELETE_STEP`           | step      | `{}`（配下のストーリーごと削除）                                                                    |
+| `SET_STORY_NAME`        | story     | `{ "name": string }`                                                                                |
+| `SET_STORY_DESCRIPTION` | story     | `{ "description": string }`                                                                         |
+| `SET_STORY_MILESTONE`   | story     | `{ "milestoneId": string \| null }`（`null` = Unassigned へ）                                       |
+| `MOVE_STORY`            | story     | `{ "activityId", "stepId", "milestoneId": string \| null, "after": string \| null }`                |
+| `REORDER_STORY`         | story     | `{ "after": string \| null }`（同一マス内のみ）                                                     |
+| `ADD_STORY`             | step      | `{ "id", "name", "activityId", "milestoneId"? }`（ステータスは最初のステータス）                    |
+| `DELETE_STORY`          | story     | `{}`（他のストーリーの `blockedBy` からも外れる）                                                   |
+| `SET_MILESTONE_NAME`    | milestone | `{ "name": string }`                                                                                |
+| `ADD_MILESTONE`         | page      | `{ "id", "name" }`                                                                                  |
+| `DELETE_MILESTONE`      | milestone | `{}`（所属ストーリーは Unassigned へ退避、削除しない）                                              |
+| `REORDER_MILESTONE`     | milestone | `{ "after": string \| null }`                                                                       |
+| `ADD_STORY_LINK`        | story     | `{ "url": string, "label"?: string }`（http(s) のみ。同じ URL は追加済みとして扱う）                |
+| `REMOVE_STORY_LINK`     | story     | `{ "url": string }`                                                                                 |
+| `SET_STORY_STATUS`      | story     | `{ "statusId": string }`（ステータスを外すことはできない）                                          |
+| `ADD_STATUS`            | page      | `{ "id", "name", "tone", "icon"? }`（最初のステータスなら全ストーリーがそこに立つ）                 |
+| `SET_STATUS_NAME`       | status    | `{ "name": string }`                                                                                |
+| `SET_STATUS_TONE`       | status    | `{ "tone": "gray" \| "blue" \| "violet" \| "green" \| "amber" \| "accent" }`                        |
+| `SET_STATUS_ICON`       | status    | `{ "icon": "progress" \| "circle" \| "lightbulb" \| … }`（`statuses[].icon` の値）                  |
+| `DELETE_STATUS`         | status    | `{}`（そのストーリーは残る最初のステータスへ。最後の 1 つを消すとマップからステータスがなくなる）   |
+| `REORDER_STATUS`        | status    | `{ "after": string \| null }`                                                                       |
+| `ADD_LABEL`             | page      | `{ "id", "name", "tone" }`                                                                          |
+| `SET_LABEL_NAME`        | label     | `{ "name": string }`                                                                                |
+| `SET_LABEL_TONE`        | label     | `{ "tone": "gray" \| "blue" \| "violet" \| "green" \| "amber" \| "accent" }`                        |
+| `DELETE_LABEL`          | label     | `{}`（全ストーリーからそのラベルが外れる）                                                          |
+| `REORDER_LABEL`         | label     | `{ "after": string \| null }`                                                                       |
+| `ADD_STORY_LABEL`       | story     | `{ "labelId": string }`（付いていれば何もしない）                                                   |
+| `REMOVE_STORY_LABEL`    | story     | `{ "labelId": string }`（付いていないと stale）                                                     |
+| `ADD_STORY_BLOCKER`     | story     | `{ "blockerId": string }`（target が blocker を待つ。既にあれば何もしない。自分自身・循環は stale） |
+| `REMOVE_STORY_BLOCKER`  | story     | `{ "blockerId": string }`（待っていないと stale）                                                   |
 
 - `after` は anchor id であり offset ではない。`{ "after": "login" }` は「login の直後へ」、`{ "after": null }` は「先頭へ」を意味し、存在しない anchor を指すと stale になる。
 - `MOVE_STORY` は列・スライス間の移動を 1 文で表す。`after` は移動先セル内の anchor でなければならない。`REORDER_STORY` は同一マス（同一 step + 同一 milestone）内の並び替え専用で、他マスの anchor を指すと stale になる。
+- `DELETE_ACTIVITY` / `DELETE_STEP` / `DELETE_STORY` で消えたストーリーは、残るストーリーの `blockedBy` から外れる（空になれば `blockedBy` ごと消える）。
 - Delete の cascade は表のとおりで、親を消してから子を編集する draft は stale になる。
 
 ## Navigation
@@ -137,7 +149,7 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 
 - `view` は表のまとめ単位で、`activity`（アクティビティごとの列 + group band、既定）か `group`（アクティビティグループごとに 1 列、step 分割なし）。表の上のタブで切り替える。
 - `group` ビューでは step を特定できないため、他アクティビティへのドロップではその場で step を選ぶ dialog が開く。milestone はドロップした位置のもので、移動先セルの末尾に置かれる。同じアクティビティ内のドロップは、ドラッグ中のストーリーの step を保ったまま milestone と順序だけを変える。
-- `step` の選択はその列をハイライトし、`story` の選択はカードをフォーカスして、マップの右にストーリーパネルを開く。パネルを閉じると `story` は外れる。
+- `step` の選択はその列をハイライトし、`story` の選択はカードをフォーカスして、マップの右にストーリーパネルを開く。パネルを閉じると `story` は外れる。開いているストーリーの依存先のカードと、それを待つカードは枠線（依存先は amber、待つ側は violet の破線）で示される。
 
 ## UI provided by the template
 
@@ -145,20 +157,20 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 
 表は画面の高さに収まる枠の中で縦横にスクロールする。スクロールしてもバックボーン（アクティビティ / ステップの見出し行）は上端に、左端の列（軸の説明とマイルストーン名）は左端に留まり、ページのタブ（とマップのまとめ単位のタブ）はページをスクロールしても上端に留まる。
 
-| 領域                 | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ページ上部           | ページのタブ（User Story Mapping / マイルストーン / ステータス / ラベル。それぞれストーリー数 / マイルストーン数 / ステータス数 / ラベル数つき）。マップでは右側にまとめ単位のタブ（`view`）                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| 左上コーナー         | 軸の説明（`Activity group →` / `Activity →` / `Milestone ↓`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 列ヘッダ             | Activity ごとのグループ見出し（名前は inline-edit 可能、ステップ追加はアイコンのみ。`actor` のラベル（inline-edit 可能）と、配下ストーリーのステータス構成を色で積み上げたバー。`group` ビューでは配下のステップを番号つきリストで並べる）＋ ステップ名セル（ストーリー数つき）。右端に `+ Activity`                                                                                                                                                                                                                                                                                                                            |
-| ステータスフィルター | ステータスが 1 つ以上あるとき、表の上にステータスごとのトグル（アイコン・名前・件数）。オンにしたステータスのカードだけを出す。カードの色とアイコンの凡例を兼ねる                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 行ヘッダ             | マイルストーン名（行ヘッダ自体がドラッグハンドル）と、その下に時期・ストーリー数 ＋ 最終行 `Unassigned`（ドラッグ不可）。最下部に `+ Milestone`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| セル                 | カード一覧（ステータスアイコン・名前・説明（Markdown、3 行まで）・ラベル（ラベルの色つき）・リンクのラベル（3 つまで、残りは `+n`）・`group` ビューではステップ名・コメント数）＋ 底部の `+ Add` ボタン。カードの面と縁はステータスの色でうっすら色づく。カード自体に操作ボタンはなく、クリックか（Tab でフォーカスして）Enter / Space でストーリーパネルが開く                                                                                                                                                                                                                                                                 |
-| マイルストーンタブ   | 各マイルストーンが何かを知るための定義を、マップの行順に縦のタイムラインで並べる（左に時期、1 本のレールに順番つきのノード、右に中身）。名前（inline-edit 可能）、説明、ストーリー数と全体に占める割合、バックボーンのステップをどれだけ含むか、ステータスがあればそのスライスのステータス構成（ステータス色の積み上げバーと凡例）。時期がなければ「時期未定」と出る。ストーリーカードは出さない（ストーリーはマップで扱う）。レールの末尾に `+ Milestone`                                                                                                                                                                      |
-| ストーリーパネル     | 右から出るドロワー。どこにあるか（アクティビティ › ステップ › マイルストーン）、タイトル（inline-edit）、説明（Markdown。inline-edit で原文を編集）、ステータスの選択、ラベルのトグル（マップのラベルを全部並べ、押すと付け外しする。ラベルタブへのリンクつき）、リンクの一覧（外す）と URL での追加、コメントの一覧と追加（Ctrl / ⌘ + Enter でも送れる）、ストーリーの削除。開くとフォーカスがパネルに移り、閉じると元のカードに戻る。Escape（フォーカスがどこにあっても。編集中の inline-edit の Escape は編集の取り消しだけ）、✕、パネルの外（マップ側）のクリックで閉じる。別のカードのクリックはそのストーリーに切り替える |
-| ステータスタブ       | ステータスを順に 1 行ずつ並べる。アイコン（押すとアイコンの選択肢が開く）、名前（inline-edit 可能）、そのステータスのストーリー数と全体に占める割合、色の選択、上下の並び替え、削除。末尾に `+ Status`                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ラベルタブ           | ラベルを順に 1 行ずつ並べる。色、名前（inline-edit 可能）、そのラベルが付いたストーリー数と全体に占める割合、色の選択、上下の並び替え、削除。末尾に `+ Label`                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 領域                 | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ページ上部           | ページのタブ（User Story Mapping / マイルストーン / ステータス / ラベル。それぞれストーリー数 / マイルストーン数 / ステータス数 / ラベル数つき）。マップでは右側にまとめ単位のタブ（`view`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 左上コーナー         | 軸の説明（`Activity group →` / `Activity →` / `Milestone ↓`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 列ヘッダ             | Activity ごとのグループ見出し（名前は inline-edit 可能、ステップ追加はアイコンのみ。`actor` のラベル（inline-edit 可能）と、配下ストーリーのステータス構成を色で積み上げたバー。`group` ビューでは配下のステップを番号つきリストで並べる）＋ ステップ名セル（ストーリー数つき）。右端に `+ Activity`                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ステータスフィルター | ステータスが 1 つ以上あるとき、表の上にステータスごとのトグル（アイコン・名前・件数）。オンにしたステータスのカードだけを出す。カードの色とアイコンの凡例を兼ねる                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 行ヘッダ             | マイルストーン名（行ヘッダ自体がドラッグハンドル）と、その下に時期・ストーリー数 ＋ 最終行 `Unassigned`（ドラッグ不可）。最下部に `+ Milestone`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| セル                 | カード一覧（ステータスアイコン・名前・説明（Markdown、3 行まで）・依存のチップ（`N 件をブロック` = これを待つストーリーの数。スパイクの目印として強調色。`N 件待ち` = まだ完了していない依存先の数）・ラベル（ラベルの色つき）・リンクのラベル（3 つまで、残りは `+n`）・`group` ビューではステップ名・コメント数）＋ 底部の `+ Add` ボタン。カードの面と縁はステータスの色でうっすら色づく。カード自体に操作ボタンはなく、クリックか（Tab でフォーカスして）Enter / Space でストーリーパネルが開く                                                                                                                                                                                                                                                                               |
+| マイルストーンタブ   | 各マイルストーンが何かを知るための定義を、マップの行順に縦のタイムラインで並べる（左に時期、1 本のレールに順番つきのノード、右に中身）。名前（inline-edit 可能）、説明、ストーリー数と全体に占める割合、バックボーンのステップをどれだけ含むか、ステータスがあればそのスライスのステータス構成（ステータス色の積み上げバーと凡例）。時期がなければ「時期未定」と出る。ストーリーカードは出さない（ストーリーはマップで扱う）。レールの末尾に `+ Milestone`                                                                                                                                                                                                                                                                                                                        |
+| ストーリーパネル     | 右から出るドロワー。どこにあるか（アクティビティ › ステップ › マイルストーン）、タイトル（inline-edit）、説明（Markdown。inline-edit で原文を編集）、ステータスの選択、ラベルのトグル（マップのラベルを全部並べ、押すと付け外しする。ラベルタブへのリンクつき）、依存関係（依存先と、これを待つストーリーの一覧。名前でそのストーリーへ移り、✕ で外す。選択肢から追加でき、循環になるストーリーは選択肢に出ない）、リンクの一覧（外す）と URL での追加、コメントの一覧と追加（Ctrl / ⌘ + Enter でも送れる）、ストーリーの削除。開くとフォーカスがパネルに移り、閉じると元のカードに戻る。Escape（フォーカスがどこにあっても。編集中の inline-edit の Escape は編集の取り消しだけ）、✕、パネルの外（マップ側）のクリックで閉じる。別のカードのクリックはそのストーリーに切り替える |
+| ステータスタブ       | ステータスを順に 1 行ずつ並べる。アイコン（押すとアイコンの選択肢が開く）、名前（inline-edit 可能）、そのステータスのストーリー数と全体に占める割合、色の選択、上下の並び替え、削除。末尾に `+ Status`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ラベルタブ           | ラベルを順に 1 行ずつ並べる。色、名前（inline-edit 可能）、そのラベルが付いたストーリー数と全体に占める割合、色の選択、上下の並び替え、削除。末尾に `+ Label`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
-UI から編集できるのはストーリー名・説明・ステータス・リンク・コメント・削除（ストーリーパネル）、セルごとの追加、アクティビティ名 / actor / ステップ名 / マイルストーン名の変更とマイルストーンの並び替え、カードのドラッグ移動、ステータスの追加・改名・色・アイコン・並び替え・削除、ラベルの追加・改名・色・並び替え・削除とストーリーへの付け外し。
+UI から編集できるのはストーリー名・説明・ステータス・リンク・コメント・削除（ストーリーパネル）、セルごとの追加、アクティビティ名 / actor / ステップ名 / マイルストーン名の変更とマイルストーンの並び替え、カードのドラッグ移動、ステータスの追加・改名・色・アイコン・並び替え・削除、ラベルの追加・改名・色・並び替え・削除とストーリーへの付け外し、ストーリー間の依存関係の追加・削除。
 
 リンクのラベルは URL から作る: GitHub の issue / PR は `#86`、GitLab は `#3` / `!7`、Jira（`*.atlassian.net`）と Linear は `PROJ-123`、Figma はファイル名、Notion はページ名、それ以外はホスト名。それぞれのサービスのアイコンがつく。`label` を書けばその文字列が優先される。
 

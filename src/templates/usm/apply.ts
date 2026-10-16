@@ -2,6 +2,7 @@ import type { ApplyResult, DraftAction } from '../../core/types';
 
 import { assertNever, parseTemplateAction } from '../../core/schema';
 import { usmActions } from './actions';
+import { waitsOn } from './dependency-graph';
 import {
   findLabel,
   findMilestone,
@@ -94,26 +95,25 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       const activity = state.activities.find((candidate) => candidate.id === id);
       if (!activity) return null;
       const stepIds = new Set(activity.steps.map((step) => step.id));
-      return {
-        ...state,
-        activities: state.activities.filter((candidate) => candidate.id !== id),
-        stories: state.stories.filter((story) => story.activityId !== id && !stepIds.has(story.stepId)),
-      };
+      return withoutStories(
+        { ...state, activities: state.activities.filter((candidate) => candidate.id !== id) },
+        (story) => story.activityId === id || stepIds.has(story.stepId),
+      );
     }
     case 'DELETE_STEP': {
       const located = findStep(state, id);
       if (!located) return null;
-      return {
-        ...state,
-        activities: state.activities.map((activity) =>
-          activity.id === located.activity.id
-            ? { ...activity, steps: activity.steps.filter((step) => step.id !== located.step.id) }
-            : activity,
-        ),
-        stories: state.stories.filter(
-          (story) => story.activityId !== located.activity.id || story.stepId !== located.step.id,
-        ),
-      };
+      return withoutStories(
+        {
+          ...state,
+          activities: state.activities.map((activity) =>
+            activity.id === located.activity.id
+              ? { ...activity, steps: activity.steps.filter((step) => step.id !== located.step.id) }
+              : activity,
+          ),
+        },
+        (story) => story.activityId === located.activity.id && story.stepId === located.step.id,
+      );
     }
 
     case 'SET_STORY_NAME': {
@@ -170,7 +170,7 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
     }
     case 'DELETE_STORY': {
       if (!state.stories.some((story) => story.id === id)) return null;
-      return { ...state, stories: state.stories.filter((story) => story.id !== id) };
+      return withoutStories(state, (story) => story.id === id);
     }
 
     case 'ADD_STORY_LINK': {
@@ -311,6 +311,23 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       if (!findStory(state, id)?.labelIds?.includes(labelId)) return null;
       return updateStory(state, id, (current) => withoutLabel(current, labelId));
     }
+    case 'ADD_STORY_BLOCKER': {
+      const { blockerId } = typed.payload;
+      const story = findStory(state, id);
+      if (!story || !findStory(state, blockerId)) return null;
+      if (story.blockedBy?.includes(blockerId)) return state;
+      // Waiting on itself, or on a story that already waits on it, would never let either start.
+      if (blockerId === id || waitsOn(state.stories, blockerId, id)) return null;
+      return updateStory(state, id, (current) => ({
+        ...current,
+        blockedBy: [...(current.blockedBy ?? []), blockerId],
+      }));
+    }
+    case 'REMOVE_STORY_BLOCKER': {
+      const { blockerId } = typed.payload;
+      if (!findStory(state, id)?.blockedBy?.includes(blockerId)) return null;
+      return updateStory(state, id, (current) => withoutBlockers(current, new Set([blockerId])));
+    }
     default:
       return assertNever(typed);
   }
@@ -331,6 +348,26 @@ const withoutLabel = (story: UserStory, labelId: string): UserStory => {
   const { labelIds = [], ...rest } = story;
   const kept = labelIds.filter((candidate) => candidate !== labelId);
   return kept.length === 0 ? rest : { ...rest, labelIds: kept };
+};
+
+/** The story without the given blockers; a story left waiting on none carries no `blockedBy` at all. */
+const withoutBlockers = (story: UserStory, removed: ReadonlySet<string>): UserStory => {
+  const { blockedBy = [], ...rest } = story;
+  const kept = blockedBy.filter((candidate) => !removed.has(candidate));
+  return kept.length === 0 ? rest : { ...rest, blockedBy: kept };
+};
+
+/** Drops the stories that match, and every other story stops waiting on them. */
+const withoutStories = (state: UsmState, removes: (story: UserStory) => boolean): UsmState => {
+  const removed = new Set(state.stories.filter(removes).map((story) => story.id));
+  return {
+    ...state,
+    stories: state.stories
+      .filter((story) => !removed.has(story.id))
+      .map((story) =>
+        story.blockedBy?.some((blocker) => removed.has(blocker)) ? withoutBlockers(story, removed) : story,
+      ),
+  };
 };
 
 const stripStatus = (story: UserStory): UserStory => {

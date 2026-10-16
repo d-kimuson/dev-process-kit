@@ -65,6 +65,17 @@
                   "title": "全体の言い回しを統一"
                 }
               ]
+            },
+            {
+              "revision": "2026-10-16.1",
+              "changes": [
+                {
+                  "id": "dependencies",
+                  "title": "ストーリー間の依存関係を追加",
+                  "body": "「注文の状態と明細を見る」が 4 件をブロックしているため、v1 の中で先に着手する。",
+                  "target": "story:order-detail"
+                }
+              ]
             }
           ]
         }
@@ -295,6 +306,7 @@
             {
               "id": "keep-cart",
               "name": "ログインし直してもカートが残る",
+              "blockedBy": ["add-item"],
               "description": "ゲストのカートをログイン時に会員のカートへ統合する",
               "activityId": "cart",
               "stepId": "edit-cart",
@@ -327,6 +339,7 @@
             {
               "id": "confirm-order",
               "name": "内容を確認して注文を確定する",
+              "blockedBy": ["enter-address", "pay-card"],
               "description": "確定時に在庫を**引き当てる**。\n- 引き当てに失敗したら確定せず、在庫切れの商品を示す\n- 二重送信は注文番号で弾く",
               "labelIds": ["design"],
               "activityId": "order",
@@ -348,6 +361,7 @@
             {
               "id": "order-mail",
               "name": "注文確認メールを受け取る",
+              "blockedBy": ["confirm-order"],
               "description": "注文番号・明細・お届け予定日を載せる",
               "activityId": "order",
               "stepId": "review",
@@ -399,6 +413,7 @@
             {
               "id": "shipping-status",
               "name": "配送状況を注文詳細で見る",
+              "blockedBy": ["order-detail"],
               "description": "配送会社の追跡番号と現在の状態を注文詳細に出す",
               "activityId": "receive",
               "stepId": "track",
@@ -449,6 +464,7 @@
             {
               "id": "self-cancel",
               "name": "出荷指示前なら自分でキャンセルする",
+              "blockedBy": ["order-detail"],
               "description": "いまは問い合わせフォーム経由。\n- 出荷指示**前**だけボタンを出す\n- キャンセル後は `refund_pending` に移す",
               "labelIds": ["pdm"],
               "activityId": "manage",
@@ -467,6 +483,7 @@
             {
               "id": "cancel-reason",
               "name": "キャンセル理由を選ぶ",
+              "blockedBy": ["self-cancel"],
               "description": "理由は選択式。集計して商品ページの改善に使う",
               "activityId": "manage",
               "stepId": "cancel",
@@ -476,6 +493,7 @@
             {
               "id": "partial-cancel",
               "name": "一部の商品だけキャンセルする",
+              "blockedBy": ["order-detail", "self-cancel"],
               "description": "初回リリースの対象外",
               "activityId": "manage",
               "stepId": "cancel",
@@ -485,6 +503,7 @@
             {
               "id": "return-after-ship",
               "name": "出荷後に返品を申し込む",
+              "blockedBy": ["order-detail"],
               "description": "到着から 7 日以内。返送ラベルを発行する",
               "activityId": "manage",
               "stepId": "cancel",
@@ -494,6 +513,7 @@
             {
               "id": "refund-mail",
               "name": "返金完了のメールを受け取る",
+              "blockedBy": ["self-cancel"],
               "description": "返金額と返金先、反映までの目安を知らせる",
               "activityId": "manage",
               "stepId": "refund",

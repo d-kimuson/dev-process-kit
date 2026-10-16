@@ -2,6 +2,7 @@ import { sortBy } from 'es-toolkit/array';
 import * as v from 'valibot';
 
 import { entityIdSchema, splitPath } from '../../core/schema';
+import { findBlockerCycle } from './dependency-graph';
 
 export type BackboneStep = {
   readonly id: string;
@@ -96,6 +97,8 @@ export type UserStory = {
   readonly links?: readonly StoryLink[];
   /** The labels the story carries, each once. */
   readonly labelIds?: readonly string[];
+  /** The stories that must be finished before this one can start, each once; never a cycle. */
+  readonly blockedBy?: readonly string[];
 };
 
 export type UsmState = {
@@ -150,6 +153,7 @@ const storySchema = v.strictObject({
   statusId: v.exactOptional(v.string()),
   links: v.exactOptional(v.array(linkSchema)),
   labelIds: v.exactOptional(v.array(v.pipe(v.string(), v.minLength(1)))),
+  blockedBy: v.exactOptional(v.array(v.pipe(v.string(), v.minLength(1)))),
 });
 
 export const usmBaseSchema = v.strictObject({
@@ -226,6 +230,18 @@ export const parseUsmBase = (input: unknown): UsmState => {
       throw new Error(`story "${story.id}" references unknown labelId "${unknownLabel}"`);
     }
   }
+  const storyIds = new Set(parsed.stories.map((story) => story.id));
+  for (const story of parsed.stories) {
+    const blockers = story.blockedBy ?? [];
+    if (blockers.includes(story.id)) throw new Error(`story "${story.id}" is blocked by itself`);
+    if (new Set(blockers).size !== blockers.length) throw new Error(`story "${story.id}" has a blocker twice`);
+    const unknownBlocker = blockers.find((id) => !storyIds.has(id));
+    if (unknownBlocker !== undefined) {
+      throw new Error(`story "${story.id}" references unknown blocker "${unknownBlocker}"`);
+    }
+  }
+  const cycle = findBlockerCycle(parsed.stories);
+  if (cycle !== null) throw new Error(`stories block one another in a cycle: ${cycle.join(' → ')}`);
   return parsed;
 };
 

@@ -262,6 +262,18 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
     const labelId = payloadFor(usmActions.REMOVE_STORY_LABEL, action)['labelId'];
     return { title: m.removeStoryLabel, tone: 'delete', body: m.removed(findLabel(state, labelId)?.name ?? labelId) };
   },
+  ADD_STORY_BLOCKER: (m, action, state) => {
+    const blockerId = payloadFor(usmActions.ADD_STORY_BLOCKER, action)['blockerId'];
+    return { title: m.addStoryBlocker, tone: 'create', body: m.added(findStory(state, blockerId)?.name ?? blockerId) };
+  },
+  REMOVE_STORY_BLOCKER: (m, action, state) => {
+    const blockerId = payloadFor(usmActions.REMOVE_STORY_BLOCKER, action)['blockerId'];
+    return {
+      title: m.removeStoryBlocker,
+      tone: 'delete',
+      body: m.removed(findStory(state, blockerId)?.name ?? blockerId),
+    };
+  },
 } satisfies Record<ActionName<typeof usmActions>, (m: UsmMessages, action: DraftAction, state: UsmState) => Summary>;
 
 export const describeUsmAction = (

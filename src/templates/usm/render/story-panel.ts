@@ -8,6 +8,7 @@ import { commentBody } from '../../../core/comment';
 import { iconClose, iconTrash } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { describeLink } from '../../../lib/link-label';
+import { blockerOptions, dependencyOf, dependentOptions, isFinished } from '../dependencies';
 import { findMilestone, findStep, findStory, linkUrlSchema, type UserStory, type UsmState } from '../model';
 import { statusViews } from '../status-view';
 import { linkIcon } from './link-icon';
@@ -61,7 +62,7 @@ export const renderStoryPanel = (
         ></dpk-component-inline-edit>
       </h2>
       ${state.statuses.length === 0 ? nothing : renderStatusField(m, context, story)}
-      ${renderLabelsField(m, context, story)}
+      ${renderLabelsField(m, context, story)} ${renderDependenciesField(m, context, story)}
       <section class="sp-field">
         <h3>${m.storyDescriptionLabel}</h3>
         <dpk-component-inline-edit
@@ -166,6 +167,105 @@ const renderLabelsField = (
             })}
           </div>`
     }
+  </section>`;
+};
+
+/**
+ * What the story waits on and what waits on it. Either side is edited from
+ * here: a story taking on a dependent is the same edge seen from its blocker.
+ * The pickers offer only the stories that keep the graph free of cycles.
+ */
+const renderDependenciesField = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  story: UserStory,
+): TemplateResult => {
+  const { state } = context;
+  const dependency = dependencyOf(state, story.id);
+  const edge = (type: 'ADD_STORY_BLOCKER' | 'REMOVE_STORY_BLOCKER', storyId: string, blockerId: string) =>
+    context.dispatch({ type, target: { type: 'story', id: storyId }, payload: { blockerId } });
+  const row = (
+    attribute: 'data-blocker' | 'data-dependent',
+    id: string,
+    removeAria: (name: string) => string,
+    remove: () => void,
+  ): TemplateResult | typeof nothing => {
+    const other = findStory(state, id);
+    if (!other) return nothing;
+    const status = statusViews(state).find((view) => view.id === other.statusId);
+    return html`<li
+      data-blocker=${attribute === 'data-blocker' ? id : nothing}
+      data-dependent=${attribute === 'data-dependent' ? id : nothing}
+      data-finished=${String(isFinished(state, other))}
+    >
+      <a class="sp-dep-name" href=${context.hashFor({ story: id })} style=${statusToneStyle(status?.tone)}>
+        ${status ? statusIcon(status) : nothing}<span>${other.name}</span>
+      </a>
+      <button
+        class="dpk-icon-btn"
+        type="button"
+        data-role="remove"
+        aria-label=${removeAria(other.name)}
+        @click=${remove}
+      >
+        ${iconClose()}
+      </button>
+    </li>`;
+  };
+  const picker = (
+    role: 'add-blocker' | 'add-dependent',
+    placeholder: string,
+    options: readonly UserStory[],
+    pick: (id: string) => void,
+  ): TemplateResult | typeof nothing =>
+    options.length === 0
+      ? nothing
+      : html`<select
+          class="dpk-select sp-dep-add"
+          data-role=${role}
+          aria-label=${placeholder}
+          @change=${(event: Event) => {
+            const select = event.currentTarget instanceof HTMLSelectElement ? event.currentTarget : null;
+            if (!select || select.value === '') return;
+            pick(select.value);
+            select.value = '';
+          }}
+        >
+          <option value="" selected>${placeholder}</option>
+          ${options.map((option) => html`<option value=${option.id}>${option.name}</option>`)}
+        </select>`;
+  return html`<section class="sp-field sp-deps">
+    <h3>${m.storyDependenciesLabel}</h3>
+    <div class="sp-dep-side">
+      <h4>${m.storyBlockersLabel}</h4>
+      ${
+        dependency.blockers.length === 0
+          ? html`<p class="sp-empty">${m.storyNoBlockers}</p>`
+          : html`<ul class="sp-dep-list">
+              ${dependency.blockers.map((id) =>
+                row('data-blocker', id, m.removeBlockerAria, () => edge('REMOVE_STORY_BLOCKER', story.id, id)),
+              )}
+            </ul>`
+      }
+      ${picker('add-blocker', m.addBlockerPlaceholder, blockerOptions(state, story.id), (id) =>
+        edge('ADD_STORY_BLOCKER', story.id, id),
+      )}
+    </div>
+    <div class="sp-dep-side">
+      <h4>${m.storyDependentsLabel}</h4>
+      ${
+        dependency.dependents.length === 0
+          ? html`<p class="sp-empty">${m.storyNoDependents}</p>`
+          : html`<ul class="sp-dep-list">
+              ${dependency.dependents.map((id) =>
+                row('data-dependent', id, m.removeDependentAria, () => edge('REMOVE_STORY_BLOCKER', id, story.id)),
+              )}
+            </ul>`
+      }
+      ${picker('add-dependent', m.addDependentPlaceholder, dependentOptions(state, story.id), (id) =>
+        edge('ADD_STORY_BLOCKER', id, story.id),
+      )}
+    </div>
   </section>`;
 };
 
@@ -463,6 +563,61 @@ export const storyPanelStyles = css`
   }
   .sp-label[aria-pressed='true'] .sp-label-dot {
     opacity: 1;
+  }
+  .sp-deps {
+    gap: 12px;
+  }
+  .sp-dep-side {
+    display: grid;
+    gap: 6px;
+  }
+  .sp-dep-side h4 {
+    margin: 0;
+    color: var(--dpk-ink-soft);
+    font-size: 11.5px;
+    font-weight: 650;
+  }
+  .sp-dep-list {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .sp-dep-list li {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-sunken);
+  }
+  .sp-dep-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 6px 4px 6px 10px;
+    color: var(--dpk-ink);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .sp-dep-name span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sp-dep-name:hover span {
+    text-decoration: underline;
+  }
+  .sp-dep-list li[data-finished='true'] .sp-dep-name span {
+    color: var(--dpk-ink-faint);
+    text-decoration: line-through;
+  }
+  .sp-dep-add {
+    width: 100%;
   }
   .sp-description {
     display: block;

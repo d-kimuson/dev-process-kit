@@ -1,10 +1,11 @@
 import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
+import { Lock, Network } from 'lucide';
 
 import type { DraftAction } from '../../../core/types';
 import type { StoryLabel, StoryLink, UserStory } from '../model';
 
-import { iconComment } from '../../../core/icons';
+import { iconComment, lucide } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
 import { controls } from '../../../core/theme';
 import { describeLink } from '../../../lib/link-label';
@@ -13,6 +14,9 @@ import { usmMessages, type UsmMessages } from '../messages';
 import { linkIcon, linkStyles } from '../render/link-icon';
 import { statusIcon, statusStyles, statusToneStyle } from '../render/tone';
 import { statusViewOf, type StatusView } from '../status-view';
+
+const iconBlocks = lucide(Network);
+const iconWaits = lucide(Lock);
 
 /** Links beyond this many collapse into a `+n` chip; the panel lists them all. */
 const MAX_LINK_CHIPS = 3;
@@ -211,6 +215,59 @@ const cardStyles = css`
     background: var(--usm-tone);
   }
 
+  /*
+   * Where the story sits among the others. A story that holds others up is
+   * work to pull forward (a spike), so its chip is the loud one; one still
+   * waiting reads quieter and goes away once its blockers are done.
+   */
+  .card-deps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .dep-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 7px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 650;
+    line-height: 18px;
+    white-space: nowrap;
+  }
+
+  .dep-chip svg {
+    flex: none;
+    width: 12px;
+    height: 12px;
+  }
+
+  .dep-chip[data-kind='blocks'] {
+    background: var(--dpk-amber);
+    color: var(--dpk-paper-raised);
+  }
+
+  .dep-chip[data-kind='waits'] {
+    border: 1px dashed color-mix(in oklab, var(--dpk-ink-faint) 60%, transparent);
+    color: var(--dpk-ink-soft);
+  }
+
+  /* With a story open, the cards it waits on and the cards waiting on it stand out. */
+  :host([data-relation]) {
+    outline: 2px dashed var(--relation-tone);
+    outline-offset: 2px;
+  }
+
+  :host([data-relation='blocker']) {
+    --relation-tone: var(--dpk-amber);
+  }
+
+  :host([data-relation='dependent']) {
+    --relation-tone: var(--dpk-violet);
+  }
+
   .card-links {
     display: flex;
     flex-wrap: wrap;
@@ -242,6 +299,8 @@ export class DpkInternalUsmStoryCard extends LitElement {
     statuses: { attribute: false },
     labels: { attribute: false },
     notes: { attribute: false },
+    blocks: { type: Number },
+    waits: { type: Number },
     focused: { type: Boolean, reflect: true },
     dragging: { type: Boolean, reflect: true },
   };
@@ -255,6 +314,10 @@ export class DpkInternalUsmStoryCard extends LitElement {
   declare labels: readonly StoryLabel[];
   /** Comments already left on this story. */
   declare notes: readonly DraftAction[];
+  /** How many stories wait on this one. */
+  declare blocks: number;
+  /** How many unfinished stories this one waits on. */
+  declare waits: number;
   declare focused: boolean;
   declare dragging: boolean;
 
@@ -267,6 +330,8 @@ export class DpkInternalUsmStoryCard extends LitElement {
     this.statuses = [];
     this.labels = [];
     this.notes = [];
+    this.blocks = 0;
+    this.waits = 0;
     this.focused = false;
     this.dragging = false;
   }
@@ -286,6 +351,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
           ? html`<div class="card-text" @click=${stopLinkClicks}>${unsafeHTML(renderMarkdown(story.description))}</div>`
           : nothing
       }
+      ${this.blocks > 0 || this.waits > 0 ? this.#renderDependencies(m) : nothing}
       ${this.labels.length > 0 ? renderLabels(this.labels) : nothing}
       ${story.links && story.links.length > 0 ? this.#renderLinks(story.links) : nothing}
       ${
@@ -320,6 +386,25 @@ export class DpkInternalUsmStoryCard extends LitElement {
     return html`<span class="card-status" role="img" aria-label=${m.storyStatusAria(name)} title=${name}>
       ${statusIcon(current)}
     </span>`;
+  }
+
+  #renderDependencies(m: UsmMessages): TemplateResult {
+    return html`<div class="card-deps">
+      ${
+        this.blocks > 0
+          ? html`<span class="dep-chip" data-kind="blocks" title=${m.blocksChipTitle(this.blocks)}
+              >${iconBlocks()}${m.blocksChip(this.blocks)}</span
+            >`
+          : nothing
+      }
+      ${
+        this.waits > 0
+          ? html`<span class="dep-chip" data-kind="waits" title=${m.waitsChipTitle(this.waits)}
+              >${iconWaits()}${m.waitsChip(this.waits)}</span
+            >`
+          : nothing
+      }
+    </div>`;
   }
 
   /** The first links as chips (the service's mark and a short label); the rest as a count. */

@@ -136,6 +136,16 @@ export const usmActions = {
     'story',
     v.object({ labelId: v.pipe(v.string(), v.minLength(1)) }),
   ),
+  ADD_STORY_BLOCKER: defineAction(
+    'ADD_STORY_BLOCKER',
+    'story',
+    v.object({ blockerId: v.pipe(v.string(), v.minLength(1)) }),
+  ),
+  REMOVE_STORY_BLOCKER: defineAction(
+    'REMOVE_STORY_BLOCKER',
+    'story',
+    v.object({ blockerId: v.pipe(v.string(), v.minLength(1)) }),
+  ),
 } satisfies ActionSpecs;
 
 /** The discriminated union of this template's actions. */

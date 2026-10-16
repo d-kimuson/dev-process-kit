@@ -10,6 +10,7 @@ import { iconGrip, iconPlus } from '../../../core/icons';
 import { targetRef } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { addActivity, addMilestone, addStep, addStory } from '../commands';
+import { dependencyOf } from '../dependencies';
 import {
   flatSteps,
   labelsOfStory,
@@ -587,9 +588,11 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
   const views = statusViews(context.state);
   const notes = context.comments.filter((c) => c.target.type === 'story' && c.target.id === story.id);
   const source = drag.source({ type: 'story', id: story.id });
+  const dependency = dependencyOf(context.state, story.id);
   return html`<dpk-internal-usm-story-card
     data-story=${story.id}
     data-status=${story.statusId ?? ''}
+    data-relation=${relationTo(context.state, context.navigation['story'], story) ?? nothing}
     data-dpk-target=${targetRef({ type: 'story', id: story.id })}
     draggable="true"
     tabindex="0"
@@ -602,6 +605,8 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     .statuses=${views}
     .labels=${labelsOfStory(context.state, story)}
     .notes=${notes}
+    .blocks=${dependency.dependents.length}
+    .waits=${dependency.openBlockers}
     @click=${() => handlers.selectStory(story.id)}
     @keydown=${(event: KeyboardEvent) => {
       // Only the card's own keys: a link inside it keeps Enter for itself.
@@ -614,6 +619,19 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     @dragstart=${source.dragstart}
     @dragend=${source.dragend}
   ></dpk-internal-usm-story-card>`;
+};
+
+/** How a card relates to the open story: one it waits on, or one waiting on it. */
+const relationTo = (
+  state: UsmState,
+  openId: string | undefined,
+  story: UserStory,
+): 'blocker' | 'dependent' | undefined => {
+  if (openId === undefined || openId === story.id) return undefined;
+  if (story.blockedBy?.includes(openId)) return 'dependent';
+  return state.stories.find((candidate) => candidate.id === openId)?.blockedBy?.includes(story.id)
+    ? 'blocker'
+    : undefined;
 };
 
 /** The card under the pointer; events from inside its shadow root retarget to the host. */
