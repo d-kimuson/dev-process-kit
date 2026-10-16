@@ -2,12 +2,13 @@ import { html, nothing, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
-import type { DragController, Drop } from '../../../lib/dom/drag';
+import type { DragController, Drop, DropTargetHandlers } from '../../../lib/dom/drag';
 import type { CellRef } from '../drop';
 import type { UsmMessages } from '../messages';
 
 import { iconGrip, iconPlus } from '../../../core/icons';
 import { targetRef } from '../../../core/target';
+import { setCompositeDragImage } from '../../../lib/dom/drag-image';
 import { onCommit } from '../../../lib/dom/events';
 import { addActivity, addMilestone, addStep, addStory } from '../commands';
 import { dependencyOf } from '../dependencies';
@@ -39,9 +40,10 @@ export type BoardHandlers = {
   readonly dropOnCell: (cell: CellRef, drop: Drop<'story'>) => void;
   readonly dropOnGroupCell: (activityId: string, milestoneId: string | undefined, drop: Drop<'story'>) => void;
   readonly dropOnMilestoneRow: (milestoneId: string, drop: Drop<'milestone'>) => void;
-  readonly dropOnActivityHead: (drop: Drop<'activity'>) => void;
-  /** The drop names steps by their qualified ref (`activity.step`). */
-  readonly dropOnStepHead: (drop: Drop<'step'>) => void;
+  /** An activity group's column was dropped on another's (its head or any of its cells). */
+  readonly dropOnActivity: (drop: Drop<'activity'>) => void;
+  /** Likewise a step's column; the drop names steps by their qualified ref (`activity.step`). */
+  readonly dropOnStep: (drop: Drop<'step'>) => void;
 };
 
 export type BoardProps = {
@@ -235,8 +237,9 @@ const renderAxisCorner = (m: UsmMessages): TemplateResult => {
  * An activity group's head: its name, whose experience it is, how far its
  * stories have come (a bar in status colors along its bottom edge) and, in the
  * group view where the steps have no columns of their own, the steps it holds.
- * The head is the group's drag handle, like a milestone's row head: dropped on
- * another group's head, the whole column moves to that slot.
+ * The head is the group's drag handle, like a milestone's row head: the whole
+ * column lifts, and dropped anywhere on another group's column it moves to
+ * that slot.
  */
 const renderActivityHead = (
   props: BoardProps,
@@ -244,30 +247,28 @@ const renderActivityHead = (
   style?: string,
   listSteps = false,
 ): TemplateResult => {
-  const { m, context, drag, handlers } = props;
+  const { m, context, drag } = props;
   const { state } = context;
   const activity = state.activities.find((candidate) => candidate.id === activityId);
   if (!activity) return html`<div class="act-head"></div>`;
   const stories = state.stories.filter((story) => story.activityId === activity.id);
   const progress = statusDistribution(state, stories);
-  const key = `activity:${activity.id}`;
-  const target = drag.target({
-    key,
-    accepts: 'activity',
-    hovered: hoveredHead('.act-head[data-activity]', 'data-activity'),
-    onDrop: (drop) => handlers.dropOnActivityHead(drop),
-  });
+  const target = drag.combine('activity', columnTargets(props, activity.id));
   const source = drag.source({ type: 'activity', id: activity.id });
   return html`
     <div
       class="act-head"
       style=${style ?? ''}
       data-activity=${activity.id}
+      data-column=${activity.id}
       data-dpk-target=${targetRef({ type: 'activity', id: activity.id })}
       draggable="true"
       data-col-dragging=${String(drag.isDragging('activity', activity.id))}
-      data-col-drop=${String(drag.isOver(key))}
-      @dragstart=${source.dragstart}
+      data-col-drop=${columnDrop(drag, activity.id)}
+      @dragstart=${(event: DragEvent) => {
+        liftColumn(event, activity.id);
+        source.dragstart(event);
+      }}
       @dragend=${source.dragend}
       @dragenter=${target.dragenter}
       @dragover=${target.dragover}
@@ -329,37 +330,36 @@ const renderActivityHead = (
 };
 
 /**
- * A step's column head. It is the step's drag handle; a step only moves inside
- * its own activity, so the heads of the other activities do not take it.
+ * A step's column head. It is the step's drag handle: the column lifts, and
+ * moves only inside its own activity, so the other activities' columns do
+ * not take it.
  */
 const renderStepHead = (props: BoardProps, activityId: string, step: BackboneStep): TemplateResult => {
-  const { m, context, drag, handlers } = props;
+  const { m, context, drag } = props;
   const ref = stepRefOf(activityId, step.id);
-  const key = `step:${ref}`;
-  const dragged = drag.item;
-  const foreign = dragged?.type === 'step' && findStep(context.state, dragged.id)?.activity.id !== activityId;
-  const target = drag.target({
-    key,
-    accepts: 'step',
-    hovered: hoveredHead('.col-head[data-step]', 'data-step'),
-    onDrop: (drop) => handlers.dropOnStepHead(drop),
-  });
+  const target = drag.combine('step', columnTargets(props, activityId, step.id));
   const source = drag.source({ type: 'step', id: ref });
   return html`
     <div
       class="col-head"
       data-step=${ref}
+      data-column=${activityId}
+      data-column-step=${step.id}
       data-current=${String(context.navigation['step'] === step.id)}
       data-dpk-target=${targetRef({ type: 'step', id: ref })}
       draggable="true"
       data-col-dragging=${String(columnDragging(drag, activityId, step.id))}
-      data-col-drop=${String(drag.isOver(key))}
-      @dragstart=${source.dragstart}
+      data-col-drop=${columnDrop(drag, activityId, step.id)}
+      data-step-edge=${stepEdgeOf(context.state, activityId, step.id)}
+      @dragstart=${(event: DragEvent) => {
+        liftColumn(event, activityId, step.id);
+        source.dragstart(event);
+      }}
       @dragend=${source.dragend}
-      @dragenter=${foreign ? nothing : target.dragenter}
-      @dragover=${foreign ? nothing : target.dragover}
-      @dragleave=${foreign ? nothing : target.dragleave}
-      @drop=${foreign ? nothing : target.drop}
+      @dragenter=${target.dragenter}
+      @dragover=${target.dragover}
+      @dragleave=${target.dragleave}
+      @drop=${target.drop}
     >
       <span class="col-grip" aria-hidden="true">${iconGrip()}</span>
       <h4>
@@ -380,6 +380,65 @@ const renderStepHead = (props: BoardProps, activityId: string, step: BackboneSte
       <span class="count">${storyCountForStep(context.state, step.id)}</span>
     </div>
   `;
+};
+
+/**
+ * The drop targets every part of a column (its heads and cells) carries, as a
+ * milestone row's whole row is its target: an activity group's column takes
+ * the other groups, and a step's column also the steps of its own activity.
+ */
+const columnTargets = (
+  props: BoardProps,
+  activityId: string,
+  stepId?: string,
+): (readonly [UsmDragType, DropTargetHandlers])[] => {
+  const { context, drag, handlers } = props;
+  const activity = drag.target({
+    key: `activity:${activityId}`,
+    accepts: 'activity',
+    hovered: hoveredColumn(activityId),
+    onDrop: (drop) => handlers.dropOnActivity(drop),
+  });
+  if (stepId === undefined) return [['activity', activity]];
+  const dragged = drag.item;
+  const foreign = dragged?.type === 'step' && findStep(context.state, dragged.id)?.activity.id !== activityId;
+  if (foreign) return [['activity', activity]];
+  const ref = stepRefOf(activityId, stepId);
+  const step = drag.target({
+    key: `step:${ref}`,
+    accepts: 'step',
+    hovered: hoveredColumn(ref),
+    onDrop: (drop) => handlers.dropOnStep(drop),
+  });
+  return [
+    ['activity', activity],
+    ['step', step],
+  ];
+};
+
+/**
+ * Which column a part lights up as the drop target, if any: its activity
+ * group's (spanning its steps) or its step's. All the column's parts light up.
+ */
+const columnDrop = (
+  drag: DragController<UsmDragType>,
+  activityId: string,
+  stepId?: string,
+): 'activity' | 'step' | 'none' => {
+  if (drag.isOver(`activity:${activityId}`)) return 'activity';
+  if (stepId !== undefined && drag.isOver(`step:${stepRefOf(activityId, stepId)}`)) return 'step';
+  return 'none';
+};
+
+/**
+ * Where a step stands in its activity group's span (`first`, `last`, both or
+ * neither): a lit group draws its sides only along its outer steps.
+ */
+const stepEdgeOf = (state: UsmState, activityId: string, stepId: string): string => {
+  const steps = state.activities.find((activity) => activity.id === activityId)?.steps ?? [];
+  return [steps[0]?.id === stepId ? 'first' : '', steps.at(-1)?.id === stepId ? 'last' : '']
+    .filter((edge) => edge !== '')
+    .join(' ');
 };
 
 /** Whether the column (an activity's, or one step's in it) is being dragged: it fades like a dragged row. */
@@ -517,19 +576,24 @@ const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
     passesMapFilter(filter, story),
   );
   const key = `cell:${cell.stepId}:${cell.milestoneId ?? ''}`;
-  const target = drag.target({
-    key,
-    accepts: 'story',
-    hovered: hoveredCard,
-    onDrop: (drop) => handlers.dropOnCell(cell, drop),
-  });
+  const target = drag.combine('story', [
+    [
+      'story',
+      drag.target({ key, accepts: 'story', hovered: hoveredCard, onDrop: (drop) => handlers.dropOnCell(cell, drop) }),
+    ],
+    ...columnTargets(props, cell.activityId, cell.stepId),
+  ]);
   return html`
     <div
       class="cell"
       data-step=${cell.stepId}
       data-milestone=${cell.milestoneId ?? ''}
+      data-column=${cell.activityId}
+      data-column-step=${cell.stepId}
       data-drop=${String(drag.isOver(key))}
       data-col-dragging=${String(columnDragging(drag, cell.activityId, cell.stepId))}
+      data-col-drop=${columnDrop(drag, cell.activityId, cell.stepId)}
+      data-step-edge=${stepEdgeOf(context.state, cell.activityId, cell.stepId)}
       @dragenter=${target.dragenter}
       @dragover=${target.dragover}
       @dragleave=${target.dragleave}
@@ -563,19 +627,27 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
   const firstStep = steps[0];
   const stepNameOf = (stepId: string): string => steps.find((step) => step.id === stepId)?.name ?? '';
   const key = `group:${activityId}:${milestoneId ?? ''}`;
-  const target = drag.target({
-    key,
-    accepts: 'story',
-    hovered: hoveredCard,
-    onDrop: (drop) => handlers.dropOnGroupCell(activityId, milestoneId, drop),
-  });
+  const target = drag.combine('story', [
+    [
+      'story',
+      drag.target({
+        key,
+        accepts: 'story',
+        hovered: hoveredCard,
+        onDrop: (drop) => handlers.dropOnGroupCell(activityId, milestoneId, drop),
+      }),
+    ],
+    ...columnTargets(props, activityId),
+  ]);
   return html`
     <div
       class="cell"
       data-activity=${activityId}
       data-milestone=${milestoneId ?? ''}
+      data-column=${activityId}
       data-drop=${String(drag.isOver(key))}
       data-col-dragging=${String(columnDragging(drag, activityId))}
+      data-col-drop=${columnDrop(drag, activityId)}
       @dragenter=${target.dragenter}
       @dragover=${target.dragover}
       @dragleave=${target.dragleave}
@@ -686,13 +758,31 @@ const liftRow = (event: DragEvent): void => {
   event.dataTransfer.setDragImage(row, event.clientX - rect.left, event.clientY - rect.top);
 };
 
-/** The column head (`selector`) under the pointer, named by its `attribute`. */
-const hoveredHead =
-  (selector: string, attribute: string) =>
-  (event: DragEvent): { id: string | null; element: Element } | null => {
-    const head = event.target instanceof Element ? event.target.closest(selector) : null;
-    return head ? { id: head.getAttribute(attribute), element: head } : null;
-  };
+/** Every part of a column stands for the same slot: the column itself is what is hovered. */
+const hoveredColumn =
+  (id: string) =>
+  (event: DragEvent): { id: string; element: Element } | null =>
+    event.currentTarget instanceof Element ? { id, element: event.currentTarget } : null;
+
+/**
+ * Lifts a whole column as the drag image, the way a milestone's row lifts:
+ * its heads and every cell under them (`data-column`, and `data-column-step`
+ * for a step's), as far as the map shows them. The sticky heads go last so
+ * they paint over the cells scrolled under them.
+ */
+const liftColumn = (event: DragEvent, activityId: string, stepId?: string): void => {
+  const head = event.currentTarget instanceof Element ? event.currentTarget : null;
+  const frame = head?.closest('.map-scroll');
+  if (!frame) return;
+  const parts = [...frame.querySelectorAll('[data-column]')].filter(
+    (part) =>
+      part.getAttribute('data-column') === activityId &&
+      (stepId === undefined || part.getAttribute('data-column-step') === stepId),
+  );
+  const heads = parts.filter((part) => part.closest('.map-head'));
+  const cells = parts.filter((part) => !part.closest('.map-head'));
+  setCompositeDragImage(event, [...cells, ...heads], frame);
+};
 
 const hoveredMilestoneRow = (event: DragEvent): { id: string | null; element: Element } | null => {
   const row = event.target instanceof Element ? event.target.closest('.map-row') : null;

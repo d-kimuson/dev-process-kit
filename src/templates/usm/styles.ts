@@ -480,10 +480,37 @@ export const usmStyles = css`
   .cell[data-col-dragging='true'] {
     opacity: 0.45;
   }
-  .act-head[data-col-drop='true'],
-  .col-head[data-col-drop='true'] {
-    outline: 2px dashed var(--dpk-blue);
-    outline-offset: -2px;
+  /* The column a dragged one would land in lights up from head to last cell,
+     the way a row does: its sides run down every part and its head caps it.
+     A group's column spans its steps, so only its outer steps draw its sides. */
+  .act-head:is([data-col-drop='activity'], [data-col-drop='step']),
+  .col-head:is([data-col-drop='activity'], [data-col-drop='step']),
+  .cell:is([data-col-drop='activity'], [data-col-drop='step']) {
+    --usm-col-left: 2px;
+    --usm-col-right: 2px;
+    --usm-col-top: 0px;
+    box-shadow:
+      inset var(--usm-col-left) 0 0 var(--dpk-blue),
+      inset calc(var(--usm-col-right) * -1) 0 0 var(--dpk-blue),
+      inset 0 var(--usm-col-top) 0 var(--dpk-blue);
+  }
+  [data-col-drop='activity'][data-step-edge]:not([data-step-edge~='first']) {
+    --usm-col-left: 0px;
+  }
+  [data-col-drop='activity'][data-step-edge]:not([data-step-edge~='last']) {
+    --usm-col-right: 0px;
+  }
+  .act-head[data-col-drop='activity'],
+  .col-head[data-col-drop='step'] {
+    --usm-col-top: 2px;
+  }
+  .cell:is([data-col-drop='activity'], [data-col-drop='step']) {
+    background: linear-gradient(var(--dpk-blue-soft), var(--dpk-blue-soft)), var(--dpk-dots), var(--dpk-paper-sunken);
+  }
+  /* The heads stay opaque: the cells scroll under them. */
+  .act-head:is([data-col-drop='activity'], [data-col-drop='step']),
+  .col-head:is([data-col-drop='activity'], [data-col-drop='step']) {
+    background-image: linear-gradient(var(--dpk-blue-soft), var(--dpk-blue-soft));
   }
 
   /* Unassigned is a holding area, not a release: its label is quieter. */

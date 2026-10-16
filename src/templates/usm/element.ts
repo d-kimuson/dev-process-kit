@@ -363,8 +363,8 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         dropOnCell: (cell, drop) => this.#onCellDrop(cell, drop),
         dropOnGroupCell: (activityId, milestoneId, drop) => this.#onGroupDrop(activityId, milestoneId, drop),
         dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
-        dropOnActivityHead: (drop) => this.#onActivityDrop(drop),
-        dropOnStepHead: (drop) => this.#onStepDrop(drop),
+        dropOnActivity: (drop) => this.#onActivityDrop(drop),
+        dropOnStep: (drop) => this.#onStepDrop(drop),
       },
       highlighted: highlightedStoriesOf(context.state, context.navigation),
     });

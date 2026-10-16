@@ -188,6 +188,36 @@ export class DragController<T extends string = string> implements ReactiveContro
   }
 
   /**
+   * One element that takes several kinds (a cell takes stories, and is part
+   * of a column that takes columns), as `[kind, target]` pairs. The pointer
+   * events reach every target, each ignoring the kinds it does not accept; a
+   * drag started elsewhere, whose kind is not known yet, reaches only the
+   * `fallback` kind's. The drop goes to the target of the kind it carries (a
+   * bare id is the fallback kind), and one no target takes is ignored.
+   */
+  combine(fallback: T, targets: readonly (readonly [T, DropTargetHandlers])[]): DropTargetHandlers {
+    const reached = (): readonly DropTargetHandlers[] => {
+      const known = this.item !== null;
+      return targets.flatMap(([kind, target]) => (known || kind === fallback ? [target] : []));
+    };
+    return {
+      dragenter: (event) => reached().forEach((target) => target.dragenter(event)),
+      dragover: (event) => reached().forEach((target) => target.dragover(event)),
+      dragleave: () => targets.forEach(([, target]) => target.dragleave()),
+      drop: (event) => {
+        const kind = parseDragData(event.dataTransfer?.getData(MIME), fallback)?.type ?? this.item?.type;
+        const target = targets.find(([candidate]) => candidate === kind)?.[1];
+        if (target) {
+          target.drop(event);
+          return;
+        }
+        event.preventDefault();
+        this.#set(IDLE);
+      },
+    };
+  }
+
+  /**
    * A drag that started elsewhere (another host, or a synthetic event) has no
    * known item yet; it is accepted until the drop reveals its type.
    */

@@ -140,6 +140,60 @@ describe('usm columns: on the map', () => {
     expect(heads.map((head) => head.getAttribute('draggable'))).toEqual(['true', 'true', 'true']);
   });
 
+  /** jsdom has no DragEvent: a synthetic drop carrying the payload, as the board reads it. */
+  const dropOn = (target: Element, payload: string): void => {
+    const drop = Object.assign(new Event('drop', { bubbles: true, cancelable: true }), {
+      clientY: 0,
+      dataTransfer: { getData: () => payload },
+    });
+    target.dispatchEvent(drop);
+  };
+
+  it('marks every part of a column, heads and cells, so the whole column lifts', async () => {
+    const el = await mount('');
+    const root = el.shadowRoot!;
+    const column = (activityId: string, stepId?: string) =>
+      [...root.querySelectorAll(`[data-column="${activityId}"]`)]
+        .filter((part) => stepId === undefined || part.getAttribute('data-column-step') === stepId)
+        .map((part) => part.className);
+    // the group's head, its three step heads and their cells in the unassigned row
+    expect(column('a1')).toEqual(['act-head', 'col-head', 'col-head', 'col-head', 'cell', 'cell', 'cell']);
+    expect(column('a1', 's2')).toEqual(['col-head', 'cell']);
+  });
+
+  it('takes a dropped group anywhere on another group column, like a milestone row', async () => {
+    const el = await mount('');
+    const cell = el.shadowRoot!.querySelector('.cell[data-column="a1"][data-column-step="s2"]')!;
+    dropOn(cell, 'activity:a3');
+    await settle(el);
+    expect(el.api.state.activities.map((activity) => activity.id)).toEqual(['a3', 'a1', 'a2']);
+  });
+
+  it('takes a dropped step on a cell of its own activity, never of another', async () => {
+    const el = await mount('');
+    const root = el.shadowRoot!;
+    dropOn(root.querySelector('.cell[data-column="a1"][data-column-step="s1"]')!, 'step:a1.s3');
+    await settle(el);
+    expect(el.api.state.activities[0]?.steps.map((step) => step.id)).toEqual(['s3', 's1', 's2']);
+    dropOn(root.querySelector('.cell[data-column="a2"]')!, 'step:a1.s3');
+    await settle(el);
+    expect(el.api.state.activities.map((activity) => activity.steps.length)).toEqual([3, 1, 1]);
+  });
+
+  it('lets the group view take a dropped group on its cells too', async () => {
+    const el = await mount('#view=group');
+    dropOn(el.shadowRoot!.querySelector('.cell[data-column="a2"]')!, 'activity:a1');
+    await settle(el);
+    expect(el.api.state.activities.map((activity) => activity.id)).toEqual(['a2', 'a1', 'a3']);
+  });
+
+  it('still takes a dropped story on a cell', async () => {
+    const el = await mount('');
+    dropOn(el.shadowRoot!.querySelector('.cell[data-column="a1"][data-column-step="s2"]')!, 'x');
+    await settle(el);
+    expect(el.api.state.stories.find((story) => story.id === 'x')).toMatchObject({ stepId: 's2' });
+  });
+
   it('moves the columns when a reorder is dispatched', async () => {
     const el = await mount('');
     el.api.dispatch({ type: 'REORDER_ACTIVITY', target: 'activity:a3', payload: { after: null } });

@@ -199,6 +199,43 @@ describe('DragController', () => {
     );
   });
 
+  it('lets one element take several kinds: each target sees its own kind, and the drop goes to the kind it carries', async () => {
+    const host = fakeHost();
+    const drag = new DragController<'story' | 'activity' | 'milestone'>(host);
+    const onStory = vi.fn();
+    const onActivity = vi.fn();
+    const cell = drag.combine('story', [
+      ['story', drag.target({ key: 'cell:s1', accepts: 'story', onDrop: onStory })],
+      ['activity', drag.target({ key: 'activity:a1', accepts: 'activity', onDrop: onActivity })],
+    ]);
+
+    // an unknown drag only lights up the fallback kind
+    cell.dragenter(dragEvent());
+    expect(drag.isOver('cell:s1')).toBe(true);
+    cell.dragleave();
+
+    drag.source({ type: 'activity', id: 'a2' }).dragstart(dragEvent());
+    await settle();
+    const enter = dragEvent();
+    cell.dragenter(enter);
+    expect(enter.preventDefault).toHaveBeenCalled();
+    expect(drag.isOver('activity:a1')).toBe(true);
+    expect(drag.isOver('cell:s1')).toBe(false);
+    cell.dragleave();
+    expect(drag.isOver('activity:a1')).toBe(false);
+
+    cell.drop(dragEvent({ dataTransfer: transfer({ 'text/plain': 'activity:a2' }) }));
+    expect(onActivity).toHaveBeenCalledTimes(1);
+    expect(onStory).not.toHaveBeenCalled();
+    // a bare id is the fallback kind, and a kind no target takes is ignored
+    cell.drop(dragEvent({ dataTransfer: transfer({ 'text/plain': 'u1' }) }));
+    expect(onStory).toHaveBeenCalledTimes(1);
+    cell.drop(dragEvent({ dataTransfer: transfer({ 'text/plain': 'milestone:mvp' }) }));
+    expect(onStory).toHaveBeenCalledTimes(1);
+    expect(onActivity).toHaveBeenCalledTimes(1);
+    expect(drag.state).toEqual({ kind: 'idle' });
+  });
+
   it('clears everything when the host disconnects', async () => {
     const host = fakeHost();
     const drag = new DragController<'story'>(host);
