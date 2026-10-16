@@ -30,7 +30,6 @@
     "./templates/usm": "./dist/templates/usm.js",
     "./templates/event-storming": "./dist/templates/event-storming.js",
     "./templates/example-mapping": "./dist/templates/example-mapping.js",
-    "./templates/grill": "./dist/templates/grill.js",
     "./templates/plain": "./dist/templates/plain.js",
     "./templates/slides": "./dist/templates/slides.js",
     "./templates/task-board": "./dist/templates/task-board.js",

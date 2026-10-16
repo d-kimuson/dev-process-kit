@@ -55,6 +55,8 @@ export const snapshotOf = <S>(source: TemplateFacadeSource<S>): TemplateSnapshot
     comments: derivation.comments,
     stale: derivation.stale,
     issues: source.issues(),
+    grill: derivation.grill,
+    answers: derivation.answers,
   };
 };
 

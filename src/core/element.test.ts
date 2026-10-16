@@ -721,17 +721,11 @@ describe('sidebar collapse', () => {
     expect(toggle(el)?.closest('.dpk-sidebar-strip')?.nextElementSibling).toBe(sidebar(el));
   });
 
-  it('offers no fold button when the template shows no sidebar or folds it itself', async () => {
+  it('offers no fold button when the template shows no sidebar', async () => {
     document.body.innerHTML = '<dpk-template-usm storage="memory"></dpk-template-usm>';
     const usm = document.querySelector('dpk-template-usm') as DpkTemplatePrototype;
     await settle(usm);
     expect(toggle(usm)).toBeNull();
-
-    document.body.innerHTML = '<dpk-template-grill storage="memory"></dpk-template-grill>';
-    const grill = document.querySelector('dpk-template-grill') as DpkTemplatePrototype;
-    await settle(grill);
-    expect(toggle(grill)).toBeNull();
-    expect(edge(grill)).not.toBeNull();
   });
 });
 

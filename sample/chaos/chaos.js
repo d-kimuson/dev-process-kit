@@ -11,12 +11,15 @@
  * With no `template`, this renders an index of every template x fixture as links.
  *
  * Fixture contract (see `sample/chaos/fixtures/plain.js` for a worked example).
- * `fixtures/components.js` is special-cased: components have no template of their own,
- * so its fixtures render through `plain` and are merged into `plain`'s registry.
+ * `fixtures/components.js` and `fixtures/grill.js` are special-cased: components have
+ * no template of their own, and grill (ADR 20261016_grill-in-core) is a feature of
+ * every template's shell rather than a template of its own, so both render through
+ * `plain` and are merged into `plain`'s registry.
  *
  * @typedef {{
  *   description: string,
  *   base: unknown,
+ *   grill?: unknown,
  *   slots?: string,
  *   attributes?: Record<string, string>,
  *   lang?: 'ja'|'en',
@@ -35,7 +38,6 @@ export const TEMPLATES = [
   'usm',
   'event-storming',
   'example-mapping',
-  'grill',
   'plain',
   'slides',
   'task-board',
@@ -63,15 +65,16 @@ const loadFixtureModule = async (name) => {
  * Loads `sample/chaos/fixtures/<template>.js`, or `null` when there is none (yet).
  *
  * Components aren't templates, so `fixtures/components.js` (diagrams and standalone
- * components, rendered through `slot="main"`) has no template of its own: its fixtures
+ * components, rendered through `slot="main"`) has no template of its own; neither is
+ * grill (core now, not a template — see the file-level comment). Both sets of fixtures
  * are merged into `plain`'s, the template that hosts arbitrary slotted content.
  */
 const loadFixtures = async (template) => {
   const own = await loadFixtureModule(template);
   if (template !== 'plain') return own;
   const components = await loadFixtureModule('components');
-  if (components === null) return own;
-  return { ...own, ...components };
+  const grill = await loadFixtureModule('grill');
+  return { ...own, ...components, ...grill };
 };
 
 /** `{ template: [fixtureName, ...] }` for every template that has a fixture file. Exposed for chaos-capture.ts. */
@@ -213,7 +216,11 @@ const renderFixture = async (template, fixtureName, fixture, overrides) => {
   if (overrides.notes === 'on') el.setAttribute('notes', 'on');
 
   const baseJson = escapeJsonForScript(JSON.stringify(fixture.base ?? {}));
-  el.innerHTML = `<script type="application/json">${baseJson}</script>${fixture.slots ?? ''}`;
+  const grillScript =
+    fixture.grill === undefined
+      ? ''
+      : `<script type="application/json" data-dpk-grill>${escapeJsonForScript(JSON.stringify(fixture.grill))}</script>`;
+  el.innerHTML = `<script type="application/json">${baseJson}</script>${grillScript}${fixture.slots ?? ''}`;
 
   app.append(el);
 

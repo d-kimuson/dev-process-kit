@@ -174,7 +174,7 @@ const renderGroups = (m: PanelMessages, vm: PanelViewModel, send: PanelSend): Te
       ? renderEmpty(m.emptyChanges, m.emptyChangesHint)
       : renderEmpty(m.emptyComments, m.emptyCommentsHint);
   }
-  if (!vm.hasDraft) return renderEmpty(m.empty, m.emptyHint);
+  if (vm.groups.every((group) => group.items.length === 0)) return renderEmpty(m.empty, m.emptyHint);
   return html`<div class="groups">
     ${vm.groups
       .filter((group) => group.items.length > 0)

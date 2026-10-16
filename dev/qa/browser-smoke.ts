@@ -27,7 +27,7 @@ const SAMPLES = [
   ['example-mapping', 'example-mapping'],
   // English UI (`lang="en"`); every other sample is Japanese.
   ['example-mapping-en', 'example-mapping'],
-  ['grill', 'grill'],
+  ['grill', 'plain'],
   ['diagrams', 'plain'],
   ['design-doc', 'plain'],
   ['architecture', 'plain'],

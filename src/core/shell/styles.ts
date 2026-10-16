@@ -1002,9 +1002,13 @@ export const chromeStyles = [
       gap: 6px;
     }
 
-    /* With the settings gear there are three buttons to keep the header clear of. */
-    .dpk-shell:has(.dpk-settings-trigger) .dpk-header {
+    /* Each further button (the questions, the settings gear) widens what the header keeps clear of. */
+    .dpk-shell:is(:has(.dpk-settings-trigger), :has(.dpk-review-toggles > :nth-child(3))) .dpk-header {
       padding-right: 154px;
+    }
+
+    .dpk-shell:has(.dpk-settings-trigger):has(.dpk-review-toggles > :nth-child(3)) .dpk-header {
+      padding-right: 196px;
     }
 
     .dpk-header-action {
@@ -1085,6 +1089,7 @@ export const chromeStyles = [
       font-variant-numeric: tabular-nums;
       line-height: 14px;
       text-align: center;
+      white-space: nowrap;
       box-shadow: 0 3px 8px -2px color-mix(in srgb, var(--dpk-accent) 60%, transparent);
       animation: dpk-pop 260ms var(--dpk-ease-spring);
     }
@@ -1269,6 +1274,530 @@ export const chromeStyles = [
       color: var(--dpk-ink-soft);
       font-size: 12px;
       line-height: 1.6;
+    }
+
+    /* ---------------------------------------------------------- questions */
+
+    /* The questions the page asks, in the review popover beside the changes and
+       the review comments. The comment panel stays mounted (it holds the
+       composer's unsent text) but steps aside. */
+    .dpk-review[data-section='questions'] > dpk-component-comment-panel {
+      display: none;
+    }
+
+    .dpk-grill {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .dpk-grill-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--dpk-rule);
+      background: var(--dpk-glass);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 1px 0 var(--dpk-highlight) inset;
+    }
+
+    .dpk-grill-head h2 {
+      margin: 0;
+      font-size: 13.5px;
+      font-weight: 660;
+      letter-spacing: -0.015em;
+    }
+
+    .dpk-grill-progress {
+      font-family: var(--dpk-mono);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      color: var(--dpk-ink-faint);
+    }
+
+    /* With earlier rounds, a select of rounds: the current one first. */
+    .dpk-grill-rounds {
+      flex-shrink: 0;
+      padding: 10px 10px 0;
+    }
+
+    .dpk-grill-round {
+      width: 100%;
+      padding: 6px 24px 6px 9px;
+      border: 1px solid var(--dpk-rule);
+      border-radius: var(--dpk-radius-sm);
+      appearance: none;
+      background-color: var(--dpk-paper-sunken);
+      background-image:
+        linear-gradient(45deg, transparent 50%, currentColor 50%),
+        linear-gradient(135deg, currentColor 50%, transparent 50%);
+      background-position:
+        calc(100% - 13px) 52%,
+        calc(100% - 9px) 52%;
+      background-size: 4px 4px;
+      background-repeat: no-repeat;
+      color: var(--dpk-ink);
+      font: inherit;
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+
+    .dpk-grill-round:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
+    .dpk-grill-round option {
+      color: var(--dpk-ink);
+      background: var(--dpk-paper-raised);
+    }
+
+    .dpk-grill-round-note {
+      margin: 4px 0 2px;
+      padding: 0 8px;
+      font-size: 10.5px;
+      line-height: 1.6;
+      color: var(--dpk-ink-faint);
+    }
+
+    .dpk-grill-list {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      overscroll-behavior: contain;
+      padding: 2px 10px 12px;
+    }
+
+    .dpk-grill-empty {
+      margin: 0;
+      padding: 22px 8px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--dpk-ink-faint);
+    }
+
+    .dpk-grill-question {
+      margin: 6px 0;
+      border: 1px solid transparent;
+      border-radius: var(--dpk-radius);
+      transition:
+        background 140ms var(--dpk-ease),
+        border-color 140ms var(--dpk-ease);
+    }
+
+    .dpk-grill-question:has(.dpk-grill-heading[aria-expanded='true']) {
+      border-color: var(--dpk-rule);
+      background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    }
+
+    .dpk-grill-heading {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      width: 100%;
+      padding: 10px 8px;
+      border: 0;
+      border-radius: var(--dpk-radius-sm);
+      background: none;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .dpk-grill-heading:hover {
+      background: var(--dpk-paper-sunken);
+    }
+
+    .dpk-grill-question:has(.dpk-grill-heading[aria-expanded='true']) .dpk-grill-heading:hover {
+      background: none;
+    }
+
+    .dpk-grill-ref {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      min-width: 30px;
+      height: 22px;
+      padding: 0 6px;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: 999px;
+      background: var(--dpk-paper-sunken);
+      font-family: var(--dpk-mono);
+      font-size: 10px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--dpk-ink-faint);
+      box-shadow: inset 0 1px 2px var(--dpk-shade-1);
+      transition:
+        background 140ms var(--dpk-ease),
+        color 140ms var(--dpk-ease),
+        border-color 140ms var(--dpk-ease),
+        box-shadow 140ms var(--dpk-ease);
+    }
+
+    .dpk-grill-question[data-answered='true'] .dpk-grill-ref {
+      border-color: transparent;
+      background: linear-gradient(180deg, var(--dpk-green-soft), color-mix(in srgb, var(--dpk-green) 16%, transparent));
+      color: var(--dpk-green);
+      box-shadow: var(--dpk-bevel);
+    }
+
+    .dpk-grill-question:has(.dpk-grill-heading[aria-expanded='true']) .dpk-grill-ref {
+      border-color: transparent;
+      background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent));
+      color: var(--dpk-accent-ink);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.24),
+        0 2px 6px -2px color-mix(in srgb, var(--dpk-accent) 55%, transparent);
+    }
+
+    .dpk-grill-heading-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .dpk-grill-heading-text strong {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 620;
+      line-height: 1.6;
+      letter-spacing: -0.005em;
+    }
+
+    .dpk-grill-summary {
+      display: block;
+      margin-top: 4px;
+      font-size: 10.5px;
+      line-height: 1.6;
+      color: var(--dpk-green);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dpk-grill-chevron {
+      flex: 0 0 auto;
+      width: 16px;
+      color: var(--dpk-ink-faint);
+      line-height: 22px;
+      text-align: center;
+    }
+
+    .dpk-grill-chevron svg {
+      display: block;
+      width: 13px;
+      height: 13px;
+      margin: 4.5px auto 0;
+      transition: transform 180ms var(--dpk-ease);
+    }
+
+    .dpk-grill-heading[aria-expanded='true'] .dpk-grill-chevron svg {
+      transform: rotate(90deg);
+      color: var(--dpk-accent);
+    }
+
+    .dpk-grill-body {
+      padding: 2px 8px 14px 47px;
+      animation: dpk-grill-open 180ms var(--dpk-ease) backwards;
+    }
+
+    @keyframes dpk-grill-open {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+    }
+
+    .dpk-grill-description {
+      margin: 0 0 8px;
+      font-size: 11.5px;
+      line-height: 1.85;
+      color: var(--dpk-ink-soft);
+    }
+
+    .dpk-grill-note {
+      margin: 0 0 10px;
+      padding: 7px 10px;
+      border-left: 2px solid var(--dpk-amber);
+      border-radius: 0 var(--dpk-radius-xs) var(--dpk-radius-xs) 0;
+      background: linear-gradient(90deg, var(--dpk-amber-soft), transparent);
+      font-size: 11px;
+      line-height: 1.7;
+      color: var(--dpk-ink-soft);
+    }
+
+    .dpk-grill-choices {
+      display: grid;
+      gap: 6px;
+    }
+
+    .dpk-grill-choice {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 9px 8px 12px;
+      border: 1px solid var(--dpk-rule);
+      border-radius: var(--dpk-radius-sm);
+      background: var(--dpk-paper);
+      font-size: 11.5px;
+      line-height: 1.7;
+      cursor: pointer;
+      overflow: hidden;
+      transition:
+        border-color 140ms var(--dpk-ease),
+        background 140ms var(--dpk-ease),
+        box-shadow 140ms var(--dpk-ease),
+        transform 140ms var(--dpk-ease);
+    }
+
+    /* Selection indicator: a colored bar on the leading edge, like the rail's
+       comment cards — quiet until a choice is actually picked. */
+    .dpk-grill-choice::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: transparent;
+      transition: background 140ms var(--dpk-ease);
+    }
+
+    .dpk-grill-choice:hover {
+      border-color: var(--dpk-rule-hover);
+      background: var(--dpk-paper-inset);
+    }
+
+    .dpk-grill-choice:has(input:checked) {
+      border-color: color-mix(in srgb, var(--dpk-green) 45%, transparent);
+      background: var(--dpk-green-soft);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-green) 30%, transparent);
+    }
+
+    .dpk-grill-choice:has(input:checked)::before {
+      background: var(--dpk-green);
+    }
+
+    .dpk-grill-choice[data-free] {
+      border-style: dashed;
+    }
+
+    .dpk-grill-choice[data-free='true'] {
+      border-style: solid;
+    }
+
+    .dpk-grill-choice input {
+      flex: 0 0 auto;
+      margin: 3px 0 0;
+      accent-color: var(--dpk-green);
+    }
+
+    .dpk-grill-choice-text {
+      display: flex;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .dpk-grill-letter {
+      flex: 0 0 auto;
+      font-family: var(--dpk-mono);
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1.9;
+      color: var(--dpk-green);
+    }
+
+    /* An earlier round: a disclosure per question, nothing to answer with. */
+    .dpk-grill-question[data-past] > summary {
+      list-style: none;
+    }
+
+    .dpk-grill-question[data-past] > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .dpk-grill-question[data-past][open] {
+      border-color: var(--dpk-rule);
+      background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    }
+
+    .dpk-grill-question[data-past][open] .dpk-grill-heading:hover {
+      background: none;
+    }
+
+    .dpk-grill-question[data-past][open] .dpk-grill-chevron svg {
+      transform: rotate(90deg);
+    }
+
+    .dpk-grill-question[data-past][open] .dpk-grill-summary {
+      display: none;
+    }
+
+    .dpk-grill-question[data-past][data-answered='false'] .dpk-grill-summary {
+      color: var(--dpk-ink-faint);
+    }
+
+    .dpk-grill-past-choices {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .dpk-grill-past-choice {
+      display: flex;
+      gap: 7px;
+      margin: 0;
+      padding: 7px 9px;
+      border: 1px solid var(--dpk-rule);
+      border-radius: var(--dpk-radius-sm);
+      font-size: 11.5px;
+      line-height: 1.7;
+      color: var(--dpk-ink-faint);
+    }
+
+    .dpk-grill-past-choice[data-checked='true'] {
+      border-color: color-mix(in srgb, var(--dpk-green) 45%, transparent);
+      background: var(--dpk-green-soft);
+      color: var(--dpk-ink);
+    }
+
+    .dpk-grill-past-free {
+      margin-top: 6px;
+      white-space: pre-wrap;
+    }
+
+    .dpk-grill-free {
+      margin-top: 7px;
+      min-height: 76px;
+      max-height: 240px;
+    }
+
+    .dpk-grill-clear {
+      margin-top: 10px;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--dpk-ink-faint);
+      font-size: 10.5px;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+
+    .dpk-grill-clear:hover {
+      color: var(--dpk-ink);
+    }
+
+    /* The hand-off at the foot of the questions: the comment panel's own is hidden. */
+    .dpk-grill-footer {
+      flex-shrink: 0;
+      display: grid;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--dpk-rule);
+      background: var(--dpk-paper-raised);
+      box-shadow: 0 -6px 12px -10px var(--dpk-shade-2);
+    }
+
+    .dpk-grill-footer .dpk-dock-actions {
+      padding: 0;
+      border: 0;
+      background: none;
+      backdrop-filter: none;
+      box-shadow: none;
+    }
+
+    .dpk-grill-footer .dpk-dock-actions > .dpk-btn {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .dpk-grill-footer .dpk-dock-note {
+      max-width: none;
+      box-shadow: none;
+    }
+
+    /* --------------------------------------------------------- Q badges */
+
+    /* The badges are laid over the main column; the page marks what a question
+       is about with \`data-grill-questions\`. */
+    .dpk-main-body {
+      position: relative;
+    }
+
+    /* Badges on the author's own markup stand in a column of their own on the
+       right, beside the line they mark, so they never cover its words. */
+    .dpk-main-body[data-grill-gutter] {
+      padding-right: 56px;
+    }
+
+    .dpk-grill-badges {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .dpk-grill-badge {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      height: 22px;
+      padding: 0 7px;
+      border: 2px solid var(--dpk-paper-raised);
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent));
+      color: var(--dpk-accent-ink);
+      font-family: var(--dpk-mono);
+      font-size: 10px;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.28),
+        0 2px 6px -2px color-mix(in srgb, var(--dpk-accent) 55%, transparent);
+      cursor: pointer;
+      pointer-events: auto;
+      transition:
+        transform 160ms var(--dpk-ease-spring),
+        box-shadow 160ms var(--dpk-ease),
+        background 160ms var(--dpk-ease);
+    }
+
+    .dpk-grill-badge[data-visible='false'] {
+      visibility: hidden;
+    }
+
+    .dpk-grill-badge:hover {
+      transform: translateY(-1px) scale(1.06);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        0 4px 10px -2px color-mix(in srgb, var(--dpk-accent) 60%, transparent);
+    }
+
+    .dpk-grill-badge[data-answered='true'] {
+      background: linear-gradient(180deg, color-mix(in srgb, var(--dpk-green) 85%, white), var(--dpk-green));
+    }
+
+    .dpk-grill-badge[aria-pressed='true'] {
+      box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--dpk-accent) 45%, transparent),
+        var(--dpk-shadow-sm);
+    }
+
+    .dpk-grill-badge:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
     }
 
     /* The template's name repeats the mark above the title; the title needs the room more. */

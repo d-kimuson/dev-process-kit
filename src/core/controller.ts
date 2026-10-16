@@ -23,6 +23,8 @@ import {
   type ComponentSnapshot,
   type ElementActionResult,
 } from './element-actions';
+import { ANSWER_ACTION, ANSWER_DESCRIPTOR, applyAnswer, EMPTY_GRILL, isAnswerAction, replaceAnswer } from './grill';
+import { withGrill, type GrillLayer } from './grill-targets';
 import { defaultStorage, defaultStorageKey, type DraftStorage } from './persistence';
 import { draftActionEnvelopeSchema, ownAction } from './schema';
 import { toTarget } from './target';
@@ -33,6 +35,8 @@ export type DraftControllerOptions<S> = {
   readonly storage?: DraftStorage | null;
   readonly storageKey?: string;
   readonly initialActions?: readonly DraftAction[];
+  /** The questions the page asks; none until `setGrill`. */
+  readonly grill?: GrillLayer;
 };
 
 export type DraftExport = {
@@ -51,6 +55,7 @@ export class DraftController<S> {
   #template: TemplateDefinition<S>;
   #definition: TemplateDefinition<S>;
   #snapshot: ComponentSnapshot = { targets: [], providers: [] };
+  #grill: GrillLayer;
   #elementResults: ReadonlyMap<string, ElementActionResult> = new Map();
   #base: S;
   #actions: DraftAction[];
@@ -63,7 +68,8 @@ export class DraftController<S> {
 
   constructor(options: DraftControllerOptions<S>) {
     this.#template = options.definition;
-    this.#definition = withComponentSnapshot(options.definition, [], this.#elementResults);
+    this.#grill = options.grill ?? { grill: EMPTY_GRILL, locale: 'en' };
+    this.#definition = this.#wrap();
     this.#base = options.base;
     this.#storageKey = options.storageKey ?? defaultStorageKey(options.definition.name);
     this.#storage = options.storage === undefined ? defaultStorage() : options.storage;
@@ -102,14 +108,35 @@ export class DraftController<S> {
     for (const listener of this.#listeners) listener();
   }
 
+  /**
+   * The questions the page asks, read apart from the base data. Answers to
+   * questions that are gone stay in the draft as stale, like any action.
+   */
+  setGrill(layer: GrillLayer): void {
+    this.#grill = layer;
+    this.#rewrap();
+    this.#derivation = this.#derive(this.#actions);
+    for (const listener of this.#listeners) listener();
+  }
+
   /** Element results are keyed by action id, so they follow the draft. */
   #rewrap(): void {
     this.#elementResults = elementResultsById(this.#actions, this.#snapshot.providers);
-    this.#definition = withComponentSnapshot(this.#template, this.#snapshot.targets, this.#elementResults);
+    this.#definition = this.#wrap();
+  }
+
+  #wrap(): TemplateDefinition<S> {
+    return withGrill(withComponentSnapshot(this.#template, this.#snapshot.targets, this.#elementResults), this.#grill);
   }
 
   #derive(actions: readonly DraftAction[]): Derivation<S> {
-    return derive(this.definition, this.#base, actions, elementResultsById(actions, this.#snapshot.providers));
+    return derive(
+      this.definition,
+      this.#base,
+      actions,
+      elementResultsById(actions, this.#snapshot.providers),
+      this.#grill.grill,
+    );
   }
 
   get base(): S {
@@ -128,7 +155,7 @@ export class DraftController<S> {
     return this.#prunedCount;
   }
 
-  /** Comments and component element actions are core-owned; the rest is the template's vocabulary. */
+  /** Comments, answers and component element actions are core-owned; the rest is the template's vocabulary. */
   descriptorFor(type: string, target?: ActionTarget): ActionDescriptor | undefined {
     return descriptorOf(this.definition, type, target);
   }
@@ -138,7 +165,7 @@ export class DraftController<S> {
     if (!built.ok) return this.#reject([built.issue]);
     const descriptor = this.descriptorFor(built.action.type, built.action.target);
     if (!descriptor) return this.#reject([{ path: 'type', message: 'unknown action type' }]);
-    this.#commit(appendAction(this.#actions, built.action, descriptor), [built.action.id]);
+    this.#commit(append(this.#actions, built.action, descriptor), [built.action.id]);
     return { ok: true, id: built.action.id };
   }
 
@@ -150,6 +177,7 @@ export class DraftController<S> {
     if (inputs.length === 0) return { ok: true, ids: [] };
     let actions = this.#actions;
     let state = this.#derivation.state;
+    let answers = this.#derivation.answers;
     const ids: string[] = [];
     for (const input of inputs) {
       const built = this.#build(input, state);
@@ -157,18 +185,23 @@ export class DraftController<S> {
       const action = built.action;
       const descriptor = this.descriptorFor(action.type, action.target);
       if (!descriptor) return this.#reject([{ path: 'type', message: 'unknown action type' }]);
-      // Comments and component actions never change template state.
-      const next =
-        action.type === 'comment' || isElementAction(action)
+      // Comments, answers and component actions never change template state.
+      const next = isAnswerAction(action)
+        ? applyAnswer(this.#grill.grill, answers, action) === null
+          ? null
+          : state
+        : action.type === 'comment' || isElementAction(action)
           ? action.target.type === 'page' || this.definition.hasTarget(state, action.target)
             ? state
             : null
           : this.definition.apply(state, action);
       if (next === null) return this.#reject([{ path: 'target', message: 'batch action is not applicable' }]);
-      actions = appendAction(actions, action, descriptor);
+      actions = append(actions, action, descriptor);
       // Compaction can replace an addition with a different payload. Validate
       // following inputs against the draft we will actually commit, not `next`.
-      state = this.#derive(actions).state;
+      const derivation = this.#derive(actions);
+      state = derivation.state;
+      answers = derivation.answers;
       ids.push(action.id);
     }
     this.#commit(actions, ids);
@@ -298,9 +331,14 @@ const descriptorOf = <S>(
   target: ActionTarget | undefined,
 ): ActionDescriptor | undefined => {
   if (type === 'comment') return COMMENT_DESCRIPTOR;
+  if (type === ANSWER_ACTION) return ANSWER_DESCRIPTOR;
   if (target !== undefined && isElementAction({ type, target })) return ELEMENT_DESCRIPTOR;
   return ownAction(definition.actions, type);
 };
+
+/** An answer replaces the question's last one; everything else follows its descriptor. */
+const append = (actions: readonly DraftAction[], action: DraftAction, descriptor: ActionDescriptor): DraftAction[] =>
+  isAnswerAction(action) ? replaceAnswer(actions, action) : appendAction(actions, action, descriptor);
 
 /** Validate the envelope before reading fields; preserve normalized schema output. */
 const normalizeRestored = <S>(definition: TemplateDefinition<S>, actions: readonly unknown[]): DraftAction[] => {

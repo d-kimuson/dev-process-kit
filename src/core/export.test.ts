@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DraftController } from './controller';
 import { buildAgentBrief } from './export';
+import { answerGrill, parseGrill } from './grill';
 import { tinyBase, tinyDefinition } from './testing/tiny-template';
 
 const briefOf = (controller: DraftController<ReturnType<typeof tinyBase>>): string =>
@@ -14,6 +15,8 @@ const briefOf = (controller: DraftController<ReturnType<typeof tinyBase>>): stri
       stale: controller.derivation.stale,
       issues: [],
       navigation: {},
+      grill: controller.derivation.grill,
+      answers: controller.derivation.answers,
     },
     controller.definition,
     'test',
@@ -85,5 +88,34 @@ describe('buildAgentBrief', () => {
     expect(brief).toContain('- pending: 0 change(s), 0 comment(s)');
     expect(brief).toContain('_No pending draft actions._');
     expect(brief).toContain('## Not applicable to the current base (1)');
+  });
+
+  it('hands the answers over in a section of their own, apart from the requested changes', () => {
+    const grill = parseGrill({
+      questions: [
+        { id: 'retry', title: '二重請求は起きない？', options: [{ id: 'key', label: '冪等キー' }] },
+        { id: 'notify', title: '誰に知らせる？' },
+        { id: 'open', title: 'まだ答えていない質問' },
+      ],
+    });
+    const controller = new DraftController({
+      definition: tinyDefinition,
+      base: tinyBase([{ id: 'a', name: 'Alpha' }]),
+      storage: null,
+      grill: { grill, locale: 'en' },
+    });
+    controller.dispatch(answerGrill('retry', { kind: 'option', optionId: 'key' }));
+    controller.dispatch(answerGrill('notify', { kind: 'free', text: '購入者\nと店舗' }));
+    controller.dispatch({ type: 'SET_NAME', target: 'item:a', payload: { name: 'Apple' } });
+    const brief = briefOf(controller);
+
+    expect(brief).toContain('- pending: 1 change(s), 0 comment(s), 2 answer(s)');
+    expect(brief).toContain('## Requested changes (1)');
+    const answers = brief.split('## Answers (2)')[1]?.split('## Requested changes')[0] ?? '';
+    expect(answers).toContain('1. **Q1 · 二重請求は起きない？** — `grill:retry`');
+    expect(answers).toContain('   > 冪等キー (option `key`)');
+    expect(answers).toContain('2. **Q2 · 誰に知らせる？** — `grill:notify`');
+    expect(answers).toContain('   > 購入者\n   > と店舗');
+    expect(answers).not.toContain('Q3');
   });
 });

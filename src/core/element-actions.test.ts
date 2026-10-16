@@ -139,6 +139,8 @@ describe('component element actions', () => {
         stale: controller.derivation.stale,
         issues: [],
         navigation: {},
+        grill: controller.derivation.grill,
+        answers: controller.derivation.answers,
       },
       controller.definition,
       'test',

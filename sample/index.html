@@ -892,18 +892,6 @@
               <p data-i18n="exampleMapping">ストーリーごとにルール・具体例・疑問を積み、要件の抜けを洗い出す。</p>
             </div>
           </a>
-          <a class="card" href="grill.html">
-            <div class="thumb">
-              <iframe src="grill.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-              <ul class="thumb-tags">
-                <li><code class="thumb-tag">dpk-template-grill</code></li>
-              </ul>
-            </div>
-            <div class="card-body">
-              <div class="card-head"><h3>Visually Grill</h3></div>
-              <p data-i18n="grill">設計を図で示しながら質問を投げ、回答とコメントを Agent に返す。</p>
-            </div>
-          </a>
           <a class="card" href="prototype.html">
             <div class="thumb">
               <iframe src="prototype.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
@@ -1056,6 +1044,22 @@
               </p>
             </div>
           </a>
+          <a class="card" href="grill.html">
+            <div class="thumb">
+              <iframe src="grill.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+              <ul class="thumb-tags">
+                <li><code class="thumb-tag">dpk-template-plain</code></li>
+                <li><code class="thumb-tag" data-kind="component">er-diagram</code></li>
+                <li><code class="thumb-tag" data-kind="component">sequence-diagram</code></li>
+              </ul>
+            </div>
+            <div class="card-body">
+              <div class="card-head"><h3 data-i18n="grillTitle">Grill</h3></div>
+              <p data-i18n="grill">
+                Agent からの質問を、どのテンプレートの上にも重ねて出す。ここでは Plain の上で、図とあわせて見せる。
+              </p>
+            </div>
+          </a>
         </div>
       </section>
 
@@ -1190,8 +1194,6 @@
           'Lay domain events out in time and trace their causes through commands, aggregates and policies.',
         usm: 'Line user stories up by release under a backbone of activities and steps.',
         exampleMapping: 'Stack rules, examples and questions under each story to find the gaps in the requirements.',
-        grill:
-          'Ask questions while showing the design as diagrams, and hand the answers and comments back to the agent.',
         prototype: 'Lay screen flows out as stories and steps, and try them in a preview.',
         plain: 'Only a header and the review; write whatever you like inside.',
         slides: 'An agent explains a mechanism or a change on slides you flip through one at a time.',
@@ -1212,6 +1214,8 @@
         formalSpecTitle: 'Formal verification results',
         formalSpecSample:
           'Properties checked in Lean or TLA+, restated in plain words as premises, conclusions, what is not claimed and how strongly each holds.',
+        grillTitle: 'Grill',
+        grill: 'Ask questions from the agent on top of any template. Here they sit over Plain, alongside the diagrams.',
         componentsLede: 'Diagrams and other views to place inside Plain or a template.',
         picker: 'Components',
         mindMap: 'How one theme branches out',

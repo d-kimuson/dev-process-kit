@@ -4,6 +4,7 @@ import type { DraftAction, TemplateDefinition } from './types';
 import { COMMENT_ACTION, serializeDraft } from './action';
 import { commentBody } from './comment';
 import { isElementAction } from './element-actions';
+import { answerText, isAnswerAction, isAnswered, questionLabel } from './grill';
 import { formatHash } from './navigation';
 import { targetRef } from './target';
 
@@ -40,7 +41,9 @@ export const buildAgentBrief = <S>(
   const staleIds = new Set(snapshot.stale.map((entry) => entry.action.id));
   const pending = actions.filter((action) => !staleIds.has(action.id));
   const comments = pending.filter((action) => action.type === COMMENT_ACTION);
-  const changes = pending.filter((action) => action.type !== COMMENT_ACTION);
+  const changes = pending.filter((action) => action.type !== COMMENT_ACTION && !isAnswerAction(action));
+  // One line per answered question, in the order the page asks them.
+  const answered = snapshot.grill.questions.filter((question) => isAnswered(question, snapshot.answers[question.id]));
   const lines: string[] = [];
 
   lines.push(`# Review draft — ${definition.label}`);
@@ -48,7 +51,10 @@ export const buildAgentBrief = <S>(
   lines.push(`- template: \`${definition.name}\``);
   lines.push(`- framework: \`dev-process-kit@${frameworkVersion}\``);
   lines.push(`- navigation: \`${formatHash(snapshot.navigation) || '(none)'}\``);
-  lines.push(`- pending: ${changes.length} change(s), ${comments.length} comment(s)`);
+  lines.push(
+    `- pending: ${changes.length} change(s), ${comments.length} comment(s)` +
+      (answered.length > 0 ? `, ${answered.length} answer(s)` : ''),
+  );
   if (snapshot.stale.length > 0) {
     lines.push(`- stale (not applicable to the current base): ${snapshot.stale.length}`);
   }
@@ -79,6 +85,23 @@ export const buildAgentBrief = <S>(
     lines.push('');
   }
 
+  if (answered.length > 0) {
+    lines.push(`## Answers (${answered.length})`);
+    lines.push('');
+    lines.push(
+      'The reader answered these questions from the `data-dpk-grill` block. Settle them in the page; ' +
+        'when you ask the next round, move them into `history` with the answer as recorded.',
+    );
+    lines.push('');
+    for (const [index, question] of answered.entries()) {
+      const answer = snapshot.answers[question.id];
+      const choice = answer?.kind === 'option' ? ` (option \`${answer.optionId}\`)` : '';
+      lines.push(`${index + 1}. **${questionLabel(snapshot.grill, question.id)}** — \`grill:${question.id}\``);
+      lines.push(`   > ${answerText(question, answer).replace(/\n/g, '\n   > ')}${choice}`);
+    }
+    lines.push('');
+  }
+
   if (changes.length > 0) {
     lines.push(`## Requested changes (${changes.length})`);
     lines.push('');
@@ -92,7 +115,7 @@ export const buildAgentBrief = <S>(
     lines.push('');
   }
 
-  if (changes.length === 0 && comments.length === 0) {
+  if (changes.length === 0 && comments.length === 0 && answered.length === 0) {
     lines.push('_No pending draft actions._');
     lines.push('');
   }

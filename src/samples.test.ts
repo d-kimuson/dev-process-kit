@@ -10,9 +10,9 @@ import { parseMindMapData } from './components/mind-map/model';
 import { parseSequenceData } from './components/sequence-diagram/model';
 import { parseStateData } from './components/state-diagram/model';
 import { parseChangeLog, revisionsOf } from './core/changes';
+import { parseGrill } from './core/grill';
 import { parseDelegationPokerBase } from './templates/delegation-poker/model';
 import { parseExampleMappingBase } from './templates/example-mapping/model';
-import { parseGrillBase } from './templates/grill/model';
 import { parsePlainBase } from './templates/plain/model';
 import { parseSlidesBase } from './templates/slides/model';
 import { parseTaskBoardBase } from './templates/task-board/model';
@@ -26,6 +26,9 @@ import { frameOf, parseWhiteboardBase } from './templates/whiteboard/model';
 // `import.meta.url` is root-relative under the test environment, so resolve the
 // sample directory from the vitest root instead.
 const sample = (name: string): string => readFileSync(resolve('sample', name), 'utf8');
+
+/** The questions a page asks, read apart from its base data. */
+const GRILL = /<script type="application\/json" data-dpk-grill>([\s\S]*?)<\/script>/;
 
 /** A change log, which a template element may carry before its base data. */
 const CHANGE_LOG = /<script type="application\/json" data-dpk-changes>([\s\S]*?)<\/script>/;
@@ -126,12 +129,12 @@ describe('sample pages', () => {
     expect(mapping.questions.map((question) => question.ruleId)).toContain('before-shipping');
   });
 
-  it('grill.html reviews the feature through the grill template', () => {
+  it('grill.html asks its questions over a plain page', () => {
     const html = sample('grill.html');
-    expect(entriesOf(html)).toContain('components.js');
-    const grill = parseGrillBase(jsonChild(html, 'dpk-template-grill'));
+    expect(entriesOf(html)).toEqual(expect.arrayContaining(['templates/plain.js', 'components.js']));
+    expect(parsePlainBase(jsonChild(html, 'dpk-template-plain')).title).not.toBe('');
+    const grill = parseGrill(JSON.parse(GRILL.exec(html)?.[1] ?? 'null'));
     expect(grill.questions.length).toBeGreaterThan(3);
-    expect(grill.title).not.toBe('');
 
     // The diagrams are the author's main area, annotated with question references.
     const er = parseErData(jsonChild(html, 'dpk-component-er-diagram'));

@@ -12,6 +12,7 @@ import type { PanelState } from './model';
 import { COMMENT_ACTION } from '../../core/action';
 import { handoffFailureLabel } from '../../core/claude-handoff';
 import { commentBody } from '../../core/comment';
+import { isAnswerAction } from '../../core/grill';
 import { panelMessages } from './messages';
 
 export type PanelInputs<S> = {
@@ -94,7 +95,10 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
         : { ref: `page:${definition.name}`, label: m.wholePage };
   const stale = new Map(derivation.stale.map((entry) => [entry.action.id, entry.reason]));
   const section = inputs.section ?? 'all';
-  const items = derivation.actions.map((action): PanelItem & { readonly kind: PanelGroup['kind'] } => {
+  // Answers to the page's questions are shown with the questions; one that no
+  // longer fits them is listed here, where the reader can remove it.
+  const listed = derivation.actions.filter((action) => !isAnswerAction(action) || stale.has(action.id));
+  const items = listed.map((action): PanelItem & { readonly kind: PanelGroup['kind'] } => {
     const description = definition.describe(action, state, derivation.base);
     const comment = action.type === COMMENT_ACTION;
     return {
@@ -132,7 +136,7 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
     groups: (['comments', 'changes'] as const)
       .filter((kind) => section === 'all' || section === kind)
       .map((kind) => ({ kind, items: items.filter((item) => item.kind === kind) })),
-    hasDraft: items.length > 0,
+    hasDraft: derivation.actions.length > 0,
     issues: inputs.issues.map((issue) => `${issue.path ? `${issue.path}: ` : ''}${issue.message}`),
     send:
       inputs.sendable !== true

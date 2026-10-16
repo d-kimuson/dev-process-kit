@@ -3,6 +3,7 @@ import type { DraftAction, TemplateDefinition } from './types';
 import { COMMENT_ACTION } from './action';
 import { PAGE_TARGET_TYPE, sameState, type Derivation } from './derive';
 import { isElementAction } from './element-actions';
+import { isAnswerAction } from './grill';
 import { ownAction } from './schema';
 
 /**
@@ -19,8 +20,8 @@ import { ownAction } from './schema';
  * run that ends where it started, and earlier actions on the same entities.
  * Removing a candidate may leave later actions without a target (a rename of a
  * note that is no longer added); those are removed with it, and still only when
- * the page then means the same. Comments and component element actions are
- * never removed, and a stale action is never part of a candidate.
+ * the page then means the same. Comments, answers and component element
+ * actions are never removed, and a stale action is never part of a candidate.
  */
 export const compactDraft = <S>(
   definition: TemplateDefinition<S>,
@@ -40,7 +41,7 @@ export const compactDraft = <S>(
 
 /** Applied actions the template owns: the only ones whose effect the core can judge. */
 const templateActions = <S>(derivation: Derivation<S>): readonly DraftAction[] => {
-  return derivation.applied.filter((action) => !isElementAction(action));
+  return derivation.applied.filter((action) => !isElementAction(action) && !isAnswerAction(action));
 };
 
 const cancel = <S>(
@@ -157,7 +158,8 @@ const withoutActions = <S>(
     const next = rederive(current.actions.filter((action) => !removed.has(action.id)));
     const orphaned = next.stale.filter((entry) => !stale.has(entry.action.id)).map((entry) => entry.action);
     if (orphaned.length === 0) return sameState(definition, next.state, current.state) ? next : null;
-    if (orphaned.some((action) => action.type === COMMENT_ACTION || isElementAction(action))) return null;
+    if (orphaned.some((action) => action.type === COMMENT_ACTION || isElementAction(action) || isAnswerAction(action)))
+      return null;
     for (const action of orphaned) removed.add(action.id);
   }
 };

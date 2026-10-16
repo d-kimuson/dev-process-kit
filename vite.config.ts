@@ -19,7 +19,6 @@ const ENTRIES = {
   'templates/usm': 'src/entries/usm.ts',
   'templates/event-storming': 'src/entries/event-storming.ts',
   'templates/example-mapping': 'src/entries/example-mapping.ts',
-  'templates/grill': 'src/entries/grill.ts',
   'templates/plain': 'src/entries/plain.ts',
   'templates/slides': 'src/entries/slides.ts',
   'templates/task-board': 'src/entries/task-board.ts',

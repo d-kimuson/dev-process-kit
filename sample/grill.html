@@ -3,17 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Visually Grill — 注文キャンセル | dev-process-kit</title>
+    <title>Grill — 注文キャンセル | dev-process-kit</title>
     <!--
       The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
       by this page's own origin: the sample server is a separate origin on purpose,
       so the cross-origin (CORS) load is exercised locally too. A generated page
       loads the same files from jsDelivr instead, and so does this page on GitHub
       Pages or with `?dpk-version=<version>` (`kit.js`).
+
+      Grill (the agent's questions on top of a page) is a core feature of every
+      template's shell, not a template of its own: this page is an dpk-template-plain
+      whose `data-dpk-grill` block carries the questions, the same way `diagrams.html`
+      is a plain page that happens to hold diagrams.
     -->
     <script type="module">
       import { loadKit } from './kit.js';
-      loadKit(['templates/grill.js', 'components.js']);
+      loadKit(['templates/plain.js', 'components.js']);
     </script>
     <style>
       html,
@@ -21,7 +26,7 @@
         height: 100%;
         margin: 0;
       }
-      dpk-template-grill {
+      dpk-template-plain {
         display: block;
         height: 100%;
       }
@@ -65,10 +70,22 @@
     </style>
   </head>
   <body>
-    <dpk-template-grill storage-key="sample-grill-cancel">
+    <dpk-template-plain storage-key="sample-grill-cancel">
       <script type="application/json">
         {
-          "title": "新機能: 注文のセルフキャンセル",
+          "title": "新機能: 注文のセルフキャンセル"
+        }
+      </script>
+
+      <!--
+        Grill is core now: the questions live in their own `data-dpk-grill` block, apart
+        from the plain template's base data above. The shell opens them from the header's
+        question toggle; the `questions` fields inside the two diagrams' data (and the
+        `data-grill-questions` marks in the main markup below) put Q badges on the exact
+        table, field and message each question is about.
+      -->
+      <script type="application/json" data-dpk-grill>
+        {
           "questions": [
             {
               "id": "deadline",
@@ -174,11 +191,7 @@
         }
       </script>
 
-      <!--
-        The main area is free author markup. The `questions` fields inside the two
-        diagrams' data put Q badges on the exact table, field and message each
-        question is about.
-      -->
+      <!-- The main area is free author markup, as in any dpk-template-plain page. -->
       <div slot="main">
         <section class="intro">
           <h2>注文のセルフキャンセル</h2>
@@ -520,6 +533,6 @@
           </dpk-component-sequence-diagram>
         </section>
       </div>
-    </dpk-template-grill>
+    </dpk-template-plain>
   </body>
 </html>

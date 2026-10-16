@@ -8,6 +8,7 @@ import type { TemplateResult, nothing } from 'lit';
 
 import type { DraftExport } from '../controller';
 import type { StaleAction } from '../derive';
+import type { Grill, GrillAnswers } from '../grill';
 import type {
   ActionInput,
   BatchDispatchOutcome,
@@ -27,6 +28,9 @@ export type TemplateSnapshot<S> = {
   readonly comments: readonly DraftAction[];
   readonly stale: readonly StaleAction[];
   readonly issues: readonly ValidationIssue[];
+  /** The questions the page asks (`data-dpk-grill`), and the reader's answers so far. */
+  readonly grill: Grill;
+  readonly answers: GrillAnswers;
 };
 
 /** Read-only view handed to slot content and template components. */

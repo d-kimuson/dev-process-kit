@@ -4,6 +4,7 @@ import type { DraftAction, TemplateDefinition } from './types';
 
 import { COMMENT_ACTION } from './action';
 import { isElementAction, type ElementActionResult } from './element-actions';
+import { applyAnswer, EMPTY_GRILL, findQuestion, isAnswerAction, type Grill, type GrillAnswers } from './grill';
 import { ownAction } from './schema';
 import { targetRef } from './target';
 
@@ -31,6 +32,10 @@ export type Derivation<S> = {
   readonly obsolete: readonly DraftAction[];
   readonly comments: readonly DraftAction[];
   readonly commentsByTarget: ReadonlyMap<string, readonly DraftAction[]>;
+  /** The questions the page asks (none without a `data-dpk-grill` block). */
+  readonly grill: Grill;
+  /** The reader's answers to them, from the applied answer actions. */
+  readonly answers: GrillAnswers;
 };
 
 export const commentTargetKey = (target: { type: string; id: string }): string => {
@@ -43,14 +48,17 @@ export const commentTargetKey = (target: { type: string; id: string }): string =
  *
  * Component element actions never touch `state`: their owner applies them and
  * reports the outcome in `elementResults`. Without a report the owner is gone.
+ * Answers never touch `state` either: they shape `answers` against `grill`.
  */
 export const derive = <S>(
   definition: TemplateDefinition<S>,
   base: S,
   actions: readonly DraftAction[],
   elementResults: ReadonlyMap<string, ElementActionResult> = new Map(),
+  grill: Grill = EMPTY_GRILL,
 ): Derivation<S> => {
   let state = base;
+  let answers: GrillAnswers = {};
   const applied: DraftAction[] = [];
   const stale: StaleAction[] = [];
   const obsolete: DraftAction[] = [];
@@ -65,6 +73,22 @@ export const derive = <S>(
       if (result === undefined || result.stale !== undefined) {
         stale.push({ action, reason: result?.stale ?? 'target-missing' });
       } else {
+        applied.push(action);
+      }
+      continue;
+    }
+
+    if (isAnswerAction(action)) {
+      const next = applyAnswer(grill, answers, action);
+      if (next === null) {
+        stale.push({
+          action,
+          reason: findQuestion(grill, action.target.id) ? 'constraint-violated' : 'target-missing',
+        });
+      } else if (next === answers) {
+        obsolete.push(action);
+      } else {
+        answers = next;
         applied.push(action);
       }
       continue;
@@ -120,6 +144,8 @@ export const derive = <S>(
     obsolete,
     comments,
     commentsByTarget,
+    grill,
+    answers,
   };
 };
 

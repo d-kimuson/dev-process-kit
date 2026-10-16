@@ -1,9 +1,15 @@
 /**
- * Chaos fixtures for `dpk-template-grill`.
+ * Chaos fixtures for grill (ADR 20261016_grill-in-core): the agent's questions, now a
+ * feature of every template's shell rather than a template of its own. These fixtures
+ * render through `dpk-template-plain` — `chaos.js` merges this registry into `plain`'s
+ * (the same way `fixtures/components.js` does) — with the plain base in `base` and the
+ * questions/history in `grill`, exactly as a real page splits `<script type="application/json">`
+ * from `<script type="application/json" data-dpk-grill>`.
  *
  * @typedef {{
  *   description: string,
  *   base: unknown,
+ *   grill?: unknown,
  *   slots?: string,
  *   attributes?: Record<string,string>,
  *   lang?: 'ja'|'en',
@@ -34,16 +40,16 @@ const longUrl = () => `https://example.com/review/grill?trace=${longAscii(160)}&
 
 /** RTL Arabic + ZWJ emoji family sequences + combining marks, mixed with Latin. */
 const rtlEmojiMix = () =>
-  'مرحبا بكم في مراجعة التصميم هذه، وهي تحتوي على نص طويل من اليمين إلى اليسار 👨‍👩‍👧‍👦👨🏽‍🚀🏳️‍🌈 é̂̃ combining-marks ✅';
+  'مرحبا بكم في مراجعة التصميم هذه، وهي تحتوي على نص طويل من اليمين إلى اليسار 👨‍👩‍👧‍👦👨🏽‍🚀🏳️‍🌈 é̂̃ combining-marks ✅';
 
 /** @type {Record<string, Fixture>} */
 export default {
-  'extreme-text': {
+  'grill-extreme-text': {
     description:
       'Every text field stuffed: 200+ char unbroken ASCII, unbroken long Japanese, a long URL, and an RTL/emoji/combining-mark option label.',
     lang: 'ja',
-    base: {
-      title: `新機能レビュー: ${longJa(80)}`,
+    base: { title: `新機能レビュー: ${longJa(80)}` },
+    grill: {
       questions: [
         {
           id: 'q-ascii-unbroken',
@@ -83,18 +89,17 @@ export default {
         <section style="max-width: 860px;">
           <h2 data-grill-questions="Q1 Q2 Q3">${longAscii(260)}</h2>
           <p data-grill-questions="Q1">${longJa(300)}</p>
-          <p data-dpk-navigate="question=q-rtl-emoji">${rtlEmojiMix()}</p>
         </section>
       </div>
     `,
   },
 
-  'many-questions-wide-options': {
+  'grill-many-questions-wide-options': {
     description:
       '70 questions (volume) plus one question with 40 options to push option lettering past z into aa/ab/...',
     lang: 'en',
-    base: {
-      title: 'Volume review: 70 questions',
+    base: { title: 'Volume review: 70 questions' },
+    grill: {
       questions: [
         {
           id: 'wide-options',
@@ -128,20 +133,21 @@ export default {
     `,
   },
 
-  empty: {
+  'grill-empty': {
     description:
       'Minimal/empty base: no title, an explicitly empty question list, no history — the zero state of every region.',
     lang: 'en',
-    base: { questions: [] },
+    base: {},
+    grill: { questions: [] },
     slots: `<div slot="main"><p>No questions yet.</p></div>`,
   },
 
-  'single-question-edge-cases': {
+  'grill-single-question-edge-cases': {
     description:
       'Single-item variants: one question with no options and free text, and one with no options AND freeText disabled (unanswerable by design).',
     lang: 'ja',
-    base: {
-      title: '最小構成の確認',
+    base: { title: '最小構成の確認' },
+    grill: {
       questions: [
         {
           id: 'free-only',
@@ -163,12 +169,12 @@ export default {
     slots: `<div slot="main"><p data-grill-questions="Q1 Q2">単一の main 領域。</p></div>`,
   },
 
-  'history-many-rounds': {
+  'grill-history-many-rounds': {
     description:
       '12 earlier rounds with recorded answers (and one absurdly long round label) to stress the round-select dropdown and read-only past-round rendering.',
     lang: 'ja',
-    base: {
-      title: '複数ラウンドの履歴',
+    base: { title: '複数ラウンドの履歴' },
+    grill: {
       questions: [
         {
           id: 'current-1',
@@ -200,12 +206,12 @@ export default {
     slots: `<div slot="main"><p data-grill-questions="Q1">現在の質問だけが main 上のバッジ対象。</p></div>`,
   },
 
-  'drafts-many-types': {
+  'grill-drafts-many-types': {
     description:
-      'A batch of valid ANSWER_QUESTION drafts covering option / free (very long text) / clear, all against existing targets (dispatchBatch is all-or-nothing, so no stale entries are mixed in here).',
+      'A batch of valid answer drafts covering option / free (very long text) / clear, all against existing targets (dispatchBatch is all-or-nothing, so no stale entries are mixed in here).',
     lang: 'en',
-    base: {
-      title: 'Answering a full round',
+    base: { title: 'Answering a full round' },
+    grill: {
       questions: Array.from({ length: 8 }, (_, i) => ({
         id: `draft-q-${i + 1}`,
         ref: `Q${i + 1}`,
@@ -217,57 +223,57 @@ export default {
       })),
     },
     draft: [
-      { type: 'ANSWER_QUESTION', target: 'question:draft-q-1', payload: { kind: 'option', optionId: 'draft-q-1-a' } },
-      { type: 'ANSWER_QUESTION', target: 'question:draft-q-2', payload: { kind: 'option', optionId: 'draft-q-2-b' } },
+      { type: 'answer', target: 'grill:draft-q-1', payload: { kind: 'option', optionId: 'draft-q-1-a' } },
+      { type: 'answer', target: 'grill:draft-q-2', payload: { kind: 'option', optionId: 'draft-q-2-b' } },
       {
-        type: 'ANSWER_QUESTION',
-        target: 'question:draft-q-3',
+        type: 'answer',
+        target: 'grill:draft-q-3',
         payload: { kind: 'free', text: `${longAscii(80)} ${longJa(200)}` },
         note: 'left as free text on purpose',
       },
-      { type: 'ANSWER_QUESTION', target: 'question:draft-q-4', payload: { kind: 'option', optionId: 'draft-q-4-a' } },
-      { type: 'ANSWER_QUESTION', target: 'question:draft-q-4', payload: { kind: 'clear' } },
-      { type: 'ANSWER_QUESTION', target: 'question:draft-q-5', payload: { kind: 'free', text: '' } },
+      { type: 'answer', target: 'grill:draft-q-4', payload: { kind: 'option', optionId: 'draft-q-4-a' } },
+      { type: 'answer', target: 'grill:draft-q-4', payload: { kind: 'clear' } },
+      { type: 'answer', target: 'grill:draft-q-5', payload: { kind: 'free', text: '' } },
     ],
   },
 
-  'stale-drafts-and-comments': {
+  'grill-stale-drafts-and-comments': {
     description:
       'Probe of stale handling: a dispatchBatch of ONLY invalid-target/invalid-option actions (target-missing + constraint-violated), plus many long stale comments on a removed question via el.api.comment (notes left open).',
     lang: 'ja',
     attributes: { notes: 'on' },
-    base: {
-      title: '一部の質問が削除されたあとのレビュー',
+    base: { title: '一部の質問が削除されたあとのレビュー' },
+    grill: {
       questions: [{ id: 'still-here', ref: 'Q1', title: '残っている質問', options: [{ id: 'ok', label: 'OK' }] }],
     },
     draft: [
-      { type: 'ANSWER_QUESTION', target: 'question:ghost-question-1', payload: { kind: 'option', optionId: 'x' } },
+      { type: 'answer', target: 'grill:ghost-question-1', payload: { kind: 'option', optionId: 'x' } },
       {
-        type: 'ANSWER_QUESTION',
-        target: 'question:still-here',
+        type: 'answer',
+        target: 'grill:still-here',
         payload: { kind: 'option', optionId: 'not-an-option' },
       },
       {
-        type: 'ANSWER_QUESTION',
-        target: 'question:ghost-question-2',
+        type: 'answer',
+        target: 'grill:ghost-question-2',
         payload: { kind: 'free', text: 'orphaned answer' },
       },
     ],
     comments: [
-      ['question:removed-in-this-round', `${longJa(220)}`],
-      ['question:removed-in-this-round', '2本目のコメント。' + longAscii(150)],
-      ['question:still-here', longJa(300)],
-      ['page:grill', '| a | b |\n| - | - |\n| 1 | 2 |\n```\ncode line '.repeat(10) + '\n```'],
+      ['grill:removed-in-this-round', `${longJa(220)}`],
+      ['grill:removed-in-this-round', '2本目のコメント。' + longAscii(150)],
+      ['grill:still-here', longJa(300)],
+      ['page:plain', '| a | b |\n| - | - |\n| 1 | 2 |\n```\ncode line '.repeat(10) + '\n```'],
     ],
   },
 
-  'many-long-comments': {
+  'grill-many-long-comments': {
     description:
       '35 long review comments spread across several questions plus the whole page, including markdown-looking text (tables, code fences, nested lists) rendered as plain text, with notes open.',
     lang: 'en',
     attributes: { notes: 'on' },
-    base: {
-      title: 'Heavily annotated review',
+    base: { title: 'Heavily annotated review' },
+    grill: {
       questions: Array.from({ length: 5 }, (_, i) => ({
         id: `commented-${i + 1}`,
         ref: `Q${i + 1}`,
@@ -280,28 +286,27 @@ export default {
     },
     comments: [
       ...Array.from({ length: 30 }, (_, i) => [
-        `question:commented-${(i % 5) + 1}`,
+        `grill:commented-${(i % 5) + 1}`,
         i % 3 === 0
           ? `Comment ${i + 1}: \`inline code\` and a | table | row | that | is | quite | wide | indeed | and | keeps | going |`
           : `Comment ${i + 1}: ${longAscii(140)}`,
       ]),
       [
-        'page:grill',
+        'page:plain',
         '# Heading\n- item one\n  - nested item\n- item two\n\n```js\nconst x = 1; // a very long trailing comment that keeps going and going and going\n```',
       ],
-      ['page:grill', longJa(260)],
-      ['page:grill', rtlEmojiMix()],
-      ['page:grill', 'comment with a [markdown link](https://example.com/' + longAscii(120) + ')'],
+      ['page:plain', longJa(260)],
+      ['page:plain', rtlEmojiMix()],
+      ['page:plain', 'comment with a [markdown link](https://example.com/' + longAscii(120) + ')'],
     ],
   },
 
-  'wip-past-round-open': {
+  'grill-wip-past-round-open': {
     description:
-      'Navigates to a specific question via hash, then (prepare) switches the sidebar to an earlier history round through the round select, to capture the read-only past-round UI mid-interaction.',
+      'Opens the questions panel on a specific question, then (prepare) switches the sidebar to an earlier history round through the round select, to capture the read-only past-round UI mid-interaction.',
     lang: 'ja',
-    hash: 'question=current-2',
-    base: {
-      title: '作業中の状態を再現する',
+    base: { title: '作業中の状態を再現する' },
+    grill: {
       questions: [
         { id: 'current-1', ref: 'Q1', title: '最初の質問', options: [{ id: 'a', label: 'A' }] },
         {
@@ -340,7 +345,9 @@ export default {
     prepare: (el) => {
       try {
         const root = el.shadowRoot;
-        const select = root?.querySelector('select.grill-round');
+        root?.querySelector('.dpk-review-toggle[data-section="questions"]')?.click();
+        root?.querySelector('[data-question="current-2"] .dpk-grill-heading')?.click();
+        const select = root?.querySelector('select.dpk-grill-round');
         if (select) {
           select.value = '0';
           select.dispatchEvent(new Event('change', { bubbles: true }));

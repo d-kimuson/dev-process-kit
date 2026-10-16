@@ -98,7 +98,6 @@ export * as prototype from './templates/prototype';
 export * as usm from './templates/usm';
 export * as eventStorming from './templates/event-storming';
 export * as exampleMapping from './templates/example-mapping';
-export * as grill from './templates/grill';
 export * as plain from './templates/plain';
 export * as slides from './templates/slides';
 export * as taskBoard from './templates/task-board';
@@ -111,7 +110,6 @@ const TEMPLATES = [
   'usm',
   'event-storming',
   'example-mapping',
-  'grill',
   'plain',
   'slides',
   'task-board',

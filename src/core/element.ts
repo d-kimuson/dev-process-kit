@@ -15,15 +15,28 @@ import type {
 
 import { DismissController } from '../lib/dom/dismiss';
 import { onSelectChange } from '../lib/dom/events';
+import { revealWithin } from '../lib/dom/scroll';
 import { COMMENT_ACTION, serializeDraft } from './action';
 import { CHANGES_ATTRIBUTE, jumpOf, type ChangeEntry } from './changes';
 import { parseColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
 import { DraftController } from './controller';
 import { componentElementActionSchema } from './element-actions';
-import { presentDock } from './handoff-dock';
+import {
+  answerCounts,
+  answerGrill,
+  EMPTY_GRILL,
+  GRILL_ATTRIBUTE,
+  GRILL_TARGET_TYPE,
+  isAnswerAction,
+  nextOpenQuestion,
+  parseGrill,
+  type AnswerPayload,
+  type Grill,
+} from './grill';
+import { presentDock, type DockViewModel } from './handoff-dock';
 import { LOCALES, type Locale } from './i18n';
-import { iconChevronLeft, iconChevronRight, iconComment, iconHistory, iconMoon, iconSun } from './icons';
+import { iconChevronLeft, iconChevronRight, iconComment, iconHistory, iconMoon, iconQuestion, iconSun } from './icons';
 import { coreMessages, LANGUAGE_NAMES } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
@@ -40,6 +53,14 @@ import {
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
+import { collectBadges, GrillBadgeController, type BadgeBinding } from './shell/grill-badges';
+import {
+  openQuestionOf,
+  presentGrillPanel,
+  renderGrillPanel,
+  type GrillPanelIntents,
+  type GrillRoundSelection,
+} from './shell/grill-panel';
 import { HandoffDockController } from './shell/handoff-dock-controller';
 import { LocaleChoiceController } from './shell/locale-choice-controller';
 import { NarrowScreenController } from './shell/narrow-screen-controller';
@@ -62,8 +83,9 @@ import { VersionChoiceController } from './shell/version-choice-controller';
 import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, sidebarToggle, type SidebarLayout } from './sidebar-width';
 import { parseTargetRef, targetRef } from './target';
 
-/** Base data is the JSON child that is not the change log. */
-const BASE_SELECTOR = `script[type="application/json"]:not([${CHANGES_ATTRIBUTE}])`;
+/** Base data is the JSON child that is neither the change log nor the questions. */
+const BASE_SELECTOR = `script[type="application/json"]:not([${CHANGES_ATTRIBUTE}]):not([${GRILL_ATTRIBUTE}])`;
+const GRILL_SELECTOR = `script[type="application/json"][${GRILL_ATTRIBUTE}]`;
 /** Frames to wait for a target to render after navigating to it. */
 const REVEAL_FRAMES = 30;
 const NOTICE_LIST_SIZE = { width: 360, height: 480 };
@@ -79,7 +101,7 @@ const isPopoverOpen = (element: Element): boolean => {
 
 const nextFrame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
-type ReviewSection = 'changes' | 'comments';
+type ReviewSection = 'changes' | 'questions' | 'comments';
 
 export abstract class TemplateElement<S> extends LitElement {
   static override styles: CSSResultGroup = chromeStyles;
@@ -104,8 +126,9 @@ export abstract class TemplateElement<S> extends LitElement {
   declare storage: string | null;
   /**
    * Review rail visibility. It is closed by default and reached through the
-   * changes and review comments buttons; `notes="on"` (or `"comments"`) opens
-   * it on the review comments on load, `notes="changes"` on the changes.
+   * changes, questions and review comments buttons; `notes="on"` (or
+   * `"comments"`) opens it on the review comments on load, `notes="changes"`
+   * on the changes and `notes="questions"` on the page's questions.
    */
   declare notes: string | null;
   /**
@@ -118,8 +141,32 @@ export abstract class TemplateElement<S> extends LitElement {
   declare notesOpen: boolean;
   /** Whether the settings menu in the header is open. */
   declare settingsOpen: boolean;
-  /** The part of the draft the rail shows: what the reader changed, or what they asked the agent to fix. */
+  /**
+   * The part of the review shown: what the reader changed, what the page asks
+   * them, or what they asked the agent to fix.
+   */
   declare reviewSection: ReviewSection;
+  /** The questions the page asks (`script[data-dpk-grill]`), read apart from the base data. */
+  #grill: Grill = EMPTY_GRILL;
+  #grillError: string | null = null;
+  /** The question unfolded in the questions panel, and the round it shows. */
+  #grillOpen: string | null = null;
+  #grillRound: GrillRoundSelection = 'current';
+  /** The question whose own-words box takes focus after the next render. */
+  #focusFreeText: string | null = null;
+  /** The question last scrolled to, so the list only moves when the reader opens another. */
+  #revealedQuestion: string | null = null;
+  #badges: readonly BadgeBinding[] = [];
+  #grillPanelIntents: GrillPanelIntents = {
+    open: (questionId) => this.#openQuestion(questionId),
+    answer: (questionId, payload) => this.#answer(questionId, payload),
+    next: (questionId) => this.#advance(questionId),
+    pickRound: (round) => {
+      this.#grillRound = round;
+      this.#revealedQuestion = null;
+      this.requestUpdate();
+    },
+  };
   #notesInitialized = false;
   #previewRouter = new PreviewRouter(this);
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
@@ -173,10 +220,15 @@ export abstract class TemplateElement<S> extends LitElement {
     new ReviewPopoverController(this, {
       surface: () => this.renderRoot.querySelector<HTMLElement>(`#${REVIEW_ID}`),
       anchor: () => this.renderRoot.querySelector('.dpk-header-actions'),
-      open: () => this.notesOpen && !this.integratedReview,
+      open: () => this.notesOpen,
       close: () => {
         this.notesOpen = false;
       },
+    });
+    new GrillBadgeController(this, {
+      active: () => this.#grill.questions.length > 0,
+      layer: () => this.renderRoot.querySelector<HTMLElement>('.dpk-grill-badges'),
+      bindings: () => this.#badges,
     });
     // The settings close on Escape and on a press outside them and their trigger.
     new DismissController(this, {
@@ -206,7 +258,10 @@ export abstract class TemplateElement<S> extends LitElement {
   #localeChoice = new LocaleChoiceController(
     this,
     () => this.storage !== 'off' && this.storage !== 'memory',
-    () => this.#controller?.setTemplate(this.definition),
+    () => {
+      this.#controller?.setTemplate(this.definition);
+      this.#controller?.setGrill({ grill: this.#grill, locale: this.locale });
+    },
   );
   #definition: { readonly locale: Locale; readonly value: TemplateDefinition<S> } | undefined;
 
@@ -244,8 +299,12 @@ export abstract class TemplateElement<S> extends LitElement {
     if (!this.#notesInitialized) {
       this.#notesInitialized = true;
       this.notesOpen =
-        this.notes === 'on' || this.notes === 'open' || this.notes === 'comments' || this.notes === 'changes';
-      this.reviewSection = this.notes === 'changes' ? 'changes' : 'comments';
+        this.notes === 'on' ||
+        this.notes === 'open' ||
+        this.notes === 'comments' ||
+        this.notes === 'changes' ||
+        this.notes === 'questions';
+      this.reviewSection = this.notes === 'changes' || this.notes === 'questions' ? this.notes : 'comments';
     }
     this.#start();
     window.addEventListener('hashchange', this.#onHashChange);
@@ -305,6 +364,7 @@ export abstract class TemplateElement<S> extends LitElement {
     this.#reserveDockSpace();
     this.#placeNoticeList();
     this.#placeSettings();
+    this.#settleQuestions();
     if (this.#focusSidebarToggle) {
       this.#focusSidebarToggle = false;
       this.renderRoot.querySelector<HTMLElement>('.dpk-sidebar-toggle')?.focus();
@@ -420,11 +480,6 @@ export abstract class TemplateElement<S> extends LitElement {
   /** Layout hook. The base provides the review rail, header and footer chrome. */
   protected abstract renderRegions(context: TemplateRenderContext<S>): ShellRegions;
 
-  /** Templates may embed the one shared review panel in their own rail. */
-  protected get integratedReview(): boolean {
-    return false;
-  }
-
   /**
    * Inside a Claude Artifact that declared `comments` (and `db` for long
    * reviews), the review can go straight to the Claude session instead of
@@ -453,8 +508,7 @@ export abstract class TemplateElement<S> extends LitElement {
       .exportBrief=${() => this.api.exportBrief()}
       .sendToClaude=${this.canSendToClaude ? () => this.sendToClaude() : undefined}
       .pendingTarget=${this.#pendingCommentTarget}
-      .embedded=${this.integratedReview}
-      .section=${this.integratedReview ? null : this.reviewSection}
+      .section=${this.#reviewSection === 'questions' ? null : this.#reviewSection}
       .onDelete=${(id: string) => this.removeAction(id)}
       .onEditComment=${(id: string, body: string) => this.editComment(id, body)}
       .onClear=${() => this.clearActions()}
@@ -468,10 +522,21 @@ export abstract class TemplateElement<S> extends LitElement {
 
   protected renderChrome(context: TemplateRenderContext<S>, regions: ShellRegions): TemplateResult {
     const draftCount = context.actions.length;
-    // The draft holds both; the header names its changes and its comments apart.
+    // The draft holds all three; the header names its changes, answers and comments apart.
     const commentCount = context.actions.filter((action) => action.type === COMMENT_ACTION).length;
-    const changeCount = draftCount - commentCount;
+    // An answer is shown with its question, unless it no longer fits one.
+    const stale = new Set(this.derivation.stale.map((entry) => entry.action.id));
+    const answerCount = context.actions.filter((action) => isAnswerAction(action) && !stale.has(action.id)).length;
+    const changeCount = draftCount - commentCount - answerCount;
     const messages = coreMessages(this.locale);
+    // Badges are derived from the DOM (the author's markup, and the shadow roots
+    // a diagram renders into), so they are collected by the render that draws them.
+    this.#badges = collectBadges(
+      this,
+      this.#grill,
+      this.derivation.answers,
+      this.notesOpen && this.reviewSection === 'questions' ? openQuestionOf(this.#grill, this.#grillOpen) : null,
+    );
     const sidebarHidden = regions.sidebarHidden === true || (!regions.sidebar && !this.hasSidebarContent());
     const side = this.sidebarLayout.side;
     const drawer = this.#sidebarDrawer;
@@ -520,7 +585,10 @@ export abstract class TemplateElement<S> extends LitElement {
               : nothing
           }
           <main class="dpk-main">
-            <div class="dpk-main-body">
+            <div
+              class="dpk-main-body"
+              ?data-grill-gutter=${this.#badges.some((binding) => this.contains(binding.target))}
+            >
               ${
                 this.#baseError
                   ? html`<div class="dpk-banner" role="alert">
@@ -528,6 +596,14 @@ export abstract class TemplateElement<S> extends LitElement {
                       <code>${this.#baseError}</code>
                     </div>`
                   : nothing
+              }
+              ${
+                this.#grillError === null
+                  ? nothing
+                  : html`<div class="dpk-banner" role="alert">
+                      <strong>${messages.grillError}</strong>
+                      <code>${this.#grillError}</code>
+                    </div>`
               }
               ${
                 this.#notices.error === null
@@ -543,6 +619,7 @@ export abstract class TemplateElement<S> extends LitElement {
                 <p class="dpk-label">previews without metadata</p>
                 <slot name="preview"></slot>
               </section>
+              ${this.#renderBadges()}
             </div>
             <div class="dpk-memo" ?hidden=${!this.hasMemoContent()}>
               <details class="dpk-memo-fold">
@@ -560,9 +637,8 @@ export abstract class TemplateElement<S> extends LitElement {
               </footer>`
             : nothing
         }
-        ${this.#renderHeaderActions(context, changeCount, commentCount)}
-        ${this.integratedReview ? nothing : this.#renderReviewPopover(context)}
-        ${this.integratedReview ? nothing : this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
+        ${this.#renderHeaderActions(context, changeCount, commentCount)} ${this.#renderReviewPopover(context)}
+        ${this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
       </div>
     `;
   }
@@ -572,19 +648,14 @@ export abstract class TemplateElement<S> extends LitElement {
    * template has any, then the review toggles. Their popovers hang below the
    * whole group, aligned to its right edge.
    */
-  #renderHeaderActions(
-    context: TemplateRenderContext<S>,
-    changeCount: number,
-    commentCount: number,
-  ): TemplateResult | typeof nothing {
+  #renderHeaderActions(context: TemplateRenderContext<S>, changeCount: number, commentCount: number): TemplateResult {
     const settings = this.definition.settings?.(context.state);
     const hasSettings = settings !== undefined && settings.items.length > 0;
-    if (!hasSettings && this.integratedReview) return nothing;
     const messages = coreMessages(this.locale);
     return html`<div class="dpk-header-actions">
       ${hasSettings ? renderSettingsTrigger(this.settingsOpen, messages, this.#settingsIntents) : nothing}
       ${hasSettings && this.settingsOpen ? renderSettingsMenu(settings, messages, this.#settingsIntents) : nothing}
-      ${this.integratedReview ? nothing : this.#renderReviewToggles(changeCount, commentCount)}
+      ${this.#renderReviewToggles(changeCount, commentCount)}
     </div>`;
   }
 
@@ -602,33 +673,41 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   /**
-   * The draft's two kinds of request each have their own button: the changes
-   * made on the page, and the review comments for the agent. Pressing the one
-   * the rail shows closes it; the other switches the rail over.
+   * Each part of the review has its own button: the changes made on the page,
+   * the questions the page asks (when it asks any), and the review comments
+   * for the agent. Pressing the one shown closes the review; another switches
+   * it over.
    */
   #renderReviewToggles(changeCount: number, commentCount: number): TemplateResult {
     const messages = coreMessages(this.locale);
-    const toggle = (section: ReviewSection, label: string, icon: TemplateResult, count: number) => {
-      const pressed = this.notesOpen && this.reviewSection === section;
+    const toggle = (section: ReviewSection, label: string, icon: TemplateResult, badge: string | null) => {
+      const pressed = this.notesOpen && this.#reviewSection === section;
       return html`<button
         class="dpk-header-action dpk-review-toggle"
         type="button"
         data-section=${section}
         aria-controls=${REVIEW_ID}
         aria-pressed=${pressed ? 'true' : 'false'}
-        aria-label=${`${label} (${count})`}
+        aria-label=${`${label} (${badge ?? 0})`}
         data-tooltip=${label}
         @click=${() => {
           this.notesOpen = !pressed;
           this.reviewSection = section;
         }}
       >
-        ${icon} ${count > 0 ? html`<span class="dpk-review-badge">${count}</span>` : nothing}
+        ${icon} ${badge === null ? nothing : html`<span class="dpk-review-badge">${badge}</span>`}
       </button>`;
     };
+    const countOf = (count: number): string | null => (count > 0 ? String(count) : null);
+    const counts = answerCounts(this.#grill, this.derivation.answers);
     return html`<div class="dpk-review-toggles" role="group" aria-label=${messages.review}>
-      ${toggle('changes', messages.reviewChanges, iconHistory(), changeCount)}
-      ${toggle('comments', messages.reviewComments, iconComment(), commentCount)}
+      ${toggle('changes', messages.reviewChanges, iconHistory(), countOf(changeCount))}
+      ${
+        counts.total === 0
+          ? nothing
+          : toggle('questions', messages.grill, iconQuestion(), `${counts.answered}/${counts.total}`)
+      }
+      ${toggle('comments', messages.reviewComments, iconComment(), countOf(commentCount))}
     </div>`;
   }
 
@@ -638,9 +717,108 @@ export abstract class TemplateElement<S> extends LitElement {
    */
   #renderReviewPopover(context: TemplateRenderContext<S>): TemplateResult {
     const messages = coreMessages(this.locale);
-    const label = this.reviewSection === 'changes' ? messages.reviewChanges : messages.reviewComments;
-    return html`<div id=${REVIEW_ID} class="dpk-review" popover="manual" role="dialog" aria-label=${label}>
+    const section = this.#reviewSection;
+    const label =
+      section === 'changes'
+        ? messages.reviewChanges
+        : section === 'questions'
+          ? messages.grill
+          : messages.reviewComments;
+    return html`<div
+      id=${REVIEW_ID}
+      class="dpk-review"
+      popover="manual"
+      role="dialog"
+      aria-label=${label}
+      data-section=${section}
+    >
+      ${section === 'questions' ? this.#renderQuestions(context.actions.length) : nothing}
       ${this.renderReviewPanel(context)}
+    </div>`;
+  }
+
+  /** Questions only show while the page asks some; otherwise their part falls back to the comments. */
+  get #reviewSection(): ReviewSection {
+    return this.reviewSection === 'questions' && this.#grill.questions.length === 0 ? 'comments' : this.reviewSection;
+  }
+
+  /** The questions the page asks, with the hand-off at their foot: the comment panel's own is out of sight. */
+  #renderQuestions(draftCount: number): TemplateResult {
+    const messages = coreMessages(this.locale);
+    const vm = presentGrillPanel(messages, this.#grill, this.derivation.answers, {
+      open: this.#grillOpen,
+      round: this.#grillRound,
+    });
+    const dock = this.#presentDock(draftCount, false);
+    return renderGrillPanel(
+      messages,
+      vm,
+      this.#grillPanelIntents,
+      dock ? html`<footer class="dpk-grill-footer">${this.#renderHandoffActions(dock)}</footer>` : nothing,
+    );
+  }
+
+  /** Opens the questions on one of them, from its badge, a change notice or the list itself. */
+  #openQuestion(questionId: string): void {
+    this.notesOpen = true;
+    this.reviewSection = 'questions';
+    this.#grillRound = 'current';
+    this.#grillOpen = questionId;
+    this.#revealedQuestion = null;
+    this.requestUpdate();
+  }
+
+  #answer(questionId: string, payload: AnswerPayload): void {
+    const outcome = this.dispatch(answerGrill(questionId, payload));
+    if (!outcome.ok) return;
+    // A choice is a decision: record it and move on to the next open question.
+    if (payload.kind === 'option') this.#advance(questionId);
+    // Words are still being written; the caret stays until ⌘/Ctrl+Enter.
+    else if (payload.kind === 'free' && payload.text === '') this.#focusFreeText = questionId;
+  }
+
+  /** Opens the next unanswered question, if there is one. */
+  #advance(questionId: string): void {
+    const next = nextOpenQuestion(this.#grill, this.derivation.answers, questionId);
+    if (next === null) return;
+    this.#grillOpen = next;
+    this.requestUpdate();
+  }
+
+  /** Keeps the open question in view in the list, and focuses the own-words box just chosen. */
+  #settleQuestions(): void {
+    if (!this.notesOpen || this.#reviewSection !== 'questions') return;
+    const focus = this.#focusFreeText;
+    this.#focusFreeText = null;
+    if (focus !== null) this.renderRoot.querySelector<HTMLTextAreaElement>(`[data-free-text="${focus}"]`)?.focus();
+    const open = openQuestionOf(this.#grill, this.#grillOpen);
+    if (this.#grillRound !== 'current' || open === null || open === this.#revealedQuestion) return;
+    this.#revealedQuestion = open;
+    const card = this.renderRoot.querySelector(`.dpk-grill [data-question="${open}"]`);
+    const list = card?.closest('.dpk-grill-list');
+    if (card && list) revealWithin(list, card);
+  }
+
+  /** A badge per mark, over the main column; pressing one opens its question. */
+  #renderBadges(): TemplateResult | typeof nothing {
+    if (this.#badges.length === 0) return nothing;
+    const messages = coreMessages(this.locale);
+    return html`<div class="dpk-grill-badges">
+      ${this.#badges.map(
+        (binding) => html`<button
+          type="button"
+          class="dpk-grill-badge"
+          data-badge=${binding.index}
+          data-answered=${String(binding.answered)}
+          data-visible="false"
+          aria-pressed=${binding.open ? 'true' : 'false'}
+          aria-label=${messages.grillOpen(`${binding.ref} · ${binding.title}`)}
+          title=${`${binding.ref} · ${binding.title}`}
+          @click=${() => this.#openQuestion(binding.questionId)}
+        >
+          ${binding.ref}
+        </button>`,
+      )}
     </div>`;
   }
 
@@ -684,7 +862,8 @@ export abstract class TemplateElement<S> extends LitElement {
     if (!jump) return;
     if (jump.navigate) this.navigate(jump.navigate);
     if (target === null) return;
-    this.showTarget(target);
+    if (target.type === GRILL_TARGET_TYPE) this.#openQuestion(target.id);
+    else this.showTarget(target);
     const ref = targetRef(target);
     // The target renders once the navigation and the components below settle.
     for (let frame = 0; frame < REVEAL_FRAMES; frame += 1) {
@@ -708,14 +887,25 @@ export abstract class TemplateElement<S> extends LitElement {
 
   /** Send or copy the draft without opening the rail; the rail has the same buttons when it is open. */
   #renderHandoffDock(draftCount: number): TemplateResult | typeof nothing {
-    const vm = presentDock(
-      { actions: draftCount, railOpen: this.notesOpen, sendable: this.canSendToClaude, locale: this.locale },
-      this.#dock.state,
-    );
+    const vm = this.#presentDock(draftCount, this.notesOpen);
     if (!vm) return nothing;
     const messages = coreMessages(this.locale);
     return html`<div class="dpk-dock" role="group" aria-label=${messages.handoffLabel}>
-      ${vm.note ? html`<p class="dpk-dock-note" role="alert">${vm.note}</p>` : nothing}
+      ${this.#renderHandoffActions(vm)}
+    </div>`;
+  }
+
+  #presentDock(draftCount: number, railOpen: boolean): DockViewModel | null {
+    return presentDock(
+      { actions: draftCount, railOpen, sendable: this.canSendToClaude, locale: this.locale },
+      this.#dock.state,
+    );
+  }
+
+  /** The send and copy buttons, floating over the page or at the foot of the questions. */
+  #renderHandoffActions(vm: DockViewModel): TemplateResult {
+    const messages = coreMessages(this.locale);
+    return html`${vm.note ? html`<p class="dpk-dock-note" role="alert">${vm.note}</p>` : nothing}
       <div class="dpk-dock-actions">
         ${
           vm.send
@@ -738,8 +928,7 @@ export abstract class TemplateElement<S> extends LitElement {
         >
           ${vm.copy.label}
         </button>
-      </div>
-    </div>`;
+      </div>`;
   }
 
   #renderLanguageSelect(): TemplateResult {
@@ -925,12 +1114,14 @@ export abstract class TemplateElement<S> extends LitElement {
 
   #initialize(): void {
     const base = this.#readBase();
+    this.#grill = this.#readGrill();
     this.#navigation = readNavigationFromHash();
     const storageKey = this.storageKey;
     this.#controller = new DraftController<S>({
       definition: this.definition,
       base,
       storage: this.#resolveStorage(),
+      grill: { grill: this.#grill, locale: this.locale },
       ...(typeof storageKey === 'string' ? { storageKey } : {}),
     });
     this.#subscribe();
@@ -963,6 +1154,20 @@ export abstract class TemplateElement<S> extends LitElement {
     }
   }
 
+  /** The questions are optional: without their script the page asks nothing. */
+  #readGrill(): Grill {
+    const script = this.querySelector(GRILL_SELECTOR);
+    this.#grillError = null;
+    if (!script?.textContent || script.textContent.trim().length === 0) return EMPTY_GRILL;
+    try {
+      return parseGrill(JSON.parse(script.textContent));
+    } catch (error) {
+      console.error('[dev-process-kit] invalid questions:', error);
+      this.#grillError = error instanceof Error ? error.message : String(error);
+      return EMPTY_GRILL;
+    }
+  }
+
   /**
    * Base data may be written after the element is upgraded (dynamically created
    * elements, streaming HTML). Re-read it once the JSON script shows up.
@@ -974,6 +1179,9 @@ export abstract class TemplateElement<S> extends LitElement {
       if (!script) return;
       this.#previewObserver?.disconnect();
       this.#previewObserver = undefined;
+      // The questions are written alongside the base data.
+      this.#grill = this.#readGrill();
+      this.controller.setGrill({ grill: this.#grill, locale: this.locale });
       try {
         this.controller.setBase(this.definition.parseBase(JSON.parse(script.textContent ?? 'null')));
       } catch (error) {

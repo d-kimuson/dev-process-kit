@@ -6,7 +6,6 @@ import pkg from '../package.json' with { type: 'json' };
 import { parseDelegationPokerBase } from './templates/delegation-poker/model';
 import { parseEventStormingBase } from './templates/event-storming/model';
 import { parseExampleMappingBase } from './templates/example-mapping/model';
-import { parseGrillBase } from './templates/grill/model';
 import { parsePlainBase } from './templates/plain/model';
 import { parsePrototypeBase } from './templates/prototype/model';
 import { parseSlidesBase } from './templates/slides/model';
@@ -36,7 +35,6 @@ const parseBaseFor: Record<string, (input: unknown) => unknown> = {
   usm: parseUsmBase,
   'event-storming': parseEventStormingBase,
   'example-mapping': parseExampleMappingBase,
-  grill: parseGrillBase,
   plain: parsePlainBase,
   slides: parseSlidesBase,
   'task-board': parseTaskBoardBase,
