@@ -260,17 +260,25 @@ describe('usm statuses: element', () => {
     expect(el.api.navigation['story']).toBeUndefined();
   });
 
-  it('filters the grid by status, and the filter doubles as the legend', async () => {
+  it('filters the grid by status from a menu on the one-row filter bar', async () => {
     const el = await mount('#status=done');
     const root = el.shadowRoot!;
-    const filter = root.querySelector('[data-testid="usm-status-filter"]')!;
+    const bar = root.querySelector('[data-testid="usm-map-filter"]')!;
+    const trigger = bar.querySelector('[data-filter-trigger="status"]') as HTMLButtonElement;
+    expect(trigger.getAttribute('data-active')).toBe('true');
+    expect(trigger.querySelector('.filter-value')?.textContent).toBe('Done');
+    expect(root.querySelector('#filter-menu')).toBeNull();
+    trigger.click();
+    await el.updateComplete;
+    const menu = root.querySelector('#filter-menu[data-filter="status"]')!;
     expect(
-      [...filter.querySelectorAll('.filter-chip')].map((chip) => [
-        chip.getAttribute('data-status'),
-        chip.getAttribute('aria-checked'),
-        chip.querySelector('.filter-count')?.textContent,
+      [...menu.querySelectorAll('.filter-option')].map((option) => [
+        option.getAttribute('data-option'),
+        option.getAttribute('aria-checked'),
+        option.querySelector('.filter-count')?.textContent ?? null,
       ]),
     ).toEqual([
+      ['', 'false', null],
       ['idea', 'false', '1'],
       ['ready', 'false', '1'],
       ['done', 'true', '2'],
@@ -280,12 +288,17 @@ describe('usm statuses: element', () => {
     expect(shown()).toEqual(expect.arrayContaining(['u1', 'u3']));
     expect(shown()).toHaveLength(2);
     // turning another one on keeps the canonical order
-    expect(filter.querySelector('[data-status="idea"]')?.getAttribute('href')).toContain('status=idea%2Cdone');
+    expect(menu.querySelector('[data-option="idea"]')?.getAttribute('href')).toContain('status=idea%2Cdone');
     window.location.hash = '#status=idea,nope';
     await new Promise((resolve) => setTimeout(resolve, 0));
     await el.updateComplete;
     expect(el.api.navigation['status']).toBe('idea');
     expect(shown()).toEqual(['u4']);
+    // picking keeps the menu open; Escape closes it
+    expect(root.querySelector('#filter-menu')).not.toBeNull();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await el.updateComplete;
+    expect(root.querySelector('#filter-menu')).toBeNull();
   });
 
   it('shows whose experience an activity is and how far its stories have come', async () => {

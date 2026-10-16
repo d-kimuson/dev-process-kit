@@ -15,19 +15,19 @@ import { describeLink } from '../../lib/link-label';
 import { usmActions } from './actions';
 import { usmTabOf } from './board-tabs';
 import { BURNDOWN_UNITS, momentLabel } from './burndown';
+import { MAP_FILTER_KEYS, mapFilterOf, mapFilterParam } from './map-filter';
 import {
   findActivity,
   findEstimate,
   findLabel,
   findMilestone,
-  findSnapshot,
   findStatus,
   findStep,
+  findSnapshot,
   findStory,
   stepRefOf,
   type UsmState,
 } from './model';
-import { statusFilterOf, statusFilterParam } from './status-view';
 
 type Summary = {
   readonly title: string;
@@ -546,10 +546,13 @@ export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigati
   // The table grouping is navigation state: which unit the map groups by.
   next['view'] = nav['view'] === 'group' ? 'group' : 'activity';
   // The page tab is navigation too; the map is the default and needs no key.
-  // The status filter is navigation too: what the reader looks at, never a change.
-  const filter = statusFilterParam(state, statusFilterOf(state, nav));
-  if (filter === null) delete next['status'];
-  else next['status'] = filter;
+  // The map's filters are navigation too: what the reader looks at, never a change.
+  const filter = mapFilterOf(state, nav);
+  for (const key of MAP_FILTER_KEYS) {
+    const param = mapFilterParam(state, key, filter[key]);
+    if (param === null) delete next[key];
+    else next[key] = param;
+  }
   const tab = usmTabOf(nav);
   if (tab === 'map') delete next['tab'];
   else next['tab'] = tab;

@@ -23,6 +23,7 @@ import { renderBoard, type UsmDragType } from './render/board';
 import { burndownStyles, renderBurndown } from './render/burndown';
 import { renderLabelOverview } from './render/label-overview';
 import { linkStyles } from './render/link-icon';
+import { mapFilterStyles } from './render/map-filter';
 import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
 import { renderBoardBar } from './render/page-tabs';
@@ -35,6 +36,10 @@ import { IDLE_MODE, type UsmUiMode } from './ui-mode';
 
 const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
 const ICON_MENU_SIZE = { width: 228, height: 116 };
+const FILTER_MENU_WIDTH = 240;
+/** The height of one choice in a filter menu, and of the menu's padding: the room the menu asks for. */
+const FILTER_OPTION_HEIGHT = 31;
+const FILTER_MENU_PADDING = 14;
 
 /**
  * `<dpk-template-usm>` — the user story map.
@@ -53,6 +58,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     linkStyles,
     storyPanelStyles,
     burndownStyles,
+    mapFilterStyles,
     popoverSurface,
   ];
 
@@ -85,6 +91,16 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         (path.includes(this) || path[0] === document.body || path[0] === document.documentElement),
       dismiss: () => this.context().navigate({ story: null }),
     });
+    // A filter menu closes on Escape and on a press outside it and its trigger (the trigger toggles it).
+    new DismissController(this, {
+      open: () => this.mode.kind === 'filtering',
+      closesOn: (path) =>
+        !path.some(
+          (node) => node instanceof Element && (node.id === 'filter-menu' || node.hasAttribute('data-filter-trigger')),
+        ),
+      ownsEscape: () => true,
+      dismiss: () => (this.mode = IDLE_MODE),
+    });
   }
 
   protected override renderRegions(context: TemplateRenderContext<UsmState>): ShellRegions {
@@ -100,6 +116,14 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       const menu = this.renderRoot.querySelector<HTMLElement>('#icon-menu');
       const trigger = this.renderRoot.querySelector(`[data-icon-trigger="${CSS.escape(this.mode.statusId)}"]`);
       if (menu && trigger) this.#popovers.open(menu, trigger, ICON_MENU_SIZE);
+      return;
+    }
+    // A filter's menu hangs off its trigger, as tall as its choices.
+    if (this.mode.kind === 'filtering') {
+      const menu = this.renderRoot.querySelector<HTMLElement>('#filter-menu');
+      const trigger = this.renderRoot.querySelector(`[data-filter-trigger="${CSS.escape(this.mode.key)}"]`);
+      const height = (menu?.childElementCount ?? 0) * FILTER_OPTION_HEIGHT + FILTER_MENU_PADDING;
+      if (menu && trigger) this.#popovers.open(menu, trigger, { width: FILTER_MENU_WIDTH, height });
       return;
     }
     // The step picker floats where the story was dropped (top layer) until the
@@ -211,6 +235,14 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         dropOnCell: (cell, drop) => this.#onCellDrop(cell, drop),
         dropOnGroupCell: (activityId, milestoneId, drop) => this.#onGroupDrop(activityId, milestoneId, drop),
         dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
+      },
+      filterMenu: {
+        openFor: this.mode.kind === 'filtering' ? this.mode.key : null,
+        toggle: (key) => {
+          const open = this.mode.kind === 'filtering' && this.mode.key === key;
+          this.mode = open ? IDLE_MODE : { kind: 'filtering', key };
+        },
+        close: () => (this.mode = IDLE_MODE),
       },
     });
   }

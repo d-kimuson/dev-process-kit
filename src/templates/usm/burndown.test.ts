@@ -372,6 +372,23 @@ describe('usm estimates and burndown: element', () => {
     expect(readout()).toBeNull();
   });
 
+  it('filters the map by estimate, offering only the filters the map has choices for', async () => {
+    const el = await mount('#estimate=~none,L');
+    const root = el.shadowRoot!;
+    const bar = root.querySelector('[data-testid="usm-map-filter"]')!;
+    // no labels yet: no label filter
+    expect(
+      [...bar.querySelectorAll('[data-filter-trigger]')].map((each) => each.getAttribute('data-filter-trigger')),
+    ).toEqual(['status', 'estimate']);
+    expect(bar.querySelector('[data-filter-trigger="estimate"] .filter-value')?.textContent).toBe('L +1');
+    expect(el.api.navigation['estimate']).toBe('L,~none');
+    const shown = [...root.querySelectorAll('dpk-internal-usm-story-card')].map((card) =>
+      card.getAttribute('data-story'),
+    );
+    expect(shown).toEqual(expect.arrayContaining(['a', 'e']));
+    expect(shown).toHaveLength(2);
+  });
+
   it('sets the due date of the milestone it shows', async () => {
     const el = await mount('#tab=burndown&milestone=v1');
     const input = el.shadowRoot!.querySelector('input[data-role="due-date"]') as HTMLInputElement;

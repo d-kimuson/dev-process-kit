@@ -11,6 +11,7 @@ import { targetRef } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { addActivity, addMilestone, addStep, addStory } from '../commands';
 import { dependencyOf } from '../dependencies';
+import { mapFilterOf, passesMapFilter } from '../map-filter';
 import {
   findEstimate,
   flatSteps,
@@ -22,17 +23,9 @@ import {
   type UserStory,
   type UsmState,
 } from '../model';
-import {
-  passesStatusFilter,
-  statusDistribution,
-  statusFilterOf,
-  statusFilterParam,
-  statusViewOf,
-  statusViews,
-  toggleStatusFilter,
-  type StatusView,
-} from '../status-view';
-import { statusBar, statusIcon, statusToneStyle } from './tone';
+import { statusDistribution, statusViewOf, statusViews } from '../status-view';
+import { renderMapFilter, type FilterMenu } from './map-filter';
+import { statusBar, statusToneStyle } from './tone';
 
 /** The two kinds of things that move on the board. */
 export type UsmDragType = 'story' | 'milestone';
@@ -50,6 +43,7 @@ export type BoardProps = {
   readonly context: TemplateRenderContext<UsmState>;
   readonly drag: DragController<UsmDragType>;
   readonly handlers: BoardHandlers;
+  readonly filterMenu: FilterMenu;
 };
 
 /** A milestone row of the map; the trailing `undefined` row collects unassigned stories. */
@@ -92,46 +86,8 @@ export const renderBoard = (props: BoardProps): TemplateResult => {
   const { m, context } = props;
   const columns = flatSteps(context.state);
   if (columns.length === 0) return renderEmptyBoard(m, context);
-  return html`${renderStatusFilter(m, context)}
+  return html`${renderMapFilter(m, context, props.filterMenu)}
   ${usmViewOf(context) === 'activity' ? renderActivityView(props, columns) : renderGroupView(props)}`;
-};
-
-/**
- * The grid's filter by status, one toggle per status with its icon and count.
- * Nothing on = every story; it doubles as the legend of the card colors.
- */
-const renderStatusFilter = (
-  m: UsmMessages,
-  context: TemplateRenderContext<UsmState>,
-): TemplateResult | typeof nothing => {
-  const { state } = context;
-  if (state.statuses.length === 0) return nothing;
-  const filter = statusFilterOf(state, context.navigation);
-  const views = statusViews(state);
-  const countOf = (id: string): number => state.stories.filter((story) => story.statusId === id).length;
-  const option = (view: StatusView): TemplateResult => {
-    const id = view.id;
-    const on = filter.has(id);
-    return html`<a
-      class="filter-chip"
-      role="checkbox"
-      data-status=${id}
-      aria-checked=${String(on)}
-      style=${statusToneStyle(view.tone)}
-      href=${context.hashFor({ status: statusFilterParam(state, toggleStatusFilter(filter, id)) })}
-      >${statusIcon(view)}<span class="filter-name" title=${view.name}>${view.name}</span
-      ><span class="filter-count">${countOf(id)}</span></a
-    >`;
-  };
-  return html`<div class="map-toolbar" role="group" aria-label=${m.statusFilterLabel} data-testid="usm-status-filter">
-    <span class="filter-label">${m.statusFilterLabel}</span>
-    ${views.map(option)}
-    ${
-      filter.size === 0
-        ? nothing
-        : html`<a class="filter-clear" href=${context.hashFor({ status: null })}>${m.clearFilter}</a>`
-    }
-  </div>`;
 };
 
 export const usmViewOf = (context: TemplateRenderContext<UsmState>): 'group' | 'activity' => {
@@ -488,9 +444,9 @@ const renderMilestoneName = (
 
 const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
   const { m, context, drag, handlers } = props;
-  const filter = statusFilterOf(context.state, context.navigation);
+  const filter = mapFilterOf(context.state, context.navigation);
   const stories = storiesInCell(context.state, cell.stepId, cell.milestoneId).filter((story) =>
-    passesStatusFilter(filter, story),
+    passesMapFilter(filter, story),
   );
   const key = `cell:${cell.stepId}:${cell.milestoneId ?? ''}`;
   const target = drag.target({
@@ -532,10 +488,8 @@ const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
 const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: string | undefined): TemplateResult => {
   const { m, context, drag, handlers } = props;
   const { state } = context;
-  const filter = statusFilterOf(state, context.navigation);
-  const stories = storiesInActivity(state, activityId, milestoneId).filter((story) =>
-    passesStatusFilter(filter, story),
-  );
+  const filter = mapFilterOf(state, context.navigation);
+  const stories = storiesInActivity(state, activityId, milestoneId).filter((story) => passesMapFilter(filter, story));
   const steps = state.activities.find((candidate) => candidate.id === activityId)?.steps ?? [];
   const firstStep = steps[0];
   const stepNameOf = (stepId: string): string => steps.find((step) => step.id === stepId)?.name ?? '';

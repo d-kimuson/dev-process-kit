@@ -1,3 +1,5 @@
+import type { MapFilterKey } from './map-filter';
+
 /**
  * Ephemeral UI state of `<dpk-template-usm>` as one closed union.
  *
@@ -11,6 +13,8 @@ export type UsmUiMode =
   | { readonly kind: 'idle' }
   /** The icon menu of one status (statuses tab) is open. */
   | { readonly kind: 'picking-icon'; readonly statusId: string }
+  /** The menu of one of the map's filters is open. */
+  | { readonly kind: 'filtering'; readonly key: MapFilterKey }
   | {
       /** A cross-activity drop: the column named no step, so the reader picks one. */
       readonly kind: 'picking-step';

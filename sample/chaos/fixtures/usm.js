@@ -344,7 +344,7 @@ const wipStoryPanelOpen = {
 /** @type {Fixture} */
 const statusFilterAndMenu = {
   description:
-    '8 statuses (forces the filter row to wrap) with a status filter applied via hash, and the icon-picker menu for one status opened programmatically.',
+    '8 statuses (a long status filter menu) with a status filter applied via hash, and the icon-picker menu for one status opened programmatically.',
   lang: 'en',
   hash: 'status=idea,ready,doing,done&tab=statuses',
   base: {

@@ -1,4 +1,3 @@
-import type { Navigation } from '../../core/types';
 import type { StatusIcon, StatusTone, UserStory, UsmState } from './model';
 
 /** A status as the map shows it: its color, its icon and how far along the workflow it sits. */
@@ -37,30 +36,4 @@ export const statusDistribution = (state: UsmState, stories: readonly UserStory[
   return statusViews(state)
     .map((view) => ({ ...view, count: stories.filter((story) => story.statusId === view.id).length }))
     .filter((segment) => segment.count > 0);
-};
-
-/** The statuses the map is filtered to (`#status=ready,done`). Empty means no filter: every story shows. */
-export const statusFilterOf = (state: UsmState, nav: Navigation): ReadonlySet<string> => {
-  const raw = nav['status'];
-  if (raw === undefined || raw === '') return new Set();
-  const wanted = new Set(raw.split(','));
-  return new Set(state.statuses.map((status) => status.id).filter((id) => wanted.has(id)));
-};
-
-/** The filter as navigation: canonical order, unknown ids dropped, `null` when off. */
-export const statusFilterParam = (state: UsmState, filter: ReadonlySet<string>): string | null => {
-  const ids = state.statuses.map((status) => status.id).filter((id) => filter.has(id));
-  return ids.length === 0 ? null : ids.join(',');
-};
-
-export const toggleStatusFilter = (filter: ReadonlySet<string>, id: string): ReadonlySet<string> => {
-  const next = new Set(filter);
-  if (next.has(id)) next.delete(id);
-  else next.add(id);
-  return next;
-};
-
-export const passesStatusFilter = (filter: ReadonlySet<string>, story: UserStory): boolean => {
-  if (filter.size === 0) return true;
-  return story.statusId !== undefined && filter.has(story.statusId);
 };
