@@ -260,6 +260,16 @@ describe('usm statuses: element', () => {
     expect(el.api.navigation['story']).toBeUndefined();
   });
 
+  it('keeps the filter row in the head that sticks over the map, on the map only', async () => {
+    const el = await mount('');
+    const head = el.shadowRoot!.querySelector('[data-testid="usm-board-head"]')!;
+    expect(head.querySelector('.board-bar')).not.toBeNull();
+    expect(head.querySelector('[data-testid="usm-map-toolbar"] [data-testid="usm-map-filter"]')).not.toBeNull();
+    el.api.navigate({ tab: 'statuses' });
+    await settle(el);
+    expect(el.shadowRoot!.querySelector('[data-testid="usm-map-toolbar"]')).toBeNull();
+  });
+
   it('filters the grid by status from a menu on the one-row filter bar', async () => {
     const el = await mount('#status=done');
     const root = el.shadowRoot!;

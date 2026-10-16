@@ -1,0 +1,30 @@
+import { css, html, type TemplateResult } from 'lit';
+
+import type { TemplateRenderContext } from '../../../core/shell/contracts';
+import type { UsmMessages } from '../messages';
+import type { UsmState } from '../model';
+
+import { renderMapFilter, type FilterMenu } from './map-filter';
+
+/**
+ * The row under the page tabs on the map, with the filters. It sticks with
+ * the tabs while the page scrolls.
+ */
+export const renderMapToolbar = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  filterMenu: FilterMenu,
+): TemplateResult => html`<div class="map-toolbar" data-testid="usm-map-toolbar">
+  ${renderMapFilter(m, context, filterMenu)}
+</div>`;
+
+export const mapToolbarStyles = css`
+  .map-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 8px 24px;
+    border-bottom: 1px solid var(--dpk-rule);
+  }
+`;

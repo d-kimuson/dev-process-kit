@@ -10,12 +10,12 @@ export const usmStyles = css`
    * It scrolls both ways so the backbone can stick to its top and the
    * milestone column to its left: a box that scrolls only sideways still
    * becomes the sticky ancestor, and its top would never move. Capped near the
-   * viewport height, it fits under the tab bar once the page brings it up.
+   * viewport height, it fits under the board head (tabs and toolbar) once the page brings it up.
    */
   .map-scroll {
     min-width: 0;
     max-width: 100%;
-    max-height: max(320px, calc(100dvh - 170px));
+    max-height: max(320px, calc(100dvh - 218px));
     overflow: auto;
     overscroll-behavior-x: contain;
     border: 1px solid var(--dpk-rule);
@@ -104,16 +104,21 @@ export const usmStyles = css`
   /* Above the content: the page tabs (map / milestones) and, on the map, the
      unit toggle (group band vs one column per activity). */
 
-  .board-bar {
-    border-bottom: 1px solid var(--dpk-rule);
-    /* Stays on top while a long milestone list scrolls under it. */
+  /* The board bar and the map's toolbar stay on top together while a long
+     milestone list or the map scrolls under them. */
+  .board-head {
     position: sticky;
     top: 0;
     z-index: 5;
     margin: -24px -24px 0;
-    padding: 12px 24px;
     background: var(--dpk-glass);
     backdrop-filter: saturate(1.6) blur(14px);
+    min-width: 0;
+  }
+
+  .board-bar {
+    border-bottom: 1px solid var(--dpk-rule);
+    padding: 12px 24px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;

@@ -26,7 +26,6 @@ import {
   type UsmState,
 } from '../model';
 import { statusDistribution, statusViewOf, statusViews } from '../status-view';
-import { renderMapFilter, type FilterMenu } from './map-filter';
 import { statusBar, statusToneStyle } from './tone';
 
 /** The two kinds of things that move on the board. */
@@ -45,7 +44,6 @@ export type BoardProps = {
   readonly context: TemplateRenderContext<UsmState>;
   readonly drag: DragController<UsmDragType>;
   readonly handlers: BoardHandlers;
-  readonly filterMenu: FilterMenu;
 };
 
 /** A milestone row of the map; the trailing `undefined` row collects unassigned stories. */
@@ -88,8 +86,7 @@ export const renderBoard = (props: BoardProps): TemplateResult => {
   const { m, context } = props;
   const columns = flatSteps(context.state);
   if (columns.length === 0) return renderEmptyBoard(m, context);
-  return html`${renderMapFilter(m, context, props.filterMenu)}
-  ${usmViewOf(context) === 'activity' ? renderActivityView(props, columns) : renderGroupView(props)}`;
+  return usmViewOf(context) === 'activity' ? renderActivityView(props, columns) : renderGroupView(props);
 };
 
 export const usmViewOf = (context: TemplateRenderContext<UsmState>): 'group' | 'activity' => {

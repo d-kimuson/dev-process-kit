@@ -50,7 +50,7 @@ export const renderMapFilter = (
   if (keys.length === 0) return nothing;
   const filter = mapFilterOf(state, context.navigation);
   const clear = Object.fromEntries(MAP_FILTER_KEYS.map((key) => [key, null]));
-  return html`<div class="map-toolbar" role="group" aria-label=${m.filterLabel} data-testid="usm-map-filter">
+  return html`<div class="map-filter" role="group" aria-label=${m.filterLabel} data-testid="usm-map-filter">
     ${keys.map((key) => renderFilterSelect(m, context, filter, key, menu))}
     ${isFiltered(filter) ? html`<a class="filter-clear" href=${context.hashFor(clear)}>${m.clearFilter}</a>` : nothing}
   </div>`;
@@ -189,12 +189,12 @@ const filterOptions = (m: UsmMessages, state: UsmState, key: MapFilterKey): read
 };
 
 export const mapFilterStyles = css`
-  .map-toolbar {
+  .map-filter {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    margin: 16px 0 12px;
+    min-width: 0;
   }
   .filter-field {
     min-width: 0;

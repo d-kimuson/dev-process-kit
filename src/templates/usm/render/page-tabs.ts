@@ -9,6 +9,13 @@ import { renderViewTabs } from './board';
 import { renderFeaturesMenu, type FeaturesMenu } from './features-menu';
 
 /**
+ * The head that stays at the top while the content scrolls: the board bar
+ * and, under it, the map's toolbar when the map shows one.
+ */
+export const renderBoardHead = (bar: TemplateResult, toolbar: TemplateResult | typeof nothing): TemplateResult =>
+  html`<div class="board-head" data-testid="usm-board-head">${bar}${toolbar}</div>`;
+
+/**
  * The bar above the content: the page tabs (the map, its milestones, statuses
  * and labels, and the tabs of the features that are on), on the map the
  * grouping toggle that only makes sense there, and the features menu.

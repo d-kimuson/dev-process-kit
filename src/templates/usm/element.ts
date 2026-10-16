@@ -19,17 +19,18 @@ import { presentLabelOverview } from './label-overview';
 import { presentMemberOverview } from './member-overview';
 import { usmMessages, type UsmMessages } from './messages';
 import { presentMilestoneOverview } from './milestone-overview';
-import { findStory, type UsmState } from './model';
+import { findStory, flatSteps, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
 import { burndownStyles, renderBurndown } from './render/burndown';
 import { featuresMenuStyles } from './render/features-menu';
 import { renderLabelOverview } from './render/label-overview';
 import { linkStyles } from './render/link-icon';
 import { mapFilterStyles } from './render/map-filter';
+import { mapToolbarStyles, renderMapToolbar } from './render/map-toolbar';
 import { renderMemberOverview } from './render/member-overview';
 import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
-import { renderBoardBar } from './render/page-tabs';
+import { renderBoardBar, renderBoardHead } from './render/page-tabs';
 import { renderStatusOverview } from './render/status-overview';
 import { panelStoryOf, renderStoryPanel, storyPanelStyles } from './render/story-panel';
 import { statusStyles } from './render/tone';
@@ -62,6 +63,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     linkStyles,
     storyPanelStyles,
     burndownStyles,
+    mapToolbarStyles,
     mapFilterStyles,
     featuresMenuStyles,
     popoverSurface,
@@ -210,17 +212,38 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     const m = usmMessages(this.locale);
     const tab = usmTabOf(context.state, context.navigation);
     return html`
-      ${renderBoardBar(m, context, tab, {
-        open: this.mode.kind === 'choosing-features',
-        toggle: () => (this.mode = this.mode.kind === 'choosing-features' ? IDLE_MODE : { kind: 'choosing-features' }),
-        close: () => (this.mode = IDLE_MODE),
-      })}
+      ${renderBoardHead(
+        renderBoardBar(m, context, tab, {
+          open: this.mode.kind === 'choosing-features',
+          toggle: () =>
+            (this.mode = this.mode.kind === 'choosing-features' ? IDLE_MODE : { kind: 'choosing-features' }),
+          close: () => (this.mode = IDLE_MODE),
+        }),
+        this.#renderToolbar(m, context, tab),
+      )}
       ${this.#renderTab(m, context, tab)} ${this.#renderPanel(m, context, tab)}
       ${renderMoveDialog(m, context, this.mode, {
         confirm: (stepId) => this.#confirmPickedStep(stepId),
         cancel: () => (this.mode = IDLE_MODE),
       })}
     `;
+  }
+
+  /** The map's filters, on the map only and once it has steps to show stories under. */
+  #renderToolbar(
+    m: UsmMessages,
+    context: TemplateRenderContext<UsmState>,
+    tab: UsmTab,
+  ): TemplateResult | typeof nothing {
+    if (tab !== 'map' || flatSteps(context.state).length === 0) return nothing;
+    return renderMapToolbar(m, context, {
+      openFor: this.mode.kind === 'filtering' ? this.mode.key : null,
+      toggle: (key) => {
+        const open = this.mode.kind === 'filtering' && this.mode.key === key;
+        this.mode = open ? IDLE_MODE : { kind: 'filtering', key };
+      },
+      close: () => (this.mode = IDLE_MODE),
+    });
   }
 
   /** The story panel, on the map only: the stories live there. */
@@ -264,14 +287,6 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         dropOnCell: (cell, drop) => this.#onCellDrop(cell, drop),
         dropOnGroupCell: (activityId, milestoneId, drop) => this.#onGroupDrop(activityId, milestoneId, drop),
         dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
-      },
-      filterMenu: {
-        openFor: this.mode.kind === 'filtering' ? this.mode.key : null,
-        toggle: (key) => {
-          const open = this.mode.kind === 'filtering' && this.mode.key === key;
-          this.mode = open ? IDLE_MODE : { kind: 'filtering', key };
-        },
-        close: () => (this.mode = IDLE_MODE),
       },
     });
   }
