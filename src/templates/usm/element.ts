@@ -15,7 +15,15 @@ import { defineUsmBurndownChart } from './components/burndown-chart';
 import { defineUsmStoryCard } from './components/story-card';
 import { highlightedStoriesOf, highlightOf } from './critical-path';
 import { usmDefinitionFor } from './definition';
-import { resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove, type CellRef } from './drop';
+import {
+  resolveActivityDrop,
+  resolveCellDrop,
+  resolveGroupDrop,
+  resolveMilestoneDrop,
+  resolvePickedStepMove,
+  resolveStepDrop,
+  type CellRef,
+} from './drop';
 import { presentLabelOverview } from './label-overview';
 import { presentMemberOverview } from './member-overview';
 import { usmMessages, type UsmMessages } from './messages';
@@ -315,6 +323,8 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         dropOnCell: (cell, drop) => this.#onCellDrop(cell, drop),
         dropOnGroupCell: (activityId, milestoneId, drop) => this.#onGroupDrop(activityId, milestoneId, drop),
         dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
+        dropOnActivityHead: (drop) => this.#onActivityDrop(drop),
+        dropOnStepHead: (drop) => this.#onStepDrop(drop),
       },
       highlighted: highlightedStoriesOf(context.state, context.navigation),
     });
@@ -358,6 +368,19 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     const context = this.context();
     const order = context.state.milestones.map((milestone) => milestone.id);
     const input = resolveMilestoneDrop(order, drop.item.id, drop.hoveredId, drop.place);
+    if (input) context.dispatch(input);
+  }
+
+  #onActivityDrop(drop: Drop<'activity'>): void {
+    const context = this.context();
+    const order = context.state.activities.map((activity) => activity.id);
+    const input = resolveActivityDrop(order, drop.item.id, drop.hoveredId, drop.place);
+    if (input) context.dispatch(input);
+  }
+
+  #onStepDrop(drop: Drop<'step'>): void {
+    const context = this.context();
+    const input = resolveStepDrop(context.state, drop.item.id, drop.hoveredId, drop.place);
     if (input) context.dispatch(input);
   }
 

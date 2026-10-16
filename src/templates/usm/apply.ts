@@ -79,6 +79,11 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
         ),
       };
     }
+    case 'REORDER_ACTIVITY': {
+      const { after } = typed.payload;
+      const next = reorderById(state.activities, id, after);
+      return next === null ? null : { ...state, activities: next };
+    }
     case 'ADD_ACTIVITY': {
       const payload = typed.payload;
       if (state.activities.some((activity) => activity.id === payload.id)) return state;

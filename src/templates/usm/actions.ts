@@ -33,6 +33,9 @@ export const usmActions = {
   SET_ACTIVITY_ACTOR: defineAction('SET_ACTIVITY_ACTOR', 'activity', v.object({ actor: v.string() })),
   SET_STEP_NAME: defineAction('SET_STEP_NAME', 'step', v.object({ name: v.pipe(v.string(), v.minLength(1)) })),
   REORDER_STEP: defineAction('REORDER_STEP', 'step', v.object({ after: v.nullable(v.string()) }), { mode: 'sequence' }),
+  REORDER_ACTIVITY: defineAction('REORDER_ACTIVITY', 'activity', v.object({ after: v.nullable(v.string()) }), {
+    mode: 'sequence',
+  }),
   ADD_ACTIVITY: defineAction(
     'ADD_ACTIVITY',
     'page',

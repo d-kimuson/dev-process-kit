@@ -1,7 +1,7 @@
 import type { DropPlace } from '../../lib/dom/drag';
 
 import { reorderAnchor } from '../../lib/reorder';
-import { findStory, storiesInActivity, storiesInCell, type UsmState } from './model';
+import { findStep, findStory, stepRefOf, storiesInActivity, storiesInCell, type UsmState } from './model';
 
 /**
  * Pure drop-position helpers: given the ordered ids of the destination, the
@@ -127,5 +127,62 @@ export const resolveMilestoneDrop = (
     type: 'REORDER_MILESTONE',
     target: { type: 'milestone', id: draggedId },
     payload: { after: reorderAnchor(milestoneIds, draggedId, hoveredId, place) },
+  };
+};
+
+export type ActivityDropInput = {
+  readonly type: 'REORDER_ACTIVITY';
+  readonly target: { readonly type: 'activity'; readonly id: string };
+  readonly payload: { readonly after: string | null };
+};
+
+/**
+ * What an activity-group head drop dispatches. `activityIds` is the current
+ * order; the dragged group takes the hovered group's slot (see `reorderAnchor`).
+ */
+export const resolveActivityDrop = (
+  activityIds: readonly string[],
+  draggedId: string,
+  hoveredId: string | null,
+  place: DropPlace,
+): ActivityDropInput | null => {
+  if (!activityIds.includes(draggedId)) return null;
+  return {
+    type: 'REORDER_ACTIVITY',
+    target: { type: 'activity', id: draggedId },
+    payload: { after: reorderAnchor(activityIds, draggedId, hoveredId, place) },
+  };
+};
+
+export type StepDropInput = {
+  readonly type: 'REORDER_STEP';
+  readonly target: { readonly type: 'step'; readonly id: string };
+  readonly payload: { readonly after: string | null };
+};
+
+/**
+ * What a step head drop dispatches. Steps are named by their qualified ref
+ * (`activity.step`) and only move inside their own activity: a drop on
+ * another activity's step is rejected (`null`), since it would leave the
+ * step's stories behind.
+ */
+export const resolveStepDrop = (
+  state: UsmState,
+  draggedRef: string,
+  hoveredRef: string | null,
+  place: DropPlace,
+): StepDropInput | null => {
+  const dragged = findStep(state, draggedRef);
+  if (!dragged) return null;
+  const hovered = hoveredRef === null ? undefined : findStep(state, hoveredRef);
+  if (hoveredRef !== null && hovered?.activity.id !== dragged.activity.id) return null;
+  const activityId = dragged.activity.id;
+  const refs = dragged.activity.steps.map((step) => stepRefOf(activityId, step.id));
+  const draggedStepRef = stepRefOf(activityId, dragged.step.id);
+  const hoveredStepRef = hovered ? stepRefOf(activityId, hovered.step.id) : null;
+  return {
+    type: 'REORDER_STEP',
+    target: { type: 'step', id: draggedStepRef },
+    payload: { after: reorderAnchor(refs, draggedStepRef, hoveredStepRef, place) },
   };
 };

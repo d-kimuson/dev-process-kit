@@ -84,6 +84,14 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
     tone: 'move',
     body: reorderBody(m, payloadFor(usmActions.REORDER_STEP, action)['after']),
   }),
+  REORDER_ACTIVITY: (m, action, state) => {
+    const after = payloadFor(usmActions.REORDER_ACTIVITY, action)['after'];
+    return {
+      title: m.reorderActivity,
+      tone: 'move',
+      body: reorderBody(m, after === null ? null : (findActivity(state, after)?.name ?? after)),
+    };
+  },
   ADD_ACTIVITY: (m, action) => ({
     title: m.addActivity,
     tone: 'create',

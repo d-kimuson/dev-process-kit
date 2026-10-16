@@ -444,6 +444,48 @@ export const usmStyles = css`
     outline-offset: -2px;
   }
 
+  /* Column drag: a group's head or a step's head is its column's handle, the
+     way a row head is a milestone's. The grip answers the hover. */
+  .act-head[draggable='true'],
+  .col-head[draggable='true'] {
+    cursor: grab;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .act-head[draggable='true']:active,
+  .col-head[draggable='true']:active {
+    cursor: grabbing;
+  }
+  .act-head[draggable='true'] dpk-component-inline-edit,
+  .col-head[draggable='true'] dpk-component-inline-edit {
+    -webkit-user-drag: none;
+  }
+  .col-grip {
+    flex: none;
+    display: inline-flex;
+    color: var(--dpk-ink-faint);
+  }
+  .col-grip svg {
+    display: block;
+    width: 13px;
+    height: 13px;
+  }
+  .act-head[draggable='true']:hover .col-grip,
+  .col-head[draggable='true']:hover .col-grip {
+    color: var(--dpk-blue);
+  }
+  /* The dragged column fades from head to last cell, like a dragged row. */
+  .act-head[data-col-dragging='true'],
+  .col-head[data-col-dragging='true'],
+  .cell[data-col-dragging='true'] {
+    opacity: 0.45;
+  }
+  .act-head[data-col-drop='true'],
+  .col-head[data-col-drop='true'] {
+    outline: 2px dashed var(--dpk-blue);
+    outline-offset: -2px;
+  }
+
   /* Unassigned is a holding area, not a release: its label is quieter. */
   .map-row[data-unassigned='true'] .row-head {
     padding-left: var(--usm-row-indent);
