@@ -210,7 +210,7 @@ describe('usm statuses: element', () => {
   });
 
   it('colors cards by status and edits a story in the panel a click opens', async () => {
-    const el = await mount('');
+    const el = await mount('#done=show');
     const root = el.shadowRoot!;
     const card = root.querySelector('dpk-internal-usm-story-card[data-story="u4"]') as HTMLElement & {
       updateComplete: Promise<boolean>;
@@ -271,7 +271,7 @@ describe('usm statuses: element', () => {
   });
 
   it('filters the grid by status from a menu on the one-row filter bar', async () => {
-    const el = await mount('#status=done');
+    const el = await mount('#status=done&done=show');
     const root = el.shadowRoot!;
     const bar = root.querySelector('[data-testid="usm-map-filter"]')!;
     const trigger = bar.querySelector('[data-filter-trigger="status"]') as HTMLButtonElement;

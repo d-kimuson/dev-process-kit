@@ -148,6 +148,7 @@ export const usmMessages = defineMessages({
     noLabel: 'No label',
     unestimatedFilter: 'Not estimated',
     clearFilter: 'Clear',
+    showFinished: (status: string) => `Show ${status}`,
     criticalPathButton: 'Critical path',
     criticalPathHint:
       'Highlight the chain of waiting stories with the most work left, from their estimates and dependencies. If it slips, the whole map slips.',
@@ -433,6 +434,7 @@ export const usmMessages = defineMessages({
     noLabel: 'ラベルなし',
     unestimatedFilter: '見積もりなし',
     clearFilter: 'クリア',
+    showFinished: (status: string) => `${status}も表示`,
     criticalPathButton: 'クリティカルパス',
     criticalPathHint:
       '見積もりと依存関係から、残りの作業が最も多いストーリーの連なりを強調します。ここが遅れるとマップ全体が遅れます。',

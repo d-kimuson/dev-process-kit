@@ -6,11 +6,13 @@ import type { UsmMessages } from '../messages';
 import { iconCheck } from '../../../core/icons';
 import {
   filterOptionIds,
+  hiddenStatusOf,
   isFiltered,
   MAP_FILTER_KEYS,
   mapFilterOf,
   mapFilterParam,
   NO_VALUE,
+  SHOW_FINISHED,
   toggleFilterValue,
   type MapFilter,
   type MapFilterKey,
@@ -51,9 +53,38 @@ export const renderMapFilter = (
   const filter = mapFilterOf(state, context.navigation);
   const clear = Object.fromEntries(MAP_FILTER_KEYS.map((key) => [key, null]));
   return html`<div class="map-filter" role="group" aria-label=${m.filterLabel} data-testid="usm-map-filter">
-    ${keys.map((key) => renderFilterSelect(m, context, filter, key, menu))}
+    ${keys.map((key) => renderFilterSelect(m, context, filter, key, menu))} ${renderShowFinished(m, context)}
     ${isFiltered(filter) ? html`<a class="filter-clear" href=${context.hashFor(clear)}>${m.clearFilter}</a>` : nothing}
   </div>`;
+};
+
+/**
+ * The checkbox that brings the finished stories (the last status) onto the
+ * map, with how many there are. Like the filters it is navigation. A map
+ * with fewer than two statuses leaves nothing out, so it has none.
+ */
+const renderShowFinished = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+): TemplateResult | typeof nothing => {
+  const { state } = context;
+  const last = state.statuses.at(-1);
+  if (!last || state.statuses.length < 2) return nothing;
+  const shown = hiddenStatusOf(state, context.navigation) === null;
+  const count = state.stories.filter((story) => story.statusId === last.id).length;
+  return html`<label class="show-finished">
+    <input
+      type="checkbox"
+      data-show-finished
+      .checked=${shown}
+      @change=${(event: Event) => {
+        const on = event.currentTarget instanceof HTMLInputElement && event.currentTarget.checked;
+        context.navigate({ [SHOW_FINISHED.key]: on ? SHOW_FINISHED.value : null });
+      }}
+    />
+    <span>${m.showFinished(last.name)}</span>
+    <span class="show-finished-count">${count}</span>
+  </label>`;
 };
 
 const renderFilterSelect = (
@@ -64,7 +95,7 @@ const renderFilterSelect = (
   menu: FilterMenu,
 ): TemplateResult => {
   const selected = filter[key];
-  const options = filterOptions(m, context.state, key);
+  const options = filterOptions(m, context.state, filter.hiddenStatusId, key);
   const chosen = options.filter((option) => selected.has(option.id));
   const open = menu.openFor === key;
   return html`<span class="filter-field">
@@ -141,17 +172,26 @@ const renderFilterMenu = (
   })}
 </div>`;
 
-const filterOptions = (m: UsmMessages, state: UsmState, key: MapFilterKey): readonly FilterOption[] => {
-  const count = (test: (story: UsmState['stories'][number]) => boolean): number => state.stories.filter(test).length;
+/** The choices of a filter, counting the stories on the map: none in the status left out, which is no choice either. */
+const filterOptions = (
+  m: UsmMessages,
+  state: UsmState,
+  hiddenStatusId: string | null,
+  key: MapFilterKey,
+): readonly FilterOption[] => {
+  const count = (test: (story: UsmState['stories'][number]) => boolean): number =>
+    state.stories.filter((story) => story.statusId !== hiddenStatusId || hiddenStatusId === null).filter(test).length;
   switch (key) {
     case 'status':
-      return statusViews(state).map((view) => ({
-        id: view.id,
-        name: view.name,
-        count: count((story) => story.statusId === view.id),
-        mark: statusIcon(view),
-        style: statusToneStyle(view.tone),
-      }));
+      return statusViews(state)
+        .filter((view) => view.id !== hiddenStatusId)
+        .map((view) => ({
+          id: view.id,
+          name: view.name,
+          count: count((story) => story.statusId === view.id),
+          mark: statusIcon(view),
+          style: statusToneStyle(view.tone),
+        }));
     case 'label':
       return filterOptionIds(state, key).map((id) => {
         const label = state.labels.find((each) => each.id === id);
@@ -189,6 +229,27 @@ const filterOptions = (m: UsmMessages, state: UsmState, key: MapFilterKey): read
 };
 
 export const mapFilterStyles = css`
+  .show-finished {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 4px;
+    color: var(--dpk-ink-soft);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+  }
+  .show-finished input {
+    margin: 0;
+    accent-color: var(--dpk-blue);
+  }
+  .show-finished-count {
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+  }
   .map-filter {
     display: flex;
     flex-wrap: wrap;

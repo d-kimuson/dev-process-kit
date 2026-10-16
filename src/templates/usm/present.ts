@@ -16,7 +16,8 @@ import { usmActions } from './actions';
 import { usmTabOf } from './board-tabs';
 import { BURNDOWN_UNITS, momentLabel } from './burndown';
 import { highlightOf } from './critical-path';
-import { MAP_FILTER_KEYS, mapFilterOf, mapFilterParam } from './map-filter';
+import { isFinished } from './dependencies';
+import { MAP_FILTER_KEYS, mapFilterOf, mapFilterParam, SHOW_FINISHED } from './map-filter';
 import {
   findActivity,
   findEstimate,
@@ -572,15 +573,24 @@ export const usmTitle = (state: UsmState): string => {
 
 /**
  * The navigation that brings a target on screen, for a change's "Show": a
- * story, step or activity on the map grouped by activity, unfiltered and
- * without a highlight so the story shows plainly; a milestone, a status, a label or a member on its own page; an
+ * story, step or activity on the map grouped by activity, unfiltered (with
+ * the finished stories shown, for a finished one) and without a highlight so
+ * the story shows plainly; a milestone, a status, a label or a member on its own page; an
  * estimate or a snapshot on the burndown. A target of a feature that is off is
  * not on screen anywhere.
  */
 export const usmNavigationFor = (state: UsmState, target: ActionTarget): NavigationPatch | null => {
   switch (target.type) {
-    case 'story':
-      return { tab: null, highlight: null, ...Object.fromEntries(MAP_FILTER_KEYS.map((key) => [key, null])) };
+    case 'story': {
+      const story = findStory(state, target.id);
+      return {
+        tab: null,
+        highlight: null,
+        ...Object.fromEntries(MAP_FILTER_KEYS.map((key) => [key, null])),
+        // A finished story is off the map until the finished stories show.
+        ...(story && isFinished(state, story) ? { [SHOW_FINISHED.key]: SHOW_FINISHED.value } : {}),
+      };
+    }
     case 'step':
     case 'activity':
       return { tab: null, view: null };
@@ -623,6 +633,7 @@ export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigati
     if (param === null) delete next[key];
     else next[key] = param;
   }
+  if (nav[SHOW_FINISHED.key] !== SHOW_FINISHED.value) delete next[SHOW_FINISHED.key];
   const tab = usmTabOf(state, nav);
   if (tab === 'map') delete next['tab'];
   else next['tab'] = tab;

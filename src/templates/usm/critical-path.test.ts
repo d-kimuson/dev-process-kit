@@ -154,7 +154,7 @@ describe('usm critical path: on the map', () => {
   });
 
   it('highlights the critical path and dims the other cards while the toggle is on', async () => {
-    const el = await mount('');
+    const el = await mount('#done=show');
     expect(highlights(el)).toEqual({ a: null, b: null, d: null, e: null });
     // the toggle sits in the map's toolbar, beside the filters
     const toggle = () =>
