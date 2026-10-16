@@ -78,6 +78,16 @@ export const addLabel = (m: UsmMessages, context: TemplateRenderContext<UsmState
   });
 };
 
+/** A new member at the end, in the next color of the cycle. */
+export const addMember = (m: UsmMessages, context: TemplateRenderContext<UsmState>): void => {
+  const id = createEntityId('new-member', allUsmIds(context.state));
+  context.dispatch({
+    type: 'ADD_MEMBER',
+    target: { type: 'page', id: 'usm' },
+    payload: { id, name: m.newMemberName, tone: defaultLabelTone(context.state.members.length) },
+  });
+};
+
 /** A new size on the estimate scale, one point above the largest so far. */
 export const addEstimate = (m: UsmMessages, context: TemplateRenderContext<UsmState>): void => {
   const id = createEntityId('new-estimate', allUsmIds(context.state));

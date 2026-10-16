@@ -18,6 +18,7 @@ const definition = usmDefinitionFor('en');
 
 // Idea → Demo costs 7, Demo → Ready 2, Ready → Done 1: a story at Idea has 10 to go.
 const raw = {
+  features: ['estimates'],
   activities: [{ id: 'a1', name: 'A1', steps: [{ id: 's1', name: 'S1' }] }],
   milestones: [
     { id: 'mvp', name: 'MVP', dueDate: '2026-11-30' },

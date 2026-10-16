@@ -16,14 +16,17 @@ import { defineUsmStoryCard } from './components/story-card';
 import { usmDefinitionFor } from './definition';
 import { resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove, type CellRef } from './drop';
 import { presentLabelOverview } from './label-overview';
+import { presentMemberOverview } from './member-overview';
 import { usmMessages, type UsmMessages } from './messages';
 import { presentMilestoneOverview } from './milestone-overview';
 import { findStory, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
 import { burndownStyles, renderBurndown } from './render/burndown';
+import { featuresMenuStyles } from './render/features-menu';
 import { renderLabelOverview } from './render/label-overview';
 import { linkStyles } from './render/link-icon';
 import { mapFilterStyles } from './render/map-filter';
+import { renderMemberOverview } from './render/member-overview';
 import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
 import { renderBoardBar } from './render/page-tabs';
@@ -40,6 +43,7 @@ const FILTER_MENU_WIDTH = 240;
 /** The height of one choice in a filter menu, and of the menu's padding: the room the menu asks for. */
 const FILTER_OPTION_HEIGHT = 31;
 const FILTER_MENU_PADDING = 14;
+const FEATURES_MENU_SIZE = { width: 320, height: 220 };
 
 /**
  * `<dpk-template-usm>` — the user story map.
@@ -59,6 +63,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     storyPanelStyles,
     burndownStyles,
     mapFilterStyles,
+    featuresMenuStyles,
     popoverSurface,
   ];
 
@@ -101,6 +106,17 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       ownsEscape: () => true,
       dismiss: () => (this.mode = IDLE_MODE),
     });
+    // So does the features menu.
+    new DismissController(this, {
+      open: () => this.mode.kind === 'choosing-features',
+      closesOn: (path) =>
+        !path.some(
+          (node) =>
+            node instanceof Element && (node.id === 'features-menu' || node.hasAttribute('data-features-trigger')),
+        ),
+      ownsEscape: () => true,
+      dismiss: () => (this.mode = IDLE_MODE),
+    });
   }
 
   protected override renderRegions(context: TemplateRenderContext<UsmState>): ShellRegions {
@@ -124,6 +140,12 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       const trigger = this.renderRoot.querySelector(`[data-filter-trigger="${CSS.escape(this.mode.key)}"]`);
       const height = (menu?.childElementCount ?? 0) * FILTER_OPTION_HEIGHT + FILTER_MENU_PADDING;
       if (menu && trigger) this.#popovers.open(menu, trigger, { width: FILTER_MENU_WIDTH, height });
+      return;
+    }
+    if (this.mode.kind === 'choosing-features') {
+      const menu = this.renderRoot.querySelector<HTMLElement>('#features-menu');
+      const trigger = this.renderRoot.querySelector('[data-features-trigger]');
+      if (menu && trigger) this.#popovers.open(menu, trigger, FEATURES_MENU_SIZE);
       return;
     }
     // The step picker floats where the story was dropped (top layer) until the
@@ -186,9 +208,14 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
   #renderMain(context: TemplateRenderContext<UsmState>): TemplateResult {
     const m = usmMessages(this.locale);
-    const tab = usmTabOf(context.navigation);
+    const tab = usmTabOf(context.state, context.navigation);
     return html`
-      ${renderBoardBar(m, context, tab)} ${this.#renderTab(m, context, tab)} ${this.#renderPanel(m, context, tab)}
+      ${renderBoardBar(m, context, tab, {
+        open: this.mode.kind === 'choosing-features',
+        toggle: () => (this.mode = this.mode.kind === 'choosing-features' ? IDLE_MODE : { kind: 'choosing-features' }),
+        close: () => (this.mode = IDLE_MODE),
+      })}
+      ${this.#renderTab(m, context, tab)} ${this.#renderPanel(m, context, tab)}
       ${renderMoveDialog(m, context, this.mode, {
         confirm: (stepId) => this.#confirmPickedStep(stepId),
         cancel: () => (this.mode = IDLE_MODE),
@@ -218,6 +245,8 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         });
       case 'labels':
         return renderLabelOverview(m, context, presentLabelOverview(context.state));
+      case 'members':
+        return renderMemberOverview(m, context, presentMemberOverview(context.state));
       case 'burndown':
         return renderBurndown(m, context, new Date());
       case 'map':

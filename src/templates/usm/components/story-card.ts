@@ -3,7 +3,7 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { Lock, Network } from 'lucide';
 
 import type { DraftAction } from '../../../core/types';
-import type { Estimate, StoryLabel, StoryLink, UserStory } from '../model';
+import type { Estimate, Member, StoryLabel, StoryLink, UserStory } from '../model';
 
 import { iconComment, lucide } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
@@ -11,6 +11,7 @@ import { controls } from '../../../core/theme';
 import { describeLink } from '../../../lib/link-label';
 import { renderMarkdown } from '../../../lib/markdown';
 import { usmMessages, type UsmMessages } from '../messages';
+import { initialOf } from '../render/avatar';
 import { linkIcon, linkStyles } from '../render/link-icon';
 import { statusIcon, statusStyles, statusToneStyle } from '../render/tone';
 import { statusViewOf, type StatusView } from '../status-view';
@@ -81,10 +82,15 @@ const cardStyles = css`
     min-width: 0;
   }
 
-  /* The estimate sits at the end of the head, small and set in figures, like a ticket's size. */
-  .estimate-chip {
+  /* The estimate and the assignee sit at the end of the head, small, like a ticket's size and owner. */
+  .card-meta {
     flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     margin-left: auto;
+  }
+  .estimate-chip {
     padding: 0 6px;
     border: 1px solid color-mix(in oklab, var(--card-tone) 30%, var(--dpk-rule-strong));
     border-radius: 5px;
@@ -96,6 +102,19 @@ const cardStyles = css`
     line-height: 17px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+  }
+
+  .assignee-avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--usm-tone);
+    color: var(--dpk-paper-raised);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
   }
 
   .card-status {
@@ -317,6 +336,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
     labels: { attribute: false },
     notes: { attribute: false },
     estimate: { attribute: false },
+    assignee: { attribute: false },
     blocks: { type: Number },
     waits: { type: Number },
     focused: { type: Boolean, reflect: true },
@@ -332,9 +352,11 @@ export class DpkInternalUsmStoryCard extends LitElement {
   declare labels: readonly StoryLabel[];
   /** Comments already left on this story. */
   declare notes: readonly DraftAction[];
-  /** How many stories wait on this one. */
-  /** The story's estimate, `null` while it has none. */
+  /** The story's estimate, `null` while it has none (or estimates are off). */
   declare estimate: Estimate | null;
+  /** Who the story is assigned to, `null` while no one is (or assignees are off). */
+  declare assignee: Member | null;
+  /** How many stories wait on this one. */
   declare blocks: number;
   /** How many unfinished stories this one waits on. */
   declare waits: number;
@@ -351,6 +373,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
     this.labels = [];
     this.notes = [];
     this.estimate = null;
+    this.assignee = null;
     this.blocks = 0;
     this.waits = 0;
     this.focused = false;
@@ -366,15 +389,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
       <div class="card-head">
         ${this.statuses.length === 0 ? nothing : this.#renderStatus(m, story)}
         <div class="card-name"><span>${story.name}</span></div>
-        ${
-          this.estimate
-            ? html`<span
-                class="estimate-chip"
-                title=${m.estimateChipTitle(m.estimateText(this.estimate.name, this.estimate.points))}
-                >${this.estimate.name}</span
-              >`
-            : nothing
-        }
+        ${this.estimate || this.assignee ? this.#renderMeta(m) : nothing}
       </div>
       ${
         story.description
@@ -415,6 +430,31 @@ export class DpkInternalUsmStoryCard extends LitElement {
     const name = current.name;
     return html`<span class="card-status" role="img" aria-label=${m.storyStatusAria(name)} title=${name}>
       ${statusIcon(current)}
+    </span>`;
+  }
+
+  #renderMeta(m: UsmMessages): TemplateResult {
+    const { estimate, assignee } = this;
+    return html`<span class="card-meta">
+      ${
+        estimate
+          ? html`<span
+              class="estimate-chip"
+              title=${m.estimateChipTitle(m.estimateText(estimate.name, estimate.points))}
+              >${estimate.name}</span
+            >`
+          : nothing
+      }
+      ${
+        assignee
+          ? html`<span
+              class="assignee-avatar"
+              style=${statusToneStyle(assignee.tone)}
+              title=${m.assigneeChipTitle(assignee.name)}
+              >${initialOf(assignee.name)}</span
+            >`
+          : nothing
+      }
     </span>`;
   }
 

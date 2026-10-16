@@ -9,7 +9,7 @@ import { iconTrash } from '../../../core/icons';
 import { targetRef } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { addStatus } from '../commands';
-import { STATUS_ICONS, STATUS_TONES, type StatusTone, type UsmState } from '../model';
+import { hasFeature, STATUS_ICONS, STATUS_TONES, type StatusTone, type UsmState } from '../model';
 import { onNumberChange } from './number-input';
 import { statusIcon, statusToneStyle } from './tone';
 
@@ -68,9 +68,11 @@ const renderStatusRow = (
   const reorder = (after: string | null): void => {
     context.dispatch({ type: 'REORDER_STATUS', target, payload: { after } });
   };
+  // The weights only feed the burndown, so they show while estimates are on.
+  const weighted = hasFeature(context.state, 'estimates');
   return html`
     <li
-      class="st-row st-row--weighted"
+      class=${weighted ? 'st-row st-row--weighted' : 'st-row'}
       data-status=${row.id}
       data-dpk-target=${targetRef(target)}
       style=${statusToneStyle(row.tone)}
@@ -95,7 +97,7 @@ const renderStatusRow = (
           @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_STATUS_NAME', target, payload: { name } }))}
         ></dpk-component-inline-edit>
       </span>
-      ${renderShare(m, row.storyCount, row.share)} ${renderWeight(m, context, row)}
+      ${renderShare(m, row.storyCount, row.share)} ${weighted ? renderWeight(m, context, row) : nothing}
       ${renderTonePicker(m, row.tone, (tone) => context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } }))}
       ${renderRowTools(m, {
         ids: context.state.statuses.map((status) => status.id),

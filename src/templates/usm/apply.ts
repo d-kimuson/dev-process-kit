@@ -6,6 +6,7 @@ import { waitsOn } from './dependency-graph';
 import {
   findEstimate,
   findLabel,
+  findMember,
   findMilestone,
   findSnapshot,
   findStatus,
@@ -13,6 +14,7 @@ import {
   findStory,
   tallyKey,
   tallyProblem,
+  USM_FEATURES,
   type BackboneActivity,
   type TallyRow,
   type UsmState,
@@ -365,6 +367,42 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       return updateStory(state, id, (current) => withoutBlockers(current, new Set([blockerId])));
     }
 
+    case 'ADD_MEMBER': {
+      const { id: memberId, name, tone } = typed.payload;
+      if (findMember(state, memberId)) return state;
+      return { ...state, members: [...state.members, { id: memberId, name, tone }] };
+    }
+    case 'SET_MEMBER_NAME': {
+      const { name } = typed.payload;
+      if (!findMember(state, id)) return null;
+      return { ...state, members: state.members.map((member) => (member.id === id ? { ...member, name } : member)) };
+    }
+    case 'SET_MEMBER_TONE': {
+      const { tone } = typed.payload;
+      if (!findMember(state, id)) return null;
+      return { ...state, members: state.members.map((member) => (member.id === id ? { ...member, tone } : member)) };
+    }
+    case 'DELETE_MEMBER': {
+      if (!findMember(state, id)) return null;
+      return {
+        ...state,
+        members: state.members.filter((member) => member.id !== id),
+        stories: state.stories.map((story) => (story.assigneeId === id ? withoutKey(story, 'assigneeId') : story)),
+      };
+    }
+    case 'REORDER_MEMBER': {
+      const { after } = typed.payload;
+      const next = reorderById(state.members, id, after);
+      return next === null ? null : { ...state, members: next };
+    }
+    case 'SET_STORY_ASSIGNEE': {
+      const { memberId } = typed.payload;
+      if (memberId !== null && !findMember(state, memberId)) return null;
+      return updateStory(state, id, (story) =>
+        memberId === null ? withoutKey(story, 'assigneeId') : { ...story, assigneeId: memberId },
+      );
+    }
+
     case 'ADD_ESTIMATE': {
       const { id: estimateId, name, points } = typed.payload;
       if (findEstimate(state, estimateId)) return state;
@@ -415,6 +453,14 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
     case 'DELETE_SNAPSHOT': {
       if (!findSnapshot(state, id)) return null;
       return { ...state, snapshots: state.snapshots.filter((snapshot) => snapshot.id !== id) };
+    }
+    case 'SET_FEATURE': {
+      const { feature, enabled } = typed.payload;
+      // Turning a feature the way it already stands is already done: the draft stays as it is.
+      if (state.features.includes(feature) === enabled) return state;
+      // Turning one off only hides it: what it holds stays for when it comes back.
+      const features = USM_FEATURES.filter((each) => (each === feature ? enabled : state.features.includes(each)));
+      return { ...state, features };
     }
     default:
       return assertNever(typed);

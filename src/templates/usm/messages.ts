@@ -1,5 +1,6 @@
 import type { AxisUnit } from './burndown-chart';
-import type { StatusIcon, StatusTone } from './model';
+import type { MapFilterKey } from './map-filter';
+import type { StatusIcon, StatusTone, UsmFeature } from './model';
 
 import { defineMessages } from '../../core/i18n';
 
@@ -140,8 +141,8 @@ export const usmMessages = defineMessages({
       })[icon],
     statusShare: (count: number, percent: number) => `${count === 1 ? '1 story' : `${count} stories`} · ${percent}%`,
     filterLabel: 'Filter',
-    filterKeyLabel: (key: 'status' | 'label' | 'estimate') =>
-      ({ status: 'Status', label: 'Label', estimate: 'Estimate' })[key],
+    filterKeyLabel: (key: MapFilterKey) =>
+      ({ status: 'Status', label: 'Label', estimate: 'Estimate', assignee: 'Assignee' })[key],
     filterAll: 'All',
     noLabel: 'No label',
     unestimatedFilter: 'Not estimated',
@@ -244,6 +245,41 @@ export const usmMessages = defineMessages({
     commentSubmit: 'Comment',
     storyStatusAria: (name: string) => `Status: ${name}`,
 
+    // ------------------------------------------------------ members & assignees
+    addMember: 'Add member',
+    renameMember: 'Rename member',
+    changeMemberTone: 'Change member color',
+    deleteMember: 'Delete member',
+    reorderMember: 'Reorder member',
+    setStoryAssignee: 'Assign story',
+    memberGroup: 'Member',
+    membersTab: 'Members',
+    memberNameLabel: 'Member name',
+    noMembersTitle: 'No members yet',
+    noMembersBody: 'Add the people on the team, then assign each story to the one who takes it on.',
+    newMemberButton: '+ Member',
+    deleteMemberAria: 'Delete this member',
+    storyAssigneeLabel: 'Assignee',
+    noAssignee: 'No one',
+    storyNoMembers: 'No members yet.',
+    manageMembers: 'Manage members',
+    assigneeChipTitle: (name: string) => `Assigned to ${name}`,
+    noAssigneeFilter: 'Unassigned',
+
+    // ----------------------------------------------------------------- features
+    featuresButton: 'Features',
+    featuresMenuLabel: 'Optional features',
+    enableFeature: 'Turn on feature',
+    disableFeature: 'Turn off feature',
+    featureName: (feature: UsmFeature) =>
+      ({ estimates: 'Estimates & burndown', assignees: 'Members & assignees' })[feature],
+    featureHint: (feature: UsmFeature) =>
+      ({
+        estimates: 'An estimate scale for the stories, status weights and a burndown per milestone.',
+        assignees: 'The members of the team and who each story is assigned to.',
+      })[feature],
+    featuresNote: 'Turning a feature off only hides it: what it holds is kept.',
+
     // -------------------------------------------------------------- commands
     newActivityName: 'New activity',
     newStepName: 'New step',
@@ -251,6 +287,7 @@ export const usmMessages = defineMessages({
     newStoryName: 'New story',
     newStatusName: 'New status',
     newLabelName: 'New label',
+    newMemberName: 'New member',
     newEstimateName: 'New',
   },
   ja: {
@@ -382,8 +419,8 @@ export const usmMessages = defineMessages({
       })[icon],
     statusShare: (count: number, percent: number) => `${count} ストーリー · ${percent}%`,
     filterLabel: 'フィルター',
-    filterKeyLabel: (key: 'status' | 'label' | 'estimate') =>
-      ({ status: 'ステータス', label: 'ラベル', estimate: '見積もり' })[key],
+    filterKeyLabel: (key: MapFilterKey) =>
+      ({ status: 'ステータス', label: 'ラベル', estimate: '見積もり', assignee: '担当者' })[key],
     filterAll: 'すべて',
     noLabel: 'ラベルなし',
     unestimatedFilter: '見積もりなし',
@@ -482,12 +519,46 @@ export const usmMessages = defineMessages({
     commentSubmit: 'コメントする',
     storyStatusAria: (name: string) => `ステータス: ${name}`,
 
+    addMember: 'メンバーを追加',
+    renameMember: 'メンバー名を変更',
+    changeMemberTone: 'メンバーの色を変更',
+    deleteMember: 'メンバーを削除',
+    reorderMember: 'メンバーの順序を変更',
+    setStoryAssignee: 'ストーリーの担当者を変更',
+    memberGroup: 'メンバー',
+    membersTab: 'メンバー',
+    memberNameLabel: 'メンバー名',
+    noMembersTitle: 'メンバーがまだいません',
+    noMembersBody: 'チームのメンバーを追加し、各ストーリーを引き受ける人に割り当てます。',
+    newMemberButton: '+ メンバー',
+    deleteMemberAria: 'このメンバーを削除',
+    storyAssigneeLabel: '担当者',
+    noAssignee: 'なし',
+    storyNoMembers: 'メンバーはまだいません。',
+    manageMembers: 'メンバーを管理',
+    assigneeChipTitle: (name: string) => `担当: ${name}`,
+    noAssigneeFilter: '担当者なし',
+
+    featuresButton: '機能',
+    featuresMenuLabel: '追加できる機能',
+    enableFeature: '機能を有効化',
+    disableFeature: '機能を無効化',
+    featureName: (feature: UsmFeature) =>
+      ({ estimates: '見積もりとバーンダウン', assignees: 'メンバーと担当者' })[feature],
+    featureHint: (feature: UsmFeature) =>
+      ({
+        estimates: 'ストーリーの見積もり、ステータスの重み、マイルストーンごとのバーンダウン。',
+        assignees: 'チームのメンバーと、各ストーリーの担当者。',
+      })[feature],
+    featuresNote: '無効にしても隠すだけで、入力した内容は残ります。',
+
     newActivityName: '新しいアクティビティ',
     newStepName: '新しいステップ',
     newMilestoneName: '新しいマイルストーン',
     newStoryName: '新しいストーリー',
     newStatusName: '新しいステータス',
     newLabelName: '新しいラベル',
+    newMemberName: '新しいメンバー',
     newEstimateName: '新規',
   },
 });

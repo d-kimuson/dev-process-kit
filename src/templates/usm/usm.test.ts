@@ -268,13 +268,7 @@ describe('usm template', () => {
     // no per-milestone filter any more: every slice is always on the map
     expect(root.querySelector('.milestone-tabs')).toBeNull();
     const tabs = [...root.querySelectorAll('.page-tabs [role="tab"]')];
-    expect(tabs.map((t) => t.getAttribute('data-tab'))).toEqual([
-      'map',
-      'milestones',
-      'statuses',
-      'labels',
-      'burndown',
-    ]);
+    expect(tabs.map((t) => t.getAttribute('data-tab'))).toEqual(['map', 'milestones', 'statuses', 'labels']);
     expect(root.querySelector('.page-tabs [aria-selected="true"]')?.getAttribute('data-tab')).toBe('map');
     expect(root.querySelector('[data-testid="usm-map"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="usm-milestones"]')).toBeNull();

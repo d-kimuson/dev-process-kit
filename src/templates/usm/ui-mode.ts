@@ -15,6 +15,8 @@ export type UsmUiMode =
   | { readonly kind: 'picking-icon'; readonly statusId: string }
   /** The menu of one of the map's filters is open. */
   | { readonly kind: 'filtering'; readonly key: MapFilterKey }
+  /** The menu of the optional features is open. */
+  | { readonly kind: 'choosing-features' }
   | {
       /** A cross-activity drop: the column named no step, so the reader picks one. */
       readonly kind: 'picking-step';

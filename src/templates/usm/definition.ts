@@ -10,6 +10,7 @@ import {
   findActivity,
   findEstimate,
   findLabel,
+  findMember,
   findMilestone,
   findStatus,
   findSnapshot,
@@ -43,6 +44,8 @@ export const usmHasTarget = (state: UsmState, target: ActionTarget): boolean => 
       return findStatus(state, target.id) !== undefined;
     case 'label':
       return findLabel(state, target.id) !== undefined;
+    case 'member':
+      return findMember(state, target.id) !== undefined;
     case 'estimate':
       return findEstimate(state, target.id) !== undefined;
     case 'snapshot':
@@ -74,7 +77,7 @@ export const usmDefinitionFor = (locale: Locale): TemplateDefinition<UsmState> =
     describe: (action, state, base) => describeUsmAction(m, action, state, base),
     serialize: serializeUsmAction,
     resolveNavigation: resolveUsmNavigation,
-    navigationFor: (_state, target) => usmNavigationFor(target),
+    navigationFor: usmNavigationFor,
     commentTargets: (state: UsmState, navigation) => usmCommentTargets(m, state, navigation),
     currentTarget: (state, navigation) => usmCurrentTarget(m, state, navigation),
     title: usmTitle,

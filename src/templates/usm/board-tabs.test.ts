@@ -11,9 +11,9 @@ const state = parseUsmBase({
 
 describe('usm tabs', () => {
   it('reads the tab from navigation, defaulting to the map', () => {
-    expect(usmTabOf({})).toBe('map');
-    expect(usmTabOf({ tab: 'milestones' })).toBe('milestones');
-    expect(usmTabOf({ tab: 'unknown' })).toBe('map');
+    expect(usmTabOf(state, {})).toBe('map');
+    expect(usmTabOf(state, { tab: 'milestones' })).toBe('milestones');
+    expect(usmTabOf(state, { tab: 'unknown' })).toBe('map');
   });
 
   it('keeps only the milestones tab in the navigation; the map is the default', () => {

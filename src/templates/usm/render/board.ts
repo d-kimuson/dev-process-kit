@@ -13,7 +13,9 @@ import { addActivity, addMilestone, addStep, addStory } from '../commands';
 import { dependencyOf } from '../dependencies';
 import { mapFilterOf, passesMapFilter } from '../map-filter';
 import {
+  assigneeOf,
   findEstimate,
+  hasFeature,
   flatSteps,
   labelsOfStory,
   stepRefOf,
@@ -560,7 +562,8 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     .statuses=${views}
     .labels=${labelsOfStory(context.state, story)}
     .notes=${notes}
-    .estimate=${findEstimate(context.state, story.estimateId) ?? null}
+    .estimate=${hasFeature(context.state, 'estimates') ? (findEstimate(context.state, story.estimateId) ?? null) : null}
+    .assignee=${hasFeature(context.state, 'assignees') ? (assigneeOf(context.state, story) ?? null) : null}
     .blocks=${dependency.dependents.length}
     .waits=${dependency.openBlockers}
     @click=${() => handlers.selectStory(story.id)}

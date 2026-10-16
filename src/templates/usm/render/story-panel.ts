@@ -9,8 +9,9 @@ import { iconClose, iconTrash } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { describeLink } from '../../../lib/link-label';
 import { blockerOptions, dependencyOf, dependentOptions, isFinished } from '../dependencies';
-import { findMilestone, findStep, findStory, linkUrlSchema, type UserStory, type UsmState } from '../model';
+import { findMilestone, findStep, findStory, hasFeature, linkUrlSchema, type UserStory, type UsmState } from '../model';
 import { statusViews } from '../status-view';
+import { initialOf } from './avatar';
 import { linkIcon } from './link-icon';
 import { statusIcon, statusToneStyle } from './tone';
 
@@ -62,8 +63,9 @@ export const renderStoryPanel = (
         ></dpk-component-inline-edit>
       </h2>
       ${state.statuses.length === 0 ? nothing : renderStatusField(m, context, story)}
-      ${renderEstimateField(m, context, story)} ${renderLabelsField(m, context, story)}
-      ${renderDependenciesField(m, context, story)}
+      ${hasFeature(state, 'estimates') ? renderEstimateField(m, context, story) : nothing}
+      ${hasFeature(state, 'assignees') ? renderAssigneeField(m, context, story) : nothing}
+      ${renderLabelsField(m, context, story)} ${renderDependenciesField(m, context, story)}
       <section class="sp-field">
         <h3>${m.storyDescriptionLabel}</h3>
         <dpk-component-inline-edit
@@ -170,6 +172,54 @@ const renderEstimateField = (
                 @click=${pick(option.id)}
               >
                 ${option.name}
+              </button>`,
+            )}
+          </div>`
+    }
+  </section>`;
+};
+
+/** Who the story is assigned to, one member or no one; the members are kept on their tab. */
+const renderAssigneeField = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  story: UserStory,
+): TemplateResult => {
+  const current = story.assigneeId ?? null;
+  const pick = (memberId: string | null) => (): void => {
+    if (memberId === current) return;
+    context.dispatch({ type: 'SET_STORY_ASSIGNEE', target: { type: 'story', id: story.id }, payload: { memberId } });
+  };
+  return html`<section class="sp-field">
+    <h3 id="sp-assignee-label" class="sp-field-head">
+      <span>${m.storyAssigneeLabel}</span>
+      <a class="sp-manage" href=${context.hashFor({ tab: 'members', story: null })}>${m.manageMembers}</a>
+    </h3>
+    ${
+      context.state.members.length === 0
+        ? html`<p class="sp-empty">${m.storyNoMembers}</p>`
+        : html`<div class="sp-assignees" role="radiogroup" aria-labelledby="sp-assignee-label">
+            <button
+              class="sp-assignee"
+              type="button"
+              role="radio"
+              data-assignee=""
+              aria-checked=${String(current === null)}
+              @click=${pick(null)}
+            >
+              ${m.noAssignee}
+            </button>
+            ${context.state.members.map(
+              (member) => html`<button
+                class="sp-assignee"
+                type="button"
+                role="radio"
+                data-assignee=${member.id}
+                aria-checked=${String(member.id === current)}
+                style=${statusToneStyle(member.tone)}
+                @click=${pick(member.id)}
+              >
+                <span class="sp-avatar" aria-hidden="true">${initialOf(member.name)}</span>${member.name}
               </button>`,
             )}
           </div>`
@@ -585,6 +635,55 @@ export const storyPanelStyles = css`
     border-color: var(--dpk-ink);
     background: var(--dpk-ink);
     color: var(--dpk-paper-raised);
+  }
+  .sp-assignees {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .sp-assignee {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px 3px 4px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease);
+  }
+  .sp-assignee[data-assignee=''] {
+    padding-left: 10px;
+  }
+  .sp-assignee:hover {
+    border-color: var(--dpk-rule-hover);
+  }
+  .sp-assignee:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+  .sp-assignee[aria-checked='true'] {
+    border-color: var(--usm-tone, var(--dpk-ink));
+    background: color-mix(in oklab, var(--usm-tone, var(--dpk-ink)) 12%, var(--dpk-paper-raised));
+    color: var(--dpk-ink);
+  }
+  .sp-avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--usm-tone);
+    color: var(--dpk-paper-raised);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
   }
   .sp-field-head {
     display: flex;

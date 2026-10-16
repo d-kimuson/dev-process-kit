@@ -80,6 +80,12 @@
                   "title": "見積もりと MVP のバーンダウンを追加",
                   "body": "S / M / L で見積もり、Idea → Ready を 7、Ready → Done を 3 と重み付けした。",
                   "target": "milestone:mvp"
+                },
+                {
+                  "id": "members",
+                  "title": "メンバーと担当者を追加",
+                  "body": "MVP と v1 で着手済みのストーリーに担当者を割り当てた。未着手のものは担当者なし。",
+                  "target": "story:order-detail"
                 }
               ]
             }
@@ -89,6 +95,7 @@
       <script type="application/json">
         {
           "title": "Sora Market — 購入者のストーリーマップ",
+          "features": ["estimates", "assignees"],
           "activities": [
             {
               "id": "discover",
@@ -233,6 +240,11 @@
             { "id": "pdm", "name": "PdM", "tone": "violet" },
             { "id": "design", "name": "Design", "tone": "amber" }
           ],
+          "members": [
+            { "id": "aoki", "name": "Aoki" },
+            { "id": "mori", "name": "Mori", "tone": "green" },
+            { "id": "tanaka", "name": "Tanaka", "tone": "violet" }
+          ],
           "estimates": [
             { "id": "s", "name": "S", "points": 1 },
             { "id": "m", "name": "M", "points": 3 },
@@ -292,6 +304,7 @@
             {
               "id": "keyword-search",
               "name": "キーワードで商品を探す",
+              "assigneeId": "aoki",
               "estimateId": "m",
               "description": "商品名・ブランド・**型番**で検索できる。\n- 0 件のときは近いキーワードを提案する\n- 全角 / 半角の表記ゆれを吸収する",
               "labelIds": ["dev"],
@@ -311,6 +324,7 @@
             {
               "id": "category-browse",
               "name": "カテゴリから絞り込む",
+              "assigneeId": "aoki",
               "estimateId": "s",
               "description": "カテゴリと価格帯・在庫ありで絞り込める",
               "labelIds": ["dev", "pdm"],
@@ -322,6 +336,7 @@
             {
               "id": "see-stock",
               "name": "在庫の有無を見て選ぶ",
+              "assigneeId": "mori",
               "estimateId": "s",
               "description": "在庫切れは購入ボタンを出さない",
               "activityId": "discover",
@@ -348,6 +363,7 @@
             {
               "id": "add-item",
               "name": "商品をカートに入れる",
+              "assigneeId": "mori",
               "estimateId": "s",
               "description": "商品ページと一覧のどちらからでも 1 タップで入れられる",
               "labelIds": ["dev"],
@@ -359,6 +375,7 @@
             {
               "id": "change-quantity",
               "name": "数量を変える・外す",
+              "assigneeId": "mori",
               "estimateId": "s",
               "description": "カート内で数量を変え、0 にしたら外す。合計はその場で更新する",
               "activityId": "cart",
@@ -393,6 +410,7 @@
             {
               "id": "enter-address",
               "name": "届け先住所を入力する",
+              "assigneeId": "tanaka",
               "estimateId": "m",
               "description": "郵便番号から住所を補完する。離島は配送不可を先に伝える",
               "activityId": "order",
@@ -403,6 +421,7 @@
             {
               "id": "saved-address",
               "name": "登録済みの住所から選ぶ",
+              "assigneeId": "tanaka",
               "estimateId": "s",
               "description": "よく使う届け先を最大 5 件まで保存して選べる",
               "activityId": "order",
@@ -413,6 +432,7 @@
             {
               "id": "confirm-order",
               "name": "内容を確認して注文を確定する",
+              "assigneeId": "tanaka",
               "estimateId": "l",
               "blockedBy": ["enter-address", "pay-card"],
               "description": "確定時に在庫を**引き当てる**。\n- 引き当てに失敗したら確定せず、在庫切れの商品を示す\n- 二重送信は注文番号で弾く",
@@ -436,6 +456,7 @@
             {
               "id": "order-mail",
               "name": "注文確認メールを受け取る",
+              "assigneeId": "aoki",
               "estimateId": "s",
               "blockedBy": ["confirm-order"],
               "description": "注文番号・明細・お届け予定日を載せる",
@@ -447,6 +468,7 @@
             {
               "id": "pay-card",
               "name": "クレジットカードで払う",
+              "assigneeId": "aoki",
               "estimateId": "l",
               "description": "カード情報は決済代行のトークンで扱い、自社では**保持しない**。3-D セキュアに対応する",
               "activityId": "pay",
@@ -492,6 +514,7 @@
             {
               "id": "shipping-status",
               "name": "配送状況を注文詳細で見る",
+              "assigneeId": "mori",
               "estimateId": "m",
               "blockedBy": ["order-detail"],
               "description": "配送会社の追跡番号と現在の状態を注文詳細に出す",
@@ -517,6 +540,7 @@
             {
               "id": "receive-item",
               "name": "商品を受け取る",
+              "assigneeId": "mori",
               "estimateId": "s",
               "description": "置き配と日時指定に対応する",
               "activityId": "receive",
@@ -527,6 +551,7 @@
             {
               "id": "order-list",
               "name": "過去の注文を一覧で見る",
+              "assigneeId": "tanaka",
               "estimateId": "m",
               "description": "新しい順に並べ、状態で絞り込める",
               "activityId": "manage",
@@ -537,6 +562,7 @@
             {
               "id": "order-detail",
               "name": "注文の状態と明細を見る",
+              "assigneeId": "tanaka",
               "estimateId": "l",
               "description": "注文の状態・明細・支払い方法・届け先を 1 画面で見られる",
               "activityId": "manage",
@@ -547,6 +573,7 @@
             {
               "id": "self-cancel",
               "name": "出荷指示前なら自分でキャンセルする",
+              "assigneeId": "aoki",
               "estimateId": "m",
               "blockedBy": ["order-detail"],
               "description": "いまは問い合わせフォーム経由。\n- 出荷指示**前**だけボタンを出す\n- キャンセル後は `refund_pending` に移す",

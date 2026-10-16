@@ -916,6 +916,19 @@ export const usmStyles = css`
     border-radius: 4px;
     background: var(--usm-tone);
   }
+  /* A member's initial in their color, where a label shows its swatch. */
+  .member-avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--usm-tone);
+    color: var(--dpk-paper-raised);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+  }
   .st-tools {
     display: inline-flex;
     gap: 2px;

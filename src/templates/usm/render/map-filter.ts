@@ -15,7 +15,7 @@ import {
   type MapFilter,
   type MapFilterKey,
 } from '../map-filter';
-import { findEstimate, type UsmState } from '../model';
+import { findEstimate, findMember, type UsmState } from '../model';
 import { statusViews } from '../status-view';
 import { statusIcon, statusToneStyle } from './tone';
 
@@ -37,7 +37,7 @@ type FilterOption = {
 
 /**
  * The map's filters in one row: a select-like trigger per filter (status,
- * label, estimate) that opens a menu of its choices. A filter the map has no
+ * label, estimate, assignee) that opens a menu of its choices. A filter the map has no
  * choices for is left out.
  */
 export const renderMapFilter = (
@@ -172,6 +172,17 @@ const filterOptions = (m: UsmMessages, state: UsmState, key: MapFilterKey): read
           count: count((story) => (story.estimateId ?? NO_VALUE) === id),
           mark: estimate ? html`<span class="filter-points">${estimate.points}pt</span>` : nothing,
           style: '',
+        };
+      });
+    case 'assignee':
+      return filterOptionIds(state, key).map((id) => {
+        const member = findMember(state, id);
+        return {
+          id,
+          name: member?.name ?? m.noAssigneeFilter,
+          count: count((story) => (story.assigneeId ?? NO_VALUE) === id),
+          mark: html`<span class="filter-dot"></span>`,
+          style: statusToneStyle(member?.tone),
         };
       });
   }

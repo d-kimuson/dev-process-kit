@@ -374,6 +374,41 @@ const statusFilterAndMenu = {
   },
 };
 
+/** @type {Fixture} */
+const featuresAllOn = {
+  description:
+    'Both optional features on: 12 members with long names on cards and in the story panel, an estimate on every story, and the features menu opened programmatically.',
+  lang: 'ja',
+  hash: 'story=s0',
+  base: {
+    title: '担当者と見積もりのあるマップ',
+    features: ['estimates', 'assignees'],
+    activities: [activity('a1', '届ける', undefined, [step('build', '作る'), step('ship', '出す')])],
+    milestones: [milestone('mvp', 'MVP')],
+    statuses: [status('idea', 'Idea', 'gray', 'lightbulb'), status('done', 'Done', 'green', 'check')],
+    estimates: [
+      { id: 's', name: 'S', points: 1 },
+      { id: 'xl', name: 'XXL', points: 13 },
+    ],
+    members: Array.from({ length: 12 }, (_, i) => ({
+      id: `m${i}`,
+      name: i % 3 === 0 ? `${repeat('とても長い名前の', 3)}メンバー${i}` : `Member ${i}`,
+    })),
+    stories: Array.from({ length: 12 }, (_, i) =>
+      story(`s${i}`, i === 0 ? LONG_JA_NO_SPACES : `Story ${i}`, 'a1', i % 2 === 0 ? 'build' : 'ship', {
+        milestoneId: 'mvp',
+        statusId: i % 4 === 0 ? 'done' : 'idea',
+        estimateId: i % 2 === 0 ? 'xl' : 's',
+        assigneeId: `m${i}`,
+      }),
+    ),
+  },
+  prepare: (el) => {
+    const trigger = el.shadowRoot?.querySelector('[data-features-trigger]');
+    trigger?.click();
+  },
+};
+
 export default {
   'long-text-everywhere': longTextEverywhere,
   'huge-map': hugeMap,
@@ -384,4 +419,5 @@ export default {
   'markdown-descriptions': markdownDescriptions,
   'wip-story-panel-open': wipStoryPanelOpen,
   'status-filter-and-menu': statusFilterAndMenu,
+  'features-all-on': featuresAllOn,
 };

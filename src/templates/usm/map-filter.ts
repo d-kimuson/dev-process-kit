@@ -1,18 +1,22 @@
 import type { Navigation } from '../../core/types';
-import type { UserStory, UsmState } from './model';
+
+import { hasFeature, type UserStory, type UsmState } from './model';
 
 /** What the map can be filtered by; each is its own navigation key (`#status=ready,done&label=dev`). */
-export const MAP_FILTER_KEYS = ['status', 'label', 'estimate'] as const;
+export const MAP_FILTER_KEYS = ['status', 'label', 'estimate', 'assignee'] as const;
 
 export type MapFilterKey = (typeof MAP_FILTER_KEYS)[number];
 
-/** The choice for stories without a label or an estimate; no id can take it (ids have no `~`). */
+/** The choice for stories without a label, an estimate or an assignee; no id can take it (ids have no `~`). */
 export const NO_VALUE = '~none';
 
 /** The choices on per filter; an empty set means that filter is off. */
 export type MapFilter = { readonly [key in MapFilterKey]: ReadonlySet<string> };
 
-/** What a filter offers, in map order: the statuses, or the labels / estimates and then "none". */
+/**
+ * What a filter offers, in map order: the statuses, or the labels / estimates
+ * / members and then "none". A feature that is off offers nothing.
+ */
 export const filterOptionIds = (state: UsmState, key: MapFilterKey): readonly string[] => {
   switch (key) {
     case 'status':
@@ -20,7 +24,13 @@ export const filterOptionIds = (state: UsmState, key: MapFilterKey): readonly st
     case 'label':
       return state.labels.length === 0 ? [] : [...state.labels.map((label) => label.id), NO_VALUE];
     case 'estimate':
-      return state.estimates.length === 0 ? [] : [...state.estimates.map((estimate) => estimate.id), NO_VALUE];
+      return !hasFeature(state, 'estimates') || state.estimates.length === 0
+        ? []
+        : [...state.estimates.map((estimate) => estimate.id), NO_VALUE];
+    case 'assignee':
+      return !hasFeature(state, 'assignees') || state.members.length === 0
+        ? []
+        : [...state.members.map((member) => member.id), NO_VALUE];
   }
 };
 
@@ -32,7 +42,7 @@ export const mapFilterOf = (state: UsmState, nav: Navigation): MapFilter => {
     const wanted = new Set(raw.split(','));
     return new Set(filterOptionIds(state, key).filter((id) => wanted.has(id)));
   };
-  return { status: read('status'), label: read('label'), estimate: read('estimate') };
+  return { status: read('status'), label: read('label'), estimate: read('estimate'), assignee: read('assignee') };
 };
 
 /** One filter as navigation: in map order, `null` when it is off. */
@@ -56,7 +66,8 @@ export const passesMapFilter = (filter: MapFilter, story: UserStory): boolean =>
   return (
     matches(filter.status, story.statusId === undefined ? [] : [story.statusId]) &&
     matches(filter.label, labelIds.length === 0 ? [NO_VALUE] : labelIds) &&
-    matches(filter.estimate, [story.estimateId ?? NO_VALUE])
+    matches(filter.estimate, [story.estimateId ?? NO_VALUE]) &&
+    matches(filter.assignee, [story.assigneeId ?? NO_VALUE])
   );
 };
 

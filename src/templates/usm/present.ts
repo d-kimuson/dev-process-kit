@@ -20,11 +20,13 @@ import {
   findActivity,
   findEstimate,
   findLabel,
+  findMember,
   findMilestone,
   findStatus,
   findStep,
   findSnapshot,
   findStory,
+  hasFeature,
   stepRefOf,
   type UsmState,
 } from './model';
@@ -294,6 +296,47 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
       body: arrow(m, before === undefined ? undefined : String(before), String(after)),
     };
   },
+  ADD_MEMBER: (m, action) => ({
+    title: m.addMember,
+    tone: 'create',
+    body: m.added(payloadFor(usmActions.ADD_MEMBER, action)['name']),
+  }),
+  SET_MEMBER_NAME: (m, action, state) => ({
+    title: m.renameMember,
+    tone: 'update',
+    body: arrow(m, findMember(state, action.target.id)?.name, payloadFor(usmActions.SET_MEMBER_NAME, action)['name']),
+  }),
+  SET_MEMBER_TONE: (m, action, state) => {
+    const before = findMember(state, action.target.id)?.tone;
+    const after = payloadFor(usmActions.SET_MEMBER_TONE, action)['tone'];
+    return {
+      title: m.changeMemberTone,
+      tone: 'update',
+      body: arrow(m, before === undefined ? undefined : m.toneName(before), m.toneName(after)),
+    };
+  },
+  DELETE_MEMBER: (m, action, state) => ({
+    title: m.deleteMember,
+    tone: 'delete',
+    body: m.removed(findMember(state, action.target.id)?.name ?? action.target.id),
+  }),
+  REORDER_MEMBER: (m, action) => ({
+    title: m.reorderMember,
+    tone: 'move',
+    body: reorderBody(m, payloadFor(usmActions.REORDER_MEMBER, action)['after']),
+  }),
+  SET_STORY_ASSIGNEE: (m, action, state) => {
+    const memberId = payloadFor(usmActions.SET_STORY_ASSIGNEE, action)['memberId'];
+    if (memberId === null) {
+      const before = findMember(state, findStory(state, action.target.id)?.assigneeId);
+      return { title: m.setStoryAssignee, tone: 'delete', body: m.removed(before?.name ?? m.noAssignee) };
+    }
+    return {
+      title: m.setStoryAssignee,
+      tone: 'update',
+      body: m.toValue(findMember(state, memberId)?.name ?? memberId),
+    };
+  },
   ADD_ESTIMATE: (m, action) => {
     const { name, points } = payloadFor(usmActions.ADD_ESTIMATE, action);
     return { title: m.addEstimate, tone: 'create', body: m.added(m.estimateText(name, points)) };
@@ -346,6 +389,14 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
       title: m.deleteSnapshot,
       tone: 'delete',
       body: m.removed(snapshot ? momentLabel(snapshot.at) : action.target.id),
+    };
+  },
+  SET_FEATURE: (m, action) => {
+    const { feature, enabled } = payloadFor(usmActions.SET_FEATURE, action);
+    return {
+      title: enabled ? m.enableFeature : m.disableFeature,
+      tone: enabled ? 'create' : 'delete',
+      body: m.featureName(feature),
     };
   },
 } satisfies Record<ActionName<typeof usmActions>, (m: UsmMessages, action: DraftAction, state: UsmState) => Summary>;
@@ -405,6 +456,10 @@ export const usmTargetLabel = (m: UsmMessages, state: UsmState, target: ActionTa
         const label = findLabel(state, target.id);
         return label ? m.targetLabel(m.labelGroup, label.name) : m.targetMissing(m.labelGroup, target.id);
       }
+      case 'member': {
+        const member = findMember(state, target.id);
+        return member ? m.targetLabel(m.memberGroup, member.name) : m.targetMissing(m.memberGroup, target.id);
+      }
       case 'estimate': {
         const estimate = findEstimate(state, target.id);
         return estimate ? m.targetLabel(m.estimateGroup, estimate.name) : m.targetMissing(m.estimateGroup, target.id);
@@ -458,6 +513,9 @@ export const usmCommentTargets = (
   for (const label of state.labels) {
     options.push({ value: targetRef({ type: 'label', id: label.id }), label: label.name, group: m.labelGroup });
   }
+  for (const member of state.members) {
+    options.push({ value: targetRef({ type: 'member', id: member.id }), label: member.name, group: m.memberGroup });
+  }
   for (const estimate of state.estimates) {
     options.push({
       value: targetRef({ type: 'estimate', id: estimate.id }),
@@ -506,13 +564,14 @@ export const usmTitle = (state: UsmState): string => {
 /**
  * The navigation that brings a target on screen, for a change's "Show": a
  * story, step or activity on the map grouped by activity, unfiltered so the
- * story shows; a milestone, a status or a label on its own page; an estimate
- * or a snapshot on the burndown.
+ * story shows; a milestone, a status, a label or a member on its own page; an
+ * estimate or a snapshot on the burndown. A target of a feature that is off is
+ * not on screen anywhere.
  */
-export const usmNavigationFor = (target: ActionTarget): NavigationPatch | null => {
+export const usmNavigationFor = (state: UsmState, target: ActionTarget): NavigationPatch | null => {
   switch (target.type) {
     case 'story':
-      return { tab: null, status: null };
+      return { tab: null, ...Object.fromEntries(MAP_FILTER_KEYS.map((key) => [key, null])) };
     case 'step':
     case 'activity':
       return { tab: null, view: null };
@@ -522,9 +581,11 @@ export const usmNavigationFor = (target: ActionTarget): NavigationPatch | null =
       return { tab: 'statuses' };
     case 'label':
       return { tab: 'labels' };
+    case 'member':
+      return hasFeature(state, 'assignees') ? { tab: 'members' } : null;
     case 'estimate':
     case 'snapshot':
-      return { tab: 'burndown' };
+      return hasFeature(state, 'estimates') ? { tab: 'burndown' } : null;
     default:
       return null;
   }
@@ -553,7 +614,7 @@ export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigati
     if (param === null) delete next[key];
     else next[key] = param;
   }
-  const tab = usmTabOf(nav);
+  const tab = usmTabOf(state, nav);
   if (tab === 'map') delete next['tab'];
   else next['tab'] = tab;
   // Which milestone the burndown shows and what it counts: kept only while they name something real.

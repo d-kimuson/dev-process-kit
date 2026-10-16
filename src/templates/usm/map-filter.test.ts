@@ -20,6 +20,7 @@ const story = (id: string, extra: Record<string, unknown>) => ({
 });
 
 const state = parseUsmBase({
+  features: ['estimates'],
   activities: [{ id: 'a1', name: 'A1', steps: [{ id: 's1', name: 'S1' }] }],
   statuses: [
     { id: 'idea', name: 'Idea' },

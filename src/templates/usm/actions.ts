@@ -18,7 +18,10 @@ import {
   statusToneSchema,
   statusWeightSchema,
   tallyRowSchema,
+  usmFeatureSchema,
 } from './model';
+
+const featurePayloadSchema = v.object({ feature: usmFeatureSchema, enabled: v.boolean() });
 
 // Domain vocabulary for User Story Mapping. No generic SET_FIELD / MOVE.
 export const usmActions = {
@@ -162,6 +165,24 @@ export const usmActions = {
     v.object({ blockerId: v.pipe(v.string(), v.minLength(1)) }),
   ),
 
+  ADD_MEMBER: defineAction(
+    'ADD_MEMBER',
+    'page',
+    v.object({ id: entityIdSchema, name: v.pipe(v.string(), v.minLength(1)), tone: statusToneSchema }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  SET_MEMBER_NAME: defineAction('SET_MEMBER_NAME', 'member', v.object({ name: v.pipe(v.string(), v.minLength(1)) })),
+  SET_MEMBER_TONE: defineAction('SET_MEMBER_TONE', 'member', v.object({ tone: statusToneSchema })),
+  DELETE_MEMBER: defineAction('DELETE_MEMBER', 'member', v.object({})),
+  REORDER_MEMBER: defineAction('REORDER_MEMBER', 'member', v.object({ after: v.nullable(v.string()) }), {
+    mode: 'sequence',
+  }),
+  SET_STORY_ASSIGNEE: defineAction(
+    'SET_STORY_ASSIGNEE',
+    'story',
+    v.object({ memberId: v.nullable(v.pipe(v.string(), v.minLength(1))) }),
+  ),
+
   ADD_ESTIMATE: defineAction(
     'ADD_ESTIMATE',
     'page',
@@ -190,6 +211,14 @@ export const usmActions = {
     { dedupeKey: entityDedupeKey },
   ),
   DELETE_SNAPSHOT: defineAction('DELETE_SNAPSHOT', 'snapshot', v.object({})),
+
+  SET_FEATURE: defineAction('SET_FEATURE', 'page', featurePayloadSchema, {
+    // One setting per feature: turning one on and then another keeps both.
+    dedupeKey: (action) => {
+      const payload = v.safeParse(featurePayloadSchema, action.payload);
+      return `SET_FEATURE|${payload.success ? payload.output.feature : JSON.stringify(action.payload)}`;
+    },
+  }),
 } satisfies ActionSpecs;
 
 /** The discriminated union of this template's actions. */
