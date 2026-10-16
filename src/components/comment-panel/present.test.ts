@@ -13,6 +13,7 @@ const definition = {
   currentTarget: (_state: typeof base, nav: Readonly<Record<string, string>>) =>
     nav['item'] ? { value: `item:${nav['item']}`, label: nav['item'], group: 'Item' } : null,
 };
+const allItems = (vm: ReturnType<typeof presentPanel>) => vm.groups.flatMap((group) => group.items);
 const inputs = {
   definition,
   state: base,
@@ -62,7 +63,7 @@ describe('panel presentation', () => {
       },
       initialPanelState(),
     );
-    expect(vm.items[0]).toMatchObject({ title: 'Alpha', stale: 'target-missing' });
+    expect(allItems(vm)[0]).toMatchObject({ title: 'Alpha', stale: 'target-missing' });
   });
   it('shows the serialized line for a change but not for a comment, whose body is already shown', () => {
     const actions = [
@@ -76,7 +77,7 @@ describe('panel presentation', () => {
       },
     ];
     const vm = presentPanel({ ...inputs, derivation: derive(definition, base, actions) }, initialPanelState());
-    expect(vm.items.map((item) => item.code === null)).toEqual([true, false]);
+    expect(allItems(vm).map((item) => item.code === null)).toEqual([true, false]);
   });
   it('offers the send to Claude only when the host provides it and there is something to send', () => {
     const actions = [
@@ -103,16 +104,54 @@ describe('panel presentation', () => {
       { id: 'r', type: 'SET_NAME', target: { type: 'item', id: 'a' }, payload: { name: 'New' }, createdAt: 'now' },
     ];
     const withDraft = { ...inputs, derivation: derive(definition, base, actions) };
-    const kinds = (vm: ReturnType<typeof presentPanel>) => vm.items.map((item) => item.edit.kind);
+    const kinds = (vm: ReturnType<typeof presentPanel>) => allItems(vm).map((item) => item.edit.kind);
     expect(kinds(presentPanel(withDraft, initialPanelState()))).toEqual(['none', 'none']);
     expect(kinds(presentPanel({ ...withDraft, editable: true }, initialPanelState()))).toEqual(['available', 'none']);
     const editing = reducePanel(initialPanelState(), { kind: 'edit-start', id: 'c', body: 'hi' });
-    expect(presentPanel({ ...withDraft, editable: true }, editing).items[0]?.edit).toEqual({
+    expect(allItems(presentPanel({ ...withDraft, editable: true }, editing))[0]?.edit).toEqual({
       kind: 'editing',
       body: 'hi',
       canSave: true,
     });
     const blank = reducePanel(editing, { kind: 'edit-input', body: ' ' });
-    expect(presentPanel({ ...withDraft, editable: true }, blank).items[0]?.edit).toMatchObject({ canSave: false });
+    expect(allItems(presentPanel({ ...withDraft, editable: true }, blank))[0]?.edit).toMatchObject({ canSave: false });
+  });
+  describe('sections', () => {
+    const actions = [
+      { id: 'c', type: 'comment', target: { type: 'page', id: 'tiny' }, payload: { body: 'hi' }, createdAt: 'now' },
+      { id: 'r', type: 'SET_NAME', target: { type: 'item', id: 'a' }, payload: { name: 'New' }, createdAt: 'now' },
+    ];
+    const withDraft = { ...inputs, derivation: derive(definition, base, actions) };
+    const ids = (vm: ReturnType<typeof presentPanel>) =>
+      vm.groups.map((group) => [group.kind, group.items.map((item) => item.id)]);
+
+    it('lists the changes and the review comments apart, comments first, when it shows both', () => {
+      const vm = presentPanel(withDraft, initialPanelState());
+      expect(ids(vm)).toEqual([
+        ['comments', ['c']],
+        ['changes', ['r']],
+      ]);
+      expect(vm.composer).toBe(true);
+    });
+    it('shows only the changes, without a composer, in the changes section', () => {
+      const vm = presentPanel({ ...withDraft, section: 'changes' }, initialPanelState());
+      expect(ids(vm)).toEqual([['changes', ['r']]]);
+      expect(vm.composer).toBe(false);
+    });
+    it('shows only the review comments and the composer in the comments section', () => {
+      const vm = presentPanel({ ...withDraft, section: 'comments' }, initialPanelState());
+      expect(ids(vm)).toEqual([['comments', ['c']]]);
+      expect(vm.composer).toBe(true);
+    });
+    it('hands off the whole draft from either section', () => {
+      const vm = presentPanel({ ...withDraft, section: 'changes', sendable: true }, initialPanelState());
+      expect(vm.send).toBe('ready');
+      expect(vm.hasDraft).toBe(true);
+      const onlyComment = { ...inputs, derivation: derive(definition, base, actions.slice(0, 1)) };
+      expect(presentPanel({ ...onlyComment, section: 'changes' }, initialPanelState())).toMatchObject({
+        hasDraft: true,
+        groups: [{ kind: 'changes', items: [] }],
+      });
+    });
   });
 });

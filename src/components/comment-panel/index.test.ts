@@ -184,4 +184,29 @@ describe('comment panel adapter', () => {
       expect(root(panel).querySelector('.item-edit')).toBeNull();
     });
   });
+  it('shows one part of the draft at a time when a section is set', async () => {
+    const panel = await mount();
+    const controller = new DraftController({
+      definition: tinyDefinition,
+      base: tinyBase([{ id: 'a', name: 'Alpha' }]),
+      storage: null,
+    });
+    controller.dispatch({ type: 'comment', target: 'page:tiny', payload: { body: 'fix this' } });
+    controller.dispatch({ type: 'SET_NAME', target: 'item:a', payload: { name: 'Beta' } });
+    panel.state = controller.derivation.state;
+    panel.derivation = controller.derivation;
+    const shown = async (section: string | null) => {
+      panel.section = section;
+      await panel.updateComplete;
+      const root = panel.shadowRoot;
+      return {
+        composer: root?.querySelector('.composer') !== null,
+        items: [...(root?.querySelectorAll<HTMLElement>('.item') ?? [])].map((item) => item.dataset['tone']),
+        heading: root?.querySelector('header h2')?.textContent?.trim(),
+      };
+    };
+    expect(await shown('changes')).toEqual({ composer: false, items: ['update'], heading: 'Changes' });
+    expect(await shown('comments')).toEqual({ composer: true, items: ['comment'], heading: 'Review comments' });
+    expect(await shown(null)).toMatchObject({ composer: true, items: ['comment', 'update'] });
+  });
 });

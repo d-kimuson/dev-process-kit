@@ -125,14 +125,49 @@ export const panelStyles = [
       color: var(--dpk-ink-faint);
     }
 
-    .list {
-      list-style: none;
-      margin: 0;
+    .groups {
       /* The page's hand-off dock may float over the bottom of the list. */
       padding: 10px 12px calc(10px + var(--dpk-dock-clearance, 0px));
       overflow: auto;
       flex: 1;
       min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 14px;
+      align-content: start;
+    }
+
+    .group {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .group-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      padding: 0 2px;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+      color: var(--dpk-ink-soft);
+    }
+
+    .group-count {
+      padding: 0 6px;
+      border-radius: 999px;
+      background: var(--dpk-paper-inset);
+      font-family: var(--dpk-mono);
+      font-size: 10px;
+      color: var(--dpk-ink-faint);
+    }
+
+    .list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
       display: grid;
       /* One unbroken comment must not widen the column every item shares. */
       grid-template-columns: minmax(0, 1fr);
@@ -317,7 +352,10 @@ export const panelStyles = [
     }
 
     .empty {
-      padding: 4px;
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 14px 16px calc(14px + var(--dpk-dock-clearance, 0px));
     }
 
     .empty-box {

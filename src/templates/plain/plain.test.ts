@@ -115,7 +115,7 @@ describe('<dpk-template-plain>', () => {
     expect(root?.querySelector('.dpk-banner')).toBeNull();
     expect(root?.querySelector('slot[name="main"]')).not.toBeNull();
     expect(root?.querySelector('dpk-component-comment-panel')).not.toBeNull();
-    expect(root?.querySelector('.dpk-fab')).not.toBeNull();
+    expect(root?.querySelector('.dpk-review-toggles')).not.toBeNull();
   });
 
   it('accepts page, section and diagram-element comments into one draft', async () => {

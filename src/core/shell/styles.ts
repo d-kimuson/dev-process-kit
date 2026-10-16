@@ -52,8 +52,8 @@ export const chromeStyles = [
       align-items: center;
       gap: 8px 14px;
       min-height: 60px;
-      /* Right padding keeps the header content clear of the fixed review button. */
-      padding: 10px 72px 10px 16px;
+      /* Right padding keeps the header content clear of the fixed review toggles. */
+      padding: 10px 112px 10px 16px;
       border-bottom: 1px solid var(--dpk-rule);
       background: var(--dpk-glass);
       backdrop-filter: saturate(1.6) blur(14px);
@@ -205,21 +205,6 @@ export const chromeStyles = [
     .dpk-version-select:focus-visible {
       outline: none;
       box-shadow: var(--dpk-focus);
-    }
-
-    .dpk-header-meta .dpk-meta-count {
-      margin-left: 2px;
-      border-left: 0;
-      border-radius: 999px;
-      background: var(--dpk-paper-raised);
-      color: var(--dpk-ink-soft);
-      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
-    }
-
-    .dpk-header-meta .dpk-meta-count[data-active='true'] {
-      background: var(--dpk-accent-soft);
-      color: var(--dpk-accent);
-      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-accent) 25%, transparent);
     }
 
     .dpk-header-tools {
@@ -1029,12 +1014,20 @@ export const chromeStyles = [
 
     /* --------------------------------------------------- floating review */
 
-    /* Review toggle: pinned to the top right corner, always in the same place. */
-    .dpk-fab {
+    /* Review toggles: the changes and the review comments of the draft, each
+       opening its own part of the rail. Pinned to the top right corner, always
+       in the same place. */
+    .dpk-review-toggles {
       position: fixed;
       top: 12px;
       right: 16px;
       z-index: 60;
+      display: flex;
+      gap: 6px;
+    }
+
+    .dpk-review-toggle {
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -1055,24 +1048,29 @@ export const chromeStyles = [
         transform 220ms var(--dpk-ease-spring);
     }
 
-    .dpk-fab:hover {
+    .dpk-review-toggle svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .dpk-review-toggle:hover {
       color: var(--dpk-ink);
       border-color: var(--dpk-rule-hover);
       transform: translateY(-1px);
       box-shadow: var(--dpk-bevel), var(--dpk-shadow);
     }
 
-    .dpk-fab:active {
+    .dpk-review-toggle:active {
       transform: translateY(0) scale(0.95);
       box-shadow: var(--dpk-shadow-xs);
     }
 
-    .dpk-fab:focus-visible {
+    .dpk-review-toggle:focus-visible {
       outline: none;
       box-shadow: var(--dpk-focus);
     }
 
-    .dpk-fab[aria-expanded='true'] {
+    .dpk-review-toggle[aria-pressed='true'] {
       color: var(--dpk-accent-ink);
       border-color: color-mix(in srgb, var(--dpk-accent-strong) 70%, transparent);
       background: linear-gradient(145deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
@@ -1081,32 +1079,13 @@ export const chromeStyles = [
         0 6px 16px -6px color-mix(in srgb, var(--dpk-accent) 70%, transparent);
     }
 
-    .dpk-fab[aria-expanded='true']:hover {
+    .dpk-review-toggle[aria-pressed='true']:hover {
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.25),
         0 10px 22px -8px color-mix(in srgb, var(--dpk-accent) 80%, transparent);
     }
 
-    .dpk-fab-icon {
-      position: relative;
-      display: block;
-      width: 16px;
-      height: 12px;
-      border: 1.6px solid currentColor;
-      border-radius: 4px;
-    }
-
-    .dpk-fab-icon::after {
-      content: '';
-      position: absolute;
-      left: 2px;
-      bottom: -4px;
-      border-left: 3.5px solid transparent;
-      border-right: 3.5px solid transparent;
-      border-top: 4px solid currentColor;
-    }
-
-    .dpk-fab-badge {
+    .dpk-review-badge {
       position: absolute;
       top: -6px;
       right: -6px;
@@ -1188,14 +1167,12 @@ export const chromeStyles = [
     }
 
     @media (max-width: 720px) {
-      /* The version select stays: it is the reader's only way to switch
-         versions; so do the counts, the review's progress at a glance. */
-      .dpk-header-meta > :not(.dpk-version, .dpk-meta-count) {
+      /* The version select stays: it is the reader's only way to switch versions. */
+      .dpk-header-meta > :not(.dpk-version) {
         display: none;
       }
 
-      /* On a phone the row may be narrower than both: the counts stay whole and
-         the version select gives up its width instead. */
+      /* On a phone the row may be narrower than the select: it gives up its width. */
       .dpk-header-meta {
         min-width: 0;
         max-width: 100%;
@@ -1210,10 +1187,6 @@ export const chromeStyles = [
         width: 100%;
         min-width: 0;
         text-overflow: ellipsis;
-      }
-
-      .dpk-header-meta > .dpk-meta-count {
-        flex: none;
       }
 
       /* The title takes the first row whole; the version select and tools wrap below it. */

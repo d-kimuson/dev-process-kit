@@ -34,7 +34,7 @@ export const renderPanel = (
   send: PanelSend,
   embedded = false,
 ): TemplateResult => html`
-  ${embedded ? nothing : html`<header><h2>${m.heading}</h2></header>`}
+  ${embedded ? nothing : html`<header><h2>${headingOf(m, vm.section)}</h2></header>`}
   ${
     vm.issues.length > 0
       ? html`<div class="issues" role="alert">
@@ -45,6 +45,51 @@ export const renderPanel = (
         </div>`
       : nothing
   }
+  ${vm.composer ? renderComposer(m, vm, send) : nothing} ${renderGroups(m, vm, send)}
+  <footer>
+    ${
+      embedded || vm.send === 'hidden'
+        ? nothing
+        : html`<button
+            class="dpk-btn dpk-btn--accent"
+            type="button"
+            ?disabled=${vm.send === 'disabled'}
+            @click=${() => send({ kind: 'send' })}
+          >
+            ${m.sendToClaude}
+          </button>`
+    }
+    <div class="footer-actions">
+      ${
+        embedded
+          ? nothing
+          : html`<button
+              class=${vm.send === 'hidden' ? 'dpk-btn dpk-btn--accent' : 'dpk-btn'}
+              type="button"
+              title=${m.copyTitle}
+              ?disabled=${!vm.hasDraft}
+              @click=${() => send({ kind: 'copy' })}
+            >
+              ${m.copy}
+            </button>`
+      }
+      <button
+        class="dpk-btn dpk-btn--ghost"
+        type="button"
+        ?disabled=${!vm.hasDraft}
+        @click=${() => send({ kind: 'clear' })}
+      >
+        ${m.clear}
+      </button>
+    </div>
+    ${vm.flash ? html`<span class="flash" role="status">${vm.flash}</span>` : nothing}
+  </footer>
+`;
+
+const headingOf = (m: PanelMessages, section: PanelViewModel['section']): string =>
+  section === 'changes' ? m.changesHeading : section === 'comments' ? m.commentsHeading : m.heading;
+
+const renderComposer = (m: PanelMessages, vm: PanelViewModel, send: PanelSend): TemplateResult => html`
   <div class="composer">
     <textarea
       class="dpk-textarea"
@@ -97,62 +142,53 @@ export const renderPanel = (
       </button>
     </div>
   </div>
-  <ul class="list">
-    ${
-      vm.items.length === 0
-        ? html`<li class="empty">
-            <div class="empty-box">
-              ${iconComment()}
-              <p>${m.empty}</p>
-              <p class="empty-hint">${m.emptyHint}</p>
-            </div>
-          </li>`
-        : repeat(
-            vm.items,
-            (item) => item.id,
-            (item) => renderItem(m, item, send),
-          )
-    }
-  </ul>
-  <footer>
-    ${
-      embedded || vm.send === 'hidden'
-        ? nothing
-        : html`<button
-            class="dpk-btn dpk-btn--accent"
-            type="button"
-            ?disabled=${vm.send === 'disabled'}
-            @click=${() => send({ kind: 'send' })}
-          >
-            ${m.sendToClaude}
-          </button>`
-    }
-    <div class="footer-actions">
-      ${
-        embedded
-          ? nothing
-          : html`<button
-              class=${vm.send === 'hidden' ? 'dpk-btn dpk-btn--accent' : 'dpk-btn'}
-              type="button"
-              title=${m.copyTitle}
-              ?disabled=${vm.items.length === 0}
-              @click=${() => send({ kind: 'copy' })}
-            >
-              ${m.copy}
-            </button>`
-      }
-      <button
-        class="dpk-btn dpk-btn--ghost"
-        type="button"
-        ?disabled=${vm.items.length === 0}
-        @click=${() => send({ kind: 'clear' })}
-      >
-        ${m.clear}
-      </button>
-    </div>
-    ${vm.flash ? html`<span class="flash" role="status">${vm.flash}</span>` : nothing}
-  </footer>
 `;
+
+const renderEmpty = (text: string, hint: string): TemplateResult => html`<div class="empty">
+  <div class="empty-box">
+    ${iconComment()}
+    <p>${text}</p>
+    <p class="empty-hint">${hint}</p>
+  </div>
+</div>`;
+
+const renderList = (m: PanelMessages, items: readonly PanelItem[], send: PanelSend): TemplateResult => html`<ul
+  class="list"
+>
+  ${repeat(
+    items,
+    (item) => item.id,
+    (item) => renderItem(m, item, send),
+  )}
+</ul>`;
+
+/**
+ * One section shows its own list (or why it is empty). Both together are
+ * headed apart, review comments first: they are what the reader wrote to the agent.
+ */
+const renderGroups = (m: PanelMessages, vm: PanelViewModel, send: PanelSend): TemplateResult => {
+  const [only] = vm.groups;
+  if (vm.groups.length === 1 && only) {
+    if (only.items.length > 0) return html`<div class="groups">${renderList(m, only.items, send)}</div>`;
+    return only.kind === 'changes'
+      ? renderEmpty(m.emptyChanges, m.emptyChangesHint)
+      : renderEmpty(m.emptyComments, m.emptyCommentsHint);
+  }
+  if (!vm.hasDraft) return renderEmpty(m.empty, m.emptyHint);
+  return html`<div class="groups">
+    ${vm.groups
+      .filter((group) => group.items.length > 0)
+      .map(
+        (group) => html`<section class="group" data-kind=${group.kind}>
+          <h3 class="group-head">
+            ${group.kind === 'changes' ? m.changesHeading : m.commentsHeading}
+            <span class="group-count">${group.items.length}</span>
+          </h3>
+          ${renderList(m, group.items, send)}
+        </section>`,
+      )}
+  </div>`;
+};
 
 const renderItem = (m: PanelMessages, item: PanelItem, send: PanelSend): TemplateResult => html`
   <li class="item" data-tone=${item.tone} data-stale=${String(item.stale !== null)} data-id=${item.id}>

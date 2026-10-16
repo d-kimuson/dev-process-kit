@@ -7,7 +7,8 @@ export const LANGUAGE_NAMES: Readonly<Record<Locale, string>> = { en: 'English',
 export const coreMessages = defineMessages({
   en: {
     review: 'Review',
-    reviewToggle: 'Review / comments',
+    reviewChanges: 'Changes',
+    reviewComments: 'Review comments',
     useLightTheme: 'Switch to light theme',
     useDarkTheme: 'Switch to dark theme',
     language: 'Language',
@@ -20,8 +21,6 @@ export const coreMessages = defineMessages({
     expandSidebar: 'Expand sidebar',
     baseDataError: 'Could not read the base data (showing an empty page)',
     memo: 'Memo',
-    draftCount: (changes: number, comments: number) =>
-      `${changes} ${changes === 1 ? 'change' : 'changes'} · ${comments} ${comments === 1 ? 'note' : 'notes'}`,
     handoffTooLarge: 'The review is too long to send. Copy it and paste it instead',
     handoffConsent: 'Commenting needs your permission. Allow it, then send again',
     handoffForbidden: 'This page cannot send to Claude. Copy the review and paste it instead',
@@ -51,7 +50,8 @@ export const coreMessages = defineMessages({
   },
   ja: {
     review: 'レビュー',
-    reviewToggle: 'レビュー / コメント',
+    reviewChanges: '変更',
+    reviewComments: 'レビューコメント',
     useLightTheme: 'ライトテーマにする',
     useDarkTheme: 'ダークテーマにする',
     language: '言語',
@@ -64,7 +64,6 @@ export const coreMessages = defineMessages({
     expandSidebar: 'サイドバーを開く',
     baseDataError: 'base data を読み込めませんでした（空のページとして表示中）',
     memo: 'メモ',
-    draftCount: (changes: number, comments: number) => `変更 ${changes} · コメント ${comments}`,
     handoffTooLarge: 'Review が長すぎて送れません。コピーして渡してください',
     handoffConsent: 'コメントの許可が必要です。許可してからもう一度送ってください',
     handoffForbidden: 'このページからは送れません。コピーして渡してください',

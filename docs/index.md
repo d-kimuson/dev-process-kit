@@ -146,12 +146,12 @@ Drafts live in `LocalStorage`, so a reload keeps the review in progress. A store
 
 Text the reader has typed but not sent yet — a comment in a composer, a name in an inline edit, any text field the kit renders — is kept in `sessionStorage` (key `<storage key>:unsent-text`) for the tab's session. When a reload, a republished page or a stray `Esc` closes the field, opening the same field again puts the text back, as long as the field starts from the same text it did then. Sending the text into the draft forgets it. Your own markup (a prototype's mock form) is left alone. Under `storage="off"` / `"memory"` it is kept for this page load only.
 
-| Attribute     | Values            | Meaning                                                                   |
-| ------------- | ----------------- | ------------------------------------------------------------------------- |
-| `storage-key` | string            | LocalStorage key override (recommended for anything a human will re-open) |
-| `storage`     | `off` \| `memory` | persistence mode (default: `localStorage`)                                |
-| `notes`       | `on`              | opens the review rail on load (default: closed)                           |
-| `theme`       | `light` \| `dark` | the default color scheme (see [Color scheme](#color-scheme))              |
+| Attribute     | Values            | Meaning                                                                               |
+| ------------- | ----------------- | ------------------------------------------------------------------------------------- |
+| `storage-key` | string            | LocalStorage key override (recommended for anything a human will re-open)             |
+| `storage`     | `off` \| `memory` | persistence mode (default: `localStorage`)                                            |
+| `notes`       | `on` \| `changes` | opens the review rail on load at the review comments or the changes (default: closed) |
+| `theme`       | `light` \| `dark` | the default color scheme (see [Color scheme](#color-scheme))                          |
 
 ## Navigation
 

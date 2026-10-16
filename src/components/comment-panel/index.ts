@@ -17,7 +17,7 @@ import {
   type PanelEvent,
   type PanelIntent,
 } from './model';
-import { presentPanel, type PanelInputs } from './present';
+import { presentPanel, type PanelInputs, type PanelSection } from './present';
 import { panelStyles } from './styles';
 import { renderPanel } from './view';
 
@@ -28,6 +28,8 @@ export type CommentPanelCallbacks = {
   /** Rewrites a posted comment; without it the comments have no edit button. */
   readonly onEditComment?: (id: string, body: string) => DispatchOutcome;
 };
+
+const sectionOf = (value: string | null): PanelSection => (value === 'changes' || value === 'comments' ? value : 'all');
 
 /** Public adapter: owns state references, lifecycle and effects, not presentation rules. */
 export class DpkComponentCommentPanel extends LitElement {
@@ -46,7 +48,11 @@ export class DpkComponentCommentPanel extends LitElement {
     exportBrief: { attribute: false },
     sendToClaude: { attribute: false },
     embedded: { type: Boolean },
+    section: { type: String },
   };
+
+  /** `changes` or `comments` shows that part of the draft alone; anything else shows both. */
+  declare section: string | null;
 
   declare embedded: boolean;
   declare definition: TemplateDefinition<unknown> | null;
@@ -76,6 +82,7 @@ export class DpkComponentCommentPanel extends LitElement {
     this.derivation = null;
     this.issues = [];
     this.pendingTarget = null;
+    this.section = null;
   }
 
   protected override willUpdate(changed: Map<PropertyKey, unknown>): void {
@@ -109,6 +116,7 @@ export class DpkComponentCommentPanel extends LitElement {
       sendable: this.sendToClaude !== undefined,
       editable: this.onEditComment !== undefined,
       locale: this.#i18n.locale,
+      section: sectionOf(this.section),
     };
   }
 

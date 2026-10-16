@@ -2,7 +2,9 @@
 
 The review rail: the list of draft actions and comments, the stale markers, editing and deletion, and the copy hand-off for the agent. It is a Shadow DOM component, and the only place the framework renders template-specific text — through `describe()` and `serialize()`.
 
-Every template uses the shared panel. Most templates place it in a notes rail, closed by default and toggled by the floating comment button. Grill embeds it in the **Review** tab beside its questions and uses one combined copy button (`docs/templates/grill.md`).
+Every template uses the shared panel. Most templates place it in a notes rail, closed by default and opened by two toggles pinned to the top right corner of the header: **Changes** (the history icon) shows the structural changes of the draft, and **Review comments** (the comment icon) shows the comments for the agent and the composer. Each toggle's badge counts its part of the draft; pressing the open one closes the rail. Grill embeds it in the **Review** tab beside its questions and uses one combined copy button (`docs/templates/grill.md`).
+
+Review comments are requests to the agent ("fix this here"): they live in the draft and leave with the hand-off. They are not the comments a template keeps as part of its content, such as the comments on a user story map's story (`docs/templates/usm.md`), which are base data.
 
 ## Rendering contract
 
@@ -36,9 +38,9 @@ Diagram-element requests use the same composer, with component labels and stable
 | ------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `Send to Claude`          | inside a Claude Artifact only: the brief, posted as a comment sent to Claude (`docs/index.md`)            |
 | `Copy changes & comments` | the brief — markdown: template, version, navigation, comments, requested changes, then the canonical JSON |
-| `Clear`                   | removes every draft action                                                                                |
+| `Clear all`               | removes every draft action, changes and review comments alike                                             |
 
-`Copy changes & comments` and `Send to Claude` are disabled while the draft is empty. While the rail is closed and there is a draft, the template shell floats the same two buttons at the bottom right, so the review can be handed off without opening the rail.
+The hand-off and `Clear all` act on the whole draft whichever section the rail shows. `Copy changes & comments` and `Send to Claude` are disabled while the draft is empty. While the rail is closed and there is a draft, the template shell floats the same two buttons at the bottom right, so the review can be handed off without opening the rail.
 
 `element.api.exportBrief()` returns the same markdown as `Copy changes & comments` (including the stale count), and `element.api.exportDraft()` returns the JSON with `template`, `frameworkVersion` and `exportedAt`. Both are produced from the draft only; the agent receives the base HTML separately, so it can diff intent against the current base.
 
@@ -59,3 +61,5 @@ The panel is a normal custom element, but it expects a derivation, not a state: 
 | `onDelete` / `onClear` / `onComment` / `onEditComment` | callbacks                                              | the only way the panel changes anything                                             |
 
 The boolean `embedded` property/attribute hides the panel heading and its copy button when the enclosing template supplies those controls. The composer, draft rows and Clear button remain unchanged.
+
+The `section` property/attribute picks the part of the draft the panel lists: `changes` lists the structural changes alone, without the composer; `comments` lists the review comments with the composer; anything else (the default) lists both, review comments first, each under its own heading.

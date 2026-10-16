@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Copy,
   GripVertical,
+  History,
   Link,
   Maximize2,
   MessageSquare,
@@ -66,6 +67,7 @@ export const iconClose = lucide(X);
 export const iconTrash = lucide(Trash);
 export const iconPencil = lucide(Pencil);
 export const iconComment = lucide(MessageSquare);
+export const iconHistory = lucide(History);
 export const iconLink = lucide(Link);
 export const iconCopy = lucide(Copy);
 export const iconCheck = lucide(Check);

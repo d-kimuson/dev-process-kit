@@ -22,7 +22,7 @@ import { DraftController } from './controller';
 import { componentElementActionSchema } from './element-actions';
 import { presentDock } from './handoff-dock';
 import { LOCALES, type Locale } from './i18n';
-import { iconChevronLeft, iconChevronRight, iconMoon, iconSun } from './icons';
+import { iconChevronLeft, iconChevronRight, iconComment, iconHistory, iconMoon, iconSun } from './icons';
 import { coreMessages, LANGUAGE_NAMES } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
@@ -69,6 +69,8 @@ const isPopoverOpen = (element: Element): boolean => {
 
 const nextFrame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
+type ReviewSection = 'changes' | 'comments';
+
 export abstract class TemplateElement<S> extends LitElement {
   static override styles: CSSResultGroup = chromeStyles;
 
@@ -82,6 +84,7 @@ export abstract class TemplateElement<S> extends LitElement {
     notes: { type: String },
     theme: { type: String },
     notesOpen: { state: true },
+    reviewSection: { state: true },
   };
 
   /** `storage-key="..."` overrides the default LocalStorage key. */
@@ -90,7 +93,8 @@ export abstract class TemplateElement<S> extends LitElement {
   declare storage: string | null;
   /**
    * Review rail visibility. It is closed by default and reached through the
-   * floating comment button; `notes="on"` opens it on load.
+   * changes and review comments buttons; `notes="on"` (or `"comments"`) opens
+   * it on the review comments on load, `notes="changes"` on the changes.
    */
   declare notes: string | null;
   /**
@@ -99,8 +103,10 @@ export abstract class TemplateElement<S> extends LitElement {
    * either for this reader.
    */
   declare theme: string | null;
-  /** Internal UI state of the floating review toggle. */
+  /** Internal UI state of the review toggles. */
   declare notesOpen: boolean;
+  /** The part of the draft the rail shows: what the reader changed, or what they asked the agent to fix. */
+  declare reviewSection: ReviewSection;
   #notesInitialized = false;
   #previewRouter = new PreviewRouter(this);
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
@@ -191,7 +197,9 @@ export abstract class TemplateElement<S> extends LitElement {
     this.dataset['template'] = this.definition.name;
     if (!this.#notesInitialized) {
       this.#notesInitialized = true;
-      this.notesOpen = this.notes === 'on' || this.notes === 'open';
+      this.notesOpen =
+        this.notes === 'on' || this.notes === 'open' || this.notes === 'comments' || this.notes === 'changes';
+      this.reviewSection = this.notes === 'changes' ? 'changes' : 'comments';
     }
     this.#start();
     window.addEventListener('hashchange', this.#onHashChange);
@@ -358,6 +366,7 @@ export abstract class TemplateElement<S> extends LitElement {
   requestComment(target: string | ActionTarget): void {
     this.#pendingCommentTarget = typeof target === 'string' ? target : targetRef(target);
     this.notesOpen = true;
+    this.reviewSection = 'comments';
     this.requestUpdate();
   }
 
@@ -398,6 +407,7 @@ export abstract class TemplateElement<S> extends LitElement {
       .sendToClaude=${this.canSendToClaude ? () => this.sendToClaude() : undefined}
       .pendingTarget=${this.#pendingCommentTarget}
       .embedded=${this.integratedReview}
+      .section=${this.integratedReview ? null : this.reviewSection}
       .onDelete=${(id: string) => this.removeAction(id)}
       .onEditComment=${(id: string, body: string) => this.editComment(id, body)}
       .onClear=${() => this.clearActions()}
@@ -440,9 +450,6 @@ export abstract class TemplateElement<S> extends LitElement {
           <div class="dpk-header-meta">
             ${this.#versionChoice.render(this.locale)}
             <span class="dpk-meta-name">${this.definition.name}</span>
-            <span class="dpk-meta-count" data-active=${draftCount > 0 ? 'true' : 'false'}>
-              ${messages.draftCount(changeCount, commentCount)}
-            </span>
           </div>
           <div class="dpk-header-tools">
             ${this.#renderNoticeBell()} ${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}
@@ -511,31 +518,40 @@ export abstract class TemplateElement<S> extends LitElement {
               </footer>`
             : nothing
         }
-        ${
-          this.integratedReview
-            ? nothing
-            : html`<button
-                class="dpk-fab"
-                type="button"
-                aria-expanded=${this.notesOpen ? 'true' : 'false'}
-                title=${messages.reviewToggle}
-                @click=${() => {
-                  this.notesOpen = !this.notesOpen;
-                }}
-              >
-                <span class="dpk-fab-icon" aria-hidden="true"></span>
-                <span
-                  class="dpk-label"
-                  style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"
-                >
-                  ${messages.review}
-                </span>
-                ${draftCount > 0 ? html`<span class="dpk-fab-badge">${draftCount}</span>` : nothing}
-              </button>`
-        }
+        ${this.integratedReview ? nothing : this.#renderReviewToggles(changeCount, commentCount)}
         ${this.integratedReview ? nothing : this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
       </div>
     `;
+  }
+
+  /**
+   * The draft's two kinds of request each have their own button: the changes
+   * made on the page, and the review comments for the agent. Pressing the one
+   * the rail shows closes it; the other switches the rail over.
+   */
+  #renderReviewToggles(changeCount: number, commentCount: number): TemplateResult {
+    const messages = coreMessages(this.locale);
+    const toggle = (section: ReviewSection, label: string, icon: TemplateResult, count: number) => {
+      const pressed = this.notesOpen && this.reviewSection === section;
+      return html`<button
+        class="dpk-review-toggle"
+        type="button"
+        data-section=${section}
+        aria-pressed=${pressed ? 'true' : 'false'}
+        aria-label=${`${label} (${count})`}
+        title=${label}
+        @click=${() => {
+          this.notesOpen = !pressed;
+          this.reviewSection = section;
+        }}
+      >
+        ${icon} ${count > 0 ? html`<span class="dpk-review-badge">${count}</span>` : nothing}
+      </button>`;
+    };
+    return html`<div class="dpk-review-toggles" role="group" aria-label=${messages.review}>
+      ${toggle('changes', messages.reviewChanges, iconHistory(), changeCount)}
+      ${toggle('comments', messages.reviewComments, iconComment(), commentCount)}
+    </div>`;
   }
 
   #renderNoticeBell(): TemplateResult | typeof nothing {

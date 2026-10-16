@@ -173,6 +173,8 @@ describe('<dpk-template-prototype>', () => {
     });
     await settle(el);
     expect(el.api.state.activities[0]?.stories[0]?.steps[0]?.name).toBe('LP');
+    el.shadowRoot?.querySelector<HTMLElement>('.dpk-review-toggle[data-section="changes"]')?.click();
+    await settle(el);
     const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel');
     expect(panel?.shadowRoot?.querySelectorAll('.item')).toHaveLength(1);
   });
@@ -223,38 +225,59 @@ describe('<dpk-template-prototype>', () => {
     expect(el.api.comments[1]?.target).toEqual({ type: 'step', id: 'onboarding.account.landing' });
   });
 
-  it('keeps the review rail closed behind the floating comment button', async () => {
+  it('keeps the review rail closed behind the changes and the review comments toggles', async () => {
     const el = mount();
     await settle(el);
-    const notes = el.shadowRoot?.querySelector('.dpk-notes');
-    const fab = el.shadowRoot?.querySelector('.dpk-fab');
-    expect(fab).not.toBeNull();
-    expect(notes?.hasAttribute('hidden')).toBe(true);
+    const toggle = (section: string) =>
+      el.shadowRoot?.querySelector<HTMLElement>(`.dpk-review-toggle[data-section="${section}"]`) ?? null;
+    const panel = () => el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    expect(el.shadowRoot?.querySelector('.dpk-notes')?.hasAttribute('hidden')).toBe(true);
+    expect(toggle('changes')?.getAttribute('aria-pressed')).toBe('false');
+    expect(toggle('comments')?.getAttribute('aria-pressed')).toBe('false');
 
-    (fab as HTMLElement).click();
+    toggle('changes')?.click();
     await settle(el);
     expect(el.shadowRoot?.querySelector('.dpk-notes')?.hasAttribute('hidden')).toBe(false);
-    expect(el.shadowRoot?.querySelector('.dpk-fab')?.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle('changes')?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel().section).toBe('changes');
+
+    toggle('comments')?.click();
+    await settle(el);
+    expect(el.notesOpen).toBe(true);
+    expect(toggle('changes')?.getAttribute('aria-pressed')).toBe('false');
+    expect(toggle('comments')?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel().section).toBe('comments');
+
+    toggle('comments')?.click();
+    await settle(el);
+    expect(el.notesOpen).toBe(false);
+    expect(toggle('comments')?.getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('shows the draft count on the floating button', async () => {
+  it('counts the changes and the review comments of the draft apart on their toggles', async () => {
     const el = mount();
     await settle(el);
-    expect(el.shadowRoot?.querySelector('.dpk-fab-badge')).toBeNull();
-    el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
-    await settle(el);
-    expect(el.shadowRoot?.querySelector('.dpk-fab-badge')?.textContent?.trim()).toBe('1');
-  });
-
-  it('counts the changes and the comments of the draft apart in the header', async () => {
-    const el = mount();
-    await settle(el);
+    const badge = (section: string) =>
+      el.shadowRoot?.querySelector(`.dpk-review-toggle[data-section="${section}"] .dpk-review-badge`) ?? null;
+    expect(badge('changes')).toBeNull();
+    expect(badge('comments')).toBeNull();
     el.api.dispatch({ type: COMMENT_ACTION, target: 'page:prototype', payload: { body: 'one' } });
     el.api.dispatch({ type: COMMENT_ACTION, target: 'page:prototype', payload: { body: 'two' } });
     el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
     await settle(el);
-    const count = el.shadowRoot?.querySelector('.dpk-meta-count')?.textContent?.trim();
-    expect(count).toBe(coreMessages('en').draftCount(1, 2));
+    expect(badge('changes')?.textContent?.trim()).toBe('1');
+    expect(badge('comments')?.textContent?.trim()).toBe('2');
+  });
+
+  it('opens the review comments when a comment is requested', async () => {
+    const el = mount();
+    await settle(el);
+    el.shadowRoot?.querySelector<HTMLElement>('.dpk-review-toggle[data-section="changes"]')?.click();
+    await settle(el);
+    el.requestComment('page:prototype');
+    await settle(el);
+    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    expect(panel.section).toBe('comments');
   });
 
   it('offers the hand-off beside the closed rail once there is a draft', async () => {
@@ -279,7 +302,7 @@ describe('<dpk-template-prototype>', () => {
       vi.unstubAllGlobals();
     }
 
-    el.shadowRoot?.querySelector<HTMLElement>('.dpk-fab')?.click();
+    el.shadowRoot?.querySelector<HTMLElement>('.dpk-review-toggle')?.click();
     await settle(el);
     expect(dock()).toBeNull();
   });
@@ -714,6 +737,7 @@ describe('language', () => {
     const el = mount();
     await settle(el);
     el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
+    el.shadowRoot?.querySelector<HTMLElement>('.dpk-review-toggle[data-section="changes"]')?.click();
     await settle(el);
     expect(select(el).value).toBe('ja');
     expect(await railText(el)).toContain(prototypeMessages('ja').renameStep);
