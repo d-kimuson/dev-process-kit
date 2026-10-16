@@ -225,19 +225,29 @@ describe('<dpk-template-prototype>', () => {
     expect(el.api.comments[1]?.target).toEqual({ type: 'step', id: 'onboarding.account.landing' });
   });
 
-  it('keeps the review rail closed behind the changes and the review comments toggles', async () => {
+  it('floats the review in a popover outside the page body, so the main column keeps its width', async () => {
+    const el = mount();
+    await settle(el);
+    const review = el.shadowRoot?.querySelector('#dpk-review');
+    expect(review?.getAttribute('popover')).toBe('manual');
+    expect(review?.closest('.dpk-body')).toBeNull();
+    expect(review?.querySelector('dpk-component-comment-panel')).not.toBeNull();
+    expect(el.shadowRoot?.querySelector('.dpk-review-toggle')?.getAttribute('aria-controls')).toBe('dpk-review');
+  });
+
+  it('keeps the review closed behind the changes and the review comments toggles', async () => {
     const el = mount();
     await settle(el);
     const toggle = (section: string) =>
       el.shadowRoot?.querySelector<HTMLElement>(`.dpk-review-toggle[data-section="${section}"]`) ?? null;
     const panel = () => el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
-    expect(el.shadowRoot?.querySelector('.dpk-notes')?.hasAttribute('hidden')).toBe(true);
+    expect(el.notesOpen).toBe(false);
     expect(toggle('changes')?.getAttribute('aria-pressed')).toBe('false');
     expect(toggle('comments')?.getAttribute('aria-pressed')).toBe('false');
 
     toggle('changes')?.click();
     await settle(el);
-    expect(el.shadowRoot?.querySelector('.dpk-notes')?.hasAttribute('hidden')).toBe(false);
+    expect(el.notesOpen).toBe(true);
     expect(toggle('changes')?.getAttribute('aria-pressed')).toBe('true');
     expect(panel().section).toBe('changes');
 
@@ -836,6 +846,6 @@ describe('send to Claude', () => {
     await flush(el);
 
     expect(sendToClaude).toHaveBeenCalledWith({ anchor: expect.anything(), text: expect.stringContaining('ship it') });
-    expect(el.shadowRoot?.querySelector('.dpk-notes')?.hasAttribute('hidden')).toBe(true);
+    expect(el.notesOpen).toBe(false);
   });
 });

@@ -534,16 +534,16 @@ const renderComments = (m: UsmMessages, context: TemplateRenderContext<UsmState>
 };
 
 export const storyPanelStyles = css`
-  /* Over the main column's edge, below the header and beside an open review: the page's own controls stay in reach. */
+  /* Over the main column's edge, below the header: the page's own controls stay in reach. */
   .story-panel {
     position: absolute;
     top: 0;
-    right: var(--dpk-notes-column, 0px);
+    right: 0;
     bottom: 0;
     z-index: 20;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    width: min(420px, 100% - var(--dpk-notes-column, 0px));
+    width: min(420px, 100%);
     border-left: 1px solid var(--dpk-rule-strong);
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-shadow-lg);

@@ -23,24 +23,6 @@ export const taskBoardStyles = css`
     gap: 14px;
   }
 
-  /* The review opens where it always does, on the right, but over the rail:
-     a third column would squeeze the board, and the shell's order would put
-     it on the left of the main area. */
-  .dpk-body {
-    position: relative;
-  }
-
-  .dpk-notes {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 30;
-    width: 360px;
-    max-width: 100%;
-    box-shadow: var(--dpk-shadow-lg);
-  }
-
   .board {
     display: grid;
     gap: 18px;
@@ -89,17 +71,6 @@ export const taskBoardStyles = css`
       justify-content: flex-start;
       border-left: 0;
       border-top: 1px solid var(--dpk-rule);
-    }
-
-    /* The body scrolls here, so an absolute panel would scroll away with it:
-       the review takes the screen instead, below the floating button. */
-    .dpk-notes {
-      position: fixed;
-      inset: 0;
-      z-index: 50;
-      width: auto;
-      padding-top: 60px;
-      border-left: 0;
     }
   }
 

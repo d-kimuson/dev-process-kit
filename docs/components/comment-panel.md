@@ -1,8 +1,8 @@
 # dpk-component-comment-panel
 
-The review rail: the list of draft actions and comments, the stale markers, editing and deletion, and the copy hand-off for the agent. It is a Shadow DOM component, and the only place the framework renders template-specific text — through `describe()` and `serialize()`.
+The review panel: the list of draft actions and comments, the stale markers, editing and deletion, and the copy hand-off for the agent. It is a Shadow DOM component, and the only place the framework renders template-specific text — through `describe()` and `serialize()`.
 
-Every template uses the shared panel. Most templates place it in a notes rail, closed by default and opened by two toggles pinned to the top right corner of the header: **Changes** (the history icon) shows the structural changes of the draft, and **Review comments** (the comment icon) shows the comments for the agent and the composer. Each toggle's badge counts its part of the draft; pressing the open one closes the rail. Grill embeds it in the **Review** tab beside its questions and uses one combined copy button (`docs/templates/grill.md`).
+Every template uses the shared panel. Most templates float it in a popover over the page, closed by default and opened by two toggles pinned to the top right corner of the header: **Changes** (the history icon) shows the structural changes of the draft, and **Review comments** (the comment icon) shows the comments for the agent and the composer. The popover hangs below the toggles, aligned to their right edge, and takes the height down to the bottom of the screen; the main column keeps its full width under it. It stays open while the reader works on the page (a comment often points at what they click next), and closes from the pressed toggle or Escape; text half written survives closing it. Each toggle's badge counts its part of the draft. Grill embeds it in the **Review** tab beside its questions and uses one combined copy button (`docs/templates/grill.md`).
 
 Review comments are requests to the agent ("fix this here"): they live in the draft and leave with the hand-off. They are not the comments a template keeps as part of its content, such as the comments on a user story map's story (`docs/templates/usm.md`), which are base data.
 
@@ -40,7 +40,7 @@ Diagram-element requests use the same composer, with component labels and stable
 | `Copy changes & comments` | the brief — markdown: template, version, navigation, comments, requested changes, then the canonical JSON |
 | `Clear all`               | removes every draft action, changes and review comments alike                                             |
 
-The hand-off and `Clear all` act on the whole draft whichever section the rail shows. `Copy changes & comments` and `Send to Claude` are disabled while the draft is empty. While the rail is closed and there is a draft, the template shell floats the same two buttons at the bottom right, so the review can be handed off without opening the rail.
+The hand-off and `Clear all` act on the whole draft whichever section the popover shows. `Copy changes & comments` and `Send to Claude` are disabled while the draft is empty. While the popover is closed and there is a draft, the template shell floats the same two buttons at the bottom right, so the review can be handed off without opening it.
 
 `element.api.exportBrief()` returns the same markdown as `Copy changes & comments` (including the stale count), and `element.api.exportDraft()` returns the JSON with `template`, `frameworkVersion` and `exportedAt`. Both are produced from the draft only; the agent receives the base HTML separately, so it can diff intent against the current base.
 

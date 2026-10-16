@@ -593,13 +593,6 @@ export const chromeStyles = [
       position: relative;
       display: flex;
       min-height: 0;
-      /* How much of the body's right edge the open review takes as a column of its own;
-         what a template lays over the main column's edge stays clear of it. */
-      --dpk-notes-column: 0px;
-    }
-
-    .dpk-body:has(> .dpk-notes:not([hidden])) {
-      --dpk-notes-column: 360px;
     }
 
     .dpk-sidebar {
@@ -942,77 +935,6 @@ export const chromeStyles = [
       overflow-wrap: anywhere;
     }
 
-    .dpk-notes {
-      flex: 0 0 auto;
-      width: 360px;
-      border-left: 1px solid var(--dpk-rule);
-      background: var(--dpk-paper-raised);
-      box-shadow: -12px 0 32px -24px var(--dpk-shade-3);
-      overflow: hidden;
-      display: flex;
-      animation: dpk-slide-in 260ms var(--dpk-ease) backwards;
-    }
-
-    @keyframes dpk-slide-in {
-      from {
-        opacity: 0;
-        transform: translateX(16px);
-      }
-    }
-
-    .dpk-notes[hidden] {
-      display: none;
-    }
-
-    /*
-     * Where a column of its own would leave the main column too little room,
-     * the review opens over the main column's edge instead; on a phone it
-     * takes the screen, below the review button that closes it.
-     */
-    @media (max-width: 1100px) {
-      .dpk-body:has(> .dpk-sidebar:not([hidden])) {
-        --dpk-notes-column: 0px;
-      }
-
-      .dpk-body:has(> .dpk-sidebar:not([hidden])) > .dpk-notes {
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 30;
-        max-width: 100%;
-        box-shadow: var(--dpk-shadow-lg);
-      }
-    }
-
-    @media (max-width: 860px) {
-      .dpk-body:has(> .dpk-notes:not([hidden])) {
-        --dpk-notes-column: 0px;
-      }
-
-      .dpk-notes {
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 30;
-        max-width: 100%;
-        box-shadow: var(--dpk-shadow-lg);
-      }
-    }
-
-    @media (max-width: 760px) {
-      .dpk-notes,
-      .dpk-body:has(> .dpk-sidebar:not([hidden])) > .dpk-notes {
-        position: fixed;
-        inset: 0;
-        z-index: 50;
-        width: auto;
-        padding-top: 60px;
-        border-left: 0;
-      }
-    }
-
     /* ------------------------------------------------------------- footer */
 
     .dpk-footer {
@@ -1029,8 +951,42 @@ export const chromeStyles = [
 
     /* --------------------------------------------------- floating review */
 
+    /* The review floats over the page from its toggles, as tall as the screen
+       allows: the main column keeps its whole width while it is open. The
+       popover positions it; this only shapes the surface. */
+    .dpk-review {
+      box-sizing: border-box;
+      position: fixed;
+      inset: auto;
+      margin: 0;
+      padding: 0;
+      height: 100dvh;
+      overflow: hidden;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius-lg);
+      background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
+      color: var(--dpk-ink);
+    }
+
+    .dpk-review:popover-open {
+      display: flex;
+      animation: dpk-review-in 180ms var(--dpk-ease);
+    }
+
+    @keyframes dpk-review-in {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+    }
+
+    .dpk-review > dpk-component-comment-panel {
+      flex: 1 1 auto;
+    }
+
     /* Review toggles: the changes and the review comments of the draft, each
-       opening its own part of the rail. Pinned to the top right corner, always
+       opening its own part of the review. Pinned to the top right corner, always
        in the same place. */
     .dpk-review-toggles {
       position: fixed;

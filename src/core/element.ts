@@ -45,6 +45,7 @@ import { NarrowScreenController } from './shell/narrow-screen-controller';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
 import { PreviewRouter } from './shell/preview-router';
 import { findTarget, highlightTarget, revealTarget } from './shell/reveal';
+import { ReviewPopoverController } from './shell/review-popover-controller';
 import { SidebarCollapseController } from './shell/sidebar-collapse-controller';
 import { SidebarResizeController } from './shell/sidebar-resize-controller';
 import { chromeStyles } from './shell/styles';
@@ -58,6 +59,7 @@ const BASE_SELECTOR = `script[type="application/json"]:not([${CHANGES_ATTRIBUTE}
 /** Frames to wait for a target to render after navigating to it. */
 const REVEAL_FRAMES = 30;
 const NOTICE_LIST_SIZE = { width: 360, height: 480 };
+const REVIEW_ID = 'dpk-review';
 
 const isPopoverOpen = (element: Element): boolean => {
   try {
@@ -147,6 +149,19 @@ export abstract class TemplateElement<S> extends LitElement {
     resume: (hold) => this.#notices.resume(hold),
   };
   readonly #popovers = new PopoverController(this);
+  constructor() {
+    super();
+    // The review floats over the page below its toggles.
+    new ReviewPopoverController(this, {
+      surface: () => this.renderRoot.querySelector<HTMLElement>(`#${REVIEW_ID}`),
+      anchor: () => this.renderRoot.querySelector('.dpk-review-toggles'),
+      open: () => this.notesOpen && !this.integratedReview,
+      close: () => {
+        this.notesOpen = false;
+      },
+    });
+  }
+
   /** The fold button is replaced as the sidebar folds; focus follows it to the new one. */
   #focusSidebarToggle = false;
 
@@ -504,11 +519,6 @@ export abstract class TemplateElement<S> extends LitElement {
               </details>
             </div>
           </main>
-          ${
-            this.integratedReview
-              ? nothing
-              : html`<aside class="dpk-notes" ?hidden=${!this.notesOpen}>${this.renderReviewPanel(context)}</aside>`
-          }
         </div>
         ${
           regions.footer || this.hasFooterContent()
@@ -519,6 +529,7 @@ export abstract class TemplateElement<S> extends LitElement {
             : nothing
         }
         ${this.integratedReview ? nothing : this.#renderReviewToggles(changeCount, commentCount)}
+        ${this.integratedReview ? nothing : this.#renderReviewPopover(context)}
         ${this.integratedReview ? nothing : this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
       </div>
     `;
@@ -537,6 +548,7 @@ export abstract class TemplateElement<S> extends LitElement {
         class="dpk-review-toggle"
         type="button"
         data-section=${section}
+        aria-controls=${REVIEW_ID}
         aria-pressed=${pressed ? 'true' : 'false'}
         aria-label=${`${label} (${count})`}
         title=${label}
@@ -551,6 +563,18 @@ export abstract class TemplateElement<S> extends LitElement {
     return html`<div class="dpk-review-toggles" role="group" aria-label=${messages.review}>
       ${toggle('changes', messages.reviewChanges, iconHistory(), changeCount)}
       ${toggle('comments', messages.reviewComments, iconComment(), commentCount)}
+    </div>`;
+  }
+
+  /**
+   * Kept in the tree while closed, so a comment half written survives closing
+   * it; the popover only shows and hides it, over the page.
+   */
+  #renderReviewPopover(context: TemplateRenderContext<S>): TemplateResult {
+    const messages = coreMessages(this.locale);
+    const label = this.reviewSection === 'changes' ? messages.reviewChanges : messages.reviewComments;
+    return html`<div id=${REVIEW_ID} class="dpk-review" popover="manual" role="dialog" aria-label=${label}>
+      ${this.renderReviewPanel(context)}
     </div>`;
   }
 
