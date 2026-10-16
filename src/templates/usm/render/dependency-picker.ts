@@ -172,9 +172,6 @@ export const dependencyPickerStyles = css`
   .sp-dep-choices [role='option'][aria-selected='true'] {
     background: var(--dpk-paper-sunken);
   }
-  .sp-dep-choices [role='option'][aria-selected='true'] {
-    box-shadow: inset 2px 0 0 var(--dpk-blue);
-  }
   .sp-dep-choice-name {
     display: flex;
     align-items: center;
