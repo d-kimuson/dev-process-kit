@@ -125,8 +125,9 @@ export const usmStyles = css`
   }
 
   .board-bar {
+    --usm-bar-pad: 6px;
     border-bottom: 1px solid var(--dpk-rule);
-    padding: 12px 24px;
+    padding: var(--usm-bar-pad) 24px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -136,14 +137,15 @@ export const usmStyles = css`
 
   /* The pages: an underlined tab strip, heavier than the view toggle. The
      tabs that do not fit fold behind the more button beside it (\`.page-nav\`);
-     the bottom padding keeps the selected tab's underline inside the clip. */
+     the bottom padding keeps the selected tab's underline, which sits on the
+     bar's bottom rule, inside the clip. */
   .page-tabs {
     position: relative;
     display: inline-flex;
     gap: 4px;
     min-width: 0;
-    margin-bottom: -13px;
-    padding-bottom: 13px;
+    margin-bottom: calc(-1 * var(--usm-bar-pad) - 1px);
+    padding-bottom: calc(var(--usm-bar-pad) + 1px);
     overflow: hidden;
   }
   .page-tabs [role='tab'] {
@@ -151,7 +153,7 @@ export const usmStyles = css`
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 7px 12px;
+    padding: 5px 10px;
     border-radius: var(--dpk-radius-sm);
     color: var(--dpk-ink-soft);
     font-size: 13.5px;
@@ -178,9 +180,9 @@ export const usmStyles = css`
   .page-tabs [role='tab'][aria-selected='true']::after {
     content: '';
     position: absolute;
-    left: 12px;
-    right: 12px;
-    bottom: -13px;
+    left: 10px;
+    right: 10px;
+    bottom: calc(-1 * var(--usm-bar-pad) - 1px);
     height: 2px;
     border-radius: 2px;
     background: var(--dpk-usm-accent);
@@ -207,7 +209,7 @@ export const usmStyles = css`
   .segmented {
     display: inline-flex;
     gap: 2px;
-    padding: 3px;
+    padding: 2px;
     max-width: 100%;
     overflow-x: auto;
     scrollbar-width: none;
@@ -218,7 +220,7 @@ export const usmStyles = css`
   }
 
   .tab {
-    padding: 5px 14px;
+    padding: 4px 12px;
     border-radius: 999px;
     font-size: 12px;
     font-weight: 550;

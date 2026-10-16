@@ -25,7 +25,7 @@ export const mapToolbarStyles = css`
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 12px;
-    padding: 8px 24px;
+    padding: 5px 24px;
     border-bottom: 1px solid var(--dpk-rule);
   }
 `;
