@@ -65,7 +65,7 @@ One HTML file holds exactly one page root. What goes inside the base data, and w
 
 ## Page height
 
-Every template is a bounded shell: its header stays on top, the memo at the bottom of the main column, and the sidebar, main column and review popover each scroll on their own. That needs the page's height on the template element:
+Every template is a bounded shell: its header stays on top, the supplements bar at the bottom of the main column, and the sidebar, main column and review popover each scroll on their own. That needs the page's height on the template element:
 
 ```html
 <style>
@@ -209,14 +209,14 @@ All events bubble and are composed. `dpk-component-comment-panel` (the review ra
 
 ## Slots and styling
 
-| Slot      | Notes                                                                                                                                                                                                                                       |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `header`  | appended after the template header content                                                                                                                                                                                                  |
-| `sidebar` | appended after the template sidebar content                                                                                                                                                                                                 |
-| `main`    | appended after the template main content                                                                                                                                                                                                    |
-| `footer`  | appended after the framework footer                                                                                                                                                                                                         |
-| `preview` | template-specific; the template documents how it matches your markup                                                                                                                                                                        |
-| `memo`    | author memo, folded into a "Memo" bar the full width of the main column, pinned to its bottom; the reader opens it upward to read. Only rendered when you slot content into it. It may hold the diagram elements (load `components.js` too) |
+| Slot         | Notes                                                                                                                                                 |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `header`     | appended after the template header content                                                                                                            |
+| `sidebar`    | appended after the template sidebar content                                                                                                           |
+| `main`       | appended after the template main content                                                                                                              |
+| `footer`     | appended after the framework footer                                                                                                                   |
+| `preview`    | template-specific; the template documents how it matches your markup                                                                                  |
+| `supplement` | supporting material (an ERD, a checklist, a sequence diagram), named tabs in a bar at the bottom of the main column — see [Supplements](#supplements) |
 
 Framework chrome (shell, sidebar, review rail, preview frames) is Shadow DOM; everything you write stays in the light DOM, so your CSS and JS work normally. The `--dpk-*` custom properties declared on `:host` are inherited into your content, so you can reuse the palette without importing anything:
 
@@ -279,6 +279,26 @@ The template header shows the version running the page (`dev-process-kit@<versio
 - A version from before this select renders none of its own; the entry that handed the page over then puts one into the template's `header` slot, so the reader can always come back.
 - Your pinned URL stays the contract: never write `?dpk-version=` into a link to make a page run another version, and never load `@latest`. The parameter is for the reader trying a version out.
 - `window.devProcessKit` names the version that defined the elements (`version`), the templates it registered (`templates`), and the query parameter above (`versionParam`).
+
+### Supplements
+
+Slot each piece of supporting material as its own element with a `data-name`:
+
+```html
+<section slot="supplement" data-name="ERD"><dpk-component-er-diagram>…</dpk-component-er-diagram></section>
+<section slot="supplement" data-name="Checklist">
+  <ul>
+    …
+  </ul>
+</section>
+<section slot="supplement" data-name="Sequence">
+  <dpk-component-sequence-diagram>…</dpk-component-sequence-diagram>
+</section>
+```
+
+The shell lines the names up, in the order written, in a bar the full width of the main column, pinned to its bottom. The reader presses a name to open that supplement alone, growing upward over the content; pressing another switches, and pressing the open one folds it. One without a `data-name` is labelled "Memo". The bar is rendered only while at least one supplement is slotted, and follows ones added later. A supplement may hold the diagram elements (load `components.js` too).
+
+The `memo` slot is gone: content left in `slot="memo"` is not shown, and the console says so. Wrap it in a `slot="supplement"` element instead.
 
 ## Review and the hand-off
 

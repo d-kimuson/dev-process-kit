@@ -35,7 +35,7 @@ export const chromeStyles = [
        * The fallback when the page gives the host no height: the viewport, less
        * the safe-area insets a Claude Artifact pads its root by. Without it the
        * shell grows with its content, leaving the page's own ground below a
-       * short page and scrolling the header and the memo away on a long one.
+       * short page and scrolling the header and the supplements away on a long one.
        * A host with a height still wins: the min/max-height above pin the shell
        * to it.
        */
@@ -828,79 +828,113 @@ export const chromeStyles = [
     }
 
     /*
-     * Author memo. It sits at the end of the main column and sticks to the
+     * Supplements. They sit at the end of the main column and stick to the
      * bottom of the scrollport as a bar the full width of the column, edge to
-     * edge: always in reach and never stealing height from the preview. Opened,
-     * it grows upward over the content and shows the memo whole; only a memo
-     * taller than the window scrolls, so its top stays reachable.
+     * edge: always in reach and never stealing height from the preview. The bar
+     * names each supplement; the one opened grows upward over the content and
+     * shows whole; only one taller than the window scrolls, so its top stays
+     * reachable.
      */
-    .dpk-memo {
+    .dpk-supplements {
       position: sticky;
       bottom: 0;
       z-index: 5;
       margin-top: auto;
-    }
-
-    .dpk-memo[hidden] {
-      display: none;
-    }
-
-    .dpk-memo-fold {
-      /* A faint amber wash over the whole note marks it as the author's aside. */
+      /* A faint amber wash over the whole bar marks it as the author's aside. */
       border-top: 1px solid color-mix(in srgb, var(--dpk-amber) 28%, var(--dpk-rule-strong));
       background: color-mix(in srgb, color-mix(in srgb, var(--dpk-amber) 7%, var(--dpk-paper-raised)) 94%, transparent);
       backdrop-filter: blur(12px);
       box-shadow: 0 -8px 24px -18px color-mix(in srgb, var(--dpk-ink) 40%, transparent);
     }
 
-    .dpk-memo-bar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      /* Clear of the hand-off dock at the bottom right while it is shown. */
-      padding: 8px calc(16px + var(--dpk-dock-space, 0px)) 8px 16px;
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--dpk-ink-soft);
-      cursor: pointer;
-      list-style: none;
-      user-select: none;
-    }
-
-    .dpk-memo-bar::-webkit-details-marker {
+    .dpk-supplements[hidden] {
       display: none;
     }
 
-    .dpk-memo-bar:hover {
-      color: var(--dpk-ink);
+    .dpk-supplements-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 2px;
+      /* Clear of the hand-off dock at the bottom right while it is shown. */
+      padding: 5px calc(16px + var(--dpk-dock-space, 0px)) 5px 12px;
+      color: var(--dpk-ink-soft);
     }
 
-    .dpk-memo-bar:focus-visible {
+    .dpk-supplements-bar > svg {
+      flex: none;
+      width: 14px;
+      height: 14px;
+      margin-right: 2px;
+      transition: transform 160ms var(--dpk-ease);
+    }
+
+    .dpk-supplements[data-open] .dpk-supplements-bar > svg {
+      transform: rotate(90deg);
+    }
+
+    .dpk-supplement-tab {
+      position: relative;
+      border: 0;
+      border-radius: 7px;
+      padding: 4px 10px;
+      background: transparent;
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: inherit;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* A rule between neighbours reads the names as one row: ERD | Checklist | Sequence. */
+    .dpk-supplement-tab + .dpk-supplement-tab::before {
+      content: '';
+      position: absolute;
+      top: 25%;
+      bottom: 25%;
+      left: -1px;
+      width: 1px;
+      background: var(--dpk-rule-strong);
+    }
+
+    .dpk-supplement-tab:hover {
+      color: var(--dpk-ink);
+      background: color-mix(in srgb, var(--dpk-amber) 10%, transparent);
+    }
+
+    .dpk-supplement-tab[aria-expanded='true'] {
+      color: var(--dpk-ink);
+      background: color-mix(in srgb, var(--dpk-amber) 18%, transparent);
+    }
+
+    .dpk-supplement-tab:hover::before,
+    .dpk-supplement-tab[aria-expanded='true']::before,
+    .dpk-supplement-tab:hover + .dpk-supplement-tab::before,
+    .dpk-supplement-tab[aria-expanded='true'] + .dpk-supplement-tab::before {
+      visibility: hidden;
+    }
+
+    .dpk-supplement-tab:focus-visible {
       outline: none;
       box-shadow: var(--dpk-focus);
     }
 
-    .dpk-memo-bar svg {
-      width: 14px;
-      height: 14px;
-      transition: transform 160ms var(--dpk-ease);
-    }
-
-    .dpk-memo-fold[open] .dpk-memo-bar svg {
-      transform: rotate(90deg);
-    }
-
-    .dpk-memo-body {
+    .dpk-supplements-body {
       max-height: calc(100dvh - 120px);
       overflow: auto;
       overscroll-behavior: contain;
-      padding: 0 calc(16px + var(--dpk-dock-space, 0px)) 16px 16px;
+      padding: 4px calc(16px + var(--dpk-dock-space, 0px)) 16px 16px;
       font-size: 12.5px;
       line-height: 1.7;
       color: var(--dpk-ink-soft);
     }
 
-    .dpk-memo ::slotted(*) {
+    .dpk-supplements-body[hidden] {
+      display: none;
+    }
+
+    .dpk-supplements ::slotted(*) {
       display: block;
       max-width: 100%;
     }

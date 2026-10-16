@@ -1319,11 +1319,13 @@
         }
       </script>
 
-      <div slot="memo">
+      <section slot="supplement" data-name="前提">
         <p>
-          <strong>前提</strong> — 購入者はスマホ、ショップ運営は PC
+          購入者はスマホ、ショップ運営は PC
           で使う。キャンセルできるかは注文の状態だけで決まるので、できない注文にはボタンを出さず、理由と次にできることを示す。返金は決済代行の都合で数日かかることがあるため、受付と返金完了は別々に知らせる。
         </p>
+      </section>
+      <section slot="supplement" data-name="ERD">
         <dpk-component-er-diagram heading="ERD" subject="注文と返金">
           <script type="application/json">
             {
@@ -1368,7 +1370,91 @@
             }
           </script>
         </dpk-component-er-diagram>
-      </div>
+      </section>
+      <section slot="supplement" data-name="チェックリスト">
+        <ul>
+          <li>出荷指示前の注文だけキャンセルできる。出荷後はボタンを出さず、理由と次にできることを示す</li>
+          <li>キャンセルを確定する前に返金額と返金先を見せる。返金先は支払いに使ったカードのみで、変更はできない</li>
+          <li>確定直後に「受付」だけを伝え、在庫の引当を解除する。返金の完了（決済代行の処理）は待たない</li>
+          <li>受付と返金完了は別々のメールで知らせる。件名と本文の 1 行目に注文番号と金額を入れる</li>
+          <li>決済代行の結果が出るまで、二重返金を避けるため手動の返金はできないようにする</li>
+        </ul>
+      </section>
+      <section slot="supplement" data-name="シーケンス図">
+        <dpk-component-sequence-diagram heading="Sequence" subject="注文キャンセルと返金">
+          <script type="application/json">
+            {
+              "participants": [
+                { "id": "buyer", "name": "購入者", "role": "スマホ" },
+                { "id": "shop", "name": "Sora Market", "role": "注文 API" },
+                { "id": "payment", "name": "決済代行", "kind": "external" }
+              ],
+              "items": [
+                { "kind": "message", "id": "cancel", "from": "buyer", "to": "shop", "title": "キャンセルを確定する" },
+                {
+                  "kind": "message",
+                  "id": "accepted",
+                  "from": "shop",
+                  "to": "buyer",
+                  "title": "キャンセル受付",
+                  "style": "response",
+                  "detail": "返金待ちに変更し、在庫の引当を解除する"
+                },
+                {
+                  "kind": "message",
+                  "id": "refund-request",
+                  "from": "shop",
+                  "to": "payment",
+                  "title": "返金をリクエスト"
+                },
+                {
+                  "kind": "fragment",
+                  "id": "refund-result",
+                  "operator": "alt",
+                  "title": "決済代行の結果",
+                  "branches": [
+                    {
+                      "label": "返金成功",
+                      "items": [
+                        {
+                          "kind": "message",
+                          "id": "refund-ok",
+                          "from": "payment",
+                          "to": "shop",
+                          "title": "返金完了",
+                          "style": "response"
+                        },
+                        {
+                          "kind": "message",
+                          "id": "notify-ok",
+                          "from": "shop",
+                          "to": "buyer",
+                          "title": "返金完了のお知らせ",
+                          "style": "async"
+                        }
+                      ]
+                    },
+                    {
+                      "label": "返金失敗",
+                      "items": [
+                        {
+                          "kind": "message",
+                          "id": "refund-ng",
+                          "from": "payment",
+                          "to": "shop",
+                          "title": "payment_failed",
+                          "style": "response",
+                          "guard": "カード会社側の一時エラーなど"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          </script>
+        </dpk-component-sequence-diagram>
+      </section>
 
       <!-- ================================================================ -->
       <!-- 購入者（スマホ） -->

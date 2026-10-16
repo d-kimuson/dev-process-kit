@@ -37,7 +37,7 @@ import {
 import { presentDock, type DockViewModel } from './handoff-dock';
 import { LOCALES, type Locale } from './i18n';
 import { iconChevronLeft, iconChevronRight, iconComment, iconHistory, iconMoon, iconQuestion, iconSun } from './icons';
-import { coreMessages, LANGUAGE_NAMES } from './messages';
+import { coreMessages, LANGUAGE_NAMES, type CoreMessages } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { PopoverController } from './popover-controller';
@@ -78,6 +78,7 @@ import {
 import { SidebarCollapseController } from './shell/sidebar-collapse-controller';
 import { SidebarResizeController } from './shell/sidebar-resize-controller';
 import { chromeStyles } from './shell/styles';
+import { LEGACY_MEMO_SLOT, openSupplementRule, SUPPLEMENT_SLOT, supplementsOf } from './shell/supplements';
 import { TextRecoveryController } from './shell/text-recovery-controller';
 import { VersionChoiceController } from './shell/version-choice-controller';
 import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, sidebarToggle, type SidebarLayout } from './sidebar-width';
@@ -169,6 +170,8 @@ export abstract class TemplateElement<S> extends LitElement {
   };
   #notesInitialized = false;
   #previewRouter = new PreviewRouter(this);
+  /** The supplement the reader opened; the bar shows the rest folded. */
+  #openSupplement: Element | null = null;
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
   #claude = new ClaudeHandoffController(this);
   #dock = new HandoffDockController(this);
@@ -621,12 +624,7 @@ export abstract class TemplateElement<S> extends LitElement {
               </section>
               ${this.#renderBadges()}
             </div>
-            <div class="dpk-memo" ?hidden=${!this.hasMemoContent()}>
-              <details class="dpk-memo-fold">
-                <summary class="dpk-memo-bar">${iconChevronRight()} ${messages.memo}</summary>
-                <div class="dpk-memo-body"><slot name="memo"></slot></div>
-              </details>
-            </div>
+            ${this.#renderSupplements(messages)}
           </main>
         </div>
         ${
@@ -1055,11 +1053,6 @@ export abstract class TemplateElement<S> extends LitElement {
     return slot !== null;
   }
 
-  /** The floating memo only exists when the author slotted content into it. */
-  protected hasMemoContent(): boolean {
-    return this.querySelector('[slot="memo"]') !== null;
-  }
-
   /** The footer row only exists when someone slotted content into it. */
   protected hasFooterContent(): boolean {
     return this.querySelector('[slot="footer"]') !== null;
@@ -1115,6 +1108,7 @@ export abstract class TemplateElement<S> extends LitElement {
   #initialize(): void {
     const base = this.#readBase();
     this.#grill = this.#readGrill();
+    this.#warnLegacyMemo();
     this.#navigation = readNavigationFromHash();
     const storageKey = this.storageKey;
     this.#controller = new DraftController<S>({
@@ -1130,6 +1124,13 @@ export abstract class TemplateElement<S> extends LitElement {
     this.#resolveReady?.();
     this.#observeBaseScript();
     this.requestUpdate();
+  }
+
+  #warnLegacyMemo(): void {
+    if (this.querySelector(`:scope > [slot="${LEGACY_MEMO_SLOT}"]`) === null) return;
+    console.warn(
+      `[dev-process-kit] <${this.tagName.toLowerCase()}> no longer shows slot="${LEGACY_MEMO_SLOT}"; slot each piece as slot="${SUPPLEMENT_SLOT}" data-name="…" instead.`,
+    );
   }
 
   #resolveStorage(): DraftStorage | null {
@@ -1311,7 +1312,41 @@ export abstract class TemplateElement<S> extends LitElement {
     }
   };
 
-  /** The floating memo keeps its right edge clear of the hand-off dock, whose width follows its labels. */
+  /**
+   * The supplements bar at the bottom of the main column: one tab per
+   * supplement, opening it alone above the bar. It exists only when the author
+   * slotted a supplement, and follows the slot as the author adds more.
+   */
+  #renderSupplements(messages: CoreMessages): TemplateResult {
+    const supplements = supplementsOf(this, messages.memo);
+    const open = supplements.find((supplement) => supplement.element === this.#openSupplement) ?? null;
+    return html`<div class="dpk-supplements" ?hidden=${supplements.length === 0} ?data-open=${open !== null}>
+      <div class="dpk-supplements-bar" role="group" aria-label=${messages.supplements}>
+        ${iconChevronRight()}
+        ${supplements.map(
+          (supplement) =>
+            html`<button
+              type="button"
+              class="dpk-supplement-tab"
+              aria-expanded=${String(supplement === open)}
+              aria-controls="dpk-supplements-body"
+              @click=${() => {
+                this.#openSupplement = supplement === open ? null : supplement.element;
+                this.requestUpdate();
+              }}
+            >
+              ${supplement.name}
+            </button>`,
+        )}
+      </div>
+      <div class="dpk-supplements-body" id="dpk-supplements-body" ?hidden=${open === null}>
+        <style .textContent=${open === null ? '' : openSupplementRule(this, open)}></style>
+        <slot name=${SUPPLEMENT_SLOT} @slotchange=${() => this.requestUpdate()}></slot>
+      </div>
+    </div>`;
+  }
+
+  /** The supplements bar keeps its right edge clear of the hand-off dock, whose width follows its labels. */
   #reserveDockSpace(): void {
     const shell = this.renderRoot.querySelector<HTMLElement>('.dpk-shell');
     const dock = this.renderRoot.querySelector<HTMLElement>('.dpk-dock-actions');
