@@ -3,7 +3,7 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { Lock, Network } from 'lucide';
 
 import type { DraftAction } from '../../../core/types';
-import type { StoryLabel, StoryLink, UserStory } from '../model';
+import type { Estimate, StoryLabel, StoryLink, UserStory } from '../model';
 
 import { iconComment, lucide } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
@@ -79,6 +79,23 @@ const cardStyles = css`
     align-items: flex-start;
     gap: 8px;
     min-width: 0;
+  }
+
+  /* The estimate sits at the end of the head, small and set in figures, like a ticket's size. */
+  .estimate-chip {
+    flex: none;
+    margin-left: auto;
+    padding: 0 6px;
+    border: 1px solid color-mix(in oklab, var(--card-tone) 30%, var(--dpk-rule-strong));
+    border-radius: 5px;
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    font-weight: 650;
+    line-height: 17px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .card-status {
@@ -299,6 +316,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
     statuses: { attribute: false },
     labels: { attribute: false },
     notes: { attribute: false },
+    estimate: { attribute: false },
     blocks: { type: Number },
     waits: { type: Number },
     focused: { type: Boolean, reflect: true },
@@ -315,6 +333,8 @@ export class DpkInternalUsmStoryCard extends LitElement {
   /** Comments already left on this story. */
   declare notes: readonly DraftAction[];
   /** How many stories wait on this one. */
+  /** The story's estimate, `null` while it has none. */
+  declare estimate: Estimate | null;
   declare blocks: number;
   /** How many unfinished stories this one waits on. */
   declare waits: number;
@@ -330,6 +350,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
     this.statuses = [];
     this.labels = [];
     this.notes = [];
+    this.estimate = null;
     this.blocks = 0;
     this.waits = 0;
     this.focused = false;
@@ -345,6 +366,15 @@ export class DpkInternalUsmStoryCard extends LitElement {
       <div class="card-head">
         ${this.statuses.length === 0 ? nothing : this.#renderStatus(m, story)}
         <div class="card-name"><span>${story.name}</span></div>
+        ${
+          this.estimate
+            ? html`<span
+                class="estimate-chip"
+                title=${m.estimateChipTitle(m.estimateText(this.estimate.name, this.estimate.points))}
+                >${this.estimate.name}</span
+              >`
+            : nothing
+        }
       </div>
       ${
         story.description

@@ -1,3 +1,4 @@
+import type { AxisUnit } from './burndown-chart';
 import type { StatusIcon, StatusTone } from './model';
 
 import { defineMessages } from '../../core/i18n';
@@ -42,6 +43,16 @@ export const usmMessages = defineMessages({
     removeStoryLabel: 'Unlabel story',
     addStoryBlocker: 'Make story wait on',
     removeStoryBlocker: 'Stop story waiting on',
+    changeMilestoneDueDate: 'Change milestone due date',
+    changeStatusWeight: 'Change status weight',
+    addEstimate: 'Add estimate',
+    renameEstimate: 'Rename estimate',
+    changeEstimatePoints: 'Change estimate points',
+    deleteEstimate: 'Delete estimate',
+    reorderEstimate: 'Reorder estimate',
+    setStoryEstimate: 'Estimate story',
+    recordSnapshot: 'Record burndown snapshot',
+    deleteSnapshot: 'Delete burndown snapshot',
 
     // ------------------------------------------------- action summary bodies
     toValue: (value: string) => `→ “${value}”`,
@@ -52,6 +63,7 @@ export const usmMessages = defineMessages({
     afterName: (name: string) => `→ Right after “${name}”`,
     toUnassigned: '→ Unassigned',
     toName: (name: string) => `→ ${name}`,
+    snapshotSummary: (at: string, stories: number) => `${at} · ${stories === 1 ? '1 story' : `${stories} stories`}`,
 
     // ----------------------------------------------------------- target labels
     activityGroup: 'Activity',
@@ -60,6 +72,8 @@ export const usmMessages = defineMessages({
     milestoneGroup: 'Milestone',
     statusGroup: 'Status',
     labelGroup: 'Label',
+    estimateGroup: 'Estimate',
+    snapshotGroup: 'Snapshot',
     mapGroup: 'Map',
     targetLabel: (group: string, name: string) => `${group} · ${name}`,
     targetMissing: (group: string, id: string) => `${group} · ${id} (missing)`,
@@ -92,6 +106,7 @@ export const usmMessages = defineMessages({
     milestonesTab: 'Milestones',
     statusesTab: 'Statuses',
     labelsTab: 'Labels',
+    burndownTab: 'Burndown',
 
     // ---------------------------------------------------- milestones tab
     shareOfStories: (percent: number) => `${percent}% of all stories`,
@@ -134,6 +149,8 @@ export const usmMessages = defineMessages({
     moveUpAria: 'Move up',
     moveDownAria: 'Move down',
     deleteStatusAria: 'Delete this status',
+    statusWeightLabel: 'Weight to next',
+    statusWeightHint: 'The effort of moving a story on to the next status. The burndown weighs the work left by it.',
 
     // --------------------------------------------------------- labels tab
     labelNameLabel: 'Label name',
@@ -141,6 +158,43 @@ export const usmMessages = defineMessages({
     noLabelsBody: 'Add labels such as Dev / PdM to sort stories however the team likes. The kit gives them no meaning.',
     newLabelButton: '+ Label',
     deleteLabelAria: 'Delete this label',
+
+    // ------------------------------------------------------- burndown tab
+    burndownMilestoneLabel: 'Milestone',
+    dueDateLabel: 'Due',
+    noDueDate: 'No due date',
+    unitLabel: 'Count',
+    unitName: (unit: 'points' | 'stories') => ({ points: 'Points', stories: 'Stories' })[unit],
+    recordSnapshotButton: 'Record snapshot',
+    recordSnapshotHint: 'Keeps today’s totals per milestone and status, so the lines have a point to start from.',
+    combinedChartTitle: 'Weighted burndown',
+    combinedChartHint: (unit: string) =>
+      `${unit} of each story × the status weights it still has ahead of it. It reaches 0 when every story is done.`,
+    statusChartTitle: (name: string) => `Left to reach “${name}”`,
+    statusChartsLabel: 'By status',
+    chartNow: 'Now',
+    chartToday: 'Today',
+    chartDue: 'Due',
+    chartIdeal: 'Ideal',
+    chartActual: 'Actual',
+    chartAbout: 'How this chart is counted',
+    axisDate: (at: number, unit: AxisUnit) => axisDate('en-US', at, unit),
+    chartAria: (title: string, value: number) => `${title}: ${value} now`,
+    chartLatest: (value: number) => `Now ${value}`,
+    chartNeedsSnapshot: 'Record a snapshot to draw the line from.',
+    snapshotsLabel: 'Snapshots',
+    noSnapshots: 'No snapshot yet.',
+    deleteSnapshotAria: (at: string) => `Delete the snapshot of ${at}`,
+    noMilestonesForBurndown: 'Add a milestone on the Milestones tab to see its burndown.',
+    unestimatedNote: (count: number) =>
+      `${count === 1 ? '1 story has' : `${count} stories have`} no estimate and count as 1 point each.`,
+    estimatesLabel: 'Estimate scale',
+    estimatesHint: 'Name and points of each size a story can be estimated at (1, 2, 3 … or S, M, L).',
+    estimateNameLabel: 'Estimate name',
+    estimatePointsLabel: 'Points',
+    newEstimateButton: '+ Estimate',
+    deleteEstimateAria: 'Delete this estimate',
+    noEstimates: 'No estimate scale yet: the burndown counts stories.',
 
     // ---------------------------------------------------------- move dialog
     moveDialogLabel: 'Step to move to',
@@ -172,6 +226,11 @@ export const usmMessages = defineMessages({
     waitsChip: (count: number) => `Waits on ${count}`,
     blocksChipTitle: (count: number) => `${count} ${count === 1 ? 'story waits' : 'stories wait'} on this one`,
     waitsChipTitle: (count: number) => `Waits on ${count} unfinished ${count === 1 ? 'story' : 'stories'}`,
+    storyEstimateLabel: 'Estimate',
+    unestimated: 'None',
+    estimateText: (name: string, points: number) => (name === String(points) ? name : `${name} (${points} pt)`),
+    estimateChipTitle: (text: string) => `Estimate: ${text}`,
+    manageEstimates: 'Manage the scale',
     linkUrlLabel: 'URL',
     addLinkButton: 'Add',
     removeLinkAria: (label: string) => `Remove ${label}`,
@@ -187,6 +246,7 @@ export const usmMessages = defineMessages({
     newStoryName: 'New story',
     newStatusName: 'New status',
     newLabelName: 'New label',
+    newEstimateName: 'New',
   },
   ja: {
     renameActivity: 'アクティビティ名を変更',
@@ -226,6 +286,16 @@ export const usmMessages = defineMessages({
     removeStoryLabel: 'ストーリーのラベルを外す',
     addStoryBlocker: 'ストーリーの依存先を追加',
     removeStoryBlocker: 'ストーリーの依存先を外す',
+    changeMilestoneDueDate: 'マイルストーンの期日を変更',
+    changeStatusWeight: 'ステータスの重みを変更',
+    addEstimate: '見積もりを追加',
+    renameEstimate: '見積もり名を変更',
+    changeEstimatePoints: '見積もりのポイントを変更',
+    deleteEstimate: '見積もりを削除',
+    reorderEstimate: '見積もりの順序を変更',
+    setStoryEstimate: 'ストーリーを見積もる',
+    recordSnapshot: 'バーンダウンのスナップショットを記録',
+    deleteSnapshot: 'バーンダウンのスナップショットを削除',
 
     toValue: (value: string) => `→ 「${value}」`,
     fromTo: (before: string, value: string) => `「${before}」→「${value}」`,
@@ -235,6 +305,7 @@ export const usmMessages = defineMessages({
     afterName: (name: string) => `→ 「${name}」の直後へ`,
     toUnassigned: '→ 未割当へ',
     toName: (name: string) => `→ ${name}`,
+    snapshotSummary: (at: string, stories: number) => `${at} · ${stories} ストーリー`,
 
     activityGroup: 'アクティビティ',
     stepGroup: 'ステップ',
@@ -242,6 +313,8 @@ export const usmMessages = defineMessages({
     milestoneGroup: 'マイルストーン',
     statusGroup: 'ステータス',
     labelGroup: 'ラベル',
+    estimateGroup: '見積もり',
+    snapshotGroup: 'スナップショット',
     mapGroup: 'マップ',
     targetLabel: (group: string, name: string) => `${group} · ${name}`,
     targetMissing: (group: string, id: string) => `${group} · ${id} (missing)`,
@@ -272,6 +345,7 @@ export const usmMessages = defineMessages({
     milestonesTab: 'マイルストーン',
     statusesTab: 'ステータス',
     labelsTab: 'ラベル',
+    burndownTab: 'バーンダウン',
 
     shareOfStories: (percent: number) => `全ストーリーの ${percent}%`,
     coverageLabel: 'バックボーンの網羅',
@@ -312,6 +386,8 @@ export const usmMessages = defineMessages({
     moveUpAria: '上へ移動',
     moveDownAria: '下へ移動',
     deleteStatusAria: 'このステータスを削除',
+    statusWeightLabel: '次への重み',
+    statusWeightHint: 'ストーリーを次のステータスへ進める手間です。バーンダウンは残作業をこの重みで量ります。',
 
     labelNameLabel: 'ラベル名',
     noLabelsTitle: 'ラベルがまだありません',
@@ -319,6 +395,41 @@ export const usmMessages = defineMessages({
       'Dev / PdM のようなラベルを追加すると、チームの運用に合わせてストーリーを区分けできます。ラベルの意味は仕組み側では決めません。',
     newLabelButton: '+ ラベル',
     deleteLabelAria: 'このラベルを削除',
+
+    burndownMilestoneLabel: 'マイルストーン',
+    dueDateLabel: '期日',
+    noDueDate: '期日なし',
+    unitLabel: '数える単位',
+    unitName: (unit: 'points' | 'stories') => ({ points: 'ポイント', stories: 'ストーリー数' })[unit],
+    recordSnapshotButton: 'スナップショットを記録',
+    recordSnapshotHint: '今のマイルストーン × ステータスごとの集計を残し、線の起点にします。',
+    combinedChartTitle: '重み付きバーンダウンチャート',
+    combinedChartHint: (unit: string) =>
+      `各ストーリーの${unit} × そのストーリーがこの先通るステータスの重み。すべて Done になると 0 です。`,
+    statusChartTitle: (name: string) => `「${name}」に届くまでの残り`,
+    statusChartsLabel: 'ステータス別',
+    chartNow: '現在',
+    chartToday: '今日',
+    chartDue: '期日',
+    chartIdeal: '理想',
+    chartActual: '実績',
+    chartAbout: 'このチャートの数え方',
+    axisDate: (at: number, unit: AxisUnit) => axisDate('ja-JP', at, unit),
+    chartAria: (title: string, value: number) => `${title}: 現在 ${value}`,
+    chartLatest: (value: number) => `現在 ${value}`,
+    chartNeedsSnapshot: 'スナップショットを記録すると線が引かれます。',
+    snapshotsLabel: 'スナップショット',
+    noSnapshots: 'スナップショットはまだありません。',
+    deleteSnapshotAria: (at: string) => `${at} のスナップショットを削除`,
+    noMilestonesForBurndown: 'マイルストーンタブでマイルストーンを追加すると、そのバーンダウンが見られます。',
+    unestimatedNote: (count: number) => `${count} 件のストーリーは見積もりがなく、1 件 1 ポイントとして数えています。`,
+    estimatesLabel: '見積もりの目盛り',
+    estimatesHint: 'ストーリーに付けられる見積もりの名前とポイント（1, 2, 3 … や S, M, L）。',
+    estimateNameLabel: '見積もり名',
+    estimatePointsLabel: 'ポイント',
+    newEstimateButton: '+ 見積もり',
+    deleteEstimateAria: 'この見積もりを削除',
+    noEstimates: '見積もりの目盛りがまだないため、バーンダウンはストーリー数で数えます。',
 
     moveDialogLabel: '移動先のアクティビティ',
     moveDialogSelectLabel: '移動先',
@@ -348,6 +459,11 @@ export const usmMessages = defineMessages({
     waitsChip: (count: number) => `${count} 件待ち`,
     blocksChipTitle: (count: number) => `${count} 件のストーリーがこれを待っています`,
     waitsChipTitle: (count: number) => `未完了の ${count} 件のストーリーを待っています`,
+    storyEstimateLabel: '見積もり',
+    unestimated: 'なし',
+    estimateText: (name: string, points: number) => (name === String(points) ? name : `${name}（${points} pt）`),
+    estimateChipTitle: (text: string) => `見積もり: ${text}`,
+    manageEstimates: '目盛りを管理',
     linkUrlLabel: 'URL',
     addLinkButton: '追加',
     removeLinkAria: (label: string) => `${label} を外す`,
@@ -362,7 +478,31 @@ export const usmMessages = defineMessages({
     newStoryName: '新しいストーリー',
     newStatusName: '新しいステータス',
     newLabelName: '新しいラベル',
+    newEstimateName: '新規',
   },
 });
 
 export type UsmMessages = ReturnType<typeof usmMessages>;
+
+/**
+ * A date on a chart's time axis, as precise as its ticks: the day for day and
+ * week ticks, the month (with the year in January) for month and quarter
+ * ticks, the year for year ticks.
+ */
+const axisDate = (locale: string, at: number, unit: AxisUnit): string => {
+  const date = new Date(at);
+  switch (unit) {
+    case 'day':
+    case 'week':
+    case 'biweek':
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    case 'month':
+    case 'quarter':
+      return new Intl.DateTimeFormat(locale, {
+        month: 'short',
+        ...(date.getMonth() === 0 ? { year: 'numeric' } : {}),
+      }).format(date);
+    case 'year':
+      return new Intl.DateTimeFormat(locale, { year: 'numeric' }).format(date);
+  }
+};

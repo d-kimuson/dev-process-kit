@@ -2,6 +2,7 @@ import type { TemplateRenderContext } from '../../core/shell/contracts';
 import type { UsmMessages } from './messages';
 
 import { createEntityId } from '../../core/target';
+import { tallyOf } from './burndown';
 import { allUsmIds, defaultLabelTone, defaultStatusTone, type UsmState } from './model';
 
 /**
@@ -74,5 +75,26 @@ export const addLabel = (m: UsmMessages, context: TemplateRenderContext<UsmState
     type: 'ADD_LABEL',
     target: { type: 'page', id: 'usm' },
     payload: { id, name: m.newLabelName, tone: defaultLabelTone(context.state.labels.length) },
+  });
+};
+
+/** A new size on the estimate scale, one point above the largest so far. */
+export const addEstimate = (m: UsmMessages, context: TemplateRenderContext<UsmState>): void => {
+  const id = createEntityId('new-estimate', allUsmIds(context.state));
+  const points = Math.max(0, ...context.state.estimates.map((estimate) => estimate.points)) + 1;
+  context.dispatch({
+    type: 'ADD_ESTIMATE',
+    target: { type: 'page', id: 'usm' },
+    payload: { id, name: m.newEstimateName, points },
+  });
+};
+
+/** Keeps the map's totals as they stand now, for the burndown to draw from. */
+export const recordSnapshot = (context: TemplateRenderContext<UsmState>, now: Date): void => {
+  const id = createEntityId(`snapshot-${now.toISOString().slice(0, 10)}`, allUsmIds(context.state));
+  context.dispatch({
+    type: 'RECORD_SNAPSHOT',
+    target: { type: 'page', id: 'usm' },
+    payload: { id, at: now.toISOString(), tally: tallyOf(context.state) },
   });
 };

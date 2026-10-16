@@ -12,6 +12,7 @@ import { onCommit } from '../../../lib/dom/events';
 import { addActivity, addMilestone, addStep, addStory } from '../commands';
 import { dependencyOf } from '../dependencies';
 import {
+  findEstimate,
   flatSteps,
   labelsOfStory,
   stepRefOf,
@@ -605,6 +606,7 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     .statuses=${views}
     .labels=${labelsOfStory(context.state, story)}
     .notes=${notes}
+    .estimate=${findEstimate(context.state, story.estimateId) ?? null}
     .blocks=${dependency.dependents.length}
     .waits=${dependency.openBlockers}
     @click=${() => handlers.selectStory(story.id)}

@@ -74,6 +74,12 @@
                   "title": "ストーリー間の依存関係を追加",
                   "body": "「注文の状態と明細を見る」が 4 件をブロックしているため、v1 の中で先に着手する。",
                   "target": "story:order-detail"
+                },
+                {
+                  "id": "estimates",
+                  "title": "見積もりと MVP のバーンダウンを追加",
+                  "body": "S / M / L で見積もり、Idea → Ready を 7、Ready → Done を 3 と重み付けした。",
+                  "target": "milestone:mvp"
                 }
               ]
             }
@@ -184,12 +190,14 @@
               "id": "mvp",
               "name": "MVP",
               "timeframe": "2026年11月",
+              "dueDate": "2026-11-30",
               "description": "探して、買って、届くまでを一通り通せる最小構成"
             },
             {
               "id": "v1",
               "name": "v1",
               "timeframe": "2027年1月",
+              "dueDate": "2027-01-29",
               "description": "リピート購入と問い合わせの手間を減らす"
             },
             {
@@ -203,13 +211,15 @@
               "id": "idea",
               "name": "Idea",
               "tone": "gray",
-              "icon": "lightbulb"
+              "icon": "lightbulb",
+              "weight": 7
             },
             {
               "id": "ready",
               "name": "Ready",
               "tone": "amber",
-              "icon": "play"
+              "icon": "play",
+              "weight": 3
             },
             {
               "id": "done",
@@ -223,10 +233,66 @@
             { "id": "pdm", "name": "PdM", "tone": "violet" },
             { "id": "design", "name": "Design", "tone": "amber" }
           ],
+          "estimates": [
+            { "id": "s", "name": "S", "points": 1 },
+            { "id": "m", "name": "M", "points": 3 },
+            { "id": "l", "name": "L", "points": 5 }
+          ],
+          "snapshots": [
+            {
+              "id": "snapshot-2026-09-18",
+              "at": "2026-09-18T00:00:00.000Z",
+              "tally": [
+                { "milestoneId": "mvp", "statusId": "idea", "stories": 10, "points": 23 },
+                { "milestoneId": "mvp", "statusId": "ready", "stories": 1, "points": 1 },
+                { "milestoneId": "v1", "statusId": "idea", "stories": 8, "points": 20 },
+                { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
+                { "statusId": "idea", "stories": 1, "points": 0 }
+              ]
+            },
+            {
+              "id": "snapshot-2026-09-25",
+              "at": "2026-09-25T00:00:00.000Z",
+              "tally": [
+                { "milestoneId": "mvp", "statusId": "idea", "stories": 7, "points": 16 },
+                { "milestoneId": "mvp", "statusId": "ready", "stories": 3, "points": 7 },
+                { "milestoneId": "mvp", "statusId": "done", "stories": 1, "points": 1 },
+                { "milestoneId": "v1", "statusId": "idea", "stories": 8, "points": 20 },
+                { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
+                { "statusId": "idea", "stories": 1, "points": 0 }
+              ]
+            },
+            {
+              "id": "snapshot-2026-10-02",
+              "at": "2026-10-02T00:00:00.000Z",
+              "tally": [
+                { "milestoneId": "mvp", "statusId": "idea", "stories": 5, "points": 8 },
+                { "milestoneId": "mvp", "statusId": "ready", "stories": 4, "points": 12 },
+                { "milestoneId": "mvp", "statusId": "done", "stories": 2, "points": 4 },
+                { "milestoneId": "v1", "statusId": "idea", "stories": 9, "points": 21 },
+                { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
+                { "statusId": "idea", "stories": 1, "points": 0 }
+              ]
+            },
+            {
+              "id": "snapshot-2026-10-09",
+              "at": "2026-10-09T00:00:00.000Z",
+              "tally": [
+                { "milestoneId": "mvp", "statusId": "idea", "stories": 3, "points": 6 },
+                { "milestoneId": "mvp", "statusId": "ready", "stories": 4, "points": 10 },
+                { "milestoneId": "mvp", "statusId": "done", "stories": 4, "points": 8 },
+                { "milestoneId": "v1", "statusId": "idea", "stories": 8, "points": 20 },
+                { "milestoneId": "v1", "statusId": "ready", "stories": 2, "points": 4 },
+                { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
+                { "statusId": "idea", "stories": 1, "points": 0 }
+              ]
+            }
+          ],
           "stories": [
             {
               "id": "keyword-search",
               "name": "キーワードで商品を探す",
+              "estimateId": "m",
               "description": "商品名・ブランド・**型番**で検索できる。\n- 0 件のときは近いキーワードを提案する\n- 全角 / 半角の表記ゆれを吸収する",
               "labelIds": ["dev"],
               "activityId": "discover",
@@ -245,6 +311,7 @@
             {
               "id": "category-browse",
               "name": "カテゴリから絞り込む",
+              "estimateId": "s",
               "description": "カテゴリと価格帯・在庫ありで絞り込める",
               "labelIds": ["dev", "pdm"],
               "activityId": "discover",
@@ -255,6 +322,7 @@
             {
               "id": "see-stock",
               "name": "在庫の有無を見て選ぶ",
+              "estimateId": "s",
               "description": "在庫切れは購入ボタンを出さない",
               "activityId": "discover",
               "stepId": "product-detail",
@@ -269,6 +337,7 @@
             {
               "id": "read-reviews",
               "name": "レビューを読んで比べる",
+              "estimateId": "m",
               "description": "星の分布と写真つきレビューを先に出す",
               "labelIds": ["pdm", "design"],
               "activityId": "discover",
@@ -279,6 +348,7 @@
             {
               "id": "add-item",
               "name": "商品をカートに入れる",
+              "estimateId": "s",
               "description": "商品ページと一覧のどちらからでも 1 タップで入れられる",
               "labelIds": ["dev"],
               "activityId": "cart",
@@ -289,6 +359,7 @@
             {
               "id": "change-quantity",
               "name": "数量を変える・外す",
+              "estimateId": "s",
               "description": "カート内で数量を変え、0 にしたら外す。合計はその場で更新する",
               "activityId": "cart",
               "stepId": "edit-cart",
@@ -306,6 +377,7 @@
             {
               "id": "keep-cart",
               "name": "ログインし直してもカートが残る",
+              "estimateId": "m",
               "blockedBy": ["add-item"],
               "description": "ゲストのカートをログイン時に会員のカートへ統合する",
               "activityId": "cart",
@@ -321,6 +393,7 @@
             {
               "id": "enter-address",
               "name": "届け先住所を入力する",
+              "estimateId": "m",
               "description": "郵便番号から住所を補完する。離島は配送不可を先に伝える",
               "activityId": "order",
               "stepId": "delivery",
@@ -330,6 +403,7 @@
             {
               "id": "saved-address",
               "name": "登録済みの住所から選ぶ",
+              "estimateId": "s",
               "description": "よく使う届け先を最大 5 件まで保存して選べる",
               "activityId": "order",
               "stepId": "delivery",
@@ -339,6 +413,7 @@
             {
               "id": "confirm-order",
               "name": "内容を確認して注文を確定する",
+              "estimateId": "l",
               "blockedBy": ["enter-address", "pay-card"],
               "description": "確定時に在庫を**引き当てる**。\n- 引き当てに失敗したら確定せず、在庫切れの商品を示す\n- 二重送信は注文番号で弾く",
               "labelIds": ["design"],
@@ -361,6 +436,7 @@
             {
               "id": "order-mail",
               "name": "注文確認メールを受け取る",
+              "estimateId": "s",
               "blockedBy": ["confirm-order"],
               "description": "注文番号・明細・お届け予定日を載せる",
               "activityId": "order",
@@ -371,6 +447,7 @@
             {
               "id": "pay-card",
               "name": "クレジットカードで払う",
+              "estimateId": "l",
               "description": "カード情報は決済代行のトークンで扱い、自社では**保持しない**。3-D セキュアに対応する",
               "activityId": "pay",
               "stepId": "payment-method",
@@ -389,6 +466,7 @@
             {
               "id": "pay-convenience",
               "name": "コンビニ払いを選ぶ",
+              "estimateId": "m",
               "description": "支払期限は 3 日。期限切れの注文は自動でキャンセルする",
               "activityId": "pay",
               "stepId": "payment-method",
@@ -398,6 +476,7 @@
             {
               "id": "payment-failed",
               "name": "決済に失敗したら別の方法でやり直す",
+              "estimateId": "m",
               "description": "失敗理由を伝え、カートを保ったまま支払い方法を選び直せる",
               "labelIds": ["dev", "pdm"],
               "activityId": "pay",
@@ -413,6 +492,7 @@
             {
               "id": "shipping-status",
               "name": "配送状況を注文詳細で見る",
+              "estimateId": "m",
               "blockedBy": ["order-detail"],
               "description": "配送会社の追跡番号と現在の状態を注文詳細に出す",
               "activityId": "receive",
@@ -437,6 +517,7 @@
             {
               "id": "receive-item",
               "name": "商品を受け取る",
+              "estimateId": "s",
               "description": "置き配と日時指定に対応する",
               "activityId": "receive",
               "stepId": "delivered",
@@ -446,6 +527,7 @@
             {
               "id": "order-list",
               "name": "過去の注文を一覧で見る",
+              "estimateId": "m",
               "description": "新しい順に並べ、状態で絞り込める",
               "activityId": "manage",
               "stepId": "history",
@@ -455,6 +537,7 @@
             {
               "id": "order-detail",
               "name": "注文の状態と明細を見る",
+              "estimateId": "l",
               "description": "注文の状態・明細・支払い方法・届け先を 1 画面で見られる",
               "activityId": "manage",
               "stepId": "history",
@@ -464,6 +547,7 @@
             {
               "id": "self-cancel",
               "name": "出荷指示前なら自分でキャンセルする",
+              "estimateId": "m",
               "blockedBy": ["order-detail"],
               "description": "いまは問い合わせフォーム経由。\n- 出荷指示**前**だけボタンを出す\n- キャンセル後は `refund_pending` に移す",
               "labelIds": ["pdm"],
@@ -483,6 +567,7 @@
             {
               "id": "cancel-reason",
               "name": "キャンセル理由を選ぶ",
+              "estimateId": "s",
               "blockedBy": ["self-cancel"],
               "description": "理由は選択式。集計して商品ページの改善に使う",
               "activityId": "manage",
@@ -493,6 +578,7 @@
             {
               "id": "partial-cancel",
               "name": "一部の商品だけキャンセルする",
+              "estimateId": "l",
               "blockedBy": ["order-detail", "self-cancel"],
               "description": "初回リリースの対象外",
               "activityId": "manage",
@@ -503,6 +589,7 @@
             {
               "id": "return-after-ship",
               "name": "出荷後に返品を申し込む",
+              "estimateId": "l",
               "blockedBy": ["order-detail"],
               "description": "到着から 7 日以内。返送ラベルを発行する",
               "activityId": "manage",
@@ -513,6 +600,7 @@
             {
               "id": "refund-mail",
               "name": "返金完了のメールを受け取る",
+              "estimateId": "s",
               "blockedBy": ["self-cancel"],
               "description": "返金額と返金先、反映までの目安を知らせる",
               "activityId": "manage",
@@ -523,6 +611,7 @@
             {
               "id": "refund-status",
               "name": "返金の進み具合を注文詳細で見る",
+              "estimateId": "m",
               "description": "`返金待ち` → `取消済み` の 2 段階で見せる",
               "activityId": "manage",
               "stepId": "refund",
@@ -537,6 +626,7 @@
             {
               "id": "point-refund",
               "name": "使ったポイント・クーポンが戻る",
+              "estimateId": "m",
               "description": "使ったポイントとクーポンを返金時に戻す。期限切れのものは戻さない",
               "activityId": "manage",
               "stepId": "refund",

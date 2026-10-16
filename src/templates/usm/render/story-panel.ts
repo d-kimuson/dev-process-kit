@@ -62,7 +62,8 @@ export const renderStoryPanel = (
         ></dpk-component-inline-edit>
       </h2>
       ${state.statuses.length === 0 ? nothing : renderStatusField(m, context, story)}
-      ${renderLabelsField(m, context, story)} ${renderDependenciesField(m, context, story)}
+      ${renderEstimateField(m, context, story)} ${renderLabelsField(m, context, story)}
+      ${renderDependenciesField(m, context, story)}
       <section class="sp-field">
         <h3>${m.storyDescriptionLabel}</h3>
         <dpk-component-inline-edit
@@ -124,6 +125,55 @@ const renderStatusField = (
         </button>`,
       )}
     </div>
+  </section>`;
+};
+
+/**
+ * The estimate scale as a radio group, with "none" first: a story need not be
+ * estimated. The scale itself is kept on the burndown tab.
+ */
+const renderEstimateField = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  story: UserStory,
+): TemplateResult => {
+  const current = story.estimateId ?? null;
+  const pick = (estimateId: string | null) => (): void => {
+    if (estimateId === current) return;
+    context.dispatch({ type: 'SET_STORY_ESTIMATE', target: { type: 'story', id: story.id }, payload: { estimateId } });
+  };
+  const options = [
+    { id: null, name: m.unestimated, title: m.unestimated },
+    ...context.state.estimates.map((estimate) => ({
+      id: estimate.id,
+      name: estimate.name,
+      title: m.estimateText(estimate.name, estimate.points),
+    })),
+  ];
+  return html`<section class="sp-field">
+    <h3 id="sp-estimate-label" class="sp-field-head">
+      <span>${m.storyEstimateLabel}</span>
+      <a class="sp-manage" href=${context.hashFor({ tab: 'burndown', story: null })}>${m.manageEstimates}</a>
+    </h3>
+    ${
+      context.state.estimates.length === 0
+        ? html`<p class="sp-empty">${m.noEstimates}</p>`
+        : html`<div class="sp-estimates" role="radiogroup" aria-labelledby="sp-estimate-label">
+            ${options.map(
+              (option) => html`<button
+                class="sp-estimate"
+                type="button"
+                role="radio"
+                data-estimate=${option.id ?? ''}
+                title=${option.title}
+                aria-checked=${String(option.id === current)}
+                @click=${pick(option.id)}
+              >
+                ${option.name}
+              </button>`,
+            )}
+          </div>`
+    }
   </section>`;
 };
 
@@ -497,6 +547,44 @@ export const storyPanelStyles = css`
     border-color: var(--usm-tone);
     background: color-mix(in oklab, var(--usm-tone) 14%, var(--dpk-paper-raised));
     box-shadow: inset 0 0 0 1px var(--usm-tone);
+  }
+  .sp-estimates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .sp-estimate {
+    min-width: 34px;
+    padding: 4px 10px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
+    font: inherit;
+    font-family: var(--dpk-mono);
+    font-size: 12px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease);
+  }
+  .sp-estimate[data-estimate=''] {
+    font-family: inherit;
+    font-weight: 550;
+  }
+  .sp-estimate:hover {
+    border-color: var(--dpk-rule-hover);
+  }
+  .sp-estimate:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+  .sp-estimate[aria-checked='true'] {
+    border-color: var(--dpk-ink);
+    background: var(--dpk-ink);
+    color: var(--dpk-paper-raised);
   }
   .sp-field-head {
     display: flex;

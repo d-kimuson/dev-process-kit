@@ -1,0 +1,384 @@
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import type { DraftAction } from '../../core/types';
+import type { DpkTemplateUsm } from './element';
+
+import '../../index';
+import { applyUsmAction } from './apply';
+import { burndownMilestoneOf, burndownOf, burndownUnitOf, tallyOf } from './burndown';
+import { layoutChart, readoutAt, timeTicks, valueTicks } from './burndown-chart';
+import { usmDefinitionFor } from './definition';
+import { usmMessages } from './messages';
+import { parseUsmBase, type UsmState } from './model';
+import { resolveUsmNavigation } from './present';
+
+const m = usmMessages('en');
+const definition = usmDefinitionFor('en');
+
+// Idea → Demo costs 7, Demo → Ready 2, Ready → Done 1: a story at Idea has 10 to go.
+const raw = {
+  activities: [{ id: 'a1', name: 'A1', steps: [{ id: 's1', name: 'S1' }] }],
+  milestones: [
+    { id: 'mvp', name: 'MVP', dueDate: '2026-11-30' },
+    { id: 'v1', name: 'v1' },
+  ],
+  statuses: [
+    { id: 'idea', name: 'Idea', weight: 7 },
+    { id: 'demo', name: 'Demo', weight: 2 },
+    { id: 'ready', name: 'Ready', weight: 1 },
+    { id: 'done', name: 'Done' },
+  ],
+  estimates: [
+    { id: 'S', name: 'S', points: 1 },
+    { id: 'M', name: 'M', points: 3 },
+    { id: 'L', name: 'L', points: 5 },
+  ],
+  stories: [
+    { id: 'a', name: 'A', activityId: 'a1', stepId: 's1', milestoneId: 'mvp', statusId: 'idea', estimateId: 'L' },
+    { id: 'b', name: 'B', activityId: 'a1', stepId: 's1', milestoneId: 'mvp', statusId: 'demo', estimateId: 'M' },
+    { id: 'c', name: 'C', activityId: 'a1', stepId: 's1', milestoneId: 'mvp', statusId: 'ready', estimateId: 'S' },
+    { id: 'd', name: 'D', activityId: 'a1', stepId: 's1', milestoneId: 'mvp', statusId: 'done', estimateId: 'M' },
+    { id: 'e', name: 'E', activityId: 'a1', stepId: 's1', milestoneId: 'mvp', statusId: 'idea' },
+    { id: 'f', name: 'F', activityId: 'a1', stepId: 's1', statusId: 'idea', estimateId: 'S' },
+  ],
+  snapshots: [
+    {
+      id: 'snap1',
+      at: '2026-10-01T00:00:00.000Z',
+      tally: [
+        { milestoneId: 'mvp', statusId: 'idea', stories: 4, points: 12 },
+        { milestoneId: 'mvp', statusId: 'demo', stories: 1, points: 3 },
+      ],
+    },
+  ],
+};
+
+const base = parseUsmBase(raw);
+const NOW = Date.parse('2026-10-16T00:00:00.000Z');
+
+const act = (type: string, target: { type: string; id: string }, payload: unknown): DraftAction => {
+  return { id: 'x', type, target, payload, createdAt: '2026-01-01T00:00:00Z' };
+};
+
+const apply = (state: UsmState, type: string, target: { type: string; id: string }, payload: unknown) => {
+  return applyUsmAction(state, act(type, target, payload));
+};
+
+const storyOf = (state: UsmState | null, id: string) => state?.stories.find((story) => story.id === id);
+
+describe('usm estimates and burndown: model', () => {
+  it('rejects an unknown estimate, a bad due date and a tally of unknown statuses', () => {
+    const withStory = (patch: object) => ({
+      ...raw,
+      stories: raw.stories.map((story) => (story.id === 'a' ? { ...story, ...patch } : story)),
+    });
+    expect(() => parseUsmBase(withStory({ estimateId: 'XL' }))).toThrow(/unknown estimateId/);
+    expect(() =>
+      parseUsmBase({ ...raw, milestones: [{ id: 'mvp', name: 'MVP', dueDate: '2026-13-01' }, raw.milestones[1]] }),
+    ).toThrow();
+    expect(() =>
+      parseUsmBase({
+        ...raw,
+        snapshots: [
+          { id: 'snap1', at: '2026-10-01T00:00:00.000Z', tally: [{ statusId: 'nope', stories: 1, points: 1 }] },
+        ],
+      }),
+    ).toThrow(/unknown statusId/);
+    expect(() => parseUsmBase({ ...raw, estimates: [{ id: 'S', name: 'S', points: -1 }] })).toThrow();
+  });
+
+  it('tallies the map by milestone and status, with the points of each estimate (1 while there is none)', () => {
+    expect(tallyOf(base)).toEqual([
+      { milestoneId: 'mvp', statusId: 'idea', stories: 2, points: 5 + 1 },
+      { milestoneId: 'mvp', statusId: 'demo', stories: 1, points: 3 },
+      { milestoneId: 'mvp', statusId: 'ready', stories: 1, points: 1 },
+      { milestoneId: 'mvp', statusId: 'done', stories: 1, points: 3 },
+      { statusId: 'idea', stories: 1, points: 1 },
+    ]);
+  });
+
+  it('burns down each status and the work the weights add up to, ending at today', () => {
+    const points = burndownOf(base, 'mvp', 'points', NOW);
+    const snapAt = Date.parse('2026-10-01T00:00:00.000Z');
+    // Combined: points × the weight still ahead (Idea 10, Demo 3, Ready 1, Done 0).
+    expect(points.combined).toEqual([
+      { at: snapAt, value: 12 * 10 + 3 * 3, snapshotId: 'snap1' },
+      { at: NOW, value: 6 * 10 + 3 * 3 + 1 * 1 },
+    ]);
+    // One line per status a story can reach: what has not reached it yet.
+    expect(points.byStatus.map((line) => [line.status.id, line.points.map((point) => point.value)])).toEqual([
+      ['demo', [12, 6]],
+      ['ready', [15, 9]],
+      ['done', [15, 10]],
+    ]);
+    expect(points.due).toBe(new Date(2026, 10, 30, 23, 59, 59).getTime());
+    const stories = burndownOf(base, 'mvp', 'stories', NOW);
+    expect(stories.combined.at(-1)?.value).toBe(2 * 10 + 1 * 3 + 1 * 1);
+    expect(burndownOf(base, 'v1', 'points', NOW).due).toBeNull();
+  });
+});
+
+describe('usm estimates and burndown: actions', () => {
+  it('estimates a story, and clears it again', () => {
+    const target = { type: 'story', id: 'e' };
+    const estimated = apply(base, 'SET_STORY_ESTIMATE', target, { estimateId: 'M' });
+    expect(storyOf(estimated, 'e')?.estimateId).toBe('M');
+    expect(storyOf(apply(estimated!, 'SET_STORY_ESTIMATE', target, { estimateId: null }), 'e')).not.toHaveProperty(
+      'estimateId',
+    );
+    expect(apply(base, 'SET_STORY_ESTIMATE', target, { estimateId: 'XL' })).toBeNull();
+  });
+
+  it('edits the scale; deleting an estimate leaves its stories unestimated', () => {
+    const added = apply(base, 'ADD_ESTIMATE', { type: 'page', id: 'usm' }, { id: 'XL', name: 'XL', points: 8 });
+    expect(added?.estimates.map((estimate) => estimate.id)).toEqual(['S', 'M', 'L', 'XL']);
+    const renamed = apply(base, 'SET_ESTIMATE_NAME', { type: 'estimate', id: 'L' }, { name: 'Large' });
+    expect(renamed?.estimates[2]).toEqual({ id: 'L', name: 'Large', points: 5 });
+    const repointed = apply(base, 'SET_ESTIMATE_POINTS', { type: 'estimate', id: 'L' }, { points: 8 });
+    expect(repointed?.estimates[2]?.points).toBe(8);
+    expect(apply(base, 'SET_ESTIMATE_POINTS', { type: 'estimate', id: 'L' }, { points: -1 })).toBeNull();
+    const reordered = apply(base, 'REORDER_ESTIMATE', { type: 'estimate', id: 'L' }, { after: null });
+    expect(reordered?.estimates.map((estimate) => estimate.id)).toEqual(['L', 'S', 'M']);
+    const deleted = apply(base, 'DELETE_ESTIMATE', { type: 'estimate', id: 'M' }, {});
+    expect(storyOf(deleted, 'b')).not.toHaveProperty('estimateId');
+    expect(storyOf(deleted, 'd')).not.toHaveProperty('estimateId');
+  });
+
+  it('sets a status weight and a milestone due date', () => {
+    const weighted = apply(base, 'SET_STATUS_WEIGHT', { type: 'status', id: 'demo' }, { weight: 4 });
+    expect(weighted?.statuses[1]?.weight).toBe(4);
+    const due = apply(base, 'SET_MILESTONE_DUE_DATE', { type: 'milestone', id: 'v1' }, { dueDate: '2027-01-31' });
+    expect(due?.milestones[1]).toEqual({ id: 'v1', name: 'v1', dueDate: '2027-01-31' });
+    const cleared = apply(base, 'SET_MILESTONE_DUE_DATE', { type: 'milestone', id: 'mvp' }, { dueDate: null });
+    expect(cleared?.milestones[0]).not.toHaveProperty('dueDate');
+    expect(
+      apply(base, 'SET_MILESTONE_DUE_DATE', { type: 'milestone', id: 'mvp' }, { dueDate: '2026-02-30' }),
+    ).toBeNull();
+  });
+
+  it('records a snapshot of the tally, and deletes it', () => {
+    const page = { type: 'page', id: 'usm' };
+    const payload = { id: 'snap2', at: '2026-10-16T00:00:00.000Z', tally: tallyOf(base) };
+    const recorded = apply(base, 'RECORD_SNAPSHOT', page, payload);
+    expect(recorded?.snapshots.at(-1)).toEqual(payload);
+    expect(apply(recorded!, 'RECORD_SNAPSHOT', page, payload)).toBe(recorded);
+    const unknown = { ...payload, tally: [{ statusId: 'nope', stories: 1, points: 0 }] };
+    expect(apply(base, 'RECORD_SNAPSHOT', page, unknown)).toBeNull();
+    const deleted = apply(recorded!, 'DELETE_SNAPSHOT', { type: 'snapshot', id: 'snap1' }, {});
+    expect(deleted?.snapshots.map((snapshot) => snapshot.id)).toEqual(['snap2']);
+  });
+
+  it('keeps the recorded tallies when their status or milestone goes away', () => {
+    const noDemo = apply(base, 'DELETE_STATUS', { type: 'status', id: 'demo' }, {});
+    expect(noDemo?.snapshots[0]?.tally).toEqual([{ milestoneId: 'mvp', statusId: 'idea', stories: 5, points: 15 }]);
+    const noMvp = apply(base, 'DELETE_MILESTONE', { type: 'milestone', id: 'mvp' }, {});
+    expect(noMvp?.snapshots[0]?.tally).toEqual([
+      { statusId: 'idea', stories: 4, points: 12 },
+      { statusId: 'demo', stories: 1, points: 3 },
+    ]);
+  });
+
+  it('describes the new actions', () => {
+    expect(
+      definition.describe(act('SET_STORY_ESTIMATE', { type: 'story', id: 'e' }, { estimateId: 'M' }), base, base),
+    ).toMatchObject({ title: m.setStoryEstimate, targetLabel: 'Story · E', summary: '→ “M”' });
+    const snapshot = act(
+      'RECORD_SNAPSHOT',
+      { type: 'page', id: 'usm' },
+      { id: 'snap2', at: '2026-10-16T00:00:00.000Z', tally: [] },
+    );
+    expect(definition.describe(snapshot, base, base)).toMatchObject({ title: m.recordSnapshot });
+  });
+});
+
+describe('usm estimates and burndown: navigation and chart', () => {
+  it('shows the first milestone with a due date and counts points once there is a scale', () => {
+    expect(burndownMilestoneOf(base, {})?.id).toBe('mvp');
+    expect(burndownMilestoneOf(base, { milestone: 'v1' })?.id).toBe('v1');
+    expect(burndownUnitOf(base, {})).toBe('points');
+    expect(burndownUnitOf(base, { unit: 'stories' })).toBe('stories');
+    expect(burndownUnitOf(parseUsmBase({ ...raw, estimates: [], stories: [] }), {})).toBe('stories');
+  });
+
+  it('keeps only a real milestone and unit in the navigation', () => {
+    const nav = resolveUsmNavigation(base, { tab: 'burndown', milestone: 'nope', unit: 'hours' });
+    expect(nav).toMatchObject({ tab: 'burndown' });
+    expect(nav).not.toHaveProperty('milestone');
+    expect(nav).not.toHaveProperty('unit');
+    expect(resolveUsmNavigation(base, { tab: 'burndown', milestone: 'v1', unit: 'stories' })).toMatchObject({
+      milestone: 'v1',
+      unit: 'stories',
+    });
+  });
+
+  it('ticks the value axis on round whole numbers above the highest value', () => {
+    expect(valueTicks(0)).toEqual([0, 1]);
+    expect(valueTicks(1)).toEqual([0, 1]);
+    expect(valueTicks(7)).toEqual([0, 2, 4, 6, 8]);
+    expect(valueTicks(24)).toEqual([0, 10, 20, 30]);
+    expect(valueTicks(129)).toEqual([0, 50, 100, 150]);
+    expect(valueTicks(233)).toEqual([0, 100, 200, 300]);
+  });
+
+  it('draws the ideal line from the first point down to 0 at the due date', () => {
+    const size = { width: 100, height: 100, inset: { top: 0, right: 0, bottom: 0, left: 0 } };
+    const day = 24 * 60 * 60 * 1000;
+    const layout = layoutChart(
+      [
+        { at: 0, value: 10, snapshotId: 's' },
+        { at: day, value: 5 },
+      ],
+      2 * day,
+      day,
+      size,
+    );
+    expect(layout.line).toBe('0,0 50,50');
+    expect(layout.ideal).toEqual({ x1: 0, y1: 0, x2: 100, y2: 100 });
+    expect(layout.nowX).toBe(50);
+    expect(layout.dueX).toBe(100);
+    expect(layoutChart([{ at: day, value: 5 }], null, day, size).ideal).toBeNull();
+  });
+
+  it('ticks the time axis by the finest unit that fits: days, weeks, two weeks, months', () => {
+    const at = (month: number, day: number, hour = 0) => new Date(2026, month - 1, day, hour).getTime();
+    expect(timeTicks(at(10, 1, 12), at(10, 5, 12), 10)).toEqual({
+      unit: 'day',
+      ats: [at(10, 2), at(10, 3), at(10, 4), at(10, 5)],
+    });
+    // 2026-10-05 is a Monday: weeks start there
+    const weeks = timeTicks(at(10, 1, 12), at(11, 30, 12), 10);
+    expect(weeks.unit).toBe('week');
+    expect(weeks.ats).toHaveLength(9);
+    expect(weeks.ats[0]).toBe(at(10, 5));
+    expect(timeTicks(at(10, 1, 12), at(11, 30, 12), 5)).toEqual({
+      unit: 'biweek',
+      ats: [at(10, 5), at(10, 19), at(11, 2), at(11, 16), at(11, 30)],
+    });
+    expect(timeTicks(at(10, 1, 12), at(11, 30, 12), 3)).toEqual({ unit: 'month', ats: [at(11, 1)] });
+    const long = timeTicks(at(1, 15), new Date(2028, 0, 15).getTime(), 10);
+    expect(long.unit).toBe('quarter');
+    expect(long.ats[0]).toBe(at(4, 1));
+  });
+
+  it('reads both lines where the pointer is, snapping to a point close by', () => {
+    const size = { width: 100, height: 100, inset: { top: 0, right: 0, bottom: 0, left: 0 } };
+    const day = 24 * 60 * 60 * 1000;
+    // actual 10 → 6 over the first two days; ideal 10 → 0 over four
+    const layout = layoutChart(
+      [
+        { at: 0, value: 10, snapshotId: 's' },
+        { at: 2 * day, value: 6 },
+      ],
+      4 * day,
+      2 * day,
+      size,
+    );
+    expect(readoutAt(layout, 25)).toMatchObject({ at: day, actual: 8, ideal: 7.5, dot: null, actualY: 20, idealY: 25 });
+    expect(readoutAt(layout, 49)).toMatchObject({ x: 50, at: 2 * day, actual: 6, ideal: 5, dot: { value: 6 } });
+    // past the last point there is only the ideal; past the due date, nothing
+    expect(readoutAt(layout, 75)).toMatchObject({ actual: null, ideal: 2.5, actualY: null, idealY: 75 });
+    expect(readoutAt(layout, 140)).toMatchObject({ x: 100, actual: null, ideal: 0 });
+  });
+});
+
+describe('usm estimates and burndown: element', () => {
+  const settle = async (el: DpkTemplateUsm): Promise<void> => {
+    await el.updateComplete;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await el.updateComplete;
+  };
+
+  const mount = async (hash: string): Promise<DpkTemplateUsm> => {
+    window.location.hash = hash;
+    document.body.innerHTML = `
+      <dpk-template-usm storage="memory">
+        <script type="application/json">${JSON.stringify(raw)}</script>
+      </dpk-template-usm>`;
+    const el = document.querySelector('dpk-template-usm') as DpkTemplateUsm;
+    await el.api.ready;
+    await settle(el);
+    return el;
+  };
+
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+  });
+
+  it('shows the estimate on the card and picks it in the story panel', async () => {
+    const el = await mount('#story=e');
+    const card = el.shadowRoot!.querySelector('dpk-internal-usm-story-card[data-story="a"]') as HTMLElement & {
+      updateComplete: Promise<boolean>;
+    };
+    await card.updateComplete;
+    expect(card.shadowRoot!.querySelector('.estimate-chip')?.textContent?.trim()).toBe('L');
+    const panel = el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')!;
+    (panel.querySelector('[data-estimate="M"]') as HTMLButtonElement).click();
+    await settle(el);
+    expect(el.api.state.stories.find((story) => story.id === 'e')?.estimateId).toBe('M');
+  });
+
+  it('edits the weight of every status but the last', async () => {
+    const el = await mount('#tab=statuses');
+    const inputs = [...el.shadowRoot!.querySelectorAll<HTMLInputElement>('input[data-role="weight"]')];
+    expect(inputs.map((input) => input.value)).toEqual(['7', '2', '1']);
+    const demo = inputs[1]!;
+    demo.value = '4';
+    demo.dispatchEvent(new Event('change'));
+    await settle(el);
+    expect(el.api.state.statuses[1]?.weight).toBe(4);
+  });
+
+  it('draws the combined chart and one per status, and records a snapshot', async () => {
+    const el = await mount('#tab=burndown');
+    const root = el.shadowRoot!;
+    expect(root.querySelector('[data-testid="usm-burndown"]')).not.toBeNull();
+    expect(root.querySelectorAll('dpk-internal-usm-burndown-chart[data-chart="combined"]')).toHaveLength(1);
+    expect(
+      [...root.querySelectorAll('dpk-internal-usm-burndown-chart[data-chart="status"]')].map((chart) =>
+        chart.getAttribute('data-status'),
+      ),
+    ).toEqual(['demo', 'ready', 'done']);
+    (root.querySelector('[data-role="record-snapshot"]') as HTMLButtonElement).click();
+    await settle(el);
+    expect(el.api.state.snapshots).toHaveLength(2);
+    expect(el.api.state.snapshots[1]?.tally).toEqual(tallyOf(base));
+  });
+
+  it('reads both lines out on the point the keyboard reaches', async () => {
+    const el = await mount('#tab=burndown');
+    const chart = el.shadowRoot!.querySelector(
+      'dpk-internal-usm-burndown-chart[data-chart="combined"]',
+    ) as HTMLElement & {
+      updateComplete: Promise<boolean>;
+    };
+    await chart.updateComplete;
+    const plot = chart.shadowRoot!.querySelector('.bd-plot') as HTMLElement;
+    const readout = () => chart.shadowRoot!.querySelector('[data-testid="usm-chart-readout"]');
+    expect(readout()).toBeNull();
+    plot.dispatchEvent(new FocusEvent('focus'));
+    await chart.updateComplete;
+    expect(readout()?.querySelector('.bd-tip-at')?.textContent).toContain(m.chartNow);
+    const actual = readout()?.querySelector('[data-line="actual"] b')?.textContent ?? '';
+    expect(el.shadowRoot!.querySelector('.bd-chart--combined .bd-chart-latest')?.textContent).toBe(
+      m.chartLatest(Number(actual)),
+    );
+    plot.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
+    await chart.updateComplete;
+    expect(readout()?.querySelector('.bd-tip-at')?.textContent).not.toContain(m.chartNow);
+    plot.dispatchEvent(new FocusEvent('blur'));
+    await chart.updateComplete;
+    expect(readout()).toBeNull();
+  });
+
+  it('sets the due date of the milestone it shows', async () => {
+    const el = await mount('#tab=burndown&milestone=v1');
+    const input = el.shadowRoot!.querySelector('input[data-role="due-date"]') as HTMLInputElement;
+    expect(input.value).toBe('');
+    input.value = '2027-01-31';
+    input.dispatchEvent(new Event('change'));
+    await settle(el);
+    expect(el.api.state.milestones[1]?.dueDate).toBe('2027-01-31');
+  });
+});

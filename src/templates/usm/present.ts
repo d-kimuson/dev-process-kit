@@ -14,10 +14,13 @@ import { targetRef } from '../../core/target';
 import { describeLink } from '../../lib/link-label';
 import { usmActions } from './actions';
 import { usmTabOf } from './board-tabs';
+import { BURNDOWN_UNITS, momentLabel } from './burndown';
 import {
   findActivity,
+  findEstimate,
   findLabel,
   findMilestone,
+  findSnapshot,
   findStatus,
   findStep,
   findStory,
@@ -274,6 +277,77 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
       body: m.removed(findStory(state, blockerId)?.name ?? blockerId),
     };
   },
+  SET_MILESTONE_DUE_DATE: (m, action, state) => {
+    const dueDate = payloadFor(usmActions.SET_MILESTONE_DUE_DATE, action)['dueDate'];
+    return {
+      title: m.changeMilestoneDueDate,
+      tone: dueDate === null ? 'delete' : 'update',
+      body: dueDate === null ? m.noDueDate : arrow(m, findMilestone(state, action.target.id)?.dueDate, dueDate),
+    };
+  },
+  SET_STATUS_WEIGHT: (m, action, state) => {
+    const before = findStatus(state, action.target.id)?.weight;
+    const after = payloadFor(usmActions.SET_STATUS_WEIGHT, action)['weight'];
+    return {
+      title: m.changeStatusWeight,
+      tone: 'update',
+      body: arrow(m, before === undefined ? undefined : String(before), String(after)),
+    };
+  },
+  ADD_ESTIMATE: (m, action) => {
+    const { name, points } = payloadFor(usmActions.ADD_ESTIMATE, action);
+    return { title: m.addEstimate, tone: 'create', body: m.added(m.estimateText(name, points)) };
+  },
+  SET_ESTIMATE_NAME: (m, action, state) => ({
+    title: m.renameEstimate,
+    tone: 'update',
+    body: arrow(
+      m,
+      findEstimate(state, action.target.id)?.name,
+      payloadFor(usmActions.SET_ESTIMATE_NAME, action)['name'],
+    ),
+  }),
+  SET_ESTIMATE_POINTS: (m, action, state) => {
+    const before = findEstimate(state, action.target.id)?.points;
+    const after = payloadFor(usmActions.SET_ESTIMATE_POINTS, action)['points'];
+    return {
+      title: m.changeEstimatePoints,
+      tone: 'update',
+      body: arrow(m, before === undefined ? undefined : String(before), String(after)),
+    };
+  },
+  DELETE_ESTIMATE: (m, action, state) => ({
+    title: m.deleteEstimate,
+    tone: 'delete',
+    body: m.removed(findEstimate(state, action.target.id)?.name ?? action.target.id),
+  }),
+  REORDER_ESTIMATE: (m, action) => ({
+    title: m.reorderEstimate,
+    tone: 'move',
+    body: reorderBody(m, payloadFor(usmActions.REORDER_ESTIMATE, action)['after']),
+  }),
+  SET_STORY_ESTIMATE: (m, action, state) => {
+    const estimateId = payloadFor(usmActions.SET_STORY_ESTIMATE, action)['estimateId'];
+    if (estimateId === null) return { title: m.setStoryEstimate, tone: 'delete', body: m.toValue(m.unestimated) };
+    return {
+      title: m.setStoryEstimate,
+      tone: 'update',
+      body: m.toValue(findEstimate(state, estimateId)?.name ?? estimateId),
+    };
+  },
+  RECORD_SNAPSHOT: (m, action) => {
+    const { at, tally } = payloadFor(usmActions.RECORD_SNAPSHOT, action);
+    const stories = tally.reduce((sum, row) => sum + row.stories, 0);
+    return { title: m.recordSnapshot, tone: 'create', body: m.snapshotSummary(momentLabel(at), stories) };
+  },
+  DELETE_SNAPSHOT: (m, action, state) => {
+    const snapshot = findSnapshot(state, action.target.id);
+    return {
+      title: m.deleteSnapshot,
+      tone: 'delete',
+      body: m.removed(snapshot ? momentLabel(snapshot.at) : action.target.id),
+    };
+  },
 } satisfies Record<ActionName<typeof usmActions>, (m: UsmMessages, action: DraftAction, state: UsmState) => Summary>;
 
 export const describeUsmAction = (
@@ -331,6 +405,16 @@ export const usmTargetLabel = (m: UsmMessages, state: UsmState, target: ActionTa
         const label = findLabel(state, target.id);
         return label ? m.targetLabel(m.labelGroup, label.name) : m.targetMissing(m.labelGroup, target.id);
       }
+      case 'estimate': {
+        const estimate = findEstimate(state, target.id);
+        return estimate ? m.targetLabel(m.estimateGroup, estimate.name) : m.targetMissing(m.estimateGroup, target.id);
+      }
+      case 'snapshot': {
+        const snapshot = findSnapshot(state, target.id);
+        return snapshot
+          ? m.targetLabel(m.snapshotGroup, momentLabel(snapshot.at))
+          : m.targetMissing(m.snapshotGroup, target.id);
+      }
       case 'page':
         return m.targetLabel(m.mapGroup, usmTitle(state));
       default:
@@ -374,6 +458,20 @@ export const usmCommentTargets = (
   for (const label of state.labels) {
     options.push({ value: targetRef({ type: 'label', id: label.id }), label: label.name, group: m.labelGroup });
   }
+  for (const estimate of state.estimates) {
+    options.push({
+      value: targetRef({ type: 'estimate', id: estimate.id }),
+      label: m.estimateText(estimate.name, estimate.points),
+      group: m.estimateGroup,
+    });
+  }
+  for (const snapshot of state.snapshots) {
+    options.push({
+      value: targetRef({ type: 'snapshot', id: snapshot.id }),
+      label: momentLabel(snapshot.at),
+      group: m.snapshotGroup,
+    });
+  }
   for (const story of state.stories) {
     options.push({ value: targetRef({ type: 'story', id: story.id }), label: story.name, group: m.storyGroup });
   }
@@ -408,7 +506,8 @@ export const usmTitle = (state: UsmState): string => {
 /**
  * The navigation that brings a target on screen, for a change's "Show": a
  * story, step or activity on the map grouped by activity, unfiltered so the
- * story shows; a milestone, a status or a label on its own page.
+ * story shows; a milestone, a status or a label on its own page; an estimate
+ * or a snapshot on the burndown.
  */
 export const usmNavigationFor = (target: ActionTarget): NavigationPatch | null => {
   switch (target.type) {
@@ -423,6 +522,9 @@ export const usmNavigationFor = (target: ActionTarget): NavigationPatch | null =
       return { tab: 'statuses' };
     case 'label':
       return { tab: 'labels' };
+    case 'estimate':
+    case 'snapshot':
+      return { tab: 'burndown' };
     default:
       return null;
   }
@@ -451,5 +553,8 @@ export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigati
   const tab = usmTabOf(nav);
   if (tab === 'map') delete next['tab'];
   else next['tab'] = tab;
+  // Which milestone the burndown shows and what it counts: kept only while they name something real.
+  if (!findMilestone(state, nav['milestone'])) delete next['milestone'];
+  if (!BURNDOWN_UNITS.some((unit) => unit === nav['unit'])) delete next['unit'];
   return next;
 };

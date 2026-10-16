@@ -8,9 +8,11 @@ import {
   canonicalUsmState,
   emptyUsmBase,
   findActivity,
+  findEstimate,
   findLabel,
   findMilestone,
   findStatus,
+  findSnapshot,
   findStep,
   findStory,
   parseUsmBase,
@@ -41,6 +43,10 @@ export const usmHasTarget = (state: UsmState, target: ActionTarget): boolean => 
       return findStatus(state, target.id) !== undefined;
     case 'label':
       return findLabel(state, target.id) !== undefined;
+    case 'estimate':
+      return findEstimate(state, target.id) !== undefined;
+    case 'snapshot':
+      return findSnapshot(state, target.id) !== undefined;
     case 'page':
       return true;
     default:

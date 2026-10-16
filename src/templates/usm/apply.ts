@@ -4,12 +4,17 @@ import { assertNever, parseTemplateAction } from '../../core/schema';
 import { usmActions } from './actions';
 import { waitsOn } from './dependency-graph';
 import {
+  findEstimate,
   findLabel,
   findMilestone,
+  findSnapshot,
   findStatus,
   findStep,
   findStory,
+  tallyKey,
+  tallyProblem,
   type BackboneActivity,
+  type TallyRow,
   type UsmState,
   type UserStory,
 } from './model';
@@ -217,12 +222,25 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
         ...state,
         milestones: state.milestones.filter((milestone) => milestone.id !== id),
         stories: state.stories.map((story) => (story.milestoneId === id ? stripMilestone(story) : story)),
+        // What the snapshots counted in it stays counted, as unassigned.
+        snapshots: retally(state, (row) => (row.milestoneId === id ? withoutKey(row, 'milestoneId') : row)),
       };
     }
     case 'REORDER_MILESTONE': {
       const { after } = typed.payload;
       const next = reorderById(state.milestones, id, after);
       return next === null ? null : { ...state, milestones: next };
+    }
+    case 'SET_MILESTONE_DUE_DATE': {
+      const { dueDate } = typed.payload;
+      if (!findMilestone(state, id)) return null;
+      return {
+        ...state,
+        milestones: state.milestones.map((milestone) => {
+          if (milestone.id !== id) return milestone;
+          return dueDate === null ? withoutKey(milestone, 'dueDate') : { ...milestone, dueDate };
+        }),
+      };
     }
 
     case 'ADD_STATUS': {
@@ -231,7 +249,12 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       const statuses = [...state.statuses, { id: statusId, name, tone, icon: icon ?? 'progress' }];
       // The map's first status: from now on every story stands somewhere.
       if (state.statuses.length === 0) {
-        return { ...state, statuses, stories: state.stories.map((story) => ({ ...story, statusId })) };
+        return {
+          ...state,
+          statuses,
+          stories: state.stories.map((story) => ({ ...story, statusId })),
+          snapshots: retally(state, (row) => ({ ...row, statusId })),
+        };
       }
       return { ...state, statuses };
     }
@@ -250,6 +273,14 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       if (!findStatus(state, id)) return null;
       return { ...state, statuses: state.statuses.map((status) => (status.id === id ? { ...status, icon } : status)) };
     }
+    case 'SET_STATUS_WEIGHT': {
+      const { weight } = typed.payload;
+      if (!findStatus(state, id)) return null;
+      return {
+        ...state,
+        statuses: state.statuses.map((status) => (status.id === id ? { ...status, weight } : status)),
+      };
+    }
     case 'DELETE_STATUS': {
       if (!findStatus(state, id)) return null;
       const statuses = state.statuses.filter((status) => status.id !== id);
@@ -261,6 +292,11 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
         stories: state.stories.map((story) => {
           if (story.statusId !== id) return story;
           return fallback === undefined ? stripStatus(story) : { ...story, statusId: fallback };
+        }),
+        // The snapshots count those stories where the stories themselves went.
+        snapshots: retally(state, (row) => {
+          if (row.statusId !== id) return row;
+          return fallback === undefined ? withoutKey(row, 'statusId') : { ...row, statusId: fallback };
         }),
       };
     }
@@ -328,6 +364,58 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       if (!findStory(state, id)?.blockedBy?.includes(blockerId)) return null;
       return updateStory(state, id, (current) => withoutBlockers(current, new Set([blockerId])));
     }
+
+    case 'ADD_ESTIMATE': {
+      const { id: estimateId, name, points } = typed.payload;
+      if (findEstimate(state, estimateId)) return state;
+      return { ...state, estimates: [...state.estimates, { id: estimateId, name, points }] };
+    }
+    case 'SET_ESTIMATE_NAME': {
+      const { name } = typed.payload;
+      if (!findEstimate(state, id)) return null;
+      return {
+        ...state,
+        estimates: state.estimates.map((estimate) => (estimate.id === id ? { ...estimate, name } : estimate)),
+      };
+    }
+    case 'SET_ESTIMATE_POINTS': {
+      const { points } = typed.payload;
+      if (!findEstimate(state, id)) return null;
+      return {
+        ...state,
+        estimates: state.estimates.map((estimate) => (estimate.id === id ? { ...estimate, points } : estimate)),
+      };
+    }
+    case 'DELETE_ESTIMATE': {
+      if (!findEstimate(state, id)) return null;
+      return {
+        ...state,
+        estimates: state.estimates.filter((estimate) => estimate.id !== id),
+        stories: state.stories.map((story) => (story.estimateId === id ? withoutKey(story, 'estimateId') : story)),
+      };
+    }
+    case 'REORDER_ESTIMATE': {
+      const { after } = typed.payload;
+      const next = reorderById(state.estimates, id, after);
+      return next === null ? null : { ...state, estimates: next };
+    }
+    case 'SET_STORY_ESTIMATE': {
+      const { estimateId } = typed.payload;
+      if (estimateId !== null && !findEstimate(state, estimateId)) return null;
+      return updateStory(state, id, (story) =>
+        estimateId === null ? withoutKey(story, 'estimateId') : { ...story, estimateId },
+      );
+    }
+    case 'RECORD_SNAPSHOT': {
+      const { id: snapshotId, at, tally } = typed.payload;
+      if (findSnapshot(state, snapshotId)) return state;
+      if (tallyProblem(state, tally) !== null) return null;
+      return { ...state, snapshots: [...state.snapshots, { id: snapshotId, at, tally }] };
+    }
+    case 'DELETE_SNAPSHOT': {
+      if (!findSnapshot(state, id)) return null;
+      return { ...state, snapshots: state.snapshots.filter((snapshot) => snapshot.id !== id) };
+    }
     default:
       return assertNever(typed);
   }
@@ -369,6 +457,27 @@ const withoutStories = (state: UsmState, removes: (story: UserStory) => boolean)
       ),
   };
 };
+
+/** The object without one optional key, rather than with it set to `undefined`. */
+const withoutKey = <T extends object, K extends keyof T>(value: T, key: K): Omit<T, K> => {
+  const { [key]: _dropped, ...rest } = value;
+  return rest;
+};
+
+/**
+ * Rewrites every snapshot's rows with `move`, adding up the rows that end up
+ * counting the same milestone and status, so each pair stays one row.
+ */
+const retally = (state: UsmState, move: (row: TallyRow) => TallyRow): UsmState['snapshots'] =>
+  state.snapshots.map((snapshot) => {
+    const rows = new Map<string, TallyRow>();
+    for (const row of snapshot.tally.map(move)) {
+      const key = tallyKey(row);
+      const same = rows.get(key);
+      rows.set(key, same ? { ...same, stories: same.stories + row.stories, points: same.points + row.points } : row);
+    }
+    return { ...snapshot, tally: [...rows.values()] };
+  });
 
 const stripStatus = (story: UserStory): UserStory => {
   const { statusId: _statusId, ...rest } = story;

@@ -9,7 +9,16 @@ import {
   type ActionSpecs,
   type TemplateAction,
 } from '../../core/schema';
-import { linkUrlSchema, statusIconSchema, statusToneSchema } from './model';
+import {
+  dueDateSchema,
+  estimatePointsSchema,
+  linkUrlSchema,
+  snapshotAtSchema,
+  statusIconSchema,
+  statusToneSchema,
+  statusWeightSchema,
+  tallyRowSchema,
+} from './model';
 
 // Domain vocabulary for User Story Mapping. No generic SET_FIELD / MOVE.
 export const usmActions = {
@@ -98,6 +107,11 @@ export const usmActions = {
   REORDER_MILESTONE: defineAction('REORDER_MILESTONE', 'milestone', v.object({ after: v.nullable(v.string()) }), {
     mode: 'sequence',
   }),
+  SET_MILESTONE_DUE_DATE: defineAction(
+    'SET_MILESTONE_DUE_DATE',
+    'milestone',
+    v.object({ dueDate: v.nullable(dueDateSchema) }),
+  ),
 
   ADD_STATUS: defineAction(
     'ADD_STATUS',
@@ -113,6 +127,7 @@ export const usmActions = {
   SET_STATUS_NAME: defineAction('SET_STATUS_NAME', 'status', v.object({ name: v.pipe(v.string(), v.minLength(1)) })),
   SET_STATUS_TONE: defineAction('SET_STATUS_TONE', 'status', v.object({ tone: statusToneSchema })),
   SET_STATUS_ICON: defineAction('SET_STATUS_ICON', 'status', v.object({ icon: statusIconSchema })),
+  SET_STATUS_WEIGHT: defineAction('SET_STATUS_WEIGHT', 'status', v.object({ weight: statusWeightSchema })),
   DELETE_STATUS: defineAction('DELETE_STATUS', 'status', v.object({})),
   REORDER_STATUS: defineAction('REORDER_STATUS', 'status', v.object({ after: v.nullable(v.string()) }), {
     mode: 'sequence',
@@ -146,6 +161,35 @@ export const usmActions = {
     'story',
     v.object({ blockerId: v.pipe(v.string(), v.minLength(1)) }),
   ),
+
+  ADD_ESTIMATE: defineAction(
+    'ADD_ESTIMATE',
+    'page',
+    v.object({ id: entityIdSchema, name: v.pipe(v.string(), v.minLength(1)), points: estimatePointsSchema }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  SET_ESTIMATE_NAME: defineAction(
+    'SET_ESTIMATE_NAME',
+    'estimate',
+    v.object({ name: v.pipe(v.string(), v.minLength(1)) }),
+  ),
+  SET_ESTIMATE_POINTS: defineAction('SET_ESTIMATE_POINTS', 'estimate', v.object({ points: estimatePointsSchema })),
+  DELETE_ESTIMATE: defineAction('DELETE_ESTIMATE', 'estimate', v.object({})),
+  REORDER_ESTIMATE: defineAction('REORDER_ESTIMATE', 'estimate', v.object({ after: v.nullable(v.string()) }), {
+    mode: 'sequence',
+  }),
+  SET_STORY_ESTIMATE: defineAction(
+    'SET_STORY_ESTIMATE',
+    'story',
+    v.object({ estimateId: v.nullable(v.pipe(v.string(), v.minLength(1))) }),
+  ),
+  RECORD_SNAPSHOT: defineAction(
+    'RECORD_SNAPSHOT',
+    'page',
+    v.object({ id: entityIdSchema, at: snapshotAtSchema, tally: v.array(tallyRowSchema) }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  DELETE_SNAPSHOT: defineAction('DELETE_SNAPSHOT', 'snapshot', v.object({})),
 } satisfies ActionSpecs;
 
 /** The discriminated union of this template's actions. */

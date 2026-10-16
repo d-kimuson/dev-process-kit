@@ -1,5 +1,7 @@
 import type { StatusIcon, StatusTone, UsmState } from './model';
 
+import { statusWeight } from './burndown';
+
 export type StatusRow = {
   readonly id: string;
   readonly name: string;
@@ -11,6 +13,8 @@ export type StatusRow = {
   readonly previousId: string | null;
   /** The status right after it, `null` for the last: where "move down" goes. */
   readonly nextId: string | null;
+  /** The cost of moving a story on to the next status; `null` for the last, which has none. */
+  readonly weight: number | null;
   readonly storyCount: number;
   /** Fraction of every story on the map (0 on an empty map). */
   readonly share: number;
@@ -35,6 +39,7 @@ export const presentStatusOverview = (state: UsmState): StatusOverview => {
       progress: state.statuses.length <= 1 ? 1 : index / (state.statuses.length - 1),
       previousId: state.statuses[index - 1]?.id ?? null,
       nextId: state.statuses[index + 1]?.id ?? null,
+      weight: index === state.statuses.length - 1 ? null : statusWeight(status),
       storyCount,
       share: shareOf(storyCount),
     };

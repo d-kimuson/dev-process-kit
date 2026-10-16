@@ -851,6 +851,28 @@ export const usmStyles = css`
     gap: 14px;
     padding: 12px 16px;
   }
+  /* A status also has the weight of the step to the next one. */
+  .st-row--weighted {
+    grid-template-columns: 16px minmax(120px, 1fr) minmax(140px, 200px) 96px 150px 84px;
+  }
+  .st-weight {
+    display: grid;
+    gap: 3px;
+  }
+  .st-weight-label {
+    color: var(--dpk-ink-faint);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .st-weight .dpk-input {
+    width: 100%;
+    min-height: 28px;
+    padding: 3px 8px;
+    font-family: var(--dpk-mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
   .st-row + .st-row {
     border-top: 1px solid var(--dpk-rule);
   }
@@ -983,9 +1005,16 @@ export const usmStyles = css`
       grid-template-columns: 16px minmax(0, 1fr) auto;
       row-gap: 8px;
     }
+    .st-row--weighted {
+      grid-template-columns: 16px minmax(0, 1fr) auto;
+    }
     .st-share,
+    .st-weight,
     .st-tones {
       grid-column: 2 / -1;
+    }
+    .st-weight:empty {
+      display: none;
     }
     /* The tools stay on the name's row, so the rows below are the name's width. */
     .st-tools {

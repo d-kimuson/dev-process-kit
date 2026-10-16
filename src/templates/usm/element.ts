@@ -11,6 +11,7 @@ import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
 import { revealInlineWithin } from '../../lib/dom/scroll';
 import { usmTabOf, type UsmTab } from './board-tabs';
+import { defineUsmBurndownChart } from './components/burndown-chart';
 import { defineUsmStoryCard } from './components/story-card';
 import { usmDefinitionFor } from './definition';
 import { resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove, type CellRef } from './drop';
@@ -19,6 +20,7 @@ import { usmMessages, type UsmMessages } from './messages';
 import { presentMilestoneOverview } from './milestone-overview';
 import { findStory, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
+import { burndownStyles, renderBurndown } from './render/burndown';
 import { renderLabelOverview } from './render/label-overview';
 import { linkStyles } from './render/link-icon';
 import { renderMilestoneOverview } from './render/milestone-overview';
@@ -50,6 +52,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     statusStyles,
     linkStyles,
     storyPanelStyles,
+    burndownStyles,
     popoverSurface,
   ];
 
@@ -191,6 +194,8 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         });
       case 'labels':
         return renderLabelOverview(m, context, presentLabelOverview(context.state));
+      case 'burndown':
+        return renderBurndown(m, context, new Date());
       case 'map':
         return this.#renderMap(m, context);
     }
@@ -264,5 +269,6 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
 export const defineUsmElement = (): void => {
   defineUsmStoryCard();
+  defineUsmBurndownChart();
   if (!customElements.get('dpk-template-usm')) customElements.define('dpk-template-usm', DpkTemplateUsm);
 };

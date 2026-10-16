@@ -10,6 +10,7 @@ import { targetRef } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { addStatus } from '../commands';
 import { STATUS_ICONS, STATUS_TONES, type StatusTone, type UsmState } from '../model';
+import { onNumberChange } from './number-input';
 import { statusIcon, statusToneStyle } from './tone';
 
 /**
@@ -68,7 +69,12 @@ const renderStatusRow = (
     context.dispatch({ type: 'REORDER_STATUS', target, payload: { after } });
   };
   return html`
-    <li class="st-row" data-status=${row.id} data-dpk-target=${targetRef(target)} style=${statusToneStyle(row.tone)}>
+    <li
+      class="st-row st-row--weighted"
+      data-status=${row.id}
+      data-dpk-target=${targetRef(target)}
+      style=${statusToneStyle(row.tone)}
+    >
       <button
         class="st-icon-trigger"
         type="button"
@@ -89,7 +95,7 @@ const renderStatusRow = (
           @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_STATUS_NAME', target, payload: { name } }))}
         ></dpk-component-inline-edit>
       </span>
-      ${renderShare(m, row.storyCount, row.share)}
+      ${renderShare(m, row.storyCount, row.share)} ${renderWeight(m, context, row)}
       ${renderTonePicker(m, row.tone, (tone) => context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } }))}
       ${renderRowTools(m, {
         ids: context.state.statuses.map((status) => status.id),
@@ -100,6 +106,27 @@ const renderStatusRow = (
       })}
     </li>
   `;
+};
+
+/** The weight of the step to the next status; the last status has no next, so it keeps the column empty. */
+const renderWeight = (m: UsmMessages, context: TemplateRenderContext<UsmState>, row: StatusRow): TemplateResult => {
+  if (row.weight === null) return html`<span class="st-weight" aria-hidden="true"></span>`;
+  const current = row.weight;
+  return html`<label class="st-weight" title=${m.statusWeightHint}>
+    <span class="st-weight-label">${m.statusWeightLabel}</span>
+    <input
+      class="dpk-input"
+      type="number"
+      min="0"
+      step="any"
+      inputmode="decimal"
+      data-role="weight"
+      .value=${String(current)}
+      @change=${onNumberChange(current, (weight) =>
+        context.dispatch({ type: 'SET_STATUS_WEIGHT', target: { type: 'status', id: row.id }, payload: { weight } }),
+      )}
+    />
+  </label>`;
 };
 
 /** Every icon a status can take, drawn in its own color; picking one sets it and closes the menu. */

@@ -24,6 +24,8 @@ export type Milestone = {
   readonly timeframe?: string;
   /** What the slice stands for (`必要最低限の機能群`). */
   readonly description?: string;
+  /** The day the slice is due, `YYYY-MM-DD`: where its burndown has to reach zero. */
+  readonly dueDate?: string;
 };
 
 /**
@@ -62,6 +64,40 @@ export type StoryStatus = {
   readonly name: string;
   readonly tone: StatusTone;
   readonly icon: StatusIcon;
+  /**
+   * What it costs a story to move on from this status to the next, relative
+   * to the others (Idea → Demo 7, Demo → Ready 2 …). Weighs the combined
+   * burndown; left out it counts 1, and the last status has nowhere to go.
+   */
+  readonly weight?: number;
+};
+
+/** One size on the map's estimate scale: a name the team says (`M`, `3`) and the points it stands for. */
+export type Estimate = {
+  readonly id: string;
+  readonly name: string;
+  readonly points: number;
+};
+
+/** How many stories (and how many points) stood in one status of one milestone. */
+export type TallyRow = {
+  /** Left out for the stories in no milestone. */
+  readonly milestoneId?: string;
+  /** Left out on a map without statuses. */
+  readonly statusId?: string;
+  readonly stories: number;
+  readonly points: number;
+};
+
+/**
+ * The map's totals at one moment, kept as a record: later edits to the
+ * stories or the scale do not rewrite it. The burndown is drawn from these.
+ */
+export type Snapshot = {
+  readonly id: string;
+  /** When it was taken, as an ISO timestamp. */
+  readonly at: string;
+  readonly tally: readonly TallyRow[];
 };
 
 /**
@@ -99,6 +135,8 @@ export type UserStory = {
   readonly labelIds?: readonly string[];
   /** The stories that must be finished before this one can start, each once; never a cycle. */
   readonly blockedBy?: readonly string[];
+  /** Its size on the map's estimate scale; left out, it is not estimated yet. */
+  readonly estimateId?: string;
 };
 
 export type UsmState = {
@@ -107,9 +145,30 @@ export type UsmState = {
   readonly milestones: readonly Milestone[];
   readonly statuses: readonly StoryStatus[];
   readonly labels: readonly StoryLabel[];
+  readonly estimates: readonly Estimate[];
   readonly stories: readonly UserStory[];
+  readonly snapshots: readonly Snapshot[];
 };
 
+/** A real calendar day as `YYYY-MM-DD`: `2026-02-30` is not one. */
+export const dueDateSchema = v.pipe(
+  v.string(),
+  v.isoDate(),
+  v.check((value) => {
+    const [year = 0, month = 0, day = 0] = value.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  }, 'a due date must be a calendar day'),
+);
+export const statusWeightSchema = v.pipe(v.number(), v.finite(), v.minValue(0));
+export const estimatePointsSchema = v.pipe(v.number(), v.finite(), v.minValue(0));
+export const tallyRowSchema = v.strictObject({
+  milestoneId: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  statusId: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+  stories: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  points: v.pipe(v.number(), v.finite(), v.minValue(0)),
+});
+export const snapshotAtSchema = v.pipe(v.string(), v.isoTimestamp());
 const stepSchema = v.strictObject({ id: v.pipe(v.string(), v.minLength(1)), name: v.pipe(v.string(), v.minLength(1)) });
 const activitySchema = v.strictObject({
   id: entityIdSchema,
@@ -122,6 +181,7 @@ const milestoneSchema = v.strictObject({
   name: v.pipe(v.string(), v.minLength(1)),
   timeframe: v.exactOptional(v.string()),
   description: v.exactOptional(v.string()),
+  dueDate: v.exactOptional(dueDateSchema),
 });
 export const statusToneSchema = v.picklist(STATUS_TONES);
 export const statusIconSchema = v.picklist(STATUS_ICONS);
@@ -137,6 +197,7 @@ const statusSchema = v.strictObject({
   name: v.pipe(v.string(), v.minLength(1)),
   tone: v.optional(statusToneSchema),
   icon: v.optional(statusIconSchema),
+  weight: v.exactOptional(statusWeightSchema),
 });
 const labelSchema = v.strictObject({
   id: entityIdSchema,
@@ -154,6 +215,17 @@ const storySchema = v.strictObject({
   links: v.exactOptional(v.array(linkSchema)),
   labelIds: v.exactOptional(v.array(v.pipe(v.string(), v.minLength(1)))),
   blockedBy: v.exactOptional(v.array(v.pipe(v.string(), v.minLength(1)))),
+  estimateId: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+});
+const estimateSchema = v.strictObject({
+  id: entityIdSchema,
+  name: v.pipe(v.string(), v.minLength(1)),
+  points: estimatePointsSchema,
+});
+const snapshotSchema = v.strictObject({
+  id: entityIdSchema,
+  at: snapshotAtSchema,
+  tally: v.array(tallyRowSchema),
 });
 
 export const usmBaseSchema = v.strictObject({
@@ -162,7 +234,9 @@ export const usmBaseSchema = v.strictObject({
   milestones: v.optional(v.array(milestoneSchema), []),
   statuses: v.optional(v.array(statusSchema), []),
   labels: v.optional(v.array(labelSchema), []),
+  estimates: v.optional(v.array(estimateSchema), []),
   stories: v.optional(v.array(storySchema), []),
+  snapshots: v.optional(v.array(snapshotSchema), []),
 });
 
 /** A status without its own tone takes the palette's next one by position. */
@@ -209,6 +283,9 @@ export const parseUsmBase = (input: unknown): UsmState => {
   for (const milestone of parsed.milestones) checkDuplicate('milestones', milestone.id);
   for (const status of parsed.statuses) checkDuplicate('statuses', status.id);
   for (const label of parsed.labels) checkDuplicate('labels', label.id);
+  for (const estimate of parsed.estimates) checkDuplicate('estimates', estimate.id);
+  for (const snapshot of parsed.snapshots) checkDuplicate('snapshots', snapshot.id);
+  const estimateIds = new Set(parsed.estimates.map((estimate) => estimate.id));
   for (const story of parsed.stories) {
     checkDuplicate('stories', story.id);
     const ownerActivity = stepIds.get(story.stepId);
@@ -229,6 +306,13 @@ export const parseUsmBase = (input: unknown): UsmState => {
     if (unknownLabel !== undefined) {
       throw new Error(`story "${story.id}" references unknown labelId "${unknownLabel}"`);
     }
+    if (story.estimateId !== undefined && !estimateIds.has(story.estimateId)) {
+      throw new Error(`story "${story.id}" references unknown estimateId "${story.estimateId}"`);
+    }
+  }
+  for (const snapshot of parsed.snapshots) {
+    const problem = tallyProblem(parsed, snapshot.tally);
+    if (problem !== null) throw new Error(`snapshot "${snapshot.id}" ${problem}`);
   }
   const storyIds = new Set(parsed.stories.map((story) => story.id));
   for (const story of parsed.stories) {
@@ -245,8 +329,34 @@ export const parseUsmBase = (input: unknown): UsmState => {
   return parsed;
 };
 
+/**
+ * Why a tally does not fit the map, or `null` when it does: every row names a
+ * milestone and a status the map has, and each pair once.
+ */
+export const tallyProblem = (state: UsmState, tally: readonly TallyRow[]): string | null => {
+  const seen = new Set<string>();
+  for (const row of tally) {
+    if (row.milestoneId !== undefined && !findMilestone(state, row.milestoneId)) {
+      return `references unknown milestoneId "${row.milestoneId}"`;
+    }
+    if (row.statusId !== undefined && !findStatus(state, row.statusId)) {
+      return `references unknown statusId "${row.statusId}"`;
+    }
+    const key = tallyKey(row);
+    if (seen.has(key)) return `tallies "${key}" twice`;
+    seen.add(key);
+  }
+  return null;
+};
+
+/** The milestone and status a tally row counts, as one key. */
+export const tallyKey = (row: {
+  readonly milestoneId?: string | undefined;
+  readonly statusId?: string | undefined;
+}): string => `${row.milestoneId ?? ''}/${row.statusId ?? ''}`;
+
 export const emptyUsmBase = (): UsmState => {
-  return { activities: [], milestones: [], statuses: [], labels: [], stories: [] };
+  return { activities: [], milestones: [], statuses: [], labels: [], estimates: [], stories: [], snapshots: [] };
 };
 
 export const findActivity = (state: UsmState, id: string | undefined): BackboneActivity | undefined => {
@@ -301,6 +411,16 @@ export const findLabel = (state: UsmState, id: string | undefined): StoryLabel |
   return state.labels.find((label) => label.id === id);
 };
 
+export const findEstimate = (state: UsmState, id: string | undefined): Estimate | undefined => {
+  if (id === undefined) return undefined;
+  return state.estimates.find((estimate) => estimate.id === id);
+};
+
+export const findSnapshot = (state: UsmState, id: string | undefined): Snapshot | undefined => {
+  if (id === undefined) return undefined;
+  return state.snapshots.find((snapshot) => snapshot.id === id);
+};
+
 /** The labels a story carries, in the order of the labels tab. */
 export const labelsOfStory = (state: UsmState, story: UserStory): readonly StoryLabel[] => {
   const carried = new Set(story.labelIds ?? []);
@@ -353,7 +473,9 @@ export const allUsmIds = (state: UsmState): string[] => {
     ...state.milestones.map((milestone) => milestone.id),
     ...state.statuses.map((status) => status.id),
     ...state.labels.map((label) => label.id),
+    ...state.estimates.map((estimate) => estimate.id),
     ...state.stories.map((story) => story.id),
+    ...state.snapshots.map((snapshot) => snapshot.id),
   ];
 };
 

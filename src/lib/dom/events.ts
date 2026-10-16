@@ -26,6 +26,14 @@ export const onSelectChange = (fn: (value: string) => void): ((event: Event) => 
   };
 };
 
+/** `@change` on an `<input>`: hand its value on, with the input to put a refused value back. */
+export const onInputChange = (fn: (value: string, input: HTMLInputElement) => void): ((event: Event) => void) => {
+  return (event) => {
+    const input = elementOf(event.target, HTMLInputElement);
+    if (input !== null) fn(input.value, input);
+  };
+};
+
 /** `@change` on a checkbox: hand the checked state on. */
 export const onCheckedChange = (fn: (checked: boolean) => void): ((event: Event) => void) => {
   return (event) => {
