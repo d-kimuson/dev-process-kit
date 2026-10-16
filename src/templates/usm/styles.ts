@@ -9,13 +9,22 @@ export const usmStyles = css`
    * A wide table must scroll inside itself and never widen the template shell.
    * It scrolls both ways so the backbone can stick to its top and the
    * milestone column to its left: a box that scrolls only sideways still
-   * becomes the sticky ancestor, and its top would never move. Capped near the
-   * viewport height, it fits under the board head (tabs and toolbar) once the page brings it up.
+   * becomes the sticky ancestor, and its top would never move. It takes the
+   * height left under the board head (tabs and toolbar), down to the page's
+   * bottom edge: the hand-off dock floats over its corner, and the map's own
+   * padding lets the last row scroll clear of it, so the page body keeps no
+   * second clearance under it. On a short screen it keeps 320px and the page
+   * scrolls instead.
    */
+  .dpk-main-body:has(> .map-scroll) {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-rows: auto minmax(320px, 1fr);
+    padding-bottom: 16px;
+  }
   .map-scroll {
     min-width: 0;
     max-width: 100%;
-    max-height: max(320px, calc(100dvh - 218px));
     overflow: auto;
     overscroll-behavior-x: contain;
     border: 1px solid var(--dpk-rule);
