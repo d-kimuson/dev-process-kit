@@ -13,12 +13,15 @@ import {
   burndownMilestoneOf,
   burndownOf,
   burndownUnitOf,
+  isWeighted,
   momentLabel,
   type BurndownPoint,
 } from '../burndown';
 import { type ChartSize } from '../burndown-chart';
 import { addEstimate, recordSnapshot } from '../commands';
-import { hasFeature, type Estimate, type Milestone, type StatusTone, type UsmState } from '../model';
+import { type Estimate, type Milestone, type StatusTone, type UsmState } from '../model';
+import { statusViews } from '../status-view';
+import { weightChangesOf, weightDividersOf } from '../weight-split';
 import { onNumberChange } from './number-input';
 import { renderRowTools } from './status-overview';
 
@@ -47,7 +50,9 @@ export const renderBurndown = (m: UsmMessages, context: TemplateRenderContext<Us
               <p>${m.noMilestonesForBurndown}</p>
             </div>`
       }
-      <div class="bd-side">${renderSnapshots(m, context)} ${renderEstimates(m, context)}</div>
+      <div class="bd-side">
+        ${renderSnapshots(m, context)} ${renderEstimates(m, context)} ${renderWeights(m, context)}
+      </div>
     </section>
   `;
 };
@@ -61,7 +66,7 @@ const renderCharts = (
   const { state, navigation } = context;
   const unit = burndownUnitOf(state, navigation);
   const burndown = burndownOf(state, milestone.id, unit, now.getTime());
-  const weighted = hasFeature(state, 'weights');
+  const weighted = isWeighted(state);
   const unestimated = state.stories.filter(
     (story) => story.milestoneId === milestone.id && story.estimateId === undefined,
   ).length;
@@ -312,6 +317,48 @@ const renderEstimateRow = (
   </li>`;
 };
 
+/**
+ * Whether the work left is weighted by the statuses, and if it is, a bar of
+ * how a story's work is shared out between them. Nothing shows while there is
+ * no status to share it.
+ */
+const renderWeights = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult | typeof nothing => {
+  const { state } = context;
+  if (state.statuses.length < 2) return nothing;
+  const target = { type: 'page', id: 'usm' };
+  return html`<section class="bd-panel bd-panel--wide" data-testid="usm-weights">
+    <h3>
+      <span id="bd-weights-label">${m.statusWeightLabel}</span>
+      <button
+        class="bd-switch"
+        type="button"
+        role="switch"
+        data-role="weighted"
+        aria-labelledby="bd-weights-label"
+        aria-checked=${String(state.weighted)}
+        @click=${() => context.dispatch({ type: 'SET_WEIGHTED', target, payload: { weighted: !state.weighted } })}
+      ></button>
+    </h3>
+    <p class="bd-empty">${m.statusWeightHint}</p>
+    ${
+      state.weighted
+        ? html`<dpk-internal-usm-weight-bar
+            .statuses=${statusViews(state)}
+            .dividers=${weightDividersOf(state.statuses)}
+            .commit=${(dividers: readonly number[]) => {
+              for (const { statusId, weight } of weightChangesOf(state.statuses, dividers))
+                context.dispatch({
+                  type: 'SET_STATUS_WEIGHT',
+                  target: { type: 'status', id: statusId },
+                  payload: { weight },
+                });
+            }}
+          ></dpk-internal-usm-weight-bar>`
+        : nothing
+    }
+  </section>`;
+};
+
 const latest = (points: readonly BurndownPoint[]): number => points.at(-1)?.value ?? 0;
 
 export const burndownStyles = css`
@@ -499,11 +546,62 @@ export const burndownStyles = css`
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 12px;
   }
+  /* Two panels a row at most, so the wide one under them never leaves a column empty. */
   .bd-side {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(max(300px, calc((100% - 12px) / 2)), 1fr));
     gap: 12px;
     align-items: start;
+  }
+  /* The weights read best across the whole width, a part for each status. */
+  .bd-panel--wide {
+    grid-column: 1 / -1;
+  }
+  .bd-switch {
+    position: relative;
+    flex: none;
+    width: 30px;
+    height: 18px;
+    margin-left: auto;
+    padding: 0;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: 9px;
+    background: var(--dpk-paper-sunken);
+    cursor: pointer;
+    transition:
+      background 120ms var(--dpk-ease),
+      border-color 120ms var(--dpk-ease);
+  }
+  .bd-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--dpk-ink-faint);
+    transition:
+      transform 160ms var(--dpk-ease-spring),
+      background 120ms var(--dpk-ease);
+  }
+  .bd-switch[aria-checked='true'] {
+    border-color: var(--dpk-accent);
+    background: var(--dpk-accent);
+  }
+  .bd-switch[aria-checked='true']::after {
+    transform: translateX(12px);
+    background: var(--dpk-accent-ink);
+  }
+  .bd-switch:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bd-switch,
+    .bd-switch::after {
+      transition: none;
+    }
   }
   .bd-panel {
     display: grid;

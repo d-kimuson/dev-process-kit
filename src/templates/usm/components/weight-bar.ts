@@ -12,12 +12,6 @@ const barStyles = css`
   :host {
     display: block;
   }
-  .wb-label {
-    grid-column: 1 / -1;
-    color: var(--dpk-ink-faint);
-    font-size: 11px;
-    font-weight: 600;
-  }
   .wb {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -213,8 +207,7 @@ export class DpkInternalUsmWeightBar extends LitElement {
     const weights = weightsBetween(dividers);
     const at = (position: number): string => `${(position / WEIGHT_TOTAL) * 100}%`;
     return html`<div class="wb">
-      <span class="wb-label" id="wb-label">${m.statusWeightLabel}</span>
-      <div class="wb-track" role="group" aria-labelledby="wb-label" ?data-dragging=${this.drag !== null}>
+      <div class="wb-track" role="group" aria-label=${m.statusWeightLabel} ?data-dragging=${this.drag !== null}>
         <div class="wb-parts">
           ${parts.map((status, index) => {
             const from = dividers[index - 1] ?? 0;

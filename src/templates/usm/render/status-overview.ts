@@ -9,9 +9,7 @@ import { iconTrash } from '../../../core/icons';
 import { targetRef } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { addStatus } from '../commands';
-import { hasFeature, STATUS_ICONS, STATUS_TONES, type StatusTone, type UsmState } from '../model';
-import { statusViews } from '../status-view';
-import { weightChangesOf, weightDividersOf } from '../weight-split';
+import { STATUS_ICONS, STATUS_TONES, type StatusTone, type UsmState } from '../model';
 import { statusIcon, statusToneStyle } from './tone';
 
 /**
@@ -42,7 +40,6 @@ export const renderStatusOverview = (
             </div>`
           : nothing
       }
-      ${renderWeightBar(context)}
       <ol class="st-list">
         ${repeat(
           overview.rows,
@@ -103,20 +100,6 @@ const renderStatusRow = (
       })}
     </li>
   `;
-};
-
-/** How a story's work is shared out between the statuses, while the weights are on and there is a status to share it. */
-const renderWeightBar = (context: TemplateRenderContext<UsmState>): TemplateResult | typeof nothing => {
-  const { state } = context;
-  if (!hasFeature(state, 'weights') || state.statuses.length < 2) return nothing;
-  return html`<dpk-internal-usm-weight-bar
-    .statuses=${statusViews(state)}
-    .dividers=${weightDividersOf(state.statuses)}
-    .commit=${(dividers: readonly number[]) => {
-      for (const { statusId, weight } of weightChangesOf(state.statuses, dividers))
-        context.dispatch({ type: 'SET_STATUS_WEIGHT', target: { type: 'status', id: statusId }, payload: { weight } });
-    }}
-  ></dpk-internal-usm-weight-bar>`;
 };
 
 /** Every icon a status can take, drawn in its own color; picking one sets it and closes the menu. */

@@ -306,6 +306,14 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
       body: arrow(m, before === undefined ? undefined : String(before), String(after)),
     };
   },
+  SET_WEIGHTED: (m, action) => {
+    const { weighted } = payloadFor(usmActions.SET_WEIGHTED, action);
+    return {
+      title: weighted ? m.weighStatuses : m.unweighStatuses,
+      tone: weighted ? 'create' : 'delete',
+      body: m.statusWeightLabel,
+    };
+  },
   ADD_MEMBER: (m, action) => ({
     title: m.addMember,
     tone: 'create',

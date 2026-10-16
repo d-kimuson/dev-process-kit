@@ -162,6 +162,9 @@ export const usmMessages = defineMessages({
     moveDownAria: 'Move down',
     deleteStatusAria: 'Delete this status',
     statusWeightLabel: 'Status weights',
+    statusWeightHint: 'Counts a story partly done by the statuses it has passed.',
+    weighStatuses: 'Weigh the work left by status',
+    unweighStatuses: 'Stop weighing the work left by status',
     weightLineLabel: (before: string, after: string) => `Between ${before} and ${after}`,
     weightLineValue: (before: string, beforeWeight: string, after: string, afterWeight: string) =>
       `${before} ${beforeWeight}, ${after} ${afterWeight}`,
@@ -284,11 +287,10 @@ export const usmMessages = defineMessages({
     enableFeature: 'Turn on feature',
     disableFeature: 'Turn off feature',
     featureName: (feature: UsmFeature) =>
-      ({ estimates: 'Estimates & burndown', weights: 'Status weights', assignees: 'Members & assignees' })[feature],
+      ({ estimates: 'Estimates & burndown', assignees: 'Members & assignees' })[feature],
     featureHint: (feature: UsmFeature) =>
       ({
         estimates: 'An estimate scale for the stories and a burndown per milestone.',
-        weights: 'Counts a story partly done by the statuses it has passed, in parts of 10.',
         assignees: 'The members of the team and who each story is assigned to.',
       })[feature],
     featuresNote: 'Turning a feature off only hides it: what it holds is kept.',
@@ -453,6 +455,9 @@ export const usmMessages = defineMessages({
     moveDownAria: '下へ移動',
     deleteStatusAria: 'このステータスを削除',
     statusWeightLabel: 'ステータスの重み',
+    statusWeightHint: '通り過ぎたステータスの分だけ、ストーリーを途中まで進んだものとして数えます。',
+    weighStatuses: 'ステータスの重みを使う',
+    unweighStatuses: 'ステータスの重みを使わない',
     weightLineLabel: (before: string, after: string) => `${before}と${after}の境目`,
     weightLineValue: (before: string, beforeWeight: string, after: string, afterWeight: string) =>
       `${before} ${beforeWeight}、${after} ${afterWeight}`,
@@ -568,11 +573,10 @@ export const usmMessages = defineMessages({
     enableFeature: '機能を有効化',
     disableFeature: '機能を無効化',
     featureName: (feature: UsmFeature) =>
-      ({ estimates: '見積もりとバーンダウン', weights: 'ステータスの重み', assignees: 'メンバーと担当者' })[feature],
+      ({ estimates: '見積もりとバーンダウン', assignees: 'メンバーと担当者' })[feature],
     featureHint: (feature: UsmFeature) =>
       ({
         estimates: 'ストーリーの見積もりと、マイルストーンごとのバーンダウン。',
-        weights: '通り過ぎたステータスの分だけ、ストーリーを途中まで進んだものとして数えます（合計 10 の割合）。',
         assignees: 'チームのメンバーと、各ストーリーの担当者。',
       })[feature],
     featuresNote: '無効にしても隠すだけで、入力した内容は残ります。',

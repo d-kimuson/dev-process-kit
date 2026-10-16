@@ -103,11 +103,11 @@ describe('usm estimates and burndown: model', () => {
   });
 
   it('shares a story out between the statuses by their weights, read as parts of 10', () => {
-    const shares = (weights: readonly (number | undefined)[], features = ['estimates', 'weights']) =>
+    const shares = (weights: readonly (number | undefined)[], weighted = true) =>
       remainingSharesOf(
         parseUsmBase({
           ...raw,
-          features,
+          weighted,
           statuses: [
             ...weights.map((weight, index) => ({
               id: `w${index}`,
@@ -121,13 +121,15 @@ describe('usm estimates and burndown: model', () => {
         }),
       );
     // 7 + 2 + 1 = 10: Idea still has all of it ahead, Demo 3 of 10, Ready 1 of 10, Done none.
-    expect(rounded(remainingSharesOf({ ...base, features: ['estimates', 'weights'] }))).toEqual([1, 0.3, 0.1, 0]);
+    expect(rounded(remainingSharesOf({ ...base, weighted: true }))).toEqual([1, 0.3, 0.1, 0]);
     // other totals read as a ratio, and no weight at all as equal shares
     expect(shares([2, 1, 1])).toEqual([1, 0.5, 0.25, 0]);
     expect(shares([0, 0])).toEqual([1, 0.5, 0]);
     expect(shares([undefined, undefined])).toEqual([1, 0.5, 0]);
     // unweighted, every status but the last still has the whole story ahead
-    expect(shares([7, 2, 1], ['estimates'])).toEqual([1, 1, 1, 0]);
+    expect(shares([7, 2, 1], false)).toEqual([1, 1, 1, 0]);
+    // the weights go with the estimates: while those are off, so are they
+    expect(remainingSharesOf({ ...base, features: [], weighted: true })).toEqual([1, 1, 1, 0]);
   });
 
   it('burns down each status and the work left, ending at today', () => {
@@ -149,12 +151,22 @@ describe('usm estimates and burndown: model', () => {
     expect(stories.combined.at(-1)?.value).toBe(2 + 1 + 1);
     expect(burndownOf(base, 'v1', 'points', NOW).due).toBeNull();
     // Weighted: points × the share still ahead (Idea 10/10, Demo 3/10, Ready 1/10, Done 0).
-    const weighted = burndownOf({ ...base, features: ['estimates', 'weights'] }, 'mvp', 'points', NOW);
+    const weighted = burndownOf({ ...base, weighted: true }, 'mvp', 'points', NOW);
     expect(rounded(weighted.combined.map((point) => point.value))).toEqual([12.9, 7]);
   });
 });
 
 describe('usm estimates and burndown: actions', () => {
+  it('weighs the work left by the statuses, and stops again', () => {
+    const page = { type: 'page', id: 'usm' };
+    expect(base.weighted).toBe(false);
+    const weighted = apply(base, 'SET_WEIGHTED', page, { weighted: true });
+    expect(weighted?.weighted).toBe(true);
+    expect(apply(weighted!, 'SET_WEIGHTED', page, { weighted: false })?.weighted).toBe(false);
+    // set the way it already stands, the map stays as it is
+    expect(apply(base, 'SET_WEIGHTED', page, { weighted: false })).toBe(base);
+  });
+
   it('estimates a story, and clears it again', () => {
     const target = { type: 'story', id: 'e' };
     const estimated = apply(base, 'SET_STORY_ESTIMATE', target, { estimateId: 'M' });
@@ -354,19 +366,19 @@ describe('usm estimates and burndown: element', () => {
     expect(el.api.state.stories.find((story) => story.id === 'e')?.estimateId).toBe('M');
   });
 
-  it('splits 10 between the statuses on a bar while the weights are on', async () => {
-    const el = await mount('#tab=statuses');
+  it('splits 10 between the statuses on a bar, beside the estimate scale, once the weights are switched on', async () => {
+    const el = await mount('#tab=burndown');
+    const panel = el.shadowRoot!.querySelector('[data-testid="usm-weights"]')!;
     const bar = () =>
-      el.shadowRoot!.querySelector('dpk-internal-usm-weight-bar') as
-        | (HTMLElement & { updateComplete: Promise<boolean> })
-        | null;
+      panel.querySelector('dpk-internal-usm-weight-bar') as (HTMLElement & { updateComplete: Promise<boolean> }) | null;
+    const toggle = panel.querySelector('[role="switch"][data-role="weighted"]') as HTMLButtonElement;
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
     expect(bar()).toBeNull();
-    el.api.dispatch({
-      type: 'SET_FEATURE',
-      target: { type: 'page', id: 'usm' },
-      payload: { feature: 'weights', enabled: true },
-    });
+    toggle.click();
     await settle(el);
+    expect(el.api.state.weighted).toBe(true);
+    expect(el.api.actions.map((action) => action.type)).toEqual(['SET_WEIGHTED']);
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
     const root = bar()!.shadowRoot!;
     const read = async () => {
       await settle(el);
@@ -431,6 +443,19 @@ describe('usm estimates and burndown: element', () => {
     pointer(document, 'pointerup', 141);
     await settle(el);
     expect(el.api.state.statuses.map((status) => status.weight)).toEqual([2, 8, 0, undefined]);
+    // switched off, the bar goes; the weights stay for when it comes back
+    toggle.click();
+    await settle(el);
+    expect(el.api.state.weighted).toBe(false);
+    expect(bar()).toBeNull();
+    expect(el.api.state.statuses.map((status) => status.weight)).toEqual([2, 8, 0, undefined]);
+  });
+
+  it('keeps the weights off the statuses tab', async () => {
+    const el = await mount('#tab=statuses');
+    el.api.dispatch({ type: 'SET_WEIGHTED', target: { type: 'page', id: 'usm' }, payload: { weighted: true } });
+    await settle(el);
+    expect(el.shadowRoot!.querySelector('dpk-internal-usm-weight-bar')).toBeNull();
   });
 
   it('draws the combined chart and one per status, and records a snapshot', async () => {

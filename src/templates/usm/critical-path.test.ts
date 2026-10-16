@@ -20,9 +20,10 @@ const story = (id: string, statusId: string, estimateId: string, blockedBy: read
   ...(blockedBy.length === 0 ? {} : { blockedBy }),
 });
 
-const base = (stories: readonly object[], features: readonly string[] = ['estimates']) =>
+const base = (stories: readonly object[], features: readonly string[] = ['estimates'], weighted = false) =>
   parseUsmBase({
     features,
+    weighted,
     activities: [{ id: 'a1', name: 'A1', steps: [{ id: 's1', name: 'S1' }] }],
     statuses: [
       { id: 'todo', name: 'Todo', weight: 2 },
@@ -55,12 +56,13 @@ describe('usm critical path: remaining work', () => {
 
   it('weighs a story by the share of its work the statuses it still has to pass hold', () => {
     // Todo 2 and Doing 1: two thirds of a story is done in Todo, one third in Doing.
-    expect(rounded(left(base(stories, ['estimates', 'weights'])))).toEqual(rounded([5, 5 / 3, 0, 1]));
+    expect(rounded(left(base(stories, ['estimates'], true)))).toEqual(rounded([5, 5 / 3, 0, 1]));
   });
 
   it('counts each unfinished story as one point while estimates are off', () => {
     expect(left(base(stories, []))).toEqual([1, 1, 0, 1]);
-    expect(rounded(left(base(stories, ['weights'])))).toEqual(rounded([1, 1 / 3, 0, 1]));
+    // the weights go with the estimates, so they are left out too
+    expect(left(base(stories, [], true))).toEqual([1, 1, 0, 1]);
   });
 });
 

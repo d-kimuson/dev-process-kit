@@ -288,6 +288,11 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
         statuses: state.statuses.map((status) => (status.id === id ? { ...status, weight } : status)),
       };
     }
+    case 'SET_WEIGHTED': {
+      const { weighted } = typed.payload;
+      // Switched the way it already stands, the draft stays as it is; switched off, the weights stay for later.
+      return state.weighted === weighted ? state : { ...state, weighted };
+    }
     case 'DELETE_STATUS': {
       if (!findStatus(state, id)) return null;
       const statuses = state.statuses.filter((status) => status.id !== id);

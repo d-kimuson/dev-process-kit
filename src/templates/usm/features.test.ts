@@ -46,6 +46,8 @@ describe('usm features: model', () => {
 
   it('rejects an unknown feature and the same feature twice', () => {
     expect(() => parseUsmBase({ ...raw, features: ['gantt'] })).toThrow();
+    // the status weights are switched on beside the estimate scale, not as a feature
+    expect(() => parseUsmBase({ ...raw, features: ['weights'] })).toThrow();
     expect(() => parseUsmBase({ ...raw, features: ['estimates', 'estimates'] })).toThrow(/twice/);
   });
 });
@@ -146,11 +148,6 @@ describe('usm features: element', () => {
     expect(card.shadowRoot!.querySelector('.assignee-avatar')).toBeNull();
     expect(root.querySelector('[data-filter-trigger="estimate"]')).toBeNull();
     expect(root.querySelector('[data-filter-trigger="assignee"]')).toBeNull();
-  });
-
-  it('leaves the status weights out while they are off', async () => {
-    const el = await mount('#tab=statuses');
-    expect(el.shadowRoot!.querySelector('dpk-internal-usm-weight-bar')).toBeNull();
   });
 
   it('turns a feature on from the features menu, as a change of the draft', async () => {
