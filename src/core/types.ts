@@ -112,6 +112,23 @@ export type CommentTargetOption = {
   readonly group?: string;
 };
 
+/** One switch of the page's settings. Flipping it is a change of the draft, so the agent sees it. */
+export type TemplateSetting = {
+  /** Stable within the template; exposed as `data-setting` on the option. */
+  readonly key: string;
+  readonly label: string;
+  readonly hint?: string;
+  readonly on: boolean;
+  /** The change that flips it; the shell dispatches it as it is. */
+  readonly toggle: ActionInput;
+};
+
+/** The page's settings menu: its switches, and a note under them. */
+export type TemplateSettings = {
+  readonly items: readonly TemplateSetting[];
+  readonly note?: string;
+};
+
 /**
  * The template contract. Everything here is a pure function of
  * `(baseState | derivedState, action)` so it can be unit tested without a DOM.
@@ -188,6 +205,12 @@ export type TemplateDefinition<S> = {
    * which the core always treats as applicable).
    */
   currentTarget?(state: S, nav: Navigation): CommentTargetOption | null;
+
+  /**
+   * The page's settings, behind the gear in the shared header. Without it (or
+   * with no items) the header has no settings button.
+   */
+  settings?(state: S): TemplateSettings;
 
   /** Title shown in the template chrome. */
   title(state: S): string;

@@ -988,7 +988,7 @@ export const chromeStyles = [
     /* Review toggles: the changes and the review comments of the draft, each
        opening its own part of the review. Pinned to the top right corner, always
        in the same place. */
-    .dpk-review-toggles {
+    .dpk-header-actions {
       position: fixed;
       top: 12px;
       right: 16px;
@@ -997,7 +997,17 @@ export const chromeStyles = [
       gap: 6px;
     }
 
-    .dpk-review-toggle {
+    .dpk-review-toggles {
+      display: flex;
+      gap: 6px;
+    }
+
+    /* With the settings gear there are three buttons to keep the header clear of. */
+    .dpk-shell:has(.dpk-settings-trigger) .dpk-header {
+      padding-right: 154px;
+    }
+
+    .dpk-header-action {
       position: relative;
       display: inline-flex;
       align-items: center;
@@ -1019,29 +1029,30 @@ export const chromeStyles = [
         transform 220ms var(--dpk-ease-spring);
     }
 
-    .dpk-review-toggle svg {
+    .dpk-header-action svg {
       width: 16px;
       height: 16px;
     }
 
-    .dpk-review-toggle:hover {
+    .dpk-header-action:hover {
       color: var(--dpk-ink);
       border-color: var(--dpk-rule-hover);
       transform: translateY(-1px);
       box-shadow: var(--dpk-bevel), var(--dpk-shadow);
     }
 
-    .dpk-review-toggle:active {
+    .dpk-header-action:active {
       transform: translateY(0) scale(0.95);
       box-shadow: var(--dpk-shadow-xs);
     }
 
-    .dpk-review-toggle:focus-visible {
+    .dpk-header-action:focus-visible {
       outline: none;
       box-shadow: var(--dpk-focus);
     }
 
-    .dpk-review-toggle[aria-pressed='true'] {
+    .dpk-header-action[aria-pressed='true'],
+    .dpk-header-action[aria-expanded='true'] {
       color: var(--dpk-accent-ink);
       border-color: color-mix(in srgb, var(--dpk-accent-strong) 70%, transparent);
       background: linear-gradient(145deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
@@ -1050,7 +1061,8 @@ export const chromeStyles = [
         0 6px 16px -6px color-mix(in srgb, var(--dpk-accent) 70%, transparent);
     }
 
-    .dpk-review-toggle[aria-pressed='true']:hover {
+    .dpk-header-action[aria-pressed='true']:hover,
+    .dpk-header-action[aria-expanded='true']:hover {
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.25),
         0 10px 22px -8px color-mix(in srgb, var(--dpk-accent) 80%, transparent);
@@ -1082,6 +1094,135 @@ export const chromeStyles = [
         transform: scale(0.4);
         opacity: 0;
       }
+    }
+
+    /* What an icon button does, named below it on hover or keyboard focus. */
+    .dpk-header-action[data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      padding: 4px 8px;
+      border-radius: var(--dpk-radius-sm);
+      background: var(--dpk-ink);
+      color: var(--dpk-paper);
+      font-size: 11.5px;
+      font-weight: 600;
+      line-height: 1.4;
+      white-space: nowrap;
+      box-shadow: var(--dpk-shadow-sm);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(-2px);
+      transition:
+        opacity 120ms var(--dpk-ease),
+        transform 120ms var(--dpk-ease);
+    }
+
+    .dpk-header-action[data-tooltip]:hover::after,
+    .dpk-header-action[data-tooltip]:focus-visible::after {
+      opacity: 1;
+      transform: none;
+      transition-delay: 250ms;
+    }
+
+    /* An open popover hangs where the labels would show, and names itself. */
+    .dpk-header-actions:has([aria-pressed='true'], [aria-expanded='true']) .dpk-header-action::after {
+      display: none;
+    }
+
+    /* ----------------------------------------------------------- settings */
+
+    .dpk-settings {
+      box-sizing: border-box;
+      overflow: auto;
+      position: fixed;
+      inset: auto;
+      margin: 0;
+      padding: 6px;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius-lg);
+      background: var(--dpk-paper-raised);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
+      color: var(--dpk-ink);
+    }
+
+    .dpk-settings:popover-open {
+      display: grid;
+      align-content: start;
+      gap: 2px;
+      animation: dpk-review-in 180ms var(--dpk-ease);
+    }
+
+    .dpk-settings-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      width: 100%;
+      padding: 8px;
+      border: 0;
+      border-radius: var(--dpk-radius-sm);
+      background: none;
+      color: var(--dpk-ink);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .dpk-settings-option:hover,
+    .dpk-settings-option:focus-visible {
+      outline: none;
+      background: var(--dpk-paper-sunken);
+    }
+
+    .dpk-settings-check {
+      flex: none;
+      display: inline-grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      border: 1px solid var(--dpk-rule-strong);
+      border-radius: 4px;
+      background: var(--dpk-paper-raised);
+    }
+
+    .dpk-settings-option[aria-checked='true'] .dpk-settings-check {
+      border-color: var(--dpk-accent-strong);
+      background: var(--dpk-accent-strong);
+      color: var(--dpk-accent-ink);
+    }
+
+    .dpk-settings-check svg {
+      width: 12px;
+      height: 12px;
+      stroke-width: 3;
+    }
+
+    .dpk-settings-text {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .dpk-settings-name {
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .dpk-settings-hint {
+      color: var(--dpk-ink-soft);
+      font-size: 11.5px;
+      line-height: 1.45;
+    }
+
+    .dpk-settings-note {
+      margin: 4px 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--dpk-rule);
+      color: var(--dpk-ink-faint);
+      font-size: 11px;
+      line-height: 1.45;
     }
 
     /* ------------------------------------------------------ hand-off dock */

@@ -8,7 +8,6 @@ import type { UsmState } from '../model';
 import { lucide } from '../../../core/icons';
 import { usmTabsOf, type UsmTab } from '../board-tabs';
 import { renderViewTabs } from './board';
-import { renderFeaturesMenu, type FeaturesMenu } from './features-menu';
 
 /**
  * The head that stays at the top while the content scrolls: the board bar
@@ -35,15 +34,14 @@ export type TabsMenu = {
 /**
  * The bar above the content: the page tabs (the map, its milestones, statuses
  * and labels, and the tabs of the features that are on), on the map the
- * grouping toggle that only makes sense there, and the features menu. The
- * tabs keep to one line: the ones that do not fit fold behind a more button,
+ * grouping toggle that only makes sense there. The optional features are
+ * switched on from the settings in the shared header. The tabs keep to one line: the ones that do not fit fold behind a more button,
  * all but the current one.
  */
 export const renderBoardBar = (
   m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
   current: UsmTab,
-  featuresMenu: FeaturesMenu,
   tabsMenu: TabsMenu,
 ): TemplateResult => {
   const { state } = context;
@@ -103,7 +101,6 @@ export const renderBoardBar = (
           ? renderViewTabs(m, context)
           : nothing
       }
-      ${renderFeaturesMenu(m, context, featuresMenu)}
     </div>
   `;
 };

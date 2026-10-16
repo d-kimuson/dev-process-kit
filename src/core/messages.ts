@@ -7,8 +7,9 @@ export const LANGUAGE_NAMES: Readonly<Record<Locale, string>> = { en: 'English',
 export const coreMessages = defineMessages({
   en: {
     review: 'Review',
-    reviewChanges: 'Changes',
+    reviewChanges: 'Activity log',
     reviewComments: 'Review comments',
+    settings: 'Settings',
     useLightTheme: 'Switch to light theme',
     useDarkTheme: 'Switch to dark theme',
     language: 'Language',
@@ -50,8 +51,9 @@ export const coreMessages = defineMessages({
   },
   ja: {
     review: 'レビュー',
-    reviewChanges: '変更',
+    reviewChanges: '操作ログ',
     reviewComments: 'レビューコメント',
+    settings: '設定',
     useLightTheme: 'ライトテーマにする',
     useDarkTheme: 'ダークテーマにする',
     language: '言語',

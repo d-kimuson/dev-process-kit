@@ -292,9 +292,7 @@ export const usmMessages = defineMessages({
     noAssigneeFilter: 'Unassigned',
 
     // ----------------------------------------------------------------- features
-    featuresButton: 'Features',
     moreTabsLabel: 'More tabs',
-    featuresMenuLabel: 'Optional features',
     enableFeature: 'Turn on feature',
     disableFeature: 'Turn off feature',
     featureName: (feature: UsmFeature) =>
@@ -589,9 +587,7 @@ export const usmMessages = defineMessages({
     assigneeChipTitle: (name: string) => `担当: ${name}`,
     noAssigneeFilter: '担当者なし',
 
-    featuresButton: '機能',
     moreTabsLabel: 'ほかのタブ',
-    featuresMenuLabel: '追加できる機能',
     enableFeature: '機能を有効化',
     disableFeature: '機能を無効化',
     featureName: (feature: UsmFeature) =>

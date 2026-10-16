@@ -150,17 +150,34 @@ describe('usm features: element', () => {
     expect(root.querySelector('[data-filter-trigger="assignee"]')).toBeNull();
   });
 
-  it('turns a feature on from the features menu, as a change of the draft', async () => {
+  it('offers each optional feature as a setting whose flip is a SET_FEATURE change', () => {
+    const state = parseUsmBase({ ...raw, features: ['assignees'] });
+    const settings = usmDefinitionFor('ja').settings?.(state);
+    expect(settings?.note).toBe(usmMessages('ja').featuresNote);
+    expect(settings?.items.map((item) => [item.key, item.label, item.on])).toEqual([
+      ['estimates', usmMessages('ja').featureName('estimates'), false],
+      ['assignees', usmMessages('ja').featureName('assignees'), true],
+    ]);
+    expect(settings?.items[1]?.toggle).toEqual({
+      type: 'SET_FEATURE',
+      target: { type: 'page', id: 'usm' },
+      payload: { feature: 'assignees', enabled: false },
+    });
+  });
+
+  it('turns a feature on from the settings in the shared header, as a change of the draft', async () => {
     const el = await mount('');
     const root = el.shadowRoot!;
-    const trigger = root.querySelector('[data-features-trigger]') as HTMLButtonElement;
+    expect(root.querySelector('[data-features-trigger]')).toBeNull();
+    const trigger = root.querySelector('.dpk-settings-trigger') as HTMLButtonElement;
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     trigger.click();
     await settle(el);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
     const option = (feature: string) =>
-      root.querySelector(`#features-menu [data-feature="${feature}"]`) as HTMLButtonElement;
+      root.querySelector(`#dpk-settings [data-setting="${feature}"]`) as HTMLButtonElement;
     expect(option('estimates').getAttribute('aria-checked')).toBe('false');
+    expect(option('estimates').textContent).toContain(usmMessages('en').featureName('estimates'));
     option('estimates').click();
     await settle(el);
     expect(el.api.state.features).toEqual(['estimates']);
@@ -178,15 +195,15 @@ describe('usm features: element', () => {
     expect(el.api.state.features).toEqual(['assignees']);
   });
 
-  it('closes the features menu on a press outside it', async () => {
+  it('closes the settings on a press outside them', async () => {
     const el = await mount('');
     const root = el.shadowRoot!;
-    (root.querySelector('[data-features-trigger]') as HTMLButtonElement).click();
+    (root.querySelector('.dpk-settings-trigger') as HTMLButtonElement).click();
     await settle(el);
-    expect(root.querySelector('#features-menu')).not.toBeNull();
+    expect(root.querySelector('#dpk-settings')).not.toBeNull();
     // jsdom has no PointerEvent; the listener only reads the path and the button.
     document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, composed: true, button: 0 }));
     await settle(el);
-    expect(root.querySelector('#features-menu')).toBeNull();
+    expect(root.querySelector('#dpk-settings')).toBeNull();
   });
 });

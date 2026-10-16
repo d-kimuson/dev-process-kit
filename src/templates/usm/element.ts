@@ -34,7 +34,6 @@ import { findStory, flatSteps, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
 import { burndownStyles, renderBurndown } from './render/burndown';
 import { dependencyPickerStyles, type DependencyPicker } from './render/dependency-picker';
-import { featuresMenuStyles } from './render/features-menu';
 import { highlightStyles } from './render/highlight';
 import { renderLabelOverview } from './render/label-overview';
 import { linkStyles } from './render/link-icon';
@@ -64,7 +63,6 @@ const FILTER_MENU_WIDTH = 240;
 /** The height of one choice in a filter menu, and of the menu's padding: the room the menu asks for. */
 const FILTER_OPTION_HEIGHT = 31;
 const FILTER_MENU_PADDING = 14;
-const FEATURES_MENU_SIZE = { width: 320, height: 220 };
 /** Room kept around a highlighted card brought into view: about the backbone's height and the milestone column's width. */
 const HIGHLIGHT_REVEAL_MARGIN = 160;
 
@@ -89,7 +87,6 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     mapToolbarStyles,
     mapFilterStyles,
     highlightStyles,
-    featuresMenuStyles,
     pageTabsStyles,
     popoverSurface,
   ];
@@ -137,17 +134,6 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       closesOn: (path) =>
         !path.some(
           (node) => node instanceof Element && (node.id === 'filter-menu' || node.hasAttribute('data-filter-trigger')),
-        ),
-      ownsEscape: () => true,
-      dismiss: () => (this.mode = IDLE_MODE),
-    });
-    // So does the features menu.
-    new DismissController(this, {
-      open: () => this.mode.kind === 'choosing-features',
-      closesOn: (path) =>
-        !path.some(
-          (node) =>
-            node instanceof Element && (node.id === 'features-menu' || node.hasAttribute('data-features-trigger')),
         ),
       ownsEscape: () => true,
       dismiss: () => (this.mode = IDLE_MODE),
@@ -203,12 +189,6 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       const height = menu.childElementCount * TABS_MENU_ITEM_HEIGHT + TABS_MENU_PADDING;
       if (trigger)
         this.#popovers.open(menu, trigger, { width: TABS_MENU_WIDTH, height }, { placement: 'bottom-start' });
-      return;
-    }
-    if (this.mode.kind === 'choosing-features') {
-      const menu = this.renderRoot.querySelector<HTMLElement>('#features-menu');
-      const trigger = this.renderRoot.querySelector('[data-features-trigger]');
-      if (menu && trigger) this.#popovers.open(menu, trigger, FEATURES_MENU_SIZE);
       return;
     }
     // The step picker floats where the story was dropped (top layer) until the
@@ -299,24 +279,13 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     const tab = usmTabOf(context.state, context.navigation);
     return html`
       ${renderBoardHead(
-        renderBoardBar(
-          m,
-          context,
-          tab,
-          {
-            open: this.mode.kind === 'choosing-features',
-            toggle: () =>
-              (this.mode = this.mode.kind === 'choosing-features' ? IDLE_MODE : { kind: 'choosing-features' }),
-            close: () => (this.mode = IDLE_MODE),
-          },
-          {
-            folded: this.#tabsFit.hidden,
-            minimum: this.#tabsFit.minimum,
-            open: this.mode.kind === 'choosing-tab',
-            toggle: () => (this.mode = this.mode.kind === 'choosing-tab' ? IDLE_MODE : { kind: 'choosing-tab' }),
-            close: () => (this.mode = IDLE_MODE),
-          },
-        ),
+        renderBoardBar(m, context, tab, {
+          folded: this.#tabsFit.hidden,
+          minimum: this.#tabsFit.minimum,
+          open: this.mode.kind === 'choosing-tab',
+          toggle: () => (this.mode = this.mode.kind === 'choosing-tab' ? IDLE_MODE : { kind: 'choosing-tab' }),
+          close: () => (this.mode = IDLE_MODE),
+        }),
         this.#renderToolbar(m, context, tab),
       )}
       ${this.#renderTab(m, context, tab)} ${this.#renderPanel(m, context, tab)}

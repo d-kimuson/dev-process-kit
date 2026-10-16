@@ -23,6 +23,7 @@ import {
   Move,
   Pencil,
   Plus,
+  Settings,
   Sun,
   Trash,
   X,
@@ -71,6 +72,7 @@ export const iconComment = lucide(MessageSquare);
 /** A comment kept as part of the page's content, apart from a review comment for the agent. */
 export const iconNote = lucide(MessageSquareText);
 export const iconHistory = lucide(History);
+export const iconSettings = lucide(Settings);
 export const iconLink = lucide(Link);
 export const iconCopy = lucide(Copy);
 export const iconCheck = lucide(Check);

@@ -16,8 +16,10 @@ import {
   findSnapshot,
   findStep,
   findStory,
+  hasFeature,
   parseUsmBase,
   stepRefOf,
+  USM_FEATURES,
   type UsmState,
 } from './model';
 import {
@@ -80,6 +82,20 @@ export const usmDefinitionFor = (locale: Locale): TemplateDefinition<UsmState> =
     navigationFor: usmNavigationFor,
     commentTargets: (state: UsmState, navigation) => usmCommentTargets(m, state, navigation),
     currentTarget: (state, navigation) => usmCurrentTarget(m, state, navigation),
+    // Each optional feature is a switch in the shared header's settings.
+    settings: (state) => ({
+      items: USM_FEATURES.map((feature) => {
+        const on = hasFeature(state, feature);
+        return {
+          key: feature,
+          label: m.featureName(feature),
+          hint: m.featureHint(feature),
+          on,
+          toggle: { type: 'SET_FEATURE', target: { type: 'page', id: 'usm' }, payload: { feature, enabled: !on } },
+        };
+      }),
+      note: m.featuresNote,
+    }),
     title: usmTitle,
   };
 };

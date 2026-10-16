@@ -16,8 +16,6 @@ export type UsmUiMode =
   | { readonly kind: 'picking-icon'; readonly statusId: string }
   /** The menu of one of the map's filters is open. */
   | { readonly kind: 'filtering'; readonly key: MapFilterKey }
-  /** The menu of the optional features is open. */
-  | { readonly kind: 'choosing-features' }
   /** The menu of the page tabs that do not fit on the bar is open. */
   | { readonly kind: 'choosing-tab' }
   /** The story panel's list of one side's dependency choices is open, narrowed by the query typed. */

@@ -235,6 +235,18 @@ describe('<dpk-template-prototype>', () => {
     expect(el.shadowRoot?.querySelector('.dpk-review-toggle')?.getAttribute('aria-controls')).toBe('dpk-review');
   });
 
+  it('names each header button in a label shown on hover, and leaves out settings a template does not have', async () => {
+    const el = mount();
+    await settle(el);
+    const messages = coreMessages('en');
+    const actions = el.shadowRoot?.querySelector('.dpk-header-actions');
+    expect(actions?.querySelector('.dpk-settings-trigger')).toBeNull();
+    expect(
+      [...(actions?.querySelectorAll('[data-tooltip]') ?? [])].map((button) => button.getAttribute('data-tooltip')),
+    ).toEqual([messages.reviewChanges, messages.reviewComments]);
+    expect(actions?.querySelector('.dpk-review-toggle')?.hasAttribute('title')).toBe(false);
+  });
+
   it('keeps the review closed behind the changes and the review comments toggles', async () => {
     const el = mount();
     await settle(el);

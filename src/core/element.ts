@@ -13,6 +13,7 @@ import type {
   TemplateDefinition,
 } from './types';
 
+import { DismissController } from '../lib/dom/dismiss';
 import { onSelectChange } from '../lib/dom/events';
 import { COMMENT_ACTION, serializeDraft } from './action';
 import { CHANGES_ATTRIBUTE, jumpOf, type ChangeEntry } from './changes';
@@ -46,6 +47,13 @@ import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation
 import { PreviewRouter } from './shell/preview-router';
 import { findTarget, highlightTarget, revealTarget } from './shell/reveal';
 import { ReviewPopoverController } from './shell/review-popover-controller';
+import {
+  renderSettingsMenu,
+  renderSettingsTrigger,
+  SETTINGS_ID,
+  SETTINGS_SIZE,
+  type SettingsIntents,
+} from './shell/settings-menu';
 import { SidebarCollapseController } from './shell/sidebar-collapse-controller';
 import { SidebarResizeController } from './shell/sidebar-resize-controller';
 import { chromeStyles } from './shell/styles';
@@ -86,6 +94,7 @@ export abstract class TemplateElement<S> extends LitElement {
     notes: { type: String },
     theme: { type: String },
     notesOpen: { state: true },
+    settingsOpen: { state: true },
     reviewSection: { state: true },
   };
 
@@ -107,6 +116,8 @@ export abstract class TemplateElement<S> extends LitElement {
   declare theme: string | null;
   /** Internal UI state of the review toggles. */
   declare notesOpen: boolean;
+  /** Whether the settings menu in the header is open. */
+  declare settingsOpen: boolean;
   /** The part of the draft the rail shows: what the reader changed, or what they asked the agent to fix. */
   declare reviewSection: ReviewSection;
   #notesInitialized = false;
@@ -149,15 +160,35 @@ export abstract class TemplateElement<S> extends LitElement {
     resume: (hold) => this.#notices.resume(hold),
   };
   readonly #popovers = new PopoverController(this);
+  readonly #settingsIntents: SettingsIntents = {
+    toggle: () => {
+      this.settingsOpen = !this.settingsOpen;
+    },
+    flip: (input) => void this.dispatch(input),
+  };
   constructor() {
     super();
-    // The review floats over the page below its toggles.
+    this.settingsOpen = false;
+    // The review floats over the page below the header actions.
     new ReviewPopoverController(this, {
       surface: () => this.renderRoot.querySelector<HTMLElement>(`#${REVIEW_ID}`),
-      anchor: () => this.renderRoot.querySelector('.dpk-review-toggles'),
+      anchor: () => this.renderRoot.querySelector('.dpk-header-actions'),
       open: () => this.notesOpen && !this.integratedReview,
       close: () => {
         this.notesOpen = false;
+      },
+    });
+    // The settings close on Escape and on a press outside them and their trigger.
+    new DismissController(this, {
+      open: () => this.settingsOpen,
+      // The trigger is left out, so its own click toggles the menu shut.
+      closesOn: (path) =>
+        !path.some(
+          (node) => node instanceof Element && (node.id === SETTINGS_ID || node.matches('.dpk-settings-trigger')),
+        ),
+      ownsEscape: () => true,
+      dismiss: () => {
+        this.settingsOpen = false;
       },
     });
   }
@@ -273,6 +304,7 @@ export abstract class TemplateElement<S> extends LitElement {
     this.#routePreviews();
     this.#reserveDockSpace();
     this.#placeNoticeList();
+    this.#placeSettings();
     if (this.#focusSidebarToggle) {
       this.#focusSidebarToggle = false;
       this.renderRoot.querySelector<HTMLElement>('.dpk-sidebar-toggle')?.focus();
@@ -528,11 +560,45 @@ export abstract class TemplateElement<S> extends LitElement {
               </footer>`
             : nothing
         }
-        ${this.integratedReview ? nothing : this.#renderReviewToggles(changeCount, commentCount)}
+        ${this.#renderHeaderActions(context, changeCount, commentCount)}
         ${this.integratedReview ? nothing : this.#renderReviewPopover(context)}
         ${this.integratedReview ? nothing : this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
       </div>
     `;
+  }
+
+  /**
+   * The icon buttons fixed at the top right: the page's settings when the
+   * template has any, then the review toggles. Their popovers hang below the
+   * whole group, aligned to its right edge.
+   */
+  #renderHeaderActions(
+    context: TemplateRenderContext<S>,
+    changeCount: number,
+    commentCount: number,
+  ): TemplateResult | typeof nothing {
+    const settings = this.definition.settings?.(context.state);
+    const hasSettings = settings !== undefined && settings.items.length > 0;
+    if (!hasSettings && this.integratedReview) return nothing;
+    const messages = coreMessages(this.locale);
+    return html`<div class="dpk-header-actions">
+      ${hasSettings ? renderSettingsTrigger(this.settingsOpen, messages, this.#settingsIntents) : nothing}
+      ${hasSettings && this.settingsOpen ? renderSettingsMenu(settings, messages, this.#settingsIntents) : nothing}
+      ${this.integratedReview ? nothing : this.#renderReviewToggles(changeCount, commentCount)}
+    </div>`;
+  }
+
+  /** The open settings hang below the header actions in the top layer. */
+  #placeSettings(): void {
+    const menu = this.renderRoot.querySelector<HTMLElement>(`#${SETTINGS_ID}`);
+    const anchor = this.renderRoot.querySelector('.dpk-header-actions');
+    if (!menu || !anchor || isPopoverOpen(menu)) return;
+    this.#popovers.open(
+      menu,
+      anchor,
+      { width: SETTINGS_SIZE.width, height: Math.min(SETTINGS_SIZE.height, window.innerHeight - 96) },
+      { placement: 'bottom-end' },
+    );
   }
 
   /**
@@ -545,13 +611,13 @@ export abstract class TemplateElement<S> extends LitElement {
     const toggle = (section: ReviewSection, label: string, icon: TemplateResult, count: number) => {
       const pressed = this.notesOpen && this.reviewSection === section;
       return html`<button
-        class="dpk-review-toggle"
+        class="dpk-header-action dpk-review-toggle"
         type="button"
         data-section=${section}
         aria-controls=${REVIEW_ID}
         aria-pressed=${pressed ? 'true' : 'false'}
         aria-label=${`${label} (${count})`}
-        title=${label}
+        data-tooltip=${label}
         @click=${() => {
           this.notesOpen = !pressed;
           this.reviewSection = section;
