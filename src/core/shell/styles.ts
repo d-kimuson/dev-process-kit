@@ -51,9 +51,9 @@ export const chromeStyles = [
       flex-wrap: wrap;
       align-items: center;
       gap: 8px 14px;
-      min-height: 60px;
+      min-height: 44px;
       /* Right padding keeps the header content clear of the fixed review toggles. */
-      padding: 10px 112px 10px 16px;
+      padding: 6px 100px 6px 16px;
       border-bottom: 1px solid var(--dpk-rule);
       background: var(--dpk-glass);
       backdrop-filter: saturate(1.6) blur(14px);
@@ -212,7 +212,7 @@ export const chromeStyles = [
       flex: none;
       align-items: center;
       gap: 2px;
-      padding: 3px;
+      padding: 2px;
       border: 1px solid var(--dpk-rule);
       border-radius: 999px;
       background: var(--dpk-paper-sunken);
@@ -990,7 +990,7 @@ export const chromeStyles = [
        in the same place. */
     .dpk-header-actions {
       position: fixed;
-      top: 12px;
+      top: 6px;
       right: 16px;
       z-index: 60;
       display: flex;
@@ -1004,11 +1004,11 @@ export const chromeStyles = [
 
     /* Each further button (the questions, the settings gear) widens what the header keeps clear of. */
     .dpk-shell:is(:has(.dpk-settings-trigger), :has(.dpk-review-toggles > :nth-child(3))) .dpk-header {
-      padding-right: 154px;
+      padding-right: 138px;
     }
 
     .dpk-shell:has(.dpk-settings-trigger):has(.dpk-review-toggles > :nth-child(3)) .dpk-header {
-      padding-right: 196px;
+      padding-right: 176px;
     }
 
     .dpk-header-action {
@@ -1016,11 +1016,11 @@ export const chromeStyles = [
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       padding: 0;
       border: 1px solid var(--dpk-rule-strong);
-      border-radius: 11px;
+      border-radius: 10px;
       background: var(--dpk-paper-raised);
       color: var(--dpk-ink-soft);
       box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
