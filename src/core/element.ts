@@ -78,7 +78,17 @@ import {
 import { SidebarCollapseController } from './shell/sidebar-collapse-controller';
 import { SidebarResizeController } from './shell/sidebar-resize-controller';
 import { chromeStyles } from './shell/styles';
-import { LEGACY_MEMO_SLOT, openSupplementRule, SUPPLEMENT_SLOT, supplementsOf } from './shell/supplements';
+import {
+  FOLDED_SUPPLEMENTS,
+  LEGACY_MEMO_SLOT,
+  openSupplementOf,
+  openSupplementRule,
+  pressSupplement,
+  SUPPLEMENT_SLOT,
+  supplementsOf,
+  toggleSupplements,
+  type SupplementView,
+} from './shell/supplements';
 import { TextRecoveryController } from './shell/text-recovery-controller';
 import { VersionChoiceController } from './shell/version-choice-controller';
 import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, sidebarToggle, type SidebarLayout } from './sidebar-width';
@@ -170,8 +180,8 @@ export abstract class TemplateElement<S> extends LitElement {
   };
   #notesInitialized = false;
   #previewRouter = new PreviewRouter(this);
-  /** The supplement the reader opened; the bar shows the rest folded. */
-  #openSupplement: Element | null = null;
+  /** The supplement the reader picked in the bar, and whether it is open. */
+  #supplements: SupplementView = FOLDED_SUPPLEMENTS;
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
   #claude = new ClaudeHandoffController(this);
   #dock = new HandoffDockController(this);
@@ -1319,10 +1329,23 @@ export abstract class TemplateElement<S> extends LitElement {
    */
   #renderSupplements(messages: CoreMessages): TemplateResult {
     const supplements = supplementsOf(this, messages.memo);
-    const open = supplements.find((supplement) => supplement.element === this.#openSupplement) ?? null;
+    const open = openSupplementOf(this.#supplements, supplements);
+    const show = (view: SupplementView): void => {
+      this.#supplements = view;
+      this.requestUpdate();
+    };
     return html`<div class="dpk-supplements" ?hidden=${supplements.length === 0} ?data-open=${open !== null}>
       <div class="dpk-supplements-bar" role="group" aria-label=${messages.supplements}>
-        ${iconChevronRight()}
+        <button
+          type="button"
+          class="dpk-supplements-toggle"
+          aria-expanded=${String(open !== null)}
+          aria-controls="dpk-supplements-body"
+          aria-label=${open === null ? messages.openSupplements : messages.closeSupplements}
+          @click=${() => show(toggleSupplements(this.#supplements, supplements))}
+        >
+          ${iconChevronRight()}
+        </button>
         ${supplements.map(
           (supplement) =>
             html`<button
@@ -1330,10 +1353,7 @@ export abstract class TemplateElement<S> extends LitElement {
               class="dpk-supplement-tab"
               aria-expanded=${String(supplement === open)}
               aria-controls="dpk-supplements-body"
-              @click=${() => {
-                this.#openSupplement = supplement === open ? null : supplement.element;
-                this.requestUpdate();
-              }}
+              @click=${() => show(pressSupplement(this.#supplements, supplement.element))}
             >
               ${supplement.name}
             </button>`,

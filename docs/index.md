@@ -296,7 +296,7 @@ Slot each piece of supporting material as its own element with a `data-name`:
 </section>
 ```
 
-The shell lines the names up, in the order written, in a bar the full width of the main column, pinned to its bottom. The reader presses a name to open that supplement alone, growing upward over the content; pressing another switches, and pressing the open one folds it. One without a `data-name` is labelled "Memo". The bar is rendered only while at least one supplement is slotted, and follows ones added later. A supplement may hold the diagram elements (load `components.js` too).
+The shell lines the names up, in the order written, in a bar the full width of the main column, pinned to its bottom. The reader presses a name to open that supplement alone, growing upward over the content; pressing another switches, and pressing the open one folds it. The chevron at the start of the bar folds it too, and reopens the supplement last opened (the first, before any). One without a `data-name` is labelled "Memo". The bar is rendered only while at least one supplement is slotted, and follows ones added later. A supplement may hold the diagram elements (load `components.js` too).
 
 The `memo` slot is gone: content left in `slot="memo"` is not shown, and the console says so. Wrap it in a `slot="supplement"` element instead.
 

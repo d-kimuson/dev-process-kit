@@ -96,6 +96,33 @@ describe('supplements at the bottom of the main column', () => {
     expect(body(element)?.hasAttribute('hidden')).toBe(true);
   });
 
+  it('folds and reopens from the chevron, coming back to the supplement last opened', async () => {
+    const element = mount(THREE);
+    await settle(element);
+    const chevron = (): HTMLButtonElement | null =>
+      root(element).querySelector<HTMLButtonElement>('.dpk-supplements-toggle');
+    expect(chevron()?.getAttribute('aria-expanded')).toBe('false');
+    expect(chevron()?.getAttribute('aria-label')).toBe(messages.openSupplements);
+
+    // Closed with nothing opened yet, it opens the first.
+    chevron()?.click();
+    await settle(element);
+    expect(tabs(element).map((tab) => tab.getAttribute('aria-expanded'))).toEqual(['true', 'false', 'false']);
+
+    tabs(element)[2]?.click();
+    await settle(element);
+    expect(chevron()?.getAttribute('aria-expanded')).toBe('true');
+    expect(chevron()?.getAttribute('aria-label')).toBe(messages.closeSupplements);
+    chevron()?.click();
+    await settle(element);
+    expect(body(element)?.hasAttribute('hidden')).toBe(true);
+    expect(tabs(element).map((tab) => tab.getAttribute('aria-expanded'))).toEqual(['false', 'false', 'false']);
+
+    chevron()?.click();
+    await settle(element);
+    expect(tabs(element).map((tab) => tab.getAttribute('aria-expanded'))).toEqual(['false', 'false', 'true']);
+  });
+
   it('follows supplements the author adds later', async () => {
     const element = mount(THREE);
     await settle(element);

@@ -857,19 +857,42 @@ export const chromeStyles = [
       align-items: center;
       gap: 2px;
       /* Clear of the hand-off dock at the bottom right while it is shown. */
-      padding: 5px calc(16px + var(--dpk-dock-space, 0px)) 5px 12px;
+      padding: 5px calc(16px + var(--dpk-dock-space, 0px)) 5px 10px;
       color: var(--dpk-ink-soft);
     }
 
-    .dpk-supplements-bar > svg {
+    .dpk-supplements-toggle {
       flex: none;
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      margin-right: 2px;
+      border: 0;
+      border-radius: 7px;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .dpk-supplements-toggle:hover {
+      color: var(--dpk-ink);
+      background: color-mix(in srgb, var(--dpk-amber) 10%, transparent);
+    }
+
+    .dpk-supplements-toggle:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
+    .dpk-supplements-toggle svg {
       width: 14px;
       height: 14px;
-      margin-right: 2px;
       transition: transform 160ms var(--dpk-ease);
     }
 
-    .dpk-supplements[data-open] .dpk-supplements-bar > svg {
+    .dpk-supplements[data-open] .dpk-supplements-toggle svg {
       transform: rotate(90deg);
     }
 
