@@ -165,6 +165,10 @@ const describers = (m: PrototypeMessages): Record<string, (action: DraftAction, 
       tone: 'create',
       body: `+ "${shorten(payloadFor(prototypeActions.ADD_UI_NOTE, action).body)}"`,
     }),
+    SET_UI_NOTE_BODY: (action, state) => {
+      const { noteId, body } = payloadFor(prototypeActions.SET_UI_NOTE_BODY, action);
+      return { title: m.editUiNote, tone: 'update', body: preview(findUiNote(state, noteId)?.body, body) };
+    },
     DELETE_UI_NOTE: (action, state) => {
       const { noteId } = payloadFor(prototypeActions.DELETE_UI_NOTE, action);
       const note = findUiNote(state, noteId);

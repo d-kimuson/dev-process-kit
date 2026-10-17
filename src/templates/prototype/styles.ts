@@ -952,6 +952,34 @@ export const prototypeStyles = css`
     font-size: 10.5px;
   }
 
+  /* Rewrite and delete sit together at the end of the row. */
+  .ui-note-list li .dpk-icon-btn + .dpk-icon-btn {
+    margin-left: -4px;
+  }
+
+  .ui-note-list li:has(.ui-note-editor) {
+    padding: 6px;
+  }
+
+  .ui-note-editor {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .ui-note-editor textarea {
+    min-height: 72px;
+    background: var(--dpk-paper-raised);
+    font-size: 12.5px;
+  }
+
+  .ui-note-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
   /*
    * Side by side: what the user sees together, in one row. A fixed viewport
    * keeps its width as long as the row allows it, a fluid one takes the rest;

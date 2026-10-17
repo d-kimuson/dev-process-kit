@@ -285,6 +285,16 @@ export const applyPrototypeAction = (state: PrototypeState, action: DraftAction)
         notes: [...(preview.notes ?? []), note],
       }));
     }
+    case 'SET_UI_NOTE_BODY': {
+      const { noteId, body } = typed.payload;
+      const ui = parseUiTargetId(id);
+      const found = ui === undefined ? undefined : findPreview(state, ui.previewId);
+      if (!found?.preview.notes?.some((note) => note.id === noteId)) return null;
+      return updatePreview(state, found.preview.id, (preview) => ({
+        ...preview,
+        notes: (preview.notes ?? []).map((note) => (note.id === noteId ? { ...note, body } : note)),
+      }));
+    }
     case 'DELETE_UI_NOTE': {
       const { noteId } = typed.payload;
       const ui = parseUiTargetId(id);

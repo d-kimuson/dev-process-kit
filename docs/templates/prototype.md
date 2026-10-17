@@ -94,7 +94,7 @@ Check before you hand the page over:
 
 A step's `description`, a screen's `description`, and the `description` of a story without steps are shown as Markdown (GFM; a single line break stays a break), so write lists and emphasis there rather than one long line. Raw HTML is shown as text, and a link keeps only a `http(s)`, `mailto` or in-page address.
 
-Ids use `[A-Za-z0-9_-]+`. An activity id, an app id, a screen id, a preview id and a note id are each unique across the whole page — a screen is a navigation destination and a preview id names a light DOM slot, so both are global whether the preview is a screen's rendition or a step's material; a note id is global too, since `DELETE_UI_NOTE` finds it by id alone. A story id and a step id are unique within their parent.
+Ids use `[A-Za-z0-9_-]+`. An activity id, an app id, a screen id, a preview id and a note id are each unique across the whole page — a screen is a navigation destination and a preview id names a light DOM slot, so both are global whether the preview is a screen's rendition or a step's material; a note id is global too, since `SET_UI_NOTE_BODY` and `DELETE_UI_NOTE` find it by id alone. A story id and a step id are unique within their parent.
 
 Every preview declared in the base gets a frame; a preview without matching light DOM shows an empty frame with a hint. That is also how a [stub screen](#stub-screens) looks before it is drawn.
 
@@ -277,6 +277,7 @@ Name an action by what the reader sees afterwards (`エラーになる入力`, `
 | `DELETE_STEP`              | step     | `{}`                                                           |
 | `DELETE_PREVIEW`           | preview  | `{}`                                                           |
 | `ADD_UI_NOTE`              | ui       | `{ "id", "body", "createdAt"? }`                               |
+| `SET_UI_NOTE_BODY`         | ui       | `{ "noteId", "body" }`                                         |
 | `DELETE_UI_NOTE`           | ui       | `{ "noteId" }`                                                 |
 
 - `after` is an anchor id, not an offset: `{ "after": "login" }` means "directly after login" and `{ "after": null }` means "first". An anchor that does not exist makes the action stale instead of silently landing somewhere.
@@ -284,7 +285,7 @@ Name an action by what the reader sees afterwards (`エラーになる入力`, `
 - Step targets are paths (`activityId.storyId.stepId`), and a bare step id is accepted only while it stays unique. Story targets use `activityId.storyId`; activity, preview and page targets stay bare.
 - `ADD_*` actions carry the new id, so re-applying one whose entity already exists is a pruned no-op. `ADD_STEP`'s screen panes must name screens already declared under `apps[].screens` (and a pinned `preview` one of their renditions), and `ADD_PREVIEW` always adds a **material** — there is no action to add a screen's rendition, an app or a screen itself: the product's apps and screens are base data only, edited by regenerating the page. `ADD_PREVIEW`'s payload never carries `notes`: a note is added on its own, one at a time, by `ADD_UI_NOTE`.
 - `SET_PREVIEW_*` and `DELETE_PREVIEW` apply the same way to a screen's rendition and a step's material; they are found by preview id, which is global either way.
-- `ADD_UI_NOTE` and `DELETE_UI_NOTE` target a `ui` target, the same as a UI comment's (`ui:<preview id>/<selector> "<text>"`); see [Commenting on the UI](#commenting-on-the-ui). The same note `id` on the same element is a pruned no-op, but that id used on another element is rejected — a note's id is checked across the whole page, not just its parent, so `DELETE_UI_NOTE` can find it by `noteId` alone.
+- `ADD_UI_NOTE`, `SET_UI_NOTE_BODY` and `DELETE_UI_NOTE` target a `ui` target, the same as a UI comment's (`ui:<preview id>/<selector> "<text>"`); see [Commenting on the UI](#commenting-on-the-ui). The same note `id` on the same element is a pruned no-op, but that id used on another element is rejected — a note's id is checked across the whole page, not just its parent, so `SET_UI_NOTE_BODY` and `DELETE_UI_NOTE` can find it by `noteId` alone. `SET_UI_NOTE_BODY` rewrites only `body` (non-blank); the note keeps its id, element and `createdAt`.
 - Deleting an activity deletes its stories and steps at render time, so a draft that deletes a parent and then edits a child leaves the child edit stale.
 
 ## Navigation
@@ -402,7 +403,7 @@ ui:admin-refund-stuck-desktop/button.sm-btn.sm-btn--ghost:nth-of-type(2) "購入
 
 `<selector>` is the shortest CSS selector, relative to the preview's light DOM element (`[data-preview-id]`), that matched only that element when the reader clicked it, and `<text>` is what the element said (its text, `aria-label`, placeholder or alt). Find the element by either, and answer in the next version of that preview. A `ui` comment stays valid as long as its preview exists, even after the markup changes — whether the preview is a screen's rendition or a step's material.
 
-A note instead becomes base data (`previews[].notes`) through `ADD_UI_NOTE` ([Action vocabulary](#action-vocabulary)), located the same way. It is shown as a blue badge — the note icon plus a count — on the element's top-left corner, in every step and screen of the scenario view, but never the app view, which is the product alone; clicking it lists its notes oldest first, each with when it was written and a trash button that dispatches `DELETE_UI_NOTE`. Treat a note the opposite way from feedback: preserve it across your own edits to the preview instead of clearing it, and if the edit moves or renames the element, carry the note's `selector` (and `text`) forward so its badge still finds it — a note whose element the markup no longer has just stops showing, rather than being dropped for you.
+A note instead becomes base data (`previews[].notes`) through `ADD_UI_NOTE` ([Action vocabulary](#action-vocabulary)), located the same way. It is shown as a blue badge — the note icon plus a count — on the element's top-left corner, in every step and screen of the scenario view, but never the app view, which is the product alone; clicking it lists its notes oldest first, each with when it was written, a pencil button that rewrites it in place (`SET_UI_NOTE_BODY`), and a trash button that dispatches `DELETE_UI_NOTE`. Treat a note the opposite way from feedback: preserve it across your own edits to the preview instead of clearing it, and if the edit moves or renames the element, carry the note's `selector` (and `text`) forward so its badge still finds it — a note whose element the markup no longer has just stops showing, rather than being dropped for you.
 
 ### Preview address
 

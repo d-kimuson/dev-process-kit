@@ -475,6 +475,55 @@ describe('<dpk-template-prototype> layout', () => {
       expect(badge()).not.toBeNull();
     });
 
+    it('rewrites a note in place from its list', async () => {
+      const el = await withMock();
+      const root = el.shadowRoot!;
+      const pay = { previewId: 'landing-mobile', selector: 'button.pay', text: 'Pay now' };
+      el.api.dispatch(prototypeAction.addUiNote(pay, 'n1', 'Agreed with legal'));
+      await settle(el);
+      root.querySelector<HTMLButtonElement>('.ui-note-badge')!.click();
+      await settle(el);
+      const pop = (): HTMLElement => root.querySelector<HTMLElement>('.ui-notes-pop')!;
+      const editor = (): HTMLTextAreaElement | null => pop().querySelector('li[data-id="n1"] textarea');
+      const save = (): HTMLButtonElement => pop().querySelector<HTMLButtonElement>('[data-role="save-note"]')!;
+      const type = (value: string): void => {
+        editor()!.value = value;
+        editor()!.dispatchEvent(new Event('input'));
+      };
+
+      pop().querySelector<HTMLButtonElement>('li[data-id="n1"] [data-role="edit-note"]')!.click();
+      await settle(el);
+      expect(editor()!.value).toBe('Agreed with legal');
+      expect(root.activeElement).toBe(editor());
+      type('  ');
+      await settle(el);
+      expect(save().disabled).toBe(true);
+      type('Agreed with legal and QA');
+      await settle(el);
+      save().click();
+      await settle(el);
+      expect(editor()).toBeNull();
+      expect(pop().querySelector('.ui-note-body')?.textContent).toBe('Agreed with legal and QA');
+      expect(el.api.actions.map((action) => action.type)).toEqual(['ADD_UI_NOTE', 'SET_UI_NOTE_BODY']);
+      expect(root.activeElement).toBe(pop().querySelector('li[data-id="n1"] [data-role="edit-note"]'));
+
+      // Escape leaves the text as it was and keeps the list open; Ctrl/Cmd + Enter saves
+      pop().querySelector<HTMLButtonElement>('[data-role="edit-note"]')!.click();
+      await settle(el);
+      type('Thrown away');
+      editor()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+      await settle(el);
+      expect(editor()).toBeNull();
+      expect(pop().querySelector('.ui-note-body')?.textContent).toBe('Agreed with legal and QA');
+      pop().querySelector<HTMLButtonElement>('[data-role="edit-note"]')!.click();
+      await settle(el);
+      type('Agreed');
+      editor()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }));
+      await settle(el);
+      expect(pop().querySelector('.ui-note-body')?.textContent).toBe('Agreed');
+      expect(el.api.actions.map((action) => action.type)).toEqual(['ADD_UI_NOTE', 'SET_UI_NOTE_BODY']);
+    });
+
     it('shows the notes in the scenario view only: the app view is the product alone', async () => {
       const el = await withMock();
       el.api.dispatch(prototypeAction.addUiNote({ previewId: 'landing-mobile', selector: 'button.pay' }, 'n1', 'Hi'));

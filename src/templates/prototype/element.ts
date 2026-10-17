@@ -37,7 +37,15 @@ import {
 import { prototypeDefinitionFor } from './definition';
 import { chooseDevice, deviceZoom, type DeviceChoice } from './devices';
 import { prototypeMessages } from './messages';
-import { allUiNoteIds, findPreview, uiTargetId, UI_TARGET, type PrototypeState, type UiTarget } from './model';
+import {
+  allUiNoteIds,
+  findPreview,
+  uiTargetId,
+  UI_TARGET,
+  type PrototypeState,
+  type UiNote,
+  type UiTarget,
+} from './model';
 import {
   locatePrototype,
   prototypeLinkProblem,
@@ -46,10 +54,11 @@ import {
   prototypeUiCommentPins,
   prototypeUiNoteBadges,
   prototypeUiTargetName,
+  type UiNoteBadge,
 } from './present';
 import { renderNav } from './render/nav';
 import { renderStage, type StageLift, type StageOptions } from './render/stage';
-import { uiNoteBadgeKey, type UiNotesView } from './render/ui-notes';
+import { uiNoteBadgeKey, type UiNoteEdit, type UiNotesView } from './render/ui-notes';
 import { prototypeDocumentStyles, prototypeStyles } from './styles';
 import { reduceUiComment, UI_COMMENT_OFF, type UiCommentIntent, type UiCommentMode } from './ui-mode';
 import { prototypeViewOf } from './view-mode';
@@ -59,6 +68,13 @@ const COMPOSER_SIZE = { width: 300, height: 300 };
 const RELOAD_MS = 360;
 const ACTIONS_MENU_SIZE = { width: 280, height: 360 };
 const NOTES_SIZE = { width: 300, height: 320 };
+/** The element a note is on, named the way the reader picked it. */
+const noteTarget = (badge: UiNoteBadge, note: UiNote): UiTarget => ({
+  previewId: badge.previewId,
+  selector: note.selector,
+  ...(note.text === undefined ? {} : { text: note.text }),
+});
+
 /** The open composer: the notes list is a `.comment-pop` too. */
 const COMPOSER = '.comment-pop:not(.ui-notes-pop)';
 const DOCUMENT_STYLES_ID = 'dpk-template-prototype-document-styles';
@@ -169,6 +185,10 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   #notesPop: HTMLElement | null = null;
   /** Set when the notes list closed from the keyboard: the focus goes back to its badge. */
   #refocusNotes: string | null = null;
+  /** The note being rewritten in the open list. */
+  #noteEdit: UiNoteEdit | null = null;
+  /** Where the focus goes once the list is drawn again: into a note's editor, or back to its edit button. */
+  #focusNote: { readonly noteId: string; readonly part: 'editor' | 'edit' } | null = null;
   /** The mock changes its own markup as the reader clicks through it: the badges follow their elements. */
   readonly #mockChanges =
     typeof MutationObserver === 'undefined' ? null : new MutationObserver(() => this.#schedulePlacement());
@@ -452,6 +472,9 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
         : null;
     // Its element left the stage, or its last note was deleted.
     if (open === null) this.#notesOn = null;
+    const editing = this.#noteEdit;
+    // The list closed, or the note being rewritten is gone.
+    if (editing !== null && !open?.notes.some((note) => note.id === editing.noteId)) this.#noteEdit = null;
     return {
       badges,
       open,
@@ -460,14 +483,42 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
         if (this.#notesOn === key) this.#closeNotes(false);
         else {
           this.#notesOn = key;
+          this.#noteEdit = null;
           this.requestUpdate();
         }
       },
       close: () => this.#closeNotes(true),
       remove: (badge, noteId) => {
-        this.dispatch(prototypeAction.deleteUiNote(badge, noteId));
+        const note = badge.notes.find((candidate) => candidate.id === noteId);
+        if (note !== undefined) this.dispatch(prototypeAction.deleteUiNote(noteTarget(badge, note), noteId));
       },
+      editing: this.#noteEdit,
+      edit: (noteId, body) => {
+        this.#noteEdit = { noteId, body };
+        this.#focusNote = { noteId, part: 'editor' };
+        this.requestUpdate();
+      },
+      input: (body) => {
+        if (this.#noteEdit !== null) this.#noteEdit = { ...this.#noteEdit, body };
+        this.requestUpdate();
+      },
+      save: () => {
+        const edit = this.#noteEdit;
+        const note = open?.notes.find((candidate) => candidate.id === edit?.noteId);
+        const body = edit?.body.trim() ?? '';
+        if (open === null || edit === null || note === undefined || body === '') return;
+        if (body !== note.body) this.dispatch(prototypeAction.setUiNoteBody(noteTarget(open, note), note.id, body));
+        this.#endNoteEdit();
+      },
+      cancel: () => this.#endNoteEdit(),
     };
+  }
+
+  #endNoteEdit(): void {
+    if (this.#noteEdit === null) return;
+    this.#focusNote = { noteId: this.#noteEdit.noteId, part: 'edit' };
+    this.#noteEdit = null;
+    this.requestUpdate();
   }
 
   #closeNotes(refocus: boolean): void {
@@ -487,6 +538,14 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
       return;
     }
     const badge = this.#badge(surface.dataset['key'] ?? '');
+    const focus = this.#focusNote;
+    this.#focusNote = null;
+    if (focus !== null) {
+      const note = surface.querySelector(`li[data-id="${CSS.escape(focus.noteId)}"]`);
+      note
+        ?.querySelector<HTMLElement>(focus.part === 'editor' ? 'textarea' : '[data-role="edit-note"]')
+        ?.focus({ preventScroll: true });
+    }
     if (surface === this.#notesPop || badge === null) return;
     this.#notesPop = surface;
     this.#popovers.open(surface, badge, NOTES_SIZE, { placement: 'bottom-start' });

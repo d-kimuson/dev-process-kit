@@ -3,8 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 import type { ActionInput, DraftAction } from '../../core/types';
 
+import { appendAction } from '../../core/action';
 import { toTarget } from '../../core/target';
-import { prototypeAction } from './actions';
+import { prototypeAction, prototypeActions } from './actions';
 import { applyPrototypeAction } from './apply';
 import { prototypeDefinitionFor } from './definition';
 import { prototypeMessages } from './messages';
@@ -148,6 +149,35 @@ describe('prototype UI notes: actions', () => {
     expect(apply(base, prototypeAction.addUiNote({ previewId: 'cart', selector: 'h1' }, 'n1', 'hi'))).toBeNull();
   });
 
+  it('rewrites the body of a note and keeps the rest of it', () => {
+    const edited = apply(base, prototypeAction.setUiNoteBody(pay, 'n1', 'Agreed with legal and QA'));
+    expect(notesOf(edited, 'cart')).toEqual([
+      {
+        id: 'n1',
+        selector: 'button.pay',
+        text: 'Pay',
+        body: 'Agreed with legal and QA',
+        createdAt: '2026-10-01T09:00:00Z',
+      },
+    ]);
+    expect(apply(base, prototypeAction.setUiNoteBody(pay, 'n1', '  '))).toBeNull();
+    expect(apply(base, prototypeAction.setUiNoteBody(pay, 'ghost', 'hi'))).toBeNull();
+  });
+
+  it('keeps every note deleted in a row, and only the last edit of the same note', () => {
+    const removeFirst = act(prototypeAction.deleteUiNote(pay, 'n1'));
+    const removeSecond = act(prototypeAction.deleteUiNote(pay, 'n2'));
+    expect(appendAction([removeFirst], removeSecond, prototypeActions.DELETE_UI_NOTE)).toEqual([
+      removeFirst,
+      removeSecond,
+    ]);
+    const draft = act(prototypeAction.setUiNoteBody(pay, 'n1', 'Agreed'));
+    const final = act(prototypeAction.setUiNoteBody(pay, 'n1', 'Agreed with legal'));
+    const other = act(prototypeAction.setUiNoteBody(pay, 'n2', 'Ship behind a flag'));
+    expect(appendAction([draft], final, prototypeActions.SET_UI_NOTE_BODY)).toEqual([final]);
+    expect(appendAction([final], other, prototypeActions.SET_UI_NOTE_BODY)).toEqual([final, other]);
+  });
+
   it('describes the note in the review rail, on the element it is on', () => {
     const add = act(prototypeAction.addUiNote(pay, 'n2', 'Ship behind a flag'));
     const added = apply(base, prototypeAction.addUiNote(pay, 'n2', 'Ship behind a flag'))!;
@@ -162,6 +192,13 @@ describe('prototype UI notes: actions', () => {
       title: m.deleteUiNote,
       tone: 'delete',
       summary: '− "Agreed with legal"',
+    });
+    const edit = act(prototypeAction.setUiNoteBody(pay, 'n1', 'Agreed with legal and QA'));
+    const edited = apply(base, prototypeAction.setUiNoteBody(pay, 'n1', 'Agreed with legal and QA'))!;
+    expect(definition.describe(edit, edited, base)).toMatchObject({
+      title: m.editUiNote,
+      tone: 'update',
+      summary: '"Agreed with legal" → "Agreed with legal and QA"',
     });
   });
 });

@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 
-import type { ActionInput } from '../../core/types';
+import type { ActionInput, DraftAction } from '../../core/types';
 
 import {
   defineAction,
@@ -22,6 +22,17 @@ import {
   type StepPane,
   type UiTarget,
 } from './model';
+
+const noteIdSchema = v.pipe(v.string(), v.minLength(1));
+
+/**
+ * One element can keep several notes, so an action on a note is told apart by
+ * the note it names, not by its target alone.
+ */
+const noteDedupeKey = (action: DraftAction): string => {
+  const payload = v.safeParse(v.object({ noteId: noteIdSchema }), action.payload);
+  return `${action.type}|${payload.success ? payload.output.noteId : JSON.stringify(action.payload)}`;
+};
 
 /**
  * Prototype action vocabulary.
@@ -120,7 +131,18 @@ export const prototypeActions = {
     v.object({ id: entityIdSchema, body: uiNoteBodySchema, createdAt: v.exactOptional(uiNoteAtSchema) }),
     { dedupeKey: entityDedupeKey },
   ),
-  DELETE_UI_NOTE: defineAction('DELETE_UI_NOTE', UI_TARGET, v.object({ noteId: v.pipe(v.string(), v.minLength(1)) })),
+  /** Rewrites what a note says; the last rewrite of the same note wins. */
+  SET_UI_NOTE_BODY: defineAction(
+    'SET_UI_NOTE_BODY',
+    UI_TARGET,
+    v.object({ noteId: noteIdSchema, body: uiNoteBodySchema }),
+    {
+      dedupeKey: noteDedupeKey,
+    },
+  ),
+  DELETE_UI_NOTE: defineAction('DELETE_UI_NOTE', UI_TARGET, v.object({ noteId: noteIdSchema }), {
+    dedupeKey: noteDedupeKey,
+  }),
 } satisfies ActionSpecs;
 
 /** The discriminated union of this template's actions. */
@@ -257,6 +279,11 @@ export const prototypeAction = {
     type: 'ADD_UI_NOTE',
     target: { type: UI_TARGET, id: uiTargetId(target) },
     payload: { id, body, ...(createdAt === undefined ? {} : { createdAt }) },
+  }),
+  setUiNoteBody: (target: UiTarget, noteId: string, body: string): ActionInput => ({
+    type: 'SET_UI_NOTE_BODY',
+    target: { type: UI_TARGET, id: uiTargetId(target) },
+    payload: { noteId, body },
   }),
   deleteUiNote: (target: UiTarget, noteId: string): ActionInput => ({
     type: 'DELETE_UI_NOTE',
