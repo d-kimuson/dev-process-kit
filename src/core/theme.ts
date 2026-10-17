@@ -395,6 +395,8 @@ export const popoverSurface = css`
     inset: auto;
     margin: 0;
     display: grid;
+    /* One column as wide as the surface: a long label wraps or ellipsizes instead of widening it. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     padding: 14px;
     border: 1px solid var(--dpk-rule-strong);
@@ -411,6 +413,10 @@ export const popoverSurface = css`
       opacity: 0;
       transform: translateY(4px) scale(0.98);
     }
+  }
+
+  .comment-pop .comment-target {
+    overflow-wrap: anywhere;
   }
 
   .comment-pop .comment-list {
