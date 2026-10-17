@@ -1,8 +1,8 @@
 import type { Navigation } from '../../core/types';
 
-import { pointsOf, remainingSharesOf } from './burndown';
+import { measureOf, pointsOf, remainingSharesOf } from './burndown';
 import { isFinished } from './dependencies';
-import { hasFeature, type UserStory, type UsmState } from './model';
+import { type UserStory, type UsmState } from './model';
 
 /** What the map can highlight, as the navigation names it (`#highlight=critical-path`). */
 export const HIGHLIGHTS = ['critical-path'] as const;
@@ -13,13 +13,13 @@ export const highlightOf = (nav: Navigation): Highlight | null =>
   HIGHLIGHTS.find((highlight) => highlight === nav['highlight']) ?? null;
 
 /**
- * The work a story has left: its points times the share of its work still
- * ahead, the same measure the burndown uses. A story without a status stands
- * in the first one. While estimates are off every story counts one point.
+ * The work a story has left, by the measure the burndown uses: one while the
+ * stories are counted, else its points, weighed by the share of its work
+ * still ahead. A story without a status stands in the first one.
  */
 export const remainingWorkOf = (state: UsmState, story: UserStory): number => {
   if (isFinished(state, story)) return 0;
-  const points = hasFeature(state, 'estimates') ? pointsOf(state, story) : 1;
+  const points = measureOf(state) === 'stories' ? 1 : pointsOf(state, story);
   const index = Math.max(
     0,
     state.statuses.findIndex((status) => status.id === story.statusId),

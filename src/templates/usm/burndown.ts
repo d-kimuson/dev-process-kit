@@ -9,13 +9,9 @@ import {
   type StoryStatus,
   type TallyRow,
   type UserStory,
+  type UsmMeasure,
   type UsmState,
 } from './model';
-
-/** What the burndown counts: stories, or the points of their estimates. */
-export const BURNDOWN_UNITS = ['points', 'stories'] as const;
-
-export type BurndownUnit = (typeof BURNDOWN_UNITS)[number];
 
 /**
  * The milestone the burndown shows: the one the navigation names, else the
@@ -26,18 +22,21 @@ export const burndownMilestoneOf = (state: UsmState, nav: Readonly<Record<string
   state.milestones.find((milestone) => milestone.dueDate !== undefined) ??
   state.milestones[0];
 
-/** What the burndown counts: what the navigation names, else points once the map has an estimate scale. */
-export const burndownUnitOf = (state: UsmState, nav: Readonly<Record<string, string>>): BurndownUnit =>
-  BURNDOWN_UNITS.find((unit) => unit === nav['unit']) ?? (state.estimates.length > 0 ? 'points' : 'stories');
+/**
+ * How the work left is measured: what the map names, else points once it has
+ * an estimate scale. Measuring by points is part of the estimates, so while
+ * those are off the stories are counted.
+ */
+export const measureOf = (state: UsmState): UsmMeasure => {
+  if (!hasFeature(state, 'estimates')) return 'stories';
+  return state.measure ?? (state.estimates.length > 0 ? 'points' : 'stories');
+};
 
 /** A status's weight: its part of a story's work. One unless the map says otherwise. */
 export const statusWeight = (status: StoryStatus): number => status.weight ?? 1;
 
 /** What the weights of the statuses before the done one add up to when they are read as parts. */
 export const WEIGHT_TOTAL = 10;
-
-/** Whether the work left is weighted: switched on, and the estimates it is part of with it. */
-export const isWeighted = (state: UsmState): boolean => state.weighted && hasFeature(state, 'estimates');
 
 /**
  * For each status, the share of a story's work still ahead of a story there.
@@ -48,7 +47,7 @@ export const isWeighted = (state: UsmState): boolean => state.weighted && hasFea
 export const remainingSharesOf = (state: UsmState): readonly number[] => {
   const { statuses } = state;
   const done = doneStatusIndexOf(state);
-  if (!isWeighted(state)) return statuses.map((_status, index) => (index < done ? 1 : 0));
+  if (measureOf(state) !== 'weighted') return statuses.map((_status, index) => (index < done ? 1 : 0));
   const weights = statuses.slice(0, done).map(statusWeight);
   const total = sum(weights);
   const shares = weights.map((weight) => (total > 0 ? weight / total : 1 / weights.length));
@@ -109,7 +108,8 @@ export type Burndown = {
  * as it stands at `now`. A snapshot counts the milestone's stories as they
  * stood then, so stories added to the slice later show as a rise.
  */
-export const burndownOf = (state: UsmState, milestoneId: string, unit: BurndownUnit, now: number): Burndown => {
+export const burndownOf = (state: UsmState, milestoneId: string, now: number): Burndown => {
+  const measure = measureOf(state);
   const moments: readonly { at: number; tally: readonly TallyRow[]; snapshotId?: string }[] = [
     ...sortBy(
       state.snapshots.map((snapshot) => ({
@@ -124,12 +124,13 @@ export const burndownOf = (state: UsmState, milestoneId: string, unit: BurndownU
   const amounts = moments.map((moment) => ({
     at: moment.at,
     ...(moment.snapshotId === undefined ? {} : { snapshotId: moment.snapshotId }),
-    values: amountsByStatus(state.statuses, moment.tally, milestoneId, unit),
+    values: amountsByStatus(state.statuses, moment.tally, milestoneId, measure),
   }));
   const ahead = remainingSharesOf(state);
+  // To the hundredth, so the shares of weighted stories add up to the numbers they are (7, not 6.999…).
   const point = (moment: (typeof amounts)[number], value: number): BurndownPoint => ({
     at: moment.at,
-    value,
+    value: Math.round(value * 100) / 100,
     ...(moment.snapshotId === undefined ? {} : { snapshotId: moment.snapshotId }),
   });
   return {
@@ -152,13 +153,13 @@ const amountsByStatus = (
   statuses: readonly StoryStatus[],
   tally: readonly TallyRow[],
   milestoneId: string,
-  unit: BurndownUnit,
+  measure: UsmMeasure,
 ): readonly number[] =>
   statuses.map((status) =>
     sum(
       tally
         .filter((row) => row.milestoneId === milestoneId && row.statusId === status.id)
-        .map((row) => (unit === 'points' ? row.points : row.stories)),
+        .map((row) => (measure === 'stories' ? row.stories : row.points)),
     ),
   );
 

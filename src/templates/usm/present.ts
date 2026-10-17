@@ -14,7 +14,7 @@ import { targetRef } from '../../core/target';
 import { describeLink } from '../../lib/link-label';
 import { usmActions } from './actions';
 import { usmTabOf } from './board-tabs';
-import { BURNDOWN_UNITS, momentLabel } from './burndown';
+import { measureOf, momentLabel } from './burndown';
 import { highlightOf } from './critical-path';
 import { isFinished } from './dependencies';
 import { doneStatusOf } from './done-status';
@@ -322,14 +322,11 @@ const DESCRIBERS: Record<string, (m: UsmMessages, action: DraftAction, state: Us
     tone: 'update',
     body: arrow(m, doneStatusOf(state)?.name, findStatus(state, action.target.id)?.name ?? action.target.id),
   }),
-  SET_WEIGHTED: (m, action) => {
-    const { weighted } = payloadFor(usmActions.SET_WEIGHTED, action);
-    return {
-      title: weighted ? m.weighStatuses : m.unweighStatuses,
-      tone: weighted ? 'create' : 'delete',
-      body: m.statusWeightLabel,
-    };
-  },
+  SET_MEASURE: (m, action, state) => ({
+    title: m.setMeasure,
+    tone: 'update',
+    body: arrow(m, m.measureName(measureOf(state)), m.measureName(payloadFor(usmActions.SET_MEASURE, action).measure)),
+  }),
   ADD_MEMBER: (m, action) => ({
     title: m.addMember,
     tone: 'create',
@@ -661,9 +658,8 @@ export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigati
   const tab = usmTabOf(state, nav);
   if (tab === 'map') delete next['tab'];
   else next['tab'] = tab;
-  // Which milestone the burndown shows and what it counts: kept only while they name something real.
+  // Which milestone the burndown shows: kept only while it names a real one.
   if (!findMilestone(state, nav['milestone'])) delete next['milestone'];
-  if (!BURNDOWN_UNITS.some((unit) => unit === nav['unit'])) delete next['unit'];
   // What the map highlights is how the reader looks at it, never a change.
   const highlight = highlightOf(nav);
   if (highlight === null) delete next['highlight'];

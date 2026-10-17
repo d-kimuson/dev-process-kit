@@ -112,7 +112,7 @@ describe('usm done status: what it decides', () => {
 
   it('leaves no work ahead of a story that is done, and shares the work between the statuses before it', () => {
     expect(remainingSharesOf(base)).toEqual([1, 1, 0, 0]);
-    const weighted = { ...base, weighted: true };
+    const weighted = { ...base, measure: 'weighted' as const };
     expect(remainingSharesOf(weighted)).toEqual([1, 0.3, 0, 0]);
     expect(weightDividersOf(statusesToDone(weighted))).toEqual([7]);
   });

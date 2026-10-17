@@ -2,6 +2,7 @@ import type { ApplyResult, DraftAction } from '../../core/types';
 
 import { assertNever, parseTemplateAction } from '../../core/schema';
 import { usmActions } from './actions';
+import { measureOf } from './burndown';
 import { waitsOn } from './dependency-graph';
 import {
   allUsmIds,
@@ -309,10 +310,10 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
         statuses: state.statuses.map((status) => (status.id === id ? { ...status, weight } : status)),
       };
     }
-    case 'SET_WEIGHTED': {
-      const { weighted } = typed.payload;
-      // Switched the way it already stands, the draft stays as it is; switched off, the weights stay for later.
-      return state.weighted === weighted ? state : { ...state, weighted };
+    case 'SET_MEASURE': {
+      const { measure } = typed.payload;
+      // Set the way it already measures, the draft stays as it is; the scale and the weights stay whichever it is.
+      return measureOf(state) === measure ? state : { ...state, measure };
     }
     case 'SET_DONE_STATUS': {
       if (!findStatus(state, id)) return null;

@@ -68,7 +68,7 @@ export type StoryStatus = {
    * The share of a story's work done while it stands in this status, in parts
    * of 10 across the statuses before the done one (Idea 7, Demo 2, Ready 1).
    * Another total is read as a ratio. Weighs the work left while the map is
-   * `weighted`; left out it counts 1, and a story done has no work left.
+   * measured `weighted`; left out it counts 1, and a story done has no work left.
    */
   readonly weight?: number;
 };
@@ -131,6 +131,15 @@ export const USM_FEATURES = ['estimates', 'assignees'] as const;
 
 export type UsmFeature = (typeof USM_FEATURES)[number];
 
+/**
+ * How the work left is measured, for the burndown and the critical path: by
+ * the stories, by the points of their estimates, or by those points weighed
+ * by the statuses (the share of each story still ahead of it).
+ */
+export const USM_MEASURES = ['stories', 'points', 'weighted'] as const;
+
+export type UsmMeasure = (typeof USM_MEASURES)[number];
+
 /** Something the story points at: an issue, a pull request, a design, a doc. */
 export type StoryLink = {
   readonly url: string;
@@ -181,11 +190,11 @@ export type UsmState = {
   /** The optional features turned on, in the order of `USM_FEATURES`. */
   readonly features: readonly UsmFeature[];
   /**
-   * Whether the work left is shared out between the statuses by their
-   * weights (off, a story not finished has all of it ahead). Part of the
-   * estimates: while those are off it weighs nothing.
+   * How the work left is measured. Left out, by points once the map has an
+   * estimate scale, else by stories. Part of the estimates: while those are
+   * off the work is counted in stories.
    */
-  readonly weighted: boolean;
+  readonly measure?: UsmMeasure;
   /**
    * The status a story is done at; it and every status after it count as
    * done. Left out, the last status is.
@@ -286,6 +295,7 @@ const memberSchema = v.strictObject({
   tone: v.optional(statusToneSchema),
 });
 export const usmFeatureSchema = v.picklist(USM_FEATURES);
+export const usmMeasureSchema = v.picklist(USM_MEASURES);
 const estimateSchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
@@ -300,7 +310,7 @@ const snapshotSchema = v.strictObject({
 export const usmBaseSchema = v.strictObject({
   title: v.exactOptional(v.string()),
   features: v.optional(v.array(usmFeatureSchema), []),
-  weighted: v.optional(v.boolean(), false),
+  measure: v.exactOptional(usmMeasureSchema),
   doneStatusId: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   activities: v.optional(v.array(activitySchema), []),
   milestones: v.optional(v.array(milestoneSchema), []),
@@ -443,7 +453,6 @@ export const tallyKey = (row: {
 export const emptyUsmBase = (): UsmState => {
   return {
     features: [],
-    weighted: false,
     activities: [],
     milestones: [],
     statuses: [],

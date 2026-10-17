@@ -6,7 +6,7 @@ import type { DpkTemplateUsm } from './element';
 
 import '../../index';
 import { applyUsmAction } from './apply';
-import { burndownMilestoneOf, burndownOf, burndownUnitOf, remainingSharesOf, tallyOf } from './burndown';
+import { burndownMilestoneOf, burndownOf, measureOf, remainingSharesOf, tallyOf } from './burndown';
 import { layoutChart, readoutAt, timeTicks, valueTicks } from './burndown-chart';
 import { usmDefinitionFor } from './definition';
 import { usmMessages } from './messages';
@@ -103,11 +103,11 @@ describe('usm estimates and burndown: model', () => {
   });
 
   it('shares a story out between the statuses by their weights, read as parts of 10', () => {
-    const shares = (weights: readonly (number | undefined)[], weighted = true) =>
+    const shares = (weights: readonly (number | undefined)[], measure = 'weighted') =>
       remainingSharesOf(
         parseUsmBase({
           ...raw,
-          weighted,
+          measure,
           statuses: [
             ...weights.map((weight, index) => ({
               id: `w${index}`,
@@ -121,21 +121,31 @@ describe('usm estimates and burndown: model', () => {
         }),
       );
     // 7 + 2 + 1 = 10: Idea still has all of it ahead, Demo 3 of 10, Ready 1 of 10, Done none.
-    expect(rounded(remainingSharesOf({ ...base, weighted: true }))).toEqual([1, 0.3, 0.1, 0]);
+    expect(rounded(remainingSharesOf({ ...base, measure: 'weighted' }))).toEqual([1, 0.3, 0.1, 0]);
     // other totals read as a ratio, and no weight at all as equal shares
     expect(shares([2, 1, 1])).toEqual([1, 0.5, 0.25, 0]);
     expect(shares([0, 0])).toEqual([1, 0.5, 0]);
     expect(shares([undefined, undefined])).toEqual([1, 0.5, 0]);
-    // unweighted, every status but the last still has the whole story ahead
-    expect(shares([7, 2, 1], false)).toEqual([1, 1, 1, 0]);
+    // measured otherwise, every status but the last still has the whole story ahead
+    expect(shares([7, 2, 1], 'points')).toEqual([1, 1, 1, 0]);
+    expect(shares([7, 2, 1], 'stories')).toEqual([1, 1, 1, 0]);
     // the weights go with the estimates: while those are off, so are they
-    expect(remainingSharesOf({ ...base, features: [], weighted: true })).toEqual([1, 1, 1, 0]);
+    expect(remainingSharesOf({ ...base, features: [], measure: 'weighted' })).toEqual([1, 1, 1, 0]);
+  });
+
+  it('measures by what the map names, else by points once there is a scale, and by stories without estimates', () => {
+    expect(measureOf(base)).toBe('points');
+    expect(measureOf(parseUsmBase({ ...raw, estimates: [], stories: [] }))).toBe('stories');
+    expect(measureOf({ ...base, measure: 'stories' })).toBe('stories');
+    expect(measureOf({ ...base, measure: 'weighted' })).toBe('weighted');
+    expect(measureOf({ ...base, features: [], measure: 'weighted' })).toBe('stories');
+    expect(() => parseUsmBase({ ...raw, measure: 'hours' })).toThrow();
   });
 
   it('burns down each status and the work left, ending at today', () => {
-    const points = burndownOf(base, 'mvp', 'points', NOW);
+    const points = burndownOf(base, 'mvp', NOW);
     const snapAt = Date.parse('2026-10-01T00:00:00.000Z');
-    // Unweighted: the points of every story not done yet.
+    // By points: the points of every story not done yet.
     expect(points.combined).toEqual([
       { at: snapAt, value: 12 + 3, snapshotId: 'snap1' },
       { at: NOW, value: 6 + 3 + 1 },
@@ -147,24 +157,30 @@ describe('usm estimates and burndown: model', () => {
       ['done', [15, 10]],
     ]);
     expect(points.due).toBe(new Date(2026, 10, 30, 23, 59, 59).getTime());
-    const stories = burndownOf(base, 'mvp', 'stories', NOW);
-    expect(stories.combined.at(-1)?.value).toBe(2 + 1 + 1);
-    expect(burndownOf(base, 'v1', 'points', NOW).due).toBeNull();
+    // By stories: each story not done yet counts one, whatever its status.
+    const stories = burndownOf({ ...base, measure: 'stories' }, 'mvp', NOW);
+    expect(stories.combined.map((point) => point.value)).toEqual([4 + 1, 2 + 1 + 1]);
+    expect(burndownOf(base, 'v1', NOW).due).toBeNull();
     // Weighted: points × the share still ahead (Idea 10/10, Demo 3/10, Ready 1/10, Done 0).
-    const weighted = burndownOf({ ...base, weighted: true }, 'mvp', 'points', NOW);
+    const weighted = burndownOf({ ...base, measure: 'weighted' }, 'mvp', NOW);
     expect(rounded(weighted.combined.map((point) => point.value))).toEqual([12.9, 7]);
   });
 });
 
 describe('usm estimates and burndown: actions', () => {
-  it('weighs the work left by the statuses, and stops again', () => {
+  it('picks how the work left is measured, keeping the scale and the weights whichever it is', () => {
     const page = { type: 'page', id: 'usm' };
-    expect(base.weighted).toBe(false);
-    const weighted = apply(base, 'SET_WEIGHTED', page, { weighted: true });
-    expect(weighted?.weighted).toBe(true);
-    expect(apply(weighted!, 'SET_WEIGHTED', page, { weighted: false })?.weighted).toBe(false);
+    expect(base).not.toHaveProperty('measure');
+    const weighted = apply(base, 'SET_MEASURE', page, { measure: 'weighted' });
+    expect(weighted?.measure).toBe('weighted');
+    const stories = apply(weighted!, 'SET_MEASURE', page, { measure: 'stories' });
+    expect(stories?.measure).toBe('stories');
+    expect(stories?.estimates).toEqual(base.estimates);
+    expect(stories?.statuses).toEqual(base.statuses);
     // set the way it already stands, the map stays as it is
-    expect(apply(base, 'SET_WEIGHTED', page, { weighted: false })).toBe(base);
+    expect(apply(weighted!, 'SET_MEASURE', page, { measure: 'weighted' })).toBe(weighted);
+    expect(apply(base, 'SET_MEASURE', page, { measure: 'points' })).toBe(base);
+    expect(apply(base, 'SET_MEASURE', page, { measure: 'hours' })).toBeNull();
   });
 
   it('estimates a story, and clears it again', () => {
@@ -236,27 +252,23 @@ describe('usm estimates and burndown: actions', () => {
       { id: 'snap2', at: '2026-10-16T00:00:00.000Z', tally: [] },
     );
     expect(definition.describe(snapshot, base, base)).toMatchObject({ title: m.recordSnapshot });
+    expect(
+      definition.describe(act('SET_MEASURE', { type: 'page', id: 'usm' }, { measure: 'weighted' }), base, base),
+    ).toMatchObject({ title: m.setMeasure, summary: `“${m.measureName('points')}” → “${m.measureName('weighted')}”` });
   });
 });
 
 describe('usm estimates and burndown: navigation and chart', () => {
-  it('shows the first milestone with a due date and counts points once there is a scale', () => {
+  it('shows the first milestone with a due date', () => {
     expect(burndownMilestoneOf(base, {})?.id).toBe('mvp');
     expect(burndownMilestoneOf(base, { milestone: 'v1' })?.id).toBe('v1');
-    expect(burndownUnitOf(base, {})).toBe('points');
-    expect(burndownUnitOf(base, { unit: 'stories' })).toBe('stories');
-    expect(burndownUnitOf(parseUsmBase({ ...raw, estimates: [], stories: [] }), {})).toBe('stories');
   });
 
-  it('keeps only a real milestone and unit in the navigation', () => {
-    const nav = resolveUsmNavigation(base, { tab: 'burndown', milestone: 'nope', unit: 'hours' });
+  it('keeps only a real milestone in the navigation', () => {
+    const nav = resolveUsmNavigation(base, { tab: 'burndown', milestone: 'nope' });
     expect(nav).toMatchObject({ tab: 'burndown' });
     expect(nav).not.toHaveProperty('milestone');
-    expect(nav).not.toHaveProperty('unit');
-    expect(resolveUsmNavigation(base, { tab: 'burndown', milestone: 'v1', unit: 'stories' })).toMatchObject({
-      milestone: 'v1',
-      unit: 'stories',
-    });
+    expect(resolveUsmNavigation(base, { tab: 'burndown', milestone: 'v1' })).toMatchObject({ milestone: 'v1' });
   });
 
   it('ticks the value axis on round whole numbers above the highest value', () => {
@@ -366,23 +378,66 @@ describe('usm estimates and burndown: element', () => {
     expect(el.api.state.stories.find((story) => story.id === 'e')?.estimateId).toBe('M');
   });
 
-  it('splits 10 between the statuses on a bar, beside the estimate scale, once the weights are switched on', async () => {
+  it('picks one measure on top, and shows only the settings that measure takes, kept across the measures', async () => {
     const el = await mount('#tab=burndown');
-    const panel = el.shadowRoot!.querySelector('[data-testid="usm-weights"]')!;
+    const root = el.shadowRoot!;
+    const radio = (measure: string) =>
+      root.querySelector(`input[name="bd-measure"][value="${measure}"]`) as HTMLInputElement;
+    const pick = async (measure: string) => {
+      radio(measure).click();
+      await settle(el);
+    };
+    const settings = () => root.querySelector('[data-testid="usm-measure-settings"]') as HTMLDetailsElement | null;
+    const shown = () => ({
+      estimates: (settings()?.querySelector('[data-testid="usm-estimates"]') ?? null) !== null,
+      weights: (settings()?.querySelector('dpk-internal-usm-weight-bar') ?? null) !== null,
+    });
+    // the map has an estimate scale, so it measures by points: the scale shows, open, and nothing else
+    expect(radio('points').checked).toBe(true);
+    expect(settings()?.open).toBe(true);
+    expect(shown()).toEqual({ estimates: true, weights: false });
+    expect(settings()?.querySelector('summary')?.textContent).toContain('S 1 · M 3 · L 5');
+    // by stories there is nothing to set
+    await pick('stories');
+    expect(el.api.state.measure).toBe('stories');
+    expect(settings()).toBeNull();
+    expect(root.querySelector('.bd-chart--combined .bd-chart-latest')?.textContent).toBe(m.chartLatest(4));
+    // weighted, the scale and the weights both
+    await pick('weighted');
+    expect(shown()).toEqual({ estimates: true, weights: true });
+    expect(settings()?.querySelector('summary')?.textContent).toContain('Idea 7 · Demo 2 · Ready 1');
+    expect(root.querySelector('.bd-chart--combined .bd-chart-latest')?.textContent).toBe(m.chartLatest(7));
+    // picked again and again, the draft keeps the last pick only
+    expect(el.api.actions.map((action) => [action.type, action.payload])).toEqual([
+      ['SET_MEASURE', { measure: 'weighted' }],
+    ]);
+    // folded, the settings stay folded while the measure moves between those that have them
+    settings()!.open = false;
+    await pick('points');
+    expect(settings()?.open).toBe(false);
+    expect(shown()).toEqual({ estimates: true, weights: false });
+    // picked from one without settings, they open to be set
+    await pick('stories');
+    await pick('points');
+    expect(settings()?.open).toBe(true);
+  });
+
+  it('splits 10 between the statuses on a bar while the work left is weighted', async () => {
+    const el = await mount('#tab=burndown');
+    const pick = async (measure: string) => {
+      (el.shadowRoot!.querySelector(`input[name="bd-measure"][value="${measure}"]`) as HTMLInputElement).click();
+      await settle(el);
+    };
+    await pick('weighted');
     const bar = () =>
-      panel.querySelector('dpk-internal-usm-weight-bar') as (HTMLElement & { updateComplete: Promise<boolean> }) | null;
-    const toggle = panel.querySelector('[role="switch"][data-role="weighted"]') as HTMLButtonElement;
-    expect(toggle.getAttribute('aria-checked')).toBe('false');
-    expect(bar()).toBeNull();
-    toggle.click();
-    await settle(el);
-    expect(el.api.state.weighted).toBe(true);
-    expect(el.api.actions.map((action) => action.type)).toEqual(['SET_WEIGHTED']);
-    expect(toggle.getAttribute('aria-checked')).toBe('true');
-    const root = bar()!.shadowRoot!;
+      el.shadowRoot!.querySelector('[data-testid="usm-measure-settings"] dpk-internal-usm-weight-bar') as
+        | (HTMLElement & { updateComplete: Promise<boolean> })
+        | null;
+    let root = bar()!.shadowRoot!;
     const read = async () => {
       await settle(el);
       await bar()!.updateComplete;
+      root = bar()!.shadowRoot!;
       return {
         parts: [...root.querySelectorAll('[data-part]')].map((part) => [
           part.getAttribute('data-part'),
@@ -443,17 +498,32 @@ describe('usm estimates and burndown: element', () => {
     pointer(document, 'pointerup', 141);
     await settle(el);
     expect(el.api.state.statuses.map((status) => status.weight)).toEqual([2, 8, 0, undefined]);
-    // switched off, the bar goes; the weights stay for when it comes back
-    toggle.click();
-    await settle(el);
-    expect(el.api.state.weighted).toBe(false);
+    // measured otherwise, the bar goes; the weights and the scale stay for when it comes back
+    await pick('stories');
     expect(bar()).toBeNull();
+    await pick('weighted');
     expect(el.api.state.statuses.map((status) => status.weight)).toEqual([2, 8, 0, undefined]);
+    expect((await read()).parts).toEqual([
+      ['idea', '2'],
+      ['demo', '8'],
+      ['ready', '0'],
+    ]);
+    expect(el.api.state.estimates).toEqual(base.estimates);
+  });
+
+  it('asks for statuses before the done one when there is nothing to weigh', async () => {
+    const el = await mount('#tab=burndown');
+    el.api.dispatch({ type: 'SET_MEASURE', target: { type: 'page', id: 'usm' }, payload: { measure: 'weighted' } });
+    el.api.dispatch({ type: 'SET_DONE_STATUS', target: { type: 'status', id: 'demo' }, payload: {} });
+    await settle(el);
+    const settings = el.shadowRoot!.querySelector('[data-testid="usm-measure-settings"]')!;
+    expect(settings.querySelector('dpk-internal-usm-weight-bar')).toBeNull();
+    expect(settings.textContent).toContain(m.weightsNeedStatuses);
   });
 
   it('keeps the weights off the statuses tab', async () => {
     const el = await mount('#tab=statuses');
-    el.api.dispatch({ type: 'SET_WEIGHTED', target: { type: 'page', id: 'usm' }, payload: { weighted: true } });
+    el.api.dispatch({ type: 'SET_MEASURE', target: { type: 'page', id: 'usm' }, payload: { measure: 'weighted' } });
     await settle(el);
     expect(el.shadowRoot!.querySelector('dpk-internal-usm-weight-bar')).toBeNull();
   });

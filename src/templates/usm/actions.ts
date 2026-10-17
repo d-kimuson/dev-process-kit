@@ -20,6 +20,7 @@ import {
   storyCommentBodySchema,
   tallyRowSchema,
   usmFeatureSchema,
+  usmMeasureSchema,
 } from './model';
 
 const featurePayloadSchema = v.object({ feature: usmFeatureSchema, enabled: v.boolean() });
@@ -146,7 +147,7 @@ export const usmActions = {
   SET_STATUS_TONE: defineAction('SET_STATUS_TONE', 'status', v.object({ tone: statusToneSchema })),
   SET_STATUS_ICON: defineAction('SET_STATUS_ICON', 'status', v.object({ icon: statusIconSchema })),
   SET_STATUS_WEIGHT: defineAction('SET_STATUS_WEIGHT', 'status', v.object({ weight: statusWeightSchema })),
-  SET_WEIGHTED: defineAction('SET_WEIGHTED', 'page', v.object({ weighted: v.boolean() })),
+  SET_MEASURE: defineAction('SET_MEASURE', 'page', v.object({ measure: usmMeasureSchema })),
   SET_DONE_STATUS: defineAction('SET_DONE_STATUS', 'status', v.object({})),
   DELETE_STATUS: defineAction('DELETE_STATUS', 'status', v.object({})),
   REORDER_STATUS: defineAction('REORDER_STATUS', 'status', v.object({ after: v.nullable(v.string()) }), {

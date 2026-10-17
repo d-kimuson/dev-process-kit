@@ -8,21 +8,13 @@ import type { UsmMessages } from '../messages';
 import { iconTrash, lucide } from '../../../core/icons';
 import { targetRef } from '../../../core/target';
 import { onCommit, onInputChange, onSelectChange } from '../../../lib/dom/events';
-import {
-  BURNDOWN_UNITS,
-  burndownMilestoneOf,
-  burndownOf,
-  burndownUnitOf,
-  isWeighted,
-  momentLabel,
-  type BurndownPoint,
-} from '../burndown';
+import { burndownMilestoneOf, burndownOf, measureOf, momentLabel, type BurndownPoint } from '../burndown';
 import { type ChartSize } from '../burndown-chart';
 import { addEstimate, recordSnapshot } from '../commands';
 import { statusesToDone } from '../done-status';
-import { type Estimate, type Milestone, type StatusTone, type UsmState } from '../model';
+import { USM_MEASURES, type Estimate, type Milestone, type StatusTone, type UsmMeasure, type UsmState } from '../model';
 import { statusViews } from '../status-view';
-import { weightChangesOf, weightDividersOf } from '../weight-split';
+import { weightChangesOf, weightDividersOf, weightsBetween } from '../weight-split';
 import { onNumberChange } from './number-input';
 import { renderRowTools } from './status-overview';
 
@@ -33,107 +25,165 @@ const COMBINED_SIZE: ChartSize = { width: 720, height: 240, inset: { top: 16, ri
 const STATUS_SIZE: ChartSize = { width: 340, height: 150, inset: { top: 12, right: 14, bottom: 24, left: 32 } };
 
 /**
- * The burndown tab: for one milestone, the work left over time — weighted by
- * how far each story still has to go, then once per status — drawn from the
- * snapshots and the map as it stands now. The estimate scale and the
- * snapshots themselves are kept here too.
+ * The burndown tab: how the work left is measured and what that measure
+ * takes, then for one milestone the work left over time — in total, then
+ * once per status — drawn from the snapshots and the map as it stands now.
+ * The snapshots themselves are kept here too.
  */
 export const renderBurndown = (m: UsmMessages, context: TemplateRenderContext<UsmState>, now: Date): TemplateResult => {
   const { state, navigation } = context;
   const milestone = burndownMilestoneOf(state, navigation);
+  const measure = measureOf(state);
   return html`
     <section class="bd-overview" data-testid="usm-burndown">
+      <header class="bd-bar">
+        ${milestone ? renderMilestoneControls(m, context, milestone) : nothing} ${renderMeasures(m, context, measure)}
+        ${
+          milestone
+            ? html`<span class="bd-record">
+                <button
+                  class="dpk-btn dpk-btn--primary"
+                  type="button"
+                  data-role="record-snapshot"
+                  title=${m.recordSnapshotHint}
+                  @click=${() => recordSnapshot(context, new Date())}
+                >
+                  ${m.recordSnapshotButton}
+                </button>
+              </span>`
+            : nothing
+        }
+      </header>
+      ${measure === 'stories' ? nothing : renderMeasureSettings(m, context, measure)}
       ${
         milestone
-          ? renderCharts(m, context, milestone, now)
+          ? renderCharts(m, context, milestone, measure, now)
           : html`<div class="empty">
               <h2>${m.burndownTab}</h2>
               <p>${m.noMilestonesForBurndown}</p>
             </div>`
       }
-      <div class="bd-side">
-        ${renderSnapshots(m, context)} ${renderEstimates(m, context)} ${renderWeights(m, context)}
-      </div>
+      <div class="bd-side">${renderSnapshots(m, context)}</div>
     </section>
   `;
+};
+
+const renderMilestoneControls = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  milestone: Milestone,
+): TemplateResult => {
+  const { state } = context;
+  return html`<label class="bd-control">
+      <span>${m.burndownMilestoneLabel}</span>
+      <select
+        class="dpk-select"
+        data-role="milestone"
+        @change=${onSelectChange((milestoneId) => context.navigate({ milestone: milestoneId }))}
+      >
+        ${state.milestones.map(
+          (option) => html`<option value=${option.id} ?selected=${option.id === milestone.id}>${option.name}</option>`,
+        )}
+      </select>
+    </label>
+    <label class="bd-control" data-dpk-target=${targetRef({ type: 'milestone', id: milestone.id })}>
+      <span>${m.dueDateLabel}</span>
+      <input
+        class="dpk-input"
+        type="date"
+        data-role="due-date"
+        .value=${milestone.dueDate ?? ''}
+        @change=${onInputChange((value) => {
+          const dueDate = value === '' ? null : value;
+          if (dueDate === (milestone.dueDate ?? null)) return;
+          context.dispatch({
+            type: 'SET_MILESTONE_DUE_DATE',
+            target: { type: 'milestone', id: milestone.id },
+            payload: { dueDate },
+          });
+        })}
+      />
+    </label>`;
+};
+
+/** The measures to pick from, one of them picked; picking another is a change to the map. */
+const renderMeasures = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  measure: UsmMeasure,
+): TemplateResult => html`<span class="bd-control">
+  <span id="bd-measure-label">${m.measureLabel}</span>
+  <span class="bd-measures" role="radiogroup" aria-labelledby="bd-measure-label">
+    ${USM_MEASURES.map(
+      (option) =>
+        html`<label class="bd-measure"
+          ><input
+            type="radio"
+            name="bd-measure"
+            value=${option}
+            .checked=${option === measure}
+            @change=${() =>
+              context.dispatch({
+                type: 'SET_MEASURE',
+                target: { type: 'page', id: 'usm' },
+                payload: { measure: option },
+              })}
+          />${m.measureName(option)}</label
+        >`,
+    )}
+  </span>
+</span>`;
+
+/**
+ * What the measure takes, folded away under a line that sums it up: the
+ * estimate scale for points, and the status weights besides once those
+ * points are weighted. It opens when a measure that takes settings is
+ * picked, and stays as the reader leaves it while the measure moves between
+ * those. Measuring by stories takes none, so it is not shown.
+ */
+const renderMeasureSettings = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  measure: Exclude<UsmMeasure, 'stories'>,
+): TemplateResult => {
+  const { state } = context;
+  const statuses = statusesToDone(state);
+  const dividers = weightDividersOf(statuses);
+  const scale = state.estimates.map((estimate) => `${estimate.name} ${estimate.points}`).join(' · ');
+  const weights = weightsBetween(dividers)
+    .map((weight, index) => `${statuses[index]?.name ?? ''} ${Math.round(weight * 10) / 10}`)
+    .join(' · ');
+  return html`<details class="bd-settings" data-testid="usm-measure-settings" open>
+    <summary class="bd-settings-summary">
+      <span class="bd-settings-chevron" aria-hidden="true"></span>
+      <span class="bd-settings-title">${m.measureSettingsLabel}</span>
+      <span class="bd-settings-gist">
+        <span>${m.estimatesLabel}: ${scale === '' ? '—' : `${scale} pt`}</span>
+        ${measure === 'weighted' ? html`<span>${m.statusWeightLabel}: ${dividers.length === 0 ? '—' : weights}</span>` : nothing}
+      </span>
+    </summary>
+    <div class="bd-settings-body">
+      ${renderEstimates(m, context)} ${measure === 'weighted' ? renderWeights(m, context) : nothing}
+    </div>
+  </details>`;
 };
 
 const renderCharts = (
   m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
   milestone: Milestone,
+  measure: UsmMeasure,
   now: Date,
 ): TemplateResult => {
-  const { state, navigation } = context;
-  const unit = burndownUnitOf(state, navigation);
-  const burndown = burndownOf(state, milestone.id, unit, now.getTime());
-  const weighted = isWeighted(state);
+  const { state } = context;
+  const burndown = burndownOf(state, milestone.id, now.getTime());
+  const weighted = measure === 'weighted';
   const unestimated = state.stories.filter(
     (story) => story.milestoneId === milestone.id && story.estimateId === undefined,
   ).length;
   return html`
-    <header class="bd-bar">
-      <label class="bd-control">
-        <span>${m.burndownMilestoneLabel}</span>
-        <select
-          class="dpk-select"
-          data-role="milestone"
-          @change=${onSelectChange((milestoneId) => context.navigate({ milestone: milestoneId }))}
-        >
-          ${state.milestones.map(
-            (option) =>
-              html`<option value=${option.id} ?selected=${option.id === milestone.id}>${option.name}</option>`,
-          )}
-        </select>
-      </label>
-      <label class="bd-control" data-dpk-target=${targetRef({ type: 'milestone', id: milestone.id })}>
-        <span>${m.dueDateLabel}</span>
-        <input
-          class="dpk-input"
-          type="date"
-          data-role="due-date"
-          .value=${milestone.dueDate ?? ''}
-          @change=${onInputChange((value) => {
-            const dueDate = value === '' ? null : value;
-            if (dueDate === (milestone.dueDate ?? null)) return;
-            context.dispatch({
-              type: 'SET_MILESTONE_DUE_DATE',
-              target: { type: 'milestone', id: milestone.id },
-              payload: { dueDate },
-            });
-          })}
-        />
-      </label>
-      <span class="bd-control">
-        <span id="bd-unit-label">${m.unitLabel}</span>
-        <span class="bd-units" role="radiogroup" aria-labelledby="bd-unit-label">
-          ${BURNDOWN_UNITS.map(
-            (option) =>
-              html`<a
-                class="bd-unit"
-                role="radio"
-                data-unit=${option}
-                aria-checked=${String(option === unit)}
-                href=${context.hashFor({ unit: option })}
-                >${m.unitName(option)}</a
-              >`,
-          )}
-        </span>
-      </span>
-      <span class="bd-record">
-        <button
-          class="dpk-btn dpk-btn--primary"
-          type="button"
-          data-role="record-snapshot"
-          title=${m.recordSnapshotHint}
-          @click=${() => recordSnapshot(context, new Date())}
-        >
-          ${m.recordSnapshotButton}
-        </button>
-      </span>
-    </header>
     ${
-      unit === 'points' && unestimated > 0
+      measure !== 'stories' && unestimated > 0
         ? html`<p class="bd-warning" role="note" data-testid="usm-unestimated-warning">
             ${iconWarning()}<span>${m.unestimatedNote(unestimated)}</span>
           </p>`
@@ -146,9 +196,7 @@ const renderCharts = (
           <button class="bd-about-btn" type="button" aria-label=${m.chartAbout} aria-describedby="bd-about-tip">
             ${iconAbout()}
           </button>
-          <span class="bd-about-tip" id="bd-about-tip" role="tooltip"
-            >${m.combinedChartHint(m.unitName(unit), weighted)}</span
-          >
+          <span class="bd-about-tip" id="bd-about-tip" role="tooltip">${m.combinedChartHint(measure)}</span>
         </span>
         <span class="bd-chart-latest">${m.chartLatest(latest(burndown.combined))}</span>
       </figcaption>
@@ -319,34 +367,22 @@ const renderEstimateRow = (
 };
 
 /**
- * Whether the work left is weighted by the statuses, and if it is, a bar of
- * how a story's work is shared out between those before the done one.
- * Nothing shows while there is no status before it to share the work.
+ * A bar of how a story's work is shared out between the statuses before the
+ * done one. While fewer than two of them share it there is no line to move,
+ * so a note on what it takes shows instead.
  */
-const renderWeights = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult | typeof nothing => {
+const renderWeights = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult => {
   const { state } = context;
   const statuses = statusesToDone(state);
-  if (statuses.length < 2) return nothing;
-  const target = { type: 'page', id: 'usm' };
-  return html`<section class="bd-panel bd-panel--wide" data-testid="usm-weights">
-    <h3>
-      <span id="bd-weights-label">${m.statusWeightLabel}</span>
-      <button
-        class="bd-switch"
-        type="button"
-        role="switch"
-        data-role="weighted"
-        aria-labelledby="bd-weights-label"
-        aria-checked=${String(state.weighted)}
-        @click=${() => context.dispatch({ type: 'SET_WEIGHTED', target, payload: { weighted: !state.weighted } })}
-      ></button>
-    </h3>
+  const dividers = weightDividersOf(statuses);
+  return html`<section class="bd-panel" data-testid="usm-weights">
+    <h3>${m.statusWeightLabel}</h3>
     <p class="bd-empty">${m.statusWeightHint}</p>
     ${
-      state.weighted
+      dividers.length > 0
         ? html`<dpk-internal-usm-weight-bar
             .statuses=${statusViews(state).slice(0, statuses.length)}
-            .dividers=${weightDividersOf(statuses)}
+            .dividers=${dividers}
             .commit=${(dividers: readonly number[]) => {
               for (const { statusId, weight } of weightChangesOf(statuses, dividers))
                 context.dispatch({
@@ -356,7 +392,7 @@ const renderWeights = (m: UsmMessages, context: TemplateRenderContext<UsmState>)
                 });
             }}
           ></dpk-internal-usm-weight-bar>`
-        : nothing
+        : html`<p class="bd-empty">${m.weightsNeedStatuses}</p>`
     }
   </section>`;
 };
@@ -394,29 +430,104 @@ export const burndownStyles = css`
     font-family: var(--dpk-mono);
     font-variant-numeric: tabular-nums;
   }
-  .bd-units {
+  /* One row at any width: on a narrow screen each option wraps its own name instead of the row wrapping. */
+  .bd-measures {
     display: inline-flex;
+    max-width: 100%;
     padding: 2px;
     border: 1px solid var(--dpk-rule-strong);
     border-radius: var(--dpk-radius-sm);
     background: var(--dpk-paper-sunken);
   }
-  .bd-unit {
+  .bd-measure {
+    position: relative;
+    display: grid;
+    flex: 1 1 auto;
+    place-items: center;
+    min-width: 0;
     padding: 4px 12px;
+    text-align: center;
     border-radius: calc(var(--dpk-radius-sm) - 2px);
     color: var(--dpk-ink-soft);
     font-size: 12.5px;
     font-weight: 600;
-    text-decoration: none;
+    cursor: pointer;
   }
-  .bd-unit[aria-checked='true'] {
+  /* The radio stays in the page for the keyboard and the reader; the label is what shows. */
+  .bd-measure input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .bd-measure:has(input:checked) {
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink);
     box-shadow: var(--dpk-shadow-xs);
   }
-  .bd-unit:focus-visible {
+  .bd-measure:has(input:focus-visible) {
+    box-shadow: var(--dpk-focus);
+  }
+  .bd-settings {
+    display: grid;
+    gap: 10px;
+  }
+  .bd-settings-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    justify-self: start;
+    padding: 4px 10px 4px 6px;
+    border-radius: var(--dpk-radius-sm);
+    color: var(--dpk-ink-soft);
+    font-size: 12px;
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+  }
+  .bd-settings-summary::-webkit-details-marker {
+    display: none;
+  }
+  .bd-settings-summary:hover {
+    background: var(--dpk-paper-sunken);
+    color: var(--dpk-ink);
+  }
+  .bd-settings-summary:focus-visible {
     outline: none;
     box-shadow: var(--dpk-focus);
+  }
+  .bd-settings-chevron {
+    width: 6px;
+    height: 6px;
+    margin: 0 3px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 160ms var(--dpk-ease);
+  }
+  .bd-settings[open] .bd-settings-chevron {
+    transform: rotate(45deg);
+  }
+  .bd-settings-title {
+    font-weight: 650;
+  }
+  .bd-settings-gist {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px 14px;
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Side by side while both fit; the scale alone takes the row. */
+  .bd-settings-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(max(300px, calc((100% - 12px) / 2)), 1fr));
+    gap: 12px;
+    align-items: start;
   }
   .bd-record {
     margin-left: auto;
@@ -548,62 +659,10 @@ export const burndownStyles = css`
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 12px;
   }
-  /* Two panels a row at most, so the wide one under them never leaves a column empty. */
   .bd-side {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(max(300px, calc((100% - 12px) / 2)), 1fr));
     gap: 12px;
     align-items: start;
-  }
-  /* The weights read best across the whole width, a part for each status. */
-  .bd-panel--wide {
-    grid-column: 1 / -1;
-  }
-  .bd-switch {
-    position: relative;
-    flex: none;
-    width: 30px;
-    height: 18px;
-    margin-left: auto;
-    padding: 0;
-    border: 1px solid var(--dpk-rule-strong);
-    border-radius: 9px;
-    background: var(--dpk-paper-sunken);
-    cursor: pointer;
-    transition:
-      background 120ms var(--dpk-ease),
-      border-color 120ms var(--dpk-ease);
-  }
-  .bd-switch::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--dpk-ink-faint);
-    transition:
-      transform 160ms var(--dpk-ease-spring),
-      background 120ms var(--dpk-ease);
-  }
-  .bd-switch[aria-checked='true'] {
-    border-color: var(--dpk-accent);
-    background: var(--dpk-accent);
-  }
-  .bd-switch[aria-checked='true']::after {
-    transform: translateX(12px);
-    background: var(--dpk-accent-ink);
-  }
-  .bd-switch:focus-visible {
-    outline: none;
-    box-shadow: var(--dpk-focus);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .bd-switch,
-    .bd-switch::after {
-      transition: none;
-    }
   }
   .bd-panel {
     display: grid;
@@ -675,6 +734,11 @@ export const burndownStyles = css`
     font-family: var(--dpk-mono);
     font-size: 12px;
     font-variant-numeric: tabular-nums;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bd-settings-chevron {
+      transition: none;
+    }
   }
   @media (max-width: 640px) {
     .bd-record {

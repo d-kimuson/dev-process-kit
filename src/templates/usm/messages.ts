@@ -1,6 +1,6 @@
 import type { AxisUnit } from './burndown-chart';
 import type { MapFilterKey } from './map-filter';
-import type { StatusIcon, StatusTone, UsmFeature } from './model';
+import type { StatusIcon, StatusTone, UsmFeature, UsmMeasure } from './model';
 
 import { defineMessages } from '../../core/i18n';
 
@@ -169,8 +169,9 @@ export const usmMessages = defineMessages({
     doneStatusAria: (status: string) => `Count ${status} as done`,
     statusWeightLabel: 'Status weights',
     statusWeightHint: 'Counts a story partly done by the statuses it has passed.',
-    weighStatuses: 'Weigh the work left by status',
-    unweighStatuses: 'Stop weighing the work left by status',
+    weightsNeedStatuses:
+      'With two statuses or more before the done one, a story’s work can be shared out between them.',
+    setMeasure: 'Change how the work left is measured',
     weightLineLabel: (before: string, after: string) => `Between ${before} and ${after}`,
     weightLineValue: (before: string, beforeWeight: string, after: string, afterWeight: string) =>
       `${before} ${beforeWeight}, ${after} ${afterWeight}`,
@@ -186,15 +187,19 @@ export const usmMessages = defineMessages({
     burndownMilestoneLabel: 'Milestone',
     dueDateLabel: 'Due',
     noDueDate: 'No due date',
-    unitLabel: 'Count',
-    unitName: (unit: 'points' | 'stories') => ({ points: 'Points', stories: 'Stories' })[unit],
+    measureLabel: 'Measure by',
+    measureName: (measure: UsmMeasure) =>
+      ({ stories: 'Stories', points: 'Story points', weighted: 'Points × status' })[measure],
+    measureSettingsLabel: 'Measure settings',
     recordSnapshotButton: 'Record snapshot',
     recordSnapshotHint: 'Keeps today’s totals per milestone and status, so the lines have a point to start from.',
     combinedChartTitle: (weighted: boolean): string => (weighted ? 'Weighted burndown' : 'Burndown'),
-    combinedChartHint: (unit: string, weighted: boolean) =>
-      weighted
-        ? `${unit} of each story × the share of it the status weights leave ahead. It reaches 0 when every story is done.`
-        : `${unit} of the stories not done yet. It reaches 0 when every story is done.`,
+    combinedChartHint: (measure: UsmMeasure) =>
+      ({
+        stories: 'The number of stories not done yet.',
+        points: 'The points of the stories not done yet.',
+        weighted: 'The points of each story × the share of it the status weights leave ahead.',
+      })[measure] + ' It reaches 0 when every story is done.',
     statusChartTitle: (name: string) => `Left to reach “${name}”`,
     statusChartsLabel: 'By status',
     chartNow: 'Now',
@@ -471,8 +476,9 @@ export const usmMessages = defineMessages({
     doneStatusAria: (status: string) => `${status}を完了とする`,
     statusWeightLabel: 'ステータスの重み',
     statusWeightHint: '通り過ぎたステータスの分だけ、ストーリーを途中まで進んだものとして数えます。',
-    weighStatuses: 'ステータスの重みを使う',
-    unweighStatuses: 'ステータスの重みを使わない',
+    weightsNeedStatuses:
+      '完了とするステータスより前にステータスが 2 つ以上あると、ストーリーの作業をその間で分けられます。',
+    setMeasure: '残りの作業量の計測方法を変更',
     weightLineLabel: (before: string, after: string) => `${before}と${after}の境目`,
     weightLineValue: (before: string, beforeWeight: string, after: string, afterWeight: string) =>
       `${before} ${beforeWeight}、${after} ${afterWeight}`,
@@ -486,15 +492,19 @@ export const usmMessages = defineMessages({
     burndownMilestoneLabel: 'マイルストーン',
     dueDateLabel: '期日',
     noDueDate: '期日なし',
-    unitLabel: '数える単位',
-    unitName: (unit: 'points' | 'stories') => ({ points: 'ポイント', stories: 'ストーリー数' })[unit],
+    measureLabel: '計測方法',
+    measureName: (measure: UsmMeasure) =>
+      ({ stories: 'ストーリー数', points: 'ストーリーポイント', weighted: 'ポイント × ステータス' })[measure],
+    measureSettingsLabel: '計測の設定',
     recordSnapshotButton: 'スナップショットを記録',
     recordSnapshotHint: '今のマイルストーン × ステータスごとの集計を残し、線の起点にします。',
     combinedChartTitle: (weighted: boolean) => (weighted ? '重み付きバーンダウンチャート' : 'バーンダウンチャート'),
-    combinedChartHint: (unit: string, weighted: boolean) =>
-      weighted
-        ? `各ストーリーの${unit} × ステータスの重みで決まる残りの割合。すべて Done になると 0 です。`
-        : `まだ Done でないストーリーの${unit}。すべて Done になると 0 です。`,
+    combinedChartHint: (measure: UsmMeasure) =>
+      ({
+        stories: 'まだ Done でないストーリーの数。',
+        points: 'まだ Done でないストーリーのポイント。',
+        weighted: '各ストーリーのポイント × ステータスの重みで決まる残りの割合。',
+      })[measure] + 'すべて Done になると 0 です。',
     statusChartTitle: (name: string) => `「${name}」に届くまでの残り`,
     statusChartsLabel: 'ステータス別',
     chartNow: '現在',
