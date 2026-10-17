@@ -381,6 +381,111 @@ describe('<dpk-template-prototype> layout', () => {
       expect(el.api.exportBrief()).toContain('**UI · landing-mobile › "Billing"** — `ui:landing-mobile/a "Billing"`');
     });
 
+    it('keeps a note on the element instead of sending feedback, and shows it as a badge', async () => {
+      const el = await withMock();
+      const root = el.shadowRoot!;
+      toggle(el).click();
+      await settle(el);
+      el.querySelector<HTMLElement>('.pay')!.click();
+      await settle(el);
+      const kinds = [...root.querySelectorAll<HTMLInputElement>('.comment-pop .comment-kind input')];
+      expect(kinds.map((input) => [input.value, input.checked])).toEqual([
+        ['feedback', true],
+        ['note', false],
+      ]);
+      expect(root.querySelector('.comment-kind-hint')?.textContent).toBe(m.uiCommentFeedbackHint);
+      kinds[1]!.click();
+      await settle(el);
+      expect(root.querySelector('.comment-kind-hint')?.textContent).toBe(m.uiCommentNoteHint);
+      const submit = root.querySelector<HTMLButtonElement>('.comment-pop .dpk-btn--accent')!;
+      expect(submit.textContent?.trim()).toBe(m.uiNoteSubmit);
+      const textarea = root.querySelector('textarea')!;
+      textarea.value = 'Agreed with legal';
+      textarea.dispatchEvent(new Event('input'));
+      await settle(el);
+      root.querySelector<HTMLButtonElement>('.comment-pop .dpk-btn--accent')!.click();
+      await settle(el);
+
+      // A change to the prototype, not a review comment
+      expect(el.api.comments).toEqual([]);
+      expect(el.api.actions.map((action) => action.type)).toEqual(['ADD_UI_NOTE']);
+      expect(el.api.actions[0]!.target).toEqual({ type: 'ui', id: 'landing-mobile/button.pay "Pay now"' });
+      expect(el.api.actions[0]!.payload).toMatchObject({ id: 'note', body: 'Agreed with legal' });
+      expect(root.querySelector('.ui-pin')).toBeNull();
+      // The next element is a note again, until the reader picks feedback
+      el.querySelector<HTMLElement>('nav a')!.click();
+      await settle(el);
+      expect(root.querySelector<HTMLInputElement>('.comment-kind input[value="note"]')?.checked).toBe(true);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await settle(el);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await settle(el);
+
+      const badge = root.querySelector<HTMLButtonElement>('.ui-note-badge')!;
+      expect(badge.dataset['selector']).toBe('button.pay');
+      expect(badge.textContent?.trim()).toBe('1');
+      expect(badge.getAttribute('aria-label')).toBe(m.uiNotesOn('landing-mobile › "Pay now"'));
+    });
+
+    it('lists the notes of a badge, deletes one, and closes the list on Escape', async () => {
+      const el = await withMock();
+      const root = el.shadowRoot!;
+      const pay = { previewId: 'landing-mobile', selector: 'button.pay', text: 'Pay now' };
+      el.api.dispatch(prototypeAction.addUiNote(pay, 'n1', 'Agreed with legal', '2026-10-01T09:00:00.000Z'));
+      el.api.dispatch(prototypeAction.addUiNote(pay, 'n2', 'Ship behind a flag'));
+      await settle(el);
+      // Placed on the top-left corner of its element
+      el.querySelector<HTMLElement>('.pay')!.getBoundingClientRect = () => new DOMRect(40, 30, 100, 24);
+      window.dispatchEvent(new Event('resize'));
+      const badge = (): HTMLButtonElement | null => root.querySelector<HTMLButtonElement>('.ui-note-badge');
+      expect(badge()!.hidden).toBe(false);
+      expect([badge()!.style.left, badge()!.style.top]).toEqual(['40px', '30px']);
+      expect(badge()!.textContent?.trim()).toBe('2');
+
+      badge()!.click();
+      await settle(el);
+      const pop = (): HTMLElement | null => root.querySelector<HTMLElement>('.ui-notes-pop');
+      expect(badge()!.getAttribute('aria-expanded')).toBe('true');
+      expect([...pop()!.querySelectorAll('.ui-note-body')].map((body) => body.textContent)).toEqual([
+        'Agreed with legal',
+        'Ship behind a flag',
+      ]);
+      expect(pop()!.querySelector('time')?.getAttribute('datetime')).toBe('2026-10-01T09:00:00.000Z');
+      expect(root.activeElement).toBe(pop()!.querySelector('[data-role="close-notes"]'));
+
+      pop()!.querySelector<HTMLButtonElement>('li[data-id="n2"] [data-role="delete-note"]')!.click();
+      await settle(el);
+      // Added and deleted in the same draft: nothing is left to change
+      expect(el.api.actions.map((action) => action.type)).toEqual(['ADD_UI_NOTE']);
+      expect([...pop()!.querySelectorAll('li')].map((li) => li.getAttribute('data-id'))).toEqual(['n1']);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await settle(el);
+      expect(pop()).toBeNull();
+      expect(root.activeElement).toBe(badge());
+      // The Escape was for the list: the stage stays as it was
+      expect(root.querySelector('.stage')?.getAttribute('data-ui-comment')).toBe('off');
+
+      // Commenting on the UI closes the list; the sheet lies over the badge
+      badge()!.click();
+      await settle(el);
+      toggle(el).click();
+      await settle(el);
+      expect(pop()).toBeNull();
+      expect(badge()).not.toBeNull();
+    });
+
+    it('shows the notes in the scenario view only: the app view is the product alone', async () => {
+      const el = await withMock();
+      el.api.dispatch(prototypeAction.addUiNote({ previewId: 'landing-mobile', selector: 'button.pay' }, 'n1', 'Hi'));
+      await settle(el);
+      expect(el.shadowRoot!.querySelector('.ui-note-badge')).not.toBeNull();
+      el.api.navigate({ view: 'app', screen: 'landing', story: null, step: null, activity: null });
+      await settle(el);
+      expect(el.shadowRoot!.querySelector('.stage')).not.toBeNull();
+      expect(el.shadowRoot!.querySelector('.ui-note-badge')).toBeNull();
+    });
+
     it('leaves the mock working while the mode is off', async () => {
       const el = await withMock();
       el.querySelector<HTMLElement>('nav a span')!.click();

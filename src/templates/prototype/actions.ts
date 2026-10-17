@@ -14,8 +14,13 @@ import {
   PREVIEW_VIEWPORTS,
   paneSchema,
   previewSchema,
+  uiNoteAtSchema,
+  uiNoteBodySchema,
+  uiTargetId,
+  UI_TARGET,
   type PrototypePreview,
   type StepPane,
+  type UiTarget,
 } from './model';
 
 /**
@@ -107,6 +112,15 @@ export const prototypeActions = {
   DELETE_STORY: defineAction('DELETE_STORY', 'story', v.object({})),
   DELETE_STEP: defineAction('DELETE_STEP', 'step', v.object({})),
   DELETE_PREVIEW: defineAction('DELETE_PREVIEW', 'preview', v.object({})),
+
+  /** Keeps a note on the element the `ui` target names, at the end of its preview's notes. */
+  ADD_UI_NOTE: defineAction(
+    'ADD_UI_NOTE',
+    UI_TARGET,
+    v.object({ id: entityIdSchema, body: uiNoteBodySchema, createdAt: v.exactOptional(uiNoteAtSchema) }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  DELETE_UI_NOTE: defineAction('DELETE_UI_NOTE', UI_TARGET, v.object({ noteId: v.pipe(v.string(), v.minLength(1)) })),
 } satisfies ActionSpecs;
 
 /** The discriminated union of this template's actions. */
@@ -238,5 +252,15 @@ export const prototypeAction = {
     type: 'DELETE_PREVIEW',
     target: { type: 'preview', id },
     payload: {},
+  }),
+  addUiNote: (target: UiTarget, id: string, body: string, createdAt?: string): ActionInput => ({
+    type: 'ADD_UI_NOTE',
+    target: { type: UI_TARGET, id: uiTargetId(target) },
+    payload: { id, body, ...(createdAt === undefined ? {} : { createdAt }) },
+  }),
+  deleteUiNote: (target: UiTarget, noteId: string): ActionInput => ({
+    type: 'DELETE_UI_NOTE',
+    target: { type: UI_TARGET, id: uiTargetId(target) },
+    payload: { noteId },
   }),
 };

@@ -15,6 +15,7 @@ import { payloadFor, type ActionName } from '../../core/schema';
 import { slugify, targetRef } from '../../core/target';
 import { prototypeActions } from './actions';
 import {
+  allPreviews,
   allScreens,
   findActivity,
   findPreview,
@@ -39,6 +40,7 @@ import {
   type ScreenAction,
   type ScreenLocation,
   type StepLocation,
+  type UiNote,
   type UiTarget,
   parseUiTargetId,
   UI_TARGET,
@@ -158,6 +160,20 @@ const describers = (m: PrototypeMessages): Record<string, (action: DraftAction, 
     DELETE_STORY: (action, state) => deleteSummary(m, findStory(state, action.target.id)?.story.name),
     DELETE_STEP: (action, state) => deleteSummary(m, findStep(state, action.target.id)?.step.name),
     DELETE_PREVIEW: (action, state) => deleteSummary(m, findPreview(state, action.target.id)?.preview.label),
+    ADD_UI_NOTE: (action) => ({
+      title: m.addUiNote,
+      tone: 'create',
+      body: `+ "${shorten(payloadFor(prototypeActions.ADD_UI_NOTE, action).body)}"`,
+    }),
+    DELETE_UI_NOTE: (action, state) => {
+      const { noteId } = payloadFor(prototypeActions.DELETE_UI_NOTE, action);
+      const note = findUiNote(state, noteId);
+      return {
+        title: m.deleteUiNote,
+        tone: 'delete',
+        body: note === undefined ? m.unknownTarget : `− "${shorten(note.body)}"`,
+      };
+    },
   }) satisfies Record<ActionName<typeof prototypeActions>, (action: DraftAction, state: PrototypeState) => Summary>;
 
 const preview = (before: string | undefined, after: string): string => {
@@ -284,6 +300,43 @@ export const prototypeUiCommentPins = (
   }
   return pins;
 };
+
+/** The notes kept on one element of a preview on screen: a badge on the element. */
+export type UiNoteBadge = {
+  readonly previewId: string;
+  readonly selector: string;
+  /** `Desktop › "Save"`, as the element is named in a `ui` target. */
+  readonly label: string;
+  /** Oldest first. */
+  readonly notes: readonly UiNote[];
+};
+
+/** The notes on the given previews, one badge per element, in the order their first note was written. */
+export const prototypeUiNoteBadges = (state: PrototypeState, previewIds: readonly string[]): readonly UiNoteBadge[] =>
+  previewIds.flatMap((previewId) => {
+    const preview = findPreview(state, previewId)?.preview;
+    const bySelector = new Map<string, UiNote[]>();
+    for (const note of preview?.notes ?? [])
+      bySelector.set(note.selector, [...(bySelector.get(note.selector) ?? []), note]);
+    if (preview === undefined) return [];
+    return [...bySelector].map(([selector, notes]) => ({
+      previewId,
+      selector,
+      label: prototypeUiTargetName(preview, { previewId, selector, ...textOf(notes) }),
+      notes,
+    }));
+  });
+
+/** What the element said, as its latest note recorded it. */
+const textOf = (notes: readonly UiNote[]): { readonly text?: string } => {
+  const text = [...notes].reverse().find((note) => note.text !== undefined)?.text;
+  return text === undefined ? {} : { text };
+};
+
+const findUiNote = (state: PrototypeState, noteId: string): UiNote | undefined =>
+  allPreviews(state)
+    .flatMap((preview) => preview.notes ?? [])
+    .find((note) => note.id === noteId);
 
 /** How many UI comments sit on the given previews: the step list counts them with the step's own. */
 export const prototypeUiCommentCount = (comments: readonly DraftAction[], previewIds: readonly string[]): number => {

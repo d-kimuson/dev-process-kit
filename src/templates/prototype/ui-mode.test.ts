@@ -91,16 +91,34 @@ describe('UI comment mode', () => {
 
   it('picks an element, composes, and keeps picking after a comment', () => {
     let mode: UiCommentMode = reduceUiComment(UI_COMMENT_OFF, { kind: 'toggle' });
-    expect(mode).toEqual({ kind: 'picking' });
+    expect(mode).toEqual({ kind: 'picking', as: 'feedback' });
     mode = reduceUiComment(mode, { kind: 'pick', target });
     mode = reduceUiComment(mode, { kind: 'input', body: 'Bigger' });
-    expect(mode).toEqual({ kind: 'composing', target, body: 'Bigger' });
-    expect(reduceUiComment(mode, { kind: 'submitted' })).toEqual({ kind: 'picking' });
-    expect(reduceUiComment(mode, { kind: 'dismiss' })).toEqual({ kind: 'picking' });
+    expect(mode).toEqual({ kind: 'composing', target, body: 'Bigger', as: 'feedback' });
+    expect(reduceUiComment(mode, { kind: 'submitted' })).toEqual({ kind: 'picking', as: 'feedback' });
+    expect(reduceUiComment(mode, { kind: 'dismiss' })).toEqual({ kind: 'picking', as: 'feedback' });
+  });
+
+  it('writes a note instead of feedback once chosen, and keeps the choice for the next element', () => {
+    let mode = reduceUiComment(reduceUiComment(UI_COMMENT_OFF, { kind: 'toggle' }), { kind: 'pick', target });
+    mode = reduceUiComment(reduceUiComment(mode, { kind: 'input', body: 'Agreed' }), { kind: 'choose', as: 'note' });
+    expect(mode).toEqual({ kind: 'composing', target, body: 'Agreed', as: 'note' });
+    mode = reduceUiComment(mode, { kind: 'submitted' });
+    expect(mode).toEqual({ kind: 'picking', as: 'note' });
+    expect(reduceUiComment(mode, { kind: 'pick', target })).toEqual({
+      kind: 'composing',
+      target,
+      body: '',
+      as: 'note',
+    });
+    // Turned on again, the mode starts with feedback.
+    const again = reduceUiComment(reduceUiComment(mode, { kind: 'exit' }), { kind: 'toggle' });
+    expect(again).toEqual({ kind: 'picking', as: 'feedback' });
+    expect(reduceUiComment(UI_COMMENT_OFF, { kind: 'choose', as: 'note' })).toBe(UI_COMMENT_OFF);
   });
 
   it('turns off from any state, and ignores picks while off', () => {
-    const composing: UiCommentMode = { kind: 'composing', target, body: 'x' };
+    const composing: UiCommentMode = { kind: 'composing', target, body: 'x', as: 'feedback' };
     expect(reduceUiComment(composing, { kind: 'toggle' })).toBe(UI_COMMENT_OFF);
     expect(reduceUiComment(composing, { kind: 'exit' })).toBe(UI_COMMENT_OFF);
     expect(reduceUiComment(UI_COMMENT_OFF, { kind: 'pick', target })).toBe(UI_COMMENT_OFF);

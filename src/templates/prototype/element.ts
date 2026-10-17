@@ -10,6 +10,7 @@ import { commentBody } from '../../core/comment';
 import { TemplateElement } from '../../core/element';
 import { parseHash } from '../../core/navigation';
 import { PopoverController } from '../../core/popover-controller';
+import { createEntityId } from '../../core/target';
 import { popoverSurface, prose } from '../../core/theme';
 import { clipOutRects } from '../../lib/dom/clip';
 import { containDialog, releaseModalDialog } from '../../lib/dom/contained-dialog';
@@ -17,6 +18,7 @@ import { DismissController } from '../../lib/dom/dismiss';
 import { clickElements, fillFields } from '../../lib/dom/fill';
 import { findLocated, locateElement, pickableElement } from '../../lib/dom/locator';
 import { closePopover } from '../../lib/dom/popover';
+import { prototypeAction } from './actions';
 import {
   activeEntry,
   reduceBrowser,
@@ -35,17 +37,19 @@ import {
 import { prototypeDefinitionFor } from './definition';
 import { chooseDevice, deviceZoom, type DeviceChoice } from './devices';
 import { prototypeMessages } from './messages';
-import { findPreview, uiTargetId, UI_TARGET, type PrototypeState, type UiTarget } from './model';
+import { allUiNoteIds, findPreview, uiTargetId, UI_TARGET, type PrototypeState, type UiTarget } from './model';
 import {
   locatePrototype,
   prototypeLinkProblem,
   prototypeScreenActions,
   prototypeStageFrames,
   prototypeUiCommentPins,
+  prototypeUiNoteBadges,
   prototypeUiTargetName,
 } from './present';
 import { renderNav } from './render/nav';
 import { renderStage, type StageLift, type StageOptions } from './render/stage';
+import { uiNoteBadgeKey, type UiNotesView } from './render/ui-notes';
 import { prototypeDocumentStyles, prototypeStyles } from './styles';
 import { reduceUiComment, UI_COMMENT_OFF, type UiCommentIntent, type UiCommentMode } from './ui-mode';
 import { prototypeViewOf } from './view-mode';
@@ -54,6 +58,9 @@ const COMPOSER_SIZE = { width: 300, height: 300 };
 /** How long a reload of the app view's browser takes, so the reader sees it happen. */
 const RELOAD_MS = 360;
 const ACTIONS_MENU_SIZE = { width: 280, height: 360 };
+const NOTES_SIZE = { width: 300, height: 320 };
+/** The open composer: the notes list is a `.comment-pop` too. */
+const COMPOSER = '.comment-pop:not(.ui-notes-pop)';
 const DOCUMENT_STYLES_ID = 'dpk-template-prototype-document-styles';
 /** The room a demo leaves around a device, on each side (the stage's `.is-demo` styles match it). */
 const DEMO_DEVICE_MARGIN = 24;
@@ -139,7 +146,13 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   /** How much smaller the device on stage is drawn, so it fits the stage. */
   #deviceZoom = 1;
   /** Measures the stage again when its width changes (the window, the sidebar). */
-  readonly #canvasSize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.#fitDevice());
+  readonly #canvasSize =
+    typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(() => {
+          this.#fitDevice();
+          this.#placeUiLayer();
+        });
   #observedCanvas: Element | null = null;
   /**
    * The screens on stage when the menu of their actions was opened (ids,
@@ -150,6 +163,16 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   #actionsMenu: HTMLElement | null = null;
   /** Set when the menu closed from the keyboard or by running an action: the focus goes back to its button. */
   #refocusActions = false;
+  /** The badge whose notes are open (`uiNoteBadgeKey`), or null. */
+  #notesOn: string | null = null;
+  /** The notes list shown in the top layer, so it is anchored once per opening. */
+  #notesPop: HTMLElement | null = null;
+  /** Set when the notes list closed from the keyboard: the focus goes back to its badge. */
+  #refocusNotes: string | null = null;
+  /** The mock changes its own markup as the reader clicks through it: the badges follow their elements. */
+  readonly #mockChanges =
+    typeof MutationObserver === 'undefined' ? null : new MutationObserver(() => this.#schedulePlacement());
+  #placementFrame: number | null = null;
 
   constructor() {
     super();
@@ -159,6 +182,18 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
       closesOn: (path) => !path.some((node) => node instanceof Element && this.#keepsActionsOpen(node)),
       ownsEscape: () => true,
       dismiss: () => this.#closeActions(true),
+    });
+    // So does the list of an element's notes.
+    new DismissController(this, {
+      open: () => this.#notesOn !== null,
+      closesOn: (path) =>
+        !path.some(
+          (node) =>
+            node instanceof Element &&
+            (node.classList.contains('ui-notes-pop') || node.classList.contains('ui-note-badge')),
+        ),
+      ownsEscape: () => true,
+      dismiss: () => this.#closeNotes(true),
     });
   }
 
@@ -175,6 +210,7 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     // Before the shell's own link handling, which navigates in place.
     this.addEventListener('click', this.#onLinkClick, true);
     this.addEventListener('auxclick', this.#onLinkClick, true);
+    this.#mockChanges?.observe(this, { subtree: true, childList: true, attributes: true, characterData: true });
     installDocumentStyles();
   }
 
@@ -187,6 +223,9 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     this.removeEventListener('auxclick', this.#onLinkClick, true);
     this.#canvasSize?.disconnect();
     this.#observedCanvas = null;
+    this.#mockChanges?.disconnect();
+    if (this.#placementFrame !== null) cancelAnimationFrame(this.#placementFrame);
+    this.#placementFrame = null;
     this.#stopReload();
   }
 
@@ -225,6 +264,7 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
             }
           : null,
         uiComment: this.#uiCommentView(context),
+        uiNotes: this.#uiNotesView(context, app),
         actions: this.#actionsView(context),
         canvasEvents: {
           click: this.#onCanvasClick,
@@ -257,10 +297,11 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
       this.renderRoot.querySelector<HTMLElement>('.browser-tab[aria-selected="true"]')?.focus();
     }
     this.#placeUiLayer();
+    this.#syncNotesPop();
     const opened = mode.kind === 'composing' && !this.#composerOpen;
     this.#composerOpen = mode.kind === 'composing';
     if (mode.kind !== 'composing' || this.#anchor === null) return;
-    const surface = this.renderRoot.querySelector<HTMLElement>('.comment-pop');
+    const surface = this.renderRoot.querySelector<HTMLElement>(COMPOSER);
     if (!surface) return;
     this.#popovers.open(surface, this.#anchor, COMPOSER_SIZE, { placement: 'right-start' });
     if (opened) surface.querySelector('textarea')?.focus({ preventScroll: true });
@@ -350,16 +391,21 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     const target = mode.kind === 'composing' ? mode.target : undefined;
     const preview = target ? findPreview(context.state, target.previewId)?.preview : undefined;
     const ref = target ? uiTargetId(target) : undefined;
+    // Writing a note, the reader sees the notes the element keeps; writing feedback, the feedback on it so far.
+    const notes =
+      mode.kind === 'composing' && mode.as === 'note'
+        ? (preview?.notes ?? []).filter((note) => note.selector === target?.selector).map((note) => note.body)
+        : context.comments
+            .filter((comment) => comment.target.type === UI_TARGET && comment.target.id === ref)
+            .map((comment) => commentBody(comment));
     return {
       mode,
       pins: mode.kind === 'off' ? [] : prototypeUiCommentPins(context.comments, this.#shownIds),
       ...(target && preview ? { targetLabel: prototypeUiTargetName(preview, target) } : {}),
-      notes: context.comments
-        .filter((comment) => comment.target.type === UI_TARGET && comment.target.id === ref)
-        .map((comment) => commentBody(comment)),
+      notes,
       composer: composerMessages(this.locale),
       send: (intent) => this.#send(intent),
-      submit: (body) => this.#submitUiComment(body),
+      submit: (body) => this.#submitUiComment(context.state, body),
     };
   }
 
@@ -368,18 +414,91 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     if (next === this.#uiComment) return;
     this.#uiComment = next;
     if (next.kind !== 'composing') this.#anchor = null;
+    // Commenting on the UI lays the catcher sheet over the badges: their list closes.
+    if (next.kind !== 'off') this.#notesOn = null;
     this.requestUpdate();
   }
 
-  #submitUiComment(body: string): void {
+  /** Feedback joins the review comments; a note is a change to the prototype, kept on the element. */
+  #submitUiComment(state: PrototypeState, body: string): void {
     const mode = this.#uiComment;
     if (mode.kind !== 'composing') return;
-    const outcome = this.dispatch({
-      type: COMMENT_ACTION,
-      target: { type: UI_TARGET, id: uiTargetId(mode.target) },
-      payload: { body },
-    });
+    const outcome =
+      mode.as === 'note'
+        ? this.dispatch(
+            prototypeAction.addUiNote(
+              mode.target,
+              createEntityId('note', allUiNoteIds(state)),
+              body,
+              new Date().toISOString(),
+            ),
+          )
+        : this.dispatch({
+            type: COMMENT_ACTION,
+            target: { type: UI_TARGET, id: uiTargetId(mode.target) },
+            payload: { body },
+          });
     if (outcome.ok) this.#send({ kind: 'submitted' });
+  }
+
+  // ------------------------------------------------------------ notes on the UI
+
+  /** The scenario view shows the notes; the app view is the product alone, without them. */
+  #uiNotesView(context: TemplateRenderContext<PrototypeState>, app: boolean): UiNotesView {
+    const badges = app ? [] : prototypeUiNoteBadges(context.state, this.#shownIds);
+    const open =
+      this.#uiComment.kind === 'off' && this.#notesOn !== null
+        ? (badges.find((badge) => uiNoteBadgeKey(badge) === this.#notesOn) ?? null)
+        : null;
+    // Its element left the stage, or its last note was deleted.
+    if (open === null) this.#notesOn = null;
+    return {
+      badges,
+      open,
+      toggle: (badge) => {
+        const key = uiNoteBadgeKey(badge);
+        if (this.#notesOn === key) this.#closeNotes(false);
+        else {
+          this.#notesOn = key;
+          this.requestUpdate();
+        }
+      },
+      close: () => this.#closeNotes(true),
+      remove: (badge, noteId) => {
+        this.dispatch(prototypeAction.deleteUiNote(badge, noteId));
+      },
+    };
+  }
+
+  #closeNotes(refocus: boolean): void {
+    if (this.#notesOn === null) return;
+    this.#refocusNotes = refocus ? this.#notesOn : null;
+    this.#notesOn = null;
+    this.requestUpdate();
+  }
+
+  /** Anchors a newly drawn list next to its badge and puts the focus in it. */
+  #syncNotesPop(): void {
+    const surface = this.renderRoot.querySelector<HTMLElement>('.ui-notes-pop');
+    if (surface === null) {
+      this.#notesPop = null;
+      if (this.#refocusNotes !== null) this.#badge(this.#refocusNotes)?.focus({ preventScroll: true });
+      this.#refocusNotes = null;
+      return;
+    }
+    const badge = this.#badge(surface.dataset['key'] ?? '');
+    if (surface === this.#notesPop || badge === null) return;
+    this.#notesPop = surface;
+    this.#popovers.open(surface, badge, NOTES_SIZE, { placement: 'bottom-start' });
+    surface.querySelector<HTMLElement>('[data-role="close-notes"]')?.focus({ preventScroll: true });
+  }
+
+  #badge(key: string): HTMLElement | null {
+    return (
+      Array.from(this.renderRoot.querySelectorAll<HTMLElement>('.ui-note-badge')).find(
+        (badge) => badge.dataset['key'] === key,
+      ) ?? null
+    );
   }
 
   /**
@@ -491,14 +610,26 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   };
 
   #onLayoutChange = (): void => {
-    if (this.#uiComment.kind !== 'off') this.#placeUiLayer();
+    this.#placeUiLayer();
   };
 
-  /** Pins sit on the top-right corner of their element; one whose element is gone stays hidden. */
+  #schedulePlacement(): void {
+    if (this.#placementFrame !== null || typeof requestAnimationFrame !== 'function') return;
+    this.#placementFrame = requestAnimationFrame(() => {
+      this.#placementFrame = null;
+      this.#placeUiLayer();
+    });
+  }
+
+  /**
+   * Badges sit on the top-left corner of their element, pins on the top-right
+   * one; a mark whose element is gone stays hidden.
+   */
   #placeUiLayer(): void {
+    const canvas = this.renderRoot.querySelector<HTMLElement>('.canvas');
+    if (canvas) this.#placeMarks(canvas, '.ui-note-badge', 'left');
     if (this.#uiComment.kind === 'off') return;
     this.#placeBox('.ui-picked', this.#anchor);
-    const canvas = this.renderRoot.querySelector<HTMLElement>('.canvas');
     if (!canvas) return;
     const catcher = this.renderRoot.querySelector<HTMLElement>('.ui-catcher');
     if (catcher) {
@@ -510,18 +641,22 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
       );
       catcher.style.clipPath = clipOutRects(catcher.getBoundingClientRect(), controls);
     }
-    for (const pin of this.renderRoot.querySelectorAll<HTMLElement>('.ui-pin')) {
-      const wrapper = this.#previewElement(pin.dataset['preview'] ?? '');
-      const element = wrapper ? findLocated(wrapper, pin.dataset['selector'] ?? '') : null;
+    this.#placeMarks(canvas, '.ui-pin', 'right');
+  }
+
+  #placeMarks(canvas: HTMLElement, selector: string, corner: 'left' | 'right'): void {
+    for (const mark of this.renderRoot.querySelectorAll<HTMLElement>(selector)) {
+      const wrapper = this.#previewElement(mark.dataset['preview'] ?? '');
+      const element = wrapper ? findLocated(wrapper, mark.dataset['selector'] ?? '') : null;
       const rect = element?.getBoundingClientRect();
       if (!rect || (rect.width === 0 && rect.height === 0)) {
-        pin.hidden = true;
+        mark.hidden = true;
         continue;
       }
       const origin = this.#canvasOrigin(canvas);
-      pin.hidden = false;
-      pin.style.left = `${rect.right - origin.left}px`;
-      pin.style.top = `${rect.top - origin.top}px`;
+      mark.hidden = false;
+      mark.style.left = `${rect[corner] - origin.left}px`;
+      mark.style.top = `${rect.top - origin.top}px`;
     }
   }
 
@@ -655,12 +790,13 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     const height = this.#lift?.height ?? stage?.offsetHeight ?? 0;
     this.#dropLift();
     if (mode !== null) this.#lift = { mode, height };
-    // The lifted stage would cover the menu: it is opened again from the stage's own bar.
+    // The lifted stage would cover the menu and the notes: they are opened again from the stage.
     this.#actionsOpenOn = null;
+    this.#notesOn = null;
     if (mode !== null && this.#uiComment.kind === 'composing') {
       // The top layer stacks in the order things entered it: an open composer
       // would stay beneath the lifted stage, so it is shown again above it.
-      closePopover(this.renderRoot.querySelector<HTMLElement>('.comment-pop'));
+      closePopover(this.renderRoot.querySelector<HTMLElement>(COMPOSER));
       this.#composerOpen = false;
     }
     this.requestUpdate();

@@ -435,6 +435,65 @@ export const popoverSurface = css`
     min-height: 54px;
   }
 
+  /* What kind of comment: a segmented control over native radios. */
+  .comment-kinds {
+    display: flex;
+    gap: 2px;
+    min-width: 0;
+    margin: 0;
+    padding: 2px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-sunken);
+  }
+
+  .comment-kinds legend {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .comment-kind {
+    position: relative;
+    flex: 1;
+    display: grid;
+    place-items: center;
+    padding: 4px 8px;
+    border-radius: var(--dpk-radius-xs);
+    color: var(--dpk-ink-soft);
+    font-weight: 550;
+    cursor: pointer;
+  }
+
+  .comment-kind input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .comment-kind:has(input:checked) {
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+  }
+
+  .comment-kind:has(input:focus-visible) {
+    outline: 2px solid var(--dpk-accent);
+    outline-offset: 1px;
+  }
+
+  .comment-kind-hint {
+    margin: -4px 0 0;
+    color: var(--dpk-ink-faint);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+
   .pop-actions {
     display: flex;
     gap: 4px;

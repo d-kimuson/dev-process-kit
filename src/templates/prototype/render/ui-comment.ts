@@ -4,7 +4,7 @@ import { keyed } from 'lit/directives/keyed.js';
 import type { ComposerMessages } from '../../../components/comment-composer/messages';
 import type { PrototypeMessages } from '../messages';
 import type { UiCommentPin } from '../present';
-import type { UiCommentIntent, UiCommentMode } from '../ui-mode';
+import type { UiCommentIntent, UiCommentKind, UiCommentMode } from '../ui-mode';
 
 import { presentComposer } from '../../../components/comment-composer/present';
 import { renderComposer } from '../../../components/comment-composer/view';
@@ -16,7 +16,7 @@ export type UiCommentView = {
   readonly pins: readonly UiCommentPin[];
   /** `Desktop › "Save"` for the element being commented on. */
   readonly targetLabel?: string;
-  /** Earlier comments on the same element, shown above the text box. */
+  /** Earlier comments on the same element (or the notes kept on it, when writing a note), shown above the text box. */
   readonly notes: readonly string[];
   readonly composer: ComposerMessages;
   readonly send: (intent: UiCommentIntent) => void;
@@ -80,20 +80,36 @@ export const renderUiCommentLayer = (m: PrototypeMessages, view: UiCommentView):
   </div>`;
 };
 
-/** The composer for the picked element; it floats next to it in the top layer. */
-export const renderUiComposer = (view: UiCommentView): TemplateResult | typeof nothing => {
+const isKind = (value: string): value is UiCommentKind => value === 'feedback' || value === 'note';
+
+/**
+ * The composer for the picked element; it floats next to it in the top layer.
+ * Above the text box, the reader picks feedback for the agent or a note kept on the element.
+ */
+export const renderUiComposer = (m: PrototypeMessages, view: UiCommentView): TemplateResult | typeof nothing => {
   const mode = view.mode;
   if (mode.kind !== 'composing') return nothing;
   const vm = presentComposer(mode.body, view.notes, {
     key: `ui:${mode.target.previewId}/${mode.target.selector}`,
     ...(view.targetLabel === undefined ? {} : { label: view.targetLabel }),
+    choice: {
+      label: m.uiCommentAs,
+      value: mode.as,
+      options: [
+        { value: 'feedback', label: m.uiCommentFeedback, hint: m.uiCommentFeedbackHint },
+        { value: 'note', label: m.uiCommentNote, hint: m.uiCommentNoteHint },
+      ],
+    },
+    ...(mode.as === 'note' ? { submitLabel: m.uiNoteSubmit } : {}),
   });
   return html`${keyed(
     `${mode.target.previewId}/${mode.target.selector}`,
     renderComposer(view.composer, vm, (intent) => {
       if (intent.kind === 'input') view.send({ kind: 'input', body: intent.body });
       else if (intent.kind === 'comment') view.submit(intent.body);
-      else view.send({ kind: 'dismiss' });
+      else if (intent.kind === 'choose') {
+        if (isKind(intent.value)) view.send({ kind: 'choose', as: intent.value });
+      } else view.send({ kind: 'dismiss' });
     }),
   )}`;
 };

@@ -3,11 +3,13 @@ import type { ApplyResult, DraftAction } from '../../core/types';
 import { assertNever, parseTemplateAction } from '../../core/schema';
 import { prototypeActions } from './actions';
 import {
+  allUiNoteIds,
   findPreview,
   isScreenPane,
   findStep,
   findStory,
   localId,
+  parseUiTargetId,
   stepMaterials,
   stepPaneProblem,
   stepRef,
@@ -19,6 +21,7 @@ import {
   type PrototypeStep,
   type PrototypeStory,
   type StepPane,
+  type UiNote,
 } from './model';
 
 /**
@@ -260,6 +263,38 @@ export const applyPrototypeAction = (state: PrototypeState, action: DraftAction)
       return mapPreviews(state, found.owner, (previews) =>
         previews.filter((preview) => preview.id !== found.preview.id),
       );
+    }
+
+    case 'ADD_UI_NOTE': {
+      const { id: noteId, body, createdAt } = typed.payload;
+      const ui = parseUiTargetId(id);
+      const found = ui === undefined ? undefined : findPreview(state, ui.previewId);
+      if (ui === undefined || found === undefined) return null;
+      // Adding the same note again is already done: the draft stays as it is.
+      if (found.preview.notes?.some((note) => note.id === noteId && note.selector === ui.selector)) return state;
+      if (allUiNoteIds(state).includes(noteId)) return null;
+      const note: UiNote = {
+        id: noteId,
+        selector: ui.selector,
+        ...(ui.text === undefined ? {} : { text: ui.text }),
+        body,
+        ...(createdAt === undefined ? {} : { createdAt }),
+      };
+      return updatePreview(state, found.preview.id, (preview) => ({
+        ...preview,
+        notes: [...(preview.notes ?? []), note],
+      }));
+    }
+    case 'DELETE_UI_NOTE': {
+      const { noteId } = typed.payload;
+      const ui = parseUiTargetId(id);
+      const found = ui === undefined ? undefined : findPreview(state, ui.previewId);
+      if (!found?.preview.notes?.some((note) => note.id === noteId)) return null;
+      return updatePreview(state, found.preview.id, (preview) => {
+        const notes = (preview.notes ?? []).filter((note) => note.id !== noteId);
+        const { notes: _notes, ...rest } = preview;
+        return notes.length === 0 ? rest : { ...rest, notes };
+      });
     }
     default:
       return assertNever(typed);

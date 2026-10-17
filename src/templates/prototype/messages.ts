@@ -100,6 +100,19 @@ export const prototypeMessages = defineMessages({
     uiComment: 'Comment on UI',
     uiCommentHint: 'Click any part of the preview to comment on it · Esc to finish',
     uiCommentPin: (number: number, body: string) => `Comment ${number}: ${body}`,
+    uiCommentAs: 'What it is',
+    uiCommentFeedback: 'Feedback',
+    uiCommentFeedbackHint: 'A review comment: asks the agent for a change, and is gone once it is answered.',
+    uiCommentNote: 'Note',
+    uiCommentNoteHint: 'Kept on the element as part of the prototype, shown as a badge in the scenario view.',
+    uiNoteSubmit: 'Keep',
+    uiNotes: (count: number) => (count === 1 ? '1 note' : `${count} notes`),
+    uiNotesOn: (label: string) => `Notes on ${label}`,
+    uiNoteDate: (at: string) => noteDate('en-US', at),
+    deleteUiNoteAria: 'Delete the note',
+    closeUiNotes: 'Close',
+    addUiNote: 'Add a note',
+    deleteUiNote: 'Delete a note',
     mailFrom: 'From',
     mailTo: 'To',
     mailCc: 'Cc',
@@ -191,6 +204,19 @@ export const prototypeMessages = defineMessages({
     uiComment: 'UI にコメント',
     uiCommentHint: 'プレビューの要素をクリックしてコメント · Esc で終了',
     uiCommentPin: (number: number, body: string) => `コメント ${number}: ${body}`,
+    uiCommentAs: 'コメントの種類',
+    uiCommentFeedback: 'フィードバック',
+    uiCommentFeedbackHint: 'レビューコメント。Agent に直してほしいことで、反映されると消えます。',
+    uiCommentNote: 'メモ',
+    uiCommentNoteHint: 'プロトタイプの一部として要素に残り、シナリオビューでバッジとして表示されます。',
+    uiNoteSubmit: '残す',
+    uiNotes: (count: number) => `メモ ${count} 件`,
+    uiNotesOn: (label: string) => `${label} のメモ`,
+    uiNoteDate: (at: string) => noteDate('ja-JP', at),
+    deleteUiNoteAria: 'メモを削除',
+    closeUiNotes: '閉じる',
+    addUiNote: 'メモを追加',
+    deleteUiNote: 'メモを削除',
     mailFrom: '差出人',
     mailTo: '宛先',
     mailCc: 'Cc',
@@ -220,3 +246,7 @@ export const prototypeMessages = defineMessages({
 });
 
 export type PrototypeMessages = ReturnType<typeof prototypeMessages>;
+
+/** When a note was written, to the minute. */
+const noteDate = (locale: string, at: string): string =>
+  new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(at));

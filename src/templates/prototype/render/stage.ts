@@ -44,6 +44,7 @@ import {
   renderUiComposer,
   type UiCommentView,
 } from './ui-comment';
+import { renderUiNoteBadges, renderUiNotesPop, type UiNotesView } from './ui-notes';
 
 export { VIEWPORT_MIN_HEIGHT, VIEWPORT_WIDTH } from './frame-size';
 
@@ -79,6 +80,8 @@ export type StageOptions = {
   readonly devices: StageDevices | null;
   /** Commenting on the UI: the mode, the pins and the composer. */
   readonly uiComment: UiCommentView;
+  /** The notes kept on the elements on screen, as badges. */
+  readonly uiNotes: UiNotesView;
   /** What the reader can make the screens on stage do, and their menu. */
   readonly actions: ActionsMenuView;
   /** Pointer events on the canvas, read by the element while the reader comments on the UI. */
@@ -240,9 +243,9 @@ export const renderStage = (
                 )
         }
         ${shown.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
-        ${renderUiCommentLayer(m, ui)}
+        ${renderUiNoteBadges(m, options.uiNotes)} ${renderUiCommentLayer(m, ui)}
       </div>
-      ${renderUiComposer(ui)} ${renderActionsMenu(m, options.actions)}
+      ${renderUiComposer(m, ui)} ${renderUiNotesPop(m, options.uiNotes)} ${renderActionsMenu(m, options.actions)}
       ${renderParkedPreviews(
         state,
         onScreen.map((preview) => preview.id),

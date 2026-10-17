@@ -296,7 +296,8 @@ export class DpkInternalExampleMappingCard extends LitElement {
         if (intent.kind === 'input') {
           this.#draft = intent.body;
           this.requestUpdate();
-        } else this.#report(intent);
+          // Without a choice, the composer never sends `choose`.
+        } else if (intent.kind !== 'choose') this.#report(intent);
       },
     );
   }

@@ -841,6 +841,117 @@ export const prototypeStyles = css`
     display: none;
   }
 
+  /* ---------------------------------------------------------- notes on the UI */
+
+  /* Positioned against the canvas by the element, like the pins; blue, so a note never reads as feedback. */
+  .ui-notes {
+    display: contents;
+  }
+
+  .ui-note-badge {
+    position: absolute;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 20px;
+    padding: 0 6px 0 5px;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+    border: 2px solid var(--dpk-paper-raised);
+    border-radius: 999px;
+    background: var(--dpk-blue);
+    color: #fff;
+    box-shadow: var(--dpk-shadow-sm);
+    font-family: var(--dpk-mono);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .ui-note-badge svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  .ui-note-badge:hover,
+  .ui-note-badge[aria-expanded='true'] {
+    background: var(--dpk-blue-strong);
+  }
+
+  .ui-note-badge:focus-visible {
+    outline: 2px solid var(--dpk-focus);
+    outline-offset: 1px;
+  }
+
+  .ui-note-badge[hidden] {
+    display: none;
+  }
+
+  .ui-notes-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* The badge's icon and blue: the list reads as the badge opened. */
+  .ui-notes-head > svg {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    color: var(--dpk-blue);
+  }
+
+  .ui-notes-head .comment-target {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ui-note-list {
+    display: grid;
+    gap: 6px;
+    max-height: 240px;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    list-style: none;
+  }
+
+  .ui-note-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 8px 4px 8px 10px;
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-sunken);
+  }
+
+  .ui-note-main {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .ui-note-body {
+    margin: 0;
+    color: var(--dpk-ink);
+    font-size: 12.5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .ui-note-time {
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+  }
+
   /*
    * Side by side: what the user sees together, in one row. A fixed viewport
    * keeps its width as long as the row allows it, a fluid one takes the rest;

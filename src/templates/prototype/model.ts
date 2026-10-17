@@ -21,6 +21,23 @@ export type PreviewMail = {
   readonly date?: string;
 };
 
+/**
+ * A note kept on one element of a preview as part of the prototype: a
+ * decision, a caveat, a note for the team. Unlike a review comment on the
+ * element, which asks the agent for a change and is gone once it is
+ * answered, a note stays, shown as a badge on the element.
+ */
+export type UiNote = {
+  /** Unique across the page's notes. */
+  readonly id: string;
+  /** The element, as a `ui` target names it: relative to the preview's light DOM element. */
+  readonly selector: string;
+  /** What the element said when the note was written. */
+  readonly text?: string;
+  readonly body: string;
+  readonly createdAt?: string;
+};
+
 export type PrototypePreview = {
   readonly id: string;
   readonly kind: PreviewKind;
@@ -29,6 +46,8 @@ export type PrototypePreview = {
   readonly url?: string;
   /** Only for `kind: "mail"`. */
   readonly mail?: PreviewMail;
+  /** Notes kept on its elements, oldest first. */
+  readonly notes?: readonly UiNote[];
 };
 
 /**
@@ -166,20 +185,46 @@ const previewEntries = {
   mail: v.exactOptional(previewMailSchema),
 };
 
-/** A preview, shared by the base and the actions that add one, so the two cannot drift. */
-export const previewSchema = v.pipe(
-  v.strictObject(previewEntries),
-  v.check(
-    (preview) => preview.mail === undefined || preview.kind === 'mail',
-    'a preview `mail` envelope needs `"kind": "mail"`',
-  ),
+/** A note's text: never blank. */
+export const uiNoteBodySchema = v.pipe(
+  v.string(),
+  v.check((body) => body.trim() !== '', 'a note needs some text'),
 );
 
+/** When a note was written. */
+export const uiNoteAtSchema = v.pipe(v.string(), v.isoTimestamp());
+
+const uiNoteSchema = v.strictObject({
+  id: entityIdSchema,
+  selector: v.pipe(v.string(), v.minLength(1)),
+  text: v.exactOptional(v.string()),
+  body: uiNoteBodySchema,
+  createdAt: v.exactOptional(uiNoteAtSchema),
+});
+
+const MAIL_NEEDS_KIND = 'a preview `mail` envelope needs `"kind": "mail"`';
+
+/**
+ * A preview, shared by the base and the actions that add one, so the two
+ * cannot drift. Its notes are the base's alone: an action adds them one by
+ * one, on the element they are on.
+ */
+export const previewSchema = v.pipe(
+  v.strictObject(previewEntries),
+  v.check((preview) => preview.mail === undefined || preview.kind === 'mail', MAIL_NEEDS_KIND),
+);
+
+const basePreviewSchema = v.pipe(
+  v.strictObject({ ...previewEntries, notes: v.exactOptional(v.array(uiNoteSchema)) }),
+  v.check((preview) => preview.mail === undefined || preview.kind === 'mail', MAIL_NEEDS_KIND),
+);
+
+const screenPaneSchema = v.strictObject({ screen: entityIdSchema, preview: v.exactOptional(entityIdSchema) });
+
 /** A step's pane, shared by the base and `ADD_STEP`. */
-export const paneSchema = v.union([
-  v.strictObject({ screen: entityIdSchema, preview: v.exactOptional(entityIdSchema) }),
-  v.strictObject({ material: previewSchema }),
-]);
+export const paneSchema = v.union([screenPaneSchema, v.strictObject({ material: previewSchema })]);
+
+const basePaneSchema = v.union([screenPaneSchema, v.strictObject({ material: basePreviewSchema })]);
 
 const stepSchema = v.strictObject({
   id: entityIdSchema,
@@ -187,7 +232,7 @@ const stepSchema = v.strictObject({
   description: v.exactOptional(v.string()),
   actor: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   situation: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
-  panes: v.optional(v.array(paneSchema), []),
+  panes: v.optional(v.array(basePaneSchema), []),
 });
 
 const storySchema = v.strictObject({
@@ -220,7 +265,7 @@ const screenSchema = v.strictObject({
   id: entityIdSchema,
   title: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
-  previews: v.optional(v.array(previewSchema), []),
+  previews: v.optional(v.array(basePreviewSchema), []),
   actions: v.optional(v.array(screenActionSchema), []),
 });
 
@@ -249,15 +294,21 @@ const materialsOf = (panes: readonly StepPane[]): PrototypePreview[] =>
  * slot. Story and step ids are unique within their parent, as are a screen's
  * action ids; app and screen ids are global because a screen is a destination
  * of its own, and preview ids are global because they name a light DOM slot.
+ * Note ids are global so a note can be deleted by its id alone.
  */
 const findDuplicateId = (state: ParsedBase): string | null => {
   const previewIds = new Set<string>();
-  const previewProblem = (previews: readonly { readonly id: string }[]): string | null => {
+  const noteIds = new Set<string>();
+  const previewProblem = (previews: readonly PrototypePreview[]): string | null => {
     for (const preview of previews) {
       if (previewIds.has(preview.id)) {
         return `duplicate preview id "${preview.id}": preview ids are global, they name a light DOM slot`;
       }
       previewIds.add(preview.id);
+      for (const note of preview.notes ?? []) {
+        if (noteIds.has(note.id)) return `duplicate note id "${note.id}": note ids are global`;
+        noteIds.add(note.id);
+      }
     }
     return null;
   };
@@ -514,6 +565,16 @@ export const findPreview = (
   }
   return undefined;
 };
+
+/** Every preview of the page: the screens' renditions, then the steps' materials. */
+export const allPreviews = (state: PrototypeState): readonly PrototypePreview[] => [
+  ...allScreens(state).flatMap((entry) => entry.screen.previews),
+  ...flattenSteps(state).flatMap((location) => stepMaterials(location.step)),
+];
+
+/** The ids the page's notes take, which a new note must not. */
+export const allUiNoteIds = (state: PrototypeState): readonly string[] =>
+  allPreviews(state).flatMap((preview) => (preview.notes ?? []).map((note) => note.id));
 
 /** Depth-first list of steps, used for "next / previous" and navigation defaults. */
 export const flattenSteps = (state: PrototypeState): readonly StepLocation[] => {

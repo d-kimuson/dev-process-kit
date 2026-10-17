@@ -1058,7 +1058,23 @@
                     {
                       "id": "admin-refund-desktop",
                       "viewport": "desktop",
-                      "url": "https://admin.sora-market.example.com/refunds/SM-0915-0288"
+                      "url": "https://admin.sora-market.example.com/refunds/SM-0915-0288",
+                      "notes": [
+                        {
+                          "id": "admin-refund-retry-decision",
+                          "selector": "button.sm-btn:nth-of-type(1)",
+                          "text": "いま結果を照会する",
+                          "body": "案 1（自動再試行を続ける）で確定。手動の返金への切り替えは、二重返金を避けるため決済代行の結果が出てからにする。",
+                          "createdAt": "2026-09-18T01:15:00.000Z"
+                        },
+                        {
+                          "id": "admin-refund-contact-scope",
+                          "selector": "button.sm-btn.sm-btn--ghost:nth-of-type(2)",
+                          "text": "購入者に連絡する",
+                          "body": "お問い合わせ画面に遷移するだけ。本文のテンプレートはサポートチーム側で持っているので、ここでは作らない。",
+                          "createdAt": "2026-09-19T05:40:00.000Z"
+                        }
+                      ]
                     }
                   ]
                 },
