@@ -513,7 +513,6 @@ export const taskBoardStyles = css`
     gap: 10px;
     padding: 14px 16px;
     border: 1px solid var(--dpk-rule);
-    border-left: 3px solid var(--board-group-tone);
     border-radius: var(--dpk-radius);
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-shadow-xs);
@@ -523,7 +522,7 @@ export const taskBoardStyles = css`
   }
 
   .board-question[data-resolved='true'] {
-    border-left-color: var(--dpk-green);
+    border-color: color-mix(in srgb, var(--dpk-green) 35%, var(--dpk-rule));
   }
 
   .board-card-head {

@@ -59,6 +59,7 @@ export default defineConfig({
     'conventions/colocated-tests': 'error',
     'conventions/element-naming': 'error',
     'conventions/localized-text': 'error',
+    'conventions/no-side-stripe': 'error',
   },
   overrides: [
     {

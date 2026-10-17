@@ -181,8 +181,8 @@ export const exampleMappingStyles = css`
     background: var(--dpk-blue-soft);
   }
 
-  /* A rule and its examples read as one lane: a soft tint plus a quiet left
-     accent, so the grouping reads even where the tint thins out lower down. */
+  /* A rule and its examples read as one lane: a soft tint plus a quiet ring,
+     so the grouping reads even where the tint thins out lower down. */
   .rule-col {
     position: relative;
     flex: 0 0 204px;
@@ -197,7 +197,7 @@ export const exampleMappingStyles = css`
       color-mix(in srgb, var(--dpk-blue) 3%, transparent) 70%,
       transparent
     );
-    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--dpk-blue) 40%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 18%, transparent);
   }
 
   .rule-col[data-dragging] {

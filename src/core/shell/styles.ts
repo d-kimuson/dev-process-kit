@@ -1579,9 +1579,9 @@ export const chromeStyles = [
     .dpk-grill-note {
       margin: 0 0 10px;
       padding: 7px 10px;
-      border-left: 2px solid var(--dpk-amber);
-      border-radius: 0 var(--dpk-radius-xs) var(--dpk-radius-xs) 0;
-      background: linear-gradient(90deg, var(--dpk-amber-soft), transparent);
+      border: 1px solid color-mix(in srgb, var(--dpk-amber) 30%, transparent);
+      border-radius: var(--dpk-radius-sm);
+      background: var(--dpk-amber-soft);
       font-size: 11px;
       line-height: 1.7;
       color: var(--dpk-ink-soft);
@@ -1597,7 +1597,7 @@ export const chromeStyles = [
       display: flex;
       align-items: flex-start;
       gap: 8px;
-      padding: 8px 9px 8px 12px;
+      padding: 8px 9px;
       border: 1px solid var(--dpk-rule);
       border-radius: var(--dpk-radius-sm);
       background: var(--dpk-paper);
@@ -1612,19 +1612,6 @@ export const chromeStyles = [
         transform 140ms var(--dpk-ease);
     }
 
-    /* Selection indicator: a colored bar on the leading edge, like the rail's
-       comment cards — quiet until a choice is actually picked. */
-    .dpk-grill-choice::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 3px;
-      background: transparent;
-      transition: background 140ms var(--dpk-ease);
-    }
-
     .dpk-grill-choice:hover {
       border-color: var(--dpk-rule-hover);
       background: var(--dpk-paper-inset);
@@ -1634,10 +1621,6 @@ export const chromeStyles = [
       border-color: color-mix(in srgb, var(--dpk-green) 45%, transparent);
       background: var(--dpk-green-soft);
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-green) 30%, transparent);
-    }
-
-    .dpk-grill-choice:has(input:checked)::before {
-      background: var(--dpk-green);
     }
 
     .dpk-grill-choice[data-free] {

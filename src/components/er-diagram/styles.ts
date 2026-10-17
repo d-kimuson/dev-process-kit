@@ -175,23 +175,21 @@ export const erStyles = css`
 
   .er-field.is-added {
     background: color-mix(in srgb, var(--dpk-green) 10%, transparent);
-    box-shadow: inset 2px 0 0 var(--dpk-green);
   }
 
   .er-field.is-removed {
     background: color-mix(in srgb, var(--dpk-accent) 10%, transparent);
-    box-shadow: inset 2px 0 0 var(--dpk-accent);
     text-decoration: line-through;
     color: var(--dpk-ink-faint);
   }
 
   .er-field.is-changed {
     background: color-mix(in srgb, var(--dpk-amber) 10%, transparent);
-    box-shadow: inset 2px 0 0 var(--dpk-amber);
   }
 
   .er-field.is-match {
-    box-shadow: inset 2px 0 0 var(--dpk-blue);
+    outline: 1px solid var(--dpk-blue);
+    outline-offset: -1px;
   }
 
   .er-field-mark {

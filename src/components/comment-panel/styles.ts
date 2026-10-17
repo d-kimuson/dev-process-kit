@@ -180,7 +180,7 @@ export const panelStyles = [
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       gap: 5px;
-      padding: 10px 12px 11px 16px;
+      padding: 10px 12px 11px;
       border: 1px solid var(--dpk-rule);
       border-radius: var(--dpk-radius);
       background: var(--dpk-paper-raised);
@@ -205,20 +205,9 @@ export const panelStyles = [
       transform: translateY(-1px);
     }
 
-    .item::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 10px;
-      bottom: 10px;
-      width: 3px;
-      border-radius: 0 2px 2px 0;
-      background: var(--tone, var(--dpk-ink-faint));
-    }
-
     .item[data-tone='comment'] {
       --tone: var(--dpk-accent);
-      background: linear-gradient(90deg, var(--dpk-accent-soft), transparent 55%), var(--dpk-paper-raised);
+      background: linear-gradient(var(--dpk-accent-soft), var(--dpk-accent-soft)), var(--dpk-paper-raised);
     }
 
     .item[data-tone='create'] {
@@ -315,8 +304,6 @@ export const panelStyles = [
 
     .item-body {
       margin: 2px 0 0;
-      padding-left: 9px;
-      border-left: 2px solid var(--dpk-accent);
       font-size: 12.5px;
       white-space: pre-wrap;
       overflow-wrap: anywhere;

@@ -8,6 +8,7 @@ import {
   entrypointImports,
   libBoundaries,
   localizedText,
+  noSideStripe,
   pureLayerBoundaries,
   templateIsolation,
 } from './conventions.js';
@@ -380,6 +381,63 @@ ruleTester.run('localized-text', localizedText, {
       code: "export const plus = '＋';",
       filename: `${CORE}/element.ts`,
       errors: [{ message: /messages\.ts/ }],
+    },
+  ],
+});
+
+ruleTester.run('no-side-stripe', noSideStripe, {
+  valid: [
+    {
+      name: 'a 1px divider between columns',
+      code: 'export const styles = css`.col + .col { border-left: 1px solid var(--dpk-rule); }`;',
+      filename: `${USM}/styles.ts`,
+    },
+    {
+      name: 'a ring and a tint on every side',
+      code: 'export const styles = css`.card { border: 1px solid var(--dpk-blue); box-shadow: inset 0 0 0 1px var(--dpk-blue-soft); }`;',
+      filename: `${USM}/styles.ts`,
+    },
+    {
+      name: 'an insertion bar outside the box',
+      code: "export const styles = css`.slot::before { content: ''; position: absolute; top: -6px; bottom: -6px; left: -10px; width: 3px; }`;",
+      filename: `${USM}/styles.ts`,
+    },
+    {
+      name: 'a bar in a test fixture',
+      code: 'const fixture = `<div style="border-left: 4px solid red"></div>`;',
+      filename: `${USM}/usm.test.ts`,
+    },
+  ],
+  invalid: [
+    {
+      name: 'a thick left border',
+      code: 'export const styles = css`.card { border-left: 3px solid var(--tone); }`;',
+      filename: `${USM}/styles.ts`,
+      errors: [{ message: /side stripe/ }],
+    },
+    {
+      name: 'a thick start border',
+      code: 'export const styles = css`.card { border-inline-start: 2px solid var(--tone); }`;',
+      filename: `${USM}/styles.ts`,
+      errors: [{ message: /side stripe/ }],
+    },
+    {
+      name: 'a state that recolours or widens only the left border',
+      code: 'export const styles = css`.card.is-done { border-left-color: var(--dpk-green); }`;',
+      filename: `${USM}/styles.ts`,
+      errors: [{ message: /side stripe/ }],
+    },
+    {
+      name: 'an inset shadow on the left edge',
+      code: 'export const styles = css`.row.is-added { box-shadow: inset 2px 0 0 var(--dpk-green); }`;',
+      filename: '/project/src/components/er-diagram/styles.ts',
+      errors: [{ message: /side stripe/ }],
+    },
+    {
+      name: 'a pseudo-element bar along the left edge',
+      code: "export const styles = css`.item::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; }`;",
+      filename: '/project/src/components/comment-panel/styles.ts',
+      errors: [{ message: /side stripe/ }],
     },
   ],
 });

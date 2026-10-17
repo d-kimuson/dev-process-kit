@@ -209,12 +209,12 @@ export const kanbanStyles = css`
   .kanban-card.is-added {
     border-style: dashed;
     border-color: var(--dpk-green);
-    background: linear-gradient(90deg, var(--dpk-green-soft), transparent 60%), var(--dpk-paper-raised);
+    background: linear-gradient(var(--dpk-green-soft), var(--dpk-green-soft)), var(--dpk-paper-raised);
   }
 
   .kanban-card.is-moved {
-    border-left: 3px solid var(--dpk-blue);
-    background: linear-gradient(90deg, var(--dpk-blue-soft), transparent 60%), var(--dpk-paper-raised);
+    border-color: var(--dpk-blue);
+    background: linear-gradient(var(--dpk-blue-soft), var(--dpk-blue-soft)), var(--dpk-paper-raised);
   }
 
   .kanban-card-title {

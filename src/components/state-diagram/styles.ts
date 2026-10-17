@@ -26,7 +26,7 @@ export const stateDiagramStyles = css`
   }
 
   .state-node.is-initial {
-    border-left-width: 3px;
+    border-width: 2px;
   }
 
   .state-node.is-terminal {

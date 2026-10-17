@@ -13,6 +13,7 @@
  *                              (in src/templates) or `dpk-component-<name>` (in src/components), and the
  *                              registered class is the tag in PascalCase
  *   - localized-text:           Japanese text in `src/**` lives only in `messages.ts` dictionaries
+ *   - no-side-stripe:           styles in `src/**` draw no colored stripe down one side of a box
  *
  * The architecture this encodes is the one `dev-docs/guidelines/architecture.md`
  * describes: `lib` holds dependency-free helpers, `core` owns the pipeline and
@@ -474,6 +475,47 @@ const localizedText = {
   },
 };
 
+/** A border thicker than a 1px divider, or a state that restyles only that one side. */
+const RE_SIDE_BORDER = /border-(?:left|inline-start)(?:\s*:\s*(?:[2-9]|\d{2,})px|-(?:width|color)\s*:)/;
+/** An inset shadow that paints only the left edge: `inset 2px 0 0 …`. */
+const RE_SIDE_SHADOW = /inset\s+(?:[2-9]|\d{2,})px\s+0(?:px)?\s+0(?:px)?\b/;
+/** One `selector { body }` rule; nested blocks are matched innermost first. */
+const RE_RULE = /([^{}]*)\{([^{}]*)\}/g;
+
+/** A pseudo-element laid along the left edge from top to bottom, a few pixels wide. */
+const isSideBar = (selector, body) =>
+  /::?(?:before|after)/.test(selector) &&
+  /(?:^|[\s;])left\s*:\s*0(?:px)?\s*;/.test(body) &&
+  /(?:^|[\s;])width\s*:\s*[1-5]px\s*;/.test(body) &&
+  /(?:^|[\s;])top\s*:/.test(body) &&
+  /(?:^|[\s;])bottom\s*:/.test(body);
+
+/**
+ * A colored stripe down one side of a card is the stock look of generated UI,
+ * and it says nothing a tint, a ring, or a chip in the head would not say
+ * better. A 1px `border-left` stays usable as a divider between columns.
+ */
+const noSideStripe = {
+  create(context) {
+    const filename = normalize(context.filename ?? context.getFilename());
+    if (!/\/src\//.test(filename) || /\.test\.[cm]?[jt]sx?$/.test(filename)) return {};
+    const report = (node) =>
+      context.report({
+        node,
+        message: 'Draw no side stripe: mark the box with a tint, a ring on every side, or a chip in its head instead.',
+      });
+    return {
+      TemplateElement(node) {
+        const text = node.value?.raw ?? '';
+        if (RE_SIDE_BORDER.test(text) || RE_SIDE_SHADOW.test(text)) return report(node);
+        for (const [, selector, body] of text.matchAll(RE_RULE)) {
+          if (isSideBar(selector, body)) return report(node);
+        }
+      },
+    };
+  },
+};
+
 const plugin = {
   meta: {
     name: 'conventions',
@@ -487,6 +529,7 @@ const plugin = {
     'colocated-tests': colocatedTests,
     'element-naming': elementNaming,
     'localized-text': localizedText,
+    'no-side-stripe': noSideStripe,
   },
 };
 
@@ -501,6 +544,7 @@ export {
   colocatedTests,
   elementNaming,
   localizedText,
+  noSideStripe,
   classify,
   resolveImportPath,
 };

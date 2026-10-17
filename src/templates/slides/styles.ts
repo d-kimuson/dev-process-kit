@@ -29,23 +29,11 @@ export const slidesStyles = css`
     position: relative;
   }
 
-  .outline-row::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 6px;
-    bottom: 6px;
-    width: 3px;
-    border-radius: var(--dpk-radius-xs);
-    background: transparent;
-    transition: background 140ms var(--dpk-ease);
-  }
-
   .outline-row a {
     display: flex;
     align-items: baseline;
     gap: 10px;
-    padding: 7px 8px 7px 14px;
+    padding: 7px 8px;
     border-radius: var(--dpk-radius-sm);
     color: var(--dpk-ink-soft);
     font-size: 13px;
@@ -65,11 +53,6 @@ export const slidesStyles = css`
   .outline-row a:focus-visible {
     outline: none;
     box-shadow: var(--dpk-focus);
-  }
-
-  .outline-row[data-current='true']::before {
-    background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
-    box-shadow: 0 0 8px color-mix(in srgb, var(--dpk-accent) 45%, transparent);
   }
 
   .outline-row[data-current='true'] a {
@@ -409,9 +392,8 @@ export const slidesStyles = css`
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    padding: 6px 6px 6px 12px;
-    border-left: 2px solid var(--dpk-accent);
-    border-radius: 0 var(--dpk-radius-sm) var(--dpk-radius-sm) 0;
+    padding: 6px 6px 6px 10px;
+    border-radius: var(--dpk-radius-sm);
     background: var(--dpk-paper-sunken);
     font-size: 13px;
     line-height: 1.55;

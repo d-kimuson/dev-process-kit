@@ -429,7 +429,6 @@ export const popoverSurface = css`
     padding: 6px 10px;
     border-radius: var(--dpk-radius-xs);
     background: var(--dpk-accent-soft);
-    border-left: 2px solid var(--dpk-accent);
   }
 
   .comment-pop .dpk-textarea {
@@ -524,8 +523,9 @@ export const prose = css`
   }
 
   .dpk-prose blockquote {
-    padding-left: 0.8em;
-    border-left: 2px solid var(--dpk-rule-strong);
+    padding: 0.5em 0.8em;
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-sunken);
     color: var(--dpk-ink-soft);
   }
 

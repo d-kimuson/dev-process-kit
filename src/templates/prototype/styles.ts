@@ -254,18 +254,6 @@ export const prototypeStyles = css`
       var(--dpk-shadow-xs);
   }
 
-  .step-row[data-current='true']::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 8px;
-    bottom: 8px;
-    width: 3px;
-    border-radius: var(--dpk-radius-xs);
-    background: linear-gradient(180deg, var(--dpk-blue), var(--dpk-blue-strong));
-    box-shadow: 0 0 8px color-mix(in srgb, var(--dpk-prototype-accent) 45%, transparent);
-  }
-
   .step-link {
     display: flex;
     flex: 1;

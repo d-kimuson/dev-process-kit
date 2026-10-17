@@ -174,7 +174,6 @@ export const formalSpecStyles = [
     .claim {
       padding: 10px 14px 10px 8px;
       border: 1px solid var(--dpk-rule);
-      border-left: 4px solid var(--tone);
       border-radius: var(--dpk-radius-lg);
       background: var(--dpk-paper-raised);
       box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
