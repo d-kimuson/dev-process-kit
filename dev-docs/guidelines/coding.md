@@ -16,6 +16,8 @@ Text the kit renders itself comes from the module's `messages.ts` dictionary, on
 
 Styles mark a box's kind or state with a tint, a ring on every side, or a chip in its head, never with a colored stripe down one side; a 1px `border-left` stays a divider between columns. The `conventions/no-side-stripe` lint rule rejects side stripes in `src/**`.
 
+A Cancel button beside a text field carries `data-dpk-text-discard`, so a click on it throws the typed text away, while an Escape keeps it for the next time the field opens. The `conventions/discard-on-cancel` lint rule rejects a Cancel without it.
+
 Use an existing, focused library before introducing a local utility for a solved general-purpose problem. Keep project code focused on domain behavior.
 
 ## Keep changes understandable

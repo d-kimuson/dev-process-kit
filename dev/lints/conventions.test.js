@@ -4,6 +4,7 @@ import { describe, it } from 'vitest';
 import {
   colocatedTests,
   coreTemplateBoundaries,
+  discardOnCancel,
   elementNaming,
   entrypointImports,
   libBoundaries,
@@ -438,6 +439,40 @@ ruleTester.run('no-side-stripe', noSideStripe, {
       code: "export const styles = css`.item::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; }`;",
       filename: '/project/src/components/comment-panel/styles.ts',
       errors: [{ message: /side stripe/ }],
+    },
+  ],
+});
+
+ruleTester.run('discard-on-cancel', discardOnCancel, {
+  valid: [
+    {
+      name: 'a Cancel that throws the text beside it away',
+      code: 'const view = html`<textarea .value=${body}></textarea><button data-dpk-text-discard @click=${() => cancel()}>${m.cancel}</button>`;',
+      filename: `${PROTOTYPE}/render/ui-notes.ts`,
+    },
+    {
+      name: 'a Cancel with no text field beside it',
+      code: 'const view = html`<input type="checkbox" .checked=${skip} /><button @click=${cancel}>${m.confirmCancel}</button>`;',
+      filename: '/project/src/templates/delegation-poker/render/confirm.ts',
+    },
+    {
+      name: 'a text field whose other buttons keep the text',
+      code: 'const view = html`<input class="dpk-input" /><button @click=${close}>${m.close}</button>`;',
+      filename: `${USM}/render/map-filter.ts`,
+    },
+  ],
+  invalid: [
+    {
+      name: 'a Cancel beside a textarea',
+      code: 'const view = html`<textarea></textarea><button class="dpk-btn" @click=${() => send({ kind: "edit-cancel" })}>${m.cancelEdit}</button>`;',
+      filename: '/project/src/components/comment-panel/view.ts',
+      errors: [{ message: /data-dpk-text-discard/ }],
+    },
+    {
+      name: 'a Cancel beside a text input',
+      code: 'const view = html`<input type="text" .value=${name} /><div><button @click=${() => (this.naming = undefined)}>${m.cancel}</button></div>`;',
+      filename: '/project/src/templates/event-storming/element.ts',
+      errors: [{ message: /data-dpk-text-discard/ }],
     },
   ],
 });

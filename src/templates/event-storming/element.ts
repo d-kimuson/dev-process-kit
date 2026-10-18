@@ -672,7 +672,9 @@ export class DpkTemplateEventStorming extends TemplateElement<EventStormingState
         }}
       />
       <div class="pop-actions">
-        <button class="dpk-btn" type="button" @click=${() => (this.naming = undefined)}>${m.cancel}</button>
+        <button class="dpk-btn" type="button" data-dpk-text-discard @click=${() => (this.naming = undefined)}>
+          ${m.cancel}
+        </button>
         <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => this.#confirmNaming(context, naming)}>
           ${naming.kind === 'create-context' ? m.create : m.save}
         </button>

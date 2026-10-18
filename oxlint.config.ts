@@ -60,6 +60,7 @@ export default defineConfig({
     'conventions/element-naming': 'error',
     'conventions/localized-text': 'error',
     'conventions/no-side-stripe': 'error',
+    'conventions/discard-on-cancel': 'error',
   },
   overrides: [
     {

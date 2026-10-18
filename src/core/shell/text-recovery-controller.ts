@@ -4,6 +4,9 @@
  * through the composed `focusin` and `input` events, so no field has to opt in.
  * The author's own markup in the light DOM (a prototype's mock form) is left
  * alone. See `text-recovery.ts` for what is kept and when it comes back.
+ *
+ * A button marked `data-dpk-text-discard` (a Cancel beside the field) throws
+ * the text away: a click on it forgets the fields it sits with.
  */
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
@@ -59,6 +62,22 @@ const keyOf = (field: Element): string | undefined => {
   return undefined;
 };
 
+/** The button a click landed on, when it throws its fields' text away. */
+const discardOf = (event: Event): Element | null =>
+  event
+    .composedPath()
+    .find((node): node is Element => node instanceof Element && node.hasAttribute('data-dpk-text-discard')) ?? null;
+
+/** The fields among `fields` beside `button`: those in its nearest ancestor that holds any of them. */
+const fieldsBeside = (button: Element, fields: Iterable<TextField>): readonly TextField[] => {
+  const candidates = [...fields];
+  for (let node = button.parentElement; node !== null; node = node.parentElement) {
+    const beside = candidates.filter((field) => node.contains(field));
+    if (beside.length > 0) return beside;
+  }
+  return [];
+};
+
 const nameOf = (field: TextField): string =>
   field.getAttribute('aria-label') ?? (field.placeholder || field.name || field.localName);
 
@@ -96,11 +115,14 @@ export class TextRecoveryController implements ReactiveController {
     }
     this.#host.addEventListener('focusin', this.#onFocusIn);
     this.#host.addEventListener('input', this.#onInput);
+    // Captured, so the fields are still there when the button's own handler closes them.
+    this.#host.addEventListener('click', this.#onClick, true);
   }
 
   hostDisconnected(): void {
     this.#host.removeEventListener('focusin', this.#onFocusIn);
     this.#host.removeEventListener('input', this.#onInput);
+    this.#host.removeEventListener('click', this.#onClick, true);
   }
 
   /**
@@ -111,13 +133,21 @@ export class TextRecoveryController implements ReactiveController {
    */
   settle(payloads: readonly unknown[]): void {
     const sent = new Set(payloads.flatMap(stringsIn).map(normalize));
-    for (const field of this.#typed) {
-      if (!sent.has(normalize(field.value))) continue;
+    this.#forget([...this.#typed].filter((field) => sent.has(normalize(field.value))));
+  }
+
+  #forget(fields: readonly TextField[]): void {
+    for (const field of fields) {
       this.#typed.delete(field);
       const filed = this.#fields.get(field);
       if (filed !== undefined) this.#write(forgetUnsentText(this.#read(), filed.id));
     }
   }
+
+  #onClick = (event: MouseEvent): void => {
+    const button = discardOf(event);
+    if (button !== null) this.#forget(fieldsBeside(button, this.#typed));
+  };
 
   #onFocusIn = (event: FocusEvent): void => {
     const field = textFieldOf(event.composedPath()[0]);

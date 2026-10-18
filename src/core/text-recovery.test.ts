@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { DpkComponentInlineEdit } from '../components/inline-edit';
 import type { DpkTemplatePrototype } from '../templates/prototype/element';
 
+import { prototypeAction } from '../templates/prototype/actions';
 import {
   forgetUnsentText,
   recordUnsentText,
@@ -156,6 +157,47 @@ describe('keeping unsent text through a reload', () => {
     await settle(reloaded);
     expect(reloaded.api.comments).toMatchObject([{ payload: { body: 'Is this the right first step?' } }]);
     expect(sessionStorage.getItem('unsent-test:unsent-text')).toBeNull();
+  });
+
+  it('forgets the text the reader cancels, and keeps the text an Escape closes', async () => {
+    const el = mount();
+    await settle(el);
+    el.api.dispatch(prototypeAction.addUiNote({ previewId: 'landing-mobile', selector: '#mock-field' }, 'n1', 'Saved'));
+    await settle(el);
+    el.shadowRoot?.querySelector<HTMLButtonElement>('.ui-note-badge')?.click();
+    await settle(el);
+    const pop = (): HTMLElement => {
+      const surface = el.shadowRoot?.querySelector<HTMLElement>('.ui-notes-pop');
+      if (!surface) throw new Error('no notes list');
+      return surface;
+    };
+    /** Opens the editor of the note and returns its field, once any text kept for it is back. */
+    const openEditor = async (): Promise<HTMLTextAreaElement> => {
+      pop().querySelector<HTMLButtonElement>('[data-role="edit-note"]')?.click();
+      await settle(el);
+      const area = pop().querySelector('textarea');
+      if (!area) throw new Error('no editor');
+      // jsdom sends no focusin for the focus the list moves into its editor: focus it as a click would
+      area.blur();
+      area.focus();
+      await settle(el);
+      return area;
+    };
+
+    let area = await openEditor();
+    type(area, 'Closed by a stray Escape');
+    area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+    await settle(el);
+    expect((await openEditor()).value).toBe('Closed by a stray Escape');
+
+    area = pop().querySelector('textarea') ?? area;
+    type(area, 'Thrown away');
+    [...pop().querySelectorAll<HTMLButtonElement>('.ui-note-editor button')]
+      .find((button) => button.dataset['role'] !== 'save-note')
+      ?.click();
+    await settle(el);
+    expect(sessionStorage.getItem('unsent-test:unsent-text')).toBeNull();
+    expect((await openEditor()).value).toBe('Saved');
   });
 
   it('leaves the fields of the author mock alone', async () => {

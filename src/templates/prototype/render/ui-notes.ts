@@ -142,7 +142,9 @@ const renderEditor = (m: PrototypeMessages, view: UiNotesView, edit: UiNoteEdit)
       }}
     ></textarea>
     <div class="ui-note-editor-actions">
-      <button class="dpk-btn dpk-btn--ghost" type="button" @click=${view.cancel}>${m.cancelUiNote}</button>
+      <button class="dpk-btn dpk-btn--ghost" type="button" data-dpk-text-discard @click=${view.cancel}>
+        ${m.cancelUiNote}
+      </button>
       <button
         class="dpk-btn dpk-btn--accent"
         type="button"

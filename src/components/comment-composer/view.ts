@@ -63,7 +63,12 @@ export const renderComposer = (
       <button class="dpk-btn dpk-btn--accent" type="button" ?disabled=${vm.submission === null} @click=${submit}>
         ${vm.submitLabel ?? m.submit}
       </button>
-      <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => send({ kind: 'dismiss' })}>
+      <button
+        class="dpk-btn dpk-btn--ghost"
+        type="button"
+        data-dpk-text-discard
+        @click=${() => send({ kind: 'dismiss' })}
+      >
         ${m.cancel}
       </button>
     </div>

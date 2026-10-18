@@ -260,7 +260,12 @@ const renderEditor = (
       }}
     ></textarea>
     <div class="row item-editor-actions">
-      <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => send({ kind: 'edit-cancel' })}>
+      <button
+        class="dpk-btn dpk-btn--ghost"
+        type="button"
+        data-dpk-text-discard
+        @click=${() => send({ kind: 'edit-cancel' })}
+      >
         ${m.cancelEdit}
       </button>
       <button

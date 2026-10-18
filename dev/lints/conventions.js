@@ -516,6 +516,53 @@ const noSideStripe = {
   },
 };
 
+/**
+ * A Cancel beside a text field throws the reader's typed text away, while an
+ * Escape keeps it for the next time the field opens (`text-recovery.ts`). The
+ * kit tells the two apart by `data-dpk-text-discard` on the button, so every
+ * Cancel an `html` template draws beside a text field carries it.
+ */
+const RE_TEXT_FIELD =
+  /<textarea\b|<input\b(?![^>]*\btype=["']?(?:checkbox|radio|range|color|file|hidden|submit|button|reset|image)\b)/;
+const RE_BUTTON = /<button\b([^>]*)>([\s\S]*?)<\/button>/g;
+const CANCEL_LABEL = '\u0000cancel\u0000';
+
+/** The template's markup, its expressions blanked out except the labels that read as Cancel. */
+const markupOf = (quasi) =>
+  quasi.quasis
+    .map((element, index) => {
+      const expression = quasi.expressions[index];
+      if (expression === undefined) return element.value.raw;
+      const label =
+        expression.type === 'MemberExpression' &&
+        expression.property.type === 'Identifier' &&
+        /cancel/i.test(expression.property.name);
+      return element.value.raw + (label ? CANCEL_LABEL : '\u0000');
+    })
+    .join('');
+
+const discardOnCancel = {
+  create(context) {
+    const filename = normalize(context.filename ?? context.getFilename());
+    if (!/\/src\//.test(filename) || /\.test\.[cm]?[jt]sx?$/.test(filename)) return {};
+    return {
+      TaggedTemplateExpression(node) {
+        if (node.tag.type !== 'Identifier' || node.tag.name !== 'html') return;
+        const markup = markupOf(node.quasi);
+        if (!RE_TEXT_FIELD.test(markup)) return;
+        for (const [, attributes, content] of markup.matchAll(RE_BUTTON)) {
+          if (!content.includes(CANCEL_LABEL) || /\bdata-dpk-text-discard\b/.test(attributes)) continue;
+          context.report({
+            node,
+            message:
+              'Mark a Cancel beside a text field with data-dpk-text-discard: cancelling throws the typed text away, while Escape keeps it.',
+          });
+        }
+      },
+    };
+  },
+};
+
 const plugin = {
   meta: {
     name: 'conventions',
@@ -530,6 +577,7 @@ const plugin = {
     'element-naming': elementNaming,
     'localized-text': localizedText,
     'no-side-stripe': noSideStripe,
+    'discard-on-cancel': discardOnCancel,
   },
 };
 
@@ -545,6 +593,7 @@ export {
   elementNaming,
   localizedText,
   noSideStripe,
+  discardOnCancel,
   classify,
   resolveImportPath,
 };
