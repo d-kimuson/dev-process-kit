@@ -15,7 +15,7 @@ import { popoverSurface } from '../../core/theme';
 import { whiteboardAction } from './actions';
 import { arrangeActions, arrangeOptions, type ArrangeDirection } from './arrange';
 import { caretOffsetAt } from './caret';
-import { newConnectorId, newItem, type NewItemKind } from './commands';
+import { newConnectorId, newItem, PASTE_OFFSET, pasteItems, type NewItemKind } from './commands';
 import { whiteboardDefinitionFor } from './definition';
 import { editedText } from './editor';
 import {
@@ -746,6 +746,11 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
       this.#deleteSelection();
     } else if (event.key === 'Enter' && items.length === 1 && only !== undefined) {
       this.#enterEdit(only.id);
+    } else if (mod && event.key.toLowerCase() === 'c' && items.length > 0) {
+      this.#clipboard = items;
+      this.#pasteCount = 0;
+    } else if (mod && event.key.toLowerCase() === 'v' && this.#clipboard.length > 0) {
+      this.#paste();
     } else if (mod && event.key.toLowerCase() === 'a') {
       this.#select(context.state.items.map((item) => item.id));
     } else if ((event.key === ']' || event.key === '[') && ids.length > 0) {
@@ -824,6 +829,19 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     this.#select([item.id]);
     this.#caret = undefined;
     this.mode = { kind: 'editing', itemId: item.id };
+  }
+
+  /** Items copied with Ctrl/Cmd+C; each paste lands a step further from the originals. */
+  #clipboard: readonly WbItem[] = [];
+  #pasteCount = 0;
+
+  #paste(): void {
+    const context = this.context();
+    this.#pasteCount += 1;
+    const copies = pasteItems(context.state, this.#clipboard, PASTE_OFFSET * this.#pasteCount);
+    const added: string[] = [];
+    for (const copy of copies) if (context.dispatch(whiteboardAction.addItem(copy)).ok) added.push(copy.id);
+    if (added.length > 0) this.#select(added);
   }
 
   #connect(context: Context, from: string, to: string): void {
