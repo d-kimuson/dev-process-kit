@@ -348,6 +348,19 @@ describe('<dpk-template-whiteboard>', () => {
     expect(el.api.actions.map((action) => action.type)).toEqual(['DELETE_CONNECTOR']);
   });
 
+  it('duplicates the selected item with copy and paste', async () => {
+    const el = mount({ hash: '#item=pairing' });
+    await settle(el);
+    const canvas = q(el, '.wb-canvas');
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true }));
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true }));
+    await settle(el);
+    expect(el.api.actions.map((action) => action.type)).toEqual(['ADD_ITEM']);
+    const [added] = el.api.actions;
+    expect(added?.payload).toMatchObject({ kind: 'sticky' });
+    expect(added?.payload).not.toMatchObject({ id: 'pairing' });
+  });
+
   it('nudges the selection with the arrow keys', async () => {
     const el = mount({ hash: '#item=went-well' });
     await settle(el);

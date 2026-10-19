@@ -40,3 +40,17 @@ export const newItem = (state: WhiteboardState, m: WhiteboardMessages, kind: New
 /** A fresh connector id between two items. */
 export const newConnectorId = (state: WhiteboardState, from: string, to: string): string =>
   createEntityId(`${from}-to-${to}`, allIds(state));
+
+/** Where a pasted copy lands relative to what it copies, and how far each further paste steps. */
+export const PASTE_OFFSET = 24;
+
+/** Copies of `items` (ids fresh, positions shifted by `shift`), ready to add in the given order. */
+export const pasteItems = (state: WhiteboardState, items: readonly WbItem[], shift: number): readonly WbItem[] => {
+  const taken = new Set(allIds(state));
+  return items.map((item) => {
+    const prefix = item.kind === 'shape' ? 'shape' : item.kind;
+    const id = createEntityId(`new-${prefix}`, taken);
+    taken.add(id);
+    return { ...item, id, x: item.x + shift, y: item.y + shift };
+  });
+};
