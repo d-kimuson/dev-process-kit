@@ -61,7 +61,7 @@ export const addStory = (
       name: m.newStoryName,
       activityId,
       ...(milestoneId === undefined ? {} : { milestoneId }),
-      number: nextStoryNumber(context.state),
+      number: nextStoryNumber(context.base, context.state),
     },
   });
   if (outcome.ok) context.navigate({ activity: activityId, step: stepId, story: id });

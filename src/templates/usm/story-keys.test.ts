@@ -5,7 +5,7 @@ import { usmDefinitionFor } from './definition';
 import { dependencyChoices } from './dependency-choices';
 import { parseUsmBase } from './model';
 import { resolveUsmNavigation } from './present';
-import { findStoryByRef, storyKey } from './story-key';
+import { findStoryByRef, nextStoryNumber, storyKey } from './story-key';
 
 const usmDefinition = usmDefinitionFor('en');
 
@@ -55,6 +55,12 @@ describe('USM story keys', () => {
     const state = parseUsmBase({ activities, stories: [story('u', 1), story('v', 12)] });
     expect(dependencyChoices(state, 'u', 'blocker', 'story-12').map((c) => c.story.id)).toEqual(['v']);
     expect(dependencyChoices(state, 'u', 'blocker', 'STORY-3')).toEqual([]);
+  });
+
+  it('hands out a number the draft deleted to no new story', () => {
+    const base = parseUsmBase({ activities, stories: [story('u', 1), story('v', 2)] });
+    const state = { ...base, stories: base.stories.filter((s) => s.id !== 'v') };
+    expect(nextStoryNumber(base, state)).toBe(3);
   });
 
   it('gives an added story the number its action carries, or the next free one', () => {

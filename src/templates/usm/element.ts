@@ -160,6 +160,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     clearTimeout(this.#copiedTimer);
+    this.#copiedKey = null;
   }
 
   protected override renderRegions(context: TemplateRenderContext<UsmState>): ShellRegions {

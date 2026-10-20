@@ -5,9 +5,12 @@ const KEY_PREFIX = 'STORY-';
 /** The key people call a story by: `STORY-12`. */
 export const storyKey = (story: Pick<UserStory, 'number'>): string => `${KEY_PREFIX}${story.number}`;
 
-/** The number a new story takes: one after the highest on the map. */
-export const nextStoryNumber = (state: UsmState): number =>
-  Math.max(0, ...state.stories.map((story) => story.number)) + 1;
+/**
+ * The number a new story takes: one after the highest on any of `states`.
+ * Given the base too, a number the draft deleted is not handed out again.
+ */
+export const nextStoryNumber = (...states: readonly UsmState[]): number =>
+  Math.max(0, ...states.flatMap((state) => state.stories.map((story) => story.number))) + 1;
 
 /**
  * The story `ref` names, by its id or by its key (`STORY-12`, any case). An
