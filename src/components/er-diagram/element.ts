@@ -1,5 +1,7 @@
 import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
+import type { ElementActionResult } from '../../core/element-actions';
+import type { DraftAction } from '../../core/types';
 import type { LayoutOptions, LayoutPoint } from '../../lib/layout/layered';
 
 import { DiagramElement } from '../diagram/element';
@@ -8,10 +10,13 @@ import { diagramStyles } from '../diagram/styles';
 import { pathData } from '../diagram/view';
 import { erDiagramMessages, type ErDiagramMessages } from './messages';
 import {
+  ADD_FIELD,
+  EDIT_FIELD,
   cardinalityText,
   emptyErData,
   outgoingFan,
   parseErData,
+  reduceErActions,
   type ErData,
   type ErField,
   type ErFieldDiff,
@@ -26,11 +31,23 @@ const LABEL_LIFT = 7;
 
 const SYMBOLS = { same: '', added: '+', removed: '−', changed: '~' } as const;
 
+type EditingColumn = {
+  readonly table: string;
+  readonly field: string;
+  readonly type: string;
+  readonly nullable: boolean;
+  readonly failed: boolean;
+};
+
 /** Schema diagram with an always-on diff between the `before` and `after` snapshots. */
 export class DpkComponentErDiagram extends DiagramElement<ErData> {
   static override styles: CSSResultGroup = [diagramStyles, erStyles];
 
   #query = '';
+  /** The column being typed into a table; `failed` when no template recorded it. */
+  #adding: { readonly table: string; readonly id: string; readonly type: string; readonly failed: boolean } | null =
+    null;
+  #editing: EditingColumn | null = null;
   #sizes = new Map<string, { height: number; rows: readonly number[] }>();
   #resize: ResizeObserver | null = null;
 
@@ -104,6 +121,13 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
 
   protected override parseData(input: unknown): ErData {
     return parseErData(input);
+  }
+
+  protected override reduceElementActions(
+    data: ErData,
+    actions: readonly DraftAction[],
+  ): { readonly data: ErData; readonly results: readonly ElementActionResult[] } {
+    return reduceErActions(erDiagramMessages(this.locale), data, actions);
   }
 
   protected override emptyData(): ErData {
@@ -305,12 +329,13 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
           <span class="dpk-label er-status">${m.statusLabel(table.status)}</span>
         </button>
         ${this.renderCommentTrigger({ kind: 'node', id: table.id }, `${table.id} · ${table.name}`)}
-        <div class="er-fields">${table.fields.map((field) => this.#renderField(field, m))}</div>
+        <div class="er-fields">${table.fields.map((field) => this.#renderField(table, field, m))}</div>
+        ${this.#renderAdd(table, m)}
       </div>
     `;
   }
 
-  #renderField(field: ErFieldDiff, m: ErDiagramMessages): TemplateResult {
+  #renderField(table: ErTableDiff, field: ErFieldDiff, m: ErDiagramMessages): TemplateResult {
     const describe = (value: ErField): string =>
       [
         value.type,
@@ -342,7 +367,168 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
               </span>`
             : html`<span class="er-field-type">${describe(field)}</span>`
         }
+        ${
+          field.status === 'removed' || field.ref !== null
+            ? nothing
+            : html`<button
+                type="button"
+                class="er-field-edit"
+                data-action="edit-field"
+                data-field=${field.id}
+                aria-label=${m.editFieldButton(field.id)}
+                title=${m.editFieldButton(field.id)}
+                @click=${() => this.#startEditing(table.id, field)}
+              >
+                ✎
+              </button>`
+        }
+        ${this.#editing?.table === table.id && this.#editing.field === field.id ? this.#renderEdit(this.#editing, m) : nothing}
       </div>
     `;
+  }
+
+  #renderEdit(editing: EditingColumn, m: ErDiagramMessages): TemplateResult {
+    return html`<div class="er-edit">
+      <input
+        class="dpk-input"
+        data-input="edit-type"
+        aria-label=${m.addFieldType}
+        placeholder=${m.editFieldHint}
+        .value=${editing.type}
+        @input=${(event: Event) => {
+          if (this.#editing !== null && event.currentTarget instanceof HTMLInputElement)
+            this.#editing = { ...this.#editing, type: event.currentTarget.value, failed: false };
+        }}
+        @keydown=${(event: KeyboardEvent) => this.#onEditKey(event)}
+      />
+      <label class="er-edit-nullable">
+        <input
+          type="checkbox"
+          .checked=${editing.nullable}
+          @change=${(event: Event) => {
+            if (this.#editing !== null && event.currentTarget instanceof HTMLInputElement)
+              this.#editing = { ...this.#editing, nullable: event.currentTarget.checked };
+          }}
+        />
+        ${m.nullable}
+      </label>
+      ${editing.failed ? html`<span class="er-error" role="alert">${m.notRecorded}</span>` : nothing}
+    </div>`;
+  }
+
+  #renderAdd(table: ErTableDiff, m: ErDiagramMessages): TemplateResult | typeof nothing {
+    if (table.status === 'removed') return nothing;
+    const adding = this.#adding?.table === table.id ? this.#adding : null;
+    return html`<div class="er-add">
+      ${
+        adding === null
+          ? html`<button
+              type="button"
+              class="er-add-button"
+              data-action="add-field"
+              @click=${() => this.#startAdding(table.id)}
+            >
+              ${m.addFieldButton}
+            </button>`
+          : html`
+              <input
+                class="dpk-input"
+                data-input="add-name"
+                aria-label=${m.addFieldName}
+                placeholder=${m.addFieldName}
+                .value=${adding.id}
+                @input=${(event: Event) => {
+                  if (this.#adding !== null && event.currentTarget instanceof HTMLInputElement)
+                    this.#adding = { ...this.#adding, id: event.currentTarget.value, failed: false };
+                }}
+                @keydown=${(event: KeyboardEvent) => this.#onAddKey(event)}
+              />
+              <input
+                class="dpk-input"
+                data-input="add-type"
+                aria-label=${m.addFieldType}
+                placeholder=${`${m.addFieldType} (${m.addFieldHint})`}
+                .value=${adding.type}
+                @input=${(event: Event) => {
+                  if (this.#adding !== null && event.currentTarget instanceof HTMLInputElement)
+                    this.#adding = { ...this.#adding, type: event.currentTarget.value, failed: false };
+                }}
+                @keydown=${(event: KeyboardEvent) => this.#onAddKey(event)}
+              />
+              ${adding.failed ? html`<span class="er-error" role="alert">${m.notRecorded}</span>` : nothing}
+            `
+      }
+    </div>`;
+  }
+
+  #startAdding(table: string): void {
+    this.#editing = null;
+    this.#adding = { table, id: '', type: '', failed: false };
+    this.requestUpdate();
+    void this.updateComplete.then(() =>
+      this.renderRoot
+        .querySelector<HTMLInputElement>(`[data-er-table="${CSS.escape(table)}"] [data-input="add-name"]`)
+        ?.focus({ preventScroll: true }),
+    );
+  }
+
+  #startEditing(table: string, field: ErFieldDiff): void {
+    this.#adding = null;
+    this.#editing = { table, field: field.id, type: field.type, nullable: field.nullable, failed: false };
+    this.requestUpdate();
+    void this.updateComplete.then(() =>
+      this.renderRoot.querySelector<HTMLInputElement>('[data-input="edit-type"]')?.focus({ preventScroll: true }),
+    );
+  }
+
+  #onAddKey(event: KeyboardEvent): void {
+    if (event.isComposing) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.#adding = null;
+      this.requestUpdate();
+      return;
+    }
+    const adding = this.#adding;
+    if (event.key !== 'Enter' || adding === null) return;
+    event.preventDefault();
+    const id = adding.id.trim();
+    const type = adding.type.trim();
+    if (id === '' || type === '') return;
+    if (!this.dispatchElementAction(ADD_FIELD, ['node', adding.table], { id, type })) {
+      this.#adding = { ...adding, failed: true };
+      this.requestUpdate();
+      return;
+    }
+    this.#adding = null;
+    this.requestUpdate();
+  }
+
+  #onEditKey(event: KeyboardEvent): void {
+    if (event.isComposing) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.#editing = null;
+      this.requestUpdate();
+      return;
+    }
+    const editing = this.#editing;
+    if (event.key !== 'Enter' || editing === null) return;
+    event.preventDefault();
+    const type = editing.type.trim();
+    if (type === '') return;
+    if (
+      !this.dispatchElementAction(EDIT_FIELD, ['node', editing.table], {
+        field: editing.field,
+        type,
+        nullable: editing.nullable,
+      })
+    ) {
+      this.#editing = { ...editing, failed: true };
+      this.requestUpdate();
+      return;
+    }
+    this.#editing = null;
+    this.requestUpdate();
   }
 }

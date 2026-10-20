@@ -4,7 +4,7 @@ import { diagramMessages } from '../diagram/messages';
 import { DpkComponentErDiagram } from './element';
 import { defineErDiagram } from './index';
 import { erDiagramMessages } from './messages';
-import { fanOffset, fieldOffset, parseErData, tableHeight } from './model';
+import { fanOffset, fieldOffset, parseErData, reduceErActions, tableHeight } from './model';
 
 defineErDiagram();
 
@@ -540,5 +540,121 @@ describe('dpk-component-er-diagram', () => {
       'orders.id → inventory_reservations.order_id',
     );
     expect(element.renderRoot.querySelector('.diagram-details')).toBeNull();
+  });
+
+  describe('column actions', () => {
+    const id = (n: number) => `a${n}`;
+    const act = (type: string, table: string, payload: Record<string, unknown>, n = 0) => ({
+      id: id(n),
+      type,
+      target: { type: 'element', id: `erd/node/${table}` },
+      payload,
+      createdAt: '2026-10-20T00:00:00.000Z',
+    });
+    const field = (data: ReturnType<typeof parseErData>, table: string, name: string) =>
+      data.nodes.find((node) => node.id === table)?.fields.find((item) => item.id === name);
+
+    it('adds a column as an added row and re-anchors the relations', () => {
+      const data = parseErData(raw);
+      const out = reduceErActions(m, data, [act('ADD_FIELD', 'orders', { id: 'note', type: 'text' })]);
+      expect(field(out.data, 'orders', 'note')).toMatchObject({ status: 'added', type: 'text' });
+      expect(out.results[0]?.stale).toBeUndefined();
+      const orders = out.data.nodes.find((node) => node.id === 'orders');
+      expect(orders?.height).toBe(tableHeight(orders?.fields ?? []));
+    });
+
+    it('rejects a duplicate column and an unknown table', () => {
+      const data = parseErData(raw);
+      const out = reduceErActions(m, data, [
+        act('ADD_FIELD', 'orders', { id: 'status', type: 'text' }, 0),
+        act('ADD_FIELD', 'nope', { id: 'x', type: 'text' }, 1),
+        act('NOPE', 'orders', {}, 2),
+      ]);
+      expect(out.results.map((result) => result.stale)).toEqual([
+        'constraint-violated',
+        'target-missing',
+        'unsupported-action-type',
+      ]);
+    });
+
+    it('edits a column as a changed row that keeps its previous definition, and reverts to same', () => {
+      const data = parseErData(raw);
+      const edited = reduceErActions(m, data, [
+        act('EDIT_FIELD', 'orders', { field: 'total_amount', type: 'bigint', nullable: false }),
+      ]);
+      expect(field(edited.data, 'orders', 'total_amount')).toMatchObject({
+        status: 'changed',
+        type: 'bigint',
+        before: { type: 'integer' },
+      });
+      expect(edited.data.nodes.find((node) => node.id === 'orders')?.status).toBe('changed');
+      const reverted = reduceErActions(m, data, [
+        act('EDIT_FIELD', 'customers', { field: 'email', type: 'text', nullable: false }, 0),
+        act('EDIT_FIELD', 'customers', { field: 'email', type: 'varchar', nullable: false }, 1),
+      ]);
+      expect(field(reverted.data, 'customers', 'email')?.status).toBe('same');
+      expect(reverted.data.nodes.find((node) => node.id === 'customers')?.status).toBe('same');
+    });
+
+    it('does not edit a relation column', () => {
+      const out = reduceErActions(m, parseErData(raw), [
+        act('EDIT_FIELD', 'orders', { field: 'customer_id', type: 'text', nullable: true }),
+      ]);
+      expect(out.results[0]?.stale).toBe('constraint-violated');
+    });
+
+    it('records a typed column through the hosting template', async () => {
+      const element = new DpkComponentErDiagram();
+      element.id = 'erd';
+      element.data = parseErData(raw);
+      document.body.append(element);
+      await settle(element);
+      let seen: unknown = null;
+      element.addEventListener('dpk-element-action', (event) => {
+        if (!(event instanceof CustomEvent)) return;
+        event.preventDefault();
+        seen = event.detail;
+      });
+      element.renderRoot
+        .querySelector<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]')
+        ?.click();
+      await settle(element);
+      const name = element.renderRoot.querySelector<HTMLInputElement>('[data-input="add-name"]');
+      const type = element.renderRoot.querySelector<HTMLInputElement>('[data-input="add-type"]');
+      if (!name || !type) throw new Error('no inputs');
+      name.value = 'note';
+      name.dispatchEvent(new Event('input'));
+      type.value = 'text';
+      type.dispatchEvent(new Event('input'));
+      type.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await settle(element);
+      expect(seen).toMatchObject({
+        type: 'ADD_FIELD',
+        target: 'element:erd/node/orders',
+        payload: { id: 'note', type: 'text' },
+      });
+    });
+
+    it('shows an error and keeps the input when no template records it', async () => {
+      const element = new DpkComponentErDiagram();
+      element.id = 'erd';
+      element.data = parseErData(raw);
+      document.body.append(element);
+      await settle(element);
+      element.renderRoot
+        .querySelector<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]')
+        ?.click();
+      await settle(element);
+      const name = element.renderRoot.querySelector<HTMLInputElement>('[data-input="add-name"]');
+      const type = element.renderRoot.querySelector<HTMLInputElement>('[data-input="add-type"]');
+      if (!name || !type) throw new Error('no inputs');
+      name.value = 'note';
+      name.dispatchEvent(new Event('input'));
+      type.value = 'text';
+      type.dispatchEvent(new Event('input'));
+      type.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-add [role="alert"]')).not.toBeNull();
+    });
   });
 });
