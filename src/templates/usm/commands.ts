@@ -4,6 +4,7 @@ import type { UsmMessages } from './messages';
 import { createEntityId } from '../../core/target';
 import { tallyOf } from './burndown';
 import { allUsmIds, defaultLabelTone, defaultStatusTone, type UsmState } from './model';
+import { nextStoryNumber } from './story-key';
 
 /**
  * The "add" affordances of the board as pure functions of the render context.
@@ -55,7 +56,13 @@ export const addStory = (
   const outcome = context.dispatch({
     type: 'ADD_STORY',
     target: { type: 'step', id: stepId },
-    payload: { id, name: m.newStoryName, activityId, ...(milestoneId === undefined ? {} : { milestoneId }) },
+    payload: {
+      id,
+      name: m.newStoryName,
+      activityId,
+      ...(milestoneId === undefined ? {} : { milestoneId }),
+      number: nextStoryNumber(context.state),
+    },
   });
   if (outcome.ok) context.navigate({ activity: activityId, step: stepId, story: id });
 };

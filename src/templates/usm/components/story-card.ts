@@ -14,6 +14,7 @@ import { initialOf } from '../render/avatar';
 import { linkIcon, linkStyles } from '../render/link-icon';
 import { statusIcon, statusStyles, statusToneStyle } from '../render/tone';
 import { statusViewOf, type StatusView } from '../status-view';
+import { storyKey } from '../story-key';
 
 const iconBlocks = lucide(Network);
 const iconWaits = lucide(Lock);
@@ -202,6 +203,18 @@ const cardStyles = css`
     min-width: 0;
   }
 
+  /* The key people call the story by, quiet like a ticket number. */
+  .card-key {
+    flex: none;
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 18px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
   .card-chip {
     display: inline-flex;
     align-items: center;
@@ -232,8 +245,8 @@ const cardStyles = css`
 
   /* The counts sit at the right end of the foot, the kept comments first. */
   .card-chip[data-kind='comments'],
-  .card-chip[data-kind='review']:first-child,
-  .card-chip[data-kind='step'] + .card-chip[data-kind='review'] {
+  .card-chip:not([data-kind='comments']) + .card-chip[data-kind='review'],
+  .card-key + .card-chip[data-kind='review'] {
     margin-left: auto;
   }
 
@@ -418,7 +431,6 @@ export class DpkInternalUsmStoryCard extends LitElement {
     if (!story) return nothing;
     const m = usmMessages(this.#i18n.locale);
     const comments = story.comments?.length ?? 0;
-    const hasFoot = this.stepName !== '' || comments > 0 || this.reviewCount > 0;
     return html`
       <div class="card-head">
         ${this.statuses.length === 0 ? nothing : this.#renderStatus(m, story)}
@@ -433,31 +445,28 @@ export class DpkInternalUsmStoryCard extends LitElement {
       ${this.blocks > 0 || this.waits > 0 ? this.#renderDependencies(m) : nothing}
       ${this.labels.length > 0 ? renderLabels(this.labels) : nothing}
       ${story.links && story.links.length > 0 ? this.#renderLinks(story.links) : nothing}
-      ${
-        hasFoot
-          ? html`<div class="card-foot">
-              ${
-                this.stepName === ''
-                  ? nothing
-                  : html`<span class="card-chip" data-kind="step"><span>${this.stepName}</span></span>`
-              }
-              ${
-                comments > 0
-                  ? html`<span class="card-chip" data-kind="comments" aria-label=${m.commentCountAria(comments)}>
-                      ${iconNote()}<span>${comments}</span>
-                    </span>`
-                  : nothing
-              }
-              ${
-                this.reviewCount > 0
-                  ? html`<span class="card-chip" data-kind="review" aria-label=${m.reviewCountAria(this.reviewCount)}>
-                      ${iconComment()}<span>${this.reviewCount}</span>
-                    </span>`
-                  : nothing
-              }
-            </div>`
-          : nothing
-      }
+      <div class="card-foot">
+        <span class="card-key">${storyKey(story)}</span>
+        ${
+          this.stepName === ''
+            ? nothing
+            : html`<span class="card-chip" data-kind="step"><span>${this.stepName}</span></span>`
+        }
+        ${
+          comments > 0
+            ? html`<span class="card-chip" data-kind="comments" aria-label=${m.commentCountAria(comments)}>
+                ${iconNote()}<span>${comments}</span>
+              </span>`
+            : nothing
+        }
+        ${
+          this.reviewCount > 0
+            ? html`<span class="card-chip" data-kind="review" aria-label=${m.reviewCountAria(this.reviewCount)}>
+                ${iconComment()}<span>${this.reviewCount}</span>
+              </span>`
+            : nothing
+        }
+      </div>
     `;
   }
 

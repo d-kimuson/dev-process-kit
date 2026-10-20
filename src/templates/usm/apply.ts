@@ -22,6 +22,7 @@ import {
   type UsmState,
   type UserStory,
 } from './model';
+import { nextStoryNumber } from './story-key';
 
 // Pure reducer: (state, action) => state | null. No DOM, no I/O.
 export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResult<UsmState> => {
@@ -171,8 +172,11 @@ export const applyUsmAction = (state: UsmState, action: DraftAction): ApplyResul
       if (!located || located.activity.id !== payload.activityId) return null;
       if (payload.milestoneId !== undefined && !findMilestone(state, payload.milestoneId)) return null;
       if (state.stories.some((story) => story.id === payload.id)) return state;
+      // The number the action carries, unless another story took it meanwhile.
+      const taken = payload.number !== undefined && state.stories.some((story) => story.number === payload.number);
       const story: UserStory = {
         id: payload.id,
+        number: payload.number === undefined || taken ? nextStoryNumber(state) : payload.number,
         name: payload.name,
         activityId: payload.activityId,
         stepId: located.step.id,

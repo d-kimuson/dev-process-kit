@@ -4,7 +4,7 @@ import * as v from 'valibot';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { UsmMessages } from '../messages';
 
-import { iconClose, iconComment, iconTrash } from '../../../core/icons';
+import { iconCheck, iconClose, iconComment, iconCopy, iconTrash } from '../../../core/icons';
 import { createEntityId } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { describeLink } from '../../../lib/link-label';
@@ -20,6 +20,7 @@ import {
   type UsmState,
 } from '../model';
 import { statusViews } from '../status-view';
+import { storyKey } from '../story-key';
 import { initialOf } from './avatar';
 import { renderDependencyPicker, type DependencyPicker } from './dependency-picker';
 import { linkIcon } from './link-icon';
@@ -28,6 +29,12 @@ import { statusIcon, statusToneStyle } from './tone';
 /** The story the panel shows: the one the reader navigated to, if it still exists. */
 export const panelStoryOf = (context: TemplateRenderContext<UsmState>): UserStory | undefined => {
   return findStory(context.state, context.navigation['story']);
+};
+
+/** Copying the story's key from the panel: the host keeps whether it was just copied. */
+export type StoryKeyCopy = {
+  readonly copied: boolean;
+  readonly copy: (key: string) => void;
 };
 
 /**
@@ -41,6 +48,7 @@ export const renderStoryPanel = (
   context: TemplateRenderContext<UsmState>,
   story: UserStory,
   picker: DependencyPicker,
+  keyCopy: StoryKeyCopy,
 ): TemplateResult => {
   const { state } = context;
   const target = { type: 'story', id: story.id };
@@ -66,14 +74,17 @@ export const renderStoryPanel = (
       </button>
     </header>
     <div class="sp-body">
-      <h2 class="sp-title">
-        <dpk-component-inline-edit
-          wrap
-          .value=${story.name}
-          .label=${m.storyTitleLabel}
-          @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_STORY_NAME', target, payload: { name } }))}
-        ></dpk-component-inline-edit>
-      </h2>
+      <div class="sp-heading">
+        ${renderKeyButton(m, storyKey(story), keyCopy)}
+        <h2 class="sp-title">
+          <dpk-component-inline-edit
+            wrap
+            .value=${story.name}
+            .label=${m.storyTitleLabel}
+            @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_STORY_NAME', target, payload: { name } }))}
+          ></dpk-component-inline-edit>
+        </h2>
+      </div>
       ${state.statuses.length === 0 ? nothing : renderStatusField(m, context, story)}
       ${hasFeature(state, 'estimates') ? renderEstimateField(m, context, story) : nothing}
       ${hasFeature(state, 'assignees') ? renderAssigneeField(m, context, story) : nothing}
@@ -106,6 +117,22 @@ export const renderStoryPanel = (
       </button>
     </footer>
   </aside>`;
+};
+
+/** The story's key, which a press copies so the reader can name the story to someone else. */
+const renderKeyButton = (m: UsmMessages, key: string, keyCopy: StoryKeyCopy): TemplateResult => {
+  const label = keyCopy.copied ? m.storyKeyCopied : m.copyStoryKey(key);
+  return html`<button
+    class="sp-key"
+    type="button"
+    data-role="copy-key"
+    data-copied=${keyCopy.copied ? 'true' : 'false'}
+    title=${label}
+    aria-label=${label}
+    @click=${() => keyCopy.copy(key)}
+  >
+    <span>${key}</span>${keyCopy.copied ? iconCheck() : iconCopy()}
+  </button>`;
 };
 
 const renderStatusField = (
@@ -567,6 +594,47 @@ export const storyPanelStyles = css`
     min-height: 60px;
     box-sizing: border-box;
     border-bottom: 1px solid var(--dpk-rule);
+  }
+  .sp-heading {
+    display: grid;
+    justify-items: start;
+    gap: 6px;
+  }
+  .sp-heading .sp-title {
+    justify-self: stretch;
+  }
+  .sp-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 7px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: 6px;
+    background: var(--dpk-paper-sunken);
+    color: var(--dpk-ink-soft);
+    font: inherit;
+    font-family: var(--dpk-mono);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 18px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .sp-key:hover {
+    border-color: var(--dpk-rule-strong);
+    color: var(--dpk-ink);
+  }
+  .sp-key:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+  .sp-key[data-copied='true'] {
+    color: var(--dpk-green);
+  }
+  .sp-key svg {
+    flex: none;
+    width: 12px;
+    height: 12px;
   }
   .sp-where {
     display: flex;

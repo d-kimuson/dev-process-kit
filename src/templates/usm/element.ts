@@ -6,6 +6,7 @@ import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contr
 import { TemplateElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
 import { popoverSurface } from '../../core/theme';
+import { copyText } from '../../lib/dom/clipboard';
 import { DismissController } from '../../lib/dom/dismiss';
 import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
@@ -51,9 +52,10 @@ import {
   TABS_MENU_WIDTH,
 } from './render/page-tabs';
 import { renderStatusOverview } from './render/status-overview';
-import { panelStoryOf, renderStoryPanel, storyPanelStyles } from './render/story-panel';
+import { panelStoryOf, renderStoryPanel, storyPanelStyles, type StoryKeyCopy } from './render/story-panel';
 import { statusStyles } from './render/tone';
 import { presentStatusOverview } from './status-overview';
+import { storyKey } from './story-key';
 import { usmStyles } from './styles';
 import { IDLE_MODE, type UsmUiMode } from './ui-mode';
 
@@ -65,6 +67,8 @@ const FILTER_OPTION_HEIGHT = 31;
 const FILTER_MENU_PADDING = 14;
 /** Room kept around a highlighted card brought into view: about the backbone's height and the milestone column's width. */
 const HIGHLIGHT_REVEAL_MARGIN = 160;
+/** How long the story panel's key button says it copied the key. */
+const COPIED_MS = 1500;
 
 /**
  * `<dpk-template-usm>` — the user story map.
@@ -115,6 +119,9 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   });
   /** Whether the map has brought its highlight into view since it was turned on, so the reader's own scrolling is left alone. */
   #revealedHighlight = false;
+  /** The story key the panel just copied, while its button says so. */
+  #copiedKey: string | null = null;
+  #copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     super();
@@ -148,6 +155,11 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       ownsEscape: () => true,
       dismiss: () => (this.mode = IDLE_MODE),
     });
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    clearTimeout(this.#copiedTimer);
   }
 
   protected override renderRegions(context: TemplateRenderContext<UsmState>): ShellRegions {
@@ -322,7 +334,22 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       search: this.mode.kind === 'picking-dependency' ? this.mode.search : null,
       set: (search) => (this.mode = search ? { kind: 'picking-dependency', search } : IDLE_MODE),
     };
-    return renderStoryPanel(m, context, story, picker);
+    const keyCopy: StoryKeyCopy = {
+      copied: this.#copiedKey === storyKey(story),
+      copy: (key) => void this.#copyKey(key),
+    };
+    return renderStoryPanel(m, context, story, picker, keyCopy);
+  }
+
+  async #copyKey(key: string): Promise<void> {
+    if (!(await copyText(key))) return;
+    clearTimeout(this.#copiedTimer);
+    this.#copiedKey = key;
+    this.requestUpdate();
+    this.#copiedTimer = setTimeout(() => {
+      this.#copiedKey = null;
+      this.requestUpdate();
+    }, COPIED_MS);
   }
 
   #renderTab(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult {
