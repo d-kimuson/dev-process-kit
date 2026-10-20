@@ -33,6 +33,7 @@ import {
   stepRefOf,
   type UsmState,
 } from './model';
+import { findStoryByRef } from './story-key';
 
 type Summary = {
   readonly title: string;
@@ -636,7 +637,7 @@ export const resolveUsmNavigation = (state: UsmState, nav: Navigation): Navigati
   const activity = locatedStep?.activity ?? findActivity(state, nav['activity']) ?? state.activities[0];
   const step =
     locatedStep?.step ?? activity?.steps.find((candidate) => candidate.id === nav['step']) ?? activity?.steps[0];
-  const story = findStory(state, nav['story']);
+  const story = findStoryByRef(state, nav['story']);
   const next: Record<string, string> = { ...nav };
   if (activity) next['activity'] = activity.id;
   else delete next['activity'];

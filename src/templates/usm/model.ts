@@ -161,6 +161,12 @@ export type StoryComment = {
 
 export type UserStory = {
   readonly id: string;
+  /**
+   * The story's number, unique on the map: people call the story by its key
+   * `STORY-<number>`. A base that leaves it out numbers the story after the
+   * highest number.
+   */
+  readonly number: number;
   readonly name: string;
   readonly description?: string;
   readonly activityId: string;
@@ -274,8 +280,10 @@ const storyCommentSchema = v.strictObject({
   body: storyCommentBodySchema,
   createdAt: v.exactOptional(snapshotAtSchema),
 });
+export const storyNumberSchema = v.pipe(v.number(), v.integer(), v.minValue(1));
 const storySchema = v.strictObject({
   id: entityIdSchema,
+  number: v.exactOptional(storyNumberSchema),
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
   activityId: v.pipe(v.string(), v.minLength(1)),
@@ -335,12 +343,18 @@ export const parseUsmBase = (input: unknown): UsmState => {
   const raw = v.parse(usmBaseSchema, input);
   if (new Set(raw.features).size !== raw.features.length) throw new Error('the base turns a feature on twice');
   const firstStatus = raw.statuses[0]?.id;
+  const numbers = raw.stories.flatMap((story) => (story.number === undefined ? [] : [story.number]));
+  const repeated = numbers.find((number, index) => numbers.indexOf(number) !== index);
+  if (repeated !== undefined) throw new Error(`two stories share the number ${repeated}`);
+  // An unnumbered story takes the next number after the highest one, in base order.
+  let nextNumber = Math.max(0, ...numbers);
   const parsed: UsmState = {
     ...raw,
-    stories:
-      firstStatus === undefined
-        ? raw.stories
-        : raw.stories.map((story) => (story.statusId === undefined ? { ...story, statusId: firstStatus } : story)),
+    stories: raw.stories.map((story) => ({
+      ...story,
+      number: story.number ?? ++nextNumber,
+      ...(firstStatus === undefined || story.statusId !== undefined ? {} : { statusId: firstStatus }),
+    })),
     statuses: raw.statuses.map((status, index) => ({
       ...status,
       tone: status.tone ?? defaultStatusTone(index),

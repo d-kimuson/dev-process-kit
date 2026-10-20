@@ -1,6 +1,7 @@
 import { matchesQuery } from '../../lib/search';
 import { blockerOptions, dependentOptions } from './dependencies';
 import { findStep, type UserStory, type UsmState } from './model';
+import { storyKey } from './story-key';
 
 /** Which end of an edge the story panel adds: what the story waits on, or what waits on it. */
 export type DependencySide = 'blocker' | 'dependent';
@@ -27,6 +28,6 @@ export const dependencyChoices = (
   return options.flatMap((story) => {
     const located = findStep(state, `${story.activityId}.${story.stepId}`);
     const place = located ? [located.activity.name, located.step.name] : [];
-    return matchesQuery([story.name, ...place].join(' '), query) ? [{ story, place }] : [];
+    return matchesQuery([storyKey(story), story.name, ...place].join(' '), query) ? [{ story, place }] : [];
   });
 };
