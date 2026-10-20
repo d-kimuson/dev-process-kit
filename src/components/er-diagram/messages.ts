@@ -1,6 +1,8 @@
 import { defineMessages } from '../../core/i18n';
 
 type ErStatus = 'same' | 'added' | 'removed' | 'changed';
+type ColumnRole = 'primary' | 'foreign' | 'not-null' | 'nullable';
+type Attribute = 'type' | 'keys' | 'ref' | 'nullable' | 'cardinality' | 'label';
 
 const label = (status: ErStatus, en: boolean): string => {
   if (en) return { same: 'Unchanged', added: 'Added', removed: 'Removed', changed: 'Changed' }[status];
@@ -23,17 +25,32 @@ export const erDiagramMessages = defineMessages({
     edgeLabel: (from: string, to: string, cardinality: string) => `${from} and ${to}, related ${cardinality}`,
     was: (previous: string) => `was ${previous}`,
     nullable: 'nullable',
+    notNull: 'not null',
     notRecorded: 'Could not record it. Place this inside a dpk-template-* element.',
-    addFieldButton: '+ Column',
+    addFieldButton: 'Add column',
     addFieldTitle: 'Add column',
     addFieldName: 'Column name',
     addFieldType: 'Type',
-    addFieldHint: 'Enter to add',
+    columnNameLabel: 'Name',
+    columnNamePlaceholder: 'column_name',
+    columnTypePlaceholder: 'e.g. text',
+    columnTypeChoices: 'Types in this schema',
+    columnTypeNew: 'New type',
+    columnNullable: 'Allow NULL',
+    columnNameTaken: 'This table already has a column with this name.',
+    cancel: 'Cancel',
+    columnAdd: 'Add',
+    columnSave: 'Save',
+    columnKeys: 'Enter to confirm · Esc to cancel',
     addFieldSummary: (table: string, field: string, type: string) => `${table}.${field} (${type})`,
     editFieldButton: (field: string) => `Edit ${field}`,
     editFieldTitle: 'Edit column',
-    editFieldHint: 'Enter to save',
     editFieldSummary: (table: string, field: string, type: string) => `${table}.${field} → ${type}`,
+    columnRole: (role: ColumnRole) =>
+      ({ primary: 'Primary key', foreign: 'Foreign key', 'not-null': 'NOT NULL', nullable: 'Nullable' })[role],
+    changesLabel: 'Changes',
+    attributeLabel: (attribute: Attribute) =>
+      ({ type: 'type', keys: 'keys', ref: 'ref', nullable: 'null', cardinality: 'card.', label: 'label' })[attribute],
   },
   ja: {
     heading: 'ER図',
@@ -49,18 +66,33 @@ export const erDiagramMessages = defineMessages({
     statusLabel: (status: ErStatus) => label(status, false),
     edgeLabel: (from: string, to: string, cardinality: string) => `${from} と ${to} の関連 (${cardinality})`,
     was: (previous: string) => `変更前 ${previous}`,
-    nullable: 'null可',
+    nullable: 'NULL 可',
+    notNull: 'NOT NULL',
     notRecorded: '記録できませんでした（dpk-template-* 要素の中に置いてください）。',
-    addFieldButton: '＋ カラム',
+    addFieldButton: 'カラムを追加',
     addFieldTitle: 'カラムを追加',
     addFieldName: 'カラム名',
     addFieldType: '型',
-    addFieldHint: 'Enter で追加',
+    columnNameLabel: '名前',
+    columnNamePlaceholder: 'column_name',
+    columnTypePlaceholder: '例: text',
+    columnTypeChoices: 'このスキーマの型',
+    columnTypeNew: '新しい型',
+    columnNullable: 'NULL を許可',
+    columnNameTaken: '同じ名前のカラムがすでにあります。',
+    cancel: 'キャンセル',
+    columnAdd: '追加',
+    columnSave: '保存',
+    columnKeys: 'Enter で確定 · Esc で閉じる',
     addFieldSummary: (table: string, field: string, type: string) => `${table}.${field} (${type})`,
     editFieldButton: (field: string) => `${field} を編集`,
     editFieldTitle: 'カラムを編集',
-    editFieldHint: 'Enter で保存',
     editFieldSummary: (table: string, field: string, type: string) => `${table}.${field} → ${type}`,
+    columnRole: (role: ColumnRole) =>
+      ({ primary: '主キー', foreign: '外部キー', 'not-null': 'NOT NULL', nullable: 'NULL 可' })[role],
+    changesLabel: '変更点',
+    attributeLabel: (attribute: Attribute) =>
+      ({ type: '型', keys: 'キー', ref: '参照', nullable: 'NULL', cardinality: '多重度', label: 'ラベル' })[attribute],
   },
 });
 

@@ -1,5 +1,14 @@
 import { css } from 'lit';
 
+/*
+ * Table cards after Liam ERD: a quiet card with a tinted header, one compact
+ * row per column (icon, name, type on the right) and thin relation curves that
+ * attach to the column rows. Hovering or selecting a table, a column row or a
+ * relation lights the keys it reaches — the relations, the tables at their
+ * ends and the two columns each joins — in the one relational accent (blue);
+ * no table dims, only the relations left unlit fade. Green, red and amber
+ * stay reserved for the diff.
+ */
 export const erStyles = css`
   .er-search {
     display: flex;
@@ -13,143 +22,183 @@ export const erStyles = css`
     font-size: 11px;
   }
 
+  /* ---- Table card ---- */
+
   .er-table {
+    /* Where a row's name starts: the left padding plus the icon and its gap. */
+    --er-indent: 33px;
     display: flex;
     flex-direction: column;
     border: 1px solid var(--dpk-rule-strong);
-    border-radius: var(--dpk-radius-sm);
+    border-radius: var(--dpk-radius-xs);
     background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    box-shadow: var(--dpk-shadow-sm);
     overflow: hidden;
     cursor: default;
-    transition:
-      border-color 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease),
-      transform 160ms var(--dpk-ease);
   }
 
-  .er-table:hover {
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
-    transform: translateY(-1px);
+  .er-table.has-diff {
+    /* Plus the change mark's column. */
+    --er-indent: 50px;
   }
 
   .er-table.is-added {
-    border-color: color-mix(in srgb, var(--dpk-green) 55%, transparent);
+    border-color: color-mix(in srgb, var(--dpk-green) 60%, transparent);
   }
 
   .er-table.is-removed {
-    border-color: color-mix(in srgb, var(--dpk-accent) 55%, transparent);
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--dpk-accent) 60%, transparent);
   }
 
   .er-table.is-changed {
     border-color: color-mix(in srgb, var(--dpk-amber) 55%, transparent);
   }
 
+  .er-table.is-lit {
+    border-color: var(--dpk-blue);
+    box-shadow:
+      var(--dpk-shadow-sm),
+      0 0 18px color-mix(in srgb, var(--dpk-blue) 30%, transparent);
+  }
+
   .er-table.is-selected {
     border-color: var(--dpk-blue);
     box-shadow:
-      var(--dpk-bevel),
+      inset 0 0 0 1px var(--dpk-blue),
       var(--dpk-shadow-sm),
-      0 0 0 3px var(--dpk-blue-soft);
-  }
-
-  .er-table.is-related {
-    border-color: color-mix(in srgb, var(--dpk-green) 50%, transparent);
+      0 0 22px color-mix(in srgb, var(--dpk-blue) 40%, transparent);
   }
 
   .er-head {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      'mark name name'
-      'mark label label'
-      '. status status';
+    display: flex;
     align-items: center;
-    gap: 1px 8px;
-    width: 100%;
-    min-height: 74px;
+    gap: 2px;
+    min-height: 40px;
     flex-shrink: 0;
-    padding: 7px 11px;
-    border: 0;
+    padding-right: 6px;
     border-bottom: 1px solid var(--dpk-rule);
-    border-radius: 0;
-    background: var(--dpk-paper);
+    background: color-mix(in srgb, var(--dpk-paper-inset) 60%, var(--dpk-paper-raised));
+  }
+
+  .er-head-select {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex: 1;
+    min-width: 0;
+    align-self: stretch;
+    padding: 8px 4px 8px 10px;
+    border: 0;
+    background: none;
+    color: var(--dpk-ink);
+    font: inherit;
     text-align: left;
     cursor: pointer;
   }
 
-  .er-head:hover {
-    background: var(--dpk-paper-sunken);
+  .er-head-select:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--dpk-blue);
   }
 
-  .er-table:has(> .diagram-comment-trigger) .er-head {
-    padding-right: 46px;
-  }
-
-  .er-table > .diagram-comment-trigger {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-  }
-
-  .er-table:hover,
-  .er-table:focus-within,
-  .er-edge:hover,
-  .er-edge:focus-within {
-    opacity: 1;
-  }
-
-  .er-mark {
-    grid-area: mark;
+  .er-table-icon {
     display: grid;
     place-items: center;
+    flex-shrink: 0;
     width: 16px;
-    height: 16px;
-    border-radius: 3px;
-    font-family: var(--dpk-mono);
-    font-size: 10px;
+    color: var(--dpk-ink-faint);
   }
 
-  .er-table.is-added .er-mark {
+  .er-table-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .er-table.is-lit .er-table-icon,
+  .er-table.is-selected .er-table-icon {
+    color: var(--dpk-blue);
+  }
+
+  .er-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 7px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .er-name {
+    /* The id is what the schema is read by: it wraps rather than being cut. */
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .er-table.is-removed .er-name {
+    text-decoration: line-through;
+    color: var(--dpk-ink-soft);
+  }
+
+  .er-label {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--dpk-ink-faint);
+  }
+
+  .er-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 560;
+    line-height: 1.5;
+  }
+
+  .er-status > span {
+    font-family: var(--dpk-mono);
+  }
+
+  .er-table.is-added .er-status {
     background: var(--dpk-green-soft);
     color: var(--dpk-green);
   }
 
-  .er-table.is-removed .er-mark {
+  .er-table.is-removed .er-status {
     background: var(--dpk-accent-soft);
     color: var(--dpk-accent);
   }
 
-  .er-table.is-changed .er-mark {
+  .er-table.is-changed .er-status {
     background: var(--dpk-amber-soft);
     color: var(--dpk-amber);
   }
 
-  .er-name {
-    grid-area: name;
-    font-family: var(--dpk-mono);
-    font-size: 12px;
-    font-weight: 640;
-    letter-spacing: -0.01em;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    min-width: 0;
+  .er-head .diagram-comment-trigger {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 4px;
+    border-radius: var(--dpk-radius-xs);
   }
 
-  .er-label {
-    grid-area: label;
-    font-size: 9.5px;
-    color: var(--dpk-ink-faint);
-    white-space: normal;
-    overflow-wrap: anywhere;
-    min-width: 0;
+  .er-head .diagram-comment-trigger svg {
+    width: 14px;
+    height: 14px;
   }
 
-  .er-status {
-    grid-area: status;
-    font-size: 8.5px;
-    text-align: right;
-  }
+  /* ---- Column rows ---- */
 
   .er-fields {
     display: flex;
@@ -157,46 +206,166 @@ export const erStyles = css`
   }
 
   .er-field {
-    display: grid;
-    grid-template-columns: 14px 26px minmax(0, 1fr);
-    grid-template-areas: 'mark key name' '. . type';
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    min-height: 28px;
     flex-shrink: 0;
     border-bottom: 1px solid var(--dpk-rule);
-    font-size: 10.5px;
+    font-size: 12px;
+    transition: background 120ms ease;
   }
 
   .er-field:last-child {
     border-bottom: 0;
   }
 
+  .er-field:hover {
+    background: color-mix(in srgb, var(--dpk-paper-inset) 45%, transparent);
+  }
+
+  .er-field-line {
+    display: grid;
+    grid-template-columns: auto 16px minmax(0, 1fr) auto 20px;
+    align-items: center;
+    gap: 7px;
+    min-height: 31px;
+    padding: 4px 6px 4px 10px;
+  }
+
+  .er-field-mark {
+    width: 10px;
+    font-family: var(--dpk-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  /* Without a diff the mark's column goes away, and the name starts at the icon. */
+  .er-table:not(.has-diff) .er-field-mark {
+    display: none;
+  }
+
+  .er-table:not(.has-diff) .er-field-line {
+    grid-template-columns: 16px minmax(0, 1fr) auto 20px;
+  }
+
+  .er-icon {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    color: var(--dpk-ink-faint);
+  }
+
+  .er-icon svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .er-icon:is([data-icon='primary'], [data-icon='foreign']) {
+    color: var(--dpk-blue);
+  }
+
+  .er-icon[data-icon='not-null'] {
+    color: var(--dpk-ink-soft);
+  }
+
+  .er-icon[data-icon='not-null'] svg {
+    fill: currentColor;
+  }
+
+  .er-field-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--dpk-ink);
+  }
+
+  .er-key {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 4px;
+    border-radius: 3px;
+    background: var(--dpk-paper-inset);
+    font-family: var(--dpk-mono);
+    font-size: 9px;
+    line-height: 1.6;
+    color: var(--dpk-ink-soft);
+    vertical-align: 1px;
+  }
+
+  /* A changed type breaks between its old and new value, never inside a word. */
+  .er-field-type {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 0 5px;
+    max-width: 168px;
+    min-width: 0;
+    font-family: var(--dpk-mono);
+    font-size: 11px;
+    color: var(--dpk-ink-faint);
+    text-align: right;
+  }
+
+  .er-field-type > :is(del, ins) {
+    white-space: nowrap;
+  }
+
+  .er-field-action {
+    display: grid;
+    place-items: center;
+    width: 20px;
+  }
+
+  .er-field-edit {
+    width: 20px;
+    height: 20px;
+    padding: 3px;
+    opacity: 0;
+  }
+
+  .er-field-edit svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .er-field:hover .er-field-edit,
+  .er-field:focus-within .er-field-edit {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    .er-field-edit {
+      opacity: 1;
+    }
+  }
+
+  /* A joined column: the row a lit relation lands on reads as the key it is. */
+  .er-field.is-lit {
+    background: color-mix(in srgb, var(--dpk-blue) 16%, var(--dpk-paper-raised));
+  }
+
+  .er-field.is-lit .er-field-name {
+    color: var(--dpk-blue);
+    font-weight: 600;
+  }
+
+  .er-field.is-lit .er-field-type {
+    color: var(--dpk-ink-soft);
+  }
+
   .er-field.is-added {
-    background: color-mix(in srgb, var(--dpk-green) 10%, transparent);
+    background: color-mix(in srgb, var(--dpk-green) 9%, transparent);
   }
 
   .er-field.is-removed {
-    background: color-mix(in srgb, var(--dpk-accent) 10%, transparent);
+    background: color-mix(in srgb, var(--dpk-accent) 8%, transparent);
+  }
+
+  .er-field.is-removed :is(.er-field-name, .er-field-type) {
     text-decoration: line-through;
     color: var(--dpk-ink-faint);
   }
 
   .er-field.is-changed {
-    background: color-mix(in srgb, var(--dpk-amber) 10%, transparent);
-  }
-
-  .er-field.is-match {
-    outline: 1px solid var(--dpk-blue);
-    outline-offset: -1px;
-  }
-
-  .er-field-mark {
-    grid-area: mark;
-    font-family: var(--dpk-mono);
-    font-size: 10px;
-    text-align: center;
+    background: color-mix(in srgb, var(--dpk-amber) 9%, transparent);
   }
 
   .er-field.is-added .er-field-mark {
@@ -211,113 +380,178 @@ export const erStyles = css`
     color: var(--dpk-amber);
   }
 
-  .er-key {
-    grid-area: key;
-    display: grid;
-    place-items: center;
-    /* A column with several roles (FK + UQ) stacks one badge line per key. */
-    line-height: 1.25;
-    padding: 1px 0;
-    border-radius: 3px;
-    background: var(--dpk-paper-inset);
-    font-family: var(--dpk-mono);
-    font-size: 8.5px;
-    color: var(--dpk-ink-faint);
+  .er-field.is-match {
+    box-shadow: inset 0 0 0 1px var(--dpk-blue);
   }
 
-  .er-key[data-empty='true'] {
-    background: transparent;
-  }
-
-  .er-field-name {
-    grid-area: name;
-    font-family: var(--dpk-mono);
-    white-space: normal;
-    overflow-wrap: anywhere;
-    min-width: 0;
-  }
-
-  .er-field-type {
-    grid-area: type;
-    font-size: 9.5px;
-    color: var(--dpk-ink-faint);
-    white-space: normal;
-    overflow-wrap: anywhere;
-    min-width: 0;
-  }
-
-  .er-change {
-    grid-area: type;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    font-size: 9px;
-    line-height: 1.6;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    min-width: 0;
-    text-align: left;
-  }
-
-  .er-change del {
+  /* Old and new values side by side: the type in its own cell, the rest under the row. */
+  .er-field del {
     color: var(--dpk-accent);
     text-decoration: line-through;
   }
 
-  .er-change ins {
+  .er-field ins {
     color: var(--dpk-green);
     text-decoration: none;
   }
 
-  .er-edge .d-edge-path {
-    stroke-width: 1.5;
+  .er-deltas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    margin: -3px 0 0;
+    padding: 0 8px 6px var(--er-indent);
+    list-style: none;
+    font-family: var(--dpk-mono);
+    font-size: 10px;
+    line-height: 1.5;
   }
 
-  .er-edge.is-added .d-edge-path {
-    stroke: var(--dpk-green);
+  .er-delta {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--dpk-ink-faint);
+  }
+
+  .er-delta-name {
+    font-family: var(--dpk-body);
+    font-size: 9.5px;
+  }
+
+  /* ---- Relations ---- */
+
+  .er-edge {
+    --er-line: color-mix(in srgb, var(--dpk-ink-faint) 75%, transparent);
+  }
+
+  .er-edge.is-added {
+    --er-line: var(--dpk-green);
+  }
+
+  .er-edge.is-removed {
+    --er-line: var(--dpk-accent);
+  }
+
+  .er-edge.is-changed {
+    --er-line: var(--dpk-amber);
+  }
+
+  .er-edge.is-same:is(.is-lit, .is-selected) {
+    --er-line: var(--dpk-blue);
+  }
+
+  .er-edge .d-edge-path {
+    stroke: var(--er-line);
+    stroke-width: 1.25;
+  }
+
+  /* While something is lit, the relations it does not reach step back. */
+  .er-edge {
+    transition: opacity 160ms ease;
+  }
+
+  .er-edge.is-faded {
+    opacity: 0.28;
   }
 
   .er-edge.is-removed .d-edge-path {
-    stroke: var(--dpk-accent);
     stroke-dasharray: 5 4;
   }
 
+  .er-edge:is(.is-lit, :hover, :focus-visible) .d-edge-path {
+    stroke: var(--er-line);
+    stroke-width: 1.75;
+  }
+
   .er-edge.is-selected .d-edge-path {
-    stroke: var(--dpk-blue);
-    stroke-width: 2.6;
+    stroke: var(--er-line);
+    stroke-width: 2.25;
+  }
+
+  /* Dots running from the referenced column to the FK column while lit. */
+  .er-edge-flow {
+    fill: none;
+    stroke: none;
+    pointer-events: none;
+  }
+
+  .er-edge:is(.is-lit, .is-selected) .er-edge-flow {
+    stroke: var(--er-line);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 0.1 13;
+    animation: er-flow 900ms linear infinite;
+  }
+
+  @keyframes er-flow {
+    to {
+      stroke-dashoffset: -13.1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .er-edge:is(.is-lit, .is-selected) .er-edge-flow {
+      animation: none;
+    }
+  }
+
+  /* Crow's foot ends take the line's colour; the "zero" circle is hollow. */
+  .er-end {
+    pointer-events: none;
+    fill: var(--dpk-paper-sunken);
+    stroke: var(--er-line);
+    stroke-width: 1.25;
+    stroke-linecap: round;
+  }
+
+  .er-edge:is(.is-lit, .is-selected) .er-end {
+    stroke-width: 1.75;
+  }
+
+  /*
+   * Multiplicities and labels appear with the relation's highlight, as in
+   * Liam ERD, so the resting diagram stays quiet. A changed relation keeps
+   * them on: the change is in them.
+   */
+  .er-cardinality,
+  .er-relation-label {
+    paint-order: stroke;
+    stroke: var(--dpk-paper-sunken);
+    stroke-linejoin: round;
+    fill: var(--dpk-ink-soft);
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .er-edge:is(.is-lit, .is-selected, .is-changed, :hover, :focus-within) :is(.er-cardinality, .er-relation-label) {
+    opacity: 1;
   }
 
   .er-cardinality {
     font-family: var(--dpk-mono);
     font-size: 10px;
-    fill: var(--dpk-ink-soft);
-    paint-order: stroke;
-    stroke: var(--dpk-paper-sunken);
     stroke-width: 5px;
-    stroke-linejoin: round;
-  }
-
-  .er-cardinality.is-added {
-    fill: var(--dpk-green);
-  }
-
-  .er-cardinality.is-removed {
-    fill: var(--dpk-accent);
   }
 
   .er-relation-label {
     font-size: 10px;
     font-style: italic;
-    fill: var(--dpk-ink-soft);
-    paint-order: stroke;
-    stroke: var(--dpk-paper-sunken);
     stroke-width: 4px;
   }
 
+  .er-edge.is-same:is(.is-lit, .is-selected) :is(.er-cardinality, .er-relation-label) {
+    fill: var(--dpk-blue);
+  }
+
+  .er-cardinality.is-added,
   .er-relation-label.is-added {
     fill: var(--dpk-green);
   }
 
+  .er-cardinality.is-removed,
   .er-relation-label.is-removed {
     fill: var(--dpk-accent);
   }
@@ -330,36 +564,6 @@ export const erStyles = css`
   .er-was {
     fill: var(--dpk-accent);
     text-decoration: line-through;
-  }
-
-  .er-edge.is-changed .d-edge-path {
-    stroke: var(--dpk-amber);
-  }
-
-  /* Crow's foot ends take the line's colour; the "zero" circle is hollow. */
-  .er-end {
-    pointer-events: none;
-    fill: var(--dpk-paper-raised);
-    stroke: var(--dpk-ink-faint);
-    stroke-width: 1.5;
-    stroke-linecap: round;
-  }
-
-  .er-edge.is-added .er-end {
-    stroke: var(--dpk-green);
-  }
-
-  .er-edge.is-removed .er-end {
-    stroke: var(--dpk-accent);
-  }
-
-  .er-edge.is-changed .er-end {
-    stroke: var(--dpk-amber);
-  }
-
-  .er-edge.is-selected .er-end {
-    stroke: var(--dpk-blue);
-    stroke-width: 2;
   }
 
   .diagram-legend .er-legend-cardinality {
@@ -379,85 +583,256 @@ export const erStyles = css`
     border-color: var(--dpk-amber);
   }
 
-  .er-field {
-    position: relative;
-  }
-
-  .er-field-edit {
-    position: absolute;
-    top: 3px;
-    right: 4px;
-    padding: 1px 5px;
-    border: 0;
-    border-radius: var(--dpk-radius-xs);
-    background: var(--dpk-paper-raised);
-    color: var(--dpk-ink-soft);
-    font-size: 11px;
-    cursor: pointer;
-    opacity: 0;
-  }
-
-  .er-field:hover .er-field-edit,
-  .er-field-edit:focus-visible {
-    opacity: 1;
-  }
-
-  @media (hover: none) {
-    .er-field-edit {
-      opacity: 1;
-    }
-  }
-
-  .er-edit,
-  .er-add {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    grid-column: 1 / -1;
-  }
+  /* ---- Adding and editing columns ---- */
 
   .er-add {
-    padding: 6px 10px;
     border-top: 1px solid var(--dpk-rule);
   }
 
-  .er-edit-nullable {
+  .er-add-button {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 11px;
-  }
-
-  .er-add-button {
-    padding: 4px 8px;
-    border: 1px dashed var(--dpk-rule-strong);
-    border-radius: var(--dpk-radius-sm);
+    gap: 7px;
+    width: 100%;
+    min-height: 30px;
+    padding: 4px 10px 4px calc(var(--er-indent) - 23px);
+    border: 0;
     background: none;
-    color: var(--dpk-ink-soft);
+    color: var(--dpk-ink-faint);
     font-family: var(--dpk-body);
     font-size: 11.5px;
     text-align: left;
     cursor: pointer;
+    transition:
+      background 120ms ease,
+      color 120ms ease;
   }
 
-  .er-add-button:hover,
-  .er-add-button:focus-visible {
-    background: var(--dpk-paper-raised);
+  .er-add-button:hover {
+    background: color-mix(in srgb, var(--dpk-paper-inset) 45%, transparent);
     color: var(--dpk-ink);
-    outline: none;
   }
 
-  .er-add .dpk-input,
-  .er-edit .dpk-input {
-    width: 100%;
+  .er-add-button:focus-visible {
+    outline: none;
+    color: var(--dpk-ink);
+    box-shadow: inset 0 0 0 2px var(--dpk-blue);
+  }
+
+  .er-add-button.is-open {
+    background: color-mix(in srgb, var(--dpk-blue) 9%, transparent);
+    color: var(--dpk-ink);
+  }
+
+  /* The row being edited stays in place under the editor, ringed. */
+  .er-field.is-editing {
+    background: color-mix(in srgb, var(--dpk-blue) 9%, var(--dpk-paper-raised));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 65%, transparent);
+  }
+
+  .er-field.is-editing .er-field-edit {
+    opacity: 1;
+    color: var(--dpk-blue);
+  }
+
+  /* The editor: a small card in the top layer, like a tooltip, under its row. */
+  .er-editor {
+    box-sizing: border-box;
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    overflow: auto;
+    display: grid;
+    gap: 10px;
+    padding: 10px 12px 12px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow);
+    color: var(--dpk-ink);
+    font-family: var(--dpk-body);
     font-size: 12px;
+    animation: er-editor-in 140ms var(--dpk-ease);
+  }
+
+  @keyframes er-editor-in {
+    from {
+      opacity: 0;
+      transform: translateY(-3px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .er-editor {
+      animation: none;
+    }
+  }
+
+  .er-editor-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--dpk-rule);
+  }
+
+  .er-editor-title {
+    flex-shrink: 0;
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+
+  .er-editor-target {
+    min-width: 0;
+    margin-left: auto;
+    overflow: hidden;
+    font-family: var(--dpk-mono);
+    font-size: 11px;
+    color: var(--dpk-ink-faint);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .er-editor-fields {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .er-editor-field {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .er-editor-field .dpk-input {
+    min-height: 28px;
+    padding: 3px 8px;
+    font-family: var(--dpk-mono);
+    font-size: 11.5px;
+  }
+
+  .er-editor-field .dpk-input[aria-invalid='true'] {
+    border-color: var(--dpk-accent);
+  }
+
+  .er-editor-combo {
+    min-width: 0;
+  }
+
+  /* A manual popover in the top layer, placed by the element; the UA popover box is reset. */
+  .er-type-options {
+    box-sizing: border-box;
+    position: fixed;
+    inset: auto;
+    align-content: start;
+    gap: 1px;
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow);
+    color: var(--dpk-ink);
+    list-style: none;
+  }
+
+  .er-type-options:popover-open {
+    display: grid;
+  }
+
+  .er-type-options [role='option'] {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 4px 8px;
+    border-radius: var(--dpk-radius-xs);
+    color: var(--dpk-ink-soft);
+    font-size: 11.5px;
+    cursor: pointer;
+  }
+
+  .er-type-options [role='option']:hover,
+  .er-type-options [role='option'][aria-selected='true'] {
+    background: var(--dpk-paper-sunken);
+    color: var(--dpk-ink);
+  }
+
+  .er-type-options code {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--dpk-mono);
+  }
+
+  .er-type-options [data-kind='new'] .er-icon {
+    color: var(--dpk-green);
+  }
+
+  .er-type-option-hint {
+    flex: none;
+    margin-left: auto;
+    padding-left: 8px;
+    color: var(--dpk-ink-faint);
+    font-size: 10.5px;
+  }
+
+  .er-editor-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    font-size: 11.5px;
+    color: var(--dpk-ink-soft);
+    cursor: pointer;
+  }
+
+  .er-editor-check input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    accent-color: var(--dpk-blue);
+    cursor: pointer;
+  }
+
+  .er-editor-foot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .er-editor-keys {
+    margin-right: auto;
+    font-size: 10px;
+    color: var(--dpk-ink-faint);
+  }
+
+  .er-editor-foot .dpk-btn {
+    min-height: 26px;
+    padding: 0 12px;
+    font-size: 11.5px;
+  }
+
+  .er-editor-note,
+  .er-error {
+    margin: 0;
+    font-size: 10.5px;
+    line-height: 1.45;
+  }
+
+  .er-editor-note {
+    color: var(--dpk-accent);
   }
 
   .er-error {
-    padding: 4px 7px;
+    padding: 5px 8px;
     border-radius: var(--dpk-radius-xs);
     background: var(--dpk-accent-soft);
     color: var(--dpk-accent);
-    font-size: 11.5px;
   }
 `;

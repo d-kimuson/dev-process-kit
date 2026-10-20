@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { diagramMessages } from '../diagram/messages';
 import { DpkComponentErDiagram } from './element';
@@ -483,12 +483,21 @@ describe('dpk-component-er-diagram', () => {
     expect(element.renderRoot.querySelector(`[data-relation="${relation}"] .er-relation-label`)?.textContent).toBe(
       'settles',
     );
+    // The row leads with the FK icon and names the key it cannot show; the rest of the change sits under it.
+    const row = element.renderRoot.querySelector('[data-er-table="child"] .er-field[data-field="order_id"]');
+    expect(row?.querySelector('.er-icon')?.getAttribute('data-icon')).toBe('foreign');
+    expect([...(row?.querySelectorAll('.er-key') ?? [])].map((key) => key.textContent)).toEqual(['UQ']);
     expect(
-      [...element.renderRoot.querySelectorAll('[data-er-table="child"] .er-key span')].map((key) => key.textContent),
-    ).toEqual(['FK', 'UQ']);
-    expect(element.renderRoot.querySelector('[data-er-table="child"] .er-change ins')?.textContent).toContain(
-      'FK+UQ · orders.id · “settles”',
-    );
+      [...(row?.querySelectorAll('.er-delta') ?? [])].map((delta) => [
+        delta.getAttribute('data-attribute'),
+        delta.querySelector('del')?.textContent,
+        delta.querySelector('ins')?.textContent,
+      ]),
+    ).toEqual([
+      ['keys', 'FK', 'FK+UQ'],
+      ['label', '—', '“settles”'],
+    ]);
+    expect(row?.querySelector('.er-field-type del')).toBeNull();
   });
 
   it('filters tables and fields by search text', async () => {
@@ -530,6 +539,101 @@ describe('dpk-component-er-diagram', () => {
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('orders · 注文');
     expect(element.renderRoot.querySelector('[data-field-comment]')).toBeNull();
     expect(element.commentTargets.some((target) => target.value.includes('/field/'))).toBe(false);
+  });
+
+  const litOf = (element: DpkComponentErDiagram, selector: string) =>
+    [...element.renderRoot.querySelectorAll<HTMLElement>(`${selector}.is-lit`)].map(
+      (item) =>
+        item.dataset['relation'] ??
+        item.dataset['erTable'] ??
+        `${item.closest<HTMLElement>('[data-er-table]')?.dataset['erTable']}.${item.dataset['field']}`,
+    );
+
+  it('lights a hovered table, its neighbours, their relations and the joined columns, fading only the other relations', async () => {
+    const element = await mount();
+    const card = element.renderRoot.querySelector('[data-er-table="customers"]');
+    card?.dispatchEvent(new Event('pointerenter'));
+    await element.updateComplete;
+    expect(classes(element, 'customers')).toContain('is-lit');
+    expect(classes(element, 'orders')).toContain('is-lit');
+    expect(classes(element, 'inventory_reservations')).not.toContain('is-lit');
+    expect(litOf(element, '.er-edge')).toEqual(['customers:id>orders:customer_id']);
+    expect(litOf(element, '.er-field')).toEqual(['customers.id', 'orders.customer_id']);
+    expect(element.renderRoot.querySelector('.is-dimmed')).toBeNull();
+    expect(
+      element.renderRoot.querySelector('[data-relation="orders:id>inventory_reservations:order_id"]')?.classList,
+    ).toContain('is-faded');
+    card?.dispatchEvent(new Event('pointerleave'));
+    await element.updateComplete;
+    expect(element.renderRoot.querySelector('.is-lit')).toBeNull();
+    expect(element.renderRoot.querySelector('.is-faded')).toBeNull();
+  });
+
+  it('traces one key from a hovered column row, and the whole table again once the pointer leaves the row', async () => {
+    const element = await mount();
+    const card = element.renderRoot.querySelector('[data-er-table="orders"]');
+    const row = card?.querySelector('.er-field[data-field="customer_id"]');
+    card?.dispatchEvent(new Event('pointerenter'));
+    row?.dispatchEvent(new Event('pointerenter'));
+    await element.updateComplete;
+    expect(litOf(element, '.er-edge')).toEqual(['customers:id>orders:customer_id']);
+    expect(litOf(element, '.er-field')).toEqual(['customers.id', 'orders.customer_id']);
+    expect(litOf(element, '.er-table')).toEqual(['customers', 'orders']);
+    row?.dispatchEvent(new Event('pointerleave'));
+    await element.updateComplete;
+    expect(litOf(element, '.er-edge')).toHaveLength(3);
+  });
+
+  it('lights the two columns a hovered relation joins', async () => {
+    const element = await mount();
+    element.renderRoot
+      .querySelector('[data-relation="orders:id>inventory_reservations:order_id"]')
+      ?.dispatchEvent(new Event('pointerenter'));
+    await element.updateComplete;
+    expect(litOf(element, '.er-field')).toEqual(['orders.id', 'inventory_reservations.order_id']);
+    expect(litOf(element, '.er-table')).toEqual(['orders', 'inventory_reservations']);
+  });
+
+  it('keeps the hovered relation on the line under the pointer while it moves on top', async () => {
+    const element = await mount();
+    const hovered = element.renderRoot.querySelector('[data-relation="customers:id>orders:customer_id"]');
+    hovered?.dispatchEvent(new Event('pointerenter'));
+    await element.updateComplete;
+    expect(hovered?.getAttribute('data-relation')).toBe('customers:id>orders:customer_id');
+    expect(hovered?.classList).toContain('is-lit');
+    hovered?.dispatchEvent(new Event('pointerleave'));
+    await element.updateComplete;
+    expect(element.renderRoot.querySelector('.er-edge.is-lit')).toBeNull();
+  });
+
+  it('keeps unrelated tables undimmed while one is selected, and lights it like a hover', async () => {
+    const element = await mount();
+    element.renderRoot.querySelector<HTMLButtonElement>('[data-table="inventory_reservations"]')?.click();
+    await element.updateComplete;
+    expect(classes(element, 'inventory_reservations')).toEqual(expect.arrayContaining(['is-selected', 'is-lit']));
+    expect(classes(element, 'orders')).toContain('is-lit');
+    expect(classes(element, 'customers')).not.toContain('is-lit');
+    expect(element.renderRoot.querySelector('.is-dimmed')).toBeNull();
+  });
+
+  it('forgets a hovered table the search removed, in the same update', async () => {
+    const element = await mount();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    element.renderRoot.querySelector('[data-er-table="customers"]')?.dispatchEvent(new Event('pointerenter'));
+    await element.updateComplete;
+    const search = async (value: string) => {
+      const input = element.renderRoot.querySelector<HTMLInputElement>('.er-search input');
+      if (!input) throw new Error('missing search input');
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await settle(element);
+    };
+    await search('quantity');
+    await search('');
+    expect(element.renderRoot.querySelector('.is-lit')).toBeNull();
+    // Lit warns when updated() schedules another update.
+    expect(warn.mock.calls.flat().join(' ')).not.toContain('scheduled an update');
+    warn.mockRestore();
   });
 
   it('opens the same contextual composer for a relationship', async () => {
@@ -626,13 +730,20 @@ describe('dpk-component-er-diagram', () => {
       name.dispatchEvent(new Event('input'));
       type.value = 'text';
       type.dispatchEvent(new Event('input'));
-      type.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      type.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       await settle(element);
       expect(seen).toMatchObject({
         type: 'ADD_FIELD',
         target: 'element:erd/node/orders',
         payload: { id: 'note', type: 'text' },
       });
+    });
+
+    it('offers no column editing without an id, which every recorded change is addressed by', async () => {
+      const element = await mount();
+      expect(element.renderRoot.querySelector('[data-er-table="orders"]')).not.toBeNull();
+      expect(element.renderRoot.querySelector('[data-action="add-field"]')).toBeNull();
+      expect(element.renderRoot.querySelector('[data-action="edit-field"]')).toBeNull();
     });
 
     it('shows an error and keeps the input when no template records it', async () => {
@@ -652,9 +763,278 @@ describe('dpk-component-er-diagram', () => {
       name.dispatchEvent(new Event('input'));
       type.value = 'text';
       type.dispatchEvent(new Event('input'));
-      type.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      type.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       await settle(element);
-      expect(element.renderRoot.querySelector('.er-add [role="alert"]')).not.toBeNull();
+      expect(element.renderRoot.querySelector('.er-editor [role="alert"]')).not.toBeNull();
+    });
+
+    const options = (element: DpkComponentErDiagram) =>
+      [...element.renderRoot.querySelectorAll('.er-editor [role="option"]')].map((option) =>
+        option.getAttribute('data-type'),
+      );
+
+    const mountRecording = async () => {
+      const element = new DpkComponentErDiagram();
+      element.id = 'erd';
+      element.data = parseErData(raw);
+      document.body.append(element);
+      await settle(element);
+      const seen: unknown[] = [];
+      element.addEventListener('dpk-element-action', (event) => {
+        if (!(event instanceof CustomEvent)) return;
+        event.preventDefault();
+        seen.push(event.detail);
+      });
+      const query = <T extends Element>(selector: string): T => {
+        const found = element.renderRoot.querySelector<T>(selector);
+        if (!found) throw new Error(`no ${selector}`);
+        return found;
+      };
+      const type = (input: HTMLInputElement, value: string) => {
+        input.value = value;
+        input.dispatchEvent(new Event('input'));
+      };
+      return { element, seen, query, type };
+    };
+
+    it('saves an edited type and nullability with the Save button, once something changed', async () => {
+      const { element, seen, query, type } = await mountRecording();
+      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="status"]').click();
+      await settle(element);
+      const save = query<HTMLButtonElement>('.er-editor [data-action="submit-column"]');
+      expect(element.shadowRoot?.activeElement).toBe(query('[data-input="edit-type"]'));
+      expect(save.disabled).toBe(true);
+      type(query('[data-input="edit-type"]'), 'order_status');
+      const nullable = query<HTMLInputElement>('[data-input="nullable"]');
+      nullable.checked = true;
+      nullable.dispatchEvent(new Event('change'));
+      await settle(element);
+      expect(save.disabled).toBe(false);
+      save.click();
+      await settle(element);
+      expect(seen).toMatchObject([
+        {
+          type: 'EDIT_FIELD',
+          target: 'element:erd/node/orders',
+          payload: { field: 'status', type: 'order_status', nullable: true },
+        },
+      ]);
+      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+    });
+
+    it('moves from the name to the type on Enter, and refuses a name the table already uses', async () => {
+      const { element, seen, query, type } = await mountRecording();
+      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]').click();
+      await settle(element);
+      const name = query<HTMLInputElement>('[data-input="add-name"]');
+      expect(element.shadowRoot?.activeElement).toBe(name);
+      type(name, 'status');
+      name.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await settle(element);
+      expect(element.shadowRoot?.activeElement).toBe(query('[data-input="add-type"]'));
+      type(query('[data-input="add-type"]'), 'text');
+      await settle(element);
+      expect(query('.er-editor [role="status"]').textContent).toContain(m.columnNameTaken);
+      expect(query<HTMLButtonElement>('[data-action="submit-column"]').disabled).toBe(true);
+      query<HTMLButtonElement>('[data-action="submit-column"]').click();
+      await settle(element);
+      expect(seen).toEqual([]);
+    });
+
+    it('closes on Cancel without recording, and gives focus back to the button that opened it', async () => {
+      const { element, seen, query, type } = await mountRecording();
+      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]').click();
+      await settle(element);
+      type(query('[data-input="add-name"]'), 'note');
+      query<HTMLButtonElement>('[data-action="cancel-column"]').click();
+      await settle(element);
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+      expect(element.shadowRoot?.activeElement).toBe(query('[data-er-table="orders"] [data-action="add-field"]'));
+      expect(seen).toEqual([]);
+    });
+
+    it('keeps the typed input after Escape, and discards it on Cancel', async () => {
+      const { element, query, type } = await mountRecording();
+      const open = async () => {
+        query<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]').click();
+        await settle(element);
+      };
+      await open();
+      type(query('[data-input="add-name"]'), 'note');
+      query('[data-input="add-name"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+      await open();
+      expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
+      query<HTMLButtonElement>('[data-action="cancel-column"]').click();
+      await settle(element);
+      await open();
+      expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('');
+    });
+
+    it('floats the editor beside the row it edits, which stays in place and marked', async () => {
+      const { element, query } = await mountRecording();
+      const pencil = query<HTMLButtonElement>(
+        '[data-er-table="orders"] [data-action="edit-field"][data-field="status"]',
+      );
+      expect(pencil.getAttribute('aria-expanded')).toBe('false');
+      pencil.click();
+      await settle(element);
+      const editor = query<HTMLElement>('.er-editor');
+      expect(editor.getAttribute('popover')).toBe('manual');
+      expect(editor.closest('[data-er-table]')).toBeNull();
+      expect(editor.querySelector('.er-editor-target')?.textContent).toBe('orders.status');
+      const row = query<HTMLElement>('[data-er-table="orders"] .er-field[data-field="status"]');
+      expect(row.classList).toContain('is-editing');
+      expect(row.querySelector('.er-field-type')).not.toBeNull();
+      expect(pencil.getAttribute('aria-expanded')).toBe('true');
+      expect(editor.getAttribute('aria-label')).toContain('orders.status');
+    });
+
+    it('offers every type in the schema while the search hides other tables', async () => {
+      const { element, query } = await mountRecording();
+      const search = query<HTMLInputElement>('.er-search input');
+      search.value = 'orders';
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+      await settle(element);
+      expect(element.renderRoot.querySelector('[data-er-table="customers"]')).toBeNull();
+      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]').click();
+      await settle(element);
+      query<HTMLInputElement>('[data-input="add-type"]').click();
+      await settle(element);
+      expect(options(element)).toContain('varchar');
+    });
+
+    describe('type combobox', () => {
+      const press = (input: HTMLInputElement, key: string, init: KeyboardEventInit = {}) =>
+        input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
+      const editStatus = async () => {
+        const recording = await mountRecording();
+        recording
+          .query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="status"]')
+          .click();
+        await settle(recording.element);
+        return { ...recording, input: recording.query<HTMLInputElement>('[data-input="edit-type"]') };
+      };
+
+      it('keeps its list closed until the input is clicked, then lists every type with the current one highlighted', async () => {
+        const { element, input } = await editStatus();
+        expect(input.getAttribute('role')).toBe('combobox');
+        expect(element.shadowRoot?.activeElement).toBe(input);
+        expect(input.getAttribute('aria-expanded')).toBe('false');
+        expect(options(element)).toEqual([]);
+        input.click();
+        await settle(element);
+        expect(input.getAttribute('aria-expanded')).toBe('true');
+        expect(options(element)).toEqual(['bigint', 'char(3)', 'integer', 'order_status', 'uuid', 'varchar']);
+        const active = element.renderRoot.querySelector('.er-editor [role="option"][aria-selected="true"]');
+        expect(active?.getAttribute('data-type')).toBe('order_status');
+        expect(input.getAttribute('aria-activedescendant')).toBe(active?.id);
+      });
+
+      it('narrows while typing, offers what was typed as a new type, and takes the highlighted one on Enter', async () => {
+        const { element, seen, input, type } = await editStatus();
+        type(input, 'int');
+        await settle(element);
+        expect(options(element)).toEqual(['integer', 'bigint', 'int']);
+        expect(element.renderRoot.querySelector('.er-editor [role="option"][data-kind="new"]')?.textContent).toContain(
+          m.columnTypeNew,
+        );
+        press(input, 'ArrowDown');
+        await settle(element);
+        press(input, 'Enter');
+        await settle(element);
+        expect(input.value).toBe('bigint');
+        expect(input.getAttribute('aria-expanded')).toBe('false');
+        expect(seen).toEqual([]);
+        press(input, 'Enter');
+        await settle(element);
+        expect(seen).toMatchObject([{ type: 'EDIT_FIELD', payload: { field: 'status', type: 'bigint' } }]);
+      });
+
+      it('records a type the schema does not use yet with one Enter', async () => {
+        const { element, seen, input, type } = await editStatus();
+        type(input, 'jsonb');
+        await settle(element);
+        expect(options(element)).toEqual(['jsonb']);
+        press(input, 'Enter');
+        await settle(element);
+        expect(seen).toMatchObject([{ type: 'EDIT_FIELD', payload: { field: 'status', type: 'jsonb' } }]);
+      });
+
+      it('takes a clicked type, keeping the focus in the input', async () => {
+        const { element, query, input } = await editStatus();
+        input.click();
+        await settle(element);
+        const option = query('.er-editor [role="option"][data-type="uuid"]');
+        option.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+        option.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        await settle(element);
+        expect(input.value).toBe('uuid');
+        expect(element.shadowRoot?.activeElement).toBe(input);
+        expect(options(element)).toEqual([]);
+      });
+
+      it('closes the list on Escape before the editor, and leaves Enter to the IME while it composes', async () => {
+        const { element, input, type } = await editStatus();
+        type(input, 'int');
+        await settle(element);
+        press(input, 'Enter', { isComposing: true });
+        await settle(element);
+        expect(input.value).toBe('int');
+        press(input, 'Escape');
+        await settle(element);
+        expect(options(element)).toEqual([]);
+        expect(element.renderRoot.querySelector('.er-editor')).not.toBeNull();
+        press(input, 'ArrowDown');
+        await settle(element);
+        expect(options(element)).toEqual(['integer', 'bigint', 'int']);
+        press(input, 'Escape');
+        await settle(element);
+        press(input, 'Escape');
+        await settle(element);
+        expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+      });
+    });
+
+    it('closes with its trigger or a press outside, keeping the input, and moves to another column', async () => {
+      const { element, query, type } = await mountRecording();
+      const add = query<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]');
+      add.click();
+      await settle(element);
+      type(query('[data-input="add-name"]'), 'note');
+      add.click();
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+      add.click();
+      await settle(element);
+      expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+      add.click();
+      await settle(element);
+      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="status"]').click();
+      await settle(element);
+      expect(query('.er-editor').getAttribute('data-kind')).toBe('edit');
+      add.click();
+      await settle(element);
+      expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
+    });
+
+    it('leads each row with the icon of its strongest role', async () => {
+      const element = await mount();
+      const icons = [...element.renderRoot.querySelectorAll('[data-er-table="orders"] .er-field .er-icon')].map(
+        (icon) => [icon.getAttribute('data-icon'), icon.getAttribute('aria-label')],
+      );
+      expect(icons).toEqual([
+        ['primary', m.columnRole('primary')],
+        ['foreign', m.columnRole('foreign')],
+        ['not-null', m.columnRole('not-null')],
+        ['not-null', m.columnRole('not-null')],
+        ['nullable', m.columnRole('nullable')],
+      ]);
     });
   });
 });

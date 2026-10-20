@@ -14,10 +14,10 @@ import { elementRefSegments, type DiagramEdgeInput, type DiagramNodeInput } from
  * snapshots, so red/green can never disagree with the data.
  */
 
-export const TABLE_WIDTH = 276;
-export const TABLE_HEAD_HEIGHT = 74;
-const ROW_HEIGHT = 28;
-const CHANGED_ROW_HEIGHT = 44;
+export const TABLE_WIDTH = 280;
+export const TABLE_HEAD_HEIGHT = 40;
+const ROW_HEIGHT = 32;
+const CHANGED_ROW_HEIGHT = 52;
 
 export type ErStatus = 'same' | 'added' | 'removed' | 'changed';
 export type ErKey = 'PK' | 'FK' | 'UQ';

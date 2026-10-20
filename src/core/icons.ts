@@ -12,8 +12,10 @@ import {
   ChevronRight,
   CircleQuestionMark,
   Copy,
+  Diamond,
   GripVertical,
   History,
+  KeyRound,
   Link,
   Maximize2,
   MessageSquare,
@@ -26,6 +28,7 @@ import {
   Plus,
   Settings,
   Sun,
+  Table2,
   Trash,
   X,
   type IconNode,
@@ -94,3 +97,6 @@ export const iconMinimize = lucide(Minimize2);
 export const iconSun = lucide(Sun);
 export const iconMoon = lucide(Moon);
 export const iconBell = lucide(Bell);
+export const iconKey = lucide(KeyRound);
+export const iconDiamond = lucide(Diamond);
+export const iconTable = lucide(Table2);
