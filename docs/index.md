@@ -28,6 +28,8 @@ Pick the one template whose subject is what you need to agree on with the reader
 | Loose ideas to group, cluster and connect  | `whiteboard`                     |
 | Anything else                              | `plain`, with diagram components |
 
+Several subjects at once — scope, domain and screens of one feature — go on one page as boards of a `<dpk-page>`, with one review for all of them: see [page.md](page.md).
+
 Decisions you still need from the reader are not a template of their own: any template can ask them with [Questions (grill)](#questions-grill).
 
 ## Load it
@@ -61,7 +63,7 @@ A template entry registers that template, the review rail and inline editing. Ad
 </dpk-template-prototype>
 ```
 
-One HTML file holds exactly one page root. What goes inside the base data, and which light DOM a template matches, is the template's business: each template documents its own shape under `docs/templates/`.
+One HTML file holds exactly one page root: a template, or a `<dpk-page>` holding templates as boards ([page.md](page.md)). What goes inside the base data, and which light DOM a template matches, is the template's business: each template documents its own shape under `docs/templates/`.
 
 ## Page height
 
@@ -463,6 +465,7 @@ The header gets a bell, and each reader is told only what is new to them:
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | The template I am actually using  | `docs/templates/<name>.md` (prototype / usm / event-storming / example-mapping / plain / slides / task-board / delegation-poker / whiteboard) |
 | The component I am actually using | `docs/components/<name>.md` (comment-panel / diagrams / formal-spec / …)                                                                      |
+| Several templates on one page     | `docs/page.md`                                                                                                                                |
 | Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                     |
 
 Read the page for what you are actually using, plus this one.
