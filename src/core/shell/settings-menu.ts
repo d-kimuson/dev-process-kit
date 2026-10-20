@@ -12,6 +12,8 @@ import type { ActionInput, TemplateSetting, TemplateSettings } from '../types';
 import { iconCheck, iconSettings } from '../icons';
 
 export const SETTINGS_ID = 'dpk-settings';
+/** A header element the settings menu opens under instead of the header actions. */
+export const SETTINGS_ANCHOR = 'dpk-settings-anchor';
 
 /** As wide as a switch's hint reads in two or three lines. */
 export const SETTINGS_SIZE = { width: 320, height: 420 } as const;

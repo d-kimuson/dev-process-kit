@@ -150,6 +150,20 @@ export type TemplateDefinition<S> = {
   /** Action vocabulary. `comment` is contributed by the core. */
   readonly actions: Readonly<Record<string, ActionDescriptor>>;
 
+  /**
+   * Looks the descriptor up by target as well as by type, for a definition
+   * whose vocabulary depends on what the action is about (a page routes each
+   * action to the board its target names). Without it, `actions[type]` is used.
+   */
+  actionFor?(type: string, target: ActionTarget | undefined): ActionDescriptor | undefined;
+
+  /**
+   * Whether a `page:` target still names something. Without it, a comment on
+   * a page always applies; a page holding boards says a board that is gone no
+   * longer does.
+   */
+  pageTargetExists?(state: S, target: ActionTarget): boolean;
+
   /** Pure reducer for a single action. `null` when not applicable. */
   apply(state: S, action: DraftAction): ApplyResult<S>;
 

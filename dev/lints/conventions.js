@@ -394,6 +394,10 @@ const allowedTags = (filename) => {
       expected: `\`dpk-template-${name}\` or \`dpk-internal-${name}-*\``,
     };
   }
+  // The page host is the one role named without a suffix (`dev-docs/adr/20261020_multi-board-pages.md`).
+  if (/\/src\/page\//.test(filename)) {
+    return { matches: (tag) => tag === 'dpk-page', expected: '`dpk-page`' };
+  }
   const component = filename.match(/\/src\/components\/([^/]+)\//);
   if (component) {
     const name = component[1];
@@ -413,7 +417,7 @@ const elementNaming = {
         if (!allowed) {
           context.report({
             node,
-            message: 'Custom elements are registered only in src/templates/** and src/components/**.',
+            message: 'Custom elements are registered only in src/templates/**, src/components/** and src/page/**.',
           });
           return;
         }

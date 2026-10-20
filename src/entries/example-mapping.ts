@@ -12,6 +12,7 @@
 import { defineCommentPanel } from '../components/comment-panel/index';
 import { defineInlineEdit } from '../components/inline-edit';
 import { startEntry } from '../core/version-loader';
+import { definePageElement } from '../page/index';
 import { defineExampleMappingElement } from '../templates/example-mapping';
 
 export * from '../core/index';
@@ -27,5 +28,6 @@ startEntry({
     defineCommentPanel();
     defineInlineEdit();
     defineExampleMappingElement();
+    definePageElement();
   },
 });

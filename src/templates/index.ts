@@ -1,3 +1,4 @@
+import { definePageElement } from '../page/index';
 import { defineDelegationPokerElement } from './delegation-poker';
 import { defineEventStormingElement } from './event-storming';
 import { defineExampleMappingElement } from './example-mapping';
@@ -26,4 +27,6 @@ export const registerTemplateElements = (): void => {
   defineTaskBoardElement();
   defineDelegationPokerElement();
   defineWhiteboardElement();
+  // A page of boards works with any of them.
+  definePageElement();
 };

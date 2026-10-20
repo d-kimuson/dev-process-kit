@@ -333,6 +333,7 @@ const descriptorOf = <S>(
   if (type === 'comment') return COMMENT_DESCRIPTOR;
   if (type === ANSWER_ACTION) return ANSWER_DESCRIPTOR;
   if (target !== undefined && isElementAction({ type, target })) return ELEMENT_DESCRIPTOR;
+  if (definition.actionFor) return definition.actionFor(type, target);
   return ownAction(definition.actions, type);
 };
 
