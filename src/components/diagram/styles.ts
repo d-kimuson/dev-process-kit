@@ -60,6 +60,8 @@ export const diagramStyles = [
         var(--dpk-paper-raised);
       box-shadow: none;
       resize: none;
+      /* Above the dock in the top layer, so nothing to clear. */
+      --dpk-dock-overlap: 0px;
     }
 
     .diagram-maximize {
@@ -262,10 +264,15 @@ export const diagramStyles = [
       pointer-events: none;
     }
 
+    /*
+     * The controls along the bottom edge rise by \`--dpk-dock-overlap\`, set
+     * where the shell's hand-off dock floats over that edge, rather than the
+     * diagram giving up room to it.
+     */
     .diagram-zoom {
       position: absolute;
       right: 12px;
-      bottom: 12px;
+      bottom: calc(12px + var(--dpk-dock-overlap, 0px));
       display: flex;
       overflow: hidden;
       border: 1px solid var(--dpk-rule-strong);
@@ -313,7 +320,7 @@ export const diagramStyles = [
     .diagram-legend {
       position: absolute;
       left: 12px;
-      bottom: 14px;
+      bottom: calc(14px + var(--dpk-dock-overlap, 0px));
       display: flex;
       gap: 12px;
       flex-wrap: wrap;

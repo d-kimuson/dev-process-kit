@@ -984,7 +984,13 @@ export const chromeStyles = [
       max-height: calc(100dvh - 120px);
       overflow: auto;
       overscroll-behavior: contain;
-      padding: 4px calc(16px + var(--dpk-dock-space, 0px)) 16px 16px;
+      padding: 4px 16px 16px;
+      /*
+       * The dock floats over the bottom of what is open; showing it must not
+       * resize that. Components lift the controls along their bottom edge by
+       * this much instead.
+       */
+      --dpk-dock-overlap: var(--dpk-dock-clearance, 0px);
       font-size: 12.5px;
       line-height: 1.7;
       color: var(--dpk-ink-soft);
