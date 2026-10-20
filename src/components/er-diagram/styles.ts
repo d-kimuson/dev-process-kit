@@ -378,4 +378,86 @@ export const erStyles = css`
   .diagram-legend .er-swatch-changed {
     border-color: var(--dpk-amber);
   }
+
+  .er-field {
+    position: relative;
+  }
+
+  .er-field-edit {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    padding: 1px 5px;
+    border: 0;
+    border-radius: var(--dpk-radius-xs);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
+    font-size: 11px;
+    cursor: pointer;
+    opacity: 0;
+  }
+
+  .er-field:hover .er-field-edit,
+  .er-field-edit:focus-visible {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    .er-field-edit {
+      opacity: 1;
+    }
+  }
+
+  .er-edit,
+  .er-add {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    grid-column: 1 / -1;
+  }
+
+  .er-add {
+    padding: 6px 10px;
+    border-top: 1px solid var(--dpk-rule);
+  }
+
+  .er-edit-nullable {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .er-add-button {
+    padding: 4px 8px;
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    background: none;
+    color: var(--dpk-ink-soft);
+    font-family: var(--dpk-body);
+    font-size: 11.5px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .er-add-button:hover,
+  .er-add-button:focus-visible {
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
+    outline: none;
+  }
+
+  .er-add .dpk-input,
+  .er-edit .dpk-input {
+    width: 100%;
+    font-size: 12px;
+  }
+
+  .er-error {
+    padding: 4px 7px;
+    border-radius: var(--dpk-radius-xs);
+    background: var(--dpk-accent-soft);
+    color: var(--dpk-accent);
+    font-size: 11.5px;
+  }
 `;

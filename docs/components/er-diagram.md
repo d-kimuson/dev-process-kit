@@ -90,6 +90,19 @@ Every relation has two multiplicities — `1`, `0..1`, `1..N` or `0..N` — one 
 - **Selection** highlights the tables connected to the selected one (either direction) and dims the rest. It never adds a detail panel below the canvas.
 - **Comments** — give the diagram a stable HTML `id` and place it inside a template. Hover a table or relationship to reveal its comment icon, then activate the icon to open the shared composer beside it. Selection alone does not open the input. Keyboard focus also reveals the icon, and it stays visible on devices without hover. The composer follows pan/zoom without resizing the diagram. Send there with the button or `Ctrl`/`Cmd+Enter`; the comment is saved to the template's Review without opening its rail. Escape/cancel closes the surface, and switching selections preserves unsent text per target for the mounted component. Fields are not separate comment targets.
 
+## Adding and editing columns
+
+Reviewers propose column changes on the page. **+ Column** at the bottom of a table opens a name and a type input; `Enter` adds a plain column, `Escape` cancels. The pencil on a column row (shown on hover or focus, always on touch devices) edits its type and `nullable`. An added column is drawn green and an edited one as `− before / + after`, like any other change against the `before` snapshot. Columns that carry a relation (`ref`) and removed columns cannot be edited, since the relation's multiplicities derive from them.
+
+These changes are not written into the JSON child. They are recorded as element actions in the enclosing template's draft and replayed over the authored data, so they survive a reload and reach the agent in the brief. Outside a template, or without a diagram `id`, the diagram shows an error and keeps the input.
+
+| Action       | Target                                 | Payload                                                    | Result                                                                 |
+| ------------ | -------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `ADD_FIELD`  | `element:<diagram-id>/node/<table-id>` | `{ "id": string, "type": string, "nullable"?: boolean }`   | Appends `{ id, type }` (plus `nullable`) to the table's `after` fields |
+| `EDIT_FIELD` | `element:<diagram-id>/node/<table-id>` | `{ "field": string, "type": string, "nullable": boolean }` | Sets the column's `type` and `nullable` in `after`                     |
+
+`ADD_FIELD` is stale when the table no longer exists (`target-missing`), or when the id is empty or already used (`constraint-violated`). `EDIT_FIELD` is stale when the table or column no longer exists (`target-missing`), or when the column has a `ref` or was removed (`constraint-violated`). Actions replay in order. To apply them, edit the `after` snapshot's table in draft order.
+
 ## Layout
 
 Table height follows its fields (a changed row is taller because it shows two lines), and edges attach to the specific field rows, so a relation lands on the column that carries it. Ranks follow the FK direction.

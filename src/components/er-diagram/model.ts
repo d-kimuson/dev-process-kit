@@ -1,6 +1,10 @@
 import * as v from 'valibot';
 
-import type { DiagramEdgeInput, DiagramNodeInput } from '../diagram/model';
+import type { ElementActionResult } from '../../core/element-actions';
+import type { DraftAction } from '../../core/types';
+import type { ErDiagramMessages } from './messages';
+
+import { elementRefSegments, type DiagramEdgeInput, type DiagramNodeInput } from '../diagram/model';
 
 /**
  * Domain model of the ER diagram: two schema snapshots in, one always-on diff
@@ -277,6 +281,24 @@ const diffFields = (before: readonly SnapshotField[], after: readonly SnapshotFi
   });
 };
 
+type Point = { x: number; y: number };
+
+/** Anchors each relation touching `table` to the row of the column that carries it. */
+const withPorts = (table: ErTableDiff, edges: readonly ErRelation[]): ErTableDiff => {
+  const fan = outgoingFan(edges);
+  const ports: Record<string, Point> = {};
+  for (const edge of edges) {
+    if (edge.from === table.id) {
+      ports[`${edge.id}:out`] = {
+        x: TABLE_WIDTH,
+        y: fieldOffset(table.fields, edge.sourceField) + (fan.get(edge.id) ?? 0),
+      };
+    }
+    if (edge.to === table.id) ports[`${edge.id}:in`] = { x: 0, y: fieldOffset(table.fields, edge.targetField) };
+  }
+  return { ...table, ports };
+};
+
 export const parseErData = (input: unknown): ErData => {
   const parsed = v.parse(diagramSchema, input);
   const before = parsed.before?.tables ?? parsed.after.tables;
@@ -346,31 +368,125 @@ export const parseErData = (input: unknown): ErData => {
     ];
   });
 
-  const fan = outgoingFan(edges);
-  const portsOf = (
-    table: ErTableDiff,
-  ): {
-    readonly out: Record<string, { x: number; y: number }>;
-    readonly in: Record<string, { x: number; y: number }>;
-  } => {
-    const out: Record<string, { x: number; y: number }> = {};
-    const incoming: Record<string, { x: number; y: number }> = {};
-    for (const edge of edges) {
-      if (edge.from === table.id)
-        out[`${edge.id}:out`] = {
-          x: TABLE_WIDTH,
-          y: fieldOffset(table.fields, edge.sourceField) + (fan.get(edge.id) ?? 0),
-        };
-      if (edge.to === table.id) incoming[`${edge.id}:in`] = { x: 0, y: fieldOffset(table.fields, edge.targetField) };
-    }
-    return { out, in: incoming };
-  };
-
   return {
-    nodes: nodes.map((node) => {
-      const ports = portsOf(node);
-      return { ...node, ports: { ...ports.out, ...ports.in } };
-    }),
+    nodes: nodes.map((node) => withPorts(node, edges)),
     edges,
   };
+};
+
+/* ---------------------------------------------------------- element actions */
+
+export const ADD_FIELD = 'ADD_FIELD';
+export const EDIT_FIELD = 'EDIT_FIELD';
+
+const addFieldPayloadSchema = v.object({
+  id: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  type: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  nullable: v.optional(v.boolean(), false),
+});
+
+const editFieldPayloadSchema = v.object({
+  field: v.pipe(v.string(), v.minLength(1)),
+  type: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  nullable: v.boolean(),
+});
+
+/** `<diagram-id>/node/<id>` → the table id. */
+const tableIdOfTarget = (targetId: string): string | null => {
+  const segments = elementRefSegments(targetId);
+  return segments?.length === 3 && segments[1] === 'node' ? (segments[2] ?? null) : null;
+};
+
+type Step = { readonly data: ErData; readonly result: ElementActionResult };
+
+const replaceTable = (data: ErData, id: string, fields: readonly ErFieldDiff[]): ErData => {
+  const nodes = data.nodes.map((node): ErTableDiff => {
+    if (node.id !== id) return node;
+    const status: ErStatus =
+      node.status === 'added' || node.status === 'removed'
+        ? node.status
+        : fields.some((field) => field.status !== 'same')
+          ? 'changed'
+          : 'same';
+    return withPorts({ ...node, status, fields, height: tableHeight(fields) }, data.edges);
+  });
+  return { ...data, nodes };
+};
+
+const addField = (m: ErDiagramMessages, data: ErData, action: DraftAction): Step => {
+  const title = m.addFieldTitle;
+  const table = data.nodes.find((node) => node.id === tableIdOfTarget(action.target.id));
+  if (table === undefined) return { data, result: { id: action.id, title, stale: 'target-missing' } };
+  const payload = v.safeParse(addFieldPayloadSchema, action.payload);
+  if (!payload.success || table.fields.some((field) => field.id === payload.output.id)) {
+    return { data, result: { id: action.id, title, stale: 'constraint-violated' } };
+  }
+  const field: ErFieldDiff = {
+    id: payload.output.id,
+    type: payload.output.type,
+    keys: [],
+    ref: null,
+    nullable: payload.output.nullable,
+    cardinality: null,
+    label: null,
+    questions: null,
+    status: 'added',
+    before: null,
+  };
+  return {
+    data: replaceTable(data, table.id, [...table.fields, field]),
+    result: { id: action.id, title, summary: m.addFieldSummary(table.id, field.id, field.type), tone: 'create' },
+  };
+};
+
+const editField = (m: ErDiagramMessages, data: ErData, action: DraftAction): Step => {
+  const title = m.editFieldTitle;
+  const table = data.nodes.find((node) => node.id === tableIdOfTarget(action.target.id));
+  const payload = v.safeParse(editFieldPayloadSchema, action.payload);
+  const field = payload.success ? table?.fields.find((item) => item.id === payload.output.field) : undefined;
+  if (table === undefined || (payload.success && field === undefined)) {
+    return { data, result: { id: action.id, title, stale: 'target-missing' } };
+  }
+  // A relation's multiplicities derive from keys and nullability, so only plain columns are editable here.
+  if (!payload.success || field === undefined || field.ref !== null || field.status === 'removed') {
+    return { data, result: { id: action.id, title, stale: 'constraint-violated' } };
+  }
+  const { before: _before, status: _status, ...current } = field;
+  const next: ErField = { ...current, type: payload.output.type, nullable: payload.output.nullable };
+  const original = field.before ?? current;
+  const status: ErStatus = field.status === 'added' ? 'added' : sameField(original, next) ? 'same' : 'changed';
+  const edited: ErFieldDiff = { ...next, status, before: status === 'changed' ? original : null };
+  return {
+    data: replaceTable(
+      data,
+      table.id,
+      table.fields.map((item) => (item.id === field.id ? edited : item)),
+    ),
+    result: { id: action.id, title, summary: m.editFieldSummary(table.id, field.id, next.type), tone: 'update' },
+  };
+};
+
+/**
+ * Replays the draft's element actions over the diffed schema, in order. An
+ * added or edited column is drawn against the `after` snapshot like any other
+ * change. Each action is reported on: applied, or why it is stale. Pure.
+ */
+export const reduceErActions = (
+  m: ErDiagramMessages,
+  data: ErData,
+  actions: readonly DraftAction[],
+): { readonly data: ErData; readonly results: readonly ElementActionResult[] } => {
+  let schema = data;
+  const results: ElementActionResult[] = [];
+  for (const action of actions) {
+    const step =
+      action.type === ADD_FIELD
+        ? addField(m, schema, action)
+        : action.type === EDIT_FIELD
+          ? editField(m, schema, action)
+          : { data: schema, result: { id: action.id, title: action.type, stale: 'unsupported-action-type' as const } };
+    schema = step.data;
+    results.push(step.result);
+  }
+  return { data: schema, results };
 };
