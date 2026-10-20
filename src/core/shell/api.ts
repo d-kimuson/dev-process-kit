@@ -42,6 +42,8 @@ export type TemplateFacadeSource<S> = {
   readonly navigate: (patch: NavigationPatch, options?: { replace?: boolean }) => void;
   readonly hashFor: (patch: NavigationPatch) => string;
   readonly requestComment: (target: string | ActionTarget) => void;
+  /** The brief for a snapshot; the plain brief of the definition when absent. */
+  readonly brief?: (snapshot: TemplateSnapshot<S>) => string;
 };
 
 /** The immutable view emitted with `dpk-change` and returned by `snapshot()`. */
@@ -125,7 +127,8 @@ export const createTemplateApi = <S>(source: TemplateFacadeSource<S>, host: HTML
     hashFor: (patch) => source.hashFor(patch),
     snapshot,
     exportDraft: () => source.controller().exportDraft(FRAMEWORK_VERSION),
-    exportBrief: () => buildAgentBrief(snapshot(), source.controller().definition, FRAMEWORK_VERSION),
+    exportBrief: () =>
+      source.brief?.(snapshot()) ?? buildAgentBrief(snapshot(), source.controller().definition, FRAMEWORK_VERSION),
     subscribe: (listener) => source.subscribe(listener),
   };
 };

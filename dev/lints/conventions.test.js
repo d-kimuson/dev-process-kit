@@ -290,8 +290,19 @@ ruleTester.run('element-naming', elementNaming, {
       code: define('tiny-diagram', 'TinyDiagram'),
       filename: '/project/src/components/diagram/element.test.ts',
     },
+    {
+      name: 'the page host is dpk-page',
+      code: define('dpk-page', 'DpkPage'),
+      filename: '/project/src/page/index.ts',
+    },
   ],
   invalid: [
+    {
+      name: 'the page directory registers nothing but the page',
+      code: define('dpk-template-page', 'DpkTemplatePage'),
+      filename: '/project/src/page/index.ts',
+      errors: [{ message: /must be `dpk-page`/ }],
+    },
     {
       name: 'the old artifact-* prefix is rejected',
       code: define('artifact-usm', 'DpkTemplateUsm'),

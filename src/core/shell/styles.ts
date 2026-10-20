@@ -23,6 +23,11 @@ export const chromeStyles = [
       color-scheme: dark;
     }
 
+    /* An inactive board of a page stays mounted, out of sight. */
+    :host([hidden]) {
+      display: none;
+    }
+
     .dpk-shell {
       display: grid;
       /* One column no wider than the host: a truncated title must not widen
@@ -40,6 +45,38 @@ export const chromeStyles = [
        * to it.
        */
       height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    }
+
+    /* A board fills the page's main column; the viewport is the page's. */
+    .dpk-shell[data-board] {
+      height: 100%;
+    }
+
+    .dpk-shell[data-board] > .dpk-board-bar {
+      grid-row: 1;
+    }
+
+    .dpk-shell[data-board] > .dpk-body {
+      grid-row: 2;
+    }
+
+    .dpk-shell[data-board] > .dpk-footer {
+      grid-row: 3;
+    }
+
+    .dpk-board-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 14px;
+      min-height: 40px;
+      padding: 4px 16px;
+      border-bottom: 1px solid var(--dpk-rule);
+      background: var(--dpk-glass);
+    }
+
+    .dpk-board-bar[hidden] {
+      display: none;
     }
 
     /* ------------------------------------------------------------- header */

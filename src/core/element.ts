@@ -11,6 +11,7 @@ import type {
   Navigation,
   NavigationPatch,
   TemplateDefinition,
+  ValidationIssue,
 } from './types';
 
 import { DismissController } from '../lib/dom/dismiss';
@@ -22,6 +23,7 @@ import { parseColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
 import { DraftController } from './controller';
 import { componentElementActionSchema } from './element-actions';
+import { buildAgentBrief } from './export';
 import {
   answerCounts,
   answerGrill,
@@ -39,6 +41,9 @@ import { LOCALES, type Locale } from './i18n';
 import { iconChevronLeft, iconChevronRight, iconComment, iconHistory, iconMoon, iconQuestion, iconSun } from './icons';
 import { coreMessages, LANGUAGE_NAMES, type CoreMessages } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
+import { resolveBoardTarget } from './page/board-target';
+import { boardHostOf, boardIdOf, DRAFT_BOARD_ATTRIBUTE, type BoardHost } from './page/host';
+import { boardNavigation, pagePatchFor } from './page/navigation';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { PopoverController } from './popover-controller';
 import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSource } from './shell/api';
@@ -71,6 +76,7 @@ import { ReviewPopoverController } from './shell/review-popover-controller';
 import {
   renderSettingsMenu,
   renderSettingsTrigger,
+  SETTINGS_ANCHOR,
   SETTINGS_ID,
   SETTINGS_SIZE,
   type SettingsIntents,
@@ -92,7 +98,8 @@ import {
 import { TextRecoveryController } from './shell/text-recovery-controller';
 import { VersionChoiceController } from './shell/version-choice-controller';
 import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, sidebarToggle, type SidebarLayout } from './sidebar-width';
-import { parseTargetRef, targetRef } from './target';
+import { parseTargetRef, targetRef, toTarget } from './target';
+import { FRAMEWORK_VERSION } from './version';
 
 /** Base data is the JSON child that is neither the change log nor the questions. */
 const BASE_SELECTOR = `script[type="application/json"]:not([${CHANGES_ATTRIBUTE}]):not([${GRILL_ATTRIBUTE}])`;
@@ -187,17 +194,17 @@ export abstract class TemplateElement<S> extends LitElement {
   #dock = new HandoffDockController(this);
   #sidebarWidth = new SidebarResizeController(this, {
     persist: () => this.storage !== 'off' && this.storage !== 'memory',
-    template: () => this.definition.name,
+    template: () => this.#persistedName,
     layout: () => this.sidebarLayout,
   });
   #sidebarCollapse = new SidebarCollapseController(this, {
     persist: () => this.storage !== 'off' && this.storage !== 'memory',
-    template: () => this.definition.name,
+    template: () => this.#persistedName,
   });
   #narrowScreen = new NarrowScreenController(this);
   #textRecovery = new TextRecoveryController(this, {
     persist: () => this.storage !== 'off' && this.storage !== 'memory',
-    storageKey: () => `${this.storageKey ?? defaultStorageKey(this.definition.name)}:unsent-text`,
+    storageKey: () => `${this.storageKey ?? defaultStorageKey(this.#persistedName)}:unsent-text`,
   });
   /** The latest "Show" still waiting for its target; earlier ones give up. */
   #showing: object | null = null;
@@ -292,12 +299,20 @@ export abstract class TemplateElement<S> extends LitElement {
     this.#resolveReady = resolve;
   });
   #api: TemplateApi<S> | undefined;
+  /**
+   * The id this template has as a board of `<dpk-page>`, or `null` when it is
+   * the page root itself. A board renders its regions and nothing of the
+   * shell; its draft, hash and review belong to the page.
+   */
+  #boardId: string | null = null;
+  /** The locale the board's controller was last given, so a pick on the page reaches it. */
+  #boardLocale: Locale | undefined;
 
   // ---------------------------------------------------------------- lifecycle
 
   /** The reader's pick from the header, else the closest `lang`. */
   get locale(): Locale {
-    return this.#localeChoice.locale;
+    return this.#boardHost()?.locale() ?? this.#localeChoice.locale;
   }
 
   get definition(): TemplateDefinition<S> {
@@ -307,6 +322,7 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   override connectedCallback(): void {
+    this.#boardId = boardIdOf(this);
     super.connectedCallback();
     this.dataset['template'] = this.definition.name;
     if (!this.#notesInitialized) {
@@ -320,7 +336,7 @@ export abstract class TemplateElement<S> extends LitElement {
       this.reviewSection = this.notes === 'changes' || this.notes === 'questions' ? this.notes : 'comments';
     }
     this.#start();
-    window.addEventListener('hashchange', this.#onHashChange);
+    if (this.#boardId === null) window.addEventListener('hashchange', this.#onHashChange);
     this.addEventListener('click', this.#onClick);
     this.addEventListener('dpk-comment-targets-change', this.#refreshCommentTargets);
     this.addEventListener('dpk-comment-request', this.#onCommentRequest);
@@ -358,6 +374,11 @@ export abstract class TemplateElement<S> extends LitElement {
       queueMicrotask(() => this.#start(attempt + 1));
       return;
     }
+    const pending = this.pendingStart();
+    if (pending !== null) {
+      void pending.then(() => this.#start(attempt));
+      return;
+    }
     this.#initialize();
   }
 
@@ -367,9 +388,15 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   protected override willUpdate(): void {
+    const host = this.#boardHost();
     // Reflected on the host so `color-scheme` (and so every `light-dark()`
     // token) cascades into nested components and slotted light DOM.
-    this.dataset['theme'] = this.#colorScheme.resolve(parseColorScheme(this.theme));
+    this.dataset['theme'] = host?.theme() ?? this.#colorScheme.resolve(parseColorScheme(this.theme));
+    // A board follows the page's language, picked in the page's header.
+    if (host !== null && this.#controller && this.#boardLocale !== host.locale()) {
+      this.#boardLocale = host.locale();
+      this.#controller.setTemplate(this.definition);
+    }
   }
 
   protected override updated(): void {
@@ -401,10 +428,16 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   get navigation(): Navigation {
-    return this.#navigation;
+    return this.#boardId === null ? this.#navigation : this.#effectiveNavigation();
+  }
+
+  /** The id this template has as a board of `<dpk-page>`, or `null` on its own. */
+  get board(): string | null {
+    return this.#boardId;
   }
 
   dispatch(input: ActionInput): DispatchOutcome {
+    if (this.#boardId !== null) return this.#onPage((host) => host.dispatch(this.#toPage(input)));
     const outcome = this.controller.dispatch(input);
     if (outcome.ok) this.#textRecovery.settle([input.payload, input.note]);
     if (!outcome.ok) {
@@ -422,6 +455,8 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   dispatchBatch(inputs: readonly ActionInput[]): BatchDispatchOutcome {
+    if (this.#boardId !== null)
+      return this.#onPage((host) => host.dispatchBatch(inputs.map((input) => this.#toPage(input))));
     const outcome = this.controller.dispatchBatch(inputs);
     if (outcome.ok) this.#textRecovery.settle(inputs.flatMap((input) => [input.payload, input.note]));
     if (!outcome.ok) {
@@ -436,6 +471,7 @@ export abstract class TemplateElement<S> extends LitElement {
 
   /** Rewrites a posted comment's body; a rejected edit is reported like a rejected dispatch. */
   editComment(id: string, body: string): DispatchOutcome {
+    if (this.#boardId !== null) return this.#onPage((host) => host.editComment(id, body));
     const outcome = this.controller.editComment(id, body);
     if (outcome.ok) this.#textRecovery.settle([body]);
     if (!outcome.ok) {
@@ -449,14 +485,25 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   removeAction(id: string): void {
-    this.controller.removeAction(id);
+    if (this.#boardId !== null) this.#boardHost()?.removeAction(id);
+    else this.controller.removeAction(id);
   }
 
+  /** On a board, clears the board's own part of the page's draft. */
   clearActions(): void {
-    this.controller.clearActions();
+    if (this.#boardId === null) {
+      this.controller.clearActions();
+      return;
+    }
+    const host = this.#boardHost();
+    for (const action of this.controller.actions) host?.removeAction(action.id);
   }
 
   navigate(patch: NavigationPatch, options: { replace?: boolean } = {}): void {
+    if (this.#boardId !== null) {
+      this.#boardHost()?.navigate(this.#pagePatch(patch), options);
+      return;
+    }
     const before = formatHash(this.#effectiveNavigation());
     this.#navigation = patchNavigation(this.#navigation, patch, this.definition.navigationHierarchy);
     this.#canonicalizeNavigation(options.replace ?? false);
@@ -474,6 +521,8 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   hashFor(patch: NavigationPatch): string {
+    const host = this.#boardHost();
+    if (host !== null) return host.hashFor(this.#pagePatch(patch));
     const effective = this.#effectiveNavigation();
     return formatHash(
       this.definition.resolveNavigation(
@@ -484,6 +533,10 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   requestComment(target: string | ActionTarget): void {
+    if (this.#boardId !== null) {
+      this.#boardHost()?.requestComment(targetRef(this.#toPageTarget(target, 'page')));
+      return;
+    }
     this.#pendingCommentTarget = typeof target === 'string' ? target : targetRef(target);
     this.notesOpen = true;
     this.reviewSection = 'comments';
@@ -534,6 +587,7 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   protected renderChrome(context: TemplateRenderContext<S>, regions: ShellRegions): TemplateResult {
+    if (this.#boardId !== null) return this.#renderBoardChrome(regions);
     const draftCount = context.actions.length;
     // The draft holds all three; the header names its changes, answers and comments apart.
     const commentCount = context.actions.filter((action) => action.type === COMMENT_ACTION).length;
@@ -541,7 +595,6 @@ export abstract class TemplateElement<S> extends LitElement {
     const stale = new Set(this.derivation.stale.map((entry) => entry.action.id));
     const answerCount = context.actions.filter((action) => isAnswerAction(action) && !stale.has(action.id)).length;
     const changeCount = draftCount - commentCount - answerCount;
-    const messages = coreMessages(this.locale);
     // Badges are derived from the DOM (the author's markup, and the shadow roots
     // a diagram renders into), so they are collected by the render that draws them.
     this.#badges = collectBadges(
@@ -550,14 +603,6 @@ export abstract class TemplateElement<S> extends LitElement {
       this.derivation.answers,
       this.notesOpen && this.reviewSection === 'questions' ? openQuestionOf(this.#grill, this.#grillOpen) : null,
     );
-    const sidebarHidden = regions.sidebarHidden === true || (!regions.sidebar && !this.hasSidebarContent());
-    const side = this.sidebarLayout.side;
-    const drawer = this.#sidebarDrawer;
-    const collapsed =
-      !sidebarHidden &&
-      this.#sidebarCollapsible &&
-      (drawer ? !this.#sidebarCollapse.drawerOpen : this.#sidebarCollapse.collapsed);
-    const edge = sidebarHidden ? nothing : this.#renderSidebarEdge(collapsed, drawer);
     // The header ellipsizes a long title; the tooltip has it whole.
     const title = this.definition.title(context.state);
     return html`
@@ -565,7 +610,7 @@ export abstract class TemplateElement<S> extends LitElement {
         <header class="dpk-header">
           <span class="dpk-brand" aria-hidden="true"></span>
           <div class="dpk-title">
-            <span class="dpk-template-mark">${this.definition.label}</span>
+            <span class="dpk-template-mark">${this.templateIdentity().label}</span>
             <h1 title=${title}>${title}</h1>
           </div>
           <div class="dpk-header-slot">
@@ -574,81 +619,116 @@ export abstract class TemplateElement<S> extends LitElement {
           </div>
           <div class="dpk-header-meta">
             ${this.#versionChoice.render(this.locale)}
-            <span class="dpk-meta-name">${this.definition.name}</span>
+            <span class="dpk-meta-name">${this.templateIdentity().name}</span>
           </div>
           <div class="dpk-header-tools">
             ${this.#renderNoticeBell()} ${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}
           </div>
         </header>
-        <div class="dpk-body" data-sidebar-side=${side} ?data-sidebar-drawer=${drawer}>
-          ${side === 'right' ? edge : nothing}
-          <aside
-            id="dpk-sidebar"
-            class="dpk-sidebar"
-            ?hidden=${sidebarHidden || collapsed}
-            style=${`--dpk-sidebar-width: ${this.#sidebarWidth.width}px`}
-          >
-            ${regions.sidebar ?? nothing}
-            <slot name="sidebar"></slot>
-          </aside>
-          ${side === 'left' ? edge : nothing}
-          ${
-            drawer && !collapsed && !sidebarHidden
-              ? html`<div class="dpk-sidebar-scrim" @click=${() => this.#sidebarCollapse.closeDrawer()}></div>`
-              : nothing
-          }
-          <main class="dpk-main">
-            <div
-              class="dpk-main-body"
-              ?data-grill-gutter=${this.#badges.some((binding) => this.contains(binding.target))}
-            >
-              ${
-                this.#baseError
-                  ? html`<div class="dpk-banner" role="alert">
-                      <strong>${messages.baseDataError}</strong>
-                      <code>${this.#baseError}</code>
-                    </div>`
-                  : nothing
-              }
-              ${
-                this.#grillError === null
-                  ? nothing
-                  : html`<div class="dpk-banner" role="alert">
-                      <strong>${messages.grillError}</strong>
-                      <code>${this.#grillError}</code>
-                    </div>`
-              }
-              ${
-                this.#notices.error === null
-                  ? nothing
-                  : html`<div class="dpk-banner" role="alert">
-                      <strong>${messages.changesError}</strong>
-                      <code>${this.#notices.error}</code>
-                    </div>`
-              }
-              ${regions.main ?? nothing}
-              <slot name="main"></slot>
-              <section class="dpk-orphans" ?hidden=${this.#previewRouter.orphans === 0}>
-                <p class="dpk-label">previews without metadata</p>
-                <slot name="preview"></slot>
-              </section>
-              ${this.#renderBadges()}
-            </div>
-            ${this.#renderSupplements(messages)}
-          </main>
-        </div>
-        ${
-          regions.footer || this.hasFooterContent()
-            ? html`<footer class="dpk-footer">
-                ${regions.footer ?? nothing}
-                <slot name="footer"></slot>
-              </footer>`
-            : nothing
-        }
+        ${this.#renderBody(regions)} ${this.#renderFooter(regions)}
         ${this.#renderHeaderActions(context, changeCount, commentCount)} ${this.#renderReviewPopover(context)}
         ${this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
       </div>
     `;
+  }
+
+  /**
+   * A board of a page: the template's own header controls in a bar, then its
+   * sidebar, main column and footer. The header (with the board's name and
+   * settings), the review and the hand-off are the page's.
+   */
+  #renderBoardChrome(regions: ShellRegions): TemplateResult {
+    this.#badges = [];
+    // The page's header names the board and holds its settings; a bar stays only for the template's own header.
+    const bar =
+      (regions.header !== undefined && regions.header !== nothing) ||
+      this.querySelector(':scope > [slot="header"]') !== null;
+    return html`
+      <div class="dpk-shell" data-board ?data-resizing=${this.#sidebarWidth.dragging}>
+        <div class="dpk-board-bar" ?hidden=${!bar}>
+          <div class="dpk-header-slot">
+            ${regions.header ?? nothing}
+            <slot name="header"></slot>
+          </div>
+        </div>
+        ${this.#renderBody(regions)} ${this.#renderFooter(regions)}
+      </div>
+    `;
+  }
+
+  #renderBody(regions: ShellRegions): TemplateResult {
+    const messages = coreMessages(this.locale);
+    const sidebarHidden = regions.sidebarHidden === true || (!regions.sidebar && !this.hasSidebarContent());
+    const side = this.sidebarLayout.side;
+    const drawer = this.#sidebarDrawer;
+    const collapsed =
+      !sidebarHidden &&
+      this.#sidebarCollapsible &&
+      (drawer ? !this.#sidebarCollapse.drawerOpen : this.#sidebarCollapse.collapsed);
+    const edge = sidebarHidden ? nothing : this.#renderSidebarEdge(collapsed, drawer);
+    return html`<div class="dpk-body" data-sidebar-side=${side} ?data-sidebar-drawer=${drawer}>
+      ${side === 'right' ? edge : nothing}
+      <aside
+        id="dpk-sidebar"
+        class="dpk-sidebar"
+        ?hidden=${sidebarHidden || collapsed}
+        style=${`--dpk-sidebar-width: ${this.#sidebarWidth.width}px`}
+      >
+        ${regions.sidebar ?? nothing}
+        <slot name="sidebar"></slot>
+      </aside>
+      ${side === 'left' ? edge : nothing}
+      ${
+        drawer && !collapsed && !sidebarHidden
+          ? html`<div class="dpk-sidebar-scrim" @click=${() => this.#sidebarCollapse.closeDrawer()}></div>`
+          : nothing
+      }
+      <main class="dpk-main">
+        <div class="dpk-main-body" ?data-grill-gutter=${this.#badges.some((binding) => this.contains(binding.target))}>
+          ${
+            this.#baseError
+              ? html`<div class="dpk-banner" role="alert">
+                  <strong>${messages.baseDataError}</strong>
+                  <code>${this.#baseError}</code>
+                </div>`
+              : nothing
+          }
+          ${
+            this.#grillError === null
+              ? nothing
+              : html`<div class="dpk-banner" role="alert">
+                  <strong>${messages.grillError}</strong>
+                  <code>${this.#grillError}</code>
+                </div>`
+          }
+          ${
+            this.#notices.error === null
+              ? nothing
+              : html`<div class="dpk-banner" role="alert">
+                  <strong>${messages.changesError}</strong>
+                  <code>${this.#notices.error}</code>
+                </div>`
+          }
+          ${regions.main ?? nothing}
+          <slot name="main"></slot>
+          <section class="dpk-orphans" ?hidden=${this.#previewRouter.orphans === 0}>
+            <p class="dpk-label">previews without metadata</p>
+            <slot name="preview"></slot>
+          </section>
+          ${this.#renderBadges()}
+        </div>
+        ${this.#renderSupplements(messages)}
+      </main>
+    </div>`;
+  }
+
+  #renderFooter(regions: ShellRegions): TemplateResult | typeof nothing {
+    return regions.footer || this.hasFooterContent()
+      ? html`<footer class="dpk-footer">
+          ${regions.footer ?? nothing}
+          <slot name="footer"></slot>
+        </footer>`
+      : nothing;
   }
 
   /**
@@ -670,13 +750,15 @@ export abstract class TemplateElement<S> extends LitElement {
   /** The open settings hang below the header actions in the top layer. */
   #placeSettings(): void {
     const menu = this.renderRoot.querySelector<HTMLElement>(`#${SETTINGS_ID}`);
-    const anchor = this.renderRoot.querySelector('.dpk-header-actions');
+    // A page puts the active board's settings beside its name rather than among the header actions.
+    const own = this.renderRoot.querySelector(`.${SETTINGS_ANCHOR}`);
+    const anchor = own ?? this.renderRoot.querySelector('.dpk-header-actions');
     if (!menu || !anchor || isPopoverOpen(menu)) return;
     this.#popovers.open(
       menu,
       anchor,
       { width: SETTINGS_SIZE.width, height: Math.min(SETTINGS_SIZE.height, window.innerHeight - 96) },
-      { placement: 'bottom-end' },
+      { placement: own === null ? 'bottom-end' : 'bottom-start' },
     );
   }
 
@@ -1074,6 +1156,48 @@ export abstract class TemplateElement<S> extends LitElement {
 
   // --------------------------------------------------------------- internals
 
+  /** The page this board sits in, once the page is upgraded; `null` on a template of its own. */
+  #boardHost(): BoardHost | null {
+    return this.#boardId === null ? null : boardHostOf(this);
+  }
+
+  /** The name the reader's per-template UI state is kept under; each board of a page keeps its own. */
+  get #persistedName(): string {
+    return this.#boardId === null ? this.definition.name : `${this.definition.name}@${this.#boardId}`;
+  }
+
+  /** Runs a draft operation on the page; refused while the page is still upgrading. */
+  #onPage<O>(
+    operation: (host: BoardHost) => O,
+  ): O | { readonly ok: false; readonly issues: readonly [ValidationIssue] } {
+    const host = this.#boardHost();
+    if (host === null) return { ok: false, issues: [{ path: 'board', message: 'the page is not ready yet' }] };
+    const outcome = operation(host);
+    this.requestUpdate();
+    return outcome;
+  }
+
+  /** A target written in this board, in the page's terms: unqualified ones are this board's. */
+  #toPageTarget(target: string | ActionTarget, fallbackType: string): ActionTarget {
+    const host = this.#boardHost();
+    const board = this.#boardId;
+    const resolved = toTarget(target, fallbackType);
+    return board === null || host === null ? resolved : resolveBoardTarget(resolved, board, host.boardIds());
+  }
+
+  #toPage(input: ActionInput): ActionInput {
+    const fallbackType = this.controller.descriptorFor(input.type)?.targetType ?? 'page';
+    return { ...input, target: this.#toPageTarget(input.target, fallbackType) };
+  }
+
+  /** A navigation patch of this board, in the page's prefixed keys. */
+  #pagePatch(patch: NavigationPatch): NavigationPatch {
+    const host = this.#boardHost();
+    const board = this.#boardId;
+    if (host === null || board === null) return patch;
+    return pagePatchFor(host.navigation(), board, patch, host.boardIds(), this.definition.navigationHierarchy);
+  }
+
   #facadeSource(): TemplateFacadeSource<S> {
     return {
       definition: this.definition,
@@ -1096,6 +1220,7 @@ export abstract class TemplateElement<S> extends LitElement {
       navigate: (patch, options) => this.navigate(patch, options),
       hashFor: (patch) => this.hashFor(patch),
       requestComment: (target) => this.requestComment(target),
+      brief: (snapshot) => this.buildBrief(snapshot),
     };
   }
 
@@ -1112,19 +1237,29 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   #effectiveNavigation(): Navigation {
-    return this.definition.resolveNavigation(this.derivation.state, this.#navigation);
+    const host = this.#boardHost();
+    const raw =
+      this.#boardId === null
+        ? this.#navigation
+        : boardNavigation(host?.navigation() ?? EMPTY_NAVIGATION, this.#boardId);
+    // A board may render once before its draft starts, as a template on its own does.
+    if (!this.#controller) return raw;
+    return this.definition.resolveNavigation(this.derivation.state, raw);
   }
 
   #initialize(): void {
     const base = this.#readBase();
-    this.#grill = this.#readGrill();
+    const board = this.#boardId !== null;
+    // A board's questions, draft and hash are the page's.
+    this.#grill = board ? EMPTY_GRILL : this.#readGrill();
     this.#warnLegacyMemo();
-    this.#navigation = readNavigationFromHash();
+    this.#navigation = board ? EMPTY_NAVIGATION : readNavigationFromHash();
+    this.#boardLocale = this.locale;
     const storageKey = this.storageKey;
     this.#controller = new DraftController<S>({
       definition: this.definition,
       base,
-      storage: this.#resolveStorage(),
+      storage: board ? null : this.#resolveStorage(),
       grill: { grill: this.#grill, locale: this.locale },
       ...(typeof storageKey === 'string' ? { storageKey } : {}),
     });
@@ -1149,8 +1284,33 @@ export abstract class TemplateElement<S> extends LitElement {
     return defaultStorage();
   }
 
+  /**
+   * The JSON child a script of this element is read from. A page overrides it
+   * to look at its own children only, past the scripts of its boards.
+   */
+  protected scriptOf(selector: string): Element | null {
+    return this.querySelector(selector);
+  }
+
+  /** Waited for before the draft starts: a page waits for its boards. */
+  protected pendingStart(): Promise<void> | null {
+    return null;
+  }
+
+  /** What the header names as the template; a page names the board it shows. */
+  protected templateIdentity(): { readonly label: string; readonly name: string } {
+    return this.definition;
+  }
+
+  /** The brief handed to the agent; a page groups it by board. */
+  protected buildBrief(snapshot: TemplateSnapshot<S>): string {
+    return buildAgentBrief(snapshot, this.controller.definition, FRAMEWORK_VERSION);
+  }
+
   #readBase(): S {
-    const script = this.querySelector(BASE_SELECTOR);
+    const script = this.scriptOf(BASE_SELECTOR);
+    // A board the draft added has no base JSON yet: the agent writes it from the draft.
+    if (script === null && this.hasAttribute(DRAFT_BOARD_ATTRIBUTE)) return this.definition.emptyBase();
     if (!script?.textContent || script.textContent.trim().length === 0) {
       console.warn(`[dev-process-kit] <${this.tagName.toLowerCase()}> has no base JSON; starting from an empty state.`);
       this.#baseError = 'no <script type="application/json"> child found';
@@ -1167,7 +1327,7 @@ export abstract class TemplateElement<S> extends LitElement {
 
   /** The questions are optional: without their script the page asks nothing. */
   #readGrill(): Grill {
-    const script = this.querySelector(GRILL_SELECTOR);
+    const script = this.scriptOf(GRILL_SELECTOR);
     this.#grillError = null;
     if (!script?.textContent || script.textContent.trim().length === 0) return EMPTY_GRILL;
     try {
@@ -1184,14 +1344,14 @@ export abstract class TemplateElement<S> extends LitElement {
    * elements, streaming HTML). Re-read it once the JSON script shows up.
    */
   #observeBaseScript(): void {
-    if (this.querySelector(BASE_SELECTOR)) return;
+    if (this.scriptOf(BASE_SELECTOR)) return;
     this.#previewObserver = new MutationObserver(() => {
-      const script = this.querySelector(BASE_SELECTOR);
+      const script = this.scriptOf(BASE_SELECTOR);
       if (!script) return;
       this.#previewObserver?.disconnect();
       this.#previewObserver = undefined;
       // The questions are written alongside the base data.
-      this.#grill = this.#readGrill();
+      if (this.#boardId === null) this.#grill = this.#readGrill();
       this.controller.setGrill({ grill: this.#grill, locale: this.locale });
       try {
         this.controller.setBase(this.definition.parseBase(JSON.parse(script.textContent ?? 'null')));
@@ -1213,7 +1373,7 @@ export abstract class TemplateElement<S> extends LitElement {
       this.#notify();
       return;
     }
-    this.#canonicalizeNavigation(true);
+    if (this.#boardId === null) this.#canonicalizeNavigation(true);
     // Components replay their actions synchronously, so a component that just
     // dispatched one sees it applied as soon as its event returns. Their
     // results are read back once the current change has settled.
@@ -1221,6 +1381,8 @@ export abstract class TemplateElement<S> extends LitElement {
     queueMicrotask(this.#refreshCommentTargets);
     this.requestUpdate();
     this.#notify();
+    // A board's changes are the page's, announced by the page.
+    if (this.#boardId !== null) return;
     this.dispatchEvent(
       new CustomEvent('dpk-change', {
         detail: this.#snapshot(),
@@ -1232,6 +1394,7 @@ export abstract class TemplateElement<S> extends LitElement {
 
   /** Keeps the hash canonical and pointing at something that still exists. */
   #canonicalizeNavigation(replace: boolean): void {
+    if (this.#boardId !== null) return;
     const effective = this.#effectiveNavigation();
     this.#navigation = effective;
     writeNavigationToUrl(effective, replace);

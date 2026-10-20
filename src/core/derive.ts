@@ -124,7 +124,11 @@ export const derive = <S>(
   // position in the draft. A later deletion (or creation) must be visible here.
   for (const action of actions) {
     if (action.type !== COMMENT_ACTION) continue;
-    if (action.target.type !== PAGE_TARGET_TYPE && !definition.hasTarget(state, action.target)) {
+    const exists =
+      action.target.type === PAGE_TARGET_TYPE
+        ? (definition.pageTargetExists?.(state, action.target) ?? true)
+        : definition.hasTarget(state, action.target);
+    if (!exists) {
       stale.push({ action, reason: 'target-missing' });
       continue;
     }
