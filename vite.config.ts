@@ -95,9 +95,6 @@ const checkLicenses = (): Plugin => ({
 export default defineConfig(({ mode }) => {
   const production = mode === 'production';
   return {
-    define: {
-      __DPK_VERSION__: JSON.stringify(pkg.version),
-    },
     publicDir: false,
     plugins: [...(production ? [minifyFully()] : []), checkLicenses()],
     build: {

@@ -1,4 +1,5 @@
-/** Build-time injected by vite/vitest `define`. */
-declare const __DPK_VERSION__: string;
-
-export const FRAMEWORK_VERSION: string = typeof __DPK_VERSION__ === 'string' ? __DPK_VERSION__ : '0.0.0-dev';
+/**
+ * The `package.json` version this bundle was built from. Imported rather than injected by `define`, so the file is in
+ * the module graph: `pnpm dev` (`vite build --watch`) rebuilds when a release bumps it, and only `version` is bundled.
+ */
+export { version as FRAMEWORK_VERSION } from '../../package.json';
