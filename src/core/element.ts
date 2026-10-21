@@ -121,6 +121,9 @@ const nextFrame = (): Promise<void> => new Promise((resolve) => requestAnimation
 
 type ReviewSection = 'changes' | 'questions' | 'comments';
 
+/** The part of the shell a badge layer lies over. */
+type BadgeRegion = 'main' | 'sidebar';
+
 export abstract class TemplateElement<S> extends LitElement {
   static override styles: CSSResultGroup = chromeStyles;
 
@@ -247,7 +250,7 @@ export abstract class TemplateElement<S> extends LitElement {
     });
     new GrillBadgeController(this, {
       active: () => this.#grill.questions.length > 0,
-      layer: () => this.renderRoot.querySelector<HTMLElement>('.dpk-grill-badges'),
+      layers: () => Array.from(this.renderRoot.querySelectorAll<HTMLElement>('.dpk-grill-badges')),
       bindings: () => this.#badges,
     });
     // The settings close on Escape and on a press outside them and their trigger.
@@ -675,8 +678,11 @@ export abstract class TemplateElement<S> extends LitElement {
         ?hidden=${sidebarHidden || collapsed}
         style=${`--dpk-sidebar-width: ${this.#sidebarWidth.width}px`}
       >
-        ${regions.sidebar ?? nothing}
-        <slot name="sidebar"></slot>
+        <div class="dpk-sidebar-body">
+          ${regions.sidebar ?? nothing}
+          <slot name="sidebar"></slot>
+          ${this.#renderBadges('sidebar')}
+        </div>
       </aside>
       ${side === 'left' ? edge : nothing}
       ${
@@ -685,7 +691,12 @@ export abstract class TemplateElement<S> extends LitElement {
           : nothing
       }
       <main class="dpk-main">
-        <div class="dpk-main-body" ?data-grill-gutter=${this.#badges.some((binding) => this.contains(binding.target))}>
+        <div
+          class="dpk-main-body"
+          ?data-grill-gutter=${this.#badges.some(
+            (binding) => this.contains(binding.target) && this.#badgeRegionOf(binding) === 'main',
+          )}
+        >
           ${
             this.#baseError
               ? html`<div class="dpk-banner" role="alert">
@@ -716,7 +727,7 @@ export abstract class TemplateElement<S> extends LitElement {
             <p class="dpk-label">previews without metadata</p>
             <slot name="preview"></slot>
           </section>
-          ${this.#renderBadges()}
+          ${this.#renderBadges('main')}
         </div>
         ${this.#renderSupplements(messages)}
       </main>
@@ -890,12 +901,28 @@ export abstract class TemplateElement<S> extends LitElement {
     if (card && list) revealWithin(list, card);
   }
 
-  /** A badge per mark, over the main column; pressing one opens its question. */
-  #renderBadges(): TemplateResult | typeof nothing {
-    if (this.#badges.length === 0) return nothing;
+  /**
+   * Where a mark's badge goes: over the sidebar for a mark in it, since the
+   * sidebar scrolls on its own, and over the main column otherwise.
+   */
+  #badgeRegionOf(binding: BadgeBinding): BadgeRegion {
+    const sidebar = this.renderRoot.querySelector('.dpk-sidebar');
+    let node: Element | null = binding.target;
+    while (node !== null && node !== this) {
+      if (node === sidebar) return 'sidebar';
+      const root = node.getRootNode();
+      node = node.assignedSlot ?? node.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
+    }
+    return 'main';
+  }
+
+  /** A badge per mark of the region, over it; pressing one opens its question. */
+  #renderBadges(region: BadgeRegion): TemplateResult | typeof nothing {
+    const bindings = this.#badges.filter((binding) => this.#badgeRegionOf(binding) === region);
+    if (bindings.length === 0) return nothing;
     const messages = coreMessages(this.locale);
-    return html`<div class="dpk-grill-badges">
-      ${this.#badges.map(
+    return html`<div class="dpk-grill-badges" data-region=${region}>
+      ${bindings.map(
         (binding) => html`<button
           type="button"
           class="dpk-grill-badge"

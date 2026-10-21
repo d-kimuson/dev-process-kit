@@ -125,7 +125,8 @@ export const positionBadges = (layer: HTMLElement, bindings: readonly BadgeBindi
         },
         widths: buttons.map((button) => button.offsetWidth),
         // `contains` stops at shadow boundaries: a diagram's nodes are not the author's markup.
-        gutter: host?.contains(target) === true,
+        // The sidebar has no gutter: a badge there sits on its mark's corner.
+        gutter: host?.contains(target) === true && layer.dataset['region'] !== 'sidebar',
       },
     });
   }
@@ -147,7 +148,8 @@ export const positionBadges = (layer: HTMLElement, bindings: readonly BadgeBindi
 export type GrillBadgeOptions = {
   /** Whether the page asks anything; without questions nothing is watched. */
   readonly active: () => boolean;
-  readonly layer: () => HTMLElement | null;
+  /** The layers the badges are drawn on: the main column's, and the sidebar's when it has marks. */
+  readonly layers: () => readonly HTMLElement[];
   readonly bindings: () => readonly BadgeBinding[];
 };
 
@@ -224,8 +226,8 @@ export class GrillBadgeController implements ReactiveController {
     this.#pending = true;
     requestAnimationFrame(() => {
       this.#pending = false;
-      const layer = this.#options.layer();
-      if (layer) positionBadges(layer, this.#options.bindings());
+      const bindings = this.#options.bindings();
+      for (const layer of this.#options.layers()) positionBadges(layer, bindings);
     });
   };
 }

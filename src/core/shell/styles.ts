@@ -649,6 +649,11 @@ export const chromeStyles = [
       display: none;
     }
 
+    /* Spans the sidebar's content, so its badge layer scrolls with it. */
+    .dpk-sidebar-body {
+      position: relative;
+    }
+
     /*
      * A right-hand sidebar: a rail beside the main column rather than a list
      * before it. \`:where\` keeps these as weak as the rules above, so a

@@ -13,6 +13,8 @@ type Case = {
   readonly base: unknown;
   /** Each card that names `Q1`, by a selector inside the template's shadow root. */
   readonly marked: readonly string[];
+  /** How many of them sit in the sidebar, whose badges go on a layer of their own. */
+  readonly inSidebar?: number;
 };
 
 const grill = { questions: [{ id: 'open', title: 'Still open?' }] };
@@ -55,6 +57,7 @@ const cases: readonly Case[] = [
       log: [{ id: 'l1', title: 'Started', questions: 'Q1' }],
     },
     marked: ['[data-todo="pay"]', '[data-output="pr"]', '[data-log="l1"]'],
+    inSidebar: 2,
   },
   {
     tag: 'dpk-template-delegation-poker',
@@ -92,7 +95,7 @@ const settle = async (element: HTMLElement & { api: { ready: Promise<void> }; up
   }
 };
 
-describe.each(cases)('$tag cards name the questions they are about', ({ tag, base, marked }) => {
+describe.each(cases)('$tag cards name the questions they are about', ({ tag, base, marked, inSidebar = 0 }) => {
   it('marks each card that names a question and lays a badge on it', async () => {
     document.body.innerHTML = `<${tag} storage="memory">
       <script type="application/json">${JSON.stringify(base)}</script>
@@ -109,5 +112,6 @@ describe.each(cases)('$tag cards name the questions they are about', ({ tag, bas
     ).toEqual(marked.map((selector) => [selector, 'Q1']));
     expect(root.querySelectorAll('[data-grill-questions]')).toHaveLength(marked.length);
     expect(root.querySelectorAll('.dpk-grill-badge')).toHaveLength(marked.length);
+    expect(root.querySelectorAll('.dpk-grill-badges[data-region="sidebar"] .dpk-grill-badge')).toHaveLength(inSidebar);
   });
 });
