@@ -197,6 +197,19 @@ describe('<dpk-page>', () => {
       expect(badges).toEqual(['Q1@before', 'Q2@before', 'Q1@after']);
     });
 
+    it('stops asking the questions of a board the draft removes', async () => {
+      const page = await mountAsking();
+      page.api.dispatch({ type: 'REMOVE_BOARD', target: { type: 'page', id: 'page' }, payload: { board: 'after' } });
+      await page.updateComplete;
+      await page.updateComplete;
+      expect(page.api.snapshot().grill.questions.map((question) => question.id)).toEqual([
+        'release',
+        'retry@before',
+        'notify@before',
+      ]);
+      expect(toggle(page)?.textContent).toBe('0/3');
+    });
+
     it('records an answer on the page, and keeps it out of the board’s part', async () => {
       const page = await mountAsking();
       expect(

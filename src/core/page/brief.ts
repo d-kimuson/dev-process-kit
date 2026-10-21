@@ -35,7 +35,8 @@ export const boardsSection = (boards: readonly BoardSpec[], actions: readonly Dr
       'with everything the draft says about it.',
     '',
     'A question `grill:<id>@<board>` comes from the `data-dpk-grill` block of that board; one without a qualifier ' +
-      "comes from the page's own block. Settle each in the board (or page) it was asked of.",
+      "comes from the page's own block. Settle each in the board (or page) it was asked of, writing its id back " +
+      'into that block (`history` included) with the qualifier removed.',
     '',
     ...boards.map((board) => {
       const count = counts.get(board.id) ?? { changes: 0, comments: 0 };

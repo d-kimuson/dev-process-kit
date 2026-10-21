@@ -332,6 +332,8 @@ export class PageElement extends TemplateElement<PageState> {
   #started = false;
   /** The boards the page's base was last read from, so only a real change re-reads it. */
   #baseIds = '';
+  /** The boards the questions were last read from. */
+  #askingIds = '';
   /** The page draft each board was last given, so a render that changed nothing gives nothing. */
   #mirrored = new WeakMap<BoardElement, readonly DraftAction[]>();
   /** Whether each board has read its base: a board is given its part of the draft only after that. */
@@ -511,13 +513,23 @@ export class PageElement extends TemplateElement<PageState> {
   /** The page asks its own questions and those of every board its markup holds. */
   protected override readGrill(): Grill {
     const own = super.readGrill();
+    const asking = this.#askingBoards();
+    this.#askingIds = this.#idsOf(asking);
     return pageGrill(
       own,
-      this.#markupBoards().map((board) => {
+      asking.map((board) => {
         const id = board.board ?? '';
         return { board: id, grill: this.parseGrillScript(board.querySelector(BOARD_GRILL_SELECTOR), `@${id}`) };
       }),
     );
+  }
+
+  /** The boards of the markup the draft still holds; a board it removed asks nothing. */
+  #askingBoards(): readonly BoardElement[] {
+    const boards = this.#markupBoards();
+    if (!this.#started) return boards;
+    const inLayout = new Set(this.api.state.layout.map((entry) => entry.id));
+    return boards.filter((board) => inLayout.has(board.board ?? ''));
   }
 
   protected override grillRefsOf(mark: Element, token: string): readonly string[] {
@@ -763,6 +775,7 @@ export class PageElement extends TemplateElement<PageState> {
     if (!this.#boardsReady) return;
     const layout = this.api.state.layout;
     const inLayout = new Set(layout.map((entry) => entry.id));
+    if (this.#idsOf(this.#askingBoards()) !== this.#askingIds) this.refreshGrill();
     for (const board of this.#boards()) {
       if (board.hasAttribute(DRAFT_BOARD_ATTRIBUTE) && !inLayout.has(board.board ?? '')) board.remove();
     }
