@@ -29,20 +29,6 @@
   </head>
   <body>
     <dpk-template-example-mapping storage-key="sample-example-mapping-cancel">
-      <script type="application/json" data-dpk-grill>
-        {
-          "questions": [
-            {
-              "id": "partial-cancel",
-              "title": "一部の商品だけの取り消しを、次のリリースで受け付ける？",
-              "options": [
-                { "id": "next", "label": "次のリリースで受け付ける" },
-                { "id": "never", "label": "受け付けない（注文全体の取り消しだけ）" }
-              ]
-            }
-          ]
-        }
-      </script>
       <script type="application/json">
         {
           "title": "Sora Market — 注文キャンセル",
@@ -138,6 +124,20 @@
             },
             { "id": "points", "ruleId": "full-refund", "name": "ポイントで払った分はどう戻す？" },
             { "id": "refund-failed", "ruleId": "notify-refunded", "name": "返金に失敗したとき、購入者へどう知らせる？" }
+          ]
+        }
+      </script>
+      <script type="application/json" data-dpk-grill>
+        {
+          "questions": [
+            {
+              "id": "partial-cancel",
+              "title": "一部の商品だけの取り消しを、次のリリースで受け付ける？",
+              "options": [
+                { "id": "next", "label": "次のリリースで受け付ける" },
+                { "id": "never", "label": "受け付けない（注文全体の取り消しだけ）" }
+              ]
+            }
           ]
         }
       </script>

@@ -792,20 +792,6 @@
         { "title": "Sora Market — checkout" }
       </script>
       <dpk-template-usm board="scope" label="スコープ">
-        <script type="application/json" data-dpk-grill>
-          {
-            "questions": [
-              {
-                "id": "guest-checkout",
-                "title": "会員登録なしの購入を初回リリースに含める？",
-                "options": [
-                  { "id": "include", "label": "含める" },
-                  { "id": "later", "label": "次のリリースに回す" }
-                ]
-              }
-            ]
-          }
-        </script>
         <script type="application/json">
           {
             "title": "Sora Market — 購入者のストーリーマップ",
@@ -1392,6 +1378,20 @@
             ]
           }
         </script>
+        <script type="application/json" data-dpk-grill>
+          {
+            "questions": [
+              {
+                "id": "guest-checkout",
+                "title": "会員登録なしの購入を初回リリースに含める？",
+                "options": [
+                  { "id": "include", "label": "含める" },
+                  { "id": "later", "label": "次のリリースに回す" }
+                ]
+              }
+            ]
+          }
+        </script>
       </dpk-template-usm>
       <dpk-template-event-storming board="domain" label="ドメイン">
         <script type="application/json">
@@ -1675,21 +1675,6 @@
         </script>
       </dpk-template-event-storming>
       <dpk-template-prototype board="screens" label="画面">
-        <script type="application/json" data-dpk-grill>
-          {
-            "questions": [
-              {
-                "id": "saved-card",
-                "title": "保存済みのカードを既定で選んでおく？",
-                "description": "前回のカードを選んだ状態で開くと手順は減るが、意図しないカードで払う人が出る。",
-                "options": [
-                  { "id": "preselect", "label": "前回のカードを選んだ状態で開く" },
-                  { "id": "ask", "label": "毎回選んでもらう" }
-                ]
-              }
-            ]
-          }
-        </script>
         <script type="application/json">
           {
             "title": "Sora Market — 注文とキャンセル",
@@ -2222,6 +2207,21 @@
                     "name": "問い合わせに返信する",
                     "description": "出荷後のキャンセル依頼など、購入者からの問い合わせに注文を見ながら返信する。\n\n**画面はまだ描いていない。** 想定している流れ:\n\n1. 問い合わせを開く\n2. 注文詳細を横に開いて経緯を確かめる\n3. テンプレートを選び、言葉を直して返信する"
                   }
+                ]
+              }
+            ]
+          }
+        </script>
+        <script type="application/json" data-dpk-grill>
+          {
+            "questions": [
+              {
+                "id": "saved-card",
+                "title": "保存済みのカードを既定で選んでおく？",
+                "description": "前回のカードを選んだ状態で開くと手順は減るが、意図しないカードで払う人が出る。",
+                "options": [
+                  { "id": "preselect", "label": "前回のカードを選んだ状態で開く" },
+                  { "id": "ask", "label": "毎回選んでもらう" }
                 ]
               }
             ]
