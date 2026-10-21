@@ -172,6 +172,8 @@ export class GrillBadgeController implements ReactiveController {
   #pending = false;
   /** The marks of the host's own shadow root at the last update. */
   #ownMarks = '';
+  /** Shadow roots listened to for scrolls: a scroll inside one never reaches the document. */
+  readonly #scrollRoots = new Set<ShadowRoot>();
 
   constructor(host: ReactiveControllerHost & HTMLElement, options: GrillBadgeOptions) {
     this.#host = host;
@@ -192,6 +194,8 @@ export class GrillBadgeController implements ReactiveController {
     this.#host.removeEventListener('dpk-diagram-view', this.#schedule);
     this.#observer?.disconnect();
     this.#observer = null;
+    for (const root of this.#scrollRoots) root.removeEventListener('scroll', this.#schedule, true);
+    this.#scrollRoots.clear();
   }
 
   hostUpdated(): void {
@@ -213,7 +217,21 @@ export class GrillBadgeController implements ReactiveController {
     for (const element of this.#host.querySelectorAll('*')) {
       if (element.shadowRoot) this.#observer.observe(element.shadowRoot, OBSERVED);
     }
+    this.#listenForScrolls();
     this.#schedule();
+  }
+
+  /** The host's own shadow root (its sidebar and main column scroll there) and those of the boards inside it. */
+  #listenForScrolls(): void {
+    const roots = [
+      this.#host.shadowRoot,
+      ...Array.from(this.#host.querySelectorAll('*'), (element) => element.shadowRoot),
+    ];
+    for (const root of roots) {
+      if (root === null || this.#scrollRoots.has(root)) continue;
+      root.addEventListener('scroll', this.#schedule, true);
+      this.#scrollRoots.add(root);
+    }
   }
 
   #ownMarksOf(): string {

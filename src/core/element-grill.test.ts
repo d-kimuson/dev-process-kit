@@ -165,6 +165,16 @@ describe('questions on any template', () => {
     expect(root(element).querySelectorAll('.dpk-grill-badge')[1]?.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('moves the badges when a part of the shell scrolls on its own', async () => {
+    const element = mount();
+    await settle(element);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const frame = vi.spyOn(window, 'requestAnimationFrame');
+    // A scroll inside the shadow root never reaches the document.
+    root(element).querySelector('.dpk-body')?.dispatchEvent(new Event('scroll'));
+    expect(frame).toHaveBeenCalledTimes(1);
+  });
+
   it('follows marks the author adds later', async () => {
     const element = mount();
     await settle(element);
