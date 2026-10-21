@@ -2,10 +2,10 @@
 
 Columns of cards, read left to right, with cards in priority order top to bottom. Reviewers move cards between and within columns and add new ones; each change is recorded as a draft action for the agent to fold into the JSON.
 
-Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing): `docs/components/diagrams.md`.
+Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
 
 ```html
-<dpk-component-kanban id="checkout-board" heading="Kanban" subject="注文フロー刷新">
+<dpk-component-kanban id="checkout-board" heading="注文フロー刷新">
   <script type="application/json">
     {
       "columns": [
@@ -31,6 +31,8 @@ Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing):
   </script>
 </dpk-component-kanban>
 ```
+
+`heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`Kanban` / `カンバン`). `subject` adds a smaller subtitle beside the title.
 
 ## Data
 

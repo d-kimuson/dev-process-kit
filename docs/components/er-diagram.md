@@ -2,10 +2,10 @@
 
 Tables, fields and foreign keys — with an **always-on diff** between two schema snapshots: added is green, removed is red and struck through, changed shows the previous value struck through next to the new one.
 
-Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components/diagrams.md`.
+Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
 
 ```html
-<dpk-component-er-diagram heading="ERD" subject="注文スキーマ">
+<dpk-component-er-diagram heading="注文スキーマ">
   <script type="application/json">
     {
       "before": {
@@ -45,6 +45,8 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing): `docs/components
   </script>
 </dpk-component-er-diagram>
 ```
+
+`heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`ERD` / `ER図`). `subject` adds a smaller subtitle beside the title.
 
 ## Data
 

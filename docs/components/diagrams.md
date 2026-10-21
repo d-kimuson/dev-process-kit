@@ -34,11 +34,11 @@ Each diagram documents its own shape on its page. The element already names the 
 
 ## Shared public contract
 
-| Attribute | Values               | Meaning                                                |
-| --------- | -------------------- | ------------------------------------------------------ |
-| `id`      | stable unique string | Enables element comments; preserve it across revisions |
-| `heading` | string               | Toolbar title (each element has its own default)       |
-| `subject` | string               | Toolbar subtitle, e.g. `注文ライフサイクル`            |
+| Attribute | Values               | Meaning                                                                                                       |
+| --------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `id`      | stable unique string | Enables element comments; preserve it across revisions                                                        |
+| `heading` | string               | Toolbar title: name the diagram after what it shows (each element defaults to its kind, e.g. `State machine`) |
+| `subject` | string               | Smaller subtitle beside the title, e.g. `v2 draft`                                                            |
 
 | Property               | Type                                                      | Meaning                                                                                                                                |
 | ---------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |

@@ -155,7 +155,7 @@ The Context tab is what anyone coming back to the task reads first — the agent
   <script type="application/json">
     { "title": "注文一覧 API のページング対応", "context": { "why": "…", "what": "…" } }
   </script>
-  <dpk-component-er-diagram id="orders-schema" slot="main" heading="ERD">
+  <dpk-component-er-diagram id="orders-schema" slot="main" heading="注文スキーマ">
     <script type="application/json">
       { "after": { "tables": [] } }
     </script>
