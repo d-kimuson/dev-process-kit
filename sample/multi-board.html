@@ -1378,6 +1378,20 @@
             ]
           }
         </script>
+        <script type="application/json" data-dpk-grill>
+          {
+            "questions": [
+              {
+                "id": "guest-checkout",
+                "title": "会員登録なしの購入を初回リリースに含める？",
+                "options": [
+                  { "id": "include", "label": "含める" },
+                  { "id": "later", "label": "次のリリースに回す" }
+                ]
+              }
+            ]
+          }
+        </script>
       </dpk-template-usm>
       <dpk-template-event-storming board="domain" label="ドメイン">
         <script type="application/json">
@@ -2198,6 +2212,21 @@
             ]
           }
         </script>
+        <script type="application/json" data-dpk-grill>
+          {
+            "questions": [
+              {
+                "id": "saved-card",
+                "title": "保存済みのカードを既定で選んでおく？",
+                "description": "前回のカードを選んだ状態で開くと手順は減るが、意図しないカードで払う人が出る。",
+                "options": [
+                  { "id": "preselect", "label": "前回のカードを選んだ状態で開く" },
+                  { "id": "ask", "label": "毎回選んでもらう" }
+                ]
+              }
+            ]
+          }
+        </script>
 
         <section slot="supplement" data-name="前提">
           <p>
@@ -2431,7 +2460,7 @@
                 <div class="sm-choice">別の住所を追加</div>
               </div>
               <div class="sm-card">
-                <h2>支払い方法</h2>
+                <h2 data-grill-questions="Q1">支払い方法</h2>
                 <div class="sm-choice" data-selected="true">クレジットカード VISA •••• 4242</div>
                 <div class="sm-choice">コンビニ払い</div>
               </div>

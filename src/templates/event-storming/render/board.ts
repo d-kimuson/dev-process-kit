@@ -1,5 +1,6 @@
 import { clamp } from 'es-toolkit/math';
 import { html, nothing, svg, type TemplateResult } from 'lit';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
@@ -7,6 +8,7 @@ import type { Viewport } from '../interactions';
 import type { EventStormingMessages } from '../messages';
 import type { EventStormingState, NoteType } from '../model';
 
+import { grillMark } from '../../../core/grill';
 import { elementOf } from '../../../lib/dom/element';
 import { notePaletteStyle } from '../components/note-card';
 import { buildSlices, planSliceBands, sliceArrows, type EsSlice, type SliceArrow } from '../layout';
@@ -307,6 +309,7 @@ const renderBand = (
       ?compact=${compact}
       data-pin=${compact ? note.id : nothing}
       data-dpk-target=${`element:${note.id}`}
+      data-grill-questions=${ifDefined(grillMark(note.questions))}
       .onIntent=${(intent: NoteIntent) => handlers.noteIntent(note.id, intent)}
     ></dpk-internal-event-storming-note>`;
   return html`
@@ -422,6 +425,7 @@ const renderContextRegions = (
           class="context-region"
           data-hue=${hue}
           data-dpk-target=${`context:${boundedContext.id}`}
+          data-grill-questions=${ifDefined(grillMark(boundedContext.questions))}
           style=${`left:${left}px;top:${top}px;width:${right - left}px;height:${bottom - top}px`}
           title=${boundedContext.description ?? boundedContext.name}
         ></div>

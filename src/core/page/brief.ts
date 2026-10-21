@@ -34,6 +34,10 @@ export const boardsSection = (boards: readonly BoardSpec[], actions: readonly Dr
       'whose base JSON is built from the actions on `@<board>`; `REMOVE_BOARD` asks to take that child out, ' +
       'with everything the draft says about it.',
     '',
+    'A question `grill:<id>@<board>` comes from the `data-dpk-grill` block of that board; one without a qualifier ' +
+      "comes from the page's own block. Settle each in the board (or page) it was asked of, writing its id back " +
+      'into that block (`history` included) with the qualifier removed.',
+    '',
     ...boards.map((board) => {
       const count = counts.get(board.id) ?? { changes: 0, comments: 0 };
       return `- \`${board.id}\` — ${board.label} (\`${board.definition.name}\`): ${count.changes} change(s), ${count.comments} comment(s)`;

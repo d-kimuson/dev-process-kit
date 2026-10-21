@@ -144,4 +144,117 @@ describe('<dpk-page>', () => {
     await page.updateComplete;
     expect(shadow('.dpk-page-crumb').textContent?.trim()).toBe('After');
   });
+
+  describe('questions a board asks', () => {
+    const grillOf = (questions: unknown): string =>
+      `<script type="application/json" data-dpk-grill>${JSON.stringify(questions)}</script>`;
+    const mountAsking = async () => {
+      const page = document.createElement('dpk-page');
+      if (!(page instanceof PageElement)) throw new Error('not upgraded');
+      page.storage = 'memory';
+      page.innerHTML = `<script type="application/json">{"title":"Checkout"}</script>
+        ${grillOf({ questions: [{ id: 'release', title: 'Which release?' }] })}
+        <dpk-template-plain board="before" label="Before">
+          <script type="application/json">{"title":"Before"}</script>
+          ${grillOf({
+            questions: [
+              { id: 'retry', title: 'Retry twice?', options: [{ id: 'key', label: 'Idempotency key' }] },
+              { id: 'notify', title: 'Who hears of it?' },
+            ],
+          })}
+          <section slot="main"><p data-grill-questions="Q1 Q2">Payment</p></section>
+        </dpk-template-plain>
+        <dpk-template-plain board="after" label="After">
+          <script type="application/json">{"title":"After"}</script>
+          ${grillOf({ questions: [{ id: 'retry', title: 'Retry after the change?' }] })}
+          <section slot="main"><p data-grill-questions="Q1">Payment</p></section>
+        </dpk-template-plain>`;
+      document.body.append(page);
+      await page.api.ready;
+      await page.updateComplete;
+      await page.updateComplete;
+      return page;
+    };
+    const toggle = (page: PageElement) =>
+      page.renderRoot.querySelector('.dpk-review-toggle[data-section="questions"] .dpk-review-badge');
+
+    it('asks every board’s questions with the page’s own, qualified by board', async () => {
+      const page = await mountAsking();
+      expect(page.api.snapshot().grill.questions.map((question) => [question.id, question.ref])).toEqual([
+        ['release', 'Q1'],
+        ['retry@before', 'Q1@before'],
+        ['notify@before', 'Q2@before'],
+        ['retry@after', 'Q1@after'],
+      ]);
+      expect(toggle(page)?.textContent).toBe('0/4');
+    });
+
+    it('reads a mark inside a board as that board’s question', async () => {
+      const page = await mountAsking();
+      const badges = Array.from(page.renderRoot.querySelectorAll('.dpk-grill-badge'), (badge) =>
+        badge.textContent?.trim(),
+      );
+      expect(badges).toEqual(['Q1@before', 'Q2@before', 'Q1@after']);
+    });
+
+    it('lays a badge on a card a board renders from its data', async () => {
+      const page = document.createElement('dpk-page');
+      if (!(page instanceof PageElement)) throw new Error('not upgraded');
+      page.storage = 'memory';
+      const mapping = {
+        stories: [{ id: 'order', name: 'Order' }],
+        rules: [{ id: 'stock', storyId: 'order', name: 'Only in stock', questions: 'Q1' }],
+      };
+      page.innerHTML = `<script type="application/json">{"title":"Checkout"}</script>
+        <dpk-template-example-mapping board="rules" label="Rules">
+          <script type="application/json">${JSON.stringify(mapping)}</script>
+          ${grillOf({ questions: [{ id: 'reserve', title: 'Hold stock?' }] })}
+        </dpk-template-example-mapping>`;
+      document.body.append(page);
+      await page.api.ready;
+      for (let i = 0; i < 4; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await page.updateComplete;
+      }
+      const badges = Array.from(page.renderRoot.querySelectorAll('.dpk-grill-badge'), (badge) =>
+        badge.textContent?.trim(),
+      );
+      expect(badges).toEqual(['Q1@rules']);
+    });
+
+    it('stops asking the questions of a board the draft removes', async () => {
+      const page = await mountAsking();
+      page.api.dispatch({ type: 'REMOVE_BOARD', target: { type: 'page', id: 'page' }, payload: { board: 'after' } });
+      await page.updateComplete;
+      await page.updateComplete;
+      expect(page.api.snapshot().grill.questions.map((question) => question.id)).toEqual([
+        'release',
+        'retry@before',
+        'notify@before',
+      ]);
+      expect(toggle(page)?.textContent).toBe('0/3');
+    });
+
+    it('records an answer on the page, and keeps it out of the board’s part', async () => {
+      const page = await mountAsking();
+      expect(
+        page.api.dispatch({
+          type: 'answer',
+          target: { type: 'grill', id: 'retry@before' },
+          payload: { kind: 'option', optionId: 'key' },
+        }),
+      ).toMatchObject({ ok: true });
+      await page.updateComplete;
+      expect(page.api.snapshot().answers).toEqual({ 'retry@before': { kind: 'option', optionId: 'key' } });
+      expect(toggle(page)?.textContent).toBe('1/4');
+      const before = page.querySelector('[board="before"]');
+      expect(isBoard(before) ? before.api.actions : null).toEqual([]);
+      const brief = page.api.exportBrief();
+      expect(brief).toContain('`grill:retry@before`');
+      expect(page.api.comment('grill:notify@before', 'Ask the seller too')).toMatchObject({ ok: true });
+      expect(page.api.stale).toEqual([]);
+      expect(page.api.exportBrief()).toContain('grill:notify@before');
+      expect(brief).toContain('A question `grill:<id>@<board>` comes from the `data-dpk-grill` block of that board');
+    });
+  });
 });

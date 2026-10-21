@@ -23,6 +23,25 @@ export const ANSWER_ACTION = 'answer';
 /** Marks page content a question is about: `data-grill-questions="Q1 Q4"` (references, space-separated). */
 export const GRILL_QUESTIONS_ATTRIBUTE = 'data-grill-questions';
 
+/**
+ * The `questions` field a template's card or a diagram's node may carry in its
+ * data: the question references it is about (`"Q1 Q4"`), rendered as
+ * `data-grill-questions` on that card.
+ */
+export const questionRefsSchema = v.exactOptional(v.string());
+
+/** The `data-grill-questions` value for a card's `questions`, or `undefined` when it names none. */
+export const grillMark = (questions: string | undefined): string | undefined => {
+  const value = questions?.trim();
+  return value === undefined || value === '' ? undefined : value;
+};
+
+/** `{ questions }` to spread into a card's model or view model, or nothing when it names none. */
+export const grillMarkEntry = (questions: string | undefined): { readonly questions?: string } => {
+  const mark = grillMark(questions);
+  return mark === undefined ? {} : { questions: mark };
+};
+
 export type GrillOption = {
   readonly id: string;
   readonly label: string;
@@ -209,10 +228,20 @@ export const nextOpenQuestion = (grill: Grill, answers: GrillAnswers, currentId:
 
 /* ------------------------------------------------------------ answer actions */
 
+/**
+ * A question id as an answer targets it. A page that gathers its boards'
+ * questions qualifies each with its board (`retry@scope`), so the id may carry
+ * one `@<board>` after the question's own id.
+ */
+const questionTargetIdSchema = v.pipe(
+  v.string(),
+  v.regex(/^[A-Za-z0-9_-]+(?:@[A-Za-z0-9_-]+)?$/, 'a question id, optionally qualified by its board (`retry@scope`)'),
+);
+
 const answerActionSchema = v.object({
   id: v.pipe(v.string(), v.minLength(1)),
   type: v.literal(ANSWER_ACTION),
-  target: v.object({ type: v.literal(GRILL_TARGET_TYPE), id: entityIdSchema }),
+  target: v.object({ type: v.literal(GRILL_TARGET_TYPE), id: questionTargetIdSchema }),
   payload: answerPayloadSchema,
   note: v.exactOptional(v.string()),
   createdAt: v.pipe(v.string(), v.minLength(1)),

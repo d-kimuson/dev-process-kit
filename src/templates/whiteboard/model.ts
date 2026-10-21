@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 
+import { questionRefsSchema } from '../../core/grill';
 import { entityIdSchema } from '../../core/schema';
 
 /** Sticky, shape and frame colors. The board paints each one in both themes. */
@@ -48,6 +49,8 @@ type Box = {
   readonly y: number;
   readonly w: number;
   readonly h: number;
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 export type WbSticky = Box & {
@@ -94,6 +97,7 @@ const box = {
   id: entityIdSchema,
   x: coordinate,
   y: coordinate,
+  questions: questionRefsSchema,
 };
 
 const stickySchema = v.strictObject({

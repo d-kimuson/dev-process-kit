@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 
+import { questionRefsSchema } from '../../core/grill';
 import { entityIdSchema } from '../../core/schema';
 
 /**
@@ -41,6 +42,8 @@ export type DecisionArea = {
   /** The reader's card: played on the board, sent back as a draft action. */
   readonly yours?: DelegationLevel;
   readonly agreed?: DelegationLevel;
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 /**
@@ -87,6 +90,7 @@ export const delegationPokerBaseSchema = v.strictObject({
         description: v.exactOptional(v.string()),
         cards: v.optional(v.array(playedCardSchema), []),
         agreed: v.exactOptional(delegationLevelSchema),
+        questions: questionRefsSchema,
       }),
     ),
     [],

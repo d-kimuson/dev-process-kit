@@ -20,12 +20,14 @@ export type BadgeBinding = {
 };
 
 /**
- * Where marks can be: the page's own light DOM (the author's markup), plus the
+ * Where marks can be: the page's own light DOM (the author's markup), the
+ * template's own shadow root (cards it renders from its data), plus the
  * shadow roots of the components inside it — a diagram component renders its
  * nodes itself, so its marks are one boundary down.
  */
 const scopesOf = (host: HTMLElement): readonly ParentNode[] => {
   const roots: ParentNode[] = [host];
+  if (host.shadowRoot) roots.push(host.shadowRoot);
   for (const element of host.querySelectorAll('*')) {
     if (element.shadowRoot) roots.push(element.shadowRoot);
   }
@@ -37,6 +39,8 @@ export const collectBadges = (
   grill: Grill,
   answers: GrillAnswers,
   openId: string | null,
+  /** The refs a token on `mark` may name, tried in order; by default the token itself. */
+  refsOf: (mark: Element, token: string) => readonly string[] = (_mark, token) => [token],
 ): readonly BadgeBinding[] => {
   if (grill.questions.length === 0) return [];
   const byRef = new Map<string, GrillQuestion>(grill.questions.map((question) => [question.ref, question]));
@@ -45,7 +49,9 @@ export const collectBadges = (
     for (const target of root.querySelectorAll(`[${GRILL_QUESTIONS_ATTRIBUTE}]`)) {
       const value = target.getAttribute(GRILL_QUESTIONS_ATTRIBUTE) ?? '';
       for (const token of value.split(/\s+/)) {
-        const question = byRef.get(token);
+        const question = refsOf(target, token)
+          .map((ref) => byRef.get(ref))
+          .find((entry) => entry !== undefined);
         if (!question) continue;
         bindings.push({
           index: bindings.length,
@@ -119,7 +125,8 @@ export const positionBadges = (layer: HTMLElement, bindings: readonly BadgeBindi
         },
         widths: buttons.map((button) => button.offsetWidth),
         // `contains` stops at shadow boundaries: a diagram's nodes are not the author's markup.
-        gutter: host?.contains(target) === true,
+        // The sidebar has no gutter: a badge there sits on its mark's corner.
+        gutter: host?.contains(target) === true && layer.dataset['region'] !== 'sidebar',
       },
     });
   }
@@ -141,7 +148,8 @@ export const positionBadges = (layer: HTMLElement, bindings: readonly BadgeBindi
 export type GrillBadgeOptions = {
   /** Whether the page asks anything; without questions nothing is watched. */
   readonly active: () => boolean;
-  readonly layer: () => HTMLElement | null;
+  /** The layers the badges are drawn on: the main column's, and the sidebar's when it has marks. */
+  readonly layers: () => readonly HTMLElement[];
   readonly bindings: () => readonly BadgeBinding[];
 };
 
@@ -162,6 +170,10 @@ export class GrillBadgeController implements ReactiveController {
   readonly #options: GrillBadgeOptions;
   #observer: MutationObserver | null = null;
   #pending = false;
+  /** The marks of the host's own shadow root at the last update. */
+  #ownMarks = '';
+  /** Shadow roots listened to for scrolls: a scroll inside one never reaches the document. */
+  readonly #scrollRoots = new Set<ShadowRoot>();
 
   constructor(host: ReactiveControllerHost & HTMLElement, options: GrillBadgeOptions) {
     this.#host = host;
@@ -182,11 +194,20 @@ export class GrillBadgeController implements ReactiveController {
     this.#host.removeEventListener('dpk-diagram-view', this.#schedule);
     this.#observer?.disconnect();
     this.#observer = null;
+    for (const root of this.#scrollRoots) root.removeEventListener('scroll', this.#schedule, true);
+    this.#scrollRoots.clear();
   }
 
   hostUpdated(): void {
     this.#observer?.disconnect();
     if (!this.#options.active()) return;
+    // Cards a template renders from its data appear in its own shadow root only
+    // after the render that collected the bindings, so their marks take one more.
+    const ownMarks = this.#ownMarksOf();
+    if (ownMarks !== this.#ownMarks) {
+      this.#ownMarks = ownMarks;
+      this.#host.requestUpdate();
+    }
     this.#observer ??= new MutationObserver(() => {
       this.#host.requestUpdate();
       this.#schedule();
@@ -196,7 +217,26 @@ export class GrillBadgeController implements ReactiveController {
     for (const element of this.#host.querySelectorAll('*')) {
       if (element.shadowRoot) this.#observer.observe(element.shadowRoot, OBSERVED);
     }
+    this.#listenForScrolls();
     this.#schedule();
+  }
+
+  /** The host's own shadow root (its sidebar and main column scroll there) and those of the boards inside it. */
+  #listenForScrolls(): void {
+    const roots = [
+      this.#host.shadowRoot,
+      ...Array.from(this.#host.querySelectorAll('*'), (element) => element.shadowRoot),
+    ];
+    for (const root of roots) {
+      if (root === null || this.#scrollRoots.has(root)) continue;
+      root.addEventListener('scroll', this.#schedule, true);
+      this.#scrollRoots.add(root);
+    }
+  }
+
+  #ownMarksOf(): string {
+    const marks = this.#host.shadowRoot?.querySelectorAll(`[${GRILL_QUESTIONS_ATTRIBUTE}]`) ?? [];
+    return Array.from(marks, (mark) => mark.getAttribute(GRILL_QUESTIONS_ATTRIBUTE) ?? '').join('|');
   }
 
   #schedule = (): void => {
@@ -204,8 +244,8 @@ export class GrillBadgeController implements ReactiveController {
     this.#pending = true;
     requestAnimationFrame(() => {
       this.#pending = false;
-      const layer = this.#options.layer();
-      if (layer) positionBadges(layer, this.#options.bindings());
+      const bindings = this.#options.bindings();
+      for (const layer of this.#options.layers()) positionBadges(layer, bindings);
     });
   };
 }

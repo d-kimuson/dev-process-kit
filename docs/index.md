@@ -339,6 +339,8 @@ Any template can ask the reader questions — decisions you still need from them
 
 Leave the block out until there is a question to ask. A malformed block renders an error banner; the base data keeps working regardless.
 
+On a [page of boards](page.md#questions), each board keeps its questions in a block of its own, and the page asks them all in one panel.
+
 | Field         | Required | Meaning                                          |
 | ------------- | -------- | ------------------------------------------------ |
 | `questions[]` | yes      | The current round's questions, in reading order. |
@@ -385,7 +387,7 @@ When you revise the page with the next round of questions, move the answered rou
 
 ### Marking what a question is about
 
-Mark page content a question is about with `data-grill-questions="Q1 Q4"` (space-separated refs), either in your own light DOM markup or, inside a diagram component's data, on a node, field or message that supports it (see `docs/components/diagrams.md`, `docs/components/kanban.md`, `docs/components/mind-map.md`). The shell lays a badge for each reference over the main column — on the right, level with the element, for your own markup; on the diagram node's corner, following its pan and zoom. A reference no question matches is ignored, and pressing a badge opens that question.
+Mark page content a question is about with `data-grill-questions="Q1 Q4"` (space-separated refs), either in your own light DOM markup or, inside a diagram component's data, on a node, field or message that supports it (see `docs/components/diagrams.md`, `docs/components/kanban.md`, `docs/components/mind-map.md`), or on a card a template renders from its base data: give the card `questions` (`"Q1 Q4"`) as its template page lists (usm, event-storming, example-mapping, task-board, delegation-poker, whiteboard). The shell lays a badge for each reference over the main column — on the right, level with the element, for your own markup; on the corner of a diagram node (following its pan and zoom) or of a template's card. A reference no question matches is ignored, and pressing a badge opens that question.
 
 ### The questions toggle
 

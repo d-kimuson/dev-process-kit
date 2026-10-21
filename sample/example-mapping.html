@@ -48,7 +48,12 @@
           "rules": [
             { "id": "before-shipping", "storyId": "cancel", "name": "出荷指示前（支払済み）の注文だけ取り消せる" },
             { "id": "own-order", "storyId": "cancel", "name": "注文した本人だけが取り消せる" },
-            { "id": "whole-order", "storyId": "cancel", "name": "注文全体を取り消す（一部だけは不可）" },
+            {
+              "id": "whole-order",
+              "storyId": "cancel",
+              "name": "注文全体を取り消す（一部だけは不可）",
+              "questions": "Q1"
+            },
             { "id": "accept-once", "storyId": "cancel", "name": "取り消しは一度だけ受け付ける" },
             { "id": "full-refund", "storyId": "refund", "name": "支払った手段へ全額を返す" },
             { "id": "refund-timing", "storyId": "refund", "name": "返金の反映時期は決済手段次第と伝える" },
@@ -119,6 +124,20 @@
             },
             { "id": "points", "ruleId": "full-refund", "name": "ポイントで払った分はどう戻す？" },
             { "id": "refund-failed", "ruleId": "notify-refunded", "name": "返金に失敗したとき、購入者へどう知らせる？" }
+          ]
+        }
+      </script>
+      <script type="application/json" data-dpk-grill>
+        {
+          "questions": [
+            {
+              "id": "partial-cancel",
+              "title": "一部の商品だけの取り消しを、次のリリースで受け付ける？",
+              "options": [
+                { "id": "next", "label": "次のリリースで受け付ける" },
+                { "id": "never", "label": "受け付けない（注文全体の取り消しだけ）" }
+              ]
+            }
           ]
         }
       </script>

@@ -1,10 +1,12 @@
 import { html, nothing, svg, type TemplateResult } from 'lit';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { WbGesture } from '../gesture';
 import type { WhiteboardMessages } from '../messages';
 
+import { grillMark } from '../../../core/grill';
 import { iconMinus, iconPlus } from '../../../core/icons';
 import { NEW_ITEM_KINDS, type NewItemKind } from '../commands';
 import { toScreen, type Viewport } from '../interactions';
@@ -169,6 +171,7 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
     style=${`${box}${color}${scale}`}
     data-item-id=${item.id}
     data-dpk-target=${`item:${item.id}`}
+    data-grill-questions=${ifDefined(grillMark(item.questions))}
     data-kind=${item.kind}
     @pointerdown=${item.kind === 'frame' ? nothing : press}
   >

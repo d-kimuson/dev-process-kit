@@ -22,6 +22,7 @@ import type { DraftAction, TemplateDefinition } from '../types';
 
 import { DismissController } from '../../lib/dom/dismiss';
 import { TemplateElement } from '../element';
+import { GRILL_ATTRIBUTE, GRILL_TARGET_TYPE, type Grill } from '../grill';
 import { iconClose, iconPlus, lucide } from '../icons';
 import { coreMessages } from '../messages';
 import { PopoverController } from '../popover-controller';
@@ -40,6 +41,7 @@ import {
   type PageBase,
   type PageState,
 } from './definition';
+import { boardOfMark, pageGrill, refCandidates } from './grill';
 import { BOARD_ATTRIBUTE, BOARD_HOST, boardIdOf, DRAFT_BOARD_ATTRIBUTE, type BoardHost } from './host';
 import { pageMessages } from './messages';
 import { BOARD_KEY } from './navigation';
@@ -69,9 +71,16 @@ const isBoardElement = (element: Element): element is BoardElement =>
 const isDefinition = (value: unknown): value is AnyDefinition =>
   typeof value === 'object' && value !== null && 'name' in value && 'emptyBase' in value;
 
-/** A board's part of the page's draft, as the board itself knows its targets. */
+const BOARD_GRILL_SELECTOR = `:scope > script[type="application/json"][${GRILL_ATTRIBUTE}]`;
+
+/**
+ * A board's part of the page's draft, as the board itself knows its targets.
+ * A board's questions are the page's (`grill:retry@<board>`), so what the
+ * draft says about them stays with the page.
+ */
 const sliceOf = (actions: readonly DraftAction[], board: string): readonly DraftAction[] =>
   actions.flatMap((action) => {
+    if (action.target.type === GRILL_TARGET_TYPE) return [];
     const scoped = splitBoard(action.target);
     return scoped?.board === board ? [{ ...action, target: scoped.target }] : [];
   });
@@ -323,6 +332,8 @@ export class PageElement extends TemplateElement<PageState> {
   #started = false;
   /** The boards the page's base was last read from, so only a real change re-reads it. */
   #baseIds = '';
+  /** The boards the questions were last read from. */
+  #askingIds = '';
   /** The page draft each board was last given, so a render that changed nothing gives nothing. */
   #mirrored = new WeakMap<BoardElement, readonly DraftAction[]>();
   /** Whether each board has read its base: a board is given its part of the draft only after that. */
@@ -490,12 +501,39 @@ export class PageElement extends TemplateElement<PageState> {
       this.#baseIds = ids;
       this.#mirrored = new WeakMap();
       this.controller.setBase({ ...this.controller.base, ...this.#base() });
+      this.refreshGrill();
     });
   }
 
   /** The page's own JSON and questions are its children, not its boards'. */
   protected override scriptOf(selector: string): Element | null {
     return this.querySelector(`:scope > ${selector}`);
+  }
+
+  /** The page asks its own questions and those of every board its markup holds. */
+  protected override readGrill(): Grill {
+    const own = super.readGrill();
+    const asking = this.#askingBoards();
+    this.#askingIds = this.#idsOf(asking);
+    return pageGrill(
+      own,
+      asking.map((board) => {
+        const id = board.board ?? '';
+        return { board: id, grill: this.parseGrillScript(board.querySelector(BOARD_GRILL_SELECTOR), `@${id}`) };
+      }),
+    );
+  }
+
+  /** The boards of the markup the draft still holds; a board it removed asks nothing. */
+  #askingBoards(): readonly BoardElement[] {
+    const boards = this.#markupBoards();
+    if (!this.#started) return boards;
+    const inLayout = new Set(this.api.state.layout.map((entry) => entry.id));
+    return boards.filter((board) => inLayout.has(board.board ?? ''));
+  }
+
+  protected override grillRefsOf(mark: Element, token: string): readonly string[] {
+    return refCandidates(token, boardOfMark(mark));
   }
 
   protected override hasSidebarContent(): boolean {
@@ -737,6 +775,7 @@ export class PageElement extends TemplateElement<PageState> {
     if (!this.#boardsReady) return;
     const layout = this.api.state.layout;
     const inLayout = new Set(layout.map((entry) => entry.id));
+    if (this.#idsOf(this.#askingBoards()) !== this.#askingIds) this.refreshGrill();
     for (const board of this.#boards()) {
       if (board.hasAttribute(DRAFT_BOARD_ATTRIBUTE) && !inLayout.has(board.board ?? '')) board.remove();
     }

@@ -1,6 +1,7 @@
 import { sortBy } from 'es-toolkit/array';
 import * as v from 'valibot';
 
+import { questionRefsSchema } from '../../core/grill';
 import { entityIdSchema } from '../../core/schema';
 
 /**
@@ -13,6 +14,8 @@ export type MappingStory = {
   readonly id: string;
   readonly name: string;
   readonly description?: string;
+  /** Refs of the page's questions (grill) this card is about, space-separated (`Q1 Q4`). */
+  readonly questions?: string;
 };
 
 export type MappingRule = {
@@ -20,6 +23,8 @@ export type MappingRule = {
   readonly storyId: string;
   readonly name: string;
   readonly description?: string;
+  /** Refs of the page's questions (grill) this card is about, space-separated (`Q1 Q4`). */
+  readonly questions?: string;
 };
 
 export type MappingExample = {
@@ -27,6 +32,8 @@ export type MappingExample = {
   readonly ruleId: string;
   readonly name: string;
   readonly description?: string;
+  /** Refs of the page's questions (grill) this card is about, space-separated (`Q1 Q4`). */
+  readonly questions?: string;
 };
 
 /** An open question about one rule: what the table could not answer yet. */
@@ -35,6 +42,8 @@ export type MappingQuestion = {
   readonly ruleId: string;
   readonly name: string;
   readonly description?: string;
+  /** Refs of the page's questions (grill) this card is about, space-separated (`Q1 Q4`). */
+  readonly questions?: string;
 };
 
 export type ExampleMappingState = {
@@ -58,6 +67,7 @@ const namedSchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
+  questions: questionRefsSchema,
 });
 
 const ruleSchema = v.strictObject({
@@ -65,6 +75,7 @@ const ruleSchema = v.strictObject({
   storyId: v.pipe(v.string(), v.minLength(1)),
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
+  questions: questionRefsSchema,
 });
 
 /** Examples and questions share a shape: both hang off one rule. */
@@ -73,6 +84,7 @@ const ruleCardSchema = v.strictObject({
   ruleId: v.pipe(v.string(), v.minLength(1)),
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
+  questions: questionRefsSchema,
 });
 
 export const exampleMappingBaseSchema = v.strictObject({
