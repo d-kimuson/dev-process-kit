@@ -25,14 +25,15 @@ question (red)   — under its rule, in a separate area below the examples
 }
 ```
 
-| Field                     | Required | Notes                                                  |
-| ------------------------- | -------- | ------------------------------------------------------ |
-| `title`                   | no       | ページのヘッダーに表示される。既定は `Example Mapping` |
-| `stories[].id` / `name`   | yes      | 列の見出し。id は `[A-Za-z0-9_-]+` で全体一意          |
-| `rules[].id` / `name`     | yes      | `storyId` が必須（存在するストーリーを指すこと）       |
-| `examples[].id` / `name`  | yes      | `ruleId` が必須（存在するルールを指すこと）            |
-| `questions[].id` / `name` | yes      | `ruleId` が必須（存在するルールを指すこと）            |
-| `*/description`           | no       | カードに読み取り専用で表示される                       |
+| Field                     | Required | Notes                                                                                   |
+| ------------------------- | -------- | --------------------------------------------------------------------------------------- |
+| `title`                   | no       | ページのヘッダーに表示される。既定は `Example Mapping`                                  |
+| `stories[].id` / `name`   | yes      | 列の見出し。id は `[A-Za-z0-9_-]+` で全体一意                                           |
+| `rules[].id` / `name`     | yes      | `storyId` が必須（存在するストーリーを指すこと）                                        |
+| `examples[].id` / `name`  | yes      | `ruleId` が必須（存在するルールを指すこと）                                             |
+| `questions[].id` / `name` | yes      | `ruleId` が必須（存在するルールを指すこと）                                             |
+| `*/description`           | no       | カードに読み取り専用で表示される                                                        |
+| `*/questions`             | no       | このカードが関わる質問（grill）の ref。空白区切り（`"Q1 Q4"`）。カードに Q バッジが付く |
 
 存在しない `storyId` / `ruleId` を参照するカードは reject される。質問はルールに属し、ストーリーや具体例に直接ぶら下げることはできない。`stories` / `rules` / `examples` / `questions` をまたぐ id の重複も reject される。
 

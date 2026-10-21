@@ -436,3 +436,54 @@ describe('example-mapping change notices', () => {
     expect(el.navigation['card']).toBe('q3');
   });
 });
+
+describe('example-mapping marks for questions (grill)', () => {
+  const marked = {
+    ...base,
+    stories: [{ ...base.stories[0], questions: 'Q2' }, base.stories[1]],
+    rules: [{ ...base.rules[0], questions: 'Q1 Q2' }, base.rules[1]],
+    examples: [{ ...base.examples[0], questions: 'Q1' }, base.examples[1]],
+    questions: [{ ...base.questions[0], questions: 'Q1' }, ...base.questions.slice(1)],
+  };
+  const grill = {
+    questions: [
+      { id: 'reserve', title: 'Hold stock for unpaid orders?' },
+      { id: 'hours', title: 'Do holidays count as business hours?' },
+    ],
+  };
+
+  it('keeps a card’s question references through parsing and edits', () => {
+    const parsed = parseExampleMappingBase(marked);
+    expect(parsed.rules[0]?.questions).toBe('Q1 Q2');
+    const renamed = applyExampleMappingAction(
+      parsed,
+      action('SET_RULE_NAME', { type: 'rule', id: 'r1' }, { name: 'x' }),
+    );
+    expect(renamed?.rules.find((rule) => rule.id === 'r1')?.questions).toBe('Q1 Q2');
+  });
+
+  it('marks each card it names and lays a badge on it', async () => {
+    window.location.hash = '';
+    document.body.innerHTML = `
+      <dpk-template-example-mapping storage="memory">
+        <script type="application/json">${JSON.stringify(marked)}</script>
+        <script type="application/json" data-dpk-grill>${JSON.stringify(grill)}</script>
+      </dpk-template-example-mapping>`;
+    const el = document.querySelector('dpk-template-example-mapping') as DpkTemplateExampleMapping;
+    await settle(el);
+    await settle(el);
+    const root = el.shadowRoot!;
+    const marks = [...root.querySelectorAll('dpk-internal-example-mapping-card[data-grill-questions]')].map((card) => [
+      card.getAttribute('data-card'),
+      card.getAttribute('data-grill-questions'),
+    ]);
+    expect(marks).toEqual([
+      ['s1', 'Q2'],
+      ['r1', 'Q1 Q2'],
+      ['e1', 'Q1'],
+      ['q1', 'Q1'],
+    ]);
+    expect(root.querySelectorAll('.dpk-grill-badge')).toHaveLength(5);
+    document.body.innerHTML = '';
+  });
+});

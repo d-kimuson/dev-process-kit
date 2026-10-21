@@ -197,6 +197,31 @@ describe('<dpk-page>', () => {
       expect(badges).toEqual(['Q1@before', 'Q2@before', 'Q1@after']);
     });
 
+    it('lays a badge on a card a board renders from its data', async () => {
+      const page = document.createElement('dpk-page');
+      if (!(page instanceof PageElement)) throw new Error('not upgraded');
+      page.storage = 'memory';
+      const mapping = {
+        stories: [{ id: 'order', name: 'Order' }],
+        rules: [{ id: 'stock', storyId: 'order', name: 'Only in stock', questions: 'Q1' }],
+      };
+      page.innerHTML = `<script type="application/json">{"title":"Checkout"}</script>
+        <dpk-template-example-mapping board="rules" label="Rules">
+          <script type="application/json">${JSON.stringify(mapping)}</script>
+          ${grillOf({ questions: [{ id: 'reserve', title: 'Hold stock?' }] })}
+        </dpk-template-example-mapping>`;
+      document.body.append(page);
+      await page.api.ready;
+      for (let i = 0; i < 4; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await page.updateComplete;
+      }
+      const badges = Array.from(page.renderRoot.querySelectorAll('.dpk-grill-badge'), (badge) =>
+        badge.textContent?.trim(),
+      );
+      expect(badges).toEqual(['Q1@rules']);
+    });
+
     it('stops asking the questions of a board the draft removes', async () => {
       const page = await mountAsking();
       page.api.dispatch({ type: 'REMOVE_BOARD', target: { type: 'page', id: 'page' }, payload: { board: 'after' } });

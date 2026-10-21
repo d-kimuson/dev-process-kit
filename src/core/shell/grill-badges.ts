@@ -20,12 +20,14 @@ export type BadgeBinding = {
 };
 
 /**
- * Where marks can be: the page's own light DOM (the author's markup), plus the
+ * Where marks can be: the page's own light DOM (the author's markup), the
+ * template's own shadow root (cards it renders from its data), plus the
  * shadow roots of the components inside it — a diagram component renders its
  * nodes itself, so its marks are one boundary down.
  */
 const scopesOf = (host: HTMLElement): readonly ParentNode[] => {
   const roots: ParentNode[] = [host];
+  if (host.shadowRoot) roots.push(host.shadowRoot);
   for (const element of host.querySelectorAll('*')) {
     if (element.shadowRoot) roots.push(element.shadowRoot);
   }
@@ -166,6 +168,8 @@ export class GrillBadgeController implements ReactiveController {
   readonly #options: GrillBadgeOptions;
   #observer: MutationObserver | null = null;
   #pending = false;
+  /** The marks of the host's own shadow root at the last update. */
+  #ownMarks = '';
 
   constructor(host: ReactiveControllerHost & HTMLElement, options: GrillBadgeOptions) {
     this.#host = host;
@@ -191,6 +195,13 @@ export class GrillBadgeController implements ReactiveController {
   hostUpdated(): void {
     this.#observer?.disconnect();
     if (!this.#options.active()) return;
+    // Cards a template renders from its data appear in its own shadow root only
+    // after the render that collected the bindings, so their marks take one more.
+    const ownMarks = this.#ownMarksOf();
+    if (ownMarks !== this.#ownMarks) {
+      this.#ownMarks = ownMarks;
+      this.#host.requestUpdate();
+    }
     this.#observer ??= new MutationObserver(() => {
       this.#host.requestUpdate();
       this.#schedule();
@@ -201,6 +212,11 @@ export class GrillBadgeController implements ReactiveController {
       if (element.shadowRoot) this.#observer.observe(element.shadowRoot, OBSERVED);
     }
     this.#schedule();
+  }
+
+  #ownMarksOf(): string {
+    const marks = this.#host.shadowRoot?.querySelectorAll(`[${GRILL_QUESTIONS_ATTRIBUTE}]`) ?? [];
+    return Array.from(marks, (mark) => mark.getAttribute(GRILL_QUESTIONS_ATTRIBUTE) ?? '').join('|');
   }
 
   #schedule = (): void => {

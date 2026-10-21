@@ -42,7 +42,12 @@ export type BoardProps = {
   readonly m: ExampleMappingMessages;
 };
 
-type Entity = { readonly id: string; readonly name: string; readonly description?: string };
+type Entity = {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly questions?: string;
+};
 
 /** A hand-placed tilt, stable per card so a rerender never makes the wall jitter. */
 const tiltOf = (kind: MappingCardKind, id: string): number => {
@@ -93,6 +98,7 @@ const renderCard = (props: BoardProps, kind: MappingCardKind, entity: Entity): T
     data-card=${entity.id}
     data-card-kind=${kind}
     data-dpk-target=${targetRef({ type: kind, id: entity.id })}
+    data-grill-questions=${entity.questions?.trim() || nothing}
     draggable="true"
     .card=${{
       kind,
