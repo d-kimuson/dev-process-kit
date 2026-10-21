@@ -22,6 +22,7 @@ import type { DraftAction, TemplateDefinition } from '../types';
 
 import { DismissController } from '../../lib/dom/dismiss';
 import { TemplateElement } from '../element';
+import { GRILL_ATTRIBUTE, GRILL_TARGET_TYPE, type Grill } from '../grill';
 import { iconClose, iconPlus, lucide } from '../icons';
 import { coreMessages } from '../messages';
 import { PopoverController } from '../popover-controller';
@@ -40,6 +41,7 @@ import {
   type PageBase,
   type PageState,
 } from './definition';
+import { boardOfMark, pageGrill, refCandidates } from './grill';
 import { BOARD_ATTRIBUTE, BOARD_HOST, boardIdOf, DRAFT_BOARD_ATTRIBUTE, type BoardHost } from './host';
 import { pageMessages } from './messages';
 import { BOARD_KEY } from './navigation';
@@ -69,9 +71,16 @@ const isBoardElement = (element: Element): element is BoardElement =>
 const isDefinition = (value: unknown): value is AnyDefinition =>
   typeof value === 'object' && value !== null && 'name' in value && 'emptyBase' in value;
 
-/** A board's part of the page's draft, as the board itself knows its targets. */
+const BOARD_GRILL_SELECTOR = `:scope > script[type="application/json"][${GRILL_ATTRIBUTE}]`;
+
+/**
+ * A board's part of the page's draft, as the board itself knows its targets.
+ * A board's questions are the page's (`grill:retry@<board>`), so what the
+ * draft says about them stays with the page.
+ */
 const sliceOf = (actions: readonly DraftAction[], board: string): readonly DraftAction[] =>
   actions.flatMap((action) => {
+    if (action.target.type === GRILL_TARGET_TYPE) return [];
     const scoped = splitBoard(action.target);
     return scoped?.board === board ? [{ ...action, target: scoped.target }] : [];
   });
@@ -490,12 +499,29 @@ export class PageElement extends TemplateElement<PageState> {
       this.#baseIds = ids;
       this.#mirrored = new WeakMap();
       this.controller.setBase({ ...this.controller.base, ...this.#base() });
+      this.refreshGrill();
     });
   }
 
   /** The page's own JSON and questions are its children, not its boards'. */
   protected override scriptOf(selector: string): Element | null {
     return this.querySelector(`:scope > ${selector}`);
+  }
+
+  /** The page asks its own questions and those of every board its markup holds. */
+  protected override readGrill(): Grill {
+    const own = super.readGrill();
+    return pageGrill(
+      own,
+      this.#markupBoards().map((board) => {
+        const id = board.board ?? '';
+        return { board: id, grill: this.parseGrillScript(board.querySelector(BOARD_GRILL_SELECTOR), `@${id}`) };
+      }),
+    );
+  }
+
+  protected override grillRefsOf(mark: Element, token: string): readonly string[] {
+    return refCandidates(token, boardOfMark(mark));
   }
 
   protected override hasSidebarContent(): boolean {

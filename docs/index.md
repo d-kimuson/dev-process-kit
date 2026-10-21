@@ -339,6 +339,8 @@ Any template can ask the reader questions — decisions you still need from them
 
 Leave the block out until there is a question to ask. A malformed block renders an error banner; the base data keeps working regardless.
 
+On a [page of boards](page.md#questions), each board keeps its questions in a block of its own, and the page asks them all in one panel.
+
 | Field         | Required | Meaning                                          |
 | ------------- | -------- | ------------------------------------------------ |
 | `questions[]` | yes      | The current round's questions, in reading order. |

@@ -602,6 +602,7 @@ export abstract class TemplateElement<S> extends LitElement {
       this.#grill,
       this.derivation.answers,
       this.notesOpen && this.reviewSection === 'questions' ? openQuestionOf(this.#grill, this.#grillOpen) : null,
+      (mark, token) => this.grillRefsOf(mark, token),
     );
     // The header ellipsizes a long title; the tooltip has it whole.
     const title = this.definition.title(context.state);
@@ -1251,7 +1252,7 @@ export abstract class TemplateElement<S> extends LitElement {
     const base = this.#readBase();
     const board = this.#boardId !== null;
     // A board's questions, draft and hash are the page's.
-    this.#grill = board ? EMPTY_GRILL : this.#readGrill();
+    this.#grill = board ? EMPTY_GRILL : this.readGrill();
     this.#warnLegacyMemo();
     this.#navigation = board ? EMPTY_NAVIGATION : readNavigationFromHash();
     this.#boardLocale = this.locale;
@@ -1325,18 +1326,39 @@ export abstract class TemplateElement<S> extends LitElement {
     }
   }
 
-  /** The questions are optional: without their script the page asks nothing. */
-  #readGrill(): Grill {
-    const script = this.scriptOf(GRILL_SELECTOR);
+  /**
+   * The questions are optional: without their script the page asks nothing.
+   * A page overrides it to ask its boards' questions as well.
+   */
+  protected readGrill(): Grill {
     this.#grillError = null;
+    return this.parseGrillScript(this.scriptOf(GRILL_SELECTOR));
+  }
+
+  /** Reads one questions script; a malformed one is reported (named by `source`) and asks nothing. */
+  protected parseGrillScript(script: Element | null, source?: string): Grill {
     if (!script?.textContent || script.textContent.trim().length === 0) return EMPTY_GRILL;
     try {
       return parseGrill(JSON.parse(script.textContent));
     } catch (error) {
-      console.error('[dev-process-kit] invalid questions:', error);
-      this.#grillError = error instanceof Error ? error.message : String(error);
+      console.error(`[dev-process-kit] invalid questions${source === undefined ? '' : ` in ${source}`}:`, error);
+      const message = error instanceof Error ? error.message : String(error);
+      this.#grillError = source === undefined ? message : `${source}: ${message}`;
       return EMPTY_GRILL;
     }
+  }
+
+  /** Reads the questions again, for a page whose boards changed after it started. */
+  protected refreshGrill(): void {
+    if (this.#boardId !== null || !this.#controller) return;
+    this.#grill = this.readGrill();
+    this.#controller.setGrill({ grill: this.#grill, locale: this.locale });
+    this.requestUpdate();
+  }
+
+  /** The question refs a mark's token may name, in order; a page reads a mark inside a board as that board's. */
+  protected grillRefsOf(_mark: Element, token: string): readonly string[] {
+    return [token];
   }
 
   /**
@@ -1351,7 +1373,7 @@ export abstract class TemplateElement<S> extends LitElement {
       this.#previewObserver?.disconnect();
       this.#previewObserver = undefined;
       // The questions are written alongside the base data.
-      if (this.#boardId === null) this.#grill = this.#readGrill();
+      if (this.#boardId === null) this.#grill = this.readGrill();
       this.controller.setGrill({ grill: this.#grill, locale: this.locale });
       try {
         this.controller.setBase(this.definition.parseBase(JSON.parse(script.textContent ?? 'null')));

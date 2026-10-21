@@ -56,7 +56,11 @@ Inside a page every target names its board after an `@`: `story:checkout.pay@sco
 
 Within a board's own markup, write targets as you would on the template alone. `data-dpk-comment="story:checkout.pay"` inside the `scope` board means `story:checkout.pay@scope`, and so does `board.api.comment("story:checkout.pay", …)`. Qualify a target only to point at another board: a link in the `domain` board can say `data-dpk-comment="story:checkout.pay@scope"`.
 
-## Navigation
+## Questions
+
+A board asks its questions as it would on its own: a `<script type="application/json" data-dpk-grill>` child of the board, next to its base JSON ([index.md](index.md#questions-grill)). The page gathers every board's questions, and those of its own `data-dpk-grill` child (for questions about the page as a whole), into the one questions panel in its header.
+
+A board's question is qualified by its board like any of its targets: question `retry` of the `scope` board is `grill:retry@scope`, and its ref shows as `Q1@scope`. Within the board's markup, `data-grill-questions="Q1"` means that board's `Q1` (and the page's own `Q1` when the board has none); write `Q1@domain` to mark another board's question. Each board numbers its questions on its own, so ids and refs only need to be unique within one block.
 
 The hash names the board shown and keeps each board's position under its id:
 
@@ -81,7 +85,7 @@ An action on a board that is no longer on the page is **stale** (`target-missing
 
 ## Review and the hand-off
 
-The brief covers the whole page. It starts with a section listing each board — its id, label, template, and how many changes and comments the draft has for it — then the usual sections, with every target qualified by its board. Apply each action to the board it names, against that board's base JSON and vocabulary, with the `@<board>` removed.
+The brief covers the whole page. It starts with a section listing each board — its id, label, template, and how many changes and comments the draft has for it — then the usual sections, with every target qualified by its board (answers to a board's questions included: `grill:<id>@<board>`). Apply each action to the board it names, against that board's base JSON and vocabulary, with the `@<board>` removed.
 
 ## Element API
 

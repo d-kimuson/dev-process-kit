@@ -209,10 +209,20 @@ export const nextOpenQuestion = (grill: Grill, answers: GrillAnswers, currentId:
 
 /* ------------------------------------------------------------ answer actions */
 
+/**
+ * A question id as an answer targets it. A page that gathers its boards'
+ * questions qualifies each with its board (`retry@scope`), so the id may carry
+ * one `@<board>` after the question's own id.
+ */
+const questionTargetIdSchema = v.pipe(
+  v.string(),
+  v.regex(/^[A-Za-z0-9_-]+(?:@[A-Za-z0-9_-]+)?$/, 'a question id, optionally qualified by its board (`retry@scope`)'),
+);
+
 const answerActionSchema = v.object({
   id: v.pipe(v.string(), v.minLength(1)),
   type: v.literal(ANSWER_ACTION),
-  target: v.object({ type: v.literal(GRILL_TARGET_TYPE), id: entityIdSchema }),
+  target: v.object({ type: v.literal(GRILL_TARGET_TYPE), id: questionTargetIdSchema }),
   payload: answerPayloadSchema,
   note: v.exactOptional(v.string()),
   createdAt: v.pipe(v.string(), v.minLength(1)),

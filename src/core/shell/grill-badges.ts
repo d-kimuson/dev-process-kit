@@ -37,6 +37,8 @@ export const collectBadges = (
   grill: Grill,
   answers: GrillAnswers,
   openId: string | null,
+  /** The refs a token on `mark` may name, tried in order; by default the token itself. */
+  refsOf: (mark: Element, token: string) => readonly string[] = (_mark, token) => [token],
 ): readonly BadgeBinding[] => {
   if (grill.questions.length === 0) return [];
   const byRef = new Map<string, GrillQuestion>(grill.questions.map((question) => [question.ref, question]));
@@ -45,7 +47,9 @@ export const collectBadges = (
     for (const target of root.querySelectorAll(`[${GRILL_QUESTIONS_ATTRIBUTE}]`)) {
       const value = target.getAttribute(GRILL_QUESTIONS_ATTRIBUTE) ?? '';
       for (const token of value.split(/\s+/)) {
-        const question = byRef.get(token);
+        const question = refsOf(target, token)
+          .map((ref) => byRef.get(ref))
+          .find((entry) => entry !== undefined);
         if (!question) continue;
         bindings.push({
           index: bindings.length,
