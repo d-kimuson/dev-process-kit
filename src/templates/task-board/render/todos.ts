@@ -1,4 +1,5 @@
 import { html, nothing, type TemplateResult } from 'lit';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TaskBoardMessages } from '../messages';
@@ -124,6 +125,7 @@ const renderTodo = (
     class="board-todo"
     data-todo=${todo.id}
     data-dpk-target=${`todo:${todo.id}`}
+    data-grill-questions=${ifDefined(todo.questions)}
     data-status=${todo.status}
     data-proposal=${todo.proposal ?? 'none'}
     data-added=${String(todo.added)}

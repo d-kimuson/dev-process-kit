@@ -8,6 +8,7 @@ import type {
 } from '../../core/types';
 import type { DelegationPokerMessages } from './messages';
 
+import { grillMarkEntry } from '../../core/grill';
 import { payloadFor, type ActionName } from '../../core/schema';
 import { targetRef } from '../../core/target';
 import { DELEGATION_POKER_PAGE, delegationPokerActions } from './actions';
@@ -61,6 +62,8 @@ export type BoardRow = {
   /** Strict mode, card played: the reader's card on this row is final. */
   readonly locked: boolean;
   readonly cells: readonly BoardCell[];
+  /** `data-grill-questions` for the row's name, when it names any of the page's questions. */
+  readonly questions?: string;
 };
 
 /** A column head: the level, its name and who decides at it. */
@@ -123,6 +126,7 @@ const presentRow = (
     hidden: isRevealed(decision) ? 0 : decision.cards.length,
     ...(decision.agreed === undefined ? {} : { agreed: decision.agreed }),
     locked: isLocked(mode, decision),
+    ...grillMarkEntry(decision.questions),
     cells: DELEGATION_LEVELS.map((level) => ({
       level,
       chips: visible.filter((chip) => chip.level === level).map(({ level: _level, ...chip }) => chip),

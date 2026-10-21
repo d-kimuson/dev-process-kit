@@ -1,12 +1,15 @@
 import { sortBy } from 'es-toolkit/array';
 import * as v from 'valibot';
 
+import { questionRefsSchema } from '../../core/grill';
 import { entityIdSchema, splitPath } from '../../core/schema';
 import { findBlockerCycle } from './dependency-graph';
 
 export type BackboneStep = {
   readonly id: string;
   readonly name: string;
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 export type BackboneActivity = {
@@ -15,6 +18,8 @@ export type BackboneActivity = {
   /** Whose experience it is (`管理者`, `一般ユーザー`), shown as a label. */
   readonly actor?: string;
   readonly steps: readonly BackboneStep[];
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 export type Milestone = {
@@ -26,6 +31,8 @@ export type Milestone = {
   readonly description?: string;
   /** The day the slice is due, `YYYY-MM-DD`: where its burndown has to reach zero. */
   readonly dueDate?: string;
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 /**
@@ -189,6 +196,8 @@ export type UserStory = {
   readonly assigneeId?: string;
   /** Comments kept on the story, oldest first. */
   readonly comments?: readonly StoryComment[];
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 export type UsmState = {
@@ -235,12 +244,17 @@ export const tallyRowSchema = v.strictObject({
   points: v.pipe(v.number(), v.finite(), v.minValue(0)),
 });
 export const snapshotAtSchema = v.pipe(v.string(), v.isoTimestamp());
-const stepSchema = v.strictObject({ id: v.pipe(v.string(), v.minLength(1)), name: v.pipe(v.string(), v.minLength(1)) });
+const stepSchema = v.strictObject({
+  id: v.pipe(v.string(), v.minLength(1)),
+  name: v.pipe(v.string(), v.minLength(1)),
+  questions: questionRefsSchema,
+});
 const activitySchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   actor: v.exactOptional(v.string()),
   steps: v.optional(v.array(stepSchema), []),
+  questions: questionRefsSchema,
 });
 const milestoneSchema = v.strictObject({
   id: v.pipe(v.string(), v.minLength(1)),
@@ -248,6 +262,7 @@ const milestoneSchema = v.strictObject({
   timeframe: v.exactOptional(v.string()),
   description: v.exactOptional(v.string()),
   dueDate: v.exactOptional(dueDateSchema),
+  questions: questionRefsSchema,
 });
 export const statusToneSchema = v.picklist(STATUS_TONES);
 export const statusIconSchema = v.picklist(STATUS_ICONS);
@@ -296,6 +311,7 @@ const storySchema = v.strictObject({
   estimateId: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   assigneeId: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   comments: v.exactOptional(v.array(storyCommentSchema)),
+  questions: questionRefsSchema,
 });
 const memberSchema = v.strictObject({
   id: entityIdSchema,

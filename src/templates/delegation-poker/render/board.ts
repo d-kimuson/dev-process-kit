@@ -1,4 +1,5 @@
 import { html, nothing, type TemplateResult } from 'lit';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
@@ -115,7 +116,7 @@ const renderRow = (props: BoardProps, levels: readonly BoardLevel[], row: BoardR
     data-status=${row.status}
     ?data-locked=${row.locked}
   >
-    <div class="cell-name" role="rowheader">
+    <div class="cell-name" role="rowheader" data-grill-questions=${ifDefined(row.questions)}>
       <div class="row-title">
         <dpk-component-inline-edit
           class="row-name"

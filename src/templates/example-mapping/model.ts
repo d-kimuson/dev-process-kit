@@ -1,6 +1,7 @@
 import { sortBy } from 'es-toolkit/array';
 import * as v from 'valibot';
 
+import { questionRefsSchema } from '../../core/grill';
 import { entityIdSchema } from '../../core/schema';
 
 /**
@@ -66,7 +67,7 @@ const namedSchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
-  questions: v.exactOptional(v.string()),
+  questions: questionRefsSchema,
 });
 
 const ruleSchema = v.strictObject({
@@ -74,7 +75,7 @@ const ruleSchema = v.strictObject({
   storyId: v.pipe(v.string(), v.minLength(1)),
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
-  questions: v.exactOptional(v.string()),
+  questions: questionRefsSchema,
 });
 
 /** Examples and questions share a shape: both hang off one rule. */
@@ -83,7 +84,7 @@ const ruleCardSchema = v.strictObject({
   ruleId: v.pipe(v.string(), v.minLength(1)),
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
-  questions: v.exactOptional(v.string()),
+  questions: questionRefsSchema,
 });
 
 export const exampleMappingBaseSchema = v.strictObject({

@@ -1,4 +1,5 @@
 import { html, nothing, type TemplateResult } from 'lit';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TaskBoardMessages } from '../messages';
@@ -42,7 +43,12 @@ const renderOutput = (
   const place = output.place;
   const copyLabel = copied ? m.copied : m.copy(output.href);
   return html`
-    <li class="board-output" data-output=${output.id} data-place=${place.kind}>
+    <li
+      class="board-output"
+      data-output=${output.id}
+      data-place=${place.kind}
+      data-grill-questions=${ifDefined(output.questions)}
+    >
       <div class="board-output-body">
         <div class="board-output-head">
           ${output.kind === null ? nothing : html`<span class="board-kind">${output.kind}</span>`}
@@ -128,6 +134,7 @@ const renderEntry = (
       class="board-log-entry"
       data-log=${entry.id}
       data-dpk-target=${`log:${entry.id}`}
+      data-grill-questions=${ifDefined(entry.questions)}
       data-from=${entry.author?.kind ?? 'agent'}
       data-latest=${String(entry.latest)}
     >

@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 
+import { questionRefsSchema } from '../../core/grill';
 import { entityIdSchema } from '../../core/schema';
 
 export const NOTE_TYPES = [
@@ -18,6 +19,8 @@ export type BoundedContext = {
   readonly id: string;
   readonly name: string;
   readonly description?: string;
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 export type StickyNote = {
@@ -26,6 +29,8 @@ export type StickyNote = {
   readonly name: string;
   readonly description?: string;
   readonly contextId?: string;
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 /**
@@ -54,6 +59,7 @@ const contextSchema = v.strictObject({
   id: entityIdSchema,
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
+  questions: questionRefsSchema,
 });
 
 const noteSchema = v.strictObject({
@@ -62,6 +68,7 @@ const noteSchema = v.strictObject({
   name: v.pipe(v.string(), v.minLength(1)),
   description: v.exactOptional(v.string()),
   contextId: v.exactOptional(v.string()),
+  questions: questionRefsSchema,
 });
 
 const linkSchema = v.strictObject({

@@ -46,22 +46,23 @@ connector — an arrow (or a plain line) between two items, with an optional lab
 
 Coordinates are canvas units (1 unit = 1 CSS px at 100 % zoom). `x` / `y` are the top-left corner and may be negative. The board opens fitted to everything on it, so where the origin is does not matter — only the relative layout does.
 
-| Field                             | Required         | Notes                                                                                                                                 |
-| --------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `title`                           | no               | ページのヘッダーに表示される。既定は `Whiteboard`                                                                                     |
-| `items[].id`                      | yes              | `[A-Za-z0-9_-]+`。items と connectors で一意（同じ id 空間）                                                                          |
-| `items[].kind`                    | yes              | `sticky` / `text` / `shape` / `frame`                                                                                                 |
-| `items[].x` / `y`                 | yes              | 左上の座標（canvas 単位）                                                                                                             |
-| `items[].w` / `h`                 | frame のみ必須   | 既定: sticky `160×160`、text `240×48`、shape `180×110`。最小 24                                                                       |
-| `items[].text`                    | no               | sticky / text / shape の本文（改行可）。既定は空                                                                                      |
-| `items[].title`                   | frame は必須     | フレームの見出し（空不可）                                                                                                            |
-| `items[].color`                   | no               | `yellow` / `orange` / `pink` / `purple` / `blue` / `green` / `gray`。既定: sticky `yellow`、shape `blue`、frame `gray`。text には無い |
-| `items[].shape`                   | no（shape のみ） | `rect`（既定）/ `ellipse`                                                                                                             |
-| `items[].fontSize`                | no（frame 以外） | `small` / `medium`（既定）/ `large` / `xlarge`。frame には無い                                                                        |
-| `connectors[].id` / `from` / `to` | yes              | 既存の item を指すこと。`from` と `to` が同じものは reject                                                                            |
-| `connectors[].label`              | no               | 線の中央に表示                                                                                                                        |
-| `connectors[].style`              | no               | `arrow`（既定、`to` 側に矢印）/ `line`                                                                                                |
-| `connectors[].route`              | no               | `straight`（既定、直線）/ `elbow`（カギ線）/ `curve`（曲線）                                                                          |
+| Field                             | Required         | Notes                                                                                                                                         |
+| --------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`                           | no               | ページのヘッダーに表示される。既定は `Whiteboard`                                                                                             |
+| `items[].id`                      | yes              | `[A-Za-z0-9_-]+`。items と connectors で一意（同じ id 空間）                                                                                  |
+| `items[].kind`                    | yes              | `sticky` / `text` / `shape` / `frame`                                                                                                         |
+| `items[].x` / `y`                 | yes              | 左上の座標（canvas 単位）                                                                                                                     |
+| `items[].w` / `h`                 | frame のみ必須   | 既定: sticky `160×160`、text `240×48`、shape `180×110`。最小 24                                                                               |
+| `items[].text`                    | no               | sticky / text / shape の本文（改行可）。既定は空                                                                                              |
+| `items[].title`                   | frame は必須     | フレームの見出し（空不可）                                                                                                                    |
+| `items[].color`                   | no               | `yellow` / `orange` / `pink` / `purple` / `blue` / `green` / `gray`。既定: sticky `yellow`、shape `blue`、frame `gray`。text には無い         |
+| `items[].shape`                   | no（shape のみ） | `rect`（既定）/ `ellipse`                                                                                                                     |
+| `items[].fontSize`                | no（frame 以外） | `small` / `medium`（既定）/ `large` / `xlarge`。frame には無い                                                                                |
+| `connectors[].id` / `from` / `to` | yes              | 既存の item を指すこと。`from` と `to` が同じものは reject                                                                                    |
+| `connectors[].label`              | no               | 線の中央に表示                                                                                                                                |
+| `connectors[].style`              | no               | `arrow`（既定、`to` 側に矢印）/ `line`                                                                                                        |
+| `connectors[].route`              | no               | `straight`（既定、直線）/ `elbow`（カギ線）/ `curve`（曲線）                                                                                  |
+| `items[].questions`               | no               | Refs of the page's questions (grill) the item is about, space-separated (`"Q1 Q4"`); each gets a Q badge (`docs/index.md`, Questions (grill)) |
 
 未知の `kind` / フィールド、存在しない item を指す connector、items と connectors をまたぐ id の重複は reject される。
 

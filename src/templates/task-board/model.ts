@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 
+import { grillMarkEntry, questionRefsSchema } from '../../core/grill';
 import { entityIdSchema } from '../../core/schema';
 
 /**
@@ -47,6 +48,8 @@ export type Todo = {
   readonly reason: string | null;
   /** Added by the reader in this draft, not by the agent. */
   readonly added: boolean;
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 export type Output = {
@@ -58,6 +61,8 @@ export type Output = {
   /** A short tag such as `PR` or `Doc`. */
   readonly kind: string | null;
   readonly description: string | null;
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 /**
@@ -89,6 +94,8 @@ export type LogEntry = {
   readonly title: string | null;
   readonly body: string | null;
   readonly points: readonly string[];
+  /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
+  readonly questions?: string;
 };
 
 export type Question = {
@@ -145,6 +152,7 @@ const todoSchema = v.strictObject({
   note: v.optional(v.string()),
   proposed: v.optional(v.boolean(), false),
   reason: v.optional(v.string()),
+  questions: questionRefsSchema,
 });
 
 const outputSchema = v.strictObject({
@@ -153,6 +161,7 @@ const outputSchema = v.strictObject({
   href: text,
   kind: v.optional(v.string()),
   description: v.optional(v.string()),
+  questions: questionRefsSchema,
 });
 
 const contextSchema = v.strictObject({
@@ -169,6 +178,7 @@ const logEntrySchema = v.strictObject({
   title: v.optional(v.string()),
   body: v.optional(v.string()),
   points: v.optional(v.array(v.string()), []),
+  questions: questionRefsSchema,
 });
 
 const questionSchema = v.strictObject({
@@ -267,6 +277,7 @@ export const parseTaskBoardBase = (input: unknown): TaskBoardState => {
       proposed: todo.proposed,
       reason: present(todo.reason),
       added: false,
+      ...grillMarkEntry(todo.questions),
     })),
     outputs: parsed.outputs.map((output) => ({
       id: output.id,
@@ -274,6 +285,7 @@ export const parseTaskBoardBase = (input: unknown): TaskBoardState => {
       href: output.href,
       kind: present(output.kind),
       description: present(output.description),
+      ...grillMarkEntry(output.questions),
     })),
     log: parsed.log.map((entry) => ({
       id: entry.id,
@@ -282,6 +294,7 @@ export const parseTaskBoardBase = (input: unknown): TaskBoardState => {
       title: present(entry.title),
       body: present(entry.body),
       points: presentItems(entry.points),
+      ...grillMarkEntry(entry.questions),
     })),
     questions: parsed.questions.map((question, index) => ({
       id: question.id,

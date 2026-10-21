@@ -1,10 +1,12 @@
 import { html, nothing, type TemplateResult } from 'lit';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { DragController, Drop } from '../../../lib/dom/drag';
 import type { ExampleMappingMessages } from '../messages';
 
+import { grillMark } from '../../../core/grill';
 import { targetRef } from '../../../core/target';
 import { CARD_KINDS, cardPaletteStyle } from '../components/mapping-card';
 import {
@@ -98,7 +100,7 @@ const renderCard = (props: BoardProps, kind: MappingCardKind, entity: Entity): T
     data-card=${entity.id}
     data-card-kind=${kind}
     data-dpk-target=${targetRef({ type: kind, id: entity.id })}
-    data-grill-questions=${entity.questions?.trim() || nothing}
+    data-grill-questions=${ifDefined(grillMark(entity.questions))}
     draggable="true"
     .card=${{
       kind,

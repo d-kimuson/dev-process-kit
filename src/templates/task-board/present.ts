@@ -350,6 +350,8 @@ export type TodoViewModel = {
   /** The reader changed its status in this draft. */
   readonly changed: boolean;
   readonly comments: number;
+  /** `data-grill-questions` for it, when it names any of the page's questions. */
+  readonly questions?: string;
 };
 
 /** The whole list, or only the todos people have. */
@@ -402,6 +404,7 @@ const presentTodo = (
     added: todo.added,
     changed: before !== undefined && before.status !== todo.status,
     comments: comments(`todo:${todo.id}`),
+    ...(todo.questions === undefined ? {} : { questions: todo.questions }),
   };
 };
 
@@ -466,6 +469,8 @@ export type OutputViewModel = {
   readonly kind: string | null;
   readonly description: string | null;
   readonly place: OutputLocation;
+  /** `data-grill-questions` for it, when it names any of the page's questions. */
+  readonly questions?: string;
 };
 
 export const presentOutputs = (state: TaskBoardState): readonly OutputViewModel[] =>
@@ -477,6 +482,7 @@ export const presentOutputs = (state: TaskBoardState): readonly OutputViewModel[
     kind: output.kind,
     description: output.description,
     place: outputLocation(output.href),
+    ...(output.questions === undefined ? {} : { questions: output.questions }),
   }));
 
 export type LogEntryViewModel = {
@@ -491,6 +497,8 @@ export type LogEntryViewModel = {
   readonly label: string;
   readonly latest: boolean;
   readonly comments: number;
+  /** `data-grill-questions` for it, when it names any of the page's questions. */
+  readonly questions?: string;
 };
 
 /** Where the task stands: shown on the newest entry, which is where the reader starts. */
@@ -521,6 +529,7 @@ export const presentLog = (m: TaskBoardMessages, state: TaskBoardState, comments
         label: logLabel(entry),
         latest: index === state.log.length - 1,
         comments: comments(`log:${entry.id}`),
+        ...(entry.questions === undefined ? {} : { questions: entry.questions }),
       };
     })
     .reverse(),

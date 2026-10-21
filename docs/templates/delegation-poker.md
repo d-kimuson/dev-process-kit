@@ -70,15 +70,16 @@ Agent が読み手（ユーザー）と「Agent に何を任せるか」を決�
 }
 ```
 
-| Field                            | Required | Notes                                                                                                                              |
-| -------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `title`                          | no       | ページのヘッダーに表示される。既定は `Delegation Poker`                                                                            |
-| `parties.delegator` / `delegate` | no       | 任せる側 / 任される側の呼び名。各レベルの説明文に入る。既定は `Leaders` / `Team`（ja: リーダー / チーム）                          |
-| `players[].id` / `name`          | no       | 読み手以外のプレイヤー（Agent 自身を含めてよい）。id は `[A-Za-z0-9_-]+` で一意                                                    |
-| `decisions[].id` / `name`        | yes      | 判断領域。id は players と合わせて全体一意                                                                                         |
-| `decisions[].description`        | no       | ボードの行に読み取り専用で表示される                                                                                               |
-| `decisions[].cards[]`            | no       | 他のプレイヤーが出したカード。`player`（players の id）と `level`（1〜7 の整数）が必須、`reason` は任意（チップの tooltip に出る） |
-| `decisions[].agreed`             | no       | すでに合意したレベル（1〜7）。合意済みの領域は最初からカードが開いている                                                           |
+| Field                            | Required | Notes                                                                                                                               |
+| -------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `title`                          | no       | ページのヘッダーに表示される。既定は `Delegation Poker`                                                                             |
+| `parties.delegator` / `delegate` | no       | 任せる側 / 任される側の呼び名。各レベルの説明文に入る。既定は `Leaders` / `Team`（ja: リーダー / チーム）                           |
+| `players[].id` / `name`          | no       | 読み手以外のプレイヤー（Agent 自身を含めてよい）。id は `[A-Za-z0-9_-]+` で一意                                                     |
+| `decisions[].id` / `name`        | yes      | 判断領域。id は players と合わせて全体一意                                                                                          |
+| `decisions[].description`        | no       | ボードの行に読み取り専用で表示される                                                                                                |
+| `decisions[].cards[]`            | no       | 他のプレイヤーが出したカード。`player`（players の id）と `level`（1〜7 の整数）が必須、`reason` は任意（チップの tooltip に出る）  |
+| `decisions[].agreed`             | no       | すでに合意したレベル（1〜7）。合意済みの領域は最初からカードが開いている                                                            |
+| `decisions[].questions`          | no       | この決定領域が関わる質問（grill）の ref。空白区切り（`"Q1 Q4"`）。行の名前に Q バッジが付く（`docs/index.md` の Questions (grill)） |
 
 `level` / `agreed` は 1〜7 の整数だけを受け付ける。存在しないプレイヤーのカード、同じプレイヤーが同じ判断領域に 2 枚出すこと、id の重複は reject される。読み手自身のカードは base に書けない（draft の `PLAY_CARD` だけが持つ）。
 

@@ -1,4 +1,5 @@
 import { html, nothing, type TemplateResult } from 'lit';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
@@ -6,6 +7,7 @@ import type { DragController, Drop, DropTargetHandlers } from '../../../lib/dom/
 import type { CellRef } from '../drop';
 import type { UsmMessages } from '../messages';
 
+import { grillMark } from '../../../core/grill';
 import { iconGrip, iconPlus } from '../../../core/icons';
 import { targetRef } from '../../../core/target';
 import { setCompositeDragImage } from '../../../lib/dom/drag-image';
@@ -62,17 +64,19 @@ export type MilestoneRow = {
   /** `''` when the milestone leaves it out. */
   readonly timeframe: string;
   readonly storyCount: number;
+  readonly questions?: string;
 };
 
 /** Every milestone in map order, then Unassigned. */
 export const milestoneRows = (m: UsmMessages, state: UsmState): readonly MilestoneRow[] => {
   const countOf = (id: string | undefined): number => state.stories.filter((story) => story.milestoneId === id).length;
   return [
-    ...state.milestones.map(({ id, name, timeframe }) => ({
+    ...state.milestones.map(({ id, name, timeframe, questions }) => ({
       id,
       name,
       timeframe: timeframe?.trim() ?? '',
       storyCount: countOf(id),
+      ...(questions === undefined ? {} : { questions }),
     })),
     { id: undefined, name: m.unassigned, timeframe: '', storyCount: countOf(undefined) },
   ];
@@ -262,6 +266,7 @@ const renderActivityHead = (
       data-activity=${activity.id}
       data-column=${activity.id}
       data-dpk-target=${targetRef({ type: 'activity', id: activity.id })}
+      data-grill-questions=${ifDefined(grillMark(activity.questions))}
       draggable="true"
       data-col-dragging=${String(drag.isDragging('activity', activity.id))}
       data-col-drop=${columnDrop(drag, activity.id)}
@@ -347,6 +352,7 @@ const renderStepHead = (props: BoardProps, activityId: string, step: BackboneSte
       data-column-step=${step.id}
       data-current=${String(context.navigation['step'] === step.id)}
       data-dpk-target=${targetRef({ type: 'step', id: ref })}
+      data-grill-questions=${ifDefined(grillMark(step.questions))}
       draggable="true"
       data-col-dragging=${String(columnDragging(drag, activityId, step.id))}
       data-col-drop=${columnDrop(drag, activityId, step.id)}
@@ -524,6 +530,7 @@ const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: Templat
           class="row-head"
           data-milestone=${milestoneId}
           data-dpk-target=${targetRef({ type: 'milestone', id: milestoneId })}
+          data-grill-questions=${ifDefined(grillMark(row.questions))}
           draggable="true"
           @dragstart=${(event: DragEvent) => {
             liftRow(event);
@@ -691,6 +698,7 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     data-relation=${relationTo(context.state, context.navigation['story'], story) ?? nothing}
     data-highlight=${cardHighlightOf(props.highlighted, story.id) ?? nothing}
     data-dpk-target=${targetRef({ type: 'story', id: story.id })}
+    data-grill-questions=${ifDefined(grillMark(story.questions))}
     draggable="true"
     tabindex="0"
     role="button"

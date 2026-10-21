@@ -42,15 +42,16 @@ a `member` link keeps two notes in the same slice; a `flow` link is succession
 }
 ```
 
-| Field                             | Required | Notes                                                                                         |
-| --------------------------------- | -------- | --------------------------------------------------------------------------------------------- |
-| `title`                           | no       | shown in the page header; defaults to `Event Storming`                                        |
-| `contexts[].id` / `name`          | yes      | `description` optional                                                                        |
-| `elements[].id` / `name`          | yes      | `description` optional, `contextId` optional (must reference a known context)                 |
-| `elements[].type`                 | yes      | one of `actor \| command \| aggregate \| event \| policy \| readmodel \| external \| hotspot` |
-| `links[].id` / `from` / `to`      | yes      | `from`/`to` must reference known note ids; `label` optional                                   |
-| `links[].kind`                    | no       | `member` (same slice) \| `flow` (succession); inferred from the note types when omitted       |
-| `contexts` / `elements` / `links` | no       | each defaults to `[]`                                                                         |
+| Field                                           | Required | Notes                                                                                                                                                    |
+| ----------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`                                         | no       | shown in the page header; defaults to `Event Storming`                                                                                                   |
+| `contexts[].id` / `name`                        | yes      | `description` optional                                                                                                                                   |
+| `elements[].id` / `name`                        | yes      | `description` optional, `contextId` optional (must reference a known context)                                                                            |
+| `elements[].type`                               | yes      | one of `actor \| command \| aggregate \| event \| policy \| readmodel \| external \| hotspot`                                                            |
+| `links[].id` / `from` / `to`                    | yes      | `from`/`to` must reference known note ids; `label` optional                                                                                              |
+| `links[].kind`                                  | no       | `member` (same slice) \| `flow` (succession); inferred from the note types when omitted                                                                  |
+| `contexts` / `elements` / `links`               | no       | each defaults to `[]`                                                                                                                                    |
+| `contexts[].questions` / `elements[].questions` | no       | Refs of the page's questions (grill) the note or context is about, space-separated (`"Q1 Q4"`); each gets a Q badge (`docs/index.md`, Questions (grill)) |
 
 | Type        | Lane meaning                             |
 | ----------- | ---------------------------------------- |
