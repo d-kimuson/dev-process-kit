@@ -154,6 +154,45 @@ describe('<dpk-page>', () => {
     });
   });
 
+  describe('draft changes a board announces', () => {
+    const record = (target: EventTarget) => {
+      const seen: unknown[] = [];
+      target.addEventListener('dpk-change', (event) => {
+        if (event instanceof CustomEvent && event.target === target) seen.push(event.detail);
+      });
+      return seen;
+    };
+    const targetsOf = (snapshots: readonly unknown[]) =>
+      snapshots.map((snapshot) =>
+        typeof snapshot === 'object' && snapshot !== null && 'actions' in snapshot && Array.isArray(snapshot.actions)
+          ? snapshot.actions.map((action: { target: unknown }) => action.target)
+          : snapshot,
+      );
+
+    it('fires dpk-change on the board whose part of the draft changed, in its own targets', async () => {
+      const { page, before, after } = await mount();
+      const [onBefore, onAfter] = [record(before), record(after)];
+      after.api.comment('page:prototype@before', 'compare with this');
+      await page.updateComplete;
+      expect(targetsOf(onBefore)).toEqual([[{ type: 'page', id: 'prototype' }]]);
+      expect(onAfter).toEqual([]);
+    });
+
+    it('keeps the board’s event off the page, whose own snapshot stays page-qualified', async () => {
+      const { page, before } = await mount();
+      const targets: EventTarget[] = [];
+      const snapshots: unknown[] = [];
+      page.addEventListener('dpk-change', (event) => {
+        targets.push(event.target ?? page);
+        if (event instanceof CustomEvent) snapshots.push(event.detail);
+      });
+      before.api.comment('page:prototype', 'too many steps');
+      await page.updateComplete;
+      expect(targets).toEqual([page]);
+      expect(targetsOf(snapshots)).toEqual([[{ type: 'page', id: 'prototype@before' }]]);
+    });
+  });
+
   it('reports the work on a board that is taken away as stale', async () => {
     const { page, after } = await mount();
     after.api.comment('page:prototype', 'gone soon');

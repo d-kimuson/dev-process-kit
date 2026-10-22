@@ -1450,13 +1450,14 @@ export abstract class TemplateElement<S> extends LitElement {
     queueMicrotask(this.#refreshCommentTargets);
     this.requestUpdate();
     this.#notify();
-    // A board's changes are the page's, announced by the page.
-    if (this.#boardId !== null) return;
+    // A board announces its own part on itself, as a template alone does; the
+    // page announces the whole draft, so the board's event does not bubble.
+    const board = this.#boardId !== null;
     this.dispatchEvent(
       new CustomEvent('dpk-change', {
         detail: this.#snapshot(),
-        bubbles: true,
-        composed: true,
+        bubbles: !board,
+        composed: !board,
       }),
     );
   }

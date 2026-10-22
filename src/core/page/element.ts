@@ -336,6 +336,8 @@ export class PageElement extends TemplateElement<PageState> {
   #askingIds = '';
   /** The page draft each board was last given, so a render that changed nothing gives nothing. */
   #mirrored = new WeakMap<BoardElement, readonly DraftAction[]>();
+  /** The part of the draft each board was last given, so a board is given only a real change. */
+  readonly #slices = new WeakMap<BoardElement, string>();
   /** Whether each board has read its base: a board is given its part of the draft only after that. */
   readonly #ready = new WeakMap<BoardElement, boolean>();
   readonly #catalogs = new Map<Locale, readonly AnyDefinition[]>();
@@ -791,10 +793,22 @@ export class PageElement extends TemplateElement<PageState> {
       if (!this.#isReady(board)) continue;
       if (this.#mirrored.get(board) !== actions) {
         this.#mirrored.set(board, actions);
-        board.controller.replaceActions(sliceOf(actions, id));
+        this.#mirror(board, sliceOf(actions, id));
       }
       board.requestUpdate();
     }
+  }
+
+  /**
+   * Gives a board its part of the draft only when that part changed: a board
+   * announces every change of its draft, and a change on another board is
+   * none of its own. A board's draft starts empty and changes only here.
+   */
+  #mirror(board: BoardElement, slice: readonly DraftAction[]): void {
+    const key = JSON.stringify(slice);
+    if ((this.#slices.get(board) ?? '[]') === key) return;
+    this.#slices.set(board, key);
+    board.controller.replaceActions(slice);
   }
 
   /** An element for a board the draft added; it starts from its template's empty base. */
