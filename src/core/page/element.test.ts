@@ -5,24 +5,46 @@ import { PageElement } from './element';
 import '../../index';
 
 const BASE = '<script type="application/json">{"title":"Screens","activities":[]}</script>';
+const STEPS = `<script type="application/json">${JSON.stringify({
+  title: 'Screens',
+  activities: [
+    {
+      id: 'a',
+      name: 'A',
+      stories: [
+        {
+          id: 's',
+          name: 'S',
+          steps: [
+            { id: 's1', name: 'One', panes: [] },
+            { id: 's2', name: 'Two', panes: [] },
+          ],
+        },
+      ],
+    },
+  ],
+})}</script>`;
 
 type Board = HTMLElement & {
   readonly api: {
     readonly actions: readonly { type: string; target: unknown }[];
     readonly ready: Promise<void>;
+    readonly navigation: Record<string, string>;
+    navigate(patch: Record<string, string>): void;
+    subscribe(listener: (snapshot: { readonly navigation: unknown }) => void): () => void;
     comment(target: string, body: string): unknown;
   };
 };
 
 const isBoard = (element: Element | null): element is Board => element instanceof HTMLElement && 'api' in element;
 
-const mount = async () => {
+const mount = async (base = BASE) => {
   const page = document.createElement('dpk-page');
   if (!(page instanceof PageElement)) throw new Error('not upgraded');
   page.storage = 'memory';
   page.innerHTML = `<script type="application/json">{"title":"Checkout"}</script>
-    <dpk-template-prototype board="before" label="Before">${BASE}</dpk-template-prototype>
-    <dpk-template-prototype board="after" label="After">${BASE}</dpk-template-prototype>`;
+    <dpk-template-prototype board="before" label="Before">${base}</dpk-template-prototype>
+    <dpk-template-prototype board="after" label="After">${base}</dpk-template-prototype>`;
   document.body.append(page);
   await page.api.ready;
   await page.updateComplete;
@@ -79,6 +101,57 @@ describe('<dpk-page>', () => {
     page.api.navigate({ board: 'after' });
     await page.updateComplete;
     expect([before.hidden, after.hidden]).toEqual([true, false]);
+  });
+
+  describe('navigation a board announces', () => {
+    const record = (target: EventTarget) => {
+      const seen: unknown[] = [];
+      target.addEventListener('dpk-navigate', (event) => {
+        if (event instanceof CustomEvent && event.target === target) seen.push(event.detail);
+      });
+      return seen;
+    };
+
+    it('fires dpk-navigate on the board with its own navigation when it navigates', async () => {
+      const { page, before } = await mount(STEPS);
+      const seen = record(before);
+      const changes: unknown[] = [];
+      before.api.subscribe((snapshot) => changes.push(snapshot.navigation));
+      before.api.navigate({ step: 's2' });
+      await page.updateComplete;
+      expect(seen).toEqual([{ navigation: before.api.navigation }]);
+      expect(before.api.navigation).toMatchObject({ step: 's2' });
+      expect(changes).toEqual([before.api.navigation]);
+    });
+
+    it('fires it on a board the page or another board moves, and on no board that stays', async () => {
+      const { page, before, after } = await mount(STEPS);
+      const [onBefore, onAfter] = [record(before), record(after)];
+      page.api.navigate({ board: 'after', 'after.step': 's2' });
+      await page.updateComplete;
+      expect(onBefore).toEqual([]);
+      expect(onAfter).toEqual([{ navigation: after.api.navigation }]);
+      expect(after.api.navigation).toMatchObject({ step: 's2' });
+    });
+
+    it('fires it on a board the hash moves', async () => {
+      const { page, before } = await mount(STEPS);
+      const seen = record(before);
+      window.location.hash = 'board=before&before.step=s2';
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      await page.updateComplete;
+      expect(seen).toEqual([{ navigation: before.api.navigation }]);
+      expect(before.api.navigation).toMatchObject({ step: 's2' });
+    });
+
+    it('keeps the board’s event off the page, whose own event stays page-qualified', async () => {
+      const { page, before } = await mount(STEPS);
+      const targets: EventTarget[] = [];
+      page.addEventListener('dpk-navigate', (event) => targets.push(event.target ?? page));
+      before.api.navigate({ step: 's2' });
+      await page.updateComplete;
+      expect(targets).toEqual([page]);
+    });
   });
 
   it('reports the work on a board that is taken away as stale', async () => {

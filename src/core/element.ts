@@ -310,6 +310,8 @@ export abstract class TemplateElement<S> extends LitElement {
   #boardId: string | null = null;
   /** The locale the board's controller was last given, so a pick on the page reaches it. */
   #boardLocale: Locale | undefined;
+  /** The board's navigation as it last told its listeners, so it announces only a real move. */
+  #boardNavigation = '';
 
   // ---------------------------------------------------------------- lifecycle
 
@@ -400,6 +402,7 @@ export abstract class TemplateElement<S> extends LitElement {
       this.#boardLocale = host.locale();
       this.#controller.setTemplate(this.definition);
     }
+    if (this.#boardId !== null && this.#controller) this.#announceBoardNavigation();
   }
 
   protected override updated(): void {
@@ -1275,6 +1278,22 @@ export abstract class TemplateElement<S> extends LitElement {
     return this.definition.resolveNavigation(this.derivation.state, raw);
   }
 
+  /**
+   * A board's navigation is the page's, so it moves whenever the page's does:
+   * through this board, another board's link or the hash. The page asks every
+   * board to render again then, and the board announces its own part the way
+   * a template alone does. The event does not bubble, so the page's listeners
+   * keep hearing only the page's own, page-qualified one.
+   */
+  #announceBoardNavigation(): void {
+    const navigation = this.#effectiveNavigation();
+    const key = formatHash(navigation);
+    if (key === this.#boardNavigation) return;
+    this.#boardNavigation = key;
+    this.#notify();
+    this.dispatchEvent(new CustomEvent('dpk-navigate', { detail: { navigation } }));
+  }
+
   #initialize(): void {
     const base = this.#readBase();
     const board = this.#boardId !== null;
@@ -1294,6 +1313,7 @@ export abstract class TemplateElement<S> extends LitElement {
     this.#subscribe();
     this.#refreshCommentTargets();
     this.#canonicalizeNavigation(true);
+    if (board) this.#boardNavigation = formatHash(this.#effectiveNavigation());
     this.#resolveReady?.();
     this.#observeBaseScript();
     this.requestUpdate();
