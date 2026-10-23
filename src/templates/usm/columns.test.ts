@@ -7,7 +7,6 @@ import type { DpkTemplateUsm } from './element';
 import '../../index';
 import { applyUsmAction } from './apply';
 import { usmDefinitionFor } from './definition';
-import { resolveActivityDrop, resolveStepDrop } from './drop';
 import { usmMessages } from './messages';
 import { parseUsmBase } from './model';
 
@@ -67,31 +66,6 @@ describe('usm columns: REORDER_ACTIVITY', () => {
   });
 });
 
-describe('usm columns: drops', () => {
-  it('reorders activity groups: the dragged one takes the hovered slot', () => {
-    const ids = state.activities.map((activity) => activity.id);
-    expect(resolveActivityDrop(ids, 'a3', 'a1', 'after')).toEqual({
-      type: 'REORDER_ACTIVITY',
-      target: { type: 'activity', id: 'a3' },
-      payload: { after: null },
-    });
-    expect(resolveActivityDrop(ids, 'a1', 'a2', 'before')).toMatchObject({ payload: { after: 'a2' } });
-    expect(resolveActivityDrop(ids, 'a1', null, 'end')).toMatchObject({ payload: { after: 'a3' } });
-    expect(resolveActivityDrop(ids, 'gone', 'a1', 'after')).toBeNull();
-  });
-
-  it('reorders steps inside their activity by qualified refs, never across activities', () => {
-    expect(resolveStepDrop(state, 'a1.s3', 'a1.s1', 'after')).toEqual({
-      type: 'REORDER_STEP',
-      target: { type: 'step', id: 'a1.s3' },
-      payload: { after: null },
-    });
-    expect(resolveStepDrop(state, 'a1.s1', 'a1.s2', 'before')).toMatchObject({ payload: { after: 'a1.s2' } });
-    expect(resolveStepDrop(state, 'a1.s1', 'a2.t1', 'before')).toBeNull();
-    expect(resolveStepDrop(state, 'a1.gone', 'a1.s1', 'before')).toBeNull();
-  });
-});
-
 describe('usm columns: on the map', () => {
   const settle = async (el: DpkTemplateUsm): Promise<void> => {
     await el.api.ready;
@@ -119,25 +93,56 @@ describe('usm columns: on the map', () => {
   it('lets the activity group heads and the step heads be picked up by a grip, but not their editors', async () => {
     const el = await mount('');
     const root = el.shadowRoot!;
+    const matrix = root.querySelector('dpk-matrix')!.shadowRoot!;
     const groups = [...root.querySelectorAll('.act-head[data-activity]')];
-    expect(groups.map((head) => head.getAttribute('draggable'))).toEqual(['true', 'true', 'true']);
+    const groupHandles = groups.map((head) =>
+      matrix.querySelector(`.matrix-col-head[data-column="${head.getAttribute('data-activity')}"]`),
+    );
+    expect(groupHandles.map((handle) => handle?.getAttribute('draggable'))).toEqual(['true', 'true', 'true']);
     const steps = [...root.querySelectorAll('.col-head')];
     expect(steps.map((head) => head.getAttribute('data-step'))).toEqual(['a1.s1', 'a1.s2', 'a1.s3', 'a2.t1', 'a3.u1']);
+    const stepHandles = steps.map((head) =>
+      matrix.querySelector(
+        `.matrix-sub-head[data-column="${head.getAttribute('data-column')}"][data-sub-column="${head.getAttribute('data-column-step')}"]`,
+      ),
+    );
+    expect(stepHandles.map((handle) => handle?.getAttribute('draggable'))).toEqual([
+      'true',
+      'true',
+      'true',
+      'true',
+      'true',
+    ]);
+    // The grip itself is `<dpk-matrix>`'s own now, not drawn by USM: it lives beside the
+    // slot inside the matrix's own draggable wrapper, not inside the host's `.act-head`/`.col-head`.
+    for (const handle of [...groupHandles, ...stepHandles]) {
+      expect(handle?.querySelector('.matrix-grip')).not.toBeNull();
+    }
     for (const head of [...groups, ...steps]) {
-      expect(head.getAttribute('draggable')).toBe('true');
-      expect(head.querySelector('.col-grip')).not.toBeNull();
-      for (const editor of head.querySelectorAll('dpk-component-inline-edit')) {
+      for (const editor of head.querySelectorAll('dpk-inline-edit')) {
         expect(editor.getAttribute('draggable')).toBe('false');
       }
     }
-    // the trailing "+ Activity" head is not a group
-    expect(root.querySelector('.act-head:not([data-activity])')?.getAttribute('draggable')).toBeNull();
+    // the trailing "+ Activity" head is not a group: `<dpk-matrix>` mirrors its own (non-draggable)
+    // state onto the slotted content div itself, since native drag-and-drop only ever looks at the
+    // light DOM ancestor chain a pointer-down actually lands on, never through the slot into the
+    // shadow root that declares `draggable` on the wrapper. With no draggable state, it shows no grip.
+    const addActivityHead = root.querySelector('.act-head:not([data-activity])');
+    expect(addActivityHead?.getAttribute('draggable')).toBe('false');
+    const addActivityHandle = matrix.querySelector('.matrix-col-head[draggable="false"]');
+    expect(addActivityHandle).not.toBeNull();
+    expect(addActivityHandle?.querySelector('.matrix-grip')).toBeNull();
   });
 
   it('lets the group view reorder its activity groups too', async () => {
     const el = await mount('#view=group');
-    const heads = [...el.shadowRoot!.querySelectorAll('.act-head[data-activity]')];
-    expect(heads.map((head) => head.getAttribute('draggable'))).toEqual(['true', 'true', 'true']);
+    const root = el.shadowRoot!;
+    const matrix = root.querySelector('dpk-matrix')!.shadowRoot!;
+    const heads = [...root.querySelectorAll('.act-head[data-activity]')];
+    const handles = heads.map((head) =>
+      matrix.querySelector(`.matrix-col-head[data-column="${head.getAttribute('data-activity')}"]`),
+    );
+    expect(handles.map((handle) => handle?.getAttribute('draggable'))).toEqual(['true', 'true', 'true']);
   });
 
   /** jsdom has no DragEvent: a synthetic drop carrying the payload, as the board reads it. */
@@ -161,28 +166,30 @@ describe('usm columns: on the map', () => {
     expect(column('a1', 's2')).toEqual(['col-head', 'cell']);
   });
 
-  it('takes a dropped group anywhere on another group column, like a milestone row', async () => {
+  it('reorders an activity group when <dpk-matrix> reports a column reorder', async () => {
     const el = await mount('');
-    const cell = el.shadowRoot!.querySelector('.cell[data-column="a1"][data-column-step="s2"]')!;
-    dropOn(cell, 'activity:a3');
+    const matrix = el.shadowRoot!.querySelector('dpk-matrix')!;
+    matrix.dispatchEvent(new CustomEvent('dpk-matrix-reorder-column', { detail: { columnId: 'a3', after: 'a1' } }));
     await settle(el);
-    expect(el.api.state.activities.map((activity) => activity.id)).toEqual(['a3', 'a1', 'a2']);
+    expect(el.api.state.activities.map((activity) => activity.id)).toEqual(['a1', 'a3', 'a2']);
   });
 
-  it('takes a dropped step on a cell of its own activity, never of another', async () => {
+  it('reorders a step inside its own activity when <dpk-matrix> reports a sub-column reorder', async () => {
     const el = await mount('');
-    const root = el.shadowRoot!;
-    dropOn(root.querySelector('.cell[data-column="a1"][data-column-step="s1"]')!, 'step:a1.s3');
+    const matrix = el.shadowRoot!.querySelector('dpk-matrix')!;
+    matrix.dispatchEvent(
+      new CustomEvent('dpk-matrix-reorder-sub-column', {
+        detail: { columnId: 'a1', subColumnId: 's3', after: 's1' },
+      }),
+    );
     await settle(el);
-    expect(el.api.state.activities[0]?.steps.map((step) => step.id)).toEqual(['s3', 's1', 's2']);
-    dropOn(root.querySelector('.cell[data-column="a2"]')!, 'step:a1.s3');
-    await settle(el);
-    expect(el.api.state.activities.map((activity) => activity.steps.length)).toEqual([3, 1, 1]);
+    expect(el.api.state.activities[0]?.steps.map((step) => step.id)).toEqual(['s1', 's3', 's2']);
   });
 
-  it('lets the group view take a dropped group on its cells too', async () => {
+  it("wires the group view's <dpk-matrix> for column reorders too", async () => {
     const el = await mount('#view=group');
-    dropOn(el.shadowRoot!.querySelector('.cell[data-column="a2"]')!, 'activity:a1');
+    const matrix = el.shadowRoot!.querySelector('dpk-matrix')!;
+    matrix.dispatchEvent(new CustomEvent('dpk-matrix-reorder-column', { detail: { columnId: 'a2', after: null } }));
     await settle(el);
     expect(el.api.state.activities.map((activity) => activity.id)).toEqual(['a2', 'a1', 'a3']);
   });

@@ -2,11 +2,14 @@ import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { Lock, Network } from 'lucide';
 
+import type { ContextMenuGroup, ContextMenuRequest } from '../../../core/context-menu/types';
 import type { Estimate, Member, StoryLabel, StoryLink, UserStory } from '../model';
 
+import { cardAtom } from '../../../components/atoms/card';
 import { iconComment, iconNote, lucide } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
 import { controls } from '../../../core/theme';
+import { copyText } from '../../../lib/dom/clipboard';
 import { describeLink } from '../../../lib/link-label';
 import { renderMarkdown } from '../../../lib/markdown';
 import { usmMessages, type UsmMessages } from '../messages';
@@ -24,119 +27,37 @@ const MAX_LINK_CHIPS = 3;
 
 const cardStyles = css`
   /*
-   * The card wears its status's color the way a modern board does: a flat,
-   * barely tinted face and a hairline edge in that hue, with a neutral, soft
-   * elevation. Tints are mixed in OKLab so every hue stays clean instead of
-   * turning muddy.
+   * The card is the kit's card atom (it was back-ported from this one); what
+   * stays here is the map's own: the status icon, the dependency chips and the
+   * host's states mapped onto the card.
    */
   :host {
-    --card-tone: var(--usm-tone, var(--dpk-ink-faint));
-    position: relative;
-    display: grid;
-    gap: 8px;
-    padding: 12px 13px;
-    border: 1px solid color-mix(in oklab, var(--card-tone) 24%, var(--dpk-rule));
-    border-radius: 12px;
-    background: color-mix(in oklab, var(--card-tone) 6%, var(--dpk-paper-raised));
-    box-shadow:
-      0 1px 1px var(--dpk-shade-1),
-      0 2px 6px -3px var(--dpk-shade-2);
-    cursor: pointer;
-    transition:
-      box-shadow 180ms var(--dpk-ease),
-      transform 180ms var(--dpk-ease),
-      border-color 180ms var(--dpk-ease),
-      opacity 180ms var(--dpk-ease),
-      filter 180ms var(--dpk-ease);
+    --dpk-card-tone: var(--usm-tone, var(--dpk-ink-faint));
+    display: block;
   }
 
-  :host(:hover) {
-    border-color: color-mix(in oklab, var(--card-tone) 45%, var(--dpk-rule));
-    box-shadow:
-      0 1px 2px var(--dpk-shade-1),
-      0 8px 20px -10px var(--dpk-shade-3);
-    transform: translateY(-1px);
-  }
-
-  :host([focused]) {
-    border-color: var(--dpk-blue);
-    box-shadow:
-      0 0 0 3px color-mix(in oklab, var(--dpk-blue) 20%, transparent),
-      0 8px 20px -10px var(--dpk-shade-3);
+  :host(:focus-visible) {
+    outline: none;
   }
 
   /* The card is the button that opens its story; the keyboard ring is the focused look. */
-  :host(:focus-visible) {
-    outline: none;
+  :host(:focus-visible) .dpk-card {
     border-color: var(--dpk-blue);
     box-shadow: var(--dpk-focus);
   }
 
-  /* A highlight on the map (the critical path): the cards on it stand out, the rest step back. */
-  :host([data-highlight='on']) {
-    border-color: color-mix(in oklab, var(--dpk-accent) 70%, var(--dpk-rule));
-    box-shadow:
-      0 0 0 2px color-mix(in oklab, var(--dpk-accent) 28%, transparent),
-      0 8px 20px -10px var(--dpk-shade-3);
-  }
-
-  :host([data-highlight='dimmed']) {
-    opacity: 0.4;
-    filter: saturate(0.4);
-  }
-
-  :host([data-highlight='dimmed']:hover),
-  :host([data-highlight='dimmed']:focus-visible),
-  :host([data-highlight='dimmed'][focused]) {
+  :host(:focus-visible) .dpk-card[data-state~='dimmed'] {
     opacity: 0.85;
     filter: none;
   }
 
-  :host([dragging]) {
-    opacity: 0.45;
-    transform: none;
+  /* With a story open, the cards it waits on and the cards waiting on it stand out. */
+  :host([data-relation='blocker']) {
+    --dpk-card-mark: var(--dpk-amber);
   }
 
-  .card-head {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  /* The estimate and the assignee sit at the end of the head, small, like a ticket's size and owner. */
-  .card-meta {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-left: auto;
-  }
-  .estimate-chip {
-    padding: 0 6px;
-    border: 1px solid color-mix(in oklab, var(--card-tone) 30%, var(--dpk-rule-strong));
-    border-radius: 5px;
-    background: var(--dpk-paper-raised);
-    color: var(--dpk-ink-soft);
-    font-family: var(--dpk-mono);
-    font-size: 10.5px;
-    font-weight: 650;
-    line-height: 17px;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  .assignee-avatar {
-    display: inline-grid;
-    place-items: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--usm-tone);
-    color: var(--dpk-paper-raised);
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1;
+  :host([data-relation='dependent']) {
+    --dpk-card-mark: var(--dpk-violet);
   }
 
   .card-status {
@@ -145,169 +66,11 @@ const cardStyles = css`
     margin-top: 1.5px;
   }
 
-  .card-name {
-    flex: 1 1 auto;
-    min-width: 0;
-    color: var(--dpk-ink);
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
-  }
-
-  /* The description, rendered from Markdown and cut after three lines. */
-  .card-text {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    overflow: hidden;
-    color: var(--dpk-ink-soft);
-    font-size: 12px;
-    line-height: 1.55;
-    overflow-wrap: anywhere;
-  }
-
-  .card-text > * {
-    margin: 0;
-  }
-
-  /* A heading in the description reads as a line of the preview, not a title over the card. */
-  .card-text :is(h1, h2, h3, h4, h5, h6) {
-    font-size: inherit;
-    font-weight: 650;
-  }
-
-  .card-text ul,
-  .card-text ol {
-    padding-left: 1.2em;
-  }
-
-  .card-text code {
-    padding: 0 3px;
-    border-radius: 4px;
-    background: var(--dpk-paper-inset);
-    font-family: var(--dpk-mono);
-    font-size: 0.92em;
-  }
-
-  .card-text a {
-    color: var(--dpk-blue);
-  }
-
-  /* Where the story sits and what was said about it. */
-  .card-foot {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-  }
-
-  /* The key people call the story by, quiet like a ticket number. */
-  .card-key {
-    flex: none;
-    color: var(--dpk-ink-faint);
-    font-family: var(--dpk-mono);
-    font-size: 10.5px;
-    font-weight: 600;
-    line-height: 18px;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  .card-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    min-width: 0;
-    padding: 1px 7px;
-    border-radius: 6px;
-    background: color-mix(in oklab, var(--card-tone) 10%, var(--dpk-paper-sunken));
-    color: var(--dpk-ink-soft);
-    font-size: 10.5px;
-    font-weight: 600;
-    line-height: 18px;
-  }
-
-  .card-chip span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .card-chip[data-kind='comments'],
-  .card-chip[data-kind='review'] {
-    background: transparent;
-    color: var(--dpk-ink-faint);
-    font-family: var(--dpk-mono);
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* The counts sit at the right end of the foot, the kept comments first. */
-  .card-chip[data-kind='comments'],
-  .card-chip:not([data-kind='comments']) + .card-chip[data-kind='review'],
-  .card-key + .card-chip[data-kind='review'] {
-    margin-left: auto;
-  }
-
-  /* Review comments ask the agent for a change: they take the accent, like the header's toggle. */
-  .card-chip[data-kind='review'] {
-    color: var(--dpk-accent);
-  }
-
-  .card-chip svg {
-    flex: none;
-    width: 12px;
-    height: 12px;
-  }
-
-  /* The labels the story carries, each in its own color. */
-  .card-labels {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    min-width: 0;
-  }
-
-  .label-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    min-width: 0;
-    max-width: 100%;
-    padding: 0 7px;
-    border: 1px solid color-mix(in oklab, var(--usm-tone) 35%, transparent);
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--usm-tone) 12%, var(--dpk-paper-raised));
-    color: var(--dpk-ink);
-    font-size: 10.5px;
-    font-weight: 600;
-    line-height: 17px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .label-chip::before {
-    content: '';
-    flex: none;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--usm-tone);
-  }
-
   /*
    * Where the story sits among the others. A story that holds others up is
    * work to pull forward (a spike), so its chip is the loud one; one still
    * waiting reads quieter and goes away once its blockers are done.
    */
-  .card-deps {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
   .dep-chip {
     display: inline-flex;
     align-items: center;
@@ -336,29 +99,13 @@ const cardStyles = css`
     color: var(--dpk-ink-soft);
   }
 
-  /* With a story open, the cards it waits on and the cards waiting on it stand out. */
-  :host([data-relation]) {
-    outline: 2px dashed var(--relation-tone);
-    outline-offset: 2px;
-  }
-
-  :host([data-relation='blocker']) {
-    --relation-tone: var(--dpk-amber);
-  }
-
-  :host([data-relation='dependent']) {
-    --relation-tone: var(--dpk-violet);
-  }
-
-  .card-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    min-width: 0;
+  .dpk-pill,
+  .dpk-avatar {
+    --tone: var(--usm-tone);
   }
 
   .card-links .link-chip {
-    border-color: color-mix(in oklab, var(--card-tone) 16%, var(--dpk-rule));
+    border-color: color-mix(in oklab, var(--dpk-card-tone) 16%, var(--dpk-rule));
     background: var(--dpk-paper-raised);
   }
 `;
@@ -373,7 +120,7 @@ const cardStyles = css`
  * tab order: the panel lists every link.
  */
 export class DpkInternalUsmStoryCard extends LitElement {
-  static override styles = [controls, statusStyles, linkStyles, cardStyles];
+  static override styles = [controls, cardAtom, statusStyles, linkStyles, cardStyles];
 
   static override properties = {
     story: { attribute: false },
@@ -387,6 +134,8 @@ export class DpkInternalUsmStoryCard extends LitElement {
     waits: { type: Number },
     focused: { type: Boolean, reflect: true },
     dragging: { type: Boolean, reflect: true },
+    highlight: { attribute: 'data-highlight' },
+    relation: { attribute: 'data-relation' },
   };
 
   declare story: UserStory | null;
@@ -408,6 +157,10 @@ export class DpkInternalUsmStoryCard extends LitElement {
   declare waits: number;
   declare focused: boolean;
   declare dragging: boolean;
+  /** The map's highlight (the critical path): `on`, `dimmed` or none. */
+  declare highlight: string | null;
+  /** How the story relates to the open one: `blocker`, `dependent` or none. */
+  declare relation: string | null;
 
   readonly #i18n = new LocaleController(this);
 
@@ -424,6 +177,22 @@ export class DpkInternalUsmStoryCard extends LitElement {
     this.waits = 0;
     this.focused = false;
     this.dragging = false;
+    this.highlight = null;
+    this.relation = null;
+  }
+
+  /** The card's own context-menu contribution: copy this story's id (e.g. `STORY-6`), not the page's URL. */
+  getContextMenuItems(_request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
+    const story = this.story;
+    if (!story) return null;
+    const m = usmMessages(this.#i18n.locale);
+    const key = storyKey(story);
+    return [
+      {
+        id: 'usm-story-card',
+        entries: [{ kind: 'item', id: 'copy-story-id', label: m.copyId, run: () => void copyText(key) }],
+      },
+    ];
   }
 
   protected override render(): TemplateResult | typeof nothing {
@@ -431,43 +200,67 @@ export class DpkInternalUsmStoryCard extends LitElement {
     if (!story) return nothing;
     const m = usmMessages(this.#i18n.locale);
     const comments = story.comments?.length ?? 0;
-    return html`
-      <div class="card-head">
+    return html`<div class="dpk-card" data-interactive data-state=${this.#cardState()}>
+      <div class="dpk-card-head">
         ${this.statuses.length === 0 ? nothing : this.#renderStatus(m, story)}
-        <div class="card-name"><span>${story.name}</span></div>
+        <div class="dpk-card-title"><span>${story.name}</span></div>
         ${this.estimate || this.assignee ? this.#renderMeta(m) : nothing}
       </div>
       ${
         story.description
-          ? html`<div class="card-text" @click=${stopLinkClicks}>${unsafeHTML(renderMarkdown(story.description))}</div>`
+          ? html`<div class="dpk-card-text" @click=${stopLinkClicks}>
+              ${unsafeHTML(renderMarkdown(story.description))}
+            </div>`
           : nothing
       }
       ${this.blocks > 0 || this.waits > 0 ? this.#renderDependencies(m) : nothing}
       ${this.labels.length > 0 ? renderLabels(this.labels) : nothing}
       ${story.links && story.links.length > 0 ? this.#renderLinks(story.links) : nothing}
-      <div class="card-foot">
-        <span class="card-key">${storyKey(story)}</span>
+      <div class="dpk-card-foot">
+        <span class="dpk-card-key">${storyKey(story)}</span>
         ${
           this.stepName === ''
             ? nothing
-            : html`<span class="card-chip" data-kind="step"><span>${this.stepName}</span></span>`
+            : html`<span class="dpk-card-chip" data-kind="step"><span>${this.stepName}</span></span>`
         }
         ${
           comments > 0
-            ? html`<span class="card-chip" data-kind="comments" aria-label=${m.commentCountAria(comments)}>
+            ? html`<span
+                class="dpk-card-chip"
+                data-variant="count"
+                data-kind="comments"
+                aria-label=${m.commentCountAria(comments)}
+              >
                 ${iconNote()}<span>${comments}</span>
               </span>`
             : nothing
         }
         ${
           this.reviewCount > 0
-            ? html`<span class="card-chip" data-kind="review" aria-label=${m.reviewCountAria(this.reviewCount)}>
+            ? html`<span
+                class="dpk-card-chip"
+                data-variant="count"
+                data-tone="accent"
+                data-kind="review"
+                aria-label=${m.reviewCountAria(this.reviewCount)}
+              >
                 ${iconComment()}<span>${this.reviewCount}</span>
               </span>`
             : nothing
         }
       </div>
-    `;
+    </div>`;
+  }
+
+  /** The host's states as the card atom's `data-state` words. */
+  #cardState(): string | typeof nothing {
+    const words = [
+      this.focused ? 'selected' : '',
+      this.highlight === 'on' ? 'highlight' : this.highlight === 'dimmed' ? 'dimmed' : '',
+      this.dragging ? 'dragging' : '',
+      this.relation ? 'marked' : '',
+    ].filter((word) => word !== '');
+    return words.length === 0 ? nothing : words.join(' ');
   }
 
   #renderStatus(m: UsmMessages, story: UserStory): TemplateResult | typeof nothing {
@@ -481,11 +274,13 @@ export class DpkInternalUsmStoryCard extends LitElement {
 
   #renderMeta(m: UsmMessages): TemplateResult {
     const { estimate, assignee } = this;
-    return html`<span class="card-meta">
+    return html`<span class="dpk-card-meta">
       ${
         estimate
           ? html`<span
-              class="estimate-chip"
+              class="dpk-card-chip"
+              data-variant="outline"
+              data-kind="estimate"
               title=${m.estimateChipTitle(m.estimateText(estimate.name, estimate.points))}
               >${estimate.name}</span
             >`
@@ -494,7 +289,8 @@ export class DpkInternalUsmStoryCard extends LitElement {
       ${
         assignee
           ? html`<span
-              class="assignee-avatar"
+              class="dpk-avatar"
+              data-kind="assignee"
               style=${statusToneStyle(assignee.tone)}
               title=${m.assigneeChipTitle(assignee.name)}
               >${initialOf(assignee.name)}</span
@@ -505,7 +301,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
   }
 
   #renderDependencies(m: UsmMessages): TemplateResult {
-    return html`<div class="card-deps">
+    return html`<div class="dpk-card-row card-deps">
       ${
         this.blocks > 0
           ? html`<span class="dep-chip" data-kind="blocks" title=${m.blocksChipTitle(this.blocks)}
@@ -526,7 +322,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
   /** The first links as chips (the service's mark and a short label); the rest as a count. */
   #renderLinks(links: readonly StoryLink[]): TemplateResult {
     const shown = links.slice(0, MAX_LINK_CHIPS);
-    return html`<div class="card-links">
+    return html`<div class="dpk-card-row card-links">
       ${shown.map((link) => {
         const label = describeLink(link.url);
         return html`<a
@@ -547,10 +343,10 @@ export class DpkInternalUsmStoryCard extends LitElement {
   }
 }
 
-const renderLabels = (labels: readonly StoryLabel[]): TemplateResult => html`<div class="card-labels">
+const renderLabels = (labels: readonly StoryLabel[]): TemplateResult => html`<div class="dpk-card-row card-labels">
   ${labels.map(
     (label) =>
-      html`<span class="label-chip" data-label=${label.id} style=${statusToneStyle(label.tone)}>${label.name}</span>`,
+      html`<span class="dpk-pill" data-label=${label.id} style=${statusToneStyle(label.tone)}>${label.name}</span>`,
   )}
 </div>`;
 

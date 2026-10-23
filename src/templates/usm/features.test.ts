@@ -136,7 +136,7 @@ describe('usm features: element', () => {
   it('leaves out everything of a feature that is off', async () => {
     const el = await mount('#story=u1');
     const root = el.shadowRoot!;
-    expect(tabs(el)).toEqual(['map', 'milestones', 'statuses', 'labels']);
+    expect(tabs(el)).toEqual(['map', 'table', 'milestones', 'statuses', 'labels']);
     const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
     expect(panel.querySelector('[data-estimate]')).toBeNull();
     expect(panel.querySelector('[data-assignee]')).toBeNull();
@@ -144,8 +144,8 @@ describe('usm features: element', () => {
       updateComplete: Promise<boolean>;
     };
     await card.updateComplete;
-    expect(card.shadowRoot!.querySelector('.estimate-chip')).toBeNull();
-    expect(card.shadowRoot!.querySelector('.assignee-avatar')).toBeNull();
+    expect(card.shadowRoot!.querySelector('[data-kind="estimate"]')).toBeNull();
+    expect(card.shadowRoot!.querySelector('[data-kind="assignee"]')).toBeNull();
     expect(root.querySelector('[data-filter-trigger="estimate"]')).toBeNull();
     expect(root.querySelector('[data-filter-trigger="assignee"]')).toBeNull();
   });
@@ -185,11 +185,11 @@ describe('usm features: element', () => {
       type: 'SET_FEATURE',
       payload: { feature: 'estimates', enabled: true },
     });
-    expect(tabs(el)).toEqual(['map', 'milestones', 'statuses', 'labels', 'burndown']);
+    expect(tabs(el)).toEqual(['map', 'table', 'milestones', 'statuses', 'labels', 'burndown']);
     expect(option('estimates').getAttribute('aria-checked')).toBe('true');
     option('assignees').click();
     await settle(el);
-    expect(tabs(el)).toEqual(['map', 'milestones', 'statuses', 'labels', 'members', 'burndown']);
+    expect(tabs(el)).toEqual(['map', 'table', 'milestones', 'statuses', 'labels', 'members', 'burndown']);
     option('estimates').click();
     await settle(el);
     expect(el.api.state.features).toEqual(['assignees']);

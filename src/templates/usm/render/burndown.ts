@@ -2,12 +2,13 @@ import { css, html, nothing, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 import { CircleHelp, TriangleAlert } from 'lucide';
 
+import type { SelectController } from '../../../core/select/controller';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { UsmMessages } from '../messages';
 
 import { iconTrash, lucide } from '../../../core/icons';
 import { targetRef } from '../../../core/target';
-import { onCommit, onInputChange, onSelectChange } from '../../../lib/dom/events';
+import { onCommit, onInputChange } from '../../../lib/dom/events';
 import { burndownMilestoneOf, burndownOf, measureOf, momentLabel, type BurndownPoint } from '../burndown';
 import { type ChartSize } from '../burndown-chart';
 import { addEstimate, recordSnapshot } from '../commands';
@@ -30,14 +31,20 @@ const STATUS_SIZE: ChartSize = { width: 340, height: 150, inset: { top: 12, righ
  * once per status — drawn from the snapshots and the map as it stands now.
  * The snapshots themselves are kept here too.
  */
-export const renderBurndown = (m: UsmMessages, context: TemplateRenderContext<UsmState>, now: Date): TemplateResult => {
+export const renderBurndown = (
+  m: UsmMessages,
+  context: TemplateRenderContext<UsmState>,
+  now: Date,
+  milestoneSelect: SelectController,
+): TemplateResult => {
   const { state, navigation } = context;
   const milestone = burndownMilestoneOf(state, navigation);
   const measure = measureOf(state);
   return html`
     <section class="bd-overview" data-testid="usm-burndown">
       <header class="bd-bar">
-        ${milestone ? renderMilestoneControls(m, context, milestone) : nothing} ${renderMeasures(m, context, measure)}
+        ${milestone ? renderMilestoneControls(m, context, milestone, milestoneSelect) : nothing}
+        ${renderMeasures(m, context, measure)}
         ${
           milestone
             ? html`<span class="bd-record">
@@ -72,19 +79,18 @@ const renderMilestoneControls = (
   m: UsmMessages,
   context: TemplateRenderContext<UsmState>,
   milestone: Milestone,
+  select: SelectController,
 ): TemplateResult => {
   const { state } = context;
   return html`<label class="bd-control">
       <span>${m.burndownMilestoneLabel}</span>
-      <select
-        class="dpk-select"
-        data-role="milestone"
-        @change=${onSelectChange((milestoneId) => context.navigate({ milestone: milestoneId }))}
-      >
-        ${state.milestones.map(
-          (option) => html`<option value=${option.id} ?selected=${option.id === milestone.id}>${option.name}</option>`,
-        )}
-      </select>
+      ${select.render({
+        options: state.milestones.map((option) => ({ value: option.id, label: option.name })),
+        value: milestone.id,
+        onChange: (milestoneId) => context.navigate({ milestone: milestoneId }),
+        ariaLabel: m.burndownMilestoneLabel,
+        className: 'bd-milestone-select',
+      })}
     </label>
     <label class="bd-control" data-dpk-target=${targetRef({ type: 'milestone', id: milestone.id })}>
       <span>${m.dueDateLabel}</span>
@@ -334,11 +340,11 @@ const renderEstimateRow = (
   const target = { type: 'estimate', id: estimate.id };
   return html`<li data-estimate=${estimate.id} data-dpk-target=${targetRef(target)}>
     <span class="bd-estimate-name">
-      <dpk-component-inline-edit
+      <dpk-inline-edit
         .value=${estimate.name}
         .label=${m.estimateNameLabel}
         @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_ESTIMATE_NAME', target, payload: { name } }))}
-      ></dpk-component-inline-edit>
+      ></dpk-inline-edit>
     </span>
     <label class="bd-estimate-points">
       <input
@@ -422,7 +428,7 @@ export const burndownStyles = css`
     font-size: 11px;
     font-weight: 600;
   }
-  .bd-control .dpk-select {
+  .bd-control .dpk-rich-select {
     min-width: 160px;
   }
   .bd-control .dpk-input {
@@ -744,7 +750,7 @@ export const burndownStyles = css`
     .bd-record {
       margin-left: 0;
     }
-    .bd-control .dpk-select,
+    .bd-control .dpk-rich-select,
     .bd-control .dpk-input {
       width: 100%;
       min-width: 0;

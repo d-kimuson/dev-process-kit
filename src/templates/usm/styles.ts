@@ -16,54 +16,23 @@ export const usmStyles = css`
    * second clearance under it. On a short screen it keeps 320px and the page
    * scrolls instead.
    */
-  .dpk-main-body:has(> .map-scroll) {
+  .dpk-main-body:has(> dpk-matrix) {
     flex: 1 1 0;
     min-height: 0;
     grid-template-rows: auto minmax(320px, 1fr);
     padding-bottom: 16px;
   }
-  .map-scroll {
-    min-width: 0;
-    max-width: 100%;
-    overflow: auto;
-    overscroll-behavior-x: contain;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius-lg);
-    background: var(--dpk-paper-sunken);
-    box-shadow: var(--dpk-shadow);
-  }
-  .map {
-    display: grid;
-    gap: 0;
-    min-width: max-content;
-    /* The map scrolls on its own: its last row clears the hand-off dock at the end of that scroll. */
-    padding-bottom: var(--dpk-dock-clearance, 0px);
-  }
-  .map-row {
-    display: grid;
-    grid-template-columns: 140px repeat(var(--cols), minmax(180px, 240px));
-  }
-  .map-row + .map-row {
-    border-top: 1px solid var(--dpk-rule);
-  }
-
-  /* The backbone (activities and steps) stays at the top while the rows scroll. */
-  .map-head {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    border-bottom: 1px solid var(--dpk-rule-strong);
-    box-shadow: 0 8px 14px -12px var(--dpk-shade-3);
-  }
-
-  /* The leading column (axis corners and milestone labels) stays at the left
-     while the steps scroll sideways; it is opaque so cards pass under it. */
-  .corner:first-child,
-  .row-lead {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    box-shadow: 1px 0 0 var(--dpk-rule);
+  /* The grid, its scroll, its sticky head and lead column are \`<dpk-matrix>\`'s
+     own; this only wires the hand-off dock's clearance through to matrix's
+     own variable, which it does not otherwise know about. Every head here
+     (\`.corner\`, \`.act-head\`, \`.col-head\`, \`.row-lead\`) already carries its
+     own full padding, so matrix's own generic head padding is turned off
+     rather than stack a second inset around each one; the cell keeps
+     matrix's own padding and paper surface, now that \`.cell\` no longer sets
+     either itself. */
+  dpk-matrix {
+    --dpk-matrix-dock-clearance: var(--dpk-dock-clearance, 0px);
+    --dpk-matrix-head-pad: 0px;
   }
   .row-lead {
     display: flex;
@@ -75,10 +44,10 @@ export const usmStyles = css`
     padding: 8px 6px 8px 4px;
     background: var(--dpk-paper-sunken);
   }
-  /* Row names and their meta line share one column: past the grip (15px), its
-     gap (6px) and the inline edit's own padding (4px). */
+  /* Row names and their meta line share one column: past \`<dpk-matrix>\`'s own
+     grip and gap (its exposed span) and the inline edit's own padding (4px). */
   .row-lead {
-    --usm-row-indent: 25px;
+    --usm-row-indent: calc(var(--dpk-matrix-grip-span, 20px) + 4px);
   }
   .row-meta {
     display: flex;
@@ -96,22 +65,14 @@ export const usmStyles = css`
     font-family: var(--dpk-mono);
     font-variant-numeric: tabular-nums;
   }
-  .corner,
-  .act-head,
-  .col-head,
-  .row-head,
-  .cell {
-    padding: 10px;
-  }
   .corner {
-    background: var(--dpk-paper-sunken);
     display: grid;
     gap: 3px;
     align-content: start;
   }
   /* The backbone is read on every scroll, so its rows are kept short: the
      axis labels sit tight and the step names get a single slim line. */
-  .map-head .corner {
+  .corner {
     gap: 1px;
     padding: 7px 10px;
     line-height: 1.3;
@@ -149,109 +110,13 @@ export const usmStyles = css`
      the bottom padding keeps the selected tab's underline, which sits on the
      bar's bottom rule, inside the clip. */
   .page-tabs {
-    position: relative;
+    --dpk-tabstrip-pad: var(--usm-bar-pad);
+    --dpk-tabstrip-accent: var(--dpk-usm-accent);
     display: inline-flex;
-    gap: 4px;
-    min-width: 0;
     margin-bottom: calc(-1 * var(--usm-bar-pad) - 1px);
     padding-bottom: calc(var(--usm-bar-pad) + 1px);
+    border-bottom: none;
     overflow: hidden;
-  }
-  .page-tabs [role='tab'] {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 10px;
-    border-radius: var(--dpk-radius-sm);
-    color: var(--dpk-ink-soft);
-    font-size: 13.5px;
-    font-weight: 600;
-    letter-spacing: -0.005em;
-    text-decoration: none;
-    white-space: nowrap;
-    transition:
-      color 160ms var(--dpk-ease),
-      background 160ms var(--dpk-ease);
-  }
-  .page-tabs [role='tab']:hover {
-    color: var(--dpk-ink);
-    background: var(--dpk-paper-inset);
-  }
-  .page-tabs [role='tab']:focus-visible {
-    outline: none;
-    box-shadow: var(--dpk-focus);
-  }
-  .page-tabs [role='tab'][aria-selected='true'] {
-    color: var(--dpk-ink);
-    font-weight: 700;
-  }
-  .page-tabs [role='tab'][aria-selected='true']::after {
-    content: '';
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: calc(-1 * var(--usm-bar-pad) - 1px);
-    height: 2px;
-    border-radius: 2px;
-    background: var(--dpk-usm-accent);
-  }
-  .page-tab-count {
-    min-width: 18px;
-    padding: 0 6px;
-    border-radius: 999px;
-    background: var(--dpk-rule);
-    color: var(--dpk-ink-soft);
-    font-family: var(--dpk-mono);
-    font-size: 10.5px;
-    font-weight: 650;
-    font-variant-numeric: tabular-nums;
-    line-height: 17px;
-    text-align: center;
-  }
-  [role='tab'][aria-selected='true'] .page-tab-count {
-    background: var(--dpk-blue-soft);
-    color: var(--dpk-blue);
-  }
-
-  /* A sunken track with the selected segment raised on top of it. */
-  .segmented {
-    display: inline-flex;
-    gap: 2px;
-    padding: 2px;
-    max-width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-    border: 1px solid var(--dpk-rule);
-    border-radius: 999px;
-    background: var(--dpk-paper-sunken);
-    box-shadow: inset 0 1px 3px var(--dpk-shade-1);
-  }
-
-  .tab {
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 550;
-    text-decoration: none;
-    color: var(--dpk-ink-soft);
-    white-space: nowrap;
-    transition:
-      background 160ms var(--dpk-ease),
-      color 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease);
-  }
-
-  .tab:hover {
-    color: var(--dpk-ink);
-    background: var(--dpk-paper-inset);
-  }
-
-  .tab[data-current='true'] {
-    background: var(--dpk-paper-raised);
-    color: var(--dpk-ink);
-    font-weight: 650;
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
 
   /* Activity band: raised above the working canvas. A head spans its steps,
@@ -263,7 +128,6 @@ export const usmStyles = css`
     align-content: start;
     gap: 4px;
     padding: 7px 10px 11px;
-    border-left: 1px solid var(--dpk-rule);
     background: var(--dpk-paper-raised);
     box-shadow:
       var(--dpk-bevel),
@@ -293,7 +157,7 @@ export const usmStyles = css`
     gap: 8px;
     min-width: 0;
   }
-  .act-name > dpk-component-inline-edit {
+  .act-name > dpk-inline-edit {
     flex: none;
     max-width: calc(100% - 32px);
   }
@@ -324,7 +188,7 @@ export const usmStyles = css`
     font-weight: 650;
     line-height: 20px;
   }
-  .act-actor > dpk-component-inline-edit {
+  .act-actor > dpk-inline-edit {
     min-width: 0;
   }
   .act-actor[data-empty='true'] {
@@ -352,20 +216,11 @@ export const usmStyles = css`
     font-family: var(--dpk-mono);
     font-size: 10px;
   }
-  .act-head .count,
-  .col-head .count {
-    flex: 0 0 auto;
-    padding: 0 6px;
-    border-radius: 999px;
-    background: var(--dpk-rule);
-    line-height: 16px;
-  }
   .col-head {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding-block: 5px;
-    border-left: 1px solid var(--dpk-rule);
+    padding: 5px 10px;
     background: var(--dpk-paper-sunken);
     transition: background 160ms var(--dpk-ease);
   }
@@ -386,6 +241,7 @@ export const usmStyles = css`
     display: flex;
     align-items: center;
     gap: 6px;
+    padding: 10px;
   }
 
   /* Milestone row label: plain text with a grip, not a chip. The "add
@@ -400,145 +256,35 @@ export const usmStyles = css`
     max-width: 100%;
   }
 
-  .row-head[draggable='true'] {
-    cursor: grab;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  .row-head[draggable='true'] dpk-component-inline-edit {
+  /* \`<dpk-matrix>\` is the row's drag handle, grip and cursor now; this only
+     keeps a browser-native drag affordance off the name editor inside it. */
+  .row-head dpk-inline-edit {
     -webkit-user-drag: none;
-  }
-
-  .row-head[draggable='true']:active {
-    cursor: grabbing;
-  }
-
-  .row-grip {
-    flex: 0 0 auto;
-    display: inline-flex;
-    color: var(--dpk-ink-faint);
-  }
-
-  .row-grip svg {
-    display: block;
-    width: 15px;
-    height: 15px;
-  }
-
-  /* Row-level drag affordance: only the grip answers the hover. */
-  .map-row[data-draggable='true']:hover .row-grip {
-    color: var(--dpk-blue);
-  }
-  .map-row[data-draggable='true'] {
-    cursor: grab;
-  }
-  .map-row[data-draggable='true']:active {
-    cursor: grabbing;
-  }
-
-  /*
-   * Dragging state: entire row fades. Never disable pointer events on the
-   * source here: Lit applies this state in the microtask right after
-   * \`dragstart\`, and Blink then re-hit-tests the pointer and aborts the drag
-   * when the source is no longer under it.
-   */
-  .map-row[data-row-dragging='true'] {
-    opacity: 0.45;
-  }
-
-  /* Drop target: entire row highlights. */
-  .map-row[data-row-drop='true'] {
-    outline: 2px dashed var(--dpk-blue);
-    outline-offset: -2px;
   }
 
   /* Column drag: a group's head or a step's head is its column's handle, the
-     way a row head is a milestone's. The grip answers the hover. */
-  .act-head[draggable='true'],
-  .col-head[draggable='true'] {
-    cursor: grab;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-  .act-head[draggable='true']:active,
-  .col-head[draggable='true']:active {
-    cursor: grabbing;
-  }
-  .act-head[draggable='true'] dpk-component-inline-edit,
-  .col-head[draggable='true'] dpk-component-inline-edit {
+     way a row head is a milestone's; \`<dpk-matrix>\` is the handle, grip and
+     cursor now. This only keeps native drag off the editors inside. */
+  .act-head dpk-inline-edit,
+  .col-head dpk-inline-edit {
     -webkit-user-drag: none;
-  }
-  .col-grip {
-    flex: none;
-    display: inline-flex;
-    color: var(--dpk-ink-faint);
-  }
-  .col-grip svg {
-    display: block;
-    width: 13px;
-    height: 13px;
-  }
-  .act-head[draggable='true']:hover .col-grip,
-  .col-head[draggable='true']:hover .col-grip {
-    color: var(--dpk-blue);
-  }
-  /* The dragged column fades from head to last cell, like a dragged row. */
-  .act-head[data-col-dragging='true'],
-  .col-head[data-col-dragging='true'],
-  .cell[data-col-dragging='true'] {
-    opacity: 0.45;
-  }
-  /* The column a dragged one would land in lights up from head to last cell,
-     the way a row does: its sides run down every part and its head caps it.
-     A group's column spans its steps, so only its outer steps draw its sides. */
-  .act-head:is([data-col-drop='activity'], [data-col-drop='step']),
-  .col-head:is([data-col-drop='activity'], [data-col-drop='step']),
-  .cell:is([data-col-drop='activity'], [data-col-drop='step']) {
-    --usm-col-left: 2px;
-    --usm-col-right: 2px;
-    --usm-col-top: 0px;
-    box-shadow:
-      inset var(--usm-col-left) 0 0 var(--dpk-blue),
-      inset calc(var(--usm-col-right) * -1) 0 0 var(--dpk-blue),
-      inset 0 var(--usm-col-top) 0 var(--dpk-blue);
-  }
-  [data-col-drop='activity'][data-step-edge]:not([data-step-edge~='first']) {
-    --usm-col-left: 0px;
-  }
-  [data-col-drop='activity'][data-step-edge]:not([data-step-edge~='last']) {
-    --usm-col-right: 0px;
-  }
-  .act-head[data-col-drop='activity'],
-  .col-head[data-col-drop='step'] {
-    --usm-col-top: 2px;
-  }
-  .cell:is([data-col-drop='activity'], [data-col-drop='step']) {
-    background: linear-gradient(var(--dpk-blue-soft), var(--dpk-blue-soft)), var(--dpk-dots), var(--dpk-paper-sunken);
-  }
-  /* The heads stay opaque: the cells scroll under them. */
-  .act-head:is([data-col-drop='activity'], [data-col-drop='step']),
-  .col-head:is([data-col-drop='activity'], [data-col-drop='step']) {
-    background-image: linear-gradient(var(--dpk-blue-soft), var(--dpk-blue-soft));
   }
 
   /* Unassigned is a holding area, not a release: its label is quieter. */
-  .map-row[data-unassigned='true'] .row-head {
+  .row-head[data-unassigned='true'] {
     padding-left: var(--usm-row-indent);
     color: var(--dpk-ink-soft);
   }
 
   /* Cells are the working canvas: sunken, with a quiet dot lattice, so raised
      story cards read as things placed on the board. */
+  /* The padding and the sunken dot surface are \`<dpk-matrix>\`'s own now; this
+     only stacks cards inside the cell it already gives us. */
   .cell {
-    border-left: 1px solid var(--dpk-rule);
-    border-top: 1px solid var(--dpk-rule);
     display: flex;
     flex-direction: column;
     gap: 8px;
     min-height: 100px;
-    background: var(--dpk-dots), var(--dpk-paper-sunken);
-    transition: background 160ms var(--dpk-ease);
   }
   .cell[data-drop='true'] {
     outline: 2px dashed var(--dpk-blue);
@@ -550,6 +296,7 @@ export const usmStyles = css`
     align-content: start;
     flex: 1 1 auto;
   }
+  /* The add button (the kit's add atom) shows on the cell's hover only. */
   .add-cell {
     margin-top: auto;
     opacity: 0;
@@ -558,17 +305,9 @@ export const usmStyles = css`
       background 160ms var(--dpk-ease),
       border-color 160ms var(--dpk-ease),
       color 160ms var(--dpk-ease);
-    border: 1px dashed var(--dpk-rule-strong);
-    border-radius: var(--dpk-radius-sm);
-    background: transparent;
-    color: var(--dpk-ink-faint);
-    padding: 4px 8px;
-    font-size: 11.5px;
   }
-  .add-cell:hover {
-    background: var(--dpk-blue-soft);
-    border-color: var(--dpk-blue);
-    color: var(--dpk-blue);
+  .add-cell:focus-visible {
+    opacity: 1;
   }
   .cell:hover .add-cell {
     opacity: 1;
@@ -581,12 +320,6 @@ export const usmStyles = css`
     max-width: 620px;
     display: grid;
     gap: 10px;
-  }
-  .count {
-    font-family: var(--dpk-mono);
-    font-variant-numeric: tabular-nums;
-    font-size: 10px;
-    color: var(--dpk-ink-faint);
   }
 
   /* ------------------------------------------------------ milestones tab */
@@ -741,7 +474,7 @@ export const usmStyles = css`
   }
   /* The field pads its text by 4px; pull it out by as much so the name lines
      up with the description and keeps its place when editing starts. */
-  .ms-name dpk-component-inline-edit {
+  .ms-name dpk-inline-edit {
     display: block;
     margin: 0 -4px;
   }
@@ -1072,5 +805,18 @@ export const usmStyles = css`
   /* Step picker shown after a cross-activity drop. */
   .move-dialog {
     min-width: 220px;
+  }
+  .move-dialog .dpk-rich-select {
+    width: 100%;
+  }
+
+  /* ----------------------------------------------------------- table tab */
+
+  /* The flat view of every story: dpk-table supplies its own
+     chrome, this just gives it the page's margins. */
+  .story-table {
+    display: block;
+    max-width: 1200px;
+    padding: 28px 0 40px;
   }
 `;

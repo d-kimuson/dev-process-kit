@@ -108,6 +108,7 @@ export const usmMessages = defineMessages({
     // ------------------------------------------------------------ page tabs
     pageTabsLabel: 'Page',
     mapTab: 'User Story Mapping',
+    tableTab: 'Table',
     milestonesTab: 'Milestones',
     statusesTab: 'Statuses',
     labelsTab: 'Labels',
@@ -129,7 +130,7 @@ export const usmMessages = defineMessages({
     statusNameLabel: 'Status name',
     statusToneLabel: 'Color',
     toneName: (tone: StatusTone) =>
-      ({ gray: 'Gray', blue: 'Blue', violet: 'Violet', green: 'Green', amber: 'Amber', accent: 'Orange' })[tone],
+      ({ gray: 'Gray', blue: 'Blue', violet: 'Violet', green: 'Green', amber: 'Amber', accent: 'Indigo' })[tone],
     statusIconLabel: 'Icon',
     iconName: (icon: StatusIcon) =>
       ({
@@ -209,7 +210,6 @@ export const usmMessages = defineMessages({
     chartActual: 'Actual',
     chartAbout: 'How this chart is counted',
     axisDate: (at: number, unit: AxisUnit) => axisDate('en-US', at, unit),
-    commentDate: (at: string) => commentDate('en-US', at),
     chartAria: (title: string, value: number) => `${title}: ${value} now`,
     chartLatest: (value: number) => `Now ${value}`,
     chartNeedsSnapshot: 'Record a snapshot to draw the line from.',
@@ -239,6 +239,9 @@ export const usmMessages = defineMessages({
     closePanelAria: 'Close',
     copyStoryKey: (key: string) => `Copy ${key}`,
     storyKeyCopied: 'Copied',
+    storyKeyColumn: 'Key',
+    /** The context menu's own entry on a story card (copies the bare id, e.g. `STORY-6`). */
+    copyId: 'Copy ID',
     storyTitleLabel: 'Title',
     storyDescriptionLabel: 'Description',
     storyLinksLabel: 'Links',
@@ -270,9 +273,6 @@ export const usmMessages = defineMessages({
     removeLinkAria: (label: string) => `Remove ${label}`,
     deleteStoryButton: 'Delete story',
     storyCommentsLabel: 'Comments',
-    storyCommentsHint: 'Kept on the story as part of the map. To ask the agent for a change, write a review comment.',
-    commentSubmit: 'Add comment',
-    deleteStoryCommentAria: 'Delete comment',
     reviewStoryButton: 'Review comment',
     reviewStoryTitle: 'Write a review comment on this story, asking the agent for a change',
     storyStatusAria: (name: string) => `Status: ${name}`,
@@ -419,6 +419,7 @@ export const usmMessages = defineMessages({
 
     pageTabsLabel: 'ページ',
     mapTab: 'User Story Mapping',
+    tableTab: 'テーブル',
     milestonesTab: 'マイルストーン',
     statusesTab: 'ステータス',
     labelsTab: 'ラベル',
@@ -438,7 +439,7 @@ export const usmMessages = defineMessages({
     statusNameLabel: 'ステータス名',
     statusToneLabel: '色',
     toneName: (tone: StatusTone) =>
-      ({ gray: 'グレー', blue: '青', violet: '紫', green: '緑', amber: '黄', accent: 'オレンジ' })[tone],
+      ({ gray: 'グレー', blue: '青', violet: '紫', green: '緑', amber: '黄', accent: 'インディゴ' })[tone],
     statusIconLabel: 'アイコン',
     iconName: (icon: StatusIcon) =>
       ({
@@ -516,7 +517,6 @@ export const usmMessages = defineMessages({
     chartActual: '実績',
     chartAbout: 'このチャートの数え方',
     axisDate: (at: number, unit: AxisUnit) => axisDate('ja-JP', at, unit),
-    commentDate: (at: string) => commentDate('ja-JP', at),
     chartAria: (title: string, value: number) => `${title}: 現在 ${value}`,
     chartLatest: (value: number) => `現在 ${value}`,
     chartNeedsSnapshot: 'スナップショットを記録すると線が引かれます。',
@@ -543,6 +543,8 @@ export const usmMessages = defineMessages({
     closePanelAria: '閉じる',
     copyStoryKey: (key: string) => `${key} をコピー`,
     storyKeyCopied: 'コピーしました',
+    storyKeyColumn: 'キー',
+    copyId: 'IDをコピー',
     storyTitleLabel: 'タイトル',
     storyDescriptionLabel: '説明',
     storyLinksLabel: 'リンク',
@@ -574,9 +576,6 @@ export const usmMessages = defineMessages({
     removeLinkAria: (label: string) => `${label} を外す`,
     deleteStoryButton: 'ストーリーを削除',
     storyCommentsLabel: 'コメント',
-    storyCommentsHint: 'マップの一部としてストーリーに残ります。Agent に直してほしいことはレビューコメントに書きます。',
-    commentSubmit: 'コメントを追加',
-    deleteStoryCommentAria: 'コメントを削除',
     reviewStoryButton: 'レビューコメント',
     reviewStoryTitle: 'このストーリーについて Agent に直してほしいことをレビューコメントに書く',
     storyStatusAria: (name: string) => `ステータス: ${name}`,
@@ -625,10 +624,6 @@ export const usmMessages = defineMessages({
 });
 
 export type UsmMessages = ReturnType<typeof usmMessages>;
-
-/** When a story comment was written, to the minute. */
-const commentDate = (locale: string, at: string): string =>
-  new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(at));
 
 /**
  * A date on a chart's time axis, as precise as its ticks: the day for day and

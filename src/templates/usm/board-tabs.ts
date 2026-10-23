@@ -8,7 +8,7 @@ import { hasFeature, type UsmFeature, type UsmState } from './model';
  * the members they are assigned to and how the milestones burn down (with the
  * estimate scale). Which one is on screen is navigation, never a draft action.
  */
-export const USM_TABS = ['map', 'milestones', 'statuses', 'labels', 'members', 'burndown'] as const;
+export const USM_TABS = ['map', 'table', 'milestones', 'statuses', 'labels', 'members', 'burndown'] as const;
 
 export type UsmTab = (typeof USM_TABS)[number];
 

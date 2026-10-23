@@ -1,10 +1,17 @@
 import { html, nothing, type TemplateResult } from 'lit';
 
+import type {
+  MatrixReorderColumnDetail,
+  MatrixReorderRowDetail,
+  MatrixReorderSubColumnDetail,
+} from '../../components/matrix';
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 
+import { controlAtom } from '../../components/atoms/controls';
 import { TemplateElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
+import { SelectController } from '../../core/select/controller';
 import { popoverSurface } from '../../core/theme';
 import { copyText } from '../../lib/dom/clipboard';
 import { DismissController } from '../../lib/dom/dismiss';
@@ -18,20 +25,12 @@ import { defineUsmStoryCard } from './components/story-card';
 import { defineUsmWeightBar } from './components/weight-bar';
 import { highlightedStoriesOf, highlightOf } from './critical-path';
 import { usmDefinitionFor } from './definition';
-import {
-  resolveActivityDrop,
-  resolveCellDrop,
-  resolveGroupDrop,
-  resolveMilestoneDrop,
-  resolvePickedStepMove,
-  resolveStepDrop,
-  type CellRef,
-} from './drop';
+import { resolveCellDrop, resolveGroupDrop, resolvePickedStepMove, type CellRef } from './drop';
 import { presentLabelOverview } from './label-overview';
 import { presentMemberOverview } from './member-overview';
 import { usmMessages, type UsmMessages } from './messages';
 import { presentMilestoneOverview } from './milestone-overview';
-import { findStory, flatSteps, type UsmState } from './model';
+import { findStory, flatSteps, stepRefOf, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
 import { burndownStyles, renderBurndown } from './render/burndown';
 import { dependencyPickerStyles, type DependencyPicker } from './render/dependency-picker';
@@ -53,6 +52,7 @@ import {
 } from './render/page-tabs';
 import { renderStatusOverview } from './render/status-overview';
 import { panelStoryOf, renderStoryPanel, storyPanelStyles, type StoryKeyCopy } from './render/story-panel';
+import { renderStoryTable } from './render/story-table';
 import { statusStyles } from './render/tone';
 import { presentStatusOverview } from './status-overview';
 import { storyKey } from './story-key';
@@ -82,6 +82,7 @@ const COPIED_MS = 1500;
 export class DpkTemplateUsm extends TemplateElement<UsmState> {
   static override styles = [
     TemplateElement.styles,
+    controlAtom,
     usmStyles,
     statusStyles,
     linkStyles,
@@ -122,6 +123,10 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
   /** The story key the panel just copied, while its button says so. */
   #copiedKey: string | null = null;
   #copiedTimer: ReturnType<typeof setTimeout> | undefined;
+  readonly #milestoneSelect = new SelectController(this);
+  readonly #moveDialogSelect = new SelectController(this);
+  /** The step picked in the move dialog so far, reset once it opens or closes. */
+  #moveDialogStepId: string | null = null;
 
   constructor() {
     super();
@@ -279,8 +284,11 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       this.#revealedHighlight = false;
       return;
     }
-    const scroller = this.renderRoot.querySelector('.map-scroll');
-    const card = scroller?.querySelector('dpk-internal-usm-story-card[data-highlight="on"]');
+    // The scroller is `<dpk-matrix>`'s own; the card is still this element's light-DOM
+    // descendant (slotted into matrix, not reparented into its shadow tree).
+    const matrix = this.renderRoot.querySelector('dpk-matrix');
+    const scroller = matrix?.shadowRoot?.querySelector('.matrix-scroll') ?? null;
+    const card = this.renderRoot.querySelector('dpk-internal-usm-story-card[data-highlight="on"]');
     if (this.#revealedHighlight || !scroller || !card) return;
     this.#revealedHighlight = true;
     revealWithin(scroller, card, HIGHLIGHT_REVEAL_MARGIN);
@@ -302,9 +310,16 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         this.#renderToolbar(m, context, tab),
       )}
       ${this.#renderTab(m, context, tab)} ${this.#renderPanel(m, context, tab)}
-      ${renderMoveDialog(m, context, this.mode, {
+      ${renderMoveDialog(m, context, this.mode, this.#moveDialogSelect, this.#moveDialogStepId, {
+        pick: (stepId) => {
+          this.#moveDialogStepId = stepId;
+          this.requestUpdate();
+        },
         confirm: (stepId) => this.#confirmPickedStep(stepId),
-        cancel: () => (this.mode = IDLE_MODE),
+        cancel: () => {
+          this.#moveDialogStepId = null;
+          this.mode = IDLE_MODE;
+        },
       })}
     `;
   }
@@ -328,7 +343,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
   /** The story panel, on the map only: the stories live there. */
   #renderPanel(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult | typeof nothing {
-    if (tab !== 'map') return nothing;
+    if (tab !== 'map' && tab !== 'table') return nothing;
     const story = panelStoryOf(context);
     if (!story) return nothing;
     const picker: DependencyPicker = {
@@ -355,6 +370,8 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
 
   #renderTab(m: UsmMessages, context: TemplateRenderContext<UsmState>, tab: UsmTab): TemplateResult {
     switch (tab) {
+      case 'table':
+        return renderStoryTable(m, context);
       case 'milestones':
         return renderMilestoneOverview(m, context, presentMilestoneOverview(context.state));
       case 'statuses':
@@ -371,7 +388,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
       case 'members':
         return renderMemberOverview(m, context, presentMemberOverview(context.state));
       case 'burndown':
-        return renderBurndown(m, context, new Date());
+        return renderBurndown(m, context, new Date(), this.#milestoneSelect);
       case 'map':
         return this.#renderMap(m, context);
     }
@@ -386,9 +403,9 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
         selectStory: (storyId) => this.#onSelectStory(storyId),
         dropOnCell: (cell, drop) => this.#onCellDrop(cell, drop),
         dropOnGroupCell: (activityId, milestoneId, drop) => this.#onGroupDrop(activityId, milestoneId, drop),
-        dropOnMilestoneRow: (milestoneId, drop) => this.#onMilestoneDrop(milestoneId, drop),
-        dropOnActivity: (drop) => this.#onActivityDrop(drop),
-        dropOnStep: (drop) => this.#onStepDrop(drop),
+        reorderMilestone: (detail) => this.#onReorderMilestone(detail),
+        reorderActivity: (detail) => this.#onReorderActivity(detail),
+        reorderStep: (detail) => this.#onReorderStep(detail),
       },
       highlighted: highlightedStoriesOf(context.state, context.navigation),
     });
@@ -415,6 +432,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     const story = findStory(context.state, drop.item.id);
     if (!story) return;
     if (story.activityId !== activityId) {
+      this.#moveDialogStepId = null;
       this.mode = {
         kind: 'picking-step',
         storyId: story.id,
@@ -428,24 +446,31 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     if (input) context.dispatch(input);
   }
 
-  #onMilestoneDrop(_milestoneId: string, drop: Drop<'milestone'>): void {
-    const context = this.context();
-    const order = context.state.milestones.map((milestone) => milestone.id);
-    const input = resolveMilestoneDrop(order, drop.item.id, drop.hoveredId, drop.place);
-    if (input) context.dispatch(input);
+  /** `<dpk-matrix>` already resolved the landing anchor; this only turns it into an action. */
+  #onReorderMilestone(detail: MatrixReorderRowDetail): void {
+    this.context().dispatch({
+      type: 'REORDER_MILESTONE',
+      target: { type: 'milestone', id: detail.rowId },
+      payload: { after: detail.after },
+    });
   }
 
-  #onActivityDrop(drop: Drop<'activity'>): void {
-    const context = this.context();
-    const order = context.state.activities.map((activity) => activity.id);
-    const input = resolveActivityDrop(order, drop.item.id, drop.hoveredId, drop.place);
-    if (input) context.dispatch(input);
+  #onReorderActivity(detail: MatrixReorderColumnDetail): void {
+    this.context().dispatch({
+      type: 'REORDER_ACTIVITY',
+      target: { type: 'activity', id: detail.columnId },
+      payload: { after: detail.after },
+    });
   }
 
-  #onStepDrop(drop: Drop<'step'>): void {
-    const context = this.context();
-    const input = resolveStepDrop(context.state, drop.item.id, drop.hoveredId, drop.place);
-    if (input) context.dispatch(input);
+  /** A step's id and its anchor are qualified `activityId.stepId` refs: two activities may share a step id. */
+  #onReorderStep(detail: MatrixReorderSubColumnDetail): void {
+    const activityId = detail.columnId;
+    this.context().dispatch({
+      type: 'REORDER_STEP',
+      target: { type: 'step', id: stepRefOf(activityId, detail.subColumnId) },
+      payload: { after: detail.after === null ? null : stepRefOf(activityId, detail.after) },
+    });
   }
 
   #confirmPickedStep(stepId: string): void {
@@ -455,6 +480,7 @@ export class DpkTemplateUsm extends TemplateElement<UsmState> {
     context.dispatch(
       resolvePickedStepMove(context.state, pending.storyId, pending.activityId, stepId, pending.milestoneId),
     );
+    this.#moveDialogStepId = null;
     this.mode = IDLE_MODE;
   }
 }

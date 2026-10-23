@@ -54,11 +54,11 @@ const renderLabelRow = (m: UsmMessages, context: TemplateRenderContext<UsmState>
     <li class="st-row" data-label=${row.id} data-dpk-target=${targetRef(target)} style=${statusToneStyle(row.tone)}>
       <span class="label-swatch" aria-hidden="true"></span>
       <span class="st-name">
-        <dpk-component-inline-edit
+        <dpk-inline-edit
           .value=${row.name}
           .label=${m.labelNameLabel}
           @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_LABEL_NAME', target, payload: { name } }))}
-        ></dpk-component-inline-edit>
+        ></dpk-inline-edit>
       </span>
       ${renderShare(m, row.storyCount, row.share)}
       ${renderTonePicker(m, row.tone, (tone) => context.dispatch({ type: 'SET_LABEL_TONE', target, payload: { tone } }))}

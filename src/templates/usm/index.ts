@@ -30,7 +30,7 @@ export {
   type UsmState,
 } from './model';
 export { DpkTemplateUsm, defineUsmElement } from './element';
-export { dropAfter, resolveCellDrop, resolveGroupDrop, resolveMilestoneDrop, resolvePickedStepMove } from './drop';
-export type { CellRef, MoveStoryInput, MilestoneDropInput } from './drop';
+export { dropAfter, resolveCellDrop, resolveGroupDrop, resolvePickedStepMove } from './drop';
+export type { CellRef, MoveStoryInput } from './drop';
 export { IDLE_MODE } from './ui-mode';
 export type { UsmUiMode } from './ui-mode';

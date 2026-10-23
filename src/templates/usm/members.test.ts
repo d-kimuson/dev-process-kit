@@ -186,7 +186,7 @@ describe('usm members: element', () => {
         updateComplete: Promise<boolean>;
       };
     await card('u1').updateComplete;
-    const avatar = card('u1').shadowRoot!.querySelector('.assignee-avatar')!;
+    const avatar = card('u1').shadowRoot!.querySelector('[data-kind="assignee"]')!;
     expect(avatar.textContent?.trim()).toBe('K');
     expect(avatar.getAttribute('title')).toBe(m.assigneeChipTitle('Kimura'));
     const panel = root.querySelector('[data-testid="usm-story-panel"]')!;

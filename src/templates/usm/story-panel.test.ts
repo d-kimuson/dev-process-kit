@@ -121,8 +121,8 @@ describe('usm story panel: the story key', () => {
 
   it('shows each story’s key on its card and opens a story the hash names by its key', async () => {
     const el = await mount('#story=STORY-2');
-    expect(card(el, 'u1').shadowRoot!.querySelector('.card-key')?.textContent).toBe('STORY-1');
-    expect(card(el, 'u2').shadowRoot!.querySelector('.card-key')?.textContent).toBe('STORY-2');
+    expect(card(el, 'u1').shadowRoot!.querySelector('.dpk-card-key')?.textContent).toBe('STORY-1');
+    expect(card(el, 'u2').shadowRoot!.querySelector('.dpk-card-key')?.textContent).toBe('STORY-2');
     expect(el.api.navigation['story']).toBe('u2');
     expect(panel(el)?.getAttribute('data-story')).toBe('u2');
   });

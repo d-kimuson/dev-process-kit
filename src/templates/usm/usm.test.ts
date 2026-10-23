@@ -5,12 +5,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { DraftAction } from '../../core/types';
 import type { DpkTemplateUsm } from './element';
 
-import { DpkComponentInlineEdit } from '../../components/inline-edit';
+import { DpkInlineEdit } from '../../components/inline-edit';
+import { DpkTable } from '../../components/table';
 import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import { applyUsmAction } from './apply';
 import '../../index';
 import { usmDefinitionFor } from './definition';
-import { dropAfter, resolveGroupDrop, resolveMilestoneDrop } from './drop';
+import { dropAfter, resolveGroupDrop } from './drop';
 import { usmMessages } from './messages';
 import { parseUsmBase } from './model';
 
@@ -65,8 +66,8 @@ describe('usm template', () => {
   it('keeps a step editor attached to its entity across reordering', async () => {
     const el = mount();
     await settle(el);
-    const editor = el.shadowRoot?.querySelector('.col-head dpk-component-inline-edit');
-    if (!(editor instanceof DpkComponentInlineEdit)) throw new Error('missing editor');
+    const editor = el.shadowRoot?.querySelector('.col-head dpk-inline-edit');
+    if (!(editor instanceof DpkInlineEdit)) throw new Error('missing editor');
     editor.startEditing();
     await editor.updateComplete;
     const input = editor.shadowRoot?.querySelector('input');
@@ -75,7 +76,7 @@ describe('usm template', () => {
     input.dispatchEvent(new Event('input'));
     el.api.dispatch({ type: 'REORDER_STEP', target: 'step:a1.s2', payload: { after: null } });
     await settle(el);
-    expect([...el.shadowRoot!.querySelectorAll('.col-head dpk-component-inline-edit')][1]).toBe(editor);
+    expect([...el.shadowRoot!.querySelectorAll('.col-head dpk-inline-edit')][1]).toBe(editor);
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await settle(el);
     expect(el.api.state.activities[0]?.steps.find((step) => step.id === 's1')?.name).toBe('Draft S1');
@@ -198,9 +199,11 @@ describe('usm template', () => {
     expect(root.querySelector('[data-testid="usm-map-group"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="usm-map"]')).toBeNull();
     // one tab bar, activity tab current
-    const tabs = [...root.querySelectorAll('.view-tabs .tab')].map((t) => t.textContent?.trim());
+    const tabs = [...root.querySelectorAll('.view-tabs [role="tab"]')].map((t) => t.textContent?.trim());
     expect(tabs).toEqual([m.activityGroup, m.groupViewTab]);
-    expect(root.querySelector('.view-tabs .tab[data-current="true"]')?.textContent?.trim()).toBe(m.groupViewTab);
+    expect(root.querySelector('.view-tabs [role="tab"][aria-selected="true"]')?.textContent?.trim()).toBe(
+      m.groupViewTab,
+    );
     // one header per activity, no step columns
     expect(root.querySelectorAll('.act-head[data-activity]').length).toBe(1);
     // the head lists the steps the column holds
@@ -241,24 +244,16 @@ describe('usm template', () => {
     document.body.innerHTML = '';
   });
 
-  it('resolves milestone drops to reorder anchors', () => {
-    const ids = ['mvp', 'v1', 'v2'];
-    expect(resolveMilestoneDrop(ids, 'v1', 'mvp', 'before')).toMatchObject({
-      type: 'REORDER_MILESTONE',
-      target: { type: 'milestone', id: 'v1' },
-      payload: { after: null },
-    });
-    expect(resolveMilestoneDrop(ids, 'v1', 'v2', 'after')).toMatchObject({ payload: { after: 'v2' } });
-    // the upper half of the next row swaps too, and the lower half of the previous one
-    expect(resolveMilestoneDrop(ids, 'mvp', 'v1', 'before')).toMatchObject({ payload: { after: 'v1' } });
-    expect(resolveMilestoneDrop(ids, 'v2', 'v1', 'after')).toMatchObject({ payload: { after: 'mvp' } });
-    // dropping a row on itself keeps it where it is
-    expect(resolveMilestoneDrop(ids, 'v1', 'v1', 'after')).toMatchObject({ payload: { after: 'mvp' } });
-    expect(resolveMilestoneDrop(ids, 'v1', null, 'end')).toMatchObject({ payload: { after: 'v2' } });
-    expect(resolveMilestoneDrop(ids, 'gone', null, 'end')).toBeNull();
-    const state = parseUsmBase(base);
-    expect(resolveMilestoneDrop(['mvp'], 'mvp', null, 'end')).toMatchObject({ payload: { after: null } });
-    expect(state).toBeDefined();
+  it('reorders a milestone row when <dpk-matrix> reports a row reorder', async () => {
+    const el = mount();
+    await settle(el);
+    el.api.dispatch({ type: 'ADD_MILESTONE', target: 'page:usm', payload: { id: 'v1', name: 'V1' } });
+    await settle(el);
+    const matrix = el.shadowRoot!.querySelector('dpk-matrix')!;
+    matrix.dispatchEvent(new CustomEvent('dpk-matrix-reorder-row', { detail: { rowId: 'v1', after: null } }));
+    await settle(el);
+    expect(el.api.state.milestones.map((milestone) => milestone.id)).toEqual(['v1', 'mvp']);
+    document.body.innerHTML = '';
   });
 
   it('splits the page into the map, milestones and statuses tabs', async () => {
@@ -268,12 +263,12 @@ describe('usm template', () => {
     // no per-milestone filter any more: every slice is always on the map
     expect(root.querySelector('.milestone-tabs')).toBeNull();
     const tabs = [...root.querySelectorAll('.page-tabs [role="tab"]')];
-    expect(tabs.map((t) => t.getAttribute('data-tab'))).toEqual(['map', 'milestones', 'statuses', 'labels']);
+    expect(tabs.map((t) => t.getAttribute('data-tab'))).toEqual(['map', 'table', 'milestones', 'statuses', 'labels']);
     expect(root.querySelector('.page-tabs [aria-selected="true"]')?.getAttribute('data-tab')).toBe('map');
     expect(root.querySelector('[data-testid="usm-map"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="usm-milestones"]')).toBeNull();
 
-    expect((tabs[1] as HTMLAnchorElement).hash).toContain('tab=milestones');
+    expect((tabs[2] as HTMLAnchorElement).hash).toContain('tab=milestones');
     el.api.navigate({ tab: 'milestones' });
     await settle(el);
     expect(el.api.navigation).toMatchObject({ tab: 'milestones' });
@@ -285,24 +280,45 @@ describe('usm template', () => {
     document.body.innerHTML = '';
   });
 
+  it('lists every story in a flat table, and opens the story panel when a row is picked', async () => {
+    const el = mount('#tab=table');
+    await settle(el);
+    const root = el.shadowRoot!;
+    const section = root.querySelector('[data-testid="usm-table"]');
+    const table = section?.querySelector('dpk-table');
+    if (!(table instanceof DpkTable)) throw new Error('missing dpk-table');
+    await table.updateComplete;
+    const rows = [...table.shadowRoot!.querySelectorAll<HTMLElement>('[data-row]')].map((row) => row.dataset['row']);
+    expect(rows).toEqual(['u1', 'u2']);
+    expect(root.querySelector('[data-testid="usm-story-panel"]')).toBeNull();
+
+    table.shadowRoot!.querySelector<HTMLElement>('[data-row="u2"]')?.click();
+    await settle(el);
+    expect(el.api.navigation).toMatchObject({ tab: 'table', step: 's1', story: 'u2' });
+    expect(root.querySelector('[data-testid="usm-story-panel"]')).not.toBeNull();
+    // the table only ever navigates: a row pick is never recorded as a draft action
+    expect(el.api.actions).toHaveLength(0);
+    document.body.innerHTML = '';
+  });
+
   it('makes milestone rows draggable and button-free', async () => {
     const el = mount();
     await settle(el);
     const root = el.shadowRoot!;
-    const heads = [...root.querySelectorAll('.row-head')].filter(
-      (h) =>
-        (h.querySelector('dpk-component-inline-edit') as unknown as { value?: string } | null)?.value !== undefined,
-    );
-    expect(heads.length).toBeGreaterThan(0);
-    for (const head of heads) {
-      expect(head.getAttribute('draggable')).toBe('true');
-      expect(head.querySelectorAll('button').length).toBe(0);
+    const matrix = root.querySelector('dpk-matrix')!.shadowRoot!;
+    const rowIdOf = (lead: Element): string => lead.getAttribute('slot')!.replace('row-head:', '');
+    const rowHandle = (lead: Element) =>
+      matrix.querySelector(`.matrix-row[data-row="${rowIdOf(lead)}"] .matrix-row-head`);
+    const leads = [...root.querySelectorAll('.row-lead')].filter((lead) => lead.querySelector('dpk-inline-edit'));
+    expect(leads.length).toBeGreaterThan(0);
+    for (const lead of leads) {
+      expect(rowHandle(lead)?.getAttribute('draggable')).toBe('true');
+      expect(lead.querySelectorAll('button').length).toBe(0);
     }
     // the unassigned row is neither draggable nor a drop target
-    const unassigned = [...root.querySelectorAll('.row-head')].find((h) =>
-      (h.textContent ?? '').includes(m.unassigned),
-    )!;
-    expect(unassigned.getAttribute('draggable')).toBe('false');
+    const unassignedLead = root.querySelector('.row-head[data-unassigned="true"]')!.closest('.row-lead')!;
+    expect(unassignedLead.textContent ?? '').toContain(m.unassigned);
+    expect(rowHandle(unassignedLead)?.getAttribute('draggable')).toBe('false');
     document.body.innerHTML = '';
   });
 
@@ -332,7 +348,9 @@ describe('usm template', () => {
     await settle(el);
     const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
     expect(panel.getAttribute('data-story')).toBe('u1');
-    const form = panel.querySelector('form.sp-comment-form') as HTMLFormElement;
+    const thread = panel.querySelector('dpk-comment-thread') as LitElement;
+    await thread.updateComplete;
+    const form = thread.shadowRoot!.querySelector('form') as HTMLFormElement;
     const textarea = form.querySelector('textarea')!;
     // an empty comment is not added
     form.dispatchEvent(new Event('submit', { cancelable: true }));
@@ -340,14 +358,15 @@ describe('usm template', () => {
     textarea.value = 'hello';
     form.dispatchEvent(new Event('submit', { cancelable: true }));
     await settle(el);
+    await thread.updateComplete;
     // A story comment is part of the map, not a review comment for the agent.
     expect(el.api.comments).toHaveLength(0);
     const added = el.api.actions.find((a) => a.type === 'ADD_STORY_COMMENT');
     expect(added?.target.id).toBe('u1');
     expect(added?.payload).toMatchObject({ body: 'hello' });
     expect(textarea.value).toBe('');
-    const thread = () => root.querySelector('[data-testid="usm-story-panel"] .sp-comment-list');
-    expect([...thread()!.querySelectorAll('.sp-comment-body')].map((body) => body.textContent)).toEqual(['hello']);
+    const commentBodies = () => thread.shadowRoot!.querySelectorAll('.thread-item-body');
+    expect([...commentBodies()].map((body) => body.textContent)).toEqual(['hello']);
     // the card counts the comments kept on it
     await (cards[0] as LitElement).updateComplete;
     expect(cards[0]!.shadowRoot!.querySelector('[data-kind="comments"]')?.textContent?.trim()).toBe('1');
@@ -362,9 +381,10 @@ describe('usm template', () => {
     expect(cards[0]!.shadowRoot!.querySelector('[data-kind="review"]')?.textContent?.trim()).toBe('1');
     expect(cards[0]!.shadowRoot!.querySelector('[data-kind="comments"]')?.textContent?.trim()).toBe('1');
     // a kept comment is deleted from the panel
-    (thread()!.querySelector('[data-role="delete-comment"]') as HTMLButtonElement).click();
+    (thread.shadowRoot!.querySelector('[data-role="delete-comment"]') as HTMLButtonElement).click();
     await settle(el);
-    expect(thread()).toBeNull();
+    await thread.updateComplete;
+    expect(commentBodies()).toHaveLength(0);
     // Navigation follows.
     el.api.navigate({ step: 's2', story: 'u2' });
     await settle(el);
@@ -417,7 +437,7 @@ describe('usm template', () => {
     const cards = [...section.querySelectorAll('[data-milestone-card]')];
     expect(cards.map((card) => card.getAttribute('data-milestone-card'))).toEqual(['mvp', 'v1']);
     const mvp = cards[0]!;
-    expect((mvp.querySelector('dpk-component-inline-edit') as unknown as { value: string }).value).toBe('MVP+');
+    expect((mvp.querySelector('dpk-inline-edit') as unknown as { value: string }).value).toBe('MVP+');
     expect(mvp.querySelector('.ms-timeframe')?.textContent).toContain('2026-10');
     expect(mvp.querySelector('.ms-description')?.textContent?.trim()).toBe('Minimum feature set');
     // the tab defines the slices; the stories themselves stay on the map
@@ -468,11 +488,13 @@ describe('usm template', () => {
     await settle(el);
     const dialog = root.querySelector('#move-dialog');
     expect(dialog).not.toBeNull();
-    const select = dialog!.querySelector('select') as HTMLSelectElement;
+    const trigger = dialog!.querySelector('.dpk-rich-select') as HTMLButtonElement;
     // the dialog lists the target activity's steps (bare ids); the activity is fixed
-    expect(select.querySelector('option')?.textContent?.trim()).toBe('S3');
-    select.value = 's3';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(trigger.textContent?.trim()).toBe('S3');
+    trigger.click();
+    await settle(el);
+    (dialog!.querySelector('[role="option"][data-value="s3"]') as HTMLElement).click();
+    await settle(el);
     [...dialog!.querySelectorAll('button')].find((b) => b.textContent?.includes(m.moveConfirm))!.click();
     await settle(el);
     const moved = el.api.actions.find((a) => a.type === 'MOVE_STORY');

@@ -180,9 +180,10 @@ describe('usm labels: element', () => {
         updateComplete: Promise<boolean>;
       };
     await card('u1').updateComplete;
-    expect([...card('u1').shadowRoot!.querySelectorAll('.label-chip')].map((chip) => chip.textContent?.trim())).toEqual(
-      ['Dev', 'PdM'],
-    );
+    expect([...card('u1').shadowRoot!.querySelectorAll('.dpk-pill')].map((chip) => chip.textContent?.trim())).toEqual([
+      'Dev',
+      'PdM',
+    ]);
     const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
     const toggles = () => [...panel.querySelectorAll('.sp-label')] as HTMLButtonElement[];
     expect(toggles().map((toggle) => [toggle.textContent?.trim(), toggle.getAttribute('aria-pressed')])).toEqual([
@@ -193,7 +194,7 @@ describe('usm labels: element', () => {
     await settle(el);
     expect(toggles()[1]!.getAttribute('aria-pressed')).toBe('true');
     await card('u3').updateComplete;
-    expect(card('u3').shadowRoot!.querySelector('.label-chip')?.textContent?.trim()).toBe('PdM');
+    expect(card('u3').shadowRoot!.querySelector('.dpk-pill')?.textContent?.trim()).toBe('PdM');
     toggles()[1]!.click();
     await settle(el);
     expect(toggles()[1]!.getAttribute('aria-pressed')).toBe('false');

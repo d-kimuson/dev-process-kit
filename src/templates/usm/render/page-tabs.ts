@@ -50,7 +50,7 @@ export const renderBoardBar = (
   return html`
     <div class="board-bar">
       <div class="page-nav" style=${`min-width: ${tabsMenu.minimum}px`}>
-        <div class="page-tabs" role="tablist" aria-label=${m.pageTabsLabel}>
+        <div class="page-tabs dpk-tabstrip" role="tablist" aria-label=${m.pageTabsLabel}>
           ${tabs.map((tab) =>
             renderPageTab(context, tab, current, tabLabel(m, tab), tabCount(state, tab), tabsMenu.folded.has(tab)),
           )}
@@ -89,7 +89,7 @@ export const renderBoardBar = (
                       data-tab=${tab}
                       href=${context.hashFor({ tab: tab === 'map' ? null : tab })}
                       @click=${tabsMenu.close}
-                      >${tabLabel(m, tab)}<span class="page-tab-count">${tabCount(state, tab)}</span></a
+                      >${tabLabel(m, tab)}<span class="dpk-count">${tabCount(state, tab)}</span></a
                     >`,
                 )}
               </div>`
@@ -109,6 +109,8 @@ const tabLabel = (m: UsmMessages, tab: UsmTab): string => {
   switch (tab) {
     case 'map':
       return m.mapTab;
+    case 'table':
+      return m.tableTab;
     case 'milestones':
       return m.milestonesTab;
     case 'statuses':
@@ -125,6 +127,8 @@ const tabLabel = (m: UsmMessages, tab: UsmTab): string => {
 const tabCount = (state: UsmState, tab: UsmTab): number => {
   switch (tab) {
     case 'map':
+      return state.stories.length;
+    case 'table':
       return state.stories.length;
     case 'milestones':
       return state.milestones.length;
@@ -156,7 +160,7 @@ const renderPageTab = (
     tabindex=${folded ? '-1' : nothing}
     aria-selected=${selected ? 'true' : 'false'}
     href=${context.hashFor({ tab: tab === 'map' ? null : tab })}
-    >${label}<span class="page-tab-count">${count}</span></a
+    >${label}<span class="dpk-count">${count}</span></a
   >`;
 };
 

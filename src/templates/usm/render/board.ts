@@ -3,14 +3,26 @@ import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
-import type { DragController, Drop, DropTargetHandlers } from '../../../lib/dom/drag';
+import type { DragController, Drop } from '../../../lib/dom/drag';
 import type { CellRef } from '../drop';
 import type { UsmMessages } from '../messages';
 
+import {
+  cellSlot,
+  columnHeadSlot,
+  CORNER_SLOT,
+  CORNER_SUB_SLOT,
+  rowHeadSlot,
+  subColumnHeadSlot,
+  type MatrixColumn,
+  type MatrixReorderColumnDetail,
+  type MatrixReorderRowDetail,
+  type MatrixReorderSubColumnDetail,
+  type MatrixRow,
+} from '../../../components/matrix';
 import { grillMark } from '../../../core/grill';
-import { iconGrip, iconPlus } from '../../../core/icons';
+import { iconPlus } from '../../../core/icons';
 import { targetRef } from '../../../core/target';
-import { setCompositeDragImage } from '../../../lib/dom/drag-image';
 import { onCommit } from '../../../lib/dom/events';
 import { addActivity, addMilestone, addStep, addStory } from '../commands';
 import { dependencyOf } from '../dependencies';
@@ -19,7 +31,6 @@ import {
   assigneeOf,
   type BackboneStep,
   findEstimate,
-  findStep,
   hasFeature,
   flatSteps,
   labelsOfStory,
@@ -33,19 +44,29 @@ import {
 import { statusDistribution, statusViewOf, statusViews } from '../status-view';
 import { statusBar, statusToneStyle } from './tone';
 
-/** The kinds of things that move on the board: cards, rows and the two kinds of columns. */
-export type UsmDragType = 'story' | 'milestone' | 'activity' | 'step';
+/**
+ * The one kind of thing that still drags through USM's own `DragController`:
+ * a story card, between cells. Rows, activity columns and step columns drag
+ * through `<dpk-matrix>` instead (see `reorderMilestone`/`reorderActivity`/
+ * `reorderStep` below), which owns that mechanism itself.
+ */
+export type UsmDragType = 'story';
+
+/** Non-draggable trailing rows/columns and the activity view's dash placeholder; never a real id. */
+const UNASSIGNED_ROW_ID = '__unassigned__';
+const ADD_MILESTONE_ROW_ID = '__add-milestone__';
+const ADD_ACTIVITY_COLUMN_ID = '__add-activity__';
+const ADD_ACTIVITY_SUB_COLUMN_ID = '__add-activity-step__';
 
 export type BoardHandlers = {
   /** A card was clicked: open its story in the panel. */
   readonly selectStory: (storyId: string) => void;
   readonly dropOnCell: (cell: CellRef, drop: Drop<'story'>) => void;
   readonly dropOnGroupCell: (activityId: string, milestoneId: string | undefined, drop: Drop<'story'>) => void;
-  readonly dropOnMilestoneRow: (milestoneId: string, drop: Drop<'milestone'>) => void;
-  /** An activity group's column was dropped on another's (its head or any of its cells). */
-  readonly dropOnActivity: (drop: Drop<'activity'>) => void;
-  /** Likewise a step's column; the drop names steps by their qualified ref (`activity.step`). */
-  readonly dropOnStep: (drop: Drop<'step'>) => void;
+  /** `<dpk-matrix>` reordered a row/column/sub-column; `after` is already the landing anchor. */
+  readonly reorderMilestone: (detail: MatrixReorderRowDetail) => void;
+  readonly reorderActivity: (detail: MatrixReorderColumnDetail) => void;
+  readonly reorderStep: (detail: MatrixReorderSubColumnDetail) => void;
 };
 
 export type BoardProps = {
@@ -82,6 +103,41 @@ export const milestoneRows = (m: UsmMessages, state: UsmState): readonly Milesto
   ];
 };
 
+/** `<dpk-matrix>`'s row id for a milestone row: the unassigned row gets a stable sentinel, since matrix rows need a real id. */
+const matrixRowIdOf = (row: MilestoneRow): string => row.id ?? UNASSIGNED_ROW_ID;
+
+/** Every milestone row, plus the trailing "add milestone" row (not draggable, not a drop anchor). */
+const matrixRowsOf = (rows: readonly MilestoneRow[]): readonly MatrixRow[] => [
+  ...rows.map((row) => ({ id: matrixRowIdOf(row), draggable: row.id !== undefined })),
+  { id: ADD_MILESTONE_ROW_ID, draggable: false },
+];
+
+/**
+ * The activity view's columns: one per activity, banded over its steps (every
+ * real activity always has at least one, so it always qualifies for the
+ * two-level header), plus the trailing "add activity" column. That column
+ * still needs one (non-draggable) sub-column of its own: with any column in
+ * two-level mode, a column without sub-columns of its own would render no
+ * second header row at all, misaligning it against its own body cells.
+ */
+const activityMatrixColumns = (state: UsmState): readonly MatrixColumn[] => [
+  ...state.activities.map((activity) => ({
+    id: activity.id,
+    subColumns: activity.steps.map((step) => ({ id: step.id })),
+  })),
+  {
+    id: ADD_ACTIVITY_COLUMN_ID,
+    draggable: false,
+    subColumns: [{ id: ADD_ACTIVITY_SUB_COLUMN_ID, draggable: false }],
+  },
+];
+
+/** The group view's columns: one per activity, no sub-columns (the group view bands no steps), plus "add activity". */
+const groupMatrixColumns = (state: UsmState): readonly MatrixColumn[] => [
+  ...state.activities.map((activity) => ({ id: activity.id })),
+  { id: ADD_ACTIVITY_COLUMN_ID, draggable: false },
+];
+
 export const renderEmptyBoard = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult => {
   return html`
     <div class="empty">
@@ -109,7 +165,7 @@ export const usmViewOf = (context: TemplateRenderContext<UsmState>): 'group' | '
 /** Activity columns vs one column per activity group; only shown on the map tab. */
 export const renderViewTabs = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult => {
   const view = usmViewOf(context);
-  return html`<div class="segmented view-tabs" role="tablist" aria-label=${m.groupingLabel}>
+  return html`<div class="dpk-segmented view-tabs" role="tablist" aria-label=${m.groupingLabel}>
     ${renderViewTab(context, 'activity', view, m.activityGroup)}
     ${renderViewTab(context, 'group', view, m.groupViewTab)}
   </div>`;
@@ -122,68 +178,63 @@ const renderViewTab = (
   label: string,
 ): TemplateResult => {
   const selected = tab === current;
-  return html`<a
-    class="tab"
-    role="tab"
-    data-current=${String(selected)}
-    aria-selected=${selected ? 'true' : 'false'}
-    href=${context.hashFor({ view: tab })}
+  return html`<a role="tab" aria-selected=${selected ? 'true' : 'false'} href=${context.hashFor({ view: tab })}
     >${label}</a
   >`;
 };
 
 /**
- * One column per backbone step, activity groups banded on top.
- * Milestone rows stay identical in both views.
+ * One column per backbone step, activity groups banded on top. Milestone rows
+ * stay identical in both views. The grid, its sticky head/lead column and
+ * every drag mechanic are `<dpk-matrix>`'s; every head and cell here is this
+ * template's own content, placed through a named slot.
  */
 const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSteps>): TemplateResult => {
-  const { m, context } = props;
+  const { m, context, handlers } = props;
   const { state } = context;
   const rows = milestoneRows(m, state);
   return html`
-    <div class="map-scroll">
-      <div class="map" style=${`--cols:${columns.length + 1}`} data-testid="usm-map">
-        <div class="map-head">
-          <div class="map-row">
-            <div class="corner">
-              <span class="dpk-label">${m.groupAxisHeader}</span>
-            </div>
-            ${repeat(
-              state.activities,
-              (activity) => activity.id,
-              (activity) =>
-                renderActivityHead(props, activity.id, `grid-column: span ${Math.max(activity.steps.length, 1)}`),
-            )}
-            ${renderAddActivityHead(m, context)}
-          </div>
-          <div class="map-row">
-            ${renderAxisCorner(m)}
-            ${repeat(
-              columns,
-              ({ activity, step }) => `${activity.id}.${step.id}`,
-              ({ activity, step }) => renderStepHead(props, activity.id, step),
-            )}
-            <div class="corner"><span class="dpk-label">—</span></div>
-          </div>
-        </div>
-        ${repeat(
-          rows,
-          (row) => row.id,
-          (row) =>
-            renderMilestoneRow(
-              props,
-              row,
-              html`${repeat(
-                columns,
-                ({ activity, step }) => `${activity.id}.${step.id}`,
-                ({ activity, step }) =>
-                  renderCell(props, { activityId: activity.id, stepId: step.id, milestoneId: row.id }),
-              )}`,
-            ),
-        )}
-        ${renderAddMilestoneRow(m, context, columns.length)}
-      </div>
-    </div>
+    <dpk-matrix
+      data-testid="usm-map"
+      .rows=${matrixRowsOf(rows)}
+      .columns=${activityMatrixColumns(state)}
+      @dpk-matrix-reorder-row=${(event: CustomEvent<MatrixReorderRowDetail>) => handlers.reorderMilestone(event.detail)}
+      @dpk-matrix-reorder-column=${(event: CustomEvent<MatrixReorderColumnDetail>) =>
+        handlers.reorderActivity(event.detail)}
+      @dpk-matrix-reorder-sub-column=${(event: CustomEvent<MatrixReorderSubColumnDetail>) =>
+        handlers.reorderStep(event.detail)}
+    >
+      <div class="corner" slot=${CORNER_SLOT}><span class="dpk-label">${m.groupAxisHeader}</span></div>
+      ${repeat(
+        state.activities,
+        (activity) => activity.id,
+        (activity) => renderActivityHead(props, activity.id),
+      )}
+      ${renderAddActivityHead(m, context)} ${renderAxisCorner(m, CORNER_SUB_SLOT)}
+      ${repeat(
+        columns,
+        ({ activity, step }) => `${activity.id}.${step.id}`,
+        ({ activity, step }) => renderStepHead(props, activity.id, step),
+      )}
+      ${renderAddActivitySubHead()}
+      ${repeat(
+        rows,
+        (row) => row.id,
+        (row) => renderMilestoneRowHead(props, row),
+      )}
+      ${repeat(
+        rows,
+        (row) => row.id,
+        (row) =>
+          html`${repeat(
+            columns,
+            ({ activity, step }) => `${activity.id}.${step.id}`,
+            ({ activity, step }) =>
+              renderCell(props, matrixRowIdOf(row), { activityId: activity.id, stepId: step.id, milestoneId: row.id }),
+          )}`,
+      )}
+      ${renderAddMilestoneRowHead(m, context)}
+    </dpk-matrix>
   `;
 };
 
@@ -193,45 +244,47 @@ const renderActivityView = (props: BoardProps, columns: ReturnType<typeof flatSt
  * step and only changes the milestone and the position.
  */
 const renderGroupView = (props: BoardProps): TemplateResult => {
-  const { m, context } = props;
+  const { m, context, handlers } = props;
   const { state } = context;
   const rows = milestoneRows(m, state);
   return html`
-    <div class="map-scroll">
-      <div class="map" style=${`--cols:${state.activities.length + 1}`} data-testid="usm-map-group">
-        <div class="map-head">
-          <div class="map-row">
-            ${renderAxisCorner(m)}
-            ${repeat(
-              state.activities,
-              (activity) => activity.id,
-              (activity) => renderActivityHead(props, activity.id, undefined, true),
-            )}
-            ${renderAddActivityHead(m, context)}
-          </div>
-        </div>
-        ${repeat(
-          rows,
-          (row) => row.id,
-          (row) =>
-            renderMilestoneRow(
-              props,
-              row,
-              html`${repeat(
-                state.activities,
-                (activity) => activity.id,
-                (activity) => renderGroupCell(props, activity.id, row.id),
-              )}`,
-            ),
-        )}
-        ${renderAddMilestoneRow(m, context, state.activities.length)}
-      </div>
-    </div>
+    <dpk-matrix
+      data-testid="usm-map-group"
+      .rows=${matrixRowsOf(rows)}
+      .columns=${groupMatrixColumns(state)}
+      @dpk-matrix-reorder-row=${(event: CustomEvent<MatrixReorderRowDetail>) => handlers.reorderMilestone(event.detail)}
+      @dpk-matrix-reorder-column=${(event: CustomEvent<MatrixReorderColumnDetail>) =>
+        handlers.reorderActivity(event.detail)}
+    >
+      ${renderAxisCorner(m, CORNER_SLOT)}
+      ${repeat(
+        state.activities,
+        (activity) => activity.id,
+        (activity) => renderActivityHead(props, activity.id, true),
+      )}
+      ${renderAddActivityHead(m, context)}
+      ${repeat(
+        rows,
+        (row) => row.id,
+        (row) => renderMilestoneRowHead(props, row),
+      )}
+      ${repeat(
+        rows,
+        (row) => row.id,
+        (row) =>
+          html`${repeat(
+            state.activities,
+            (activity) => activity.id,
+            (activity) => renderGroupCell(props, matrixRowIdOf(row), activity.id, row.id),
+          )}`,
+      )}
+      ${renderAddMilestoneRowHead(m, context)}
+    </dpk-matrix>
   `;
 };
 
-const renderAxisCorner = (m: UsmMessages): TemplateResult => {
-  return html`<div class="corner">
+const renderAxisCorner = (m: UsmMessages, slot: string): TemplateResult => {
+  return html`<div class="corner" slot=${slot}>
     <span class="dpk-label">${m.activityAxis}</span>
     <span class="dpk-label">${m.milestoneAxis}</span>
   </div>`;
@@ -241,49 +294,28 @@ const renderAxisCorner = (m: UsmMessages): TemplateResult => {
  * An activity group's head: its name, whose experience it is, how far its
  * stories have come (a bar in status colors along its bottom edge) and, in the
  * group view where the steps have no columns of their own, the steps it holds.
- * The head is the group's drag handle, like a milestone's row head: the whole
- * column lifts, and dropped anywhere on another group's column it moves to
- * that slot.
+ * Placed through its column's slot; `<dpk-matrix>` is its drag handle's and
+ * its lift's owner now, the way it owns a milestone row's.
  */
-const renderActivityHead = (
-  props: BoardProps,
-  activityId: string,
-  style?: string,
-  listSteps = false,
-): TemplateResult => {
-  const { m, context, drag } = props;
+const renderActivityHead = (props: BoardProps, activityId: string, listSteps = false): TemplateResult => {
+  const { m, context } = props;
   const { state } = context;
   const activity = state.activities.find((candidate) => candidate.id === activityId);
   if (!activity) return html`<div class="act-head"></div>`;
   const stories = state.stories.filter((story) => story.activityId === activity.id);
   const progress = statusDistribution(state, stories);
-  const target = drag.combine('activity', columnTargets(props, activity.id));
-  const source = drag.source({ type: 'activity', id: activity.id });
   return html`
     <div
       class="act-head"
-      style=${style ?? ''}
       data-activity=${activity.id}
       data-column=${activity.id}
       data-dpk-target=${targetRef({ type: 'activity', id: activity.id })}
       data-grill-questions=${ifDefined(grillMark(activity.questions))}
-      draggable="true"
-      data-col-dragging=${String(drag.isDragging('activity', activity.id))}
-      data-col-drop=${columnDrop(drag, activity.id)}
-      @dragstart=${(event: DragEvent) => {
-        liftColumn(event, activity.id);
-        source.dragstart(event);
-      }}
-      @dragend=${source.dragend}
-      @dragenter=${target.dragenter}
-      @dragover=${target.dragover}
-      @dragleave=${target.dragleave}
-      @drop=${target.drop}
+      slot=${columnHeadSlot(activity.id)}
     >
       <div class="act-title">
-        <span class="col-grip" aria-hidden="true">${iconGrip()}</span>
         <span class="act-name">
-          <dpk-component-inline-edit
+          <dpk-inline-edit
             draggable="false"
             .value=${activity.name}
             .label=${m.activityNameLabel}
@@ -294,9 +326,9 @@ const renderActivityHead = (
                 payload: { name },
               }),
             )}
-          ></dpk-component-inline-edit>
+          ></dpk-inline-edit>
           <span class="act-actor" data-empty=${String(activity.actor === undefined)}>
-            <dpk-component-inline-edit
+            <dpk-inline-edit
               draggable="false"
               truncate
               .value=${activity.actor ?? ''}
@@ -309,10 +341,10 @@ const renderActivityHead = (
                   payload: { actor },
                 }),
               )}
-            ></dpk-component-inline-edit>
+            ></dpk-inline-edit>
           </span>
         </span>
-        <span class="count">${stories.length}</span>
+        <span class="dpk-count" data-size="sm">${stories.length}</span>
         <button
           class="dpk-icon-btn"
           type="button"
@@ -335,15 +367,13 @@ const renderActivityHead = (
 };
 
 /**
- * A step's column head. It is the step's drag handle: the column lifts, and
- * moves only inside its own activity, so the other activities' columns do
- * not take it.
+ * A step's column head, placed through its sub-column's slot. It only moves
+ * inside its own activity: `<dpk-matrix>` already confines a sub-column drag
+ * to its own column, so nothing here has to guard against a cross-activity drop.
  */
 const renderStepHead = (props: BoardProps, activityId: string, step: BackboneStep): TemplateResult => {
-  const { m, context, drag } = props;
+  const { m, context } = props;
   const ref = stepRefOf(activityId, step.id);
-  const target = drag.combine('step', columnTargets(props, activityId, step.id));
-  const source = drag.source({ type: 'step', id: ref });
   return html`
     <div
       class="col-head"
@@ -353,23 +383,10 @@ const renderStepHead = (props: BoardProps, activityId: string, step: BackboneSte
       data-current=${String(context.navigation['step'] === step.id)}
       data-dpk-target=${targetRef({ type: 'step', id: ref })}
       data-grill-questions=${ifDefined(grillMark(step.questions))}
-      draggable="true"
-      data-col-dragging=${String(columnDragging(drag, activityId, step.id))}
-      data-col-drop=${columnDrop(drag, activityId, step.id)}
-      data-step-edge=${stepEdgeOf(context.state, activityId, step.id)}
-      @dragstart=${(event: DragEvent) => {
-        liftColumn(event, activityId, step.id);
-        source.dragstart(event);
-      }}
-      @dragend=${source.dragend}
-      @dragenter=${target.dragenter}
-      @dragover=${target.dragover}
-      @dragleave=${target.dragleave}
-      @drop=${target.drop}
+      slot=${subColumnHeadSlot(activityId, step.id)}
     >
-      <span class="col-grip" aria-hidden="true">${iconGrip()}</span>
       <h4>
-        <dpk-component-inline-edit
+        <dpk-inline-edit
           draggable="false"
           .value=${step.name}
           .label=${m.stepNameLabel}
@@ -381,169 +398,65 @@ const renderStepHead = (props: BoardProps, activityId: string, step: BackboneSte
             }),
           )}
           @click=${(e: Event) => e.stopPropagation()}
-        ></dpk-component-inline-edit>
+        ></dpk-inline-edit>
       </h4>
-      <span class="count">${storyCountForStep(context.state, step.id)}</span>
+      <span class="dpk-count" data-size="sm">${storyCountForStep(context.state, step.id)}</span>
     </div>
   `;
 };
 
-/**
- * The drop targets every part of a column (its heads and cells) carries, as a
- * milestone row's whole row is its target: an activity group's column takes
- * the other groups, and a step's column also the steps of its own activity.
- */
-const columnTargets = (
-  props: BoardProps,
-  activityId: string,
-  stepId?: string,
-): (readonly [UsmDragType, DropTargetHandlers])[] => {
-  const { context, drag, handlers } = props;
-  const activity = drag.target({
-    key: `activity:${activityId}`,
-    accepts: 'activity',
-    hovered: hoveredColumn(activityId),
-    onDrop: (drop) => handlers.dropOnActivity(drop),
-  });
-  if (stepId === undefined) return [['activity', activity]];
-  const dragged = drag.item;
-  const foreign = dragged?.type === 'step' && findStep(context.state, dragged.id)?.activity.id !== activityId;
-  if (foreign) return [['activity', activity]];
-  const ref = stepRefOf(activityId, stepId);
-  const step = drag.target({
-    key: `step:${ref}`,
-    accepts: 'step',
-    hovered: hoveredColumn(ref),
-    onDrop: (drop) => handlers.dropOnStep(drop),
-  });
-  return [
-    ['activity', activity],
-    ['step', step],
-  ];
-};
-
-/**
- * Which column a part lights up as the drop target, if any: its activity
- * group's (spanning its steps) or its step's. All the column's parts light up.
- */
-const columnDrop = (
-  drag: DragController<UsmDragType>,
-  activityId: string,
-  stepId?: string,
-): 'activity' | 'step' | 'none' => {
-  if (drag.isOver(`activity:${activityId}`)) return 'activity';
-  if (stepId !== undefined && drag.isOver(`step:${stepRefOf(activityId, stepId)}`)) return 'step';
-  return 'none';
-};
-
-/**
- * Where a step stands in its activity group's span (`first`, `last`, both or
- * neither): a lit group draws its sides only along its outer steps.
- */
-const stepEdgeOf = (state: UsmState, activityId: string, stepId: string): string => {
-  const steps = state.activities.find((activity) => activity.id === activityId)?.steps ?? [];
-  return [steps[0]?.id === stepId ? 'first' : '', steps.at(-1)?.id === stepId ? 'last' : '']
-    .filter((edge) => edge !== '')
-    .join(' ');
-};
-
-/** Whether the column (an activity's, or one step's in it) is being dragged: it fades like a dragged row. */
-const columnDragging = (drag: DragController<UsmDragType>, activityId: string, stepId?: string): boolean => {
-  return (
-    drag.isDragging('activity', activityId) ||
-    (stepId !== undefined && drag.isDragging('step', stepRefOf(activityId, stepId)))
-  );
-};
-
 const renderAddActivityHead = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult => {
-  return html`<div class="act-head">
+  return html`<div class="act-head" slot=${columnHeadSlot(ADD_ACTIVITY_COLUMN_ID)}>
     <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addActivity(m, context)}>
       ${m.newActivityButton}
     </button>
   </div>`;
 };
 
-const renderAddMilestoneRow = (
-  m: UsmMessages,
-  context: TemplateRenderContext<UsmState>,
-  columnCount: number,
-): TemplateResult => {
-  return html`<div class="map-row">
-    <div class="row-lead">
-      <div class="row-head">
-        <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addMilestone(m, context)}>
-          ${m.newMilestoneButton}
-        </button>
-      </div>
+/** The dash the add-activity column's lone sub-column shows under its button, where a real column shows its steps. */
+const renderAddActivitySubHead = (): TemplateResult => {
+  return html`<div class="corner" slot=${subColumnHeadSlot(ADD_ACTIVITY_COLUMN_ID, ADD_ACTIVITY_SUB_COLUMN_ID)}>
+    <span class="dpk-label">—</span>
+  </div>`;
+};
+
+const renderAddMilestoneRowHead = (m: UsmMessages, context: TemplateRenderContext<UsmState>): TemplateResult => {
+  return html`<div class="row-lead" slot=${rowHeadSlot(ADD_MILESTONE_ROW_ID)}>
+    <div class="row-head">
+      <button class="dpk-btn dpk-btn--ghost" type="button" @click=${() => addMilestone(m, context)}>
+        ${m.newMilestoneButton}
+      </button>
     </div>
-    ${Array.from({ length: columnCount + 1 }, () => html`<div class="cell"></div>`)}
   </div>`;
 };
 
 /**
- * A milestone row: the `.map-row` is the drop target and carries the visual
- * drag state; drag *start* fires from the `.row-head` grip so it never
- * competes with the draggable cards inside the cells. The unassigned row is
- * neither draggable nor a drop target.
+ * A milestone row's head (and meta), placed through the row's slot.
+ * `<dpk-matrix>` is the row's drag target and its handle now; the unassigned
+ * row is simply not draggable (its matrix row says so), as it always was.
  */
-const renderMilestoneRow = (props: BoardProps, row: MilestoneRow, cells: TemplateResult): TemplateResult => {
-  const { m, context, drag, handlers } = props;
+const renderMilestoneRowHead = (props: BoardProps, row: MilestoneRow): TemplateResult => {
+  const { m, context } = props;
   const milestoneId = row.id;
+  const slot = rowHeadSlot(matrixRowIdOf(row));
   if (milestoneId === undefined) {
-    return html`<div
-      class="map-row"
-      data-unassigned="true"
-      data-draggable="false"
-      data-row-dragging="false"
-      data-row-drop="false"
-    >
-      <div class="row-lead">
-        <div class="row-head" data-milestone="" draggable="false"><span>${row.name}</span></div>
-        ${renderRowMeta(m, row)}
-      </div>
-      ${cells}
-      <div class="cell"></div>
+    return html`<div class="row-lead" slot=${slot}>
+      <div class="row-head" data-unassigned="true" data-milestone=""><span>${row.name}</span></div>
+      ${renderRowMeta(m, row)}
     </div>`;
   }
   const rename = renderMilestoneName(m, context, milestoneId, row.name);
-  const key = `row:${milestoneId}`;
-  const target = drag.target({
-    key,
-    accepts: 'milestone',
-    hovered: hoveredMilestoneRow,
-    onDrop: (drop) => handlers.dropOnMilestoneRow(milestoneId, drop),
-  });
-  const source = drag.source({ type: 'milestone', id: milestoneId });
   return html`
-    <div
-      class="map-row"
-      data-draggable="true"
-      data-row-dragging=${String(drag.isDragging('milestone', milestoneId))}
-      data-row-drop=${String(drag.isOver(key))}
-      @dragenter=${target.dragenter}
-      @dragover=${target.dragover}
-      @dragleave=${target.dragleave}
-      @drop=${target.drop}
-    >
-      <div class="row-lead">
-        <div
-          class="row-head"
-          data-milestone=${milestoneId}
-          data-dpk-target=${targetRef({ type: 'milestone', id: milestoneId })}
-          data-grill-questions=${ifDefined(grillMark(row.questions))}
-          draggable="true"
-          @dragstart=${(event: DragEvent) => {
-            liftRow(event);
-            source.dragstart(event);
-          }}
-          @dragend=${source.dragend}
-        >
-          <span class="row-grip" aria-hidden="true">${iconGrip()}</span>${rename}
-        </div>
-        ${renderRowMeta(m, row)}
+    <div class="row-lead" slot=${slot}>
+      <div
+        class="row-head"
+        data-milestone=${milestoneId}
+        data-dpk-target=${targetRef({ type: 'milestone', id: milestoneId })}
+        data-grill-questions=${ifDefined(grillMark(row.questions))}
+      >
+        ${rename}
       </div>
-      ${cells}
-      <div class="cell"></div>
+      ${renderRowMeta(m, row)}
     </div>
   `;
 };
@@ -562,7 +475,7 @@ const renderMilestoneName = (
   milestoneId: string,
   name: string,
 ): TemplateResult => {
-  return html`<dpk-component-inline-edit
+  return html`<dpk-inline-edit
     draggable="false"
     .value=${name}
     .label=${m.milestoneNameLabel}
@@ -573,23 +486,22 @@ const renderMilestoneName = (
         payload: { name: next },
       }),
     )}
-  ></dpk-component-inline-edit>`;
+  ></dpk-inline-edit>`;
 };
 
-const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
+const renderCell = (props: BoardProps, matrixRowId: string, cell: CellRef): TemplateResult => {
   const { m, context, drag, handlers } = props;
   const filter = mapFilterOf(context.state, context.navigation);
   const stories = storiesInCell(context.state, cell.stepId, cell.milestoneId).filter((story) =>
     passesMapFilter(filter, story),
   );
   const key = `cell:${cell.stepId}:${cell.milestoneId ?? ''}`;
-  const target = drag.combine('story', [
-    [
-      'story',
-      drag.target({ key, accepts: 'story', hovered: hoveredCard, onDrop: (drop) => handlers.dropOnCell(cell, drop) }),
-    ],
-    ...columnTargets(props, cell.activityId, cell.stepId),
-  ]);
+  const target = drag.target({
+    key,
+    accepts: 'story',
+    hovered: hoveredCard,
+    onDrop: (drop) => handlers.dropOnCell(cell, drop),
+  });
   return html`
     <div
       class="cell"
@@ -598,9 +510,7 @@ const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
       data-column=${cell.activityId}
       data-column-step=${cell.stepId}
       data-drop=${String(drag.isOver(key))}
-      data-col-dragging=${String(columnDragging(drag, cell.activityId, cell.stepId))}
-      data-col-drop=${columnDrop(drag, cell.activityId, cell.stepId)}
-      data-step-edge=${stepEdgeOf(context.state, cell.activityId, cell.stepId)}
+      slot=${cellSlot(matrixRowId, { columnId: cell.activityId, subColumnId: cell.stepId })}
       @dragenter=${target.dragenter}
       @dragover=${target.dragover}
       @dragleave=${target.dragleave}
@@ -614,7 +524,7 @@ const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
         )}
       </div>
       <button
-        class="dpk-btn dpk-btn--ghost add-cell"
+        class="dpk-add add-cell"
         type="button"
         title=${m.addStoryCellAria}
         @click=${() => addStory(m, context, cell.activityId, cell.stepId, cell.milestoneId)}
@@ -625,7 +535,12 @@ const renderCell = (props: BoardProps, cell: CellRef): TemplateResult => {
   `;
 };
 
-const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: string | undefined): TemplateResult => {
+const renderGroupCell = (
+  props: BoardProps,
+  matrixRowId: string,
+  activityId: string,
+  milestoneId: string | undefined,
+): TemplateResult => {
   const { m, context, drag, handlers } = props;
   const { state } = context;
   const filter = mapFilterOf(state, context.navigation);
@@ -634,18 +549,12 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
   const firstStep = steps[0];
   const stepNameOf = (stepId: string): string => steps.find((step) => step.id === stepId)?.name ?? '';
   const key = `group:${activityId}:${milestoneId ?? ''}`;
-  const target = drag.combine('story', [
-    [
-      'story',
-      drag.target({
-        key,
-        accepts: 'story',
-        hovered: hoveredCard,
-        onDrop: (drop) => handlers.dropOnGroupCell(activityId, milestoneId, drop),
-      }),
-    ],
-    ...columnTargets(props, activityId),
-  ]);
+  const target = drag.target({
+    key,
+    accepts: 'story',
+    hovered: hoveredCard,
+    onDrop: (drop) => handlers.dropOnGroupCell(activityId, milestoneId, drop),
+  });
   return html`
     <div
       class="cell"
@@ -653,8 +562,7 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
       data-milestone=${milestoneId ?? ''}
       data-column=${activityId}
       data-drop=${String(drag.isOver(key))}
-      data-col-dragging=${String(columnDragging(drag, activityId))}
-      data-col-drop=${columnDrop(drag, activityId)}
+      slot=${cellSlot(matrixRowId, { columnId: activityId })}
       @dragenter=${target.dragenter}
       @dragover=${target.dragover}
       @dragleave=${target.dragleave}
@@ -670,7 +578,7 @@ const renderGroupCell = (props: BoardProps, activityId: string, milestoneId: str
       ${
         firstStep
           ? html`<button
-              class="dpk-btn dpk-btn--ghost add-cell"
+              class="dpk-add add-cell"
               type="button"
               aria-label=${m.addStoryCellAria}
               @click=${() => addStory(m, context, activityId, firstStep.id, milestoneId)}
@@ -751,50 +659,4 @@ const relationTo = (
 const hoveredCard = (event: DragEvent): { id: string | null; element: Element } | null => {
   const card = event.target instanceof Element ? event.target.closest('dpk-internal-usm-story-card') : null;
   return card ? { id: card.getAttribute('data-story'), element: card } : null;
-};
-
-/**
- * The pointer grabs the `.row-head`, but the ghost that follows it is the whole
- * `.map-row`, anchored where the row was picked up.
- */
-const liftRow = (event: DragEvent): void => {
-  const head = event.currentTarget instanceof Element ? event.currentTarget : null;
-  const row = head?.closest('.map-row');
-  if (!row || !event.dataTransfer) return;
-  const rect = row.getBoundingClientRect();
-  event.dataTransfer.setDragImage(row, event.clientX - rect.left, event.clientY - rect.top);
-};
-
-/** Every part of a column stands for the same slot: the column itself is what is hovered. */
-const hoveredColumn =
-  (id: string) =>
-  (event: DragEvent): { id: string; element: Element } | null =>
-    event.currentTarget instanceof Element ? { id, element: event.currentTarget } : null;
-
-/**
- * Lifts a whole column as the drag image, the way a milestone's row lifts:
- * its heads and every cell under them (`data-column`, and `data-column-step`
- * for a step's), as far as the map shows them. The sticky heads go last so
- * they paint over the cells scrolled under them.
- */
-const liftColumn = (event: DragEvent, activityId: string, stepId?: string): void => {
-  const head = event.currentTarget instanceof Element ? event.currentTarget : null;
-  const frame = head?.closest('.map-scroll');
-  if (!frame) return;
-  const parts = [...frame.querySelectorAll('[data-column]')].filter(
-    (part) =>
-      part.getAttribute('data-column') === activityId &&
-      (stepId === undefined || part.getAttribute('data-column-step') === stepId),
-  );
-  const heads = parts.filter((part) => part.closest('.map-head'));
-  const cells = parts.filter((part) => !part.closest('.map-head'));
-  setCompositeDragImage(event, [...cells, ...heads], frame);
-};
-
-const hoveredMilestoneRow = (event: DragEvent): { id: string | null; element: Element } | null => {
-  const row = event.target instanceof Element ? event.target.closest('.map-row') : null;
-  const head = row?.querySelector('.row-head[data-milestone]');
-  if (!row || !head) return null;
-  const id = head.getAttribute('data-milestone');
-  return { id: id === '' ? null : id, element: row };
 };

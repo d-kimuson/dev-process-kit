@@ -103,7 +103,7 @@ const renderFilterSelect = (
   const open = menu.openFor === key;
   return html`<span class="filter-field">
     <button
-      class="dpk-select filter-select"
+      class="dpk-filter"
       type="button"
       data-filter-trigger=${key}
       data-active=${String(chosen.length > 0)}
@@ -263,32 +263,6 @@ export const mapFilterStyles = css`
   }
   .filter-field {
     min-width: 0;
-  }
-  .filter-select {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 6px;
-    width: auto;
-    max-width: 260px;
-    text-align: left;
-  }
-  .filter-select[data-active='true'] {
-    border-color: color-mix(in oklab, var(--dpk-blue) 55%, var(--dpk-rule-strong));
-    background-color: color-mix(in oklab, var(--dpk-blue) 8%, var(--dpk-paper-raised));
-  }
-  .filter-key {
-    flex: none;
-    color: var(--dpk-ink-faint);
-    font-size: 11.5px;
-    font-weight: 600;
-  }
-  .filter-value {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--dpk-ink);
-    font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .filter-clear {
     margin-left: 2px;

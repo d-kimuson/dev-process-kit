@@ -69,14 +69,14 @@ describe('usm page tabs: the ones that do not fit fold into a more menu', () => 
 
   it('shows every tab and no more button while they all fit', async () => {
     const el = await mount();
-    expect(shownTabs(el)).toEqual(['map', 'milestones', 'statuses', 'labels', 'members', 'burndown']);
+    expect(shownTabs(el)).toEqual(['map', 'table', 'milestones', 'statuses', 'labels', 'members', 'burndown']);
     expect(more(el)?.getAttribute('data-unused')).toBe('true');
   });
 
   it('folds the trailing tabs behind the more button, and lists them in its menu', async () => {
     rowWidth = 400; // 3 × 120 beside the 36 of the button
     const el = await mount();
-    expect(shownTabs(el)).toEqual(['map', 'milestones', 'statuses']);
+    expect(shownTabs(el)).toEqual(['map', 'table', 'milestones']);
     const folded = el.shadowRoot!.querySelector('.page-tabs [data-tab="burndown"]')!;
     expect(folded.getAttribute('aria-hidden')).toBe('true');
     expect(folded.getAttribute('tabindex')).toBe('-1');
@@ -86,7 +86,7 @@ describe('usm page tabs: the ones that do not fit fold into a more menu', () => 
     more(el)!.click();
     await settle(el);
     expect(more(el)?.getAttribute('aria-expanded')).toBe('true');
-    expect(menuTabs(el)).toEqual(['labels', 'members', 'burndown']);
+    expect(menuTabs(el)).toEqual(['statuses', 'labels', 'members', 'burndown']);
     const burndown = el.shadowRoot!.querySelector<HTMLAnchorElement>('#tabs-menu [data-tab="burndown"]')!;
     expect(burndown.getAttribute('href')).toContain('tab=burndown');
 
@@ -99,10 +99,10 @@ describe('usm page tabs: the ones that do not fit fold into a more menu', () => 
   it('keeps the current tab in the row, folding the ones before it instead', async () => {
     rowWidth = 400;
     const el = await mount('#tab=burndown');
-    expect(shownTabs(el)).toEqual(['map', 'milestones', 'burndown']);
+    expect(shownTabs(el)).toEqual(['map', 'table', 'burndown']);
     more(el)!.click();
     await settle(el);
-    expect(menuTabs(el)).toEqual(['statuses', 'labels', 'members']);
+    expect(menuTabs(el)).toEqual(['milestones', 'statuses', 'labels', 'members']);
   });
 
   it('closes the menu on Escape', async () => {
@@ -136,7 +136,7 @@ describe('usm page tabs: the ones that do not fit fold into a more menu', () => 
     const el = await mount();
     rowWidth = 1000;
     await settle(el);
-    expect(shownTabs(el)).toHaveLength(6);
+    expect(shownTabs(el)).toHaveLength(7);
     expect(more(el)?.getAttribute('data-unused')).toBe('true');
   });
 });

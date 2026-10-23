@@ -371,7 +371,7 @@ describe('usm estimates and burndown: element', () => {
       updateComplete: Promise<boolean>;
     };
     await card.updateComplete;
-    expect(card.shadowRoot!.querySelector('.estimate-chip')?.textContent?.trim()).toBe('L');
+    expect(card.shadowRoot!.querySelector('[data-kind="estimate"]')?.textContent?.trim()).toBe('L');
     const panel = el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')!;
     (panel.querySelector('[data-estimate="M"]') as HTMLButtonElement).click();
     await settle(el);

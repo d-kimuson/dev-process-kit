@@ -55,11 +55,11 @@ const renderMemberRow = (m: UsmMessages, context: TemplateRenderContext<UsmState
     <li class="st-row" data-member=${row.id} data-dpk-target=${targetRef(target)} style=${statusToneStyle(row.tone)}>
       <span class="member-avatar" aria-hidden="true">${initialOf(row.name)}</span>
       <span class="st-name">
-        <dpk-component-inline-edit
+        <dpk-inline-edit
           .value=${row.name}
           .label=${m.memberNameLabel}
           @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_MEMBER_NAME', target, payload: { name } }))}
-        ></dpk-component-inline-edit>
+        ></dpk-inline-edit>
       </span>
       ${renderShare(m, row.storyCount, row.share)}
       ${renderTonePicker(m, row.tone, (tone) => context.dispatch({ type: 'SET_MEMBER_TONE', target, payload: { tone } }))}

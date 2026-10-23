@@ -77,12 +77,12 @@ export const renderStoryPanel = (
       <div class="sp-heading">
         ${renderKeyButton(m, storyKey(story), keyCopy)}
         <h2 class="sp-title">
-          <dpk-component-inline-edit
+          <dpk-inline-edit
             wrap
             .value=${story.name}
             .label=${m.storyTitleLabel}
             @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_STORY_NAME', target, payload: { name } }))}
-          ></dpk-component-inline-edit>
+          ></dpk-inline-edit>
         </h2>
       </div>
       ${state.statuses.length === 0 ? nothing : renderStatusField(m, context, story)}
@@ -91,7 +91,7 @@ export const renderStoryPanel = (
       ${renderLabelsField(m, context, story)} ${renderDependenciesField(m, context, story, picker)}
       <section class="sp-field">
         <h3>${m.storyDescriptionLabel}</h3>
-        <dpk-component-inline-edit
+        <dpk-inline-edit
           multiline
           markdown
           class="sp-description"
@@ -100,7 +100,7 @@ export const renderStoryPanel = (
           @dpk-commit=${onCommit((description) =>
             context.dispatch({ type: 'SET_STORY_DESCRIPTION', target, payload: { description } }),
           )}
-        ></dpk-component-inline-edit>
+        ></dpk-inline-edit>
       </section>
       ${renderLinksField(m, context, story)} ${renderComments(m, context, story)}
     </div>
@@ -484,79 +484,25 @@ const renderReviewButton = (
  */
 const renderComments = (m: UsmMessages, context: TemplateRenderContext<UsmState>, story: UserStory): TemplateResult => {
   const target = { type: 'story', id: story.id };
-  const comments = story.comments ?? [];
-  const send = (form: HTMLFormElement): void => {
-    const field = form.querySelector('textarea');
-    const body = field?.value.trim() ?? '';
-    if (!field || body === '') return;
-    const id = createEntityId('comment', allUsmIds(context.state));
-    // The text stays in the field unless the comment was taken.
-    const outcome = context.dispatch({
-      type: 'ADD_STORY_COMMENT',
-      target,
-      payload: { id, body, createdAt: new Date().toISOString() },
-    });
-    if (outcome.ok) field.value = '';
-  };
   return html`<section class="sp-field sp-comments">
-    <h3>
-      ${m.storyCommentsLabel}${comments.length > 0 ? html`<span class="sp-count">${comments.length}</span>` : nothing}
-    </h3>
-    ${
-      comments.length === 0
-        ? nothing
-        : html`<ol class="sp-comment-list">
-            ${comments.map(
-              (comment) => html`<li data-id=${comment.id}>
-                <div class="sp-comment-main">
-                  <p class="sp-comment-body">${comment.body}</p>
-                  ${
-                    comment.createdAt === undefined
-                      ? nothing
-                      : html`<time class="sp-comment-time" datetime=${comment.createdAt}
-                          >${m.commentDate(comment.createdAt)}</time
-                        >`
-                  }
-                </div>
-                <button
-                  class="dpk-icon-btn"
-                  type="button"
-                  data-role="delete-comment"
-                  aria-label=${m.deleteStoryCommentAria}
-                  @click=${() =>
-                    context.dispatch({ type: 'DELETE_STORY_COMMENT', target, payload: { commentId: comment.id } })}
-                >
-                  ${iconTrash()}
-                </button>
-              </li>`,
-            )}
-          </ol>`
-    }
-    <form
-      class="sp-comment-form"
-      @submit=${(event: Event) => {
-        event.preventDefault();
-        if (event.currentTarget instanceof HTMLFormElement) send(event.currentTarget);
+    <h3>${m.storyCommentsLabel}</h3>
+    <dpk-comment-thread
+      inline
+      .comments=${story.comments ?? []}
+      draft-key=${`story-comment:${story.id}`}
+      @dpk-thread-comment-add=${(event: CustomEvent<{ body: string }>) => {
+        const id = createEntityId('comment', allUsmIds(context.state));
+        const outcome = context.dispatch({
+          type: 'ADD_STORY_COMMENT',
+          target,
+          payload: { id, body: event.detail.body, createdAt: new Date().toISOString() },
+        });
+        if (outcome.ok) event.preventDefault();
       }}
-    >
-      <textarea
-        class="dpk-textarea"
-        rows="3"
-        aria-label=${m.storyCommentsLabel}
-        aria-describedby="sp-comments-hint"
-        data-dpk-text-key=${`story-comment:${story.id}`}
-        @keydown=${(event: KeyboardEvent) => {
-          if (event.isComposing || event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
-          event.preventDefault();
-          const form = event.currentTarget instanceof HTMLElement ? event.currentTarget.closest('form') : null;
-          if (form) send(form);
-        }}
-      ></textarea>
-      <div class="sp-comment-actions">
-        <span class="sp-comment-hint" id="sp-comments-hint">${m.storyCommentsHint}</span>
-        <button class="dpk-btn dpk-btn--accent" type="submit">${m.commentSubmit}</button>
-      </div>
-    </form>
+      @dpk-thread-comment-delete=${(event: CustomEvent<{ id: string }>) => {
+        context.dispatch({ type: 'DELETE_STORY_COMMENT', target, payload: { commentId: event.detail.id } });
+      }}
+    ></dpk-comment-thread>
   </section>`;
 };
 
@@ -665,7 +611,7 @@ export const storyPanelStyles = css`
     letter-spacing: -0.015em;
     line-height: 1.35;
   }
-  .sp-title dpk-component-inline-edit {
+  .sp-title dpk-inline-edit {
     display: block;
     margin: 0 -4px;
   }
@@ -989,68 +935,8 @@ export const storyPanelStyles = css`
     border-color: var(--dpk-accent);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--dpk-accent) 22%, transparent);
   }
-  /* The handoff dock floats at the bottom right, so the footer keeps left. */
-  .sp-field h3 .sp-count {
-    margin-left: 6px;
-    font-family: var(--dpk-mono);
-    letter-spacing: 0;
-  }
-  .sp-comment-list {
-    display: grid;
-    gap: 6px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .sp-comment-list li {
-    display: flex;
-    align-items: flex-start;
-    gap: 4px;
-    padding: 8px 4px 8px 11px;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius-sm);
-    background: var(--dpk-paper-sunken);
-  }
-  .sp-comment-main {
-    display: grid;
-    gap: 2px;
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-  .sp-comment-body {
-    margin: 0;
-    color: var(--dpk-ink);
-    font-size: 12.5px;
-    line-height: 1.6;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
-  .sp-comment-time {
-    color: var(--dpk-ink-faint);
-    font-family: var(--dpk-mono);
-    font-size: 10.5px;
-  }
-  .sp-comment-form {
-    display: grid;
-    gap: 6px;
-  }
-  .sp-comment-form textarea {
-    resize: vertical;
-    min-height: 64px;
-  }
-  .sp-comment-actions {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  .sp-comment-hint {
-    color: var(--dpk-ink-faint);
-    font-size: 11px;
-    line-height: 1.5;
-  }
-  .sp-comment-actions .dpk-btn {
-    flex: none;
+  .sp-comments dpk-comment-thread {
+    margin-top: 6px;
   }
   /* A request to the agent, not part of the story: it carries the review rail's comment icon. */
   .sp-review {

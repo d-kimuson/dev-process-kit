@@ -89,11 +89,11 @@ const renderStatusRow = (
       </button>
       ${open ? renderIconMenu(m, context, row, iconMenu) : nothing}
       <span class="st-name">
-        <dpk-component-inline-edit
+        <dpk-inline-edit
           .value=${row.name}
           .label=${m.statusNameLabel}
           @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_STATUS_NAME', target, payload: { name } }))}
-        ></dpk-component-inline-edit>
+        ></dpk-inline-edit>
       </span>
       ${renderShare(m, row.storyCount, row.share)}
       ${renderTonePicker(m, row.tone, (tone) => context.dispatch({ type: 'SET_STATUS_TONE', target, payload: { tone } }))}

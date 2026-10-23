@@ -70,13 +70,13 @@ const renderMilestoneEntry = (
       <span class="ms-rail" aria-hidden="true"><span class="ms-node">${card.ordinal}</span></span>
       <article class="ms-body">
         <h3 class="ms-name">
-          <dpk-component-inline-edit
+          <dpk-inline-edit
             .value=${card.name}
             .label=${m.milestoneNameLabel}
             @dpk-commit=${onCommit((name) =>
               context.dispatch({ type: 'SET_MILESTONE_NAME', target: { type: 'milestone', id }, payload: { name } }),
             )}
-          ></dpk-component-inline-edit>
+          ></dpk-inline-edit>
         </h3>
         ${
           card.description === ''
