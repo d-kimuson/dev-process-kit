@@ -26,13 +26,16 @@ export const usmStyles = css`
      own; this only wires the hand-off dock's clearance through to matrix's
      own variable, which it does not otherwise know about. Every head here
      (\`.corner\`, \`.act-head\`, \`.col-head\`, \`.row-lead\`) already carries its
-     own full padding, so matrix's own generic head padding is turned off
-     rather than stack a second inset around each one; the cell keeps
-     matrix's own padding and paper surface, now that \`.cell\` no longer sets
-     either itself. */
+     own full padding, so matrix's own generic head padding is kept to a
+     small edge buffer rather than stack a second full inset around each
+     one — just enough room that a grip never sits flush against the
+     column/row rule it's next to, the way every head had before this board
+     moved its padding onto \`<dpk-matrix>\`; the cell keeps matrix's own
+     padding and paper surface, now that \`.cell\` no longer sets either
+     itself. */
   dpk-matrix {
     --dpk-matrix-dock-clearance: var(--dpk-dock-clearance, 0px);
-    --dpk-matrix-head-pad: 0px;
+    --dpk-matrix-head-pad: 4px;
   }
   .row-lead {
     display: flex;
@@ -47,7 +50,7 @@ export const usmStyles = css`
   /* Row names and their meta line share one column: past \`<dpk-matrix>\`'s own
      grip and gap (its exposed span) and the inline edit's own padding (4px). */
   .row-lead {
-    --usm-row-indent: calc(var(--dpk-matrix-grip-span, 20px) + 4px);
+    --usm-row-indent: calc(var(--dpk-matrix-grip-span, 22px) + 4px);
   }
   /* \`<dpk-matrix>\`'s own grip bleed (\`margin-inline-start: -grip-span\` plus a
      matching \`padding-inline-start\`) lands on this box, the slot's direct
@@ -57,9 +60,10 @@ export const usmStyles = css`
      pulled in under the grip instead of past it. Matching the matrix's own
      target value here, rather than fighting over which side wins, keeps the
      title's start exactly where the grip's own gap ends (the same inset a
-     column head's flat, ungrouped slot node gets for free). */
+     column head's flat, ungrouped slot node gets for free). The column heads
+     below carry the identical fix, for the identical reason. */
   .row-lead[draggable='true'] {
-    padding-inline-start: var(--dpk-matrix-grip-span, 20px);
+    padding-inline-start: var(--dpk-matrix-grip-span, 22px);
   }
   .row-meta {
     display: flex;
@@ -147,6 +151,13 @@ export const usmStyles = css`
     font-size: 13px;
     font-weight: 650;
     letter-spacing: -0.005em;
+  }
+  /* Same undercompensation as \`.row-lead\` above, same fix: this box's own
+     left padding (10px, physical) otherwise wins over \`<dpk-matrix>\`'s grip
+     bleed compensation (logical), leaving the title pulled in under the
+     grip. */
+  .act-head[draggable='true'] {
+    padding-inline-start: var(--dpk-matrix-grip-span, 22px);
   }
   .act-title,
   .act-steps {
@@ -242,6 +253,10 @@ export const usmStyles = css`
   }
   .col-head[data-current='true'] {
     background: color-mix(in srgb, var(--dpk-usm-accent) 8%, var(--dpk-paper-sunken));
+  }
+  /* Same undercompensation as \`.row-lead\` above, same fix. */
+  .col-head[draggable='true'] {
+    padding-inline-start: var(--dpk-matrix-grip-span, 22px);
   }
   .col-head h4 {
     font-size: 13px;

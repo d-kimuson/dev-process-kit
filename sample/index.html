@@ -1573,7 +1573,6 @@
             <a href="#catalog-comment-thread">comment thread</a>
             <a href="#catalog-checklist">checklist</a>
             <a href="#catalog-dpk-matrix">matrix</a>
-            <a href="#catalog-dpk-matrix-single-row">matrix（単一ヘッダー行）</a>
             <b>Mock</b>
             <a href="#catalog-browser-frame">Browser frame</a>
             <a href="#catalog-smartphone">Smartphone</a>
@@ -3568,7 +3567,11 @@
                 <p>
                   行・列をドラッグで並べ替えられる格子状のレイアウト。USM のストーリーマップのような行列状の UI に使う。
                 </p>
-                <div class="demo" data-code>
+                <div
+                  class="demo"
+                  data-code
+                  data-controls='{"target":"dpk-matrix","fields":[{"name":"singleRow","attr":"data-single-row","kind":"boolean"}]}'
+                >
                   <dpk-matrix
                     id="story-matrix"
                     style="--dpk-matrix-row-head-width: 110px; --dpk-matrix-column-width: minmax(110px, 150px)"
@@ -3594,6 +3597,12 @@
                         <div class="dpk-card-row"><span class="dpk-card-chip" data-variant="outline">S</span></div>
                       </div>
                     </div>
+                    <div slot="cell:mvp:cart">
+                      <div class="dpk-card" data-tone="green">
+                        <div class="dpk-card-title">カートに追加する</div>
+                        <div class="dpk-card-row"><span class="dpk-card-chip" data-variant="outline">S</span></div>
+                      </div>
+                    </div>
                     <div slot="cell:mvp:checkout">
                       <div class="dpk-card" data-tone="violet">
                         <div class="dpk-card-title">代引きで注文する</div>
@@ -3614,6 +3623,12 @@
                         <div class="dpk-card-row"><span class="dpk-card-chip" data-variant="outline">S</span></div>
                       </div>
                     </div>
+                    <div slot="cell:v1:cart">
+                      <div class="dpk-card" data-tone="green">
+                        <div class="dpk-card-title">まとめて削除する</div>
+                        <div class="dpk-card-row"><span class="dpk-card-chip" data-variant="outline">S</span></div>
+                      </div>
+                    </div>
                     <div slot="cell:v1:checkout">
                       <div class="dpk-card" data-tone="violet">
                         <div class="dpk-card-title">クレカ決済を足す</div>
@@ -3628,7 +3643,7 @@
                         { id: 'mvp', draggable: true },
                         { id: 'v1', draggable: true },
                       ];
-                      matrix.columns = [
+                      const twoRowColumns = [
                         { id: 'search', draggable: true },
                         {
                           id: 'cart',
@@ -3640,6 +3655,23 @@
                         },
                         { id: 'checkout', draggable: true },
                       ];
+                      const singleRowColumns = [
+                        { id: 'search', draggable: true },
+                        { id: 'cart', draggable: true },
+                        { id: 'checkout', draggable: true },
+                      ];
+                      // The Controls checkbox toggles `data-single-row` as a plain attribute (Controls
+                      // only ever sets/reads attributes); `rows`/`columns` take no attribute of their own,
+                      // so this demo watches that one for a mutation and re-derives `columns` from it,
+                      // instead of a second catalog page for the same component.
+                      const syncColumns = () => {
+                        matrix.columns = matrix.hasAttribute('data-single-row') ? singleRowColumns : twoRowColumns;
+                      };
+                      syncColumns();
+                      new MutationObserver(syncColumns).observe(matrix, {
+                        attributes: true,
+                        attributeFilter: ['data-single-row'],
+                      });
                       const reorder = (items, id, after) => {
                         const item = items.find((entry) => entry.id === id);
                         if (!item) return items;
@@ -3662,93 +3694,6 @@
                             ? { ...column, subColumns: reorder(column.subColumns, subColumnId, after) }
                             : column,
                         );
-                      });
-                    });
-                  </script>
-                </div>
-              </article>
-
-              <article id="catalog-dpk-matrix-single-row" class="entry">
-                <header>
-                  <h3>&lt;dpk-matrix&gt;</h3>
-                </header>
-                <p>サブ列を持つ列が一つもなければ、ヘッダーは最初からこの一段で収まる。</p>
-                <div class="demo" data-code>
-                  <dpk-matrix
-                    id="story-matrix-flat"
-                    style="--dpk-matrix-row-head-width: 110px; --dpk-matrix-column-width: minmax(110px, 150px)"
-                  >
-                    <div slot="corner">マイルストーン ＼ 機能</div>
-                    <div slot="col-head:search">検索する</div>
-                    <div slot="col-head:cart">カートに入れる</div>
-                    <div slot="col-head:checkout">注文する</div>
-
-                    <div slot="row-head:mvp">MVP</div>
-                    <div slot="cell:mvp:search">
-                      <div class="dpk-card" data-tone="blue">
-                        <div class="dpk-card-title">メール認証で始める</div>
-                        <div class="dpk-card-row"><span class="dpk-card-chip" data-variant="outline">S</span></div>
-                      </div>
-                    </div>
-                    <div slot="cell:mvp:cart">
-                      <div class="dpk-card" data-tone="green">
-                        <div class="dpk-card-title">カートに追加する</div>
-                        <div class="dpk-card-row"><span class="dpk-card-chip" data-variant="outline">S</span></div>
-                      </div>
-                    </div>
-                    <div slot="cell:mvp:checkout">
-                      <div class="dpk-card" data-tone="violet">
-                        <div class="dpk-card-title">代引きで注文する</div>
-                        <div class="dpk-card-row"><span class="dpk-card-chip" data-variant="outline">M</span></div>
-                      </div>
-                    </div>
-
-                    <div slot="row-head:v1">v1</div>
-                    <div slot="cell:v1:search">
-                      <div class="dpk-card">
-                        <div class="dpk-card-title">履歴から再検索する</div>
-                        <div class="dpk-card-row"><span class="dpk-card-chip" data-variant="outline">S</span></div>
-                      </div>
-                    </div>
-                    <div slot="cell:v1:cart">
-                      <div class="dpk-card" data-tone="green">
-                        <div class="dpk-card-title">まとめて削除する</div>
-                        <div class="dpk-card-row"><span class="dpk-card-chip" data-variant="outline">S</span></div>
-                      </div>
-                    </div>
-                    <div slot="cell:v1:checkout">
-                      <div class="dpk-card" data-tone="violet">
-                        <div class="dpk-card-title">クレカ決済を足す</div>
-                        <div class="dpk-card-row"><span class="dpk-card-chip" data-variant="outline">M</span></div>
-                      </div>
-                    </div>
-                  </dpk-matrix>
-                  <script type="module">
-                    customElements.whenDefined('dpk-matrix').then(() => {
-                      const matrix = document.getElementById('story-matrix-flat');
-                      matrix.rows = [
-                        { id: 'mvp', draggable: true },
-                        { id: 'v1', draggable: true },
-                      ];
-                      matrix.columns = [
-                        { id: 'search', draggable: true },
-                        { id: 'cart', draggable: true },
-                        { id: 'checkout', draggable: true },
-                      ];
-                      const reorder = (items, id, after) => {
-                        const item = items.find((entry) => entry.id === id);
-                        if (!item) return items;
-                        const rest = items.filter((entry) => entry.id !== id);
-                        const anchor = after === null ? -1 : rest.findIndex((entry) => entry.id === after);
-                        if (after !== null && anchor < 0) return items;
-                        rest.splice(anchor + 1, 0, item);
-                        return rest;
-                      };
-                      matrix.addEventListener('dpk-matrix-reorder-row', (event) => {
-                        matrix.rows = reorder(matrix.rows, event.detail.rowId, event.detail.after);
-                      });
-                      matrix.addEventListener('dpk-matrix-reorder-column', (event) => {
-                        matrix.columns = reorder(matrix.columns, event.detail.columnId, event.detail.after);
                       });
                     });
                   </script>

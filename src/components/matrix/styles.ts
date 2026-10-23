@@ -23,10 +23,10 @@ export const matrixStyles = css`
     --dpk-matrix-head-pad: 10px;
     --dpk-matrix-cell-pad: 10px;
     /* The width a draggable head's own grip plus the gap after it takes up
-       (14px icon + 6px gap, below): exposed so a host's slotted content can
+       (14px icon + 8px gap, below): exposed so a host's slotted content can
        bleed its own surface behind the grip (below) and, if it has a second
        line, indent that line to the same start the first line's text gets. */
-    --dpk-matrix-grip-span: 20px;
+    --dpk-matrix-grip-span: 22px;
   }
   .matrix-scroll {
     min-width: 0;
@@ -97,7 +97,7 @@ export const matrixStyles = css`
   .matrix-sub-head {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: 8px;
   }
   .matrix-row-head ::slotted(*),
   .matrix-col-head ::slotted(*),
