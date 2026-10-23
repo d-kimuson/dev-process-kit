@@ -374,6 +374,79 @@ describe('DraftController', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  describe('undo / redo', () => {
+    it('removes the draft log entry by entry, comments included', () => {
+      const { controller } = makeController();
+      controller.dispatch({ type: 'SET_NAME', target: 'a', payload: { name: 'One' } });
+      controller.dispatch({ type: 'comment', target: 'item:a', payload: { body: 'note' } });
+      expect(controller.actions.map((action) => action.type)).toEqual(['SET_NAME', 'comment']);
+
+      expect(controller.undo()).toBe(true);
+      expect(controller.actions.map((action) => action.type)).toEqual(['SET_NAME']);
+      expect(controller.derivation.state.items[0]?.name).toBe('One');
+
+      expect(controller.undo()).toBe(true);
+      expect(controller.actions).toEqual([]);
+      expect(controller.derivation.state.items[0]?.name).toBe('Alpha');
+
+      expect(controller.undo()).toBe(false);
+    });
+
+    it('replays an undone entry on redo', () => {
+      const { controller } = makeController();
+      controller.dispatch({ type: 'SET_NAME', target: 'a', payload: { name: 'One' } });
+      controller.undo();
+      expect(controller.canRedo).toBe(true);
+      expect(controller.redo()).toBe(true);
+      expect(controller.derivation.state.items[0]?.name).toBe('One');
+      expect(controller.canRedo).toBe(false);
+      expect(controller.redo()).toBe(false);
+    });
+
+    it('clears the redo stack as soon as a new action is dispatched', () => {
+      const { controller } = makeController();
+      controller.dispatch({ type: 'SET_NAME', target: 'a', payload: { name: 'One' } });
+      controller.undo();
+      expect(controller.canRedo).toBe(true);
+      controller.dispatch({ type: 'SET_NAME', target: 'b', payload: { name: 'Beta2' } });
+      expect(controller.canRedo).toBe(false);
+      expect(controller.redo()).toBe(false);
+    });
+
+    it('reports canUndo/canRedo and keeps the redo stack in memory only', () => {
+      const { controller, storage } = makeController();
+      expect(controller.canUndo).toBe(false);
+      expect(controller.canRedo).toBe(false);
+      controller.dispatch({ type: 'SET_NAME', target: 'a', payload: { name: 'One' } });
+      expect(controller.canUndo).toBe(true);
+      controller.undo();
+      expect(controller.canUndo).toBe(false);
+      expect(controller.canRedo).toBe(true);
+
+      const reloaded = new DraftController({
+        definition: tinyDefinition,
+        base: tinyBase([
+          { id: 'a', name: 'Alpha' },
+          { id: 'b', name: 'Beta' },
+        ]),
+        storage,
+        storageKey: 'test',
+      });
+      expect(reloaded.canRedo).toBe(false);
+    });
+
+    it('notifies subscribers on undo and redo', () => {
+      const { controller } = makeController();
+      controller.dispatch({ type: 'SET_NAME', target: 'a', payload: { name: 'One' } });
+      const listener = vi.fn();
+      controller.subscribe(listener);
+      controller.undo();
+      expect(listener).toHaveBeenCalledTimes(1);
+      controller.redo();
+      expect(listener).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('can disable persistence entirely', () => {
     const controller = new DraftController({
       definition: tinyDefinition,

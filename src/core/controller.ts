@@ -28,6 +28,7 @@ import { withGrill, type GrillLayer } from './grill-targets';
 import { defaultStorage, defaultStorageKey, type DraftStorage } from './persistence';
 import { draftActionEnvelopeSchema, ownAction } from './schema';
 import { toTarget } from './target';
+import { canRedo, canUndo, clearRedo, redoStep, undoStep, EMPTY_UNDO_REDO, type UndoRedoState } from './undo-redo';
 
 export type DraftControllerOptions<S> = {
   readonly definition: TemplateDefinition<S>;
@@ -65,6 +66,7 @@ export class DraftController<S> {
   readonly #listeners = new Set<ControllerListener>();
   #lastIssues: readonly ValidationIssue[] = [];
   #prunedCount = 0;
+  #undoRedo: UndoRedoState = EMPTY_UNDO_REDO;
 
   constructor(options: DraftControllerOptions<S>) {
     this.#template = options.definition;
@@ -154,6 +156,14 @@ export class DraftController<S> {
   get prunedCount(): number {
     return this.#prunedCount;
   }
+  /** Whether there is a draft entry `undo()` would remove. */
+  get canUndo(): boolean {
+    return canUndo(this.#actions);
+  }
+  /** Whether there is a removed entry `redo()` would replay. */
+  get canRedo(): boolean {
+    return canRedo(this.#undoRedo);
+  }
 
   /** Comments, answers and component element actions are core-owned; the rest is the template's vocabulary. */
   descriptorFor(type: string, target?: ActionTarget): ActionDescriptor | undefined {
@@ -165,7 +175,7 @@ export class DraftController<S> {
     if (!built.ok) return this.#reject([built.issue]);
     const descriptor = this.descriptorFor(built.action.type, built.action.target);
     if (!descriptor) return this.#reject([{ path: 'type', message: 'unknown action type' }]);
-    this.#commit(append(this.#actions, built.action, descriptor), [built.action.id]);
+    this.#commit(append(this.#actions, built.action, descriptor), { dispatched: [built.action.id] });
     return { ok: true, id: built.action.id };
   }
 
@@ -197,14 +207,14 @@ export class DraftController<S> {
           : this.definition.apply(state, action);
       if (next === null) return this.#reject([{ path: 'target', message: 'batch action is not applicable' }]);
       actions = append(actions, action, descriptor);
-      // Compaction can replace an addition with a different payload. Validate
+      // Per-target dedupe can replace a patch with a different payload. Validate
       // following inputs against the draft we will actually commit, not `next`.
       const derivation = this.#derive(actions);
       state = derivation.state;
       answers = derivation.answers;
       ids.push(action.id);
     }
-    this.#commit(actions, ids);
+    this.#commit(actions, { dispatched: ids });
     return { ok: true, ids };
   }
 
@@ -248,7 +258,7 @@ export class DraftController<S> {
     const replacement = edited.output;
     this.#commit(
       this.#actions.map((action) => (action === existing ? replacement : action)),
-      [],
+      { dispatched: [] },
     );
     return { ok: true, id };
   }
@@ -271,6 +281,24 @@ export class DraftController<S> {
     this.#commit(this.#actions);
   }
 
+  /** Removes the draft's last entry (comments included) and re-derives. `false` when the draft is empty. */
+  undo(): boolean {
+    const outcome = undoStep(this.#actions, this.#undoRedo);
+    if (outcome === null) return false;
+    this.#undoRedo = outcome.state;
+    this.#commit([...outcome.actions], { preserveRedo: true });
+    return true;
+  }
+
+  /** Replays the most recently undone entry. `false` when there is nothing to redo. */
+  redo(): boolean {
+    const outcome = redoStep(this.#actions, this.#undoRedo);
+    if (outcome === null) return false;
+    this.#undoRedo = outcome.state;
+    this.#commit([...outcome.actions], { preserveRedo: true });
+    return true;
+  }
+
   subscribe(listener: ControllerListener): () => void {
     this.#listeners.add(listener);
     return () => {
@@ -287,18 +315,22 @@ export class DraftController<S> {
     };
   }
 
-  /** `dispatched` narrows the cancellation search to what just changed; omitted, the whole draft is revisited. */
-  #commit(actions: DraftAction[], dispatched?: readonly string[]): void {
+  /** `preserveRedo` keeps the redo stack `undo`/`redo` just adjusted; any other commit clears it. */
+  #commit(
+    actions: DraftAction[],
+    options?: { readonly preserveRedo?: boolean; readonly dispatched?: readonly string[] },
+  ): void {
     this.#lastIssues = [];
     this.#actions = actions;
     this.#rewrap();
     this.#derivation = this.#derive(this.#actions);
-    this.#normalize(dispatched);
+    this.#normalize(options?.dispatched);
+    if (options?.preserveRedo !== true) this.#undoRedo = clearRedo();
     this.#persist();
     for (const listener of this.#listeners) listener();
   }
 
-  /** Keeps the draft interpretive: no-op patches and actions that cancel out are dropped. */
+  /** `dispatched` narrows the cancellation search to what just changed; omitted, the whole draft is revisited. */
   #normalize(dispatched?: readonly string[]): boolean {
     const pruned = this.#prune();
     const compacted = compactDraft(this.definition, this.#derivation, (actions) => this.#derive(actions), dispatched);
@@ -311,6 +343,7 @@ export class DraftController<S> {
     return true;
   }
 
+  /** Drops patches the base (or an earlier action) already satisfies. */
   #prune(): boolean {
     if (this.#derivation.obsolete.length === 0) return false;
     this.#prunedCount += this.#derivation.obsolete.length;

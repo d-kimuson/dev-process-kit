@@ -12,8 +12,8 @@ import { ownAction } from './schema';
  * A draft states what should change, not the history of how the reader got
  * there: adding a note and deleting it again leaves nothing to hand back, and
  * neither does moving a story away and back. After a change, every set of
- * template actions whose removal leaves the page meaning the same is
- * dropped from the draft.
+ * template actions whose removal leaves the page meaning the same is dropped
+ * from the draft.
  *
  * Only the final state decides, so a cancellation can never change what the
  * draft asks for. Candidates are the actions around the new one: a contiguous
@@ -56,9 +56,15 @@ const cancel = <S>(
   const trigger = actions[index];
   if (trigger === undefined) return null;
   const earlier = actions.slice(0, index);
+  const mode = modeOf(definition, trigger);
+  // Sequence actions can round-trip; a removal can also hide edits and undo a
+  // preceding addition. Ordinary patches remain a plain log, even if a later
+  // patch happens to restore the base value.
+  const removal = !definition.hasTarget(current.state, trigger.target) || /^(?:DELETE|REMOVE)_/.test(trigger.type);
+  const cancellable = mode === 'sequence' || removal;
   const candidates = [
-    ...(scanRuns ? closedRuns(definition, current.base, actions, index) : []),
-    ...relatedSets(definition, earlier, trigger),
+    ...(scanRuns && cancellable ? closedRuns(definition, current.base, actions, index) : []),
+    ...(cancellable ? relatedSets(definition, earlier, trigger) : []),
   ];
   const seen = new Set<string>();
   const ordered = candidates

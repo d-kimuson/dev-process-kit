@@ -4,7 +4,7 @@ A draft states what should change, not the history of how the reader got there. 
 
 ## Status
 
-accepted
+superseded by [20261023_draft-is-the-log](20261023_draft-is-the-log.md): the draft is now a plain log of what the reader did, undoable and redoable; compaction by result is removed
 
 ## Context
 
