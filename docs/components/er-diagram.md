@@ -148,6 +148,8 @@ Tables are laid out bottom-up, as nested boxes: Bounded Context (a contiguous, f
 
 Cross-box edges leave and enter at the box's border rather than cutting across an unrelated table or through an aggregate/Bounded Context frame they do not join. A table dragged out of its computed position keeps that position across a re-layout (`position` override), and the same data always lays out into the same positions otherwise (deterministic). Picking a Bounded Context from the filter (see [Reading it](#reading-it)) only dims the rest and refocuses the view — it never moves a table.
 
+Routes that would otherwise run on top of each other — two edges sharing a corridor, or an edge hugging its own frame's border — are spread into parallel tracks as a final pass, without moving either endpoint. On a dense schema, edge crossings between tables that are not near each other in the layout are not yet reduced; this is a known limitation, not something this pass addresses.
+
 Bounded Context and aggregate labels are counter-scaled so they stay legible at the zoomed-out fit level a large diagram starts at, with their own reserved clearance so they don't run into a nested label below them.
 
 Table height follows its rows as drawn (a changed row that lists attributes under it is taller, and a long table id wraps), and edges attach to the specific column rows, so a relation lands on the column that carries it.

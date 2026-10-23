@@ -12,7 +12,7 @@ import type { LayoutGeometry } from '../../src/lib/layout/metrics';
  */
 import { LANE_MARGIN, LAYOUT } from '../../src/components/er-diagram/element';
 import { erLayoutSpec, type ErData } from '../../src/components/er-diagram/model';
-import { aggregateGroups, boundedContextGroups, relationRoute } from '../../src/components/er-diagram/view';
+import { aggregateGroups, boundedContextGroups, relationRoutes } from '../../src/components/er-diagram/view';
 import { layeredLayout } from '../../src/lib/layout/layered';
 
 export type GeometryResult = { readonly geometry: LayoutGeometry; readonly layoutMs: number };
@@ -49,15 +49,13 @@ export const geometryOf = (data: ErData): GeometryResult => {
   const frames = [...aggregateFrames, ...bcFrames];
 
   const routeById = new Map(result.routes.map((route) => [route.id, route.points]));
-  const metricEdges = data.edges.map((relation) => {
-    const points = routeById.get(relation.id) ?? [];
-    return {
-      id: relation.id,
-      from: relation.from,
-      to: relation.to,
-      points: relationRoute(relation, points, tables, LANE_MARGIN, frames),
-    };
-  });
+  const routedById = relationRoutes(data.edges, routeById, tables, LANE_MARGIN, frames);
+  const metricEdges = data.edges.map((relation) => ({
+    id: relation.id,
+    from: relation.from,
+    to: relation.to,
+    points: routedById.get(relation.id) ?? [],
+  }));
 
   return {
     geometry: { nodes: tables, edges: metricEdges, frames },

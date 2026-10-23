@@ -67,7 +67,7 @@ import {
   GROUP_PADDING,
   highlightOf,
   relationPath,
-  relationRoute,
+  relationRoutes,
   resumeEditor,
   typeMenu,
   typeSuggestions,
@@ -520,12 +520,14 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   }
 
   /**
-   * The relation's route, re-routed through the gaps between the tables it
-   * passes (any two of them, in any relative position), so a line never runs
-   * behind a card it does not join.
+   * Every visible relation's route, re-routed through the gaps between the
+   * tables it passes (any two of them, in any relative position) and then
+   * pulled apart from any other route sharing its corridor, so a line never
+   * runs behind a card it does not join, nor on top of another line or a
+   * frame border. Computed once per render — the tables/groups/frames it
+   * routes around depend only on `visible`, not on which relation is asking.
    */
-  #route(relation: ErRelation, visible: ErData): readonly LayoutPoint[] {
-    const points = this.routeOf(relation.id);
+  #routes(visible: ErData): ReadonlyMap<string, readonly LayoutPoint[]> {
     const tables = visible.nodes.flatMap((node) => {
       const placed = this.placedNode(node.id);
       return placed === undefined ? [] : [{ id: node.id, box: placed }];
@@ -540,7 +542,8 @@ export class DpkErDiagram extends DiagramElement<ErData> {
       ...aggregateGroups(groupable).map((group) => ({ box: group.box, members: group.tables })),
       ...boundedContextGroups(groupable).map((group) => ({ box: group.box, members: group.tables })),
     ];
-    return relationRoute(relation, points, tables, LANE_MARGIN, frames);
+    const pointsById = new Map(visible.edges.map((relation) => [relation.id, this.routeOf(relation.id)] as const));
+    return relationRoutes(visible.edges, pointsById, tables, LANE_MARGIN, frames);
   }
 
   protected override renderCanvas(): TemplateResult {
@@ -560,10 +563,11 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     // Lit relations paint last, over the ones they cross. Keyed, so a relation
     // moved on top keeps its own element and the pointer stays on the line it entered.
     const ordered = [...visible.edges].sort((a, b) => Number(lit.edges.has(a.id)) - Number(lit.edges.has(b.id)));
+    const routed = this.#routes(visible);
     // Built here, not inside repeat(), which would defer them past renderSelection().
     const edges = ordered.map((relation) => {
       const state = this.edgeState(relation.id);
-      const points = this.#route(relation, visible);
+      const points = routed.get(relation.id) ?? [];
       const d = relationPath(points, CURVE_REACH);
       const select = () => this.select({ kind: 'edge', id: relation.id });
       const meaning = [cardinalityText(relation.cardinality), relation.label].filter(Boolean).join(' · ');

@@ -14,7 +14,7 @@ Use the lowest layer that can provide credible evidence:
 
 Do not move a check to a heavier layer merely because that layer is available. Conversely, do not use a unit test as evidence for integration behavior it never exercises.
 
-Some behavior is a matter of degree rather than pass/fail — a generated layout can be valid yet still hard to read. For that, score it with a pure metric over the actual drawn geometry and ratchet the score down over time, instead of eyeballing screenshots. `src/lib/layout/metrics.ts`'s `scoreLayout` and the ER layout bench (`dev/layout-bench.ts`, `pnpm bench:layout`; regression-tested by `dev/layout-bench.test.ts` against `dev/layout-bench/baseline.ts`) are the current example: crossings, edges cutting through a node or frame they do not join, total edge length/bends, overlaps, aspect-ratio deviation and wasted area, combined into one weighted total per fixture.
+Some behavior is a matter of degree rather than pass/fail — a generated layout can be valid yet still hard to read. For that, score it with a pure metric over the actual drawn geometry and ratchet the score down over time, instead of eyeballing screenshots. `src/lib/layout/metrics.ts`'s `scoreLayout` and the ER layout bench (`dev/layout-bench.ts`, `pnpm bench:layout`; regression-tested by `dev/layout-bench.test.ts` against `dev/layout-bench/baseline.ts`) are the current example: crossings, edges cutting through a node or frame they do not join, total edge length/bends, overlaps, collinear overlap (two edges, or an edge and a frame border, running along the same line), aspect-ratio deviation and wasted area, combined into one weighted total per fixture.
 
 ## Real-browser QA
 

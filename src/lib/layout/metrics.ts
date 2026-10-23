@@ -54,6 +54,14 @@ export type MetricBreakdown = {
   readonly totalBends: number;
   /** Node/frame boxes overlapping another node/frame box they are not nested inside. Must be 0 for a valid layout. */
   readonly overlaps: number;
+  /**
+   * Two different edges' segments (or an edge's segment and a frame's border)
+   * running along the same line for a shared stretch: how many such pairs,
+   * and their total shared length. A reader cannot tell two lines apart where
+   * they coincide, so this is charged even where no segment technically
+   * "crosses" another.
+   */
+  readonly collinearOverlap: { readonly incidents: number; readonly length: number };
   /** How far the overall bounding box's aspect ratio sits from 16:10, as `abs(ratio - 1.6)`. */
   readonly aspectDeviation: number;
   /** Bounding box area not covered by any node, as a fraction of the bounding box (0 = fully packed). */
@@ -72,9 +80,16 @@ export const METRIC_WEIGHTS: Readonly<Record<keyof MetricBreakdown, number>> = {
   overlaps: 10_000, // a hard invariant: any overlap must dominate every other term
   aspectDeviation: 40,
   wastedArea: 60,
+  collinearOverlap: 10, // per incident; `collinearOverlap.length` is also charged, below, at a lower per-pixel rate
 };
 /** Per-pixel charge for an edge's total length spent inside node boxes it does not join (on top of the per-incident weight above). */
 const EDGE_THROUGH_NODE_LENGTH_WEIGHT = 0.05;
+/** Per-pixel charge for a shared collinear run (on top of the per-incident weight above): lower than edge-through-node's, since this is a readability cost, not a hard structural violation. */
+const COLLINEAR_OVERLAP_LENGTH_WEIGHT = 0.04;
+/** How close two segments' constant coordinates must be to count as "running along the same line" — not just exactly equal, since a near-exact hug against a frame border reads the same way to an eye. */
+const COLLINEAR_EPSILON = 1.5;
+/** Ignore an overlap this short or shorter: two lines merely touching at a shared port is not the readability problem this term targets. */
+const MIN_COLLINEAR_OVERLAP = 1;
 
 const segments = (points: readonly MetricPoint[]): readonly (readonly [MetricPoint, MetricPoint])[] =>
   points.slice(1).map((point, i) => [points[i]!, point] as const);
@@ -123,6 +138,59 @@ const segmentLengthInBox = (a: MetricPoint, b: MetricPoint, box: MetricBox): num
 
 const segmentLength = (a: MetricPoint, b: MetricPoint): number => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
+/**
+ * The overlap length between two axis-aligned segments that run along (or
+ * within `COLLINEAR_EPSILON` of) the same line — both vertical at
+ * nearly the same x, or both horizontal at nearly the same y — and whose
+ * ranges along that line actually overlap. Perpendicular segments, or
+ * collinear segments too far apart along their shared axis to visually
+ * coincide, score 0.
+ */
+const collinearOverlapLength = (
+  a: readonly [MetricPoint, MetricPoint],
+  b: readonly [MetricPoint, MetricPoint],
+): number => {
+  const [a1, a2] = a;
+  const [b1, b2] = b;
+  const aVertical = a1.x === a2.x;
+  const bVertical = b1.x === b2.x;
+  if (aVertical !== bVertical) return 0;
+  if (aVertical) {
+    if (Math.abs(a1.x - b1.x) > COLLINEAR_EPSILON) return 0;
+    const aTop = Math.min(a1.y, a2.y);
+    const aBottom = Math.max(a1.y, a2.y);
+    const bTop = Math.min(b1.y, b2.y);
+    const bBottom = Math.max(b1.y, b2.y);
+    return Math.max(0, Math.min(aBottom, bBottom) - Math.max(aTop, bTop));
+  }
+  if (Math.abs(a1.y - b1.y) > COLLINEAR_EPSILON) return 0;
+  const aLeft = Math.min(a1.x, a2.x);
+  const aRight = Math.max(a1.x, a2.x);
+  const bLeft = Math.min(b1.x, b2.x);
+  const bRight = Math.max(b1.x, b2.x);
+  return Math.max(0, Math.min(aRight, bRight) - Math.max(aLeft, bLeft));
+};
+
+/** A frame box's four border segments, each a candidate line an edge can run along instead of merely crossing. */
+const borderSegmentsOf = (box: MetricBox): readonly (readonly [MetricPoint, MetricPoint])[] => [
+  [
+    { x: box.x, y: box.y },
+    { x: box.x + box.width, y: box.y },
+  ],
+  [
+    { x: box.x, y: box.y + box.height },
+    { x: box.x + box.width, y: box.y + box.height },
+  ],
+  [
+    { x: box.x, y: box.y },
+    { x: box.x, y: box.y + box.height },
+  ],
+  [
+    { x: box.x + box.width, y: box.y },
+    { x: box.x + box.width, y: box.y + box.height },
+  ],
+];
+
 /** A polyline's bends: points where the direction changes: `length - 2` for a simple path with `length >= 2`, 0 otherwise. */
 const bendsOf = (points: readonly MetricPoint[]): number => Math.max(0, points.length - 2);
 
@@ -142,6 +210,39 @@ export const scoreLayout = (geometry: LayoutGeometry): MetricResult => {
       const b = edgeList[j]!;
       const bSegs = segments(b.points);
       for (const segA of aSegs) for (const segB of bSegs) if (segmentsCross(segA, segB)) crossings++;
+    }
+  }
+
+  // Collinear overlap: every pair of distinct edges' segments, plus every edge segment against every frame border.
+  let collinearIncidents = 0;
+  let collinearLength = 0;
+  for (let i = 0; i < edgeList.length; i++) {
+    const aSegs = segments(edgeList[i]!.points);
+    for (let j = i + 1; j < edgeList.length; j++) {
+      const bSegs = segments(edgeList[j]!.points);
+      for (const segA of aSegs) {
+        for (const segB of bSegs) {
+          const overlap = collinearOverlapLength(segA, segB);
+          if (overlap > MIN_COLLINEAR_OVERLAP) {
+            collinearIncidents++;
+            collinearLength += overlap;
+          }
+        }
+      }
+    }
+  }
+  for (const frame of geometry.frames ?? []) {
+    const borders = borderSegmentsOf(frame.box);
+    for (const edge of edgeList) {
+      for (const seg of segments(edge.points)) {
+        for (const border of borders) {
+          const overlap = collinearOverlapLength(seg, border);
+          if (overlap > MIN_COLLINEAR_OVERLAP) {
+            collinearIncidents++;
+            collinearLength += overlap;
+          }
+        }
+      }
     }
   }
 
@@ -217,6 +318,7 @@ export const scoreLayout = (geometry: LayoutGeometry): MetricResult => {
     overlaps,
     aspectDeviation,
     wastedArea,
+    collinearOverlap: { incidents: collinearIncidents, length: collinearLength },
   };
   const total =
     breakdown.crossings * METRIC_WEIGHTS.crossings +
@@ -227,7 +329,9 @@ export const scoreLayout = (geometry: LayoutGeometry): MetricResult => {
     breakdown.totalBends * METRIC_WEIGHTS.totalBends +
     breakdown.overlaps * METRIC_WEIGHTS.overlaps +
     breakdown.aspectDeviation * METRIC_WEIGHTS.aspectDeviation +
-    breakdown.wastedArea * METRIC_WEIGHTS.wastedArea;
+    breakdown.wastedArea * METRIC_WEIGHTS.wastedArea +
+    breakdown.collinearOverlap.incidents * METRIC_WEIGHTS.collinearOverlap +
+    breakdown.collinearOverlap.length * COLLINEAR_OVERLAP_LENGTH_WEIGHT;
 
   return { ...breakdown, total };
 };

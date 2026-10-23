@@ -300,4 +300,119 @@ describe('scoreLayout', () => {
     const empty: LayoutGeometry = { nodes: [], edges: [] };
     expect(() => scoreLayout(empty)).not.toThrow();
   });
+
+  describe('collinearOverlap', () => {
+    it('counts the overlapping length between two different edges sharing the same vertical run', () => {
+      const geometry: LayoutGeometry = {
+        nodes: [
+          { id: 'a', box: box(0, 0, 10, 10) },
+          { id: 'b', box: box(0, 100, 10, 10) },
+          { id: 'c', box: box(50, 20, 10, 10) },
+          { id: 'd', box: box(50, 120, 10, 10) },
+        ],
+        edges: [
+          {
+            id: 'a-b',
+            from: 'a',
+            to: 'b',
+            points: [
+              { x: 30, y: 10 },
+              { x: 30, y: 100 },
+            ],
+          },
+          // Shares x=30 with `a-b`, and its y-range [20, 120] overlaps `a-b`'s [10, 100] over [20, 100].
+          {
+            id: 'c-d',
+            from: 'c',
+            to: 'd',
+            points: [
+              { x: 30, y: 20 },
+              { x: 30, y: 120 },
+            ],
+          },
+        ],
+      };
+      const result = scoreLayout(geometry);
+      expect(result.collinearOverlap.incidents).toBe(1);
+      expect(result.collinearOverlap.length).toBeCloseTo(80, 5);
+    });
+
+    it('does not count collinear segments whose ranges do not overlap', () => {
+      const geometry: LayoutGeometry = {
+        nodes: [
+          { id: 'a', box: box(0, 0, 10, 10) },
+          { id: 'b', box: box(0, 50, 10, 10) },
+          { id: 'c', box: box(50, 60, 10, 10) },
+          { id: 'd', box: box(50, 100, 10, 10) },
+        ],
+        edges: [
+          {
+            id: 'a-b',
+            from: 'a',
+            to: 'b',
+            points: [
+              { x: 30, y: 10 },
+              { x: 30, y: 50 },
+            ],
+          },
+          {
+            id: 'c-d',
+            from: 'c',
+            to: 'd',
+            points: [
+              { x: 30, y: 60 },
+              { x: 30, y: 100 },
+            ],
+          },
+        ],
+      };
+      expect(scoreLayout(geometry).collinearOverlap).toEqual({ incidents: 0, length: 0 });
+    });
+
+    it('counts an edge segment running along a frame border', () => {
+      const geometry: LayoutGeometry = {
+        nodes: [
+          { id: 'a', box: box(0, 0, 10, 10) },
+          { id: 'b', box: box(200, 0, 10, 10) },
+        ],
+        edges: [
+          {
+            id: 'a-b',
+            from: 'a',
+            to: 'b',
+            points: [
+              { x: 10, y: 0 },
+              { x: 150, y: 0 },
+              { x: 150, y: 5 },
+            ],
+          },
+        ],
+        frames: [{ id: 'frame', box: box(0, 0, 150, 40), members: ['a'] }],
+      };
+      const result = scoreLayout(geometry);
+      expect(result.collinearOverlap.incidents).toBeGreaterThan(0);
+      expect(result.collinearOverlap.length).toBeGreaterThan(0);
+    });
+
+    it('is unaffected by a single edge alone (no other edge or frame to run along)', () => {
+      const geometry: LayoutGeometry = {
+        nodes: [
+          { id: 'a', box: box(0, 0, 10, 10) },
+          { id: 'b', box: box(200, 0, 10, 10) },
+        ],
+        edges: [
+          {
+            id: 'a-b',
+            from: 'a',
+            to: 'b',
+            points: [
+              { x: 10, y: 5 },
+              { x: 200, y: 5 },
+            ],
+          },
+        ],
+      };
+      expect(scoreLayout(geometry).collinearOverlap).toEqual({ incidents: 0, length: 0 });
+    });
+  });
 });

@@ -3,6 +3,7 @@ import type { ErDiagramMessages } from './messages';
 import type { ErCardinality, ErData, ErField, ErFieldDiff, ErRelation, ErTableDiff } from './model';
 
 import { routeAroundObstacles } from '../../lib/layout/orthogonal-router';
+import { nudgeParallelRoutes, type NudgeInput } from '../../lib/layout/route-nudge';
 
 /**
  * Presentation of a table card's rows and of the column editor, apart from
@@ -365,6 +366,42 @@ export const relationRoute = (
     frame.members.includes(relation.from) || frame.members.includes(relation.to) ? [] : [frame.box],
   );
   return detourRoute(start, end, [...tableObstacles, ...frameObstacles], margin);
+};
+
+/**
+ * Every relation's drawn route, in one pass: each one routed independently by
+ * `relationRoute` (unchanged — it stays the single-edge contract `relationRoute`'s
+ * own tests pin down), then the whole batch pulled apart by `nudgeParallelRoutes`
+ * so two routes sharing a corridor — or one hugging a frame border — separate
+ * into their own tracks instead of running on top of each other. That overlap
+ * is invisible to every other layout-complexity term; it is exactly what
+ * `scoreLayout`'s `collinearOverlap` term measures and this batch exists to fix.
+ *
+ * Shared by the live view (`element.ts`) and the layout-complexity bench, so
+ * the metric always scores exactly what the view draws.
+ */
+export const relationRoutes = (
+  relations: readonly { readonly id: string; readonly from: string; readonly to: string }[],
+  pointsById: ReadonlyMap<string, readonly LayoutPoint[]>,
+  tables: readonly { readonly id: string; readonly box: ErBox }[],
+  margin: number,
+  frames: readonly { readonly box: ErBox; readonly members: readonly string[] }[] = [],
+): ReadonlyMap<string, readonly LayoutPoint[]> => {
+  const inputs: NudgeInput[] = relations.map((relation) => {
+    const points = pointsById.get(relation.id) ?? [];
+    const routed = relationRoute(relation, points, tables, margin, frames);
+    const tableObstacles = tables
+      .filter((table) => table.id !== relation.from && table.id !== relation.to)
+      .map((table) => table.box);
+    const ownFrames: ErBox[] = [];
+    const frameObstacles: ErBox[] = [];
+    for (const frame of frames) {
+      const owns = frame.members.includes(relation.from) || frame.members.includes(relation.to);
+      (owns ? ownFrames : frameObstacles).push(frame.box);
+    }
+    return { id: relation.id, points: routed, obstacles: [...tableObstacles, ...frameObstacles], ownFrames };
+  });
+  return nudgeParallelRoutes(inputs);
 };
 
 const CORNER_RADIUS = 10;

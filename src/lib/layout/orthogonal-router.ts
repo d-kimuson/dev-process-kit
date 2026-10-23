@@ -28,14 +28,18 @@
 export type RoutePoint = { readonly x: number; readonly y: number };
 export type RouteBox = { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
 
-/** A vertical run at `x` between `yTop` and `yBottom` passes through an obstacle's open interior. */
-const verticalBlocked = (x: number, yTop: number, yBottom: number, obstacles: readonly RouteBox[]): boolean =>
+/**
+ * A vertical run at `x` between `yTop` and `yBottom` passes through an
+ * obstacle's open interior. Exported for `route-nudge.ts`, which must re-check
+ * clearance itself before sliding an already-routed segment sideways.
+ */
+export const verticalBlocked = (x: number, yTop: number, yBottom: number, obstacles: readonly RouteBox[]): boolean =>
   obstacles.some(
     (box) => x > box.x && x < box.x + box.width && Math.max(box.y, yTop) < Math.min(box.y + box.height, yBottom) - 1e-6,
   );
 
-/** A horizontal run at `y` between `xLeft` and `xRight` passes through an obstacle's open interior. */
-const horizontalBlocked = (y: number, xLeft: number, xRight: number, obstacles: readonly RouteBox[]): boolean =>
+/** A horizontal run at `y` between `xLeft` and `xRight` passes through an obstacle's open interior. See `verticalBlocked`. */
+export const horizontalBlocked = (y: number, xLeft: number, xRight: number, obstacles: readonly RouteBox[]): boolean =>
   obstacles.some(
     (box) => y > box.y && y < box.y + box.height && Math.max(box.x, xLeft) < Math.min(box.x + box.width, xRight) - 1e-6,
   );

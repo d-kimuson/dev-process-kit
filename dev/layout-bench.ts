@@ -28,6 +28,10 @@ const printTable = (rows: readonly BenchRow[]): void => {
       value: (row) => `${row.edgeThroughNode.incidents}/${formatNumber(row.edgeThroughNode.length, 0)}`,
     },
     { header: 'frameViol', value: (row) => String(row.frameViolations) },
+    {
+      header: 'collinear',
+      value: (row) => `${row.collinearOverlap.incidents}/${formatNumber(row.collinearOverlap.length, 0)}`,
+    },
     { header: 'edgeLen', value: (row) => formatNumber(row.totalEdgeLength, 0) },
     { header: 'bends', value: (row) => String(row.totalBends) },
     { header: 'overlaps', value: (row) => String(row.overlaps) },
