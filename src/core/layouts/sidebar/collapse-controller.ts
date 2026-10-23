@@ -1,6 +1,6 @@
 /**
- * Whether the reader folded the shell's sidebar away, and the persistence of
- * that choice. Kept beside the width, the same way: one key per template.
+ * Whether the reader folded the sidebar away, and the persistence of that
+ * choice. Kept beside the width, the same way: one key per layout.
  *
  * On a phone-width screen the sidebar is a drawer over the main column
  * instead: closed on load and never stored, so opening it there does not
@@ -8,16 +8,14 @@
  */
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
-import { defaultJsonStore, memoryJsonStore, type JsonStore } from '../../lib/dom/json-store';
-import { parseSidebarCollapsed } from '../sidebar-width';
+import { defaultJsonStore, memoryJsonStore, type JsonStore } from '../../../lib/dom/json-store';
+import { parseSidebarCollapsed } from './model';
 
-const storageKey = (template: string): string => `dev-process-kit:sidebar-collapsed:${template}`;
+const storageKey = (key: string): string => `dev-process-kit:sidebar-collapsed:${key}`;
 
 export type SidebarCollapseOptions = {
-  /** Read on first connect: `storage="off"` / `"memory"` keeps the choice to this page load. */
-  readonly persist: () => boolean;
-  /** The template's name, read on first connect. */
-  readonly template: () => string;
+  /** Read on first connect: `null` keeps the choice to this page load. */
+  readonly persistKey: () => string | null;
 };
 
 export class SidebarCollapseController implements ReactiveController {
@@ -36,10 +34,9 @@ export class SidebarCollapseController implements ReactiveController {
 
   hostConnected(): void {
     if (this.#store !== null) return;
-    this.#store = this.#options.persist()
-      ? defaultJsonStore(parseSidebarCollapsed)
-      : memoryJsonStore(parseSidebarCollapsed);
-    this.#key = storageKey(this.#options.template());
+    const key = this.#options.persistKey();
+    this.#store = key === null ? memoryJsonStore(parseSidebarCollapsed) : defaultJsonStore(parseSidebarCollapsed);
+    this.#key = storageKey(key ?? '');
     this.#collapsed = this.#store.read(this.#key) ?? false;
   }
 
@@ -63,7 +60,12 @@ export class SidebarCollapseController implements ReactiveController {
   }
 
   toggle(): void {
-    this.#collapsed = !this.#collapsed;
+    this.set(!this.#collapsed);
+  }
+
+  set(collapsed: boolean): void {
+    if (collapsed === this.#collapsed) return;
+    this.#collapsed = collapsed;
     // Expanded is the default, so only a folded sidebar leaves a record.
     if (this.#collapsed) this.#store?.write(this.#key, true);
     else this.#store?.remove(this.#key);

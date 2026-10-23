@@ -4,7 +4,7 @@ A page can hold several templates, of different kinds, as boards. A new page hos
 
 ## Status
 
-accepted
+accepted. Its guidance that a single template on its own is the simpler page is superseded by [20261022_page-as-the-base-form.md](20261022_page-as-the-base-form.md). Its guidance that a left icon rail switches the visible board is superseded by [20261023_header-board-switcher.md](20261023_header-board-switcher.md).
 
 ## Context
 
@@ -12,7 +12,7 @@ Readers increasingly need to agree on several things at once: the scope of a fea
 
 Two directions were considered:
 
-- **Drop the template abstraction and build everything from components inside Plain.** This would merge two contracts: a template's definition, which the core interprets (reducer, `canonicalState`, interpretive dedupe), and a component's element actions, which it does not. But a board still needs a reducer, canonicalization and navigation, so a "board component" would be a template without its shell under another name. It would also erase a layout distinction that is real. Full-viewport boards with gestures, toolbars and their own sidebar (whiteboard, event-storming) cannot sit inline in prose the way a diagram does. Every published page would break too.
+- **Drop the template abstraction and build everything from components inside Plain.** This would merge two contracts: a template's definition, which the core interprets (reducer, `canonicalState`, patch dedupe, undo/redo), and a component's element actions, which it does not. But a board still needs a reducer, canonicalization and navigation, so a "board component" would be a template without its shell under another name. It would also erase a layout distinction that is real. Full-viewport boards with gestures, toolbars and their own sidebar (whiteboard, event-storming) cannot sit inline in prose the way a diagram does. Every published page would break too.
 - **Keep templates and let a page hold several of them.** If templates simply sat side by side, each would bring its own header, review, storage and hash. The hashes would collide, and the review and the brief would split into one per board. The page would lose the property that one page means one review and one brief.
 
 The templates already differ mostly in their definition and their regions. The shell is shared code in `TemplateElement`, so it can move into a host.
@@ -36,11 +36,11 @@ The templates already differ mostly in their definition and their regions. The s
 - A template can no longer assume that it owns the window. Boards are hidden and shown, so a board that measures its layout (whiteboard, event-storming, prototype devices) must lay out again when it becomes visible. A board has no header of its own: the page header names the visible board and carries its header controls and settings.
 - The naming convention gains a third role: a page host named `dpk-page`. The lint rule that ties tag names to directories must accept it.
 - Template-level persisted UI state (sidebar width and fold, keyed by template name today) has to be keyed by board inside a page. Otherwise two boards of the same template would share it.
-- The two action contracts stay separate. Template actions get interpretive dedupe and component element actions do not. Merging them, for example so that a mind map can be a board, remains possible later and is not part of this decision.
+- The two action contracts stay separate. Template actions get the core's patch dedupe, no-op drop and undo/redo; component element actions get none of that. Merging them, for example so that a mind map can be a board, remains possible later and is not part of this decision.
 
 ## References
 
 - [Template responsibility](../guidelines/architecture.md#template-responsibility)
 - [Record component edits as element actions in the enclosing template's draft](20260924_component-element-actions.md)
-- [Interpretive drafts](20260924_interpretive-drafts.md)
+- [The draft is the log of what the reader did, with undo and redo](20261023_draft-is-the-log.md) (supersedes Interpretive drafts)
 - [Name the public contract after the project: `dpk-*`](20260924_dpk-naming.md)

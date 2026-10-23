@@ -4,8 +4,9 @@
  * The page is a template whose definition routes every action to its board
  * (`definition.ts`), so the shell — header, review, draft, storage, brief,
  * questions, change notices and hash — is the ordinary one, once per page.
- * Each `dpk-template-*` child with `board="<id>"` renders its own regions and
- * hands everything else to the page through `BOARD_HOST`. The page mirrors
+ * Each child with `board="<id>"` — a `dpk-template-*` or a diagram component
+ * used as a board (ADR 20261023_diagram-as-board) — renders its own regions
+ * and hands everything else to the page through `BOARD_HOST`. The page mirrors
  * each board's part of the draft back into it, so a board renders the same
  * state and comment counts it would on its own.
  *
@@ -13,17 +14,19 @@
  * the draft adds gets an element the page makes for it, and a board the
  * draft removes is hidden until the agent takes it out.
  */
-import { css, html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
+import { css, html, nothing, type CSSResultGroup, type PropertyDeclarations, type TemplateResult } from 'lit';
 import { LayoutTemplate } from 'lucide';
 
 import type { Locale } from '../i18n';
 import type { ShellRegions, TemplateApi, TemplateRenderContext, TemplateSnapshot } from '../shell/contracts';
 import type { DraftAction, TemplateDefinition } from '../types';
 
+import { announcedEntryUrl } from '../../lib/announce';
 import { DismissController } from '../../lib/dom/dismiss';
+import { onCommit } from '../../lib/dom/events';
 import { TemplateElement } from '../element';
 import { GRILL_ATTRIBUTE, GRILL_TARGET_TYPE, type Grill } from '../grill';
-import { iconClose, iconPlus, lucide } from '../icons';
+import { iconPlus, iconSwitch, lucide } from '../icons';
 import { coreMessages } from '../messages';
 import { PopoverController } from '../popover-controller';
 import { parseTemplateAction } from '../schema';
@@ -45,12 +48,22 @@ import { boardOfMark, pageGrill, refCandidates } from './grill';
 import { BOARD_ATTRIBUTE, BOARD_HOST, boardIdOf, DRAFT_BOARD_ATTRIBUTE, type BoardHost } from './host';
 import { pageMessages } from './messages';
 import { BOARD_KEY } from './navigation';
+import { renderSwitcherMenu, renderSwitcherTrigger, SWITCHER_ID, type SwitcherRow } from './switcher';
+import { siblingEntryUrl } from './template-loader';
 
 /** A template a board can be added from, with the icon the rail shows for its boards. */
 export type BoardTemplate = {
   /** The template's name (`usm`); `dpk-template-<name>` must be defined for it to be offered. */
   readonly name: string;
+  /** The label the add menu shows, read before the template's own element may even be loaded. */
+  readonly label: string;
   readonly icon: () => TemplateResult;
+  /**
+   * Whether the "+" add menu offers an empty board of this template. Mirrors
+   * the template's own `TemplateDefinition.addable` — kept here too so the
+   * menu can gate a template before its entry is loaded. Defaults to `true`.
+   */
+  readonly addable?: boolean;
 };
 
 /**
@@ -94,179 +107,13 @@ const isPopoverOpen = (element: Element): boolean => {
 };
 
 const iconBoard = lucide(LayoutTemplate);
-const ADD_MENU_ID = 'dpk-page-add-menu';
-const ADD_MENU_SIZE = { width: 260, height: 420 } as const;
+const SWITCHER_SIZE = { width: 240, height: 420 } as const;
+/** Long enough that the pointer can cross the gap from the trigger into the popover. */
+const SWITCHER_CLOSE_DELAY_MS = 220;
 
 const pageStyles = css`
-  .dpk-main {
-    overflow: hidden;
-  }
-
   .dpk-main-body {
-    display: flex;
-    flex: 1 1 0%;
-    min-height: 0;
-    padding: 0;
     animation: none;
-  }
-
-  .dpk-page {
-    flex: 1 1 auto;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    min-width: 0;
-    min-height: 0;
-  }
-
-  .dpk-page-rail {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    padding: 6px 4px;
-    border-right: 1px solid var(--dpk-rule);
-    background: var(--dpk-paper-sunken);
-    overflow-y: auto;
-  }
-
-  .dpk-page-tabs {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .dpk-page-tab-item {
-    position: relative;
-  }
-
-  .dpk-page-tab {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    width: 52px;
-    padding: 6px 2px 5px;
-    border: 1px solid transparent;
-    border-radius: var(--dpk-radius);
-    background: transparent;
-    color: var(--dpk-ink-soft);
-    font: 600 10px / 1.2 var(--dpk-body);
-    overflow-wrap: anywhere;
-    text-align: center;
-    cursor: pointer;
-    transition:
-      background 160ms var(--dpk-ease),
-      color 160ms var(--dpk-ease);
-  }
-
-  .dpk-page-tab-icon {
-    display: grid;
-    place-items: center;
-  }
-
-  .dpk-page-tab-icon svg {
-    width: 22px;
-    height: 22px;
-    stroke-width: 1.75;
-  }
-
-  .dpk-page-tab:hover {
-    background: var(--dpk-paper-raised);
-    color: var(--dpk-ink);
-  }
-
-  .dpk-page-tab[aria-selected='true'] {
-    border-color: var(--dpk-rule-strong);
-    background: var(--dpk-paper-raised);
-    color: var(--dpk-accent);
-    box-shadow: var(--dpk-shadow-xs);
-  }
-
-  .dpk-page-tab:focus-visible,
-  .dpk-page-tab-remove:focus-visible,
-  .dpk-page-add:focus-visible {
-    outline: 2px solid var(--dpk-focus);
-    outline-offset: 2px;
-  }
-
-  .dpk-page-tab-count {
-    position: absolute;
-    top: -3px;
-    right: -3px;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
-    border: 2px solid var(--dpk-paper-sunken);
-    border-radius: 999px;
-    background: var(--dpk-accent);
-    color: var(--dpk-accent-ink);
-    font-size: 9px;
-    line-height: 12px;
-  }
-
-  /* Shown on the board under the pointer or keyboard focus, opposite its count. */
-  .dpk-page-tab-remove {
-    position: absolute;
-    top: -3px;
-    left: -3px;
-    display: grid;
-    place-items: center;
-    width: 18px;
-    height: 18px;
-    padding: 0;
-    border: 1px solid var(--dpk-rule-strong);
-    border-radius: 999px;
-    background: var(--dpk-paper-raised);
-    color: var(--dpk-ink-soft);
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 120ms var(--dpk-ease);
-  }
-
-  .dpk-page-tab-remove svg {
-    width: 11px;
-    height: 11px;
-  }
-
-  .dpk-page-tab-remove:hover {
-    color: var(--dpk-danger, var(--dpk-ink));
-  }
-
-  .dpk-page-tab-item:hover > .dpk-page-tab-remove,
-  .dpk-page-tab-item:focus-within > .dpk-page-tab-remove {
-    opacity: 1;
-  }
-
-  .dpk-page-add {
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    margin-top: 2px;
-    padding: 0;
-    border: 1px dashed var(--dpk-rule-strong);
-    border-radius: var(--dpk-radius);
-    background: transparent;
-    color: var(--dpk-ink-soft);
-    cursor: pointer;
-  }
-
-  .dpk-page-add:hover,
-  .dpk-page-add[aria-expanded='true'] {
-    border-style: solid;
-    background: var(--dpk-paper-raised);
-    color: var(--dpk-ink);
-  }
-
-  .dpk-page-add svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  .dpk-page-add-option .dpk-settings-check svg {
-    width: 16px;
-    height: 16px;
   }
 
   /* The header reads "title / board ⚙": the title keeps its width and the board follows it. */
@@ -307,7 +154,84 @@ const pageStyles = css`
     height: 15px;
   }
 
+  /* The switcher trigger is a .dpk-header-action icon button; its popover is
+     sized here, the rest of its rows reuse .dpk-settings as-is. With two or
+     more boards it widens to fit a quiet inline count next to the icon,
+     instead of the corner badge other icon buttons use for something unread
+     (there's nothing to read here, only to pick from). With one board, or
+     none shown, it stays the plain icon square. */
+  .dpk-page-switcher-trigger {
+    width: auto;
+    min-width: 32px;
+    padding: 0 8px;
+    gap: 4px;
+  }
+
+  .dpk-page-switcher-count {
+    /* Inherits the trigger's own color (and its accent tint while the popover is
+       open) rather than a fixed token, so it stays legible in both states; the
+       lower opacity is what keeps it quiet next to the icon. */
+    color: inherit;
+    opacity: 0.68;
+    font-family: var(--dpk-mono);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .dpk-page-switcher-menu {
+    width: 240px;
+  }
+
+  .dpk-page-switcher-option .dpk-settings-check svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* A board row of the switcher, with its optional remove button beside it. */
+  .dpk-page-switcher-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .dpk-page-switcher-row .dpk-page-switcher-option {
+    flex: 1 1 auto;
+  }
+
+  .dpk-page-switcher-remove {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    margin-right: 6px;
+    padding: 0;
+    border: none;
+    border-radius: var(--dpk-radius-xs);
+    background: transparent;
+    color: var(--dpk-ink-faint);
+    cursor: pointer;
+  }
+
+  .dpk-page-switcher-remove svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .dpk-page-switcher-remove:hover {
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-danger, var(--dpk-ink));
+  }
+
+  .dpk-page-switcher-remove:focus-visible {
+    outline: 2px solid var(--dpk-focus);
+    outline-offset: -2px;
+  }
+
   .dpk-page-boards {
+    flex: 1 1 0%;
     display: grid;
     min-width: 0;
     min-height: 0;
@@ -327,6 +251,33 @@ const pageStyles = css`
 export class PageElement extends TemplateElement<PageState> {
   static override styles: CSSResultGroup = [chromeStyles, pageStyles];
 
+  static override properties: PropertyDeclarations = {
+    boardNav: { type: String, attribute: 'board-nav' },
+    hash: { type: String },
+  };
+
+  /**
+   * `board-nav="none"` draws no board nav at all: no switcher, no "+" — the
+   * page's own header (comment, history, …) still shows, for a page embedded
+   * where boards are chosen some other way (a catalog's own showcase). Absent
+   * (or any other value) switches boards from a control in the header — the
+   * page's base form for every page of several boards.
+   */
+  declare boardNav: string | null;
+
+  /**
+   * `hash="off"` leaves `location.hash` alone: the page neither reads it on
+   * start nor writes it on navigation or action, for a page embedded where
+   * the hash already belongs to something else (a catalog's own routing).
+   * Board switching still works, in memory, either way. Absent (or any other
+   * value) keeps the hash as every page always had it.
+   */
+  declare hash: string | null;
+
+  protected override get hashMode(): 'auto' | 'off' {
+    return this.hash === 'off' ? 'off' : 'auto';
+  }
+
   #boardsReady = false;
   /** Set once the page's own draft exists; boards find no host before that. */
   #started = false;
@@ -339,18 +290,26 @@ export class PageElement extends TemplateElement<PageState> {
   /** Whether each board has read its base: a board is given its part of the draft only after that. */
   readonly #ready = new WeakMap<BoardElement, boolean>();
   readonly #catalogs = new Map<Locale, readonly AnyDefinition[]>();
+  /** One dynamic import per template name, so a second click before it settles does not import it twice. */
+  readonly #pendingImports = new Map<string, Promise<unknown>>();
   #host: BoardHost | undefined;
-  #addOpen = false;
+  /** Whether the switcher popover is open. */
+  #switcherOpen = false;
+  /** Within the open switcher, whether it shows addable templates instead of the page's boards. */
+  #switcherAdding = false;
+  #switcherCloseTimer: ReturnType<typeof setTimeout> | undefined;
   readonly #popovers = new PopoverController(this);
 
   constructor() {
     super();
     new DismissController(this, {
-      open: () => this.#addOpen,
+      open: () => this.#switcherOpen,
       closesOn: (path) =>
-        !path.some((node) => node instanceof Element && (node.id === ADD_MENU_ID || node.matches('.dpk-page-add'))),
+        !path.some(
+          (node) => node instanceof Element && (node.id === SWITCHER_ID || node.matches('.dpk-page-switcher-trigger')),
+        ),
       ownsEscape: () => true,
-      dismiss: () => this.#setAddOpen(false),
+      dismiss: () => this.#closeSwitcher(),
     });
   }
 
@@ -375,6 +334,11 @@ export class PageElement extends TemplateElement<PageState> {
       this.#baseIds = this.#idsOf(this.#markupBoards());
       this.requestUpdate();
     });
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.#cancelSwitcherClose();
   }
 
   get [BOARD_HOST](): BoardHost | undefined {
@@ -444,16 +408,62 @@ export class PageElement extends TemplateElement<PageState> {
     if (cached !== undefined) return cached;
     const templates = this.boardTemplates();
     const definitions = templates.flatMap(({ name }) => {
-      const tag = `dpk-template-${name}`;
-      if (customElements.get(tag) === undefined) return [];
-      const element = document.createElement(tag);
-      element.setAttribute('lang', locale);
-      const definition: unknown = 'definition' in element ? element.definition : undefined;
-      return isDefinition(definition) ? [definition] : [];
+      const definition = this.#definitionFor(name, locale);
+      return definition === undefined ? [] : [definition];
     });
     // A template whose entry is not loaded yet is looked for again next time.
     if (definitions.length === templates.length) this.#catalogs.set(locale, definitions);
     return definitions;
+  }
+
+  /** A template's definition, read from an element of its own; `undefined` while its entry is not loaded. */
+  #definitionFor(name: string, locale: Locale): AnyDefinition | undefined {
+    const tag = `dpk-template-${name}`;
+    if (customElements.get(tag) === undefined) return undefined;
+    const element = document.createElement(tag);
+    element.setAttribute('lang', locale);
+    const definition: unknown = 'definition' in element ? element.definition : undefined;
+    return isDefinition(definition) ? definition : undefined;
+  }
+
+  /** The templates the "+" menu offers: those the catalog does not mark unaddable. */
+  #addableTemplates(): readonly BoardTemplate[] {
+    return this.boardTemplates().filter((template) => template.addable !== false);
+  }
+
+  /**
+   * The clicked template's definition, loading its sibling entry first when
+   * its element is not registered yet — every entry of one version ships as a
+   * sibling of every other, by `import.meta.url` ([ADR](../../../dev-docs/adr/20260920_per-template-entries.md)),
+   * so a page that loaded one template's entry can still reach another's by
+   * URL. Concurrent clicks for the same template share one import. `undefined`
+   * when there is no running entry to resolve a sibling against, or the
+   * import fails.
+   */
+  async #ensureTemplate(name: string): Promise<AnyDefinition | undefined> {
+    const locale = this.locale;
+    const found = this.#definitionFor(name, locale);
+    if (found !== undefined) return found;
+    const url = siblingEntryUrl(name, announcedEntryUrl());
+    if (url === null) return undefined;
+    let pending = this.#pendingImports.get(name);
+    pending ??= import(/* @vite-ignore */ url);
+    this.#pendingImports.set(name, pending);
+    try {
+      await pending;
+    } catch (error) {
+      this.#pendingImports.delete(name);
+      console.error(`dev-process-kit: could not load template "${name}" from ${url}`, error);
+      return undefined;
+    }
+    await customElements.whenDefined(`dpk-template-${name}`);
+    return this.#definitionFor(name, locale);
+  }
+
+  /** Resolves the clicked template's definition (loading it first if needed) and adds a board of it. */
+  async #onAddTemplate(name: string): Promise<void> {
+    const definition = await this.#ensureTemplate(name);
+    if (definition !== undefined) this.#addBoard(definition);
   }
 
   #definitionOf(entry: BoardLayout): AnyDefinition | undefined {
@@ -536,12 +546,9 @@ export class PageElement extends TemplateElement<PageState> {
     return refCandidates(token, boardOfMark(mark));
   }
 
-  protected override hasSidebarContent(): boolean {
-    return false;
-  }
-
-  protected override hasFooterContent(): boolean {
-    return this.querySelector(':scope > [slot="footer"]') !== null;
+  /** The board fills the main column; a board scrolls or pans inside itself. */
+  protected override get mainLayout(): 'flow' | 'fill' {
+    return 'fill';
   }
 
   protected override buildBrief(snapshot: TemplateSnapshot<PageState>): string {
@@ -552,148 +559,229 @@ export class PageElement extends TemplateElement<PageState> {
     return withBoards(super.buildBrief(snapshot), boardsSection(specs, snapshot.actions));
   }
 
-  /** The header names the template of the board it shows. */
-  protected override templateIdentity(): { readonly label: string; readonly name: string } {
-    const active = this.#started ? this.#activeEntry(this.api.state, this.navigation) : undefined;
-    return (active === undefined ? undefined : this.#definitionOf(active)) ?? super.templateIdentity();
-  }
-
   #activeEntry(state: PageState, navigation: Readonly<Record<string, string>>): BoardLayout | undefined {
     return state.layout.find((entry) => entry.id === navigation[BOARD_KEY]);
   }
 
-  protected override renderRegions(context: TemplateRenderContext<PageState>): ShellRegions {
-    const messages = pageMessages(this.locale);
-    const layout = context.state.layout;
-    const active = this.#activeEntry(context.state, context.navigation);
-    const catalog = this.#catalog();
-    return {
-      sidebarHidden: true,
-      header: active === undefined ? nothing : this.#renderHeading(context, active),
-      main: html`<div class="dpk-page">
-        <nav class="dpk-page-rail" aria-label=${messages.boards}>
-          <div
-            class="dpk-page-tabs"
-            role="tablist"
-            aria-orientation="vertical"
-            @keydown=${(event: KeyboardEvent) => this.#onRailKey(event, layout)}
-          >
-            ${layout.map((entry) =>
-              this.#renderTab(entry, entry.id === active?.id, sliceOf(context.actions, entry.id).length, layout.length),
-            )}
-          </div>
-          ${
-            catalog.length === 0
-              ? nothing
-              : html`<button
-                  class="dpk-page-add"
-                  type="button"
-                  aria-label=${messages.addBoard}
-                  title=${messages.addBoard}
-                  aria-haspopup="menu"
-                  aria-controls=${ADD_MENU_ID}
-                  aria-expanded=${this.#addOpen ? 'true' : 'false'}
-                  @click=${() => this.#setAddOpen(!this.#addOpen)}
-                >
-                  ${iconPlus()}
-                </button>`
-          }
-          ${this.#addOpen ? this.#renderAddMenu(catalog) : nothing}
-        </nav>
-        <div class="dpk-page-boards"><slot @slotchange=${() => this.#onBoardsChange()}></slot></div>
-      </div>`,
-    };
+  /** `board-nav="none"`: the page's own header stays (comment, history, …) but it offers no board nav at all. */
+  #isNoNav(): boolean {
+    return this.boardNav === 'none';
   }
 
-  /** The board the page shows, after the page's title, with that board's settings beside it. */
-  #renderHeading(context: TemplateRenderContext<PageState>, entry: BoardLayout): TemplateResult {
+  protected override renderRegions(context: TemplateRenderContext<PageState>): ShellRegions {
+    const layout = context.state.layout;
+    const active = this.#activeEntry(context.state, context.navigation);
+    const addable = this.#addableTemplates();
+    const title = this.definition.title(context.state);
+    const main = html`<div class="dpk-page-boards"><slot @slotchange=${() => this.#onBoardsChange()}></slot></div>`;
+    if (this.#isNoNav()) {
+      const header =
+        active === undefined
+          ? nothing
+          : html`<div class="dpk-page-heading ${SETTINGS_ANCHOR}">${this.#renderBoardSettings(context, active)}</div>`;
+      return { header, rail: nothing, main };
+    }
+    return { header: this.#renderHeaderNav(context, layout, active, addable, title), rail: nothing, main };
+  }
+
+  /**
+   * The title keeps its spot, then (when there is more than one board) the
+   * switcher trigger — one icon that opens a popover of the page's boards on
+   * hover, click or focus, "+" its last row — ahead of the active board's own
+   * name, so the trigger never moves as a name appears or changes length;
+   * then the active board's settings.
+   */
+  #renderHeaderNav(
+    context: TemplateRenderContext<PageState>,
+    layout: readonly BoardLayout[],
+    active: BoardLayout | undefined,
+    addable: readonly BoardTemplate[],
+    title: string,
+  ): TemplateResult {
+    return html`<div class="dpk-page-heading ${SETTINGS_ANCHOR}">
+      ${this.#renderBoardSwitcher(layout, active, title, addable)}
+      ${active === undefined ? nothing : this.#renderBoardSettings(context, active)}
+    </div>`;
+  }
+
+  /** The switcher trigger, the active board's name (once there is more than one), and, while open, the popover. */
+  #renderBoardSwitcher(
+    layout: readonly BoardLayout[],
+    active: BoardLayout | undefined,
+    title: string,
+    addable: readonly BoardTemplate[],
+  ): TemplateResult | typeof nothing {
+    if (layout.length === 0 && addable.length === 0) return nothing;
+    const messages = pageMessages(this.locale);
+    const intents = {
+      open: () => this.#openSwitcher(),
+      scheduleClose: () => this.#scheduleSwitcherClose(),
+    };
+    return html`
+      ${renderSwitcherTrigger(iconSwitch, this.#switcherOpen, layout.length, messages, intents)}
+      ${
+        layout.length <= 1 || active === undefined
+          ? nothing
+          : this.#renderCrumb(
+              active,
+              layout.findIndex((entry) => entry.id === active.id),
+              title,
+            )
+      }
+      ${
+        this.#switcherOpen
+          ? renderSwitcherMenu(this.#switcherRows(layout, active, title, addable), messages, {
+              cancelClose: () => this.#cancelSwitcherClose(),
+              scheduleClose: () => this.#scheduleSwitcherClose(),
+            })
+          : nothing
+      }
+    `;
+  }
+
+  /** The active board's name beside the switcher trigger, renamed in place through the page's own draft. */
+  #renderCrumb(entry: BoardLayout, index: number, title: string): TemplateResult {
+    const messages = pageMessages(this.locale);
+    const label = this.#switcherLabel(entry, index, title);
+    return html`<span class="dpk-page-crumb"
+      >${this.#iconOf(entry.template)()}<dpk-inline-edit
+        .value=${label}
+        .label=${messages.renameBoard}
+        @dpk-commit=${onCommit((name) => this.#renameBoard(entry.id, name))}
+      ></dpk-inline-edit
+    ></span>`;
+  }
+
+  /** The switcher's rows: the page's boards, or — past its trailing "+" — the templates it can add. */
+  #switcherRows(
+    layout: readonly BoardLayout[],
+    active: BoardLayout | undefined,
+    title: string,
+    addable: readonly BoardTemplate[],
+  ): readonly SwitcherRow[] {
+    const messages = pageMessages(this.locale);
+    if (this.#switcherAdding) {
+      return addable.map((template) => ({
+        key: `template:${template.name}`,
+        label: template.label,
+        icon: template.icon,
+        current: false,
+        kind: 'action' as const,
+        activate: () => {
+          this.#closeSwitcher();
+          void this.#onAddTemplate(template.name);
+        },
+      }));
+    }
+    const boards: SwitcherRow[] = layout.map((entry, index) => {
+      const label = this.#switcherLabel(entry, index, title);
+      return {
+        key: `board:${entry.id}`,
+        label,
+        icon: this.#iconOf(entry.template),
+        current: entry.id === active?.id,
+        activate: () => {
+          this.#closeSwitcher();
+          this.navigate({ [BOARD_KEY]: entry.id });
+        },
+        ...(layout.length > 1
+          ? { remove: { label: messages.removeBoard(label), activate: () => this.#removeBoard(entry.id) } }
+          : {}),
+      };
+    });
+    if (addable.length === 0) return boards;
+    return [
+      ...boards,
+      {
+        key: 'add',
+        label: messages.addBoard,
+        icon: iconPlus,
+        current: false,
+        kind: 'action' as const,
+        activate: () => {
+          this.#switcherAdding = true;
+          this.requestUpdate();
+          this.#focusFirstSwitcherRowAfterUpdate();
+        },
+      },
+    ];
+  }
+
+  /**
+   * Moves focus into the add view once it has rendered in place of the board list (#86). The
+   * "+" row that was just clicked does not survive that swap (the row sets differ in length), so
+   * the browser drops focus to nothing of its own accord; without somewhere to land it inside the
+   * menu, that reads as a press outside and schedules the whole menu closed (`@focusin` on the
+   * menu is what cancels that schedule once this focus lands).
+   */
+  #focusFirstSwitcherRowAfterUpdate(): void {
+    void this.updateComplete.then(() => {
+      this.renderRoot.querySelector<HTMLElement>(`#${SWITCHER_ID} .dpk-page-switcher-option`)?.focus();
+    });
+  }
+
+  /** The board's own name in the header crumb, dispatched like any other change of the draft. */
+  #renameBoard(id: string, name: string): void {
+    this.dispatch({ type: 'RENAME_BOARD', target: PAGE_WIDE_TARGET, payload: { board: id, label: name } });
+  }
+
+  #openSwitcher(): void {
+    this.#cancelSwitcherClose();
+    if (this.#switcherOpen) return;
+    this.#switcherOpen = true;
+    this.requestUpdate();
+  }
+
+  /** Closes the switcher a moment out, so the pointer can cross from the trigger into its popover. */
+  #scheduleSwitcherClose(): void {
+    this.#cancelSwitcherClose();
+    this.#switcherCloseTimer = setTimeout(() => this.#closeSwitcher(), SWITCHER_CLOSE_DELAY_MS);
+  }
+
+  #cancelSwitcherClose(): void {
+    if (this.#switcherCloseTimer === undefined) return;
+    clearTimeout(this.#switcherCloseTimer);
+    this.#switcherCloseTimer = undefined;
+  }
+
+  #closeSwitcher(): void {
+    this.#cancelSwitcherClose();
+    if (!this.#switcherOpen && !this.#switcherAdding) return;
+    this.#switcherOpen = false;
+    this.#switcherAdding = false;
+    this.requestUpdate();
+  }
+
+  /** The active board's settings trigger and menu; shared between the rail heading and the header nav. */
+  #renderBoardSettings(context: TemplateRenderContext<PageState>, entry: BoardLayout): TemplateResult | typeof nothing {
     const board = this.#boards().find((element) => element.board === entry.id);
     const settings = board?.definition.settings?.(context.state.boards[entry.id]);
-    const hasSettings = board !== undefined && settings !== undefined && settings.items.length > 0;
+    if (board === undefined || settings === undefined || settings.items.length === 0) return nothing;
     const messages = coreMessages(this.locale);
     const intents = {
       toggle: () => {
         this.settingsOpen = !this.settingsOpen;
       },
-      flip: (input: Parameters<BoardElement['api']['dispatch']>[0]) => void board?.api.dispatch(input),
+      flip: (input: Parameters<BoardElement['api']['dispatch']>[0]) => void board.api.dispatch(input),
     };
-    return html`<div class="dpk-page-heading ${SETTINGS_ANCHOR}">
-      <span class="dpk-page-crumb">${this.#iconOf(entry.template)()} ${entry.label}</span>
-      ${hasSettings ? renderSettingsTrigger(this.settingsOpen, messages, intents) : nothing}
-      ${hasSettings && this.settingsOpen ? renderSettingsMenu(settings, messages, intents) : nothing}
-    </div>`;
+    return html`${renderSettingsTrigger(this.settingsOpen, messages, intents)}
+    ${this.settingsOpen ? renderSettingsMenu(settings, messages, intents) : nothing}`;
   }
 
-  #renderTab(entry: BoardLayout, selected: boolean, pending: number, boards: number): TemplateResult {
-    const messages = pageMessages(this.locale);
-    const template = this.#definitionOf(entry)?.label ?? entry.template;
-    return html`<div class="dpk-page-tab-item" role="presentation">
-      <button
-        class="dpk-page-tab"
-        type="button"
-        role="tab"
-        data-board=${entry.id}
-        aria-selected=${selected ? 'true' : 'false'}
-        tabindex=${selected ? 0 : -1}
-        title=${`${entry.label} · ${template}`}
-        @click=${() => this.navigate({ [BOARD_KEY]: entry.id })}
-      >
-        <span class="dpk-page-tab-icon">${this.#iconOf(entry.template)()}</span>
-        <span class="dpk-page-tab-label">${entry.label}</span>
-        ${pending > 0 ? html`<span class="dpk-page-tab-count">${pending}</span>` : nothing}
-      </button>
-      ${
-        boards > 1
-          ? html`<button
-              class="dpk-page-tab-remove"
-              type="button"
-              data-board=${entry.id}
-              tabindex="-1"
-              aria-label=${messages.removeBoard(entry.label)}
-              title=${messages.removeBoard(entry.label)}
-              @click=${() => this.#removeBoard(entry.id)}
-            >
-              ${iconClose()}
-            </button>`
-          : nothing
-      }
-    </div>`;
+  /**
+   * A board's label in the switcher: its own, given one, or else a fallback
+   * that is never the template's name — the page's title for the first board,
+   * an ordinal for the rest, since only the first can stand for the page.
+   */
+  #switcherLabel(entry: BoardLayout, index: number, title: string): string {
+    const definition = this.#definitionOf(entry);
+    const isTemplateName = definition !== undefined && entry.label === definition.label;
+    if (!isTemplateName) return entry.label;
+    return index === 0 ? title : pageMessages(this.locale).boardFallback(index + 1);
   }
 
-  #renderAddMenu(catalog: readonly AnyDefinition[]): TemplateResult {
-    const messages = pageMessages(this.locale);
-    return html`<div
-      id=${ADD_MENU_ID}
-      class="dpk-settings dpk-page-add-menu"
-      popover="manual"
-      role="menu"
-      aria-label=${messages.addBoard}
-    >
-      ${catalog.map(
-        (definition) =>
-          html`<button
-            class="dpk-settings-option dpk-page-add-option"
-            type="button"
-            role="menuitem"
-            data-template=${definition.name}
-            @click=${() => this.#addBoard(definition)}
-          >
-            <span class="dpk-settings-check" aria-hidden="true">${this.#iconOf(definition.name)()}</span>
-            <span class="dpk-settings-text"><span class="dpk-settings-name">${definition.label}</span></span>
-          </button>`,
-      )}
-    </div>`;
-  }
-
-  #setAddOpen(open: boolean): void {
-    if (this.#addOpen === open) return;
-    this.#addOpen = open;
-    this.requestUpdate();
-  }
-
-  /** A new board is a change of the draft; the rail shows it at once. */
+  /** A new board is a change of the draft; the switcher shows it at once. */
   #addBoard(definition: AnyDefinition): void {
-    this.#setAddOpen(false);
     const taken = new Set([
       ...this.api.state.layout.map((entry) => entry.id),
       ...Array.from(this.children, (child) => child.getAttribute(BOARD_ATTRIBUTE) ?? ''),
@@ -730,40 +818,17 @@ export class PageElement extends TemplateElement<PageState> {
     this.removeAction(added.id);
   }
 
-  /** The rail is a vertical tab list: arrows, Home and End move to a board and show it. */
-  #onRailKey(event: KeyboardEvent, layout: readonly BoardLayout[]): void {
-    const current = layout.findIndex((entry) => entry.id === this.navigation[BOARD_KEY]);
-    const last = layout.length - 1;
-    const next =
-      event.key === 'ArrowDown'
-        ? Math.min(last, current + 1)
-        : event.key === 'ArrowUp'
-          ? Math.max(0, current - 1)
-          : event.key === 'Home'
-            ? 0
-            : event.key === 'End'
-              ? last
-              : null;
-    const entry = next === null ? undefined : layout[next];
-    if (entry === undefined) return;
-    event.preventDefault();
-    this.navigate({ [BOARD_KEY]: entry.id });
-    void this.updateComplete.then(() =>
-      this.renderRoot.querySelector<HTMLElement>(`.dpk-page-tab[data-board="${entry.id}"]`)?.focus(),
-    );
-  }
-
   protected override updated(): void {
     super.updated();
-    this.#placeAddMenu();
+    this.#placeSwitcherMenu();
     this.#syncBoards();
   }
 
-  #placeAddMenu(): void {
-    const menu = this.renderRoot.querySelector<HTMLElement>(`#${ADD_MENU_ID}`);
-    const anchor = this.renderRoot.querySelector('.dpk-page-add');
+  #placeSwitcherMenu(): void {
+    const menu = this.renderRoot.querySelector<HTMLElement>(`#${SWITCHER_ID}`);
+    const anchor = this.renderRoot.querySelector('.dpk-page-switcher-trigger');
     if (!menu || !anchor || isPopoverOpen(menu)) return;
-    this.#popovers.open(menu, anchor, ADD_MENU_SIZE, { placement: 'right-end' });
+    this.#popovers.open(menu, anchor, SWITCHER_SIZE, { placement: 'bottom-end' });
   }
 
   /**

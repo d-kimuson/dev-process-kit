@@ -24,6 +24,22 @@ export const pageActions = {
   ),
   /** The board leaves the page, and with it every change and comment on it. */
   REMOVE_BOARD: defineAction('REMOVE_BOARD', 'page', v.object({ board: boardIdSchema }), { mode: 'append' }),
+  /** The board's own name, given in the header's inline edit. */
+  RENAME_BOARD: defineAction(
+    'RENAME_BOARD',
+    'page',
+    v.object({ board: boardIdSchema, label: v.pipe(v.string(), v.trim(), v.minLength(1)) }),
+    {
+      mode: 'patch',
+      // Every page-wide action shares one target, so the default dedupe key
+      // (type + target) would wrongly coalesce renames of different boards;
+      // key on the board itself instead.
+      dedupeKey: (action) => {
+        const parsed = v.safeParse(v.object({ board: boardIdSchema }), action.payload);
+        return parsed.success ? `RENAME_BOARD|${parsed.output.board}` : null;
+      },
+    },
+  ),
 } satisfies ActionSpecs;
 
 export type PageActionType = keyof typeof pageActions;

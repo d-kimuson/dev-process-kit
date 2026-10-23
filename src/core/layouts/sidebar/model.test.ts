@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  DEFAULT_SIDEBAR_PANE,
   SIDEBAR_WIDTH,
   draggedSidebarWidth,
   keyedSidebarWidth,
   parseSidebarCollapsed,
   parseSidebarWidth,
+  sidebarArrangement,
   sidebarToggle,
-} from './sidebar-width';
+} from './model';
 
 describe('parseSidebarWidth', () => {
   it('accepts a finite number and keeps it within the bounds', () => {
@@ -86,5 +88,21 @@ describe('sidebarToggle', () => {
   it('mirrors for a right-hand sidebar', () => {
     expect(sidebarToggle('right', false)).toEqual({ action: 'collapse', points: 'right' });
     expect(sidebarToggle('right', true)).toEqual({ action: 'expand', points: 'left' });
+  });
+});
+
+describe('sidebarArrangement', () => {
+  it('keeps every sidebar beside the main column on a wide screen', () => {
+    expect(sidebarArrangement({ ...DEFAULT_SIDEBAR_PANE, narrow: 'stack' }, false)).toBe('beside');
+  });
+
+  it('makes a foldable sidebar a drawer on a phone, and a fixed one stays', () => {
+    expect(sidebarArrangement(DEFAULT_SIDEBAR_PANE, true)).toBe('drawer');
+    expect(sidebarArrangement({ ...DEFAULT_SIDEBAR_PANE, collapsible: false }, true)).toBe('beside');
+  });
+
+  it('stacks or keeps a sidebar on a phone when it asks to', () => {
+    expect(sidebarArrangement({ ...DEFAULT_SIDEBAR_PANE, narrow: 'stack' }, true)).toBe('stack');
+    expect(sidebarArrangement({ ...DEFAULT_SIDEBAR_PANE, narrow: 'keep' }, true)).toBe('beside');
   });
 });

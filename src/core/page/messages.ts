@@ -14,6 +14,12 @@ export const pageMessages = defineMessages({
     removeBoard: (label: string) => `Remove board "${label}"`,
     boardAdded: 'Board added',
     boardRemoved: 'Board removed',
+    boardRenamed: 'Board renamed',
+    renameBoard: 'Rename',
+    switcher: 'Switch board',
+    switcherCount: (count: number) => `Switch board (${count} available)`,
+    /** A board's fallback label in the switcher, once its own name (a template's) is kept out of it. */
+    boardFallback: (n: number) => `Board ${n}`,
   },
   ja: {
     label: 'ページ',
@@ -27,6 +33,11 @@ export const pageMessages = defineMessages({
     removeBoard: (label: string) => `ボード「${label}」を削除`,
     boardAdded: 'ボードを追加',
     boardRemoved: 'ボードを削除',
+    boardRenamed: 'ボード名を変更',
+    renameBoard: '名前を変更',
+    switcher: 'ボードを切り替え',
+    switcherCount: (count: number) => `ボードを切り替え（${count}件）`,
+    boardFallback: (n: number) => `ボード${n}`,
   },
 });
 

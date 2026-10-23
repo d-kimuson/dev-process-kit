@@ -1,11 +1,12 @@
 /**
  * What a board asks of the page it sits in.
  *
- * A board is a `dpk-template-*` with a `board="<id>"` attribute directly
- * inside `<dpk-page>`. It keeps rendering its regions but leaves the draft,
- * the hash and the review to the page: everything it would have done to its
- * own shell goes through this host, with targets and navigation already in
- * the page's terms.
+ * A board is any element — a `dpk-template-*`, or a diagram acting as its
+ * own board (ADR 20261023_diagram-as-board) — with a `board="<id>"`
+ * attribute directly inside `<dpk-page>`. It keeps rendering its regions but
+ * leaves the draft, the hash and the review to the page: everything it would
+ * have done to its own shell goes through this host, with targets and
+ * navigation already in the page's terms.
  */
 import type { Locale } from '../i18n';
 import type { ActionInput, BatchDispatchOutcome, DispatchOutcome, Navigation, NavigationPatch } from '../types';

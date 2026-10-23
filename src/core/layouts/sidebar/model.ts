@@ -1,10 +1,9 @@
 /**
- * How wide the shell's sidebar is drawn.
+ * How `<dpk-internal-layout-sidebar>` draws its sidebars.
  *
  * The reader resizes it by dragging the edge that faces the main column, or
- * with the keyboard on that edge; every width that reaches the shell passes
- * through these functions, so it is always a whole number of pixels within the
- * bounds.
+ * with the keyboard on that edge; every width the reader sets passes through
+ * these functions, so it is always a whole number of pixels within the bounds.
  */
 export const SIDEBAR_WIDTH = {
   min: 180,
@@ -18,7 +17,16 @@ export const SIDEBAR_WIDTH = {
 /** Which side of the main column the sidebar sits on; its resizable edge faces the other way. */
 export type SidebarSide = 'left' | 'right';
 
-/** What a template declares about its sidebar. */
+/**
+ * The sidebar on a phone-width screen. `'drawer'` (the default, for a
+ * collapsible sidebar) folds it into a strip whose button slides it over the
+ * main column; `'stack'` puts it under the main column (over it on the left)
+ * at full width, and the two scroll as one page; `'keep'` leaves it beside
+ * the main column (a narrow icon rail).
+ */
+export type SidebarNarrow = 'drawer' | 'stack' | 'keep';
+
+/** What a template declares about the shell's sidebar. */
 export type SidebarLayout = {
   readonly side: SidebarSide;
   /** The width before the reader resizes it, and the one a double-click restores. */
@@ -28,12 +36,9 @@ export type SidebarLayout = {
    * Defaults to `true`; a template with its own fold control sets `false`.
    */
   readonly collapsible?: boolean;
-  /**
-   * The sidebar on a phone-width screen. `'drawer'` (the default, for a
-   * collapsible sidebar) folds it into a strip whose button slides it over the
-   * main column; `'stack'` leaves the layout to the template's own styles.
-   */
-  readonly narrow?: 'drawer' | 'stack';
+  /** Whether the reader can drag the sidebar's edge. Defaults to `true`. */
+  readonly resizable?: boolean;
+  readonly narrow?: SidebarNarrow;
 };
 
 export const DEFAULT_SIDEBAR_LAYOUT: SidebarLayout = { side: 'left', defaultWidth: 260 };
@@ -95,3 +100,32 @@ const opposite = (side: SidebarSide): SidebarSide => (side === 'left' ? 'right' 
 
 export const sidebarToggle = (side: SidebarSide, collapsed: boolean): SidebarToggle =>
   collapsed ? { action: 'expand', points: opposite(side) } : { action: 'collapse', points: side };
+
+/** How one side's sidebar behaves, as the layout element is told. */
+export type SidebarPane = {
+  /** The width before the reader resizes it, and the one a double-click restores. */
+  readonly width: number;
+  readonly resizable: boolean;
+  readonly collapsible: boolean;
+  readonly narrow: SidebarNarrow;
+  /** Where the reader's width and fold are kept; `null` keeps them to the page load. */
+  readonly persistKey: string | null;
+};
+
+export const DEFAULT_SIDEBAR_PANE: SidebarPane = {
+  width: DEFAULT_SIDEBAR_LAYOUT.defaultWidth,
+  resizable: true,
+  collapsible: true,
+  narrow: 'drawer',
+  persistKey: null,
+};
+
+/** How a sidebar stands next to the main column right now. */
+export type SidebarArrangement = 'beside' | 'drawer' | 'stack';
+
+/** Only a sidebar the reader can fold becomes a drawer on a phone; otherwise it stays beside. */
+export const sidebarArrangement = (pane: SidebarPane, narrowScreen: boolean): SidebarArrangement => {
+  if (!narrowScreen || pane.narrow === 'keep') return 'beside';
+  if (pane.narrow === 'stack') return 'stack';
+  return pane.collapsible ? 'drawer' : 'beside';
+};

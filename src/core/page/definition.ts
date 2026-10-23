@@ -148,6 +148,13 @@ export const pageDefinition = (source: PageSource): TemplateDefinition<PageState
         boards: { ...state.boards, [board]: empty },
       };
     }
+    if (parsed.type === 'RENAME_BOARD') {
+      if (!present) return null;
+      return {
+        ...state,
+        layout: state.layout.map((entry) => (entry.id === board ? { ...entry, label: parsed.payload.label } : entry)),
+      };
+    }
     if (!present) return null;
     return {
       ...state,
@@ -161,6 +168,9 @@ export const pageDefinition = (source: PageSource): TemplateDefinition<PageState
     if (parsed.type === 'ADD_BOARD') {
       const template = templateOf(parsed.payload.template)?.label ?? parsed.payload.template;
       return { title: m.boardAdded, targetLabel: `${parsed.payload.label} (${template})`, tone: 'create' };
+    }
+    if (parsed.type === 'RENAME_BOARD') {
+      return { title: m.boardRenamed, targetLabel: parsed.payload.label, tone: 'update' };
     }
     const label = source.base().layout.find((entry) => entry.id === parsed.payload.board)?.label;
     return { title: m.boardRemoved, targetLabel: label ?? parsed.payload.board, tone: 'delete' };

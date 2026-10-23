@@ -5,20 +5,14 @@
  */
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
-import { defaultJsonStore, memoryJsonStore, type JsonStore } from '../../lib/dom/json-store';
-import {
-  draggedSidebarWidth,
-  keyedSidebarWidth,
-  parseSidebarWidth,
-  type SidebarDrag,
-  type SidebarLayout,
-} from '../sidebar-width';
+import { defaultJsonStore, memoryJsonStore, type JsonStore } from '../../../lib/dom/json-store';
+import { draggedSidebarWidth, keyedSidebarWidth, parseSidebarWidth, type SidebarDrag, type SidebarSide } from './model';
 
 /**
- * One key per template for every page of the origin: the width is the reader's
+ * One key per layout for every page of the origin: the width is the reader's
  * taste, but a navigation list and a right-hand rail call for different widths.
  */
-const storageKey = (template: string): string => `dev-process-kit:sidebar-width:${template}`;
+const storageKey = (key: string): string => `dev-process-kit:sidebar-width:${key}`;
 
 type DragState = { readonly kind: 'idle' } | ({ readonly kind: 'dragging'; readonly pointerId: number } & SidebarDrag);
 
@@ -34,11 +28,11 @@ export type SidebarEdgeHandlers = {
 };
 
 export type SidebarResizeOptions = {
-  /** Read on first connect, like the color scheme's: `storage="off"` / `"memory"` keeps the width to this page load. */
-  readonly persist: () => boolean;
-  /** The template's name, read on first connect. */
-  readonly template: () => string;
-  readonly layout: () => SidebarLayout;
+  /** Read on first connect: `null` keeps the width to this page load. */
+  readonly persistKey: () => string | null;
+  readonly side: () => SidebarSide;
+  /** The width before the reader resizes it, and the one a double-click restores. */
+  readonly defaultWidth: () => number;
 };
 
 export class SidebarResizeController implements ReactiveController {
@@ -46,7 +40,7 @@ export class SidebarResizeController implements ReactiveController {
   readonly #options: SidebarResizeOptions;
   #store: JsonStore<number> | null = null;
   #key = '';
-  /** The reader's width, or `null` while the template's default applies. */
+  /** The reader's width, or `null` while the layout's default applies. */
   #preference: number | null = null;
   #drag: DragState = IDLE;
 
@@ -58,8 +52,9 @@ export class SidebarResizeController implements ReactiveController {
 
   hostConnected(): void {
     if (this.#store !== null) return;
-    this.#store = this.#options.persist() ? defaultJsonStore(parseSidebarWidth) : memoryJsonStore(parseSidebarWidth);
-    this.#key = storageKey(this.#options.template());
+    const key = this.#options.persistKey();
+    this.#store = key === null ? memoryJsonStore(parseSidebarWidth) : defaultJsonStore(parseSidebarWidth);
+    this.#key = storageKey(key ?? '');
     this.#preference = this.#store.read(this.#key);
   }
 
@@ -68,7 +63,7 @@ export class SidebarResizeController implements ReactiveController {
   }
 
   get width(): number {
-    return this.#preference ?? this.#options.layout().defaultWidth;
+    return this.#preference ?? this.#options.defaultWidth();
   }
 
   get dragging(): boolean {
@@ -85,7 +80,7 @@ export class SidebarResizeController implements ReactiveController {
       this.#drag = {
         kind: 'dragging',
         pointerId: event.pointerId,
-        side: this.#options.layout().side,
+        side: this.#options.side(),
         startX: event.clientX,
         startWidth: this.width,
       };
@@ -99,14 +94,14 @@ export class SidebarResizeController implements ReactiveController {
     pointerup: (event) => this.#endDrag(event),
     pointercancel: (event) => this.#endDrag(event),
     keydown: (event) => {
-      const next = keyedSidebarWidth(this.width, this.#options.layout().side, event);
+      const next = keyedSidebarWidth(this.width, this.#options.side(), event);
       if (next === null) return;
       event.preventDefault();
       this.#show(next);
       this.#save();
     },
     dblclick: () => {
-      this.#show(this.#options.layout().defaultWidth);
+      this.#show(this.#options.defaultWidth());
       this.#save();
     },
   };
@@ -119,9 +114,9 @@ export class SidebarResizeController implements ReactiveController {
     this.#host.requestUpdate();
   }
 
-  /** Landing on the default keeps no preference, so the template's default applies again. */
+  /** Landing on the default keeps no preference, so the layout's default applies again. */
   #show(width: number): void {
-    const next = width === this.#options.layout().defaultWidth ? null : width;
+    const next = width === this.#options.defaultWidth() ? null : width;
     if (next === this.#preference) return;
     this.#preference = next;
     this.#host.requestUpdate();

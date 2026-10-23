@@ -74,19 +74,30 @@ describe('page definition', () => {
     expect(controller.derivation.state.title).toBe('Checkout');
   });
 
-  it('dedupes patches per board, never across boards', () => {
+  it('dedupes adjacent patches per board, never across boards', () => {
     const { definition } = setup([scope, domain], { scope: { pay: 'Pay' }, domain: { pay: 'Paid' } });
     const controller = new DraftController({ definition, base: definition.parseBase({}), storage: null });
+    // Same entity id, different boards: never dedupes against each other.
     controller.dispatch(rename('item:pay@scope', 'A'));
     controller.dispatch(rename('item:pay@domain', 'B'));
+    expect(controller.actions.map((action) => [action.target.id, action.payload])).toEqual([
+      ['pay@scope', { name: 'A' }],
+      ['pay@domain', { name: 'B' }],
+    ]);
+    // Same board, but another board's action sits between: not adjacent, so both stay.
     controller.dispatch(rename('item:pay@scope', 'C'));
     expect(controller.actions.map((action) => [action.target.id, action.payload])).toEqual([
+      ['pay@scope', { name: 'A' }],
       ['pay@domain', { name: 'B' }],
       ['pay@scope', { name: 'C' }],
     ]);
-    // Renaming back to the base cancels out, as on a standalone template.
-    controller.dispatch(rename('item:pay@scope', 'Pay'));
-    expect(controller.actions.map((action) => action.target.id)).toEqual(['pay@domain']);
+    // Now adjacent to its own last entry: dedupes in place, the log stays a plain log otherwise.
+    controller.dispatch(rename('item:pay@scope', 'D'));
+    expect(controller.actions.map((action) => [action.target.id, action.payload])).toEqual([
+      ['pay@scope', { name: 'A' }],
+      ['pay@domain', { name: 'B' }],
+      ['pay@scope', { name: 'D' }],
+    ]);
   });
 
   it('accepts a comment from one board on another, and on the page as a whole', () => {

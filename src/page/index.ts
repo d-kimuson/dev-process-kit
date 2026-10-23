@@ -7,31 +7,21 @@
  * of boards works with whichever template entries it loads; the rail offers
  * only the templates whose element is defined.
  */
-import {
-  FileText,
-  ListChecks,
-  Map as MapIcon,
-  MonitorSmartphone,
-  PenTool,
-  Presentation,
-  Spade,
-  SquareKanban,
-  StickyNote,
-} from 'lucide';
+import { FileText, Map as MapIcon, MonitorSmartphone, Presentation, Spade, SquareKanban } from 'lucide';
 
 import { lucide } from '../core/icons';
 import { PageElement, type BoardTemplate } from '../core/page/element';
 
+// `label` mirrors each template's own `TemplateDefinition.label`, and `addable` its
+// `TemplateDefinition.addable` (`index.test.ts` checks both stay in step): the add menu reads
+// them here, before the template's own entry may even be loaded.
 const BOARD_TEMPLATES: readonly BoardTemplate[] = [
-  { name: 'usm', icon: lucide(MapIcon) },
-  { name: 'event-storming', icon: lucide(StickyNote) },
-  { name: 'example-mapping', icon: lucide(ListChecks) },
-  { name: 'prototype', icon: lucide(MonitorSmartphone) },
-  { name: 'task-board', icon: lucide(SquareKanban) },
-  { name: 'delegation-poker', icon: lucide(Spade) },
-  { name: 'whiteboard', icon: lucide(PenTool) },
-  { name: 'slides', icon: lucide(Presentation) },
-  { name: 'plain', icon: lucide(FileText) },
+  { name: 'usm', label: 'User Story Mapping', icon: lucide(MapIcon) },
+  { name: 'prototype', label: 'UX Prototype', icon: lucide(MonitorSmartphone), addable: false },
+  { name: 'task-board', label: 'Task Context Board', icon: lucide(SquareKanban), addable: false },
+  { name: 'delegation-poker', label: 'Delegation Poker', icon: lucide(Spade), addable: false },
+  { name: 'slides', label: 'Slides', icon: lucide(Presentation), addable: false },
+  { name: 'plain', label: 'Plain', icon: lucide(FileText) },
 ];
 
 export class DpkPage extends PageElement {
