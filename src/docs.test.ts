@@ -4,14 +4,11 @@ import { describe, expect, it } from 'vitest';
 
 import pkg from '../package.json' with { type: 'json' };
 import { parseDelegationPokerBase } from './templates/delegation-poker/model';
-import { parseEventStormingBase } from './templates/event-storming/model';
-import { parseExampleMappingBase } from './templates/example-mapping/model';
 import { parsePlainBase } from './templates/plain/model';
 import { parsePrototypeBase } from './templates/prototype/model';
 import { parseSlidesBase } from './templates/slides/model';
 import { parseTaskBoardBase } from './templates/task-board/model';
 import { parseUsmBase } from './templates/usm/model';
-import { parseWhiteboardBase } from './templates/whiteboard/model';
 
 /**
  * A reader's first draft of a page is usually the Base data example copied straight out of
@@ -33,13 +30,10 @@ const TEMPLATE_NAMES = Object.keys(pkg.exports)
 const parseBaseFor: Record<string, (input: unknown) => unknown> = {
   prototype: parsePrototypeBase,
   usm: parseUsmBase,
-  'event-storming': parseEventStormingBase,
-  'example-mapping': parseExampleMappingBase,
   plain: parsePlainBase,
   slides: parseSlidesBase,
   'task-board': parseTaskBoardBase,
   'delegation-poker': parseDelegationPokerBase,
-  whiteboard: parseWhiteboardBase,
 };
 
 const doc = (name: string): string => readFileSync(resolve('docs/templates', `${name}.md`), 'utf8');

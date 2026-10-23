@@ -1,22 +1,22 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { parseArchitectureData } from './components/architecture-map/model';
 import { parseDependencyData } from './components/dependency-graph/model';
 import { parseErData } from './components/er-diagram/model';
+import { parseExampleMappingBase } from './components/example-mapping/model';
 import { parseKanbanData } from './components/kanban/model';
 import { parseMindMapData } from './components/mind-map/model';
 import { parseSequenceData } from './components/sequence-diagram/model';
 import { parseStateData } from './components/state-diagram/model';
+import { frameOf, parseWhiteboardBase } from './components/whiteboard/model';
 import { parseChangeLog, revisionsOf } from './core/changes';
 import { parseGrill } from './core/grill';
 import { parseDelegationPokerBase } from './templates/delegation-poker/model';
-import { parseExampleMappingBase } from './templates/example-mapping/model';
 import { parsePlainBase } from './templates/plain/model';
 import { parseSlidesBase } from './templates/slides/model';
 import { parseTaskBoardBase } from './templates/task-board/model';
-import { frameOf, parseWhiteboardBase } from './templates/whiteboard/model';
 
 /**
  * The samples are what a reader opens first, and their data is hand-written JSON
@@ -71,24 +71,31 @@ const questionsIn = (value: unknown, found: string[] = []): string[] => {
 };
 
 describe('sample pages', () => {
+  it('every sample hides its root element until the kit defines it, so raw content cannot flash', () => {
+    const files = readdirSync(resolve('sample')).filter((name) => name.endsWith('.html'));
+    expect(files.length).toBeGreaterThan(0);
+    const missing = files.filter((name) => !sample(name).includes('body > :not(:defined)'));
+    expect(missing, 'sample(s) missing the FOUC guard style (docs/index.md#page-height)').toEqual([]);
+  });
+
   it('diagrams.html carries data every diagram accepts', () => {
     const html = sample('diagrams.html');
-    expect(parseStateData(jsonChild(html, 'dpk-component-state-diagram')).nodes).toHaveLength(8);
-    const sequence = parseSequenceData(jsonChild(html, 'dpk-component-sequence-diagram'));
+    expect(parseStateData(jsonChild(html, 'dpk-state-diagram')).nodes).toHaveLength(8);
+    const sequence = parseSequenceData(jsonChild(html, 'dpk-sequence-diagram'));
     expect(sequence.participants).toHaveLength(5);
     expect(sequence.items.length).toBeGreaterThan(3);
-    expect(parseDependencyData(jsonChild(html, 'dpk-component-dependency-graph')).nodes).toHaveLength(7);
-    const er = parseErData(jsonChild(html, 'dpk-component-er-diagram'));
+    expect(parseDependencyData(jsonChild(html, 'dpk-dependency-graph')).nodes).toHaveLength(7);
+    const er = parseErData(jsonChild(html, 'dpk-er-diagram'));
     expect(er.nodes.map((node) => node.status)).toEqual(
       expect.arrayContaining(['added', 'removed', 'changed', 'same']),
     );
-    const architecture = parseArchitectureData(jsonChild(html, 'dpk-component-architecture-map'));
+    const architecture = parseArchitectureData(jsonChild(html, 'dpk-architecture-map'));
     expect(architecture.nodes).toHaveLength(8);
     expect(architecture.boundaries).toHaveLength(3);
-    const mindMap = parseMindMapData(jsonChild(html, 'dpk-component-mind-map'));
+    const mindMap = parseMindMapData(jsonChild(html, 'dpk-mind-map'));
     expect(mindMap.nodes.filter((node) => node.depth === 1).length).toBeGreaterThan(3);
     expect(new Set(mindMap.nodes.map((node) => node.side))).toEqual(new Set([null, 'left', 'right']));
-    const kanban = parseKanbanData(jsonChild(html, 'dpk-component-kanban'));
+    const kanban = parseKanbanData(jsonChild(html, 'dpk-kanban'));
     expect(kanban.columns.length).toBeGreaterThan(2);
     expect(kanban.columns.flatMap((column) => column.cards).length).toBeGreaterThan(3);
   });
@@ -104,17 +111,20 @@ describe('sample pages', () => {
     const buttons = [...html.matchAll(/data-dpk-comment="section:([^"]+)"/g)].map((match) => match[1]);
     const byName = (a: string | undefined, b: string | undefined): number => (a ?? '').localeCompare(b ?? '');
     expect([...buttons].sort(byName)).toEqual([...sections].sort(byName));
-    // Element comments need a stable, unique id on every diagram.
-    const diagrams = [...html.matchAll(/<dpk-component-[a-z-]+\b([^>]*)>/g)].map((match) => match[1] ?? '');
+    // Element comments need a stable, unique id on every diagram (not the page or template wrapper).
+    const diagrams = [...html.matchAll(/<dpk-(?!page\b|template-|internal-)[a-z-]+\b([^>]*)>/g)].map(
+      (match) => match[1] ?? '',
+    );
     const ids = diagrams.map((attributes) => /\bid="([^"]+)"/.exec(attributes)?.[1]);
     expect(ids).toHaveLength(7);
     expect(ids.every((id) => id !== undefined)).toBe(true);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('example-mapping.html maps the flow through the example-mapping template', () => {
+  it('example-mapping.html maps the flow through the example-mapping diagram', () => {
     const html = sample('example-mapping.html');
-    const mapping = parseExampleMappingBase(jsonChild(html, 'dpk-template-example-mapping'));
+    expect(entriesOf(html)).toContain('components.js');
+    const mapping = parseExampleMappingBase(jsonChild(html, 'dpk-example-mapping'));
     expect(mapping.title).not.toBe('');
     expect(mapping.stories.length).toBeGreaterThan(1);
     expect(mapping.rules.length).toBeGreaterThan(1);
@@ -137,20 +147,18 @@ describe('sample pages', () => {
     expect(grill.questions.length).toBeGreaterThan(3);
 
     // The diagrams are the author's main area, annotated with question references.
-    const er = parseErData(jsonChild(html, 'dpk-component-er-diagram'));
+    const er = parseErData(jsonChild(html, 'dpk-er-diagram'));
     expect(er.nodes.find((node) => node.id === 'refunds')?.status).toBe('added');
     expect(er.nodes.find((node) => node.id === 'orders')?.status).toBe('changed');
     expect(er.edges.filter((edge) => edge.status === 'added')).toHaveLength(1);
-    const sequence = parseSequenceData(jsonChild(html, 'dpk-component-sequence-diagram'));
+    const sequence = parseSequenceData(jsonChild(html, 'dpk-sequence-diagram'));
     expect(sequence.participants.map((participant) => participant.id)).toContain('refund');
 
     // Every badge points at a question, and every question has a badge.
     const refs = new Set(grill.questions.map((question) => question.ref));
     const referenced = [
       ...[...html.matchAll(/data-grill-questions="([^"]*)"/g)].flatMap((match) => (match[1] ?? '').split(/\s+/)),
-      ...['dpk-component-er-diagram', 'dpk-component-sequence-diagram'].flatMap((tag) =>
-        questionsIn(jsonChild(html, tag)),
-      ),
+      ...['dpk-er-diagram', 'dpk-sequence-diagram'].flatMap((tag) => questionsIn(jsonChild(html, tag))),
     ].filter((token) => token !== '');
     expect(referenced.length).toBeGreaterThan(0);
     for (const ref of referenced) expect(refs.has(ref), `${ref} has no question`).toBe(true);
@@ -184,9 +192,9 @@ describe('sample pages', () => {
     expect(board.context.what).not.toBeNull();
     expect(board.context.goals.length).toBeGreaterThan(0);
     expect(board.context.nonGoals.length).toBeGreaterThan(0);
-    expect(parseErData(jsonChild(html, 'dpk-component-er-diagram')).nodes.length).toBeGreaterThan(1);
-    expect(parseSequenceData(jsonChild(html, 'dpk-component-sequence-diagram')).participants.length).toBeGreaterThan(1);
-    expect([...html.matchAll(/<dpk-component-[a-z-]+\b[^>]*\bslot="main"/g)]).toHaveLength(2);
+    expect(parseErData(jsonChild(html, 'dpk-er-diagram')).nodes.length).toBeGreaterThan(1);
+    expect(parseSequenceData(jsonChild(html, 'dpk-sequence-diagram')).participants.length).toBeGreaterThan(1);
+    expect([...html.matchAll(/<dpk-[a-z-]+\b[^>]*\bslot="main"/g)]).toHaveLength(2);
     // The log is a conversation: both sides speak in it.
     const kinds = new Set(
       board.log.map((entry) => board.members.find((member) => member.id === entry.from)?.kind ?? 'agent'),
@@ -222,10 +230,10 @@ describe('sample pages', () => {
     expect(poker.decisions.some((decision) => new Set(decision.cards.map((card) => card.level)).size > 1)).toBe(true);
   });
 
-  it('whiteboard.html lays out a brainstorm on the whiteboard template', () => {
+  it('whiteboard.html lays out a brainstorm on the whiteboard diagram', () => {
     const html = sample('whiteboard.html');
-    expect(entriesOf(html)).toContain('templates/whiteboard.js');
-    const board = parseWhiteboardBase(jsonChild(html, 'dpk-template-whiteboard'));
+    expect(entriesOf(html)).toContain('components.js');
+    const board = parseWhiteboardBase(jsonChild(html, 'dpk-whiteboard'));
     expect(board.title).not.toBe('');
     // Every kind of item, and connectors with and without a label.
     expect(new Set(board.items.map((item) => item.kind))).toEqual(new Set(['sticky', 'text', 'shape', 'frame']));
