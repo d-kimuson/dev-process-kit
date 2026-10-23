@@ -60,7 +60,7 @@ A text-only deck needs nothing but the base data. For anything richer — a diag
   </script>
 
   <section slot="preview" data-preview-id="flow">
-    <dpk-component-sequence-diagram id="update-flow">…</dpk-component-sequence-diagram>
+    <dpk-sequence-diagram id="update-flow">…</dpk-sequence-diagram>
   </section>
 </dpk-template-slides>
 ```

@@ -47,7 +47,7 @@ In the todo list:
   },
   "members": [
     { "id": "claude", "name": "Claude", "kind": "agent" },
-    { "id": "kaito", "name": "Kaito", "kind": "human" }
+    { "id": "d-kimuson", "name": "d-kimuson", "kind": "human" }
   ],
   "todos": [
     { "id": "design", "title": "cursor の形式を決める", "status": "done", "assignee": "claude" },
@@ -58,7 +58,7 @@ In the todo list:
       "assignee": "claude",
       "note": "上限件数は Q2 の仮回答で実装中"
     },
-    { "id": "review", "title": "PR をレビューする", "assignee": "kaito" },
+    { "id": "review", "title": "PR をレビューする", "assignee": "d-kimuson" },
     {
       "id": "index",
       "title": "(created_at, id) の複合 index を張る",
@@ -77,7 +77,7 @@ In the todo list:
     { "id": "handler", "href": "src/api/orders/list.ts" }
   ],
   "log": [
-    { "id": "kickoff", "from": "kaito", "at": "09-25 10:02", "body": "一覧が遅いので、方式から任せたい。" },
+    { "id": "kickoff", "from": "d-kimuson", "at": "09-25 10:02", "body": "一覧が遅いので、方式から任せたい。" },
     {
       "id": "plan",
       "from": "claude",
@@ -156,11 +156,11 @@ The Context tab is what anyone coming back to the task reads first — the agent
   <script type="application/json">
     { "title": "注文一覧 API のページング対応", "context": { "why": "…", "what": "…" } }
   </script>
-  <dpk-component-er-diagram id="orders-schema" slot="main" heading="注文スキーマ">
+  <dpk-er-diagram id="orders-schema" slot="main" heading="注文スキーマ">
     <script type="application/json">
       { "after": { "tables": [] } }
     </script>
-  </dpk-component-er-diagram>
+  </dpk-er-diagram>
 </dpk-template-task-board>
 ```
 

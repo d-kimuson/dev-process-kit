@@ -14,6 +14,7 @@ The app view reads the apps alone, so a screen is drawn once no matter how many 
 - Element: `<dpk-template-prototype>`
 - Definition name: `prototype`
 - Accent token: `--dpk-blue`
+- A screen's own preview markup can carry its product's brand by declaring `--dpk-brand-primary` / `--dpk-brand-secondary` plus `data-dpk-theme` on the same element (see [Theme](../index.md#theme)) — the template renders the chrome and the slotted screens in one shared host, so the two inputs alone would also recolor the chrome; `data-dpk-theme` is what scopes the recoloring to just that screen, which stays `dev-process-kit`'s colors everywhere else.
 
 Check before you hand the page over:
 

@@ -49,7 +49,7 @@ Put anything in `slot="main"`. Load `components.js` alongside `templates/plain.j
       <button type="button" data-dpk-comment="section:decision">このセクションにコメント</button>
       <p>…</p>
     </section>
-    <dpk-component-state-diagram id="order-lifecycle">…</dpk-component-state-diagram>
+    <dpk-state-diagram id="order-lifecycle">…</dpk-state-diagram>
   </div>
 </dpk-template-plain>
 ```
