@@ -2,12 +2,13 @@ import { html, nothing, type TemplateResult } from 'lit';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
+import type { SelectControllerRegistry } from '../../../core/select/controller';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { DelegationPokerMessages } from '../messages';
 import type { PlayMode } from '../mode';
 
 import { iconTrash } from '../../../core/icons';
-import { onCommit, onSelectChange } from '../../../lib/dom/events';
+import { onCommit } from '../../../lib/dom/events';
 import { DELEGATION_LEVELS, type DelegationPokerState } from '../model';
 import { delegationParties, presentBoard, type BoardCell, type BoardLevel, type BoardRow } from '../present';
 import { commentButton, type PokerHandlers } from './shared';
@@ -17,6 +18,8 @@ export type BoardProps = {
   readonly handlers: PokerHandlers;
   readonly m: DelegationPokerMessages;
   readonly mode: PlayMode;
+  /** One agree select per decision row, since each row needs its own stable open/active state. */
+  readonly agreeSelects: SelectControllerRegistry;
 };
 
 /** Who hands authority to whom, and how far the game has come. */
@@ -118,12 +121,12 @@ const renderRow = (props: BoardProps, levels: readonly BoardLevel[], row: BoardR
   >
     <div class="cell-name" role="rowheader" data-grill-questions=${ifDefined(row.questions)}>
       <div class="row-title">
-        <dpk-component-inline-edit
+        <dpk-inline-edit
           class="row-name"
           .value=${row.name}
           .label=${m.decisionNameLabel}
           @dpk-commit=${onCommit((value) => handlers.rename(row.id, value))}
-        ></dpk-component-inline-edit>
+        ></dpk-inline-edit>
         <span class="row-tools">
           ${commentButton(target, m.commentButton, context.commentCount(target), handlers)}
           <button
@@ -182,20 +185,17 @@ const renderCell = (
   </div>`;
 };
 
-const renderAgree = (props: BoardProps, levels: readonly BoardLevel[], row: BoardRow): TemplateResult => {
-  const { handlers, m } = props;
-  return html`<select
-    class="dpk-select agree-select"
-    data-testid="agree"
-    aria-label=${m.agreeLabel(row.name)}
-    @change=${onSelectChange((value) => {
+const renderAgree = (props: BoardProps, levels: readonly BoardLevel[], row: BoardRow): unknown => {
+  const { handlers, m, agreeSelects } = props;
+  return agreeSelects.get(row.id).render({
+    options: levels.map((level) => ({ value: String(level.level), label: level.label })),
+    value: row.agreed === undefined ? '' : String(row.agreed),
+    onChange: (value) => {
       const level = DELEGATION_LEVELS.find((candidate) => String(candidate) === value);
       if (level !== undefined && level !== row.agreed) handlers.agree(row.id, level);
-    })}
-  >
-    ${row.agreed === undefined ? html`<option value="" disabled selected>${m.notAgreed}</option>` : nothing}
-    ${levels.map(
-      (level) => html`<option value=${level.level} ?selected=${level.level === row.agreed}>${level.label}</option>`,
-    )}
-  </select>`;
+    },
+    ariaLabel: m.agreeLabel(row.name),
+    placeholder: m.notAgreed,
+    className: 'agree-select',
+  });
 };

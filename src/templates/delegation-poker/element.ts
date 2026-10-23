@@ -6,6 +6,7 @@ import type { PokerHandlers } from './render/shared';
 
 import { TemplateElement } from '../../core/element';
 import { assertNever } from '../../core/schema';
+import { SelectControllerRegistry } from '../../core/select/controller';
 import { createEntityId } from '../../core/target';
 import { delegationPokerAction } from './actions';
 import { skipConfirmPreference, type SkipConfirmPreference } from './confirm-preference';
@@ -43,6 +44,8 @@ export class DpkTemplateDelegationPoker extends TemplateElement<DelegationPokerS
   #preference: SkipConfirmPreference | null = null;
   /** Set when the dialog opens or closes, consumed by the next `updated()`. */
   #focus: 'dialog' | { readonly decisionId: string; readonly level: number } | null = null;
+  /** One agree select per decision row, since each row needs its own stable open/active state. */
+  readonly #agreeSelects = new SelectControllerRegistry(this);
 
   constructor() {
     super();
@@ -64,7 +67,7 @@ export class DpkTemplateDelegationPoker extends TemplateElement<DelegationPokerS
   protected override renderRegions(context: Context): ShellRegions {
     const m = delegationPokerMessages(this.locale);
     const handlers = this.#handlers(context, m);
-    const props = { context, handlers, m, mode: parsePlayMode(this.mode) };
+    const props = { context, handlers, m, mode: parsePlayMode(this.mode), agreeSelects: this.#agreeSelects };
     const body = context.state.decisions.length === 0 ? renderEmpty(props) : renderBoard(props);
     return {
       header: renderSummary(props),

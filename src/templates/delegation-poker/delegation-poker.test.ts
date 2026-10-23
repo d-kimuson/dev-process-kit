@@ -280,12 +280,11 @@ describe('<dpk-template-delegation-poker>', () => {
     const el = mount();
     await settle(el);
     const root = el.shadowRoot as ShadowRoot;
-    const select = rowEl(root, 'deps')?.querySelector<HTMLSelectElement>('select[data-testid="agree"]');
-    expect(select).not.toBeNull();
-    if (select) {
-      select.value = '4';
-      select.dispatchEvent(new Event('change'));
-    }
+    const trigger = rowEl(root, 'deps')?.querySelector<HTMLButtonElement>('.agree-select');
+    expect(trigger).not.toBeNull();
+    trigger?.click();
+    await settle(el);
+    rowEl(root, 'deps')?.querySelector<HTMLElement>('[role="option"][data-value="4"]')?.click();
     await settle(el);
     expect(el.api.state.decisions[0]?.agreed).toBe(4);
     expect(rowEl(root, 'deps')?.querySelector('[data-level="4"][data-agreed]')).not.toBeNull();

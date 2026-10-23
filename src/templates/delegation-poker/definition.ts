@@ -30,6 +30,8 @@ export const delegationPokerDefinitionFor = (locale: Locale): TemplateDefinition
   return {
     name: 'delegation-poker',
     label: 'Delegation Poker',
+    // The decisions it polls come from the agent's own setup; empty, there is nothing to vote on.
+    addable: false,
     parseBase: parseDelegationPokerBase,
     emptyBase: emptyDelegationPokerBase,
     actions: delegationPokerActions,
