@@ -30,6 +30,7 @@ export { createActionId, createEntityId, parseTargetRef, slugify, targetRef, toT
 export { WebStorageDraftStorage, MemoryDraftStorage, defaultStorage, defaultStorageKey } from './persistence';
 export type { DraftStorage, StorageLike } from './persistence';
 export { tokens, controls } from './theme';
+export type { SidebarLayout, SidebarNarrow, SidebarSide } from './layouts/index';
 export {
   iconArrowDown,
   iconArrowUp,
