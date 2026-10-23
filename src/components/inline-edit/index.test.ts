@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DpkComponentInlineEdit, defineInlineEdit } from './index';
+import { DpkInlineEdit, defineInlineEdit } from './index';
 
 defineInlineEdit();
 afterEach(() => document.body.replaceChildren());
 describe('inline editing', () => {
   it('preserves an unfinished draft and selection when a keyed move blurs the field', async () => {
-    const editor = new DpkComponentInlineEdit();
+    const editor = new DpkInlineEdit();
     editor.value = 'old';
     document.body.append(editor);
     await editor.updateComplete;
@@ -33,7 +33,7 @@ describe('inline editing', () => {
     expect(commit).toHaveBeenCalledOnce();
   });
   it('does not interpret IME Enter or Escape as editor commands', async () => {
-    const editor = new DpkComponentInlineEdit();
+    const editor = new DpkInlineEdit();
     editor.value = 'old';
     document.body.append(editor);
     await editor.updateComplete;
@@ -54,12 +54,12 @@ describe('inline editing', () => {
     expect(commit).toHaveBeenCalledOnce();
   });
   /** What the box is sized by while editing: the hidden copy of the text under the field. */
-  const sizer = (editor: DpkComponentInlineEdit): HTMLElement | null | undefined =>
+  const sizer = (editor: DpkInlineEdit): HTMLElement | null | undefined =>
     editor.shadowRoot?.querySelector<HTMLElement>('.box > .view[aria-hidden="true"]');
 
   it('edits over a hidden copy of the text, so the box keeps its size and grows only with the draft', async () => {
     for (const mode of ['line', 'wrap', 'multiline'] as const) {
-      const editor = new DpkComponentInlineEdit();
+      const editor = new DpkInlineEdit();
       editor.value = 'a name long enough to wrap onto two lines';
       editor.wrap = mode === 'wrap';
       editor.multiline = mode === 'multiline';
@@ -82,7 +82,7 @@ describe('inline editing', () => {
   });
 
   it('keeps an empty draft as wide as its placeholder, and a last empty line as tall as a line', async () => {
-    const editor = new DpkComponentInlineEdit();
+    const editor = new DpkInlineEdit();
     editor.value = 'Notes';
     editor.placeholder = 'Add a note';
     editor.multiline = true;
@@ -104,7 +104,7 @@ describe('inline editing', () => {
   });
 
   it('shows the text again, with the edit committed, once the field leaves', async () => {
-    const editor = new DpkComponentInlineEdit();
+    const editor = new DpkInlineEdit();
     editor.value = 'old';
     document.body.append(editor);
     await editor.updateComplete;
@@ -119,9 +119,43 @@ describe('inline editing', () => {
     expect(editor.shadowRoot?.querySelector('.field')).toBeNull();
     expect(editor.shadowRoot?.querySelector('.view')?.getAttribute('aria-hidden')).toBeNull();
   });
+
+  it('commits the typed value on Enter, the same as it does on blur', async () => {
+    const editor = new DpkInlineEdit();
+    editor.value = 'old';
+    document.body.append(editor);
+    await editor.updateComplete;
+    editor.startEditing();
+    await editor.updateComplete;
+    const input = editor.shadowRoot?.querySelector('input');
+    if (!input) throw new Error('missing field');
+    input.value = 'new';
+    input.dispatchEvent(new Event('input'));
+    const commit = vi.fn();
+    editor.addEventListener('dpk-commit', commit);
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(commit).toHaveBeenCalledOnce();
+    const event = commit.mock.calls[0]?.[0];
+    expect(event instanceof CustomEvent ? event.detail : null).toEqual({ value: 'new' });
+  });
+
+  it('puts the caret at the end of the text instead of selecting it all, so typing appends', async () => {
+    const editor = new DpkInlineEdit();
+    editor.value = 'Googleでログイン';
+    document.body.append(editor);
+    await editor.updateComplete;
+    const view = editor.shadowRoot?.querySelector<HTMLElement>('.view');
+    if (!view) throw new Error('missing view');
+    view.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    await editor.updateComplete;
+    const input = editor.shadowRoot?.querySelector('input');
+    if (!input) throw new Error('missing field');
+    expect(input.selectionStart).toBe(input.value.length);
+    expect(input.selectionEnd).toBe(input.value.length);
+  });
   describe('markdown', () => {
-    const mountMarkdown = async (value: string): Promise<DpkComponentInlineEdit> => {
-      const editor = new DpkComponentInlineEdit();
+    const mountMarkdown = async (value: string): Promise<DpkInlineEdit> => {
+      const editor = new DpkInlineEdit();
       editor.value = value;
       editor.multiline = true;
       editor.markdown = true;
@@ -172,12 +206,33 @@ describe('inline editing', () => {
     });
   });
   it('names the whole value on a truncated view, where the line may end in an ellipsis', async () => {
-    const editor = new DpkComponentInlineEdit();
+    const editor = new DpkInlineEdit();
     editor.value = 'a label far too long for its chip';
     editor.truncate = true;
     document.body.append(editor);
     await editor.updateComplete;
     expect(editor.hasAttribute('truncate')).toBe(true);
     expect(editor.shadowRoot?.querySelector('.view')?.getAttribute('title')).toBe('a label far too long for its chip');
+  });
+
+  it('never forces the hidden sizer onto one line while truncated, or editing would clip the draft', () => {
+    // Regression for the editor box collapsing to one line (text cut off and
+    // pushed out of view) the moment `truncate` combines with `wrap` or
+    // `multiline`: the hidden copy that sizes the box must keep wrapping
+    // like the field above it, so only the visible rest view may switch to
+    // a single clipped line.
+    const sheet = new CSSStyleSheet();
+    const cssText = (DpkInlineEdit.styles as unknown as { cssText: string }[]).map((style) => style.cssText).join('\n');
+    sheet.replaceSync(cssText);
+    const collapsesToOneLine = Array.from(sheet.cssRules).some((rule) => {
+      const style = rule as CSSStyleRule;
+      return (
+        style.selectorText?.includes('.view') &&
+        style.selectorText.includes('[truncate]') &&
+        !style.selectorText.includes(':not([aria-hidden') &&
+        style.style.whiteSpace === 'pre'
+      );
+    });
+    expect(collapsesToOneLine).toBe(false);
   });
 });

@@ -13,7 +13,7 @@ import { inlineEditMessages } from './messages';
  * It never mutates anything: it only emits `dpk-commit`, so the edit still
  * travels through the draft action pipeline.
  */
-export class DpkComponentInlineEdit extends LitElement {
+export class DpkInlineEdit extends LitElement {
   static override styles = [
     tokens,
     prose,
@@ -39,6 +39,20 @@ export class DpkComponentInlineEdit extends LitElement {
       .box {
         position: relative;
         display: block;
+      }
+
+      /* truncate clips the resting view with overflow: hidden, but never the
+         hidden sizer underneath a field (it must keep the field's real height).
+         Per CSS, a box clipped by overflow: hidden takes its bottom margin
+         edge as its baseline instead of its text's — so the host's inherited
+         vertical-align: baseline lines resting up on a different edge than
+         editing, and the whole box visibly shifts by the line's descent the
+         moment a click swaps which edge is "the" baseline. Baseline alignment
+         only matters next to surrounding text anyway, which single-line
+         truncated text rarely is; aligning to the top edge instead removes the
+         mismatch in both states. */
+      :host([truncate]) {
+        vertical-align: top;
       }
 
       /* No vertical padding or border: the box is exactly the lines of text.
@@ -93,11 +107,12 @@ export class DpkComponentInlineEdit extends LitElement {
         padding: 0 4px;
         border: none;
         border-radius: var(--dpk-radius-xs);
+        /* No focus ring while editing: the field should look like the text is
+           being edited in place, not like a focused form control (a11y trade-off
+           accepted for this seamless-editing component). */
         outline: none;
         background: var(--dpk-paper-raised);
-        box-shadow:
-          inset 0 0 0 1px var(--dpk-blue),
-          var(--dpk-focus);
+        box-shadow: inset 0 0 0 1px var(--dpk-blue);
         font: inherit;
         line-height: inherit;
         letter-spacing: inherit;
@@ -121,7 +136,12 @@ export class DpkComponentInlineEdit extends LitElement {
         }
       }
 
-      :host([truncate]) .view {
+      /* Only the visible rest view clips to an ellipsis. The hidden sizer must
+         keep wrapping like the field above it (the plain view's white-space),
+         or editing would collapse the box to one line while the field itself
+         still wraps: the field overflows the box, auto-scrolls to the caret
+         at the end, and the top of the draft is clipped out of view. */
+      :host([truncate]) .view:not([aria-hidden='true']) {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: pre;
@@ -222,11 +242,12 @@ export class DpkComponentInlineEdit extends LitElement {
     const active = root instanceof ShadowRoot ? root.activeElement : document.activeElement;
     if (field && active !== field) {
       field.focus();
-      // All of it selected, with the caret at the start: a long value shows its beginning, not its end.
-      field.setSelectionRange(0, field.value.length, 'backward');
-      // Engines may still have scrolled the field to the end while focusing it.
-      field.scrollLeft = 0;
-      field.scrollTop = 0;
+      // Caret at the end, nothing selected: the first keystroke appends instead of
+      // wiping the value. A native click that lands inside the text may still have
+      // put the caret there itself; this only settles the common "click to start
+      // editing" case, so it never leaves everything selected.
+      const end = field.value.length;
+      field.setSelectionRange(end, end);
     }
   }
 
@@ -239,6 +260,9 @@ export class DpkComponentInlineEdit extends LitElement {
     // sizing the box: the hint while empty, and a last empty line still takes a line.
     const shown = text === '' ? hint : editing && text.endsWith('\n') ? `${text}\u200b` : text;
     if (this.markdown && !editing && text !== '') {
+      // No whitespace around the expression: a newline here would become a real text
+      // node, and `white-space: pre`/`pre-wrap` (truncate) renders it as a blank line,
+      // pushing the rendered markdown down and inflating the box past its real content.
       return html`<span class="box"
         ><div
           class="view dpk-prose"
@@ -249,7 +273,7 @@ export class DpkComponentInlineEdit extends LitElement {
           @click=${this.#start}
           @keydown=${this.#onKeydownView}
         >
-          ${unsafeHTML(renderMarkdown(text))}
+          ${unsafeHTML(renderMarkdown(text).trim())}
         </div></span
       >`;
     }
@@ -363,6 +387,5 @@ export class DpkComponentInlineEdit extends LitElement {
 }
 
 export const defineInlineEdit = (): void => {
-  if (!customElements.get('dpk-component-inline-edit'))
-    customElements.define('dpk-component-inline-edit', DpkComponentInlineEdit);
+  if (!customElements.get('dpk-inline-edit')) customElements.define('dpk-inline-edit', DpkInlineEdit);
 };
