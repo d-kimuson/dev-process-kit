@@ -10,8 +10,9 @@
  *                              (`src/index.ts`, `src/entries/*`)
  *   - colocated-tests:          test files must sit next to their source, not in `__tests__/`
  *   - element-naming:           custom element tags are `dpk-template-<name>` / `dpk-internal-<template>-*`
- *                              (in src/templates) or `dpk-component-<name>` (in src/components), and the
- *                              registered class is the tag in PascalCase
+ *                              (in src/templates), `dpk-<name>` / `dpk-internal-<name>-*` (in src/components) or
+ *                              `dpk-internal-layout-<name>` (in src/core/layouts), and the registered class is
+ *                              the tag in PascalCase
  *   - localized-text:           Japanese text in `src/**` lives only in `messages.ts` dictionaries
  *   - no-side-stripe:           styles in `src/**` draw no colored stripe down one side of a box
  *
@@ -383,7 +384,10 @@ const isDefineCall = (node) => {
 /**
  * Where a file may register elements, and the tags it may use: a template
  * registers `dpk-template-<name>` plus sub-elements `dpk-internal-<name>-*`,
- * a component registers `dpk-component-<directory>`.
+ * a component registers `dpk-<directory>` plus the same `dpk-internal-<directory>-*`
+ * sub-elements (a nested Custom Element still adds a shadow boundary, so a
+ * component's own composed-together pieces — e.g. a sticky note card — follow
+ * the template layer's naming rather than inventing their own).
  */
 const allowedTags = (filename) => {
   const template = filename.match(/\/src\/templates\/([^/]+)\//);
@@ -398,10 +402,19 @@ const allowedTags = (filename) => {
   if (/\/src\/page\//.test(filename)) {
     return { matches: (tag) => tag === 'dpk-page', expected: '`dpk-page`' };
   }
+  // The layouts divide the whole screen for the shell; they are internal to it, not a public element.
+  const layout = filename.match(/\/src\/core\/layouts\/([^/]+)\//);
+  if (layout) {
+    const name = layout[1];
+    return { matches: (tag) => tag === `dpk-internal-layout-${name}`, expected: `\`dpk-internal-layout-${name}\`` };
+  }
   const component = filename.match(/\/src\/components\/([^/]+)\//);
   if (component) {
     const name = component[1];
-    return { matches: (tag) => tag === `dpk-component-${name}`, expected: `\`dpk-component-${name}\`` };
+    return {
+      matches: (tag) => tag === `dpk-${name}` || tag.startsWith(`dpk-internal-${name}-`),
+      expected: `\`dpk-${name}\` or \`dpk-internal-${name}-*\``,
+    };
   }
   return null;
 };
@@ -417,7 +430,8 @@ const elementNaming = {
         if (!allowed) {
           context.report({
             node,
-            message: 'Custom elements are registered only in src/templates/**, src/components/** and src/page/**.',
+            message:
+              'Custom elements are registered only in src/templates/**, src/components/**, src/core/layouts/** and src/page/**.',
           });
           return;
         }

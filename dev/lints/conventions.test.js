@@ -51,7 +51,7 @@ ruleTester.run('core-template-boundaries', coreTemplateBoundaries, {
     },
     {
       name: 'core must not import a component',
-      code: "import { DpkComponentCommentPanel } from '../components/comment-panel';",
+      code: "import { DpkCommentPanel } from '../components/comment-panel';",
       filename: `${CORE}/element.ts`,
       errors: [{ message: /Core must not import a template or a component/ }],
     },
@@ -91,7 +91,7 @@ ruleTester.run('lib-boundaries', libBoundaries, {
     },
     {
       name: 'lib must not import a component',
-      code: "import { DpkComponentCommentPanel } from '../../components/comment-panel';",
+      code: "import { DpkCommentPanel } from '../../components/comment-panel';",
       filename: `${LIB}/dom/events.ts`,
       errors: [{ message: /lib must stay dependency-free/ }],
     },
@@ -281,14 +281,24 @@ ruleTester.run('element-naming', elementNaming, {
       filename: `${USM}/components/story-card.ts`,
     },
     {
-      name: 'a component registers dpk-component-<its directory>',
-      code: define('dpk-component-er-diagram', 'DpkComponentErDiagram'),
+      name: 'a component registers dpk-<its directory>',
+      code: define('dpk-er-diagram', 'DpkErDiagram'),
       filename: '/project/src/components/er-diagram/index.ts',
+    },
+    {
+      name: 'a component-owned sub-element is dpk-internal-<component>-*',
+      code: define('dpk-internal-event-storming-note', 'DpkInternalEventStormingNote'),
+      filename: '/project/src/components/event-storming/components/note-card.ts',
     },
     {
       name: 'tests may register fixtures under any name',
       code: define('tiny-diagram', 'TinyDiagram'),
       filename: '/project/src/components/diagram/element.test.ts',
+    },
+    {
+      name: 'a layout registers dpk-internal-layout-<its directory>',
+      code: define('dpk-internal-layout-sidebar', 'DpkInternalLayoutSidebar'),
+      filename: '/project/src/core/layouts/sidebar/index.ts',
     },
     {
       name: 'the page host is dpk-page',
@@ -317,9 +327,15 @@ ruleTester.run('element-naming', elementNaming, {
     },
     {
       name: 'a component tag follows its directory',
-      code: define('dpk-component-erd', 'DpkComponentErd'),
+      code: define('dpk-erd', 'DpkErd'),
       filename: '/project/src/components/er-diagram/index.ts',
-      errors: [{ message: /must be `dpk-component-er-diagram`/ }],
+      errors: [{ message: /must be `dpk-er-diagram`/ }],
+    },
+    {
+      name: 'a layout tag follows its directory',
+      code: define('dpk-internal-layout-split', 'DpkInternalLayoutSplit'),
+      filename: '/project/src/core/layouts/sidebar/index.ts',
+      errors: [{ message: /must be `dpk-internal-layout-sidebar`/ }],
     },
     {
       name: 'the class is the PascalCase of the tag',
@@ -335,7 +351,7 @@ ruleTester.run('element-naming', elementNaming, {
     },
     {
       name: 'nothing outside templates and components registers elements',
-      code: define('dpk-component-thing', 'DpkComponentThing'),
+      code: define('dpk-thing', 'DpkThing'),
       filename: `${CORE}/element.ts`,
       errors: [{ message: /registered only in src\/templates/ }],
     },
