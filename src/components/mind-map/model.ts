@@ -116,6 +116,30 @@ export const topicSize = (label: string, depth: number): { readonly width: numbe
   return { width: Math.min(metrics.max, Math.max(metrics.min, width)), height: metrics.height };
 };
 
+/**
+ * Both of a topic's own side-middle points, named after {@link MindMapSide}.
+ * {@link layoutMindMap} routes branches itself and never reads these; they
+ * exist for the generic `applyPositionOverrides` re-route a drag triggers
+ * (see {@link edgePorts}), which otherwise falls back to a left-to-right
+ * default that is wrong for a topic fanning out to its left.
+ */
+const sidePorts = (size: {
+  readonly width: number;
+  readonly height: number;
+}): Readonly<Record<MindMapSide, { readonly x: number; readonly y: number }>> => ({
+  left: { x: 0, y: size.height / 2 },
+  right: { x: size.width, y: size.height / 2 },
+});
+
+/**
+ * Which named port ({@link sidePorts}) a branch leaves its parent from and
+ * arrives at its child on: the parent faces the child's side, and the child
+ * faces back — the same rule {@link layoutMindMap} computes inline from
+ * `child.side`, kept in sync here so a dragged map's edges still land right.
+ */
+const edgePorts = (side: MindMapSide): { readonly fromPort: MindMapSide; readonly toPort: MindMapSide } =>
+  side === 'left' ? { fromPort: 'left', toPort: 'right' } : { fromPort: 'right', toPort: 'left' };
+
 /* ------------------------------------------------------------------ parsing */
 
 const leafCount = (topic: TopicInput): number =>
@@ -159,6 +183,7 @@ const flattenMindMap = (root: TopicInput, added: ReadonlySet<string> = new Set()
       throw new Error(`side is only allowed on a main topic (a child of the root): ${topic.id}`);
     }
     const children = topic.children ?? [];
+    const size = topicSize(topic.label, depth);
     nodes.push({
       id: topic.id,
       label: topic.label,
@@ -171,10 +196,12 @@ const flattenMindMap = (root: TopicInput, added: ReadonlySet<string> = new Set()
       collapsed: topic.collapsed ?? false,
       added: added.has(topic.id),
       tags: topic.tags ?? [],
-      ...topicSize(topic.label, depth),
+      ...size,
+      ports: sidePorts(size),
       ...(topic.questions === undefined ? {} : { questions: topic.questions }),
     });
-    if (parent !== null) edges.push({ id: topic.id, from: parent, to: topic.id, tags: [] });
+    if (parent !== null && side !== null)
+      edges.push({ id: topic.id, from: parent, to: topic.id, tags: [], ...edgePorts(side) });
     const sides = depth === 0 ? assignSides(children) : [];
     children.forEach((child, index) =>
       visit(child, topic.id, depth + 1, depth === 0 ? index : branch, depth === 0 ? (sides[index] ?? 'right') : side),

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { ContextMenuRequest } from '../../core/context-menu/types';
 
 import { parseTargetRef } from '../../core/target';
+import { applyPositionOverrides } from '../../lib/layout/layered';
 import { DpkMindMap } from './element';
 import { defineMindMap } from './index';
 import { layoutMindMap } from './layout';
@@ -67,6 +68,26 @@ describe('mind map data', () => {
     const retry = parsed.nodes.find((node) => node.id === 'retry');
     expect(retry).toMatchObject({ depth: 2, branch: 0, parent: 'payment', description: '同じ冪等キーで再送する。' });
     expect(parsed.nodes[0]).toMatchObject({ depth: 0, branch: -1, side: null });
+  });
+
+  it('gives every topic both side ports, and points each edge at the pair its branch faces', () => {
+    const parsed = data();
+    const payment = parsed.nodes.find((node) => node.id === 'payment');
+    expect(payment?.ports).toEqual({
+      left: { x: 0, y: (payment?.height ?? 0) / 2 },
+      right: { x: payment?.width, y: (payment?.height ?? 0) / 2 },
+    });
+    // payment is a right-branch topic: the edge from its parent leaves the
+    // parent's right port and arrives on payment's left port.
+    expect(parsed.edges.find((edge) => edge.id === 'payment')).toMatchObject({
+      fromPort: 'right',
+      toPort: 'left',
+    });
+    // mail is a left-branch topic: the opposite pair.
+    expect(parsed.edges.find((edge) => edge.id === 'mail')).toMatchObject({
+      fromPort: 'left',
+      toPort: 'right',
+    });
   });
 
   it('balances main topics by leaf count and honours an authored side', () => {
@@ -238,6 +259,33 @@ describe('mind map layout', () => {
 
   it('is empty without a central topic', () => {
     expect(layoutMindMap({ nodes: [], edges: [] })).toEqual({ width: 0, height: 0, nodes: [], routes: [] });
+  });
+
+  it('keeps every branch anchored on its own side after a drag re-routes the map generically', () => {
+    // A drag anywhere on the map replaces `layoutMindMap`'s own routing with
+    // the shared `applyPositionOverrides` (see `DiagramElement#applyPositions`),
+    // which knows nothing about a mind map's left/right fan and falls back to
+    // plain node ports — this is what regressed without them (#127).
+    const visible = visibleMindMap(data(), null, new Set());
+    const overrides = new Map([['refund', { x: 999, y: 999 }]]);
+    const rerouted = applyPositionOverrides(layout, overrides, visible.nodes, visible.edges);
+    const placed = (id: string) => {
+      const node = rerouted.nodes.find((item) => item.id === id);
+      if (!node) throw new Error(`${id} not placed`);
+      return node;
+    };
+    const routeOf = (id: string) => rerouted.routes.find((item) => item.id === id)?.points ?? [];
+
+    const root = placed('checkout');
+    const payment = placed('payment');
+    const paymentRoute = routeOf('payment');
+    expect(paymentRoute[0]).toEqual({ x: root.x + root.width, y: root.y + root.height / 2 });
+    expect(paymentRoute.at(-1)).toEqual({ x: payment.x, y: payment.y + payment.height / 2 });
+
+    const mail = placed('mail');
+    const mailRoute = routeOf('mail');
+    expect(mailRoute[0]).toEqual({ x: root.x, y: root.y + root.height / 2 });
+    expect(mailRoute.at(-1)).toEqual({ x: mail.x + mail.width, y: mail.y + mail.height / 2 });
   });
 });
 
