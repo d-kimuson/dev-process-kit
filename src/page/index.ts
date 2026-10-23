@@ -21,7 +21,7 @@ const BOARD_TEMPLATES: readonly BoardTemplate[] = [
   { name: 'task-board', label: 'Task Context Board', icon: lucide(SquareKanban), addable: false },
   { name: 'delegation-poker', label: 'Delegation Poker', icon: lucide(Spade), addable: false },
   { name: 'slides', label: 'Slides', icon: lucide(Presentation), addable: false },
-  { name: 'plain', label: 'Plain', icon: lucide(FileText) },
+  { name: 'plain', label: 'Plain', icon: lucide(FileText), addable: false },
 ];
 
 export class DpkPage extends PageElement {

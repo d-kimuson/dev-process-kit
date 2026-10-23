@@ -104,6 +104,13 @@ describe('plain definition', () => {
     expect(definition.title(state)).toBe('注文フローの設計メモ');
     expect(definition.title(parsePlainBase({}))).toBe('Plain');
   });
+
+  // Content comes from the author's own markup (the `slot="main"` etc. the reader hand-writes);
+  // an empty board added through the page's "+" menu has no markup and nothing to show, the same
+  // reason `prototype`, `task-board`, `delegation-poker` and `slides` are not addable either.
+  it('is not addable: an empty board would have no author markup to render', () => {
+    expect(definition.addable).toBe(false);
+  });
 });
 
 describe('<dpk-template-plain>', () => {

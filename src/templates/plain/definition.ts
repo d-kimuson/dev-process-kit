@@ -31,6 +31,9 @@ export const plainDefinitionFor = (locale: Locale): TemplateDefinition<PlainStat
   return {
     name: 'plain',
     label: 'Plain',
+    // Content comes from the author's own markup (`slot="main"` etc.); an empty board added
+    // through the page's "+" menu has no markup and nothing to show.
+    addable: false,
     parseBase: parsePlainBase,
     emptyBase: emptyPlainBase,
     actions: {},
