@@ -1,11 +1,11 @@
-# dpk-component-er-diagram
+# dpk-er-diagram
 
 Tables, fields and foreign keys — with an **always-on diff** between two schema snapshots: added is green, removed is red and struck through, changed shows the previous value struck through next to the new one.
 
 Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
 
 ```html
-<dpk-component-er-diagram heading="注文スキーマ">
+<dpk-er-diagram heading="注文スキーマ">
   <script type="application/json">
     {
       "before": {
@@ -43,27 +43,30 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
       }
     }
   </script>
-</dpk-component-er-diagram>
+</dpk-er-diagram>
 ```
 
 `heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`ERD` / `ER図`). `subject` adds a smaller subtitle beside the title.
 
 ## Data
 
-Two snapshots of the same shape: `{ tables: [{ id, name, tags?, fields }] }`.
+Two snapshots of the same shape: `{ tables: [{ id, name, tags?, boundedContext?, aggregate?, pattern?, fields }] }`.
 
-| Field                  | Required | Meaning                                                                                                                      |
-| ---------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `tables[].id`          | yes      | Stable id; `ref` and the diff match on it.                                                                                   |
-| `tables[].name`        | yes      | Human label next to the id.                                                                                                  |
-| `tables[].tags`        | no       | The tag filter applies to tables.                                                                                            |
-| `fields[].id`          | yes      | Column name.                                                                                                                 |
-| `fields[].type`        | yes      | Column type, shown verbatim.                                                                                                 |
-| `fields[].key`         | no       | `PK` \| `FK` \| `UQ`, or an array of them for a column with several roles: `["FK", "UQ"]`, `["PK", "FK"]`.                   |
-| `fields[].ref`         | no       | `table.field` the FK points at. It **is** the relation: no separate edge list.                                               |
-| `fields[].nullable`    | no       | `true` gives the row the hollow (nullable) icon, and makes the referenced side of the relation optional (`0..1`).            |
-| `fields[].cardinality` | no       | Needs `ref`. Declares the relation as `parent:child` when the keys alone cannot say it — see [Cardinality](#cardinality).    |
-| `fields[].label`       | no       | Needs `ref`. A short verb phrase naming the relation (`places`, `発注する`), read from the referenced table to the FK table. |
+| Field                     | Required | Meaning                                                                                                                         |
+| ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `tables[].id`             | yes      | Stable id; `ref` and the diff match on it.                                                                                      |
+| `tables[].name`           | yes      | Human label next to the id.                                                                                                     |
+| `tables[].tags`           | no       | The tag filter applies to tables.                                                                                               |
+| `tables[].boundedContext` | no       | Separate from `tags`, but folded into them as `BC:<name>` so it filters with the same Single/AND/OR semantics, in the same row; its chip sits ahead of plain tags. |
+| `tables[].aggregate`      | no       | Purely visual: tables sharing one are grouped with a labeled dashed boundary on the canvas.                                     |
+| `tables[].pattern`        | no       | One of `immutable`, `mutable`, `sti`, `cti`, `value-object` — shown as a small badge on the card. Not a filter.                 |
+| `fields[].id`             | yes      | Column name.                                                                                                                    |
+| `fields[].type`           | yes      | Column type, shown verbatim.                                                                                                    |
+| `fields[].key`            | no       | `PK` \| `FK` \| `UQ`, or an array of them for a column with several roles: `["FK", "UQ"]`, `["PK", "FK"]`.                      |
+| `fields[].ref`            | no       | `table.field` the FK points at. It **is** the relation: no separate edge list.                                                  |
+| `fields[].nullable`       | no       | `true` gives the row the hollow (nullable) icon, and makes the referenced side of the relation optional (`0..1`).               |
+| `fields[].cardinality`    | no       | Needs `ref`. Declares the relation as `parent:child` when the keys alone cannot say it — see [Cardinality](#cardinality).       |
+| `fields[].label`          | no       | Needs `ref`. A short verb phrase naming the relation (`places`, `発注する`), read from the referenced table to the FK table.    |
 
 `before` is optional; without it the baseline is `after` itself, so nothing is marked as changed (a plain schema diagram). The diff is derived, never authored — a table is `added` / `removed` / `changed` from what happened to its fields, a field is `changed` when type, key, ref, nullability, cardinality or label differ, and a relation is `added` / `removed` from the endpoint pair and `changed` when its cardinality or label differs — so red and green can never disagree with the data.
 
@@ -93,20 +96,29 @@ The cards follow the look of [Liam ERD](https://liambx.com/): a header with the 
 - **Relations** are curves from the referenced column's row to the FK column's row, colored by the relation's status, in crow's foot notation — no arrowheads. Each end carries the symbol of the table it touches: the **parent** multiplicity at the referenced end, the **child** multiplicity at the FK end. Against the table sits the maximum (a bar for one, a three-pronged foot for many) and just outside it the minimum (a bar for one, a circle for zero), so `1` is two bars, `0..1` a bar and a circle, `1..N` a foot and a bar, `0..N` a foot and a circle. The multiplicities as text, and the `label` under the FK end, appear while the relation is highlighted or hovered; a changed relation is amber and always shows them, with its previous value struck through. Relations leaving the same referenced column fan out a little so their ends stay apart, and a line never runs behind a table: where a card stands between its two ends it goes around it, through the gap above or below.
 - **Highlight** — follows the keys. Hovering a table, or selecting it, lights every relation it takes part in, the tables at their other ends and the two columns each relation joins. Hovering a column row narrows that to the relations its key carries (a column that joins nothing lights its whole table), and hovering or selecting a relation lights it and its two columns. Lit relations are blue with a flow along the line (still under `prefers-reduced-motion`), and lit columns are tinted with their name in blue, so the reader sees which key leads to which. While something is lit the other relations fade; tables never dim. Selection never adds a detail panel below the canvas.
 - **Search** narrows the diagram to tables whose id, name or field matches, and marks the matching rows.
-- **Comments** — give the diagram a stable HTML `id` and place it inside a template. Hover a table or relationship to reveal its comment icon (in the table's header), then activate the icon to open the shared composer beside it. Selection alone does not open the input. Keyboard focus also reveals the icon, and it stays visible on devices without hover. The composer follows pan/zoom without resizing the diagram. Send there with the button or `Ctrl`/`Cmd+Enter`; the comment is saved to the template's Review without opening its rail. Escape/cancel closes the surface, and switching selections preserves unsent text per target for the mounted component. Fields are not separate comment targets.
+- **Aggregate grouping** — tables sharing an `aggregate` sit inside a shared dashed boundary, labeled with the aggregate's name; purely visual, it never affects layout ranking or filtering.
+- **Pattern badge** — a table's `pattern` (`immutable`, `mutable`, `sti`, `cti`, `value-object`) shows as a small badge beside its name. An auxiliary attribute, not a filter.
+- **PK only** — a toolbar toggle that hides every column without a key or `ref`, leaving only the columns a relation can land on, so the relationships alone can be read.
+- **Comments** — give the diagram a stable HTML `id` and place it inside a template. Right-click a table or a relationship and choose "Review comment" from the context menu to open the shared composer beside it. Selection alone does not open the input. The composer follows pan/zoom without resizing the diagram. Send there with the button or `Ctrl`/`Cmd+Enter`; the comment is saved to the template's Review without opening its rail. Escape/cancel closes the surface, and switching selections preserves unsent text per target for the mounted component. Fields are not separate comment targets.
 
-## Adding and editing columns
+## Adding, editing and deleting columns
 
 Reviewers propose column changes on the page, in a small editor that floats like a tooltip and follows pan/zoom. **Add column** at the bottom of a table opens it under the button, with the name and the type, an **Allow NULL** checkbox, **Cancel** and **Add**. The pencil at the end of a column row (shown on hover or focus, always on touch devices) opens it under that row for the column's type and nullability, with **Save**; the row stays where it is, ringed while it is edited, and the editor's icon follows the nullability as it is toggled. The type is a combobox: a click on it, typing or an arrow key opens a list under it that shows the types already in the schema, narrowed to those containing what is typed, and offers what was typed as a **New type** when the schema does not use it yet. The arrow keys move through the list; `Enter` or a click takes one, and `Enter` on the type already in the input confirms the editor; `Escape` closes the list first. Only one editor is open at a time. `Enter` confirms (from an empty type, `Enter` in the name moves to the type first). `Escape`, a press outside, or the same button again closes it and keeps what was typed for when the same editor opens again; **Cancel** discards it. **Add** / **Save** stays disabled until the input records something new. A name the table already uses is flagged before submitting. An added column is drawn green and an edited one as a changed row, like any other change against the `before` snapshot. Columns that carry a relation (`ref`) and removed columns cannot be edited, since the relation's multiplicities derive from them.
 
-These changes are not written into the JSON child. They are recorded as element actions in the enclosing template's draft and replayed over the authored data, so they survive a reload and reach the agent in the brief. Like comments, they are addressed by the diagram's `id`: without one, **Add column** and the pencils are not shown. Outside a template the diagram shows an error and keeps the input.
+A trash icon sits beside the pencil on the same row (same reveal rules). It removes a plain column outright if it was only ever `added`, or marks an existing one `removed` like any other change. A column that is an FK, or that a relation references, has no trash icon — deleting it would leave a relation's edge dangling.
 
-| Action       | Target                                 | Payload                                                    | Result                                                                 |
-| ------------ | -------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `ADD_FIELD`  | `element:<diagram-id>/node/<table-id>` | `{ "id": string, "type": string, "nullable"?: boolean }`   | Appends `{ id, type }` (plus `nullable`) to the table's `after` fields |
-| `EDIT_FIELD` | `element:<diagram-id>/node/<table-id>` | `{ "field": string, "type": string, "nullable": boolean }` | Sets the column's `type` and `nullable` in `after`                     |
+Selecting a relation (its line, not a table) opens a small editor beside it for the relation's cardinality — a `parent : child` picker over the same values `fields[].cardinality` accepts — with **Cancel** and **Save**. It opens and closes with the selection itself, so no separate trigger is needed.
 
-`ADD_FIELD` is stale when the table no longer exists (`target-missing`), or when the id is empty or already used (`constraint-violated`). `EDIT_FIELD` is stale when the table or column no longer exists (`target-missing`), or when the column has a `ref` or was removed (`constraint-violated`). Actions replay in order. To apply them, edit the `after` snapshot's table in draft order.
+These changes are not written into the JSON child. They are recorded as element actions in the enclosing template's draft and replayed over the authored data, so they survive a reload and reach the agent in the brief. Like comments, they are addressed by the diagram's `id`: without one, **Add column**, the pencils and the cardinality editor are not shown. Outside a template the diagram shows an error and keeps the input.
+
+| Action             | Target                                 | Payload                                                    | Result                                                                                         |
+| ------------------ | -------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `ADD_FIELD`        | `element:<diagram-id>/node/<table-id>` | `{ "id": string, "type": string, "nullable"?: boolean }`   | Appends `{ id, type }` (plus `nullable`) to the table's `after` fields                         |
+| `EDIT_FIELD`       | `element:<diagram-id>/node/<table-id>` | `{ "field": string, "type": string, "nullable": boolean }` | Sets the column's `type` and `nullable` in `after`                                             |
+| `DELETE_FIELD`     | `element:<diagram-id>/node/<table-id>` | `{ "field": string }`                                      | Removes `field` from `after` fields, or marks it `removed` if it predates the draft            |
+| `EDIT_CARDINALITY` | `element:<diagram-id>/edge/<edge-id>`  | `{ "cardinality": string }`                                | Sets the relation's `cardinality` in `after` (`parent:child`, see [Cardinality](#cardinality)) |
+
+`ADD_FIELD` is stale when the table no longer exists (`target-missing`), or when the id is empty or already used (`constraint-violated`). `EDIT_FIELD` and `DELETE_FIELD` are stale when the table or column no longer exists (`target-missing`), or when the column has a `ref` or is referenced by a relation (`constraint-violated`). `EDIT_CARDINALITY` is stale when the relation no longer exists (`target-missing`), or `cardinality` is not one of the accepted values (`constraint-violated`). Actions replay in order. To apply them, edit the `after` snapshot's table in draft order.
 
 ## Layout
 

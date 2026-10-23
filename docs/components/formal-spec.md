@@ -1,4 +1,4 @@
-# dpk-component-formal-spec
+# dpk-formal-spec
 
 What a formally verified property says, in plain words, for readers who do not read Lean, Coq, Isabelle or TLA+. The checker already vouches that the proof is right; what a person has to judge is whether the statement says what was meant. So the element shows each claim's statement, what it is about, what it assumes, what it concludes, what it does **not** claim, and how strongly it holds — and never the proof.
 
@@ -7,7 +7,7 @@ It is a document in the page's flow, not a canvas: no pan/zoom, no fixed height.
 It also serves before the work starts: write the properties a new feature should satisfy as `planned` claims and agree on them in review, then prove them.
 
 ```html
-<dpk-component-formal-spec id="order-spec" subject="注文まわり">
+<dpk-formal-spec id="order-spec" subject="注文まわり">
   <script type="application/json">
     {
       "targets": [
@@ -48,7 +48,7 @@ It also serves before the work starts: write the properties a new feature should
       ]
     }
   </script>
-</dpk-component-formal-spec>
+</dpk-formal-spec>
 ```
 
 Load `components.js` (or the all-in-one `index.js`). Put the element in a template — usually `dpk-template-plain` (`docs/templates/plain.md`) — to keep the comments.
@@ -139,7 +139,7 @@ The element only shows what you write; whether the page is faithful to the forma
 
 ## Comments
 
-With an `id`, each target heading, claim and clause shows a comment button when hovered or focused (always on touch devices). It opens a composer beside it that submits straight into the enclosing template's draft, like a diagram's (`docs/components/diagrams.md`, "Element comments and template integration").
+With an `id`, right-click a target heading, a claim or a clause and choose "Review comment" from the context menu. It opens a composer beside it that submits straight into the enclosing template's draft, like a diagram's (`docs/components/diagrams.md`, "Element comments and template integration").
 
 | Target                                       | What it is                                                    |
 | -------------------------------------------- | ------------------------------------------------------------- |
@@ -147,6 +147,6 @@ With an `id`, each target heading, claim and clause shows a comment button when 
 | `element:<id>/claim/<claim-id>`              | A whole claim                                                 |
 | `element:<id>/clause/<claim-id>/<clause-id>` | One subject, premise, conclusion, example or not-claimed line |
 
-The review rail labels a claim by the start of its statement, and a clause by that label followed by the clause. A clause's comment button shows once its claim is unfolded. A term's definition has no target of its own: comment on the claim or the clause that uses it.
+The review rail labels a claim by the start of its statement, and a clause by that label followed by the clause. A clause's "Review comment" is only offered once its claim is unfolded. A term's definition has no target of its own: comment on the claim or the clause that uses it.
 
-A comment whose target, claim or clause disappears in a revision stays in the draft as stale; keep ids stable. Without an `id` there are no comment buttons, and outside a template a submission keeps its text and says why it was not saved.
+A comment whose target, claim or clause disappears in a revision stays in the draft as stale; keep ids stable. Without an `id` there is no "Review comment" item, and outside a template a submission keeps its text and says why it was not saved.

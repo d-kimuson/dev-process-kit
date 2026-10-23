@@ -1,4 +1,4 @@
-# dpk-component-comment-panel
+# dpk-comment-panel
 
 The review panel: the list of draft actions and comments, the stale markers, editing and deletion, and the copy hand-off for the agent. It is a Shadow DOM component, and the only place the framework renders template-specific text — through `describe()` and `serialize()`.
 

@@ -1,11 +1,11 @@
-# dpk-component-architecture-map
+# dpk-architecture-map
 
 Services grouped into boundaries, with the links between them. This is the "system map" view: what exists, who is external, and which service talks to which.
 
 Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
 
 ```html
-<dpk-component-architecture-map heading="注文と決済">
+<dpk-architecture-map heading="注文と決済">
   <script type="application/json">
     {
       "boundaries": [
@@ -29,7 +29,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
       "links": [{ "id": "orders-payment", "from": "browser", "to": "payment", "label": "決済要求" }]
     }
   </script>
-</dpk-component-architecture-map>
+</dpk-architecture-map>
 ```
 
 `heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`Architecture` / `アーキテクチャ図`). `subject` adds a smaller subtitle beside the title.

@@ -1,11 +1,11 @@
-# dpk-component-mind-map
+# dpk-mind-map
 
 A central topic and a tree of subtopics, fanned out to the left and the right. Selecting a topic lights its path to the centre and everything beneath it; a topic with subtopics folds down to a count.
 
 Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
 
 ```html
-<dpk-component-mind-map id="checkout-mind-map" heading="注文フロー刷新の論点">
+<dpk-mind-map id="checkout-mind-map" heading="注文フロー刷新の論点">
   <script type="application/json">
     {
       "root": {
@@ -26,7 +26,7 @@ Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing, 
       }
     }
   </script>
-</dpk-component-mind-map>
+</dpk-mind-map>
 ```
 
 `heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`Mind map` / `マインドマップ`). `subject` adds a smaller subtitle beside the title.

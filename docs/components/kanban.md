@@ -1,11 +1,11 @@
-# dpk-component-kanban
+# dpk-kanban
 
 Columns of cards, read left to right, with cards in priority order top to bottom. Reviewers move cards between and within columns and add new ones; each change is recorded as a draft action for the agent to fold into the JSON.
 
-Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
+A board, not a diagram: it sits in the page's normal flow at its natural height, not over a pan/zoom canvas. It shares most of the diagrams' public contract (data paths, tags, comments, element actions, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`, except the canvas-only parts — there is no `resetView()`, no pan/zoom, and no `--diagram-height` sizing. Maximize still works, lifting the board to fill the viewport as for any diagram.
 
 ```html
-<dpk-component-kanban id="checkout-board" heading="注文フロー刷新">
+<dpk-kanban id="checkout-board" heading="注文フロー刷新">
   <script type="application/json">
     {
       "columns": [
@@ -29,7 +29,7 @@ Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing, 
       ]
     }
   </script>
-</dpk-component-kanban>
+</dpk-kanban>
 ```
 
 `heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`Kanban` / `カンバン`). `subject` adds a smaller subtitle beside the title.
@@ -60,7 +60,7 @@ Duplicate column or card ids and unknown keys are errors, and the element render
 
 ## Layout
 
-Columns are fixed-width lanes side by side; cards take the height their text needs. The board opens at 100% from the top-left corner and stays there when it is smaller than the canvas. A wide board pans horizontally; maximize it to see more columns at once.
+Columns are fixed-width lanes side by side, in the page's normal flow; cards take the height their text needs and the board takes whatever height its columns need. A board wider than the panel scrolls sideways on its own, independently of the page; maximize it (or widen the window) to see more columns at once without scrolling.
 
 A column's `color` tints its heading, so statuses read at a glance; the colors come from the theme palette. Without a `color` the heading stays plain.
 
