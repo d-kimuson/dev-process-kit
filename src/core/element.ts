@@ -15,12 +15,16 @@ import type {
 } from './types';
 
 import { DismissController } from '../lib/dom/dismiss';
-import { onSelectChange } from '../lib/dom/events';
 import { revealWithin } from '../lib/dom/scroll';
 import { COMMENT_ACTION, serializeDraft } from './action';
 import { CHANGES_ATTRIBUTE, jumpOf, type ChangeEntry } from './changes';
+import { hasCheckedTargets } from './check-mode';
 import { parseColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
+import { ConfirmDialogController } from './confirm-dialog/controller';
+import { ContextMenuController } from './context-menu/controller';
+import { contextMenuMessages } from './context-menu/messages';
+import { contextMenuStyles } from './context-menu/styles';
 import { DraftController } from './controller';
 import { componentElementActionSchema } from './element-actions';
 import { buildAgentBrief } from './export';
@@ -38,7 +42,24 @@ import {
 } from './grill';
 import { presentDock, type DockViewModel } from './handoff-dock';
 import { LOCALES, type Locale } from './i18n';
-import { iconChevronLeft, iconChevronRight, iconComment, iconHistory, iconMoon, iconQuestion, iconSun } from './icons';
+import {
+  brandMark,
+  iconCheck,
+  iconChecklist,
+  iconChevronRight,
+  iconComment,
+  iconHistory,
+  iconMoon,
+  iconQuestion,
+  iconSun,
+} from './icons';
+import { defineLayoutElements, type DpkInternalLayoutSidebar } from './layouts/index';
+import {
+  DEFAULT_SIDEBAR_LAYOUT,
+  DEFAULT_SIDEBAR_PANE,
+  type SidebarLayout,
+  type SidebarSide,
+} from './layouts/sidebar/model';
 import { coreMessages, LANGUAGE_NAMES, type CoreMessages } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { resolveBoardTarget } from './page/board-target';
@@ -46,6 +67,7 @@ import { boardHostOf, boardIdOf, DRAFT_BOARD_ATTRIBUTE, type BoardHost } from '.
 import { boardNavigation, pagePatchFor } from './page/navigation';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { PopoverController } from './popover-controller';
+import { SelectController } from './select/controller';
 import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSource } from './shell/api';
 import { ChangeNoticeController } from './shell/change-notice-controller';
 import {
@@ -55,6 +77,8 @@ import {
   renderNoticeToasts,
   type NoticeIntents,
 } from './shell/change-notices';
+import { collectCheckBindings, CheckModeBadgeController, type CheckBadgeBinding } from './shell/check-mode-badges';
+import { CheckModeController } from './shell/check-mode-controller';
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
@@ -67,8 +91,8 @@ import {
   type GrillRoundSelection,
 } from './shell/grill-panel';
 import { HandoffDockController } from './shell/handoff-dock-controller';
+import { HeaderHeightController } from './shell/header-height-controller';
 import { LocaleChoiceController } from './shell/locale-choice-controller';
-import { NarrowScreenController } from './shell/narrow-screen-controller';
 import { readNavigationFromHash, writeNavigationToUrl } from './shell/navigation';
 import { PreviewRouter } from './shell/preview-router';
 import { findTarget, highlightTarget, revealTarget } from './shell/reveal';
@@ -81,8 +105,6 @@ import {
   SETTINGS_SIZE,
   type SettingsIntents,
 } from './shell/settings-menu';
-import { SidebarCollapseController } from './shell/sidebar-collapse-controller';
-import { SidebarResizeController } from './shell/sidebar-resize-controller';
 import { chromeStyles } from './shell/styles';
 import {
   FOLDED_SUPPLEMENTS,
@@ -96,8 +118,8 @@ import {
   type SupplementView,
 } from './shell/supplements';
 import { TextRecoveryController } from './shell/text-recovery-controller';
+import { renderUndoRedo, UndoRedoKeyboardController, type UndoRedoIntents } from './shell/undo-redo';
 import { VersionChoiceController } from './shell/version-choice-controller';
-import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, sidebarToggle, type SidebarLayout } from './sidebar-width';
 import { parseTargetRef, targetRef, toTarget } from './target';
 import { FRAMEWORK_VERSION } from './version';
 
@@ -119,13 +141,16 @@ const isPopoverOpen = (element: Element): boolean => {
 
 const nextFrame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
+/** A badge's text, or none for a count of zero. */
+const countOf = (count: number): string | null => (count > 0 ? String(count) : null);
+
 type ReviewSection = 'changes' | 'questions' | 'comments';
 
 /** The part of the shell a badge layer lies over. */
 type BadgeRegion = 'main' | 'sidebar';
 
 export abstract class TemplateElement<S> extends LitElement {
-  static override styles: CSSResultGroup = chromeStyles;
+  static override styles: CSSResultGroup = [chromeStyles, contextMenuStyles];
 
   /**
    * Annotated so subclasses may declare their own reactive state without having
@@ -178,6 +203,8 @@ export abstract class TemplateElement<S> extends LitElement {
   /** The question last scrolled to, so the list only moves when the reader opens another. */
   #revealedQuestion: string | null = null;
   #badges: readonly BadgeBinding[] = [];
+  /** Check Mode's own badges, collected the same way as the grill's (`renderChrome`/`#renderBoardChrome`). */
+  #checkBindings: readonly CheckBadgeBinding[] = [];
   #grillPanelIntents: GrillPanelIntents = {
     open: (questionId) => this.#openQuestion(questionId),
     answer: (questionId, payload) => this.#answer(questionId, payload),
@@ -195,16 +222,6 @@ export abstract class TemplateElement<S> extends LitElement {
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
   #claude = new ClaudeHandoffController(this);
   #dock = new HandoffDockController(this);
-  #sidebarWidth = new SidebarResizeController(this, {
-    persist: () => this.storage !== 'off' && this.storage !== 'memory',
-    template: () => this.#persistedName,
-    layout: () => this.sidebarLayout,
-  });
-  #sidebarCollapse = new SidebarCollapseController(this, {
-    persist: () => this.storage !== 'off' && this.storage !== 'memory',
-    template: () => this.#persistedName,
-  });
-  #narrowScreen = new NarrowScreenController(this);
   #textRecovery = new TextRecoveryController(this, {
     persist: () => this.storage !== 'off' && this.storage !== 'memory',
     storageKey: () => `${this.storageKey ?? defaultStorageKey(this.#persistedName)}:unsent-text`,
@@ -229,12 +246,33 @@ export abstract class TemplateElement<S> extends LitElement {
     pause: (hold) => this.#notices.pause(hold),
     resume: (hold) => this.#notices.resume(hold),
   };
+  /**
+   * Check Mode: reader-only, never part of the draft (`./check-mode.ts`).
+   * Reuses the change log already parsed by `#notices` to tell a checked
+   * target apart from one changed since.
+   */
+  #checkMode = new CheckModeController(this, {
+    persist: () => this.storage !== 'off' && this.storage !== 'memory',
+    storageKey: () => this.storageKey ?? defaultStorageKey(this.definition.name),
+    log: () => this.#notices.log,
+  });
+  /** Confirms before Check Mode's "off" clears every mark; see `./confirm-dialog/controller.ts`. */
+  readonly #confirmDialog = new ConfirmDialogController(this);
   readonly #popovers = new PopoverController(this);
+  /** The right-click menu: attaches its own `contextmenu` listener on this element, see `./context-menu/controller.ts`. */
+  readonly #contextMenu = new ContextMenuController(this, {
+    state: () => this.controller.derivation.state,
+    messages: () => contextMenuMessages(this.locale),
+  });
   readonly #settingsIntents: SettingsIntents = {
     toggle: () => {
       this.settingsOpen = !this.settingsOpen;
     },
     flip: (input) => void this.dispatch(input),
+  };
+  readonly #undoRedoIntents: UndoRedoIntents = {
+    undo: () => this.controller.undo(),
+    redo: () => this.controller.redo(),
   };
   constructor() {
     super();
@@ -243,6 +281,7 @@ export abstract class TemplateElement<S> extends LitElement {
     new ReviewPopoverController(this, {
       surface: () => this.renderRoot.querySelector<HTMLElement>(`#${REVIEW_ID}`),
       anchor: () => this.renderRoot.querySelector('.dpk-header-actions'),
+      trigger: () => this.renderRoot.querySelector('.dpk-review-toggles'),
       open: () => this.notesOpen,
       close: () => {
         this.notesOpen = false;
@@ -253,6 +292,16 @@ export abstract class TemplateElement<S> extends LitElement {
       layers: () => Array.from(this.renderRoot.querySelectorAll<HTMLElement>('.dpk-grill-badges')),
       bindings: () => this.#badges,
     });
+    new CheckModeBadgeController(this, {
+      active: () => this.#checkMode.enabled,
+      layers: () => Array.from(this.renderRoot.querySelectorAll<HTMLElement>('.dpk-check-badges')),
+      bindings: () => this.#checkBindings,
+    });
+    // A board renders no `.dpk-header` of its own: its boards' panels stay
+    // clear of the page's, inherited from the page root through the flattened tree.
+    new HeaderHeightController(this, () =>
+      this.#boardId === null ? this.renderRoot.querySelector<HTMLElement>('.dpk-header') : null,
+    );
     // The settings close on Escape and on a press outside them and their trigger.
     new DismissController(this, {
       open: () => this.settingsOpen,
@@ -268,9 +317,6 @@ export abstract class TemplateElement<S> extends LitElement {
     });
   }
 
-  /** The fold button is replaced as the sidebar folds; focus follows it to the new one. */
-  #focusSidebarToggle = false;
-
   /**
    * The template in one language. Called again whenever the locale changes:
    * on connect, and when the reader picks a language in the header.
@@ -278,9 +324,12 @@ export abstract class TemplateElement<S> extends LitElement {
   protected abstract definitionFor(locale: Locale): TemplateDefinition<S>;
 
   #versionChoice = new VersionChoiceController(this);
+  readonly #langSelect = new SelectController(this);
+  readonly #roundSelect = new SelectController(this);
   #localeChoice = new LocaleChoiceController(
     this,
     () => this.storage !== 'off' && this.storage !== 'memory',
+    () => this.#boardId === null,
     () => {
       this.#controller?.setTemplate(this.definition);
       this.#controller?.setGrill({ grill: this.#grill, locale: this.locale });
@@ -310,6 +359,8 @@ export abstract class TemplateElement<S> extends LitElement {
   #boardId: string | null = null;
   /** The locale the board's controller was last given, so a pick on the page reaches it. */
   #boardLocale: Locale | undefined;
+  /** Undo/redo shortcuts belong to the page as a whole, not to any one board; created once. */
+  #undoRedoKeyboardReady = false;
 
   // ---------------------------------------------------------------- lifecycle
 
@@ -325,7 +376,13 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   override connectedCallback(): void {
+    // The shell is drawn with the layouts; whichever entry loaded the template, they are there.
+    defineLayoutElements();
     this.#boardId = boardIdOf(this);
+    if (this.#boardId === null && !this.#undoRedoKeyboardReady) {
+      this.#undoRedoKeyboardReady = true;
+      new UndoRedoKeyboardController(this, this.#undoRedoIntents);
+    }
     super.connectedCallback();
     this.dataset['template'] = this.definition.name;
     if (!this.#notesInitialized) {
@@ -339,7 +396,7 @@ export abstract class TemplateElement<S> extends LitElement {
       this.reviewSection = this.notes === 'changes' || this.notes === 'questions' ? this.notes : 'comments';
     }
     this.#start();
-    if (this.#boardId === null) window.addEventListener('hashchange', this.#onHashChange);
+    if (this.#boardId === null && this.hashMode !== 'off') window.addEventListener('hashchange', this.#onHashChange);
     this.addEventListener('click', this.#onClick);
     this.addEventListener('dpk-comment-targets-change', this.#refreshCommentTargets);
     this.addEventListener('dpk-comment-request', this.#onCommentRequest);
@@ -408,10 +465,6 @@ export abstract class TemplateElement<S> extends LitElement {
     this.#placeNoticeList();
     this.#placeSettings();
     this.#settleQuestions();
-    if (this.#focusSidebarToggle) {
-      this.#focusSidebarToggle = false;
-      this.renderRoot.querySelector<HTMLElement>('.dpk-sidebar-toggle')?.focus();
-    }
   }
 
   // ------------------------------------------------------------------ public
@@ -437,6 +490,41 @@ export abstract class TemplateElement<S> extends LitElement {
   /** The id this template has as a board of `<dpk-page>`, or `null` on its own. */
   get board(): string | null {
     return this.#boardId;
+  }
+
+  /**
+   * Whether this template draws its own sidebar column right now. A page's
+   * rail reads this on its active board to decide whether to show a fold
+   * toggle for it.
+   */
+  get hasOwnSidebar(): boolean {
+    return this.renderRoot.querySelector('.dpk-sidebar') !== null;
+  }
+
+  /** The side this template's own sidebar sits on, or `null` when it draws none. */
+  get sidebarFoldSide(): SidebarSide | null {
+    return this.hasOwnSidebar ? this.sidebarLayout.side : null;
+  }
+
+  /** Whether this template's own sidebar is folded away right now; `null` when it has none to fold. */
+  get sidebarFolded(): boolean | null {
+    const side = this.sidebarFoldSide;
+    if (side === null) return null;
+    return (
+      this.renderRoot.querySelector<DpkInternalLayoutSidebar>('dpk-internal-layout-sidebar')?.foldedOn(side) ?? null
+    );
+  }
+
+  /**
+   * Folds or unfolds this template's own sidebar — the control a page's rail
+   * uses on the board it shows, besides the fold button the sidebar already
+   * draws on its own edge. A no-op when the template has no sidebar to fold.
+   */
+  toggleSidebarFold(): void {
+    const side = this.sidebarFoldSide;
+    if (side === null) return;
+    this.renderRoot.querySelector<DpkInternalLayoutSidebar>('dpk-internal-layout-sidebar')?.toggleFold(side);
+    this.requestUpdate();
   }
 
   dispatch(input: ActionInput): DispatchOutcome {
@@ -568,7 +656,7 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   protected renderReviewPanel(context: TemplateRenderContext<S>): TemplateResult {
-    return html`<dpk-component-comment-panel
+    return html`<dpk-comment-panel
       .definition=${this.controller.definition}
       .state=${context.state}
       .navigation=${context.navigation}
@@ -586,18 +674,13 @@ export abstract class TemplateElement<S> extends LitElement {
         if (outcome.ok) this.#pendingCommentTarget = null;
         return outcome;
       }}
-    ></dpk-component-comment-panel>`;
+    ></dpk-comment-panel>`;
   }
 
   protected renderChrome(context: TemplateRenderContext<S>, regions: ShellRegions): TemplateResult {
     if (this.#boardId !== null) return this.#renderBoardChrome(regions);
     const draftCount = context.actions.length;
-    // The draft holds all three; the header names its changes, answers and comments apart.
-    const commentCount = context.actions.filter((action) => action.type === COMMENT_ACTION).length;
-    // An answer is shown with its question, unless it no longer fits one.
-    const stale = new Set(this.derivation.stale.map((entry) => entry.action.id));
-    const answerCount = context.actions.filter((action) => isAnswerAction(action) && !stale.has(action.id)).length;
-    const changeCount = draftCount - commentCount - answerCount;
+    const { changeCount, commentCount } = this.reviewCounts(context);
     // Badges are derived from the DOM (the author's markup, and the shadow roots
     // a diagram renders into), so they are collected by the render that draws them.
     this.#badges = collectBadges(
@@ -607,32 +690,33 @@ export abstract class TemplateElement<S> extends LitElement {
       this.notesOpen && this.reviewSection === 'questions' ? openQuestionOf(this.#grill, this.#grillOpen) : null,
       (mark, token) => this.grillRefsOf(mark, token),
     );
+    this.#checkBindings = collectCheckBindings(this, this.#checkMode.state, this.#notices.log);
     // The header ellipsizes a long title; the tooltip has it whole.
     const title = this.definition.title(context.state);
     return html`
-      <div class="dpk-shell" ?data-resizing=${this.#sidebarWidth.dragging}>
-        <header class="dpk-header">
-          <span class="dpk-brand" aria-hidden="true"></span>
+      <dpk-internal-layout-app class="dpk-shell">
+        <header slot="header" class="dpk-header">
+          <span class="dpk-brand" aria-hidden="true">${brandMark()}</span>
           <div class="dpk-title">
-            <span class="dpk-template-mark">${this.templateIdentity().label}</span>
             <h1 title=${title}>${title}</h1>
           </div>
           <div class="dpk-header-slot">
             ${regions.header ?? nothing}
             <slot name="header"></slot>
           </div>
-          <div class="dpk-header-meta">
-            ${this.#versionChoice.render(this.locale)}
-            <span class="dpk-meta-name">${this.templateIdentity().name}</span>
-          </div>
+          <div class="dpk-header-meta">${this.#versionChoice.render(this.locale)}</div>
           <div class="dpk-header-tools">
-            ${this.#renderNoticeBell()} ${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}
+            ${this.#renderNoticeBell()} ${this.#renderLanguageSelect()} ${this.#renderCheckModeToggle()}
+            ${this.#renderThemeToggle()}
           </div>
+          ${this.#renderHeaderActions(context, changeCount, commentCount)}
         </header>
         ${this.#renderBody(regions)} ${this.#renderFooter(regions)}
-        ${this.#renderHeaderActions(context, changeCount, commentCount)} ${this.#renderReviewPopover(context)}
-        ${this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
-      </div>
+        <div slot="overlay" class="dpk-overlay">
+          ${this.#renderReviewPopover(context)} ${this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
+          ${this.#confirmDialog.render()}
+        </div>
+      </dpk-internal-layout-app>
     `;
   }
 
@@ -643,59 +727,71 @@ export abstract class TemplateElement<S> extends LitElement {
    */
   #renderBoardChrome(regions: ShellRegions): TemplateResult {
     this.#badges = [];
+    this.#checkBindings = [];
     // The page's header names the board and holds its settings; a bar stays only for the template's own header.
     const bar =
       (regions.header !== undefined && regions.header !== nothing) ||
       this.querySelector(':scope > [slot="header"]') !== null;
     return html`
-      <div class="dpk-shell" data-board ?data-resizing=${this.#sidebarWidth.dragging}>
-        <div class="dpk-board-bar" ?hidden=${!bar}>
+      <dpk-internal-layout-app class="dpk-shell" data-board>
+        <div slot="header" class="dpk-board-bar" ?hidden=${!bar}>
           <div class="dpk-header-slot">
             ${regions.header ?? nothing}
             <slot name="header"></slot>
           </div>
         </div>
         ${this.#renderBody(regions)} ${this.#renderFooter(regions)}
-      </div>
+      </dpk-internal-layout-app>
     `;
   }
 
   #renderBody(regions: ShellRegions): TemplateResult {
     const messages = coreMessages(this.locale);
     const sidebarHidden = regions.sidebarHidden === true || (!regions.sidebar && !this.hasSidebarContent());
-    const side = this.sidebarLayout.side;
-    const drawer = this.#sidebarDrawer;
-    const collapsed =
-      !sidebarHidden &&
-      this.#sidebarCollapsible &&
-      (drawer ? !this.#sidebarCollapse.drawerOpen : this.#sidebarCollapse.collapsed);
-    const edge = sidebarHidden ? nothing : this.#renderSidebarEdge(collapsed, drawer);
-    return html`<div class="dpk-body" data-sidebar-side=${side} ?data-sidebar-drawer=${drawer}>
-      ${side === 'right' ? edge : nothing}
-      <aside
-        id="dpk-sidebar"
-        class="dpk-sidebar"
-        ?hidden=${sidebarHidden || collapsed}
-        style=${`--dpk-sidebar-width: ${this.#sidebarWidth.width}px`}
-      >
-        <div class="dpk-sidebar-body">
-          ${regions.sidebar ?? nothing}
-          <slot name="sidebar"></slot>
-          ${this.#renderBadges('sidebar')}
-        </div>
-      </aside>
-      ${side === 'left' ? edge : nothing}
+    const layout = this.sidebarLayout;
+    const asideSide = layout.side === 'left' ? 'right' : 'left';
+    const fill = this.mainLayout === 'fill';
+    const persistKey = this.storage === 'off' || this.storage === 'memory' ? null : this.#persistedName;
+    const panes = {
+      [layout.side]: {
+        width: layout.defaultWidth,
+        resizable: layout.resizable !== false,
+        collapsible: layout.collapsible !== false,
+        narrow: layout.narrow ?? 'drawer',
+        persistKey,
+      },
+      [asideSide]: { ...DEFAULT_SIDEBAR_PANE, persistKey: persistKey === null ? null : `${persistKey}:aside` },
+    };
+    return html`<dpk-internal-layout-sidebar
+      class="dpk-body"
+      .left=${panes['left']}
+      .right=${panes['right']}
+      main=${fill ? 'fill' : 'scroll'}
+    >
+      ${regions.rail === undefined || regions.rail === nothing ? nothing : html`<div slot="rail">${regions.rail}</div>`}
       ${
-        drawer && !collapsed && !sidebarHidden
-          ? html`<div class="dpk-sidebar-scrim" @click=${() => this.#sidebarCollapse.closeDrawer()}></div>`
+        sidebarHidden
+          ? nothing
+          : html`<div slot=${layout.side} class="dpk-sidebar">
+              ${regions.sidebar ?? nothing}
+              <slot name="sidebar"></slot>
+              ${this.#renderBadges('sidebar')} ${this.#renderCheckBadges('sidebar')}
+            </div>`
+      }
+      ${
+        this.hasAsideContent()
+          ? html`<div slot=${asideSide} class="dpk-aside"><slot name="aside"></slot></div>`
           : nothing
       }
       <main class="dpk-main">
         <div
           class="dpk-main-body"
-          ?data-grill-gutter=${this.#badges.some(
-            (binding) => this.contains(binding.target) && this.#badgeRegionOf(binding) === 'main',
-          )}
+          ?data-fill=${fill}
+          ?data-grill-gutter=${
+            // A filled main column is a canvas or a board, which places its own badges.
+            !fill &&
+            this.#badges.some((binding) => this.contains(binding.target) && this.#badgeRegionOf(binding) === 'main')
+          }
         >
           ${
             this.#baseError
@@ -727,16 +823,16 @@ export abstract class TemplateElement<S> extends LitElement {
             <p class="dpk-label">previews without metadata</p>
             <slot name="preview"></slot>
           </section>
-          ${this.#renderBadges('main')}
+          ${this.#renderBadges('main')} ${this.#renderCheckBadges('main')}
         </div>
         ${this.#renderSupplements(messages)}
       </main>
-    </div>`;
+    </dpk-internal-layout-sidebar>`;
   }
 
   #renderFooter(regions: ShellRegions): TemplateResult | typeof nothing {
     return regions.footer || this.hasFooterContent()
-      ? html`<footer class="dpk-footer">
+      ? html`<footer slot="footer" class="dpk-footer">
           ${regions.footer ?? nothing}
           <slot name="footer"></slot>
         </footer>`
@@ -744,9 +840,10 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   /**
-   * The icon buttons fixed at the top right: the page's settings when the
-   * template has any, then the review toggles. Their popovers hang below the
-   * whole group, aligned to its right edge.
+   * The icon buttons at the end of the header row: the page's settings when the
+   * template has any, then the review toggles. Laid out with the rest of the
+   * header so they never cover its other controls. Their popovers hang below
+   * the whole group, aligned to its right edge.
    */
   #renderHeaderActions(context: TemplateRenderContext<S>, changeCount: number, commentCount: number): TemplateResult {
     const settings = this.definition.settings?.(context.state);
@@ -755,6 +852,7 @@ export abstract class TemplateElement<S> extends LitElement {
     return html`<div class="dpk-header-actions">
       ${hasSettings ? renderSettingsTrigger(this.settingsOpen, messages, this.#settingsIntents) : nothing}
       ${hasSettings && this.settingsOpen ? renderSettingsMenu(settings, messages, this.#settingsIntents) : nothing}
+      ${renderUndoRedo(this.controller.canUndo, this.controller.canRedo, messages, this.#undoRedoIntents)}
       ${this.#renderReviewToggles(changeCount, commentCount)}
     </div>`;
   }
@@ -774,6 +872,31 @@ export abstract class TemplateElement<S> extends LitElement {
     );
   }
 
+  /** One review button: pressed when its section is the one open, showing its count as a badge. */
+  #renderReviewToggle(
+    section: ReviewSection,
+    label: string,
+    icon: TemplateResult,
+    badge: string | null,
+  ): TemplateResult {
+    const pressed = this.notesOpen && this.#reviewSection === section;
+    return html`<button
+      class="dpk-header-action dpk-review-toggle"
+      type="button"
+      data-section=${section}
+      aria-controls=${REVIEW_ID}
+      aria-pressed=${pressed ? 'true' : 'false'}
+      aria-label=${`${label} (${badge ?? 0})`}
+      data-tooltip=${label}
+      @click=${() => {
+        this.notesOpen = !pressed;
+        this.reviewSection = section;
+      }}
+    >
+      ${icon} ${badge === null ? nothing : html`<span class="dpk-review-badge">${badge}</span>`}
+    </button>`;
+  }
+
   /**
    * Each part of the review has its own button: the changes made on the page,
    * the questions the page asks (when it asks any), and the review comments
@@ -782,35 +905,29 @@ export abstract class TemplateElement<S> extends LitElement {
    */
   #renderReviewToggles(changeCount: number, commentCount: number): TemplateResult {
     const messages = coreMessages(this.locale);
-    const toggle = (section: ReviewSection, label: string, icon: TemplateResult, badge: string | null) => {
-      const pressed = this.notesOpen && this.#reviewSection === section;
-      return html`<button
-        class="dpk-header-action dpk-review-toggle"
-        type="button"
-        data-section=${section}
-        aria-controls=${REVIEW_ID}
-        aria-pressed=${pressed ? 'true' : 'false'}
-        aria-label=${`${label} (${badge ?? 0})`}
-        data-tooltip=${label}
-        @click=${() => {
-          this.notesOpen = !pressed;
-          this.reviewSection = section;
-        }}
-      >
-        ${icon} ${badge === null ? nothing : html`<span class="dpk-review-badge">${badge}</span>`}
-      </button>`;
-    };
-    const countOf = (count: number): string | null => (count > 0 ? String(count) : null);
     const counts = answerCounts(this.#grill, this.derivation.answers);
     return html`<div class="dpk-review-toggles" role="group" aria-label=${messages.review}>
-      ${toggle('changes', messages.reviewChanges, iconHistory(), countOf(changeCount))}
+      ${this.#renderReviewToggle('changes', messages.reviewChanges, iconHistory(), countOf(changeCount))}
       ${
         counts.total === 0
           ? nothing
-          : toggle('questions', messages.grill, iconQuestion(), `${counts.answered}/${counts.total}`)
+          : this.#renderReviewToggle('questions', messages.grill, iconQuestion(), `${counts.answered}/${counts.total}`)
       }
-      ${toggle('comments', messages.reviewComments, iconComment(), countOf(commentCount))}
+      ${this.#renderReviewToggle('comments', messages.reviewComments, iconComment(), countOf(commentCount))}
     </div>`;
+  }
+
+  /**
+   * The counts the review toggles show: changes, answers and comments all
+   * share one draft, so the header tells them apart here.
+   */
+  protected reviewCounts(context: TemplateRenderContext<S>): { changeCount: number; commentCount: number } {
+    const draftCount = context.actions.length;
+    const commentCount = context.actions.filter((action) => action.type === COMMENT_ACTION).length;
+    // An answer is shown with its question, unless it no longer fits one.
+    const stale = new Set(this.derivation.stale.map((entry) => entry.action.id));
+    const answerCount = context.actions.filter((action) => isAnswerAction(action) && !stale.has(action.id)).length;
+    return { changeCount: draftCount - commentCount - answerCount, commentCount };
   }
 
   /**
@@ -857,6 +974,7 @@ export abstract class TemplateElement<S> extends LitElement {
       vm,
       this.#grillPanelIntents,
       dock ? html`<footer class="dpk-grill-footer">${this.#renderHandoffActions(dock)}</footer>` : nothing,
+      this.#roundSelect,
     );
   }
 
@@ -905,7 +1023,7 @@ export abstract class TemplateElement<S> extends LitElement {
    * Where a mark's badge goes: over the sidebar for a mark in it, since the
    * sidebar scrolls on its own, and over the main column otherwise.
    */
-  #badgeRegionOf(binding: BadgeBinding): BadgeRegion {
+  #badgeRegionOf(binding: { readonly target: Element }): BadgeRegion {
     const sidebar = this.renderRoot.querySelector('.dpk-sidebar');
     let node: Element | null = binding.target;
     while (node !== null && node !== this) {
@@ -935,6 +1053,35 @@ export abstract class TemplateElement<S> extends LitElement {
           @click=${() => this.#openQuestion(binding.questionId)}
         >
           ${binding.ref}
+        </button>`,
+      )}
+    </div>`;
+  }
+
+  /** A badge per `data-dpk-target` of the region, over its corner, while Check Mode is on. */
+  #renderCheckBadges(region: BadgeRegion): TemplateResult | typeof nothing {
+    const bindings = this.#checkBindings.filter((binding) => this.#badgeRegionOf(binding) === region);
+    if (bindings.length === 0) return nothing;
+    const messages = coreMessages(this.locale);
+    const labelOf = (status: (typeof bindings)[number]['status']): string =>
+      status === 'checked'
+        ? messages.checkModeChecked
+        : status === 'stale'
+          ? messages.checkModeStale
+          : messages.checkModeUnchecked;
+    return html`<div class="dpk-check-badges" data-region=${region}>
+      ${bindings.map(
+        (binding) => html`<button
+          type="button"
+          class="dpk-check-badge"
+          data-badge=${binding.index}
+          data-status=${binding.status}
+          data-visible="false"
+          aria-label=${labelOf(binding.status)}
+          title=${labelOf(binding.status)}
+          @click=${() => this.#checkMode.toggle(binding.ref)}
+        >
+          ${binding.status === 'stale' ? iconQuestion() : iconCheck()}
         </button>`,
       )}
     </div>`;
@@ -1049,25 +1196,62 @@ export abstract class TemplateElement<S> extends LitElement {
       </div>`;
   }
 
-  #renderLanguageSelect(): TemplateResult {
+  #renderLanguageSelect(): unknown {
     const locale = this.locale;
     const label = coreMessages(locale).language;
-    return html`<select
-      class="dpk-lang-select"
-      aria-label=${label}
-      title=${label}
-      @change=${onSelectChange((value) => {
+    return this.#langSelect.render({
+      options: LOCALES.map((candidate) => ({ value: candidate, label: LANGUAGE_NAMES[candidate] })),
+      value: locale,
+      onChange: (value) => {
         const picked = LOCALES.find((candidate) => candidate === value);
         if (picked !== undefined) this.#localeChoice.pick(picked);
-      })}
+      },
+      ariaLabel: label,
+      className: 'dpk-lang-select',
+    });
+  }
+
+  /**
+   * Turning Check Mode on takes effect at once. Turning it off would clear
+   * every mark, so it asks first (`#confirmDialog`) — see `./check-mode.ts`.
+   * With nothing checked there is nothing to lose, so it skips the dialog
+   * and exits at once (`hasCheckedTargets`).
+   */
+  #renderCheckModeToggle(): TemplateResult {
+    const on = this.#checkMode.enabled;
+    const messages = coreMessages(this.locale);
+    const label = on ? messages.checkModeOn : messages.checkModeOff;
+    return html`<button
+      class="dpk-check-toggle"
+      type="button"
+      data-active=${on ? 'true' : 'false'}
+      aria-pressed=${on ? 'true' : 'false'}
+      aria-label=${label}
+      title=${label}
+      @click=${() => void this.#toggleCheckMode()}
     >
-      ${LOCALES.map(
-        (candidate) =>
-          html`<option value=${candidate} lang=${candidate} ?selected=${candidate === locale}>
-            ${LANGUAGE_NAMES[candidate]}
-          </option>`,
-      )}
-    </select>`;
+      ${iconChecklist()}
+    </button>`;
+  }
+
+  async #toggleCheckMode(): Promise<void> {
+    if (!this.#checkMode.enabled) {
+      this.#checkMode.setEnabled(true);
+      return;
+    }
+    if (!hasCheckedTargets(this.#checkMode.state)) {
+      this.#checkMode.setEnabled(false);
+      return;
+    }
+    const messages = coreMessages(this.locale);
+    const confirmed = await this.#confirmDialog.ask({
+      title: messages.checkModeConfirmTitle,
+      body: messages.checkModeConfirmBody,
+      confirmLabel: messages.checkModeConfirmOk,
+      cancelLabel: messages.checkModeConfirmCancel,
+      tone: 'danger',
+    });
+    if (confirmed) this.#checkMode.setEnabled(false);
   }
 
   #renderThemeToggle(): TemplateResult {
@@ -1085,78 +1269,15 @@ export abstract class TemplateElement<S> extends LitElement {
     </button>`;
   }
 
-  get #sidebarCollapsible(): boolean {
-    return this.sidebarLayout.collapsible !== false;
-  }
-
-  /** On a phone-width screen a collapsible sidebar is a drawer, unless the template stacks it itself. */
-  get #sidebarDrawer(): boolean {
-    return this.#narrowScreen.narrow && this.#sidebarCollapsible && this.sidebarLayout.narrow !== 'stack';
-  }
-
-  /**
-   * What sits between the sidebar and the main column: the resizable edge and
-   * the fold button on it, or, once folded, a narrow strip holding the button
-   * that brings the sidebar back. The resizer stays next to the sidebar, on
-   * whichever side that is.
-   */
-  #renderSidebarEdge(collapsed: boolean, drawer: boolean): TemplateResult {
-    const toggle = this.#sidebarCollapsible ? this.#renderSidebarToggle(collapsed, drawer) : nothing;
-    // A drawer slides over the main column from its strip, so the strip stays.
-    if (collapsed || drawer) return html`<div class="dpk-sidebar-strip">${toggle}</div>`;
-    return this.sidebarLayout.side === 'left'
-      ? html`${this.#renderSidebarResizer()}${toggle}`
-      : html`${toggle}${this.#renderSidebarResizer()}`;
-  }
-
-  #renderSidebarToggle(collapsed: boolean, drawer: boolean): TemplateResult {
-    const messages = coreMessages(this.locale);
-    const toggle = sidebarToggle(this.sidebarLayout.side, collapsed);
-    const label = toggle.action === 'collapse' ? messages.collapseSidebar : messages.expandSidebar;
-    return html`<button
-      class="dpk-sidebar-toggle"
-      type="button"
-      aria-controls="dpk-sidebar"
-      aria-expanded=${collapsed ? 'false' : 'true'}
-      aria-label=${label}
-      title=${label}
-      @click=${() => {
-        this.#focusSidebarToggle = true;
-        if (drawer) this.#sidebarCollapse.toggleDrawer();
-        else this.#sidebarCollapse.toggle();
-      }}
-    >
-      ${toggle.points === 'left' ? iconChevronLeft() : iconChevronRight()}
-    </button>`;
-  }
-
-  /** The sidebar's edge facing the main column: dragged, or focused and moved with the arrow keys. */
-  #renderSidebarResizer(): TemplateResult {
-    const messages = coreMessages(this.locale);
-    const on = this.#sidebarWidth.handlers;
-    return html`<div
-      class="dpk-sidebar-resizer"
-      role="separator"
-      tabindex="0"
-      aria-orientation="vertical"
-      aria-label=${messages.resizeSidebar}
-      aria-valuemin=${SIDEBAR_WIDTH.min}
-      aria-valuemax=${SIDEBAR_WIDTH.max}
-      aria-valuenow=${this.#sidebarWidth.width}
-      title=${messages.resizeSidebarHint}
-      @pointerdown=${on.pointerdown}
-      @pointermove=${on.pointermove}
-      @pointerup=${on.pointerup}
-      @pointercancel=${on.pointercancel}
-      @keydown=${on.keydown}
-      @dblclick=${on.dblclick}
-    ></div>`;
-  }
-
   protected override render(): TemplateResult | typeof nothing {
     if (!this.#controller) return nothing;
     const context = this.#renderContext();
-    return this.renderChrome(context, this.renderRegions(context));
+    return html`${this.renderChrome(context, this.renderRegions(context))}${this.#renderContextMenu()}`;
+  }
+
+  /** The right-click menu's surface, rendered on top of the chrome; `nothing` while it is closed. */
+  #renderContextMenu(): TemplateResult | typeof nothing {
+    return this.#contextMenu.render();
   }
 
   /**
@@ -1167,15 +1288,31 @@ export abstract class TemplateElement<S> extends LitElement {
     return DEFAULT_SIDEBAR_LAYOUT;
   }
 
+  /**
+   * How the main column holds the template's content: `flow` (default) pads
+   * it and scrolls; `fill` gives it the whole column edge to edge, without
+   * scrolling, for a canvas that pans inside.
+   */
+  protected get mainLayout(): 'flow' | 'fill' {
+    return 'flow';
+  }
+
   /** Set to `false` when the template has no sidebar at all. */
   protected hasSidebarContent(): boolean {
-    const slot = this.querySelector('[slot="sidebar"]');
-    return slot !== null;
+    return this.querySelector(':scope > [slot="sidebar"]') !== null;
+  }
+
+  /**
+   * Whether the author slotted an aside: a second sidebar, on the side the
+   * template's own does not take, with the default width, resize and fold.
+   */
+  protected hasAsideContent(): boolean {
+    return this.querySelector(':scope > [slot="aside"]') !== null;
   }
 
   /** The footer row only exists when someone slotted content into it. */
   protected hasFooterContent(): boolean {
-    return this.querySelector('[slot="footer"]') !== null;
+    return this.querySelector(':scope > [slot="footer"]') !== null;
   }
 
   protected context(): TemplateRenderContext<S> {
@@ -1281,7 +1418,7 @@ export abstract class TemplateElement<S> extends LitElement {
     // A board's questions, draft and hash are the page's.
     this.#grill = board ? EMPTY_GRILL : this.readGrill();
     this.#warnLegacyMemo();
-    this.#navigation = board ? EMPTY_NAVIGATION : readNavigationFromHash();
+    this.#navigation = board || this.hashMode === 'off' ? EMPTY_NAVIGATION : readNavigationFromHash();
     this.#boardLocale = this.locale;
     const storageKey = this.storageKey;
     this.#controller = new DraftController<S>({
@@ -1325,9 +1462,14 @@ export abstract class TemplateElement<S> extends LitElement {
     return null;
   }
 
-  /** What the header names as the template; a page names the board it shows. */
-  protected templateIdentity(): { readonly label: string; readonly name: string } {
-    return this.definition;
+  /**
+   * Whether this root (never a board) owns `location.hash`: `'auto'` reads
+   * and writes it as every template always has; `'off'` leaves it alone, for
+   * a page embedded where the hash belongs to something else. A board never
+   * reaches here (its hash is already the page's).
+   */
+  protected get hashMode(): 'auto' | 'off' {
+    return 'auto';
   }
 
   /** The brief handed to the agent; a page groups it by board. */
@@ -1446,6 +1588,7 @@ export abstract class TemplateElement<S> extends LitElement {
     if (this.#boardId !== null) return;
     const effective = this.#effectiveNavigation();
     this.#navigation = effective;
+    if (this.hashMode === 'off') return;
     writeNavigationToUrl(effective, replace);
   }
 

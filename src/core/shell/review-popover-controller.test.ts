@@ -14,7 +14,8 @@ const setup = (initiallyOpen: boolean) => {
   };
   const surface = document.createElement('div');
   const anchor = document.createElement('div');
-  document.body.append(surface, anchor);
+  const trigger = document.createElement('div');
+  document.body.append(surface, anchor, trigger);
   const state = { open: initiallyOpen };
   const close = vi.fn(() => {
     state.open = false;
@@ -22,14 +23,18 @@ const setup = (initiallyOpen: boolean) => {
   const controller = new ReviewPopoverController(host, {
     surface: () => surface,
     anchor: () => anchor,
+    trigger: () => trigger,
     open: () => state.open,
     close,
   });
-  return { host, surface, anchor, state, close, controller };
+  return { host, surface, anchor, trigger, state, close, controller };
 };
 
 const escape = (init: { cancelable?: boolean } = {}) =>
   new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: init.cancelable ?? true });
+
+const press = (target: Element) =>
+  target.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, button: 0, bubbles: true, composed: true }));
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -93,6 +98,44 @@ describe('review popover', () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
+  it('closes on a press outside the popover and its trigger', () => {
+    const { controller, close } = setup(true);
+    controller.hostConnected();
+    controller.hostUpdated();
+
+    press(document.body);
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it('does not close on a press inside the popover, so a draft being typed is left alone', () => {
+    const { controller, surface, close } = setup(true);
+    controller.hostConnected();
+    controller.hostUpdated();
+    const composer = document.createElement('textarea');
+    surface.append(composer);
+
+    press(composer);
+    expect(close).not.toHaveBeenCalled();
+  });
+
+  it('does not close on a press on its own trigger, so the toggle decides instead (no close-then-reopen)', () => {
+    const { controller, trigger, close } = setup(true);
+    controller.hostConnected();
+    controller.hostUpdated();
+
+    press(trigger);
+    expect(close).not.toHaveBeenCalled();
+  });
+
+  it('ignores an outside press while closed', () => {
+    const { controller, close } = setup(false);
+    controller.hostConnected();
+    controller.hostUpdated();
+
+    press(document.body);
+    expect(close).not.toHaveBeenCalled();
+  });
+
   it('lets go of the surface and the key when the host leaves the page', () => {
     const { controller, close } = setup(true);
     controller.hostConnected();
@@ -102,6 +145,8 @@ describe('review popover', () => {
     controller.hostDisconnected();
     expect(stop).toHaveBeenCalledOnce();
     window.dispatchEvent(escape());
+    expect(close).not.toHaveBeenCalled();
+    press(document.body);
     expect(close).not.toHaveBeenCalled();
   });
 });

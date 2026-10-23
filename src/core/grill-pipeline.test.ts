@@ -53,12 +53,12 @@ describe('grill answers in the draft', () => {
     expect(storage.load('test', 'tiny')).toHaveLength(1);
   });
 
-  it('never compacts an answer away, though it leaves the template state as it was', () => {
+  it('keeps every action in order, even one that ends up back where it started', () => {
     const { controller } = makeController();
     controller.dispatch({ type: 'SET_NAME', target: 'a', payload: { name: 'A2' } });
     controller.dispatch(answerGrill('notify', { kind: 'free', text: '購入者' }));
     controller.dispatch({ type: 'SET_NAME', target: 'a', payload: { name: 'Alpha' } });
-    expect(controller.actions.map((action) => action.type)).toEqual(['answer']);
+    expect(controller.actions.map((action) => action.type)).toEqual(['SET_NAME', 'answer', 'SET_NAME']);
   });
 
   it('marks an answer stale when its question or option is gone, and applies it again when it is back', () => {

@@ -40,10 +40,17 @@ const unique = <T>(values: readonly T[], key: (value: T) => string): readonly T[
   return values.filter((value) => counts.get(key(value)) === 1);
 };
 
-/** Components that replay element actions, addressed by a unique `id`. */
+/**
+ * Components that replay element actions, addressed by a unique `id`. A provider's `id` is read
+ * defensively: a custom element that redeclares `id` as a reactive property (to reflect it, say)
+ * can leave it `null`/`undefined` before its own constructor default runs, and this check must
+ * never throw on that — it just treats the provider as unaddressable, like an empty id.
+ */
 const actionProviders = (providers: readonly Element[]): readonly Element[] =>
   unique(
-    providers.filter((provider) => 'elementActions' in provider && provider.id.length > 0),
+    providers.filter(
+      (provider) => 'elementActions' in provider && typeof provider.id === 'string' && provider.id.length > 0,
+    ),
     (provider) => provider.id,
   );
 

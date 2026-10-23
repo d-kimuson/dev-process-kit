@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { DpkComponentCommentPanel } from '../components/comment-panel';
+import type { DpkCommentPanel } from '../components/comment-panel';
 import type { DpkTemplatePlain } from '../templates/plain/element';
 
 import { coreMessages } from './messages';
@@ -90,14 +90,18 @@ describe('questions on any template', () => {
     expect(element.notesOpen).toBe(true);
     expect(review?.getAttribute('data-section')).toBe('questions');
     expect(review?.querySelector('.dpk-grill')).not.toBeNull();
-    expect(review?.querySelector('dpk-component-comment-panel')).not.toBeNull();
+    expect(review?.querySelector('dpk-comment-panel')).not.toBeNull();
     expect(toggle(element, 'questions')?.getAttribute('aria-pressed')).toBe('true');
     // The first question opens; the earlier round is a choice of its own.
     expect(review?.querySelector('[data-question="retry"] .dpk-grill-heading')?.getAttribute('aria-expanded')).toBe(
       'true',
     );
+    review?.querySelector<HTMLButtonElement>('.dpk-grill-round')?.click();
+    await settle(element);
     expect(
-      [...(review?.querySelectorAll('.dpk-grill-round option') ?? [])].map((option) => option.textContent),
+      [...(review?.querySelectorAll('.dpk-grill-rounds [role="option"] .dpk-rich-select-option-label') ?? [])].map(
+        (option) => option.textContent,
+      ),
     ).toEqual([messages.grillRoundOption(messages.grillCurrentRound, 2), messages.grillRoundOption('v1', 1)]);
   });
 
@@ -147,7 +151,7 @@ describe('questions on any template', () => {
     toggle(element, 'questions')?.click();
     await settle(element);
     expect(root(element).querySelector('.dpk-grill-footer .dpk-dock-actions button')).not.toBeNull();
-    expect(root(element).querySelector(':scope > .dpk-shell > .dpk-dock, .dpk-shell > .dpk-dock')).toBeNull();
+    expect(root(element).querySelector('.dpk-overlay > .dpk-dock')).toBeNull();
   });
 
   it('lays a badge per mark, and opens its question when pressed', async () => {
@@ -202,7 +206,7 @@ describe('questions on any template', () => {
     const element = mount();
     await settle(element);
     expect(element.api.comment('grill:notify', 'Ask the seller too').ok).toBe(true);
-    const panel = root(element).querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    const panel = root(element).querySelector('dpk-comment-panel') as DpkCommentPanel;
     expect(panel).not.toBeNull();
     expect(element.api.exportBrief()).toContain('grill:notify');
   });

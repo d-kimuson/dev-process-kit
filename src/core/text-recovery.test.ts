@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { DpkComponentInlineEdit } from '../components/inline-edit';
+import type { DpkInlineEdit } from '../components/inline-edit';
 import type { DpkTemplatePrototype } from '../templates/prototype/element';
 
 import { prototypeAction } from '../templates/prototype/actions';
@@ -16,7 +16,7 @@ import {
 import '../index';
 
 describe('unsent text records', () => {
-  const field = { hosts: ['dpk-component-inline-edit'], name: 'Step name', base: 'Landing' };
+  const field = { hosts: ['dpk-inline-edit'], name: 'Step name', base: 'Landing' };
 
   it('files a field by where it sits and what it started from, unless it is keyed', () => {
     expect(unsentTextId(field)).not.toBe(unsentTextId({ ...field, base: 'Checkout' }));
@@ -89,7 +89,7 @@ describe('keeping unsent text through a reload', () => {
 
   /** Opens the step name editor and returns its field, focused as a click would. */
   const openStepName = async (el: DpkTemplatePrototype): Promise<HTMLInputElement> => {
-    const editor = el.shadowRoot?.querySelector<DpkComponentInlineEdit>('.detail dpk-component-inline-edit');
+    const editor = el.shadowRoot?.querySelector<DpkInlineEdit>('.detail dpk-inline-edit');
     if (!editor) throw new Error('no step name editor');
     editor.startEditing();
     await editor.updateComplete;
@@ -135,8 +135,8 @@ describe('keeping unsent text through a reload', () => {
 
   it('keeps a review comment through a reload until it is sent', async () => {
     const composer = async (el: DpkTemplatePrototype): Promise<HTMLTextAreaElement> => {
-      const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel');
-      await (panel as DpkComponentInlineEdit | null)?.updateComplete;
+      const panel = el.shadowRoot?.querySelector('dpk-comment-panel');
+      await (panel as DpkInlineEdit | null)?.updateComplete;
       const area = panel?.shadowRoot?.querySelector<HTMLTextAreaElement>('.composer textarea');
       if (!area) throw new Error('no composer');
       return area;

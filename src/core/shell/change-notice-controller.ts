@@ -68,6 +68,11 @@ export class ChangeNoticeController implements ReactiveController {
     return this.#log && this.#state ? presentNotices(this.#log, this.#state) : null;
   }
 
+  /** The parsed change log itself, for anything else that reasons about it (Check Mode's staleness, say). */
+  get log(): ChangeLog | null {
+    return this.#log;
+  }
+
   /** Why the change log could not be read, for the author. */
   get error(): string | null {
     return this.#error;

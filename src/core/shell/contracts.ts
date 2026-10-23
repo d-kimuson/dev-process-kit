@@ -77,10 +77,18 @@ export type TemplateApi<S> = {
   subscribe(listener: (snapshot: TemplateSnapshot<S>) => void): () => void;
 };
 
+/**
+ * What a template draws into the shell. Every region is optional: a sidebar
+ * (or the aside, or the rail) with no content, rendered or slotted by the
+ * author, takes no room and draws no buttons.
+ */
 export type ShellRegions = {
   readonly header?: TemplateResult | typeof nothing;
+  /** On the side `sidebarLayout` names; the author's `slot="sidebar"` content joins it. */
   readonly sidebar?: TemplateResult | typeof nothing;
   readonly sidebarHidden?: boolean;
+  /** A fixed column before everything else, that never folds (the page's boards). */
+  readonly rail?: TemplateResult | typeof nothing;
   readonly main?: TemplateResult | typeof nothing;
   readonly footer?: TemplateResult | typeof nothing;
 };

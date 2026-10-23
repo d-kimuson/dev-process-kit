@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DpkComponentCommentPanel } from '../components/comment-panel';
+import type { DpkCommentPanel } from '../components/comment-panel';
 import type { DpkTemplatePrototype } from '../templates/prototype/element';
+import type { DpkInternalLayoutSidebar } from './layouts/sidebar/element';
 
 import { panelMessages } from '../components/comment-panel/messages';
 import { prototypeDefinitionFor } from '../templates/prototype/definition';
 import { prototypeMessages } from '../templates/prototype/messages';
 import { COMMENT_ACTION } from './action';
+import { sidebarMessages } from './layouts/sidebar/messages';
+import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH } from './layouts/sidebar/model';
 import { coreMessages } from './messages';
-import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH } from './sidebar-width';
 import '../index';
 
 const base = {
@@ -84,7 +86,7 @@ describe('<dpk-template-prototype>', () => {
     expect(el.dataset['template']).toBe('prototype');
     expect(el.api.state.title).toBe('Demo');
     expect(el.shadowRoot?.querySelectorAll('.step-link')).toHaveLength(2);
-    expect(el.shadowRoot?.querySelectorAll('.nav select')).toHaveLength(2);
+    expect(el.shadowRoot?.querySelectorAll('.nav .dpk-rich-select')).toHaveLength(2);
     expect(location.hash).toBe('#activity=onboarding&preview=landing-mobile&step=landing&story=account');
   });
 
@@ -114,7 +116,7 @@ describe('<dpk-template-prototype>', () => {
     expect(el.shadowRoot?.querySelectorAll('.tab')).toHaveLength(2);
     expect(el.shadowRoot?.querySelectorAll('figure.frame')).toHaveLength(1);
     expect(location.hash).toBe('#activity=onboarding&preview=auth-mobile&step=google-auth&story=account');
-    expect(el.shadowRoot?.querySelector('.frame .url')?.textContent ?? '').toContain('auth-mobile');
+    expect(el.shadowRoot?.querySelector('.frame .dpk-browser-frame-url')?.textContent ?? '').toContain('auth-mobile');
 
     // The sibling preview keeps its (parked) slot: nothing falls into the orphan bucket.
     expect(el.shadowRoot?.querySelector('.dpk-orphans')?.hasAttribute('hidden')).toBe(true);
@@ -175,7 +177,7 @@ describe('<dpk-template-prototype>', () => {
     expect(el.api.state.activities[0]?.stories[0]?.steps[0]?.name).toBe('LP');
     el.shadowRoot?.querySelector<HTMLElement>('.dpk-review-toggle[data-section="changes"]')?.click();
     await settle(el);
-    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel');
+    const panel = el.shadowRoot?.querySelector('dpk-comment-panel');
     expect(panel?.shadowRoot?.querySelectorAll('.item')).toHaveLength(1);
   });
 
@@ -195,7 +197,7 @@ describe('<dpk-template-prototype>', () => {
     await settle(el);
     el.requestComment('page:prototype');
     await settle(el);
-    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel | null;
+    const panel = el.shadowRoot?.querySelector('dpk-comment-panel') as DpkCommentPanel | null;
     const composer = panel?.shadowRoot;
 
     const submit = async (text: string): Promise<void> => {
@@ -231,7 +233,7 @@ describe('<dpk-template-prototype>', () => {
     const review = el.shadowRoot?.querySelector('#dpk-review');
     expect(review?.getAttribute('popover')).toBe('manual');
     expect(review?.closest('.dpk-body')).toBeNull();
-    expect(review?.querySelector('dpk-component-comment-panel')).not.toBeNull();
+    expect(review?.querySelector('dpk-comment-panel')).not.toBeNull();
     expect(el.shadowRoot?.querySelector('.dpk-review-toggle')?.getAttribute('aria-controls')).toBe('dpk-review');
   });
 
@@ -243,7 +245,7 @@ describe('<dpk-template-prototype>', () => {
     expect(actions?.querySelector('.dpk-settings-trigger')).toBeNull();
     expect(
       [...(actions?.querySelectorAll('[data-tooltip]') ?? [])].map((button) => button.getAttribute('data-tooltip')),
-    ).toEqual([messages.reviewChanges, messages.reviewComments]);
+    ).toEqual([messages.undo, messages.redo, messages.reviewChanges, messages.reviewComments]);
     expect(actions?.querySelector('.dpk-review-toggle')?.hasAttribute('title')).toBe(false);
   });
 
@@ -252,7 +254,7 @@ describe('<dpk-template-prototype>', () => {
     await settle(el);
     const toggle = (section: string) =>
       el.shadowRoot?.querySelector<HTMLElement>(`.dpk-review-toggle[data-section="${section}"]`) ?? null;
-    const panel = () => el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    const panel = () => el.shadowRoot?.querySelector('dpk-comment-panel') as DpkCommentPanel;
     expect(el.notesOpen).toBe(false);
     expect(toggle('changes')?.getAttribute('aria-pressed')).toBe('false');
     expect(toggle('comments')?.getAttribute('aria-pressed')).toBe('false');
@@ -298,7 +300,7 @@ describe('<dpk-template-prototype>', () => {
     await settle(el);
     el.requestComment('page:prototype');
     await settle(el);
-    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    const panel = el.shadowRoot?.querySelector('dpk-comment-panel') as DpkCommentPanel;
     expect(panel.section).toBe('comments');
   });
 
@@ -434,8 +436,8 @@ describe('editing a review comment', () => {
       </dpk-template-prototype>`;
     return document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
   };
-  const panelOf = async (el: DpkTemplatePrototype): Promise<DpkComponentCommentPanel> => {
-    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+  const panelOf = async (el: DpkTemplatePrototype): Promise<DpkCommentPanel> => {
+    const panel = el.shadowRoot?.querySelector('dpk-comment-panel') as DpkCommentPanel;
     await panel.updateComplete;
     return panel;
   };
@@ -500,14 +502,25 @@ describe('editing a review comment', () => {
 });
 
 describe('sidebar width', () => {
-  const sidebar = (el: Element): HTMLElement => el.shadowRoot?.querySelector('.dpk-sidebar') as HTMLElement;
+  const layout = (el: Element): DpkInternalLayoutSidebar =>
+    el.shadowRoot?.querySelector('dpk-internal-layout-sidebar') as DpkInternalLayoutSidebar;
+  const inner = (el: Element): ShadowRoot => layout(el).shadowRoot as ShadowRoot;
+  const sidebar = (el: Element): HTMLElement => {
+    const panes = Array.from(inner(el).querySelectorAll<HTMLElement>('.sidebar'));
+    const filled = panes.find((pane) => (pane.querySelector('slot')?.assignedNodes().length ?? 0) > 0);
+    return filled ?? (panes[0] as HTMLElement);
+  };
   const width = (el: Element): string => sidebar(el).style.getPropertyValue('--dpk-sidebar-width');
-  const edge = (el: Element): HTMLElement | null => el.shadowRoot?.querySelector('.dpk-sidebar-resizer') ?? null;
+  const edge = (el: Element): HTMLElement | null => inner(el).querySelector('.resizer');
   const press = (target: HTMLElement, key: string): void => {
     target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
   };
   const pointer = (target: HTMLElement, type: string, clientX: number): void => {
     target.dispatchEvent(new PointerEvent(type, { pointerId: 1, button: 0, clientX, bubbles: true }));
+  };
+  const settleAll = async (el: DpkTemplatePrototype): Promise<void> => {
+    await settle(el);
+    await layout(el).updateComplete;
   };
   const defaultWidth = DEFAULT_SIDEBAR_LAYOUT.defaultWidth;
 
@@ -521,93 +534,111 @@ describe('sidebar width', () => {
     }
   });
 
+  it('lays the shell out with a resizable, collapsible sidebar layout', async () => {
+    const el = mount();
+    await settleAll(el);
+    const body = layout(el);
+    expect(body.left).toMatchObject({ width: defaultWidth, resizable: true, collapsible: true });
+    expect(body.querySelector('.dpk-sidebar')?.getAttribute('slot')).toBe('left');
+  });
+
   it('starts at the default width with a labelled edge after the sidebar', async () => {
     const el = mount();
-    await settle(el);
+    await settleAll(el);
     const handle = edge(el) as HTMLElement;
     expect(handle.previousElementSibling).toBe(sidebar(el));
     expect(handle.getAttribute('role')).toBe('separator');
     expect(handle.getAttribute('aria-orientation')).toBe('vertical');
-    expect(handle.getAttribute('aria-label')).toBe(coreMessages('en').resizeSidebar);
+    expect(handle.getAttribute('aria-label')).toBe(sidebarMessages('en').resizeSidebar);
     expect(handle.getAttribute('aria-valuenow')).toBe(String(defaultWidth));
     expect(width(el)).toBe(`${defaultWidth}px`);
   });
 
   it('resizes with the keyboard and goes back to the default on double-click', async () => {
     const el = mount();
-    await settle(el);
+    await settleAll(el);
     const handle = edge(el) as HTMLElement;
 
     press(handle, 'ArrowRight');
-    await settle(el);
+    await settleAll(el);
     expect(width(el)).toBe(`${defaultWidth + SIDEBAR_WIDTH.step}px`);
     expect(handle.getAttribute('aria-valuenow')).toBe(String(defaultWidth + SIDEBAR_WIDTH.step));
 
     handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-    await settle(el);
+    await settleAll(el);
     expect(width(el)).toBe(`${defaultWidth}px`);
   });
 
   it('follows a pointer drag on the edge until the pointer is released', async () => {
     const el = mount();
-    await settle(el);
+    await settleAll(el);
     const handle = edge(el) as HTMLElement;
-    const shell = el.shadowRoot?.querySelector('.dpk-shell') as HTMLElement;
+    const body = inner(el).querySelector('.body') as HTMLElement;
 
     pointer(handle, 'pointerdown', 260);
     pointer(handle, 'pointermove', 360);
-    await settle(el);
+    await settleAll(el);
     expect(width(el)).toBe(`${defaultWidth + 100}px`);
-    expect(shell.hasAttribute('data-resizing')).toBe(true);
+    expect(body.hasAttribute('data-resizing')).toBe(true);
 
     pointer(handle, 'pointerup', 360);
     pointer(handle, 'pointermove', 500);
-    await settle(el);
+    await settleAll(el);
     expect(width(el)).toBe(`${defaultWidth + 100}px`);
-    expect(shell.hasAttribute('data-resizing')).toBe(false);
+    expect(body.hasAttribute('data-resizing')).toBe(false);
   });
 
   it("remembers the reader's width for every page of the same template", async () => {
     document.body.innerHTML = '<dpk-template-prototype storage-key="first"></dpk-template-prototype>';
     const first = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
-    await settle(first);
+    await settleAll(first);
     press(edge(first) as HTMLElement, 'End');
-    await settle(first);
+    await settleAll(first);
 
     document.body.innerHTML = '<dpk-template-prototype storage-key="second"></dpk-template-prototype>';
     const second = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
-    await settle(second);
+    await settleAll(second);
     expect(width(second)).toBe(`${SIDEBAR_WIDTH.max}px`);
   });
 
   it('puts the edge of a right-hand sidebar on its left, growing it as the edge moves left', async () => {
     document.body.innerHTML = '<dpk-template-task-board storage="memory"></dpk-template-task-board>';
     const el = document.querySelector('dpk-template-task-board') as DpkTemplatePrototype;
-    await settle(el);
+    await settleAll(el);
     const handle = edge(el) as HTMLElement;
     expect(handle.nextElementSibling).toBe(sidebar(el));
     const start = Number(handle.getAttribute('aria-valuenow'));
 
     press(handle, 'ArrowLeft');
-    await settle(el);
+    await settleAll(el);
     expect(width(el)).toBe(`${start + SIDEBAR_WIDTH.step}px`);
   });
 
   it('has no edge when the template shows no sidebar', async () => {
     document.body.innerHTML = '<dpk-template-usm storage="memory"></dpk-template-usm>';
     const el = document.querySelector('dpk-template-usm') as DpkTemplatePrototype;
-    await settle(el);
+    await settleAll(el);
     expect(sidebar(el).hidden).toBe(true);
     expect(edge(el)).toBeNull();
   });
 });
 
 describe('sidebar collapse', () => {
-  const sidebar = (el: Element): HTMLElement => el.shadowRoot?.querySelector('.dpk-sidebar') as HTMLElement;
-  const toggle = (el: Element): HTMLButtonElement | null =>
-    el.shadowRoot?.querySelector<HTMLButtonElement>('.dpk-sidebar-toggle') ?? null;
-  const edge = (el: Element): HTMLElement | null => el.shadowRoot?.querySelector('.dpk-sidebar-resizer') ?? null;
-  const messages = coreMessages('en');
+  const layout = (el: Element): DpkInternalLayoutSidebar =>
+    el.shadowRoot?.querySelector('dpk-internal-layout-sidebar') as DpkInternalLayoutSidebar;
+  const inner = (el: Element): ShadowRoot => layout(el).shadowRoot as ShadowRoot;
+  const sidebar = (el: Element): HTMLElement => {
+    const panes = Array.from(inner(el).querySelectorAll<HTMLElement>('.sidebar'));
+    const filled = panes.find((pane) => (pane.querySelector('slot')?.assignedNodes().length ?? 0) > 0);
+    return filled ?? (panes[0] as HTMLElement);
+  };
+  const toggle = (el: Element): HTMLButtonElement | null => inner(el).querySelector<HTMLButtonElement>('.toggle');
+  const edge = (el: Element): HTMLElement | null => inner(el).querySelector('.resizer');
+  const settleAll = async (el: DpkTemplatePrototype): Promise<void> => {
+    await settle(el);
+    await layout(el).updateComplete;
+  };
+  const messages = sidebarMessages('en');
 
   beforeEach(() => {
     window.location.hash = '';
@@ -617,24 +648,26 @@ describe('sidebar collapse', () => {
 
   it('folds the sidebar away with a labelled button and brings it back', async () => {
     const el = mount();
-    await settle(el);
+    await settleAll(el);
     const button = toggle(el) as HTMLButtonElement;
     expect(button.getAttribute('aria-label')).toBe(messages.collapseSidebar);
     expect(button.getAttribute('aria-expanded')).toBe('true');
     expect(button.getAttribute('aria-controls')).toBe(sidebar(el).id);
 
     button.click();
-    await settle(el);
+    await settleAll(el);
     expect(sidebar(el).hidden).toBe(true);
     expect(edge(el)).toBeNull();
     const expand = toggle(el) as HTMLButtonElement;
     expect(expand.getAttribute('aria-label')).toBe(messages.expandSidebar);
     expect(expand.getAttribute('aria-expanded')).toBe('false');
-    expect(expand.closest('.dpk-sidebar-strip')).not.toBeNull();
-    expect(el.shadowRoot?.activeElement).toBe(expand);
+    // Folded, no strip is left where the sidebar was: the button floats on the main column's edge.
+    expect(layout(el).shadowRoot?.querySelector('.strip')).toBeNull();
+    expect(expand.dataset['float']).toBe('left');
+    expect(inner(el).activeElement).toBe(expand);
 
     expand.click();
-    await settle(el);
+    await settleAll(el);
     expect(sidebar(el).hidden).toBe(false);
     expect(edge(el)).not.toBeNull();
     expect(toggle(el)?.getAttribute('aria-label')).toBe(messages.collapseSidebar);
@@ -642,70 +675,98 @@ describe('sidebar collapse', () => {
 
   it('keeps the resizable edge working once expanded again', async () => {
     const el = mount();
-    await settle(el);
+    await settleAll(el);
     (toggle(el) as HTMLButtonElement).click();
-    await settle(el);
+    await settleAll(el);
     (toggle(el) as HTMLButtonElement).click();
-    await settle(el);
+    await settleAll(el);
     (edge(el) as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
-    await settle(el);
+    await settleAll(el);
     expect(sidebar(el).style.getPropertyValue('--dpk-sidebar-width')).toBe(`${SIDEBAR_WIDTH.max}px`);
   });
 
   it("remembers the reader's choice for every page of the same template", async () => {
     document.body.innerHTML = '<dpk-template-prototype storage-key="first"></dpk-template-prototype>';
     const first = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
-    await settle(first);
+    await settleAll(first);
     (toggle(first) as HTMLButtonElement).click();
-    await settle(first);
+    await settleAll(first);
 
     document.body.innerHTML = '<dpk-template-prototype storage-key="second"></dpk-template-prototype>';
     const second = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
-    await settle(second);
+    await settleAll(second);
     expect(sidebar(second).hidden).toBe(true);
 
     (toggle(second) as HTMLButtonElement).click();
-    await settle(second);
+    await settleAll(second);
     expect(localStorage.getItem('dev-process-kit:sidebar-collapsed:prototype')).toBeNull();
   });
 
   it('keeps the choice to the page load with storage="memory"', async () => {
     const el = mount();
-    await settle(el);
+    await settleAll(el);
     (toggle(el) as HTMLButtonElement).click();
-    await settle(el);
+    await settleAll(el);
     expect(localStorage.getItem('dev-process-kit:sidebar-collapsed:prototype')).toBeNull();
   });
 
   it('folds a right-hand sidebar towards the right', async () => {
     document.body.innerHTML = '<dpk-template-task-board storage="memory"></dpk-template-task-board>';
     const el = document.querySelector('dpk-template-task-board') as DpkTemplatePrototype;
-    await settle(el);
+    await settleAll(el);
     const button = toggle(el) as HTMLButtonElement;
     expect(button.nextElementSibling).toBe(edge(el));
     button.click();
-    await settle(el);
+    await settleAll(el);
     expect(sidebar(el).hidden).toBe(true);
-    expect(toggle(el)?.closest('.dpk-sidebar-strip')?.nextElementSibling).toBe(sidebar(el));
+    expect((toggle(el) as HTMLElement).dataset['float']).toBe('right');
+  });
+
+  it("puts an aside on the side the template's sidebar leaves free, with its own fold", async () => {
+    document.body.innerHTML = `<dpk-template-prototype storage="memory">
+      <div slot="aside">Notes</div>
+    </dpk-template-prototype>`;
+    const el = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    await settleAll(el);
+    const toggles = Array.from(inner(el).querySelectorAll<HTMLButtonElement>('.toggle'));
+    expect(toggles.map((button) => button.dataset['side'])).toEqual(['left', 'right']);
+    (toggles[1] as HTMLButtonElement).click();
+    await settleAll(el);
+    expect(inner(el).querySelector<HTMLElement>('.sidebar[data-side="right"]')?.hidden).toBe(true);
+    expect(inner(el).querySelector<HTMLElement>('.sidebar[data-side="left"]')?.hidden).toBe(false);
+    expect(inner(el).querySelector<HTMLElement>('.toggle[data-side="right"]')?.dataset['float']).toBe('right');
   });
 
   it('offers no fold button when the template shows no sidebar', async () => {
     document.body.innerHTML = '<dpk-template-usm storage="memory"></dpk-template-usm>';
     const usm = document.querySelector('dpk-template-usm') as DpkTemplatePrototype;
-    await settle(usm);
+    await settleAll(usm);
     expect(toggle(usm)).toBeNull();
   });
 });
 
 describe('language', () => {
-  const select = (el: DpkTemplatePrototype): HTMLSelectElement =>
-    el.shadowRoot?.querySelector('.dpk-lang-select') as HTMLSelectElement;
-  const pick = (el: DpkTemplatePrototype, locale: string): void => {
-    select(el).value = locale;
-    select(el).dispatchEvent(new Event('change'));
+  const trigger = (el: DpkTemplatePrototype): HTMLButtonElement =>
+    el.shadowRoot?.querySelector('.dpk-lang-select') as HTMLButtonElement;
+  const currentLocale = async (el: DpkTemplatePrototype): Promise<string> => {
+    trigger(el).click();
+    await settle(el);
+    const selected = el.shadowRoot?.querySelector<HTMLElement>(
+      '[data-dpk-select] [role="option"][aria-selected="true"]',
+    );
+    const value = selected?.getAttribute('data-value') ?? '';
+    trigger(el).click();
+    await settle(el);
+    return value;
+  };
+  const pick = async (el: DpkTemplatePrototype, locale: string): Promise<void> => {
+    trigger(el).click();
+    await settle(el);
+    el.shadowRoot?.querySelector<HTMLElement>(`[role="option"][data-value="${locale}"]`)?.click();
+    await settle(el);
   };
   const railText = async (el: DpkTemplatePrototype): Promise<string> => {
-    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    const panel = el.shadowRoot?.querySelector('dpk-comment-panel') as DpkCommentPanel;
     await panel.updateComplete;
     return panel.shadowRoot?.textContent ?? '';
   };
@@ -723,13 +784,12 @@ describe('language', () => {
     el.api.dispatch({ type: 'SET_STEP_NAME', target: 'landing', payload: { name: 'LP' } });
     el.shadowRoot?.querySelector<HTMLElement>('.dpk-review-toggle[data-section="changes"]')?.click();
     await settle(el);
-    expect(select(el).value).toBe('ja');
+    expect(await currentLocale(el)).toBe('ja');
     expect(await railText(el)).toContain(prototypeMessages('ja').renameStep);
 
-    pick(el, 'en');
-    await settle(el);
+    await pick(el, 'en');
     expect(el.getAttribute('lang')).toBe('en');
-    expect(select(el).value).toBe('en');
+    expect(await currentLocale(el)).toBe('en');
     const rail = await railText(el);
     expect(rail).toContain(panelMessages('en').copy);
     expect(rail).toContain(prototypeMessages('en').renameStep);
@@ -739,14 +799,12 @@ describe('language', () => {
   it("gives the author's own lang back when the reader picks the page language again", async () => {
     const el = mount('', 'lang="ja-JP"');
     await settle(el);
-    expect(select(el).value).toBe('ja');
+    expect(await currentLocale(el)).toBe('ja');
 
-    pick(el, 'en');
-    await settle(el);
+    await pick(el, 'en');
     expect(el.getAttribute('lang')).toBe('en');
 
-    pick(el, 'ja');
-    await settle(el);
+    await pick(el, 'ja');
     expect(el.getAttribute('lang')).toBe('ja-JP');
     expect(await railText(el)).toContain(panelMessages('ja').copy);
   });
@@ -754,7 +812,7 @@ describe('language', () => {
 
 describe('send to Claude', () => {
   const sendButton = (el: DpkTemplatePrototype): HTMLButtonElement | undefined => {
-    const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel;
+    const panel = el.shadowRoot?.querySelector('dpk-comment-panel') as DpkCommentPanel;
     return Array.from(panel.shadowRoot?.querySelectorAll('button') ?? []).find(
       (button) => button.textContent?.trim() === panelMessages('en').sendToClaude,
     );
@@ -763,7 +821,7 @@ describe('send to Claude', () => {
     for (let i = 0; i < 4; i += 1) {
       await new Promise((resolve) => setTimeout(resolve, 0));
       await settle(el);
-      const panel = el.shadowRoot?.querySelector('dpk-component-comment-panel') as DpkComponentCommentPanel | null;
+      const panel = el.shadowRoot?.querySelector('dpk-comment-panel') as DpkCommentPanel | null;
       await panel?.updateComplete;
     }
   };

@@ -10,15 +10,20 @@ const REVIEW_GAP = 16;
 export type ReviewPopoverOptions = {
   readonly surface: () => HTMLElement | null;
   readonly anchor: () => Element | null;
+  /** The toggle buttons that open and switch sections; their own press already decides what it does. */
+  readonly trigger: () => Element | null;
   readonly open: () => boolean;
   readonly close: () => void;
 };
+
+const containsNode = (path: readonly EventTarget[], node: Element | null): boolean =>
+  node !== null && path.includes(node);
 
 /**
  * Floats the review in the top layer below its toggles, so opening it never
  * takes room from the main column. It stays open while the reader works on the
  * page (a comment often points at what they click next) and closes from its
- * toggle or Escape.
+ * toggle, Escape, or a press outside it (the settings menu closes the same way).
  */
 export class ReviewPopoverController implements ReactiveController {
   readonly #options: ReviewPopoverOptions;
@@ -31,6 +36,7 @@ export class ReviewPopoverController implements ReactiveController {
 
   hostConnected(): void {
     window.addEventListener('keydown', this.#onKeyDown);
+    document.addEventListener('pointerdown', this.#onPointerDown, true);
   }
 
   hostUpdated(): void {
@@ -51,6 +57,7 @@ export class ReviewPopoverController implements ReactiveController {
 
   hostDisconnected(): void {
     window.removeEventListener('keydown', this.#onKeyDown);
+    document.removeEventListener('pointerdown', this.#onPointerDown, true);
     this.#release();
   }
 
@@ -61,6 +68,13 @@ export class ReviewPopoverController implements ReactiveController {
 
   #onKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || !this.#options.open()) return;
+    this.#options.close();
+  };
+
+  #onPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0 || !this.#options.open()) return;
+    const path = event.composedPath();
+    if (containsNode(path, this.#options.surface()) || containsNode(path, this.#options.trigger())) return;
     this.#options.close();
   };
 }

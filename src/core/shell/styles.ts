@@ -28,40 +28,19 @@ export const chromeStyles = [
       display: none;
     }
 
+    /* The frame is \`<dpk-internal-layout-app>\`: it sizes itself to the host, or the viewport. */
     .dpk-shell {
-      display: grid;
-      /* One column no wider than the host: a truncated title must not widen
-         the page past a phone screen. */
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: auto minmax(0, 1fr) auto;
-      min-height: 100%;
-      max-height: 100%;
-      /*
-       * The fallback when the page gives the host no height: the viewport, less
-       * the safe-area insets a Claude Artifact pads its root by. Without it the
-       * shell grows with its content, leaving the page's own ground below a
-       * short page and scrolling the header and the supplements away on a long one.
-       * A host with a height still wins: the min/max-height above pin the shell
-       * to it.
-       */
-      height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      flex: 1 1 auto;
     }
 
     /* A board fills the page's main column; the viewport is the page's. */
     .dpk-shell[data-board] {
-      height: 100%;
+      --dpk-app-height: 100%;
     }
 
-    .dpk-shell[data-board] > .dpk-board-bar {
-      grid-row: 1;
-    }
-
-    .dpk-shell[data-board] > .dpk-body {
-      grid-row: 2;
-    }
-
-    .dpk-shell[data-board] > .dpk-footer {
-      grid-row: 3;
+    /* What floats over the screen keeps its own fixed position. */
+    .dpk-overlay {
+      display: contents;
     }
 
     .dpk-board-bar {
@@ -89,8 +68,7 @@ export const chromeStyles = [
       align-items: center;
       gap: 8px 14px;
       min-height: 44px;
-      /* Right padding keeps the header content clear of the fixed review toggles. */
-      padding: 6px 100px 6px 16px;
+      padding: 6px 16px;
       border-bottom: 1px solid var(--dpk-rule);
       background: var(--dpk-glass);
       backdrop-filter: saturate(1.6) blur(14px);
@@ -113,45 +91,18 @@ export const chromeStyles = [
       pointer-events: none;
     }
 
-    /* Kit mark: a stack of pages, the single HTML page the agent wrote. */
+    /* Kit mark: the dev-process-kit brand mark (src/core/icons.ts#brandMark), fixed
+       color on both schemes — it is brand identity, not a themed control. */
     .dpk-brand {
-      position: relative;
       flex: none;
-      width: 32px;
-      height: 32px;
-      border-radius: 9px;
-      background:
-        radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.35), transparent 60%),
-        linear-gradient(145deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.3),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.12),
-        0 4px 12px -4px color-mix(in srgb, var(--dpk-accent) 70%, transparent);
+      display: flex;
+      align-items: center;
     }
 
-    .dpk-brand::before,
-    .dpk-brand::after {
-      content: '';
-      position: absolute;
-      width: 12px;
-      height: 15px;
-      border-radius: 3px;
-    }
-
-    .dpk-brand::before {
-      left: 12px;
-      top: 7px;
-      background: rgba(255, 255, 255, 0.4);
-    }
-
-    .dpk-brand::after {
-      left: 8px;
-      top: 10px;
-      background:
-        linear-gradient(var(--dpk-accent), var(--dpk-accent)) 3px 4px / 6px 1.5px no-repeat,
-        linear-gradient(var(--dpk-accent), var(--dpk-accent)) 3px 7.5px / 4px 1.5px no-repeat,
-        #fff;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+    .dpk-brand svg {
+      display: block;
+      height: 24px;
+      width: auto;
     }
 
     /* The title takes what the header has left: the template's header content
@@ -173,17 +124,6 @@ export const chromeStyles = [
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-
-    .dpk-template-mark {
-      align-self: flex-start;
-      font-family: var(--dpk-mono);
-      font-size: 9.5px;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      line-height: 1;
-      text-transform: uppercase;
-      color: var(--dpk-accent);
     }
 
     .dpk-header-slot {
@@ -220,28 +160,17 @@ export const chromeStyles = [
 
     .dpk-version-select {
       margin: -3px 0;
-      padding: 3px 14px 3px 0;
+      padding: 3px 8px 3px 6px;
       border: 0;
       border-radius: 4px;
-      background: transparent
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 12 12'><path d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23878e9e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
-        no-repeat right 2px center;
-      appearance: none;
-      /* As wide as the version shown, not the longest prerelease in the list. */
-      field-sizing: content;
+      background: transparent;
       color: inherit;
       font: inherit;
       letter-spacing: inherit;
-      cursor: pointer;
     }
 
     .dpk-version-select:hover {
       color: var(--dpk-ink-soft);
-    }
-
-    .dpk-version-select:focus-visible {
-      outline: none;
-      box-shadow: var(--dpk-focus);
     }
 
     .dpk-header-tools {
@@ -258,18 +187,14 @@ export const chromeStyles = [
     .dpk-lang-select {
       flex: none;
       height: 26px;
-      padding: 0 24px 0 10px;
+      padding: 0 8px 0 10px;
       border: 0;
       border-radius: 999px;
-      background: transparent
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'><path d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23878e9e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
-        no-repeat right 8px center;
-      appearance: none;
+      background: transparent;
       color: var(--dpk-ink-soft);
       font: inherit;
       font-size: 12px;
       font-weight: 520;
-      cursor: pointer;
       transition:
         color 160ms var(--dpk-ease),
         background-color 160ms var(--dpk-ease);
@@ -278,11 +203,6 @@ export const chromeStyles = [
     .dpk-lang-select:hover {
       color: var(--dpk-ink);
       background-color: var(--dpk-paper-raised);
-    }
-
-    .dpk-lang-select:focus-visible {
-      outline: none;
-      box-shadow: var(--dpk-focus);
     }
 
     .dpk-theme-toggle {
@@ -316,6 +236,44 @@ export const chromeStyles = [
     }
 
     .dpk-theme-toggle:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
+    .dpk-check-toggle {
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--dpk-ink-soft);
+      cursor: pointer;
+      transition:
+        color 160ms var(--dpk-ease),
+        background 160ms var(--dpk-ease);
+    }
+
+    .dpk-check-toggle svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .dpk-check-toggle:hover {
+      color: var(--dpk-ink);
+      background: var(--dpk-paper-raised);
+    }
+
+    .dpk-check-toggle[data-active='true'] {
+      color: var(--dpk-accent-ink);
+      background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent));
+    }
+
+    .dpk-check-toggle:focus-visible {
       outline: none;
       box-shadow: var(--dpk-focus);
     }
@@ -625,197 +583,23 @@ export const chromeStyles = [
 
     /* --------------------------------------------------------------- body */
 
-    /* Positioned: the sidebar drawer and a narrow screen's review open over it. */
+    /*
+     * The body is \`<dpk-internal-layout-sidebar>\`: it owns the sidebars' width, fold,
+     * drawer and stacking. The shell only fills the two columns.
+     */
     .dpk-body {
-      position: relative;
-      display: flex;
-      min-height: 0;
-    }
-
-    .dpk-sidebar {
-      /* The element sets the template's or the reader's width; on a narrow
-         screen a wide one still leaves the main column some room. */
-      width: var(--dpk-sidebar-width);
-      max-width: calc(100% - 120px);
-      flex: 0 0 auto;
-      border-right: 1px solid var(--dpk-rule);
-      background: var(--dpk-paper-sunken);
-      overflow: auto;
-      padding: 18px 14px;
-      scrollbar-width: thin;
-    }
-
-    .dpk-sidebar[hidden] {
-      display: none;
+      flex: 1 1 auto;
     }
 
     /* Spans the sidebar's content, so its badge layer scrolls with it. */
-    .dpk-sidebar-body {
+    .dpk-sidebar {
       position: relative;
-    }
-
-    /*
-     * A right-hand sidebar: a rail beside the main column rather than a list
-     * before it. \`:where\` keeps these as weak as the rules above, so a
-     * template can still restyle the rail (stacking it on a phone, say).
-     */
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-main {
-      order: 1;
-    }
-
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar,
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-resizer,
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-toggle,
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-strip {
-      order: 2;
-    }
-
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar,
-    :where(.dpk-body[data-sidebar-side='right']) .dpk-sidebar-strip {
-      border-right: 0;
-      border-left: 1px solid var(--dpk-rule);
-    }
-
-    /*
-     * The fold button. Expanded, it sits on the sidebar's border near the top
-     * and, like the resizer, takes no room of its own; folded, it is the only
-     * thing left in a narrow strip where the sidebar was.
-     */
-    .dpk-sidebar-toggle {
-      position: relative;
-      z-index: 7;
-      display: inline-flex;
-      flex: none;
-      align-self: flex-start;
-      align-items: center;
-      justify-content: center;
-      width: 22px;
-      height: 22px;
-      margin: 14px -11px 0;
-      padding: 0;
-      border: 1px solid var(--dpk-rule-strong);
-      border-radius: 999px;
-      background: var(--dpk-paper-raised);
-      color: var(--dpk-ink-soft);
-      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
-      cursor: pointer;
-      transition:
-        color 160ms var(--dpk-ease),
-        border-color 160ms var(--dpk-ease),
-        background 160ms var(--dpk-ease);
-    }
-
-    .dpk-sidebar-toggle svg {
-      width: 13px;
-      height: 13px;
-    }
-
-    .dpk-sidebar-toggle:hover {
-      color: var(--dpk-accent);
-      border-color: color-mix(in srgb, var(--dpk-accent) 45%, transparent);
-    }
-
-    .dpk-sidebar-toggle:focus-visible {
-      outline: none;
-      box-shadow: var(--dpk-focus);
-    }
-
-    .dpk-sidebar-strip {
-      display: flex;
-      flex: none;
-      justify-content: center;
-      width: 36px;
-      padding-top: 14px;
-      border-right: 1px solid var(--dpk-rule);
-      background: var(--dpk-paper-sunken);
-    }
-
-    .dpk-sidebar-strip .dpk-sidebar-toggle {
-      margin: 0;
-    }
-
-    /*
-     * The sidebar's resizable edge: a hit area straddling its border that takes
-     * no room of its own, with an accent line while hovered, focused or dragged.
-     */
-    .dpk-sidebar-resizer {
-      position: relative;
-      z-index: 6;
-      flex: none;
-      width: 9px;
-      /* Centred on the sidebar's border, whichever side that is. */
-      margin: 0 -5px 0 -4px;
-      cursor: col-resize;
-      touch-action: none;
-    }
-
-    .dpk-sidebar-resizer::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 3px;
-      width: 2px;
-      border-radius: 1px;
-      background: var(--dpk-accent);
-      opacity: 0;
-      transition: opacity 160ms var(--dpk-ease);
-    }
-
-    .dpk-sidebar-resizer:hover::after,
-    .dpk-sidebar-resizer:focus-visible::after,
-    .dpk-shell[data-resizing] .dpk-sidebar-resizer::after {
-      opacity: 1;
-    }
-
-    .dpk-sidebar-resizer:focus-visible {
-      outline: none;
-    }
-
-    /*
-     * A phone-width screen has no room for a column beside the main one: the
-     * sidebar is a drawer that the strip's button slides over the main column,
-     * leaving a sliver of it to tap the drawer shut.
-     */
-    .dpk-body[data-sidebar-drawer] > .dpk-sidebar {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 36px;
-      z-index: 25;
-      width: min(var(--dpk-sidebar-width), calc(100% - 36px - 48px));
-      max-width: none;
-      box-shadow: var(--dpk-shadow-lg);
-    }
-
-    .dpk-body[data-sidebar-drawer][data-sidebar-side='right'] > .dpk-sidebar {
-      left: auto;
-      right: 36px;
-    }
-
-    .dpk-sidebar-scrim {
-      position: absolute;
-      inset: 0;
-      z-index: 24;
-      background: color-mix(in srgb, var(--dpk-ink) 16%, transparent);
-    }
-
-    /* While dragging, the cursor stays put and nothing underneath (text, preview frames) reacts. */
-    .dpk-shell[data-resizing] {
-      cursor: col-resize;
-      user-select: none;
-    }
-
-    .dpk-shell[data-resizing] .dpk-main {
-      pointer-events: none;
     }
 
     .dpk-main {
-      flex: 1 1 0%;
       display: flex;
       flex-direction: column;
       min-width: 0;
-      overflow: auto;
       /* A faint wash of the accent from the top left corner gives the ground some depth. */
       background:
         radial-gradient(
@@ -840,8 +624,21 @@ export const chromeStyles = [
       align-content: start;
       gap: 16px;
       min-width: 0;
-      padding: 24px;
+      padding: var(--dpk-main-padding, 24px);
       animation: dpk-rise 420ms var(--dpk-ease) backwards;
+    }
+
+    /*
+     * A template whose main column is one canvas (\`mainLayout\` \`fill\`): the
+     * canvas fills it edge to edge and pans inside, so nothing pads or scrolls.
+     */
+    .dpk-main-body[data-fill] {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      gap: 0;
     }
 
     /*
@@ -850,16 +647,12 @@ export const chromeStyles = [
      * that is; it reaches into components too, and a template's own floating
      * controls rise by it. \`:where\` lets a full-bleed template keep no padding.
      */
-    .dpk-shell:has(> .dpk-dock) {
+    .dpk-shell:has(> .dpk-overlay > .dpk-dock) {
       --dpk-dock-clearance: 64px;
     }
 
-    :where(.dpk-shell:has(> .dpk-dock)) .dpk-main-body {
+    :where(.dpk-shell:has(> .dpk-overlay > .dpk-dock)) .dpk-main-body:where(:not([data-fill])) {
       padding-bottom: calc(24px + var(--dpk-dock-clearance));
-    }
-
-    :where(.dpk-shell:has(> .dpk-dock)) .dpk-sidebar {
-      padding-bottom: calc(18px + var(--dpk-dock-clearance));
     }
 
     @keyframes dpk-rise {
@@ -1086,19 +879,18 @@ export const chromeStyles = [
       }
     }
 
-    .dpk-review > dpk-component-comment-panel {
+    .dpk-review > dpk-comment-panel {
       flex: 1 1 auto;
     }
 
     /* Review toggles: the changes and the review comments of the draft, each
-       opening its own part of the review. Pinned to the top right corner, always
-       in the same place. */
+       opening its own part of the review. The last group of the header row,
+       laid out with it instead of floating over it, so it can never cover
+       another header control. */
     .dpk-header-actions {
-      position: fixed;
-      top: 6px;
-      right: 16px;
-      z-index: 60;
       display: flex;
+      flex: none;
+      align-items: center;
       gap: 6px;
     }
 
@@ -1107,13 +899,9 @@ export const chromeStyles = [
       gap: 6px;
     }
 
-    /* Each further button (the questions, the settings gear) widens what the header keeps clear of. */
-    .dpk-shell:is(:has(.dpk-settings-trigger), :has(.dpk-review-toggles > :nth-child(3))) .dpk-header {
-      padding-right: 138px;
-    }
-
-    .dpk-shell:has(.dpk-settings-trigger):has(.dpk-review-toggles > :nth-child(3)) .dpk-header {
-      padding-right: 176px;
+    .dpk-undo-redo {
+      display: flex;
+      gap: 6px;
     }
 
     .dpk-header-action {
@@ -1158,6 +946,20 @@ export const chromeStyles = [
     .dpk-header-action:focus-visible {
       outline: none;
       box-shadow: var(--dpk-focus);
+    }
+
+    .dpk-header-action:disabled {
+      color: var(--dpk-ink-faint);
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .dpk-header-action:disabled:hover {
+      color: var(--dpk-ink-faint);
+      border-color: var(--dpk-rule-strong);
+      transform: none;
+      box-shadow: none;
     }
 
     .dpk-header-action[aria-pressed='true'],
@@ -1386,7 +1188,7 @@ export const chromeStyles = [
     /* The questions the page asks, in the review popover beside the changes and
        the review comments. The comment panel stays mounted (it holds the
        composer's unsent text) but steps aside. */
-    .dpk-review[data-section='questions'] > dpk-component-comment-panel {
+    .dpk-review[data-section='questions'] > dpk-comment-panel {
       display: none;
     }
 
@@ -1432,33 +1234,8 @@ export const chromeStyles = [
 
     .dpk-grill-round {
       width: 100%;
-      padding: 6px 24px 6px 9px;
-      border: 1px solid var(--dpk-rule);
-      border-radius: var(--dpk-radius-sm);
-      appearance: none;
-      background-color: var(--dpk-paper-sunken);
-      background-image:
-        linear-gradient(45deg, transparent 50%, currentColor 50%),
-        linear-gradient(135deg, currentColor 50%, transparent 50%);
-      background-position:
-        calc(100% - 13px) 52%,
-        calc(100% - 9px) 52%;
-      background-size: 4px 4px;
-      background-repeat: no-repeat;
-      color: var(--dpk-ink);
-      font: inherit;
+      background: var(--dpk-paper-sunken);
       font-size: 11.5px;
-      cursor: pointer;
-    }
-
-    .dpk-grill-round:focus-visible {
-      outline: none;
-      box-shadow: var(--dpk-focus);
-    }
-
-    .dpk-grill-round option {
-      color: var(--dpk-ink);
-      background: var(--dpk-paper-raised);
     }
 
     .dpk-grill-round-note {
@@ -1888,11 +1665,66 @@ export const chromeStyles = [
       box-shadow: var(--dpk-focus);
     }
 
-    /* The template's name repeats the mark above the title; the title needs the room more. */
-    @media (max-width: 1100px) {
-      .dpk-header-meta > .dpk-meta-name {
-        display: none;
-      }
+    /* Check Mode's own badges sit in the same overlay, always at the target's
+       corner (never a gutter of their own — see shell/check-mode-badges.ts). */
+    .dpk-check-badges {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .dpk-check-badge {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 2px solid var(--dpk-paper-raised);
+      border-radius: 999px;
+      background: var(--dpk-paper-raised);
+      color: var(--dpk-ink-soft);
+      box-shadow: var(--dpk-shadow-sm);
+      cursor: pointer;
+      pointer-events: auto;
+      transition:
+        transform 160ms var(--dpk-ease-spring),
+        box-shadow 160ms var(--dpk-ease),
+        background 160ms var(--dpk-ease),
+        color 160ms var(--dpk-ease);
+    }
+
+    .dpk-check-badge svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .dpk-check-badge[data-visible='false'] {
+      visibility: hidden;
+    }
+
+    .dpk-check-badge:hover {
+      transform: translateY(-1px) scale(1.06);
+    }
+
+    .dpk-check-badge[data-status='checked'] {
+      border-color: var(--dpk-green);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--dpk-green) 85%, white), var(--dpk-green));
+      color: var(--dpk-accent-ink);
+    }
+
+    .dpk-check-badge[data-status='stale'] {
+      border-color: var(--dpk-amber);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--dpk-amber) 85%, white), var(--dpk-amber));
+      color: var(--dpk-accent-ink);
+    }
+
+    .dpk-check-badge:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
     }
 
     @media (max-width: 720px) {

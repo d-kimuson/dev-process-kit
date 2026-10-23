@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DpkTemplatePrototype } from '../../templates/prototype/element';
 import '../../index';
+import { assignElementActions, findComponentProviders, readComponentSnapshot } from './comment-targets';
 
 const mount = async () => {
   const host = document.createElement('dpk-template-prototype');
@@ -193,5 +194,44 @@ describe('component targets in the common shell', () => {
     expect(received).toHaveLength(count);
     host.controller.removeAction(host.api.actions[0]?.id ?? '');
     expect(shape.elementActions).toEqual([]);
+  });
+
+  it('never throws on a provider whose own reactive `id` property is null, and treats it as unaddressable', async () => {
+    // A custom element can redeclare `id` as a reactive property (to reflect it, say) that is
+    // `null`/`undefined` before its own constructor default runs, shadowing the native
+    // `Element.prototype.id` (which is always a string). The shell must stay robust to that
+    // instead of crashing in `actionProviders`'s `provider.id.length` check (regression for the
+    // `Cannot read properties of null (reading 'length')` crash via `assignElementActions` /
+    // `#refreshCommentTargets`).
+    class NullIdShape extends HTMLElement {
+      commentTargets = [{ value: 'element:null-id/shape/a', label: 'Shape A' }];
+      #actions: readonly { id: string }[] = [];
+      get elementActions(): readonly { id: string }[] {
+        return this.#actions;
+      }
+      set elementActions(next: readonly { id: string }[]) {
+        this.#actions = next;
+      }
+      get elementActionResults() {
+        return [];
+      }
+    }
+    // A class field (`override id = null`) would run through the inherited native `id`
+    // *setter*, coercing to the string `"null"` instead of shadowing it — not a faithful
+    // reproduction. A reactive framework instead defines the property on the prototype, which
+    // really does shadow `Element.prototype.id`'s accessor pair, so model it the same way.
+    Object.defineProperty(NullIdShape.prototype, 'id', { configurable: true, get: () => null });
+    if (!customElements.get('test-null-id-shape')) customElements.define('test-null-id-shape', NullIdShape);
+    const shape = document.createElement('test-null-id-shape');
+    if (!(shape instanceof NullIdShape)) throw new Error('not upgraded');
+    const host = document.createElement('div');
+    host.append(shape);
+
+    const providers = findComponentProviders(host);
+    expect(() => assignElementActions(providers, [])).not.toThrow();
+    expect(() => readComponentSnapshot(providers)).not.toThrow();
+    // Unaddressable (no usable string id), so it is left out of the provider list entirely,
+    // the same as a component whose id is an empty string.
+    expect(readComponentSnapshot(providers).providers).toEqual([]);
   });
 });

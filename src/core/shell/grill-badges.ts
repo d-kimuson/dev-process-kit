@@ -6,7 +6,7 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import { GRILL_QUESTIONS_ATTRIBUTE, isAnswered, type Grill, type GrillAnswers, type GrillQuestion } from '../grill';
-import { gutterBottom, layoutBadges, type BadgeGroup } from './badge-layout';
+import { positionBadges as positionBadgesOn } from './badge-dom';
 
 export type BadgeBinding = {
   /** Index into the rendered badges, which is also the render order. */
@@ -69,79 +69,17 @@ export const collectBadges = (
 };
 
 /**
- * The area a badge may appear in. A diagram pans its world inside a clipped
- * canvas, so a node that moved out of the canvas keeps a box in the page; without
- * this its badge would float over the diagram's own toolbar.
- */
-const visibleAreaOf = (target: Element, layer: HTMLElement): DOMRect => {
-  const root = target.getRootNode();
-  const host = root instanceof ShadowRoot ? root.host : null;
-  const canvas = host?.shadowRoot?.querySelector('.diagram-canvas') ?? null;
-  if (canvas instanceof Element) return canvas.getBoundingClientRect();
-  return host instanceof Element ? host.getBoundingClientRect() : layer.getBoundingClientRect();
-};
-
-/**
- * Measures the badges and their targets, and moves each badge where
- * `layoutBadges` puts it: beside the author's own markup in the right gutter,
- * on the corner of a diagram node. The layer affects layout only by stretching
- * its parent down to its last gutter badge, and a target that is not visible
- * (filtered away, or panned out of a diagram's canvas) takes its badge with it.
+ * Moves each badge where `layoutBadges` puts it: beside the author's own
+ * markup in the right gutter, on the corner of a diagram node. `contains`
+ * stops at shadow boundaries, so a diagram's nodes are not the author's
+ * markup; the sidebar has no gutter, so a badge there sits on its mark's
+ * corner regardless.
  */
 export const positionBadges = (layer: HTMLElement, bindings: readonly BadgeBinding[]): void => {
-  const box = layer.getBoundingClientRect();
   const root = layer.getRootNode();
   const host = root instanceof ShadowRoot ? root.host : null;
-  const byTarget = new Map<Element, HTMLButtonElement[]>();
-  for (const binding of bindings) {
-    const button = layer.querySelector<HTMLButtonElement>(`[data-badge="${binding.index}"]`);
-    if (!button) continue;
-    const list = byTarget.get(binding.target) ?? [];
-    list.push(button);
-    byTarget.set(binding.target, list);
-  }
-  const shown: { readonly buttons: readonly HTMLButtonElement[]; readonly group: BadgeGroup }[] = [];
-  for (const [target, buttons] of byTarget) {
-    const rect = target.getBoundingClientRect();
-    const clip = visibleAreaOf(target, layer);
-    const visible =
-      (rect.width > 0 || rect.height > 0) &&
-      rect.bottom > box.top &&
-      rect.top < box.bottom &&
-      rect.right > box.left &&
-      rect.left < box.right &&
-      rect.bottom > clip.top &&
-      rect.top < clip.bottom;
-    for (const button of buttons) button.dataset['visible'] = String(visible);
-    if (!visible) continue;
-    shown.push({
-      buttons,
-      group: {
-        target: {
-          left: rect.left - box.left,
-          top: rect.top - box.top,
-          right: rect.right - box.left,
-          bottom: rect.bottom - box.top,
-        },
-        widths: buttons.map((button) => button.offsetWidth),
-        // `contains` stops at shadow boundaries: a diagram's nodes are not the author's markup.
-        // The sidebar has no gutter: a badge there sits on its mark's corner.
-        gutter: host?.contains(target) === true && layer.dataset['region'] !== 'sidebar',
-      },
-    });
-  }
-  const badgeHeight = shown[0]?.buttons[0]?.offsetHeight ?? 0;
-  const groups = shown.map(({ group }) => group);
-  const bounds = { width: layer.clientWidth, height: layer.clientHeight, badgeHeight };
-  // The parent reaches down to its last gutter badge; the layer spans the parent.
-  const bottom = gutterBottom(groups, bounds);
-  if (layer.parentElement) layer.parentElement.style.minHeight = bottom > 0 ? `${Math.ceil(bottom)}px` : '';
-  const placed = layoutBadges(groups, { ...bounds, height: Math.max(bounds.height, bottom) });
-  shown.forEach(({ buttons }, index) => {
-    buttons.forEach((button, badge) => {
-      const point = placed[index]?.[badge];
-      if (point) button.style.transform = `translate(${point.x}px, ${point.y}px)`;
-    });
+  positionBadgesOn(layer, bindings, {
+    gutterOf: (target) => host?.contains(target) === true && layer.dataset['region'] !== 'sidebar',
   });
 };
 
@@ -184,14 +122,16 @@ export class GrillBadgeController implements ReactiveController {
   hostConnected(): void {
     document.addEventListener('scroll', this.#schedule, true);
     window.addEventListener('resize', this.#schedule);
-    // A diagram pans and zooms without scrolling, so its badges follow its view.
+    // A diagram (or a viewport the author composed) pans and zooms without scrolling, so its badges follow its view.
     this.#host.addEventListener('dpk-diagram-view', this.#schedule);
+    this.#host.addEventListener('dpk-canvas-change', this.#schedule);
   }
 
   hostDisconnected(): void {
     document.removeEventListener('scroll', this.#schedule, true);
     window.removeEventListener('resize', this.#schedule);
     this.#host.removeEventListener('dpk-diagram-view', this.#schedule);
+    this.#host.removeEventListener('dpk-canvas-change', this.#schedule);
     this.#observer?.disconnect();
     this.#observer = null;
     for (const root of this.#scrollRoots) root.removeEventListener('scroll', this.#schedule, true);
@@ -221,10 +161,16 @@ export class GrillBadgeController implements ReactiveController {
     this.#schedule();
   }
 
-  /** The host's own shadow root (its sidebar and main column scroll there) and those of the boards inside it. */
+  /**
+   * The host's own shadow root, those of the layouts in it (the sidebar and
+   * main column scroll inside `<dpk-internal-layout-sidebar>`) and those of the boards
+   * in the light DOM.
+   */
   #listenForScrolls(): void {
+    const own = this.#host.shadowRoot;
     const roots = [
-      this.#host.shadowRoot,
+      own,
+      ...Array.from(own?.querySelectorAll('*') ?? [], (element) => element.shadowRoot),
       ...Array.from(this.#host.querySelectorAll('*'), (element) => element.shadowRoot),
     ];
     for (const root of roots) {
