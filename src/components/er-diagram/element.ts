@@ -609,7 +609,10 @@ export class DpkErDiagram extends DiagramElement<ErData> {
             data-table=${table.id}
             aria-pressed=${state.selected ? 'true' : 'false'}
             title=${`${table.id} / ${table.name}`}
-            @click=${() => this.select({ kind: 'node', id: table.id })}
+            @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, table.id)}
+            @click=${() => {
+              if (!this.consumeDragClick()) this.select({ kind: 'node', id: table.id });
+            }}
           >
             <span class="er-table-icon" aria-hidden="true">${iconTable()}</span>
             <span class="er-title">

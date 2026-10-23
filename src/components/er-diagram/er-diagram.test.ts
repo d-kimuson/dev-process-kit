@@ -1480,7 +1480,7 @@ describe('dpk-er-diagram', () => {
       expect(card.classList.contains('is-dragging')).toBe(false);
     });
 
-    it('never starts a drag from the header select button, and the button still selects', async () => {
+    it('also drags the whole table when the drag starts on the header select button', async () => {
       const element = await mount();
       const card = element.renderRoot.querySelector<HTMLElement>('[data-er-table="customers"]');
       const head = element.renderRoot.querySelector<HTMLButtonElement>('[data-table="customers"]');
@@ -1489,8 +1489,23 @@ describe('dpk-er-diagram', () => {
       pointer(head, 'pointerdown', 10, 10);
       pointer(head, 'pointermove', 60, 40);
       await settle(element);
-      expect(card.classList.contains('is-dragging')).toBe(false);
+      expect(card.classList.contains('is-dragging')).toBe(true);
       pointer(head, 'pointerup', 60, 40);
+      head.click(); // the release still synthesizes a click; a real drag must swallow it
+      await settle(element);
+      expect(card.style.left).not.toBe(before);
+      expect(card.classList.contains('is-dragging')).toBe(false);
+      expect(element.selection).toBe(null);
+    });
+
+    it('still selects on a plain click (press and release without crossing the drag threshold) on the header select button', async () => {
+      const element = await mount();
+      const card = element.renderRoot.querySelector<HTMLElement>('[data-er-table="customers"]');
+      const head = element.renderRoot.querySelector<HTMLButtonElement>('[data-table="customers"]');
+      if (!card || !head) throw new Error('missing table or header button');
+      const before = card.style.left;
+      pointer(head, 'pointerdown', 10, 10);
+      pointer(head, 'pointerup', 10, 10);
       head.click();
       await settle(element);
       expect(card.style.left).toBe(before);
