@@ -6,6 +6,7 @@ import { EMPTY_CHECK_STATE, withEnabled } from '../../core/check-mode';
 import { collectCheckBindings } from '../../core/shell/check-mode-badges';
 import { parseTargetRef } from '../../core/target';
 import { diagramMessages } from '../diagram/messages';
+import { DpkDialogPanel } from '../dialog-panel/element';
 import { DpkErDiagram } from './element';
 import { defineErDiagram } from './index';
 import { erDiagramMessages } from './messages';
@@ -329,6 +330,68 @@ describe('dpk-er-diagram', () => {
     expect(row?.style.height).toBe('');
     expect(element.renderRoot.querySelector('.er-name')?.textContent).toBe(element.data.nodes[0]?.id);
     expect(element.renderRoot.querySelector('.er-field-name')?.textContent).toBe(element.data.nodes[0]?.fields[0]?.id);
+  });
+
+  it('fits the whole schema on open instead of resetting to a literal 100%, which would clip wide tables and spaced-out aggregates', async () => {
+    const fit = vi.spyOn(DpkDialogPanel.prototype, 'fit');
+    const reset = vi.spyOn(DpkDialogPanel.prototype, 'reset');
+    try {
+      await mount();
+      expect(fit).toHaveBeenCalled();
+      expect(reset).not.toHaveBeenCalled();
+    } finally {
+      fit.mockRestore();
+      reset.mockRestore();
+    }
+  });
+
+  it('re-fits once real table sizes are measured, not just the layout-time estimate, so a card taller than estimated is not left clipped', async () => {
+    // A table's layout height starts as a row-count estimate; real DOM geometry
+    // (wrapped names, font metrics, borders) can come in noticeably taller —
+    // simulate that gap with a measured card rect well past any estimate.
+    const rect = (height: number) =>
+      ({ width: 220, height, top: 0, left: 0, right: 220, bottom: height, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    const getRect = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains('er-table') ? rect(999) : rect(20);
+      });
+    const offsetWidth = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(220);
+    const fit = vi.spyOn(DpkDialogPanel.prototype, 'fit');
+    try {
+      const element = await mount();
+      for (let index = 0; index < 10; index++) await element.updateComplete;
+      // Once on open (the estimate), once more after the real sizes land.
+      expect(fit.mock.calls.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      getRect.mockRestore();
+      offsetWidth.mockRestore();
+      fit.mockRestore();
+    }
+  });
+
+  it('re-fits on entering or leaving fullscreen, whose canvas is a different shape than the one the last fit was for', async () => {
+    const fit = vi.spyOn(DpkDialogPanel.prototype, 'fit');
+    try {
+      const element = await mount();
+      const panel = element.renderRoot.querySelector<DpkDialogPanel>('dpk-dialog-panel');
+      const maximize = panel?.shadowRoot?.querySelector<HTMLButtonElement>('.maximize');
+      expect(maximize).not.toBeNull();
+      const callsBeforeToggle = fit.mock.calls.length;
+
+      maximize?.click();
+      await settle(element);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(fit.mock.calls.length).toBeGreaterThan(callsBeforeToggle);
+
+      const callsBeforeRestore = fit.mock.calls.length;
+      maximize?.click();
+      await settle(element);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(fit.mock.calls.length).toBeGreaterThan(callsBeforeRestore);
+    } finally {
+      fit.mockRestore();
+    }
   });
 
   it('marks every table card with a data-dpk-target so Check Mode can offer it', async () => {

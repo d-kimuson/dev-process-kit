@@ -4,6 +4,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import type { ElementActionResult } from '../../core/element-actions';
 import type { CommentTargetOption, DraftAction } from '../../core/types';
 import type { LayoutOptions, LayoutPoint } from '../../lib/layout/layered';
+import type { DpkDialogPanel } from '../dialog-panel/element';
 
 import { iconDiamond, iconKey, iconLink, iconPencil, iconPlus, iconTable, iconTrash } from '../../core/icons';
 import { PopoverController } from '../../core/popover-controller';
@@ -116,6 +117,16 @@ export class DpkErDiagram extends DiagramElement<ErData> {
    */
   #typeList: { readonly moved: number | null } | null = null;
   #sizes = new Map<string, TableSize>();
+  /**
+   * Set once {@link #measureTables} has re-fitted the view after a table's
+   * first real measurement (see that method): a table's initial layout height
+   * is a row-count estimate ({@link tableHeight}), not the real rendered
+   * size, so the schema the view opens fitted to is briefly smaller than the
+   * truth. Only that first gap is worth re-opening the view for; later
+   * remeasures (a font loading, a zoom level) must leave the reader's view
+   * alone.
+   */
+  #refitted = false;
   #resize: ResizeObserver | null = null;
   readonly #popovers = new PopoverController(this);
   readonly #cardinalitySelect = new SelectController(this);
@@ -200,7 +211,14 @@ export class DpkErDiagram extends DiagramElement<ErData> {
       this.#sizes.set(id, size);
       changed = true;
     }
-    if (changed) this.requestUpdate();
+    if (!changed) return;
+    this.requestUpdate();
+    if (this.#refitted) return;
+    this.#refitted = true;
+    // Wait for the re-layout this measurement just triggered (real heights
+    // now feed `filtered()`, below) to finish, so the fit it does is against
+    // the diagram's true content size, not the pre-measurement estimate.
+    void this.updateComplete.then(() => this.fitViewport());
   }
 
   protected override layoutSignature(): string {
@@ -260,6 +278,32 @@ export class DpkErDiagram extends DiagramElement<ErData> {
 
   protected override layoutOptions(): LayoutOptions {
     return LAYOUT;
+  }
+
+  /**
+   * Tables are wide and aggregates space them further apart, so the schema
+   * routinely does not fit the panel at 100%: opening there like a typical
+   * diagram would clip it top and bottom (inline) or left and right
+   * (fullscreen). Fit it instead, so the whole schema is visible on open; the
+   * zoom control still reaches 100% from there.
+   */
+  protected override initialView(): void {
+    this.fitViewport();
+  }
+
+  /**
+   * Entering or leaving fullscreen reshapes the canvas (wide-and-short inline,
+   * narrow-and-tall maximized, or the reverse): the fit {@link initialView}
+   * computed for the old shape routinely clips or shrinks the schema in the
+   * new one, so it is worth re-fitting on the toggle specifically — rather
+   * than on every window resize — which also restores a reader's prior zoom
+   * on request (the exit-fullscreen icon) fittingly rather than verbatim.
+   */
+  protected override onMaximizeChange(): void {
+    const panel = this.renderRoot.querySelector<DpkDialogPanel>('dpk-dialog-panel');
+    // Wait for the panel's own update: its canvas has the new `is-maximized`
+    // size only once that lands, which `fitViewport` reads geometry from.
+    void (panel?.updateComplete ?? Promise.resolve(true)).then(() => this.fitViewport());
   }
 
   protected override matchesFilter(node: ErTableDiff): boolean {

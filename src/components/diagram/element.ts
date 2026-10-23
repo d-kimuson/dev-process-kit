@@ -38,6 +38,7 @@ import {
 import { CommentPopoverController, reviewCommentMenuGroup } from '../comment-composer/controller';
 import { defineDialogPanel, type DpkDialogPanel } from '../dialog-panel/index';
 import { defineTagFilter } from '../tag-filter/index';
+import { beginGroupDrag, beginNodeDrag, IDLE_DRAG, updateDrag, type DragGesture } from './drag-gesture';
 import { diagramMessages, type DiagramMessages } from './messages';
 import {
   classNames,
@@ -769,6 +770,16 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
   /** Mirrors the pan/zoom into component-owned chrome (the participant rail). */
   protected onViewChange(_view: ViewState): void {}
 
+  /**
+   * The panel entered or left fullscreen: its canvas just changed shape and
+   * size, so a view fitted to the old one (see {@link initialView}) can leave
+   * content clipped or shrunk pointlessly small in the new one. A no-op here
+   * keeps the reader's deliberate zoom/pan across the toggle, which is right
+   * for content that opens at a truthful 100%; a diagram that opens fitted
+   * instead should re-fit here too.
+   */
+  protected onMaximizeChange(_maximized: boolean): void {}
+
   protected override isEmpty(): boolean {
     return this.contentSize() === null;
   }
@@ -829,7 +840,10 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
         label=${m.canvas}
         heading=${this.heading ?? this.defaultHeading()}
         subject=${subject === '' ? nothing : subject}
-        @dpk-maximize-change=${() => this.closeComposer()}
+        @dpk-maximize-change=${(event: CustomEvent<{ readonly maximized: boolean }>) => {
+          this.closeComposer();
+          this.onMaximizeChange(event.detail.maximized);
+        }}
         @dpk-canvas-change=${(event: CustomEvent<{ readonly view: ViewState }>) => {
           event.stopPropagation();
           const { view } = event.detail;
@@ -881,24 +895,15 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
   #viewVersion = 0;
   #relations: Reach = EMPTY_REACH;
   readonly #positions = new PositionController(this, { host: () => this, diagram: () => this.id });
-  #dragNodeId: string | null = null;
-  #dragPointerId: number | null = null;
-  #dragTarget: HTMLElement | null = null;
-  #dragStart: { readonly x: number; readonly y: number; readonly screenX: number; readonly screenY: number } | null =
-    null;
-  #dragPreview: LayoutPoint | null = null;
-  /** `true` once the current gesture has moved past the threshold (a drag, not a click). */
-  #dragMoved = false;
+  /**
+   * The one whole-node-or-whole-group drag that can be in flight at a time,
+   * as a single discriminated union (see `drag-gesture.ts`) instead of two
+   * parallel sets of ad-hoc fields. `idle` is the only state in which a new
+   * gesture may begin.
+   */
+  #drag: DragGesture = IDLE_DRAG;
   /** Set after a drag's release, so the node's own `@click` (see `consumeDragClick`) can swallow the ghost click. */
   #dragConsumeClick = false;
-  /** Opaque id of the group currently being dragged by its outline (e.g. an ER aggregate's frame). */
-  #groupDragKey: string | null = null;
-  #groupDragPointerId: number | null = null;
-  #groupDragTarget: HTMLElement | null = null;
-  #groupDragOrigin: { readonly screenX: number; readonly screenY: number } | null = null;
-  #groupDragStart: ReadonlyMap<string, LayoutPoint> | null = null;
-  #groupDragPreview: ReadonlyMap<string, LayoutPoint> | null = null;
-  #groupDragMoved = false;
 
   protected override commentItems(): readonly CommentTargetOption[] {
     const items = this.items();
@@ -1091,12 +1096,12 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
   #applyPositions(visible: D): void {
     this.#positions.prune(new Set(visible.nodes.map((node) => node.id)));
     let overrides = this.#positions.overrides();
-    if (this.#dragNodeId !== null && this.#dragPreview !== null) {
-      overrides = new Map(overrides).set(this.#dragNodeId, this.#dragPreview);
-    }
-    if (this.#groupDragPreview !== null) {
+    const drag = this.#drag;
+    if (drag.kind === 'node' && drag.preview !== null) {
+      overrides = new Map(overrides).set(drag.id, drag.preview);
+    } else if (drag.kind === 'group' && drag.preview !== null) {
       const merged = new Map(overrides);
-      for (const [id, point] of this.#groupDragPreview) merged.set(id, point);
+      for (const [id, point] of drag.preview) merged.set(id, point);
       overrides = merged;
     }
     const placement = this.#placement;
@@ -1150,7 +1155,7 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
    * subclass that wants to show drag feedback (e.g. a `is-dragging` class).
    */
   protected isDraggingNode(id: string): boolean {
-    return this.#dragMoved && this.#dragNodeId === id;
+    return this.#drag.kind === 'node' && this.#drag.moved && this.#drag.id === id;
   }
 
   /**
@@ -1173,7 +1178,7 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
    * own buttons, "+ 追加", inputs) never starts a drag at all.
    */
   protected onNodeDragStart(event: PointerEvent, id: string): void {
-    if (event.button !== 0 || this.#dragPointerId !== null) return;
+    if (event.button !== 0 || this.#drag.kind !== 'idle') return;
     const origin = event.target instanceof Element ? event.target.closest(NODE_INTERACTIVE_SELECTOR) : null;
     if (origin !== null && origin !== event.currentTarget) return;
     const node = this.placedNode(id);
@@ -1182,67 +1187,17 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
     // Stop here, not at the canvas: an un-captured press on a plain (non-button)
     // node root — the ER table body — would otherwise also start the canvas pan.
     event.stopPropagation();
-    this.#dragNodeId = id;
-    this.#dragPointerId = event.pointerId;
-    this.#dragTarget = target;
-    this.#dragMoved = false;
-    this.#dragStart = { x: node.x, y: node.y, screenX: event.clientX, screenY: event.clientY };
-    this.#dragPreview = null;
-    target.addEventListener('pointermove', this.#onNodePointerMove);
-    target.addEventListener('pointerup', this.#onNodePointerUp);
-    target.addEventListener('pointercancel', this.#onNodePointerCancel);
-  }
-
-  readonly #onNodePointerMove = (event: PointerEvent): void => {
-    const start = this.#dragStart;
-    if (start === null || event.pointerId !== this.#dragPointerId) return;
-    event.stopPropagation();
-    const scale = this.viewport?.view().scale ?? 1;
-    const dx = (event.clientX - start.screenX) / scale;
-    const dy = (event.clientY - start.screenY) / scale;
-    if (!this.#dragMoved) {
-      if (Math.hypot(event.clientX - start.screenX, event.clientY - start.screenY) <= DRAG_THRESHOLD_PX) return;
-      this.#dragMoved = true;
-      this.#dragTarget?.setPointerCapture(event.pointerId);
-      if (this.#dragTarget) this.#dragTarget.style.userSelect = 'none';
-    }
-    this.#dragPreview = { x: Math.max(0, start.x + dx), y: Math.max(0, start.y + dy) };
-    this.requestUpdate();
-  };
-
-  readonly #onNodePointerUp = (event: PointerEvent): void => {
-    event.stopPropagation();
-    this.#endNodeDrag(true);
-  };
-
-  readonly #onNodePointerCancel = (event: PointerEvent): void => {
-    event.stopPropagation();
-    this.#endNodeDrag(false);
-  };
-
-  #endNodeDrag(commit: boolean): void {
-    const target = this.#dragTarget;
-    if (target !== null) {
-      target.removeEventListener('pointermove', this.#onNodePointerMove);
-      target.removeEventListener('pointerup', this.#onNodePointerUp);
-      target.removeEventListener('pointercancel', this.#onNodePointerCancel);
-      target.style.userSelect = '';
-    }
-    const id = this.#dragNodeId;
-    const preview = this.#dragPreview;
-    const moved = this.#dragMoved;
-    this.#dragNodeId = null;
-    this.#dragPointerId = null;
-    this.#dragTarget = null;
-    this.#dragStart = null;
-    this.#dragPreview = null;
-    this.#dragMoved = false;
-    if (commit && moved && id !== null && preview !== null) {
-      this.#positions.commit(id, preview);
-      // The release still synthesizes a click on `id`'s node; `consumeDragClick` swallows it.
-      this.#dragConsumeClick = true;
-    }
-    this.requestUpdate();
+    this.#beginDrag(
+      beginNodeDrag({
+        id,
+        pointerId: event.pointerId,
+        target,
+        start: { x: node.x, y: node.y },
+        origin: { screenX: event.clientX, screenY: event.clientY },
+      }),
+      target,
+      event.pointerId,
+    );
   }
 
   /**
@@ -1251,7 +1206,7 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
    * its own group outline (e.g. an ER aggregate's frame).
    */
   protected isDraggingGroup(key: string): boolean {
-    return this.#groupDragMoved && this.#groupDragKey === key;
+    return this.#drag.kind === 'group' && this.#drag.moved && this.#drag.key === key;
   }
 
   /**
@@ -1261,7 +1216,7 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
    * and nothing requires it to match one.
    */
   protected onGroupDragStart(event: PointerEvent, key: string, ids: readonly string[]): void {
-    if (event.button !== 0 || this.#dragPointerId !== null || this.#groupDragPointerId !== null) return;
+    if (event.button !== 0 || this.#drag.kind !== 'idle') return;
     const target = event.currentTarget;
     if (!(target instanceof HTMLElement) || ids.length === 0) return;
     const starts = new Map<string, LayoutPoint>();
@@ -1271,67 +1226,97 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
     }
     if (starts.size === 0) return;
     event.stopPropagation();
-    this.#groupDragKey = key;
-    this.#groupDragPointerId = event.pointerId;
-    this.#groupDragTarget = target;
-    this.#groupDragMoved = false;
-    this.#groupDragOrigin = { screenX: event.clientX, screenY: event.clientY };
-    this.#groupDragStart = starts;
-    this.#groupDragPreview = null;
-    target.addEventListener('pointermove', this.#onGroupPointerMove);
-    target.addEventListener('pointerup', this.#onGroupPointerUp);
-    target.addEventListener('pointercancel', this.#onGroupPointerCancel);
+    this.#beginDrag(
+      beginGroupDrag({
+        key,
+        pointerId: event.pointerId,
+        target,
+        starts,
+        origin: { screenX: event.clientX, screenY: event.clientY },
+      }),
+      target,
+      event.pointerId,
+    );
   }
 
-  readonly #onGroupPointerMove = (event: PointerEvent): void => {
-    const origin = this.#groupDragOrigin;
-    const starts = this.#groupDragStart;
-    if (origin === null || starts === null || event.pointerId !== this.#groupDragPointerId) return;
+  /**
+   * Commits a freshly-begun gesture and wires its DOM side, all in one place:
+   * pointer capture is engaged synchronously, before the method returns —
+   * never deferred to a later `pointermove` — so every subsequent pointer
+   * event for this gesture is guaranteed to reach `target` regardless of
+   * where the pointer visually is. A real mouse can move far enough between
+   * two `pointermove` ticks to leave a small node's bounds entirely; without
+   * immediate capture, that first move (and every event after it, since nothing
+   * ever re-engages capture) is silently lost to normal hit-testing, which
+   * leaves the drag state stuck forever and blocks every later gesture.
+   */
+  #beginDrag(gesture: DragGesture, target: HTMLElement, pointerId: number): void {
+    this.#drag = gesture;
+    target.setPointerCapture(pointerId);
+    target.addEventListener('pointermove', this.#onDragPointerMove);
+    target.addEventListener('pointerup', this.#onDragPointerUp);
+    target.addEventListener('pointercancel', this.#onDragPointerCancel);
+    target.addEventListener('lostpointercapture', this.#onDragLostCapture);
+  }
+
+  readonly #onDragPointerMove = (event: PointerEvent): void => {
+    const drag = this.#drag;
+    if (drag.kind === 'idle' || event.pointerId !== drag.pointerId) return;
     event.stopPropagation();
     const scale = this.viewport?.view().scale ?? 1;
-    const dx = (event.clientX - origin.screenX) / scale;
-    const dy = (event.clientY - origin.screenY) / scale;
-    if (!this.#groupDragMoved) {
-      if (Math.hypot(event.clientX - origin.screenX, event.clientY - origin.screenY) <= DRAG_THRESHOLD_PX) return;
-      this.#groupDragMoved = true;
-      this.#groupDragTarget?.setPointerCapture(event.pointerId);
-      if (this.#groupDragTarget) this.#groupDragTarget.style.userSelect = 'none';
-    }
-    const preview = new Map<string, LayoutPoint>();
-    for (const [id, start] of starts) preview.set(id, { x: Math.max(0, start.x + dx), y: Math.max(0, start.y + dy) });
-    this.#groupDragPreview = preview;
+    const next = updateDrag(drag, { screenX: event.clientX, screenY: event.clientY }, scale, DRAG_THRESHOLD_PX);
+    if (next.kind === 'idle' || next === drag) return;
+    if (!drag.moved && next.moved) next.target.style.userSelect = 'none';
+    this.#drag = next;
     this.requestUpdate();
   };
 
-  readonly #onGroupPointerUp = (event: PointerEvent): void => {
+  readonly #onDragPointerUp = (event: PointerEvent): void => {
+    const drag = this.#drag;
+    if (drag.kind === 'idle' || event.pointerId !== drag.pointerId) return;
     event.stopPropagation();
-    this.#endGroupDrag(true);
+    this.#endDrag(true);
   };
 
-  readonly #onGroupPointerCancel = (event: PointerEvent): void => {
+  readonly #onDragPointerCancel = (event: PointerEvent): void => {
+    const drag = this.#drag;
+    if (drag.kind === 'idle' || event.pointerId !== drag.pointerId) return;
     event.stopPropagation();
-    this.#endGroupDrag(false);
+    this.#endDrag(false);
   };
 
-  #endGroupDrag(commit: boolean): void {
-    const target = this.#groupDragTarget;
-    if (target !== null) {
-      target.removeEventListener('pointermove', this.#onGroupPointerMove);
-      target.removeEventListener('pointerup', this.#onGroupPointerUp);
-      target.removeEventListener('pointercancel', this.#onGroupPointerCancel);
-      target.style.userSelect = '';
-    }
-    const preview = this.#groupDragPreview;
-    const moved = this.#groupDragMoved;
-    this.#groupDragKey = null;
-    this.#groupDragPointerId = null;
-    this.#groupDragTarget = null;
-    this.#groupDragOrigin = null;
-    this.#groupDragStart = null;
-    this.#groupDragPreview = null;
-    this.#groupDragMoved = false;
-    if (commit && moved && preview !== null) {
-      this.#positions.commitMany(preview);
+  /**
+   * Defensive cleanup: the browser can take pointer capture away mid-gesture
+   * (a context menu, an OS-level gesture, devtools) without ever delivering a
+   * `pointerup` or `pointercancel`. Without this listener that leaves the same
+   * stuck, un-resettable drag state as the lost-events bug immediate capture
+   * fixes above — just from a different cause. Never commits: a capture loss
+   * is never a deliberate release at the drop point.
+   */
+  readonly #onDragLostCapture = (event: PointerEvent): void => {
+    const drag = this.#drag;
+    if (drag.kind === 'idle' || event.pointerId !== drag.pointerId) return;
+    this.#endDrag(false);
+  };
+
+  #endDrag(commit: boolean): void {
+    const drag = this.#drag;
+    if (drag.kind === 'idle') return;
+    const { target } = drag;
+    target.removeEventListener('pointermove', this.#onDragPointerMove);
+    target.removeEventListener('pointerup', this.#onDragPointerUp);
+    target.removeEventListener('pointercancel', this.#onDragPointerCancel);
+    target.removeEventListener('lostpointercapture', this.#onDragLostCapture);
+    target.style.userSelect = '';
+    this.#drag = IDLE_DRAG;
+    if (commit && drag.moved) {
+      if (drag.kind === 'node' && drag.preview !== null) {
+        this.#positions.commit(drag.id, drag.preview);
+        // The release still synthesizes a click on `id`'s node; `consumeDragClick` swallows it.
+        this.#dragConsumeClick = true;
+      } else if (drag.kind === 'group' && drag.preview !== null) {
+        this.#positions.commitMany(drag.preview);
+      }
     }
     this.requestUpdate();
   }
