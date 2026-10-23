@@ -23,7 +23,7 @@ if (base === undefined) {
  * Sample page → the template element it renders, and the page's shape:
  * `'page'` for a `<dpk-page>` holding that template as its one board (the shell
  * — banner, review rail — lives in the page's shadow root), `'standalone'` for
- * a template that is still the page root on its own (`slides`).
+ * a template that is still the page root on its own (none at the moment).
  */
 const SAMPLES = [
   ['prototype', 'prototype', 'page'],
@@ -38,7 +38,7 @@ const SAMPLES = [
   ['architecture', 'plain', 'page'],
   ['ddd-primer', 'plain', 'page'],
   ['formal-spec', 'plain', 'page'],
-  ['slides', 'slides', 'standalone'],
+  ['slides', 'slides', 'page'],
   ['task-board', 'task-board', 'page'],
   ['delegation-poker', 'delegation-poker', 'page'],
   ['whiteboard', 'whiteboard', 'page'],
