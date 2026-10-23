@@ -1754,6 +1754,65 @@ describe('dpk-er-diagram', () => {
         expect(positionOf('orders')).toEqual(before.orders);
       });
 
+      it('does not keep re-fitting a focused Bounded Context while harmless remeasurement nudges a card size by a sub-pixel (regression for #149)', async () => {
+        // In the browser, `.er-table`'s ResizeObserver (re-armed on every render,
+        // see `updated()`) fires a guaranteed notification each time it is
+        // (re-)observed, even when nothing actually resized — jsdom/happy-dom's
+        // ResizeObserver never fires at all, so the forced `requestUpdate()`
+        // loop below stands in for that real-browser notification cascade.
+        // Picking a Bounded Context pans/zooms to it (`focusBounds`), which
+        // changes the live transform scale a measured card is read back
+        // through, so every one of those extra renders re-measures at a
+        // slightly different sub-pixel offset: `rect` below models that noise,
+        // tied to the fit count the way a real scale change would be.
+        // Call-through by default (no `mockImplementation`): only observes.
+        const fitTo = vi.spyOn(DpkDialogPanel.prototype, 'fitTo');
+        const rect = (height: number) =>
+          ({
+            width: 220,
+            height,
+            top: 0,
+            left: 0,
+            right: 220,
+            bottom: height,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          }) as DOMRect;
+        const getRect = vi
+          .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+          .mockImplementation(function (this: HTMLElement) {
+            return this.classList.contains('er-table') ? rect(100 + (fitTo.mock.calls.length % 2) * 0.02) : rect(20);
+          });
+        const offsetWidth = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(220);
+
+        try {
+          const element = new DpkErDiagram();
+          element.data = twoBcData();
+          document.body.append(element);
+          await settle(element);
+
+          element.tagFilter = { active: ['BC:認証'], match: 'single' };
+          await settle(element);
+          const callsAfterFocusing = fitTo.mock.calls.length;
+          expect(callsAfterFocusing).toBeGreaterThan(0); // the focus itself does pan/zoom once
+
+          // Twenty further renders that measure nothing new on purpose (standing
+          // in for the browser's own ResizeObserver-driven remeasurement passes):
+          // none of them should re-open the view the reader already focused.
+          for (let index = 0; index < 20; index++) {
+            element.requestUpdate();
+            await element.updateComplete;
+          }
+
+          expect(fitTo.mock.calls.length).toBe(callsAfterFocusing);
+        } finally {
+          fitTo.mockRestore();
+          getRect.mockRestore();
+          offsetWidth.mockRestore();
+        }
+      });
+
       // A hub Bounded Context (Identity) referenced by the other three, the same
       // shape as the complex sample: enough Bounded Contexts, each with its own
       // aggregate, that a single rank axis would collapse them into one tall,

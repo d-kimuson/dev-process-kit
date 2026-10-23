@@ -720,7 +720,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
       this.initialView();
     }
     const focus = this.focusBounds();
-    const focusKey = focus === null ? null : JSON.stringify(focus);
+    const focusKey = this.focusKey();
     if (focusKey !== this.#lastFocusKey) {
       this.#lastFocusKey = focusKey;
       if (focus !== null) this.viewport?.fitTo(focus);
@@ -785,6 +785,20 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
    */
   protected focusBounds(): ViewportBox | null {
     return null;
+  }
+
+  /**
+   * Whether the focus has changed enough to re-fit the view. Defaults to the
+   * box itself, but a subclass whose box is derived from measured, re-laid-out
+   * geometry should key this on the underlying *selection* instead (e.g. which
+   * group is chosen) — otherwise a re-measured card that nudges the box by a
+   * sub-pixel re-opens the view, which can re-trigger the very remeasurement
+   * that moved it, looping forever between a slightly different zoom and a
+   * slightly different measured size.
+   */
+  protected focusKey(): string | null {
+    const focus = this.focusBounds();
+    return focus === null ? null : JSON.stringify(focus);
   }
 
   /** Mirrors the pan/zoom into component-owned chrome (the participant rail). */

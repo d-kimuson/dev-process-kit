@@ -370,6 +370,17 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   }
 
   /**
+   * Keyed on the active BC *selection*, not the computed box: the box moves by
+   * a sub-pixel whenever a card is remeasured (new font metrics, a different
+   * zoom's rounding), and re-fitting on every such nudge would re-trigger the
+   * remeasurement that moved it, looping forever. Picking (or clearing) a
+   * Bounded Context is the only change that should re-open this view.
+   */
+  protected override focusKey(): string | null {
+    return this.#bcFilter()?.active.join(',') ?? null;
+  }
+
+  /**
    * Tables are wide and aggregates space them further apart, so the schema
    * routinely does not fit the panel at 100%: opening there like a typical
    * diagram would clip it top and bottom (inline) or left and right
