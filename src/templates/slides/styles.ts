@@ -17,50 +17,14 @@ export const slidesStyles = css`
     margin-bottom: 6px;
   }
 
-  .outline-list {
-    display: grid;
-    gap: 2px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
   .outline-row {
     position: relative;
   }
 
   .outline-row a {
-    display: flex;
     align-items: baseline;
     gap: 10px;
     padding: 7px 8px;
-    border-radius: var(--dpk-radius-sm);
-    color: var(--dpk-ink-soft);
-    font-size: 13px;
-    line-height: 1.4;
-    text-decoration: none;
-    transition:
-      background 140ms var(--dpk-ease),
-      color 140ms var(--dpk-ease),
-      box-shadow 140ms var(--dpk-ease);
-  }
-
-  .outline-row a:hover {
-    background: var(--dpk-paper-raised);
-    color: var(--dpk-ink);
-  }
-
-  .outline-row a:focus-visible {
-    outline: none;
-    box-shadow: var(--dpk-focus);
-  }
-
-  .outline-row[data-current='true'] a {
-    background: color-mix(in srgb, var(--dpk-accent) 8%, var(--dpk-paper-raised));
-    color: var(--dpk-ink);
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--dpk-accent) 20%, transparent),
-      var(--dpk-shadow-xs);
   }
 
   /* A section slide opens a chapter: it reads as a heading in the outline. */
@@ -114,8 +78,17 @@ export const slidesStyles = css`
   }
 
   .deck-empty {
+    display: block;
+    max-width: none;
     margin: 48px auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: var(--dpk-ink-faint);
+    font-size: inherit;
+    line-height: inherit;
+    text-align: start;
   }
 
   /*
@@ -302,10 +275,6 @@ export const slidesStyles = css`
   /* ---------------------------------------------------------------- bar */
 
   .deck-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
     width: min(100%, 1180px);
     padding: 8px 12px;
     border: 1px solid var(--dpk-rule);

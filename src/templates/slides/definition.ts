@@ -32,6 +32,8 @@ export const slidesDefinitionFor = (locale: Locale): TemplateDefinition<SlidesSt
   return {
     name: 'slides',
     label: 'Slides',
+    // A deck's slides are the agent's own content; empty, there is nothing to present.
+    addable: false,
     parseBase: parseSlidesBase,
     emptyBase: emptySlidesBase,
     actions: {},

@@ -39,14 +39,14 @@ export const renderStage = (
   const position = slidePosition(context.state, context.navigation);
   if (position === null) {
     return html`<div class="deck">
-      <p class="deck-empty">${m.noSlidesBefore}<code>slides</code>${m.noSlidesAfter}</p>
+      <p class="dpk-empty deck-empty">${m.noSlidesBefore}<code>slides</code>${m.noSlidesAfter}</p>
     </div>`;
   }
   const { slide, index, total } = position;
   return html`
     <div class="deck">
       <div class="stage">${renderSlide(slide, index)}</div>
-      <div class="deck-bar">
+      <div class="dpk-toolbar deck-bar">
         <div class="deck-move">
           <button
             class="dpk-icon-btn deck-prev"

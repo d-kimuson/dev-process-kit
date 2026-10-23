@@ -15,7 +15,7 @@ export const renderOutline = (context: TemplateRenderContext<SlidesState>, m: Sl
         <span class="dpk-label">${m.outline}</span>
         <span class="dpk-label">${state.slides.length}</span>
       </div>
-      <ol class="outline-list">
+      <ol class="dpk-navlist outline-list">
         ${repeat(
           state.slides,
           (slide) => slide.id,

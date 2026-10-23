@@ -2,6 +2,7 @@ import type { Locale } from '../../core/i18n';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
 import type { SlidesState } from './model';
 
+import { atomStyles } from '../../components/atoms/styles';
 import { COMMENT_ACTION } from '../../core/action';
 import { TemplateElement } from '../../core/element';
 import { slidesDefinitionFor } from './definition';
@@ -30,7 +31,7 @@ const isTypingTarget = (node: EventTarget): boolean =>
  * "Full screen" shows the stage alone, where the browser allows it.
  */
 export class DpkTemplateSlides extends TemplateElement<SlidesState> {
-  static override styles = [TemplateElement.styles, slidesStyles];
+  static override styles = [TemplateElement.styles, atomStyles, slidesStyles];
 
   /** Unsent comments by slide id; replaced, never mutated. */
   #drafts: ReadonlyMap<string, string> = new Map();
