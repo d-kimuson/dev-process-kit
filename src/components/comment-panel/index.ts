@@ -32,7 +32,7 @@ export type CommentPanelCallbacks = {
 const sectionOf = (value: string | null): PanelSection => (value === 'changes' || value === 'comments' ? value : 'all');
 
 /** Public adapter: owns state references, lifecycle and effects, not presentation rules. */
-export class DpkComponentCommentPanel extends LitElement {
+export class DpkCommentPanel extends LitElement {
   static override styles = panelStyles;
   static override properties = {
     definition: { attribute: false },
@@ -216,6 +216,5 @@ export class DpkComponentCommentPanel extends LitElement {
 
 export type { ActionInput } from '../../core/types';
 export const defineCommentPanel = (): void => {
-  if (!customElements.get('dpk-component-comment-panel'))
-    customElements.define('dpk-component-comment-panel', DpkComponentCommentPanel);
+  if (!customElements.get('dpk-comment-panel')) customElements.define('dpk-comment-panel', DpkCommentPanel);
 };

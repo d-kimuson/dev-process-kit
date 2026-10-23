@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DraftController } from '../../core/controller';
 import { tinyBase, tinyDefinition } from '../../core/testing/tiny-template';
-import { DpkComponentCommentPanel, defineCommentPanel } from './index';
+import { DpkCommentPanel, defineCommentPanel } from './index';
 
 defineCommentPanel();
 afterEach(() => {
@@ -11,7 +11,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 const mount = async () => {
-  const panel = new DpkComponentCommentPanel();
+  const panel = new DpkCommentPanel();
   const controller = new DraftController({
     definition: tinyDefinition,
     base: tinyBase([{ id: 'a', name: 'Alpha' }]),
@@ -24,7 +24,7 @@ const mount = async () => {
   await panel.updateComplete;
   return panel;
 };
-const enter = async (panel: DpkComponentCommentPanel, text: string) => {
+const enter = async (panel: DpkCommentPanel, text: string) => {
   const area = panel.shadowRoot?.querySelector('textarea');
   if (!area) throw new Error('missing composer');
   area.value = text;
@@ -97,13 +97,12 @@ describe('comment panel adapter', () => {
       await panel.updateComplete;
       return { panel, controller, id: posted.id };
     };
-    const root = (panel: DpkComponentCommentPanel): ShadowRoot => {
+    const root = (panel: DpkCommentPanel): ShadowRoot => {
       if (!panel.shadowRoot) throw new Error('no shadow root');
       return panel.shadowRoot;
     };
-    const editor = (panel: DpkComponentCommentPanel) =>
-      root(panel).querySelector<HTMLTextAreaElement>('.item-editor textarea');
-    const type = async (panel: DpkComponentCommentPanel, text: string) => {
+    const editor = (panel: DpkCommentPanel) => root(panel).querySelector<HTMLTextAreaElement>('.item-editor textarea');
+    const type = async (panel: DpkCommentPanel, text: string) => {
       const area = editor(panel);
       if (!area) throw new Error('no editor');
       area.value = text;
@@ -111,7 +110,7 @@ describe('comment panel adapter', () => {
       await panel.updateComplete;
       return area;
     };
-    const startEdit = async (panel: DpkComponentCommentPanel) => {
+    const startEdit = async (panel: DpkCommentPanel) => {
       root(panel).querySelector<HTMLButtonElement>('.item-edit')?.click();
       await panel.updateComplete;
     };
