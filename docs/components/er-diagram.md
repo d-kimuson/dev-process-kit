@@ -52,21 +52,21 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 
 Two snapshots of the same shape: `{ tables: [{ id, name, tags?, boundedContext?, aggregate?, pattern?, fields }] }`.
 
-| Field                     | Required | Meaning                                                                                                                         |
-| ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `tables[].id`             | yes      | Stable id; `ref` and the diff match on it.                                                                                      |
-| `tables[].name`           | yes      | Human label next to the id.                                                                                                     |
-| `tables[].tags`           | no       | The tag filter applies to tables.                                                                                               |
+| Field                     | Required | Meaning                                                                                                                                                            |
+| ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tables[].id`             | yes      | Stable id; `ref` and the diff match on it.                                                                                                                         |
+| `tables[].name`           | yes      | Human label next to the id.                                                                                                                                        |
+| `tables[].tags`           | no       | The tag filter applies to tables.                                                                                                                                  |
 | `tables[].boundedContext` | no       | Separate from `tags`, but folded into them as `BC:<name>` so it filters with the same Single/AND/OR semantics, in the same row; its chip sits ahead of plain tags. |
-| `tables[].aggregate`      | no       | Purely visual: tables sharing one are grouped with a labeled dashed boundary on the canvas.                                     |
-| `tables[].pattern`        | no       | One of `immutable`, `mutable`, `sti`, `cti`, `value-object` — shown as a small badge on the card. Not a filter.                 |
-| `fields[].id`             | yes      | Column name.                                                                                                                    |
-| `fields[].type`           | yes      | Column type, shown verbatim.                                                                                                    |
-| `fields[].key`            | no       | `PK` \| `FK` \| `UQ`, or an array of them for a column with several roles: `["FK", "UQ"]`, `["PK", "FK"]`.                      |
-| `fields[].ref`            | no       | `table.field` the FK points at. It **is** the relation: no separate edge list.                                                  |
-| `fields[].nullable`       | no       | `true` gives the row the hollow (nullable) icon, and makes the referenced side of the relation optional (`0..1`).               |
-| `fields[].cardinality`    | no       | Needs `ref`. Declares the relation as `parent:child` when the keys alone cannot say it — see [Cardinality](#cardinality).       |
-| `fields[].label`          | no       | Needs `ref`. A short verb phrase naming the relation (`places`, `発注する`), read from the referenced table to the FK table.    |
+| `tables[].aggregate`      | no       | Purely visual: tables sharing one are grouped with a labeled dashed boundary on the canvas.                                                                        |
+| `tables[].pattern`        | no       | One of `immutable`, `mutable`, `sti`, `cti`, `value-object` — shown as a small badge on the card. Not a filter.                                                    |
+| `fields[].id`             | yes      | Column name.                                                                                                                                                       |
+| `fields[].type`           | yes      | Column type, shown verbatim.                                                                                                                                       |
+| `fields[].key`            | no       | `PK` \| `FK` \| `UQ`, or an array of them for a column with several roles: `["FK", "UQ"]`, `["PK", "FK"]`.                                                         |
+| `fields[].ref`            | no       | `table.field` the FK points at. It **is** the relation: no separate edge list.                                                                                     |
+| `fields[].nullable`       | no       | `true` gives the row the hollow (nullable) icon, and makes the referenced side of the relation optional (`0..1`).                                                  |
+| `fields[].cardinality`    | no       | Needs `ref`. Declares the relation as `parent:child` when the keys alone cannot say it — see [Cardinality](#cardinality).                                          |
+| `fields[].label`          | no       | Needs `ref`. A short verb phrase naming the relation (`places`, `発注する`), read from the referenced table to the FK table.                                       |
 
 `before` is optional; without it the baseline is `after` itself, so nothing is marked as changed (a plain schema diagram). The diff is derived, never authored — a table is `added` / `removed` / `changed` from what happened to its fields, a field is `changed` when type, key, ref, nullability, cardinality or label differ, and a relation is `added` / `removed` from the endpoint pair and `changed` when its cardinality or label differs — so red and green can never disagree with the data.
 

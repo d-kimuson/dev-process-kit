@@ -15,24 +15,24 @@ It composes like `<details open>`: toggling `open` shows or hides the popover, w
 
 ## Attributes and properties
 
-| Name     | Kind                           | Meaning                                                                                                                 |
-| -------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `target` | attribute/property             | Carried verbatim into `dpk-comment-submit`'s detail; this element does not interpret it. Typically a `target.ts` ref.   |
-| `label`  | attribute/property             | Shown atop the composer — what the comment is about. Optional.                                                          |
-| `open`   | attribute/property (reflected) | Whether the popover is shown. Settable directly; mirrors back to `false` once the popover closes itself.               |
+| Name     | Kind                           | Meaning                                                                                                               |
+| -------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `target` | attribute/property             | Carried verbatim into `dpk-comment-submit`'s detail; this element does not interpret it. Typically a `target.ts` ref. |
+| `label`  | attribute/property             | Shown atop the composer — what the comment is about. Optional.                                                        |
+| `open`   | attribute/property (reflected) | Whether the popover is shown. Settable directly; mirrors back to `false` once the popover closes itself.              |
 
 ## Interaction
 
-| Action                                       | Result                                                                                  |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Clicking the slotted trigger                  | Sets `open` to `true`.                                                                   |
-| `Escape` with focus inside the composer       | Closes the popover without submitting; `open` becomes `false`.                           |
-| Submitting the composer                       | Fires `dpk-comment-submit`, below.                                                       |
+| Action                                  | Result                                                         |
+| --------------------------------------- | -------------------------------------------------------------- |
+| Clicking the slotted trigger            | Sets `open` to `true`.                                         |
+| `Escape` with focus inside the composer | Closes the popover without submitting; `open` becomes `false`. |
+| Submitting the composer                 | Fires `dpk-comment-submit`, below.                             |
 
 ## Events
 
-| Event               | Detail                              | Fired when                                             |
-| -------------------- | ------------------------------------ | ------------------------------------------------------- |
-| `dpk-comment-submit` | `{ target: string, body: string }`  | The composer submits a comment (bubbles, composed, **cancelable**) |
+| Event                | Detail                             | Fired when                                                         |
+| -------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `dpk-comment-submit` | `{ target: string, body: string }` | The composer submits a comment (bubbles, composed, **cancelable**) |
 
 There is no board here: whatever encloses `dpk-comment-popover` saves the comment and calls `preventDefault()` once it has, the same acceptance protocol diagrams and `dpk-formal-spec` use (`docs/components/diagrams.md`). Leaving the event unhandled, or not cancelling it, keeps the composer open with its draft intact and shows a "could not send" message — the popover never discards what was typed merely because nothing accepted it.
