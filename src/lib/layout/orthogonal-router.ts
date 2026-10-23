@@ -27,6 +27,8 @@
 
 export type RoutePoint = { readonly x: number; readonly y: number };
 export type RouteBox = { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+/** One already-drawn segment from an edge routed earlier in the same batch, to steer a new route away from. */
+export type RouteSegment = readonly [RoutePoint, RoutePoint];
 
 /**
  * A vertical run at `x` between `yTop` and `yBottom` passes through an
@@ -118,6 +120,46 @@ const HORIZONTAL = 1;
 const VERTICAL = 2;
 
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
+
+/** A polyline's consecutive point pairs, as segments. */
+const segmentsOf = (points: readonly RoutePoint[]): readonly RouteSegment[] =>
+  points.slice(1).map((point, i) => [points[i]!, point] as const);
+
+/** Whether two axis-aligned segments cross at a point interior to both (a shared endpoint does not count). */
+const segmentsCross = (a: RouteSegment, b: RouteSegment): boolean => {
+  const [a1, a2] = a;
+  const [b1, b2] = b;
+  const aVertical = a1.x === a2.x;
+  const bVertical = b1.x === b2.x;
+  if (aVertical === bVertical) return false; // parallel axis-aligned segments never "cross" here; collinear overlap is a separate concern (route-nudge.ts)
+  const [v1, v2, h1, h2] = aVertical ? [a1, a2, b1, b2] : [b1, b2, a1, a2];
+  const x = v1.x;
+  const y = h1.y;
+  const vTop = Math.min(v1.y, v2.y);
+  const vBottom = Math.max(v1.y, v2.y);
+  const hLeft = Math.min(h1.x, h2.x);
+  const hRight = Math.max(h1.x, h2.x);
+  return x > hLeft && x < hRight && y > vTop && y < vBottom;
+};
+
+/** How many of `avoid`'s segments a candidate polyline would cross. The crossing-awareness penalty used to pick between otherwise-equal candidate shapes. */
+const crossingsAgainst = (points: readonly RoutePoint[], avoid: readonly RouteSegment[]): number => {
+  if (avoid.length === 0) return 0;
+  let count = 0;
+  for (const segment of segmentsOf(points)) for (const other of avoid) if (segmentsCross(segment, other)) count++;
+  return count;
+};
+
+/**
+ * How many times two already-drawn polylines' segments cross each other.
+ * `crossingsAgainst` (above) scores one new candidate against a flat list of
+ * segments while picking a shape; this scores two finished routes against
+ * each other, for a caller scoring a whole batch of routed edges against one
+ * another — `view.ts`'s bounded rip-up-reroute pass and its nudge-safety
+ * check (never let nudging increase an edge's own crossings).
+ */
+export const countRouteCrossings = (a: readonly RoutePoint[], b: readonly RoutePoint[]): number =>
+  crossingsAgainst(a, segmentsOf(b));
 
 /**
  * The bounded grid fallback: coordinates compressed from the obstacles near
@@ -240,12 +282,20 @@ const gridRoute = (
  * `[start, end]`, even when no fully clear path was found, so a caller never
  * has to handle "no route" as a separate case — a crammed corner is a metric
  * score to drive down, not a crash.
+ *
+ * `avoid` is a batch-routing concern, not an obstacle: segments from edges
+ * already routed earlier in the same batch (see `view.ts`'s `relationRoutes`).
+ * They never block a candidate shape outright — only `obstacles` do that —
+ * but when more than one shape is equally obstacle-clear, the one crossing
+ * fewer of them wins, so a batch of edges routed one at a time still comes
+ * out mutually crossing-aware instead of each being blind to the others.
  */
 export const routeAroundObstacles = (
   start: RoutePoint,
   end: RoutePoint,
   obstacles: readonly RouteBox[],
   margin: number,
+  avoid: readonly RouteSegment[] = [],
 ): readonly RoutePoint[] => {
   if (start.x === end.x && start.y === end.y) return [start, end];
   const inflated = obstacles.map((box) => ({
@@ -280,9 +330,20 @@ export const routeAroundObstacles = (
   // leaving nearby ports tend to separate from each other sooner — before
   // the long horizontal run where they would otherwise run side by side —
   // when each drops into its own lane first instead of fanning out
-  // horizontally right away.
-  if (freeVia(verticalFirst)) return simplify([start, verticalFirst, end]);
-  if (freeVia(horizontalFirst)) return simplify([start, horizontalFirst, end]);
+  // horizontally right away. This is only the tie-break now: when `avoid`
+  // is non-empty and both shapes are clear, whichever actually crosses fewer
+  // already-routed segments wins regardless of this preference.
+  const verticalOk = freeVia(verticalFirst);
+  const horizontalOk = freeVia(horizontalFirst);
+  if (verticalOk && horizontalOk) {
+    const verticalShape = simplify([start, verticalFirst, end]);
+    const horizontalShape = simplify([start, horizontalFirst, end]);
+    const verticalCrossings = crossingsAgainst(verticalShape, avoid);
+    const horizontalCrossings = crossingsAgainst(horizontalShape, avoid);
+    return horizontalCrossings < verticalCrossings ? horizontalShape : verticalShape;
+  }
+  if (verticalOk) return simplify([start, verticalFirst, end]);
+  if (horizontalOk) return simplify([start, horizontalFirst, end]);
 
   return gridRoute(start, end, inflated, margin) ?? simplify([start, horizontalFirst, end]);
 };

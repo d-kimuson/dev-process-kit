@@ -2,7 +2,7 @@ import type { LayoutPoint } from '../../lib/layout/layered';
 import type { ErDiagramMessages } from './messages';
 import type { ErCardinality, ErData, ErField, ErFieldDiff, ErRelation, ErTableDiff } from './model';
 
-import { routeAroundObstacles } from '../../lib/layout/orthogonal-router';
+import { countRouteCrossings, routeAroundObstacles, type RouteSegment } from '../../lib/layout/orthogonal-router';
 import { nudgeParallelRoutes, type NudgeInput } from '../../lib/layout/route-nudge';
 
 /**
@@ -329,13 +329,20 @@ export const boundedContextGroups = (
  * left-to-right case. Delegates to the generic, direction-agnostic router in
  * `lib/layout`, so this is the one and only place in the ER view that decides
  * how a line actually bends around obstacles.
+ *
+ * `avoid`: segments from other edges already routed earlier in the same
+ * batch (see `relationRoutes`), so the router can pick the less-crossing of
+ * two otherwise-equal candidate shapes. Optional and empty by default, so a
+ * single edge can still be routed in isolation (every direct caller of this
+ * function other than `relationRoutes` does exactly that).
  */
 export const detourRoute = (
   start: LayoutPoint,
   end: LayoutPoint,
   boxes: readonly ErBox[],
   margin: number,
-): readonly LayoutPoint[] => routeAroundObstacles(start, end, boxes, margin);
+  avoid: readonly RouteSegment[] = [],
+): readonly LayoutPoint[] => routeAroundObstacles(start, end, boxes, margin, avoid);
 
 /**
  * The relation's actual drawn route: the ports from the initial layout
@@ -355,6 +362,7 @@ export const relationRoute = (
   tables: readonly { readonly id: string; readonly box: ErBox }[],
   margin: number,
   frames: readonly { readonly box: ErBox; readonly members: readonly string[] }[] = [],
+  avoid: readonly RouteSegment[] = [],
 ): readonly LayoutPoint[] => {
   const start = points[0];
   const end = points.at(-1);
@@ -365,17 +373,62 @@ export const relationRoute = (
   const frameObstacles = frames.flatMap((frame) =>
     frame.members.includes(relation.from) || frame.members.includes(relation.to) ? [] : [frame.box],
   );
-  return detourRoute(start, end, [...tableObstacles, ...frameObstacles], margin);
+  return detourRoute(start, end, [...tableObstacles, ...frameObstacles], margin, avoid);
+};
+
+const segmentsOf = (points: readonly LayoutPoint[]): readonly RouteSegment[] =>
+  points.slice(1).map((point, i) => [points[i]!, point] as const);
+
+/** Straight-line (Manhattan) port-to-port distance: the "how short is this edge" proxy used to decide routing order. */
+const manhattanSpan = (points: readonly LayoutPoint[]): number => {
+  const start = points[0];
+  const end = points.at(-1);
+  if (start === undefined || end === undefined) return 0;
+  return Math.abs(end.x - start.x) + Math.abs(end.y - start.y);
+};
+
+/** How many times `route` crosses every *other* route in `all` (itself excluded). */
+const crossingsAgainstBatch = (
+  id: string,
+  route: readonly LayoutPoint[],
+  all: ReadonlyMap<string, readonly LayoutPoint[]>,
+): number => {
+  let sum = 0;
+  for (const [otherId, otherRoute] of all) if (otherId !== id) sum += countRouteCrossings(route, otherRoute);
+  return sum;
 };
 
 /**
- * Every relation's drawn route, in one pass: each one routed independently by
- * `relationRoute` (unchanged — it stays the single-edge contract `relationRoute`'s
- * own tests pin down), then the whole batch pulled apart by `nudgeParallelRoutes`
- * so two routes sharing a corridor — or one hugging a frame border — separate
- * into their own tracks instead of running on top of each other. That overlap
- * is invisible to every other layout-complexity term; it is exactly what
- * `scoreLayout`'s `collinearOverlap` term measures and this batch exists to fix.
+ * A bounded rip-up-and-reroute pass: every edge is re-tried, in the same
+ * short-first order, against every *other* edge's latest route (not just the
+ * ones routed earlier), keeping the new shape only when it strictly lowers
+ * that edge's own crossing count. Never worse, never equal-but-different, so
+ * it cannot oscillate forever; the fixed pass cap means it always terminates
+ * even on a batch that has not fully settled by then.
+ */
+const RIPUP_PASSES = 2;
+
+/**
+ * Every relation's drawn route, in one pass: routed short-first so a later,
+ * longer edge is the one that has to detour around an earlier, shorter one
+ * (not the reverse), each route aware of every edge already routed via
+ * `avoid` so the router can prefer the candidate shape that crosses fewer of
+ * them; then a bounded rip-up-reroute pass lets a later edge's route improve
+ * an earlier edge's choice too; then the whole batch is pulled apart by
+ * `nudgeParallelRoutes` so two routes sharing a corridor — or one hugging a
+ * frame border — separate into their own tracks instead of running on top of
+ * each other (`scoreLayout`'s `collinearOverlap` term).
+ *
+ * Nudging's output is kept unconditionally, even where it adds a crossing:
+ * a per-edge revert ("only nudge where it does not add a crossing") was
+ * tried and measured (#148 round 3) to be net harmful on corpora with wide,
+ * shared corridors (`synthetic-random-1`) — two routes separating out of the
+ * same corridor each look, in isolation, like they are "adding a crossing"
+ * by leaving it, so the revert discarded most of nudging's fixes and
+ * collinear overlap exploded back up (~3,300 → ~50,000 length on that
+ * fixture) for a few crossings saved elsewhere. Routing order, edge-aware L
+ * selection and rip-up-reroute below already deliver the crossing
+ * improvement without that trade, so nudging is left to do only its one job.
  *
  * Shared by the live view (`element.ts`) and the layout-complexity bench, so
  * the metric always scores exactly what the view draws.
@@ -387,9 +440,41 @@ export const relationRoutes = (
   margin: number,
   frames: readonly { readonly box: ErBox; readonly members: readonly string[] }[] = [],
 ): ReadonlyMap<string, readonly LayoutPoint[]> => {
+  const order = [...relations].sort(
+    (a, b) =>
+      manhattanSpan(pointsById.get(a.id) ?? []) - manhattanSpan(pointsById.get(b.id) ?? []) || a.id.localeCompare(b.id),
+  );
+
+  const routeFor = (
+    relation: { readonly id: string; readonly from: string; readonly to: string },
+    avoid: readonly RouteSegment[],
+  ): readonly LayoutPoint[] =>
+    relationRoute(relation, pointsById.get(relation.id) ?? [], tables, margin, frames, avoid);
+
+  // Pass 1: short edges first, each aware of every edge already routed.
+  const routed = new Map<string, readonly LayoutPoint[]>();
+  for (const relation of order) {
+    const avoid = [...routed.values()].flatMap((points) => segmentsOf(points));
+    routed.set(relation.id, routeFor(relation, avoid));
+  }
+
+  // Bounded rip-up-reroute, see `RIPUP_PASSES`'s doc comment.
+  for (let pass = 0; pass < RIPUP_PASSES; pass++) {
+    let improvedAny = false;
+    for (const relation of order) {
+      if (relation.from === relation.to) continue; // a self-loop's shape never varies; nothing to re-try
+      const current = routed.get(relation.id) ?? [];
+      const avoid = [...routed].flatMap(([id, points]) => (id === relation.id ? [] : segmentsOf(points)));
+      const candidate = routeFor(relation, avoid);
+      if (crossingsAgainstBatch(relation.id, candidate, routed) < crossingsAgainstBatch(relation.id, current, routed)) {
+        routed.set(relation.id, candidate);
+        improvedAny = true;
+      }
+    }
+    if (!improvedAny) break;
+  }
+
   const inputs: NudgeInput[] = relations.map((relation) => {
-    const points = pointsById.get(relation.id) ?? [];
-    const routed = relationRoute(relation, points, tables, margin, frames);
     const tableObstacles = tables
       .filter((table) => table.id !== relation.from && table.id !== relation.to)
       .map((table) => table.box);
@@ -399,7 +484,12 @@ export const relationRoutes = (
       const owns = frame.members.includes(relation.from) || frame.members.includes(relation.to);
       (owns ? ownFrames : frameObstacles).push(frame.box);
     }
-    return { id: relation.id, points: routed, obstacles: [...tableObstacles, ...frameObstacles], ownFrames };
+    return {
+      id: relation.id,
+      points: routed.get(relation.id) ?? [],
+      obstacles: [...tableObstacles, ...frameObstacles],
+      ownFrames,
+    };
   });
   return nudgeParallelRoutes(inputs);
 };

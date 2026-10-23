@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   applyPositionOverrides,
+  arrangeBoxes,
+  estimatePackedCrossings,
   fixedLayout,
   layeredLayout,
   type LayoutEdgeSpec,
@@ -337,5 +339,105 @@ describe('applyPositionOverrides', () => {
     const layout = layeredLayout(nodes, edges);
     const result = applyPositionOverrides(layout, new Map([['missing', { x: 1, y: 1 }]]), nodes, edges);
     expect(result.nodes).toEqual(layout.nodes);
+  });
+});
+
+describe('arrangeBoxes', () => {
+  const box = (id: string) => ({ id, width: 60, height: 40 });
+
+  it('picks the row order that avoids a crossing another order would create', () => {
+    // Four equal boxes forced toward a 2x2 pack (square target aspect). `top1`
+    // connects to `bot2` and `top2` connects to `bot1`: whichever bottom-row
+    // order is chosen, one of the two possible orders draws the two edges as
+    // parallel vertical-ish lines and the other draws them as a crossing X.
+    // An order/packing that ignores crossings (e.g. plain input order) has a
+    // coin-flip chance of landing on the crossing one; a crossing-aware search
+    // must not.
+    const boxes = [box('top1'), box('top2'), box('bot1'), box('bot2')];
+    const edges: LayoutEdgeSpec[] = [
+      { id: 'e1', from: 'top1', to: 'bot2' },
+      { id: 'e2', from: 'top2', to: 'bot1' },
+    ];
+    const packed = arrangeBoxes(boxes, edges, 20, 1);
+    const sizeOf = new Map(boxes.map((b) => [b.id, { width: b.width, height: b.height }]));
+    expect(estimatePackedCrossings(packed, sizeOf, edges)).toBe(0);
+  });
+
+  it('is deterministic across repeated calls with the same input', () => {
+    const boxes = [box('a'), box('b'), box('c'), box('d'), box('e')];
+    const edges: LayoutEdgeSpec[] = [
+      { id: 'e1', from: 'a', to: 'c' },
+      { id: 'e2', from: 'b', to: 'd' },
+      { id: 'e3', from: 'c', to: 'e' },
+    ];
+    const first = arrangeBoxes(boxes, edges, 20, 1.4);
+    const second = arrangeBoxes(boxes, edges, 20, 1.4);
+    expect([...second.positions]).toEqual([...first.positions]);
+  });
+
+  it('never overlaps the boxes it places', () => {
+    const boxes = [box('a'), box('b'), box('c'), box('d'), box('e'), box('f')];
+    const edges: LayoutEdgeSpec[] = [
+      { id: 'e1', from: 'a', to: 'b' },
+      { id: 'e2', from: 'c', to: 'd' },
+      { id: 'e3', from: 'e', to: 'f' },
+      { id: 'e4', from: 'a', to: 'f' },
+    ];
+    const packed = arrangeBoxes(boxes, edges, 15, 1.4);
+    const sizeOf = new Map(boxes.map((b) => [b.id, { width: b.width, height: b.height }]));
+    const entries = [...packed.positions];
+    for (let i = 0; i < entries.length; i++) {
+      for (let j = i + 1; j < entries.length; j++) {
+        const [idA, posA] = entries[i]!;
+        const [idB, posB] = entries[j]!;
+        const sizeA = sizeOf.get(idA)!;
+        const sizeB = sizeOf.get(idB)!;
+        const overlap =
+          posA.x < posB.x + sizeB.width &&
+          posB.x < posA.x + sizeA.width &&
+          posA.y < posB.y + sizeB.height &&
+          posB.y < posA.y + sizeA.height;
+        expect(overlap).toBe(false);
+      }
+    }
+  });
+
+  it('terminates quickly and without overlaps for a large box set (bounded local search, not exhaustive)', () => {
+    // 40 boxes is well past the exhaustive-permutation cap, so this exercises
+    // the barycenter + bounded-swap fallback. A seeded pseudo-random graph
+    // stands in for an arbitrary real schema's cross-box edge pattern.
+    let seed = 42;
+    const rand = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    const boxes = Array.from({ length: 40 }, (_, i) => box(`n${i}`));
+    const edges: LayoutEdgeSpec[] = Array.from({ length: 80 }, (_, i) => {
+      const from = Math.floor(rand() * boxes.length);
+      let to = Math.floor(rand() * boxes.length);
+      if (to === from) to = (to + 1) % boxes.length;
+      return { id: `edge-${i}`, from: `n${from}`, to: `n${to}` };
+    });
+    const start = performance.now();
+    const packed = arrangeBoxes(boxes, edges, 20, 1.4);
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(500);
+    expect(packed.positions.size).toBe(boxes.length);
+    const sizeOf = new Map(boxes.map((b) => [b.id, { width: b.width, height: b.height }]));
+    const entries = [...packed.positions];
+    for (let i = 0; i < entries.length; i++) {
+      for (let j = i + 1; j < entries.length; j++) {
+        const [idA, posA] = entries[i]!;
+        const [idB, posB] = entries[j]!;
+        const sizeA = sizeOf.get(idA)!;
+        const sizeB = sizeOf.get(idB)!;
+        const overlap =
+          posA.x < posB.x + sizeB.width &&
+          posB.x < posA.x + sizeA.width &&
+          posA.y < posB.y + sizeB.height &&
+          posB.y < posA.y + sizeA.height;
+        expect(overlap).toBe(false);
+      }
+    }
   });
 });

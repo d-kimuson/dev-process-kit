@@ -143,12 +143,14 @@ These changes are not written into the JSON child. They are recorded as element 
 Tables are laid out bottom-up, as nested boxes: Bounded Context (a contiguous, framed region) containing aggregates (a nested dashed boundary) containing tables. Each level is sized and arranged from the level below it, not from a single global rank:
 
 1. Inside each aggregate, its own tables get a layered layout; that fixes the aggregate box's size.
-2. Inside each Bounded Context, its aggregate boxes and any loose (aggregate-less) tables are ordered by the edges that cross between them, then wrapped into rows or a 2D grid so the BC box comes out close to square instead of a tall strip.
-3. The Bounded Context boxes are packed in 2D — ordered by how heavily they reference each other, so the pairs with the most relations end up adjacent — aiming for a wide-ish overall bounding box rather than one long column.
+2. Inside each Bounded Context, its aggregate boxes and any loose (aggregate-less) tables are arranged — order and row split both — by minimising estimated edge crossings first, then edge length, then how close the BC box comes to square (instead of a tall strip).
+3. The Bounded Context boxes are packed in 2D the same way: the order and grouping that crosses the fewest cross-BC edges wins, aspect ratio only breaking ties.
 
-Cross-box edges leave and enter at the box's border rather than cutting across an unrelated table or through an aggregate/Bounded Context frame they do not join. A table dragged out of its computed position keeps that position across a re-layout (`position` override), and the same data always lays out into the same positions otherwise (deterministic). Picking a Bounded Context from the filter (see [Reading it](#reading-it)) only dims the rest and refocuses the view — it never moves a table.
+Small box sets are searched exhaustively (every order, every row split); larger ones use a seeded, hard-capped local search — deterministic either way, and bounded so layout time stays well under the interactive budget even on a large schema.
 
-Routes that would otherwise run on top of each other — two edges sharing a corridor, or an edge hugging its own frame's border — are spread into parallel tracks as a final pass, without moving either endpoint. On a dense schema, edge crossings between tables that are not near each other in the layout are not yet reduced; this is a known limitation, not something this pass addresses.
+Cross-box edges leave and enter at the box's border rather than cutting across an unrelated table or through an aggregate/Bounded Context frame they do not join. Edges are routed short ones first, each aware of every edge already routed, so a candidate route is picked to avoid crossing the ones already placed; a bounded rip-up-reroute pass then lets a later edge's route improve an earlier edge's choice too. A table dragged out of its computed position keeps that position across a re-layout (`position` override), and the same data always lays out into the same positions otherwise (deterministic). Picking a Bounded Context from the filter (see [Reading it](#reading-it)) only dims the rest and refocuses the view — it never moves a table.
+
+Routes that would otherwise run on top of each other — two edges sharing a corridor, or an edge hugging its own frame's border — are spread into parallel tracks as a final pass, without moving either endpoint.
 
 Bounded Context and aggregate labels are counter-scaled so they stay legible at the zoomed-out fit level a large diagram starts at, with their own reserved clearance so they don't run into a nested label below them.
 

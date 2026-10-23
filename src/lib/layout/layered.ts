@@ -660,7 +660,7 @@ const sequenceByLayeredOrder = (
   return ranks.flatMap((rank) => layers.get(rank) ?? []);
 };
 
-type Packed = {
+export type Packed = {
   readonly positions: ReadonlyMap<string, LayoutPoint>;
   readonly width: number;
   readonly height: number;
@@ -731,40 +731,258 @@ const packForRowCount = (list: readonly Box[], spacing: number, rowCount: number
 };
 
 /**
- * Wraps boxes, in the given order, into rows — a shelf packer — instead of one
- * strip. A single guessed row width (from the total area) packs badly once
- * boxes are an uneven mix of shapes — the boxes this layout hands it always
- * are, an aggregate's own sub-layout being wide where it chains tables left to
- * right and narrow where it stacks disconnected ones — so instead this tries
- * every row count from one up to one row per box, and keeps whichever result
- * lands closest to `targetAspect` (width:height). This is step 2 and step 3 of
- * the Bounded Context layout: an aggregate's boxes (and loose tables) wrapped
- * into a roughly square Bounded Context, and Bounded Context boxes wrapped
- * toward the viewport's own aspect ratio.
+ * Classic orientation-based test for two line segments crossing at a point
+ * interior to both (collinear touching, and segments sharing an endpoint, are
+ * both treated as "not crossing": a shared endpoint is two edges meeting at
+ * the same box centre, which happens whenever they share a `from`/`to`, not a
+ * readability problem). Used only to *estimate* crossings between boxes
+ * (centre-to-centre), as a cheap proxy to rank candidate arrangements before
+ * any real per-table routing exists yet — `src/lib/layout/metrics.ts`'s
+ * `scoreLayout` is the authority on the geometry actually drawn.
  */
-const shelfPack = (
-  order: readonly string[],
+const SEGMENT_EPSILON = 1e-6;
+const pointsEqual = (a: LayoutPoint, b: LayoutPoint): boolean =>
+  Math.abs(a.x - b.x) < SEGMENT_EPSILON && Math.abs(a.y - b.y) < SEGMENT_EPSILON;
+const orientation = (a: LayoutPoint, b: LayoutPoint, c: LayoutPoint): -1 | 0 | 1 => {
+  const value = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
+  if (Math.abs(value) < SEGMENT_EPSILON) return 0;
+  return value > 0 ? 1 : -1;
+};
+const onSegment = (a: LayoutPoint, b: LayoutPoint, c: LayoutPoint): boolean =>
+  Math.min(a.x, c.x) - SEGMENT_EPSILON <= b.x &&
+  b.x <= Math.max(a.x, c.x) + SEGMENT_EPSILON &&
+  Math.min(a.y, c.y) - SEGMENT_EPSILON <= b.y &&
+  b.y <= Math.max(a.y, c.y) + SEGMENT_EPSILON;
+const segmentsCrossEstimate = (
+  s1: readonly [LayoutPoint, LayoutPoint],
+  s2: readonly [LayoutPoint, LayoutPoint],
+): boolean => {
+  const [p1, q1] = s1;
+  const [p2, q2] = s2;
+  if (pointsEqual(p1, p2) || pointsEqual(p1, q2) || pointsEqual(q1, p2) || pointsEqual(q1, q2)) return false;
+  const o1 = orientation(p1, q1, p2);
+  const o2 = orientation(p1, q1, q2);
+  const o3 = orientation(p2, q2, p1);
+  const o4 = orientation(p2, q2, q1);
+  if (o1 !== o2 && o3 !== o4) return true;
+  if (o1 === 0 && onSegment(p1, p2, q1)) return true;
+  if (o2 === 0 && onSegment(p1, q2, q1)) return true;
+  if (o3 === 0 && onSegment(p2, p1, q2)) return true;
+  return o4 === 0 && onSegment(p2, q1, q2);
+};
+
+/**
+ * How many of `edges`' centre-to-centre lines cross, given boxes already
+ * placed at `packed.positions`. A cheap, box-level proxy for the real,
+ * per-table crossing count `scoreLayout` reports over actually-routed
+ * polylines — good enough to *rank* candidate orders/packings before any
+ * routing exists, not a replacement for the real metric. Exported for tests
+ * and for `arrangeBoxes`'s own internal scoring.
+ */
+export const estimatePackedCrossings = (
+  packed: Packed,
   sizeOf: ReadonlyMap<string, { readonly width: number; readonly height: number }>,
-  spacing: number,
-  targetAspect: number,
-): Packed => {
-  const list = order.flatMap((id) => {
+  edges: readonly { readonly from: string; readonly to: string }[],
+): number => {
+  const centreOf = (id: string): LayoutPoint | null => {
+    const position = packed.positions.get(id);
     const size = sizeOf.get(id);
-    return size === undefined ? [] : [{ id, width: size.width, height: size.height }];
-  });
-  if (list.length === 0) return { positions: new Map(), width: 0, height: 0 };
-  let best: Packed = packForRowCount(list, spacing, 1);
-  let bestScore = Number.POSITIVE_INFINITY;
-  for (let rowCount = 1; rowCount <= list.length; rowCount++) {
-    const packed = packForRowCount(list, spacing, rowCount);
-    if (packed.width <= 0 || packed.height <= 0) continue;
-    const score = Math.abs(Math.log(packed.width / packed.height / targetAspect));
-    if (score < bestScore) {
-      bestScore = score;
-      best = packed;
+    if (!position || !size) return null;
+    return { x: position.x + size.width / 2, y: position.y + size.height / 2 };
+  };
+  const segments: (readonly [LayoutPoint, LayoutPoint])[] = [];
+  for (const edge of edges) {
+    if (edge.from === edge.to) continue;
+    const a = centreOf(edge.from);
+    const b = centreOf(edge.to);
+    if (a && b) segments.push([a, b]);
+  }
+  let crossings = 0;
+  for (let i = 0; i < segments.length; i++) {
+    for (let j = i + 1; j < segments.length; j++) {
+      if (segmentsCrossEstimate(segments[i]!, segments[j]!)) crossings++;
     }
   }
-  return best;
+  return crossings;
+};
+
+/** Total centre-to-centre length of `edges`, given boxes placed at `packed.positions`. Companion term to `estimatePackedCrossings`. */
+const estimatePackedEdgeLength = (
+  packed: Packed,
+  sizeOf: ReadonlyMap<string, { readonly width: number; readonly height: number }>,
+  edges: readonly { readonly from: string; readonly to: string }[],
+): number => {
+  const centreOf = (id: string): LayoutPoint | null => {
+    const position = packed.positions.get(id);
+    const size = sizeOf.get(id);
+    if (!position || !size) return null;
+    return { x: position.x + size.width / 2, y: position.y + size.height / 2 };
+  };
+  let total = 0;
+  for (const edge of edges) {
+    if (edge.from === edge.to) continue;
+    const a = centreOf(edge.from);
+    const b = centreOf(edge.to);
+    if (a && b) total += Math.hypot(a.x - b.x, a.y - b.y);
+  }
+  return total;
+};
+
+/** Weights for ranking candidate box arrangements: crossings dominate, length tie-breaks, aspect only matters once the first two are equal. */
+const ARRANGEMENT_WEIGHTS = { crossings: 10_000, edgeLength: 1, aspectDeviation: 50 } as const;
+
+const arrangementCost = (
+  packed: Packed,
+  sizeOf: ReadonlyMap<string, { readonly width: number; readonly height: number }>,
+  edges: readonly { readonly from: string; readonly to: string }[],
+  targetAspect: number,
+): number => {
+  const aspect =
+    packed.width <= 0 || packed.height <= 0 ? 0 : Math.abs(Math.log(packed.width / packed.height / targetAspect));
+  return (
+    estimatePackedCrossings(packed, sizeOf, edges) * ARRANGEMENT_WEIGHTS.crossings +
+    estimatePackedEdgeLength(packed, sizeOf, edges) * ARRANGEMENT_WEIGHTS.edgeLength +
+    aspect * ARRANGEMENT_WEIGHTS.aspectDeviation
+  );
+};
+
+/**
+ * Every permutation of `items`, via Heap's algorithm: deterministic order,
+ * yielded lazily so a capped caller never has to materialise the whole set.
+ */
+const permutationsOf = function* <T>(items: readonly T[]): Generator<readonly T[]> {
+  const arr = [...items];
+  const n = arr.length;
+  yield [...arr];
+  if (n <= 1) return;
+  const c = Array.from<number>({ length: n }).fill(0);
+  let i = 0;
+  while (i < n) {
+    if (c[i]! < i) {
+      const swapIndex = i % 2 === 0 ? 0 : c[i]!;
+      const a = arr[swapIndex]!;
+      arr[swapIndex] = arr[i]!;
+      arr[i] = a;
+      yield [...arr];
+      c[i] = c[i]! + 1;
+      i = 0;
+    } else {
+      c[i] = 0;
+      i++;
+    }
+  }
+};
+
+/** Exhaustive search stays well within the layout time budget up to this many boxes (7! = 5,040 orders). Past it, `arrangeBoxes` falls back to a barycenter start plus a bounded local search. */
+const EXHAUSTIVE_ORDER_CAP = 7;
+/** Hard cap on adjacent-swap attempts for the local-search fallback — guarantees termination regardless of input size. */
+const LOCAL_SEARCH_CAP = 400;
+const LOCAL_SEARCH_EPSILON = 1e-6;
+
+/**
+ * Chooses the order and row-split of `boxes` that minimises an estimated
+ * crossing count between `edges`' centre-to-centre lines (then edge length,
+ * then aspect), instead of `shelfPack`'s predecessor, which only ever tried
+ * one order (the plain crossing-minimising layered order) and picked a row
+ * count by aspect ratio alone — ignoring whether that order's particular row
+ * split happened to interleave two boxes' connections into an X.
+ *
+ * The boxes this is used for — Bounded Contexts, an aggregate's own boxes, a
+ * handful of tables inside one aggregate — are small in practice (a handful
+ * to a few dozen), so an exhaustive permutation search (`EXHAUSTIVE_ORDER_CAP`)
+ * covers the common case outright; past that cap, a barycenter-ordered start
+ * (the same heuristic `shelfPack`'s caller used to compute) is refined by a
+ * bounded adjacent-swap local search, scored by the same real cost function,
+ * so the result is never worse than the old behaviour and both paths
+ * terminate deterministically with a hard cap.
+ */
+export const arrangeBoxes = (
+  boxes: readonly Box[],
+  edges: readonly LayoutEdgeSpec[],
+  spacing: number,
+  targetAspect: number,
+  sweeps: number = DEFAULTS.sweeps,
+): Packed => {
+  if (boxes.length === 0) return { positions: new Map(), width: 0, height: 0 };
+  if (boxes.length === 1) {
+    const only = boxes[0]!;
+    return { positions: new Map([[only.id, { x: 0, y: 0 }]]), width: only.width, height: only.height };
+  }
+  const sizeOf = new Map(boxes.map((box) => [box.id, { width: box.width, height: box.height }]));
+  const usableEdges = edges.filter((edge) => sizeOf.has(edge.from) && sizeOf.has(edge.to) && edge.from !== edge.to);
+
+  /** Tries every row count for one fixed order — the expensive part, O(boxes^3). */
+  const bestForOrder = (
+    order: readonly string[],
+  ): { readonly packed: Packed; readonly cost: number; readonly rowCount: number } => {
+    const list = order.map((id) => ({ id, ...sizeOf.get(id)! }));
+    let best: Packed = packForRowCount(list, spacing, 1);
+    let bestCost = Number.POSITIVE_INFINITY;
+    let bestRowCount = 1;
+    for (let rowCount = 1; rowCount <= list.length; rowCount++) {
+      const packed = packForRowCount(list, spacing, rowCount);
+      if (packed.width <= 0 || packed.height <= 0) continue;
+      const cost = arrangementCost(packed, sizeOf, usableEdges, targetAspect);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = packed;
+        bestRowCount = rowCount;
+      }
+    }
+    return { packed: best, cost: bestCost, rowCount: bestRowCount };
+  };
+  /** Repacks one fixed order at one fixed row count — cheap, O(boxes^2) — for the local search below, which only ever varies order. */
+  const packOrderAt = (order: readonly string[], rowCount: number): Packed =>
+    packForRowCount(
+      order.map((id) => ({ id, ...sizeOf.get(id)! })),
+      spacing,
+      rowCount,
+    );
+
+  const ids = boxes.map((box) => box.id);
+  if (ids.length <= EXHAUSTIVE_ORDER_CAP) {
+    let best = bestForOrder(ids);
+    for (const order of permutationsOf(ids)) {
+      const candidate = bestForOrder(order);
+      if (candidate.cost < best.cost) best = candidate;
+    }
+    return best.packed;
+  }
+
+  // Fallback for larger sets: start from the existing crossing-oblivious
+  // barycenter order, pick its best row count once (the only full row-count
+  // search this path runs), then hill-climb *only the order* with adjacent
+  // swaps at that fixed row count — repeating the full row-count search on
+  // every candidate swap would not terminate quickly for a few dozen boxes —
+  // scored by the real cost function, until no swap improves it or the hard
+  // cap is reached.
+  let order = sequenceByLayeredOrder(boxes, usableEdges, sweeps);
+  const initial = bestForOrder(order);
+  const rowCount = initial.rowCount;
+  let bestPacked = initial.packed;
+  let bestCost = initial.cost;
+  let attempts = 0;
+  let improved = true;
+  while (improved && attempts < LOCAL_SEARCH_CAP) {
+    improved = false;
+    for (let i = 0; i < order.length - 1 && attempts < LOCAL_SEARCH_CAP; i++) {
+      attempts++;
+      const candidateOrder = [...order];
+      const a = candidateOrder[i]!;
+      candidateOrder[i] = candidateOrder[i + 1]!;
+      candidateOrder[i + 1] = a;
+      const packed = packOrderAt(candidateOrder, rowCount);
+      if (packed.width <= 0 || packed.height <= 0) continue;
+      const cost = arrangementCost(packed, sizeOf, usableEdges, targetAspect);
+      if (cost < bestCost - LOCAL_SEARCH_EPSILON) {
+        bestCost = cost;
+        bestPacked = packed;
+        order = candidateOrder;
+        improved = true;
+      }
+    }
+  }
+  return bestPacked;
 };
 
 // A little over square, not exactly 1: a handful of Bounded Context boxes
@@ -780,9 +998,10 @@ const shelfPack = (
 // portrait-ish table cards) for a small handful of them. A little over
 // square avoids a strip just as well while giving step 3 the margin it needs.
 const BC_INTERIOR_ASPECT = 1.3;
-// A little under the ~16:10 viewport itself: `shelfPack` only ever tries whole
-// row counts, so its closest result to a given target routinely overshoots it
-// a bit — aiming a bit squarer leaves room for that and still reads as wide.
+// A little under the ~16:10 viewport itself: `arrangeBoxes` only ever tries
+// whole row counts, so its closest result to a given target routinely
+// overshoots it a bit — aiming a bit squarer leaves room for that and still
+// reads as wide.
 const BC_PACK_ASPECT = 1.45;
 
 /**
@@ -793,11 +1012,11 @@ const BC_PACK_ASPECT = 1.45;
  * 1. Each `group` (aggregate) is laid out on its own, with the plain pipeline,
  *    from only the edges between its own members — that sizes its box.
  * 2. Inside each `superGroup` (Bounded Context), those aggregate boxes and any
- *    loose tables are ordered by the edges between them (`sequenceByLayeredOrder`)
- *    and wrapped into rows (`shelfPack`, aiming for a square box) — that sizes
- *    the Bounded Context's box.
- * 3. The Bounded Context boxes are, the same way, ordered by the edges between
- *    them and wrapped into rows aiming for the viewport's own aspect ratio.
+ *    loose tables are arranged by `arrangeBoxes` (order and row split chosen
+ *    together, minimising estimated crossings between them) — that sizes the
+ *    Bounded Context's box.
+ * 3. The Bounded Context boxes are, the same way, arranged into rows aiming
+ *    for the viewport's own aspect ratio.
  *
  * Every node keeps the exact relative arrangement its own aggregate's
  * sub-layout gave it; only whole aggregate and Bounded Context boxes move
@@ -847,17 +1066,17 @@ export const compoundLayout = (
     // An ER table card already reads wide (a header plus a few field rows), so
     // even a short FK chain laid out strictly left-to-right — full rank columns,
     // a `layerSpacing` apart — comes out several tables wide and only one tall.
-    // Ordering members by that same rank (`sequenceByLayeredOrder`, upstream
-    // first) but then wrapping them with `shelfPack` keeps the FK direction as
-    // a reading order without that elongation, the same way steps 2 and 3 avoid
-    // it one level up.
-    const boxSizes = new Map(members.map((member) => [member.id, { width: member.width, height: member.height }]));
-    const order = sequenceByLayeredOrder(
+    // `arrangeBoxes` picks both the order and the row split by minimising
+    // estimated crossings between the intra-aggregate edges (falling back to
+    // the FK-direction reading order only to break remaining ties), the same
+    // way steps 2 and 3 do one level up.
+    const packed = arrangeBoxes(
       members.map((member) => ({ id: member.id, width: member.width, height: member.height })),
       intra,
+      config.nodeSpacing,
+      BC_INTERIOR_ASPECT,
       config.sweeps,
     );
-    const packed = shelfPack(order, boxSizes, config.nodeSpacing, BC_INTERIOR_ASPECT);
     groupLayouts.set(key, { size: { width: packed.width, height: packed.height }, relative: packed.positions });
   }
 
@@ -897,12 +1116,13 @@ export const compoundLayout = (
       if (!groupKeys.includes(from) || !groupKeys.includes(to)) return [];
       return [{ id: edge.id, from, to }];
     });
-    const order = sequenceByLayeredOrder(
+    const packed = arrangeBoxes(
       groupKeys.flatMap((key) => (boxSizes.has(key) ? [{ id: key, ...boxSizes.get(key)! }] : [])),
       interGroupEdges,
+      config.groupSpacing,
+      BC_INTERIOR_ASPECT,
       config.sweeps,
     );
-    const packed = shelfPack(order, boxSizes, config.groupSpacing, BC_INTERIOR_ASPECT);
     bcLayouts.set(superKey, { size: { width: packed.width, height: packed.height }, relative: packed.positions });
   }
 
@@ -919,12 +1139,13 @@ export const compoundLayout = (
       if (from === undefined || to === undefined || from === to) return [];
       return [{ id: edge.id, from, to }];
     });
-    const order = sequenceByLayeredOrder(
+    const packed = arrangeBoxes(
       bcKeys.map((key) => ({ id: key, ...bcBoxSizes.get(key)! })),
       interBcEdges,
+      config.superGroupSpacing,
+      BC_PACK_ASPECT,
       config.sweeps,
     );
-    const packed = shelfPack(order, bcBoxSizes, config.superGroupSpacing, BC_PACK_ASPECT);
     for (const [key, point] of packed.positions) bcOffsets.set(key, point);
   }
 

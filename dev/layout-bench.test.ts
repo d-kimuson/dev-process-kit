@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { LAYOUT_BENCH_BASELINE } from './layout-bench/baseline';
+import { LAYOUT_BENCH_BASELINE, LAYOUT_BENCH_CROSSINGS_BASELINE } from './layout-bench/baseline';
 import { runBench } from './layout-bench/run';
 
 /**
@@ -30,5 +30,19 @@ describe('layout bench ratchet', () => {
 
   it.each(rows)('$name has zero hard overlaps', (row) => {
     expect(row.overlaps).toBe(0);
+  });
+
+  /**
+   * A second, independent ratchet alongside the weighted total: raw edge
+   * crossings may never increase for a fixture, even when the weighted total
+   * falls. This is what let #148's regression through the first time (a
+   * trade that lowered `collinearOverlap` while raising `crossings` still
+   * reduced the total, because the crossing weight was too low relative to
+   * collinear overlap) — see `dev/layout-bench/baseline.ts`.
+   */
+  it.each(rows)('$name does not regress past its baseline crossing count', (row) => {
+    const baseline = LAYOUT_BENCH_CROSSINGS_BASELINE[row.name];
+    expect(baseline).toBeDefined();
+    expect(row.crossings).toBeLessThanOrEqual(baseline!);
   });
 });

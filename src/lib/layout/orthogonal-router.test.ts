@@ -109,6 +109,33 @@ describe('routeAroundObstacles', () => {
     expect(route.at(-1)).toEqual({ x: 300, y: 300 });
   });
 
+  it('prefers the L orientation that crosses fewer already-routed segments when both are obstacle-clear', () => {
+    // With nothing to avoid, the vertical-first L wins (the next test pins
+    // this as the baseline): a vertical run at x=0 from y=100 to y=160, then
+    // a horizontal run at y=160. `avoid` crosses exactly that vertical run
+    // (a horizontal segment at y=130 spanning x=-10..10), but not the
+    // horizontal-first L's segments, so the router should switch shapes.
+    const avoid: readonly [RoutePoint, RoutePoint][] = [
+      [
+        { x: -10, y: 130 },
+        { x: 10, y: 130 },
+      ],
+    ];
+    const withoutAvoid = routeAroundObstacles({ x: 0, y: 100 }, { x: 200, y: 160 }, [], 20);
+    expect(withoutAvoid).toEqual([
+      { x: 0, y: 100 },
+      { x: 0, y: 160 },
+      { x: 200, y: 160 },
+    ]);
+
+    const withAvoid = routeAroundObstacles({ x: 0, y: 100 }, { x: 200, y: 160 }, [], 20, avoid);
+    expect(withAvoid).toEqual([
+      { x: 0, y: 100 },
+      { x: 200, y: 100 },
+      { x: 200, y: 160 },
+    ]);
+  });
+
   it('returns the two endpoints unchanged when they coincide', () => {
     expect(routeAroundObstacles({ x: 10, y: 10 }, { x: 10, y: 10 }, [{ x: 0, y: 0, width: 5, height: 5 }], 5)).toEqual([
       { x: 10, y: 10 },

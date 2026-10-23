@@ -2019,12 +2019,14 @@ describe('dpk-er-diagram', () => {
         const layout = element.layout;
         if (layout === null) throw new Error('missing layout');
         const ratio = layout.width / layout.height;
-        // `shelfPack` only ever tries whole row counts, so its closest match to a
-        // target aspect routinely lands a little outside 1:1–2:1 even when the
-        // result reads as square or wide; 0.95 keeps the check meaningful (it still
-        // rejects the old single tall column, well under 1) without failing on that
-        // rounding.
-        expect(ratio).toBeGreaterThanOrEqual(0.95);
+        // `arrangeBoxes` (#148 round 3) picks the order and row split that
+        // minimises estimated crossings and edge length first, aspect only as
+        // a tie-break — a deliberate change from the old `shelfPack`, which
+        // optimised aspect alone. For this hub topology that can land a
+        // little under 1:1 even for the best (crossing- and length-minimal)
+        // arrangement; 0.85 still firmly rejects the old single tall column
+        // (well under 0.5) while allowing that trade-off.
+        expect(ratio).toBeGreaterThanOrEqual(0.85);
         expect(ratio).toBeLessThanOrEqual(2);
       });
 

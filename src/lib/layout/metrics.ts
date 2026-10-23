@@ -70,9 +70,22 @@ export type MetricBreakdown = {
 
 export type MetricResult = MetricBreakdown & { readonly total: number };
 
-/** Weight of each breakdown term in the combined score. Tuned so hard violations dominate, cosmetics tie-break. */
+/**
+ * Weight of each breakdown term in the combined score. Tuned so hard
+ * violations dominate, cosmetics tie-break.
+ *
+ * `crossings` was raised from 12 to 100 (#148 round 3): at 12, a change that
+ * traded a handful of crossings for a larger number of collinear-overlap
+ * incidents could still lower the weighted total, even though crossings are
+ * the readability complaint users actually name — exactly what happened when
+ * `nudgeParallelRoutes` landed (see `dev/layout-bench/baseline.ts`). At 100,
+ * one added crossing costs roughly ten times a `collinearOverlap` incident,
+ * so that trade no longer pays. `dev/layout-bench.test.ts` additionally
+ * ratchets each fixture's raw crossing count on its own, independent of the
+ * weighted total, so this is belt-and-suspenders rather than the only guard.
+ */
 export const METRIC_WEIGHTS: Readonly<Record<keyof MetricBreakdown, number>> = {
-  crossings: 12,
+  crossings: 100,
   edgeThroughNode: 30, // per incident; `edgeThroughNode.length` is also charged, below, at a lower per-pixel rate
   frameViolations: 20,
   totalEdgeLength: 0.01,
