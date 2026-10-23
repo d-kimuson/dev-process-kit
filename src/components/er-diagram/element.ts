@@ -6,11 +6,12 @@ import type { CommentTargetOption, DraftAction } from '../../core/types';
 import type { LayoutOptions, LayoutPoint } from '../../lib/layout/layered';
 import type { DpkDialogPanel } from '../dialog-panel/element';
 
-import { iconDiamond, iconKey, iconLink, iconPencil, iconPlus, iconTable, iconTrash } from '../../core/icons';
+import { iconDiamond, iconKey, iconLink, iconPencil, iconPlus, iconTrash } from '../../core/icons';
 import { PopoverController } from '../../core/popover-controller';
 import { SelectController } from '../../core/select/controller';
 import { DismissController } from '../../lib/dom/dismiss';
 import { revealWithin } from '../../lib/dom/scroll';
+import { controlAtom } from '../atoms/controls';
 import { DiagramElement } from '../diagram/element';
 import { EMPTY_REACH, classNames, reach, type DiagramSelection, type Reach } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
@@ -22,6 +23,7 @@ import {
   EDIT_CARDINALITY,
   EDIT_FIELD,
   cardinalityText,
+  constraintText,
   emptyErData,
   outgoingFan,
   parseErData,
@@ -102,7 +104,7 @@ type TableSize = {
 
 /** Schema diagram with an always-on diff between the `before` and `after` snapshots. */
 export class DpkErDiagram extends DiagramElement<ErData> {
-  static override styles: CSSResultGroup = [diagramStyles, erStyles];
+  static override styles: CSSResultGroup = [diagramStyles, erStyles, controlAtom];
 
   #query = '';
   #hovered: ErFocus | null = null;
@@ -132,8 +134,8 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   readonly #cardinalitySelect = new SelectController(this);
   /** Open for the selected edge; its value is lost once a different edge is selected. */
   #cardinalityEditor: CardinalityEditor | null = null;
-  /** While on, only PK/FK columns render, so the relationships alone can be read. */
-  #pkOnly = false;
+  /** Which columns render: every one, only keys (so the relationships alone can be read), or none (header only). */
+  #columnFilter: 'all' | 'keys' | 'tables-only' = 'all';
 
   constructor() {
     super();
@@ -368,21 +370,28 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     </div>`;
   }
 
-  /** Beside zoom and maximize: hides non-key columns so only the relationships read. */
+  /** Beside zoom and maximize: how much of each table's columns render. */
   protected override renderControls(): TemplateResult {
     const m = erDiagramMessages(this.locale);
-    return html`<button
-      type="button"
-      class="er-pk-toggle"
-      aria-pressed=${this.#pkOnly ? 'true' : 'false'}
-      title=${m.pkOnlyToggle}
-      @click=${() => {
-        this.#pkOnly = !this.#pkOnly;
-        this.requestUpdate();
-      }}
-    >
-      <span class="er-icon" aria-hidden="true">${iconKey()}</span><span>${m.pkOnlyToggle}</span>
-    </button>`;
+    const options: readonly { readonly value: 'all' | 'keys' | 'tables-only'; readonly label: string }[] = [
+      { value: 'all', label: m.columnFilterAll },
+      { value: 'keys', label: m.columnFilterKeys },
+      { value: 'tables-only', label: m.columnFilterTablesOnly },
+    ];
+    return html`<div class="dpk-segmented er-column-filter" role="group" aria-label=${m.columnFilterLabel}>
+      ${options.map(
+        (option) => html`<button
+          type="button"
+          aria-pressed=${this.#columnFilter === option.value ? 'true' : 'false'}
+          @click=${() => {
+            this.#columnFilter = option.value;
+            this.requestUpdate();
+          }}
+        >
+          ${option.label}
+        </button>`,
+      )}
+    </div>`;
   }
 
   /**
@@ -580,9 +589,12 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     const placed = this.placedNode(table.id);
     if (!placed) return nothing;
     const state = this.nodeState(table.id);
-    const fields = this.#pkOnly
-      ? table.fields.filter((field) => field.keys.length > 0 || field.ref !== null)
-      : table.fields;
+    const fields =
+      this.#columnFilter === 'tables-only'
+        ? []
+        : this.#columnFilter === 'keys'
+          ? table.fields.filter((field) => field.keys.length > 0 || field.ref !== null)
+          : table.fields;
     return html`
       <div
         class=${this.elementClass(
@@ -614,20 +626,21 @@ export class DpkErDiagram extends DiagramElement<ErData> {
               if (!this.consumeDragClick()) this.select({ kind: 'node', id: table.id });
             }}
           >
-            <span class="er-table-icon" aria-hidden="true">${iconTable()}</span>
             <span class="er-title">
-              <span class="er-name">${table.id}</span>
+              <span class="er-title-top">
+                <span class="er-name">${table.id}</span>
+                ${
+                  table.pattern === null
+                    ? nothing
+                    : html`<span
+                        class="er-pattern-badge"
+                        data-pattern=${table.pattern}
+                        title=${m.patternLabel(table.pattern)}
+                        >${m.patternLabel(table.pattern)}</span
+                      >`
+                }
+              </span>
               <span class="er-label">${table.name}</span>
-              ${
-                table.pattern === null
-                  ? nothing
-                  : html`<span
-                      class="er-pattern-badge"
-                      data-pattern=${table.pattern}
-                      title=${m.patternLabel(table.pattern)}
-                      >${m.patternLabel(table.pattern)}</span
-                    >`
-              }
             </span>
             ${
               table.status === 'same'
@@ -643,9 +656,17 @@ export class DpkErDiagram extends DiagramElement<ErData> {
             ? nothing
             : html`<div class="er-fields">${fields.map((field) => this.#renderField(table, field, lit, m))}</div>`
         }
-        ${this.#renderAdd(table, m)}
+        ${this.#renderConstraints(table, m)} ${this.#renderAdd(table, m)}
       </div>
     `;
+  }
+
+  /** Table-level constraints (composite UNIQUE / PK, CHECK, EXCLUDE), reviewed through the table's own comment target. */
+  #renderConstraints(table: ErTableDiff, m: ErDiagramMessages): TemplateResult | typeof nothing {
+    if (table.constraints.length === 0) return nothing;
+    return html`<ul class="er-constraints" aria-label=${m.tableConstraintsLabel}>
+      ${table.constraints.map((constraint) => html`<li class="er-constraint">${constraintText(constraint)}</li>`)}
+    </ul>`;
   }
 
   #renderIcon(icon: ColumnIcon, m: ErDiagramMessages): TemplateResult {
@@ -659,7 +680,6 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     const editing = editor?.kind === 'edit' && editor.table === table.id && editor.field === field.id;
     // A relation's multiplicities derive from its column, so only plain, present columns are editable.
     const editable = this.#recordable && field.status !== 'removed' && field.ref === null;
-    const deletable = this.#deletable(table, field);
     const matches = this.#query !== '' && field.id.toLowerCase().includes(this.#query);
     const icon = columnIcon(field);
     const changes = fieldChanges(field, m);
@@ -712,6 +732,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
                         field: field.id,
                         type: field.type,
                         nullable: field.nullable,
+                        description: field.description ?? '',
                         failed: false,
                       })}
                   >
@@ -719,23 +740,9 @@ export class DpkErDiagram extends DiagramElement<ErData> {
                   </button>`
                 : nothing
             }
-            ${
-              deletable
-                ? html`<button
-                    type="button"
-                    class="dpk-icon-btn er-field-delete"
-                    data-action="delete-field"
-                    data-field=${field.id}
-                    aria-label=${m.deleteFieldButton(field.id)}
-                    title=${m.deleteFieldButton(field.id)}
-                    @click=${() => this.#deleteField(table.id, field.id)}
-                  >
-                    ${iconTrash()}
-                  </button>`
-                : nothing
-            }
           </span>
         </div>
+        ${field.description === null ? nothing : html`<p class="er-field-description">${field.description}</p>`}
         ${
           others.length === 0
             ? nothing
@@ -768,8 +775,15 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     );
   }
 
-  #deleteField(table: string, field: string): void {
-    this.dispatchElementAction(DELETE_FIELD, ['node', table], { field });
+  /** Deletes a column from inside its editor, closing it once the delete is recorded. */
+  #deleteFromEditor(table: string, field: string): void {
+    const recorded = this.dispatchElementAction(DELETE_FIELD, ['node', table], { field });
+    if (!recorded) {
+      if (this.#editor !== null) this.#editor = { ...this.#editor, failed: true };
+      this.requestUpdate();
+      return;
+    }
+    this.#close(true);
   }
 
   #renderAdd(table: ErTableDiff, m: ErDiagramMessages): TemplateResult | typeof nothing {
@@ -782,7 +796,16 @@ export class DpkErDiagram extends DiagramElement<ErData> {
         data-action="add-field"
         aria-haspopup="dialog"
         aria-expanded=${adding ? 'true' : 'false'}
-        @click=${() => this.#toggle({ kind: 'add', table: table.id, name: '', type: '', nullable: false, failed: false })}
+        @click=${() =>
+          this.#toggle({
+            kind: 'add',
+            table: table.id,
+            name: '',
+            type: '',
+            nullable: false,
+            description: '',
+            failed: false,
+          })}
       >
         <span class="er-icon" aria-hidden="true">${iconPlus()}</span><span>${m.addFieldButton}</span>
       </button>
@@ -804,8 +827,9 @@ export class DpkErDiagram extends DiagramElement<ErData> {
 
   /**
    * A small card like a tooltip: what it edits (with the icon the row will
-   * show), the name and type, the nullability, and the explicit Cancel and
-   * confirm. The row it edits stays in place, marked, under it.
+   * show), the name, type and description, the nullability, and the explicit
+   * Cancel and confirm (plus, editing an existing column, a danger delete).
+   * The row it edits stays in place, marked, under it.
    */
   #renderEditor(table: ErTableDiff, editor: ColumnEditor, m: ErDiagramMessages): TemplateResult {
     const verdict = editorVerdict(editor, table);
@@ -814,6 +838,10 @@ export class DpkErDiagram extends DiagramElement<ErData> {
       field !== undefined && field.keys.includes('PK') ? 'primary' : editor.nullable ? 'nullable' : 'not-null';
     const title = editor.kind === 'add' ? m.addFieldTitle : m.editFieldTitle;
     const target = editor.kind === 'add' ? table.id : `${table.id}.${editor.field}`;
+    const deleteTarget =
+      editor.kind === 'edit' && field !== undefined && this.#deletable(table, field)
+        ? { table: table.id, field: editor.field }
+        : null;
     return html`<div
       class="er-editor"
       popover="manual"
@@ -851,6 +879,22 @@ export class DpkErDiagram extends DiagramElement<ErData> {
         }
         ${this.#renderTypeField(editor, m)}
       </div>
+      <label class="er-editor-field">
+        <span class="dpk-label">${m.columnDescriptionLabel}</span>
+        <input
+          class="dpk-input"
+          data-input="description"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder=${m.columnDescriptionPlaceholder}
+          .value=${editor.description}
+          @input=${(event: Event) => {
+            const input = event.currentTarget;
+            if (this.#editor !== null && input instanceof HTMLInputElement)
+              this.#change({ ...this.#editor, description: input.value });
+          }}
+        />
+      </label>
       ${verdict.issue === 'name-taken' ? html`<p class="er-editor-note" role="status">${m.columnNameTaken}</p>` : nothing}
       ${editor.failed ? html`<p class="er-error" role="alert">${m.notRecorded}</p>` : nothing}
       <label class="er-editor-check">
@@ -867,6 +911,18 @@ export class DpkErDiagram extends DiagramElement<ErData> {
         <span>${m.columnNullable}</span>
       </label>
       <div class="er-editor-foot">
+        ${
+          deleteTarget === null
+            ? nothing
+            : html`<button
+                type="button"
+                class="dpk-btn dpk-btn--danger"
+                data-action="delete-column"
+                @click=${() => this.#deleteFromEditor(deleteTarget.table, deleteTarget.field)}
+              >
+                ${iconTrash()}<span>${m.deleteFieldTitle}</span>
+              </button>`
+        }
         <span class="er-editor-keys">${m.columnKeys}</span>
         <button
           type="button"
@@ -898,7 +954,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     const anchor = this.renderRoot.querySelector(`[data-er-table="${CSS.escape(editor.table)}"] ${triggerOf(editor)}`);
     const row = editor.kind === 'edit' ? anchor?.closest('.er-field') : anchor;
     if (!row) return;
-    this.#popovers.open(surface, row, { width: 300, height: 340 }, { placement: 'bottom-start', trackTransform: true });
+    this.#popovers.open(surface, row, { width: 300, height: 400 }, { placement: 'bottom-start', trackTransform: true });
     // The type's list floats too, shown after the card so it lies above it, and
     // turns upward where the window has no room below the input.
     const list = surface.querySelector<HTMLElement>('.er-type-options');
@@ -914,8 +970,10 @@ export class DpkErDiagram extends DiagramElement<ErData> {
 
   /**
    * A small card beside the selected relation: its cardinality as a `parent:child`
-   * select, with the explicit Cancel (deselect) and Save. Opens and closes with
-   * the edge's own selection, so no separate trigger is needed.
+   * select. Picking a value commits it at once — there is no separate Save. Opens
+   * and closes with the edge's own selection, so no separate trigger is needed,
+   * and no Cancel either: deselecting the edge (a press elsewhere, or Escape) is
+   * what puts it away.
    */
   #renderCardinalityEditor(): TemplateResult | typeof nothing {
     const state = this.#cardinalityEditor;
@@ -923,7 +981,6 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     const edge = this.visible.edges.find((item) => item.id === state.edge);
     if (edge === undefined) return nothing;
     const m = erDiagramMessages(this.locale);
-    const changed = state.cardinality !== cardinalityValue(edge.cardinality);
     return html`<div
       class="er-editor er-cardinality-editor"
       popover="manual"
@@ -942,29 +999,20 @@ export class DpkErDiagram extends DiagramElement<ErData> {
           options: CARDINALITIES.map((value) => ({ value, label: value.replace(':', ' : ') })),
           value: state.cardinality,
           ariaLabel: m.cardinalityLabel,
-          onChange: (value) => {
-            if (this.#cardinalityEditor !== null) {
-              this.#cardinalityEditor = { ...this.#cardinalityEditor, cardinality: value, failed: false };
-              this.requestUpdate();
-            }
-          },
+          onChange: (value) => this.#pickCardinality(value),
         })}
       </label>
       ${state.failed ? html`<p class="er-error" role="alert">${m.notRecorded}</p>` : nothing}
-      <div class="er-editor-foot">
-        <button type="button" class="dpk-btn dpk-btn--ghost" data-dpk-text-discard @click=${() => this.select(null)}>
-          ${m.cancel}
-        </button>
-        <button
-          type="button"
-          class="dpk-btn dpk-btn--accent"
-          ?disabled=${!changed}
-          @click=${() => this.#submitCardinality()}
-        >
-          ${m.columnSave}
-        </button>
-      </div>
     </div>`;
+  }
+
+  /** A picked cardinality commits immediately: no separate Save (see {@link #renderCardinalityEditor}). */
+  #pickCardinality(value: string): void {
+    const state = this.#cardinalityEditor;
+    if (state === null) return;
+    const recorded = this.dispatchElementAction(EDIT_CARDINALITY, ['edge', state.edge], { cardinality: value });
+    this.#cardinalityEditor = { ...state, cardinality: value, failed: !recorded };
+    this.requestUpdate();
   }
 
   /** Anchors the cardinality editor to the selected relation's `<g>`, floating like a tooltip beside it. */
@@ -989,20 +1037,6 @@ export class DpkErDiagram extends DiagramElement<ErData> {
       event.stopPropagation();
       this.select(null);
     }
-  }
-
-  #submitCardinality(): void {
-    const state = this.#cardinalityEditor;
-    if (state === null) return;
-    const recorded = this.dispatchElementAction(EDIT_CARDINALITY, ['edge', state.edge], {
-      cardinality: state.cardinality,
-    });
-    if (!recorded) {
-      this.#cardinalityEditor = { ...state, failed: true };
-      this.requestUpdate();
-      return;
-    }
-    this.select(null);
   }
 
   /** Keeps the open editor's input for when the same editor opens again. */
@@ -1219,17 +1253,20 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     const table = editor === null ? undefined : this.visible.nodes.find((node) => node.id === editor.table);
     if (editor === null || table === undefined || !editorVerdict(editor, table).ready) return;
     const type = editor.type.trim();
+    const description = editor.description.trim();
     const recorded =
       editor.kind === 'add'
         ? this.dispatchElementAction(ADD_FIELD, ['node', editor.table], {
             id: editor.name.trim(),
             type,
             nullable: editor.nullable,
+            description,
           })
         : this.dispatchElementAction(EDIT_FIELD, ['node', editor.table], {
             field: editor.field,
             type,
             nullable: editor.nullable,
+            description,
           });
     if (!recorded) {
       this.#editor = { ...editor, failed: true };

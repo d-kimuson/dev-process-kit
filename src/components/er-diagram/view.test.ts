@@ -184,20 +184,22 @@ describe('typeMenu', () => {
 });
 
 describe('editorVerdict', () => {
-  const add = (name: string, type: string): ColumnEditor => ({
+  const add = (name: string, type: string, description = ''): ColumnEditor => ({
     kind: 'add',
     table: 'orders',
     name,
     type,
     nullable: false,
+    description,
     failed: false,
   });
-  const edit = (type: string, nullable: boolean): ColumnEditor => ({
+  const edit = (type: string, nullable: boolean, description = ''): ColumnEditor => ({
     kind: 'edit',
     table: 'orders',
     field: 'status',
     type,
     nullable,
+    description,
     failed: false,
   });
 
@@ -219,6 +221,14 @@ describe('editorVerdict', () => {
     expect(editorVerdict(edit('order_status', true), table('orders'))).toEqual({ ready: true, issue: null });
     expect(editorVerdict(edit('text', false), table('orders'))).toEqual({ ready: true, issue: null });
     expect(editorVerdict(edit('', true), table('orders'))).toEqual({ ready: false, issue: null });
+  });
+
+  it('accepts an edit when only the description changed', () => {
+    expect(editorVerdict(edit('order_status', false), table('orders'))).toEqual({ ready: false, issue: null });
+    expect(editorVerdict(edit('order_status', false, 'what the order is doing'), table('orders'))).toEqual({
+      ready: true,
+      issue: null,
+    });
   });
 });
 
@@ -439,6 +449,7 @@ describe('resumeEditor', () => {
     field: 'status',
     type: 'text',
     nullable: false,
+    description: '',
     failed: false,
   };
   const draft: ColumnEditor = { ...fresh, type: 'varchar(20)' };

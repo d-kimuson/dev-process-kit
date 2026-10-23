@@ -15,9 +15,15 @@ import { elementRefSegments, type DiagramEdgeInput, type DiagramNodeInput } from
  */
 
 export const TABLE_WIDTH = 280;
-export const TABLE_HEAD_HEIGHT = 40;
+/** The header is always two lines now (id, then name) — see `.er-head`. */
+export const TABLE_HEAD_HEIGHT = 48;
 const ROW_HEIGHT = 32;
 const CHANGED_ROW_HEIGHT = 52;
+/** Extra height a field row needs for its description line (see `.er-field-description`). */
+const DESCRIPTION_ROW_HEIGHT = 16;
+/** One constraint's own compact line, plus the section's top space, once, when a table declares any. */
+const CONSTRAINT_ROW_HEIGHT = 18;
+const CONSTRAINTS_HEAD = 10;
 /** A table never grows past this, so one pathological identifier cannot blow up the whole diagram. */
 const MAX_TABLE_WIDTH = 440;
 
@@ -65,8 +71,30 @@ const fieldSchema = v.strictObject({
   cardinality: v.optional(v.picklist(CARDINALITIES)),
   /** A short verb phrase naming the relation, e.g. `places`. */
   label: v.optional(v.pipe(v.string(), v.minLength(1))),
+  /** Supplementary text, like a table's own `name` — never part of the diff. */
+  description: v.optional(v.string()),
   questions: v.optional(v.string()),
 });
+
+/** A table-level constraint spanning one or more columns together; see `ErTableConstraint`. */
+const tableConstraintSchema = v.variant('kind', [
+  v.strictObject({
+    kind: v.literal('unique'),
+    columns: v.pipe(v.array(v.pipe(v.string(), v.minLength(1))), v.minLength(1)),
+  }),
+  v.strictObject({
+    kind: v.literal('primary-key'),
+    columns: v.pipe(v.array(v.pipe(v.string(), v.minLength(1))), v.minLength(1)),
+  }),
+  v.strictObject({ kind: v.literal('check'), expression: v.pipe(v.string(), v.minLength(1)) }),
+  v.strictObject({
+    kind: v.literal('exclude'),
+    /** The index method, e.g. `gist`; omitted when the default (`btree`) applies. */
+    using: v.optional(v.pipe(v.string(), v.minLength(1))),
+    /** Each already reads `column WITH operator`, e.g. `"during WITH &&"`. */
+    elements: v.pipe(v.array(v.pipe(v.string(), v.minLength(1))), v.minLength(1)),
+  }),
+]);
 
 const tableSchema = v.strictObject({
   id: v.pipe(v.string(), v.minLength(1)),
@@ -78,6 +106,8 @@ const tableSchema = v.strictObject({
   aggregate: v.optional(v.string()),
   pattern: v.optional(designPatternSchema),
   fields: v.array(fieldSchema),
+  /** Composite constraints spanning more than one column; never part of the diff, like `name`. */
+  constraints: v.optional(v.array(tableConstraintSchema), []),
   questions: v.optional(v.string()),
 });
 
@@ -91,6 +121,7 @@ const diagramSchema = v.strictObject({
 
 type SnapshotField = v.InferOutput<typeof fieldSchema>;
 type SnapshotTable = v.InferOutput<typeof tableSchema>;
+type SnapshotConstraint = v.InferOutput<typeof tableConstraintSchema>;
 
 export type ErField = {
   readonly id: string;
@@ -102,6 +133,8 @@ export type ErField = {
   /** The authored `parent:child` declaration, if any. */
   readonly cardinality: string | null;
   readonly label: string | null;
+  /** Supplementary text, like a table's own `name` — never part of the diff. */
+  readonly description: string | null;
   /** Space-separated grill question ids. */
   readonly questions: string | null;
 };
@@ -112,6 +145,17 @@ export type ErFieldDiff = ErField & {
   readonly before: ErField | null;
 };
 
+/**
+ * A constraint spanning one or more of a table's own columns together, e.g. a
+ * composite `UNIQUE` or `CHECK`. Reviewed through the table's own comment
+ * target, like `name` — not a separate one.
+ */
+export type ErTableConstraint =
+  | { readonly kind: 'unique'; readonly columns: readonly string[] }
+  | { readonly kind: 'primary-key'; readonly columns: readonly string[] }
+  | { readonly kind: 'check'; readonly expression: string }
+  | { readonly kind: 'exclude'; readonly using: string | null; readonly elements: readonly string[] };
+
 export type ErTableDiff = DiagramNodeInput & {
   readonly name: string;
   readonly status: ErStatus;
@@ -121,6 +165,8 @@ export type ErTableDiff = DiagramNodeInput & {
   /** `null` outside any aggregate; tables sharing one are grouped on the canvas. */
   readonly aggregate: string | null;
   readonly pattern: ErDesignPattern | null;
+  /** Composite constraints; never part of the diff, like `name`. */
+  readonly constraints: readonly ErTableConstraint[];
 };
 
 /** What a relation says, apart from which columns it joins. */
@@ -156,9 +202,11 @@ const fieldOf = (field: SnapshotField): ErField => ({
   nullable: field.nullable,
   cardinality: field.cardinality ?? null,
   label: field.label ?? null,
+  description: field.description ?? null,
   questions: field.questions ?? null,
 });
 
+/** `description` is deliberately excluded, like a table's own `name`: supplementary text, never diffed. */
 const sameField = (a: ErField, b: ErField): boolean =>
   a.type === b.type &&
   a.keys.join() === b.keys.join() &&
@@ -166,6 +214,23 @@ const sameField = (a: ErField, b: ErField): boolean =>
   a.nullable === b.nullable &&
   a.cardinality === b.cardinality &&
   a.label === b.label;
+
+const constraintOf = (constraint: SnapshotConstraint): ErTableConstraint =>
+  constraint.kind === 'exclude' ? { ...constraint, using: constraint.using ?? null } : constraint;
+
+/** The compact, monospace line a constraint renders as, e.g. `EXCLUDE USING gist (room WITH =, during WITH &&)`. */
+export const constraintText = (constraint: ErTableConstraint): string => {
+  switch (constraint.kind) {
+    case 'unique':
+      return `UNIQUE (${constraint.columns.join(', ')})`;
+    case 'primary-key':
+      return `PRIMARY KEY (${constraint.columns.join(', ')})`;
+    case 'check':
+      return `CHECK (${constraint.expression})`;
+    case 'exclude':
+      return `EXCLUDE${constraint.using === null ? '' : ` USING ${constraint.using}`} (${constraint.elements.join(', ')})`;
+  }
+};
 
 export const cardinalityText = (cardinality: ErCardinality): string => `${cardinality.parent} : ${cardinality.child}`;
 
@@ -213,10 +278,17 @@ const cardinalityOf = (table: SnapshotTable, field: SnapshotField): ErCardinalit
 };
 
 export const fieldRowHeight = (field: ErFieldDiff): number =>
-  field.status === 'changed' ? CHANGED_ROW_HEIGHT : ROW_HEIGHT;
+  (field.status === 'changed' ? CHANGED_ROW_HEIGHT : ROW_HEIGHT) +
+  (field.description === null ? 0 : DESCRIPTION_ROW_HEIGHT);
 
-export const tableHeight = (fields: readonly ErFieldDiff[]): number =>
-  TABLE_HEAD_HEIGHT + fields.reduce((height, field) => height + fieldRowHeight(field), 0);
+/** The constraints section's own height, once, when a table declares any (see `.er-constraints`). */
+const constraintsHeight = (constraints: readonly ErTableConstraint[]): number =>
+  constraints.length === 0 ? 0 : CONSTRAINTS_HEAD + constraints.length * CONSTRAINT_ROW_HEIGHT;
+
+export const tableHeight = (fields: readonly ErFieldDiff[], constraints: readonly ErTableConstraint[] = []): number =>
+  TABLE_HEAD_HEIGHT +
+  fields.reduce((height, field) => height + fieldRowHeight(field), 0) +
+  constraintsHeight(constraints);
 
 /** Vertical centre of a field row inside its table card. */
 export const fieldOffset = (fields: readonly ErFieldDiff[], fieldId: string): number => {
@@ -338,8 +410,8 @@ const estimateIdentifierWidth = (text: string, fontSize: number): number => {
 
 /** A field row's own chrome, besides its name column: mark + icon + gaps + row padding (see `.er-field-line`). */
 const FIELD_ROW_CHROME = 70;
-/** Both action buttons at their widest (edit + delete, 20px each plus the row's 2px gap). */
-const FIELD_ACTION_WIDTH = 42;
+/** The action column at its widest: just the edit button (20px) — delete moved into its editor's footer. */
+const FIELD_ACTION_WIDTH = 20;
 /** `.er-field-type`'s own `max-width` — a changed type (old + new, side by side) never grows past it. */
 const FIELD_TYPE_MAX_WIDTH = 168;
 
@@ -358,10 +430,16 @@ const fieldTypeWidth = (field: ErFieldDiff): number => {
  * `MAX_TABLE_WIDTH` so a single pathological identifier cannot widen the
  * whole diagram. The field estimate also budgets for its row's own type and
  * action columns, since a wide type diff squeezes the name column further
- * than the table's own total width would suggest.
+ * than the table's own total width would suggest. A long constraint line
+ * (e.g. an `EXCLUDE` with several elements) asks for its own room too, since
+ * it renders monospace on one line rather than wrapping mid-expression.
  */
-const tableWidthFor = (id: string, fields: readonly ErFieldDiff[]): number => {
-  // Chrome around the header's own id: icon, badges, gaps and padding.
+const tableWidthFor = (
+  id: string,
+  fields: readonly ErFieldDiff[],
+  constraints: readonly ErTableConstraint[] = [],
+): number => {
+  // Chrome around the header's own id: badges, gaps and padding.
   const headerNeed = estimateIdentifierWidth(id, 13) / 2 + 100;
   const fieldNeed = Math.max(
     0,
@@ -370,7 +448,11 @@ const tableWidthFor = (id: string, fields: readonly ErFieldDiff[]): number => {
         estimateIdentifierWidth(field.id, 12) / 2 + FIELD_ROW_CHROME + FIELD_ACTION_WIDTH + fieldTypeWidth(field),
     ),
   );
-  return Math.min(MAX_TABLE_WIDTH, Math.max(TABLE_WIDTH, Math.ceil(Math.max(headerNeed, fieldNeed))));
+  const constraintNeed = Math.max(
+    0,
+    ...constraints.map((constraint) => estimateIdentifierWidth(constraintText(constraint), 11) + 24),
+  );
+  return Math.min(MAX_TABLE_WIDTH, Math.max(TABLE_WIDTH, Math.ceil(Math.max(headerNeed, fieldNeed, constraintNeed))));
 };
 
 export const parseErData = (input: unknown): ErData => {
@@ -405,6 +487,7 @@ export const parseErData = (input: unknown): ErData => {
           : 'same';
     const boundedContext = boundedContexts.get(id) ?? null;
     const aggregate = aggregates.get(id) ?? null;
+    const constraints = source.constraints.map(constraintOf);
     return [
       {
         id,
@@ -418,8 +501,9 @@ export const parseErData = (input: unknown): ErData => {
         // tables sharing an aggregate are clustered into one non-overlapping band on the canvas.
         ...(aggregate === null ? {} : { group: aggregate }),
         pattern: patterns.get(id) ?? null,
-        width: tableWidthFor(id, fields),
-        height: tableHeight(fields),
+        constraints,
+        width: tableWidthFor(id, fields, constraints),
+        height: tableHeight(fields, constraints),
         ...(source.questions === undefined ? {} : { questions: source.questions }),
       } satisfies ErTableDiff,
     ];
@@ -475,12 +559,14 @@ const addFieldPayloadSchema = v.object({
   id: v.pipe(v.string(), v.trim(), v.minLength(1)),
   type: v.pipe(v.string(), v.trim(), v.minLength(1)),
   nullable: v.optional(v.boolean(), false),
+  description: v.optional(v.pipe(v.string(), v.trim())),
 });
 
 const editFieldPayloadSchema = v.object({
   field: v.pipe(v.string(), v.minLength(1)),
   type: v.pipe(v.string(), v.trim(), v.minLength(1)),
   nullable: v.boolean(),
+  description: v.optional(v.pipe(v.string(), v.trim())),
 });
 
 const deleteFieldPayloadSchema = v.object({
@@ -522,7 +608,13 @@ const replaceTable = (data: ErData, id: string, fields: readonly ErFieldDiff[]):
           ? 'changed'
           : 'same';
     return withPorts(
-      { ...node, status, fields, width: tableWidthFor(node.id, fields), height: tableHeight(fields) },
+      {
+        ...node,
+        status,
+        fields,
+        width: tableWidthFor(node.id, fields, node.constraints),
+        height: tableHeight(fields, node.constraints),
+      },
       data.edges,
     );
   });
@@ -545,6 +637,8 @@ const addField = (m: ErDiagramMessages, data: ErData, action: DraftAction): Step
     nullable: payload.output.nullable,
     cardinality: null,
     label: null,
+    description:
+      payload.output.description === undefined || payload.output.description === '' ? null : payload.output.description,
     questions: null,
     status: 'added',
     before: null,
@@ -568,7 +662,17 @@ const editField = (m: ErDiagramMessages, data: ErData, action: DraftAction): Ste
     return { data, result: { id: action.id, title, stale: 'constraint-violated' } };
   }
   const { before: _before, status: _status, ...current } = field;
-  const next: ErField = { ...current, type: payload.output.type, nullable: payload.output.nullable };
+  const next: ErField = {
+    ...current,
+    type: payload.output.type,
+    nullable: payload.output.nullable,
+    description:
+      payload.output.description === undefined
+        ? current.description
+        : payload.output.description === ''
+          ? null
+          : payload.output.description,
+  };
   const original = field.before ?? current;
   const status: ErStatus = field.status === 'added' ? 'added' : sameField(original, next) ? 'same' : 'changed';
   const edited: ErFieldDiff = { ...next, status, before: status === 'changed' ? original : null };

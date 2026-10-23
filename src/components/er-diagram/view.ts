@@ -7,7 +7,7 @@ import type { ErCardinality, ErData, ErField, ErFieldDiff, ErRelation, ErTableDi
  * how the element renders them.
  */
 
-/** The one column editor open in the diagram: a new column, or an existing one's type and nullability. */
+/** The one column editor open in the diagram: a new column, or an existing one's type, nullability and description. */
 export type ColumnEditor =
   | {
       readonly kind: 'add';
@@ -15,6 +15,7 @@ export type ColumnEditor =
       readonly name: string;
       readonly type: string;
       readonly nullable: boolean;
+      readonly description: string;
       /** No template recorded the last submission. */
       readonly failed: boolean;
     }
@@ -24,6 +25,7 @@ export type ColumnEditor =
       readonly field: string;
       readonly type: string;
       readonly nullable: boolean;
+      readonly description: string;
       readonly failed: boolean;
     };
 
@@ -135,7 +137,12 @@ export const editorVerdict = (editor: ColumnEditor, table: ErTableDiff): EditorV
     return { ready: name !== '' && type !== '', issue: null };
   }
   const field = table.fields.find((item) => item.id === editor.field);
-  const changed = field === undefined || type !== field.type || editor.nullable !== field.nullable;
+  const description = editor.description.trim();
+  const changed =
+    field === undefined ||
+    type !== field.type ||
+    editor.nullable !== field.nullable ||
+    description !== (field.description ?? '');
   return { ready: type !== '' && changed, issue: null };
 };
 

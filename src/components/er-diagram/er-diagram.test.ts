@@ -10,7 +10,7 @@ import { DpkDialogPanel } from '../dialog-panel/element';
 import { DpkErDiagram } from './element';
 import { defineErDiagram } from './index';
 import { erDiagramMessages } from './messages';
-import { fanOffset, fieldOffset, parseErData, reduceErActions, tableHeight } from './model';
+import { ADD_FIELD, EDIT_FIELD, fanOffset, fieldOffset, parseErData, reduceErActions, tableHeight } from './model';
 
 defineErDiagram();
 
@@ -147,6 +147,152 @@ describe('er diagram data', () => {
     expect(() =>
       parseErData({ after: { tables: [{ id: 'a', name: 'A', fields: [{ id: 'x', type: 't', ref: 'nope' }] }] } }),
     ).toThrow();
+  });
+});
+
+describe('er diagram descriptions and constraints', () => {
+  const actOn = (type: string, table: string, payload: Record<string, unknown>, n = 0) => ({
+    id: `d${n}`,
+    type,
+    target: { type: 'element', id: `erd/node/${table}` },
+    payload,
+    createdAt: '2026-10-20T00:00:00.000Z',
+  });
+
+  it('surfaces a column description from the after snapshot, and null when absent', () => {
+    const data = parseErData({
+      before: { tables: [{ id: 't', name: 'T', fields: [{ id: 'x', type: 'text', description: 'old text' }] }] },
+      after: { tables: [{ id: 't', name: 'T', fields: [{ id: 'x', type: 'text', description: 'new text' }] }] },
+    });
+    const field = data.nodes[0]?.fields[0];
+    expect(field?.description).toBe('new text');
+    expect(field?.status).toBe('same');
+
+    const bare = parseErData({ after: { tables: [{ id: 't', name: 'T', fields: [{ id: 'x', type: 'text' }] }] } });
+    expect(bare.nodes[0]?.fields[0]?.description).toBeNull();
+  });
+
+  it('parses table-level constraints of every kind, defaulting EXCLUDE’s index method to null', () => {
+    const data = parseErData({
+      after: {
+        tables: [
+          {
+            id: 't',
+            name: 'T',
+            fields: [
+              { id: 'a', type: 'uuid' },
+              { id: 'b', type: 'uuid' },
+            ],
+            constraints: [
+              { kind: 'unique', columns: ['a', 'b'] },
+              { kind: 'primary-key', columns: ['a', 'b'] },
+              { kind: 'check', expression: 'a > 0' },
+              { kind: 'exclude', using: 'gist', elements: ['a WITH =', 'b WITH &&'] },
+              { kind: 'exclude', elements: ['a WITH ='] },
+            ],
+          },
+        ],
+      },
+    });
+    expect(data.nodes[0]?.constraints).toEqual([
+      { kind: 'unique', columns: ['a', 'b'] },
+      { kind: 'primary-key', columns: ['a', 'b'] },
+      { kind: 'check', expression: 'a > 0' },
+      { kind: 'exclude', using: 'gist', elements: ['a WITH =', 'b WITH &&'] },
+      { kind: 'exclude', using: null, elements: ['a WITH ='] },
+    ]);
+  });
+
+  it('keeps constraints out of the diff, like name, and takes them from the after snapshot', () => {
+    const data = parseErData({
+      before: {
+        tables: [
+          {
+            id: 't',
+            name: 'T',
+            fields: [{ id: 'a', type: 'uuid' }],
+            constraints: [{ kind: 'unique', columns: ['a'] }],
+          },
+        ],
+      },
+      after: {
+        tables: [
+          {
+            id: 't',
+            name: 'T',
+            fields: [{ id: 'a', type: 'uuid' }],
+            constraints: [
+              { kind: 'unique', columns: ['a'] },
+              { kind: 'check', expression: 'a > 0' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(data.nodes[0]?.status).toBe('same');
+    expect(data.nodes[0]?.constraints).toEqual([
+      { kind: 'unique', columns: ['a'] },
+      { kind: 'check', expression: 'a > 0' },
+    ]);
+  });
+
+  it("grows a table's estimated size for a column's description lines and a constraints section", () => {
+    const plain = parseErData({ after: { tables: [{ id: 't', name: 'T', fields: [{ id: 'a', type: 'uuid' }] }] } });
+    const withExtras = parseErData({
+      after: {
+        tables: [
+          {
+            id: 't',
+            name: 'T',
+            fields: [{ id: 'a', type: 'uuid', description: 'a short description' }],
+            constraints: [{ kind: 'check', expression: 'a > 0' }],
+          },
+        ],
+      },
+    });
+    const plainNode = plain.nodes[0];
+    const extraNode = withExtras.nodes[0];
+    if (!plainNode || !extraNode) throw new Error('missing table');
+    expect(extraNode.height).toBeGreaterThan(plainNode.height);
+    expect(extraNode.height).toBe(tableHeight(extraNode.fields, extraNode.constraints));
+  });
+
+  it('records a description through ADD_FIELD and EDIT_FIELD, keeping it out of status tracking', () => {
+    const data = parseErData(raw);
+    const added = reduceErActions(m, data, [
+      actOn(ADD_FIELD, 'orders', { id: 'note', type: 'text', description: 'free-form note' }),
+    ]);
+    const note = added.data.nodes.find((node) => node.id === 'orders')?.fields.find((field) => field.id === 'note');
+    expect(note).toMatchObject({ description: 'free-form note', status: 'added' });
+
+    const edited = reduceErActions(m, added.data, [
+      actOn(EDIT_FIELD, 'orders', { field: 'note', type: 'text', nullable: false, description: 'revised note' }, 1),
+    ]);
+    const revised = edited.data.nodes.find((node) => node.id === 'orders')?.fields.find((field) => field.id === 'note');
+    expect(revised).toMatchObject({ description: 'revised note', status: 'added' });
+
+    // Editing type without sending a description keeps the existing one.
+    const keptDescription = reduceErActions(m, edited.data, [
+      actOn(EDIT_FIELD, 'orders', { field: 'note', type: 'varchar', nullable: false }, 2),
+    ]);
+    const kept = keptDescription.data.nodes
+      .find((node) => node.id === 'orders')
+      ?.fields.find((field) => field.id === 'note');
+    expect(kept).toMatchObject({ description: 'revised note', type: 'varchar' });
+
+    // Editing only the description (type/nullable unchanged) does not flip an already-`same` field to `changed`.
+    const described = reduceErActions(m, data, [
+      actOn(
+        EDIT_FIELD,
+        'customers',
+        { field: 'email', type: 'varchar', nullable: false, description: 'primary contact address' },
+        3,
+      ),
+    ]);
+    const email = described.data.nodes
+      .find((node) => node.id === 'customers')
+      ?.fields.find((field) => field.id === 'email');
+    expect(email).toMatchObject({ description: 'primary contact address', status: 'same' });
   });
 });
 
@@ -1169,21 +1315,33 @@ describe('dpk-er-diagram', () => {
       expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
     });
 
-    it('deletes a plain column with its trash button, and offers none for an FK or a referenced column', async () => {
+    it("deletes a plain column from its editor's danger button, and offers none for an FK or a referenced column", async () => {
       const { element, seen, query } = await mountRecording();
+      // customer_id is itself an FK column: a relation's multiplicities derive from it, so it is not even editable.
       expect(
         element.renderRoot.querySelector(
-          '[data-er-table="orders"] .er-field[data-field="customer_id"] .er-field-delete',
+          '[data-er-table="orders"] [data-action="edit-field"][data-field="customer_id"]',
         ),
       ).toBeNull();
-      expect(
-        element.renderRoot.querySelector('[data-er-table="orders"] .er-field[data-field="id"] .er-field-delete'),
-      ).toBeNull();
-      query<HTMLButtonElement>('[data-er-table="orders"] .er-field[data-field="status"] .er-field-delete').click();
+
+      // id is editable (it is a plain PK, not an FK), but is referenced by payment_attempts.order_id, so its
+      // editor offers no delete.
+      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="id"]').click();
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-editor [data-action="delete-column"]')).toBeNull();
+      query<HTMLButtonElement>('[data-action="cancel-column"]').click();
+      await settle(element);
+
+      // status is a plain, unreferenced column: its editor offers the delete button.
+      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="status"]').click();
+      await settle(element);
+      query<HTMLButtonElement>('.er-editor [data-action="delete-column"]').click();
       expect(seen).toMatchObject([{ type: 'DELETE_FIELD', payload: { field: 'status' } }]);
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
     });
 
-    it("opens a cardinality editor for the selected relation and records a change to the edge's multiplicity", async () => {
+    it('opens a cardinality editor for the selected relation and commits a picked multiplicity at once, with no Save', async () => {
       const { element, seen, query } = await mountRecording();
       const edgeId = 'customers:id>orders:customer_id';
       query<SVGElement>(`[data-relation="${edgeId}"] .d-edge-hit`).dispatchEvent(
@@ -1192,13 +1350,12 @@ describe('dpk-er-diagram', () => {
       await settle(element);
       const editor = query<HTMLElement>('.er-cardinality-editor');
       expect(editor.getAttribute('aria-label')).toContain('customers.id');
+      expect(editor.querySelector('.er-editor-foot')).toBeNull();
       const trigger = query<HTMLButtonElement>('.er-cardinality-editor .dpk-rich-select');
       expect(trigger.textContent).toContain('1 : 0..N');
       trigger.click();
       await settle(element);
       query<HTMLElement>('.dpk-rich-select-option[data-value="1:1"]').click();
-      await settle(element);
-      query<HTMLButtonElement>('.er-cardinality-editor .dpk-btn--accent').click();
       await settle(element);
       expect(seen).toMatchObject([
         {
@@ -1207,6 +1364,10 @@ describe('dpk-er-diagram', () => {
           payload: { cardinality: '1:1' },
         },
       ]);
+      // Still open: a pick commits but does not deselect the edge.
+      expect(query<HTMLElement>('.er-cardinality-editor')).not.toBeNull();
+      element.select(null);
+      await settle(element);
       expect(element.renderRoot.querySelector('.er-cardinality-editor')).toBeNull();
     });
 
@@ -1427,22 +1588,35 @@ describe('dpk-er-diagram', () => {
       });
     });
 
-    it('hides non-key columns with the PK-only toggle, and restores them when toggled back off', async () => {
+    it('filters columns with the three-way All / Keys / Tables-only control', async () => {
       const element = await mount2();
       const fieldsOf = (table: string) =>
         [...element.renderRoot.querySelectorAll(`[data-er-table="${table}"] .er-field`)].map((row) =>
           row.getAttribute('data-field'),
         );
+      const option = (value: 'all' | 'keys' | 'tables-only'): HTMLButtonElement => {
+        const group = element.renderRoot.querySelector('.er-column-filter');
+        const button = [...(group?.querySelectorAll('button') ?? [])].find(
+          (_candidate, index) => ['all', 'keys', 'tables-only'][index] === value,
+        );
+        if (!(button instanceof HTMLButtonElement)) throw new Error(`no option for ${value}`);
+        return button;
+      };
       expect(fieldsOf('customers')).toEqual(['id', 'email', 'note']);
+      expect(option('all').getAttribute('aria-pressed')).toBe('true');
 
-      const toggle = element.renderRoot.querySelector<HTMLButtonElement>('.er-pk-toggle');
-      if (!toggle) throw new Error('no .er-pk-toggle');
-      toggle.click();
+      option('keys').click();
       await settle(element);
       expect(fieldsOf('customers')).toEqual(['id', 'email']);
       expect(fieldsOf('profiles')).toEqual(['id', 'customer_id']);
+      expect(option('keys').getAttribute('aria-pressed')).toBe('true');
 
-      toggle.click();
+      option('tables-only').click();
+      await settle(element);
+      expect(fieldsOf('customers')).toEqual([]);
+      expect(element.renderRoot.querySelector('[data-er-table="customers"] .er-fields')).toBeNull();
+
+      option('all').click();
       await settle(element);
       expect(fieldsOf('customers')).toEqual(['id', 'email', 'note']);
     });

@@ -109,7 +109,7 @@ export const erStyles = css`
     display: flex;
     align-items: center;
     gap: 2px;
-    min-height: 40px;
+    min-height: 48px;
     flex-shrink: 0;
     padding-right: 6px;
     border-bottom: 1px solid var(--dpk-rule);
@@ -137,31 +137,21 @@ export const erStyles = css`
     box-shadow: inset 0 0 0 2px var(--dpk-blue);
   }
 
-  .er-table-icon {
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-    width: 16px;
-    color: var(--dpk-ink-faint);
-  }
-
-  .er-table-icon svg {
-    width: 15px;
-    height: 15px;
-  }
-
-  .er-table.is-lit .er-table-icon,
-  .er-table.is-selected .er-table-icon {
-    color: var(--dpk-blue);
-  }
-
+  /* Stacked: the id (what the schema is read by) on top, the descriptive name under it. */
   .er-title {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .er-title-top {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0 7px;
     min-width: 0;
-    flex: 1;
   }
 
   .er-name {
@@ -368,36 +358,37 @@ export const erStyles = css`
     gap: 2px;
   }
 
-  .er-field-edit,
-  .er-field-delete {
+  .er-field-edit {
     width: 20px;
     height: 20px;
     padding: 3px;
     opacity: 0;
   }
 
-  .er-field-edit svg,
-  .er-field-delete svg {
+  .er-field-edit svg {
     width: 12px;
     height: 12px;
   }
 
-  .er-field-delete:hover {
-    color: var(--dpk-accent);
-  }
-
   .er-field:hover .er-field-edit,
-  .er-field:focus-within .er-field-edit,
-  .er-field:hover .er-field-delete,
-  .er-field:focus-within .er-field-delete {
+  .er-field:focus-within .er-field-edit {
     opacity: 1;
   }
 
   @media (hover: none) {
-    .er-field-edit,
-    .er-field-delete {
+    .er-field-edit {
       opacity: 1;
     }
+  }
+
+  /* A column's own supplementary note (never diffed, like a table's own name), under its row. */
+  .er-field-description {
+    margin: -4px 0 6px;
+    padding: 0 8px 0 var(--er-indent);
+    overflow-wrap: anywhere;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: var(--dpk-ink-faint);
   }
 
   /* A joined column: the row a lit relation lands on reads as the key it is. */
@@ -486,6 +477,26 @@ export const erStyles = css`
   .er-delta-name {
     font-family: var(--dpk-body);
     font-size: 9.5px;
+  }
+
+  /* ---- Table-level constraints ---- */
+
+  /* Composite UNIQUE / PK, CHECK, EXCLUDE: a compact, quiet section under the column list. */
+  .er-constraints {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 7px 10px 7px var(--er-indent);
+    border-top: 1px solid var(--dpk-rule);
+    list-style: none;
+    font-family: var(--dpk-mono);
+    font-size: 10px;
+    color: var(--dpk-ink-faint);
+  }
+
+  .er-constraint {
+    overflow-wrap: anywhere;
   }
 
   /* ---- Relations ---- */
@@ -899,45 +910,16 @@ export const erStyles = css`
   }
 
   /*
-   * Slotted into dpk-dialog-panel's own floating controls bar: its ".controls
-   * button" rule only reaches that component's own shadow DOM, not what this
-   * element slots in, so the look is repeated here.
+   * Slotted into dpk-dialog-panel's own floating controls bar, beside zoom and
+   * maximize: the \`.dpk-segmented\` atom (via \`controlAtom\`, composed into
+   * this component's own styles) trimmed down to that bar's compact height.
    */
-  .er-pk-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    min-width: 28px;
+  .er-column-filter {
     height: 28px;
-    padding: 0 9px;
-    border: 0;
-    border-radius: var(--dpk-radius-sm);
-    background: transparent;
-    color: var(--dpk-ink-soft);
-    font-family: var(--dpk-body);
+  }
+
+  .er-column-filter > button {
+    padding: 0 10px;
     font-size: 10.5px;
-    cursor: pointer;
-    transition:
-      background 140ms var(--dpk-ease),
-      color 140ms var(--dpk-ease);
-  }
-
-  .er-pk-toggle svg {
-    width: 13px;
-    height: 13px;
-  }
-
-  .er-pk-toggle:hover {
-    background: var(--dpk-paper-inset);
-    color: var(--dpk-ink);
-  }
-
-  .er-pk-toggle:focus-visible {
-    outline: none;
-    box-shadow: var(--dpk-focus);
-  }
-
-  .er-pk-toggle[aria-pressed='true'] {
-    color: var(--dpk-accent);
   }
 `;
