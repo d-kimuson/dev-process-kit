@@ -279,7 +279,7 @@ export const pageDefinition = (source: PageSource): TemplateDefinition<PageState
       if (board === undefined) return null;
       const current = board.definition.currentTarget?.(state.boards[board.id], boardNavigation(navigation, board.id));
       if (current === null || current === undefined)
-        return { value: qualifyRef(`page:${board.definition.name}`, board.id), label: board.label };
+        return { value: qualifyRef(`page:${board.definition.name}`, board.id), label: board.label, group: m.pageGroup };
       return { ...current, value: qualifyRef(current.value, board.id), label: `${board.label} › ${current.label}` };
     },
     title: (state) => state.title,

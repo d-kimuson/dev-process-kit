@@ -73,6 +73,15 @@ export type BoardTemplate = {
 type BoardElement = HTMLElement & {
   readonly board: string | null;
   readonly definition: AnyDefinition;
+  /**
+   * `definition`, extended with this board's own component-registered
+   * targets; the page's own `hasTarget` etc. delegate through this one when
+   * a board has it. Only `TemplateElement` boards do — an element-chrome
+   * board (a diagram or `dpk-kanban` used as a board) is structurally a
+   * `BoardElement` (`definition` + `api`) without one, so this stays
+   * optional and `#specs()` falls back to `definition` for it.
+   */
+  readonly liveDefinition?: AnyDefinition;
   readonly api: TemplateApi<unknown>;
   readonly controller: { replaceActions(actions: readonly unknown[]): void };
   requestUpdate(): void;
@@ -329,6 +338,7 @@ export class PageElement extends TemplateElement<PageState> {
 
   override connectedCallback(): void {
     super.connectedCallback();
+    this.addEventListener('dpk-comment-targets-change', this.#onBoardTargetsChange);
     void this.api.ready.then(() => {
       this.#started = true;
       this.#baseIds = this.#idsOf(this.#markupBoards());
@@ -338,8 +348,24 @@ export class PageElement extends TemplateElement<PageState> {
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
+    this.removeEventListener('dpk-comment-targets-change', this.#onBoardTargetsChange);
     this.#cancelSwitcherClose();
   }
+
+  /**
+   * A board's own component registered or dropped a target (`dpk-commentable`,
+   * a diagram, …). The page's own provider scan stops at a board's boundary —
+   * `findComponentProviders` treats a nested template as owning its own
+   * history — so this bubbled event is the only signal the page gets that a
+   * board's `liveDefinition` changed. Re-derives unconditionally
+   * (`setTemplate`, not `setComponentSnapshot`) because the page's own
+   * component snapshot is unchanged; only what a board's `hasTarget` answers
+   * through it is.
+   */
+  #onBoardTargetsChange = (): void => {
+    if (!this.#started) return;
+    this.controller.setTemplate(this.definition);
+  };
 
   get [BOARD_HOST](): BoardHost | undefined {
     if (!this.#started) return undefined;
@@ -393,7 +419,7 @@ export class PageElement extends TemplateElement<PageState> {
     return this.#boards().map((board) => ({
       id: board.board ?? '',
       label: this.#labelOf(board),
-      definition: board.definition,
+      definition: board.liveDefinition ?? board.definition,
     }));
   }
 

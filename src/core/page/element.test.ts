@@ -566,4 +566,36 @@ describe('<dpk-page>', () => {
       expect(brief).toContain('A question `grill:<id>@<board>` comes from the `data-dpk-grill` block of that board');
     });
   });
+
+  describe('a comment on a target a board’s own component registers (#99)', () => {
+    it('stops reading it as target-missing once that component’s commentTargets catch up', async () => {
+      const page = document.createElement('dpk-page');
+      if (!(page instanceof PageElement)) throw new Error('not upgraded');
+      page.storage = 'memory';
+      page.innerHTML = `<script type="application/json">{"title":"Checkout"}</script>
+        <dpk-template-plain board="catalog">
+          <script type="application/json">{"title":"Catalog"}</script>
+          <dpk-commentable slot="main">
+            <p data-dpk-item="risk:timeout">Timeout risk</p>
+          </dpk-commentable>
+        </dpk-template-plain>`;
+      document.body.append(page);
+      await page.api.ready;
+      await page.updateComplete;
+      const commentable = page.querySelector('dpk-commentable');
+      if (commentable === null) throw new Error('no commentable');
+      // `<dpk-commentable>` reports no targets until it has an `id` (its own gate), so a comment
+      // on the ref it will eventually own reads as target-missing right after mount.
+      expect(page.api.comment('element:risks/risk/timeout@catalog', 'check this')).toMatchObject({ ok: true });
+      await page.updateComplete;
+      expect(page.api.stale.map((entry) => entry.action.target)).toEqual([
+        { type: 'element', id: 'risks/risk/timeout@catalog' },
+      ]);
+      // The component registers its target late, well after the page (and its board) first settled.
+      commentable.id = 'risks';
+      await (commentable as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+      await page.updateComplete;
+      expect(page.api.stale).toEqual([]);
+    });
+  });
 });
