@@ -3,6 +3,25 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!--
+      Hides the root element until it upgrades, so the content inside does not flash
+      before the kit paints its chrome (docs/index.md#page-height). The animation is a
+      safety net: if the script fails to load, the content still shows after 2s.
+    -->
+    <style>
+      body > :not(:defined) {
+        visibility: hidden;
+        animation: dpk-reveal 0s 2s forwards;
+      }
+      @keyframes dpk-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+    </style>
     <title>User Story Mapping — Sora Market | dev-process-kit</title>
     <!--
       The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
@@ -21,663 +40,669 @@
         height: 100%;
         margin: 0;
       }
-      dpk-template-usm {
+      dpk-page {
         display: block;
         height: 100%;
       }
     </style>
   </head>
   <body>
-    <dpk-template-usm storage-key="sample-usm-sora-market">
-      <script type="application/json" data-dpk-changes>
-        {
-          "revisions": [
-            {
-              "revision": "2026-10-12.1",
-              "changes": [
-                {
-                  "id": "first-draft",
-                  "title": "最初のストーリーマップを作成"
-                }
-              ]
-            },
-            {
-              "revision": "2026-10-13.1",
-              "changes": [
-                {
-                  "id": "keyword-search",
-                  "title": "キーワード検索の受け入れ条件を具体化",
-                  "body": "レビューのコメントに沿って、0 件時の表示を追記。",
-                  "target": "story:keyword-search"
-                },
-                {
-                  "id": "payment-method",
-                  "title": "「支払い方法を選ぶ」をステップとして分離",
-                  "target": "step:payment-method"
-                },
-                {
-                  "id": "v1",
-                  "title": "v1 のゴールを書き直し",
-                  "target": "milestone:v1"
-                },
-                {
-                  "id": "wording",
-                  "title": "全体の言い回しを統一"
-                }
-              ]
-            },
-            {
-              "revision": "2026-10-16.1",
-              "changes": [
-                {
-                  "id": "dependencies",
-                  "title": "ストーリー間の依存関係を追加",
-                  "body": "「注文の状態と明細を見る」が 4 件をブロックしているため、v1 の中で先に着手する。",
-                  "target": "story:order-detail"
-                },
-                {
-                  "id": "estimates",
-                  "title": "見積もりと MVP のバーンダウンを追加",
-                  "body": "S / M / L で見積もり、Idea → Ready を 7、Ready → Done を 3 と重み付けした。",
-                  "target": "milestone:mvp"
-                },
-                {
-                  "id": "members",
-                  "title": "メンバーと担当者を追加",
-                  "body": "MVP と v1 で着手済みのストーリーに担当者を割り当てた。未着手のものは担当者なし。",
-                  "target": "story:order-detail"
-                }
-              ]
-            }
-          ]
-        }
-      </script>
+    <dpk-page storage-key="sample-usm-sora-market">
       <script type="application/json">
-        {
-          "title": "Sora Market — 購入者のストーリーマップ",
-          "features": ["estimates", "assignees"],
-          "measure": "weighted",
-          "activities": [
-            {
-              "id": "discover",
-              "name": "商品を探す",
-              "actor": "ゲスト",
-              "steps": [
-                {
-                  "id": "search",
-                  "name": "検索する"
-                },
-                {
-                  "id": "product-detail",
-                  "name": "商品を比べる"
-                }
-              ]
-            },
-            {
-              "id": "cart",
-              "name": "カートに入れる",
-              "actor": "ゲスト・会員",
-              "steps": [
-                {
-                  "id": "add-to-cart",
-                  "name": "カートに追加する"
-                },
-                {
-                  "id": "edit-cart",
-                  "name": "カートを見直す"
-                }
-              ]
-            },
-            {
-              "id": "order",
-              "name": "注文する",
-              "actor": "会員",
-              "steps": [
-                {
-                  "id": "delivery",
-                  "name": "届け先を決める"
-                },
-                {
-                  "id": "review",
-                  "name": "注文を確定する"
-                }
-              ]
-            },
-            {
-              "id": "pay",
-              "name": "支払う",
-              "actor": "会員",
-              "steps": [
-                {
-                  "id": "payment-method",
-                  "name": "支払い方法を選ぶ"
-                },
-                {
-                  "id": "authorize",
-                  "name": "決済を完了する"
-                }
-              ]
-            },
-            {
-              "id": "receive",
-              "name": "受け取る",
-              "actor": "会員",
-              "steps": [
-                {
-                  "id": "track",
-                  "name": "配送状況を確かめる"
-                },
-                {
-                  "id": "delivered",
-                  "name": "商品を受け取る"
-                }
-              ]
-            },
-            {
-              "id": "manage",
-              "name": "注文を管理する",
-              "actor": "会員・サポート担当",
-              "steps": [
-                {
-                  "id": "history",
-                  "name": "注文履歴を見る"
-                },
-                {
-                  "id": "cancel",
-                  "name": "注文をキャンセルする"
-                },
-                {
-                  "id": "refund",
-                  "name": "返金を確かめる"
-                }
-              ]
-            }
-          ],
-          "milestones": [
-            {
-              "id": "mvp",
-              "name": "MVP",
-              "timeframe": "2026年11月",
-              "dueDate": "2026-11-30",
-              "description": "探して、買って、届くまでを一通り通せる最小構成"
-            },
-            {
-              "id": "v1",
-              "name": "v1",
-              "timeframe": "2027年1月",
-              "dueDate": "2027-01-29",
-              "description": "リピート購入と問い合わせの手間を減らす"
-            },
-            {
-              "id": "v2",
-              "name": "v2",
-              "description": "パーソナライズと返品の自己解決"
-            }
-          ],
-          "statuses": [
-            {
-              "id": "idea",
-              "name": "Idea",
-              "tone": "gray",
-              "icon": "lightbulb",
-              "weight": 7
-            },
-            {
-              "id": "ready",
-              "name": "Ready",
-              "tone": "amber",
-              "icon": "play",
-              "weight": 3
-            },
-            {
-              "id": "done",
-              "name": "Done",
-              "tone": "green",
-              "icon": "check"
-            }
-          ],
-          "labels": [
-            { "id": "dev", "name": "Dev" },
-            { "id": "pdm", "name": "PdM", "tone": "violet" },
-            { "id": "design", "name": "Design", "tone": "amber" }
-          ],
-          "members": [
-            { "id": "aoki", "name": "Aoki" },
-            { "id": "mori", "name": "Mori", "tone": "green" },
-            { "id": "tanaka", "name": "Tanaka", "tone": "violet" }
-          ],
-          "estimates": [
-            { "id": "s", "name": "S", "points": 1 },
-            { "id": "m", "name": "M", "points": 3 },
-            { "id": "l", "name": "L", "points": 5 }
-          ],
-          "snapshots": [
-            {
-              "id": "snapshot-2026-09-18",
-              "at": "2026-09-18T00:00:00.000Z",
-              "tally": [
-                { "milestoneId": "mvp", "statusId": "idea", "stories": 10, "points": 23 },
-                { "milestoneId": "mvp", "statusId": "ready", "stories": 1, "points": 1 },
-                { "milestoneId": "v1", "statusId": "idea", "stories": 8, "points": 20 },
-                { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
-                { "statusId": "idea", "stories": 1, "points": 0 }
-              ]
-            },
-            {
-              "id": "snapshot-2026-09-25",
-              "at": "2026-09-25T00:00:00.000Z",
-              "tally": [
-                { "milestoneId": "mvp", "statusId": "idea", "stories": 7, "points": 16 },
-                { "milestoneId": "mvp", "statusId": "ready", "stories": 3, "points": 7 },
-                { "milestoneId": "mvp", "statusId": "done", "stories": 1, "points": 1 },
-                { "milestoneId": "v1", "statusId": "idea", "stories": 8, "points": 20 },
-                { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
-                { "statusId": "idea", "stories": 1, "points": 0 }
-              ]
-            },
-            {
-              "id": "snapshot-2026-10-02",
-              "at": "2026-10-02T00:00:00.000Z",
-              "tally": [
-                { "milestoneId": "mvp", "statusId": "idea", "stories": 5, "points": 8 },
-                { "milestoneId": "mvp", "statusId": "ready", "stories": 4, "points": 12 },
-                { "milestoneId": "mvp", "statusId": "done", "stories": 2, "points": 4 },
-                { "milestoneId": "v1", "statusId": "idea", "stories": 9, "points": 21 },
-                { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
-                { "statusId": "idea", "stories": 1, "points": 0 }
-              ]
-            },
-            {
-              "id": "snapshot-2026-10-09",
-              "at": "2026-10-09T00:00:00.000Z",
-              "tally": [
-                { "milestoneId": "mvp", "statusId": "idea", "stories": 3, "points": 6 },
-                { "milestoneId": "mvp", "statusId": "ready", "stories": 4, "points": 10 },
-                { "milestoneId": "mvp", "statusId": "done", "stories": 4, "points": 8 },
-                { "milestoneId": "v1", "statusId": "idea", "stories": 8, "points": 20 },
-                { "milestoneId": "v1", "statusId": "ready", "stories": 2, "points": 4 },
-                { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
-                { "statusId": "idea", "stories": 1, "points": 0 }
-              ]
-            }
-          ],
-          "stories": [
-            {
-              "id": "keyword-search",
-              "name": "キーワードで商品を探す",
-              "assigneeId": "aoki",
-              "estimateId": "m",
-              "description": "商品名・ブランド・**型番**で検索できる。\n- 0 件のときは近いキーワードを提案する\n- 全角 / 半角の表記ゆれを吸収する",
-              "labelIds": ["dev"],
-              "activityId": "discover",
-              "stepId": "search",
-              "milestoneId": "mvp",
-              "statusId": "done",
-              "links": [
-                {
-                  "url": "https://github.com/sora-market/storefront/pull/112"
-                },
-                {
-                  "url": "https://www.figma.com/design/k3Xc9/Search-results?node-id=12-4"
-                }
-              ]
-            },
-            {
-              "id": "category-browse",
-              "name": "カテゴリから絞り込む",
-              "assigneeId": "aoki",
-              "estimateId": "s",
-              "description": "カテゴリと価格帯・在庫ありで絞り込める",
-              "labelIds": ["dev", "pdm"],
-              "activityId": "discover",
-              "stepId": "search",
-              "milestoneId": "v1",
-              "statusId": "ready",
-              "comments": [
-                {
-                  "id": "category-browse-price",
-                  "body": "価格帯は固定の 5 段階で始める。自由入力はアクセスを見てから",
-                  "createdAt": "2026-09-18T10:30:00+09:00"
-                }
-              ]
-            },
-            {
-              "id": "see-stock",
-              "name": "在庫の有無を見て選ぶ",
-              "assigneeId": "mori",
-              "estimateId": "s",
-              "description": "在庫切れは購入ボタンを出さない",
-              "activityId": "discover",
-              "stepId": "product-detail",
-              "milestoneId": "mvp",
-              "statusId": "done",
-              "links": [
-                {
-                  "url": "https://github.com/sora-market/storefront/issues/86"
-                }
-              ]
-            },
-            {
-              "id": "read-reviews",
-              "name": "レビューを読んで比べる",
-              "estimateId": "m",
-              "description": "星の分布と写真つきレビューを先に出す",
-              "labelIds": ["pdm", "design"],
-              "activityId": "discover",
-              "stepId": "product-detail",
-              "milestoneId": "v2",
-              "statusId": "idea"
-            },
-            {
-              "id": "add-item",
-              "name": "商品をカートに入れる",
-              "assigneeId": "mori",
-              "estimateId": "s",
-              "description": "商品ページと一覧のどちらからでも 1 タップで入れられる",
-              "labelIds": ["dev"],
-              "activityId": "cart",
-              "stepId": "add-to-cart",
-              "milestoneId": "mvp",
-              "statusId": "done"
-            },
-            {
-              "id": "change-quantity",
-              "name": "数量を変える・外す",
-              "assigneeId": "mori",
-              "estimateId": "s",
-              "description": "カート内で数量を変え、0 にしたら外す。合計はその場で更新する",
-              "activityId": "cart",
-              "stepId": "edit-cart",
-              "milestoneId": "mvp",
-              "statusId": "ready",
-              "links": [
-                {
-                  "url": "https://github.com/sora-market/storefront/issues/97"
-                },
-                {
-                  "url": "https://sora-market.atlassian.net/browse/SHOP-214"
-                }
-              ]
-            },
-            {
-              "id": "keep-cart",
-              "name": "ログインし直してもカートが残る",
-              "estimateId": "m",
-              "blockedBy": ["add-item"],
-              "description": "ゲストのカートをログイン時に会員のカートへ統合する",
-              "activityId": "cart",
-              "stepId": "edit-cart",
-              "milestoneId": "v1",
-              "statusId": "idea",
-              "links": [
-                {
-                  "url": "https://sora-market.atlassian.net/browse/SHOP-231"
-                }
-              ]
-            },
-            {
-              "id": "enter-address",
-              "name": "届け先住所を入力する",
-              "assigneeId": "tanaka",
-              "estimateId": "m",
-              "description": "郵便番号から住所を補完する。離島は配送不可を先に伝える",
-              "activityId": "order",
-              "stepId": "delivery",
-              "milestoneId": "mvp",
-              "statusId": "done"
-            },
-            {
-              "id": "saved-address",
-              "name": "登録済みの住所から選ぶ",
-              "assigneeId": "tanaka",
-              "estimateId": "s",
-              "description": "よく使う届け先を最大 5 件まで保存して選べる",
-              "activityId": "order",
-              "stepId": "delivery",
-              "milestoneId": "v1",
-              "statusId": "ready"
-            },
-            {
-              "id": "confirm-order",
-              "name": "内容を確認して注文を確定する",
-              "assigneeId": "tanaka",
-              "estimateId": "l",
-              "blockedBy": ["enter-address", "pay-card"],
-              "description": "確定時に在庫を**引き当てる**。\n- 引き当てに失敗したら確定せず、在庫切れの商品を示す\n- 二重送信は注文番号で弾く",
-              "labelIds": ["design"],
-              "activityId": "order",
-              "stepId": "review",
-              "milestoneId": "mvp",
-              "statusId": "ready",
-              "links": [
-                {
-                  "url": "https://www.figma.com/design/k3Xc9/Checkout-flow?node-id=40-2"
-                },
-                {
-                  "url": "https://github.com/sora-market/storefront/pull/140"
-                },
-                {
-                  "url": "https://www.notion.so/sora-market/Inventory-allocation-rules-0f3a9c2e5b7d4e18a6c1d2b3e4f5a6b7"
-                }
-              ]
-            },
-            {
-              "id": "order-mail",
-              "name": "注文確認メールを受け取る",
-              "assigneeId": "aoki",
-              "estimateId": "s",
-              "blockedBy": ["confirm-order"],
-              "description": "注文番号・明細・お届け予定日を載せる",
-              "activityId": "order",
-              "stepId": "review",
-              "milestoneId": "mvp",
-              "statusId": "ready"
-            },
-            {
-              "id": "pay-card",
-              "name": "クレジットカードで払う",
-              "assigneeId": "aoki",
-              "estimateId": "l",
-              "description": "カード情報は決済代行のトークンで扱い、自社では**保持しない**。3-D セキュアに対応する",
-              "activityId": "pay",
-              "stepId": "payment-method",
-              "milestoneId": "mvp",
-              "statusId": "done",
-              "links": [
-                {
-                  "url": "https://linear.app/sora-market/issue/PAY-18/card-tokenization"
-                },
-                {
-                  "url": "https://docs.stripe.com/payments/accept-a-payment",
-                  "label": "Stripe docs"
-                }
-              ]
-            },
-            {
-              "id": "pay-convenience",
-              "name": "コンビニ払いを選ぶ",
-              "estimateId": "m",
-              "description": "支払期限は 3 日。期限切れの注文は自動でキャンセルする",
-              "activityId": "pay",
-              "stepId": "payment-method",
-              "milestoneId": "v2",
-              "statusId": "idea"
-            },
-            {
-              "id": "payment-failed",
-              "name": "決済に失敗したら別の方法でやり直す",
-              "estimateId": "m",
-              "description": "失敗理由を伝え、カートを保ったまま支払い方法を選び直せる",
-              "labelIds": ["dev", "pdm"],
-              "activityId": "pay",
-              "stepId": "authorize",
-              "milestoneId": "v1",
-              "statusId": "idea",
-              "links": [
-                {
-                  "url": "https://linear.app/sora-market/issue/PAY-27/retry-after-failure"
-                }
-              ]
-            },
-            {
-              "id": "shipping-status",
-              "name": "配送状況を注文詳細で見る",
-              "assigneeId": "mori",
-              "estimateId": "m",
-              "blockedBy": ["order-detail"],
-              "description": "配送会社の追跡番号と現在の状態を注文詳細に出す",
-              "activityId": "receive",
-              "stepId": "track",
-              "milestoneId": "v1",
-              "statusId": "ready",
-              "links": [
-                {
-                  "url": "https://sora-market.atlassian.net/browse/SHOP-260"
-                }
-              ]
-            },
-            {
-              "id": "shipped-mail",
-              "name": "出荷のお知らせを受け取る",
-              "description": "追跡リンクつきで出荷を知らせる",
-              "activityId": "receive",
-              "stepId": "track",
-              "milestoneId": "mvp",
-              "statusId": "idea"
-            },
-            {
-              "id": "receive-item",
-              "name": "商品を受け取る",
-              "assigneeId": "mori",
-              "estimateId": "s",
-              "description": "置き配と日時指定に対応する",
-              "activityId": "receive",
-              "stepId": "delivered",
-              "milestoneId": "mvp",
-              "statusId": "ready"
-            },
-            {
-              "id": "order-list",
-              "name": "過去の注文を一覧で見る",
-              "assigneeId": "tanaka",
-              "estimateId": "m",
-              "description": "新しい順に並べ、状態で絞り込める",
-              "activityId": "manage",
-              "stepId": "history",
-              "milestoneId": "mvp",
-              "statusId": "ready"
-            },
-            {
-              "id": "order-detail",
-              "name": "注文の状態と明細を見る",
-              "assigneeId": "tanaka",
-              "estimateId": "l",
-              "description": "注文の状態・明細・支払い方法・届け先を 1 画面で見られる",
-              "activityId": "manage",
-              "stepId": "history",
-              "milestoneId": "v1",
-              "statusId": "idea"
-            },
-            {
-              "id": "self-cancel",
-              "name": "出荷指示前なら自分でキャンセルする",
-              "assigneeId": "aoki",
-              "estimateId": "m",
-              "blockedBy": ["order-detail"],
-              "description": "いまは問い合わせフォーム経由。\n- 出荷指示**前**だけボタンを出す\n- キャンセル後は `refund_pending` に移す",
-              "labelIds": ["pdm"],
-              "activityId": "manage",
-              "stepId": "cancel",
-              "milestoneId": "v1",
-              "statusId": "ready",
-              "links": [
-                {
-                  "url": "https://github.com/sora-market/storefront/issues/151"
-                },
-                {
-                  "url": "https://www.notion.so/sora-market/Cancellation-policy-7a1b2c3d4e5f60718293a4b5c6d7e8f9"
-                }
-              ]
-            },
-            {
-              "id": "cancel-reason",
-              "name": "キャンセル理由を選ぶ",
-              "estimateId": "s",
-              "blockedBy": ["self-cancel"],
-              "description": "理由は選択式。集計して商品ページの改善に使う",
-              "activityId": "manage",
-              "stepId": "cancel",
-              "milestoneId": "v1",
-              "statusId": "idea"
-            },
-            {
-              "id": "partial-cancel",
-              "name": "一部の商品だけキャンセルする",
-              "estimateId": "l",
-              "blockedBy": ["order-detail", "self-cancel"],
-              "description": "初回リリースの対象外",
-              "activityId": "manage",
-              "stepId": "cancel",
-              "milestoneId": "v2",
-              "statusId": "idea"
-            },
-            {
-              "id": "return-after-ship",
-              "name": "出荷後に返品を申し込む",
-              "estimateId": "l",
-              "blockedBy": ["order-detail"],
-              "description": "到着から 7 日以内。返送ラベルを発行する",
-              "activityId": "manage",
-              "stepId": "cancel",
-              "milestoneId": "v2",
-              "statusId": "idea"
-            },
-            {
-              "id": "refund-mail",
-              "name": "返金完了のメールを受け取る",
-              "estimateId": "s",
-              "blockedBy": ["self-cancel"],
-              "description": "返金額と返金先、反映までの目安を知らせる",
-              "activityId": "manage",
-              "stepId": "refund",
-              "milestoneId": "v1",
-              "statusId": "idea"
-            },
-            {
-              "id": "refund-status",
-              "name": "返金の進み具合を注文詳細で見る",
-              "estimateId": "m",
-              "description": "`返金待ち` → `取消済み` の 2 段階で見せる",
-              "activityId": "manage",
-              "stepId": "refund",
-              "milestoneId": "v1",
-              "statusId": "idea",
-              "links": [
-                {
-                  "url": "https://sora-market.atlassian.net/browse/SHOP-288"
-                }
-              ]
-            },
-            {
-              "id": "point-refund",
-              "name": "使ったポイント・クーポンが戻る",
-              "estimateId": "m",
-              "description": "使ったポイントとクーポンを返金時に戻す。期限切れのものは戻さない",
-              "activityId": "manage",
-              "stepId": "refund",
-              "milestoneId": "v2",
-              "statusId": "idea"
-            },
-            {
-              "id": "refund-other-method",
-              "name": "返金先を別の口座に指定する",
-              "description": "コンビニ払いの返金は口座を指定してもらう",
-              "activityId": "manage",
-              "stepId": "refund"
-            }
-          ]
-        }
+        { "title": "Sora Market — 購入者のストーリーマップ" }
       </script>
-    </dpk-template-usm>
+
+      <dpk-template-usm board="usm">
+        <script type="application/json" data-dpk-changes>
+          {
+            "revisions": [
+              {
+                "revision": "2026-10-12.1",
+                "changes": [
+                  {
+                    "id": "first-draft",
+                    "title": "最初のストーリーマップを作成"
+                  }
+                ]
+              },
+              {
+                "revision": "2026-10-13.1",
+                "changes": [
+                  {
+                    "id": "keyword-search",
+                    "title": "キーワード検索の受け入れ条件を具体化",
+                    "body": "レビューのコメントに沿って、0 件時の表示を追記。",
+                    "target": "story:keyword-search"
+                  },
+                  {
+                    "id": "payment-method",
+                    "title": "「支払い方法を選ぶ」をステップとして分離",
+                    "target": "step:payment-method"
+                  },
+                  {
+                    "id": "v1",
+                    "title": "v1 のゴールを書き直し",
+                    "target": "milestone:v1"
+                  },
+                  {
+                    "id": "wording",
+                    "title": "全体の言い回しを統一"
+                  }
+                ]
+              },
+              {
+                "revision": "2026-10-16.1",
+                "changes": [
+                  {
+                    "id": "dependencies",
+                    "title": "ストーリー間の依存関係を追加",
+                    "body": "「注文の状態と明細を見る」が 4 件をブロックしているため、v1 の中で先に着手する。",
+                    "target": "story:order-detail"
+                  },
+                  {
+                    "id": "estimates",
+                    "title": "見積もりと MVP のバーンダウンを追加",
+                    "body": "S / M / L で見積もり、Idea → Ready を 7、Ready → Done を 3 と重み付けした。",
+                    "target": "milestone:mvp"
+                  },
+                  {
+                    "id": "members",
+                    "title": "メンバーと担当者を追加",
+                    "body": "MVP と v1 で着手済みのストーリーに担当者を割り当てた。未着手のものは担当者なし。",
+                    "target": "story:order-detail"
+                  }
+                ]
+              }
+            ]
+          }
+        </script>
+        <script type="application/json">
+          {
+            "title": "Sora Market — 購入者のストーリーマップ",
+            "features": ["estimates", "assignees"],
+            "measure": "weighted",
+            "activities": [
+              {
+                "id": "discover",
+                "name": "商品を探す",
+                "actor": "ゲスト",
+                "steps": [
+                  {
+                    "id": "search",
+                    "name": "検索する"
+                  },
+                  {
+                    "id": "product-detail",
+                    "name": "商品を比べる"
+                  }
+                ]
+              },
+              {
+                "id": "cart",
+                "name": "カートに入れる",
+                "actor": "ゲスト・会員",
+                "steps": [
+                  {
+                    "id": "add-to-cart",
+                    "name": "カートに追加する"
+                  },
+                  {
+                    "id": "edit-cart",
+                    "name": "カートを見直す"
+                  }
+                ]
+              },
+              {
+                "id": "order",
+                "name": "注文する",
+                "actor": "会員",
+                "steps": [
+                  {
+                    "id": "delivery",
+                    "name": "届け先を決める"
+                  },
+                  {
+                    "id": "review",
+                    "name": "注文を確定する"
+                  }
+                ]
+              },
+              {
+                "id": "pay",
+                "name": "支払う",
+                "actor": "会員",
+                "steps": [
+                  {
+                    "id": "payment-method",
+                    "name": "支払い方法を選ぶ"
+                  },
+                  {
+                    "id": "authorize",
+                    "name": "決済を完了する"
+                  }
+                ]
+              },
+              {
+                "id": "receive",
+                "name": "受け取る",
+                "actor": "会員",
+                "steps": [
+                  {
+                    "id": "track",
+                    "name": "配送状況を確かめる"
+                  },
+                  {
+                    "id": "delivered",
+                    "name": "商品を受け取る"
+                  }
+                ]
+              },
+              {
+                "id": "manage",
+                "name": "注文を管理する",
+                "actor": "会員・サポート担当",
+                "steps": [
+                  {
+                    "id": "history",
+                    "name": "注文履歴を見る"
+                  },
+                  {
+                    "id": "cancel",
+                    "name": "注文をキャンセルする"
+                  },
+                  {
+                    "id": "refund",
+                    "name": "返金を確かめる"
+                  }
+                ]
+              }
+            ],
+            "milestones": [
+              {
+                "id": "mvp",
+                "name": "MVP",
+                "timeframe": "2026年11月",
+                "dueDate": "2026-11-30",
+                "description": "探して、買って、届くまでを一通り通せる最小構成"
+              },
+              {
+                "id": "v1",
+                "name": "v1",
+                "timeframe": "2027年1月",
+                "dueDate": "2027-01-29",
+                "description": "リピート購入と問い合わせの手間を減らす"
+              },
+              {
+                "id": "v2",
+                "name": "v2",
+                "description": "パーソナライズと返品の自己解決"
+              }
+            ],
+            "statuses": [
+              {
+                "id": "idea",
+                "name": "Idea",
+                "tone": "gray",
+                "icon": "lightbulb",
+                "weight": 7
+              },
+              {
+                "id": "ready",
+                "name": "Ready",
+                "tone": "amber",
+                "icon": "play",
+                "weight": 3
+              },
+              {
+                "id": "done",
+                "name": "Done",
+                "tone": "green",
+                "icon": "check"
+              }
+            ],
+            "labels": [
+              { "id": "dev", "name": "Dev" },
+              { "id": "pdm", "name": "PdM", "tone": "violet" },
+              { "id": "design", "name": "Design", "tone": "amber" }
+            ],
+            "members": [
+              { "id": "aoki", "name": "Aoki" },
+              { "id": "mori", "name": "Mori", "tone": "green" },
+              { "id": "tanaka", "name": "Tanaka", "tone": "violet" }
+            ],
+            "estimates": [
+              { "id": "s", "name": "S", "points": 1 },
+              { "id": "m", "name": "M", "points": 3 },
+              { "id": "l", "name": "L", "points": 5 }
+            ],
+            "snapshots": [
+              {
+                "id": "snapshot-2026-09-18",
+                "at": "2026-09-18T00:00:00.000Z",
+                "tally": [
+                  { "milestoneId": "mvp", "statusId": "idea", "stories": 10, "points": 23 },
+                  { "milestoneId": "mvp", "statusId": "ready", "stories": 1, "points": 1 },
+                  { "milestoneId": "v1", "statusId": "idea", "stories": 8, "points": 20 },
+                  { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
+                  { "statusId": "idea", "stories": 1, "points": 0 }
+                ]
+              },
+              {
+                "id": "snapshot-2026-09-25",
+                "at": "2026-09-25T00:00:00.000Z",
+                "tally": [
+                  { "milestoneId": "mvp", "statusId": "idea", "stories": 7, "points": 16 },
+                  { "milestoneId": "mvp", "statusId": "ready", "stories": 3, "points": 7 },
+                  { "milestoneId": "mvp", "statusId": "done", "stories": 1, "points": 1 },
+                  { "milestoneId": "v1", "statusId": "idea", "stories": 8, "points": 20 },
+                  { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
+                  { "statusId": "idea", "stories": 1, "points": 0 }
+                ]
+              },
+              {
+                "id": "snapshot-2026-10-02",
+                "at": "2026-10-02T00:00:00.000Z",
+                "tally": [
+                  { "milestoneId": "mvp", "statusId": "idea", "stories": 5, "points": 8 },
+                  { "milestoneId": "mvp", "statusId": "ready", "stories": 4, "points": 12 },
+                  { "milestoneId": "mvp", "statusId": "done", "stories": 2, "points": 4 },
+                  { "milestoneId": "v1", "statusId": "idea", "stories": 9, "points": 21 },
+                  { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
+                  { "statusId": "idea", "stories": 1, "points": 0 }
+                ]
+              },
+              {
+                "id": "snapshot-2026-10-09",
+                "at": "2026-10-09T00:00:00.000Z",
+                "tally": [
+                  { "milestoneId": "mvp", "statusId": "idea", "stories": 3, "points": 6 },
+                  { "milestoneId": "mvp", "statusId": "ready", "stories": 4, "points": 10 },
+                  { "milestoneId": "mvp", "statusId": "done", "stories": 4, "points": 8 },
+                  { "milestoneId": "v1", "statusId": "idea", "stories": 8, "points": 20 },
+                  { "milestoneId": "v1", "statusId": "ready", "stories": 2, "points": 4 },
+                  { "milestoneId": "v2", "statusId": "idea", "stories": 5, "points": 19 },
+                  { "statusId": "idea", "stories": 1, "points": 0 }
+                ]
+              }
+            ],
+            "stories": [
+              {
+                "id": "keyword-search",
+                "name": "キーワードで商品を探す",
+                "assigneeId": "aoki",
+                "estimateId": "m",
+                "description": "商品名・ブランド・**型番**で検索できる。\n- 0 件のときは近いキーワードを提案する\n- 全角 / 半角の表記ゆれを吸収する",
+                "labelIds": ["dev"],
+                "activityId": "discover",
+                "stepId": "search",
+                "milestoneId": "mvp",
+                "statusId": "done",
+                "links": [
+                  {
+                    "url": "https://github.com/sora-market/storefront/pull/112"
+                  },
+                  {
+                    "url": "https://www.figma.com/design/k3Xc9/Search-results?node-id=12-4"
+                  }
+                ]
+              },
+              {
+                "id": "category-browse",
+                "name": "カテゴリから絞り込む",
+                "assigneeId": "aoki",
+                "estimateId": "s",
+                "description": "カテゴリと価格帯・在庫ありで絞り込める",
+                "labelIds": ["dev", "pdm"],
+                "activityId": "discover",
+                "stepId": "search",
+                "milestoneId": "v1",
+                "statusId": "ready",
+                "comments": [
+                  {
+                    "id": "category-browse-price",
+                    "body": "価格帯は固定の 5 段階で始める。自由入力はアクセスを見てから",
+                    "createdAt": "2026-09-18T10:30:00+09:00"
+                  }
+                ]
+              },
+              {
+                "id": "see-stock",
+                "name": "在庫の有無を見て選ぶ",
+                "assigneeId": "mori",
+                "estimateId": "s",
+                "description": "在庫切れは購入ボタンを出さない",
+                "activityId": "discover",
+                "stepId": "product-detail",
+                "milestoneId": "mvp",
+                "statusId": "done",
+                "links": [
+                  {
+                    "url": "https://github.com/sora-market/storefront/issues/86"
+                  }
+                ]
+              },
+              {
+                "id": "read-reviews",
+                "name": "レビューを読んで比べる",
+                "estimateId": "m",
+                "description": "星の分布と写真つきレビューを先に出す",
+                "labelIds": ["pdm", "design"],
+                "activityId": "discover",
+                "stepId": "product-detail",
+                "milestoneId": "v2",
+                "statusId": "idea"
+              },
+              {
+                "id": "add-item",
+                "name": "商品をカートに入れる",
+                "assigneeId": "mori",
+                "estimateId": "s",
+                "description": "商品ページと一覧のどちらからでも 1 タップで入れられる",
+                "labelIds": ["dev"],
+                "activityId": "cart",
+                "stepId": "add-to-cart",
+                "milestoneId": "mvp",
+                "statusId": "done"
+              },
+              {
+                "id": "change-quantity",
+                "name": "数量を変える・外す",
+                "assigneeId": "mori",
+                "estimateId": "s",
+                "description": "カート内で数量を変え、0 にしたら外す。合計はその場で更新する",
+                "activityId": "cart",
+                "stepId": "edit-cart",
+                "milestoneId": "mvp",
+                "statusId": "ready",
+                "links": [
+                  {
+                    "url": "https://github.com/sora-market/storefront/issues/97"
+                  },
+                  {
+                    "url": "https://sora-market.atlassian.net/browse/SHOP-214"
+                  }
+                ]
+              },
+              {
+                "id": "keep-cart",
+                "name": "ログインし直してもカートが残る",
+                "estimateId": "m",
+                "blockedBy": ["add-item"],
+                "description": "ゲストのカートをログイン時に会員のカートへ統合する",
+                "activityId": "cart",
+                "stepId": "edit-cart",
+                "milestoneId": "v1",
+                "statusId": "idea",
+                "links": [
+                  {
+                    "url": "https://sora-market.atlassian.net/browse/SHOP-231"
+                  }
+                ]
+              },
+              {
+                "id": "enter-address",
+                "name": "届け先住所を入力する",
+                "assigneeId": "tanaka",
+                "estimateId": "m",
+                "description": "郵便番号から住所を補完する。離島は配送不可を先に伝える",
+                "activityId": "order",
+                "stepId": "delivery",
+                "milestoneId": "mvp",
+                "statusId": "done"
+              },
+              {
+                "id": "saved-address",
+                "name": "登録済みの住所から選ぶ",
+                "assigneeId": "tanaka",
+                "estimateId": "s",
+                "description": "よく使う届け先を最大 5 件まで保存して選べる",
+                "activityId": "order",
+                "stepId": "delivery",
+                "milestoneId": "v1",
+                "statusId": "ready"
+              },
+              {
+                "id": "confirm-order",
+                "name": "内容を確認して注文を確定する",
+                "assigneeId": "tanaka",
+                "estimateId": "l",
+                "blockedBy": ["enter-address", "pay-card"],
+                "description": "確定時に在庫を**引き当てる**。\n- 引き当てに失敗したら確定せず、在庫切れの商品を示す\n- 二重送信は注文番号で弾く",
+                "labelIds": ["design"],
+                "activityId": "order",
+                "stepId": "review",
+                "milestoneId": "mvp",
+                "statusId": "ready",
+                "links": [
+                  {
+                    "url": "https://www.figma.com/design/k3Xc9/Checkout-flow?node-id=40-2"
+                  },
+                  {
+                    "url": "https://github.com/sora-market/storefront/pull/140"
+                  },
+                  {
+                    "url": "https://www.notion.so/sora-market/Inventory-allocation-rules-0f3a9c2e5b7d4e18a6c1d2b3e4f5a6b7"
+                  }
+                ]
+              },
+              {
+                "id": "order-mail",
+                "name": "注文確認メールを受け取る",
+                "assigneeId": "aoki",
+                "estimateId": "s",
+                "blockedBy": ["confirm-order"],
+                "description": "注文番号・明細・お届け予定日を載せる",
+                "activityId": "order",
+                "stepId": "review",
+                "milestoneId": "mvp",
+                "statusId": "ready"
+              },
+              {
+                "id": "pay-card",
+                "name": "クレジットカードで払う",
+                "assigneeId": "aoki",
+                "estimateId": "l",
+                "description": "カード情報は決済代行のトークンで扱い、自社では**保持しない**。3-D セキュアに対応する",
+                "activityId": "pay",
+                "stepId": "payment-method",
+                "milestoneId": "mvp",
+                "statusId": "done",
+                "links": [
+                  {
+                    "url": "https://linear.app/sora-market/issue/PAY-18/card-tokenization"
+                  },
+                  {
+                    "url": "https://docs.stripe.com/payments/accept-a-payment",
+                    "label": "Stripe docs"
+                  }
+                ]
+              },
+              {
+                "id": "pay-convenience",
+                "name": "コンビニ払いを選ぶ",
+                "estimateId": "m",
+                "description": "支払期限は 3 日。期限切れの注文は自動でキャンセルする",
+                "activityId": "pay",
+                "stepId": "payment-method",
+                "milestoneId": "v2",
+                "statusId": "idea"
+              },
+              {
+                "id": "payment-failed",
+                "name": "決済に失敗したら別の方法でやり直す",
+                "estimateId": "m",
+                "description": "失敗理由を伝え、カートを保ったまま支払い方法を選び直せる",
+                "labelIds": ["dev", "pdm"],
+                "activityId": "pay",
+                "stepId": "authorize",
+                "milestoneId": "v1",
+                "statusId": "idea",
+                "links": [
+                  {
+                    "url": "https://linear.app/sora-market/issue/PAY-27/retry-after-failure"
+                  }
+                ]
+              },
+              {
+                "id": "shipping-status",
+                "name": "配送状況を注文詳細で見る",
+                "assigneeId": "mori",
+                "estimateId": "m",
+                "blockedBy": ["order-detail"],
+                "description": "配送会社の追跡番号と現在の状態を注文詳細に出す",
+                "activityId": "receive",
+                "stepId": "track",
+                "milestoneId": "v1",
+                "statusId": "ready",
+                "links": [
+                  {
+                    "url": "https://sora-market.atlassian.net/browse/SHOP-260"
+                  }
+                ]
+              },
+              {
+                "id": "shipped-mail",
+                "name": "出荷のお知らせを受け取る",
+                "description": "追跡リンクつきで出荷を知らせる",
+                "activityId": "receive",
+                "stepId": "track",
+                "milestoneId": "mvp",
+                "statusId": "idea"
+              },
+              {
+                "id": "receive-item",
+                "name": "商品を受け取る",
+                "assigneeId": "mori",
+                "estimateId": "s",
+                "description": "置き配と日時指定に対応する",
+                "activityId": "receive",
+                "stepId": "delivered",
+                "milestoneId": "mvp",
+                "statusId": "ready"
+              },
+              {
+                "id": "order-list",
+                "name": "過去の注文を一覧で見る",
+                "assigneeId": "tanaka",
+                "estimateId": "m",
+                "description": "新しい順に並べ、状態で絞り込める",
+                "activityId": "manage",
+                "stepId": "history",
+                "milestoneId": "mvp",
+                "statusId": "ready"
+              },
+              {
+                "id": "order-detail",
+                "name": "注文の状態と明細を見る",
+                "assigneeId": "tanaka",
+                "estimateId": "l",
+                "description": "注文の状態・明細・支払い方法・届け先を 1 画面で見られる",
+                "activityId": "manage",
+                "stepId": "history",
+                "milestoneId": "v1",
+                "statusId": "idea"
+              },
+              {
+                "id": "self-cancel",
+                "name": "出荷指示前なら自分でキャンセルする",
+                "assigneeId": "aoki",
+                "estimateId": "m",
+                "blockedBy": ["order-detail"],
+                "description": "いまは問い合わせフォーム経由。\n- 出荷指示**前**だけボタンを出す\n- キャンセル後は `refund_pending` に移す",
+                "labelIds": ["pdm"],
+                "activityId": "manage",
+                "stepId": "cancel",
+                "milestoneId": "v1",
+                "statusId": "ready",
+                "links": [
+                  {
+                    "url": "https://github.com/sora-market/storefront/issues/151"
+                  },
+                  {
+                    "url": "https://www.notion.so/sora-market/Cancellation-policy-7a1b2c3d4e5f60718293a4b5c6d7e8f9"
+                  }
+                ]
+              },
+              {
+                "id": "cancel-reason",
+                "name": "キャンセル理由を選ぶ",
+                "estimateId": "s",
+                "blockedBy": ["self-cancel"],
+                "description": "理由は選択式。集計して商品ページの改善に使う",
+                "activityId": "manage",
+                "stepId": "cancel",
+                "milestoneId": "v1",
+                "statusId": "idea"
+              },
+              {
+                "id": "partial-cancel",
+                "name": "一部の商品だけキャンセルする",
+                "estimateId": "l",
+                "blockedBy": ["order-detail", "self-cancel"],
+                "description": "初回リリースの対象外",
+                "activityId": "manage",
+                "stepId": "cancel",
+                "milestoneId": "v2",
+                "statusId": "idea"
+              },
+              {
+                "id": "return-after-ship",
+                "name": "出荷後に返品を申し込む",
+                "estimateId": "l",
+                "blockedBy": ["order-detail"],
+                "description": "到着から 7 日以内。返送ラベルを発行する",
+                "activityId": "manage",
+                "stepId": "cancel",
+                "milestoneId": "v2",
+                "statusId": "idea"
+              },
+              {
+                "id": "refund-mail",
+                "name": "返金完了のメールを受け取る",
+                "estimateId": "s",
+                "blockedBy": ["self-cancel"],
+                "description": "返金額と返金先、反映までの目安を知らせる",
+                "activityId": "manage",
+                "stepId": "refund",
+                "milestoneId": "v1",
+                "statusId": "idea"
+              },
+              {
+                "id": "refund-status",
+                "name": "返金の進み具合を注文詳細で見る",
+                "estimateId": "m",
+                "description": "`返金待ち` → `取消済み` の 2 段階で見せる",
+                "activityId": "manage",
+                "stepId": "refund",
+                "milestoneId": "v1",
+                "statusId": "idea",
+                "links": [
+                  {
+                    "url": "https://sora-market.atlassian.net/browse/SHOP-288"
+                  }
+                ]
+              },
+              {
+                "id": "point-refund",
+                "name": "使ったポイント・クーポンが戻る",
+                "estimateId": "m",
+                "description": "使ったポイントとクーポンを返金時に戻す。期限切れのものは戻さない",
+                "activityId": "manage",
+                "stepId": "refund",
+                "milestoneId": "v2",
+                "statusId": "idea"
+              },
+              {
+                "id": "refund-other-method",
+                "name": "返金先を別の口座に指定する",
+                "description": "コンビニ払いの返金は口座を指定してもらう",
+                "activityId": "manage",
+                "stepId": "refund"
+              }
+            ]
+          }
+        </script>
+      </dpk-template-usm>
+    </dpk-page>
   </body>
 </html>

@@ -2,6 +2,25 @@
 <html lang="ja">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <!--
+    Hides the root element until it upgrades, so the content inside does not flash
+    before the kit paints its chrome (docs/index.md#page-height). The animation is a
+    safety net: if the script fails to load, the content still shows after 2s.
+  -->
+  <style>
+    body > :not(:defined) {
+      visibility: hidden;
+      animation: dpk-reveal 0s 2s forwards;
+    }
+    @keyframes dpk-reveal {
+      to {
+        visibility: visible;
+      }
+    }
+  </style>
   <title>ERD — long identifiers</title>
   <style>
     body {
@@ -16,13 +35,13 @@
     p {
       font-size: 13px;
     }
-    dpk-component-er-diagram {
+    dpk-er-diagram {
       --diagram-height: 800px;
     }
   </style>
   <h1>ERD · 長いテーブル名とカラム名</h1>
   <p>日本語・区切りのない英語・変更前後の型・複数の関連。拡大とドラッグで各テーブルを確認できます。</p>
-  <dpk-component-er-diagram id="long-schema" lang="ja">
+  <dpk-er-diagram id="long-schema" lang="ja">
     <script type="application/json">
       {
         "before": {
@@ -89,7 +108,7 @@
         }
       }
     </script>
-  </dpk-component-er-diagram>
+  </dpk-er-diagram>
   <script type="module">
     import { loadKit } from './kit.js';
     await loadKit(['components.js']);
