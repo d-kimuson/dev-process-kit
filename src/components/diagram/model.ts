@@ -128,6 +128,8 @@ export type DiagramNodeInput = {
   readonly ports?: Readonly<Record<string, LayoutPoint>>;
   /** Hand-authored position, used when the component lays out fixed. */
   readonly position?: LayoutPoint;
+  /** Nodes sharing a `group` are clustered into one non-overlapping band by the layered layout. */
+  readonly group?: string;
 };
 
 export type DiagramEdgeInput = {
@@ -166,14 +168,6 @@ export type GraphSelection = { readonly kind: 'node' | 'edge'; readonly id: stri
 export type DiagramSelection = GraphSelection | null;
 
 /** What the shared chrome asks the adapter to do; effects stay in the adapter. */
-export type DiagramIntent<S extends SelectionRef = GraphSelection> =
-  | { readonly kind: 'tag'; readonly tag: string }
-  | { readonly kind: 'match'; readonly match: TagMatch }
-  | { readonly kind: 'clear-tags' }
-  | { readonly kind: 'select'; readonly selection: S | null }
-  | { readonly kind: 'zoom'; readonly factor: number }
-  | { readonly kind: 'fit' };
-
 export type ElementState = {
   readonly selected: boolean;
   readonly related: boolean;

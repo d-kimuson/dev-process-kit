@@ -105,11 +105,20 @@ export const wheelPan = (
 export type ViewportOptions = {
   readonly canvas: HTMLElement;
   readonly world: HTMLElement;
-  /** Background click / Escape: the component clears its selection. */
-  readonly onClearSelection: () => void;
+  /**
+   * Background click / Escape: the component clears its selection. Returning
+   * `false` says nothing was cleared, so Escape is left to whatever is around
+   * the canvas (a maximized panel restores on it).
+   */
+  readonly onClearSelection: () => boolean | void;
   readonly onView?: (view: ViewState) => void;
   /** Where content that fits sits; `center` by default. */
   readonly align?: ViewportAlign;
+  /**
+   * Whether `setContent` sizes the world element to the content box (the
+   * default). A world sized by its own content measures itself instead.
+   */
+  readonly sizeWorld?: boolean;
 };
 
 export type ViewportController = {
@@ -131,8 +140,21 @@ export type ViewportController = {
  */
 const INTERACTIVE = 'button,[role="button"],a,input,textarea,select';
 
+/**
+ * The first element on the event path, up to the canvas, matching `selector`.
+ * The path, not `closest`: the content may sit in other shadow trees (slotted
+ * into the canvas, or inside an element of its own).
+ */
+const onPath = (event: Event, canvas: Element, selector: string): Element | null => {
+  for (const node of event.composedPath()) {
+    if (node === canvas) return null;
+    if (node instanceof Element && node.matches(selector)) return node;
+  }
+  return null;
+};
+
 export const createViewport = (options: ViewportOptions): ViewportController => {
-  const { canvas, world, onClearSelection, onView, align = 'center' } = options;
+  const { canvas, world, onClearSelection, onView, align = 'center', sizeWorld = true } = options;
   let area: ViewportBounds = { x: 0, y: 0, width: 0, height: 0 };
   let view: ViewState = { x: 0, y: 0, scale: 1 };
 
@@ -196,7 +218,7 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
   };
 
   const onWheel = (event: WheelEvent): void => {
-    if (event.target instanceof Element && event.target.closest('.diagram-zoom')) return;
+    if (onPath(event, canvas, '.diagram-zoom') !== null) return;
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? size().height : 1;
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
@@ -235,8 +257,7 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
 
   const onPointerDown = (event: PointerEvent): void => {
     if (pointers.size === 0) moved = false;
-    const target = event.target instanceof Element ? event.target : null;
-    const interactive = target?.closest(INTERACTIVE) ?? null;
+    const interactive = onPath(event, canvas, INTERACTIVE);
     if (event.button !== 0 || (event.pointerType !== 'touch' && interactive !== null)) return;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     gesture = geometry();
@@ -293,8 +314,7 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
       moved = false;
       return;
     }
-    const target = event.target instanceof Element ? event.target : null;
-    if (target === null || target.closest(INTERACTIVE) !== null) return;
+    if (!(event.target instanceof Element) || onPath(event, canvas, INTERACTIVE) !== null) return;
     onClearSelection();
   };
 
@@ -304,8 +324,9 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
     if (event.key === '+' || event.key === '=') zoom(1.1);
     else if (event.key === '-') zoom(1 / 1.1);
     else if (event.key === '0') fit();
-    else if (event.key === 'Escape') onClearSelection();
-    else if (
+    else if (event.key === 'Escape') {
+      if (onClearSelection() === false) return;
+    } else if (
       event.key === 'ArrowLeft' ||
       event.key === 'ArrowRight' ||
       event.key === 'ArrowUp' ||
@@ -324,7 +345,7 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
   /** Keep a keyboard-focused card inside the viewport. */
   const onFocusIn = (event: FocusEvent): void => {
     const target = event.target instanceof HTMLElement ? event.target : null;
-    if (target === null || !world.contains(target)) return;
+    if (target === null || !event.composedPath().includes(world)) return;
     const rect = target.getBoundingClientRect();
     const box = canvas.getBoundingClientRect();
     let dx = 0;
@@ -353,8 +374,10 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
   return {
     setContent(bounds) {
       area = expandedBounds(bounds.width === 0 && bounds.height === 0 ? [] : [bounds]);
-      world.style.width = `${bounds.width}px`;
-      world.style.height = `${bounds.height}px`;
+      if (sizeWorld) {
+        world.style.width = `${bounds.width}px`;
+        world.style.height = `${bounds.height}px`;
+      }
       apply();
     },
     apply,

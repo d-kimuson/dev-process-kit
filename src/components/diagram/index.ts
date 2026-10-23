@@ -28,7 +28,6 @@ export type {
   DiagramData,
   DiagramEdgeInput,
   DiagramEdgeRef,
-  DiagramIntent,
   DiagramNodeInput,
   DiagramSelection,
   ElementState,
@@ -37,8 +36,7 @@ export type {
   TagMatch,
   TagState,
 } from './model';
-export { changeSummary, presentStats, presentTagBar } from './present';
-export type { TagViewModel } from './present';
+export { changeSummary, presentStats } from './present';
 export { constrainView, createViewport, expandedBounds, MAX_SCALE, MIN_SCALE } from './viewport';
 export type {
   ViewState,
@@ -48,5 +46,7 @@ export type {
   ViewportController,
   ViewportOptions,
 } from './viewport';
-export { arrowDefinitions, pathData, renderTagBar, renderZoom } from './view';
-export type { ArrowDefinition, DiagramSend } from './view';
+export { arrowDefinitions, pathData } from './view';
+export type { ArrowDefinition } from './view';
+export { listDiagrams, registerDiagram } from './registry';
+export type { DiagramCatalogEntry } from './registry';

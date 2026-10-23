@@ -1,15 +1,31 @@
-import { LitElement, html, nothing, svg, type CSSResultGroup, type TemplateResult } from 'lit';
-import { keyed } from 'lit/directives/keyed.js';
+import { LitElement, html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
-import type { ElementActionResult } from '../../core/element-actions';
-import type { CommentTargetOption, DraftAction } from '../../core/types';
+import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
+import type { TemplateApi } from '../../core/shell/contracts';
+import type {
+  ActionInput,
+  BatchDispatchOutcome,
+  CommentTargetOption,
+  DispatchOutcome,
+  DraftAction,
+  TemplateDefinition,
+} from '../../core/types';
+import type { ViewportAlign, ViewportController, ViewState } from './viewport';
 
+import { COMMENT_ACTION } from '../../core/action';
+import { contextMenuMessages } from '../../core/context-menu/messages';
+import { DraftController } from '../../core/controller';
+import { diagramBoardDefinition, type DiagramBoardState } from '../../core/diagram-board';
+import { elementActionsFor, type ElementActionResult } from '../../core/element-actions';
 import { type Locale } from '../../core/i18n';
-import { iconComment, iconMaximize, iconMinimize } from '../../core/icons';
 import { LocaleController } from '../../core/locale-controller';
-import { PopoverController } from '../../core/popover-controller';
+import { resolveBoardTarget } from '../../core/page/board-target';
+import { boardHostOf, boardIdOf } from '../../core/page/host';
+import { createTemplateApi, snapshotOf, type TemplateFacadeSource } from '../../core/shell/api';
+import { toTarget } from '../../core/target';
 import { observeJsonChild } from '../../lib/dom/base-data';
 import {
+  applyPositionOverrides,
   fixedLayout,
   layeredLayout,
   type LayoutEdgeSpec,
@@ -19,22 +35,19 @@ import {
   type LayoutResult,
   type PlacedNode,
 } from '../../lib/layout/layered';
-import { composerMessages } from '../comment-composer/messages';
-import { presentComposer } from '../comment-composer/present';
-import { renderComposer, type ComposerIntent } from '../comment-composer/view';
+import { CommentPopoverController, reviewCommentMenuGroup } from '../comment-composer/controller';
+import { defineDialogPanel, type DpkDialogPanel } from '../dialog-panel/index';
+import { defineTagFilter } from '../tag-filter/index';
 import { diagramMessages, type DiagramMessages } from './messages';
 import {
   classNames,
-  clearTags,
   EMPTY_REACH,
   EMPTY_TAG_STATE,
-  setTagMatch,
   stateOf,
+  tagCounts,
   tagStateMatches,
-  toggleTag,
   type DiagramData,
   type DiagramEdgeInput,
-  type DiagramIntent,
   type DiagramNodeInput,
   type DiagramSelection,
   type ElementState,
@@ -43,66 +56,94 @@ import {
   type SelectionRef,
   type TagState,
 } from './model';
-import { presentStats, presentTagBar } from './present';
-import { diagramStyles } from './styles';
-import { arrowDefinitions, renderTagBar, renderZoom, type ArrowDefinition, type DiagramSend } from './view';
-import { createViewport, type ViewportAlign, type ViewportController, type ViewState } from './viewport';
+import { PositionController } from './position-controller';
+import { presentStats } from './present';
+import { chromeStyles, diagramStyles } from './styles';
+import { arrowDefinitions, type ArrowDefinition } from './view';
+
+/** What a diagram drives of its canvas: the canvas methods of `<dpk-dialog-panel canvas>`. */
+export type DiagramViewport = Pick<ViewportController, 'apply' | 'fit' | 'fitWidth' | 'reset' | 'zoom' | 'view'>;
 
 /**
- * Everything a diagram has regardless of its shape: data intake, the tag filter,
- * selection, pan/zoom, contextual comments, the empty state and the shell.
+ * Everything an element built on `<dpk-dialog-panel>` has regardless of
+ * whether its body is a canvas: data intake, the tag filter, selection,
+ * contextual comments, the empty state and the shell's actions/toolbar slots.
  *
- * Components that are graphs (state, dependency, ER, map) extend `DiagramElement`
- * below for layout as well; the sequence diagram uses this class directly because
- * its content is rows, not nodes.
+ * The shell and the tag row are the public elements `<dpk-dialog-panel>`
+ * and `<dpk-tag-filter>`: an author composing them by hand gets the
+ * same frame, controls and filter as the built-in elements.
+ *
+ * `DiagramChromeElement` below adds the pan/zoom canvas on top of this for
+ * the diagrams proper; a document-flow element like the kanban extends this
+ * class directly and lays its body out with ordinary CSS instead.
  */
-export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSelection> extends LitElement {
-  static override styles: CSSResultGroup = diagramStyles;
+/**
+ * How a diagram renders (ADR 20261023_diagram-as-board): `embedded`, today's
+ * behavior inside a template (can be maximized), or `board`, fixed full-screen
+ * chrome fit to use the diagram as a whole board of `<dpk-page>`. Orthogonal
+ * to whether the diagram actually acts as a board — that is the `board`
+ * attribute (set by the page) alone, exactly like a template.
+ */
+export type DiagramVariant = 'embedded' | 'board';
+
+const VARIANT_CONVERTER = {
+  fromAttribute: (value: string | null): DiagramVariant => (value === 'board' ? 'board' : 'embedded'),
+  toAttribute: (value: DiagramVariant): string => value,
+};
+
+/**
+ * Narrows an `ActionInput.payload` (`unknown`, since the pipeline carries
+ * every template's payload shape alike) back to the plain object
+ * `dispatchElementAction` expects — a type predicate so a `#dispatch` helper
+ * that forwards an own action-creator's `ActionInput` into it narrows by
+ * checking, never by asserting.
+ */
+export const isActionPayload = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null;
+
+export abstract class ElementChromeBase<D, S extends SelectionRef = GraphSelection> extends LitElement {
+  static override styles: CSSResultGroup = chromeStyles;
   static override properties = {
     data: { attribute: false },
     id: { type: String, reflect: true },
     heading: { type: String },
     subject: { type: String },
+    variant: { type: String, reflect: true, converter: VARIANT_CONVERTER },
   };
 
-  /** Diagram data as a typed property. The JSON child is the HTML-side path. */
+  /** Element data as a typed property. The JSON child is the HTML-side path. */
   declare data: D | null;
   /** Toolbar title; falls back to the component's own default. */
   declare heading: string | null;
   /** Toolbar subtitle, e.g. `Order lifecycle`. */
   declare subject: string | null;
+  /** `embedded` (default) or `board`; see `DiagramVariant`. */
+  declare variant: DiagramVariant;
 
-  /** The authored data, before this diagram's element actions. */
+  /** The authored data, before this element's element actions. */
   #authored: D | null = null;
-  /** `#authored` with the element actions replayed: what the diagram shows. */
+  /** `#authored` with the element actions replayed: what the component shows. */
   #items: D | null = null;
   #elementActions: readonly DraftAction[] = [];
   #elementResults: readonly ElementActionResult[] = [];
   #dataError: string | null = null;
   #tags: TagState = EMPTY_TAG_STATE;
   #selection: S | null = null;
-  #viewport: ViewportController | null = null;
-  #zoomLabel: HTMLElement | null = null;
   #stopJsonChild: (() => void) | null = null;
-  #lastLayoutVersion = -1;
   #targetSignature = '';
-  /** The target whose composer a trigger opened; it closes when the selection moves. */
-  #commenting: string | null = null;
-  #previousCommenting: string | null = null;
-  #drafts: ReadonlyMap<string, string> = new Map();
-  #failedTarget: string | null = null;
-  /** Labels of the triggers the current render drew, by target: the composer needs a visible anchor. */
-  #triggers = new Map<string, string>();
-  /**
-   * Set while the shell covers the viewport (in the top layer where the browser
-   * has one). `height` is what the shell took in the page: a placeholder keeps
-   * it, so the page neither reflows nor scroll-anchors to a new position.
-   */
-  #maximized: { readonly height: number } | null = null;
-  readonly #popovers = new PopoverController(this);
+  readonly #commentPopover = new CommentPopoverController(this);
   readonly #i18n = new LocaleController(this, () => {
     this.#targetSignature = '';
   });
+  /**
+   * Set only once this element acts as its own board (ADR
+   * 20261023_diagram-as-board): a `DraftController` driven by
+   * `diagramBoardDefinition`, exactly what a `TemplateElement` keeps for
+   * itself. Forwards to the page when hosted (`board !== null`), like any
+   * other board; owns real persistence standalone.
+   */
+  #boardController: DraftController<DiagramBoardState> | null = null;
+  #boardApi: TemplateApi<DiagramBoardState> | null = null;
 
   constructor() {
     super();
@@ -110,9 +151,13 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     this.data = null;
     this.heading = null;
     this.subject = null;
+    this.variant = VARIANT_CONVERTER.fromAttribute(this.getAttribute('variant'));
   }
 
   override connectedCallback(): void {
+    // The shell is made of these; a page that registers only this element still gets them.
+    defineDialogPanel();
+    defineTagFilter();
     super.connectedCallback();
     this.#targetSignature = '';
     this.requestUpdate();
@@ -124,15 +169,15 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
         else this.#failData(result.error);
       },
     );
+    // A board's children are its own; an enclosing page's provider scan must
+    // not also treat this element as a flat, directly-owned component.
+    if (this.board !== null) this.#ensureBoardController();
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.#stopJsonChild?.();
     this.#stopJsonChild = null;
-    this.#viewport?.destroy();
-    this.#viewport = null;
-    this.#zoomLabel = null;
   }
 
   protected override willUpdate(changed: Map<PropertyKey, unknown>): void {
@@ -141,26 +186,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
 
   protected override updated(): void {
     this.#syncTargets();
-    this.#syncMaximized();
-    this.#syncViewport();
-    this.#syncComposer();
-  }
-
-  /**
-   * Lifts the maximized shell into the top layer, so no ancestor's overflow,
-   * transform or stacking context can clip it. Without the Popover API the
-   * fixed positioning of `.is-maximized` alone covers the viewport. Removing the
-   * `popover` attribute on restore takes the shell out of the top layer again.
-   */
-  #syncMaximized(): void {
-    const shell = this.renderRoot.querySelector<HTMLElement>('.diagram');
-    if (this.#maximized === null || !shell || typeof shell.showPopover !== 'function') return;
-    if (shell.matches(':popover-open')) return;
-    try {
-      shell.showPopover();
-    } catch {
-      /* not in a document yet */
-    }
+    this.#commentPopover.sync(this.renderRoot.querySelector<HTMLElement>('.comment-pop'));
   }
 
   #syncTargets(): void {
@@ -169,57 +195,6 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
       this.#targetSignature = signature;
       this.dispatchEvent(new CustomEvent('dpk-comment-targets-change', { bubbles: true, composed: true }));
     }
-  }
-
-  #syncViewport(): void {
-    this.#zoomLabel = this.renderRoot.querySelector<HTMLElement>('.diagram-zoom-value');
-    const canvas = this.renderRoot.querySelector<HTMLElement>('.diagram-canvas');
-    const world = this.renderRoot.querySelector<HTMLElement>('.diagram-world');
-    if (!canvas || !world) return;
-    this.#viewport ??= createViewport({
-      canvas,
-      world,
-      align: this.viewAlign(),
-      onClearSelection: () => this.#select(null),
-      onView: (view) => {
-        if (this.#zoomLabel) this.#zoomLabel.textContent = `${Math.round(view.scale * 100)}%`;
-        this.dispatchEvent(
-          new CustomEvent('dpk-diagram-view', {
-            detail: { view },
-            bubbles: true,
-            composed: true,
-          }),
-        );
-        this.onViewChange(view);
-      },
-    });
-    const size = this.contentSize();
-    if (size === null) {
-      this.#viewport.apply();
-      return;
-    }
-    this.#viewport.setContent({ x: 0, y: 0, width: size.width, height: size.height });
-    const version = this.layoutVersion();
-    if (version !== this.#lastLayoutVersion) {
-      this.#lastLayoutVersion = version;
-      this.initialView();
-    }
-  }
-
-  /** Anchors an open composer to its trigger; focus moves in only when it opens. */
-  #syncComposer(): void {
-    const opened = this.#previousCommenting !== this.#commenting;
-    this.#previousCommenting = this.#commenting;
-    const surface = this.renderRoot.querySelector<HTMLElement>('.comment-pop');
-    const anchor = this.#commentAnchor();
-    if (!surface || !anchor) return;
-    this.#popovers.open(
-      surface,
-      anchor,
-      { width: 300, height: 280 },
-      { placement: 'right-start', trackTransform: true },
-    );
-    if (opened) surface.querySelector('textarea')?.focus({ preventScroll: true });
   }
 
   // ------------------------------------------------------------------- public
@@ -235,25 +210,31 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     return [];
   }
 
-  protected commentRef(kind: string, ...ids: readonly string[]): string {
-    return `element:${[this.id, kind, ...ids].map((id) => encodeURIComponent(id)).join('/')}`;
+  /**
+   * The provider segment is this element's own `id` when the author set one
+   * (several embedded siblings need it to tell their elements apart) — or,
+   * failing that, its `board` (unique page-wide already, by the same rule a
+   * board id follows) or its tag name as a last resort. Without this fallback
+   * a diagram-as-board left without an `id` (`docs/components/diagrams.md`'s
+   * own Board hosting example has none) produces an empty provider segment,
+   * which `componentTargetSchema`/`providerOf` (`core/element-actions.ts`)
+   * reject as not a component reference at all — every element action on it
+   * then looks up its type against the board's own (empty) action map instead
+   * of the generic element-action descriptor, and is rejected as unknown.
+   * `#onBoardChange` below reads back actions/results under this same id, so
+   * it uses this identical fallback rather than `this.id` directly.
+   */
+  #providerId(): string {
+    return this.id !== '' ? this.id : (this.board ?? this.tagName.toLowerCase());
   }
 
-  protected requestElementComment(kind: string, ...ids: readonly string[]): void {
-    const target = this.commentRef(kind, ...ids);
-    if (!this.commentTargets.some((option) => option.value === target)) return;
-    this.dispatchEvent(
-      new CustomEvent('dpk-comment-request', {
-        detail: { target },
-        bubbles: true,
-        composed: true,
-      }),
-    );
+  protected commentRef(kind: string, ...ids: readonly string[]): string {
+    return `element:${[this.#providerId(), kind, ...ids].map((id) => encodeURIComponent(id)).join('/')}`;
   }
 
   /**
-   * The draft actions the hosting template recorded against this diagram, in
-   * order. The host assigns them; the diagram replays them over its data.
+   * The draft actions the hosting template recorded against this element, in
+   * order. The host assigns them; the element replays them over its data.
    */
   get elementActions(): readonly DraftAction[] {
     return this.#elementActions;
@@ -269,9 +250,137 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     return this.#elementResults;
   }
 
+  // -------------------------------------------------------- board hosting
+
+  /**
+   * The id this element has as a board of `<dpk-page>` (ADR
+   * 20261023_diagram-as-board), or `null` outside one — exactly
+   * `TemplateElement`'s own notion of `board`, read from the same attribute.
+   */
+  get board(): string | null {
+    return boardIdOf(this);
+  }
+
+  /** The board's definition name: the page's `BoardLayout.template`. Override for a stable name. */
+  protected boardName(): string {
+    return this.tagName.toLowerCase();
+  }
+
+  /** The board's label, shown in the page's switcher and review list. */
+  protected boardLabel(): string {
+    return this.heading ?? this.defaultHeading();
+  }
+
+  /**
+   * Read fresh on every access: a page reads this directly (its own global
+   * comment composer, the add-board catalog), so it always carries this
+   * element's current comment targets and element-action results.
+   */
+  get definition(): TemplateDefinition<DiagramBoardState> {
+    return diagramBoardDefinition({
+      name: this.boardName(),
+      label: this.boardLabel(),
+      commentTargets: () => this.commentTargets,
+      elementActionResults: () => this.elementActionResults,
+    });
+  }
+
+  /** The draft controller this element owns when it acts as its own board. */
+  get controller(): DraftController<DiagramBoardState> {
+    return this.#ensureBoardController();
+  }
+
+  /** The public API surface a board of `<dpk-page>` is expected to carry. */
+  get api(): TemplateApi<DiagramBoardState> {
+    this.#boardApi ??= createTemplateApi(this.#boardFacadeSource(), this);
+    return this.#boardApi;
+  }
+
+  #ensureBoardController(): DraftController<DiagramBoardState> {
+    if (this.#boardController) return this.#boardController;
+    const hosted = this.board !== null;
+    // Bare: no live comment targets/results baked in here, since this
+    // definition is captured once by the controller. Freshness instead comes
+    // from `setComponentSnapshot`, below — the same mechanism an embedded
+    // component's host template already uses for itself.
+    const definition = diagramBoardDefinition({ name: this.boardName(), label: this.boardLabel() });
+    const controller = new DraftController<DiagramBoardState>(
+      hosted ? { definition, base: {}, storage: null } : { definition, base: {} },
+    );
+    this.#boardController = controller;
+    if (hosted) this.dataset['template'] = definition.name;
+    controller.subscribe(() => this.#onBoardChange());
+    this.#onBoardChange();
+    return controller;
+  }
+
+  /** Keeps the board controller's own notion of this element's targets/results current. */
+  #onBoardChange(): void {
+    const controller = this.#boardController;
+    if (!controller) return;
+    const provider = this.#providerId();
+    this.elementActions = elementActionsFor(controller.actions, provider);
+    controller.setComponentSnapshot({
+      targets: this.commentTargets,
+      providers: [{ id: provider, results: this.elementActionResults }],
+    });
+  }
+
+  #boardFacadeSource(): TemplateFacadeSource<DiagramBoardState> {
+    const controller = (): DraftController<DiagramBoardState> => this.#ensureBoardController();
+    const source: TemplateFacadeSource<DiagramBoardState> = {
+      definition: this.definition,
+      controller,
+      derivation: () => controller().derivation,
+      ready: Promise.resolve(),
+      navigation: () => ({}),
+      issues: () => controller().lastIssues,
+      dispatch: (input) => this.#dispatchBoard(input),
+      dispatchBatch: (inputs) => this.#dispatchBoardBatch(inputs),
+      subscribe: (listener) => controller().subscribe(() => listener(snapshotOf(source))),
+      editComment: (id, body) => controller().editComment(id, body),
+      removeAction: (id) => controller().removeAction(id),
+      clearActions: () => controller().clearActions(),
+      navigate: () => {},
+      hashFor: () => '',
+      // No page-level "request a comment on this" picker reaches a diagram
+      // board directly; its own contextual composer covers that.
+      requestComment: () => {},
+    };
+    return source;
+  }
+
+  /** A target this element names, resolved into the page's terms when hosted. */
+  #toPageInput(input: ActionInput): ActionInput {
+    const controller = this.#ensureBoardController();
+    const fallbackType = controller.descriptorFor(input.type)?.targetType ?? 'element';
+    const resolved = toTarget(input.target, fallbackType);
+    const board = this.board;
+    if (board === null) return { ...input, target: resolved };
+    const boards = boardHostOf(this)?.boardIds() ?? new Set<string>();
+    return { ...input, target: resolveBoardTarget(resolved, board, boards) };
+  }
+
+  /**
+   * Dispatches into this element's own board draft: forwarded to the page
+   * when hosted (exactly `TemplateElement.dispatch()`'s own branching), or
+   * into its own, self-persisted controller standalone.
+   */
+  #dispatchBoard(input: ActionInput): DispatchOutcome {
+    const host = this.board !== null ? boardHostOf(this) : null;
+    if (host === null) return this.#ensureBoardController().dispatch(input);
+    return host.dispatch(this.#toPageInput(input));
+  }
+
+  #dispatchBoardBatch(inputs: readonly ActionInput[]): BatchDispatchOutcome {
+    const host = this.board !== null ? boardHostOf(this) : null;
+    if (host === null) return this.#ensureBoardController().dispatchBatch(inputs);
+    return host.dispatchBatch(inputs.map((input) => this.#toPageInput(input)));
+  }
+
   /**
    * Replays element actions over the authored data. Pure: the result depends
-   * only on the arguments. Diagrams that accept no actions report every one as
+   * only on the arguments. Elements that accept no actions report every one as
    * unsupported.
    */
   protected reduceElementActions(
@@ -286,16 +395,19 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
 
   /**
    * Asks the hosting template to record an action against one of this
-   * diagram's elements. `true` when a template accepted it; by then the action
-   * is already replayed into `items()`.
+   * element's own elements — or, acting as its own board, records it on its
+   * own draft directly. `true` once accepted; by then the action is already
+   * replayed into `items()`.
    */
   protected dispatchElementAction(
     type: string,
     element: readonly [kind: string, ...ids: string[]],
     payload: Readonly<Record<string, unknown>>,
   ): boolean {
+    const target = this.commentRef(...element);
+    if (this.board !== null) return this.#dispatchBoard({ type, target, payload }).ok;
     const event = new CustomEvent('dpk-element-action', {
-      detail: { type, target: this.commentRef(...element), payload },
+      detail: { type, target, payload },
       bubbles: true,
       composed: true,
       cancelable: true,
@@ -321,44 +433,19 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     this.requestUpdate();
   }
 
-  /** Data problem from a malformed JSON child; the canvas shows it instead. */
+  /** Data problem from a malformed JSON child; the body shows it instead. */
   get dataError(): string | null {
     return this.#dataError;
   }
 
-  resetView(): void {
-    this.fitViewport();
+  /** Closes an open contextual composer, e.g. because the shell just maximized or restored. */
+  protected closeComposer(): void {
+    this.#commentPopover.close();
   }
-
-  #setMaximized(maximized: boolean): void {
-    if (maximized === (this.#maximized !== null)) return;
-    const shell = this.renderRoot.querySelector<HTMLElement>('.diagram');
-    this.#maximized = maximized ? { height: shell?.offsetHeight ?? 0 } : null;
-    // An open composer would stay beneath the lifted shell.
-    this.#commenting = null;
-    this.requestUpdate();
-  }
-
-  /** While maximized nothing is visible behind the diagram, so the page must not scroll. */
-  readonly #holdWheel = {
-    handleEvent: (event: WheelEvent): void => event.preventDefault(),
-    passive: false,
-  };
-
-  /** Escape clears a selection first (the canvas does that); with none, it restores. */
-  readonly #restoreOnEscape = {
-    handleEvent: (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape' || this.#selection !== null) return;
-      event.preventDefault();
-      this.#setMaximized(false);
-    },
-    capture: true,
-  };
 
   // ------------------------------------------------- subclass responsibilities
 
-  /** Validates one JSON payload into the component's domain data. */
-  /** The language of the page around this diagram, resolved on connect. */
+  /** The language of the page around this element, resolved on connect. */
   protected get locale(): Locale {
     return this.#i18n.locale;
   }
@@ -368,112 +455,45 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     return diagramMessages(this.#i18n.locale);
   }
 
+  /** Validates one JSON payload into the component's domain data. */
   protected abstract parseData(input: unknown): D;
 
   /** Data used when nothing was supplied; usually empty collections. */
   protected abstract emptyData(): D;
 
-  /** Draws the world. */
-  protected abstract renderCanvas(): TemplateResult;
-
   /**
    * Selection UI. It lives in the top layer, beside the element it is about, so
-   * selecting never resizes the canvas. By default it is the comment composer a
-   * trigger opened.
+   * selecting never resizes the body. It is the comment composer the board's
+   * right-click "Review comment" item opened.
    */
   protected renderSelection(): TemplateResult | typeof nothing {
-    const ref = this.#commenting;
-    const label = ref === null ? undefined : this.#triggers.get(ref);
-    if (ref === null || label === undefined) return nothing;
-    const vm = presentComposer(this.#drafts.get(ref) ?? '', [], {
-      label,
-      key: ref,
-      ...(this.#failedTarget === ref ? { error: this.chromeMessages.sendFailed } : {}),
+    return this.#commentPopover.render({
+      locale: this.#i18n.locale,
+      errorMessage: this.chromeMessages.sendFailed,
+      submit: (target, body) => this.#submitComment(target, body),
     });
-    return html`${keyed(
-      ref,
-      renderComposer(composerMessages(this.#i18n.locale), vm, (intent) => this.#commentIntent(ref, intent)),
-    )}`;
   }
 
   /**
-   * The comment icon for one element, revealed while the element (or its
-   * immediately preceding sibling) is hovered, focused or selected. Activating
-   * it opens the composer beside it. `at` places it absolutely in the world, at
-   * that top-left corner; without it the component's own styles place it.
-   * Needs a diagram id, like every element comment.
+   * The right-click menu's generic "Review comment" item: offered whenever
+   * the resolved target matches one of this element's own `commentTargets`.
+   * A subclass that adds its own groups (e.g. the graph diagrams' "Reset
+   * positions") calls this and merges in its own.
    */
-  protected renderCommentTrigger(
-    selection: S,
-    label: string,
-    at?: { readonly x: number; readonly y: number },
-  ): TemplateResult | typeof nothing {
-    if (!this.id) return nothing;
-    const ref = this.commentRef(selection.kind, selection.id);
-    this.#triggers.set(ref, label);
-    return html`<button
-      type="button"
-      class=${classNames('diagram-comment-trigger', at && 'is-placed')}
-      style=${at ? `left:${at.x}px; top:${at.y}px` : nothing}
-      data-comment-kind=${selection.kind}
-      data-comment-id=${selection.id}
-      aria-label=${this.chromeMessages.commentOn(label)}
-      title=${this.chromeMessages.commentOn(label)}
-      aria-haspopup="dialog"
-      aria-expanded=${this.#commenting === ref ? 'true' : 'false'}
-      @click=${() => {
-        this.#select(selection);
-        this.#commenting = ref;
-        this.requestUpdate();
-      }}
-    >
-      ${iconComment()}
-    </button>`;
+  getContextMenuItems(request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
+    const group = reviewCommentMenuGroup(
+      request.target,
+      this.commentTargets,
+      contextMenuMessages(this.locale),
+      (ref, label) => this.#openCommentPopover(ref, label),
+    );
+    return group === null ? null : [group];
   }
 
-  /** The comment icon of an edge, on the middle of its route, inside the edge's SVG group. */
-  protected renderEdgeCommentTrigger(
-    selection: S,
-    label: string,
-    route: readonly LayoutPoint[],
-  ): TemplateResult | typeof nothing {
-    const middle = Math.floor((route.length - 1) / 2);
-    const start = route[middle];
-    const end = route[middle + 1] ?? start;
-    if (!this.id || !start || !end) return nothing;
-    return svg`<foreignObject
-      class="diagram-edge-comment"
-      x=${(start.x + end.x) / 2 - 16}
-      y=${(start.y + end.y) / 2 - 16}
-      width="32"
-      height="32"
-    >${this.renderCommentTrigger(selection, label)}</foreignObject>`;
-  }
-
-  /** World size, or `null` when there is nothing to lay out. */
-  protected abstract contentSize(): { readonly width: number; readonly height: number } | null;
-
-  /** Changes when the content should be re-fitted (a new layout, a filter). */
-  protected layoutVersion(): number {
-    return 0;
-  }
-
-  protected fitViewport(): void {
-    this.viewport?.fit();
-  }
-
-  /**
-   * The view the diagram opens in: 100%, so the reader sees real size rather
-   * than whatever shrinking made the whole diagram fit. Fitting stays available
-   * through the zoom control.
-   */
-  protected initialView(): void {
-    this.viewport?.reset();
-  }
-
-  /** Where the content sits on an axis it fits: in the middle, or at the top-left corner. */
-  protected viewAlign(): ViewportAlign {
-    return 'center';
+  #openCommentPopover(ref: string, label: string): void {
+    const anchor = this.renderRoot.querySelector<Element>(`[data-dpk-target="${CSS.escape(ref)}"]`);
+    if (anchor === null) return;
+    this.#commentPopover.open(ref, anchor, label);
   }
 
   /**
@@ -487,9 +507,6 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     return value === undefined || value === '' ? nothing : value;
   }
 
-  /** Mirrors the pan/zoom into component-owned chrome (the participant rail). */
-  protected onViewChange(_view: ViewState): void {}
-
   protected statsText(): string {
     return '';
   }
@@ -500,12 +517,24 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
   }
 
   protected isEmpty(): boolean {
-    return this.contentSize() === null;
+    return false;
   }
 
   /** Extra class on the shell, for component-specific chrome styling. */
   protected shellClass(): string {
     return '';
+  }
+
+  /**
+   * Whether this element's `<dpk-dialog-panel>` frame offers maximize and
+   * resize: true for `embedded` (today's chrome), false for `board` — a
+   * full-page board frame already fills the page (ADR
+   * 20261023_diagram-as-board), so neither affordance makes sense. Every
+   * subclass passes this straight through as `maximizable`/`resizable`
+   * instead of re-deriving `variant !== 'board'` on its own.
+   */
+  protected get frameControls(): boolean {
+    return this.variant !== 'board';
   }
 
   protected defaultHeading(): string {
@@ -525,20 +554,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     return nothing;
   }
 
-  protected renderLegend(): TemplateResult | typeof nothing {
-    return nothing;
-  }
-
-  /** Rendered between the tag row and the canvas (the sequence participant rail). */
-  protected renderAboveCanvas(): TemplateResult | typeof nothing {
-    return nothing;
-  }
-
   // ------------------------------------------------------------------ helpers
-
-  protected get viewport(): ViewportController | null {
-    return this.#viewport;
-  }
 
   protected items(): D {
     return this.#items ?? this.emptyData();
@@ -549,13 +565,29 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     return this.#authored ?? this.emptyData();
   }
 
-  protected elementClass(state: ElementState, ...extra: readonly (string | false | null | undefined)[]): string {
-    return classNames(
-      ...extra,
-      state.selected && 'is-selected',
-      state.related && 'is-related',
-      state.dimmed && 'is-dimmed',
-    );
+  /** `<div slot="actions">`: the component's own toolbar controls plus the stats pill. */
+  protected renderToolbarActionsSlot(): TemplateResult {
+    return html`<div slot="actions" class="diagram-toolbar-actions">
+      ${this.renderToolbarActions()}
+      <span class="diagram-stats">${this.statsText()}</span>
+    </div>`;
+  }
+
+  /** `<div slot="toolbar">`: the tag filter, plus anything a canvas element renders above its body. */
+  protected renderTagFilterRow(extra: TemplateResult | typeof nothing = nothing): TemplateResult {
+    return html`<div slot="toolbar" class="diagram-toolbar-rows">
+      <dpk-tag-filter
+        .tags=${tagCounts(this.tagItems())}
+        .active=${this.#tags.active}
+        .match=${this.#tags.match}
+        @dpk-tag-filter-change=${(event: CustomEvent<TagState>) => {
+          event.stopPropagation();
+          this.#tags = { active: event.detail.active, match: event.detail.match };
+          this.requestUpdate();
+        }}
+      ></dpk-tag-filter>
+      ${extra}
+    </div>`;
   }
 
   // ---------------------------------------------------------------- internals
@@ -582,54 +614,27 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     this.#elementResults = replayed.results;
     if (this.#selection !== null) {
       const exists = this.hasSelection(this.#selection);
-      if (!exists) {
-        this.#selection = null;
-        this.#commenting = null;
-      }
+      if (!exists) this.#selection = null;
     }
     this.requestUpdate();
   }
 
-  #commentAnchor(): HTMLButtonElement | null {
-    const selection = this.#selection;
-    if (!selection) return null;
-    return (
-      [...this.renderRoot.querySelectorAll<HTMLButtonElement>('[data-comment-kind]')].find(
-        (button) => button.dataset['commentKind'] === selection.kind && button.dataset['commentId'] === selection.id,
-      ) ?? null
-    );
-  }
-
-  #commentIntent(target: string, intent: ComposerIntent): void {
-    if (intent.kind === 'input') {
-      this.#drafts = new Map(this.#drafts).set(target, intent.body);
-      this.#failedTarget = null;
-      this.requestUpdate();
-      return;
-    }
-    if (intent.kind === 'comment') {
-      // Only an enclosing template that saved the comment cancels the event.
-      const accepted = !this.dispatchEvent(
-        new CustomEvent('dpk-comment-submit', {
-          detail: { target, body: intent.body },
-          bubbles: true,
-          composed: true,
-          cancelable: true,
-        }),
-      );
-      if (!accepted) {
-        this.#failedTarget = target;
-        this.requestUpdate();
-        return;
-      }
-      const drafts = new Map(this.#drafts);
-      drafts.delete(target);
-      this.#drafts = drafts;
-    }
-    this.#failedTarget = null;
-    const anchor = this.#commentAnchor();
-    this.#select(null);
-    anchor?.focus({ preventScroll: true });
+  /**
+   * A board owns its own draft and comments go straight into it; an embedded
+   * diagram instead asks its enclosing template to save the comment, which
+   * cancels the event once it has. `true` once accepted.
+   */
+  #submitComment(target: string, body: string): boolean {
+    return this.board !== null
+      ? this.#dispatchBoard({ type: COMMENT_ACTION, target, payload: { body } }).ok
+      : !this.dispatchEvent(
+          new CustomEvent('dpk-comment-submit', {
+            detail: { target, body },
+            bubbles: true,
+            composed: true,
+            cancelable: true,
+          }),
+        );
   }
 
   #failData(error: string): void {
@@ -637,7 +642,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     this.#authored = null;
     this.#items = null;
     this.#replay();
-    console.error('[dev-process-kit] invalid diagram data:', error);
+    console.error('[dev-process-kit] invalid element data:', error);
     this.requestUpdate();
   }
 
@@ -653,104 +658,214 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
         : this.#selection !== null && this.#selection.kind === selection.kind && this.#selection.id === selection.id;
     if (same) return;
     this.#selection = selection;
-    // A composer belongs to the element it was opened on.
-    this.#commenting = null;
     this.dispatchEvent(new CustomEvent('dpk-diagram-select', { detail: { selection }, bubbles: true, composed: true }));
     this.requestUpdate();
   }
 
-  #send: DiagramSend<S> = (intent: DiagramIntent<S>): void => {
-    switch (intent.kind) {
-      case 'tag':
-        this.#tags = toggleTag(this.#tags, intent.tag);
-        this.requestUpdate();
-        return;
-      case 'match':
-        this.#tags = setTagMatch(this.#tags, intent.match);
-        this.requestUpdate();
-        return;
-      case 'clear-tags':
-        this.#tags = clearTags(this.#tags);
-        this.requestUpdate();
-        return;
-      case 'select':
-        this.#select(intent.selection);
-        return;
-      case 'zoom':
-        this.#viewport?.zoom(intent.factor);
-        return;
-      case 'fit':
-        this.fitViewport();
-        return;
-      default:
-        return;
-    }
-  };
-
   /** Recompute derived content for this render (layout, relations, rows). */
   protected refreshContent(): void {}
 
-  protected override render(): TemplateResult {
-    this.#triggers = new Map();
+  /** Call at the top of `render()`: refreshes derived content before the subclass draws it. */
+  protected prepareRender(): void {
     this.refreshContent();
-    const tags = presentTagBar(this.tagItems(), this.#tags);
-    const maximized = this.#maximized;
+  }
+}
+
+/**
+ * Everything a pan/zoom diagram adds on top of `ElementChromeBase`: the
+ * viewport sizing, the world box, the legend, and the empty/error notices
+ * placed over the canvas.
+ *
+ * Components that are graphs (state, dependency, ER, map) extend `DiagramElement`
+ * below for layout as well; the sequence diagram uses this class directly because
+ * its content is rows, not nodes.
+ */
+export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSelection> extends ElementChromeBase<D, S> {
+  static override styles: CSSResultGroup = diagramStyles;
+
+  #lastLayoutVersion = -1;
+
+  constructor() {
+    super();
+    // Capture: before the panel, which restores on an Escape nobody used.
+    this.addEventListener('keydown', this.#holdEscape, { capture: true });
+  }
+
+  protected override updated(): void {
+    super.updated();
+    void this.#syncViewport();
+  }
+
+  /**
+   * Hands the content box to the viewport, then opens the view once per layout.
+   * The box is measured here, after render, because some content is sized by
+   * the browser.
+   */
+  async #syncViewport(): Promise<void> {
+    const viewport = this.#viewportElement();
+    if (!viewport) return;
+    const size = this.contentSize();
+    viewport.contentWidth = size?.width ?? 0;
+    viewport.contentHeight = size?.height ?? 0;
+    await viewport.updateComplete;
+    if (size === null) return;
+    const version = this.layoutVersion();
+    if (version !== this.#lastLayoutVersion) {
+      this.#lastLayoutVersion = version;
+      this.initialView();
+    }
+  }
+
+  #viewportElement(): DpkDialogPanel | null {
+    return this.renderRoot.querySelector<DpkDialogPanel>('dpk-dialog-panel');
+  }
+
+  resetView(): void {
+    this.fitViewport();
+  }
+
+  /** Escape clears a selection first (the canvas does that); only with none does a maximized shell restore. */
+  readonly #holdEscape = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape' && this.selection !== null) event.preventDefault();
+  };
+
+  // ------------------------------------------------- subclass responsibilities
+
+  /** Draws the world. */
+  protected abstract renderCanvas(): TemplateResult;
+
+  /** World size, or `null` when there is nothing to lay out. */
+  protected abstract contentSize(): { readonly width: number; readonly height: number } | null;
+
+  /** Changes when the content should be re-fitted (a new layout, a filter). */
+  protected layoutVersion(): number {
+    return 0;
+  }
+
+  protected fitViewport(): void {
+    if (this.fitMode() === 'width') this.viewport?.fitWidth();
+    else this.viewport?.fit();
+  }
+
+  /** What fitting means for this content: all of it, or its width (tall content read by scrolling). */
+  protected fitMode(): 'all' | 'width' {
+    return 'all';
+  }
+
+  /**
+   * The view the diagram opens in: 100%, so the reader sees real size rather
+   * than whatever shrinking made the whole diagram fit. Fitting stays available
+   * through the zoom control.
+   */
+  protected initialView(): void {
+    this.viewport?.reset();
+  }
+
+  /** Where the content sits on an axis it fits: in the middle, or at the top-left corner. */
+  protected viewAlign(): ViewportAlign {
+    return 'center';
+  }
+
+  /** Mirrors the pan/zoom into component-owned chrome (the participant rail). */
+  protected onViewChange(_view: ViewState): void {}
+
+  protected override isEmpty(): boolean {
+    return this.contentSize() === null;
+  }
+
+  protected renderLegend(): TemplateResult | typeof nothing {
+    return nothing;
+  }
+
+  /** Rendered between the tag row and the canvas (the sequence participant rail). */
+  protected renderAboveCanvas(): TemplateResult | typeof nothing {
+    return nothing;
+  }
+
+  /** A component's own buttons in the floating bottom-right controls bar, beside zoom and maximize. */
+  protected renderControls(): TemplateResult | typeof nothing {
+    return nothing;
+  }
+
+  // ------------------------------------------------------------------ helpers
+
+  protected get viewport(): DiagramViewport | null {
+    const element = this.#viewportElement();
+    if (element === null) return null;
+    return {
+      apply: () => element.apply(),
+      fit: () => element.fit(),
+      fitWidth: () => element.fitWidth(),
+      reset: (corner) => element.reset(corner),
+      zoom: (factor) => element.zoom(factor),
+      view: () => element.view,
+    };
+  }
+
+  protected elementClass(state: ElementState, ...extra: readonly (string | false | null | undefined)[]): string {
+    return classNames(
+      ...extra,
+      state.selected && 'is-selected',
+      state.related && 'is-related',
+      state.dimmed && 'is-dimmed',
+    );
+  }
+
+  protected override render(): TemplateResult {
+    this.prepareRender();
     const m = this.chromeMessages;
-    const maximizeLabel = maximized === null ? m.maximize : m.restore;
+    const subject = this.subject ?? this.defaultSubject();
+    const controls = this.renderControls();
     return html`
-      ${
-        maximized === null
-          ? nothing
-          : html`<div class="diagram-placeholder" style="height:${maximized.height}px"></div>`
-      }
-      <div
-        class=${classNames('diagram', this.shellClass(), maximized !== null && 'is-maximized')}
-        popover=${maximized === null ? nothing : 'manual'}
-        @wheel=${maximized === null ? nothing : this.#holdWheel}
-        @keydown=${maximized === null ? nothing : this.#restoreOnEscape}
+      <dpk-dialog-panel
+        class=${classNames('diagram', this.shellClass())}
+        flush
+        ?maximizable=${this.frameControls}
+        ?resizable=${this.frameControls}
+        canvas
+        initial="none"
+        fit-mode=${this.fitMode()}
+        align=${this.viewAlign()}
+        label=${m.canvas}
+        heading=${this.heading ?? this.defaultHeading()}
+        subject=${subject === '' ? nothing : subject}
+        @dpk-maximize-change=${() => this.closeComposer()}
+        @dpk-canvas-change=${(event: CustomEvent<{ readonly view: ViewState }>) => {
+          event.stopPropagation();
+          const { view } = event.detail;
+          this.dispatchEvent(new CustomEvent('dpk-diagram-view', { detail: { view }, bubbles: true, composed: true }));
+          this.onViewChange(view);
+        }}
+        @dpk-canvas-dismiss=${(event: Event) => {
+          event.stopPropagation();
+          if (this.selection === null) return;
+          event.preventDefault();
+          this.select(null);
+        }}
       >
-        <div class="diagram-toolbar">
-          <span class="diagram-title" title=${this.heading ?? this.defaultHeading()}
-            >${this.heading ?? this.defaultHeading()}</span
-          >
-          ${
-            (this.subject ?? this.defaultSubject()) === ''
-              ? nothing
-              : html`<span class="diagram-subject" title=${this.subject ?? this.defaultSubject()}
-                  >${this.subject ?? this.defaultSubject()}</span
-                >`
-          }
-          <div class="diagram-toolbar-actions">
-            ${this.renderToolbarActions()}
-            <span class="diagram-stats">${this.statsText()}</span>
-            <button
-              type="button"
-              class="dpk-icon-btn diagram-maximize"
-              aria-label=${maximizeLabel}
-              title=${maximizeLabel}
-              aria-pressed=${maximized === null ? 'false' : 'true'}
-              @click=${() => this.#setMaximized(maximized === null)}
-            >
-              ${maximized === null ? iconMaximize() : iconMinimize()}
-            </button>
-          </div>
-        </div>
-        ${renderTagBar(m, tags, this.#tags.match, this.#send)} ${this.renderAboveCanvas()}
-        <div class="diagram-canvas" tabindex="0" aria-label=${m.canvas}>
-          <div class="diagram-world">${this.renderCanvas()}</div>
+        ${this.renderToolbarActionsSlot()} ${this.renderTagFilterRow(this.renderAboveCanvas())}
+        <div class="diagram-world">${this.renderCanvas()}</div>
+        ${controls === nothing ? nothing : html`<div slot="controls">${controls}</div>`}
+        <div slot="overlay" class="diagram-overlay">
           ${this.isEmpty() ? html`<p class="diagram-empty">${this.emptyMessage()}</p>` : nothing}
           ${
-            this.#dataError === null
+            this.dataError === null
               ? nothing
-              : html`<p class="diagram-notice" role="alert">${m.dataError}<br />${this.#dataError}</p>`
+              : html`<p class="diagram-notice" role="alert">${m.dataError}<br />${this.dataError}</p>`
           }
-          ${this.renderLegend()} ${renderZoom(m, this.#send)}
+          ${this.renderLegend()}
         </div>
-        ${this.renderSelection()}
-      </div>
+      </dpk-dialog-panel>
+      ${this.renderSelection()}
     `;
   }
 }
+
+/** Screen pixels a press on a node may wander before it counts as a drag instead of a click. */
+const DRAG_THRESHOLD_PX = 4;
+
+/** A node root may itself be a button (most diagrams) or wrap real controls of its own (the ER table); either way, a press that lands on one of these — other than the node root itself — never starts a drag. */
+const NODE_INTERACTIVE_SELECTOR = 'button,[role="button"],a,input,textarea,select';
 
 /**
  * Graph-shaped diagrams: nodes and edges, laid out by the shared layout engine
@@ -759,8 +874,31 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
 export abstract class DiagramElement<D extends DiagramData> extends DiagramChromeElement<D, GraphSelection> {
   #placement: LayoutResult | null = null;
   #placementSignature = '';
-  #placementVersion = 0;
+  /** `#placement` with the reader's dragged positions merged in; every external read uses this. */
+  #appliedPlacement: LayoutResult | null = null;
+  /** What the view opens on: the nodes and links shown, not their measured sizes. */
+  #viewSignature = '';
+  #viewVersion = 0;
   #relations: Reach = EMPTY_REACH;
+  readonly #positions = new PositionController(this, { host: () => this, diagram: () => this.id });
+  #dragNodeId: string | null = null;
+  #dragPointerId: number | null = null;
+  #dragTarget: HTMLElement | null = null;
+  #dragStart: { readonly x: number; readonly y: number; readonly screenX: number; readonly screenY: number } | null =
+    null;
+  #dragPreview: LayoutPoint | null = null;
+  /** `true` once the current gesture has moved past the threshold (a drag, not a click). */
+  #dragMoved = false;
+  /** Set after a drag's release, so the node's own `@click` (see `consumeDragClick`) can swallow the ghost click. */
+  #dragConsumeClick = false;
+  /** Opaque id of the group currently being dragged by its outline (e.g. an ER aggregate's frame). */
+  #groupDragKey: string | null = null;
+  #groupDragPointerId: number | null = null;
+  #groupDragTarget: HTMLElement | null = null;
+  #groupDragOrigin: { readonly screenX: number; readonly screenY: number } | null = null;
+  #groupDragStart: ReadonlyMap<string, LayoutPoint> | null = null;
+  #groupDragPreview: ReadonlyMap<string, LayoutPoint> | null = null;
+  #groupDragMoved = false;
 
   protected override commentItems(): readonly CommentTargetOption[] {
     const items = this.items();
@@ -779,9 +917,9 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
     return { nodes: visible.nodes, edges: visible.edges };
   }
 
-  /** Layout of the currently visible diagram, in world coordinates. */
+  /** Layout of the currently visible diagram, in world coordinates, with dragged positions applied. */
   get layout(): LayoutResult | null {
-    return this.#placement;
+    return this.#appliedPlacement;
   }
 
   /** What a selection means for this diagram. */
@@ -830,13 +968,18 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
   }
 
   protected override contentSize(): { readonly width: number; readonly height: number } | null {
-    const placement = this.#placement;
+    const placement = this.#appliedPlacement;
     if (placement === null || placement.nodes.length === 0) return null;
     return { width: placement.width, height: placement.height };
   }
 
+  /**
+   * A re-measured card (a font that loaded, sub-pixel rounding at another
+   * zoom) lays the content out again but must not move the reader's view;
+   * only other nodes, links or layout re-open it.
+   */
   protected override layoutVersion(): number {
-    return this.#placementVersion;
+    return this.#viewVersion;
   }
 
   protected override hasSelection(selection: GraphSelection): boolean {
@@ -847,11 +990,11 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
   }
 
   protected placedNode(id: string): PlacedNode | undefined {
-    return this.#placement?.nodes.find((node) => node.id === id);
+    return this.#appliedPlacement?.nodes.find((node) => node.id === id);
   }
 
   protected routeOf(id: string): readonly LayoutPoint[] {
-    return this.#placement?.routes.find((route) => route.id === id)?.points ?? [];
+    return this.#appliedPlacement?.routes.find((route) => route.id === id)?.points ?? [];
   }
 
   protected nodeState(id: string): ElementState {
@@ -864,8 +1007,8 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
 
   /** SVG wrapper for the edges; the width/height follow the current layout. */
   protected renderEdges(content: unknown, definitions: readonly ArrowDefinition[]): TemplateResult {
-    const width = this.#placement?.width ?? 0;
-    const height = this.#placement?.height ?? 0;
+    const width = this.#appliedPlacement?.width ?? 0;
+    const height = this.#appliedPlacement?.height ?? 0;
     return html`<svg class="diagram-edges" width=${width} height=${height}>
       ${arrowDefinitions(definitions)}${content}
     </svg>`;
@@ -896,28 +1039,300 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
     ].join('|');
     if (signature !== this.#placementSignature) {
       this.#placementSignature = signature;
-      this.#placementVersion += 1;
       this.#placement = this.computePlacement(visible);
     }
+    const viewSignature = [
+      this.layoutMode,
+      visible.nodes.map((node) => node.id).join(','),
+      visible.edges.map((edge) => edge.id).join(','),
+    ].join('|');
+    if (viewSignature !== this.#viewSignature) {
+      this.#viewSignature = viewSignature;
+      this.#viewVersion += 1;
+    }
     this.#relations = this.relations(this.selection, visible);
+    this.#applyPositions(visible);
   }
 
   protected computePlacement(visible: D): LayoutResult {
-    const nodes: LayoutNodeSpec[] = visible.nodes.map((node) => ({
+    const nodes = this.#nodeSpecs(visible);
+    const edges = this.#edgeSpecs(visible);
+    const options = this.layoutOptions();
+    return this.layoutMode === 'fixed' ? fixedLayout(nodes, edges, options) : layeredLayout(nodes, edges, options);
+  }
+
+  #nodeSpecs(visible: D): LayoutNodeSpec[] {
+    return visible.nodes.map((node) => ({
       id: node.id,
       width: node.width,
       height: node.height,
       ...(node.ports === undefined ? {} : { ports: node.ports }),
       ...(node.position === undefined ? {} : { position: node.position }),
+      ...(node.group === undefined ? {} : { group: node.group }),
     }));
-    const edges: LayoutEdgeSpec[] = visible.edges.map((edge) => ({
+  }
+
+  #edgeSpecs(visible: D): LayoutEdgeSpec[] {
+    return visible.edges.map((edge) => ({
       id: edge.id,
       from: edge.from,
       to: edge.to,
       ...(edge.fromPort === undefined ? {} : { fromPort: edge.fromPort }),
       ...(edge.toPort === undefined ? {} : { toPort: edge.toPort }),
     }));
-    const options = this.layoutOptions();
-    return this.layoutMode === 'fixed' ? fixedLayout(nodes, edges, options) : layeredLayout(nodes, edges, options);
+  }
+
+  /**
+   * Cheap, unmemoised tier on top of `#placement`: merges the reader's dragged
+   * positions (plus any in-progress drag preview) every render, without re-running
+   * the expensive ranking/packing `computePlacement` does. Also prunes overrides
+   * for nodes the agent's data no longer has.
+   */
+  #applyPositions(visible: D): void {
+    this.#positions.prune(new Set(visible.nodes.map((node) => node.id)));
+    let overrides = this.#positions.overrides();
+    if (this.#dragNodeId !== null && this.#dragPreview !== null) {
+      overrides = new Map(overrides).set(this.#dragNodeId, this.#dragPreview);
+    }
+    if (this.#groupDragPreview !== null) {
+      const merged = new Map(overrides);
+      for (const [id, point] of this.#groupDragPreview) merged.set(id, point);
+      overrides = merged;
+    }
+    const placement = this.#placement;
+    this.#appliedPlacement =
+      placement === null || overrides.size === 0
+        ? placement
+        : applyPositionOverrides(
+            placement,
+            overrides,
+            this.#nodeSpecs(visible),
+            this.#edgeSpecs(visible),
+            this.layoutOptions(),
+          );
+  }
+
+  /** Whether any node of this diagram has a position the reader dragged it to. */
+  protected hasPositionOverrides(): boolean {
+    return this.#positions.hasOverrides();
+  }
+
+  /**
+   * Public API: clears every reader-dragged position of this diagram, back to
+   * its computed layout. The board's right-click "Reset positions" item calls
+   * this; a host page (e.g. a demo's own "reset" control) can call it too,
+   * instead of reaching into the reader-local position storage directly.
+   */
+  resetPositions(): void {
+    this.#positions.reset();
+  }
+
+  /** The board's right-click menu: reset every node, alongside the inherited comment item. */
+  override getContextMenuItems(request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
+    const cm = contextMenuMessages(this.locale);
+    const resetPositions: ContextMenuGroup = {
+      id: 'diagram-reset-positions',
+      entries: [
+        {
+          kind: 'item',
+          id: 'reset-positions',
+          label: cm.resetPositions,
+          disabled: !this.hasPositionOverrides(),
+          run: () => this.resetPositions(),
+        },
+      ],
+    };
+    return [...(super.getContextMenuItems(request) ?? []), resetPositions];
+  }
+
+  /**
+   * Whether `id` is currently being dragged past the movement threshold — for a
+   * subclass that wants to show drag feedback (e.g. a `is-dragging` class).
+   */
+  protected isDraggingNode(id: string): boolean {
+    return this.#dragMoved && this.#dragNodeId === id;
+  }
+
+  /**
+   * Call from a node's own `@click` handler before acting on the click: a real
+   * drag's release still synthesizes a click on the node (pointer capture
+   * redirects it there, but nothing suppresses it), so this swallows exactly
+   * that one ghost click. Returns `true` when the click must be ignored.
+   */
+  protected consumeDragClick(): boolean {
+    if (!this.#dragConsumeClick) return false;
+    this.#dragConsumeClick = false;
+    return true;
+  }
+
+  /**
+   * Starts a possible whole-node drag from a `pointerdown` on the node's own
+   * root element. Nothing happens yet: a plain click (the pointer never
+   * wanders past the threshold) must still reach the node's `@click`, and a
+   * press that started on a nested interactive control (inline edit, a row's
+   * own buttons, "+ 追加", inputs) never starts a drag at all.
+   */
+  protected onNodeDragStart(event: PointerEvent, id: string): void {
+    if (event.button !== 0 || this.#dragPointerId !== null) return;
+    const origin = event.target instanceof Element ? event.target.closest(NODE_INTERACTIVE_SELECTOR) : null;
+    if (origin !== null && origin !== event.currentTarget) return;
+    const node = this.placedNode(id);
+    const target = event.currentTarget;
+    if (!node || !(target instanceof HTMLElement)) return;
+    // Stop here, not at the canvas: an un-captured press on a plain (non-button)
+    // node root — the ER table body — would otherwise also start the canvas pan.
+    event.stopPropagation();
+    this.#dragNodeId = id;
+    this.#dragPointerId = event.pointerId;
+    this.#dragTarget = target;
+    this.#dragMoved = false;
+    this.#dragStart = { x: node.x, y: node.y, screenX: event.clientX, screenY: event.clientY };
+    this.#dragPreview = null;
+    target.addEventListener('pointermove', this.#onNodePointerMove);
+    target.addEventListener('pointerup', this.#onNodePointerUp);
+    target.addEventListener('pointercancel', this.#onNodePointerCancel);
+  }
+
+  readonly #onNodePointerMove = (event: PointerEvent): void => {
+    const start = this.#dragStart;
+    if (start === null || event.pointerId !== this.#dragPointerId) return;
+    event.stopPropagation();
+    const scale = this.viewport?.view().scale ?? 1;
+    const dx = (event.clientX - start.screenX) / scale;
+    const dy = (event.clientY - start.screenY) / scale;
+    if (!this.#dragMoved) {
+      if (Math.hypot(event.clientX - start.screenX, event.clientY - start.screenY) <= DRAG_THRESHOLD_PX) return;
+      this.#dragMoved = true;
+      this.#dragTarget?.setPointerCapture(event.pointerId);
+      if (this.#dragTarget) this.#dragTarget.style.userSelect = 'none';
+    }
+    this.#dragPreview = { x: Math.max(0, start.x + dx), y: Math.max(0, start.y + dy) };
+    this.requestUpdate();
+  };
+
+  readonly #onNodePointerUp = (event: PointerEvent): void => {
+    event.stopPropagation();
+    this.#endNodeDrag(true);
+  };
+
+  readonly #onNodePointerCancel = (event: PointerEvent): void => {
+    event.stopPropagation();
+    this.#endNodeDrag(false);
+  };
+
+  #endNodeDrag(commit: boolean): void {
+    const target = this.#dragTarget;
+    if (target !== null) {
+      target.removeEventListener('pointermove', this.#onNodePointerMove);
+      target.removeEventListener('pointerup', this.#onNodePointerUp);
+      target.removeEventListener('pointercancel', this.#onNodePointerCancel);
+      target.style.userSelect = '';
+    }
+    const id = this.#dragNodeId;
+    const preview = this.#dragPreview;
+    const moved = this.#dragMoved;
+    this.#dragNodeId = null;
+    this.#dragPointerId = null;
+    this.#dragTarget = null;
+    this.#dragStart = null;
+    this.#dragPreview = null;
+    this.#dragMoved = false;
+    if (commit && moved && id !== null && preview !== null) {
+      this.#positions.commit(id, preview);
+      // The release still synthesizes a click on `id`'s node; `consumeDragClick` swallows it.
+      this.#dragConsumeClick = true;
+    }
+    this.requestUpdate();
+  }
+
+  /**
+   * Whether the group identified by `key` is currently being dragged past the
+   * movement threshold — for a subclass that wants to show drag feedback on
+   * its own group outline (e.g. an ER aggregate's frame).
+   */
+  protected isDraggingGroup(key: string): boolean {
+    return this.#groupDragMoved && this.#groupDragKey === key;
+  }
+
+  /**
+   * Starts a possible whole-group drag from a `pointerdown` on a group's own
+   * outline element: every id in `ids` moves by the same delta. `key` only
+   * identifies the group for `isDraggingGroup`; it never has to be a node id,
+   * and nothing requires it to match one.
+   */
+  protected onGroupDragStart(event: PointerEvent, key: string, ids: readonly string[]): void {
+    if (event.button !== 0 || this.#dragPointerId !== null || this.#groupDragPointerId !== null) return;
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLElement) || ids.length === 0) return;
+    const starts = new Map<string, LayoutPoint>();
+    for (const id of ids) {
+      const node = this.placedNode(id);
+      if (node) starts.set(id, { x: node.x, y: node.y });
+    }
+    if (starts.size === 0) return;
+    event.stopPropagation();
+    this.#groupDragKey = key;
+    this.#groupDragPointerId = event.pointerId;
+    this.#groupDragTarget = target;
+    this.#groupDragMoved = false;
+    this.#groupDragOrigin = { screenX: event.clientX, screenY: event.clientY };
+    this.#groupDragStart = starts;
+    this.#groupDragPreview = null;
+    target.addEventListener('pointermove', this.#onGroupPointerMove);
+    target.addEventListener('pointerup', this.#onGroupPointerUp);
+    target.addEventListener('pointercancel', this.#onGroupPointerCancel);
+  }
+
+  readonly #onGroupPointerMove = (event: PointerEvent): void => {
+    const origin = this.#groupDragOrigin;
+    const starts = this.#groupDragStart;
+    if (origin === null || starts === null || event.pointerId !== this.#groupDragPointerId) return;
+    event.stopPropagation();
+    const scale = this.viewport?.view().scale ?? 1;
+    const dx = (event.clientX - origin.screenX) / scale;
+    const dy = (event.clientY - origin.screenY) / scale;
+    if (!this.#groupDragMoved) {
+      if (Math.hypot(event.clientX - origin.screenX, event.clientY - origin.screenY) <= DRAG_THRESHOLD_PX) return;
+      this.#groupDragMoved = true;
+      this.#groupDragTarget?.setPointerCapture(event.pointerId);
+      if (this.#groupDragTarget) this.#groupDragTarget.style.userSelect = 'none';
+    }
+    const preview = new Map<string, LayoutPoint>();
+    for (const [id, start] of starts) preview.set(id, { x: Math.max(0, start.x + dx), y: Math.max(0, start.y + dy) });
+    this.#groupDragPreview = preview;
+    this.requestUpdate();
+  };
+
+  readonly #onGroupPointerUp = (event: PointerEvent): void => {
+    event.stopPropagation();
+    this.#endGroupDrag(true);
+  };
+
+  readonly #onGroupPointerCancel = (event: PointerEvent): void => {
+    event.stopPropagation();
+    this.#endGroupDrag(false);
+  };
+
+  #endGroupDrag(commit: boolean): void {
+    const target = this.#groupDragTarget;
+    if (target !== null) {
+      target.removeEventListener('pointermove', this.#onGroupPointerMove);
+      target.removeEventListener('pointerup', this.#onGroupPointerUp);
+      target.removeEventListener('pointercancel', this.#onGroupPointerCancel);
+      target.style.userSelect = '';
+    }
+    const preview = this.#groupDragPreview;
+    const moved = this.#groupDragMoved;
+    this.#groupDragKey = null;
+    this.#groupDragPointerId = null;
+    this.#groupDragTarget = null;
+    this.#groupDragOrigin = null;
+    this.#groupDragStart = null;
+    this.#groupDragPreview = null;
+    this.#groupDragMoved = false;
+    if (commit && moved && preview !== null) {
+      this.#positions.commitMany(preview);
+    }
+    this.requestUpdate();
   }
 }

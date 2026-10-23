@@ -1,14 +1,6 @@
-import { html, svg, nothing, type TemplateResult } from 'lit';
-import { repeat } from 'lit/directives/repeat.js';
+import { svg, nothing, type TemplateResult } from 'lit';
 
 import type { LayoutPoint } from '../../lib/layout/layered';
-import type { DiagramMessages } from './messages';
-import type { DiagramIntent, SelectionRef, TagMatch } from './model';
-import type { TagViewModel } from './present';
-
-import { iconMinus, iconPlus } from '../../core/icons';
-
-export type DiagramSend<S extends SelectionRef = SelectionRef> = (intent: DiagramIntent<S>) => void;
 
 export const pathData = (points: readonly LayoutPoint[]): string =>
   points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x} ${point.y}`).join(' ');
@@ -45,90 +37,4 @@ export const arrowDefinitions = (definitions: readonly ArrowDefinition[]): Templ
       `,
     )}
   </defs>
-`;
-
-export const renderTagBar = <S extends SelectionRef>(
-  m: DiagramMessages,
-  tags: readonly TagViewModel[],
-  match: TagMatch,
-  send: DiagramSend<S>,
-): TemplateResult => html`
-  <div class="diagram-tags" role="group" aria-label=${m.tagFilter}>
-    <div class="diagram-match" role="group" aria-label=${m.tagMatch}>
-      ${(
-        [
-          ['single', 'Single'],
-          ['all', 'AND'],
-          ['any', 'OR'],
-        ] as const
-      ).map(
-        ([id, label]) => html`
-          <button
-            type="button"
-            data-match=${id}
-            aria-pressed=${match === id ? 'true' : 'false'}
-            @click=${() => send({ kind: 'match', match: id })}
-          >
-            ${label}
-          </button>
-        `,
-      )}
-    </div>
-    ${repeat(
-      tags,
-      (tag) => tag.tag,
-      (tag) => html`
-        <button
-          type="button"
-          class="dpk-tag"
-          data-tag=${tag.tag}
-          aria-pressed=${tag.selected ? 'true' : 'false'}
-          @click=${() => send({ kind: 'tag', tag: tag.tag })}
-        >
-          <span class="dpk-tag-name" title=${tag.tag}>${tag.tag}</span><span class="dpk-tag-count">${tag.count}</span>
-        </button>
-      `,
-    )}
-    ${
-      tags.some((tag) => tag.selected)
-        ? html`<button type="button" class="dpk-tag-clear" @click=${() => send({ kind: 'clear-tags' })}>
-            ${m.clearTags}
-          </button>`
-        : nothing
-    }
-  </div>
-`;
-
-export const renderZoom = <S extends SelectionRef>(m: DiagramMessages, send?: DiagramSend<S>): TemplateResult => html`
-  <div class="diagram-zoom">
-    <button
-      type="button"
-      aria-label=${m.zoomOut}
-      @click=${(event: Event) => {
-        event.stopPropagation();
-        send?.({ kind: 'zoom', factor: 1 / 1.1 });
-      }}
-    >
-      ${iconMinus()}
-    </button>
-    <button
-      type="button"
-      class="diagram-zoom-value"
-      title=${m.fit}
-      aria-label=${m.fit}
-      @click=${() => send?.({ kind: 'fit' })}
-    >
-      100%
-    </button>
-    <button
-      type="button"
-      aria-label=${m.zoomIn}
-      @click=${(event: Event) => {
-        event.stopPropagation();
-        send?.({ kind: 'zoom', factor: 1.1 });
-      }}
-    >
-      ${iconPlus()}
-    </button>
-  </div>
 `;

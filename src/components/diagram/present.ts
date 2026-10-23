@@ -1,24 +1,9 @@
 import type { DiagramMessages } from './messages';
 
-import { tagCounts, type TagState } from './model';
-
 /**
- * Shared chrome view models: the tag filter row and the stats line. Components
+ * Shared chrome view models: the stats line. Components
  * build these from their own domain data, so the shared view stays domain-free.
  */
-
-export type TagViewModel = {
-  readonly tag: string;
-  readonly count: number;
-  readonly selected: boolean;
-};
-
-export const presentTagBar = (items: readonly (readonly string[])[], state: TagState): readonly TagViewModel[] =>
-  tagCounts(items).map((entry) => ({
-    tag: entry.tag,
-    count: entry.count,
-    selected: state.active.includes(entry.tag),
-  }));
 
 export const presentStats = (
   nodes: number,
