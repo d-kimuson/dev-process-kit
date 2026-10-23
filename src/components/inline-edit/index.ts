@@ -109,24 +109,16 @@ export class DpkInlineEdit extends LitElement {
         opacity: 1;
       }
 
-      /* Resting: a plain, readonly textbox with a click/hover affordance. */
+      /* Resting: a plain, readonly textbox. cursor: text (above) and the
+         click-to-edit title are the only hover affordance — an earlier
+         hover ring/tint was removed as jarring on a box that does nothing
+         until clicked. */
       .field[readonly] {
         background: transparent;
       }
 
-      .field[readonly]:hover {
-        background: var(--dpk-blue-soft);
-        box-shadow:
-          inset 0 -1px 0 var(--dpk-blue),
-          inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
-      }
-
       .field[readonly]:placeholder-shown {
         box-shadow: inset 0 -1px 0 var(--dpk-rule-strong);
-      }
-
-      .field[readonly]:placeholder-shown:hover {
-        box-shadow: inset 0 -1px 0 var(--dpk-blue);
       }
 
       .field::placeholder,
@@ -214,10 +206,6 @@ export class DpkInlineEdit extends LitElement {
         box-shadow: none;
       }
 
-      :host([seamless]) .field[readonly]:hover {
-        background: transparent;
-      }
-
       /* seamless, editing: still no border or padding (the text must not
          move), but a paint-only outline keeps "this is being edited" visible
          — an outline sits outside the box and never affects layout. */
@@ -242,13 +230,6 @@ export class DpkInlineEdit extends LitElement {
         transition:
           background 140ms var(--dpk-ease),
           box-shadow 140ms var(--dpk-ease);
-      }
-
-      .view:hover {
-        background: var(--dpk-blue-soft);
-        box-shadow:
-          inset 0 -1px 0 var(--dpk-blue),
-          inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
       }
 
       :host([truncate]) .view {
@@ -296,6 +277,13 @@ export class DpkInlineEdit extends LitElement {
 
   #draft = '';
   #connectionVersion = 0;
+  // Which caret behavior the *next* transition into editing should use: 'end'
+  // (keyboard-initiated — Enter/Space/F2, or startEditing()) places the caret
+  // after the text as before; 'click' (a real pointer click on the field
+  // itself) leaves whatever caret/selection the browser's own mousedown
+  // already placed, so a click lands where the pointer landed instead of
+  // always jumping to the end.
+  #caretIntent: 'end' | 'click' = 'end';
   readonly #i18n = new LocaleController(this);
 
   override connectedCallback(): void {
@@ -322,6 +310,7 @@ export class DpkInlineEdit extends LitElement {
    * "edit" affordance put the caret straight into the field.
    */
   startEditing(): void {
+    this.#caretIntent = 'end';
     this.#draft = this.value;
     this.editing = true;
   }
@@ -333,14 +322,16 @@ export class DpkInlineEdit extends LitElement {
   protected override updated(): void {
     if (!this.editing) return;
     const field = this.renderRoot.querySelector<HTMLTextAreaElement>('.field');
+    if (!field) return;
     const root = this.renderRoot;
     const active = root instanceof ShadowRoot ? root.activeElement : document.activeElement;
-    if (field && active !== field) {
-      field.focus();
+    const caretIntent = this.#caretIntent;
+    this.#caretIntent = 'end'; // consumed; the next transition defaults back to end-of-text.
+    if (active !== field) field.focus();
+    if (caretIntent === 'end') {
       // Caret at the end, nothing selected: the first keystroke appends instead of
-      // wiping the value. A native click that lands inside the text may still have
-      // put the caret there itself; this only settles the common "click to start
-      // editing" case, so it never leaves everything selected.
+      // wiping the value. Only for keyboard-initiated edits — a click already placed
+      // its own caret below, and must not be overridden here.
       const end = field.value.length;
       field.setSelectionRange(end, end);
     }
@@ -381,7 +372,6 @@ export class DpkInlineEdit extends LitElement {
         placeholder=${hint}
         aria-label=${name}
         title=${editing ? nothing : m.clickToEdit}
-        @mousedown=${this.#onFieldMousedown}
         @click=${this.#onFieldClick}
         @input=${this.#onInput}
         @keydown=${this.#onKeydownField}
@@ -395,6 +385,11 @@ export class DpkInlineEdit extends LitElement {
     if (event.composedPath().some((node) => node instanceof HTMLAnchorElement)) return;
     event.stopPropagation();
     if (this.editing) return;
+    // The markdown view (rendered HTML) is a different element than the field
+    // (raw source) it is replaced by, so a click position in the view has no
+    // corresponding offset in the source text — end-of-text is the only
+    // sensible caret here.
+    this.#caretIntent = 'end';
     this.#draft = this.value;
     this.editing = true;
   };
@@ -403,21 +398,19 @@ export class DpkInlineEdit extends LitElement {
     if (event.isComposing || this.editing || event.target instanceof HTMLAnchorElement) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
+      this.#caretIntent = 'end';
       this.editing = true;
     }
-  };
-
-  #onFieldMousedown = (event: MouseEvent): void => {
-    // Readonly still lets the browser place a native caret/selection on
-    // mousedown; suppressed only at rest, so the click-to-end-of-text logic
-    // below decides the caret instead. While editing, a normal click should
-    // place the caret exactly where the pointer landed, as any textarea does.
-    if (!this.editing) event.preventDefault();
   };
 
   #onFieldClick = (event: Event): void => {
     event.stopPropagation();
     if (this.editing) return;
+    // The field is the same element at rest and while editing, so the native
+    // mousedown that led to this click already placed the real caret/selection
+    // at the pointer position (readonly still allows that) — keep it instead
+    // of jumping to the end.
+    this.#caretIntent = 'click';
     this.#draft = this.value;
     this.editing = true;
   };
@@ -434,6 +427,7 @@ export class DpkInlineEdit extends LitElement {
     if (!this.editing) {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
+        this.#caretIntent = 'end';
         this.#draft = this.value;
         this.editing = true;
       }

@@ -231,21 +231,69 @@ describe('inline editing', () => {
     expect(fieldRule?.style.outline).toBe('none');
   });
 
-  it('puts the caret at the end of the text instead of selecting it all, so typing appends', async () => {
+  it('puts the caret at the end of the text on keyboard-initiated editing (Enter), so typing appends', async () => {
     const editor = new DpkInlineEdit();
     editor.value = 'Googleでログイン';
     document.body.append(editor);
     await editor.updateComplete;
     const resting = field(editor);
     if (!resting) throw new Error('missing field');
-    resting.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true, cancelable: true }));
-    resting.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    resting.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await editor.updateComplete;
     const input = field(editor);
     if (!input) throw new Error('missing field');
     expect(input.readOnly).toBe(false);
     expect(input.selectionStart).toBe(input.value.length);
     expect(input.selectionEnd).toBe(input.value.length);
+  });
+
+  it('keeps the caret where a click already placed it, instead of forcing it to the end', async () => {
+    const editor = new DpkInlineEdit();
+    editor.value = 'Googleでログイン';
+    document.body.append(editor);
+    await editor.updateComplete;
+    const resting = field(editor);
+    if (!resting) throw new Error('missing field');
+    // A real mousedown on a readonly field still places the native caret at the
+    // pointer position before any click fires; jsdom has no layout to compute
+    // that from coordinates, so this stands in for whatever position the
+    // browser's own default mousedown action would have set.
+    resting.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true, cancelable: true }));
+    resting.setSelectionRange(3, 3);
+    resting.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    await editor.updateComplete;
+    const input = field(editor);
+    if (!input) throw new Error('missing field');
+    expect(input.readOnly).toBe(false);
+    expect(input.selectionStart).toBe(3);
+    expect(input.selectionEnd).toBe(3);
+  });
+
+  it('does not suppress the native mousedown on a resting field, so it can place the caret', async () => {
+    const editor = new DpkInlineEdit();
+    editor.value = 'Googleでログイン';
+    document.body.append(editor);
+    await editor.updateComplete;
+    const resting = field(editor);
+    if (!resting) throw new Error('missing field');
+    const mousedown = new MouseEvent('mousedown', { bubbles: true, composed: true, cancelable: true });
+    resting.dispatchEvent(mousedown);
+    expect(mousedown.defaultPrevented).toBe(false);
+  });
+
+  it('removes the hover ring/tint shown at rest; the editing-state ring stays', () => {
+    const cssText = (DpkInlineEdit.styles as unknown as { cssText: string }[]).map((style) => style.cssText).join('\n');
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(cssText);
+    const selectors = Array.from(sheet.cssRules).map((rule) => (rule as CSSStyleRule).selectorText);
+    expect(selectors).not.toContain('.field[readonly]:hover');
+    expect(selectors).not.toContain('.field[readonly]:placeholder-shown:hover');
+    expect(selectors).not.toContain('.view:hover');
+    expect(selectors).not.toContain(':host([seamless]) .field[readonly]:hover');
+    const editingRule = Array.from(sheet.cssRules).find(
+      (rule) => (rule as CSSStyleRule).selectorText === '.field:not([readonly])',
+    ) as CSSStyleRule | undefined;
+    expect(editingRule?.style.boxShadow).toContain('var(--dpk-blue)');
   });
 
   describe('markdown', () => {
