@@ -1020,90 +1020,7 @@
         border-radius: var(--dpk-radius-sm);
       }
 
-      /* What a demo fires lives behind a button in the stage tools, not under the demo: the showcase
-         never grows to fit it. The badge is the kit's own .dpk-badge, just pinned to the button's corner. */
-      .events-btn {
-        position: relative;
-      }
-
-      .events-count {
-        position: absolute;
-        top: -4px;
-        right: -4px;
-        min-width: 15px;
-        height: 15px;
-        padding: 0 4px;
-        font-size: 10px;
-        line-height: 15px;
-        text-align: center;
-      }
-
-      .events-panel {
-        position: fixed;
-        width: 320px;
-        max-height: 360px;
-        margin: 0;
-        padding: 10px;
-        overflow: auto;
-        border: 1px solid var(--rule-strong);
-        border-radius: var(--radius);
-        background: var(--paper-raised);
-        box-shadow: var(--shadow-lg);
-        color: var(--ink);
-      }
-
-      .events-panel-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        margin-bottom: 8px;
-      }
-
-      .events-panel-title {
-        color: var(--ink-faint);
-        font-size: 11.5px;
-        font-weight: 600;
-      }
-
-      .events-clear {
-        height: 24px;
-        padding: 0 10px;
-        font-size: 11.5px;
-      }
-
-      .events-list {
-        display: grid;
-        gap: 6px;
-        font-family: var(--dpk-font-mono);
-        font-size: 11.5px;
-        line-height: 1.5;
-      }
-
-      .events-row {
-        display: grid;
-        gap: 2px;
-        padding: 6px 8px;
-        border: 1px dashed var(--dpk-rule-strong);
-        border-radius: var(--dpk-radius-sm);
-        overflow-wrap: anywhere;
-      }
-
-      .events-row-type {
-        color: var(--dpk-ink);
-        font-weight: 600;
-      }
-
-      .events-row-payload {
-        color: var(--dpk-ink-soft);
-      }
-
-      .events-list:empty::before {
-        content: attr(data-empty);
-        color: var(--dpk-ink-faint);
-      }
-
-      /* Controls: same popover model as the events panel (fixed position, opened on demand), so
+      /* Controls: a popover opened on demand, fixed position, so
          changing a field never pushes the showcase around. */
       .controls-btn {
         position: relative;
@@ -3324,7 +3241,7 @@
             <section class="group">
               <h2>Frames</h2>
 
-              <article id="catalog-dialog-panel" class="entry" data-log>
+              <article id="catalog-dialog-panel" class="entry">
                 <header>
                   <h3>&lt;dpk-dialog-panel&gt;</h3>
                 </header>
@@ -3431,7 +3348,7 @@
 
             <section class="group">
               <h2>Review</h2>
-              <article id="catalog-commentable" class="entry" data-log>
+              <article id="catalog-commentable" class="entry">
                 <header>
                   <h3>&lt;dpk-commentable&gt;</h3>
                 </header>
@@ -3460,7 +3377,7 @@
                 </div>
               </article>
 
-              <article id="catalog-comment-popover" class="entry" data-log>
+              <article id="catalog-comment-popover" class="entry">
                 <header>
                   <h3>&lt;dpk-comment-popover&gt;</h3>
                 </header>
@@ -3478,7 +3395,7 @@
                 </div>
               </article>
 
-              <article id="catalog-checklist" class="entry" data-log>
+              <article id="catalog-checklist" class="entry">
                 <header>
                   <h3>&lt;dpk-checklist&gt;</h3>
                 </header>
@@ -3574,6 +3491,7 @@
                 >
                   <dpk-matrix
                     id="story-matrix"
+                    data-single-row
                     style="--dpk-matrix-row-head-width: 110px; --dpk-matrix-column-width: minmax(110px, 150px)"
                   >
                     <div slot="corner">マイルストーン ＼ 機能</div>
@@ -3708,7 +3626,7 @@
                 <div class="stage is-document" data-tag="dpk-formal-spec" data-source="formal-spec.html"></div>
               </article>
 
-              <article id="catalog-composed" class="entry" data-log>
+              <article id="catalog-composed" class="entry">
                 <header>
                   <h3>Composed example</h3>
                 </header>
@@ -3845,10 +3763,6 @@
           previewDesktop: 'Preview (Browser)',
           previewMobile: 'Preview (Mobile)',
           code: 'Code',
-          noEvents: 'No events yet — use the demo above.',
-          events: 'Fired events',
-          eventsTitle: 'Fired events',
-          eventsClear: 'Clear',
           useLight: 'Switch to light theme',
           useDark: 'Switch to dark theme',
           search: 'Search components',
@@ -3880,10 +3794,6 @@
           previewDesktop: 'プレビュー（ブラウザ）',
           previewMobile: 'プレビュー（モバイル）',
           code: 'コード',
-          noEvents: 'まだイベントはありません。上のデモを操作してください。',
-          events: '発火したイベント',
-          eventsTitle: '発火したイベント',
-          eventsClear: 'クリア',
           useLight: 'ライトテーマにする',
           useDark: 'ダークテーマにする',
           search: 'コンポーネントを検索',
@@ -4110,9 +4020,6 @@
           '<path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" />',
         ),
         code: icon('<path d="m6 5-4 3 4 3" /><path d="m10 5 4 3-4 3" />'),
-        events: icon(
-          '<path d="M8 2.5a4 4 0 0 0-4 4v2.3c0 .5-.2 1-.5 1.4L3 11h10l-.5-.8c-.3-.4-.5-.9-.5-1.4V6.5a4 4 0 0 0-4-4Z" /><path d="M6.5 13a1.5 1.5 0 0 0 3 0" />',
-        ),
         controls: icon(
           '<path d="M2.5 5h5M11 5h2.5M2.5 8h2M8 8h5.5M2.5 11h7M13 11h.5" /><circle cx="9.5" cy="5" r="1.6" /><circle cx="5.5" cy="8" r="1.6" /><circle cx="10.5" cy="11" r="1.6" />',
         ),
@@ -4278,9 +4185,6 @@
 
       // Each entry's page: breadcrumb, title, lead, usage box, then the showcase.
       const showcases = [];
-      // What a demo fired, per entry: kept off to the side so the showcase itself never grows to fit it
-      // (see buildShowcase's events button/panel, and logEvent below).
-      const eventLogs = new Map();
       // A diagram's content loads async (see `mount` below); its showcase registers a callback here so
       // Code/Controls can refresh once the organism actually lands.
       const diagramReady = new Map();
@@ -4435,54 +4339,6 @@
         controlsBtn.hidden = true;
         const tools = make('div', { class: 'stage-tools' }, [reload, controlsBtn, theme]);
         stage.append(canvas, tools);
-
-        // No template hosts most Review demos here, so the catalog stands in for one: it accepts their
-        // element actions (replaying them back through `elementActions`, like a template's draft would)
-        // and keeps what they fired behind this button, so the showcase never grows to fit it.
-        if (entry.hasAttribute('data-log')) {
-          const events = [];
-          const eventsBtn = tool('events', CATALOG_ICONS.events);
-          eventsBtn.classList.add('events-btn');
-          const eventsCount = make('span', { class: 'events-count dpk-badge', 'data-tone': 'accent', hidden: '' });
-          eventsBtn.append(eventsCount);
-          const eventsList = make('div', { class: 'events-list' });
-          const eventsClear = make('button', { type: 'button', class: 'copy-btn events-clear' }, [
-            make('span', { 'data-ct': 'eventsClear' }),
-          ]);
-          const eventsPanel = make('div', { class: 'events-panel' }, [
-            make('div', { class: 'events-panel-head' }, [
-              make('span', { class: 'events-panel-title', 'data-ct': 'eventsTitle' }),
-              eventsClear,
-            ]),
-            eventsList,
-          ]);
-          eventsPanel.popover = 'auto';
-          const renderEvents = () => {
-            eventsCount.textContent = String(events.length);
-            eventsCount.hidden = events.length === 0;
-            eventsList.replaceChildren(
-              ...events.map((item) =>
-                make('div', { class: 'events-row' }, [
-                  make('span', { class: 'events-row-type', text: item.type }),
-                  make('span', { class: 'events-row-payload', text: item.payload }),
-                ]),
-              ),
-            );
-          };
-          eventsBtn.addEventListener('click', () => {
-            const rect = eventsBtn.getBoundingClientRect();
-            eventsPanel.style.left = `${Math.round(Math.min(rect.right, innerWidth - 16) - 320)}px`;
-            eventsPanel.style.top = `${Math.round(Math.min(rect.bottom + 8, innerHeight - 16))}px`;
-            eventsPanel.togglePopover();
-          });
-          eventsClear.addEventListener('click', () => {
-            events.length = 0;
-            renderEvents();
-          });
-          renderEvents();
-          tools.append(eventsBtn, eventsPanel);
-          eventLogs.set(entry, { events, render: renderEvents });
-        }
 
         const controlsBody = make('div', { class: 'controls-body' });
         const controlsReset = make('button', { type: 'button', class: 'copy-btn controls-reset' }, [
@@ -4639,8 +4495,7 @@
         };
         if (diagram) diagramReady.set(diagram, onDiagramReady);
 
-        // Reload (and Controls' own reset) put the live element back as written, in the current variant:
-        // its state, and what the catalog logged for it, start over.
+        // Reload (and Controls' own reset) put the live element back as written, in the current variant.
         const resetContent = () => {
           dropDemoActions(content);
           resetDiagramPositions(content);
@@ -4650,11 +4505,6 @@
               .viewport;
             if (activeViewport) demo.firstElementChild?.setAttribute('viewport', activeViewport);
             for (const scope of demo.querySelectorAll('[data-demo-filter]')) applyDemoFilters(scope);
-            const log = eventLogs.get(entry);
-            if (log) {
-              log.events.length = 0;
-              log.render();
-            }
             refreshCode();
             rebuildControls();
           } else {
@@ -4838,7 +4688,6 @@
         }
         for (const el of document.querySelectorAll('[data-ct-placeholder]'))
           el.placeholder = text[el.dataset.ctPlaceholder];
-        for (const list of document.querySelectorAll('.events-list')) list.dataset.empty = text.noEvents;
       };
       renderCatalogLabels();
       document.addEventListener('catalog-locale-sync', renderCatalogLabels);
@@ -4849,34 +4698,6 @@
         if (view === 'catalog') scrollMainToTop();
       });
       renderView();
-
-      const logEvent = (event, type, payload) => {
-        const entry = event.target.closest('.entry');
-        const log = entry && eventLogs.get(entry);
-        if (!log) return;
-        log.events.unshift({ type, payload });
-        log.render();
-      };
-
-      // Only logs what a demo fired, for the entry's own "events" panel: the event itself keeps
-      // bubbling (never preventDefault'd / stopPropagation'd here) so the real dpk-template-plain
-      // (board="catalog") is free to accept it into this page's own draft, same as any page (#94).
-      views.catalog.addEventListener('dpk-element-action', (event) => {
-        const { type, target, payload } = event.detail;
-        logEvent(event, 'dpk-element-action', `${type}  ${target}  ${JSON.stringify(payload)}`);
-      });
-
-      views.catalog.addEventListener('dpk-comment-request', (event) => {
-        logEvent(event, 'dpk-comment-request', event.detail.target);
-      });
-
-      views.catalog.addEventListener('dpk-comment-submit', (event) => {
-        logEvent(event, 'dpk-comment-submit', `${event.detail.target}  ${event.detail.body}`);
-      });
-
-      views.catalog.addEventListener('dpk-tag-filter-change', (event) => {
-        logEvent(event, 'dpk-tag-filter-change', JSON.stringify(event.detail));
-      });
 
       // ---- catalog organisms: live diagrams that reuse a sample's data (the diagrams sample unless the
       // stage names another). Each page is fetched once, and only when its stage first comes into view.
