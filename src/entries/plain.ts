@@ -17,13 +17,14 @@ import { definePageElement } from '../page/index';
 import { definePlainElement } from '../templates/plain';
 
 export * from '../core/index';
-export { DpkComponentCommentPanel } from '../components/comment-panel/index';
+export { DpkCommentPanel } from '../components/comment-panel/index';
 export type { CommentPanelCallbacks } from '../components/comment-panel/index';
-export { DpkComponentInlineEdit } from '../components/inline-edit';
+export { DpkInlineEdit } from '../components/inline-edit';
 export * as plain from '../templates/plain';
 
 startEntry({
   entry: 'templates/plain.js',
+  url: import.meta.url,
   templates: ['plain'],
   register: () => {
     defineCommentPanel();

@@ -41,16 +41,19 @@ export {
   defaultStorageKey,
 } from './core/index';
 export {
-  DpkComponentArchitectureMap,
-  DpkComponentCommentPanel,
-  DpkComponentDependencyGraph,
-  DpkComponentErDiagram,
-  DpkComponentFormalSpec,
-  DpkComponentInlineEdit,
-  DpkComponentKanban,
-  DpkComponentMindMap,
-  DpkComponentSequenceDiagram,
-  DpkComponentStateDiagram,
+  DpkArchitectureMap,
+  DpkCommentPanel,
+  DpkDependencyGraph,
+  DpkErDiagram,
+  DpkEventStorming,
+  DpkExampleMapping,
+  DpkFormalSpec,
+  DpkInlineEdit,
+  DpkKanban,
+  DpkMindMap,
+  DpkSequenceDiagram,
+  DpkStateDiagram,
+  DpkWhiteboard,
   registerComponentElements,
   registerDiagramElements,
 } from './components/index';
@@ -62,11 +65,14 @@ export type {
   DependencyModule,
   ErData,
   ErTableDiff,
+  EventStormingState,
+  ExampleMappingState,
   FormalSpecData,
   KanbanData,
   MindMapData,
   SequenceDiagramData,
   StateDiagramData,
+  WhiteboardState,
 } from './components/index';
 export type {
   ActionDescriptor,
@@ -96,36 +102,24 @@ export type {
 export { registerTemplateElements } from './templates/index';
 export * as prototype from './templates/prototype';
 export * as usm from './templates/usm';
-export * as eventStorming from './templates/event-storming';
-export * as exampleMapping from './templates/example-mapping';
 export * as plain from './templates/plain';
 export * as slides from './templates/slides';
 export * as taskBoard from './templates/task-board';
 export * as delegationPoker from './templates/delegation-poker';
-export * as whiteboard from './templates/whiteboard';
 
 /** The template elements this entry registers, for `window.devProcessKit`. */
-const TEMPLATES = [
-  'prototype',
-  'usm',
-  'event-storming',
-  'example-mapping',
-  'plain',
-  'slides',
-  'task-board',
-  'delegation-poker',
-  'whiteboard',
-] as const;
+const TEMPLATES = ['prototype', 'usm', 'plain', 'slides', 'task-board', 'delegation-poker'] as const;
 
 /** Registers every `dpk-*` custom element. Idempotent. */
 export const registerAllElements = (): void => {
   registerComponentElements();
   registerTemplateElements();
-  announce(FRAMEWORK_VERSION, TEMPLATES, VERSION_PARAM);
+  announce(FRAMEWORK_VERSION, TEMPLATES, VERSION_PARAM, import.meta.url);
 };
 
 startEntry({
   entry: 'index.js',
+  url: import.meta.url,
   templates: TEMPLATES,
   register: () => {
     registerComponentElements();

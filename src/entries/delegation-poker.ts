@@ -16,13 +16,14 @@ import { definePageElement } from '../page/index';
 import { defineDelegationPokerElement } from '../templates/delegation-poker';
 
 export * from '../core/index';
-export { DpkComponentCommentPanel } from '../components/comment-panel/index';
+export { DpkCommentPanel } from '../components/comment-panel/index';
 export type { CommentPanelCallbacks } from '../components/comment-panel/index';
-export { DpkComponentInlineEdit } from '../components/inline-edit';
+export { DpkInlineEdit } from '../components/inline-edit';
 export * as delegationPoker from '../templates/delegation-poker';
 
 startEntry({
   entry: 'templates/delegation-poker.js',
+  url: import.meta.url,
   templates: ['delegation-poker'],
   register: () => {
     defineCommentPanel();

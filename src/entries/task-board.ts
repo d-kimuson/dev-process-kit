@@ -15,13 +15,14 @@ import { definePageElement } from '../page/index';
 import { defineTaskBoardElement } from '../templates/task-board';
 
 export * from '../core/index';
-export { DpkComponentCommentPanel } from '../components/comment-panel/index';
+export { DpkCommentPanel } from '../components/comment-panel/index';
 export type { CommentPanelCallbacks } from '../components/comment-panel/index';
-export { DpkComponentInlineEdit } from '../components/inline-edit';
+export { DpkInlineEdit } from '../components/inline-edit';
 export * as taskBoard from '../templates/task-board';
 
 startEntry({
   entry: 'templates/task-board.js',
+  url: import.meta.url,
   templates: ['task-board'],
   register: () => {
     defineCommentPanel();

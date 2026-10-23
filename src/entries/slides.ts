@@ -16,13 +16,14 @@ import { definePageElement } from '../page/index';
 import { defineSlidesElement } from '../templates/slides';
 
 export * from '../core/index';
-export { DpkComponentCommentPanel } from '../components/comment-panel/index';
+export { DpkCommentPanel } from '../components/comment-panel/index';
 export type { CommentPanelCallbacks } from '../components/comment-panel/index';
-export { DpkComponentInlineEdit } from '../components/inline-edit';
+export { DpkInlineEdit } from '../components/inline-edit';
 export * as slides from '../templates/slides';
 
 startEntry({
   entry: 'templates/slides.js',
+  url: import.meta.url,
   templates: ['slides'],
   register: () => {
     defineCommentPanel();

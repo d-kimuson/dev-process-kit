@@ -10,23 +10,34 @@
  * `templates/usm.js`.
  */
 import { defineCommentPanel } from '../components/comment-panel/index';
+import { defineCommentThread } from '../components/comment-thread/index';
 import { defineInlineEdit } from '../components/inline-edit';
+import { defineMatrix } from '../components/matrix/index';
+import { defineTable } from '../components/table/index';
 import { startEntry } from '../core/version-loader';
 import { definePageElement } from '../page/index';
 import { defineUsmElement } from '../templates/usm';
 
 export * from '../core/index';
-export { DpkComponentCommentPanel } from '../components/comment-panel/index';
+export { DpkCommentPanel } from '../components/comment-panel/index';
 export type { CommentPanelCallbacks } from '../components/comment-panel/index';
-export { DpkComponentInlineEdit } from '../components/inline-edit';
+export { DpkCommentThread } from '../components/comment-thread/index';
+export type { CommentThreadItem } from '../components/comment-thread/index';
+export { DpkInlineEdit } from '../components/inline-edit';
+export { DpkMatrix } from '../components/matrix/index';
+export { DpkTable } from '../components/table/index';
 export * as usm from '../templates/usm';
 
 startEntry({
   entry: 'templates/usm.js',
+  url: import.meta.url,
   templates: ['usm'],
   register: () => {
     defineCommentPanel();
+    defineCommentThread();
     defineInlineEdit();
+    defineMatrix();
+    defineTable();
     defineUsmElement();
     definePageElement();
   },

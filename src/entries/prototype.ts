@@ -16,13 +16,14 @@ import { definePageElement } from '../page/index';
 import { definePrototypeElement } from '../templates/prototype';
 
 export * from '../core/index';
-export { DpkComponentCommentPanel } from '../components/comment-panel/index';
+export { DpkCommentPanel } from '../components/comment-panel/index';
 export type { CommentPanelCallbacks } from '../components/comment-panel/index';
-export { DpkComponentInlineEdit } from '../components/inline-edit';
+export { DpkInlineEdit } from '../components/inline-edit';
 export * as prototype from '../templates/prototype';
 
 startEntry({
   entry: 'templates/prototype.js',
+  url: import.meta.url,
   templates: ['prototype'],
   register: () => {
     defineCommentPanel();
