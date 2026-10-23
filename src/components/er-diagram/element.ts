@@ -130,6 +130,30 @@ type TableSize = {
   readonly rows: Readonly<Record<string, number>>;
 };
 
+/**
+ * Below this, two measurements of the same table count as "the same size":
+ * absorbs sub-pixel jitter between two otherwise-identical layout passes
+ * (zoom rounding, a scrollbar's width changing) without masking a real
+ * change, which is at minimum a text line's height. Comfortably above
+ * `#measureTables`'s own 1/64px rounding step, so that rounding alone can
+ * never push two equal measurements past it.
+ */
+const SIZE_CHANGE_EPSILON = 0.5;
+
+/** Whether `next` differs from `previous` by more than `epsilon` in any field. `undefined` always counts as different (a table measured for the first time). */
+const sizesEqual = (previous: TableSize | undefined, next: TableSize, epsilon: number): boolean => {
+  if (previous === undefined) return false;
+  if (Math.abs(previous.height - next.height) > epsilon) return false;
+  if (Math.abs(previous.head - next.head) > epsilon) return false;
+  const previousFields = Object.keys(previous.rows);
+  const nextFields = Object.keys(next.rows);
+  if (previousFields.length !== nextFields.length) return false;
+  return nextFields.every((field) => {
+    const before = previous.rows[field];
+    return before !== undefined && Math.abs(before - next.rows[field]!) <= epsilon;
+  });
+};
+
 /** Schema diagram with an always-on diff between the `before` and `after` snapshots. */
 export class DpkErDiagram extends DiagramElement<ErData> {
   static override styles: CSSResultGroup = [diagramStyles, erStyles, controlAtom];
@@ -158,6 +182,8 @@ export class DpkErDiagram extends DiagramElement<ErData> {
    */
   #refitted = false;
   #resize: ResizeObserver | null = null;
+  /** Elements `#resize` currently watches, so `updated()` can observe only ones that are new. */
+  #resizeTargets = new Set<Element>();
   readonly #popovers = new PopoverController(this);
   readonly #cardinalitySelect = new SelectController(this);
   /** Open for the selected edge; its value is lost once a different edge is selected. */
@@ -180,6 +206,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   override disconnectedCallback(): void {
     this.#resize?.disconnect();
     this.#resize = null;
+    this.#resizeTargets.clear();
     super.disconnectedCallback();
   }
 
@@ -206,12 +233,40 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     this.#syncEditor();
     this.#syncCardinalityEditor();
     if (typeof ResizeObserver !== 'undefined') this.#resize ??= new ResizeObserver(() => this.#measureTables());
-    this.#resize?.disconnect();
-    for (const card of this.renderRoot.querySelectorAll('.er-table')) {
-      this.#resize?.observe(card);
-      for (const row of card.querySelectorAll('.er-field')) this.#resize?.observe(row);
-    }
+    this.#syncResizeTargets();
     this.#measureTables();
+  }
+
+  /**
+   * Observes only `.er-table`/`.er-field` elements `#resize` is not already
+   * watching, and drops ones no longer rendered — rather than disconnecting
+   * and re-observing every one of them on every render. `observe()` always
+   * schedules an initial notification for a newly watched target, even when
+   * nothing resized, so re-observing the same stable elements on every
+   * render guaranteed another measurement pass per render regardless of
+   * whether anything actually changed (the freeze fixed in ce0ce13 started
+   * here). Lit keeps each table/field's element identity stable across
+   * renders (keyed by id), so most renders now have nothing new to observe.
+   */
+  #syncResizeTargets(): void {
+    if (this.#resize === null) return;
+    const current = new Set<Element>();
+    for (const card of this.renderRoot.querySelectorAll('.er-table')) {
+      current.add(card);
+      for (const row of card.querySelectorAll('.er-field')) current.add(row);
+    }
+    for (const element of this.#resizeTargets) {
+      if (!current.has(element)) {
+        this.#resize.unobserve(element);
+        this.#resizeTargets.delete(element);
+      }
+    }
+    for (const element of current) {
+      if (!this.#resizeTargets.has(element)) {
+        this.#resize.observe(element);
+        this.#resizeTargets.add(element);
+      }
+    }
   }
 
   #measureTables(): void {
@@ -237,7 +292,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
         head: centre(card.querySelector('.er-head')),
         rows,
       };
-      if (JSON.stringify(this.#sizes.get(id)) === JSON.stringify(size)) continue;
+      if (sizesEqual(this.#sizes.get(id), size, SIZE_CHANGE_EPSILON)) continue;
       this.#sizes.set(id, size);
       changed = true;
     }

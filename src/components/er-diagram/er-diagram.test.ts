@@ -1813,6 +1813,107 @@ describe('dpk-er-diagram', () => {
         }
       });
 
+      it('re-observes only newly rendered tables/fields instead of disconnecting and re-observing every one on every render (regression for #148 round 3)', async () => {
+        // A render that touches nothing about the tables themselves (here, a
+        // hover) used to disconnect and re-observe every `.er-table`/`.er-field`
+        // regardless, and `ResizeObserver.observe()` always schedules a
+        // notification for a newly watched target even when nothing resized —
+        // so every such render guaranteed another measurement pass in a real
+        // browser. `observe`/`unobserve`/`disconnect` call counts below are the
+        // ResizeObserver API's own visible contract, independent of whether
+        // happy-dom's stub RO ever actually fires a callback.
+        class CountingResizeObserver {
+          static observeCalls = 0;
+          static unobserveCalls = 0;
+          static disconnectCalls = 0;
+          constructor(_callback: ResizeObserverCallback) {}
+          observe(_target: Element): void {
+            CountingResizeObserver.observeCalls++;
+          }
+          unobserve(_target: Element): void {
+            CountingResizeObserver.unobserveCalls++;
+          }
+          disconnect(): void {
+            CountingResizeObserver.disconnectCalls++;
+          }
+        }
+        vi.stubGlobal('ResizeObserver', CountingResizeObserver);
+
+        try {
+          const element = new DpkErDiagram();
+          element.data = parseErData(raw);
+          document.body.append(element);
+          await settle(element);
+
+          const observedAfterMount = CountingResizeObserver.observeCalls;
+          expect(observedAfterMount).toBeGreaterThan(0); // every table and field got observed once
+          expect(CountingResizeObserver.disconnectCalls).toBe(0);
+
+          // A render that adds and removes nothing: hovering a table.
+          const customersTable = element.renderRoot.querySelector('[data-er-table="customers"]');
+          customersTable?.dispatchEvent(new Event('pointerenter', { bubbles: true }));
+          await settle(element);
+
+          expect(CountingResizeObserver.observeCalls).toBe(observedAfterMount); // nothing new to observe
+          expect(CountingResizeObserver.unobserveCalls).toBe(0); // nothing removed
+          expect(CountingResizeObserver.disconnectCalls).toBe(0); // never a blanket disconnect
+
+          element.remove();
+        } finally {
+          vi.unstubAllGlobals();
+        }
+      });
+
+      it('does not request another update for a remeasured table whose size moved less than the epsilon, but does for a real size change', async () => {
+        const rect = (height: number) =>
+          ({
+            width: 220,
+            height,
+            top: 0,
+            left: 0,
+            right: 220,
+            bottom: height,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          }) as DOMRect;
+        let tableHeightNow = 100;
+        const getRect = vi
+          .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+          .mockImplementation(function (this: HTMLElement) {
+            return this.classList.contains('er-table') ? rect(tableHeightNow) : rect(20);
+          });
+        const offsetWidth = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(220);
+
+        try {
+          const element = new DpkErDiagram();
+          element.data = parseErData(raw);
+          document.body.append(element);
+          await settle(element);
+
+          const requestUpdateSpy = vi.spyOn(element, 'requestUpdate');
+
+          // Sub-pixel jitter, well under the epsilon: no real size change.
+          tableHeightNow = 100.3;
+          element.requestUpdate();
+          await element.updateComplete;
+          expect(requestUpdateSpy).toHaveBeenCalledTimes(1); // only the manual call above, none from `#measureTables`
+
+          requestUpdateSpy.mockClear();
+
+          // A real change, well past the epsilon: must still be picked up.
+          tableHeightNow = 140;
+          element.requestUpdate();
+          await element.updateComplete;
+          expect(requestUpdateSpy.mock.calls.length).toBeGreaterThan(1); // the manual call plus `#measureTables`'s own
+
+          element.remove();
+        } finally {
+          getRect.mockRestore();
+          offsetWidth.mockRestore();
+        }
+      });
+
       // A hub Bounded Context (Identity) referenced by the other three, the same
       // shape as the complex sample: enough Bounded Contexts, each with its own
       // aggregate, that a single rank axis would collapse them into one tall,
