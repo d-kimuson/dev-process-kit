@@ -375,6 +375,19 @@ export abstract class TemplateElement<S> extends LitElement {
     return this.#definition.value;
   }
 
+  /**
+   * `definition`, extended with what this board's own components registered
+   * and the questions it asks — the same extension the controller derives
+   * with internally. A page delegates to a board's targets through this one,
+   * not the raw `definition`, or a component-registered target (`element:…`)
+   * would never match and read as `target-missing` forever. Falls back to
+   * the raw definition before the controller exists (a board may render once
+   * before its draft starts).
+   */
+  get liveDefinition(): TemplateDefinition<S> {
+    return this.#controller?.definition ?? this.definition;
+  }
+
   override connectedCallback(): void {
     // The shell is drawn with the layouts; whichever entry loaded the template, they are there.
     defineLayoutElements();
