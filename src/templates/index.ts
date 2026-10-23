@@ -1,13 +1,10 @@
 import { definePageElement } from '../page/index';
 import { defineDelegationPokerElement } from './delegation-poker';
-import { defineEventStormingElement } from './event-storming';
-import { defineExampleMappingElement } from './example-mapping';
 import { definePlainElement } from './plain';
 import { definePrototypeElement } from './prototype';
 import { defineSlidesElement } from './slides';
 import { defineTaskBoardElement } from './task-board';
 import { defineUsmElement } from './usm';
-import { defineWhiteboardElement } from './whiteboard';
 
 /**
  * Template registry.
@@ -20,13 +17,10 @@ import { defineWhiteboardElement } from './whiteboard';
 export const registerTemplateElements = (): void => {
   definePrototypeElement();
   defineUsmElement();
-  defineEventStormingElement();
-  defineExampleMappingElement();
   definePlainElement();
   defineSlidesElement();
   defineTaskBoardElement();
   defineDelegationPokerElement();
-  defineWhiteboardElement();
   // A page of boards works with any of them.
   definePageElement();
 };

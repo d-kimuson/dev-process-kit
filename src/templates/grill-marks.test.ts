@@ -37,18 +37,6 @@ const cases: readonly Case[] = [
     ],
   },
   {
-    tag: 'dpk-template-event-storming',
-    base: {
-      contexts: [{ id: 'order', name: 'Order', questions: 'Q1' }],
-      elements: [
-        { id: 'placed', type: 'event', name: 'Order placed', contextId: 'order', questions: 'Q1' },
-        { id: 'why', type: 'hotspot', name: 'Why?' },
-      ],
-      links: [{ id: 'l1', from: 'why', to: 'placed' }],
-    },
-    marked: ['.context-region', '[data-dpk-target="element:placed"]'],
-  },
-  {
     tag: 'dpk-template-task-board',
     base: {
       title: 'Ship checkout',
@@ -69,16 +57,6 @@ const cases: readonly Case[] = [
       ],
     },
     marked: ['[data-decision="hiring"] .cell-name'],
-  },
-  {
-    tag: 'dpk-template-whiteboard',
-    base: {
-      items: [
-        { id: 'idea', kind: 'sticky', x: 0, y: 0, text: 'Idea', questions: 'Q1' },
-        { id: 'note', kind: 'text', x: 200, y: 0, text: 'Note' },
-      ],
-    },
-    marked: ['[data-item-id="idea"]'],
   },
 ];
 
