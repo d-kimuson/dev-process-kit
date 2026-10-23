@@ -19,24 +19,29 @@ if (base === undefined) {
   process.exit(2);
 }
 
-/** Sample page → the template element it renders. */
+/**
+ * Sample page → the template element it renders, and the page's shape:
+ * `'page'` for a `<dpk-page>` holding that template as its one board (the shell
+ * — banner, review rail — lives in the page's shadow root), `'standalone'` for
+ * a template that is still the page root on its own (`slides`).
+ */
 const SAMPLES = [
-  ['prototype', 'prototype'],
-  ['usm', 'usm'],
-  ['event-storming', 'event-storming'],
-  ['example-mapping', 'example-mapping'],
+  ['prototype', 'prototype', 'page'],
+  ['usm', 'usm', 'page'],
+  ['event-storming', 'event-storming', 'page'],
+  ['example-mapping', 'example-mapping', 'page'],
   // English UI (`lang="en"`); every other sample is Japanese.
-  ['example-mapping-en', 'example-mapping'],
-  ['grill', 'plain'],
-  ['diagrams', 'plain'],
-  ['design-doc', 'plain'],
-  ['architecture', 'plain'],
-  ['ddd-primer', 'plain'],
-  ['formal-spec', 'plain'],
-  ['slides', 'slides'],
-  ['task-board', 'task-board'],
-  ['delegation-poker', 'delegation-poker'],
-  ['whiteboard', 'whiteboard'],
+  ['example-mapping-en', 'example-mapping', 'page'],
+  ['grill', 'plain', 'page'],
+  ['diagrams', 'plain', 'page'],
+  ['design-doc', 'plain', 'page'],
+  ['architecture', 'plain', 'page'],
+  ['ddd-primer', 'plain', 'page'],
+  ['formal-spec', 'plain', 'page'],
+  ['slides', 'slides', 'standalone'],
+  ['task-board', 'task-board', 'page'],
+  ['delegation-poker', 'delegation-poker', 'page'],
+  ['whiteboard', 'whiteboard', 'page'],
 ] as const;
 const SESSION = process.env['AGENT_BROWSER_SESSION'] ?? 'browser-ops';
 const PROFILE = process.env['AGENT_BROWSER_PROFILE'] ?? `${process.env['HOME']}/.config/agent-browser/profiles/shared`;
@@ -49,12 +54,17 @@ const ab = (...args: readonly string[]): string =>
 /** The probe result is external input: validate it instead of trusting its shape. */
 const probeSchema = v.object({ banner: v.boolean(), rail: v.boolean() });
 
-/** Reads `{ banner, rail }` out of the template element, or `null` when the probe failed. */
-const probeState = (template: string): { banner: boolean; rail: boolean } | null => {
+/**
+ * Reads `{ banner, rail }` out of the shell's shadow root, or `null` when the
+ * probe failed. The shell is `<dpk-page>` for a board, the template element
+ * itself when it is still the page root on its own.
+ */
+const probeState = (template: string, shape: 'page' | 'standalone'): { banner: boolean; rail: boolean } | null => {
+  const selector = shape === 'page' ? 'dpk-page' : `dpk-template-${template}`;
   try {
     const raw = ab(
       'eval',
-      `(() => { const el = document.querySelector('dpk-template-${template}'); return JSON.stringify({ banner: !!el?.shadowRoot?.querySelector('.dpk-banner'), rail: !!el?.shadowRoot?.querySelector('dpk-component-comment-panel') }); })()`,
+      `(() => { const el = document.querySelector('${selector}'); return JSON.stringify({ banner: !!el?.shadowRoot?.querySelector('.dpk-banner'), rail: !!el?.shadowRoot?.querySelector('dpk-comment-panel') }); })()`,
     ).trim();
     const decoded: unknown = JSON.parse(raw);
     const parsed = v.safeParse(probeSchema, typeof decoded === 'string' ? JSON.parse(decoded) : decoded);
@@ -64,8 +74,28 @@ const probeState = (template: string): { banner: boolean; rail: boolean } | null
   }
 };
 
+/** Blocks the event loop for `ms`, so the probe can be retried without going async. */
+const sleep = (ms: number): void => {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+};
+
+/**
+ * A board takes an extra render pass to mount inside its `<dpk-page>` shell
+ * (the page connects, then the board registers with it), so the comment
+ * panel can still be missing right after `open` returns. Poll briefly rather
+ * than fail on that race.
+ */
+const probeReady = (template: string, shape: 'page' | 'standalone'): { banner: boolean; rail: boolean } | null => {
+  let state = probeState(template, shape);
+  for (let attempt = 0; attempt < 20 && state !== null && !state.banner && !state.rail; attempt += 1) {
+    sleep(150);
+    state = probeState(template, shape);
+  }
+  return state;
+};
+
 let failed = 0;
-for (const [sample, template] of SAMPLES) {
+for (const [sample, template, shape] of SAMPLES) {
   let errors = '';
   try {
     ab('open', `${base}/${sample}.html`);
@@ -73,7 +103,7 @@ for (const [sample, template] of SAMPLES) {
   } catch (error) {
     errors = String(error);
   }
-  const state = probeState(template);
+  const state = probeReady(template, shape);
   const ok = state !== null && errors === '' && state.banner === false && state.rail === true;
   if (!ok) failed += 1;
   console.log(`${ok ? 'PASS' : 'FAIL'} ${sample}: errors=${JSON.stringify(errors)} state=${JSON.stringify(state)}`);
