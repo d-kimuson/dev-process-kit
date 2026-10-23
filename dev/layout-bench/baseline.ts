@@ -108,17 +108,82 @@
  * The per-edge revert was removed rather than kept; routing order,
  * edge-aware L selection and rip-up-reroute already deliver the measured
  * crossing drop above without that trade.
+ *
+ * 2026-10 (#150): readers found the gap *between* Bounded Context frames too
+ * tight even with zero overlapping lines ("線自体はかぶってないけどぎゅっとし
+ * すぎ"). `view.ts` gained two dedicated constants, `BC_GAP_ROW` (24) and
+ * `BC_GAP_COLUMN` (10), applied by `compoundLayout`
+ * (`src/lib/layout/layered.ts`) to the *stacked* (different-row) and
+ * *side-by-side* (same-row) BC-to-BC gaps respectively, as a pure
+ * post-process strictly after `arrangeBoxes` has already picked the BC
+ * order/row-split, so neither can ever perturb that crossing-minimising
+ * search. Two separate, independently-bisected values rather than one,
+ * because the two gaps started from very different baselines (stacked
+ * ~12px vs. side-by-side ~58px, a BC frame only reserving label space on its
+ * own top edge) and tolerate very different amounts of widening before
+ * routing turns the extra room into new crossings on this corpus (row safe
+ * to ~27px, column only to ~10px). This raises wasted-area/edge-length/
+ * aspect-deviation on fixtures with a BC-to-BC gap to widen, which is the
+ * intended trade-off the task explicitly allows: `er-complex` 4880.55→4885.80
+ * (+0.11%, side-by-side only — its four BCs sit in one row), `order-schema`
+ * 226.54→229.27 (+1.20%, its two BCs stack), `synthetic-cross-bc`
+ * 319.35→319.84 (+0.15%, side-by-side), `synthetic-random-1`
+ * 8002.47→8020.33 (+0.22%, both axes). The rest (`er-long-names`,
+ * `synthetic-no-bc`, `synthetic-hub-table`, `synthetic-self-reference`) are
+ * byte-identical: no second BC to widen against. `synthetic-random-2` is a
+ * real *improvement*, not a cost paid for spacing: ratcheted down
+ * 5608.75→5287.73, because the new BC gaps changed the routed geometry
+ * enough to drop its crossing count 48→44 (see
+ * `LAYOUT_BENCH_CROSSINGS_BASELINE` below) — a genuine win, not slack, so the
+ * old worse number is not kept around. Crossing counts are otherwise
+ * unchanged on every fixture; see the independent ratchet below.
+ *
+ * 2026-10 (#150 round 2): round 1's gap shipped too small to actually read
+ * on the page the complaint was about (`er-complex` at a realistic
+ * fit-to-view zoom: +10px on a ~58px gap is a few screen pixels). Rather
+ * than cap the gap to whatever the then-current router tolerated,
+ * `BC_GAP_ROW`/`BC_GAP_COLUMN` (`view.ts`) were raised to 160/120 — a final
+ * gap of ~172px (stacked) / ~178px (side-by-side) on `er-complex`, inside
+ * the requested 150–200px band on both axes — and the actual router bug
+ * this exposed was found and fixed instead: `gridRoute`
+ * (`src/lib/layout/orthogonal-router.ts`), the Dijkstra fallback used
+ * whenever both direct L-shapes are obstacle-blocked, was completely blind
+ * to every other edge already routed in the batch (`avoid`), unlike the
+ * L-shape path above it. A long cross-BC edge is more likely to fall
+ * through to this fallback once its endpoints are further apart, so
+ * widening the gap surfaced a pre-existing blind spot, not a new one: it
+ * would cut straight across a busy local corridor whenever that happened to
+ * be the cheapest bend-and-distance path. Fixed by pricing (not blocking)
+ * `avoid` crossings into the search via a new `AVOID_CROSSING_PENALTY`
+ * constant there, tuned down from an initial, too-strong 500 to 100 after
+ * the higher value pulled unrelated long edges onto the same "cheapest"
+ * detour lane and raised `synthetic-random-1`'s crossing count even at the
+ * old, un-widened gap (71→77) — see that constant's doc comment for the
+ * tuning data.
+ *
+ * With the router fixed, every fixture's crossing count fell or held at the
+ * much wider gap (see `LAYOUT_BENCH_CROSSINGS_BASELINE` below), so every
+ * total here ratchets down except the two fixtures whose crossing count is
+ * unchanged and whose BCs widen apart: `order-schema` 229.27→241.84 (+5.5%,
+ * its two BCs stack) and `synthetic-cross-bc` 319.84→340.46 (+6.4%,
+ * side-by-side) — pure edge-length/area cost of the intentional spacing,
+ * exactly the trade-off the task allows. `er-long-names`, `synthetic-no-bc`,
+ * `synthetic-hub-table`, `synthetic-self-reference` are byte-identical (no
+ * second BC to widen against). The rest improve outright, because the fixed
+ * router routes more cleanly even independent of the gap change:
+ * `er-complex` 4885.80→4553.95 (-6.8%), `synthetic-random-1`
+ * 8020.33→6834.80 (-14.8%), `synthetic-random-2` 5287.73→4387.75 (-17.0%).
  */
 export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 4880.550883510249,
-  'order-schema': 226.5403236718898,
+  'er-complex': 4553.950444101124,
+  'order-schema': 241.83712660028453,
   'er-long-names': 152.8217124073083,
   'synthetic-no-bc': 1344.4620464945997,
-  'synthetic-cross-bc': 319.3524809019977,
+  'synthetic-cross-bc': 340.4649380406827,
   'synthetic-hub-table': 545.4210727969348,
   'synthetic-self-reference': 336.89998596244953,
-  'synthetic-random-1': 8002.474075587334,
-  'synthetic-random-2': 5608.750715847204,
+  'synthetic-random-1': 6834.802346185397,
+  'synthetic-random-2': 4387.7487167273375,
 };
 
 /**
@@ -128,15 +193,23 @@ export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
  * (a cheaper `collinearOverlap` bought with a more expensive `crossings` is
  * a bad trade per the user, who named crossings as the top complaint) — see
  * `dev/layout-bench.test.ts`.
+ *
+ * 2026-10 (#150 round 2): the `gridRoute` fix above (see the total-score
+ * comment and `AVOID_CROSSING_PENALTY`'s doc comment) dropped every
+ * fixture's crossing count at the new, much wider BC gap — `er-complex`
+ * 38→32, `synthetic-random-1` 71→59, `synthetic-random-2` 48→33 (also
+ * correcting this field's stale `48`, which a comment above already said
+ * should have ratcheted to 44 after #148 round 3's own `nudgeParallelRoutes`
+ * change but never did). The rest are unchanged.
  */
 export const LAYOUT_BENCH_CROSSINGS_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 38,
+  'er-complex': 32,
   'order-schema': 1,
   'er-long-names': 0,
   'synthetic-no-bc': 0,
   'synthetic-cross-bc': 1,
   'synthetic-hub-table': 0,
   'synthetic-self-reference': 2,
-  'synthetic-random-1': 71,
-  'synthetic-random-2': 48,
+  'synthetic-random-1': 59,
+  'synthetic-random-2': 33,
 };

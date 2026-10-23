@@ -114,6 +114,35 @@ class MinHeap {
 }
 
 const BEND_PENALTY = 60;
+/**
+ * Dijkstra cost added for a grid step that would cross an already-routed
+ * edge's segment (`avoid`, the same batch-routing hint `routeAroundObstacles`'s
+ * simple L-shape tie-break already uses). Priced a little above
+ * `BEND_PENALTY` so the search prefers a few extra bends or a modest detour
+ * over cutting across existing traffic, but — unlike `obstacles` — never a
+ * hard block: `avoid` is a steering hint, not a wall, so a crossing that is
+ * genuinely unavoidable still gets a route instead of `gridRoute` giving up.
+ * Without this, the grid fallback (unlike the L-shape path above it) was
+ * blind to every other edge in the batch, so widening the gap between two
+ * Bounded Contexts — which makes a long cross-BC edge more likely to fall
+ * through to this fallback, since its straight L-shapes have more obstacles
+ * between its now-further-apart endpoints to clear — let it cut straight
+ * through a busy local corridor that happened to sit on its cheapest
+ * bend-and-distance path, even though a barely-longer detour around that
+ * traffic existed (#150 round 2).
+ *
+ * Tuned, not guessed: a value this small (vs. an initial 500) was chosen
+ * because pricing the penalty too high overcorrects — it pulls multiple
+ * unrelated long edges toward the same "cheapest" detour lane, so they start
+ * crossing each other and the fixture corpus's raw crossing counts rise
+ * instead of fall (`synthetic-random-1` 71→77 at an unchanged, un-widened
+ * gap, i.e. independent of the Bounded Context spacing this round otherwise
+ * widens — see `dev-docs`/the #150 round 2 report for the swept
+ * before/after numbers). 100 is the smallest tested value past which every
+ * fixture's crossing count, at both the old and the new, much wider BC gap,
+ * stayed at or below `LAYOUT_BENCH_CROSSINGS_BASELINE`.
+ */
+const AVOID_CROSSING_PENALTY = 100;
 /** Direction a grid-search state arrived from: `0` only at the very start. */
 const NONE = 0;
 const HORIZONTAL = 1;
@@ -161,17 +190,27 @@ const crossingsAgainst = (points: readonly RoutePoint[], avoid: readonly RouteSe
 export const countRouteCrossings = (a: readonly RoutePoint[], b: readonly RoutePoint[]): number =>
   crossingsAgainst(a, segmentsOf(b));
 
+/** How many of `avoid`'s segments the axis-aligned unit segment `a`-`b` would cross. */
+const avoidCrossingsOfUnitSegment = (a: RoutePoint, b: RoutePoint, avoid: readonly RouteSegment[]): number => {
+  if (avoid.length === 0) return 0;
+  let count = 0;
+  for (const other of avoid) if (segmentsCross([a, b], other)) count++;
+  return count;
+};
+
 /**
  * The bounded grid fallback: coordinates compressed from the obstacles near
- * `start`/`end` plus a routing margin, searched with a bend-priced Dijkstra.
- * `null` when the search space is empty (start and end coincide) or nothing
- * reaches the target, in which case the caller falls back to a plain L-shape.
+ * `start`/`end` plus a routing margin, searched with a bend-priced Dijkstra
+ * that also prices crossing `avoid` (see `AVOID_CROSSING_PENALTY`). `null`
+ * when the search space is empty (start and end coincide) or nothing reaches
+ * the target, in which case the caller falls back to a plain L-shape.
  */
 const gridRoute = (
   start: RoutePoint,
   end: RoutePoint,
   obstacles: readonly RouteBox[],
   margin: number,
+  avoid: readonly RouteSegment[] = [],
 ): readonly RoutePoint[] | null => {
   const buffer = Math.max(margin * 4, 160);
   const seedLeft = Math.min(start.x, end.x) - buffer;
@@ -219,6 +258,19 @@ const gridRoute = (
   const vClear: boolean[][] = Array.from({ length: width }, (_, xi) =>
     Array.from({ length: height - 1 }, (_, yi) => !verticalBlocked(xList[xi]!, yList[yi]!, yList[yi + 1]!, relevant)),
   );
+  // Same shape as `hClear`/`vClear`, but counting `avoid` crossings per unit
+  // segment instead of a hard obstacle block — priced into the search below,
+  // not filtered out here, so a route that must cross still gets one.
+  const hAvoid: number[][] = Array.from({ length: width - 1 }, (_, xi) =>
+    Array.from({ length: height }, (_, yi) =>
+      avoidCrossingsOfUnitSegment({ x: xList[xi]!, y: yList[yi]! }, { x: xList[xi + 1]!, y: yList[yi]! }, avoid),
+    ),
+  );
+  const vAvoid: number[][] = Array.from({ length: width }, (_, xi) =>
+    Array.from({ length: height - 1 }, (_, yi) =>
+      avoidCrossingsOfUnitSegment({ x: xList[xi]!, y: yList[yi]! }, { x: xList[xi]!, y: yList[yi + 1]! }, avoid),
+    ),
+  );
 
   const encode = (xi: number, yi: number, dir: number): number => (xi * height + yi) * 3 + dir;
   const dist = new Float64Array(width * height * 3).fill(Number.POSITIVE_INFINITY);
@@ -238,10 +290,10 @@ const gridRoute = (
     const yi = cell % height;
     const xi = (cell - yi) / height;
     if (xi === endX && yi === endY) break;
-    const relax = (nextXi: number, nextYi: number, nextDir: number, step: number) => {
+    const relax = (nextXi: number, nextYi: number, nextDir: number, step: number, avoidHits: number) => {
       const bend = dir !== NONE && dir !== nextDir ? BEND_PENALTY : 0;
       const next = encode(nextXi, nextYi, nextDir);
-      const candidate = priority + step + bend;
+      const candidate = priority + step + bend + avoidHits * AVOID_CROSSING_PENALTY;
       if (candidate < (dist[next] ?? Number.POSITIVE_INFINITY)) {
         dist[next] = candidate;
         prev[next] = value;
@@ -249,10 +301,13 @@ const gridRoute = (
       }
     };
     if (xi > 0 && (vClear[xi - 1] === undefined ? false : true) && hClear[xi - 1]?.[yi])
-      relax(xi - 1, yi, HORIZONTAL, xList[xi]! - xList[xi - 1]!);
-    if (xi < width - 1 && hClear[xi]?.[yi]) relax(xi + 1, yi, HORIZONTAL, xList[xi + 1]! - xList[xi]!);
-    if (yi > 0 && vClear[xi]?.[yi - 1]) relax(xi, yi - 1, VERTICAL, yList[yi]! - yList[yi - 1]!);
-    if (yi < height - 1 && vClear[xi]?.[yi]) relax(xi, yi + 1, VERTICAL, yList[yi + 1]! - yList[yi]!);
+      relax(xi - 1, yi, HORIZONTAL, xList[xi]! - xList[xi - 1]!, hAvoid[xi - 1]?.[yi] ?? 0);
+    if (xi < width - 1 && hClear[xi]?.[yi])
+      relax(xi + 1, yi, HORIZONTAL, xList[xi + 1]! - xList[xi]!, hAvoid[xi]?.[yi] ?? 0);
+    if (yi > 0 && vClear[xi]?.[yi - 1])
+      relax(xi, yi - 1, VERTICAL, yList[yi]! - yList[yi - 1]!, vAvoid[xi]?.[yi - 1] ?? 0);
+    if (yi < height - 1 && vClear[xi]?.[yi])
+      relax(xi, yi + 1, VERTICAL, yList[yi + 1]! - yList[yi]!, vAvoid[xi]?.[yi] ?? 0);
   }
 
   const reachable = [NONE, HORIZONTAL, VERTICAL]
@@ -345,5 +400,5 @@ export const routeAroundObstacles = (
   if (verticalOk) return simplify([start, verticalFirst, end]);
   if (horizontalOk) return simplify([start, horizontalFirst, end]);
 
-  return gridRoute(start, end, inflated, margin) ?? simplify([start, horizontalFirst, end]);
+  return gridRoute(start, end, inflated, margin, avoid) ?? simplify([start, horizontalFirst, end]);
 };

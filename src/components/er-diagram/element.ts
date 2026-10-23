@@ -55,6 +55,8 @@ import { CIRCLE_RADIUS, endGlyph, type ErEnd } from './notation';
 import { erStyles } from './styles';
 import {
   aggregateGroups,
+  BC_GAP_COLUMN,
+  BC_GAP_ROW,
   BC_LABEL_SPACE,
   BC_PADDING,
   boundedContextGroups,
@@ -98,7 +100,18 @@ export const LAYOUT = {
   groupSpacing: GROUP_PADDING * 2 + GROUP_LABEL_SPACE + 12,
   // Same reasoning one level up: a Bounded Context's frame must clear the aggregate frames nested
   // inside it (not just their tables), so it needs BC_PADDING's own room on top of groupSpacing.
+  // Kept at the historic minimum (not BC_GAP_*-widened): this value also drives `arrangeBoxes`'s
+  // crossing-minimising search over BC order/row-split, so inflating it would perturb which
+  // arrangement wins. `superGroupRowGap`/`superGroupColumnGap` below add the BC_GAP_* constants
+  // back in as a pure post-process instead.
   superGroupSpacing: BC_PADDING * 2 + BC_LABEL_SPACE + 12,
+  // Extra breathing room between *different* BCs' frames, applied by `compoundLayout` only after
+  // it has already picked the BC order/row-split from `superGroupSpacing` above — so widening these
+  // can change how far apart BCs sit, never which arrangement the crossing-minimising search chose.
+  // Two separate budgets, not one: see `view.ts`'s `BC_GAP_ROW`/`BC_GAP_COLUMN` for why stacked and
+  // side-by-side BCs tolerate very different amounts of widening before routed crossings regress.
+  superGroupRowGap: BC_GAP_ROW,
+  superGroupColumnGap: BC_GAP_COLUMN,
 } as const satisfies LayoutOptions;
 /** How far a relation keeps from a table it passes: the middle of the gap between two. */
 export const LANE_MARGIN = LAYOUT.nodeSpacing / 2;

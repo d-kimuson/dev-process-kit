@@ -81,6 +81,26 @@ export type LayoutOptions = {
   readonly groupSpacing?: number;
   /** Gap kept between two different `superGroup`s' bands, on top of `groupSpacing`. Defaults to `groupSpacing`. */
   readonly superGroupSpacing?: number;
+  /**
+   * Extra gap added between two different `superGroup`s' boxes stacked in
+   * different rows, on top of `superGroupSpacing`, by `compoundLayout` only
+   * — applied as a pure post-process after `arrangeBoxes` has already picked
+   * the `superGroup` order and row/column split from `superGroupSpacing`
+   * alone, so widening it can never change which arrangement that
+   * crossing-minimising search chose, only how far apart the chosen boxes
+   * end up. Defaults to 0 (no extra gap beyond `superGroupSpacing`, i.e. the
+   * pre-existing behaviour).
+   */
+  readonly superGroupRowGap?: number;
+  /**
+   * Same as `superGroupRowGap`, but for two `superGroup`s' boxes sitting
+   * side by side in the same row. Kept separate because, on this component's
+   * bench corpus, widening the side-by-side gap regresses routed edge
+   * crossings at a much smaller value than widening the stacked gap does
+   * (see `view.ts`'s `BC_GAP_ROW`/`BC_GAP_COLUMN` for the measured numbers).
+   * Defaults to 0.
+   */
+  readonly superGroupColumnGap?: number;
 };
 
 const DEFAULTS = {
@@ -91,6 +111,8 @@ const DEFAULTS = {
   coordinatePasses: 6,
   groupSpacing: 34,
   superGroupSpacing: 34,
+  superGroupRowGap: 0,
+  superGroupColumnGap: 0,
 } as const;
 
 type Config = Required<LayoutOptions>;
@@ -985,6 +1007,86 @@ export const arrangeBoxes = (
   return bestPacked;
 };
 
+/**
+ * Spreads `packed`'s boxes further apart by `rowGap`/`columnGap`, strictly
+ * *after* their order and row/column split have already been chosen (by
+ * `arrangeBoxes`, scored against the un-widened spacing it was called with)
+ * — so this can never change which arrangement was picked, only how far
+ * apart the chosen boxes end up. `packForRowCount` always places a whole row
+ * at one shared `y`, so grouping boxes by exact `y` recovers the row
+ * structure without `arrangeBoxes` needing to expose it explicitly.
+ *
+ * `rowGap` and `columnGap` are separate, rather than one scalar for both,
+ * because `compoundLayout`'s one `superGroupSpacing` already leaves two
+ * different visual gaps once a frame's label space is accounted for: a BC
+ * frame only reserves `BC_LABEL_SPACE` on its own top edge, so two BCs
+ * sharing a row (side by side) end up `superGroupSpacing - 2*BC_PADDING`
+ * apart, while two BCs in different rows (stacked) end up the much tighter
+ * `superGroupSpacing - (2*BC_PADDING + BC_LABEL_SPACE)` apart — the gap #150
+ * reported as cramped. Both axes still needed widening (#150's own repro
+ * page arranges its Bounded Contexts in a single row, so only the
+ * side-by-side gap was ever visible there), but the two tolerate very
+ * different amounts before routing turns the extra room into new crossings
+ * on this component's bench corpus: see `compoundLayout`'s call site for the
+ * measured, independently-bisected ceiling each one gets.
+ *
+ * `hasFrame` tells a real Bounded Context (a drawn frame) apart from a loose
+ * table with no `superGroup` of its own (`compoundLayout` still bands it as
+ * its own singleton "super" band internally, but no frame is ever drawn
+ * around it — see `boundedContextGroups`). A gap is only ever inserted at a
+ * row/column boundary where at least one side has a frame: two loose tables
+ * next to each other keep their original spacing, since there is no pair of
+ * frames there for the reader to read as "too close". Without this, widening
+ * would also push every loose table away from its neighbours — often many of
+ * them in a schema with few declared Bounded Contexts — which reshapes the
+ * whole canvas far beyond the BC-to-BC gap this exists to widen.
+ *
+ * A no-op when both gaps are 0 (the default) or there is nothing to move.
+ */
+const spreadPacked = (
+  packed: Packed,
+  sizeOf: ReadonlyMap<string, { readonly width: number; readonly height: number }>,
+  rowGap: number,
+  columnGap: number,
+  hasFrame: (id: string) => boolean,
+): Packed => {
+  if ((rowGap <= 0 && columnGap <= 0) || packed.positions.size <= 1) return packed;
+  const rows = new Map<number, string[]>();
+  for (const [id, point] of packed.positions) {
+    const bucket = rows.get(point.y);
+    if (bucket) bucket.push(id);
+    else rows.set(point.y, [id]);
+  }
+  const rowYs = [...rows.keys()].sort((a, b) => a - b);
+  const rowItems = rowYs.map((rowY) =>
+    [...(rows.get(rowY) ?? [])].sort((a, b) => (packed.positions.get(a)?.x ?? 0) - (packed.positions.get(b)?.x ?? 0)),
+  );
+  const positions = new Map<string, LayoutPoint>();
+  let width = 0;
+  let height = 0;
+  let yShift = 0;
+  rowItems.forEach((ids, rowIndex) => {
+    const previousRow = rowItems[rowIndex - 1];
+    if (previousRow !== undefined) {
+      const widensRow = ids.some(hasFrame) || previousRow.some(hasFrame);
+      yShift += widensRow ? rowGap : 0;
+    }
+    let xShift = 0;
+    ids.forEach((id, columnIndex) => {
+      const previous = ids[columnIndex - 1];
+      if (previous !== undefined) xShift += hasFrame(previous) || hasFrame(id) ? columnGap : 0;
+      const original = packed.positions.get(id);
+      const size = sizeOf.get(id);
+      if (!original || !size) return;
+      const point = { x: original.x + xShift, y: original.y + yShift };
+      positions.set(id, point);
+      width = Math.max(width, point.x + size.width);
+      height = Math.max(height, point.y + size.height);
+    });
+  });
+  return { positions, width, height };
+};
+
 // A little over square, not exactly 1: a handful of Bounded Context boxes
 // (often as few as three or four) can only combine into a wide *overall*
 // bounding box through a grid-like arrangement (two columns of two rows,
@@ -1130,6 +1232,11 @@ export const compoundLayout = (
   const bcBoxSizes = new Map([...bcLayouts].map(([key, bc]) => [key, bc.size] as const));
   const bcOffsets = new Map<string, LayoutPoint>();
   const bcKeys = [...bcLayouts.keys()];
+  // Only a key backed by a real `superGroup` gets a drawn frame
+  // (`boundedContextGroups` in `view.ts` skips tables without one); the
+  // `__top:` fallback keys above band a loose table on its own but draw
+  // nothing, so `spreadPacked` must not treat them as BCs to widen around.
+  const realSuperKeys = new Set(nodes.flatMap((node) => (node.superGroup === undefined ? [] : [node.superGroup])));
   if (bcKeys.length <= 1) {
     for (const key of bcKeys) bcOffsets.set(key, { x: 0, y: 0 });
   } else {
@@ -1146,7 +1253,15 @@ export const compoundLayout = (
       BC_PACK_ASPECT,
       config.sweeps,
     );
-    for (const [key, point] of packed.positions) bcOffsets.set(key, point);
+    // Two separate budgets (`spreadPacked`'s own doc above has why): the
+    // stacked (different-row) BC gap is the one #150 reported as cramped and
+    // tolerates a far bigger widening before routing regresses it into new
+    // crossings, while the side-by-side (same-row) gap already had more room
+    // from `superGroupSpacing` alone and only tolerates a modest one.
+    const spread = spreadPacked(packed, bcBoxSizes, config.superGroupRowGap, config.superGroupColumnGap, (key) =>
+      realSuperKeys.has(key),
+    );
+    for (const [key, point] of spread.positions) bcOffsets.set(key, point);
   }
 
   // Compose: Bounded Context offset + its aggregate box's offset inside it + the

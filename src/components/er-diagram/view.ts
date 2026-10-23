@@ -255,6 +255,51 @@ export const BC_PADDING = 30;
  * under the ~32px this gap now reserves.
  */
 export const BC_LABEL_SPACE = 46;
+/**
+ * Extra breathing room between two different Bounded Context frames, kept
+ * separate from `BC_PADDING`/`BC_LABEL_SPACE` so it can be tuned on its own:
+ * those two only reserve the minimum a BC's own frame needs to clear its
+ * nested aggregate frames and label, not how far apart two *different* BCs'
+ * frames sit from each other (#150: readers found the BCs crammed together
+ * even with zero crossing lines). Also used by `element.ts` to size the
+ * layout's `superGroupRowGap`/`superGroupColumnGap`, a pure post-process
+ * `compoundLayout` applies only after it has already chosen the BC-level
+ * order/row-split from `superGroupSpacing` — so these can be widened without
+ * ever perturbing that crossing-minimising search.
+ *
+ * Split into a row and a column gap, rather than one constant, because
+ * `superGroupSpacing` alone already leaves two different visual gaps once a
+ * BC frame's label space (reserved on its own top edge only) is accounted
+ * for: two BCs side by side (same row) end up ~58px apart, but two BCs
+ * stacked (different rows) end up only ~12px apart — that missing
+ * label-space reservation is exactly the deficit #150 reported as cramped.
+ *
+ * #150 round 1 picked small, ratchet-safe values (`+24`/`+10`) by bisecting
+ * the largest per-axis addition that did not raise
+ * `LAYOUT_BENCH_CROSSINGS_BASELINE` on this component's bench corpus (`pnpm
+ * bench:layout`) *without changing the router*. That shipped a gap readers
+ * could not actually see: on `er-complex` at a realistic fit-to-view zoom,
+ * +10px on a ~58px gap is a few screen pixels. Round 2's ask was explicit:
+ * pick the value the page needs (~150–200px final, on-screen-visible, final
+ * gap — "roughly 2–3x round 1's"), and fix the *router* if widening exposes
+ * a crossing regression, rather than capping the gap to whatever the old
+ * router tolerated. `src/lib/layout/orthogonal-router.ts`'s `gridRoute` fallback
+ * turned out to be genuinely blind to already-routed edges (see
+ * `AVOID_CROSSING_PENALTY` there) — once fixed, every bench fixture's
+ * crossing count stays at or below `LAYOUT_BENCH_CROSSINGS_BASELINE` at the
+ * much wider gap below, several fixtures improve outright, and the residual
+ * few-crossing wobble on `synthetic-random-2` as the gap grows is a single
+ * long cross-BC edge genuinely rerouting over a much longer span — not a
+ * geometry-sensitive tie-break — and stays well inside the ratchet.
+ *
+ * `BC_GAP_ROW = 160` / `BC_GAP_COLUMN = 120` bring the two axes to ~172px
+ * (stacked, 12px native + 160) and ~178px (side-by-side, 58px native + 120)
+ * on `er-complex` — close enough to read as the same gap despite the
+ * different native starting points, and inside the requested 150–200px
+ * band on both axes.
+ */
+export const BC_GAP_ROW = 160;
+export const BC_GAP_COLUMN = 120;
 
 /** The padded box around a set of already-placed tables, shared by every grouping (aggregate, Bounded Context, …). */
 const paddedBox = (boxes: readonly ErBox[], padding: number, labelSpace: number): ErBox => {
