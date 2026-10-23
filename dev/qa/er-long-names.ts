@@ -14,8 +14,12 @@ const ab = (...args: string[]) =>
     encoding: 'utf8',
   }).trim();
 
+/** The diagram's canvas panel, which carries the pan/zoom transform and the control menu. */
+const panel = "document.querySelector('dpk-er-diagram').shadowRoot.querySelector('dpk-dialog-panel')";
+const worldTransform = `${panel}.shadowRoot.querySelector('[part~="world"]').style.transform`;
+
 const probe = `(() => {
-  const el = document.querySelector('dpk-component-er-diagram');
+  const el = document.querySelector('dpk-er-diagram');
   const root = el.shadowRoot;
   const cards = [...root.querySelectorAll('.er-table')];
   const errors = [];
@@ -65,36 +69,24 @@ try {
     ab('eval', 'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
     console.log(`${width}px: ${ab('eval', probe)}`);
   }
-  ab('eval', `document.querySelector('dpk-component-er-diagram').shadowRoot.querySelector('.er-head').click()`);
+  ab('eval', `document.querySelector('dpk-er-diagram').shadowRoot.querySelector('.er-head').click()`);
   console.log(
     ab(
       'eval',
-      `(() => { const el=document.querySelector('dpk-component-er-diagram'); if(el.selection?.kind!=='node') throw new Error('selection'); return 'PASS selection'; })()`,
+      `(() => { const el=document.querySelector('dpk-er-diagram'); if(el.selection?.kind!=='node') throw new Error('selection'); return 'PASS selection'; })()`,
     ),
   );
-  const before = ab(
-    'eval',
-    `document.querySelector('dpk-component-er-diagram').shadowRoot.querySelector('.diagram-world').style.transform`,
-  );
+  const before = ab('eval', worldTransform);
   ab('mouse', 'move', '80', '780');
   ab('mouse', 'down');
   ab('mouse', 'move', '30', '780');
   ab('eval', 'new Promise(resolve => requestAnimationFrame(resolve))');
   ab('mouse', 'up');
-  const after = ab(
-    'eval',
-    `document.querySelector('dpk-component-er-diagram').shadowRoot.querySelector('.diagram-world').style.transform`,
-  );
+  const after = ab('eval', worldTransform);
   if (before === after) throw new Error('pan did not change viewport: ' + before + ' -> ' + after);
   console.log('PASS pointer pan');
-  ab(
-    'eval',
-    `document.querySelector('dpk-component-er-diagram').shadowRoot.querySelector('[aria-label="拡大"]').click()`,
-  );
-  const zoomed = ab(
-    'eval',
-    `document.querySelector('dpk-component-er-diagram').shadowRoot.querySelector('.diagram-world').style.transform`,
-  );
+  ab('eval', `${panel}.shadowRoot.querySelector('[aria-label="拡大"]').click()`);
+  const zoomed = ab('eval', worldTransform);
   if (zoomed === after) throw new Error('zoom did not change viewport');
   console.log('PASS zoom');
   console.log(ab('eval', probe));
