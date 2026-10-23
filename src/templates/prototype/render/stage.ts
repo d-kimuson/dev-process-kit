@@ -2,6 +2,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { Monitor, Play, Smartphone, Tablet, User } from 'lucide';
 
+import type { SelectController } from '../../../core/select/controller';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { PrototypeMessages } from '../messages';
 
@@ -78,6 +79,8 @@ export type StageOptions = {
   readonly browser: Omit<BrowserFrame, 'preview' | 'hasContent' | 'viewport' | 'window' | 'demo'> | null;
   /** Set in the app view, where a screen runs in a window of a fixed size; `null` in the scenario view. */
   readonly devices: StageDevices | null;
+  /** The device picker's own select state. */
+  readonly deviceSelect: SelectController;
   /** Commenting on the UI: the mode, the pins and the composer. */
   readonly uiComment: UiCommentView;
   /** The notes kept on the elements on screen, as badges. */
@@ -188,7 +191,11 @@ export const renderStage = (
               ${renderPageHead(m, prototypePageHeading(state, location))}
               <div class="stage-tools">
                 ${single?.kind === 'screen' && single.tabs.length > 0 ? renderPreviewTabs(context, frames, single) : nothing}
-                ${device !== null && devices !== null ? renderDevicePicker(m, device, devices) : nothing}
+                ${
+                  device !== null && devices !== null
+                    ? renderDevicePicker(m, device, devices, options.deviceSelect)
+                    : nothing
+                }
                 ${options.actions.groups.length > 0 ? renderActionsToggle(m, options.actions) : nothing}
                 ${shown.length > 0 ? renderUiCommentToggle(m, ui) : nothing}
                 ${
@@ -290,7 +297,7 @@ const renderPreviewTabs = (
   frames: StageFrames,
   pane: Extract<StagePane, { kind: 'screen' }>,
 ): TemplateResult => {
-  return html`<div class="tabs" role="tablist">
+  return html`<div class="dpk-segmented tabs" role="tablist">
     ${pane.tabs.map((preview) => {
       const current = preview.id === pane.preview.id;
       return html`<a
@@ -329,24 +336,25 @@ const renderPaneHead = (
  * The device the app view runs the screen on, among the common ones of its
  * class, and how much smaller it is drawn when it is wider than the stage.
  */
-const renderDevicePicker = (m: PrototypeMessages, device: DevicePreset, devices: StageDevices): TemplateResult => {
+const renderDevicePicker = (
+  m: PrototypeMessages,
+  device: DevicePreset,
+  devices: StageDevices,
+  select: SelectController,
+): TemplateResult => {
   const percent = Math.round(devices.zoom * 100);
   return html`<span class="device-pick" title=${m.deviceHint}>
     ${DEVICE_ICONS[device.deviceClass]()}
-    <select
-      class="device-select"
-      aria-label=${m.device}
-      @change=${(event: Event) => {
-        if (event.currentTarget instanceof HTMLSelectElement) devices.onPick(event.currentTarget.value);
-      }}
-    >
-      ${devicesOf(device.deviceClass).map(
-        (candidate) =>
-          html`<option value=${candidate.id} ?selected=${candidate.id === device.id}>
-            ${deviceLabel(m, candidate)}
-          </option>`,
-      )}
-    </select>
+    ${select.render({
+      options: devicesOf(device.deviceClass).map((candidate) => ({
+        value: candidate.id,
+        label: deviceLabel(m, candidate),
+      })),
+      value: device.id,
+      onChange: (value) => devices.onPick(value),
+      ariaLabel: m.device,
+      className: 'device-select',
+    })}
     ${percent < 100 ? html`<span class="device-zoom" title=${m.deviceZoom(percent)}>${percent}%</span>` : nothing}
   </span>`;
 };
@@ -390,9 +398,8 @@ export const renderFrame = (
     >
       ${
         preview.kind === 'browser'
-          ? html`<div class="chrome">
-              <span class="dots"><i></i><i></i><i></i></span>
-              <span class="url">${prototypePreviewUrl(context.state, preview)}</span>
+          ? html`<div class="dpk-browser-frame-bar">
+              <span class="dpk-browser-frame-url">${prototypePreviewUrl(context.state, preview)}</span>
             </div>`
           : preview.kind === 'mail'
             ? renderMailHeader(prototypeMailHeader(m, preview))
@@ -416,14 +423,18 @@ export const renderFrame = (
 
 /** A received message: subject, the sender's avatar and the envelope rows, above the body. */
 const renderMailHeader = (header: MailHeader): TemplateResult => {
-  return html`<header class="mail-head">
-    ${header.subject === undefined ? nothing : html`<h3 class="mail-subject">${header.subject}</h3>`}
-    <div class="mail-envelope">
-      ${header.initial === undefined ? nothing : html`<span class="mail-avatar" aria-hidden="true">${header.initial}</span>`}
-      <dl class="mail-meta">
+  return html`<header class="dpk-received-mail">
+    ${header.subject === undefined ? nothing : html`<h3 class="dpk-received-mail-subject">${header.subject}</h3>`}
+    <div class="dpk-received-mail-envelope">
+      ${
+        header.initial === undefined
+          ? nothing
+          : html`<span class="dpk-avatar" data-size="lg" aria-hidden="true">${header.initial}</span>`
+      }
+      <dl class="dpk-received-mail-meta">
         ${header.rows.map(
           (row) =>
-            html`<div class="mail-row">
+            html`<div>
               <dt>${row.label}</dt>
               <dd>${row.value}</dd>
             </div>`,
@@ -433,29 +444,8 @@ const renderMailHeader = (header: MailHeader): TemplateResult => {
   </header>`;
 };
 
-const renderStatusBar = (): TemplateResult => {
-  return html`<div class="status-bar">
-    <span class="status-time">9:41</span>
-    <span class="punch-hole" aria-hidden="true"></span>
-    <svg class="status-wifi" viewBox="0 0 16 12" aria-hidden="true">
-      <path d="M8 9.2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" />
-      <path
-        d="M4.7 7.4a4.8 4.8 0 0 1 6.6 0"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"
-      />
-      <path
-        d="M2.1 4.7a8.4 8.4 0 0 1 11.8 0"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"
-      />
-    </svg>
-  </div>`;
-};
+/** The phone's status bar: the time; the atom draws the camera and the signal. */
+const renderStatusBar = (): TemplateResult => html`<div class="dpk-status-bar"><span>9:41</span></div>`;
 
 /**
  * Every declared preview except the one on screen needs a slot somewhere in

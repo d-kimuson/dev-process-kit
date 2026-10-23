@@ -123,7 +123,7 @@ describe('the browser of the app view', () => {
     const el = mount('#step=top');
     await settle(el);
     expect(el.shadowRoot!.querySelector('.browser')).toBeNull();
-    expect(el.shadowRoot!.querySelector('.chrome .url')?.textContent).toBe('https://shop.test/');
+    expect(el.shadowRoot!.querySelector('.dpk-browser-frame-url')?.textContent).toBe('https://shop.test/');
   });
 
   it('runs a screen in a window of a fixed size, a device the reader picks', async () => {
@@ -131,26 +131,49 @@ describe('the browser of the app view', () => {
     await settle(el);
     const root = el.shadowRoot!;
     const frame = (): HTMLElement => root.querySelector<HTMLElement>('.frame')!;
-    const select = (): HTMLSelectElement => root.querySelector<HTMLSelectElement>('.device-select')!;
+    const trigger = (): HTMLButtonElement => root.querySelector<HTMLButtonElement>('.device-select')!;
+    const deviceValue = async (): Promise<string> => {
+      trigger().click();
+      await settle(el);
+      const selected = root.querySelector<HTMLElement>('[role="option"][aria-selected="true"]');
+      const value = selected?.getAttribute('data-value') ?? '';
+      trigger().click();
+      await settle(el);
+      return value;
+    };
+    const deviceLabels = async (): Promise<readonly (string | undefined)[]> => {
+      trigger().click();
+      await settle(el);
+      const labels = [...root.querySelectorAll('.dpk-rich-select-option-label')].map((label) =>
+        label.textContent?.trim(),
+      );
+      trigger().click();
+      await settle(el);
+      return labels;
+    };
+    const pickDevice = async (value: string): Promise<void> => {
+      trigger().click();
+      await settle(el);
+      root.querySelector<HTMLElement>(`[role="option"][data-value="${value}"]`)?.click();
+      await settle(el);
+    };
     expect(frame().dataset['window']).toBe('device');
     expect(frame().style.getPropertyValue('--device-width')).toBe('393px');
     expect(frame().style.getPropertyValue('--device-height')).toBe('852px');
-    expect(select().value).toBe('iphone-16');
-    expect([...select().options].map((option) => option.textContent?.trim())).toContain('iPhone SE · 375×667');
+    expect(await deviceValue()).toBe('iphone-16');
+    expect(await deviceLabels()).toContain('iPhone SE · 375×667');
 
-    select().value = 'iphone-se';
-    select().dispatchEvent(new Event('change'));
-    await settle(el);
+    await pickDevice('iphone-se');
     expect(frame().style.getPropertyValue('--device-width')).toBe('375px');
 
     // The pick is per class: a desktop page runs in a desktop window, and a phone page keeps the phone.
     el.api.navigate({ screen: 'top' });
     await settle(el);
-    expect(select().value).toBe('laptop-13');
+    expect(await deviceValue()).toBe('laptop-13');
     expect(frame().style.getPropertyValue('--device-height')).toBe('800px');
     el.api.navigate({ screen: 'phone-orders' });
     await settle(el);
-    expect(select().value).toBe('iphone-se');
+    expect(await deviceValue()).toBe('iphone-se');
   });
 
   it('puts a phone app’s bezel around the device’s screen', async () => {
@@ -280,13 +303,13 @@ describe('the browser of the app view', () => {
     const root = el.shadowRoot!;
     const address = root.querySelector<HTMLInputElement>('.browser-address')!;
     address.value = 'shop.test/orders/42';
-    address.form!.dispatchEvent(new Event('submit', { cancelable: true }));
+    address.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await settle(el);
     expect(location.hash).toContain('screen=detail');
 
     const again = root.querySelector<HTMLInputElement>('.browser-address')!;
     again.value = 'https://shop.test/missing';
-    again.form!.dispatchEvent(new Event('submit', { cancelable: true }));
+    again.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await settle(el);
     expect(root.querySelector('.browser-unreachable')?.textContent).toContain(m.unreachableTitle);
     expect(tabs(el)).toEqual([['shop.test', 'true']]);
@@ -557,6 +580,6 @@ describe('the browser of a phone', () => {
     await settle(el);
     const root = el.shadowRoot!;
     expect(root.querySelector('.browser')).toBeNull();
-    expect(root.querySelector('.frame[data-kind="native"] .status-bar')).not.toBeNull();
+    expect(root.querySelector('.frame[data-kind="native"] .dpk-status-bar')).not.toBeNull();
   });
 });

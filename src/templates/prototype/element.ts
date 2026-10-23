@@ -4,12 +4,18 @@ import type { ActionsMenuView } from './render/actions-menu';
 import type { BrowserCommand } from './render/browser';
 import type { UiCommentView } from './render/ui-comment';
 
+import { cardAtom } from '../../components/atoms/card';
+import { controlAtom } from '../../components/atoms/controls';
+import { mockAtom } from '../../components/atoms/mock';
+import { typedAddress } from '../../components/browser/address';
+import { browserStyles } from '../../components/browser/styles';
 import { composerMessages } from '../../components/comment-composer/messages';
 import { COMMENT_ACTION } from '../../core/action';
 import { commentBody } from '../../core/comment';
 import { TemplateElement } from '../../core/element';
 import { parseHash } from '../../core/navigation';
 import { PopoverController } from '../../core/popover-controller';
+import { SelectController } from '../../core/select/controller';
 import { createEntityId } from '../../core/target';
 import { popoverSurface, prose } from '../../core/theme';
 import { clipOutRects } from '../../lib/dom/clip';
@@ -56,7 +62,7 @@ import {
   prototypeUiTargetName,
   type UiNoteBadge,
 } from './present';
-import { renderNav } from './render/nav';
+import { renderNav, type NavSelects } from './render/nav';
 import { renderStage, type StageLift, type StageOptions } from './render/stage';
 import { uiNoteBadgeKey, type UiNoteEdit, type UiNotesView } from './render/ui-notes';
 import { prototypeDocumentStyles, prototypeStyles } from './styles';
@@ -133,7 +139,16 @@ const flatParent = (element: Element): Element | null => {
  * is the app view's browser: its tabs and their history (see `browser-sim.ts`).
  */
 export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
-  static override styles = [TemplateElement.styles, popoverSurface, prose, prototypeStyles];
+  static override styles = [
+    TemplateElement.styles,
+    popoverSurface,
+    prose,
+    cardAtom,
+    controlAtom,
+    mockAtom,
+    browserStyles,
+    prototypeStyles,
+  ];
 
   #uiComment: UiCommentMode = UI_COMMENT_OFF;
   #composerOpen = false;
@@ -142,6 +157,12 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
   /** Ids of the previews on screen at the last render. */
   #shownIds: readonly string[] = [];
   readonly #popovers = new PopoverController(this);
+  readonly #navSelects: NavSelects = {
+    app: new SelectController(this),
+    activity: new SelectController(this),
+    story: new SelectController(this),
+  };
+  readonly #deviceSelect = new SelectController(this);
   #linksChecked = false;
   /** Set while the stage fills the tab (in the top layer where the browser has one). */
   #lift: StageLift | null = null;
@@ -264,8 +285,9 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
     // Leaving the page before it is back stops the reload, as in a browser.
     if (this.#pendingReload !== null && this.#pendingReload.page !== this.#shownIds.join(' ')) this.#stopReload();
     return {
-      sidebar: renderNav(context, m),
+      sidebar: renderNav(context, m, this.#navSelects),
       main: renderStage(context, m, {
+        deviceSelect: this.#deviceSelect,
         hasPreviewContent: (previewId) => this.#hasPreviewContent(previewId),
         lift: this.#lift,
         onToggleMaximize: () => this.#setLift(this.#lift === null ? 'maximized' : null),
@@ -986,13 +1008,7 @@ export class DpkTemplatePrototype extends TemplateElement<PrototypeState> {
       this.#sendBrowser({ kind: 'visit', page });
       return;
     }
-    const text = input.trim();
-    const url = text.startsWith('/')
-      ? new URL(text, current).href
-      : /^[a-z][a-z0-9+.-]*:\/\//i.test(text)
-        ? text
-        : `https://${text}`;
-    this.#sendBrowser({ kind: 'unreachable', url });
+    this.#sendBrowser({ kind: 'unreachable', url: typedAddress(input, current) });
   }
 
   /**

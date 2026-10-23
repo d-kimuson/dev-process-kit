@@ -134,7 +134,7 @@ describe('<dpk-template-prototype> views', () => {
     expect(options.map((option) => option.dataset['view'])).toEqual(['scenario', 'app']);
     expect(root.querySelector('.view-option[aria-current="page"]')?.getAttribute('data-view')).toBe('scenario');
     expect(root.querySelector('.situation')).not.toBeNull();
-    expect(root.querySelectorAll('.nav select')).toHaveLength(2);
+    expect(root.querySelectorAll('.nav .dpk-rich-select')).toHaveLength(2);
 
     el.api.navigate({ view: 'app' });
     await settle(el);
@@ -191,11 +191,20 @@ describe('<dpk-template-prototype> views', () => {
     const el = mount();
     await settle(el);
     const root = el.shadowRoot!;
-    const select = root.querySelector<HTMLSelectElement>('.nav select[aria-label="App"]')!;
-    expect([...select.options].map((option) => [option.text, option.selected])).toEqual([
-      ['Shop', true],
-      ['Admin console', false],
+    const trigger = root.querySelector<HTMLButtonElement>('.nav .dpk-rich-select[aria-label="App"]')!;
+    trigger.click();
+    await settle(el);
+    expect(
+      [...root.querySelectorAll('[role="option"]')].map((option) => [
+        option.querySelector('.dpk-rich-select-option-label')?.textContent,
+        option.getAttribute('aria-selected'),
+      ]),
+    ).toEqual([
+      ['Shop', 'true'],
+      ['Admin console', 'false'],
     ]);
+    trigger.click();
+    await settle(el);
     expect(root.querySelector('.app-description')?.textContent).toBe('For buyers');
     expect(root.querySelector('.app-origin')?.textContent).toBe('shop.test');
     const rows = [...root.querySelectorAll<HTMLElement>('.tree-row')];
@@ -217,14 +226,19 @@ describe('<dpk-template-prototype> views', () => {
     expect(root.querySelector('.app-screens .step-name')?.textContent).toBe('Order mail');
     expect(root.querySelector('.app-group .app-group-heading')?.textContent).toBe('Outside the browser');
 
-    select.value = '1';
-    select.dispatchEvent(new Event('change'));
+    trigger.click();
+    await settle(el);
+    root.querySelector<HTMLElement>('[role="option"][data-value="1"]')?.click();
     await settle(el);
     expect(location.hash).toContain('screen=new-order');
     expect(location.hash).toContain('view=app');
-    expect(root.querySelector<HTMLSelectElement>('.nav select[aria-label="App"]')?.selectedOptions[0]?.text).toBe(
+    trigger.click();
+    await settle(el);
+    expect(root.querySelector('[role="option"][aria-selected="true"] .dpk-rich-select-option-label')?.textContent).toBe(
       'Admin console',
     );
+    trigger.click();
+    await settle(el);
     expect(root.querySelector('.tree-row[data-current="true"] .tree-title')?.textContent).toBe('New order');
   });
 });

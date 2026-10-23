@@ -1,6 +1,8 @@
+import type * as Chrome from '../../components/browser/chrome';
 import type { Navigation } from '../../core/types';
 import type { PrototypeMessages } from './messages';
 
+import { addressKey, hostOf, parseAddress } from '../../components/browser/address';
 import {
   activeTab,
   canGoBack,
@@ -45,20 +47,6 @@ const locatePage = (state: PrototypeState, page: BrowserPage) => {
   return located?.kind === 'screen' ? located : undefined;
 };
 
-const parseAddress = (input: string, current: string): URL | null => {
-  const text = input.trim();
-  if (text === '') return null;
-  try {
-    if (text.startsWith('/')) return new URL(text, current);
-    return new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`);
-  } catch {
-    return null;
-  }
-};
-
-/** Where an address points, the query and the fragment aside. */
-const addressKey = (url: URL): string => `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
-
 /**
  * The page an address typed into the address bar leads to: the first web
  * preview at that address. A path alone stays on the site on screen.
@@ -77,33 +65,10 @@ export const prototypePageAt = (state: PrototypeState, input: string, current: s
   return null;
 };
 
-export type BrowserTabView = {
-  readonly id: string;
-  readonly title: string;
-  /** The tab's address; empty on the new tab page. */
-  readonly url: string;
-  readonly active: boolean;
-};
+export type { BrowserTabView } from '../../components/browser/chrome';
 
-export type BrowserView = {
-  readonly tabs: readonly BrowserTabView[];
-  /** What the active tab shows. */
-  readonly entry: BrowserEntry | undefined;
-  /** The address of the active tab; empty on the new tab page. */
-  readonly url: string;
-  readonly canBack: boolean;
-  readonly canForward: boolean;
-  /** Who the window belongs to; absent when no level names an actor. */
-  readonly profile?: string;
-};
-
-const hostOf = (url: string): string => {
-  try {
-    return new URL(url).host || url;
-  } catch {
-    return url;
-  }
-};
+/** The window's profile is the actor of the app on screen; absent when no level names one. */
+export type BrowserView = Chrome.BrowserView<BrowserPage>;
 
 const entryTitle = (state: PrototypeState, entry: BrowserEntry | undefined, m: PrototypeMessages): string => {
   if (entry === undefined || entry.kind === 'new-tab') return m.newTab;

@@ -64,6 +64,8 @@ export const prototypeDefinitionFor = (locale: Locale): TemplateDefinition<Proto
   return {
     name: 'prototype',
     label: 'UX Prototype',
+    // Screens come from the agent's own markup; an empty board has none to show.
+    addable: false,
     parseBase: parsePrototypeBase,
     emptyBase: emptyPrototypeBase,
     actions: prototypeActions,

@@ -3,12 +3,13 @@ import { keyed } from 'lit/directives/keyed.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
+import type { SelectController } from '../../../core/select/controller';
 import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { PrototypeMessages } from '../messages';
 
 import { iconClose } from '../../../core/icons';
 import { createEntityId } from '../../../core/target';
-import { onCommit, onSelectChange } from '../../../lib/dom/events';
+import { onCommit } from '../../../lib/dom/events';
 import { renderMarkdown } from '../../../lib/markdown';
 import { prototypeAction } from '../actions';
 import {
@@ -33,11 +34,22 @@ import {
 } from '../present';
 import { PROTOTYPE_VIEWS, prototypeViewOf, viewPatch, type PrototypeView } from '../view-mode';
 
+/** The nav's own selects: which app, which activity, which user story. */
+export type NavSelects = {
+  readonly app: SelectController;
+  readonly activity: SelectController;
+  readonly story: SelectController;
+};
+
 /**
  * The view switch, then the scenario view's Activity select -> UserStory select
  * -> step list of the selected story, or the app view's screens.
  */
-export const renderNav = (context: TemplateRenderContext<PrototypeState>, m: PrototypeMessages): TemplateResult => {
+export const renderNav = (
+  context: TemplateRenderContext<PrototypeState>,
+  m: PrototypeMessages,
+  selects: NavSelects,
+): TemplateResult => {
   const { state, navigation } = context;
   const location = locatePrototype(state, navigation);
   const view = prototypeViewOf(navigation);
@@ -46,9 +58,9 @@ export const renderNav = (context: TemplateRenderContext<PrototypeState>, m: Pro
       ${renderViewSwitch(context, m, view)}
       ${
         view === 'app'
-          ? renderAppScreens(context, m, location)
+          ? renderAppScreens(context, m, location, selects.app)
           : location !== undefined && location.kind !== 'screen'
-            ? renderScenarioNav(context, m, location)
+            ? renderScenarioNav(context, m, location, selects)
             : html`<p class="nav-empty">${m.noActivityBefore}<code>activities</code>${m.noActivityAfter}</p>`
       }
     </div>
@@ -63,7 +75,7 @@ const renderViewSwitch = (
   context: TemplateRenderContext<PrototypeState>,
   m: PrototypeMessages,
   current: PrototypeView,
-): TemplateResult => html`<nav class="view-switch" aria-label=${m.viewLabel}>
+): TemplateResult => html`<nav class="dpk-segmented view-switch" aria-label=${m.viewLabel}>
   ${PROTOTYPE_VIEWS.map(
     (view) =>
       html`<a
@@ -86,6 +98,7 @@ const renderAppScreens = (
   context: TemplateRenderContext<PrototypeState>,
   m: PrototypeMessages,
   location: PrototypeLocation | undefined,
+  select: SelectController,
 ): TemplateResult => {
   const current = location?.kind === 'screen' ? location : undefined;
   const sections = prototypeAppSections(context.state);
@@ -93,7 +106,7 @@ const renderAppScreens = (
   const row: ScreenRow = { context, currentId: current?.screen.id };
   const others = section?.others ?? [];
   return html`
-    ${sections.length > 1 && section ? renderAppSelect(context, m, sections, section) : nothing}
+    ${sections.length > 1 && section ? renderAppSelect(context, m, sections, section, select) : nothing}
     ${
       sections.length === 1 && section?.app.description
         ? html`<p class="app-description">${section.app.description}</p>`
@@ -146,21 +159,18 @@ const renderAppSelect = (
   m: PrototypeMessages,
   sections: readonly AppSection[],
   current: AppSection,
+  select: SelectController,
 ): TemplateResult => html`<div class="field">
   <span class="dpk-label">${m.appSelectLabel}</span>
-  <select
-    class="dpk-select"
-    aria-label=${m.appSelectLabel}
-    @change=${onSelectChange((value) => {
+  ${select.render({
+    options: sections.map((section, index) => ({ value: String(index), label: section.app.name })),
+    value: String(sections.indexOf(current)),
+    onChange: (value) => {
       const first = sections[Number(value)]?.screens[0];
       if (first) context.navigate(screenPatch(first));
-    })}
-  >
-    ${sections.map(
-      (section, index) =>
-        html`<option value=${String(index)} ?selected=${section === current}>${section.app.name}</option>`,
-    )}
-  </select>
+    },
+    ariaLabel: m.appSelectLabel,
+  })}
   ${current.app.description ? html`<p class="app-description">${current.app.description}</p>` : nothing}
 </div>`;
 
@@ -240,6 +250,7 @@ const renderScenarioNav = (
   context: TemplateRenderContext<PrototypeState>,
   m: PrototypeMessages,
   location: Exclude<PrototypeLocation, { readonly kind: 'screen' }>,
+  selects: NavSelects,
 ): TemplateResult => {
   const { state } = context;
   const { activity, story } = location;
@@ -250,27 +261,21 @@ const renderScenarioNav = (
   return html`
     <div class="field">
       <span class="dpk-label">Activity</span>
-      <select
-        class="dpk-select"
-        aria-label="Activity"
-        @change=${onSelectChange((value) => context.navigate({ activity: value, story: null, step: null }))}
-      >
-        ${state.activities.map(
-          (entry) => html`<option value=${entry.id} ?selected=${entry.id === activity.id}>${entry.name}</option>`,
-        )}
-      </select>
+      ${selects.activity.render({
+        options: state.activities.map((entry) => ({ value: entry.id, label: entry.name })),
+        value: activity.id,
+        onChange: (value) => context.navigate({ activity: value, story: null, step: null }),
+        ariaLabel: 'Activity',
+      })}
     </div>
     <div class="field">
       <span class="dpk-label">User Story</span>
-      <select
-        class="dpk-select"
-        aria-label="User Story"
-        @change=${onSelectChange((value) => context.navigate({ activity: activity.id, story: value, step: null }))}
-      >
-        ${activity.stories.map(
-          (entry) => html`<option value=${entry.id} ?selected=${entry.id === story.id}>${entry.name}</option>`,
-        )}
-      </select>
+      ${selects.story.render({
+        options: activity.stories.map((entry) => ({ value: entry.id, label: entry.name })),
+        value: story.id,
+        onChange: (value) => context.navigate({ activity: activity.id, story: value, step: null }),
+        ariaLabel: 'User Story',
+      })}
     </div>
     <div class="steps-head">
       <span class="dpk-label">Step</span>
@@ -322,19 +327,19 @@ const renderScenarioNav = (
               <div class="detail-row">
                 <span class="dpk-label">${m.stepNameLabel}</span>
                 <span class="detail-value">
-                  <dpk-component-inline-edit
+                  <dpk-inline-edit
                     .value=${current.name}
                     .label=${m.stepNameLabel}
                     @dpk-commit=${onCommit((value) =>
                       context.dispatch(prototypeAction.setStepName(currentRef ?? current.id, value)),
                     )}
-                  ></dpk-component-inline-edit>
+                  ></dpk-inline-edit>
                 </span>
               </div>
               <div class="detail-row">
                 <span class="dpk-label">${m.descriptionLabel}</span>
                 <span class="detail-value">
-                  <dpk-component-inline-edit
+                  <dpk-inline-edit
                     multiline
                     markdown
                     .value=${current.description ?? ''}
@@ -343,7 +348,7 @@ const renderScenarioNav = (
                     @dpk-commit=${onCommit((value) =>
                       context.dispatch(prototypeAction.setStepDescription(currentRef ?? current.id, value)),
                     )}
-                  ></dpk-component-inline-edit>
+                  ></dpk-inline-edit>
                 </span>
               </div>
               ${renderStepScreens(context, m, current)}

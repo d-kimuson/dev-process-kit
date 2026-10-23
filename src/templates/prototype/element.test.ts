@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DpkComponentInlineEdit } from '../../components/inline-edit';
+import type { DpkInlineEdit } from '../../components/inline-edit';
 import type { DpkTemplatePrototype } from './element';
 
 import '../../index';
@@ -98,12 +98,20 @@ describe('<dpk-template-prototype> layout', () => {
     const el = mount();
     await settle(el);
     const root = el.shadowRoot!;
-    const selects = root.querySelectorAll<HTMLSelectElement>('.nav select');
-    expect(selects).toHaveLength(2);
-    expect([...selects[1]!.options].map((o) => o.value)).toEqual(['account', 'billing', 'tasks']);
+    const triggers = root.querySelectorAll<HTMLButtonElement>('.nav .dpk-rich-select');
+    expect(triggers).toHaveLength(2);
+    triggers[1]!.click();
+    await settle(el);
+    expect([...root.querySelectorAll('[role="option"]')].map((o) => o.getAttribute('data-value'))).toEqual([
+      'account',
+      'billing',
+      'tasks',
+    ]);
+    triggers[1]!.click();
+    await settle(el);
     expect(root.querySelectorAll('.step-row')).toHaveLength(5);
     expect(root.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Landing');
-    expect(root.querySelectorAll('.detail dpk-component-inline-edit')).toHaveLength(2);
+    expect(root.querySelectorAll('.detail dpk-inline-edit')).toHaveLength(2);
   });
 
   it('renders the stage: tabs, frame, placeholder and parked slots', async () => {
@@ -153,7 +161,7 @@ describe('<dpk-template-prototype> layout', () => {
     const root = el.shadowRoot!;
     const frame = root.querySelector('figure.frame')!;
     expect(frame.getAttribute('data-kind')).toBe('native');
-    expect(frame.querySelector('.status-bar')).not.toBeNull();
+    expect(frame.querySelector('.dpk-status-bar')).not.toBeNull();
     expect(frame.querySelector('.frame-placeholder')?.textContent).toContain('auth-native');
     expect(root.querySelector('.tabs')).toBeNull();
   });
@@ -163,10 +171,12 @@ describe('<dpk-template-prototype> layout', () => {
     await settle(el);
     const frame = el.shadowRoot!.querySelector('figure.frame')!;
     expect(frame.getAttribute('data-kind')).toBe('mail');
-    expect(frame.querySelector('.chrome .url')).toBeNull();
-    expect(frame.querySelector('.mail-subject')?.textContent?.trim()).toBe('Welcome');
-    expect([...frame.querySelectorAll('.mail-meta dt')].map((dt) => dt.textContent?.trim())).toEqual([m.mailFrom]);
-    expect(frame.querySelector('.mail-meta dd')?.textContent?.trim()).toBe('Demo <hi@demo.example>');
+    expect(frame.querySelector('.dpk-browser-frame-url')).toBeNull();
+    expect(frame.querySelector('.dpk-received-mail-subject')?.textContent?.trim()).toBe('Welcome');
+    expect([...frame.querySelectorAll('.dpk-received-mail-meta dt')].map((dt) => dt.textContent?.trim())).toEqual([
+      m.mailFrom,
+    ]);
+    expect(frame.querySelector('.dpk-received-mail-meta dd')?.textContent?.trim()).toBe('Demo <hi@demo.example>');
     expect(frame.querySelector('.viewport slot')?.getAttribute('name')).toBe('preview:mail-inbox');
   });
 
@@ -211,8 +221,8 @@ describe('<dpk-template-prototype> layout', () => {
     await settle(el);
     const frame = el.shadowRoot!.querySelector('figure.frame')!;
     expect(frame.getAttribute('data-kind')).toBe('plain');
-    expect(frame.querySelector('.chrome')).toBeNull();
-    expect(frame.querySelector('.status-bar')).toBeNull();
+    expect(frame.querySelector('.dpk-browser-frame-bar')).toBeNull();
+    expect(frame.querySelector('.dpk-status-bar')).toBeNull();
     expect(frame.querySelector('slot')?.getAttribute('name')).toBe('preview:memo-plain');
   });
 
@@ -220,9 +230,10 @@ describe('<dpk-template-prototype> layout', () => {
     const el = mount();
     await settle(el);
     const root = el.shadowRoot!;
-    const storySelect = root.querySelectorAll<HTMLSelectElement>('.nav select')[1]!;
-    storySelect.value = 'billing';
-    storySelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const storyTrigger = root.querySelectorAll<HTMLButtonElement>('.nav .dpk-rich-select')[1]!;
+    storyTrigger.click();
+    await settle(el);
+    root.querySelector<HTMLElement>('[role="option"][data-value="billing"]')?.click();
     await settle(el);
     expect(location.hash).toContain('story=billing');
     expect(root.querySelectorAll('.step-row')).toHaveLength(1);
@@ -253,7 +264,11 @@ describe('<dpk-template-prototype> layout', () => {
     await settle(el);
     const root = el.shadowRoot!;
     expect(el.api.navigation).toEqual({ activity: 'onboarding', story: 'tasks' });
-    expect(root.querySelectorAll<HTMLSelectElement>('.nav select')[1]!.value).toBe('tasks');
+    root.querySelectorAll<HTMLButtonElement>('.nav .dpk-rich-select')[1]!.click();
+    await settle(el);
+    expect(root.querySelector('[role="option"][aria-selected="true"]')?.getAttribute('data-value')).toBe('tasks');
+    root.querySelectorAll<HTMLButtonElement>('.nav .dpk-rich-select')[1]!.click();
+    await settle(el);
     expect(root.querySelectorAll('.step-row')).toHaveLength(0);
     const story = root.querySelector('.stage .stage-story')!;
     expect(story.querySelector('.page-title')?.textContent?.trim()).toBe('Check every task');
@@ -270,7 +285,7 @@ describe('<dpk-template-prototype> layout', () => {
     );
     await settle(el);
     const root = el.shadowRoot!;
-    const editor = root.querySelectorAll<DpkComponentInlineEdit>('.detail dpk-component-inline-edit')[1]!;
+    const editor = root.querySelectorAll<DpkInlineEdit>('.detail dpk-inline-edit')[1]!;
     expect(editor.markdown).toBe(true);
     await editor.updateComplete;
     const view = editor.shadowRoot!.querySelector('.view')!;
