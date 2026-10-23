@@ -20,12 +20,12 @@ const base = {
 };
 
 const diagram = `
-  <dpk-component-state-diagram id="order-states" slot="main">
+  <dpk-state-diagram id="order-states" slot="main">
     <script type="application/json">
       { "states": [{ "id": "a", "name": "A" }, { "id": "b", "name": "B" }],
         "transitions": [{ "id": "go", "from": "a", "to": "b", "title": "進む" }] }
     </script>
-  </dpk-component-state-diagram>`;
+  </dpk-state-diagram>`;
 
 const mount = (data: unknown = base, content = diagram, lang = ''): DpkTemplatePlain => {
   window.location.hash = '';
@@ -114,7 +114,7 @@ describe('<dpk-template-plain>', () => {
     expect(root?.querySelector('.dpk-header h1')?.textContent).toBe('注文フローの設計メモ');
     expect(root?.querySelector('.dpk-banner')).toBeNull();
     expect(root?.querySelector('slot[name="main"]')).not.toBeNull();
-    expect(root?.querySelector('dpk-component-comment-panel')).not.toBeNull();
+    expect(root?.querySelector('dpk-comment-panel')).not.toBeNull();
     expect(root?.querySelector('.dpk-review-toggles')).not.toBeNull();
   });
 
@@ -151,7 +151,7 @@ describe('<dpk-template-plain>', () => {
     await settle(english);
     english.api.comment({ type: 'page', id: 'plain' }, 'x');
     await settle(english);
-    const englishPanel = english.shadowRoot?.querySelector('dpk-component-comment-panel');
+    const englishPanel = english.shadowRoot?.querySelector('dpk-comment-panel');
     expect(englishPanel?.shadowRoot?.querySelector('.item-target')?.textContent).toBe(m.wholePage);
 
     const japanese = mount(base, diagram, 'ja');
@@ -159,7 +159,7 @@ describe('<dpk-template-plain>', () => {
     expect(japanese.locale).toBe('ja');
     japanese.api.comment({ type: 'page', id: 'plain' }, 'x');
     await settle(japanese);
-    const japanesePanel = japanese.shadowRoot?.querySelector('dpk-component-comment-panel');
+    const japanesePanel = japanese.shadowRoot?.querySelector('dpk-comment-panel');
     expect(japanesePanel?.shadowRoot?.querySelector('.item-target')?.textContent).toBe(plainMessages('ja').wholePage);
   });
 });
