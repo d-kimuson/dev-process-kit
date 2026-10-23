@@ -118,6 +118,13 @@ describe('<dpk-matrix>', () => {
     expect(twoLevel.renderRoot.querySelectorAll('.matrix-sub-head').length).toBe(3);
   });
 
+  it('skips the sub-head row entirely for plain columns: no spacer cells, and the corner sits in a single row', async () => {
+    const element = await mount(rows, columns);
+    expect(element.renderRoot.querySelectorAll('.matrix-sub-head').length).toBe(0);
+    expect(element.renderRoot.querySelectorAll('.matrix-sub-head-spacer').length).toBe(0);
+    expect(element.renderRoot.querySelectorAll('.matrix-corner').length).toBe(1);
+  });
+
   it('drags a row onto another and fires a row reorder with the landing anchor', async () => {
     const element = await mount(rows, columns);
     const events = recordReorders(element, 'dpk-matrix-reorder-row');
