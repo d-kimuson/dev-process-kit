@@ -281,29 +281,6 @@ export const whiteboardStyles = css`
     cursor: text;
   }
 
-  /* Embed: a diagram placed on the board, framed like a window onto it. The
-     embedded element fills the card and never fields its own pointer input
-     here — the card itself is what drags, resizes and selects. */
-  .wb-item--embed {
-    padding: 0;
-    border: 1px solid var(--dpk-rule-strong);
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--dpk-paper-raised);
-    box-shadow: 0 1px 2px rgba(30, 24, 10, 0.14);
-  }
-
-  .wb-item-body--embed {
-    display: block;
-    pointer-events: none;
-  }
-
-  .wb-embed-el {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-
   /* Selection handles keep their screen size at any zoom. */
   .wb-handle {
     position: absolute;

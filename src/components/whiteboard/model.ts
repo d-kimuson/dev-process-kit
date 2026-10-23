@@ -10,7 +10,7 @@ export type WbColor = (typeof WB_COLORS)[number];
 export const WB_SHAPES = ['rect', 'ellipse'] as const;
 export type WbShape = (typeof WB_SHAPES)[number];
 
-export const WB_ITEM_KINDS = ['sticky', 'text', 'shape', 'frame', 'embed'] as const;
+export const WB_ITEM_KINDS = ['sticky', 'text', 'shape', 'frame'] as const;
 export type WbItemKind = (typeof WB_ITEM_KINDS)[number];
 
 /** Text sizes a sticky, a text box or a shape may take; the board scales its own type by each. */
@@ -34,14 +34,13 @@ export const DEFAULT_SIZE = {
   text: { w: 240, h: 48 },
   shape: { w: 180, h: 110 },
   frame: { w: 640, h: 420 },
-  embed: { w: 360, h: 260 },
 } as const satisfies Record<WbItemKind, { readonly w: number; readonly h: number }>;
 
 export const DEFAULT_COLOR = {
   sticky: 'yellow',
   shape: 'blue',
   frame: 'gray',
-} as const satisfies Record<Exclude<WbItemKind, 'text' | 'embed'>, WbColor>;
+} as const satisfies Record<Exclude<WbItemKind, 'text'>, WbColor>;
 
 type Box = {
   readonly id: string;
@@ -70,14 +69,8 @@ export type WbShapeItem = Box & {
 };
 /** A titled area. Whatever sits inside its box belongs to it, and moves with it. */
 export type WbFrame = Box & { readonly kind: 'frame'; readonly title: string; readonly color: WbColor };
-/**
- * A diagram placed on the board (`src/components/diagram/registry.ts`): a
- * live instance of `tag`, seeded from `data`. It carries no text, color or
- * font size of its own — it is a window onto another component, not a note.
- */
-export type WbEmbed = Box & { readonly kind: 'embed'; readonly tag: string; readonly data: unknown };
 
-export type WbItem = WbSticky | WbText | WbShapeItem | WbFrame | WbEmbed;
+export type WbItem = WbSticky | WbText | WbShapeItem | WbFrame;
 
 export type WbConnector = {
   readonly id: string;
@@ -147,17 +140,8 @@ const frameSchema = v.strictObject({
   color: v.optional(color, DEFAULT_COLOR.frame),
 });
 
-const embedSchema = v.strictObject({
-  ...box,
-  kind: v.literal('embed'),
-  w: v.optional(size, DEFAULT_SIZE.embed.w),
-  h: v.optional(size, DEFAULT_SIZE.embed.h),
-  tag: v.pipe(v.string(), v.minLength(1)),
-  data: v.unknown(),
-});
-
 /** One item as authored in the base JSON, or as carried by `ADD_ITEM`. */
-export const itemSchema = v.variant('kind', [stickySchema, textSchema, shapeSchema, frameSchema, embedSchema]);
+export const itemSchema = v.variant('kind', [stickySchema, textSchema, shapeSchema, frameSchema]);
 
 const connectorSchema = v.strictObject({
   id: entityIdSchema,
@@ -209,19 +193,16 @@ export const allIds = (state: WhiteboardState): string[] => [
   ...state.connectors.map((connector) => connector.id),
 ];
 
-/** The text an item shows: a frame's title, an embed's tag, everything else's body. */
+/** The text an item shows: a frame's title, everything else's body. */
 export const itemText = (item: WbItem): string => {
   if (item.kind === 'frame') return item.title;
-  if (item.kind === 'embed') return item.tag.replace(/^dpk-/, '');
   return item.text;
 };
 
-export const hasColor = (item: WbItem): item is WbSticky | WbShapeItem | WbFrame =>
-  item.kind !== 'text' && item.kind !== 'embed';
+export const hasColor = (item: WbItem): item is WbSticky | WbShapeItem | WbFrame => item.kind !== 'text';
 
-/** Everything but a frame or an embed carries body text, and so a text size. */
-export const hasFontSize = (item: WbItem): item is WbSticky | WbText | WbShapeItem =>
-  item.kind !== 'frame' && item.kind !== 'embed';
+/** Everything but a frame carries body text, and so a text size. */
+export const hasFontSize = (item: WbItem): item is WbSticky | WbText | WbShapeItem => item.kind !== 'frame';
 
 /* ----------------------------------------------------------------- frames */
 

@@ -7,14 +7,12 @@ const KIND_LABEL_EN: Record<WbItemKind, string> = {
   text: 'Text',
   shape: 'Shape',
   frame: 'Frame',
-  embed: 'Diagram',
 };
 const KIND_LABEL_JA: Record<WbItemKind, string> = {
   sticky: '付箋',
   text: 'テキスト',
   shape: '図形',
   frame: 'フレーム',
-  embed: '図',
 };
 
 /** The noun an English sentence uses for a kind ("Moved the text box"). */
@@ -23,7 +21,6 @@ const KIND_NOUN_EN: Record<WbItemKind, string> = {
   text: 'text box',
   shape: 'shape',
   frame: 'frame',
-  embed: 'diagram',
 };
 
 const SHAPE_LABEL_EN: Record<WbShape, string> = { rect: 'Rectangle', ellipse: 'Ellipse' };

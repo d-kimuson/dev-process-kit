@@ -29,16 +29,8 @@ export type {
   SequenceParticipant,
 } from './model';
 
-import { registerDiagram } from '../diagram/registry';
 import { DpkSequenceDiagram } from './element';
-import { sequenceDiagramMessages } from './messages';
-import { emptySequenceData } from './model';
 
 export const defineSequenceDiagram = (): void => {
   if (!customElements.get('dpk-sequence-diagram')) customElements.define('dpk-sequence-diagram', DpkSequenceDiagram);
-  registerDiagram({
-    tag: 'dpk-sequence-diagram',
-    label: (locale) => sequenceDiagramMessages(locale).heading,
-    seed: emptySequenceData,
-  });
 };

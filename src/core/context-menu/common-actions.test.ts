@@ -12,8 +12,6 @@ const messages: ContextMenuMessages = {
   reviewComment: 'Review comment',
   resetView: 'Reset view',
   resetPositions: 'Reset positions',
-  addDiagramHere: 'Add diagram',
-  searchDiagram: 'Search diagrams…',
   duplicate: 'Duplicate',
   delete: 'Delete',
 };

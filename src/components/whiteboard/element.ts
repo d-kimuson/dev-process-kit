@@ -1,18 +1,14 @@
 import { html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
-import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
 import type { ElementActionResult } from '../../core/element-actions';
 import type { ActionInput, CommentTargetOption, DraftAction } from '../../core/types';
-import type { DiagramCatalogEntry } from '../diagram/registry';
 
-import { contextMenuMessages } from '../../core/context-menu/messages';
 import { ElementChromeBase, isActionPayload } from '../diagram/element';
-import { openDiagramPicker } from '../diagram/insert-picker';
 import { chromeStyles } from '../diagram/styles';
 import { whiteboardAction } from './actions';
 import { arrangeActions, arrangeOptions, type ArrangeDirection } from './arrange';
 import { caretOffsetAt } from './caret';
-import { newConnectorId, newEmbedItem, newItem, PASTE_OFFSET, pasteItems, type NewItemKind } from './commands';
+import { newConnectorId, newItem, PASTE_OFFSET, pasteItems, type NewItemKind } from './commands';
 import { editedText } from './editor';
 import {
   finishGesture,
@@ -182,27 +178,6 @@ export class DpkWhiteboard extends ElementChromeBase<WhiteboardState, WbSelectio
     return selection.kind === 'item'
       ? findItem(state, selection.id) !== undefined
       : findConnector(state, selection.id) !== undefined;
-  }
-
-  /** The board's own context-menu contribution: a diagram can be dropped at the press, alongside the inherited comment item. */
-  override getContextMenuItems(request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
-    const cm = contextMenuMessages(this.locale);
-    const { clientX, clientY } = request;
-    const addDiagram: ContextMenuGroup = {
-      id: 'wb-add-diagram',
-      entries: [
-        {
-          kind: 'item',
-          id: 'add-diagram',
-          label: cm.addDiagramHere,
-          run: () =>
-            openDiagramPicker(clientX, clientY, this.locale, cm, (entry) =>
-              this.#addEmbed(entry, this.#canvasPoint({ clientX, clientY })),
-            ),
-        },
-      ],
-    };
-    return [...(super.getContextMenuItems(request) ?? []), addDiagram];
   }
 
   protected override render(): TemplateResult {
@@ -858,17 +833,6 @@ export class DpkWhiteboard extends ElementChromeBase<WhiteboardState, WbSelectio
     this.#select([item.id]);
     this.#caret = undefined;
     this.mode = { kind: 'editing', itemId: item.id };
-  }
-
-  /** A diagram dropped from the context menu's picker, seeded from the catalog entry it resolved. */
-  #addEmbed(entry: DiagramCatalogEntry, center: Point): void {
-    this.#commitEditor();
-    const state = this.items();
-    const item = newEmbedItem(state, entry, center);
-    if (!this.#dispatch(whiteboardAction.addItem(item))) return;
-    const size = this.#canvasSize();
-    if (size.width > 0 && size.height > 0) this.#setViewport(revealRect(this.viewport, item, size));
-    this.#select([item.id]);
   }
 
   #paste(): void {

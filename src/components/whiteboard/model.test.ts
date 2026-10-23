@@ -73,33 +73,6 @@ describe('whiteboard base data', () => {
   });
 });
 
-describe('whiteboard embeds', () => {
-  it('accepts a diagram embed, sized and seeded like any other item', () => {
-    const parsed = parseWhiteboardBase({
-      items: [...SAMPLE_BASE.items, { id: 'chart', kind: 'embed', x: 10, y: 10, tag: 'dpk-state-diagram', data: {} }],
-    });
-    expect(findItem(parsed, 'chart')).toMatchObject({ kind: 'embed', tag: 'dpk-state-diagram', w: 360, h: 260 });
-  });
-
-  it('is immune to text, color and font-size edits — it has none of its own', () => {
-    const withEmbed = apply(
-      state(),
-      whiteboardAction.addItem({ id: 'chart', kind: 'embed', x: 10, y: 10, tag: 'dpk-state-diagram', data: {} }),
-    )!;
-    expect(apply(withEmbed, whiteboardAction.setText('chart', 'nope'))).toBeNull();
-    expect(apply(withEmbed, whiteboardAction.setColor('chart', 'pink'))).toBeNull();
-    expect(apply(withEmbed, whiteboardAction.setFontSize('chart', 'large'))).toBeNull();
-    // Moving, resizing, reordering and deleting stay generic, the same as any other item.
-    expect(findItem(apply(withEmbed, whiteboardAction.move('chart', 50, 50))!, 'chart')).toMatchObject({
-      x: 50,
-      y: 50,
-    });
-    expect(apply(withEmbed, whiteboardAction.deleteItem('chart'))?.items.some((item) => item.id === 'chart')).toBe(
-      false,
-    );
-  });
-});
-
 describe('whiteboard actions', () => {
   it('adds an item once and refuses an id that is taken by another kind', () => {
     const add = whiteboardAction.addItem({ id: 'idea', kind: 'sticky', x: 40, y: 40, text: 'Idea' });

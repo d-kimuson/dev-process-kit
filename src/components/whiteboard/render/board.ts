@@ -1,7 +1,6 @@
 import { html, nothing, svg, type TemplateResult } from 'lit';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
-import { html as staticHtml, unsafeStatic } from 'lit/static-html.js';
 
 import type { WbGesture } from '../gesture';
 import type { WhiteboardMessages } from '../messages';
@@ -17,7 +16,6 @@ import {
   hasFontSize,
   itemText,
   type WbConnector,
-  type WbEmbed,
   type WbFontSize,
   type WbItem,
   type WhiteboardState,
@@ -180,9 +178,7 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
     ${
       item.kind === 'frame'
         ? html`<div class="wb-frame-title" @pointerdown=${press}>${renderText(props, item)}</div>`
-        : item.kind === 'embed'
-          ? html`<div class="wb-item-body wb-item-body--embed">${renderEmbed(item)}</div>`
-          : html`<div class="wb-item-body">${renderText(props, item)}</div>`
+        : html`<div class="wb-item-body">${renderText(props, item)}</div>`
     }
     ${
       selected
@@ -201,15 +197,6 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
         : nothing
     }
   </div>`;
-};
-
-/**
- * A diagram embed shows a live instance of its own component, read-only here
- * (a preview to reposition or remove, not a second place to edit it in).
- */
-const renderEmbed = (item: WbEmbed): TemplateResult => {
-  const tag = unsafeStatic(item.tag);
-  return staticHtml`<${tag} class="wb-embed-el" inert .data=${item.data}></${tag}>`;
 };
 
 /** A wheel over the editor scrolls its text, not the board. */

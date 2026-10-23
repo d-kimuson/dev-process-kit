@@ -48,5 +48,3 @@ export type {
 } from './viewport';
 export { arrowDefinitions, pathData } from './view';
 export type { ArrowDefinition } from './view';
-export { listDiagrams, registerDiagram } from './registry';
-export type { DiagramCatalogEntry } from './registry';

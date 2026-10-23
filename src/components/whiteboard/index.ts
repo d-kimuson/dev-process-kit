@@ -28,7 +28,6 @@ export type {
   WbText,
   WbShapeItem,
   WbFrame,
-  WbEmbed,
   WbConnector,
   WbColor,
   WbConnectorRoute,

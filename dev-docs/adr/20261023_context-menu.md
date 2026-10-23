@@ -38,6 +38,10 @@ The common case — copy the clicked thing's text, copy a link to it, comment on
 - No visual feedback (toast) on a successful "copy" exists yet, to avoid touching a notice/toast system under concurrent edit; a silent clipboard write is the only confirmation in this slice.
 - Right-click on an individual diagram node or edge offers only "reset view," not "copy link"/"comment," until diagram-internal targets grow an equivalent attribute-based (or provider-based) resolution path.
 
+## Addendum (2026-10-23)
+
+The diagram-insertion catalog bullet above was wired into Whiteboard in a later session (`getContextMenuItems`'s "add diagram" entry, `src/components/diagram/registry.ts`, `src/components/diagram/insert-picker.ts`, and the `embed` item kind in `src/components/whiteboard/model.ts`), then dropped before any release shipped it: dropping just a diagram onto the whiteboard canvas turned out not to be useful on its own — an inserted diagram (an ER diagram, say) cannot gain new tables from the picker, so the agent authoring the page still has to write its data by hand, making the insertion step pure overhead. The catalog (`registerDiagram`/`listDiagrams`), the picker, and the `embed` item kind were deleted; every diagram component still self-registers nothing, since nothing reads the registry anymore. The rest of this ADR — the context-menu mechanism, discovery, common actions, rendering — is unaffected and remains the current design; a future "add a diagram here" feature, if one is wanted, should seed the inserted diagram with real content (e.g. from the page's own data) rather than an empty one.
+
 ## References
 
 - [Record component edits as element actions](20260924_component-element-actions.md)

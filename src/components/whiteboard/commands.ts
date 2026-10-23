@@ -2,7 +2,6 @@
  * The board's "add" affordances as pure functions: what a new item looks like
  * and where it lands. The element dispatches the payload these return.
  */
-import type { DiagramCatalogEntry } from '../diagram/registry';
 import type { WhiteboardMessages } from './messages';
 
 import { createEntityId } from '../../core/target';
@@ -36,15 +35,6 @@ export const newItem = (state: WhiteboardState, m: WhiteboardMessages, kind: New
     case 'frame':
       return { ...box, kind: 'frame', title: m.newFrameTitle, color: DEFAULT_COLOR.frame };
   }
-};
-
-/** A new diagram embed, seeded from the catalog entry, centered on `center` with a fresh id. */
-export const newEmbedItem = (state: WhiteboardState, entry: DiagramCatalogEntry, center: Point): WbItem => {
-  const { w, h } = DEFAULT_SIZE.embed;
-  const at = { x: Math.round(center.x - w / 2), y: Math.round(center.y - h / 2) };
-  const spot = freeSpot(state, { ...at, w, h });
-  const id = createEntityId('new-embed', allIds(state));
-  return { id, x: spot.x, y: spot.y, w, h, kind: 'embed', tag: entry.tag, data: entry.seed() };
 };
 
 /** A fresh connector id between two items. */
