@@ -10,7 +10,7 @@ import type {
   DraftAction,
   TemplateDefinition,
 } from '../../core/types';
-import type { ViewportAlign, ViewportController, ViewState } from './viewport';
+import type { ViewportAlign, ViewportBox, ViewportController, ViewState } from './viewport';
 
 import { COMMENT_ACTION } from '../../core/action';
 import { contextMenuMessages } from '../../core/context-menu/messages';
@@ -63,7 +63,10 @@ import { chromeStyles, diagramStyles } from './styles';
 import { arrowDefinitions, type ArrowDefinition } from './view';
 
 /** What a diagram drives of its canvas: the canvas methods of `<dpk-dialog-panel canvas>`. */
-export type DiagramViewport = Pick<ViewportController, 'apply' | 'fit' | 'fitWidth' | 'reset' | 'zoom' | 'view'>;
+export type DiagramViewport = Pick<
+  ViewportController,
+  'apply' | 'fit' | 'fitTo' | 'fitWidth' | 'reset' | 'zoom' | 'view'
+>;
 
 /**
  * Everything an element built on `<dpk-dialog-panel>` has regardless of
@@ -685,6 +688,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
   static override styles: CSSResultGroup = diagramStyles;
 
   #lastLayoutVersion = -1;
+  #lastFocusKey: string | null = null;
 
   constructor() {
     super();
@@ -714,6 +718,13 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     if (version !== this.#lastLayoutVersion) {
       this.#lastLayoutVersion = version;
       this.initialView();
+    }
+    const focus = this.focusBounds();
+    const focusKey = focus === null ? null : JSON.stringify(focus);
+    if (focusKey !== this.#lastFocusKey) {
+      this.#lastFocusKey = focusKey;
+      if (focus !== null) this.viewport?.fitTo(focus);
+      else this.fitViewport();
     }
   }
 
@@ -767,6 +778,15 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     return 'center';
   }
 
+  /**
+   * A sub-region of the content to pan/zoom to instead of the usual fitted or
+   * reset view (e.g. a chosen bounded context in the ER diagram). `null` means
+   * no focus is active; the view then falls back to {@link fitViewport}.
+   */
+  protected focusBounds(): ViewportBox | null {
+    return null;
+  }
+
   /** Mirrors the pan/zoom into component-owned chrome (the participant rail). */
   protected onViewChange(_view: ViewState): void {}
 
@@ -806,6 +826,7 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
     return {
       apply: () => element.apply(),
       fit: () => element.fit(),
+      fitTo: (box) => element.fitTo(box),
       fitWidth: () => element.fitWidth(),
       reset: (corner) => element.reset(corner),
       zoom: (factor) => element.zoom(factor),

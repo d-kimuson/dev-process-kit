@@ -8,6 +8,7 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import {
   createViewport,
   type ViewportAlign,
+  type ViewportBox,
   type ViewportController,
   type ViewportPoint,
   type ViewState,
@@ -112,6 +113,10 @@ export class PanelCanvasController implements ReactiveController {
 
   fitWidth(): void {
     this.#viewport?.fitWidth();
+  }
+
+  fitTo(box: ViewportBox): void {
+    this.#viewport?.fitTo(box);
   }
 
   reset(corner?: ViewportPoint): void {

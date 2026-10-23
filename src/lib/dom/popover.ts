@@ -7,6 +7,7 @@ import {
   size as fitSize,
   type VirtualElement,
   type Placement,
+  type Boundary,
 } from '@floating-ui/dom';
 
 export type PopoverAnchor = { readonly top: number; readonly bottom: number; readonly right: number };
@@ -14,6 +15,13 @@ export type PopoverSize = { readonly width: number; readonly height: number };
 export type PopoverOptions = {
   readonly placement?: Placement;
   readonly trackTransform?: boolean;
+  /**
+   * Keeps the popover from flipping or shifting past this element's edges — e.g. the panel
+   * that visually frames the diagram — on top of the plain viewport boundary, so it never
+   * escapes into chrome the host page draws above or beside that panel. Defaults to the
+   * viewport alone.
+   */
+  readonly boundary?: Boundary;
 };
 export const pointAnchor = (x: number, y: number): PopoverAnchor => ({ top: y, bottom: y, right: x });
 
@@ -57,10 +65,15 @@ export const openPopover = (
       placement: options.placement ?? 'bottom-end',
       middleware: [
         offset(8),
-        flip({ padding: 8, fallbackAxisSideDirection: 'end' }),
-        shift({ padding: 8 }),
+        flip({
+          padding: 8,
+          fallbackAxisSideDirection: 'end',
+          ...(options.boundary === undefined ? {} : { boundary: options.boundary }),
+        }),
+        shift({ padding: 8, ...(options.boundary === undefined ? {} : { boundary: options.boundary }) }),
         fitSize({
           padding: 8,
+          ...(options.boundary === undefined ? {} : { boundary: options.boundary }),
           apply: ({ availableWidth, availableHeight }) => {
             if (!active || request !== revision) return;
             element.style.width = `${Math.max(0, Math.min(size.width, availableWidth))}px`;

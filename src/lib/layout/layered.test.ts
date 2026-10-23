@@ -181,6 +181,93 @@ describe('layeredLayout with groups', () => {
   });
 });
 
+describe('layeredLayout with superGroup', () => {
+  /** The box bounding every node in `ids`, the same way a diagram draws a group frame. */
+  const groupBox = (result: ReturnType<typeof layeredLayout>, ids: readonly string[]) => {
+    const boxes = ids.flatMap((id) => {
+      const found = result.nodes.find((entry) => entry.id === id);
+      return found ? [found] : [];
+    });
+    return {
+      left: Math.min(...boxes.map((box) => box.x)),
+      top: Math.min(...boxes.map((box) => box.y)),
+      right: Math.max(...boxes.map((box) => box.x + box.width)),
+      bottom: Math.max(...boxes.map((box) => box.y + box.height)),
+    };
+  };
+  const boxesOverlap = (a: ReturnType<typeof groupBox>, b: ReturnType<typeof groupBox>): boolean =>
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  const boxContains = (outer: ReturnType<typeof groupBox>, inner: ReturnType<typeof groupBox>): boolean =>
+    inner.left >= outer.left && inner.right <= outer.right && inner.top >= outer.top && inner.bottom <= outer.bottom;
+  const containsPoint = (box: ReturnType<typeof groupBox>, x: number, y: number): boolean =>
+    x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+
+  it('nests every group inside its own superGroup, never splitting one across two', () => {
+    // No edges: with every node sharing one rank, the plain (non-nested) group
+    // banding would order bands purely by this array's interleaved A/B/A/B
+    // arrival order, splitting the two superGroups apart from each other.
+    const nodes: LayoutNodeSpec[] = [
+      { id: 'a1', width: 90, height: 30, group: 'agg-a1', superGroup: 'BC-A' },
+      { id: 'b1', width: 90, height: 30, group: 'agg-b1', superGroup: 'BC-B' },
+      { id: 'a2', width: 90, height: 30, group: 'agg-a1', superGroup: 'BC-A' },
+      { id: 'b2', width: 90, height: 30, group: 'agg-b1', superGroup: 'BC-B' },
+      { id: 'a3', width: 90, height: 30, group: 'agg-a2', superGroup: 'BC-A' },
+      { id: 'b3', width: 90, height: 30, group: 'agg-b2', superGroup: 'BC-B' },
+    ];
+    const result = layeredLayout(nodes, []);
+    const boxBcA = groupBox(result, ['a1', 'a2', 'a3']);
+    const boxBcB = groupBox(result, ['b1', 'b2', 'b3']);
+    expect(boxesOverlap(boxBcA, boxBcB)).toBe(false);
+    // Every aggregate's own box sits fully inside its BC's box.
+    expect(boxContains(boxBcA, groupBox(result, ['a1', 'a2']))).toBe(true);
+    expect(boxContains(boxBcA, groupBox(result, ['a3']))).toBe(true);
+    expect(boxContains(boxBcB, groupBox(result, ['b1', 'b2']))).toBe(true);
+    expect(boxContains(boxBcB, groupBox(result, ['b3']))).toBe(true);
+  });
+
+  it('keeps a superGroup isolated from a node with no superGroup, even sharing a rank', () => {
+    const nodes: LayoutNodeSpec[] = [
+      { id: 'a1', width: 80, height: 30, group: 'agg-a', superGroup: 'BC-A' },
+      { id: 'a2', width: 80, height: 30, group: 'agg-a', superGroup: 'BC-A' },
+      { id: 'solo', width: 80, height: 30 },
+    ];
+    const result = layeredLayout(nodes, []);
+    const boxA = groupBox(result, ['a1', 'a2']);
+    const solo = result.nodes.find((entry) => entry.id === 'solo');
+    expect(containsPoint(boxA, (solo?.x ?? 0) + 1, (solo?.y ?? 0) + 1)).toBe(false);
+  });
+
+  it('adds extra room between two superGroups, via superGroupSpacing, on top of groupSpacing', () => {
+    const nodes: LayoutNodeSpec[] = [
+      { id: 'a1', width: 80, height: 30, group: 'agg-a', superGroup: 'BC-A' },
+      { id: 'b1', width: 80, height: 30, group: 'agg-b', superGroup: 'BC-B' },
+    ];
+    const tight = layeredLayout(nodes, [], { groupSpacing: 10, superGroupSpacing: 10 });
+    const loose = layeredLayout(nodes, [], { groupSpacing: 10, superGroupSpacing: 150 });
+    expect(loose.height).toBeGreaterThan(tight.height);
+  });
+
+  it('matches the plain group layout exactly when no node declares a superGroup', () => {
+    const nodes: LayoutNodeSpec[] = [
+      { id: 'a1', width: 100, height: 40, group: 'A' },
+      { id: 'a2', width: 100, height: 40, group: 'A' },
+      { id: 'b1', width: 100, height: 40, group: 'B' },
+      { id: 'b2', width: 100, height: 40, group: 'B' },
+      { id: 'lone', width: 100, height: 40 },
+    ];
+    const edges: LayoutEdgeSpec[] = [
+      edge('a1', 'b1'),
+      edge('b1', 'a2'),
+      edge('a2', 'b2'),
+      edge('b2', 'lone'),
+      edge('lone', 'a1'),
+    ];
+    const withDefaultSpacing = layeredLayout(nodes, edges);
+    const withExplicitSuperSpacing = layeredLayout(nodes, edges, { superGroupSpacing: 999 });
+    expect(withExplicitSuperSpacing).toEqual(withDefaultSpacing);
+  });
+});
+
 describe('fixedLayout', () => {
   it('keeps authored positions and routes between them', () => {
     const nodes: LayoutNodeSpec[] = [

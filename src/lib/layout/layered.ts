@@ -27,6 +27,17 @@ export type LayoutNodeSpec = {
    * overlaps another group's box, and never contains a node outside it.
    */
   readonly group?: string;
+  /**
+   * Outer nesting on top of `group`: every `group` whose nodes declare the
+   * same `superGroup` is kept together, in one band that contains all of
+   * them, the same way `group` itself contains its own nodes — so a box
+   * drawn around one `superGroup`'s nodes never overlaps another's, and
+   * always contains every one of its groups' boxes whole. A node without
+   * `group` is still placed as a singleton band inside its `superGroup`. A
+   * node without `superGroup` forms a top-level band of its own, same as
+   * today when no node in the graph sets it at all.
+   */
+  readonly superGroup?: string;
 };
 
 export type LayoutEdgeSpec = {
@@ -68,6 +79,8 @@ export type LayoutOptions = {
   readonly coordinatePasses?: number;
   /** Gap kept between two different `group`s' bands. Defaults to `nodeSpacing`. */
   readonly groupSpacing?: number;
+  /** Gap kept between two different `superGroup`s' bands, on top of `groupSpacing`. Defaults to `groupSpacing`. */
+  readonly superGroupSpacing?: number;
 };
 
 const DEFAULTS = {
@@ -77,6 +90,7 @@ const DEFAULTS = {
   sweeps: 4,
   coordinatePasses: 6,
   groupSpacing: 34,
+  superGroupSpacing: 34,
 } as const;
 
 type Config = Required<LayoutOptions>;
@@ -307,9 +321,17 @@ const bandHeightOf = (
 /**
  * Packs and refines coordinates like `assignCoordinates`, but keeps every
  * `group`'s nodes (and every ungrouped node, each its own singleton band) in
- * one fixed vertical band, identical in every layer. A band's order is the
- * average of its members' plain, ungrouped ordering, so grouping never
- * fights the crossing-minimising heuristic more than it has to.
+ * one fixed vertical band, identical in every layer — and, when any node
+ * declares a `superGroup`, nests those bands inside a second, outer level the
+ * same way: every `superGroup`'s own bands sit together, with extra room
+ * (`superGroupSpacing`) between two different `superGroup`s so a frame drawn
+ * around one never touches its neighbour's. A band's order is the average of
+ * its members' plain, ungrouped ordering, so grouping never fights the
+ * crossing-minimising heuristic more than it has to; a `superGroup`'s order
+ * is likewise the average ordering of everything it contains, so two that
+ * exchange many edges still end up drawn close together. When no node in the
+ * graph sets `superGroup` at all, every band is its own top-level band and
+ * this produces exactly the single-level result it always has.
  */
 const assignCoordinatesGrouped = (
   nodes: readonly LayoutNodeSpec[],
@@ -322,6 +344,16 @@ const assignCoordinatesGrouped = (
 ): void => {
   const bandOf = new Map<string, string>(nodes.map((n) => [n.id, n.group ?? n.id]));
   const realGroups = new Set(nodes.flatMap((n) => (n.group === undefined ? [] : [n.group])));
+  const usesSuperGroup = nodes.some((n) => n.superGroup !== undefined);
+  // The outer band a `group` (or ungrouped node) belongs to: whichever of its
+  // members declares a `superGroup` first, else its own band key (a top-level
+  // band of its own) — so one aggregate is never split across two BCs.
+  const superOf = new Map<string, string>();
+  for (const n of nodes) {
+    const band = bandOf.get(n.id) ?? n.id;
+    if (n.superGroup !== undefined && !superOf.has(band)) superOf.set(band, n.superGroup);
+  }
+  const bandSuper = (key: string): string => superOf.get(key) ?? key;
   const ranks = [...layers.keys()].sort((a, b) => a - b);
 
   const normalisedOrder = (id: string): number => {
@@ -335,7 +367,18 @@ const assignCoordinatesGrouped = (
     const members = nodes.filter((n) => (bandOf.get(n.id) ?? n.id) === key).map((n) => n.id);
     return members.length === 0 ? 0 : members.reduce((sum, id) => sum + normalisedOrder(id), 0) / members.length;
   };
-  const bandOrder = bandKeys.sort((a, b) => centreOf(a) - centreOf(b));
+  // Order the outer (superGroup) bands first, by the centroid of everything
+  // they contain, then order each one's own inner bands by their own
+  // centroid — so crossing-minimising order is respected at both levels.
+  const superKeys = [...new Set(bandKeys.map(bandSuper))];
+  const superCentreOf = (key: string): number => {
+    const members = nodes.filter((n) => bandSuper(bandOf.get(n.id) ?? n.id) === key).map((n) => n.id);
+    return members.length === 0 ? 0 : members.reduce((sum, id) => sum + normalisedOrder(id), 0) / members.length;
+  };
+  const superOrder = superKeys.sort((a, b) => superCentreOf(a) - superCentreOf(b));
+  const bandOrder = superOrder.flatMap((superKey) =>
+    bandKeys.filter((key) => bandSuper(key) === superKey).sort((a, b) => centreOf(a) - centreOf(b)),
+  );
 
   const bandHeight = new Map(
     bandOrder.map((key) => [key, bandHeightOf(layers, byId, bandOf, key, config.nodeSpacing)]),
@@ -346,8 +389,14 @@ const assignCoordinatesGrouped = (
     bandTop.set(key, top);
     top += bandHeight.get(key) ?? 0;
     const next = bandOrder[index + 1];
-    if (next !== undefined)
-      top += realGroups.has(key) || realGroups.has(next) ? config.groupSpacing : config.nodeSpacing;
+    if (next !== undefined) {
+      const crossesSuperGroup = usesSuperGroup && bandSuper(key) !== bandSuper(next);
+      top += crossesSuperGroup
+        ? config.superGroupSpacing
+        : realGroups.has(key) || realGroups.has(next)
+          ? config.groupSpacing
+          : config.nodeSpacing;
+    }
   }
 
   for (const rank of ranks) {
@@ -560,7 +609,7 @@ export const layeredLayout = (
   for (const ids of layers.values()) ids.forEach((id, index) => orderOf.set(id, index));
   const placed = toMutable(nodes, layerOf, orderOf, () => ({ x: 0, y: 0 }));
   const byId = new Map(placed.map((node) => [node.spec.id, node]));
-  if (nodes.some((node) => node.group !== undefined)) {
+  if (nodes.some((node) => node.group !== undefined || node.superGroup !== undefined)) {
     assignCoordinatesGrouped(nodes, layers, byId, neighbourIndex(nodes, usable), layerOf, orderOf, config);
   } else {
     assignCoordinates(layers, byId, neighbourIndex(nodes, usable), layerOf, config);

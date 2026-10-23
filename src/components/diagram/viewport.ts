@@ -127,6 +127,8 @@ export type ViewportController = {
   apply(): void;
   fit(): void;
   fitWidth(): void;
+  /** Fits one world-space box to the canvas, zooming past 100% if needed. */
+  fitTo(box: ViewportBox): void;
   /** 100% scale, anchored to `corner` (the content origin unless given): the view a diagram opens in. */
   reset(corner?: ViewportPoint): void;
   zoom(factor: number, x?: number, y?: number): void;
@@ -183,6 +185,29 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
       ...view,
       x: (width - area.width * view.scale) / 2 - area.x * view.scale,
       y: (height - area.height * view.scale) / 2 - area.y * view.scale,
+    };
+    apply();
+  };
+
+  /**
+   * Fits `box` to the canvas, not just the whole content: a sub-region can be
+   * zoomed past 100% (unlike `fit`, which never exceeds it) since showing one
+   * part larger is the point. Panning still clamps against the full content
+   * area afterwards, through the same `apply`.
+   */
+  const fitTo = (box: ViewportBox): void => {
+    const { width, height } = size();
+    const target = expandedBounds([box]);
+    const targetWidth = target.width / 1.2 || 1;
+    const targetHeight = target.height / 1.2 || 1;
+    view = {
+      ...view,
+      scale: clamp(Math.min((width - 24) / targetWidth, (height - 40) / targetHeight), MIN_SCALE, MAX_SCALE),
+    };
+    view = {
+      ...view,
+      x: (width - target.width * view.scale) / 2 - target.x * view.scale,
+      y: (height - target.height * view.scale) / 2 - target.y * view.scale,
     };
     apply();
   };
@@ -382,6 +407,7 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
     },
     apply,
     fit,
+    fitTo,
     fitWidth,
     reset,
     zoom,

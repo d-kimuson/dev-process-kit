@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing, type CSSResultGroup, type PropertyValues, type TemplateResult } from 'lit';
 
-import type { ViewportAlign, ViewportPoint, ViewState } from '../diagram/viewport';
+import type { ViewportAlign, ViewportBox, ViewportPoint, ViewState } from '../diagram/viewport';
 
 import { iconGripHorizontal, iconMaximize, iconMinimize, iconMinus, iconPlus } from '../../core/icons';
 import { LocaleController } from '../../core/locale-controller';
@@ -491,6 +491,11 @@ export class DpkDialogPanel extends LitElement {
   /** Width-fitted and top-aligned: for tall content read by scrolling. */
   fitWidth(): void {
     this.#canvas.fitWidth();
+  }
+
+  /** Fits one world-space box to the canvas, zooming past 100% if needed. */
+  fitTo(box: ViewportBox): void {
+    this.#canvas.fitTo(box);
   }
 
   /** 100%, the content's top-left corner (or `corner`, in world pixels) at the canvas's. */
