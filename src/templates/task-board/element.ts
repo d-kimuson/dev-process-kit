@@ -1,12 +1,15 @@
 import { html, nothing, type TemplateResult } from 'lit';
 
 import type { Locale } from '../../core/i18n';
+import type { SidebarLayout } from '../../core/layouts/sidebar/model';
 import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
-import type { SidebarLayout } from '../../core/sidebar-width';
 import type { ActionTarget } from '../../core/types';
 import type { TaskBoardState } from './model';
 
+import { atomStyles } from '../../components/atoms/styles';
+import { defineSelect } from '../../components/select';
 import { TemplateElement } from '../../core/element';
+import { SelectControllerRegistry } from '../../core/select/controller';
 import { createEntityId } from '../../core/target';
 import { copyText } from '../../lib/dom/clipboard';
 import { addTodo, answerQuestion, decideProposal, deleteTodo, setTodoStatus, type AnswerInput } from './actions';
@@ -43,7 +46,7 @@ const COPIED_MS = 1500;
  * the review floats over the rail rather than pushing the board aside.
  */
 export class DpkTemplateTaskBoard extends TemplateElement<TaskBoardState> {
-  static override styles = [TemplateElement.styles, taskBoardStyles];
+  static override styles = [TemplateElement.styles, atomStyles, taskBoardStyles];
 
   static override properties = {
     tab: { state: true },
@@ -58,6 +61,8 @@ export class DpkTemplateTaskBoard extends TemplateElement<TaskBoardState> {
   /** The output whose copy button shows the check mark. */
   #copied: string | null = null;
   #copiedTimer: ReturnType<typeof setTimeout> | undefined;
+  /** One status select per todo, since each row needs its own stable open/active state. */
+  readonly #statusSelects = new SelectControllerRegistry(this);
 
   constructor() {
     super();
@@ -106,7 +111,12 @@ export class DpkTemplateTaskBoard extends TemplateElement<TaskBoardState> {
       sidebar: html`
         <div class="board-rail">
           ${renderOutputs(m, presentOutputs(context.state), this.#copied, handlers)}
-          ${renderTodos(m, presentTodos(m, context.state, context.base, count, this.todoFilter), handlers)}
+          ${renderTodos(
+            m,
+            presentTodos(m, context.state, context.base, count, this.todoFilter),
+            handlers,
+            this.#statusSelects,
+          )}
         </div>
       `,
       main: html`
@@ -130,7 +140,7 @@ export class DpkTemplateTaskBoard extends TemplateElement<TaskBoardState> {
             'questions',
             tab,
             questions.total === 0
-              ? html`<p class="board-empty">${m.noQuestions}</p>`
+              ? html`<p class="dpk-empty board-empty" data-variant="dashed">${m.noQuestions}</p>`
               : renderQuestions(m, questions, handlers),
           )}
         </div>
@@ -159,8 +169,8 @@ export class DpkTemplateTaskBoard extends TemplateElement<TaskBoardState> {
   /** The agent's status stays in view while the reader scrolls the board. */
   #renderHeaderStatus(m: TaskBoardMessages, state: TaskBoardState): TemplateResult | typeof nothing {
     if (state.status === null) return nothing;
-    return html`<span class="board-status board-status--header" data-status=${state.status}>
-      <span class="board-status-dot" aria-hidden="true"></span>${taskStatusLabel(m, state.status)}
+    return html`<span class="dpk-status board-status board-status--header" data-status=${state.status}>
+      ${taskStatusLabel(m, state.status)}
     </span>`;
   }
 
@@ -215,6 +225,7 @@ export class DpkTemplateTaskBoard extends TemplateElement<TaskBoardState> {
 }
 
 export const defineTaskBoardElement = (): void => {
+  defineSelect();
   if (!customElements.get('dpk-template-task-board')) {
     customElements.define('dpk-template-task-board', DpkTemplateTaskBoard);
   }

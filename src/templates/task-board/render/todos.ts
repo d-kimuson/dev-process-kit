@@ -2,13 +2,14 @@ import { html, nothing, type TemplateResult } from 'lit';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
+import type { SelectControllerRegistry } from '../../../core/select/controller';
 import type { TaskBoardMessages } from '../messages';
 import type { TodoStatus } from '../model';
 import type { TodoFilter, TodoViewModel, TodosViewModel } from '../present';
 
+import { DpkSelect } from '../../../components/select/element';
 import { iconTrash } from '../../../core/icons';
 import { elementOf } from '../../../lib/dom/element';
-import { onSelectChange } from '../../../lib/dom/events';
 import { commentButton, type BoardHandlers } from './shared';
 
 const UNASSIGNED = '';
@@ -24,7 +25,12 @@ const isTodoStatus = (value: string, vm: TodosViewModel): value is TodoStatus =>
  * write, so they only show. What was already done folds away above the rest,
  * out of the way but where the list starts.
  */
-export const renderTodos = (m: TaskBoardMessages, vm: TodosViewModel, handlers: BoardHandlers): TemplateResult => html`
+export const renderTodos = (
+  m: TaskBoardMessages,
+  vm: TodosViewModel,
+  handlers: BoardHandlers,
+  statusSelects: SelectControllerRegistry,
+): TemplateResult => html`
   <section class="board-section board-rail-section" data-section="todos" aria-labelledby="board-todos">
     <header class="board-section-head">
       <h2 id="board-todos">${m.todos}</h2>
@@ -47,7 +53,9 @@ export const renderTodos = (m: TaskBoardMessages, vm: TodosViewModel, handlers: 
     ${vm.canFilter ? renderFilter(m, vm, handlers) : nothing}
     ${
       vm.todos.length === 0 && vm.done.length === 0
-        ? html`<p class="board-empty">${vm.filter === 'human' ? m.noHumanTodos : m.noTodos}</p>`
+        ? html`<p class="dpk-empty board-empty" data-variant="dashed">
+            ${vm.filter === 'human' ? m.noHumanTodos : m.noTodos}
+          </p>`
         : nothing
     }
     ${
@@ -57,10 +65,11 @@ export const renderTodos = (m: TaskBoardMessages, vm: TodosViewModel, handlers: 
             <summary class="board-done-summary">
               <span class="board-done-chevron" aria-hidden="true"></span>${m.doneGroup(vm.done.length)}
             </summary>
-            ${renderList(m, vm, vm.done, handlers)}
+            ${renderList(m, vm, vm.done, handlers, statusSelects)}
           </details>`
     }
-    ${vm.todos.length === 0 ? nothing : renderList(m, vm, vm.todos, handlers)} ${renderAddTodo(m, vm, handlers)}
+    ${vm.todos.length === 0 ? nothing : renderList(m, vm, vm.todos, handlers, statusSelects)}
+    ${renderAddTodo(m, vm, handlers)}
   </section>
 `;
 
@@ -69,12 +78,13 @@ const renderList = (
   vm: TodosViewModel,
   todos: readonly TodoViewModel[],
   handlers: BoardHandlers,
+  statusSelects: SelectControllerRegistry,
 ): TemplateResult => html`
   <ul class="board-todos">
     ${repeat(
       todos,
       (todo) => todo.id,
-      (todo) => renderTodo(m, vm, todo, handlers),
+      (todo) => renderTodo(m, vm, todo, handlers, statusSelects),
     )}
   </ul>
 `;
@@ -120,6 +130,7 @@ const renderTodo = (
   vm: TodosViewModel,
   todo: TodoViewModel,
   handlers: BoardHandlers,
+  statusSelects: SelectControllerRegistry,
 ): TemplateResult => html`
   <li
     class="board-todo"
@@ -146,7 +157,7 @@ const renderTodo = (
             ? renderDecision(m, todo, handlers)
             : todo.proposal === 'decline'
               ? nothing
-              : renderStatus(m, vm, todo, handlers)
+              : renderStatus(m, vm, todo, handlers, statusSelects)
         }
         ${
           todo.assigneeName === null
@@ -212,21 +223,18 @@ const renderStatus = (
   vm: TodosViewModel,
   todo: TodoViewModel,
   handlers: BoardHandlers,
-): TemplateResult =>
+  statusSelects: SelectControllerRegistry,
+): unknown =>
   todo.editable
-    ? html`<select
-        class="dpk-select board-todo-status"
-        data-status=${todo.status}
-        aria-label=${m.statusOf(todo.title)}
-        @change=${onSelectChange((value) => {
+    ? statusSelects.get(todo.id).render({
+        options: vm.statuses.map((status) => ({ value: status.value, label: status.label })),
+        value: todo.status,
+        onChange: (value) => {
           if (isTodoStatus(value, vm) && value !== todo.status) handlers.setStatus(todo.id, value);
-        })}
-      >
-        ${vm.statuses.map(
-          (status) =>
-            html`<option value=${status.value} ?selected=${status.value === todo.status}>${status.label}</option>`,
-        )}
-      </select>`
+        },
+        ariaLabel: m.statusOf(todo.title),
+        className: 'board-todo-status',
+      })
     : html`<span class="board-todo-state" data-status=${todo.status}>${todo.statusLabel}</span>`;
 
 /** A new todo is a request to the agent: a title and, when the board names people, who should do it. */
@@ -238,7 +246,10 @@ const renderAddTodo = (m: TaskBoardMessages, vm: TodosViewModel, handlers: Board
       const form = elementOf(event.currentTarget, HTMLFormElement);
       if (form === null) return;
       const title = elementOf(form.elements.namedItem('title'), HTMLInputElement);
-      const assignee = elementOf(form.elements.namedItem('assignee'), HTMLSelectElement);
+      // `dpk-select` is form-associated, but jsdom/happy-dom don't list it in
+      // `form.elements` (see dev-docs/guidelines/architecture.md on browser
+      // capability assumptions), so it's queried directly instead.
+      const assignee = elementOf(form.querySelector('dpk-select[name="assignee"]'), DpkSelect);
       const text = title?.value.trim() ?? '';
       if (title === null || text === '') return;
       handlers.addTodo(text, assignee === null || assignee.value === UNASSIGNED ? null : assignee.value);
@@ -257,10 +268,16 @@ const renderAddTodo = (m: TaskBoardMessages, vm: TodosViewModel, handlers: Board
       ${
         vm.members.length === 0
           ? nothing
-          : html`<select class="dpk-select board-add-assignee" name="assignee" aria-label=${m.newTodoAssignee}>
-              <option value=${UNASSIGNED}>${m.unassigned}</option>
-              ${vm.members.map((member) => html`<option value=${member.id}>${member.label}</option>`)}
-            </select>`
+          : html`<dpk-select
+              class="board-add-assignee"
+              name="assignee"
+              aria-label=${m.newTodoAssignee}
+              .options=${[
+                { value: UNASSIGNED, label: m.unassigned },
+                ...vm.members.map((member) => ({ value: member.id, label: member.label })),
+              ]}
+              .value=${UNASSIGNED}
+            ></dpk-select>`
       }
       <button class="dpk-btn board-add-submit" type="submit">${m.addTodo}</button>
     </div>

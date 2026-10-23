@@ -19,7 +19,11 @@ export const renderContext = (
   handlers: BoardHandlers,
 ): TemplateResult => html`
   <section class="board-context" aria-label=${m.context}>
-    ${vm.parts.length === 0 && !hasFigures ? html`<p class="board-empty">${m.noContext}</p>` : nothing}
+    ${
+      vm.parts.length === 0 && !hasFigures
+        ? html`<p class="dpk-empty board-empty" data-variant="dashed">${m.noContext}</p>`
+        : nothing
+    }
     ${
       vm.parts.length === 0
         ? nothing
@@ -37,7 +41,7 @@ export const renderContext = (
 
 const renderPart = (m: TaskBoardMessages, part: ContextPartViewModel, handlers: BoardHandlers): TemplateResult => html`
   <article
-    class="board-context-part"
+    class="dpk-card board-context-part"
     data-context=${part.id}
     data-dpk-target=${`context:${part.id}`}
     aria-labelledby=${`board-context-${part.id}`}

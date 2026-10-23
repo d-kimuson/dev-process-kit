@@ -22,7 +22,7 @@ export const renderOutputs = (
     ${sectionHead('board-outputs', m.outputs, outputs.length === 0 ? null : String(outputs.length))}
     ${
       outputs.length === 0
-        ? html`<p class="board-empty">${m.noOutputs}</p>`
+        ? html`<p class="dpk-empty board-empty" data-variant="dashed">${m.noOutputs}</p>`
         : html`<ul class="board-outputs">
             ${repeat(
               outputs,
@@ -44,7 +44,7 @@ const renderOutput = (
   const copyLabel = copied ? m.copied : m.copy(output.href);
   return html`
     <li
-      class="board-output"
+      class="dpk-list-row board-output"
       data-output=${output.id}
       data-place=${place.kind}
       data-grill-questions=${ifDefined(output.questions)}
@@ -91,9 +91,7 @@ const renderStatus = (m: TaskBoardMessages, status: TaskStatusViewModel): Templa
     ${
       status.status === null
         ? nothing
-        : html`<span class="board-status" data-status=${status.status}>
-            <span class="board-status-dot" aria-hidden="true"></span>${status.label}
-          </span>`
+        : html`<span class="dpk-status board-status" data-status=${status.status}>${status.label}</span>`
     }
     ${status.updatedAt === null ? nothing : html`<span class="board-updated">${m.updatedAt(status.updatedAt)}</span>`}
   </div>
@@ -110,7 +108,7 @@ export const renderLog = (m: TaskBoardMessages, vm: LogViewModel, handlers: Boar
     ${
       vm.entries.length === 0
         ? html`${vm.status === null ? nothing : renderStatus(m, vm.status)}
-            <p class="board-empty">${m.noLog}</p>`
+            <p class="dpk-empty board-empty" data-variant="dashed">${m.noLog}</p>`
         : html`<ol class="board-log">
             ${repeat(
               vm.entries,

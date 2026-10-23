@@ -13,9 +13,10 @@ import { css } from 'lit';
  * stack and the page scrolls as one.
  */
 export const taskBoardStyles = css`
-  /* The shell's sidebar is a right-hand rail (see \`sidebarLayout\`). */
-  .dpk-sidebar {
-    padding: 10px 14px 20px;
+  /* The shell's sidebar is a right-hand rail (see \`sidebarLayout\`), stacked below the board on a phone. */
+  :host {
+    --dpk-sidebar-padding: 10px 14px;
+    --dpk-sidebar-padding-end: 20px;
   }
 
   .board-rail {
@@ -31,46 +32,10 @@ export const taskBoardStyles = css`
     margin: 0 auto;
   }
 
+  /* Stacked, the rail is what ends the page: it clears the hand-off dock, not the board above it. */
   @media (max-width: 760px) {
-    /* Without a zero minimum, a truncated output row's full text width would
-       widen the whole shell past the screen. */
-    .dpk-body {
-      flex-direction: column;
-      min-width: 0;
-      overflow: auto;
-    }
-
-    .dpk-main,
-    .dpk-sidebar {
-      flex: 0 0 auto;
-      overflow: visible;
-    }
-
-    .dpk-sidebar {
-      width: auto;
-      max-width: none;
-      border-left: 0;
-      border-top: 1px solid var(--dpk-rule);
-    }
-
-    /* Stacked, the rail is what ends the page: it clears the hand-off dock, not the board above it. */
     .dpk-main-body {
       padding-bottom: 24px;
-    }
-
-    /* Stacked, the rail takes the full width: there is no edge to drag or
-       fold on. A rail folded on a wider screen is a bar to unfold it. */
-    .dpk-sidebar-resizer,
-    .dpk-body > .dpk-sidebar-toggle {
-      display: none;
-    }
-
-    .dpk-sidebar-strip {
-      width: auto;
-      padding: 8px 14px;
-      justify-content: flex-start;
-      border-left: 0;
-      border-top: 1px solid var(--dpk-rule);
     }
   }
 
@@ -78,42 +43,42 @@ export const taskBoardStyles = css`
   [data-status='doing'] {
     --board-tone: var(--dpk-blue);
     --board-tone-soft: var(--dpk-blue-soft);
+    --tone: var(--dpk-blue);
+    --tone-soft: var(--dpk-blue-soft);
   }
 
   [data-status='waiting'] {
     --board-tone: var(--dpk-amber);
     --board-tone-soft: var(--dpk-amber-soft);
+    --tone: var(--dpk-amber);
+    --tone-soft: var(--dpk-amber-soft);
   }
 
   [data-status='blocked'] {
     --board-tone: var(--dpk-danger);
     --board-tone-soft: var(--dpk-danger-soft);
+    --tone: var(--dpk-danger);
+    --tone-soft: var(--dpk-danger-soft);
   }
 
   [data-status='done'] {
     --board-tone: var(--dpk-green);
     --board-tone-soft: var(--dpk-green-soft);
+    --tone: var(--dpk-green);
+    --tone-soft: var(--dpk-green-soft);
   }
 
   [data-status='todo'] {
     --board-tone: var(--dpk-rule-strong);
     --board-tone-soft: var(--dpk-paper-sunken);
+    --tone: var(--dpk-rule-strong);
+    --tone-soft: var(--dpk-paper-sunken);
   }
 
   /* ------------------------------------------------------------- status */
 
   .board-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 4px 11px 4px 9px;
-    border-radius: 999px;
-    background: var(--board-tone-soft);
-    color: color-mix(in srgb, var(--board-tone) 80%, var(--dpk-ink));
-    font-size: 12.5px;
-    font-weight: 650;
-    white-space: nowrap;
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--board-tone) 28%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 28%, transparent);
   }
 
   /* On a phone the header has no room; the Context tab says the same. */
@@ -123,21 +88,13 @@ export const taskBoardStyles = css`
     }
   }
 
-  .board-status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--board-tone);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--board-tone) 22%, transparent);
-  }
-
-  .board-status[data-status='working'] .board-status-dot {
+  .board-status[data-status='working']::before {
     animation: board-pulse 1.8s var(--dpk-ease) infinite;
   }
 
   @keyframes board-pulse {
     50% {
-      box-shadow: 0 0 0 6px color-mix(in srgb, var(--board-tone) 0%, transparent);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--tone) 0%, transparent);
     }
   }
 
@@ -271,16 +228,10 @@ export const taskBoardStyles = css`
     }
   }
 
+  /* A part is the kit's card (the card atom), roomier for prose. */
   .board-context-part {
-    display: grid;
-    align-content: start;
-    gap: 6px;
-    min-width: 0;
+    --dpk-card-gap: 6px;
     padding: 14px 16px;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius-lg);
-    background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-xs), var(--dpk-bevel);
   }
 
   .board-context-part[data-context='why'],
@@ -305,7 +256,6 @@ export const taskBoardStyles = css`
   }
 
   .board-context-text {
-    margin: 0;
     color: var(--dpk-ink);
     font-size: 14px;
     line-height: 1.7;
@@ -315,7 +265,6 @@ export const taskBoardStyles = css`
   .board-context-items {
     display: grid;
     gap: 4px;
-    margin: 0;
     padding: 0;
     list-style: none;
     color: var(--dpk-ink);
@@ -419,12 +368,15 @@ export const taskBoardStyles = css`
   }
 
   .board-empty {
+    display: block;
+    max-width: none;
     margin: 0;
     padding: 12px 14px;
-    border: 1px dashed var(--dpk-rule-strong);
     border-radius: var(--dpk-radius);
-    color: var(--dpk-ink-faint);
+    background: transparent;
     font-size: 13px;
+    line-height: 1.5;
+    text-align: start;
   }
 
   .board-tag {
@@ -508,40 +460,29 @@ export const taskBoardStyles = css`
     list-style: none;
   }
 
-  .board-card {
-    display: grid;
-    gap: 10px;
+  /* A question is the kit's card (the card atom) in its group's tone: green once replied to. */
+  .board-question {
+    --dpk-card-tone: var(--board-group-tone);
+    --dpk-card-gap: 10px;
     padding: 14px 16px;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius);
-    background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-xs);
-    transition:
-      border-color 160ms var(--dpk-ease),
-      background 160ms var(--dpk-ease);
   }
 
   .board-question[data-resolved='true'] {
-    border-color: color-mix(in srgb, var(--dpk-green) 35%, var(--dpk-rule));
+    --dpk-card-tone: var(--dpk-green);
   }
 
-  .board-card-head {
-    display: flex;
-    align-items: flex-start;
+  .board-question-head {
     gap: 10px;
   }
 
-  .board-card-title {
-    flex: 1 1 auto;
+  .board-question-title {
     margin: 0;
-    color: var(--dpk-ink);
     font-size: 14px;
     font-weight: 650;
     line-height: 1.5;
   }
 
-  .board-card-text {
-    margin: 0;
+  .board-question-text {
     color: var(--dpk-ink-soft);
     font-size: 13px;
     line-height: 1.65;
@@ -1003,11 +944,10 @@ export const taskBoardStyles = css`
   }
 
   .board-output {
-    display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
     gap: 8px;
     padding: 6px 6px 6px 10px;
+    border-radius: 0;
     border-top: 1px solid var(--dpk-rule);
   }
 
@@ -1251,7 +1191,7 @@ export const taskBoardStyles = css`
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .board-status[data-status='working'] .board-status-dot {
+    .board-status[data-status='working']::before {
       animation: none;
     }
 

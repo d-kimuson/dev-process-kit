@@ -5,6 +5,7 @@ import type { DraftAction } from '../../core/types';
 import type { DpkTemplateTaskBoard } from './element';
 
 import '../../index';
+import { type DpkSelect } from '../../components/select/element';
 import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import { addTodo, answerQuestion, decideProposal, deleteTodo, setTodoStatus } from './actions';
 import { applyTaskBoardAction } from './apply';
@@ -30,12 +31,12 @@ const base = {
   updatedAt: '2026-09-25 14:10',
   members: [
     { id: 'agent', name: 'Claude' },
-    { id: 'kaito', name: 'Kaito', kind: 'human' },
+    { id: 'd-kimuson', name: 'd-kimuson', kind: 'human' },
   ],
   todos: [
     { id: 'design', title: '方式を決める', status: 'done', assignee: 'agent' },
     { id: 'impl', title: '実装する', status: 'doing', assignee: 'agent', note: '残り: テスト' },
-    { id: 'review', title: 'レビューする', assignee: 'kaito' },
+    { id: 'review', title: 'レビューする', assignee: 'd-kimuson' },
     { id: 'deploy', title: 'デプロイする', status: 'blocked' },
     { id: 'index', title: 'created_at に index を張る', proposed: true, reason: '並べ替えが遅い' },
   ],
@@ -50,7 +51,7 @@ const base = {
     nonGoals: ['検索条件の追加'],
   },
   log: [
-    { id: 'l1', from: 'kaito', at: '12:50', body: '一覧が遅いので直してほしい' },
+    { id: 'l1', from: 'd-kimuson', at: '12:50', body: '一覧が遅いので直してほしい' },
     { id: 'l2', title: '方式を比較した', at: '13:00', points: ['offset は遅い'] },
     { id: 'l3', from: 'agent', title: 'cursor で実装を始めた', at: '14:00', body: '既存 API は互換を保つ。' },
   ],
@@ -81,7 +82,7 @@ describe('task board base data', () => {
       id: 'review',
       title: 'レビューする',
       status: 'todo',
-      assignee: 'kaito',
+      assignee: 'd-kimuson',
       note: null,
       proposed: false,
       reason: null,
@@ -110,7 +111,7 @@ describe('task board base data', () => {
     });
     expect(state.log[0]).toEqual({
       id: 'l1',
-      from: 'kaito',
+      from: 'd-kimuson',
       at: '12:50',
       title: null,
       body: '一覧が遅いので直してほしい',
@@ -277,7 +278,7 @@ describe('task board presentation', () => {
     const vm = presentTodos(m, state, state, none);
     expect(vm.todos.map((todo) => [todo.id, todo.editable, todo.assigneeName])).toEqual([
       ['impl', false, 'Claude'],
-      ['review', true, 'Kaito'],
+      ['review', true, 'd-kimuson'],
       ['deploy', false, null],
       ['index', false, null],
     ]);
@@ -342,7 +343,7 @@ describe('task board presentation', () => {
     expect(log.entries.map((entry) => [entry.id, entry.latest, entry.author?.name, entry.author?.kind])).toEqual([
       ['l3', true, 'Claude', 'agent'],
       ['l2', false, undefined, undefined],
-      ['l1', false, 'Kaito', 'human'],
+      ['l1', false, 'd-kimuson', 'human'],
     ]);
     // Without a title the body names the entry, cut short.
     expect(log.entries.map((entry) => entry.label)).toEqual([
@@ -374,11 +375,11 @@ describe('task board presentation', () => {
     expect(
       describeTaskBoardAction(m, action(answerQuestion('legacy', { kind: 'answer', text: '消す' })), state, state),
     ).toMatchObject({ title: 'Answer', summary: '→ “消す”' });
-    expect(describeTaskBoardAction(m, action(addTodo('docs', 'Docs', 'kaito')), state, state)).toMatchObject({
+    expect(describeTaskBoardAction(m, action(addTodo('docs', 'Docs', 'd-kimuson')), state, state)).toMatchObject({
       title: 'Add a todo',
       targetLabel: 'Todo · Docs',
       tone: 'create',
-      summary: 'Assignee: Kaito',
+      summary: 'Assignee: d-kimuson',
     });
     expect(describeTaskBoardAction(m, action(decideProposal('index', 'accept')), state, state)).toMatchObject({
       title: 'Accept the proposal',
@@ -462,9 +463,32 @@ const query = <T extends Element>(element: DpkTemplateTaskBoard, selector: strin
   return found;
 };
 
-const choose = (select: HTMLSelectElement, value: string): void => {
-  select.value = value;
-  select.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+const settleSelect = async (select: DpkSelect): Promise<void> => {
+  for (let i = 0; i < 3; i += 1) {
+    await select.updateComplete;
+    await Promise.resolve();
+  }
+};
+
+/** Opens the `.board-add-assignee` `dpk-select` (its own shadow root, separate from the board's) and picks `value`. */
+const chooseAssignee = async (element: DpkTemplateTaskBoard, value: string): Promise<void> => {
+  const select = query<DpkSelect>(element, '.board-add-assignee');
+  const trigger = select.renderRoot.querySelector<HTMLButtonElement>('.dpk-rich-select');
+  if (!trigger) throw new Error('no assignee trigger');
+  trigger.click();
+  await settleSelect(select);
+  const option = select.renderRoot.querySelector<HTMLElement>(`[role="option"][data-value="${value}"]`);
+  if (!option) throw new Error(`no assignee option ${value}`);
+  option.click();
+  await settleSelect(select);
+};
+
+/** Opens the `.board-todo-status` rich select within the element matching `rowSelector` and picks `value`. */
+const chooseRich = async (element: DpkTemplateTaskBoard, rowSelector: string, value: string): Promise<void> => {
+  query<HTMLButtonElement>(element, `${rowSelector} .board-todo-status`).click();
+  await settle(element);
+  query<HTMLElement>(element, `${rowSelector} [role="option"][data-value="${value}"]`).click();
+  await settle(element);
 };
 
 const type = (area: HTMLTextAreaElement, value: string): void => {
@@ -517,7 +541,7 @@ describe('<dpk-template-task-board>', () => {
     const entries = [...(element.shadowRoot?.querySelectorAll('#board-panel-log .board-log-entry') ?? [])];
     expect(entries.map((entry) => entry.getAttribute('data-log'))).toEqual(['l3', 'l2', 'l1']);
     expect(entries.map((entry) => entry.getAttribute('data-from'))).toEqual(['agent', 'agent', 'human']);
-    expect(entries[2]?.querySelector('.board-log-author')?.textContent).toContain('Kaito');
+    expect(entries[2]?.querySelector('.board-log-author')?.textContent).toContain('d-kimuson');
     const latest = entries[0];
     expect(latest?.getAttribute('data-latest')).toBe('true');
     expect(latest?.querySelector('.board-status')?.getAttribute('data-status')).toBe('waiting');
@@ -671,13 +695,11 @@ describe('<dpk-template-task-board>', () => {
     expect(query(element, '[data-todo="impl"] .board-todo-state').textContent?.trim()).toBe('In progress');
     expect(query(element, '[data-todo="impl"] .board-assignee').textContent?.trim()).toBe('Claude');
     expect(query(element, '[data-todo="review"] .board-assignee').getAttribute('data-kind')).toBe('human');
-    choose(query(element, '[data-todo="review"] .board-todo-status'), 'doing');
-    await settle(element);
+    await chooseRich(element, '[data-todo="review"]', 'doing');
     expect(element.api.actions.map((entry) => entry.type)).toEqual(['SET_TODO_STATUS']);
     expect(query(element, '[data-todo="review"]').getAttribute('data-changed')).toBe('true');
     // Setting it back leaves nothing to hand back.
-    choose(query(element, '[data-todo="review"] .board-todo-status'), 'todo');
-    await settle(element);
+    await chooseRich(element, '[data-todo="review"]', 'todo');
     expect(element.api.actions).toEqual([]);
   });
 
@@ -692,8 +714,7 @@ describe('<dpk-template-task-board>', () => {
     const open = query(element, '[data-section="todos"] > .board-todos');
     expect(folded.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // A todo the reader just finished stays where it was.
-    choose(query(element, '[data-todo="review"] .board-todo-status'), 'done');
-    await settle(element);
+    await chooseRich(element, '[data-todo="review"]', 'done');
     expect(query(element, '[data-todo="review"]').closest('details')).toBeNull();
   });
 
@@ -718,11 +739,11 @@ describe('<dpk-template-task-board>', () => {
     await settle(element);
     const form = query<HTMLFormElement>(element, '.board-add-todo');
     query<HTMLInputElement>(element, '.board-add-title').value = '  Write docs ';
-    choose(query(element, '.board-add-assignee'), 'kaito');
+    await chooseAssignee(element, 'd-kimuson');
     form.requestSubmit();
     await settle(element);
     expect(element.api.actions.map((entry) => entry.payload)).toEqual([
-      { id: 'write-docs', title: 'Write docs', assignee: 'kaito' },
+      { id: 'write-docs', title: 'Write docs', assignee: 'd-kimuson' },
     ]);
     expect(query<HTMLInputElement>(element, '.board-add-title').value).toBe('');
     expect(query(element, '[data-todo="write-docs"]').getAttribute('data-added')).toBe('true');

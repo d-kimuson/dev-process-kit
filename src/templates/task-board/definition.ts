@@ -46,6 +46,8 @@ export const taskBoardDefinitionFor = (locale: Locale): TemplateDefinition<TaskB
   return {
     name: 'task-board',
     label: 'Task Context Board',
+    // Holds the agent's own work breakdown; empty, there is nothing for a reader to add to.
+    addable: false,
     parseBase: parseTaskBoardBase,
     emptyBase: emptyTaskBoardBase,
     actions: taskBoardActions,

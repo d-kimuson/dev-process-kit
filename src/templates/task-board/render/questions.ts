@@ -51,16 +51,16 @@ const renderQuestion = (m: TaskBoardMessages, question: QuestionViewModel, handl
   const hasAssumption = question.assumption !== null;
   return html`
     <li
-      class="board-card board-question"
+      class="dpk-card board-question"
       data-question=${question.id}
       data-dpk-target=${`question:${question.id}`}
       data-blocking=${String(question.blocking)}
       data-reply=${question.reply}
       data-resolved=${String(question.resolved)}
     >
-      <div class="board-card-head">
+      <div class="dpk-card-head board-question-head">
         <span class="board-ref">${question.ref}</span>
-        <h4 class="board-card-title">${question.title}</h4>
+        <h4 class="dpk-card-title board-question-title">${question.title}</h4>
         ${
           question.resolved
             ? html`<span class="board-tag" data-tone="done">
@@ -70,7 +70,7 @@ const renderQuestion = (m: TaskBoardMessages, question: QuestionViewModel, handl
         }
         ${commentButton(`question:${question.id}`, m.commentOn(question.ref), question.comments, handlers)}
       </div>
-      ${question.description === null ? nothing : html`<p class="board-card-text">${question.description}</p>`}
+      ${question.description === null ? nothing : html`<p class="board-question-text">${question.description}</p>`}
       ${hasAssumption ? renderAssumption(m, question, handlers) : nothing}
       <textarea
         class="dpk-textarea board-answer"
