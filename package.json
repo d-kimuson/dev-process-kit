@@ -28,13 +28,10 @@
     "./components": "./dist/components.js",
     "./templates/prototype": "./dist/templates/prototype.js",
     "./templates/usm": "./dist/templates/usm.js",
-    "./templates/event-storming": "./dist/templates/event-storming.js",
-    "./templates/example-mapping": "./dist/templates/example-mapping.js",
     "./templates/plain": "./dist/templates/plain.js",
     "./templates/slides": "./dist/templates/slides.js",
     "./templates/task-board": "./dist/templates/task-board.js",
-    "./templates/delegation-poker": "./dist/templates/delegation-poker.js",
-    "./templates/whiteboard": "./dist/templates/whiteboard.js"
+    "./templates/delegation-poker": "./dist/templates/delegation-poker.js"
   },
   "scripts": {
     "dev": "run-p 'dev:*'",

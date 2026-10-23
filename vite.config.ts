@@ -17,13 +17,10 @@ const ENTRIES = {
   components: 'src/entries/components.ts',
   'templates/prototype': 'src/entries/prototype.ts',
   'templates/usm': 'src/entries/usm.ts',
-  'templates/event-storming': 'src/entries/event-storming.ts',
-  'templates/example-mapping': 'src/entries/example-mapping.ts',
   'templates/plain': 'src/entries/plain.ts',
   'templates/slides': 'src/entries/slides.ts',
   'templates/task-board': 'src/entries/task-board.ts',
   'templates/delegation-poker': 'src/entries/delegation-poker.ts',
-  'templates/whiteboard': 'src/entries/whiteboard.ts',
 } as const satisfies Record<string, string>;
 
 // `exports` in package.json is the same list seen from a bundler; keep the two from drifting.
