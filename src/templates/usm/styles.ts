@@ -49,6 +49,18 @@ export const usmStyles = css`
   .row-lead {
     --usm-row-indent: calc(var(--dpk-matrix-grip-span, 20px) + 4px);
   }
+  /* \`<dpk-matrix>\`'s own grip bleed (\`margin-inline-start: -grip-span\` plus a
+     matching \`padding-inline-start\`) lands on this box, the slot's direct
+     child — but this box's own left padding above (4px, for the ungripped
+     case) is a physical property on the same side, so it wins the cascade
+     over the matrix's logical one and leaves the title undercompensated,
+     pulled in under the grip instead of past it. Matching the matrix's own
+     target value here, rather than fighting over which side wins, keeps the
+     title's start exactly where the grip's own gap ends (the same inset a
+     column head's flat, ungrouped slot node gets for free). */
+  .row-lead[draggable='true'] {
+    padding-inline-start: var(--dpk-matrix-grip-span, 20px);
+  }
   .row-meta {
     display: flex;
     flex-wrap: wrap;
