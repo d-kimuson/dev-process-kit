@@ -6,11 +6,11 @@
  * focus, not on every page view — and a page that cannot reach it still shows
  * the running version.
  */
-import { html, type ReactiveController, type ReactiveControllerHost, type TemplateResult } from 'lit';
+import { html, type LitElement, type ReactiveController, type ReactiveControllerHost, type TemplateResult } from 'lit';
 
-import { onSelectChange } from '../../lib/dom/events';
 import { type Locale } from '../i18n';
 import { coreMessages } from '../messages';
+import { SelectController } from '../select/controller';
 import { FRAMEWORK_VERSION } from '../version';
 import { fetchPublishedVersions, switchPageTo, type FetchVersions } from '../version-loader';
 import { presentVersionSelect, requestedVersion, type PublishedVersions } from '../version-switch';
@@ -24,13 +24,15 @@ export class VersionChoiceController implements ReactiveController {
   readonly #host: ReactiveControllerHost;
   readonly #fetchVersions: FetchVersions;
   readonly #switchTo: (version: string | null) => void;
+  readonly #select: SelectController;
   #published: PublishedVersions | null = null;
   #loading = false;
 
-  constructor(host: ReactiveControllerHost, options: VersionChoiceOptions = {}) {
+  constructor(host: ReactiveControllerHost & LitElement, options: VersionChoiceOptions = {}) {
     this.#host = host;
     this.#fetchVersions = options.fetchVersions ?? fetchPublishedVersions;
     this.#switchTo = options.switchTo ?? switchPageTo;
+    this.#select = new SelectController(host);
     host.addController(this);
   }
 
@@ -62,25 +64,19 @@ export class VersionChoiceController implements ReactiveController {
     const messages = coreMessages(locale);
     const model = presentVersionSelect({
       current: FRAMEWORK_VERSION,
-      requested: requestedVersion(location.search) !== null,
+      requested: requestedVersion(globalThis.location?.search ?? '') !== null,
       published: this.#published,
       text: { pinned: messages.versionPinned, latest: messages.versionLatest },
     });
-    const load = (): void => this.load();
     return html`<span class="dpk-version"
-      >dev-process-kit@<select
-        class="dpk-version-select"
-        aria-label=${messages.versionLabel}
-        title=${messages.versionLabel}
-        @pointerenter=${load}
-        @focus=${load}
-        @change=${onSelectChange((value) => this.pick(value))}
-      >
-        ${model.options.map(
-          (option) =>
-            html`<option value=${option.value} ?selected=${option.value === model.value}>${option.label}</option>`,
-        )}
-      </select></span
+      >dev-process-kit@${this.#select.render({
+        options: model.options,
+        value: model.value,
+        onChange: (value) => this.pick(value),
+        ariaLabel: messages.versionLabel,
+        className: 'dpk-version-select',
+        onActivate: () => this.load(),
+      })}</span
     >`;
   }
 }

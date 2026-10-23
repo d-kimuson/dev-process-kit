@@ -15,6 +15,7 @@ const STORAGE_KEY = 'dev-process-kit:locale';
 export class LocaleChoiceController implements ReactiveController {
   readonly #host: ReactiveControllerHost & HTMLElement;
   readonly #persist: () => boolean;
+  readonly #active: () => boolean;
   readonly #onChange: () => void;
   #store: JsonStore<Locale> | null = null;
   #preference: Locale | null = null;
@@ -23,12 +24,24 @@ export class LocaleChoiceController implements ReactiveController {
   #resolved: Locale | undefined;
 
   /**
-   * `persist` is read on first connect, like the color scheme's. `onChange`
-   * runs whenever the resolved locale changes, before the host re-renders.
+   * `persist` is read on first connect, like the color scheme's. `active` is
+   * `false` for a board: its locale is resolved through the page host instead
+   * (`TemplateElement#locale`), so this controller must stay inert — never
+   * read or write the shared storage key, never stamp its own `lang`, never
+   * dispatch `dpk-locale-change` — or it races the page's own controller for
+   * the same key and can clobber a reader's real pick (see the regression
+   * this guards against). `onChange` runs whenever the resolved locale
+   * changes, before the host re-renders.
    */
-  constructor(host: ReactiveControllerHost & HTMLElement, persist: () => boolean, onChange: () => void) {
+  constructor(
+    host: ReactiveControllerHost & HTMLElement,
+    persist: () => boolean,
+    active: () => boolean,
+    onChange: () => void,
+  ) {
     this.#host = host;
     this.#persist = persist;
+    this.#active = active;
     this.#onChange = onChange;
     host.addController(this);
   }
@@ -50,6 +63,7 @@ export class LocaleChoiceController implements ReactiveController {
   }
 
   hostConnected(): void {
+    if (!this.#active()) return;
     if (this.#store === null) {
       this.#store = this.#persist() ? defaultJsonStore(parseLocale) : memoryJsonStore(parseLocale);
       this.#preference = this.#store.read(STORAGE_KEY);
@@ -59,6 +73,7 @@ export class LocaleChoiceController implements ReactiveController {
   }
 
   pick(locale: Locale): void {
+    if (!this.#active()) return;
     this.#preference = pickedPreference(locale, this.authored);
     if (this.#preference === null) this.#store?.remove(STORAGE_KEY);
     else this.#store?.write(STORAGE_KEY, this.#preference);

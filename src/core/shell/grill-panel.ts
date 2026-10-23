@@ -7,6 +7,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { CoreMessages } from '../messages';
+import type { SelectController } from '../select/controller';
 
 import {
   answerCounts,
@@ -200,6 +201,7 @@ export const renderGrillPanel = (
   vm: GrillPanelViewModel,
   intents: GrillPanelIntents,
   footer: TemplateResult | typeof nothing,
+  roundSelect: SelectController,
 ): TemplateResult => html`
   <div class="dpk-grill">
     <header class="dpk-grill-head">
@@ -210,19 +212,13 @@ export const renderGrillPanel = (
       vm.rounds.length === 0
         ? nothing
         : html`<div class="dpk-grill-rounds">
-            <select
-              class="dpk-grill-round"
-              aria-label=${m.grillRoundSelect}
-              @change=${(event: Event) => {
-                const select = event.currentTarget;
-                if (!(select instanceof HTMLSelectElement)) return;
-                intents.pickRound(select.value === 'current' ? 'current' : Number(select.value));
-              }}
-            >
-              ${vm.rounds.map(
-                (choice) => html`<option value=${choice.value} ?selected=${choice.selected}>${choice.label}</option>`,
-              )}
-            </select>
+            ${roundSelect.render({
+              options: vm.rounds,
+              value: vm.rounds.find((choice) => choice.selected)?.value ?? 'current',
+              onChange: (value) => intents.pickRound(value === 'current' ? 'current' : Number(value)),
+              ariaLabel: m.grillRoundSelect,
+              className: 'dpk-grill-round',
+            })}
           </div>`
     }
     <div class="dpk-grill-list">
