@@ -169,6 +169,11 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
     const { width, height } = size();
     view = constrainView(view, area, width, height, align);
     world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
+    // Exposed as a custom property (inherited through shadow boundaries and
+    // slots, same as any other inherited CSS value) so content drawn inside
+    // the world — e.g. a diagram's group labels — can counter-scale itself
+    // and stay legible at a small `view.scale` without a Lit re-render.
+    world.style.setProperty('--dpk-zoom-scale', String(view.scale));
     onView?.(view);
   };
 

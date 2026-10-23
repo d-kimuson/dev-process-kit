@@ -597,6 +597,7 @@ export const layeredLayout = (
   edges: readonly LayoutEdgeSpec[],
   options: LayoutOptions = {},
 ): LayoutResult => {
+  if (nodes.some((node) => node.superGroup !== undefined)) return compoundLayout(nodes, edges, options);
   const config: Config = { ...DEFAULTS, ...options };
   if (nodes.length === 0) return { width: 0, height: 0, nodes: [], routes: [] };
   const ids = new Set(nodes.map((node) => node.id));
@@ -630,6 +631,334 @@ export const layeredLayout = (
     routeEdges(usable, reversed, { byId, layerSpacing: config.layerSpacing, padding: config.padding }),
     config.padding,
   );
+};
+
+type Box = { readonly id: string; readonly width: number; readonly height: number };
+
+/**
+ * A box's position purely from the crossing-minimising order the plain pipeline
+ * already computes (rank by longest path, then median ordering) — the ranks and
+ * in-rank order flattened into one sequence. Used to decide what order boxes
+ * (aggregates, Bounded Contexts) go into `shelfPack`'s rows, not to place them:
+ * two boxes that exchange many edges end up near each other in the sequence,
+ * and an upstream box (little or nothing referencing it) sorts first.
+ */
+const sequenceByLayeredOrder = (
+  boxes: readonly Box[],
+  edges: readonly LayoutEdgeSpec[],
+  sweeps: number,
+): readonly string[] => {
+  if (boxes.length <= 1) return boxes.map((box) => box.id);
+  const specs: LayoutNodeSpec[] = boxes.map((box) => ({ id: box.id, width: box.width, height: box.height }));
+  const ids = new Set(specs.map((spec) => spec.id));
+  const usable = edges.filter((edge) => ids.has(edge.from) && ids.has(edge.to) && edge.from !== edge.to);
+  const { forward } = breakCycles(specs, usable);
+  const layerOf = rankNodes(specs, forward);
+  const layers = layerMapOf(specs, layerOf);
+  orderLayers(layers, neighbourIndex(specs, usable), layerOf, sweeps);
+  const ranks = [...layers.keys()].sort((a, b) => a - b);
+  return ranks.flatMap((rank) => layers.get(rank) ?? []);
+};
+
+type Packed = {
+  readonly positions: ReadonlyMap<string, LayoutPoint>;
+  readonly width: number;
+  readonly height: number;
+};
+
+/** The on-screen width of a contiguous run `list[from, to)`, laid out left to right with `spacing` between members. */
+const rowWidth = (list: readonly Box[], from: number, to: number, spacing: number): number => {
+  let sum = 0;
+  for (let i = from; i < to; i++) sum += list[i]!.width;
+  return sum + spacing * Math.max(0, to - from - 1);
+};
+
+/**
+ * Splits `list`, in order, into exactly `rowCount` contiguous rows, minimizing
+ * the widest row — the classic "split an array into k parts, minimize the
+ * largest part" problem, by DP over (prefix length, row count). A simple
+ * running-width-budget greedy (the first version of this function) breaks a
+ * row as soon as the next box would cross a shared budget; with only a few,
+ * unevenly sized boxes — which a handful of Bounded Contexts, or a handful of
+ * aggregates, routinely are — that stops after just the first box far more
+ * often than it should, stranding one box alone in a row with everything else
+ * crammed into the rest: a wide empty gap beside the lone box, not balanced
+ * rows. Minimizing the widest row directly avoids that: no row is left far
+ * narrower than the others unless the sizes themselves force it.
+ */
+const packForRowCount = (list: readonly Box[], spacing: number, rowCount: number): Packed => {
+  const n = list.length;
+  const k = Math.max(1, Math.min(rowCount, n));
+  const INF = Number.POSITIVE_INFINITY;
+  // dp[i][j]: the smallest possible widest-row, splitting list[0, i) into j rows.
+  const dp: number[][] = Array.from({ length: n + 1 }, () => Array.from({ length: k + 1 }, () => INF));
+  const splitAt: number[][] = Array.from({ length: n + 1 }, () => Array.from({ length: k + 1 }, () => 0));
+  dp[0]![0] = 0;
+  for (let j = 1; j <= k; j++) {
+    for (let i = j; i <= n; i++) {
+      for (let p = j - 1; p < i; p++) {
+        const previous = dp[p]![j - 1]!;
+        if (previous === INF) continue;
+        const candidate = Math.max(previous, rowWidth(list, p, i, spacing));
+        if (candidate < dp[i]![j]!) {
+          dp[i]![j] = candidate;
+          splitAt[i]![j] = p;
+        }
+      }
+    }
+  }
+  const rows: Box[][] = [];
+  let i = n;
+  for (let j = k; j > 0; j--) {
+    const p = splitAt[i]![j]!;
+    rows.unshift(list.slice(p, i));
+    i = p;
+  }
+  const positions = new Map<string, LayoutPoint>();
+  let y = 0;
+  let maxWidth = 0;
+  for (const row of rows) {
+    let x = 0;
+    const rowHeight = Math.max(...row.map((box) => box.height));
+    for (const box of row) {
+      positions.set(box.id, { x, y });
+      x += box.width + spacing;
+    }
+    maxWidth = Math.max(maxWidth, x - spacing);
+    y += rowHeight + spacing;
+  }
+  return { positions, width: maxWidth, height: Math.max(0, y - spacing) };
+};
+
+/**
+ * Wraps boxes, in the given order, into rows — a shelf packer — instead of one
+ * strip. A single guessed row width (from the total area) packs badly once
+ * boxes are an uneven mix of shapes — the boxes this layout hands it always
+ * are, an aggregate's own sub-layout being wide where it chains tables left to
+ * right and narrow where it stacks disconnected ones — so instead this tries
+ * every row count from one up to one row per box, and keeps whichever result
+ * lands closest to `targetAspect` (width:height). This is step 2 and step 3 of
+ * the Bounded Context layout: an aggregate's boxes (and loose tables) wrapped
+ * into a roughly square Bounded Context, and Bounded Context boxes wrapped
+ * toward the viewport's own aspect ratio.
+ */
+const shelfPack = (
+  order: readonly string[],
+  sizeOf: ReadonlyMap<string, { readonly width: number; readonly height: number }>,
+  spacing: number,
+  targetAspect: number,
+): Packed => {
+  const list = order.flatMap((id) => {
+    const size = sizeOf.get(id);
+    return size === undefined ? [] : [{ id, width: size.width, height: size.height }];
+  });
+  if (list.length === 0) return { positions: new Map(), width: 0, height: 0 };
+  let best: Packed = packForRowCount(list, spacing, 1);
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (let rowCount = 1; rowCount <= list.length; rowCount++) {
+    const packed = packForRowCount(list, spacing, rowCount);
+    if (packed.width <= 0 || packed.height <= 0) continue;
+    const score = Math.abs(Math.log(packed.width / packed.height / targetAspect));
+    if (score < bestScore) {
+      bestScore = score;
+      best = packed;
+    }
+  }
+  return best;
+};
+
+// A little over square, not exactly 1: a handful of Bounded Context boxes
+// (often as few as three or four) can only combine into a wide *overall*
+// bounding box through a grid-like arrangement (two columns of two rows,
+// three of one, ...), and a grid built from boxes of aspect `a` comes out at
+// close to that same aspect `a` itself — rows and columns of it roughly
+// cancel. A box of exactly 1 (perfectly square) built that way gives an
+// overall shape close to 1 too, which satisfies "roughly square, not a
+// strip" for the single Bounded Context but leaves nothing for the *outer*
+// pack (step 3) to work with: there is no integer row count between "all in
+// one row" (too wide) and "two rows" (tipped back under 1 by the boxes' own
+// portrait-ish table cards) for a small handful of them. A little over
+// square avoids a strip just as well while giving step 3 the margin it needs.
+const BC_INTERIOR_ASPECT = 1.3;
+// A little under the ~16:10 viewport itself: `shelfPack` only ever tries whole
+// row counts, so its closest result to a given target routinely overshoots it
+// a bit — aiming a bit squarer leaves room for that and still reads as wide.
+const BC_PACK_ASPECT = 1.45;
+
+/**
+ * A compound, bottom-up layout for `group`/`superGroup` data, replacing a
+ * single global rank axis (which collapses a Bounded Context's mostly-same-rank
+ * tables into one tall column) with three nested packing passes:
+ *
+ * 1. Each `group` (aggregate) is laid out on its own, with the plain pipeline,
+ *    from only the edges between its own members — that sizes its box.
+ * 2. Inside each `superGroup` (Bounded Context), those aggregate boxes and any
+ *    loose tables are ordered by the edges between them (`sequenceByLayeredOrder`)
+ *    and wrapped into rows (`shelfPack`, aiming for a square box) — that sizes
+ *    the Bounded Context's box.
+ * 3. The Bounded Context boxes are, the same way, ordered by the edges between
+ *    them and wrapped into rows aiming for the viewport's own aspect ratio.
+ *
+ * Every node keeps the exact relative arrangement its own aggregate's
+ * sub-layout gave it; only whole aggregate and Bounded Context boxes move
+ * between the three passes, so a box drawn around one of them (`view.ts`'s
+ * `aggregateGroups`/`boundedContextGroups`) never overlaps another's.
+ */
+export const compoundLayout = (
+  nodes: readonly LayoutNodeSpec[],
+  edges: readonly LayoutEdgeSpec[],
+  options: LayoutOptions = {},
+): LayoutResult => {
+  const config: Config = { ...DEFAULTS, ...options };
+  if (nodes.length === 0) return { width: 0, height: 0, nodes: [], routes: [] };
+  const ids = new Set(nodes.map((node) => node.id));
+  const usable = edges.filter((edge) => ids.has(edge.from) && ids.has(edge.to));
+
+  const groupKeyOf = (node: LayoutNodeSpec): string => node.group ?? `__loose:${node.id}`;
+  const superKeyOf = (node: LayoutNodeSpec): string => node.superGroup ?? `__top:${node.id}`;
+  const nodeToGroup = new Map(nodes.map((node) => [node.id, groupKeyOf(node)]));
+  const nodeToSuper = new Map(nodes.map((node) => [node.id, superKeyOf(node)]));
+
+  const byGroup = new Map<string, LayoutNodeSpec[]>();
+  for (const node of nodes) {
+    const key = groupKeyOf(node);
+    const bucket = byGroup.get(key);
+    if (bucket) bucket.push(node);
+    else byGroup.set(key, [node]);
+  }
+
+  // Step 1: lay out each aggregate (or lone table) on its own.
+  type GroupLayout = {
+    readonly size: { readonly width: number; readonly height: number };
+    readonly relative: ReadonlyMap<string, LayoutPoint>;
+  };
+  const groupLayouts = new Map<string, GroupLayout>();
+  for (const [key, members] of byGroup) {
+    const only = members[0];
+    if (members.length === 1 && only !== undefined) {
+      groupLayouts.set(key, {
+        size: { width: only.width, height: only.height },
+        relative: new Map([[only.id, { x: 0, y: 0 }]]),
+      });
+      continue;
+    }
+    const memberIds = new Set(members.map((member) => member.id));
+    const intra = usable.filter((edge) => memberIds.has(edge.from) && memberIds.has(edge.to));
+    // An ER table card already reads wide (a header plus a few field rows), so
+    // even a short FK chain laid out strictly left-to-right — full rank columns,
+    // a `layerSpacing` apart — comes out several tables wide and only one tall.
+    // Ordering members by that same rank (`sequenceByLayeredOrder`, upstream
+    // first) but then wrapping them with `shelfPack` keeps the FK direction as
+    // a reading order without that elongation, the same way steps 2 and 3 avoid
+    // it one level up.
+    const boxSizes = new Map(members.map((member) => [member.id, { width: member.width, height: member.height }]));
+    const order = sequenceByLayeredOrder(
+      members.map((member) => ({ id: member.id, width: member.width, height: member.height })),
+      intra,
+      config.sweeps,
+    );
+    const packed = shelfPack(order, boxSizes, config.nodeSpacing, BC_INTERIOR_ASPECT);
+    groupLayouts.set(key, { size: { width: packed.width, height: packed.height }, relative: packed.positions });
+  }
+
+  const superOfGroup = new Map<string, string>();
+  for (const [key, members] of byGroup) {
+    const first = members[0];
+    if (first !== undefined) superOfGroup.set(key, superKeyOf(first));
+  }
+  const byBc = new Map<string, string[]>();
+  for (const [key, superKey] of superOfGroup) {
+    const bucket = byBc.get(superKey);
+    if (bucket) bucket.push(key);
+    else byBc.set(superKey, [key]);
+  }
+
+  // Step 2: inside each Bounded Context, wrap its aggregate boxes (and loose
+  // tables) into rows ordered by the edges between them.
+  type BcLayout = {
+    readonly size: { readonly width: number; readonly height: number };
+    readonly relative: ReadonlyMap<string, LayoutPoint>;
+  };
+  const bcLayouts = new Map<string, BcLayout>();
+  for (const [superKey, groupKeys] of byBc) {
+    const onlyKey = groupKeys[0];
+    if (groupKeys.length === 1 && onlyKey !== undefined) {
+      const group = groupLayouts.get(onlyKey);
+      if (group) bcLayouts.set(superKey, { size: group.size, relative: new Map([[onlyKey, { x: 0, y: 0 }]]) });
+      continue;
+    }
+    const boxSizes = new Map(
+      groupKeys.flatMap((key) => (groupLayouts.has(key) ? [[key, groupLayouts.get(key)!.size] as const] : [])),
+    );
+    const interGroupEdges = usable.flatMap((edge) => {
+      const from = nodeToGroup.get(edge.from);
+      const to = nodeToGroup.get(edge.to);
+      if (from === undefined || to === undefined || from === to) return [];
+      if (!groupKeys.includes(from) || !groupKeys.includes(to)) return [];
+      return [{ id: edge.id, from, to }];
+    });
+    const order = sequenceByLayeredOrder(
+      groupKeys.flatMap((key) => (boxSizes.has(key) ? [{ id: key, ...boxSizes.get(key)! }] : [])),
+      interGroupEdges,
+      config.sweeps,
+    );
+    const packed = shelfPack(order, boxSizes, config.groupSpacing, BC_INTERIOR_ASPECT);
+    bcLayouts.set(superKey, { size: { width: packed.width, height: packed.height }, relative: packed.positions });
+  }
+
+  // Step 3: wrap the Bounded Context boxes into rows aiming for ~16:10.
+  const bcBoxSizes = new Map([...bcLayouts].map(([key, bc]) => [key, bc.size] as const));
+  const bcOffsets = new Map<string, LayoutPoint>();
+  const bcKeys = [...bcLayouts.keys()];
+  if (bcKeys.length <= 1) {
+    for (const key of bcKeys) bcOffsets.set(key, { x: 0, y: 0 });
+  } else {
+    const interBcEdges = usable.flatMap((edge) => {
+      const from = nodeToSuper.get(edge.from);
+      const to = nodeToSuper.get(edge.to);
+      if (from === undefined || to === undefined || from === to) return [];
+      return [{ id: edge.id, from, to }];
+    });
+    const order = sequenceByLayeredOrder(
+      bcKeys.map((key) => ({ id: key, ...bcBoxSizes.get(key)! })),
+      interBcEdges,
+      config.sweeps,
+    );
+    const packed = shelfPack(order, bcBoxSizes, config.superGroupSpacing, BC_PACK_ASPECT);
+    for (const [key, point] of packed.positions) bcOffsets.set(key, point);
+  }
+
+  // Compose: Bounded Context offset + its aggregate box's offset inside it + the
+  // table's own offset inside that aggregate's sub-layout.
+  const absolute = new Map<string, LayoutPoint>();
+  for (const [superKey, groupKeys] of byBc) {
+    const bcOffset = bcOffsets.get(superKey) ?? { x: 0, y: 0 };
+    const bc = bcLayouts.get(superKey);
+    for (const groupKey of groupKeys) {
+      const groupRelative = bc?.relative.get(groupKey) ?? { x: 0, y: 0 };
+      const group = groupLayouts.get(groupKey);
+      if (!group) continue;
+      for (const [nodeId, nodeRelative] of group.relative) {
+        absolute.set(nodeId, {
+          x: bcOffset.x + groupRelative.x + nodeRelative.x,
+          y: bcOffset.y + groupRelative.y + nodeRelative.y,
+        });
+      }
+    }
+  }
+
+  // Routing only needs to tell a forward-looking edge from a backward one; with
+  // boxes placed in a 2D pack rather than along one rank axis, comparing the
+  // ports' own x (routeEdges' same-layer fallback) carries that, so every node
+  // shares one nominal layer and is ordered by nothing more than input order.
+  const reversed = breakCycles(nodes, usable).reversed;
+  const placed: MutableNode[] = nodes.map((node, index) => {
+    const point = absolute.get(node.id) ?? { x: 0, y: 0 };
+    return { spec: node, layer: 0, order: index, x: point.x, y: point.y };
+  });
+  const byId = new Map(placed.map((node) => [node.spec.id, node]));
+  const routes = routeEdges(usable, reversed, { byId, layerSpacing: config.layerSpacing, padding: config.padding });
+  return normalise(placed, routes, config.padding);
 };
 
 /**

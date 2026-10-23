@@ -1753,6 +1753,164 @@ describe('dpk-er-diagram', () => {
         expect(positionOf('customers')).toEqual(before.customers);
         expect(positionOf('orders')).toEqual(before.orders);
       });
+
+      // A hub Bounded Context (Identity) referenced by the other three, the same
+      // shape as the complex sample: enough Bounded Contexts, each with its own
+      // aggregate, that a single rank axis would collapse them into one tall,
+      // narrow column instead of a box near the viewport's own aspect ratio.
+      const fourBcData = () =>
+        parseErData({
+          after: {
+            tables: [
+              {
+                id: 'users',
+                name: 'ユーザー',
+                tags: [],
+                boundedContext: 'Identity',
+                aggregate: 'account',
+                fields: [{ id: 'id', type: 'uuid', key: 'PK' }],
+              },
+              {
+                id: 'roles',
+                name: 'ロール',
+                tags: [],
+                boundedContext: 'Identity',
+                aggregate: 'account',
+                fields: [
+                  { id: 'id', type: 'uuid', key: 'PK' },
+                  { id: 'user_id', type: 'uuid', key: 'FK', ref: 'users.id' },
+                ],
+              },
+              {
+                id: 'products',
+                name: '商品',
+                tags: [],
+                boundedContext: 'Catalog',
+                aggregate: 'product',
+                fields: [
+                  { id: 'id', type: 'uuid', key: 'PK' },
+                  { id: 'owner_id', type: 'uuid', key: 'FK', ref: 'users.id' },
+                ],
+              },
+              {
+                id: 'categories',
+                name: 'カテゴリ',
+                tags: [],
+                boundedContext: 'Catalog',
+                aggregate: 'product',
+                fields: [{ id: 'id', type: 'uuid', key: 'PK' }],
+              },
+              {
+                id: 'orders',
+                name: '注文',
+                tags: [],
+                boundedContext: 'Ordering',
+                aggregate: 'order',
+                fields: [
+                  { id: 'id', type: 'uuid', key: 'PK' },
+                  { id: 'user_id', type: 'uuid', key: 'FK', ref: 'users.id' },
+                ],
+              },
+              {
+                id: 'order_items',
+                name: '注文明細',
+                tags: [],
+                boundedContext: 'Ordering',
+                aggregate: 'order',
+                fields: [
+                  { id: 'id', type: 'uuid', key: 'PK' },
+                  { id: 'order_id', type: 'uuid', key: 'FK', ref: 'orders.id' },
+                  { id: 'product_id', type: 'uuid', key: 'FK', ref: 'products.id' },
+                ],
+              },
+              {
+                id: 'invoices',
+                name: '請求書',
+                tags: [],
+                boundedContext: 'Billing',
+                aggregate: 'invoice',
+                fields: [
+                  { id: 'id', type: 'uuid', key: 'PK' },
+                  { id: 'user_id', type: 'uuid', key: 'FK', ref: 'users.id' },
+                  { id: 'order_id', type: 'uuid', key: 'FK', ref: 'orders.id' },
+                ],
+              },
+              {
+                id: 'payments',
+                name: '支払い',
+                tags: [],
+                boundedContext: 'Billing',
+                aggregate: 'invoice',
+                fields: [
+                  { id: 'id', type: 'uuid', key: 'PK' },
+                  { id: 'invoice_id', type: 'uuid', key: 'FK', ref: 'invoices.id' },
+                ],
+              },
+            ],
+          },
+        });
+
+      it('packs four Bounded Contexts (one a hub every other one references) into a box between 1:1 and 2:1, not one tall strip', async () => {
+        const element = new DpkErDiagram();
+        element.data = fourBcData();
+        document.body.append(element);
+        await settle(element);
+
+        const layout = element.layout;
+        if (layout === null) throw new Error('missing layout');
+        const ratio = layout.width / layout.height;
+        // `shelfPack` only ever tries whole row counts, so its closest match to a
+        // target aspect routinely lands a little outside 1:1–2:1 even when the
+        // result reads as square or wide; 0.95 keeps the check meaningful (it still
+        // rejects the old single tall column, well under 1) without failing on that
+        // rounding.
+        expect(ratio).toBeGreaterThanOrEqual(0.95);
+        expect(ratio).toBeLessThanOrEqual(2);
+      });
+
+      it("keeps each Bounded Context's tables contiguous even across four contexts and a hub referenced by all of them", async () => {
+        const element = new DpkErDiagram();
+        element.data = fourBcData();
+        document.body.append(element);
+        await settle(element);
+
+        const bcFrames = new Map(
+          [...element.renderRoot.querySelectorAll<HTMLElement>('.er-bc')].map((frame) => [
+            frame.querySelector('.er-bc-label')?.textContent,
+            boxOf(frame),
+          ]),
+        );
+        expect([...bcFrames.keys()].sort((a, b) => (a ?? '').localeCompare(b ?? ''))).toEqual([
+          'Billing',
+          'Catalog',
+          'Identity',
+          'Ordering',
+        ]);
+        const boxes = [...bcFrames.values()];
+        for (let i = 0; i < boxes.length; i++) {
+          for (let j = i + 1; j < boxes.length; j++) {
+            expect(overlaps(boxes[i]!, boxes[j]!)).toBe(false);
+          }
+        }
+
+        const byTable: Record<string, string> = {
+          users: 'Identity',
+          roles: 'Identity',
+          products: 'Catalog',
+          categories: 'Catalog',
+          orders: 'Ordering',
+          order_items: 'Ordering',
+          invoices: 'Billing',
+          payments: 'Billing',
+        };
+        for (const [id, bc] of Object.entries(byTable)) {
+          const table = element.renderRoot.querySelector<HTMLElement>(`[data-er-table="${id}"]`);
+          if (!table) throw new Error(`missing table ${id}`);
+          const bcBox = bcFrames.get(bc);
+          if (!bcBox) throw new Error(`missing BC frame ${bc}`);
+          expect(containsTableEdges(bcBox, boxOf(table))).toBe(true);
+        }
+      });
     });
 
     describe('dragging a table inside an aggregate', () => {

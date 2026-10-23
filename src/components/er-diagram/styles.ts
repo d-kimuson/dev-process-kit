@@ -51,6 +51,23 @@ export const erStyles = css`
     font-weight: 600;
     color: var(--dpk-ink-soft);
     white-space: nowrap;
+    /*
+     * At the fit-to-content zoom of a large diagram \`--dpk-zoom-scale\` (set by the
+     * viewport on the world element, see viewport.ts) can be well under 1, which would
+     * shrink this label below reading size along with everything else. Counter-scale it
+     * so its on-screen size never drops under its own 1x authored size; zooming in past
+     * 100% still grows it like any other content (the \`clamp\` floors at 1).
+     *
+     * The upper bound (2.2) is not cosmetic: the label's on-screen size divided by
+     * \`view.scale\` is its effective footprint in *world* space — the space the layout's
+     * fixed padding (\`BC_LABEL_SPACE\` in view.ts) was sized against. Floored-but-uncapped
+     * growth (as zoom keeps shrinking) makes that footprint grow without bound, which is
+     * exactly what let this label grow into the first nested aggregate's label at low
+     * zoom. Capping the scale factor caps the footprint at (natural size × 2.2) for *any*
+     * zoom, which \`BC_LABEL_SPACE\` is sized to clear; see the comment there.
+     */
+    transform-origin: top left;
+    transform: scale(clamp(1, calc(1 / var(--dpk-zoom-scale, 1)), 2.2));
   }
 
   /* ---- Aggregate grouping ---- */
@@ -86,6 +103,9 @@ export const erStyles = css`
     font-weight: 560;
     color: var(--dpk-ink-faint);
     white-space: nowrap;
+    /* Same zoomed-out floor and footprint cap as \`.er-bc-label\` above, one nesting level down. */
+    transform-origin: top left;
+    transform: scale(clamp(1, calc(1 / var(--dpk-zoom-scale, 1)), 2.2));
   }
 
   /* ---- Table card ---- */

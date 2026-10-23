@@ -140,6 +140,14 @@ These changes are not written into the JSON child. They are recorded as element 
 
 ## Layout
 
-Tables are laid out hierarchically: first by Bounded Context (each one a contiguous, framed region), then by aggregate within it (a nested dashed boundary), then by individual table. Bounded Contexts and aggregates are ordered to keep the relations crossing between them few and short; within each group, ranks still follow the FK direction and the layout minimizes edge crossings. The same data always lays out into the same positions (deterministic), and a table dragged out of its computed position keeps that position across a re-layout. Picking a Bounded Context from the filter (see [Reading it](#reading-it)) only dims the rest and refocuses the view — it never moves a table.
+Tables are laid out bottom-up, as nested boxes: Bounded Context (a contiguous, framed region) containing aggregates (a nested dashed boundary) containing tables. Each level is sized and arranged from the level below it, not from a single global rank:
+
+1. Inside each aggregate, its own tables get a layered layout; that fixes the aggregate box's size.
+2. Inside each Bounded Context, its aggregate boxes and any loose (aggregate-less) tables are ordered by the edges that cross between them, then wrapped into rows or a 2D grid so the BC box comes out close to square instead of a tall strip.
+3. The Bounded Context boxes are packed in 2D — ordered by how heavily they reference each other, so the pairs with the most relations end up adjacent — aiming for a wide-ish overall bounding box rather than one long column.
+
+Cross-box edges leave and enter at the box's border rather than cutting across an unrelated table. A table dragged out of its computed position keeps that position across a re-layout (`position` override), and the same data always lays out into the same positions otherwise (deterministic). Picking a Bounded Context from the filter (see [Reading it](#reading-it)) only dims the rest and refocuses the view — it never moves a table.
+
+Bounded Context and aggregate labels are counter-scaled so they stay legible at the zoomed-out fit level a large diagram starts at, with their own reserved clearance so they don't run into a nested label below them.
 
 Table height follows its rows as drawn (a changed row that lists attributes under it is taller, and a long table id wraps), and edges attach to the specific column rows, so a relation lands on the column that carries it.

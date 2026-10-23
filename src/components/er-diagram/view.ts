@@ -240,8 +240,18 @@ export type BoundedContextGroup = {
  * frames nested inside it, not just the tables.
  */
 export const BC_PADDING = 30;
-/** Extra room above the tables, for the Bounded Context's own label. Also used by `element.ts`, like `GROUP_LABEL_SPACE`. */
-export const BC_LABEL_SPACE = 26;
+/**
+ * Extra room above the tables, for the Bounded Context's own label. Also used by `element.ts`,
+ * like `GROUP_LABEL_SPACE`.
+ *
+ * Sized so the BC label clears the first nested aggregate's own label, not just its tables:
+ * `(BC_PADDING + BC_LABEL_SPACE) - (GROUP_PADDING + GROUP_LABEL_SPACE)` is the world-space gap
+ * between the two labels' baselines, and it must be at least as big as the BC label's own
+ * worst-case footprint in that same space. That footprint is bounded (see the `.er-bc-label`
+ * counter-scale cap in styles.ts) at roughly 2.2x its authored on-screen size — comfortably
+ * under the ~32px this gap now reserves.
+ */
+export const BC_LABEL_SPACE = 46;
 
 /** The padded box around a set of already-placed tables, shared by every grouping (aggregate, Bounded Context, …). */
 const paddedBox = (boxes: readonly ErBox[], padding: number, labelSpace: number): ErBox => {
