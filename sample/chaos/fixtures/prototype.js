@@ -502,7 +502,7 @@ const commentFlood = {
   ],
   prepare: (el) => {
     try {
-      const description = el.shadowRoot?.querySelector('dpk-component-inline-edit[multiline]');
+      const description = el.shadowRoot?.querySelector('dpk-inline-edit[multiline]');
       description?.shadowRoot?.querySelector('.view')?.click();
     } catch {
       // Best-effort WIP UI state; a missing selector just leaves the editor closed.

@@ -248,7 +248,7 @@ const wipSelectedAndEditing = {
   },
   prepare: (el) => {
     const card = el.shadowRoot?.querySelector('[data-card="stock"]');
-    const field = card?.shadowRoot?.querySelector('dpk-component-inline-edit');
+    const field = card?.shadowRoot?.querySelector('dpk-inline-edit');
     if (field && typeof field.startEditing === 'function') field.startEditing();
   },
 };

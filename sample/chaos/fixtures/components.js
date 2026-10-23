@@ -13,7 +13,7 @@
 // These fixtures render the `plain` template (it has no action vocabulary of
 // its own) with diagram/inline-edit components embedded in `slots`, exactly
 // as `docs/templates/plain.md` documents: a wrapper `<div slot="main">`
-// holding one or more `dpk-component-*` elements, each with its JSON data as
+// holding one or more `dpk-*` elements, each with its JSON data as
 // a `<script type="application/json">` child. `components.js` must be loaded
 // alongside `templates/plain.js` for the custom elements to be defined.
 //
@@ -21,7 +21,7 @@
 // element — `src/components/diagram/index.ts` only exports shared foundation
 // code consumed by the seven typed diagrams (er/sequence/state/mind-map/
 // kanban/architecture-map/dependency-graph), so there is no bare
-// `dpk-component-diagram` to instantiate. Covered implicitly via those seven.
+// `dpk-diagram` to instantiate. Covered implicitly via those seven.
 
 // ---- small deterministic string builders (no Math.random) --------------
 
@@ -64,12 +64,12 @@ const mainSlot = (inner) => `<div slot="main">${inner}</div>`;
 /** @type {Fixture} */
 const erDiagramLongAndDiffed = {
   description:
-    'dpk-component-er-diagram: before/after diff (added/removed/changed) with extremely long Japanese/mixed-script table, field and tag text.',
+    'dpk-er-diagram: before/after diff (added/removed/changed) with extremely long Japanese/mixed-script table, field and tag text.',
   lang: 'ja',
   base: { title: 'ERD レビュー' },
   slots: mainSlot(
     diagramEl(
-      'dpk-component-er-diagram',
+      'dpk-er-diagram',
       { id: 'order-schema', heading: LONG_ASCII_UNBROKEN, subject: MIXED_CHAOS_TEXT },
       {
         before: {
@@ -138,12 +138,12 @@ const erDiagramLongAndDiffed = {
 /** @type {Fixture} */
 const sequenceDiagramHugeAndNestedFragments = {
   description:
-    'dpk-component-sequence-diagram: 15 participants, a 2-level-deep alt/loop nesting, a self-message, and extremely long titles/guards/details.',
+    'dpk-sequence-diagram: 15 participants, a 2-level-deep alt/loop nesting, a self-message, and extremely long titles/guards/details.',
   lang: 'en',
   base: { title: 'Checkout sequence review' },
   slots: mainSlot(
     diagramEl(
-      'dpk-component-sequence-diagram',
+      'dpk-sequence-diagram',
       { id: 'checkout-seq', heading: 'Checkout', subject: LONG_ASCII_UNBROKEN },
       {
         participants: Array.from({ length: 15 }, (_, i) => ({
@@ -249,12 +249,12 @@ const sequenceDiagramHugeAndNestedFragments = {
 /** @type {Fixture} */
 const stateDiagramDenseTransitions = {
   description:
-    'dpk-component-state-diagram: 12 states (initial/terminal/compensation) and 22 transitions, several exception-kind, with long guard/effect text.',
+    'dpk-state-diagram: 12 states (initial/terminal/compensation) and 22 transitions, several exception-kind, with long guard/effect text.',
   lang: 'en',
   base: { title: 'Order state machine' },
   slots: mainSlot(
     diagramEl(
-      'dpk-component-state-diagram',
+      'dpk-state-diagram',
       { id: 'order-states', heading: 'Order lifecycle' },
       {
         states: [
@@ -307,12 +307,12 @@ const deepChain = (prefix, depth) => {
 /** @type {Fixture} */
 const mindMapDeepAndWide = {
   description:
-    'dpk-component-mind-map: 6 main branches (wide), 5 levels deep (deep), with long JA/mixed-script labels, descriptions and collapsed nodes.',
+    'dpk-mind-map: 6 main branches (wide), 5 levels deep (deep), with long JA/mixed-script labels, descriptions and collapsed nodes.',
   lang: 'ja',
   base: { title: 'マインドマップ レビュー' },
   slots: mainSlot(
     diagramEl(
-      'dpk-component-mind-map',
+      'dpk-mind-map',
       { id: 'product-map', heading: 'プロダクト全体像' },
       {
         root: {
@@ -341,12 +341,12 @@ const mindMapDeepAndWide = {
 /** @type {Fixture} */
 const kanbanManyCardsLongTitles = {
   description:
-    'dpk-component-kanban: 6 columns (one over its WIP limit of 2 with 10 cards), long titles/descriptions/tags/assignee names.',
+    'dpk-kanban: 6 columns (one over its WIP limit of 2 with 10 cards), long titles/descriptions/tags/assignee names.',
   lang: 'en',
   base: { title: 'Sprint board review' },
   slots: mainSlot(
     diagramEl(
-      'dpk-component-kanban',
+      'dpk-kanban',
       { id: 'sprint-board', heading: 'Sprint 42' },
       {
         columns: [
@@ -407,12 +407,12 @@ const kanbanManyCardsLongTitles = {
 /** @type {Fixture} */
 const architectureMapLongAndDense = {
   description:
-    'dpk-component-architecture-map: 3 boundaries (internal/external), 15 services with required positions, artwork, and a dense link mesh.',
+    'dpk-architecture-map: 3 boundaries (internal/external), 15 services with required positions, artwork, and a dense link mesh.',
   lang: 'en',
   base: { title: 'Architecture review' },
   slots: mainSlot(
     diagramEl(
-      'dpk-component-architecture-map',
+      'dpk-architecture-map',
       { id: 'platform-map', heading: 'Platform architecture' },
       {
         boundaries: [
@@ -462,12 +462,12 @@ const architectureMapLongAndDense = {
 /** @type {Fixture} */
 const dependencyGraphCircularAndDense = {
   description:
-    'dpk-component-dependency-graph: 12 modules with an explicit A→B→C→A cycle and parallel multi-edges, long paths/contracts/descriptions.',
+    'dpk-dependency-graph: 12 modules with an explicit A→B→C→A cycle and parallel multi-edges, long paths/contracts/descriptions.',
   lang: 'en',
   base: { title: 'Dependency review' },
   slots: mainSlot(
     diagramEl(
-      'dpk-component-dependency-graph',
+      'dpk-dependency-graph',
       { id: 'module-graph', heading: 'Module dependencies' },
       {
         modules: Array.from({ length: 12 }, (_, i) => ({
@@ -500,12 +500,12 @@ const dependencyGraphCircularAndDense = {
 /** @type {Fixture} */
 const formalSpecRichClaims = {
   description:
-    'dpk-component-formal-spec: 2 targets, 4 terms (cross-referenced via [[id]]), and claims covering all 4 assurance kinds with long clause text.',
+    'dpk-formal-spec: 2 targets, 4 terms (cross-referenced via [[id]]), and claims covering all 4 assurance kinds with long clause text.',
   lang: 'en',
   base: { title: 'Formal spec review' },
   slots: mainSlot(
     diagramEl(
-      'dpk-component-formal-spec',
+      'dpk-formal-spec',
       { id: 'checkout-spec', heading: 'Checkout invariants' },
       {
         targets: [
@@ -579,23 +579,23 @@ const formalSpecRichClaims = {
 /** @type {Fixture} */
 const inlineEditStandaloneLongValue = {
   description:
-    'Standalone dpk-component-inline-edit elements (plain, multiline, markdown, seamless+wrap) in header/sidebar/main, with extremely long values, and one opened for editing via prepare.',
+    'Standalone dpk-inline-edit elements (plain, multiline, markdown, seamless+wrap) in header/sidebar/main, with extremely long values, and one opened for editing via prepare.',
   lang: 'ja',
   base: { title: 'インライン編集コンポーネントの検証' },
   slots: `
     <div slot="header">
-      <dpk-component-inline-edit id="header-edit" class="inline-fixture" value="${escapeAttr(MIXED_CHAOS_TEXT)}" label="見出し" wrap></dpk-component-inline-edit>
+      <dpk-inline-edit id="header-edit" class="inline-fixture" value="${escapeAttr(MIXED_CHAOS_TEXT)}" label="見出し" wrap></dpk-inline-edit>
     </div>
     <div slot="sidebar">
-      <dpk-component-inline-edit id="sidebar-edit" class="inline-fixture" multiline value="${escapeAttr(LONG_JA_NO_SPACES)}" placeholder="サイドバーの説明"></dpk-component-inline-edit>
+      <dpk-inline-edit id="sidebar-edit" class="inline-fixture" multiline value="${escapeAttr(LONG_JA_NO_SPACES)}" placeholder="サイドバーの説明"></dpk-inline-edit>
     </div>
     <div slot="main">
       <p>Seamless, single-line, wrapping value (long URL):</p>
-      <dpk-component-inline-edit id="seamless-edit" class="inline-fixture" seamless wrap value="${escapeAttr(`https://issues.example.com/projects/dpk/issues/1?${repeat('tag=chaos&', 30)}anchor=end`)}"></dpk-component-inline-edit>
+      <dpk-inline-edit id="seamless-edit" class="inline-fixture" seamless wrap value="${escapeAttr(`https://issues.example.com/projects/dpk/issues/1?${repeat('tag=chaos&', 30)}anchor=end`)}"></dpk-inline-edit>
       <p>Markdown-rendered multiline value:</p>
-      <dpk-component-inline-edit id="markdown-edit" class="inline-fixture" multiline markdown label="仕様メモ" value="# ${escapeAttr(LONG_ASCII_UNBROKEN)}\n\n- ${escapeAttr(LONG_JA_NO_SPACES)}\n- ${escapeAttr(repeat('🧵', 50))}"></dpk-component-inline-edit>
+      <dpk-inline-edit id="markdown-edit" class="inline-fixture" multiline markdown label="仕様メモ" value="# ${escapeAttr(LONG_ASCII_UNBROKEN)}\n\n- ${escapeAttr(LONG_JA_NO_SPACES)}\n- ${escapeAttr(repeat('🧵', 50))}"></dpk-inline-edit>
       <p>Empty value, showing the placeholder hint:</p>
-      <dpk-component-inline-edit id="empty-edit" class="inline-fixture" placeholder="まだ何も入力されていません"></dpk-component-inline-edit>
+      <dpk-inline-edit id="empty-edit" class="inline-fixture" placeholder="まだ何も入力されていません"></dpk-inline-edit>
     </div>
   `,
   prepare: (el) => {
@@ -613,7 +613,7 @@ const mixedDiagramsOnePage = {
   slots: mainSlot(
     [
       diagramEl(
-        'dpk-component-kanban',
+        'dpk-kanban',
         { id: 'mixed-board', heading: 'Delivery' },
         {
           columns: [
@@ -631,7 +631,7 @@ const mixedDiagramsOnePage = {
         },
       ),
       diagramEl(
-        'dpk-component-dependency-graph',
+        'dpk-dependency-graph',
         { id: 'mixed-deps', heading: 'Gateway dependencies' },
         {
           modules: [
@@ -646,7 +646,7 @@ const mixedDiagramsOnePage = {
         },
       ),
       diagramEl(
-        'dpk-component-state-diagram',
+        'dpk-state-diagram',
         { id: 'mixed-states', heading: 'Gateway request lifecycle' },
         {
           states: [
@@ -673,20 +673,16 @@ const emptyAndMinimalDiagrams = {
   slots: mainSlot(
     [
       diagramEl(
-        'dpk-component-dependency-graph',
+        'dpk-dependency-graph',
         { id: 'empty-deps', heading: 'Nothing yet' },
         { modules: [], dependencies: [] },
       ),
       diagramEl(
-        'dpk-component-er-diagram',
+        'dpk-er-diagram',
         { id: 'minimal-er' },
         { after: { tables: [{ id: 't1', name: 'T1', fields: [{ id: 'id', type: 'uuid' }] }] } },
       ),
-      diagramEl(
-        'dpk-component-kanban',
-        { id: 'minimal-kanban' },
-        { columns: [{ id: 'only', label: 'Only column', cards: [] }] },
-      ),
+      diagramEl('dpk-kanban', { id: 'minimal-kanban' }, { columns: [{ id: 'only', label: 'Only column', cards: [] }] }),
     ].join(''),
   ),
 };
@@ -701,7 +697,7 @@ const commentsRailOpenDiagrams = {
   slots: mainSlot(
     [
       diagramEl(
-        'dpk-component-kanban',
+        'dpk-kanban',
         { id: 'board1', heading: 'レビュー対象のボード' },
         {
           columns: [
@@ -718,7 +714,7 @@ const commentsRailOpenDiagrams = {
         },
       ),
       diagramEl(
-        'dpk-component-dependency-graph',
+        'dpk-dependency-graph',
         { id: 'deps1', heading: 'モジュール依存関係' },
         {
           modules: [

@@ -32,7 +32,18 @@
 
 import { loadKit } from '../kit.js';
 
-/** Every template this kit ships, in the order `docs/templates/*` lists them. */
+/**
+ * Whiteboard, Event Storming and Example Mapping are diagrams, not templates
+ * (ADR 20261023_diagram-as-board): no `dpk-template-<name>` tag or
+ * `templates/<name>.js` entry exists for them any more — each is its own
+ * board (`<dpk-${name}>`, unhosted here — `board` left unset, the way
+ * `sample/<name>.html` hosts it under `<dpk-page>` with `board`/`variant`
+ * set instead), bundled only in `components.js`. This harness still renders
+ * one per fixture, same as any template, so they stay listed in `TEMPLATES`.
+ */
+const DIAGRAM_BOARDS = new Set(['whiteboard', 'event-storming', 'example-mapping']);
+
+/** Every template (plus every diagram-as-board) this kit ships, in `docs/` order. */
 export const TEMPLATES = [
   'prototype',
   'usm',
@@ -44,6 +55,13 @@ export const TEMPLATES = [
   'delegation-poker',
   'whiteboard',
 ];
+
+/** `dpk-<name>` for a diagram-as-board, `dpk-template-<name>` for an actual template. */
+const tagFor = (template) => (DIAGRAM_BOARDS.has(template) ? `dpk-${template}` : `dpk-template-${template}`);
+
+/** The entries a template needs loaded: its own per-template entry, or none for a diagram-as-board. */
+const entriesFor = (template) =>
+  DIAGRAM_BOARDS.has(template) ? ['components.js'] : [`templates/${template}.js`, 'components.js'];
 
 const app = document.getElementById('app');
 
@@ -170,22 +188,66 @@ const toTargetObject = (target) => {
 };
 
 /**
+ * Wraps a fixture's plain domain target (the vocabulary its own `actions.ts`/`apply.ts` uses,
+ * e.g. `{type:'element', id:'n1'}`) into the component-element-action envelope a diagram-as-board
+ * (ADR 20261023_diagram-as-board) actually accepts through `.api` when unhosted: its own
+ * `TemplateDefinition` (`diagramBoardDefinition`) registers no actions of its own, so every
+ * mutation must read as `{type:'element', id:'<providerId>/<domainType>/<domainId>'}` — the same
+ * shape `ElementChromeBase#dispatchElementAction`/`commentRef` build, and the one its own
+ * `reduce.ts#nativeTargetOf` unwraps back into the plain domain target before replaying it. The
+ * "kind" segment is the domain target's own `type`, verbatim — not a display label like
+ * `commentRef`'s own call sites sometimes use (event storming's notes answer to `element`, never
+ * the human-facing `note`), which is why this reaches into the *target itself* rather than a
+ * per-component lookup table.
+ */
+const elementTarget = (providerId, target) => {
+  const { type, id } = toTargetObject(target);
+  return { type: 'element', id: `${providerId}/${type}/${id}` };
+};
+
+/**
+ * `commentRef`'s own "kind" label mostly matches the domain target type its component's
+ * `actions.ts` uses (whiteboard, example-mapping — verified call-by-call), so a fixture's
+ * `comments` entry (already written in that domain vocabulary, e.g. `item:idea-1`) wraps the
+ * same way a draft target does. Event storming's individual notes are the one exception: its
+ * domain target type is `element` (every note, command, hotspot or actor alike), but
+ * `commentRef('note', …)` gives it the human-facing kind `note` instead — so a fixture comment on
+ * one (`element:customer`) needs that one kind translated to line up with the option
+ * `commentTargets` actually offers, or it would dispatch fine (comments take any target) but never
+ * highlight the note it was meant for.
+ */
+const COMMENT_KIND_OVERRIDES = { 'event-storming': { element: 'note' } };
+
+const commentTarget = (template, providerId, target) => {
+  if (providerId === null) return target;
+  const { type, id } = toTargetObject(target);
+  const kind = COMMENT_KIND_OVERRIDES[template]?.[type] ?? type;
+  return { type: 'element', id: `${providerId}/${kind}/${id}` };
+};
+
+/**
  * Dispatches the fixture's draft one action at a time. `dispatch()` rejects an action whose target
  * is missing, but a real page meets such actions all the time: a draft persisted against an older
  * base. Those are restored the way storage restores them (`importDraft`), so they show up stale.
  * `data-chaos-stale` counts them, so a fixture typo is still visible in the report.
+ *
+ * `providerId` is non-null only for a diagram-as-board (`el.id`, set by `renderFixture`): every
+ * input's target is wrapped through `elementTarget` first, matching what `.api` demands unhosted —
+ * `reduce.ts#nativeTargetOf` reads the domain type back out of its "kind" segment verbatim, so
+ * (unlike `commentTarget`) this never needs event storming's `note` translation.
  */
-const applyDraft = (el, draft) => {
+const applyDraft = (el, draft, providerId) => {
+  const wrap = (target) => elementTarget(providerId, target);
   const rejected = [];
   for (const input of draft) {
-    const outcome = el.api.dispatch(input);
+    const outcome = el.api.dispatch(providerId === null ? input : { ...input, target: wrap(input.target) });
     if (!outcome.ok) rejected.push(input);
   }
   if (rejected.length === 0) return;
   const restored = rejected.map((input, index) => ({
     id: `chaos-stale-${index}`,
     type: input.type,
-    target: toTargetObject(input.target),
+    target: providerId === null ? toTargetObject(input.target) : wrap(input.target),
     payload: input.payload ?? {},
     createdAt: new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString(),
   }));
@@ -204,10 +266,31 @@ const renderFixture = async (template, fixtureName, fixture, overrides) => {
   // template's initial navigation state (read once, on connect) picks it up.
   location.hash = fixture.hash ?? '';
 
-  const el = document.createElement(`dpk-template-${template}`);
+  const tag = tagFor(template);
+  const el = document.createElement(tag);
   el.setAttribute('storage', 'memory');
   el.setAttribute('storage-key', `chaos:${template}:${fixtureName}`);
   if (explicitLang) el.setAttribute('lang', explicitLang);
+
+  // A diagram-as-board (ADR 20261023_diagram-as-board) ignores `storage`/`storage-key`
+  // when unhosted: ElementChromeBase's own board controller falls back to real
+  // `localStorage`, under a key that is unique per template x fixture (it folds in the
+  // URL's query string) but never cleared. Drop any draft a previous capture run left
+  // there, so this fixture starts from its own `base`.
+  //
+  // `ElementChromeBase` also reads its `id` attribute once, in its constructor, to scope its
+  // own comment targets and component element actions (ADR 20260924_component-element-actions):
+  // with none, both are disabled outright. Give it one before it upgrades, and use it as the
+  // provider id `applyDraft`/`commentTarget` wrap every fixture target with below.
+  const providerId = DIAGRAM_BOARDS.has(template) ? template : null;
+  if (providerId !== null) {
+    el.setAttribute('id', providerId);
+    try {
+      localStorage.removeItem(`dev-process-kit:draft:${location.pathname}${location.search}:${tag}`);
+    } catch {
+      /* storage blocked (private mode, cookies off): nothing to clear */
+    }
+  }
 
   for (const [name, value] of Object.entries(fixture.attributes ?? {})) {
     el.setAttribute(name, value);
@@ -225,17 +308,17 @@ const renderFixture = async (template, fixtureName, fixture, overrides) => {
   app.append(el);
 
   try {
-    await loadKit([`templates/${template}.js`, 'components.js']);
+    await loadKit(entriesFor(template));
 
     if (typeof el.api === 'undefined') {
-      throw new Error(`dpk-template-${template} did not upgrade — unknown custom element or load failure`);
+      throw new Error(`${tag} did not upgrade — unknown custom element or load failure`);
     }
     await el.api.ready;
 
-    if (fixture.draft && fixture.draft.length > 0) applyDraft(el, fixture.draft);
+    if (fixture.draft && fixture.draft.length > 0) applyDraft(el, fixture.draft, providerId);
 
     for (const [target, body] of fixture.comments ?? []) {
-      const outcome = el.api.comment(target, body);
+      const outcome = el.api.comment(commentTarget(template, providerId, target), body);
       if (!outcome.ok) {
         console.error('chaos: comment dispatch failed', outcome.issues);
         document.documentElement.dataset.chaosError = JSON.stringify(outcome.issues);
