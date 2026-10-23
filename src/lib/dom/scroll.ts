@@ -37,3 +37,48 @@ export const revealInlineWithin = (container: Element, child: Element, margin = 
     { top: target.left, bottom: target.right },
   );
 };
+
+/** One wheel "line" or "page" step, in pixels, for a `deltaMode` that is not already pixels. */
+const WHEEL_LINE_HEIGHT_PX = 16;
+
+/** `event`'s scroll delta converted to pixels, whatever its `deltaMode`. */
+export const wheelDeltaPixels = (
+  event: Pick<WheelEvent, 'deltaX' | 'deltaY' | 'deltaMode'>,
+  pageSize: number,
+): { readonly dx: number; readonly dy: number } => {
+  const unit = event.deltaMode === 1 ? WHEEL_LINE_HEIGHT_PX : event.deltaMode === 2 ? pageSize : 1;
+  return { dx: event.deltaX * unit, dy: event.deltaY * unit };
+};
+
+/**
+ * Scrolls `element` by `event`'s wheel delta, clamped to its range, and
+ * reports whether it moved.
+ *
+ * Some engines fail to resolve wheel scroll-chaining when a scrollable
+ * element's content reaches it through two nested shadow-root/slot
+ * boundaries (content assigned into one host's slot, that host itself
+ * slotted into another custom element) — the pointer sits over the
+ * scrollable region, but the wheel event never scrolls it. Scrolling
+ * `element` directly from its own `wheel` listener sidesteps that
+ * resolution instead of depending on it, so callers should still attach
+ * this to the element itself (not a distant ancestor).
+ */
+export const scrollByWheel = (
+  element: Pick<
+    HTMLElement,
+    'scrollTop' | 'scrollLeft' | 'scrollHeight' | 'scrollWidth' | 'clientHeight' | 'clientWidth'
+  >,
+  event: Pick<WheelEvent, 'deltaX' | 'deltaY' | 'deltaMode' | 'ctrlKey'>,
+): boolean => {
+  if (event.ctrlKey) return false; // A pinch-to-zoom gesture, not a scroll.
+  const canScrollY = element.scrollHeight > element.clientHeight;
+  const canScrollX = element.scrollWidth > element.clientWidth;
+  if (!canScrollY && !canScrollX) return false;
+  const { dx, dy } = wheelDeltaPixels(event, element.clientHeight);
+  const nextTop = Math.min(Math.max(element.scrollTop + dy, 0), element.scrollHeight - element.clientHeight);
+  const nextLeft = Math.min(Math.max(element.scrollLeft + dx, 0), element.scrollWidth - element.clientWidth);
+  if (nextTop === element.scrollTop && nextLeft === element.scrollLeft) return false;
+  element.scrollTop = nextTop;
+  element.scrollLeft = nextLeft;
+  return true;
+};

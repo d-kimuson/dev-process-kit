@@ -7,7 +7,12 @@ export type JsonChildResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: string };
 
-export const JSON_CHILD_SELECTOR = 'script[type="application/json"]';
+// Mirrors `core/element.ts`'s own `BASE_SELECTOR`: a board (a diagram acting as its own board,
+// ADR 20261023_diagram-as-board) may sit beside a `data-dpk-changes` or `data-dpk-grill` script,
+// exactly as a template does, and neither is this element's own base data. The attribute names are
+// repeated here as literals (`core/changes.ts`'s `CHANGES_ATTRIBUTE`, `core/grill.ts`'s
+// `GRILL_ATTRIBUTE`) since `lib/` keeps no dependency on `core/`.
+export const JSON_CHILD_SELECTOR = 'script[type="application/json"]:not([data-dpk-changes]):not([data-dpk-grill])';
 
 /** `null` when the element has no JSON block at all (yet). */
 export const readJsonChild = <T>(host: Element, parse: (input: unknown) => T): JsonChildResult<T> | null => {
