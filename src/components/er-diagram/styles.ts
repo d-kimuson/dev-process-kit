@@ -22,6 +22,37 @@ export const erStyles = css`
     font-size: 11px;
   }
 
+  /* ---- Bounded Context grouping ---- */
+
+  /*
+   * One padded box per Bounded Context, behind the aggregate frames and everything else: a
+   * wider, solid region framing a whole BC. Unlike \`.er-aggregate\` it is never draggable (plain
+   * backdrop, \`pointer-events: none\`) and \`is-bc-dimmed\` is purely visual — see the filter rule below.
+   */
+  .er-bc {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1.5px solid color-mix(in srgb, var(--dpk-ink-faint) 35%, transparent);
+    border-radius: var(--dpk-radius);
+    background: color-mix(in srgb, var(--dpk-paper-inset) 35%, transparent);
+    pointer-events: none;
+    transition: opacity 160ms ease;
+  }
+
+  .er-bc-label {
+    position: absolute;
+    left: 12px;
+    top: 6px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--dpk-paper-inset);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--dpk-ink-soft);
+    white-space: nowrap;
+  }
+
   /* ---- Aggregate grouping ---- */
 
   /*
@@ -70,6 +101,7 @@ export const erStyles = css`
     box-shadow: var(--dpk-shadow-sm);
     overflow: hidden;
     cursor: default;
+    transition: opacity 160ms ease;
   }
 
   .er-table.has-diff {
@@ -656,6 +688,24 @@ export const erStyles = css`
     border-color: var(--dpk-amber);
   }
 
+  /* ---- Bounded Context filter: dim, don't hide ---- */
+
+  /*
+   * Choosing a Bounded Context in the tag filter never hides the other tables (\`filtered()\` in
+   * element.ts keeps them in \`visible\` on purpose): everything outside it, and every relation
+   * touching one, just dims, so the chosen BC's place in the whole schema still reads while the
+   * view pans/zooms onto it. After \`.is-faded\` so the two combine (an edge the selection also
+   * faded) toward the more dimmed result, not back toward full opacity.
+   */
+  .er-table.is-bc-dimmed,
+  .er-bc.is-bc-dimmed {
+    opacity: 0.3;
+  }
+
+  .er-edge.is-bc-dimmed {
+    opacity: 0.12;
+  }
+
   /* ---- Adding and editing columns ---- */
 
   .er-add {
@@ -873,16 +923,32 @@ export const erStyles = css`
     cursor: pointer;
   }
 
+  /*
+   * The keyboard hint and the delete-relations note each sit on their own full-width line
+   * above the buttons: squeezed into the row beside them, either wraps one character per line.
+   */
   .er-editor-foot {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .er-editor-keys {
+    font-size: 10px;
+    color: var(--dpk-ink-faint);
+  }
+
+  .er-editor-actions {
     display: flex;
     align-items: center;
     gap: 6px;
   }
 
-  .er-editor-keys {
-    margin-right: auto;
-    font-size: 10px;
-    color: var(--dpk-ink-faint);
+  .er-editor-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
   }
 
   .er-editor-foot .dpk-btn {

@@ -10,7 +10,16 @@ import { DpkDialogPanel } from '../dialog-panel/element';
 import { DpkErDiagram } from './element';
 import { defineErDiagram } from './index';
 import { erDiagramMessages } from './messages';
-import { ADD_FIELD, EDIT_FIELD, fanOffset, fieldOffset, parseErData, reduceErActions, tableHeight } from './model';
+import {
+  ADD_FIELD,
+  EDIT_FIELD,
+  fanOffset,
+  fieldOffset,
+  fieldRelations,
+  parseErData,
+  reduceErActions,
+  tableHeight,
+} from './model';
 
 defineErDiagram();
 
@@ -942,18 +951,41 @@ describe('dpk-er-diagram', () => {
       expect(removed.results[0]?.tone).toBe('delete');
     });
 
-    it('rejects deleting an FK column, a column a relation references, and an unknown column', () => {
+    it('deletes an FK column and a column other tables reference, taking their relations down with them', () => {
       const data = parseErData(raw);
       const out = reduceErActions(m, data, [
         act('DELETE_FIELD', 'orders', { field: 'customer_id' }, 0),
         act('DELETE_FIELD', 'orders', { field: 'id' }, 1),
         act('DELETE_FIELD', 'orders', { field: 'nope' }, 2),
       ]);
-      expect(out.results.map((result) => result.stale)).toEqual([
-        'constraint-violated',
-        'constraint-violated',
-        'target-missing',
+      expect(out.results.map((result) => result.stale)).toEqual([undefined, undefined, 'target-missing']);
+      expect(field(out.data, 'orders', 'customer_id')).toMatchObject({ status: 'removed' });
+      expect(field(out.data, 'orders', 'id')).toMatchObject({ status: 'removed' });
+      // Every relation either deleted column carried, on either end, is gone from the diagram too.
+      const edgeIds = out.data.edges.map((edge) => edge.id);
+      expect(edgeIds).not.toContain('customers:id>orders:customer_id');
+      expect(edgeIds).not.toContain('orders:id>payment_attempts:order_id');
+      expect(edgeIds).not.toContain('orders:id>inventory_reservations:order_id');
+    });
+
+    it('fieldRelations lists what a column carries, as either its own ref or one pointed at it', () => {
+      const data = parseErData(raw);
+      expect(fieldRelations(data, 'orders', 'customer_id').map((relation) => relation.id)).toEqual([
+        'customers:id>orders:customer_id',
       ]);
+      expect(
+        fieldRelations(data, 'orders', 'id')
+          .map((relation) => relation.id)
+          .sort(),
+      ).toEqual(['orders:id>inventory_reservations:order_id', 'orders:id>payment_attempts:order_id'].sort());
+      expect(fieldRelations(data, 'orders', 'status')).toEqual([]);
+    });
+
+    it('still rejects deleting an already-removed column', () => {
+      const data = parseErData(raw);
+      const deleted = reduceErActions(m, data, [act('DELETE_FIELD', 'customers', { field: 'email' })]).data;
+      const out = reduceErActions(m, deleted, [act('DELETE_FIELD', 'customers', { field: 'email' })]);
+      expect(out.results[0]?.stale).toBe('constraint-violated');
     });
 
     it("edits a relation's cardinality as a changed edge that keeps its previous value, and reverts to same", () => {
@@ -1315,28 +1347,38 @@ describe('dpk-er-diagram', () => {
       expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
     });
 
-    it("deletes a plain column from its editor's danger button, and offers none for an FK or a referenced column", async () => {
+    it("deletes any present column from its editor's danger button, warning first when relations will go too", async () => {
       const { element, seen, query } = await mountRecording();
-      // customer_id is itself an FK column: a relation's multiplicities derive from it, so it is not even editable.
-      expect(
-        element.renderRoot.querySelector(
-          '[data-er-table="orders"] [data-action="edit-field"][data-field="customer_id"]',
-        ),
-      ).toBeNull();
 
-      // id is editable (it is a plain PK, not an FK), but is referenced by payment_attempts.order_id, so its
-      // editor offers no delete.
-      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="id"]').click();
+      // customer_id is an FK column: it is still editable to reach Delete, but Save never activates
+      // (a relation's multiplicities follow the column it is anchored to, see editorVerdict), and deleting
+      // it warns that the one relation it carries goes with it.
+      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="customer_id"]').click();
       await settle(element);
-      expect(element.renderRoot.querySelector('.er-editor [data-action="delete-column"]')).toBeNull();
+      expect(query<HTMLButtonElement>('[data-action="submit-column"]').disabled).toBe(true);
+      expect(query('.er-editor-note').textContent).toContain('1');
       query<HTMLButtonElement>('[data-action="cancel-column"]').click();
       await settle(element);
 
-      // status is a plain, unreferenced column: its editor offers the delete button.
+      // id is referenced by two relations (payment_attempts.order_id and inventory_reservations.order_id):
+      // its editor warns both go with it, and deleting it records the one action.
+      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="id"]').click();
+      await settle(element);
+      expect(query('.er-editor-note').textContent).toContain('2');
+      query<HTMLButtonElement>('.er-editor [data-action="delete-column"]').click();
+      expect(seen).toMatchObject([{ type: 'DELETE_FIELD', payload: { field: 'id' } }]);
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+
+      // status is a plain column with no relation: its editor offers the delete button with no note.
       query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="status"]').click();
       await settle(element);
+      expect(element.renderRoot.querySelector('.er-editor-note')).toBeNull();
       query<HTMLButtonElement>('.er-editor [data-action="delete-column"]').click();
-      expect(seen).toMatchObject([{ type: 'DELETE_FIELD', payload: { field: 'status' } }]);
+      expect(seen).toMatchObject([
+        { type: 'DELETE_FIELD', payload: { field: 'id' } },
+        { type: 'DELETE_FIELD', payload: { field: 'status' } },
+      ]);
       await settle(element);
       expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
     });
@@ -1523,6 +1565,194 @@ describe('dpk-er-diagram', () => {
       const overlapsX = a.left < b.left + b.width && b.left < a.left + a.width;
       const overlapsY = a.top < b.top + b.height && b.top < a.top + a.height;
       expect(overlapsX && overlapsY).toBe(false);
+    });
+
+    describe('Bounded Context layout and filter', () => {
+      const boxOf = (frame: Element) => {
+        const style = (frame as HTMLElement).style;
+        return {
+          left: Number.parseFloat(style.left),
+          top: Number.parseFloat(style.top),
+          width: Number.parseFloat(style.width),
+          height: Number.parseFloat(style.height),
+        };
+      };
+      const contains = (outer: ReturnType<typeof boxOf>, inner: ReturnType<typeof boxOf>): boolean =>
+        inner.left >= outer.left - 0.5 &&
+        inner.top >= outer.top - 0.5 &&
+        inner.left + inner.width <= outer.left + outer.width + 0.5 &&
+        inner.top + inner.height <= outer.top + outer.height + 0.5;
+      const overlaps = (a: ReturnType<typeof boxOf>, b: ReturnType<typeof boxOf>): boolean =>
+        a.left < b.left + b.width && b.left < a.left + a.width && a.top < b.top + b.height && b.top < a.top + a.height;
+      // A table's rendered style carries only left/top/width (its height is auto, from
+      // content, which jsdom never lays out), so a table's containment can only check
+      // its left edge, top edge and right edge — never its bottom.
+      const containsTableEdges = (outer: ReturnType<typeof boxOf>, inner: ReturnType<typeof boxOf>): boolean =>
+        inner.left >= outer.left - 0.5 &&
+        inner.top >= outer.top - 0.5 &&
+        inner.left + inner.width <= outer.left + outer.width + 0.5;
+
+      const twoBcData = () =>
+        parseErData({
+          after: {
+            tables: [
+              {
+                id: 'customers',
+                name: '顧客',
+                tags: [],
+                boundedContext: '認証',
+                aggregate: '顧客集約',
+                fields: [{ id: 'id', type: 'uuid', key: 'PK' }],
+              },
+              {
+                id: 'profiles',
+                name: 'プロフィール',
+                tags: [],
+                boundedContext: '認証',
+                aggregate: '顧客集約',
+                fields: [
+                  { id: 'id', type: 'uuid', key: 'PK' },
+                  { id: 'customer_id', type: 'uuid', key: 'FK', ref: 'customers.id' },
+                ],
+              },
+              {
+                id: 'sessions',
+                name: 'セッション',
+                tags: [],
+                boundedContext: '認証',
+                fields: [{ id: 'id', type: 'uuid', key: 'PK' }],
+              },
+              {
+                id: 'orders',
+                name: '注文',
+                tags: [],
+                boundedContext: '注文',
+                aggregate: '注文集約',
+                fields: [
+                  { id: 'id', type: 'uuid', key: 'PK' },
+                  { id: 'customer_id', type: 'uuid', key: 'FK', ref: 'customers.id' },
+                ],
+              },
+              {
+                id: 'order_items',
+                name: '注文明細',
+                tags: [],
+                boundedContext: '注文',
+                aggregate: '注文集約',
+                fields: [
+                  { id: 'id', type: 'uuid', key: 'PK' },
+                  { id: 'order_id', type: 'uuid', key: 'FK', ref: 'orders.id' },
+                ],
+              },
+            ],
+          },
+        });
+
+      it("keeps each Bounded Context's tables and aggregates nested inside its own frame, and never overlaps another BC's frame", async () => {
+        const element = new DpkErDiagram();
+        element.data = twoBcData();
+        document.body.append(element);
+        await settle(element);
+
+        const bcFrames = new Map(
+          [...element.renderRoot.querySelectorAll<HTMLElement>('.er-bc')].map((frame) => [
+            frame.querySelector('.er-bc-label')?.textContent,
+            boxOf(frame),
+          ]),
+        );
+        expect([...bcFrames.keys()].sort((a, b) => (a ?? '').localeCompare(b ?? ''))).toEqual(['注文', '認証']);
+        const [auth, order] = [...bcFrames.values()] as [ReturnType<typeof boxOf>, ReturnType<typeof boxOf>];
+        expect(overlaps(auth, order)).toBe(false);
+
+        const byTable: Record<string, string> = {
+          customers: '認証',
+          profiles: '認証',
+          sessions: '認証',
+          orders: '注文',
+          order_items: '注文',
+        };
+        for (const [id, bc] of Object.entries(byTable)) {
+          const table = element.renderRoot.querySelector<HTMLElement>(`[data-er-table="${id}"]`);
+          if (!table) throw new Error(`missing table ${id}`);
+          const bcBox = bcFrames.get(bc);
+          if (!bcBox) throw new Error(`missing BC frame ${bc}`);
+          expect(containsTableEdges(bcBox, boxOf(table))).toBe(true);
+        }
+
+        const aggFrames = [...element.renderRoot.querySelectorAll<HTMLElement>('.er-aggregate')];
+        expect(aggFrames).toHaveLength(2);
+        for (const frame of aggFrames) {
+          const label = frame.querySelector('.er-aggregate-label')?.textContent;
+          const parentBc = label === '顧客集約' ? '認証' : '注文集約' === label ? '注文' : null;
+          if (parentBc === null) throw new Error(`unexpected aggregate label ${label}`);
+          const bcBox = bcFrames.get(parentBc);
+          if (!bcBox) throw new Error(`missing BC frame ${parentBc}`);
+          expect(contains(bcBox, boxOf(frame))).toBe(true);
+        }
+      });
+
+      it('lays out the same data into the same positions every time (deterministic)', async () => {
+        const positionsOf = async () => {
+          const element = new DpkErDiagram();
+          element.data = twoBcData();
+          document.body.append(element);
+          await settle(element);
+          const positions = [...element.renderRoot.querySelectorAll<HTMLElement>('[data-er-table]')]
+            .map((table) => [table.getAttribute('data-er-table'), table.style.left, table.style.top] as const)
+            .sort(([a], [b]) => (a ?? '').localeCompare(b ?? ''));
+          element.remove();
+          return positions;
+        };
+        const first = await positionsOf();
+        const second = await positionsOf();
+        expect(second).toEqual(first);
+      });
+
+      it("dims tables, relations and frames outside the picked Bounded Context instead of hiding them, focuses the view, and never moves a table's position", async () => {
+        const element = new DpkErDiagram();
+        element.data = twoBcData();
+        document.body.append(element);
+        await settle(element);
+
+        const positionOf = (id: string) => {
+          const table = element.renderRoot.querySelector<HTMLElement>(`[data-er-table="${id}"]`);
+          if (!table) throw new Error(`missing table ${id}`);
+          return { left: table.style.left, top: table.style.top };
+        };
+        const before = {
+          customers: positionOf('customers'),
+          orders: positionOf('orders'),
+        };
+
+        element.tagFilter = { active: ['BC:認証'], match: 'single' };
+        await settle(element);
+
+        // Still present (dimmed, not hidden), and no table moved because of the filter.
+        expect(element.renderRoot.querySelector('[data-er-table="orders"]')).not.toBeNull();
+        expect(element.renderRoot.querySelector('[data-er-table="orders"]')?.classList.contains('is-bc-dimmed')).toBe(
+          true,
+        );
+        expect(
+          element.renderRoot.querySelector('[data-er-table="customers"]')?.classList.contains('is-bc-dimmed'),
+        ).toBe(false);
+        const orderBcFrame = [...element.renderRoot.querySelectorAll<HTMLElement>('.er-bc')].find(
+          (frame) => frame.querySelector('.er-bc-label')?.textContent === '注文',
+        );
+        expect(orderBcFrame?.classList.contains('is-bc-dimmed')).toBe(true);
+        const relation = element.renderRoot.querySelector('[data-relation="customers:id>orders:customer_id"]');
+        expect(relation?.classList.contains('is-bc-dimmed')).toBe(true);
+
+        expect(positionOf('customers')).toEqual(before.customers);
+        expect(positionOf('orders')).toEqual(before.orders);
+
+        element.tagFilter = { active: [], match: 'single' };
+        await settle(element);
+        expect(element.renderRoot.querySelector('[data-er-table="orders"]')?.classList.contains('is-bc-dimmed')).toBe(
+          false,
+        );
+        expect(positionOf('customers')).toEqual(before.customers);
+        expect(positionOf('orders')).toEqual(before.orders);
+      });
     });
 
     describe('dragging a table inside an aggregate', () => {

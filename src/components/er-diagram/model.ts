@@ -589,9 +589,13 @@ const edgeIdOfTarget = (targetId: string): string | null => {
   return segments?.length === 3 && segments[1] === 'edge' ? (segments[2] ?? null) : null;
 };
 
-/** Whether `field` of `table` carries any relation, as either its FK or the column an FK points at. */
-const fieldInRelation = (data: ErData, tableId: string, fieldId: string): boolean =>
-  data.edges.some(
+/**
+ * The relations `field` of `table` carries, as either its FK or the column an
+ * FK points at — what deleting it would take with it. Exported so the editor
+ * can warn about them before the delete is submitted.
+ */
+export const fieldRelations = (data: ErData, tableId: string, fieldId: string): readonly ErRelation[] =>
+  data.edges.filter(
     (edge) =>
       (edge.from === tableId && edge.sourceField === fieldId) || (edge.to === tableId && edge.targetField === fieldId),
   );
@@ -687,11 +691,13 @@ const editField = (m: ErDiagramMessages, data: ErData, action: DraftAction): Ste
 };
 
 /**
- * Deletes a plain column: an `added` one disappears outright (undoing the
+ * Deletes any present column: an `added` one disappears outright (undoing the
  * add), any other is marked `removed` like an authored deletion, so it keeps
  * reading as a struck-through row. A column that carries a relation, on
- * either end, cannot be deleted here — its multiplicities and the edge that
- * draws it would be left dangling.
+ * either end (PK referenced by others, or the FK itself), takes that relation
+ * with it — removed from `data.edges` in this same step, so undo (dropping
+ * this one action from the replay) restores both the column and the relation
+ * together.
  */
 const deleteField = (m: ErDiagramMessages, data: ErData, action: DraftAction): Step => {
   const title = m.deleteFieldTitle;
@@ -701,13 +707,7 @@ const deleteField = (m: ErDiagramMessages, data: ErData, action: DraftAction): S
   if (table === undefined || (payload.success && field === undefined)) {
     return { data, result: { id: action.id, title, stale: 'target-missing' } };
   }
-  if (
-    !payload.success ||
-    field === undefined ||
-    field.status === 'removed' ||
-    field.ref !== null ||
-    fieldInRelation(data, table.id, field.id)
-  ) {
+  if (!payload.success || field === undefined || field.status === 'removed') {
     return { data, result: { id: action.id, title, stale: 'constraint-violated' } };
   }
   const fields =
@@ -716,8 +716,10 @@ const deleteField = (m: ErDiagramMessages, data: ErData, action: DraftAction): S
       : table.fields.map((item): ErFieldDiff =>
           item.id === field.id ? { ...field, status: 'removed', before: null } : item,
         );
+  const relations = fieldRelations(data, table.id, field.id);
+  const edges = relations.length === 0 ? data.edges : data.edges.filter((edge) => !relations.includes(edge));
   return {
-    data: replaceTable(data, table.id, fields),
+    data: replaceTable({ ...data, edges }, table.id, fields),
     result: { id: action.id, title, summary: m.deleteFieldSummary(table.id, field.id), tone: 'delete' },
   };
 };

@@ -137,6 +137,8 @@ export const editorVerdict = (editor: ColumnEditor, table: ErTableDiff): EditorV
     return { ready: name !== '' && type !== '', issue: null };
   }
   const field = table.fields.find((item) => item.id === editor.field);
+  // A relation column's definition follows the relation it carries: its editor offers no field to save, only Delete.
+  if (field !== undefined && field.ref !== null) return { ready: false, issue: null };
   const description = editor.description.trim();
   const changed =
     field === undefined ||
@@ -226,6 +228,59 @@ export const GROUP_PADDING = 18;
  */
 export const GROUP_LABEL_SPACE = 22;
 
+export type BoundedContextGroup = {
+  readonly boundedContext: string;
+  readonly box: ErBox;
+  readonly tables: readonly string[];
+};
+
+/**
+ * Also used by `element.ts` to size the layout's `superGroupSpacing`. Wider
+ * than `GROUP_PADDING`: a Bounded Context frame must clear the aggregate
+ * frames nested inside it, not just the tables.
+ */
+export const BC_PADDING = 30;
+/** Extra room above the tables, for the Bounded Context's own label. Also used by `element.ts`, like `GROUP_LABEL_SPACE`. */
+export const BC_LABEL_SPACE = 26;
+
+/** The padded box around a set of already-placed tables, shared by every grouping (aggregate, Bounded Context, …). */
+const paddedBox = (boxes: readonly ErBox[], padding: number, labelSpace: number): ErBox => {
+  const left = Math.min(...boxes.map((box) => box.x));
+  const top = Math.min(...boxes.map((box) => box.y));
+  const right = Math.max(...boxes.map((box) => box.x + box.width));
+  const bottom = Math.max(...boxes.map((box) => box.y + box.height));
+  return {
+    x: left - padding,
+    y: top - padding - labelSpace,
+    width: right - left + padding * 2,
+    height: bottom - top + padding * 2 + labelSpace,
+  };
+};
+
+/** One bounding box per key (an aggregate, a Bounded Context, …), padded around the tables it groups. */
+const groupsOf = <T extends { readonly id: string; readonly box: ErBox | null }>(
+  tables: readonly T[],
+  keyOf: (table: T) => string | null,
+  padding: number,
+  labelSpace: number,
+): readonly { readonly key: string; readonly box: ErBox; readonly tables: readonly string[] }[] => {
+  const byKey = new Map<string, { readonly id: string; readonly box: ErBox }[]>();
+  for (const table of tables) {
+    const key = keyOf(table);
+    if (key === null || table.box === null) continue;
+    byKey.set(key, [...(byKey.get(key) ?? []), { id: table.id, box: table.box }]);
+  }
+  return [...byKey].map(([key, members]) => ({
+    key,
+    tables: members.map((member) => member.id),
+    box: paddedBox(
+      members.map((member) => member.box),
+      padding,
+      labelSpace,
+    ),
+  }));
+};
+
 /**
  * One bounding box per aggregate, padded around the tables it groups —
  * purely a visual grouping on the canvas, never a filter. A table without an
@@ -233,30 +288,27 @@ export const GROUP_LABEL_SPACE = 22;
  */
 export const aggregateGroups = (
   tables: readonly { readonly id: string; readonly aggregate: string | null; readonly box: ErBox | null }[],
-): readonly AggregateGroup[] => {
-  const byAggregate = new Map<string, { readonly id: string; readonly box: ErBox }[]>();
-  for (const table of tables) {
-    if (table.aggregate === null || table.box === null) continue;
-    byAggregate.set(table.aggregate, [...(byAggregate.get(table.aggregate) ?? []), { id: table.id, box: table.box }]);
-  }
-  return [...byAggregate].map(([aggregate, members]) => {
-    const boxes = members.map((member) => member.box);
-    const left = Math.min(...boxes.map((box) => box.x));
-    const top = Math.min(...boxes.map((box) => box.y));
-    const right = Math.max(...boxes.map((box) => box.x + box.width));
-    const bottom = Math.max(...boxes.map((box) => box.y + box.height));
-    return {
-      aggregate,
-      tables: members.map((member) => member.id),
-      box: {
-        x: left - GROUP_PADDING,
-        y: top - GROUP_PADDING - GROUP_LABEL_SPACE,
-        width: right - left + GROUP_PADDING * 2,
-        height: bottom - top + GROUP_PADDING * 2 + GROUP_LABEL_SPACE,
-      },
-    };
-  });
-};
+): readonly AggregateGroup[] =>
+  groupsOf(tables, (table) => table.aggregate, GROUP_PADDING, GROUP_LABEL_SPACE).map((group) => ({
+    aggregate: group.key,
+    box: group.box,
+    tables: group.tables,
+  }));
+
+/**
+ * One bounding box per Bounded Context, padded (more generously than an
+ * aggregate's) around every table it contains — again purely a visual
+ * grouping, never a filter. A table outside any Bounded Context, or one not
+ * yet measured, takes part in no group.
+ */
+export const boundedContextGroups = (
+  tables: readonly { readonly id: string; readonly boundedContext: string | null; readonly box: ErBox | null }[],
+): readonly BoundedContextGroup[] =>
+  groupsOf(tables, (table) => table.boundedContext, BC_PADDING, BC_LABEL_SPACE).map((group) => ({
+    boundedContext: group.key,
+    box: group.box,
+    tables: group.tables,
+  }));
 
 /**
  * A forward relation's orthogonal route from the referenced column's right

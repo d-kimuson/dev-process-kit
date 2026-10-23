@@ -3,7 +3,7 @@ import { repeat } from 'lit/directives/repeat.js';
 
 import type { ElementActionResult } from '../../core/element-actions';
 import type { CommentTargetOption, DraftAction } from '../../core/types';
-import type { LayoutOptions, LayoutPoint } from '../../lib/layout/layered';
+import type { ViewportBox } from '../diagram/viewport';
 import type { DpkDialogPanel } from '../dialog-panel/element';
 
 import { iconDiamond, iconKey, iconLink, iconPencil, iconPlus, iconTrash } from '../../core/icons';
@@ -11,13 +11,31 @@ import { PopoverController } from '../../core/popover-controller';
 import { SelectController } from '../../core/select/controller';
 import { DismissController } from '../../lib/dom/dismiss';
 import { revealWithin } from '../../lib/dom/scroll';
+import {
+  fixedLayout,
+  layeredLayout,
+  type LayoutEdgeSpec,
+  type LayoutNodeSpec,
+  type LayoutOptions,
+  type LayoutPoint,
+  type LayoutResult,
+} from '../../lib/layout/layered';
 import { controlAtom } from '../atoms/controls';
 import { DiagramElement } from '../diagram/element';
-import { EMPTY_REACH, classNames, reach, type DiagramSelection, type Reach } from '../diagram/model';
+import {
+  EMPTY_REACH,
+  classNames,
+  reach,
+  tagStateMatches,
+  type DiagramSelection,
+  type Reach,
+  type TagState,
+} from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
 import { erDiagramMessages, type ErDiagramMessages } from './messages';
 import {
   ADD_FIELD,
+  BC_TAG_PREFIX,
   CARDINALITIES,
   DELETE_FIELD,
   EDIT_CARDINALITY,
@@ -25,6 +43,7 @@ import {
   cardinalityText,
   constraintText,
   emptyErData,
+  fieldRelations,
   outgoingFan,
   parseErData,
   reduceErActions,
@@ -37,6 +56,9 @@ import { CIRCLE_RADIUS, endGlyph, type ErEnd } from './notation';
 import { erStyles } from './styles';
 import {
   aggregateGroups,
+  BC_LABEL_SPACE,
+  BC_PADDING,
+  boundedContextGroups,
   cardinalityValue,
   columnIcon,
   detourRoute,
@@ -71,6 +93,9 @@ const LAYOUT = {
   layerSpacing: 136,
   padding: 32,
   groupSpacing: GROUP_PADDING * 2 + GROUP_LABEL_SPACE + 12,
+  // Same reasoning one level up: a Bounded Context's frame must clear the aggregate frames nested
+  // inside it (not just their tables), so it needs BC_PADDING's own room on top of groupSpacing.
+  superGroupSpacing: BC_PADDING * 2 + BC_LABEL_SPACE + 12,
 } as const satisfies LayoutOptions;
 /** How far a relation keeps from a table it passes: the middle of the gap between two. */
 const LANE_MARGIN = LAYOUT.nodeSpacing / 2;
@@ -227,8 +252,26 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     return JSON.stringify([...this.#sizes]);
   }
 
+  /** The active filter's Bounded Context tags alone, or `null` when none are active. */
+  #bcFilter(): TagState | null {
+    const active = this.tagFilter.active.filter((tag) => tag.startsWith(BC_TAG_PREFIX));
+    return active.length === 0 ? null : { ...this.tagFilter, active };
+  }
+
   protected override filtered(): ErData {
-    const data = super.filtered();
+    const items = this.items();
+    const bc = this.#bcFilter();
+    // Picking a Bounded Context focuses the view (`focusBounds`, below) and dims
+    // the other tables (`renderCanvas`), but a BC tag never hides a table: it
+    // plays no part in the hide/show test here, only the rest of the active tag
+    // filter (and the search box, via `matchesFilter`) does.
+    const hideFilter: TagState =
+      bc === null
+        ? this.tagFilter
+        : { ...this.tagFilter, active: this.tagFilter.active.filter((tag) => !tag.startsWith(BC_TAG_PREFIX)) };
+    const nodes = items.nodes.filter((node) => tagStateMatches(node.tags, hideFilter) && this.matchesFilter(node));
+    const ids = new Set(nodes.map((node) => node.id));
+    const data = { ...items, nodes, edges: items.edges.filter((edge) => ids.has(edge.from) && ids.has(edge.to)) };
     const fan = outgoingFan(data.edges);
     return {
       ...data,
@@ -280,6 +323,62 @@ export class DpkErDiagram extends DiagramElement<ErData> {
 
   protected override layoutOptions(): LayoutOptions {
     return LAYOUT;
+  }
+
+  /**
+   * One level above the aggregate grouping `group` already gives (see
+   * `parseErData`): every table's Bounded Context becomes its `superGroup`, so
+   * the layout keeps a whole BC's aggregates — and the lone tables outside any
+   * aggregate — together in one band, apart from the other BCs'. Otherwise
+   * mirrors the base `computePlacement`, which only knows about `group`.
+   */
+  protected override computePlacement(visible: ErData): LayoutResult {
+    const nodes: LayoutNodeSpec[] = visible.nodes.map((node) => ({
+      id: node.id,
+      width: node.width,
+      height: node.height,
+      ...(node.ports === undefined ? {} : { ports: node.ports }),
+      ...(node.position === undefined ? {} : { position: node.position }),
+      ...(node.group === undefined ? {} : { group: node.group }),
+      ...(node.boundedContext === null ? {} : { superGroup: node.boundedContext }),
+    }));
+    const edges: LayoutEdgeSpec[] = visible.edges.map((edge) => ({
+      id: edge.id,
+      from: edge.from,
+      to: edge.to,
+      ...(edge.fromPort === undefined ? {} : { fromPort: edge.fromPort }),
+      ...(edge.toPort === undefined ? {} : { toPort: edge.toPort }),
+    }));
+    const options = this.layoutOptions();
+    return this.layoutMode === 'fixed' ? fixedLayout(nodes, edges, options) : layeredLayout(nodes, edges, options);
+  }
+
+  /**
+   * While a Bounded Context is the active tag filter, the box around its drawn
+   * frame (the same one `renderCanvas` draws from `boundedContextGroups`): the
+   * view pans/zooms to it instead of the usual fit, so the chosen BC fills the
+   * canvas. `null` once the filter clears, which restores the normal fitted
+   * view (`DiagramChromeElement`'s `focusBounds` fallback).
+   */
+  protected override focusBounds(): ViewportBox | null {
+    const bc = this.#bcFilter();
+    if (bc === null) return null;
+    const names = new Set(bc.active.map((tag) => tag.slice(BC_TAG_PREFIX.length)));
+    const boxes = boundedContextGroups(
+      this.visible.nodes.map((table) => ({
+        id: table.id,
+        boundedContext: table.boundedContext,
+        box: this.placedNode(table.id) ?? null,
+      })),
+    )
+      .filter((group) => names.has(group.boundedContext))
+      .map((group) => group.box);
+    if (boxes.length === 0) return null;
+    const left = Math.min(...boxes.map((box) => box.x));
+    const top = Math.min(...boxes.map((box) => box.y));
+    const right = Math.max(...boxes.map((box) => box.x + box.width));
+    const bottom = Math.max(...boxes.map((box) => box.y + box.height));
+    return { x: left, y: top, width: right - left, height: bottom - top };
   }
 
   /**
@@ -442,6 +541,15 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     const visible = this.visible;
     const lit = this.#highlight(visible);
     const fan = outgoingFan(visible.edges);
+    // While a Bounded Context is the active filter, every table outside it (and every
+    // relation touching one) dims instead of disappearing — `filtered()` above keeps
+    // them in `visible` on purpose, so the schema's shape around the chosen BC still reads.
+    const bcFilter = this.#bcFilter();
+    const bcDimmed = new Set(
+      bcFilter === null
+        ? []
+        : visible.nodes.filter((table) => !tagStateMatches(table.tags, bcFilter)).map((table) => table.id),
+    );
     // Lit relations paint last, over the ones they cross. Keyed, so a relation
     // moved on top keeps its own element and the pointer stays on the line it entered.
     const ordered = [...visible.edges].sort((a, b) => Number(lit.edges.has(a.id)) - Number(lit.edges.has(b.id)));
@@ -465,6 +573,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
             `is-${relation.status}`,
             lit.edges.has(relation.id) && 'is-lit',
             lit.edges.size > 0 && !lit.edges.has(relation.id) && 'is-faded',
+            (bcDimmed.has(relation.from) || bcDimmed.has(relation.to)) && 'is-bc-dimmed',
           )}
           data-relation=${relation.id}
           data-dpk-target=${this.commentRef('edge', relation.id)}
@@ -497,6 +606,13 @@ export class DpkErDiagram extends DiagramElement<ErData> {
         </g>
       `;
     });
+    const bcGroups = boundedContextGroups(
+      visible.nodes.map((table) => ({
+        id: table.id,
+        boundedContext: table.boundedContext,
+        box: this.placedNode(table.id) ?? null,
+      })),
+    );
     const groups = aggregateGroups(
       visible.nodes.map((table) => ({
         id: table.id,
@@ -504,7 +620,20 @@ export class DpkErDiagram extends DiagramElement<ErData> {
         box: this.placedNode(table.id) ?? null,
       })),
     );
-    return html`${groups.map(
+    return html`${bcGroups.map(
+      (group) =>
+        html`<div
+          class=${classNames(
+            'er-bc',
+            bcFilter !== null &&
+              !tagStateMatches([`${BC_TAG_PREFIX}${group.boundedContext}`], bcFilter) &&
+              'is-bc-dimmed',
+          )}
+          style="left:${group.box.x}px; top:${group.box.y}px; width:${group.box.width}px; height:${group.box.height}px"
+        >
+          <span class="er-bc-label">${group.boundedContext}</span>
+        </div>`,
+    )}${groups.map(
       (group) =>
         html`<div
           class=${classNames('er-aggregate', this.isDraggingGroup(group.aggregate) && 'is-dragging')}
@@ -526,7 +655,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
         (edge) => edge,
       ),
       [],
-    )}${visible.nodes.map((table) => this.#renderTable(table, lit, m))}`;
+    )}${visible.nodes.map((table) => this.#renderTable(table, lit, m, bcDimmed.has(table.id)))}`;
   }
 
   /**
@@ -585,7 +714,12 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     `;
   }
 
-  #renderTable(table: ErTableDiff, lit: ErHighlight, m: ErDiagramMessages): TemplateResult | typeof nothing {
+  #renderTable(
+    table: ErTableDiff,
+    lit: ErHighlight,
+    m: ErDiagramMessages,
+    bcDimmed: boolean,
+  ): TemplateResult | typeof nothing {
     const placed = this.placedNode(table.id);
     if (!placed) return nothing;
     const state = this.nodeState(table.id);
@@ -605,6 +739,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
           lit.tables.has(table.id) && 'is-lit',
           table.fields.some((field) => field.status !== 'same') && 'has-diff',
           this.isDraggingNode(table.id) && 'is-dragging',
+          bcDimmed && 'is-bc-dimmed',
         )}
         data-er-table=${table.id}
         data-grill-questions=${this.questionsOf(table)}
@@ -678,8 +813,9 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   #renderField(table: ErTableDiff, field: ErFieldDiff, lit: ErHighlight, m: ErDiagramMessages): TemplateResult {
     const editor = this.#editor;
     const editing = editor?.kind === 'edit' && editor.table === table.id && editor.field === field.id;
-    // A relation's multiplicities derive from its column, so only plain, present columns are editable.
-    const editable = this.#recordable && field.status !== 'removed' && field.ref === null;
+    // Every present column may be opened: a relation's multiplicities derive from its column, so Save stays
+    // disabled for one that carries a ref (see editorVerdict), but Delete is always offered (see #deletable).
+    const editable = this.#recordable && field.status !== 'removed';
     const matches = this.#query !== '' && field.id.toLowerCase().includes(this.#query);
     const icon = columnIcon(field);
     const changes = fieldChanges(field, m);
@@ -765,14 +901,9 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     return this.id !== '';
   }
 
-  /** A plain, present column with no part in any relation, on either end, may be deleted. */
-  #deletable(table: ErTableDiff, field: ErFieldDiff): boolean {
-    if (!this.#recordable || field.status === 'removed' || field.ref !== null) return false;
-    return !this.items().edges.some(
-      (edge) =>
-        (edge.from === table.id && edge.sourceField === field.id) ||
-        (edge.to === table.id && edge.targetField === field.id),
-    );
+  /** Any present column may be deleted; one that carries relations takes them down with it (see fieldRelations). */
+  #deletable(field: ErFieldDiff): boolean {
+    return this.#recordable && field.status !== 'removed';
   }
 
   /** Deletes a column from inside its editor, closing it once the delete is recorded. */
@@ -839,9 +970,10 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     const title = editor.kind === 'add' ? m.addFieldTitle : m.editFieldTitle;
     const target = editor.kind === 'add' ? table.id : `${table.id}.${editor.field}`;
     const deleteTarget =
-      editor.kind === 'edit' && field !== undefined && this.#deletable(table, field)
+      editor.kind === 'edit' && field !== undefined && this.#deletable(field)
         ? { table: table.id, field: editor.field }
         : null;
+    const relationsToRemove = deleteTarget === null ? [] : fieldRelations(this.items(), table.id, deleteTarget.field);
     return html`<div
       class="er-editor"
       popover="manual"
@@ -911,37 +1043,48 @@ export class DpkErDiagram extends DiagramElement<ErData> {
         <span>${m.columnNullable}</span>
       </label>
       <div class="er-editor-foot">
-        ${
-          deleteTarget === null
-            ? nothing
-            : html`<button
-                type="button"
-                class="dpk-btn dpk-btn--danger"
-                data-action="delete-column"
-                @click=${() => this.#deleteFromEditor(deleteTarget.table, deleteTarget.field)}
-              >
-                ${iconTrash()}<span>${m.deleteFieldTitle}</span>
-              </button>`
-        }
         <span class="er-editor-keys">${m.columnKeys}</span>
-        <button
-          type="button"
-          class="dpk-btn dpk-btn--ghost"
-          data-action="cancel-column"
-          data-dpk-text-discard
-          @click=${() => this.#close(true)}
-        >
-          ${m.cancel}
-        </button>
-        <button
-          type="button"
-          class="dpk-btn dpk-btn--accent"
-          data-action="submit-column"
-          ?disabled=${!verdict.ready}
-          @click=${() => this.#submit()}
-        >
-          ${editor.kind === 'add' ? m.columnAdd : m.columnSave}
-        </button>
+        ${
+          deleteTarget === null || relationsToRemove.length === 0
+            ? nothing
+            : html`<span class="er-editor-note" role="status"
+                >${m.deleteFieldRelationsNote(relationsToRemove.length)}</span
+              >`
+        }
+        <div class="er-editor-actions">
+          ${
+            deleteTarget === null
+              ? nothing
+              : html`<button
+                  type="button"
+                  class="dpk-btn dpk-btn--danger"
+                  data-action="delete-column"
+                  @click=${() => this.#deleteFromEditor(deleteTarget.table, deleteTarget.field)}
+                >
+                  ${iconTrash()}<span>${m.deleteFieldTitle}</span>
+                </button>`
+          }
+          <div class="er-editor-actions-right">
+            <button
+              type="button"
+              class="dpk-btn dpk-btn--ghost"
+              data-action="cancel-column"
+              data-dpk-text-discard
+              @click=${() => this.#close(true)}
+            >
+              ${m.cancel}
+            </button>
+            <button
+              type="button"
+              class="dpk-btn dpk-btn--accent"
+              data-action="submit-column"
+              ?disabled=${!verdict.ready}
+              @click=${() => this.#submit()}
+            >
+              ${editor.kind === 'add' ? m.columnAdd : m.columnSave}
+            </button>
+          </div>
+        </div>
       </div>
     </div>`;
   }
@@ -954,7 +1097,20 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     const anchor = this.renderRoot.querySelector(`[data-er-table="${CSS.escape(editor.table)}"] ${triggerOf(editor)}`);
     const row = editor.kind === 'edit' ? anchor?.closest('.er-field') : anchor;
     if (!row) return;
-    this.#popovers.open(surface, row, { width: 300, height: 400 }, { placement: 'bottom-start', trackTransform: true });
+    // Bounded to the diagram's own panel (on top of the plain viewport) so a row near the
+    // panel's top edge never flips the editor up into whatever the host page draws above it.
+    const panel = this.renderRoot.querySelector<DpkDialogPanel>('dpk-dialog-panel');
+    const boundaryOption = panel === null ? {} : { boundary: panel };
+    this.#popovers.open(
+      surface,
+      row,
+      { width: 300, height: 400 },
+      {
+        placement: 'bottom-start',
+        trackTransform: true,
+        ...boundaryOption,
+      },
+    );
     // The type's list floats too, shown after the card so it lies above it, and
     // turns upward where the window has no room below the input.
     const list = surface.querySelector<HTMLElement>('.er-type-options');
@@ -964,7 +1120,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
       list,
       input,
       { width: Math.max(input.offsetWidth, 200), height: 220 },
-      { placement: 'bottom-start', trackTransform: true },
+      { placement: 'bottom-start', trackTransform: true, ...boundaryOption },
     );
   }
 
