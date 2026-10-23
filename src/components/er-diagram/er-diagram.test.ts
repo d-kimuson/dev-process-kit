@@ -1,7 +1,12 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { ContextMenuRequest } from '../../core/context-menu/types';
+
+import { EMPTY_CHECK_STATE, withEnabled } from '../../core/check-mode';
+import { collectCheckBindings } from '../../core/shell/check-mode-badges';
+import { parseTargetRef } from '../../core/target';
 import { diagramMessages } from '../diagram/messages';
-import { DpkComponentErDiagram } from './element';
+import { DpkErDiagram } from './element';
 import { defineErDiagram } from './index';
 import { erDiagramMessages } from './messages';
 import { fanOffset, fieldOffset, parseErData, reduceErActions, tableHeight } from './model';
@@ -81,12 +86,12 @@ const raw = {
   },
 };
 
-const settle = async (element: DpkComponentErDiagram): Promise<void> => {
+const settle = async (element: DpkErDiagram): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (lang?: string): Promise<DpkComponentErDiagram> => {
-  const element = new DpkComponentErDiagram();
+const mount = async (lang?: string): Promise<DpkErDiagram> => {
+  const element = new DpkErDiagram();
   if (lang !== undefined) element.setAttribute('lang', lang);
   element.data = parseErData(raw);
   document.body.append(element);
@@ -94,7 +99,7 @@ const mount = async (lang?: string): Promise<DpkComponentErDiagram> => {
   return element;
 };
 
-const classes = (element: DpkComponentErDiagram, table: string): string[] => [
+const classes = (element: DpkErDiagram, table: string): string[] => [
   ...(element.renderRoot.querySelector<HTMLElement>(`[data-er-table="${table}"]`)?.classList ?? []),
 ];
 
@@ -289,18 +294,21 @@ describe('er diagram ports', () => {
   });
 });
 
-const openComment = async (element: DpkComponentErDiagram, kind: 'node' | 'edge', id: string) => {
+/** Runs the right-click "Review comment" action for a node or an edge, assuming `element.id = 'schema'`. */
+const openComment = async (element: DpkErDiagram, kind: 'node' | 'edge', id: string): Promise<void> => {
   await settle(element);
-  const button = [...element.renderRoot.querySelectorAll<HTMLButtonElement>('[data-comment-kind]')].find(
-    (candidate) => candidate.dataset['commentKind'] === kind && candidate.dataset['commentId'] === id,
-  );
-  if (!button) throw new Error(`missing ${kind} comment trigger: ${id}`);
-  button.click();
+  const ref = `element:schema/${kind}/${encodeURIComponent(id)}`;
+  const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
+  const entry = (element.getContextMenuItems(request) ?? [])
+    .flatMap((group) => group.entries)
+    .find((candidate) => candidate.id === 'review-comment');
+  if (entry?.kind !== 'item') throw new Error(`missing "Review comment" entry for ${kind}/${id}`);
+  entry.run();
   await settle(element);
   expect(element.renderRoot.querySelector('.comment-pop')).not.toBeNull();
 };
 
-describe('dpk-component-er-diagram', () => {
+describe('dpk-er-diagram', () => {
   it('lets long labels determine card and row heights instead of fixing them', async () => {
     const element = await mount();
     element.data = parseErData({
@@ -323,7 +331,28 @@ describe('dpk-component-er-diagram', () => {
     expect(element.renderRoot.querySelector('.er-field-name')?.textContent).toBe(element.data.nodes[0]?.fields[0]?.id);
   });
 
-  it('requires the comment icon even after selecting or refocusing a table', async () => {
+  it('marks every table card with a data-dpk-target so Check Mode can offer it', async () => {
+    const element = await mount();
+    element.id = 'schema';
+    await settle(element);
+    const cards = [...element.renderRoot.querySelectorAll<HTMLElement>('[data-er-table]')];
+    expect(cards.length).toBeGreaterThan(0);
+    for (const card of cards) {
+      const tableId = card.dataset['erTable'];
+      expect(card.getAttribute('data-dpk-target')).toBe(`element:schema/node/${tableId}`);
+    }
+  });
+
+  it('offers table cards as Check Mode targets, not just other board content', async () => {
+    const element = await mount();
+    element.id = 'schema';
+    await settle(element);
+    const state = withEnabled(EMPTY_CHECK_STATE, true);
+    const bindings = collectCheckBindings(element, state, null);
+    expect(bindings.map((binding) => binding.ref)).toContain('element:schema/node/orders');
+  });
+
+  it('opens a comment only through "Review comment", never from selecting or focusing a table', async () => {
     const element = await mount();
     element.id = 'schema';
     await settle(element);
@@ -333,19 +362,7 @@ describe('dpk-component-er-diagram', () => {
     await settle(element);
     expect(element.selection).toEqual({ kind: 'node', id: 'orders' });
     expect(element.renderRoot.querySelector('.comment-pop')).toBeNull();
-    const trigger = element.renderRoot.querySelector<HTMLButtonElement>('[data-comment-id="orders"]');
-    expect(trigger?.getAttribute('aria-haspopup')).toBe('dialog');
-    trigger?.focus();
-    expect(element.renderRoot.querySelector('.comment-pop')).toBeNull();
     await openComment(element, 'node', 'orders');
-    expect(trigger?.getAttribute('aria-expanded')).toBe('true');
-    element.select({ kind: 'node', id: 'customers' });
-    await settle(element);
-    expect(element.renderRoot.querySelector('.comment-pop')).toBeNull();
-    element.select({ kind: 'node', id: 'orders' });
-    await settle(element);
-    expect(element.renderRoot.querySelector('.comment-pop')).toBeNull();
-    expect(trigger?.getAttribute('aria-expanded')).toBe('false');
   });
 
   it.each(['.dpk-btn--accent', '.dpk-btn:not(.dpk-btn--accent)'])('dismisses with Escape from %s', async (selector) => {
@@ -359,7 +376,7 @@ describe('dpk-component-er-diagram', () => {
     expect(element.renderRoot.querySelector('.comment-pop')).toBeNull();
   });
 
-  it('does not steal search focus when a filtered selection reappears', async () => {
+  it('does not steal search focus when a filtered table reappears', async () => {
     const element = await mount();
     element.id = 'schema';
     await openComment(element, 'node', 'orders');
@@ -369,7 +386,8 @@ describe('dpk-component-er-diagram', () => {
     search.value = 'no-matching-table';
     search.dispatchEvent(new Event('input'));
     await settle(element);
-    expect(element.renderRoot.querySelector('.comment-pop')).toBeNull();
+    // The composer is independent of the filter: it only closes on its own dismissal.
+    expect(element.renderRoot.querySelector('.comment-pop')).not.toBeNull();
     search.value = 'orders';
     search.dispatchEvent(new Event('input'));
     await settle(element);
@@ -399,7 +417,6 @@ describe('dpk-component-er-diagram', () => {
       .querySelector('textarea')
       ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await settle(element);
-    expect(element.selection).toBeNull();
     expect(element.renderRoot.querySelector('.comment-pop')).toBeNull();
     expect(element.renderRoot.querySelector('.diagram-details')).toBeNull();
   });
@@ -418,12 +435,7 @@ describe('dpk-component-er-diagram', () => {
     await settle(element);
     expect(element.selection?.kind).toBe('edge');
     expect(element.renderRoot.querySelector('.comment-pop')).toBeNull();
-    const trigger = element.renderRoot.querySelector<HTMLButtonElement>('[data-comment-kind="edge"]');
-    expect(trigger?.namespaceURI).toBe('http://www.w3.org/1999/xhtml');
-    expect(trigger?.closest('foreignObject')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
-    trigger?.click();
-    await settle(element);
-    expect(element.renderRoot.querySelector('.comment-pop')).not.toBeNull();
+    await openComment(element, 'edge', 'orders:id>inventory_reservations:order_id');
     expect(element.renderRoot.querySelector('.diagram-details')).toBeNull();
   });
   it('renders the always-on diff on tables, fields and relations', async () => {
@@ -541,7 +553,7 @@ describe('dpk-component-er-diagram', () => {
     expect(element.commentTargets.some((target) => target.value.includes('/field/'))).toBe(false);
   });
 
-  const litOf = (element: DpkComponentErDiagram, selector: string) =>
+  const litOf = (element: DpkErDiagram, selector: string) =>
     [...element.renderRoot.querySelectorAll<HTMLElement>(`${selector}.is-lit`)].map(
       (item) =>
         item.dataset['relation'] ??
@@ -707,8 +719,79 @@ describe('dpk-component-er-diagram', () => {
       expect(out.results[0]?.stale).toBe('constraint-violated');
     });
 
+    it('deletes a column just added outright, and an existing one as a removed row', () => {
+      const data = parseErData(raw);
+      const added = reduceErActions(m, data, [
+        act('ADD_FIELD', 'orders', { id: 'note', type: 'text' }, 0),
+        act('DELETE_FIELD', 'orders', { field: 'note' }, 1),
+      ]);
+      expect(field(added.data, 'orders', 'note')).toBeUndefined();
+      expect(added.results[1]?.stale).toBeUndefined();
+
+      const removed = reduceErActions(m, data, [act('DELETE_FIELD', 'customers', { field: 'email' })]);
+      expect(field(removed.data, 'customers', 'email')).toMatchObject({ status: 'removed' });
+      expect(removed.results[0]?.tone).toBe('delete');
+    });
+
+    it('rejects deleting an FK column, a column a relation references, and an unknown column', () => {
+      const data = parseErData(raw);
+      const out = reduceErActions(m, data, [
+        act('DELETE_FIELD', 'orders', { field: 'customer_id' }, 0),
+        act('DELETE_FIELD', 'orders', { field: 'id' }, 1),
+        act('DELETE_FIELD', 'orders', { field: 'nope' }, 2),
+      ]);
+      expect(out.results.map((result) => result.stale)).toEqual([
+        'constraint-violated',
+        'constraint-violated',
+        'target-missing',
+      ]);
+    });
+
+    it("edits a relation's cardinality as a changed edge that keeps its previous value, and reverts to same", () => {
+      const data = parseErData(raw);
+      const edgeId = 'customers:id>orders:customer_id';
+      const actEdge = (cardinality: string, n = 0) => ({
+        id: id(n),
+        type: 'EDIT_CARDINALITY',
+        target: { type: 'element', id: `erd/edge/${edgeId}` },
+        payload: { cardinality },
+        createdAt: '2026-10-20T00:00:00.000Z',
+      });
+      const edge = (schema: ReturnType<typeof parseErData>) => schema.edges.find((item) => item.id === edgeId);
+      const original = edge(data)?.cardinality;
+      const edited = reduceErActions(m, data, [actEdge('1:1')]);
+      expect(edge(edited.data)).toMatchObject({ status: 'changed', cardinality: { parent: '1', child: '1' } });
+      expect(edge(edited.data)?.before).toMatchObject({ cardinality: original });
+      const reverted = reduceErActions(m, data, [
+        actEdge('1:1', 0),
+        actEdge(`${original?.parent}:${original?.child}`, 1),
+      ]);
+      expect(edge(reverted.data)?.status).toBe('same');
+    });
+
+    it('rejects an unknown cardinality and an unknown relation', () => {
+      const data = parseErData(raw);
+      const out = reduceErActions(m, data, [
+        {
+          id: id(0),
+          type: 'EDIT_CARDINALITY',
+          target: { type: 'element', id: 'erd/edge/customers:id>orders:customer_id' },
+          payload: { cardinality: 'nope' },
+          createdAt: '2026-10-20T00:00:00.000Z',
+        },
+        {
+          id: id(1),
+          type: 'EDIT_CARDINALITY',
+          target: { type: 'element', id: 'erd/edge/nope' },
+          payload: { cardinality: '1:1' },
+          createdAt: '2026-10-20T00:00:00.000Z',
+        },
+      ]);
+      expect(out.results.map((result) => result.stale)).toEqual(['constraint-violated', 'target-missing']);
+    });
+
     it('records a typed column through the hosting template', async () => {
-      const element = new DpkComponentErDiagram();
+      const element = new DpkErDiagram();
       element.id = 'erd';
       element.data = parseErData(raw);
       document.body.append(element);
@@ -747,7 +830,7 @@ describe('dpk-component-er-diagram', () => {
     });
 
     it('shows an error and keeps the input when no template records it', async () => {
-      const element = new DpkComponentErDiagram();
+      const element = new DpkErDiagram();
       element.id = 'erd';
       element.data = parseErData(raw);
       document.body.append(element);
@@ -768,13 +851,13 @@ describe('dpk-component-er-diagram', () => {
       expect(element.renderRoot.querySelector('.er-editor [role="alert"]')).not.toBeNull();
     });
 
-    const options = (element: DpkComponentErDiagram) =>
+    const options = (element: DpkErDiagram) =>
       [...element.renderRoot.querySelectorAll('.er-editor [role="option"]')].map((option) =>
         option.getAttribute('data-type'),
       );
 
     const mountRecording = async () => {
-      const element = new DpkComponentErDiagram();
+      const element = new DpkErDiagram();
       element.id = 'erd';
       element.data = parseErData(raw);
       document.body.append(element);
@@ -1023,6 +1106,47 @@ describe('dpk-component-er-diagram', () => {
       expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
     });
 
+    it('deletes a plain column with its trash button, and offers none for an FK or a referenced column', async () => {
+      const { element, seen, query } = await mountRecording();
+      expect(
+        element.renderRoot.querySelector(
+          '[data-er-table="orders"] .er-field[data-field="customer_id"] .er-field-delete',
+        ),
+      ).toBeNull();
+      expect(
+        element.renderRoot.querySelector('[data-er-table="orders"] .er-field[data-field="id"] .er-field-delete'),
+      ).toBeNull();
+      query<HTMLButtonElement>('[data-er-table="orders"] .er-field[data-field="status"] .er-field-delete').click();
+      expect(seen).toMatchObject([{ type: 'DELETE_FIELD', payload: { field: 'status' } }]);
+    });
+
+    it("opens a cardinality editor for the selected relation and records a change to the edge's multiplicity", async () => {
+      const { element, seen, query } = await mountRecording();
+      const edgeId = 'customers:id>orders:customer_id';
+      query<SVGElement>(`[data-relation="${edgeId}"] .d-edge-hit`).dispatchEvent(
+        new MouseEvent('click', { bubbles: true }),
+      );
+      await settle(element);
+      const editor = query<HTMLElement>('.er-cardinality-editor');
+      expect(editor.getAttribute('aria-label')).toContain('customers.id');
+      const trigger = query<HTMLButtonElement>('.er-cardinality-editor .dpk-rich-select');
+      expect(trigger.textContent).toContain('1 : 0..N');
+      trigger.click();
+      await settle(element);
+      query<HTMLElement>('.dpk-rich-select-option[data-value="1:1"]').click();
+      await settle(element);
+      query<HTMLButtonElement>('.er-cardinality-editor .dpk-btn--accent').click();
+      await settle(element);
+      expect(seen).toMatchObject([
+        {
+          type: 'EDIT_CARDINALITY',
+          target: `element:erd/edge/${encodeURIComponent(edgeId)}`,
+          payload: { cardinality: '1:1' },
+        },
+      ]);
+      expect(element.renderRoot.querySelector('.er-cardinality-editor')).toBeNull();
+    });
+
     it('leads each row with the icon of its strongest role', async () => {
       const element = await mount();
       const icons = [...element.renderRoot.querySelectorAll('[data-er-table="orders"] .er-field .er-icon')].map(
@@ -1035,6 +1159,311 @@ describe('dpk-component-er-diagram', () => {
         ['not-null', m.columnRole('not-null')],
         ['nullable', m.columnRole('nullable')],
       ]);
+    });
+  });
+
+  describe('design attributes', () => {
+    const raw2 = {
+      after: {
+        tables: [
+          {
+            id: 'customers',
+            name: '顧客',
+            tags: ['顧客'],
+            boundedContext: '認証',
+            aggregate: '顧客集約',
+            pattern: 'immutable',
+            fields: [
+              { id: 'id', type: 'uuid', key: 'PK' },
+              { id: 'email', type: 'varchar', key: 'UQ' },
+              { id: 'note', type: 'text' },
+            ],
+          },
+          {
+            id: 'profiles',
+            name: 'プロフィール',
+            tags: [],
+            aggregate: '顧客集約',
+            fields: [
+              { id: 'id', type: 'uuid', key: 'PK' },
+              { id: 'customer_id', type: 'uuid', key: 'FK', ref: 'customers.id' },
+            ],
+          },
+        ],
+      },
+    };
+
+    const mount2 = async (): Promise<DpkErDiagram> => {
+      const element = new DpkErDiagram();
+      element.data = parseErData(raw2);
+      document.body.append(element);
+      await settle(element);
+      return element;
+    };
+
+    it('folds the Bounded Context into the tag filter, shows a pattern badge only where declared, and labels the aggregate group', async () => {
+      const element = await mount2();
+      const filter = element.renderRoot.querySelector('dpk-tag-filter') as unknown as {
+        tags: readonly (string | { readonly tag: string; readonly count?: number })[];
+      } | null;
+      expect(filter).not.toBeNull();
+      const tags = (filter?.tags ?? []).map((option) => (typeof option === 'string' ? option : option.tag));
+      expect(tags).toContain('BC:認証');
+
+      const badge = element.renderRoot.querySelector('[data-er-table="customers"] .er-pattern-badge');
+      expect(badge?.getAttribute('data-pattern')).toBe('immutable');
+      expect(element.renderRoot.querySelector('[data-er-table="profiles"] .er-pattern-badge')).toBeNull();
+
+      const label = element.renderRoot.querySelector('.er-aggregate-label');
+      expect(label?.textContent).toContain('顧客集約');
+    });
+
+    it("folds each table into the layout's generic group by its aggregate, and leaves it unset outside one", () => {
+      const data = parseErData({
+        after: {
+          tables: [
+            { id: 'customers', name: '顧客', tags: [], aggregate: '顧客集約', fields: [] },
+            { id: 'profiles', name: 'プロフィール', tags: [], aggregate: '顧客集約', fields: [] },
+            { id: 'logs', name: 'ログ', tags: [], fields: [] },
+          ],
+        },
+      });
+      const byId = new Map(data.nodes.map((node) => [node.id, node]));
+      expect(byId.get('customers')?.group).toBe('顧客集約');
+      expect(byId.get('profiles')?.group).toBe('顧客集約');
+      expect(byId.get('logs')?.group).toBeUndefined();
+    });
+
+    it('never overlaps two aggregates’ frames, each drawn around its own member tables only', async () => {
+      const element = new DpkErDiagram();
+      element.data = parseErData({
+        after: {
+          tables: [
+            {
+              id: 'customers',
+              name: '顧客',
+              tags: [],
+              aggregate: '顧客集約',
+              fields: [
+                { id: 'id', type: 'uuid', key: 'PK' },
+                { id: 'email', type: 'varchar' },
+              ],
+            },
+            {
+              id: 'profiles',
+              name: 'プロフィール',
+              tags: [],
+              aggregate: '顧客集約',
+              fields: [
+                { id: 'id', type: 'uuid', key: 'PK' },
+                { id: 'customer_id', type: 'uuid', key: 'FK', ref: 'customers.id' },
+                { id: 'display_name', type: 'varchar' },
+                { id: 'bio', type: 'text' },
+              ],
+            },
+            {
+              id: 'orders',
+              name: '注文',
+              tags: [],
+              aggregate: '注文集約',
+              fields: [
+                { id: 'id', type: 'uuid', key: 'PK' },
+                { id: 'customer_id', type: 'uuid', key: 'FK', ref: 'customers.id' },
+              ],
+            },
+            {
+              id: 'order_items',
+              name: '注文明細',
+              tags: [],
+              aggregate: '注文集約',
+              fields: [
+                { id: 'id', type: 'uuid', key: 'PK' },
+                { id: 'order_id', type: 'uuid', key: 'FK', ref: 'orders.id' },
+              ],
+            },
+          ],
+        },
+      });
+      document.body.append(element);
+      await settle(element);
+
+      const frames = [...element.renderRoot.querySelectorAll<HTMLElement>('.er-aggregate')];
+      expect(frames).toHaveLength(2);
+      const boxOf = (frame: HTMLElement) => ({
+        left: Number.parseFloat(frame.style.left),
+        top: Number.parseFloat(frame.style.top),
+        width: Number.parseFloat(frame.style.width),
+        height: Number.parseFloat(frame.style.height),
+      });
+      const [a, b] = frames.map(boxOf) as [ReturnType<typeof boxOf>, ReturnType<typeof boxOf>];
+      const overlapsX = a.left < b.left + b.width && b.left < a.left + a.width;
+      const overlapsY = a.top < b.top + b.height && b.top < a.top + a.height;
+      expect(overlapsX && overlapsY).toBe(false);
+    });
+
+    describe('dragging a table inside an aggregate', () => {
+      beforeEach(() => {
+        // jsdom has no pointer capture; every browser the kit targets does.
+        if (!('setPointerCapture' in HTMLElement.prototype)) {
+          Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { configurable: true, value: () => {} });
+        }
+      });
+
+      const pointer = (target: HTMLElement, type: string, clientX: number, clientY: number): void => {
+        target.dispatchEvent(new PointerEvent(type, { pointerId: 1, button: 0, clientX, clientY, bubbles: true }));
+      };
+
+      it('moves only the grabbed table, never the whole aggregate, even though the frame sits under it', async () => {
+        const element = new DpkErDiagram();
+        element.data = parseErData({
+          after: {
+            tables: [
+              {
+                id: 'customers',
+                name: '顧客',
+                tags: [],
+                aggregate: '顧客集約',
+                fields: [{ id: 'id', type: 'uuid', key: 'PK' }],
+              },
+              {
+                id: 'profiles',
+                name: 'プロフィール',
+                tags: [],
+                aggregate: '顧客集約',
+                fields: [{ id: 'id', type: 'uuid', key: 'PK' }],
+              },
+            ],
+          },
+        });
+        document.body.append(element);
+        await settle(element);
+
+        const table = element.renderRoot.querySelector<HTMLElement>('[data-er-table="customers"]');
+        const other = element.renderRoot.querySelector<HTMLElement>('[data-er-table="profiles"]');
+        const frame = element.renderRoot.querySelector<HTMLElement>('.er-aggregate');
+        if (!table || !other || !frame) throw new Error('missing table or frame');
+        const otherBefore = { left: other.style.left, top: other.style.top };
+
+        // A real press on a member table hits the table, not the frame beneath it:
+        // dispatch the gesture on the table element itself, as the browser would.
+        pointer(table, 'pointerdown', 10, 10);
+        pointer(table, 'pointermove', 60, 50);
+        await element.updateComplete;
+
+        expect(table.classList.contains('is-dragging')).toBe(true);
+        expect(frame.classList.contains('is-dragging')).toBe(false);
+
+        pointer(table, 'pointerup', 60, 50);
+        await element.updateComplete;
+
+        expect(table.classList.contains('is-dragging')).toBe(false);
+        expect(frame.classList.contains('is-dragging')).toBe(false);
+        // The other member never moved: this was a node drag, not a group drag.
+        expect(other.style.left).toBe(otherBefore.left);
+        expect(other.style.top).toBe(otherBefore.top);
+      });
+    });
+
+    it('hides non-key columns with the PK-only toggle, and restores them when toggled back off', async () => {
+      const element = await mount2();
+      const fieldsOf = (table: string) =>
+        [...element.renderRoot.querySelectorAll(`[data-er-table="${table}"] .er-field`)].map((row) =>
+          row.getAttribute('data-field'),
+        );
+      expect(fieldsOf('customers')).toEqual(['id', 'email', 'note']);
+
+      const toggle = element.renderRoot.querySelector<HTMLButtonElement>('.er-pk-toggle');
+      if (!toggle) throw new Error('no .er-pk-toggle');
+      toggle.click();
+      await settle(element);
+      expect(fieldsOf('customers')).toEqual(['id', 'email']);
+      expect(fieldsOf('profiles')).toEqual(['id', 'customer_id']);
+
+      toggle.click();
+      await settle(element);
+      expect(fieldsOf('customers')).toEqual(['id', 'email', 'note']);
+    });
+  });
+
+  describe('whole-table drag', () => {
+    beforeEach(() => {
+      // jsdom has no pointer capture; every browser the kit targets does.
+      if (!('setPointerCapture' in HTMLElement.prototype)) {
+        Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { configurable: true, value: () => {} });
+      }
+      localStorage.clear();
+    });
+
+    afterEach(() => {
+      localStorage.clear();
+    });
+
+    const pointer = (target: HTMLElement, type: string, clientX: number, clientY: number): void => {
+      target.dispatchEvent(new PointerEvent(type, { pointerId: 1, button: 0, clientX, clientY, bubbles: true }));
+    };
+
+    it('moves the whole table when the drag starts on its body, not a nested control', async () => {
+      const element = await mount();
+      const card = element.renderRoot.querySelector<HTMLElement>('[data-er-table="customers"]');
+      if (!card) throw new Error('missing table');
+      const before = card.style.left;
+      pointer(card, 'pointerdown', 10, 10);
+      pointer(card, 'pointermove', 60, 40);
+      await settle(element);
+      expect(card.classList.contains('is-dragging')).toBe(true);
+      pointer(card, 'pointerup', 60, 40);
+      await settle(element);
+      expect(card.style.left).not.toBe(before);
+      expect(card.classList.contains('is-dragging')).toBe(false);
+    });
+
+    it('never starts a drag from the header select button, and the button still selects', async () => {
+      const element = await mount();
+      const card = element.renderRoot.querySelector<HTMLElement>('[data-er-table="customers"]');
+      const head = element.renderRoot.querySelector<HTMLButtonElement>('[data-table="customers"]');
+      if (!card || !head) throw new Error('missing table or header button');
+      const before = card.style.left;
+      pointer(head, 'pointerdown', 10, 10);
+      pointer(head, 'pointermove', 60, 40);
+      await settle(element);
+      expect(card.classList.contains('is-dragging')).toBe(false);
+      pointer(head, 'pointerup', 60, 40);
+      head.click();
+      await settle(element);
+      expect(card.style.left).toBe(before);
+      expect(element.selection).toEqual({ kind: 'node', id: 'customers' });
+    });
+
+    it('never starts a drag from a field row edit/delete button or the add-field button', async () => {
+      const element = await mount();
+      // Edit/delete/add-field controls only render once the diagram has an id to record changes against.
+      element.id = 'schema';
+      await settle(element);
+      const card = element.renderRoot.querySelector<HTMLElement>('[data-er-table="orders"]');
+      const editButton = element.renderRoot.querySelector<HTMLButtonElement>(
+        '[data-er-table="orders"] [data-action="edit-field"][data-field="status"]',
+      );
+      const addButton = element.renderRoot.querySelector<HTMLButtonElement>(
+        '[data-er-table="orders"] [data-action="add-field"]',
+      );
+      if (!card || !editButton || !addButton) throw new Error('missing table controls');
+      const before = card.style.left;
+
+      pointer(editButton, 'pointerdown', 10, 10);
+      pointer(editButton, 'pointermove', 60, 40);
+      await settle(element);
+      expect(card.classList.contains('is-dragging')).toBe(false);
+      pointer(editButton, 'pointerup', 60, 40);
+      await settle(element);
+
+      pointer(addButton, 'pointerdown', 10, 10);
+      pointer(addButton, 'pointermove', 60, 40);
+      await settle(element);
+      expect(card.classList.contains('is-dragging')).toBe(false);
+      pointer(addButton, 'pointerup', 60, 40);
+      await settle(element);
+
+      expect(card.style.left).toBe(before);
     });
   });
 });

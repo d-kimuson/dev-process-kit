@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { DpkComponentKanban } from './element';
+import type { ContextMenuRequest } from '../../core/context-menu/types';
+
+import { parseTargetRef } from '../../core/target';
+import { DpkKanban } from './element';
 import { defineKanban } from './index';
 import { kanbanMessages } from './messages';
 
@@ -33,13 +36,13 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-const settle = async (element: DpkComponentKanban): Promise<void> => {
+const settle = async (element: DpkKanban): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (lang?: string): Promise<DpkComponentKanban> => {
-  const element = document.createElement('dpk-component-kanban');
-  if (!(element instanceof DpkComponentKanban)) throw new Error('did not upgrade');
+const mount = async (lang?: string): Promise<DpkKanban> => {
+  const element = document.createElement('dpk-kanban');
+  if (!(element instanceof DpkKanban)) throw new Error('did not upgrade');
   element.id = 'board';
   if (lang !== undefined) element.setAttribute('lang', lang);
   element.innerHTML = `<script type="application/json">${JSON.stringify(raw)}</script>`;
@@ -49,7 +52,7 @@ const mount = async (lang?: string): Promise<DpkComponentKanban> => {
 };
 
 /** Stand-in for the page: accept each action, then hand the recorded draft back. */
-const acceptActions = (element: DpkComponentKanban): void => {
+const acceptActions = (element: DpkKanban): void => {
   element.addEventListener('dpk-element-action', (event) => {
     if (!(event instanceof CustomEvent)) return;
     event.preventDefault();
@@ -67,7 +70,14 @@ const acceptActions = (element: DpkComponentKanban): void => {
   });
 };
 
-const layout = (element: DpkComponentKanban): Record<string, (string | undefined)[]> =>
+const reviewComment = (element: DpkKanban, ref: string): void => {
+  const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
+  const groups = element.getContextMenuItems(request) ?? [];
+  const entry = groups.flatMap((group) => group.entries).find((candidate) => candidate.id === 'review-comment');
+  if (entry?.kind === 'item') entry.run();
+};
+
+const layout = (element: DpkKanban): Record<string, (string | undefined)[]> =>
   Object.fromEntries(
     [...element.renderRoot.querySelectorAll<HTMLElement>('[data-column]')].map(
       (column): [string, (string | undefined)[]] => [
@@ -83,19 +93,19 @@ const drag = (target: Element, type: string, clientY = 0): void => {
   target.dispatchEvent(event);
 };
 
-const cardList = (element: DpkComponentKanban, column: string): HTMLElement => {
+const cardList = (element: DpkKanban, column: string): HTMLElement => {
   const list = element.renderRoot.querySelector<HTMLElement>(`[data-column="${column}"] .kanban-cards`);
   if (!list) throw new Error(`no column ${column}`);
   return list;
 };
 
-const card = (element: DpkComponentKanban, id: string): HTMLElement => {
+const card = (element: DpkKanban, id: string): HTMLElement => {
   const found = element.renderRoot.querySelector<HTMLElement>(`[data-card="${id}"]`);
   if (!found) throw new Error(`no card ${id}`);
   return found;
 };
 
-describe('<dpk-component-kanban>', () => {
+describe('<dpk-kanban>', () => {
   it('renders the columns with their cards in order', async () => {
     const element = await mount();
     expect(layout(element)).toEqual({ todo: ['login', 'api'], doing: ['stock'], done: [] });
@@ -158,7 +168,7 @@ describe('<dpk-component-kanban>', () => {
     card(element, 'login').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await settle(element);
     expect(element.selection).toEqual({ kind: 'card', id: 'login' });
-    expect(card(element, 'login').className).toContain('is-selected');
+    expect(card(element, 'login').getAttribute('aria-pressed')).toBe('true');
     expect(element.renderRoot.querySelector('[data-move]')).toBeNull();
   });
 
@@ -206,7 +216,7 @@ describe('<dpk-component-kanban>', () => {
     expect(slot?.querySelector('[role="alert"]')).not.toBeNull();
   });
 
-  const typeCard = async (element: DpkComponentKanban, column: string, title: string): Promise<HTMLInputElement> => {
+  const typeCard = async (element: DpkKanban, column: string, title: string): Promise<HTMLInputElement> => {
     element.renderRoot.querySelector<HTMLButtonElement>(`[data-column="${column}"] [data-action="add"]`)?.click();
     await settle(element);
     const input = element.renderRoot.querySelector<HTMLInputElement>(`[data-column="${column}"] .kanban-add input`);
@@ -227,8 +237,19 @@ describe('<dpk-component-kanban>', () => {
     expect(action).toMatchObject({ type: 'ADD_CARD', target: { id: 'board/column/done' } });
     expect(action?.payload).toEqual({ id, title: '監査ログ' });
     expect(layout(element)['done']).toEqual([id]);
+    expect(element.renderRoot.querySelector('[data-column="done"] .kanban-add input')).toBeNull();
     expect(card(element, id).className).toContain('is-added');
     expect(element.commentTargets.map((target) => target.value)).toContain(`element:board/card/${id}`);
+  });
+
+  it('addresses an id-less board before recording a card', async () => {
+    const element = await mount();
+    element.id = '';
+    acceptActions(element);
+    await typeCard(element, 'done', 'Catalog card');
+    expect(element.id).toMatch(/^kanban(?:-\d+)?$/);
+    expect(layout(element)['done']).toHaveLength(1);
+    expect(element.renderRoot.querySelector('[data-column="done"] .kanban-add input')).toBeNull();
   });
 
   it('keeps the typed title when no template records the card', async () => {
@@ -244,10 +265,12 @@ describe('<dpk-component-kanban>', () => {
 
   it('asks for a comment on a column or a card', async () => {
     const element = await mount();
-    const triggers = [...element.renderRoot.querySelectorAll<HTMLElement>('[data-comment-kind]')].map(
-      (trigger) => `${trigger.dataset['commentKind']}/${trigger.dataset['commentId']}`,
-    );
-    expect(triggers).toEqual(['column/todo', 'card/login', 'card/api', 'column/doing', 'card/stock', 'column/done']);
+    reviewComment(element, 'element:board/column/todo');
+    await settle(element);
+    expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('ToDo');
+    reviewComment(element, 'element:board/card/login');
+    await settle(element);
+    expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('ログイン画面');
   });
 
   it('renders its kit text in the element’s language', async () => {

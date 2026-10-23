@@ -1,23 +1,21 @@
 import { LitElement, html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
-import { keyed } from 'lit/directives/keyed.js';
 import { repeat } from 'lit/directives/repeat.js';
 
+import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
 import type { CommentTargetOption } from '../../core/types';
 
-import { iconChevronRight, iconComment } from '../../core/icons';
+import { contextMenuMessages } from '../../core/context-menu/messages';
+import { iconChevronRight } from '../../core/icons';
 import { LocaleController } from '../../core/locale-controller';
 import { PopoverController } from '../../core/popover-controller';
 import { observeJsonChild } from '../../lib/dom/base-data';
-import { composerMessages } from '../comment-composer/messages';
-import { presentComposer } from '../comment-composer/present';
-import { renderComposer, type ComposerIntent } from '../comment-composer/view';
+import { CommentPopoverController, reviewCommentMenuGroup } from '../comment-composer/controller';
 import { formalSpecMessages, type FormalSpecMessages } from './messages';
 import {
   assuranceCounts,
   claimGroups,
   emptyFormalSpecData,
   parseFormalSpecData,
-  plainText,
   type Claim,
   type Clause,
   type ClaimGroup,
@@ -25,7 +23,7 @@ import {
   type RichText,
   type Term,
 } from './model';
-import { claimLabel, presentAssurance, specTargets, targetSegments, type SpecTarget } from './present';
+import { presentAssurance, specTargets, targetSegments, type SpecTarget } from './present';
 import { formalSpecStyles } from './styles';
 
 /** What the tooltip explains: a term's meaning, or what a claim's assurance badge means. */
@@ -34,7 +32,7 @@ type Tip = { readonly kind: 'term'; readonly term: string } | { readonly kind: '
 const claimBodyId = (claim: string): string => `claim-body-${claim}`;
 
 /**
- * `<dpk-component-formal-spec>` — formally verified claims, written for people
+ * `<dpk-formal-spec>` — formally verified claims, written for people
  * who do not read the formal language.
  *
  * It is a document, not a canvas: claims read top to bottom, grouped under the
@@ -46,7 +44,7 @@ const claimBodyId = (claim: string): string => `claim-body-${claim}`;
  *
  * Targets, claims and their clauses are comment targets; there are no edits.
  */
-export class DpkComponentFormalSpec extends LitElement {
+export class DpkFormalSpec extends LitElement {
   static override styles: CSSResultGroup = formalSpecStyles;
   static override properties = {
     data: { attribute: false },
@@ -65,17 +63,13 @@ export class DpkComponentFormalSpec extends LitElement {
   #dataError: string | null = null;
   #stopJsonChild: (() => void) | null = null;
   #targetSignature = '';
-  /** The target whose composer is open, and the one open on the previous render. */
-  #commenting: string | null = null;
-  #previousCommenting: string | null = null;
-  #drafts: ReadonlyMap<string, string> = new Map();
-  #failedTarget: string | null = null;
   /** The claims the reader unfolded; every claim starts folded. */
   #expanded: ReadonlySet<string> = new Set();
   /** The open tooltip and the element it explains. */
   #tip: { readonly tip: Tip; readonly anchor: HTMLElement } | null = null;
   #previousTipAnchor: HTMLElement | null = null;
   readonly #popovers = new PopoverController(this);
+  readonly #commentPopover = new CommentPopoverController(this);
   readonly #i18n = new LocaleController(this, () => {
     this.#targetSignature = '';
   });
@@ -113,8 +107,40 @@ export class DpkComponentFormalSpec extends LitElement {
 
   protected override updated(): void {
     this.#syncTargets();
-    this.#syncComposer();
+    this.#commentPopover.sync(this.renderRoot.querySelector<HTMLElement>('.comment-pop'));
     this.#syncTip();
+  }
+
+  /**
+   * The right-click menu's "Review comment" item: offered whenever the
+   * resolved target matches one of this element's own `commentTargets`.
+   */
+  getContextMenuItems(request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
+    const group = reviewCommentMenuGroup(
+      request.target,
+      this.commentTargets,
+      contextMenuMessages(this.#i18n.locale),
+      (ref, label) => this.#openCommentPopover(ref, label),
+    );
+    return group === null ? null : [group];
+  }
+
+  #openCommentPopover(ref: string, label: string): void {
+    const anchor = this.renderRoot.querySelector<Element>(`[data-dpk-target="${CSS.escape(ref)}"]`);
+    if (anchor === null) return;
+    this.#commentPopover.open(ref, anchor, label);
+  }
+
+  /** There is no board here: an enclosing template saves the comment, cancelling the event once it has. */
+  #submitComment(target: string, body: string): boolean {
+    return !this.dispatchEvent(
+      new CustomEvent('dpk-comment-submit', {
+        detail: { target, body },
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+      }),
+    );
   }
 
   // ------------------------------------------------------------------- public
@@ -167,67 +193,13 @@ export class DpkComponentFormalSpec extends LitElement {
     this.dispatchEvent(new CustomEvent('dpk-comment-targets-change', { bubbles: true, composed: true }));
   }
 
-  /** Anchors an open composer to its trigger; focus moves in only when it opens. */
-  #syncComposer(): void {
-    const opened = this.#previousCommenting !== this.#commenting;
-    this.#previousCommenting = this.#commenting;
-    const surface = this.renderRoot.querySelector<HTMLElement>('.comment-pop');
-    const anchor = this.#trigger(this.#commenting);
-    if (!surface || !anchor) return;
-    this.#popovers.open(surface, anchor, { width: 300, height: 280 }, { placement: 'right-start' });
-    if (opened) surface.querySelector('textarea')?.focus({ preventScroll: true });
-  }
-
-  #trigger(ref: string | null): HTMLButtonElement | null {
-    if (ref === null) return null;
-    return (
-      [...this.renderRoot.querySelectorAll<HTMLButtonElement>('[data-comment-ref]')].find(
-        (button) => button.dataset['commentRef'] === ref,
-      ) ?? null
-    );
-  }
-
-  #commentIntent(ref: string, intent: ComposerIntent): void {
-    if (intent.kind === 'input') {
-      this.#drafts = new Map(this.#drafts).set(ref, intent.body);
-      this.#failedTarget = null;
-      this.requestUpdate();
-      return;
-    }
-    if (intent.kind === 'comment') {
-      // Only an enclosing template that saved the comment cancels the event.
-      const accepted = !this.dispatchEvent(
-        new CustomEvent('dpk-comment-submit', {
-          detail: { target: ref, body: intent.body },
-          bubbles: true,
-          composed: true,
-          cancelable: true,
-        }),
-      );
-      if (!accepted) {
-        this.#failedTarget = ref;
-        this.requestUpdate();
-        return;
-      }
-      const drafts = new Map(this.#drafts);
-      drafts.delete(ref);
-      this.#drafts = drafts;
-    }
-    this.#failedTarget = null;
-    const anchor = this.#trigger(ref);
-    this.#commenting = null;
-    this.requestUpdate();
-    anchor?.focus({ preventScroll: true });
-  }
-
   #toggleClaim(id: string): void {
     const expanded = new Set(this.#expanded);
     if (!expanded.delete(id)) expanded.add(id);
     this.#expanded = expanded;
-    // Folding removes the clause triggers and terms a composer or tooltip may be anchored to.
+    // Folding removes the clause terms a tooltip may be anchored to (the comment
+    // popover, like a diagram's, stays open even once its own anchor is hidden).
     if (!expanded.has(id)) {
-      const clausePrefix = this.#ref({ kind: 'clause', claim: id, clause: '' });
-      if (this.#commenting?.startsWith(clausePrefix)) this.#commenting = null;
       const anchor = this.#tip?.anchor;
       if (anchor?.closest('.claim-body')?.id === claimBodyId(id)) this.#hideTip(anchor);
     }
@@ -320,7 +292,12 @@ export class DpkComponentFormalSpec extends LitElement {
           )}
         </div>
       </section>
-      ${this.#renderTip()} ${this.#renderComposer()}
+      ${this.#renderTip()}
+      ${this.#commentPopover.render({
+        locale: this.#i18n.locale,
+        errorMessage: this.#m.sendFailed,
+        submit: (target, body) => this.#submitComment(target, body),
+      })}
     `;
   }
 
@@ -349,11 +326,10 @@ export class DpkComponentFormalSpec extends LitElement {
     const target = group.target;
     if (target === null) return claims;
     return html`<section class="target-group" data-target=${target.id}>
-      <header class="target-head">
+      <header class="target-head" data-dpk-target=${this.#ref({ kind: 'target', target: target.id })}>
         <span class="target-label">${this.#m.target}</span>
         <h3 class="target-name">${target.name}</h3>
         ${target.code === null ? nothing : html`<code class="target-code">${target.code}</code>`}
-        ${this.#renderTrigger({ kind: 'target', target: target.id }, target.name)}
       </header>
       ${target.summary === null ? nothing : html`<p class="target-summary">${this.#rich(target.summary)}</p>`}
       ${group.claims.length === 0 ? html`<p class="spec-empty">${this.#m.noClaims}</p>` : claims}
@@ -372,10 +348,14 @@ export class DpkComponentFormalSpec extends LitElement {
     const bodyId = claimBodyId(claim.id);
     return html`
       <article class="claim" data-claim=${claim.id} data-tone=${assurance.tone}>
-        <div class="claim-head" @click=${(event: MouseEvent) => this.#onHeadClick(event, claim.id)}>
+        <div
+          class="claim-head"
+          data-dpk-target=${this.#ref({ kind: 'claim', claim: claim.id })}
+          @click=${(event: MouseEvent) => this.#onHeadClick(event, claim.id)}
+        >
           <button
             type="button"
-            class="claim-toggle"
+            class="dpk-icon-btn claim-toggle"
             aria-expanded=${open ? 'true' : 'false'}
             aria-controls=${open ? bodyId : nothing}
             aria-label=${open ? m.hideDetails : m.showDetails}
@@ -396,7 +376,6 @@ export class DpkComponentFormalSpec extends LitElement {
           >
             ${assurance.label}
           </button>
-          ${this.#renderTrigger({ kind: 'claim', claim: claim.id }, claimLabel(claim))}
         </div>
         ${open ? this.#renderClaimBody(claim, bodyId) : nothing}
       </article>
@@ -462,12 +441,12 @@ export class DpkComponentFormalSpec extends LitElement {
         clauses,
         (clause) => clause.id,
         (clause) =>
-          html`<li class="clause" data-clause=${clause.id}>
+          html`<li
+            class="clause"
+            data-clause=${clause.id}
+            data-dpk-target=${this.#ref({ kind: 'clause', claim: claim.id, clause: clause.id })}
+          >
             <span class="clause-text">${this.#rich(clause.text)}</span>
-            ${this.#renderTrigger(
-              { kind: 'clause', claim: claim.id, clause: clause.id },
-              `${claimLabel(claim)} › ${plainText(clause.text)}`,
-            )}
           </li>`,
       )}
     </ul>`;
@@ -553,42 +532,5 @@ export class DpkComponentFormalSpec extends LitElement {
     if (claim === undefined) return null;
     const assurance = presentAssurance(this.#m, claim.assurance);
     return { title: assurance.label, body: assurance.detail, tone: assurance.tone };
-  }
-
-  /** The comment icon of one element; needs a component id, like every element comment. */
-  #renderTrigger(target: SpecTarget, label: string): TemplateResult | typeof nothing {
-    if (!this.id) return nothing;
-    const ref = this.#ref(target);
-    const title = this.#m.commentOn(label);
-    return html`<button
-      type="button"
-      class="comment-trigger"
-      data-comment-ref=${ref}
-      aria-label=${title}
-      title=${title}
-      aria-haspopup="dialog"
-      aria-expanded=${this.#commenting === ref ? 'true' : 'false'}
-      @click=${() => {
-        this.#commenting = this.#commenting === ref ? null : ref;
-        this.requestUpdate();
-      }}
-    >
-      ${iconComment()}
-    </button>`;
-  }
-
-  #renderComposer(): TemplateResult | typeof nothing {
-    const ref = this.#commenting;
-    const label = ref === null ? undefined : this.commentTargets.find((target) => target.value === ref)?.label;
-    if (ref === null || label === undefined) return nothing;
-    const vm = presentComposer(this.#drafts.get(ref) ?? '', [], {
-      label,
-      key: ref,
-      ...(this.#failedTarget === ref ? { error: this.#m.sendFailed } : {}),
-    });
-    return html`${keyed(
-      ref,
-      renderComposer(composerMessages(this.#i18n.locale), vm, (intent) => this.#commentIntent(ref, intent)),
-    )}`;
   }
 }

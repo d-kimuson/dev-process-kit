@@ -1,5 +1,6 @@
 import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
+import type { CommentTargetOption } from '../../core/types';
 import type { LayoutOptions } from '../../lib/layout/layered';
 
 import { DiagramElement } from '../diagram/element';
@@ -20,7 +21,7 @@ import { stateDiagramStyles } from './styles';
 const ARROWS = [{ id: 'state-arrow' }, { id: 'state-arrow-active' }, { id: 'state-arrow-exception' }] as const;
 
 /** Lifecycle diagram: select a state to see its transitions, or one transition. */
-export class DpkComponentStateDiagram extends DiagramElement<StateDiagramData> {
+export class DpkStateDiagram extends DiagramElement<StateDiagramData> {
   static override styles: CSSResultGroup = [diagramStyles, stateDiagramStyles];
 
   protected override parseData(input: unknown): StateDiagramData {
@@ -65,6 +66,19 @@ export class DpkComponentStateDiagram extends DiagramElement<StateDiagramData> {
       nodes: new Map([...outgoing.nodes, ...incoming.nodes]),
       edges: new Set([...outgoing.edges, ...incoming.edges]),
     };
+  }
+
+  /** State and transition names, not raw ids, so "Review comment" reads like the diagram does. */
+  protected override commentItems(): readonly CommentTargetOption[] {
+    const items = this.items();
+    const name = (id: string) => items.nodes.find((node) => node.id === id)?.name ?? id;
+    return [
+      ...items.nodes.map((node) => ({ value: this.commentRef('node', node.id), label: node.name })),
+      ...items.edges.map((edge) => ({
+        value: this.commentRef('edge', edge.id),
+        label: `${name(edge.from)} → ${name(edge.to)} · ${edge.title}`,
+      })),
+    ];
   }
 
   protected override renderCanvas(): TemplateResult {
@@ -143,21 +157,27 @@ export class DpkComponentStateDiagram extends DiagramElement<StateDiagramData> {
     return html`
       <button
         type="button"
-        class=${this.elementClass(state, 'd-node', 'state-node', `is-${node.kind}`)}
+        class=${this.elementClass(
+          state,
+          'd-node',
+          'state-node',
+          `is-${node.kind}`,
+          this.isDraggingNode(node.id) && 'is-dragging',
+        )}
         data-state=${node.id}
         data-grill-questions=${this.questionsOf(node)}
+        data-dpk-target=${this.commentRef('node', node.id)}
         style="left:${placed.x}px; top:${placed.y}px; width:${node.width}px; height:${node.height}px"
         aria-pressed=${state.selected ? 'true' : 'false'}
         title=${node.description ?? node.name}
-        @click=${() => this.select({ kind: 'node', id: node.id })}
+        @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, node.id)}
+        @click=${() => {
+          if (!this.consumeDragClick()) this.select({ kind: 'node', id: node.id });
+        }}
       >
         <span class="state-name">${node.name}</span>
         ${node.code === null ? nothing : html`<span class="state-code">${node.code}</span>`}
       </button>
-      ${this.renderCommentTrigger({ kind: 'node', id: node.id }, node.name, {
-        x: placed.x + node.width - 20,
-        y: placed.y - 14,
-      })}
     `;
   }
 
@@ -171,15 +191,12 @@ export class DpkComponentStateDiagram extends DiagramElement<StateDiagramData> {
           class=${this.elementClass(state, 'state-label')}
           data-transition-label=${edge.id}
           data-grill-questions=${this.questionsOf(edge)}
+          data-dpk-target=${this.commentRef('edge', edge.id)}
           title=${this.#tooltip(edge)}
           @click=${() => this.select({ kind: 'edge', id: edge.id })}
         >
           ${edge.title}
         </button>
-        ${this.renderCommentTrigger(
-          { kind: 'edge', id: edge.id },
-          `${this.#name(edge.from)} → ${this.#name(edge.to)} · ${edge.title}`,
-        )}
       </span>
     `;
   }

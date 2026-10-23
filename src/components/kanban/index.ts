@@ -1,4 +1,4 @@
-export { DpkComponentKanban } from './element';
+export { DpkKanban } from './element';
 export type { KanbanSelection } from './element';
 export { kanbanMessages } from './messages';
 export type { KanbanMessages } from './messages';
@@ -14,8 +14,8 @@ export {
 } from './model';
 export type { KanbanCard, KanbanCardChange, KanbanColor, KanbanColumn, KanbanData, KanbanPosition } from './model';
 
-import { DpkComponentKanban } from './element';
+import { DpkKanban } from './element';
 
 export const defineKanban = (): void => {
-  if (!customElements.get('dpk-component-kanban')) customElements.define('dpk-component-kanban', DpkComponentKanban);
+  if (!customElements.get('dpk-kanban')) customElements.define('dpk-kanban', DpkKanban);
 };

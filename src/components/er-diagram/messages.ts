@@ -1,3 +1,5 @@
+import type { ErDesignPattern } from './model';
+
 import { defineMessages } from '../../core/i18n';
 
 type ErStatus = 'same' | 'added' | 'removed' | 'changed';
@@ -19,8 +21,6 @@ export const erDiagramMessages = defineMessages({
     legendAdded: 'Added',
     legendRemoved: 'Removed',
     legendChanged: 'Changed',
-    legendCardinality:
-      'Crow’s foot: | one · ○ zero · fork many — each end counts that table’s rows per row across the line',
     statusLabel: (status: ErStatus) => label(status, true),
     edgeLabel: (from: string, to: string, cardinality: string) => `${from} and ${to}, related ${cardinality}`,
     was: (previous: string) => `was ${previous}`,
@@ -51,6 +51,23 @@ export const erDiagramMessages = defineMessages({
     changesLabel: 'Changes',
     attributeLabel: (attribute: Attribute) =>
       ({ type: 'type', keys: 'keys', ref: 'ref', nullable: 'null', cardinality: 'card.', label: 'label' })[attribute],
+    deleteFieldButton: (field: string) => `Delete ${field}`,
+    deleteFieldTitle: 'Delete column',
+    deleteFieldSummary: (table: string, field: string) => `${table}.${field}`,
+    editCardinalityTitle: 'Edit cardinality',
+    editCardinalityButton: 'Edit cardinality',
+    editCardinalitySummary: (from: string, to: string, cardinality: string) => `${from} – ${to}: ${cardinality}`,
+    cardinalityLabel: 'Cardinality',
+    patternLabel: (pattern: ErDesignPattern) =>
+      ({
+        immutable: 'Immutable',
+        mutable: 'Mutable',
+        sti: 'STI',
+        cti: 'CTI',
+        'value-object': 'Value Object',
+      })[pattern],
+    aggregateLabel: 'Aggregate',
+    pkOnlyToggle: 'PK only',
   },
   ja: {
     heading: 'ER図',
@@ -61,8 +78,6 @@ export const erDiagramMessages = defineMessages({
     legendAdded: '追加',
     legendRemoved: '削除',
     legendChanged: '変更',
-    legendCardinality:
-      'カラスの足記法: | 1 · ○ 0 · 三叉 多 — 各端の記号と数字は、相手側 1 行に対するその端のテーブルの行数',
     statusLabel: (status: ErStatus) => label(status, false),
     edgeLabel: (from: string, to: string, cardinality: string) => `${from} と ${to} の関連 (${cardinality})`,
     was: (previous: string) => `変更前 ${previous}`,
@@ -93,6 +108,23 @@ export const erDiagramMessages = defineMessages({
     changesLabel: '変更点',
     attributeLabel: (attribute: Attribute) =>
       ({ type: '型', keys: 'キー', ref: '参照', nullable: 'NULL', cardinality: '多重度', label: 'ラベル' })[attribute],
+    deleteFieldButton: (field: string) => `${field} を削除`,
+    deleteFieldTitle: 'カラムを削除',
+    deleteFieldSummary: (table: string, field: string) => `${table}.${field}`,
+    editCardinalityTitle: '多重度を編集',
+    editCardinalityButton: '多重度を編集',
+    editCardinalitySummary: (from: string, to: string, cardinality: string) => `${from} – ${to}: ${cardinality}`,
+    cardinalityLabel: '多重度',
+    patternLabel: (pattern: ErDesignPattern) =>
+      ({
+        immutable: 'Immutable',
+        mutable: 'Mutable',
+        sti: 'STI',
+        cti: 'CTI',
+        'value-object': 'Value Object',
+      })[pattern],
+    aggregateLabel: '集約',
+    pkOnlyToggle: 'PK のみ',
   },
 });
 

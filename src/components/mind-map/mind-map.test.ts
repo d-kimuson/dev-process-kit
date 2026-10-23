@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { DpkComponentMindMap } from './element';
+import type { ContextMenuRequest } from '../../core/context-menu/types';
+
+import { parseTargetRef } from '../../core/target';
+import { DpkMindMap } from './element';
 import { defineMindMap } from './index';
 import { layoutMindMap } from './layout';
 import { mindMapMessages } from './messages';
@@ -238,14 +241,14 @@ describe('mind map layout', () => {
   });
 });
 
-describe('<dpk-component-mind-map>', () => {
-  const settle = async (element: DpkComponentMindMap): Promise<void> => {
+describe('<dpk-mind-map>', () => {
+  const settle = async (element: DpkMindMap): Promise<void> => {
     for (let index = 0; index < 3; index++) await element.updateComplete;
   };
 
-  const mount = async (lang?: string): Promise<DpkComponentMindMap> => {
-    const element = document.createElement('dpk-component-mind-map');
-    if (!(element instanceof DpkComponentMindMap)) throw new Error('did not upgrade');
+  const mount = async (lang?: string): Promise<DpkMindMap> => {
+    const element = document.createElement('dpk-mind-map');
+    if (!(element instanceof DpkMindMap)) throw new Error('did not upgrade');
     element.id = 'checkout-map';
     if (lang !== undefined) element.setAttribute('lang', lang);
     element.innerHTML = `<script type="application/json">${JSON.stringify(raw)}</script>`;
@@ -254,8 +257,15 @@ describe('<dpk-component-mind-map>', () => {
     return element;
   };
 
-  const topics = (element: DpkComponentMindMap): (string | undefined)[] =>
+  const topics = (element: DpkMindMap): (string | undefined)[] =>
     [...element.renderRoot.querySelectorAll<HTMLElement>('[data-topic]')].map((node) => node.dataset['topic']);
+
+  const reviewComment = (element: DpkMindMap, ref: string): void => {
+    const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
+    const groups = element.getContextMenuItems(request) ?? [];
+    const entry = groups.flatMap((group) => group.entries).find((candidate) => candidate.id === 'review-comment');
+    if (entry?.kind === 'item') entry.run();
+  };
 
   it('renders topics and starts with the authored folding', async () => {
     const element = await mount();
@@ -293,22 +303,25 @@ describe('<dpk-component-mind-map>', () => {
     expect(element.renderRoot.querySelector('.diagram-details')).toBeNull();
   });
 
-  it('offers adding a subtopic and a comment right below the selected topic', async () => {
+  it('offers adding a subtopic right below the selected topic, with comments left to the context menu', async () => {
     const element = await mount();
     expect(element.renderRoot.querySelector('.mind-actions')).toBeNull();
     element.select({ kind: 'node', id: 'payment' });
     await settle(element);
     const bar = element.renderRoot.querySelector<HTMLElement>('.mind-actions');
     expect(bar?.dataset['for']).toBe('payment');
-    const requests: unknown[] = [];
-    element.addEventListener('dpk-comment-request', (event) => {
-      if (event instanceof CustomEvent) requests.push(event.detail);
-    });
-    bar?.querySelector<HTMLButtonElement>('[data-action="comment"]')?.click();
-    expect(requests).toEqual([{ target: 'element:checkout-map/node/payment' }]);
+    expect(bar?.querySelector('[data-action="add"]')).not.toBeNull();
+    expect(bar?.querySelector('[data-action="comment"]')).toBeNull();
   });
 
-  const type = async (element: DpkComponentMindMap, label: string): Promise<HTMLInputElement> => {
+  it('offers "Review comment" on a topic from the context menu', async () => {
+    const element = await mount();
+    reviewComment(element, 'element:checkout-map/node/payment');
+    await settle(element);
+    expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('決済');
+  });
+
+  const type = async (element: DpkMindMap, label: string): Promise<HTMLInputElement> => {
     element.renderRoot.querySelector<HTMLButtonElement>('.mind-actions [data-action="add"]')?.click();
     await settle(element);
     const input = element.renderRoot.querySelector<HTMLInputElement>('.mind-actions input');
@@ -391,7 +404,6 @@ describe('<dpk-component-mind-map>', () => {
     await settle(element);
     const bar = element.renderRoot.querySelector<HTMLElement>('.mind-actions');
     expect(bar?.querySelector('[data-action="add"]')?.textContent?.trim()).toBe(ja.addSubtopicButton);
-    expect(bar?.querySelector('[data-action="comment"]')?.textContent?.trim()).toBe(ja.commentButton);
   });
 
   it('renders its kit text in English by default', async () => {
@@ -402,6 +414,5 @@ describe('<dpk-component-mind-map>', () => {
     await settle(element);
     const bar = element.renderRoot.querySelector<HTMLElement>('.mind-actions');
     expect(bar?.querySelector('[data-action="add"]')?.textContent?.trim()).toBe(m.addSubtopicButton);
-    expect(bar?.querySelector('[data-action="comment"]')?.textContent?.trim()).toBe(m.commentButton);
   });
 });

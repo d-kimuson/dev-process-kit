@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { DpkComponentSequenceDiagram } from './element';
+import type { ContextMenuRequest } from '../../core/context-menu/types';
+
+import { parseTargetRef } from '../../core/target';
+import { DpkSequenceDiagram } from './element';
 import { defineSequenceDiagram } from './index';
 import { sequenceDiagramMessages } from './messages';
 import { flattenMessages, layoutSequence, messageNumbers, parseSequenceData, pruneItems } from './model';
@@ -89,12 +92,12 @@ const raw = {
   ],
 } as const;
 
-const settle = async (element: DpkComponentSequenceDiagram): Promise<void> => {
+const settle = async (element: DpkSequenceDiagram): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (lang?: string): Promise<DpkComponentSequenceDiagram> => {
-  const element = new DpkComponentSequenceDiagram();
+const mount = async (lang?: string): Promise<DpkSequenceDiagram> => {
+  const element = new DpkSequenceDiagram();
   if (lang !== undefined) element.setAttribute('lang', lang);
   element.data = parseSequenceData(raw);
   document.body.append(element);
@@ -102,7 +105,14 @@ const mount = async (lang?: string): Promise<DpkComponentSequenceDiagram> => {
   return element;
 };
 
-const labels = (element: DpkComponentSequenceDiagram): (string | undefined)[] =>
+const reviewComment = (element: DpkSequenceDiagram, ref: string): void => {
+  const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
+  const groups = element.getContextMenuItems(request) ?? [];
+  const entry = groups.flatMap((group) => group.entries).find((candidate) => candidate.id === 'review-comment');
+  if (entry?.kind === 'item') entry.run();
+};
+
+const labels = (element: DpkSequenceDiagram): (string | undefined)[] =>
   [...element.renderRoot.querySelectorAll<HTMLElement>('[data-message-label]')].map(
     (node) => node.dataset['messageLabel'],
   );
@@ -129,21 +139,11 @@ describe('sequence comment targets', () => {
     const element = await mount();
     element.id = 'checkout';
     await settle(element);
-    const trigger = (kind: string, id: string) =>
-      element.renderRoot.querySelector<HTMLButtonElement>(`[data-comment-kind="${kind}"][data-comment-id="${id}"]`);
-    expect(trigger('participant', 'api')?.previousElementSibling).toBe(
-      element.renderRoot.querySelector('[data-participant="api"]'),
-    );
-    trigger('participant', 'api')?.click();
+    reviewComment(element, 'element:checkout/participant/api');
     await settle(element);
-    expect(element.selection).toEqual({ kind: 'participant', id: 'api' });
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('Order API');
-    expect(trigger('message', 'm2')?.previousElementSibling).toBe(
-      element.renderRoot.querySelector('[data-message-label="m2"]'),
-    );
-    trigger('message', 'm2')?.click();
+    reviewComment(element, 'element:checkout/message/m2');
     await settle(element);
-    expect(element.selection).toEqual({ kind: 'message', id: 'm2' });
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('02 POST /payments');
   });
 
@@ -217,7 +217,7 @@ describe('sequence diagram data', () => {
   });
 });
 
-describe('dpk-component-sequence-diagram', () => {
+describe('dpk-sequence-diagram', () => {
   it('renders the participant rail, numbered messages and a folded fragment', async () => {
     const element = await mount();
     expect(element.renderRoot.querySelectorAll('[data-participant]')).toHaveLength(4);
@@ -277,7 +277,10 @@ describe('dpk-component-sequence-diagram', () => {
 
   it('filters messages by tag, and shows the empty state when nothing matches', async () => {
     const element = await mount();
-    element.renderRoot.querySelector<HTMLButtonElement>('[data-tag="決済失敗"]')?.click();
+    element.renderRoot
+      .querySelector('dpk-tag-filter')
+      ?.shadowRoot?.querySelector<HTMLButtonElement>('[data-tag="決済失敗"]')
+      ?.click();
     await element.updateComplete;
     expect(labels(element)).toEqual(['m4']);
     expect(
@@ -294,11 +297,15 @@ describe('dpk-component-sequence-diagram', () => {
 
   it('fits the width on first render and keeps the rail aligned', async () => {
     const element = await mount();
-    expect(element.renderRoot.querySelector('.diagram-zoom-value')?.textContent).toMatch(/^\d+%$/);
+    expect(
+      element.renderRoot.querySelector('dpk-dialog-panel')?.shadowRoot?.querySelector('.zoom-value')?.textContent,
+    ).toMatch(/^\d+%$/);
     const rail = element.renderRoot.querySelector<HTMLElement>('.sequence-rail-world');
     expect(rail?.style.transform).toContain('translateX');
     element.resetView();
-    expect(element.renderRoot.querySelector('.diagram-zoom-value')?.textContent).toMatch(/^\d+%$/);
+    expect(
+      element.renderRoot.querySelector('dpk-dialog-panel')?.shadowRoot?.querySelector('.zoom-value')?.textContent,
+    ).toMatch(/^\d+%$/);
   });
 
   it('renders its kit text in the element’s language', async () => {

@@ -34,7 +34,20 @@ export type ErCardinality = { readonly parent: '1' | '0..1'; readonly child: ErM
 
 const PARENT_ENDS = ['1', '0..1'] as const;
 const CHILD_ENDS = ['1', '0..1', '1..N', '0..N'] as const;
-const CARDINALITIES = PARENT_ENDS.flatMap((parent) => CHILD_ENDS.map((child) => `${parent}:${child}` as const));
+/** Every `parent:child` pair a relation's cardinality may hold, offered whole in its editor. */
+export const CARDINALITIES = PARENT_ENDS.flatMap((parent) => CHILD_ENDS.map((child) => `${parent}:${child}` as const));
+
+/**
+ * A table's major structural pattern, shown as a badge on its card — an
+ * auxiliary attribute, never a filter (the tag row already covers that).
+ */
+export const ER_DESIGN_PATTERNS = ['immutable', 'mutable', 'sti', 'cti', 'value-object'] as const;
+export type ErDesignPattern = (typeof ER_DESIGN_PATTERNS)[number];
+const designPatternSchema = v.picklist(ER_DESIGN_PATTERNS);
+
+/** Folds a table's Bounded Context into its tags, so the existing tag filter row and its Single/AND/OR semantics cover it for free. */
+export const BC_TAG_PREFIX = 'BC:';
+export const boundedContextTag = (boundedContext: string): string => `${BC_TAG_PREFIX}${boundedContext}`;
 
 const keySchema = v.picklist(['PK', 'FK', 'UQ']);
 
@@ -57,6 +70,11 @@ const tableSchema = v.strictObject({
   id: v.pipe(v.string(), v.minLength(1)),
   name: v.pipe(v.string(), v.minLength(1)),
   tags: v.optional(v.array(v.string()), []),
+  /** Separate from `tags`; folded into them as `BC:<name>` so it filters the same way. */
+  boundedContext: v.optional(v.string()),
+  /** Groups tables on the canvas; purely visual. */
+  aggregate: v.optional(v.string()),
+  pattern: v.optional(designPatternSchema),
   fields: v.array(fieldSchema),
   questions: v.optional(v.string()),
 });
@@ -96,6 +114,11 @@ export type ErTableDiff = DiagramNodeInput & {
   readonly name: string;
   readonly status: ErStatus;
   readonly fields: readonly ErFieldDiff[];
+  /** `null` outside any Bounded Context; also folded into `tags` as {@link boundedContextTag}. */
+  readonly boundedContext: string | null;
+  /** `null` outside any aggregate; tables sharing one are grouped on the canvas. */
+  readonly aggregate: string | null;
+  readonly pattern: ErDesignPattern | null;
 };
 
 /** What a relation says, apart from which columns it joins. */
@@ -305,7 +328,15 @@ export const parseErData = (input: unknown): ErData => {
   const after = parsed.after.tables;
   const ids = [...new Set([...before, ...after].map((table) => table.id))];
   const tags = new Map<string, readonly string[]>();
-  for (const table of [...before, ...after]) tags.set(table.id, table.tags);
+  const boundedContexts = new Map<string, string | null>();
+  const aggregates = new Map<string, string | null>();
+  const patterns = new Map<string, ErDesignPattern | null>();
+  for (const table of [...before, ...after]) {
+    tags.set(table.id, table.tags);
+    boundedContexts.set(table.id, table.boundedContext ?? null);
+    aggregates.set(table.id, table.aggregate ?? null);
+    patterns.set(table.id, table.pattern ?? null);
+  }
 
   const nodes = ids.flatMap((id): ErTableDiff[] => {
     const oldTable = before.find((table) => table.id === id);
@@ -321,13 +352,21 @@ export const parseErData = (input: unknown): ErData => {
         : fields.some((field) => field.status !== 'same')
           ? 'changed'
           : 'same';
+    const boundedContext = boundedContexts.get(id) ?? null;
+    const aggregate = aggregates.get(id) ?? null;
     return [
       {
         id,
         name: source.name,
         status,
         fields,
-        tags: tags.get(id) ?? [],
+        tags: [...(tags.get(id) ?? []), ...(boundedContext === null ? [] : [boundedContextTag(boundedContext)])],
+        boundedContext,
+        aggregate,
+        // Folded into the layered layout's generic `group`, the same way `boundedContext` is folded into `tags`:
+        // tables sharing an aggregate are clustered into one non-overlapping band on the canvas.
+        ...(aggregate === null ? {} : { group: aggregate }),
+        pattern: patterns.get(id) ?? null,
         width: TABLE_WIDTH,
         height: tableHeight(fields),
         ...(source.questions === undefined ? {} : { questions: source.questions }),
@@ -378,6 +417,8 @@ export const parseErData = (input: unknown): ErData => {
 
 export const ADD_FIELD = 'ADD_FIELD';
 export const EDIT_FIELD = 'EDIT_FIELD';
+export const DELETE_FIELD = 'DELETE_FIELD';
+export const EDIT_CARDINALITY = 'EDIT_CARDINALITY';
 
 const addFieldPayloadSchema = v.object({
   id: v.pipe(v.string(), v.trim(), v.minLength(1)),
@@ -391,11 +432,32 @@ const editFieldPayloadSchema = v.object({
   nullable: v.boolean(),
 });
 
+const deleteFieldPayloadSchema = v.object({
+  field: v.pipe(v.string(), v.minLength(1)),
+});
+
+const editCardinalityPayloadSchema = v.object({
+  cardinality: v.picklist(CARDINALITIES),
+});
+
 /** `<diagram-id>/node/<id>` → the table id. */
 const tableIdOfTarget = (targetId: string): string | null => {
   const segments = elementRefSegments(targetId);
   return segments?.length === 3 && segments[1] === 'node' ? (segments[2] ?? null) : null;
 };
+
+/** `<diagram-id>/edge/<id>` → the relation id. */
+const edgeIdOfTarget = (targetId: string): string | null => {
+  const segments = elementRefSegments(targetId);
+  return segments?.length === 3 && segments[1] === 'edge' ? (segments[2] ?? null) : null;
+};
+
+/** Whether `field` of `table` carries any relation, as either its FK or the column an FK points at. */
+const fieldInRelation = (data: ErData, tableId: string, fieldId: string): boolean =>
+  data.edges.some(
+    (edge) =>
+      (edge.from === tableId && edge.sourceField === fieldId) || (edge.to === tableId && edge.targetField === fieldId),
+  );
 
 type Step = { readonly data: ErData; readonly result: ElementActionResult };
 
@@ -467,6 +529,73 @@ const editField = (m: ErDiagramMessages, data: ErData, action: DraftAction): Ste
 };
 
 /**
+ * Deletes a plain column: an `added` one disappears outright (undoing the
+ * add), any other is marked `removed` like an authored deletion, so it keeps
+ * reading as a struck-through row. A column that carries a relation, on
+ * either end, cannot be deleted here — its multiplicities and the edge that
+ * draws it would be left dangling.
+ */
+const deleteField = (m: ErDiagramMessages, data: ErData, action: DraftAction): Step => {
+  const title = m.deleteFieldTitle;
+  const table = data.nodes.find((node) => node.id === tableIdOfTarget(action.target.id));
+  const payload = v.safeParse(deleteFieldPayloadSchema, action.payload);
+  const field = payload.success ? table?.fields.find((item) => item.id === payload.output.field) : undefined;
+  if (table === undefined || (payload.success && field === undefined)) {
+    return { data, result: { id: action.id, title, stale: 'target-missing' } };
+  }
+  if (
+    !payload.success ||
+    field === undefined ||
+    field.status === 'removed' ||
+    field.ref !== null ||
+    fieldInRelation(data, table.id, field.id)
+  ) {
+    return { data, result: { id: action.id, title, stale: 'constraint-violated' } };
+  }
+  const fields =
+    field.status === 'added'
+      ? table.fields.filter((item) => item.id !== field.id)
+      : table.fields.map((item): ErFieldDiff =>
+          item.id === field.id ? { ...field, status: 'removed', before: null } : item,
+        );
+  return {
+    data: replaceTable(data, table.id, fields),
+    result: { id: action.id, title, summary: m.deleteFieldSummary(table.id, field.id), tone: 'delete' },
+  };
+};
+
+const editCardinality = (m: ErDiagramMessages, data: ErData, action: DraftAction): Step => {
+  const title = m.editCardinalityTitle;
+  const edge = data.edges.find((item) => item.id === edgeIdOfTarget(action.target.id));
+  if (edge === undefined) return { data, result: { id: action.id, title, stale: 'target-missing' } };
+  const payload = v.safeParse(editCardinalityPayloadSchema, action.payload);
+  if (!payload.success || edge.status === 'removed') {
+    return { data, result: { id: action.id, title, stale: 'constraint-violated' } };
+  }
+  const [parentEnd = '', childEnd = ''] = payload.output.cardinality.split(':');
+  const parent = PARENT_END.get(parentEnd);
+  const child = CHILD_END.get(childEnd);
+  // The schema only admits known pairs; this narrows the type.
+  if (parent === undefined || child === undefined) {
+    return { data, result: { id: action.id, title, stale: 'constraint-violated' } };
+  }
+  const cardinality: ErCardinality = { parent, child };
+  const meaning: ErRelationMeaning = { cardinality, label: edge.label };
+  const original = edge.before ?? { cardinality: edge.cardinality, label: edge.label };
+  const status: ErStatus = edge.status === 'added' ? 'added' : sameMeaning(original, meaning) ? 'same' : 'changed';
+  const edited: ErRelation = { ...edge, cardinality, status, before: status === 'changed' ? original : null };
+  return {
+    data: { ...data, edges: data.edges.map((item) => (item.id === edge.id ? edited : item)) },
+    result: {
+      id: action.id,
+      title,
+      summary: m.editCardinalitySummary(edge.from, edge.to, cardinalityText(cardinality)),
+      tone: 'update',
+    },
+  };
+};
+
+/**
  * Replays the draft's element actions over the diffed schema, in order. An
  * added or edited column is drawn against the `after` snapshot like any other
  * change. Each action is reported on: applied, or why it is stale. Pure.
@@ -484,7 +613,14 @@ export const reduceErActions = (
         ? addField(m, schema, action)
         : action.type === EDIT_FIELD
           ? editField(m, schema, action)
-          : { data: schema, result: { id: action.id, title: action.type, stale: 'unsupported-action-type' as const } };
+          : action.type === DELETE_FIELD
+            ? deleteField(m, schema, action)
+            : action.type === EDIT_CARDINALITY
+              ? editCardinality(m, schema, action)
+              : {
+                  data: schema,
+                  result: { id: action.id, title: action.type, stale: 'unsupported-action-type' as const },
+                };
     schema = step.data;
     results.push(step.result);
   }

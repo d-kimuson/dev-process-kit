@@ -22,6 +22,41 @@ export const erStyles = css`
     font-size: 11px;
   }
 
+  /* ---- Aggregate grouping ---- */
+
+  /*
+   * One padded, dashed box per aggregate, behind its tables and the relation lines. Its own area still
+   * takes pointer events (grab its outline, or any gap it covers between tables, to drag every member
+   * table together); a table drawn on top of it keeps first claim on the same point, same as always.
+   */
+  .er-aggregate {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1.5px dashed color-mix(in srgb, var(--dpk-ink-faint) 55%, transparent);
+    border-radius: var(--dpk-radius);
+    cursor: grab;
+    touch-action: none;
+  }
+
+  /* While an aggregate's whole-group drag has passed the movement threshold. */
+  .er-aggregate.is-dragging {
+    cursor: grabbing;
+  }
+
+  .er-aggregate-label {
+    position: absolute;
+    left: 10px;
+    top: 4px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--dpk-paper-inset);
+    font-family: var(--dpk-mono);
+    font-size: 9.5px;
+    font-weight: 560;
+    color: var(--dpk-ink-faint);
+    white-space: nowrap;
+  }
+
   /* ---- Table card ---- */
 
   .er-table {
@@ -154,6 +189,20 @@ export const erStyles = css`
     color: var(--dpk-ink-faint);
   }
 
+  /* A table's major structural pattern (Immutable / STI / …): an auxiliary badge, never a filter. */
+  .er-pattern-badge {
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--dpk-rule-strong);
+    background: var(--dpk-paper-inset);
+    font-family: var(--dpk-mono);
+    font-size: 9px;
+    font-weight: 560;
+    color: var(--dpk-ink-soft);
+    white-space: nowrap;
+  }
+
   .er-status {
     display: inline-flex;
     align-items: center;
@@ -222,7 +271,7 @@ export const erStyles = css`
 
   .er-field-line {
     display: grid;
-    grid-template-columns: auto 16px minmax(0, 1fr) auto 20px;
+    grid-template-columns: auto 16px minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 7px;
     min-height: 31px;
@@ -243,7 +292,7 @@ export const erStyles = css`
   }
 
   .er-table:not(.has-diff) .er-field-line {
-    grid-template-columns: 16px minmax(0, 1fr) auto 20px;
+    grid-template-columns: 16px minmax(0, 1fr) auto auto;
   }
 
   .er-icon {
@@ -309,30 +358,39 @@ export const erStyles = css`
   }
 
   .er-field-action {
-    display: grid;
-    place-items: center;
-    width: 20px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
   }
 
-  .er-field-edit {
+  .er-field-edit,
+  .er-field-delete {
     width: 20px;
     height: 20px;
     padding: 3px;
     opacity: 0;
   }
 
-  .er-field-edit svg {
+  .er-field-edit svg,
+  .er-field-delete svg {
     width: 12px;
     height: 12px;
   }
 
+  .er-field-delete:hover {
+    color: var(--dpk-accent);
+  }
+
   .er-field:hover .er-field-edit,
-  .er-field:focus-within .er-field-edit {
+  .er-field:focus-within .er-field-edit,
+  .er-field:hover .er-field-delete,
+  .er-field:focus-within .er-field-delete {
     opacity: 1;
   }
 
   @media (hover: none) {
-    .er-field-edit {
+    .er-field-edit,
+    .er-field-delete {
       opacity: 1;
     }
   }
@@ -564,11 +622,6 @@ export const erStyles = css`
   .er-was {
     fill: var(--dpk-accent);
     text-decoration: line-through;
-  }
-
-  .diagram-legend .er-legend-cardinality {
-    font-family: var(--dpk-mono);
-    font-size: 9px;
   }
 
   .diagram-legend .er-swatch-added {
@@ -833,6 +886,49 @@ export const erStyles = css`
     padding: 5px 8px;
     border-radius: var(--dpk-radius-xs);
     background: var(--dpk-accent-soft);
+    color: var(--dpk-accent);
+  }
+
+  /*
+   * Slotted into dpk-dialog-panel's own floating controls bar: its ".controls
+   * button" rule only reaches that component's own shadow DOM, not what this
+   * element slots in, so the look is repeated here.
+   */
+  .er-pk-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: var(--dpk-radius-sm);
+    background: transparent;
+    color: var(--dpk-ink-soft);
+    font-family: var(--dpk-body);
+    font-size: 10.5px;
+    cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease);
+  }
+
+  .er-pk-toggle svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .er-pk-toggle:hover {
+    background: var(--dpk-paper-inset);
+    color: var(--dpk-ink);
+  }
+
+  .er-pk-toggle:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  .er-pk-toggle[aria-pressed='true'] {
     color: var(--dpk-accent);
   }
 `;

@@ -1,4 +1,4 @@
-export { DpkComponentErDiagram } from './element';
+export { DpkErDiagram } from './element';
 export { erDiagramMessages } from './messages';
 export type { ErDiagramMessages } from './messages';
 export {
@@ -23,9 +23,16 @@ export type {
   ErTableDiff,
 } from './model';
 
-import { DpkComponentErDiagram } from './element';
+import { registerDiagram } from '../diagram/registry';
+import { DpkErDiagram } from './element';
+import { erDiagramMessages } from './messages';
+import { emptyErData } from './model';
 
 export const defineErDiagram = (): void => {
-  if (!customElements.get('dpk-component-er-diagram'))
-    customElements.define('dpk-component-er-diagram', DpkComponentErDiagram);
+  if (!customElements.get('dpk-er-diagram')) customElements.define('dpk-er-diagram', DpkErDiagram);
+  registerDiagram({
+    tag: 'dpk-er-diagram',
+    label: (locale) => erDiagramMessages(locale).heading,
+    seed: emptyErData,
+  });
 };

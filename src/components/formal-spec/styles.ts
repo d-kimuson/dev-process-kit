@@ -152,11 +152,6 @@ export const formalSpecStyles = [
       font-size: 12px;
     }
 
-    .target-head .comment-trigger {
-      align-self: center;
-      margin-left: auto;
-    }
-
     .target-summary {
       margin: -4px 0 0;
       color: var(--dpk-ink-soft);
@@ -187,35 +182,18 @@ export const formalSpecStyles = [
       cursor: pointer;
     }
 
+    /* Base look and sizing come from .dpk-icon-btn (src/core/theme); only the fold behavior is local. */
     .claim-toggle {
-      display: grid;
       flex: none;
-      place-items: center;
-      width: 24px;
-      height: 24px;
       margin-top: 1px;
-      padding: 0;
-      border: none;
-      border-radius: var(--dpk-radius);
-      background: transparent;
-      color: var(--dpk-ink-faint);
-      cursor: pointer;
     }
 
     .claim-toggle svg {
-      width: 14px;
-      height: 14px;
       transition: transform 120ms ease;
     }
 
     .claim-toggle[aria-expanded='true'] svg {
       transform: rotate(90deg);
-    }
-
-    .claim-toggle:hover,
-    .claim-toggle:focus-visible {
-      background: var(--dpk-paper-sunken);
-      color: var(--dpk-ink);
     }
 
     .claim-body {
@@ -241,10 +219,6 @@ export const formalSpecStyles = [
     .assurance-badge:focus-visible {
       outline: 2px solid var(--tone);
       outline-offset: 2px;
-    }
-
-    .claim-head .comment-trigger {
-      margin-left: auto;
     }
 
     .claim-statement {
@@ -503,46 +477,8 @@ export const formalSpecStyles = [
     }
 
     /* ---------------------------------------------------------- comments */
-
-    .comment-trigger {
-      flex: none;
-      display: grid;
-      place-items: center;
-      width: 24px;
-      height: 24px;
-      padding: 4px;
-      border: 1px solid var(--dpk-rule-strong);
-      border-radius: var(--dpk-radius-sm);
-      background: var(--dpk-paper-raised);
-      color: var(--dpk-ink-soft);
-      cursor: pointer;
-      opacity: 0;
-      transition: opacity 120ms ease;
-    }
-
-    .comment-trigger svg {
-      width: 14px;
-      height: 14px;
-    }
-
-    :is(.target-head, .claim-head, .clause):is(:hover, :focus-within) > .comment-trigger,
-    .comment-trigger[aria-expanded='true'] {
-      opacity: 1;
-    }
-
-    .comment-trigger:hover,
-    .comment-trigger:focus-visible {
-      border-color: var(--dpk-accent);
-      background: var(--dpk-accent-soft);
-      color: var(--dpk-accent);
-      outline: none;
-    }
-
-    @media (hover: none) {
-      .comment-trigger {
-        opacity: 1;
-      }
-    }
+    /* "Review comment" opens from the right-click menu (src/core/context-menu); the
+       popover itself still renders here, anchored at the target's own element. */
 
     .comment-target {
       font-size: 12px;

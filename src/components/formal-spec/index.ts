@@ -1,12 +1,11 @@
-export { DpkComponentFormalSpec } from './element';
+export { DpkFormalSpec } from './element';
 export { formalSpecMessages } from './messages';
 export type { FormalSpecMessages } from './messages';
 export { emptyFormalSpecData, parseFormalSpecData } from './model';
 export type { Assurance, Claim, Clause, FormalSpecData, Inline, RichText, Term } from './model';
 
-import { DpkComponentFormalSpec } from './element';
+import { DpkFormalSpec } from './element';
 
 export const defineFormalSpec = (): void => {
-  if (!customElements.get('dpk-component-formal-spec'))
-    customElements.define('dpk-component-formal-spec', DpkComponentFormalSpec);
+  if (!customElements.get('dpk-formal-spec')) customElements.define('dpk-formal-spec', DpkFormalSpec);
 };

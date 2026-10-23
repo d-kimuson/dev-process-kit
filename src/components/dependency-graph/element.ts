@@ -1,5 +1,6 @@
 import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
+import type { CommentTargetOption } from '../../core/types';
 import type { LayoutOptions } from '../../lib/layout/layered';
 
 import { DiagramElement } from '../diagram/element';
@@ -35,7 +36,7 @@ const ARROWS = [
 ] as const;
 
 /** Module dependencies: pick a module to see what it uses and what uses it. */
-export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> {
+export class DpkDependencyGraph extends DiagramElement<DependencyData> {
   static override styles: CSSResultGroup = [diagramStyles, dependencyStyles];
 
   #direction: DependencyDirection = 'both';
@@ -77,6 +78,19 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
       nodes: new Map([...this.#outgoing.nodes, ...this.#incoming.nodes]),
       edges: new Set([...this.#outgoing.edges, ...this.#incoming.edges]),
     };
+  }
+
+  /** Module names and a `from → to` summary, not raw ids, so "Review comment" reads like the graph does. */
+  protected override commentItems(): readonly CommentTargetOption[] {
+    const items = this.items();
+    const name = (id: string) => items.nodes.find((node) => node.id === id)?.name ?? id;
+    return [
+      ...items.nodes.map((node) => ({ value: this.commentRef('node', node.id), label: node.name })),
+      ...items.edges.map((link) => ({
+        value: this.commentRef('edge', link.id),
+        label: `${name(link.from)} → ${name(link.to)}`,
+      })),
+    ];
   }
 
   /** Cycles are computed over the tag-filtered graph, before the cycle filter. */
@@ -203,7 +217,11 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
       const points = pathData(route);
       const select = () => this.select({ kind: 'edge', id: link.id });
       return svg`
-        <g class=${this.elementClass(state, 'd-edge', 'dep-edge')} data-dependency=${link.id}>
+        <g
+          class=${this.elementClass(state, 'd-edge', 'dep-edge')}
+          data-dependency=${link.id}
+          data-dpk-target=${this.commentRef('edge', link.id)}
+        >
           <title>${[link.contract, link.description].filter((value) => value !== null).join('\n') || link.id}</title>
           <path class="d-edge-path" d=${points} marker-end=${`url(#${this.#edgeMarker(link, membership)})`}></path>
           <path
@@ -219,7 +237,6 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
               select();
             }}
           ></path>
-          ${this.renderEdgeCommentTrigger({ kind: 'edge', id: link.id }, `${name(link.from)} → ${name(link.to)}`, route)}
         </g>
       `;
     });
@@ -240,14 +257,19 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
             cyclic && 'is-cyclic',
             dependency && 'is-dependency',
             dependent && 'is-dependent',
+            this.isDraggingNode(node.id) && 'is-dragging',
           )}
           data-module=${node.id}
           data-grill-questions=${this.questionsOf(node)}
+          data-dpk-target=${this.commentRef('node', node.id)}
           style="left:${placed.x}px; top:${placed.y}px; width:${node.width}px; height:${node.height}px"
           aria-pressed=${state.selected ? 'true' : 'false'}
           aria-label=${cyclic ? m.cyclicSuffix(node.name) : node.name}
           title=${[node.path ?? node.name, node.description].filter((value) => value !== null).join('\n')}
-          @click=${() => this.select({ kind: 'node', id: node.id })}
+          @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, node.id)}
+          @click=${() => {
+            if (!this.consumeDragClick()) this.select({ kind: 'node', id: node.id });
+          }}
         >
           <span class="dep-head">
             <span class="dep-layer">${node.layer ?? ''}</span>
@@ -256,10 +278,6 @@ export class DpkComponentDependencyGraph extends DiagramElement<DependencyData> 
           <span class="dep-name">${node.name}</span>
           <span class="dep-path">${node.path ?? ''}</span>
         </button>
-        ${this.renderCommentTrigger({ kind: 'node', id: node.id }, node.name, {
-          x: placed.x + node.width - 20,
-          y: placed.y - 14,
-        })}
       `;
     });
     return html`${this.renderEdges(edges, ARROWS)}${nodes}`;

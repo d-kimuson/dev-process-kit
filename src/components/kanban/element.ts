@@ -3,12 +3,12 @@ import { repeat } from 'lit/directives/repeat.js';
 
 import type { ElementActionResult } from '../../core/element-actions';
 import type { CommentTargetOption, DraftAction } from '../../core/types';
-import type { ViewportAlign } from '../diagram/viewport';
 
 import { createEntityId } from '../../core/target';
-import { DiagramChromeElement } from '../diagram/element';
+import { cardAtom } from '../atoms/card';
+import { ElementChromeBase } from '../diagram/element';
 import { classNames, tagStateMatches } from '../diagram/model';
-import { diagramStyles } from '../diagram/styles';
+import { chromeStyles } from '../diagram/styles';
 import { kanbanMessages } from './messages';
 import {
   ADD_CARD,
@@ -30,15 +30,19 @@ import { kanbanStyles } from './styles';
 export type KanbanSelection = { readonly kind: 'column' | 'card'; readonly id: string };
 
 /**
- * `<dpk-component-kanban>` — columns of cards, read left to right.
+ * `<dpk-kanban>` — columns of cards, read left to right.
+ *
+ * A board, not a diagram: it sits in the page's normal flow at its natural
+ * height (no pan/zoom canvas) and only scrolls sideways, on its own, when its
+ * columns are wider than the panel.
  *
  * Columns and cards are comment targets. A card moves by drag and drop; a
  * column's footer adds a card. Both are
  * element actions (`MOVE_CARD`, `ADD_CARD`) recorded by the hosting template,
  * which lists them with its other draft actions; the board shows their result.
  */
-export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanSelection> {
-  static override styles: CSSResultGroup = [diagramStyles, kanbanStyles];
+export class DpkKanban extends ElementChromeBase<KanbanData, KanbanSelection> {
+  static override styles: CSSResultGroup = [chromeStyles, cardAtom, kanbanStyles];
 
   #seededFrom: KanbanData | null = null;
   /** The card being typed into a column; `failed` when no template recorded it. */
@@ -105,18 +109,6 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
     return this.items().columns.length === 0;
   }
 
-  /** A board is read from its first column: it sits top-left even when it fits. */
-  protected override viewAlign(): ViewportAlign {
-    return 'start';
-  }
-
-  /** Cards wrap their text, so the board's size is whatever the browser laid out. */
-  protected override contentSize(): { readonly width: number; readonly height: number } | null {
-    if (this.isEmpty()) return null;
-    const board = this.renderRoot.querySelector<HTMLElement>('.kanban-board');
-    return { width: board?.offsetWidth ?? 0, height: board?.offsetHeight ?? 0 };
-  }
-
   /** New authored data drops the input that belonged to the old board. */
   protected override refreshContent(): void {
     const authored = this.authoredItems();
@@ -127,7 +119,33 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
     }
   }
 
-  protected override renderCanvas(): TemplateResult {
+  protected override render(): TemplateResult {
+    this.prepareRender();
+    const m = this.chromeMessages;
+    const subject = this.subject ?? this.defaultSubject();
+    return html`
+      <dpk-dialog-panel
+        class=${this.shellClass()}
+        ?maximizable=${this.frameControls}
+        ?resizable=${this.frameControls}
+        heading=${this.heading ?? this.defaultHeading()}
+        subject=${subject === '' ? nothing : subject}
+        @dpk-maximize-change=${() => this.closeComposer()}
+      >
+        ${this.renderToolbarActionsSlot()} ${this.renderTagFilterRow()}
+        ${
+          this.dataError !== null
+            ? html`<p class="kanban-notice" role="alert">${m.dataError}<br />${this.dataError}</p>`
+            : this.isEmpty()
+              ? html`<p class="kanban-empty">${this.emptyMessage()}</p>`
+              : this.#renderBoard()
+        }
+      </dpk-dialog-panel>
+      ${this.renderSelection()}
+    `;
+  }
+
+  #renderBoard(): TemplateResult {
     const visible = this.#visible();
     const counts = new Map(this.items().columns.map((column) => [column.id, column.cards.length]));
     return html`<div class="kanban-board">
@@ -175,6 +193,7 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
             type="button"
             class="kanban-column-title"
             aria-pressed=${this.#isSelected('column', column.id) ? 'true' : 'false'}
+            data-dpk-target=${this.commentRef('column', column.id)}
             title=${column.description ?? column.label}
             @click=${() => this.select({ kind: 'column', id: column.id })}
           >
@@ -183,7 +202,6 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
               ${column.limit === null ? count : `${count} / ${column.limit}`}
             </span>
           </button>
-          ${this.renderCommentTrigger({ kind: 'column', id: column.id }, column.label)}
         </div>
         ${column.description === null ? nothing : html`<p class="kanban-column-description">${column.description}</p>`}
         <div
@@ -218,14 +236,15 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
           tabindex="0"
           draggable="true"
           class=${classNames(
+            'dpk-card',
             'kanban-card',
-            selected && 'is-selected',
             card.change === 'added' && 'is-added',
             card.change === 'moved' && 'is-moved',
-            this.#dragging === card.id && 'is-dragging',
           )}
+          data-state=${this.#dragging === card.id ? 'dragging' : nothing}
           data-card=${card.id}
           data-grill-questions=${this.questionsOf(card)}
+          data-dpk-target=${this.commentRef('card', card.id)}
           title=${card.description ?? card.title}
           aria-pressed=${selected ? 'true' : 'false'}
           @click=${() => this.select({ kind: 'card', id: card.id })}
@@ -233,18 +252,24 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
           @dragstart=${(event: DragEvent) => this.#onDragStart(event, card.id)}
           @dragend=${() => this.#endDrag()}
         >
-          <span class="kanban-card-title">${card.title}</span>
-          ${card.description === null ? nothing : html`<span class="kanban-card-description">${card.description}</span>`}
+          <div class="dpk-card-title">${card.title}</div>
+          ${card.description === null ? nothing : html`<div class="dpk-card-text">${card.description}</div>`}
           ${
             card.tags.length === 0 && card.assignee === null
               ? nothing
-              : html`<span class="kanban-card-meta">
-                  ${card.tags.map((tag) => html`<span class="kanban-tag">${tag}</span>`)}
-                  ${card.assignee === null ? nothing : html`<span class="kanban-assignee">${card.assignee}</span>`}
-                </span>`
+              : html`<div class="dpk-card-row kanban-card-meta">
+                  ${card.tags.map((tag) => html`<span class="dpk-pill">${tag}</span>`)}
+                  ${
+                    card.assignee === null
+                      ? nothing
+                      : html`<span class="kanban-assignee"
+                          ><span class="dpk-avatar" aria-hidden="true">${Array.from(card.assignee)[0] ?? ''}</span
+                          >${card.assignee}</span
+                        >`
+                  }
+                </div>`
           }
         </div>
-        ${this.renderCommentTrigger({ kind: 'card', id: card.id }, card.title)}
         ${this.#moveFailed === card.id ? html`<p class="kanban-error" role="alert">${m.notRecorded}</p>` : nothing}
       </div>
     `;
@@ -381,6 +406,11 @@ export class DpkComponentKanban extends DiagramChromeElement<KanbanData, KanbanS
     event.preventDefault();
     const title = this.#adding?.title.trim() ?? '';
     if (title.length === 0) return;
+    // A catalog-hosted board may not have authored an id; give its action a provider address.
+    if (!this.id) {
+      const taken = [...document.querySelectorAll<HTMLElement>('[id]')].map((element) => element.id);
+      this.id = createEntityId('kanban', taken);
+    }
     // Titles are often not ASCII; the prefix keeps such ids readable (`card-2`).
     const taken = [...this.items().columns.map((item) => item.id), ...allCards(this.items()).map((card) => card.id)];
     const id = createEntityId(`card ${title}`, taken);

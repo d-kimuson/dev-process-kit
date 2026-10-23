@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { DpkComponentStateDiagram } from './element';
+import type { ContextMenuRequest } from '../../core/context-menu/types';
+
+import { parseTargetRef } from '../../core/target';
+import { DpkStateDiagram } from './element';
 import { defineStateDiagram } from './index';
 import { stateDiagramMessages } from './messages';
 import { hasAuthoredPositions, parseStateData } from './model';
@@ -38,13 +41,13 @@ const raw = {
   ],
 };
 
-const settle = async (element: DpkComponentStateDiagram): Promise<void> => {
+const settle = async (element: DpkStateDiagram): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (lang?: string): Promise<DpkComponentStateDiagram> => {
-  const element = document.createElement('dpk-component-state-diagram');
-  if (!(element instanceof DpkComponentStateDiagram)) throw new Error('did not upgrade');
+const mount = async (lang?: string): Promise<DpkStateDiagram> => {
+  const element = document.createElement('dpk-state-diagram');
+  if (!(element instanceof DpkStateDiagram)) throw new Error('did not upgrade');
   if (lang !== undefined) element.setAttribute('lang', lang);
   element.innerHTML = `<script type="application/json">${JSON.stringify(raw)}</script>`;
   document.body.append(element);
@@ -52,7 +55,14 @@ const mount = async (lang?: string): Promise<DpkComponentStateDiagram> => {
   return element;
 };
 
-const ids = (element: DpkComponentStateDiagram, selector: string): (string | undefined)[] =>
+const reviewComment = (element: DpkStateDiagram, ref: string): void => {
+  const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
+  const groups = element.getContextMenuItems(request) ?? [];
+  const entry = groups.flatMap((group) => group.entries).find((candidate) => candidate.id === 'review-comment');
+  if (entry?.kind === 'item') entry.run();
+};
+
+const ids = (element: DpkStateDiagram, selector: string): (string | undefined)[] =>
   [...element.renderRoot.querySelectorAll<HTMLElement>(selector)].map(
     (node) => node.dataset['state'] ?? node.dataset['transition'] ?? node.dataset['transitionLabel'],
   );
@@ -85,7 +95,7 @@ describe('state diagram data', () => {
   });
 });
 
-describe('dpk-component-state-diagram', () => {
+describe('dpk-state-diagram', () => {
   it('renders states at their authored positions with an initial marker', async () => {
     const element = await mount();
     expect(ids(element, '.state-node')).toEqual(['pending', 'paid', 'cancelled', 'refunding']);
@@ -129,19 +139,11 @@ describe('dpk-component-state-diagram', () => {
     element.id = 'lifecycle';
     await settle(element);
     expect(element.renderRoot.querySelector('.diagram-details')).toBeNull();
-    const trigger = (kind: string, id: string) =>
-      element.renderRoot.querySelector<HTMLButtonElement>(`[data-comment-kind="${kind}"][data-comment-id="${id}"]`);
-    expect(element.renderRoot.querySelectorAll('[data-comment-kind="node"]')).toHaveLength(4);
-    expect(element.renderRoot.querySelectorAll('[data-comment-kind="edge"]')).toHaveLength(4);
-    trigger('node', 'paid')?.click();
+    reviewComment(element, 'element:lifecycle/node/paid');
     await settle(element);
-    expect(element.selection).toEqual({ kind: 'node', id: 'paid' });
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('支払済み');
-    const label = element.renderRoot.querySelector('[data-transition-label="charge"]');
-    expect(label?.nextElementSibling).toBe(trigger('edge', 'charge'));
-    trigger('edge', 'charge')?.click();
+    reviewComment(element, 'element:lifecycle/edge/charge');
     await settle(element);
-    expect(element.selection).toEqual({ kind: 'edge', id: 'charge' });
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('注文受付 → 支払済み · 決済成功');
   });
 
@@ -165,13 +167,19 @@ describe('dpk-component-state-diagram', () => {
 
   it('filters by transition tag and drops states left without transitions', async () => {
     const element = await mount();
-    element.renderRoot.querySelector<HTMLButtonElement>('[data-tag="正常系"]')?.click();
+    element.renderRoot
+      .querySelector('dpk-tag-filter')
+      ?.shadowRoot?.querySelector<HTMLButtonElement>('[data-tag="正常系"]')
+      ?.click();
     await element.updateComplete;
     expect(ids(element, '.state-node')).toEqual(['pending', 'paid']);
     expect(ids(element, '[data-transition-label]')).toEqual(['charge']);
     expect(element.renderRoot.querySelectorAll('.state-initial-mark')).toHaveLength(1);
 
-    element.renderRoot.querySelector<HTMLButtonElement>('.dpk-tag-clear')?.click();
+    element.renderRoot
+      .querySelector('dpk-tag-filter')
+      ?.shadowRoot?.querySelector<HTMLButtonElement>('.dpk-tag-clear')
+      ?.click();
     await element.updateComplete;
     expect(ids(element, '.state-node')).toHaveLength(4);
 
@@ -181,7 +189,7 @@ describe('dpk-component-state-diagram', () => {
   });
 
   it('lays out states without positions automatically', async () => {
-    const element = new DpkComponentStateDiagram();
+    const element = new DpkStateDiagram();
     element.data = parseStateData({
       states: [
         { id: 'a', name: 'A' },

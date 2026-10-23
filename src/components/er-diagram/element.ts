@@ -2,11 +2,12 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { ElementActionResult } from '../../core/element-actions';
-import type { DraftAction } from '../../core/types';
+import type { CommentTargetOption, DraftAction } from '../../core/types';
 import type { LayoutOptions, LayoutPoint } from '../../lib/layout/layered';
 
-import { iconDiamond, iconKey, iconLink, iconPencil, iconPlus, iconTable } from '../../core/icons';
+import { iconDiamond, iconKey, iconLink, iconPencil, iconPlus, iconTable, iconTrash } from '../../core/icons';
 import { PopoverController } from '../../core/popover-controller';
+import { SelectController } from '../../core/select/controller';
 import { DismissController } from '../../lib/dom/dismiss';
 import { revealWithin } from '../../lib/dom/scroll';
 import { DiagramElement } from '../diagram/element';
@@ -15,6 +16,9 @@ import { diagramStyles } from '../diagram/styles';
 import { erDiagramMessages, type ErDiagramMessages } from './messages';
 import {
   ADD_FIELD,
+  CARDINALITIES,
+  DELETE_FIELD,
+  EDIT_CARDINALITY,
   EDIT_FIELD,
   cardinalityText,
   emptyErData,
@@ -29,17 +33,22 @@ import {
 import { CIRCLE_RADIUS, endGlyph, type ErEnd } from './notation';
 import { erStyles } from './styles';
 import {
+  aggregateGroups,
+  cardinalityValue,
   columnIcon,
   detourRoute,
   editorVerdict,
   fieldChanges,
   fieldDetail,
+  GROUP_LABEL_SPACE,
+  GROUP_PADDING,
   highlightOf,
   isForward,
   relationPath,
   resumeEditor,
   typeMenu,
   typeSuggestions,
+  type CardinalityEditor,
   type ColumnEditor,
   type ColumnIcon,
   type ErFocus,
@@ -50,7 +59,16 @@ import {
 /** Distance from a line to the centre of the text beside it. */
 const LABEL_LIFT = 7;
 
-const LAYOUT = { nodeSpacing: 40, layerSpacing: 136, padding: 32 } as const satisfies LayoutOptions;
+// Extra room between two aggregates' bands, so their drawn frames never touch, let alone overlap: the frame
+// extends GROUP_PADDING below its bottommost table and GROUP_PADDING + GROUP_LABEL_SPACE above its topmost
+// one (the label's own space), so both sides of that gap must fit before the next band's tables begin, plus
+// a little margin so adjacent frames never touch.
+const LAYOUT = {
+  nodeSpacing: 40,
+  layerSpacing: 136,
+  padding: 32,
+  groupSpacing: GROUP_PADDING * 2 + GROUP_LABEL_SPACE + 12,
+} as const satisfies LayoutOptions;
 /** How far a relation keeps from a table it passes: the middle of the gap between two. */
 const LANE_MARGIN = LAYOUT.nodeSpacing / 2;
 /** How wide a relation's curve may reach: half the gap between two layers. */
@@ -82,7 +100,7 @@ type TableSize = {
 };
 
 /** Schema diagram with an always-on diff between the `before` and `after` snapshots. */
-export class DpkComponentErDiagram extends DiagramElement<ErData> {
+export class DpkErDiagram extends DiagramElement<ErData> {
   static override styles: CSSResultGroup = [diagramStyles, erStyles];
 
   #query = '';
@@ -100,6 +118,11 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
   #sizes = new Map<string, TableSize>();
   #resize: ResizeObserver | null = null;
   readonly #popovers = new PopoverController(this);
+  readonly #cardinalitySelect = new SelectController(this);
+  /** Open for the selected edge; its value is lost once a different edge is selected. */
+  #cardinalityEditor: CardinalityEditor | null = null;
+  /** While on, only PK/FK columns render, so the relationships alone can be read. */
+  #pkOnly = false;
 
   constructor() {
     super();
@@ -123,11 +146,24 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
     super.willUpdate(changed);
     // A hovered table or relation that a filter removed never saw the pointer leave.
     if (this.#hovered !== null && !this.#isVisible(this.#hovered)) this.#hovered = null;
+    // The cardinality editor follows the selected edge: a fresh draft for a newly
+    // selected one, kept as-is while the same edge stays selected, gone otherwise.
+    const selection = this.selection;
+    if (selection !== null && selection.kind === 'edge' && this.#recordable) {
+      if (this.#cardinalityEditor === null || this.#cardinalityEditor.edge !== selection.id) {
+        const edge = this.visible.edges.find((item) => item.id === selection.id);
+        this.#cardinalityEditor =
+          edge === undefined ? null : { edge: edge.id, cardinality: cardinalityValue(edge.cardinality), failed: false };
+      }
+    } else if (this.#cardinalityEditor !== null) {
+      this.#cardinalityEditor = null;
+    }
   }
 
   protected override updated(): void {
     super.updated();
     this.#syncEditor();
+    this.#syncCardinalityEditor();
     if (typeof ResizeObserver !== 'undefined') this.#resize ??= new ResizeObserver(() => this.#measureTables());
     this.#resize?.disconnect();
     for (const card of this.renderRoot.querySelectorAll('.er-table')) {
@@ -243,6 +279,21 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
     };
   }
 
+  /** Table and field names, not raw ids, so "Review comment" reads like the schema does. */
+  protected override commentItems(): readonly CommentTargetOption[] {
+    const items = this.items();
+    return [
+      ...items.nodes.map((table) => ({
+        value: this.commentRef('node', table.id),
+        label: `${table.id} · ${table.name}`,
+      })),
+      ...items.edges.map((relation) => ({
+        value: this.commentRef('edge', relation.id),
+        label: `${relation.from}.${relation.sourceField} → ${relation.to}.${relation.targetField}`,
+      })),
+    ];
+  }
+
   protected override renderToolbarActions(): TemplateResult {
     const m = erDiagramMessages(this.locale);
     return html`
@@ -270,8 +321,24 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
       <span><i class="er-swatch-added"></i>${m.legendAdded}</span>
       <span><i class="er-swatch-removed"></i>${m.legendRemoved}</span>
       <span><i class="er-swatch-changed"></i>${m.legendChanged}</span>
-      <span class="er-legend-cardinality">${m.legendCardinality}</span>
     </div>`;
+  }
+
+  /** Beside zoom and maximize: hides non-key columns so only the relationships read. */
+  protected override renderControls(): TemplateResult {
+    const m = erDiagramMessages(this.locale);
+    return html`<button
+      type="button"
+      class="er-pk-toggle"
+      aria-pressed=${this.#pkOnly ? 'true' : 'false'}
+      title=${m.pkOnlyToggle}
+      @click=${() => {
+        this.#pkOnly = !this.#pkOnly;
+        this.requestUpdate();
+      }}
+    >
+      <span class="er-icon" aria-hidden="true">${iconKey()}</span><span>${m.pkOnlyToggle}</span>
+    </button>`;
   }
 
   /**
@@ -347,6 +414,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
             lit.edges.size > 0 && !lit.edges.has(relation.id) && 'is-faded',
           )}
           data-relation=${relation.id}
+          data-dpk-target=${this.commentRef('edge', relation.id)}
           @pointerenter=${() => this.#hover({ kind: 'relation', id: relation.id })}
           @pointerleave=${() => this.#hover(null)}
         >
@@ -373,15 +441,32 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
             }}
           ></path>
           ${points.length > 0 ? this.#renderEnds(points, relation, fan.get(relation.id) ?? 0) : nothing}
-          ${this.renderEdgeCommentTrigger(
-            { kind: 'edge', id: relation.id },
-            `${relation.from}.${relation.sourceField} → ${relation.to}.${relation.targetField}`,
-            points,
-          )}
         </g>
       `;
     });
-    return html`${this.renderEdges(
+    const groups = aggregateGroups(
+      visible.nodes.map((table) => ({
+        id: table.id,
+        aggregate: table.aggregate,
+        box: this.placedNode(table.id) ?? null,
+      })),
+    );
+    return html`${groups.map(
+      (group) =>
+        html`<div
+          class=${classNames('er-aggregate', this.isDraggingGroup(group.aggregate) && 'is-dragging')}
+          style="left:${group.box.x}px; top:${group.box.y}px; width:${group.box.width}px; height:${group.box.height}px"
+          @pointerdown=${(event: PointerEvent) => {
+            // A table always paints over the frame it belongs to, so a press on the table
+            // never reaches this handler in the current DOM order. Guard anyway: the
+            // group drag must never start on a node's own press, whatever paints where.
+            if (event.composedPath().some((node) => node instanceof Element && node.matches('.d-node'))) return;
+            this.onGroupDragStart(event, group.aggregate, group.tables);
+          }}
+        >
+          <span class="er-aggregate-label">${group.aggregate}</span>
+        </div>`,
+    )}${this.renderEdges(
       repeat(
         edges,
         (_, index) => ordered[index]?.id,
@@ -451,7 +536,9 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
     const placed = this.placedNode(table.id);
     if (!placed) return nothing;
     const state = this.nodeState(table.id);
-    const fields = table.fields;
+    const fields = this.#pkOnly
+      ? table.fields.filter((field) => field.keys.length > 0 || field.ref !== null)
+      : table.fields;
     return html`
       <div
         class=${this.elementClass(
@@ -461,10 +548,13 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
           `is-${table.status}`,
           lit.tables.has(table.id) && 'is-lit',
           table.fields.some((field) => field.status !== 'same') && 'has-diff',
+          this.isDraggingNode(table.id) && 'is-dragging',
         )}
         data-er-table=${table.id}
         data-grill-questions=${this.questionsOf(table)}
+        data-dpk-target=${this.commentRef('node', table.id)}
         style="left:${placed.x}px; top:${placed.y}px; width:${table.width}px"
+        @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, table.id)}
         @pointerenter=${() => this.#hover({ kind: 'table', id: table.id })}
         @pointerleave=${() => this.#hover(null)}
       >
@@ -481,6 +571,16 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
             <span class="er-title">
               <span class="er-name">${table.id}</span>
               <span class="er-label">${table.name}</span>
+              ${
+                table.pattern === null
+                  ? nothing
+                  : html`<span
+                      class="er-pattern-badge"
+                      data-pattern=${table.pattern}
+                      title=${m.patternLabel(table.pattern)}
+                      >${m.patternLabel(table.pattern)}</span
+                    >`
+              }
             </span>
             ${
               table.status === 'same'
@@ -490,7 +590,6 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
                   >`
             }
           </button>
-          ${this.renderCommentTrigger({ kind: 'node', id: table.id }, `${table.id} · ${table.name}`)}
         </div>
         ${
           fields.length === 0
@@ -513,6 +612,7 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
     const editing = editor?.kind === 'edit' && editor.table === table.id && editor.field === field.id;
     // A relation's multiplicities derive from its column, so only plain, present columns are editable.
     const editable = this.#recordable && field.status !== 'removed' && field.ref === null;
+    const deletable = this.#deletable(table, field);
     const matches = this.#query !== '' && field.id.toLowerCase().includes(this.#query);
     const icon = columnIcon(field);
     const changes = fieldChanges(field, m);
@@ -572,6 +672,21 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
                   </button>`
                 : nothing
             }
+            ${
+              deletable
+                ? html`<button
+                    type="button"
+                    class="dpk-icon-btn er-field-delete"
+                    data-action="delete-field"
+                    data-field=${field.id}
+                    aria-label=${m.deleteFieldButton(field.id)}
+                    title=${m.deleteFieldButton(field.id)}
+                    @click=${() => this.#deleteField(table.id, field.id)}
+                  >
+                    ${iconTrash()}
+                  </button>`
+                : nothing
+            }
           </span>
         </div>
         ${
@@ -596,6 +711,20 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
     return this.id !== '';
   }
 
+  /** A plain, present column with no part in any relation, on either end, may be deleted. */
+  #deletable(table: ErTableDiff, field: ErFieldDiff): boolean {
+    if (!this.#recordable || field.status === 'removed' || field.ref !== null) return false;
+    return !this.items().edges.some(
+      (edge) =>
+        (edge.from === table.id && edge.sourceField === field.id) ||
+        (edge.to === table.id && edge.targetField === field.id),
+    );
+  }
+
+  #deleteField(table: string, field: string): void {
+    this.dispatchElementAction(DELETE_FIELD, ['node', table], { field });
+  }
+
   #renderAdd(table: ErTableDiff, m: ErDiagramMessages): TemplateResult | typeof nothing {
     if (!this.#recordable || table.status === 'removed') return nothing;
     const adding = this.#editor?.kind === 'add' && this.#editor.table === table.id;
@@ -613,13 +742,17 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
     </div>`;
   }
 
-  /** The open column editor, floating in the top layer beside the control that opened it. */
+  /** The open column or cardinality editor, floating in the top layer beside what it edits. */
   protected override renderSelection(): TemplateResult | typeof nothing {
     const editor = this.#editor;
     const table = editor === null ? undefined : this.visible.nodes.find((node) => node.id === editor.table);
     const composer = super.renderSelection();
-    if (editor === null || table === undefined) return composer;
-    return html`${composer}${this.#renderEditor(table, editor, erDiagramMessages(this.locale))}`;
+    const columnEditor =
+      editor === null || table === undefined
+        ? nothing
+        : this.#renderEditor(table, editor, erDiagramMessages(this.locale));
+    const cardinalityEditor = this.#renderCardinalityEditor();
+    return html`${composer}${columnEditor}${cardinalityEditor}`;
   }
 
   /**
@@ -730,6 +863,99 @@ export class DpkComponentErDiagram extends DiagramElement<ErData> {
       { width: Math.max(input.offsetWidth, 200), height: 220 },
       { placement: 'bottom-start', trackTransform: true },
     );
+  }
+
+  /**
+   * A small card beside the selected relation: its cardinality as a `parent:child`
+   * select, with the explicit Cancel (deselect) and Save. Opens and closes with
+   * the edge's own selection, so no separate trigger is needed.
+   */
+  #renderCardinalityEditor(): TemplateResult | typeof nothing {
+    const state = this.#cardinalityEditor;
+    if (state === null) return nothing;
+    const edge = this.visible.edges.find((item) => item.id === state.edge);
+    if (edge === undefined) return nothing;
+    const m = erDiagramMessages(this.locale);
+    const changed = state.cardinality !== cardinalityValue(edge.cardinality);
+    return html`<div
+      class="er-editor er-cardinality-editor"
+      popover="manual"
+      role="dialog"
+      aria-label=${`${m.editCardinalityTitle} ${edge.from}.${edge.sourceField} → ${edge.to}.${edge.targetField}`}
+      @keydown=${(event: KeyboardEvent) => this.#onCardinalityKey(event)}
+    >
+      <div class="er-editor-head">
+        <span class="er-icon" aria-hidden="true">${iconLink()}</span>
+        <span class="er-editor-title">${m.editCardinalityTitle}</span>
+        <code class="er-editor-target">${edge.from} → ${edge.to}</code>
+      </div>
+      <label class="er-editor-field">
+        <span class="dpk-label">${m.cardinalityLabel}</span>
+        ${this.#cardinalitySelect.render({
+          options: CARDINALITIES.map((value) => ({ value, label: value.replace(':', ' : ') })),
+          value: state.cardinality,
+          ariaLabel: m.cardinalityLabel,
+          onChange: (value) => {
+            if (this.#cardinalityEditor !== null) {
+              this.#cardinalityEditor = { ...this.#cardinalityEditor, cardinality: value, failed: false };
+              this.requestUpdate();
+            }
+          },
+        })}
+      </label>
+      ${state.failed ? html`<p class="er-error" role="alert">${m.notRecorded}</p>` : nothing}
+      <div class="er-editor-foot">
+        <button type="button" class="dpk-btn dpk-btn--ghost" data-dpk-text-discard @click=${() => this.select(null)}>
+          ${m.cancel}
+        </button>
+        <button
+          type="button"
+          class="dpk-btn dpk-btn--accent"
+          ?disabled=${!changed}
+          @click=${() => this.#submitCardinality()}
+        >
+          ${m.columnSave}
+        </button>
+      </div>
+    </div>`;
+  }
+
+  /** Anchors the cardinality editor to the selected relation's `<g>`, floating like a tooltip beside it. */
+  #syncCardinalityEditor(): void {
+    const state = this.#cardinalityEditor;
+    const surface = this.renderRoot.querySelector<HTMLElement>('.er-cardinality-editor');
+    if (state === null || surface === null) return;
+    const anchor = this.renderRoot.querySelector(`[data-relation="${CSS.escape(state.edge)}"]`);
+    if (!anchor) return;
+    this.#popovers.open(
+      surface,
+      anchor,
+      { width: 240, height: 170 },
+      { placement: 'bottom-start', trackTransform: true },
+    );
+  }
+
+  #onCardinalityKey(event: KeyboardEvent): void {
+    if (event.isComposing) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.select(null);
+    }
+  }
+
+  #submitCardinality(): void {
+    const state = this.#cardinalityEditor;
+    if (state === null) return;
+    const recorded = this.dispatchElementAction(EDIT_CARDINALITY, ['edge', state.edge], {
+      cardinality: state.cardinality,
+    });
+    if (!recorded) {
+      this.#cardinalityEditor = { ...state, failed: true };
+      this.requestUpdate();
+      return;
+    }
+    this.select(null);
   }
 
   /** Keeps the open editor's input for when the same editor opens again. */

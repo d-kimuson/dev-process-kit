@@ -1,4 +1,4 @@
-export { DpkComponentSequenceDiagram } from './element';
+export { DpkSequenceDiagram } from './element';
 export type { SequenceSelection } from './element';
 export { sequenceDiagramMessages } from './messages';
 export type { SequenceDiagramMessages } from './messages';
@@ -29,9 +29,16 @@ export type {
   SequenceParticipant,
 } from './model';
 
-import { DpkComponentSequenceDiagram } from './element';
+import { registerDiagram } from '../diagram/registry';
+import { DpkSequenceDiagram } from './element';
+import { sequenceDiagramMessages } from './messages';
+import { emptySequenceData } from './model';
 
 export const defineSequenceDiagram = (): void => {
-  if (!customElements.get('dpk-component-sequence-diagram'))
-    customElements.define('dpk-component-sequence-diagram', DpkComponentSequenceDiagram);
+  if (!customElements.get('dpk-sequence-diagram')) customElements.define('dpk-sequence-diagram', DpkSequenceDiagram);
+  registerDiagram({
+    tag: 'dpk-sequence-diagram',
+    label: (locale) => sequenceDiagramMessages(locale).heading,
+    seed: emptySequenceData,
+  });
 };

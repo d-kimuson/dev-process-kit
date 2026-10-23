@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { DpkComponentArchitectureMap } from './element';
+import type { ContextMenuRequest } from '../../core/context-menu/types';
+import type { DpkDialogPanel } from '../dialog-panel/index';
+
+import { parseTargetRef } from '../../core/target';
+import { DpkArchitectureMap } from './element';
 import { defineArchitectureMap } from './index';
 import { architectureMapMessages } from './messages';
 import { boundaryBoxes, parseArchitectureData, SERVICE_SIZE } from './model';
@@ -59,12 +63,12 @@ const raw = {
   ],
 };
 
-const settle = async (element: DpkComponentArchitectureMap): Promise<void> => {
+const settle = async (element: DpkArchitectureMap): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (lang?: string): Promise<DpkComponentArchitectureMap> => {
-  const element = new DpkComponentArchitectureMap();
+const mount = async (lang?: string): Promise<DpkArchitectureMap> => {
+  const element = new DpkArchitectureMap();
   if (lang !== undefined) element.setAttribute('lang', lang);
   element.data = parseArchitectureData(raw);
   document.body.append(element);
@@ -72,9 +76,16 @@ const mount = async (lang?: string): Promise<DpkComponentArchitectureMap> => {
   return element;
 };
 
-const classes = (element: DpkComponentArchitectureMap, service: string): string[] => [
+const classes = (element: DpkArchitectureMap, service: string): string[] => [
   ...(element.renderRoot.querySelector<HTMLElement>(`[data-service="${service}"]`)?.classList ?? []),
 ];
+
+const reviewComment = (element: DpkArchitectureMap, ref: string): void => {
+  const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
+  const groups = element.getContextMenuItems(request) ?? [];
+  const entry = groups.flatMap((group) => group.entries).find((candidate) => candidate.id === 'review-comment');
+  if (entry?.kind === 'item') entry.run();
+};
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -181,7 +192,7 @@ describe('architecture map data', () => {
   });
 });
 
-describe('dpk-component-architecture-map', () => {
+describe('dpk-architecture-map', () => {
   it('renders boundaries, services and artwork', async () => {
     const element = await mount();
     expect(element.renderRoot.querySelectorAll('[data-service]')).toHaveLength(6);
@@ -193,8 +204,8 @@ describe('dpk-component-architecture-map', () => {
     expect(element.renderRoot.querySelector('.arch-artwork')?.getAttribute('alt')).toBe('AWS Lambda');
     expect(element.renderRoot.querySelector('[data-service="database"] .arch-symbol')?.textContent).toBe('DB');
     expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`6 ${m.node} · 4 ${m.edge}`);
-    const world = element.renderRoot.querySelector<HTMLElement>('.diagram-world');
-    expect(Number.parseFloat(world?.style.width ?? '0')).toBeGreaterThan(880);
+    const viewport = element.renderRoot.querySelector<DpkDialogPanel>('dpk-dialog-panel');
+    expect(viewport?.contentWidth ?? 0).toBeGreaterThan(880);
   });
 
   it('renders its stats in the element’s language', async () => {
@@ -267,26 +278,20 @@ describe('dpk-component-architecture-map', () => {
     const element = await mount();
     element.id = 'system';
     await settle(element);
-    const trigger = (kind: string, id: string) =>
-      element.renderRoot.querySelector<HTMLButtonElement>(`[data-comment-kind="${kind}"][data-comment-id="${id}"]`);
-    expect(trigger('node', 'orders')?.previousElementSibling).toBe(
-      element.renderRoot.querySelector('[data-service="orders"]'),
-    );
-    trigger('node', 'orders')?.click();
+    reviewComment(element, 'element:system/node/orders');
     await settle(element);
-    expect(element.selection).toEqual({ kind: 'node', id: 'orders' });
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('Order service');
-    const link = trigger('edge', 'orders-payment');
-    expect(link?.closest('[data-link]')).toBe(element.renderRoot.querySelector('[data-link="orders-payment"]'));
-    link?.click();
+    reviewComment(element, 'element:system/edge/orders-payment');
     await settle(element);
-    expect(element.selection).toEqual({ kind: 'edge', id: 'orders-payment' });
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('Order service → Payment · 決済要求');
   });
 
   it('filters services by tag and selects a link', async () => {
     const element = await mount();
-    element.renderRoot.querySelector<HTMLButtonElement>('[data-tag="外部サービス"]')?.click();
+    element.renderRoot
+      .querySelector('dpk-tag-filter')
+      ?.shadowRoot?.querySelector<HTMLButtonElement>('[data-tag="外部サービス"]')
+      ?.click();
     await element.updateComplete;
     expect(
       [...element.renderRoot.querySelectorAll<HTMLElement>('[data-service]')]

@@ -1,21 +1,27 @@
 import { css } from 'lit';
 
 /**
- * Kanban styling. Columns are fixed-width lanes on the canvas; cards flow in
- * them, so the board's size is the browser's layout rather than a computed one.
+ * Kanban styling. Columns are fixed-width lanes read left to right in normal
+ * document flow; a board wider than the panel scrolls horizontally on its
+ * own (the panel's own body never scrolls sideways), and cards wrap within a
+ * column rather than panning anywhere.
  */
 export const kanbanStyles = css`
   .kanban-board {
     display: flex;
     align-items: flex-start;
     gap: 14px;
-    width: max-content;
-    padding: 18px;
+    max-width: 100%;
+    overflow-x: auto;
+    /* An edge swipe here must pan the board, never fall through to browser back/forward. */
+    overscroll-behavior-x: contain;
+    padding-bottom: 4px;
   }
 
   .kanban-column {
     display: flex;
     flex-direction: column;
+    flex: none;
     gap: 8px;
     width: 264px;
     padding: 10px;
@@ -161,48 +167,11 @@ export const kanbanStyles = css`
     position: relative;
   }
 
+  /* The card is the kit's card (the card atom); the board adds the room for the comment trigger and the grab. */
   .kanban-card {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding: 9px 34px 9px 11px;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius-sm);
-    background: var(--dpk-paper-raised);
-    color: var(--dpk-ink);
-    font-family: var(--dpk-body);
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    --dpk-card-gap: 6px;
+    padding-right: 34px;
     cursor: grab;
-    transition:
-      border-color 150ms var(--dpk-ease),
-      box-shadow 150ms var(--dpk-ease),
-      opacity 150ms var(--dpk-ease),
-      transform 150ms var(--dpk-ease);
-  }
-
-  .kanban-card:hover {
-    border-color: var(--dpk-rule-hover);
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
-    transform: translateY(-1px);
-  }
-
-  .kanban-card.is-selected {
-    border-color: color-mix(in srgb, var(--dpk-blue) 55%, transparent);
-    box-shadow:
-      var(--dpk-bevel),
-      inset 0 0 0 2px color-mix(in srgb, var(--dpk-blue) 45%, transparent),
-      var(--dpk-shadow-xs);
-  }
-
-  .kanban-card:focus-visible {
-    outline: none;
-    box-shadow: var(--dpk-focus);
-  }
-
-  .kanban-card.is-dragging {
-    opacity: 0.45;
-    transform: rotate(-1.5deg) scale(0.98);
-    box-shadow: var(--dpk-shadow-sm);
   }
 
   /* Changed on this page by a draft action: not authored yet. */
@@ -217,57 +186,17 @@ export const kanbanStyles = css`
     background: linear-gradient(var(--dpk-blue-soft), var(--dpk-blue-soft)), var(--dpk-paper-raised);
   }
 
-  .kanban-card-title {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: -0.005em;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
-  }
-
-  .kanban-card-description {
-    display: -webkit-box;
-    overflow: hidden;
-    color: var(--dpk-ink-soft);
-    font-size: 11.5px;
-    line-height: 1.45;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    overflow-wrap: anywhere;
-  }
-
   .kanban-card-meta {
-    display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
-  }
-
-  .kanban-tag {
-    padding: 1px 7px;
-    border: 1px solid var(--dpk-rule);
-    border-radius: 999px;
-    background: var(--dpk-paper-sunken);
-    color: var(--dpk-ink-soft);
-    font-size: 10.5px;
   }
 
   .kanban-assignee {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     margin-left: auto;
     color: var(--dpk-ink-faint);
     font-size: 11px;
-  }
-
-  .kanban-assignee::before {
-    content: '';
-    display: inline-block;
-    width: 5px;
-    height: 5px;
-    margin-right: 4px;
-    border-radius: 999px;
-    background: var(--dpk-ink-faint);
-    vertical-align: middle;
   }
 
   .kanban-card-slot > .diagram-comment-trigger {
@@ -337,5 +266,28 @@ export const kanbanStyles = css`
   .kanban-add .dpk-input {
     width: 100%;
     font-size: 12.5px;
+  }
+
+  /* In normal document flow (not over a canvas): a plain, non-floating notice. */
+  .kanban-empty {
+    margin: 0;
+    padding: 16px 20px;
+    border: 1.5px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius);
+    background: color-mix(in srgb, var(--dpk-paper-raised) 55%, transparent);
+    color: var(--dpk-ink-faint);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .kanban-notice {
+    margin: 0;
+    padding: 12px 16px 12px 19px;
+    border: 1px solid color-mix(in srgb, var(--dpk-danger) 35%, transparent);
+    border-radius: var(--dpk-radius);
+    background: linear-gradient(90deg, var(--dpk-danger) 0 3px, transparent 3px), var(--dpk-danger-soft);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow);
+    color: var(--dpk-ink-soft);
+    font-size: 12px;
   }
 `;

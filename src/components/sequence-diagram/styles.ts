@@ -1,7 +1,7 @@
 import { css } from 'lit';
 
 export const sequenceStyles = css`
-  .sequence .diagram-canvas {
+  .sequence::part(canvas) {
     background-image: none;
   }
 

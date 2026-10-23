@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { DpkComponentDependencyGraph } from './element';
+import type { ContextMenuRequest } from '../../core/context-menu/types';
+
+import { parseTargetRef } from '../../core/target';
+import { DpkDependencyGraph } from './element';
 import { defineDependencyGraph } from './index';
 import { dependencyGraphMessages } from './messages';
 import { parseDependencyData } from './model';
@@ -49,12 +52,12 @@ const raw = {
   ],
 };
 
-const settle = async (element: DpkComponentDependencyGraph): Promise<void> => {
+const settle = async (element: DpkDependencyGraph): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
 };
 
-const mount = async (lang?: string): Promise<DpkComponentDependencyGraph> => {
-  const element = new DpkComponentDependencyGraph();
+const mount = async (lang?: string): Promise<DpkDependencyGraph> => {
+  const element = new DpkDependencyGraph();
   if (lang !== undefined) element.setAttribute('lang', lang);
   element.data = parseDependencyData(raw);
   document.body.append(element);
@@ -62,9 +65,16 @@ const mount = async (lang?: string): Promise<DpkComponentDependencyGraph> => {
   return element;
 };
 
-const classes = (element: DpkComponentDependencyGraph, id: string): string[] => [
+const classes = (element: DpkDependencyGraph, id: string): string[] => [
   ...(element.renderRoot.querySelector<HTMLElement>(`[data-module="${id}"]`)?.classList ?? []),
 ];
+
+const reviewComment = (element: DpkDependencyGraph, ref: string): void => {
+  const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
+  const groups = element.getContextMenuItems(request) ?? [];
+  const entry = groups.flatMap((group) => group.entries).find((candidate) => candidate.id === 'review-comment');
+  if (entry?.kind === 'item') entry.run();
+};
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -90,7 +100,7 @@ describe('dependency graph data', () => {
   });
 });
 
-describe('dpk-component-dependency-graph', () => {
+describe('dpk-dependency-graph', () => {
   it('renders modules, dependencies and cycle badges', async () => {
     const element = await mount();
     expect(element.renderRoot.querySelectorAll('[data-module]')).toHaveLength(7);
@@ -165,22 +175,11 @@ describe('dpk-component-dependency-graph', () => {
     element.id = 'deps';
     await settle(element);
     expect(element.renderRoot.querySelector('.diagram-details')).toBeNull();
-    const trigger = (kind: string, id: string) =>
-      element.renderRoot.querySelector<HTMLButtonElement>(`[data-comment-kind="${kind}"][data-comment-id="${id}"]`);
-    expect(trigger('node', 'orders')?.previousElementSibling).toBe(
-      element.renderRoot.querySelector('[data-module="orders"]'),
-    );
-    trigger('node', 'orders')?.click();
+    reviewComment(element, 'element:deps/node/orders');
     await settle(element);
-    expect(element.selection).toEqual({ kind: 'node', id: 'orders' });
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('Order service');
-    const edge = trigger('edge', 'orders-pricing');
-    expect(edge?.closest('[data-dependency]')).toBe(
-      element.renderRoot.querySelector('[data-dependency="orders-pricing"]'),
-    );
-    edge?.click();
+    reviewComment(element, 'element:deps/edge/orders-pricing');
     await settle(element);
-    expect(element.selection).toEqual({ kind: 'edge', id: 'orders-pricing' });
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('Order service → Pricing');
   });
 
@@ -196,7 +195,10 @@ describe('dpk-component-dependency-graph', () => {
 
   it('filters by tag', async () => {
     const element = await mount();
-    element.renderRoot.querySelector<HTMLButtonElement>('[data-tag="今回の変更"]')?.click();
+    element.renderRoot
+      .querySelector('dpk-tag-filter')
+      ?.shadowRoot?.querySelector<HTMLButtonElement>('[data-tag="今回の変更"]')
+      ?.click();
     await element.updateComplete;
     expect(
       [...element.renderRoot.querySelectorAll<HTMLElement>('[data-module]')]

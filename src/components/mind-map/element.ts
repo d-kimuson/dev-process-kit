@@ -31,7 +31,7 @@ const BRANCH_COLORS = 5;
 const READABLE_SCALE = 0.6;
 
 /**
- * `<dpk-component-mind-map>` — a central topic and a tree of subtopics.
+ * `<dpk-mind-map>` — a central topic and a tree of subtopics.
  *
  * Selecting a topic lights its path to the centre and everything beneath it.
  * Topics with subtopics fold and unfold; folding is view state, like the tag
@@ -41,7 +41,7 @@ const READABLE_SCALE = 0.6;
  * subtopic is an `ADD_TOPIC` element action recorded by the hosting template
  * (it lists it with the other draft actions); the map shows it as added.
  */
-export class DpkComponentMindMap extends DiagramElement<MindMapData> {
+export class DpkMindMap extends DiagramElement<MindMapData> {
   static override styles: CSSResultGroup = [diagramStyles, mindMapStyles];
 
   #collapsed = new Set<string>();
@@ -169,11 +169,6 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
     };
   }
 
-  /** The map is its own detail view: the selection's actions sit next to the topic. */
-  protected override renderSelection(): typeof nothing {
-    return nothing;
-  }
-
   protected override renderCanvas(): TemplateResult {
     const visible = this.filtered();
     const m = mindMapMessages(this.locale);
@@ -222,13 +217,18 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
           this.#branchClass(node),
           folded && 'is-folded',
           node.added && 'is-added',
+          this.isDraggingNode(node.id) && 'is-dragging',
         )}
         data-topic=${node.id}
         data-grill-questions=${this.questionsOf(node)}
+        data-dpk-target=${this.commentRef('node', node.id)}
         style="left:${placed.x}px; top:${placed.y}px; width:${placed.width}px; height:${placed.height}px"
         aria-pressed=${state.selected ? 'true' : 'false'}
         title=${node.description ?? node.label}
-        @click=${() => this.select({ kind: 'node', id: node.id })}
+        @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, node.id)}
+        @click=${() => {
+          if (!this.consumeDragClick()) this.select({ kind: 'node', id: node.id });
+        }}
       >
         <span class="mind-label">${node.label}</span>
       </button>
@@ -274,7 +274,7 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
     `;
   }
 
-  /** Subtopic and comment for the selected topic, just below it. */
+  /** The add-subtopic action for the selected topic, just below it. */
   #renderActions(m: ReturnType<typeof mindMapMessages>): TemplateResult | typeof nothing {
     const selection = this.selection;
     if (selection === null || selection.kind !== 'node') return nothing;
@@ -294,14 +294,6 @@ export class DpkComponentMindMap extends DiagramElement<MindMapData> {
             ? html`
                 <button type="button" class="dpk-btn" data-action="add" @click=${() => this.#startAdding(node.id)}>
                   ${m.addSubtopicButton}
-                </button>
-                <button
-                  type="button"
-                  class="dpk-btn"
-                  data-action="comment"
-                  @click=${() => this.requestElementComment('node', node.id)}
-                >
-                  ${m.commentButton}
                 </button>
               `
             : html`

@@ -1,5 +1,6 @@
 import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
+import type { CommentTargetOption } from '../../core/types';
 import type { LayoutResult } from '../../lib/layout/layered';
 
 import { DiagramElement } from '../diagram/element';
@@ -22,7 +23,7 @@ import { architectureStyles } from './styles';
 const ARROWS = [{ id: 'arch-neutral' }, { id: 'arch-selected' }] as const;
 
 /** System map: services grouped into boundaries, with the links between them. */
-export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData> {
+export class DpkArchitectureMap extends DiagramElement<ArchitectureData> {
   static override styles: CSSResultGroup = [diagramStyles, architectureStyles];
 
   #showBoundaries = true;
@@ -84,7 +85,7 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
       const placed = this.placedNode(node.id);
       return placed ? [placed] : [];
     });
-    const canvas = this.renderRoot.querySelector<HTMLElement>('.diagram-canvas');
+    const canvas = this.renderRoot.querySelector('dpk-dialog-panel')?.shadowRoot?.querySelector('[part~="canvas"]');
     const corner = openingCorner([...nodes, ...this.#boundaryBoxes()], canvas?.clientHeight ?? 0);
     this.viewport?.reset(corner ?? undefined);
   }
@@ -97,6 +98,19 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
       nodes: new Map([...outgoing.nodes, ...incoming.nodes]),
       edges: new Set([...outgoing.edges, ...incoming.edges]),
     };
+  }
+
+  /** Service names and a `from → to` summary, not raw ids, so "Review comment" reads like the map does. */
+  protected override commentItems(): readonly CommentTargetOption[] {
+    const items = this.items();
+    const name = (id: string) => items.nodes.find((node) => node.id === id)?.name ?? id;
+    return [
+      ...items.nodes.map((service) => ({ value: this.commentRef('node', service.id), label: service.name })),
+      ...items.edges.map((link) => ({
+        value: this.commentRef('edge', link.id),
+        label: `${name(link.from)} → ${name(link.to)}${link.label === null ? '' : ` · ${link.label}`}`,
+      })),
+    ];
   }
 
   protected override renderToolbarActions(): TemplateResult {
@@ -135,7 +149,11 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
       const d = pathData(route);
       const select = () => this.select({ kind: 'edge', id: link.id });
       return svg`
-        <g class=${this.elementClass(state, 'd-edge', 'arch-link')} data-link=${link.id}>
+        <g
+          class=${this.elementClass(state, 'd-edge', 'arch-link')}
+          data-link=${link.id}
+          data-dpk-target=${this.commentRef('edge', link.id)}
+        >
           <title>${link.label ?? link.id}</title>
           <path
             class="d-edge-path"
@@ -156,11 +174,6 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
             }}
           ></path>
           ${link.label === null || route.length === 0 ? nothing : this.#renderLinkLabel(link.label, route)}
-          ${this.renderEdgeCommentTrigger(
-            { kind: 'edge', id: link.id },
-            `${name(link.from)} → ${name(link.to)}${link.label === null ? '' : ` · ${link.label}`}`,
-            route,
-          )}
         </g>
       `;
     });
@@ -198,13 +211,17 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
     return html`
       <button
         type="button"
-        class=${this.elementClass(state, 'd-node', 'arch-service')}
+        class=${this.elementClass(state, 'd-node', 'arch-service', this.isDraggingNode(service.id) && 'is-dragging')}
         data-service=${service.id}
         data-grill-questions=${this.questionsOf(service)}
+        data-dpk-target=${this.commentRef('node', service.id)}
         style="left:${placed.x}px; top:${placed.y}px; width:${service.width}px; height:${service.height}px"
         aria-pressed=${state.selected ? 'true' : 'false'}
         title=${service.description ?? service.name}
-        @click=${() => this.select({ kind: 'node', id: service.id })}
+        @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, service.id)}
+        @click=${() => {
+          if (!this.consumeDragClick()) this.select({ kind: 'node', id: service.id });
+        }}
       >
         ${
           service.artwork === null
@@ -221,10 +238,6 @@ export class DpkComponentArchitectureMap extends DiagramElement<ArchitectureData
           ${service.description === null ? nothing : html`<span class="arch-description">${service.description}</span>`}
         </span>
       </button>
-      ${this.renderCommentTrigger({ kind: 'node', id: service.id }, service.name, {
-        x: placed.x + service.width - 20,
-        y: placed.y - 14,
-      })}
     `;
   }
 }

@@ -1,6 +1,6 @@
 import type { LayoutPoint } from '../../lib/layout/layered';
 import type { ErDiagramMessages } from './messages';
-import type { ErData, ErField, ErFieldDiff, ErRelation, ErTableDiff } from './model';
+import type { ErCardinality, ErData, ErField, ErFieldDiff, ErRelation, ErTableDiff } from './model';
 
 /**
  * Presentation of a table card's rows and of the column editor, apart from
@@ -196,6 +196,60 @@ export const highlightOf = (edges: readonly ErRelation[], focus: readonly ErFocu
 
 /** A table card's box in the world. */
 export type ErBox = { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+
+/** The `parent:child` value a cardinality editor's select holds. */
+export const cardinalityValue = (cardinality: ErCardinality): string => `${cardinality.parent}:${cardinality.child}`;
+
+/** The relation's cardinality editor: open for one edge, with the value it will submit. */
+export type CardinalityEditor = {
+  readonly edge: string;
+  readonly cardinality: string;
+  readonly failed: boolean;
+};
+
+export type AggregateGroup = { readonly aggregate: string; readonly box: ErBox; readonly tables: readonly string[] };
+
+/** Also used by `element.ts` to size the layout's `groupSpacing`, so a dragged frame has room to breathe. */
+export const GROUP_PADDING = 18;
+/**
+ * Extra room above the tables, for the aggregate's own label. Also used by
+ * `element.ts`: the frame's extra top space, on top of `GROUP_PADDING` on
+ * every side, must fit inside the layout's `groupSpacing` too, or two
+ * adjacent aggregates' frames overlap even though their tables never do.
+ */
+export const GROUP_LABEL_SPACE = 22;
+
+/**
+ * One bounding box per aggregate, padded around the tables it groups —
+ * purely a visual grouping on the canvas, never a filter. A table without an
+ * aggregate, or one not yet measured, takes part in no group.
+ */
+export const aggregateGroups = (
+  tables: readonly { readonly id: string; readonly aggregate: string | null; readonly box: ErBox | null }[],
+): readonly AggregateGroup[] => {
+  const byAggregate = new Map<string, { readonly id: string; readonly box: ErBox }[]>();
+  for (const table of tables) {
+    if (table.aggregate === null || table.box === null) continue;
+    byAggregate.set(table.aggregate, [...(byAggregate.get(table.aggregate) ?? []), { id: table.id, box: table.box }]);
+  }
+  return [...byAggregate].map(([aggregate, members]) => {
+    const boxes = members.map((member) => member.box);
+    const left = Math.min(...boxes.map((box) => box.x));
+    const top = Math.min(...boxes.map((box) => box.y));
+    const right = Math.max(...boxes.map((box) => box.x + box.width));
+    const bottom = Math.max(...boxes.map((box) => box.y + box.height));
+    return {
+      aggregate,
+      tables: members.map((member) => member.id),
+      box: {
+        x: left - GROUP_PADDING,
+        y: top - GROUP_PADDING - GROUP_LABEL_SPACE,
+        width: right - left + GROUP_PADDING * 2,
+        height: bottom - top + GROUP_PADDING * 2 + GROUP_LABEL_SPACE,
+      },
+    };
+  });
+};
 
 /**
  * A forward relation's orthogonal route from the referenced column's right

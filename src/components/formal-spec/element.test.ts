@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DpkComponentFormalSpec } from './element';
+import type { ContextMenuRequest } from '../../core/context-menu/types';
+
+import { parseTargetRef } from '../../core/target';
+import { DpkFormalSpec } from './element';
 import { defineFormalSpec } from './index';
 import { formalSpecMessages } from './messages';
 
@@ -38,9 +41,9 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-const mount = async (data: unknown = raw, id = 'spec'): Promise<DpkComponentFormalSpec> => {
-  const element = document.createElement('dpk-component-formal-spec');
-  if (!(element instanceof DpkComponentFormalSpec)) throw new Error('did not upgrade');
+const mount = async (data: unknown = raw, id = 'spec'): Promise<DpkFormalSpec> => {
+  const element = document.createElement('dpk-formal-spec');
+  if (!(element instanceof DpkFormalSpec)) throw new Error('did not upgrade');
   if (id) element.id = id;
   element.innerHTML = `<script type="application/json">${JSON.stringify(data)}</script>`;
   document.body.append(element);
@@ -48,23 +51,31 @@ const mount = async (data: unknown = raw, id = 'spec'): Promise<DpkComponentForm
   return element;
 };
 
-const query = (element: DpkComponentFormalSpec, selector: string): HTMLElement => {
+const query = (element: DpkFormalSpec, selector: string): HTMLElement => {
   const found = element.renderRoot.querySelector<HTMLElement>(selector);
   if (!found) throw new Error(`no ${selector}`);
   return found;
 };
 
+/** Runs the right-click "Review comment" action for a target, a claim or a clause. */
+const reviewComment = (element: DpkFormalSpec, ref: string): void => {
+  const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
+  const groups = element.getContextMenuItems(request) ?? [];
+  const entry = groups.flatMap((group) => group.entries).find((candidate) => candidate.id === 'review-comment');
+  if (entry?.kind === 'item') entry.run();
+};
+
 /** Opens every claim, as a reader clicking each one would. */
-const expandAll = async (element: DpkComponentFormalSpec): Promise<DpkComponentFormalSpec> => {
+const expandAll = async (element: DpkFormalSpec): Promise<DpkFormalSpec> => {
   for (const toggle of element.renderRoot.querySelectorAll<HTMLElement>('.claim-toggle')) toggle.click();
   await element.updateComplete;
   return element;
 };
 
-const text = (element: DpkComponentFormalSpec, selector: string): string =>
+const text = (element: DpkFormalSpec, selector: string): string =>
   query(element, selector).textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-describe('dpk-component-formal-spec', () => {
+describe('dpk-formal-spec', () => {
   it('shows each claim as its statement and assurance, its parts folded away', async () => {
     const element = await mount();
     expect(text(element, '[data-claim="sort"] .claim-statement')).toBe('Sorting any list gives a sorted list');
@@ -222,17 +233,16 @@ describe('dpk-component-formal-spec', () => {
     expect(element.commentTargets[3]?.label).toBe('Sorting any list gives a sorted… › the result is in order');
   });
 
-  it('has no comment targets or triggers without an id', async () => {
+  it('has no comment targets without an id', async () => {
     const element = await mount(raw, '');
     expect(element.commentTargets).toEqual([]);
-    expect(element.renderRoot.querySelector('.comment-trigger')).toBeNull();
   });
 
   it('submits a clause comment to the enclosing template', async () => {
     const element = await expandAll(await mount());
     const submitted = vi.fn((event: Event) => event.preventDefault());
     element.addEventListener('dpk-comment-submit', submitted);
-    query(element, '[data-comment-ref="element:spec/clause/sort/ordered"]').click();
+    reviewComment(element, 'element:spec/clause/sort/ordered');
     await element.updateComplete;
     const textarea = element.renderRoot.querySelector<HTMLTextAreaElement>('.comment-pop textarea');
     if (!textarea) throw new Error('no composer');
@@ -252,7 +262,7 @@ describe('dpk-component-formal-spec', () => {
 
   it('keeps the comment and says why when no template saves it', async () => {
     const element = await mount();
-    query(element, '[data-comment-ref="element:spec/claim/sort"]').click();
+    reviewComment(element, 'element:spec/claim/sort');
     await element.updateComplete;
     const textarea = element.renderRoot.querySelector<HTMLTextAreaElement>('.comment-pop textarea');
     if (!textarea) throw new Error('no composer');

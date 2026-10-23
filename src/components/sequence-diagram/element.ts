@@ -37,7 +37,7 @@ const ARROWS = [
 ] as const;
 
 /** Interaction diagram: participants on a rail, messages as numbered rows. */
-export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDiagramData, SequenceSelection> {
+export class DpkSequenceDiagram extends DiagramChromeElement<SequenceDiagramData, SequenceSelection> {
   static override styles: CSSResultGroup = [diagramStyles, sequenceStyles];
 
   #layout: SequenceLayout | null = null;
@@ -48,8 +48,10 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
   #signature = '';
   #version = 0;
 
+  /** Each message keeps its sequence number, matching the badge the canvas renders beside it. */
   protected override commentItems(): readonly CommentTargetOption[] {
     const items = this.items();
+    const numbers = messageNumbers(items);
     return [
       ...items.participants.map((participant) => ({
         value: this.commentRef('participant', participant.id),
@@ -57,7 +59,7 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
       })),
       ...flattenMessages(items.items).map((message) => ({
         value: this.commentRef('message', message.id),
-        label: message.title,
+        label: `${numbers.get(message.id) ?? ''} ${message.title}`.trim(),
       })),
     ];
   }
@@ -83,8 +85,8 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
     return sequenceDiagramMessages(this.locale).empty;
   }
 
-  protected override fitViewport(): void {
-    this.viewport?.fitWidth();
+  protected override fitMode(): 'all' | 'width' {
+    return 'width';
   }
 
   protected override onViewChange(view: ViewState): void {
@@ -237,6 +239,7 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
         class=${this.elementClass(state, 'sequence-participant', participant.external && 'is-external')}
         data-participant=${participant.id}
         data-grill-questions=${this.questionsOf(participant)}
+        data-dpk-target=${this.commentRef('participant', participant.id)}
         style="left:${center - 95}px"
         aria-pressed=${state.selected ? 'true' : 'false'}
         title=${participant.description ?? participant.name}
@@ -248,10 +251,6 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
           ${participant.role === null ? nothing : html`<span class="sequence-role">${participant.role}</span>`}
         </span>
       </button>
-      ${this.renderCommentTrigger({ kind: 'participant', id: participant.id }, participant.name, {
-        x: center + 95 - 34,
-        y: 17,
-      })}
     `;
   }
 
@@ -385,6 +384,7 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
         class=${this.elementClass(state, 'sequence-label')}
         data-message-label=${message.id}
         data-grill-questions=${this.questionsOf(message)}
+        data-dpk-target=${this.commentRef('message', message.id)}
         style="left:${left}px; top:${y - 28}px; width:${width}px"
         title=${this.#tooltip(message, m)}
         @click=${() => this.select({ kind: 'message', id: message.id })}
@@ -392,11 +392,6 @@ export class DpkComponentSequenceDiagram extends DiagramChromeElement<SequenceDi
         <span class="sequence-number">${this.#numbers.get(message.id) ?? ''}</span>
         <span class="sequence-text">${message.title}</span>
       </button>
-      ${this.renderCommentTrigger(
-        { kind: 'message', id: message.id },
-        `${this.#numbers.get(message.id) ?? ''} ${message.title}`.trim(),
-        { x: left + width - 30, y: y - 31 },
-      )}
     `;
   }
 }
