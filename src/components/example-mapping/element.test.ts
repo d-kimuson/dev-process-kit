@@ -1,22 +1,20 @@
-// @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import type { DraftAction } from '../../core/types';
-import type { DpkInternalExampleMappingCard } from './components/mapping-card';
-import type { DpkTemplateExampleMapping } from './element';
 
-import { changeLogScript, showChange } from '../../core/testing/change-notices';
-import '../../index';
-import { exampleMappingAction } from './actions';
+import { defineInlineEdit } from '../inline-edit';
 import { applyExampleMappingAction } from './apply';
-import { exampleMappingDefinitionFor } from './definition';
 import { dropAfter, resolveExampleDrop, resolveQuestionDrop, resolveRuleDrop, resolveStoryDrop } from './drop';
+import { DpkExampleMapping } from './element';
+import { defineExampleMapping } from './index';
 import { exampleMappingMessages } from './messages';
 import { parseExampleMappingBase, type ExampleMappingState } from './model';
 import { presentStorySummary } from './present';
 
 const m = exampleMappingMessages('en');
-const exampleMappingDefinition = exampleMappingDefinitionFor('en');
+
+defineExampleMapping();
+defineInlineEdit();
 
 const base = {
   title: '注文フロー',
@@ -45,34 +43,7 @@ const action = (type: string, target: { type: string; id: string }, payload: unk
 
 const state = (): ExampleMappingState => parseExampleMappingBase(base);
 
-const area = (root: ShadowRoot, testid: string): (string | null)[] =>
-  [...root.querySelectorAll(`[data-testid="${testid}"] dpk-internal-example-mapping-card`)].map((card) =>
-    card.getAttribute('data-card'),
-  );
-
-const mount = (hash = '', lang = '', change = ''): DpkTemplateExampleMapping => {
-  window.location.hash = hash;
-  document.body.innerHTML = `
-    <dpk-template-example-mapping storage="memory"${lang === '' ? '' : ` lang="${lang}"`}>
-      ${change === '' ? '' : changeLogScript(change)}
-      <script type="application/json">${JSON.stringify(base)}</script>
-    </dpk-template-example-mapping>`;
-  return document.querySelector('dpk-template-example-mapping') as DpkTemplateExampleMapping;
-};
-
-const settle = async (el: DpkTemplateExampleMapping): Promise<void> => {
-  await el.api.ready;
-  await el.updateComplete;
-  await Promise.resolve();
-  await el.updateComplete;
-};
-
 describe('example-mapping base data', () => {
-  beforeEach(() => {
-    window.location.hash = '';
-    document.body.innerHTML = '';
-  });
-
   it('parses the four card kinds and rejects bad references', () => {
     const parsed = state();
     expect(parsed.stories).toHaveLength(2);
@@ -98,11 +69,6 @@ describe('example-mapping base data', () => {
 });
 
 describe('example-mapping actions', () => {
-  beforeEach(() => {
-    window.location.hash = '';
-    document.body.innerHTML = '';
-  });
-
   it('renames, reorders and deletes a story with its subtree', () => {
     const renamed = applyExampleMappingAction(
       state(),
@@ -259,30 +225,6 @@ describe('example-mapping actions', () => {
     expect(resolveQuestionDrop(parsed, 'r1', 'q1', 'q2', 'before')).toMatchObject({ payload: { after: 'q2' } });
   });
 
-  it('describe/serialize never throw, even for stale targets', () => {
-    const parsed = state();
-    const stale = action('SET_RULE_NAME', { type: 'rule', id: 'gone' }, { name: 'X' });
-    const described = exampleMappingDefinition.describe(stale, parsed);
-    expect(described.title.length).toBeGreaterThan(0);
-    expect(exampleMappingDefinition.serialize(stale)).toContain('SET_RULE_NAME');
-    expect(exampleMappingDefinition.hasTarget(parsed, { type: 'rule', id: 'r1' })).toBe(true);
-    expect(exampleMappingDefinition.hasTarget(parsed, { type: 'rule', id: 'gone' })).toBe(false);
-    expect(exampleMappingDefinition.hasTarget(parsed, { type: 'story', id: 'r1' })).toBe(false);
-    expect(exampleMappingDefinition.hasTarget(parsed, { type: 'question', id: 'q1' })).toBe(true);
-    expect(
-      exampleMappingDefinition.commentTargets(parsed, {}).find((option) => option.value === 'question:q3')?.label,
-    ).toBe('営業時間内のみ › 祝日は？');
-  });
-
-  it('resolves navigation to the selected card', () => {
-    const parsed = state();
-    expect(exampleMappingDefinition.resolveNavigation(parsed, {})).toEqual({});
-    expect(exampleMappingDefinition.resolveNavigation(parsed, { card: 'r1' })).toEqual({ card: 'r1' });
-    expect(exampleMappingDefinition.resolveNavigation(parsed, { card: 'gone' })).toEqual({});
-    expect(exampleMappingDefinition.title(parsed)).toBe('注文フロー');
-    expect(exampleMappingDefinition.title(parseExampleMappingBase({ stories: [] }))).toBe('Example Mapping');
-  });
-
   it('summarizes where a story stands', () => {
     const parsed = state();
     expect(presentStorySummary(m, parsed, 's1')).toMatchObject({
@@ -303,187 +245,240 @@ describe('example-mapping actions', () => {
       ).readiness,
     ).toBe('ready');
   });
+});
 
-  it('lays the table out: rules side by side, examples then questions under each rule', async () => {
-    const el = mount();
-    await settle(el);
-    const root = el.shadowRoot!;
+describe('<dpk-example-mapping>', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  const settle = async (element: DpkExampleMapping): Promise<void> => {
+    for (let index = 0; index < 3; index++) await element.updateComplete;
+  };
+
+  // `DragController` (src/lib/dom/drag.ts) defers the actual `dragging` state
+  // transition to a real `setTimeout(0)` (so the browser's own drag-ghost
+  // snapshot is not baked with a faded source). A chain of `updateComplete`
+  // awaits only drains microtasks, so a genuine macrotask tick is needed here
+  // to let that timer fire before the next synthetic drag event is dispatched.
+  const flushMacrotask = async (): Promise<void> => {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  };
+
+  const mount = async (lang?: string, raw: unknown = base): Promise<DpkExampleMapping> => {
+    const element = document.createElement('dpk-example-mapping');
+    if (!(element instanceof DpkExampleMapping)) throw new Error('did not upgrade');
+    element.id = 'board';
+    if (lang !== undefined) element.setAttribute('lang', lang);
+    element.innerHTML = `<script type="application/json">${JSON.stringify(raw)}</script>`;
+    document.body.append(element);
+    await settle(element);
+    return element;
+  };
+
+  /** Stand-in for the hosting page: accept each action, then hand the recorded draft back. */
+  const acceptActions = (element: DpkExampleMapping): void => {
+    element.addEventListener('dpk-element-action', (event) => {
+      if (!(event instanceof CustomEvent)) return;
+      event.preventDefault();
+      const detail: { type: string; target: string; payload: unknown } = event.detail;
+      element.elementActions = [
+        ...element.elementActions,
+        {
+          id: `a${element.elementActions.length}`,
+          type: detail.type,
+          target: { type: 'element', id: detail.target.slice('element:'.length) },
+          payload: detail.payload,
+          createdAt: '2026-09-24T00:00:00.000Z',
+        },
+      ];
+    });
+  };
+
+  const card = (element: DpkExampleMapping, id: string): HTMLElement => {
+    const found = element.renderRoot.querySelector<HTMLElement>(`.em-card[data-card="${id}"]`);
+    if (!found) throw new Error(`no card ${id}`);
+    return found;
+  };
+
+  const area = (element: DpkExampleMapping, testid: string): (string | null)[] =>
+    [...element.renderRoot.querySelectorAll<HTMLElement>(`[data-testid="${testid}"] .em-card`)].map((el) =>
+      el.getAttribute('data-card'),
+    );
+
+  const drag = (target: Element, type: string, clientX = 0, clientY = 0): void => {
+    const event = new Event(type, { bubbles: true, cancelable: true, composed: true });
+    Object.assign(event, { clientX, clientY, dataTransfer: null });
+    target.dispatchEvent(event);
+  };
+
+  it('lays the board out: stories, rules side by side, examples then questions under each rule', async () => {
+    const element = await mount();
+    const root = element.renderRoot;
     expect(root.querySelector('[data-testid="example-mapping-board"]')).not.toBeNull();
     // One card per entity: 2 stories + 2 rules + 2 examples + 3 questions.
-    expect(root.querySelectorAll('dpk-internal-example-mapping-card')).toHaveLength(9);
+    expect(root.querySelectorAll('.em-card')).toHaveLength(9);
     expect(root.querySelectorAll('[data-testid="rules-s1"] .rule-col')).toHaveLength(2);
-    expect(area(root, 'examples-r1')).toEqual(['e1', 'e2']);
-    expect(area(root, 'questions-r1')).toEqual(['q1', 'q2']);
-    expect(area(root, 'questions-r2')).toEqual(['q3']);
+    expect(area(element, 'examples-r1')).toEqual(['e1', 'e2']);
+    expect(area(element, 'questions-r1')).toEqual(['q1', 'q2']);
+    expect(area(element, 'questions-r2')).toEqual(['q3']);
     // No story-wide question lane.
     expect(root.querySelector('[data-testid="questions-s1"]')).toBeNull();
-    // Examples on top, questions below: two separate areas in each rule column.
-    const column = root.querySelector('.rule-col[data-rule="r1"]')!;
-    const order = [...column.querySelectorAll('dpk-internal-example-mapping-card')].map((card) =>
-      card.getAttribute('data-card'),
-    );
-    expect(order).toEqual(['r1', 'e1', 'e2', 'q1', 'q2']);
-    const areas = [...column.querySelectorAll('[data-testid]')].map((node) => node.getAttribute('data-testid'));
-    expect(areas).toEqual(['examples-r1', 'questions-r1']);
     // The legend explains the colors in the header.
     expect(root.querySelectorAll('.legend li')).toHaveLength(4);
-    document.body.innerHTML = '';
   });
 
-  it('edits a card in place and adds examples and questions from their areas', async () => {
-    const el = mount();
-    await settle(el);
-    const root = el.shadowRoot!;
-    const rule = root.querySelector<DpkInternalExampleMappingCard>('dpk-internal-example-mapping-card[data-card="r1"]');
-    if (!rule) throw new Error('missing rule card');
-    await rule.updateComplete;
-    const shadow = rule.shadowRoot!;
-    // No edit button: the name itself is the editor.
-    expect(shadow.querySelector('[data-role="edit"]')).toBeNull();
-    // Questions are added from the rule's question area, not from a card.
-    expect(shadow.querySelector('[data-role="ask"]')).toBeNull();
-    const editor = shadow.querySelector('dpk-component-inline-edit');
-    expect(editor?.hasAttribute('seamless')).toBe(true);
-    editor?.dispatchEvent(new CustomEvent('dpk-commit', { detail: { value: 'Renamed' }, bubbles: true }));
-    await settle(el);
-    expect(el.api.state.rules.find((entry) => entry.id === 'r1')?.name).toBe('Renamed');
-
-    root.querySelector<HTMLButtonElement>('[data-testid="questions-r2"] .add-question')?.click();
-    await settle(el);
-    const question = el.api.state.questions.at(-1);
-    expect(question).toMatchObject({ ruleId: 'r2', name: m.newQuestion });
-    // The fresh question takes the caret straight away.
-    const fresh = root.querySelector(
-      `[data-testid="questions-r2"] dpk-internal-example-mapping-card[data-card="${question?.id}"]`,
-    );
-    expect(fresh?.getAttribute('data-mode')).toBe('editing');
-
-    root.querySelector<HTMLButtonElement>('[data-testid="examples-r2"] .add-example')?.click();
-    await settle(el);
-    const example = el.api.state.examples.at(-1);
-    expect(example).toMatchObject({ ruleId: 'r2', name: m.newExample });
-    expect(area(root, 'examples-r2')).toEqual([example?.id]);
-    document.body.innerHTML = '';
-  });
-
-  it('renders its own text in the page language, and in English without one', async () => {
-    const english = mount();
-    await settle(english);
-    expect(english.locale).toBe('en');
-    const root = english.shadowRoot!;
-    expect([...root.querySelectorAll('.legend li')].map((li) => li.textContent?.trim())).toEqual([
-      m.kindLabel('story'),
-      m.kindLabel('rule'),
-      m.kindLabel('example'),
-      m.kindLabel('question'),
+  it('offers every story, rule, example and question as a comment target, in board order', async () => {
+    const element = await mount();
+    expect(element.commentTargets.map((target) => [target.value, target.label])).toEqual([
+      ['element:board/story/s1', '注文する'],
+      ['element:board/story/s2', '支払う'],
+      ['element:board/rule/r1', '在庫があれば受ける'],
+      ['element:board/rule/r2', '営業時間内のみ'],
+      ['element:board/example/e1', '在庫あり → 受注'],
+      ['element:board/example/e2', '在庫なし → 断る'],
+      ['element:board/question/q1', '取り置きは可能？'],
+      ['element:board/question/q2', '在庫の定義は？'],
+      ['element:board/question/q3', '祝日は？'],
     ]);
-    document.body.innerHTML = '';
+  });
 
-    const japanese = mount('', 'ja');
-    await settle(japanese);
+  it('renames a card through its inline editor and records the action', async () => {
+    const element = await mount();
+    acceptActions(element);
+    const editor = card(element, 'r1').querySelector('dpk-inline-edit');
+    editor?.dispatchEvent(
+      new CustomEvent('dpk-commit', { detail: { value: '在庫があれば受ける（改）' }, bubbles: true }),
+    );
+    await settle(element);
+    expect(element.elementActions[0]).toMatchObject({
+      type: 'SET_RULE_NAME',
+      target: { id: 'board/rule/r1' },
+      payload: { name: '在庫があれば受ける（改）' },
+    });
+    expect(element.commentTargets.find((target) => target.value === 'element:board/rule/r1')?.label).toBe(
+      '在庫があれば受ける（改）',
+    );
+    expect(element.elementActionResults).toEqual([
+      {
+        id: 'a0',
+        title: m.ruleRenamedTitle,
+        tone: 'update',
+        summary: m.arrowFrom('在庫があれば受ける', '在庫があれば受ける（改）'),
+      },
+    ]);
+  });
+
+  it('deletes a card, records the action and clears its selection', async () => {
+    const element = await mount();
+    acceptActions(element);
+    element.select({ kind: 'example', id: 'e1' });
+    await settle(element);
+    card(element, 'e1').querySelector<HTMLButtonElement>('[data-role="delete"]')?.click();
+    await settle(element);
+    expect(element.elementActions[0]).toMatchObject({
+      type: 'DELETE_EXAMPLE',
+      target: { id: 'board/example/e1' },
+    });
+    expect(element.selection).toBeNull();
+    expect(area(element, 'examples-r1')).toEqual(['e2']);
+  });
+
+  it('adds a fresh story, records the action and puts the caret straight into its name', async () => {
+    const element = await mount();
+    acceptActions(element);
+    element.renderRoot.querySelector<HTMLButtonElement>('.add-story')?.click();
+    await settle(element);
+    expect(element.elementActions[0]).toMatchObject({
+      type: 'ADD_STORY',
+      target: { id: 'board/page/example-mapping' },
+      payload: { name: m.newStory },
+    });
+    const id = element.selection?.id;
+    if (id === undefined) throw new Error('no selection after adding a story');
+    expect(element.selection).toEqual({ kind: 'story', id });
+    expect(card(element, id).getAttribute('data-mode')).toBe('editing');
+    // The new card's name editor took the caret imperatively (ADR 20261023_diagram-as-board).
+    const editor = card(element, id).querySelector('dpk-inline-edit');
+    expect(editor?.shadowRoot?.querySelector('.field')).not.toBeNull();
+  });
+
+  it('keeps the board and shows an error when no host records a drop', async () => {
+    const element = await mount();
+    drag(card(element, 'e1'), 'dragstart');
+    const area2 = element.renderRoot.querySelector<HTMLElement>('[data-testid="examples-r2"]')!;
+    drag(area2, 'drop', 0, 100);
+    await settle(element);
+    expect(area(element, 'examples-r1')).toEqual(['e1', 'e2']);
+    expect(area(element, 'examples-r2')).toEqual([]);
+  });
+
+  it('drags an example into a different rule’s examples area', async () => {
+    const element = await mount();
+    acceptActions(element);
+    const area2 = element.renderRoot.querySelector<HTMLElement>('[data-testid="examples-r2"]')!;
+    drag(card(element, 'e1'), 'dragstart');
+    await flushMacrotask();
+    drag(area2, 'dragover', 0, 100);
+    await settle(element);
+    drag(area2, 'drop', 0, 100);
+    await settle(element);
+    expect(element.elementActions[0]).toMatchObject({
+      type: 'MOVE_EXAMPLE',
+      target: { id: 'board/example/e1' },
+      payload: { ruleId: 'r2', after: null },
+    });
+    expect(area(element, 'examples-r1')).toEqual(['e2']);
+    expect(area(element, 'examples-r2')).toEqual(['e1']);
+  });
+
+  it('drags a rule into another story, recording the move', async () => {
+    const element = await mount();
+    acceptActions(element);
+    const rulesRow = element.renderRoot.querySelector<HTMLElement>('[data-testid="rules-s2"]')!;
+    drag(card(element, 'r1'), 'dragstart');
+    await flushMacrotask();
+    drag(rulesRow, 'dragover', 100);
+    await settle(element);
+    drag(rulesRow, 'drop', 100);
+    await settle(element);
+    expect(element.elementActions[0]).toMatchObject({
+      type: 'MOVE_RULE',
+      target: { id: 'board/rule/r1' },
+      payload: { storyId: 's2', after: null },
+    });
+    expect(element.renderRoot.querySelector('[data-testid="rules-s2"] .rule-col[data-rule="r1"]')).not.toBeNull();
+    expect(element.renderRoot.querySelector('[data-testid="rules-s1"] .rule-col[data-rule="r1"]')).toBeNull();
+  });
+
+  it('marks a card with the grill questions it answers', async () => {
+    const marked = {
+      ...base,
+      rules: [{ ...base.rules[0], questions: 'Q1 Q2' }, base.rules[1]],
+    };
+    const element = await mount(undefined, marked);
+    expect(card(element, 'r1').dataset['grillQuestions']).toBe('Q1 Q2');
+    expect(card(element, 'r2').hasAttribute('data-grill-questions')).toBe(false);
+  });
+
+  it('renders its kit text in the element’s language', async () => {
     const ja = exampleMappingMessages('ja');
-    expect(japanese.locale).toBe('ja');
-    const jaRoot = japanese.shadowRoot!;
-    expect([...jaRoot.querySelectorAll('.legend li')].map((li) => li.textContent?.trim())).toEqual([
+    const element = await mount('ja');
+    expect([...element.renderRoot.querySelectorAll('.legend li')].map((li) => li.textContent?.trim())).toEqual([
       ja.kindLabel('story'),
       ja.kindLabel('rule'),
       ja.kindLabel('example'),
       ja.kindLabel('question'),
     ]);
-    jaRoot.querySelector<HTMLButtonElement>('[data-testid="questions-r2"] .add-question')?.click();
-    await settle(japanese);
-    expect(japanese.api.state.questions.at(-1)).toMatchObject({ ruleId: 'r2', name: ja.newQuestion });
-    // The card is a nested LitElement in the template's shadow root: it resolves its own locale too.
-    const card = jaRoot.querySelector('dpk-internal-example-mapping-card[data-card="r1"]');
-    expect(card?.shadowRoot?.querySelector('.card-kind')?.textContent).toBe(ja.kindLabel('rule'));
-    document.body.innerHTML = '';
   });
 
-  it('dispatches through the element: rename, comment, delete, select', async () => {
-    const el = mount();
-    await settle(el);
-
-    el.api.dispatch(exampleMappingAction.setRuleName('r1', 'Updated'));
-    await settle(el);
-    expect(el.api.state.rules.find((rule) => rule.id === 'r1')?.name).toBe('Updated');
-
-    el.api.comment('rule:r1', 'hello');
-    await settle(el);
-    expect(el.api.actions.some((entry) => entry.type === 'comment' && entry.target.id === 'r1')).toBe(true);
-
-    el.api.dispatch(exampleMappingAction.deleteExample('e2'));
-    await settle(el);
-    expect(el.api.state.examples.map((example) => example.id)).toEqual(['e1']);
-
-    el.api.navigate({ card: 'q2' });
-    await settle(el);
-    expect(location.hash).toContain('card=q2');
-    document.body.innerHTML = '';
-  });
-});
-
-describe('example-mapping change notices', () => {
-  beforeEach(() => {
-    window.location.hash = '';
-    document.body.innerHTML = '';
-  });
-
-  it('"Show" focuses the card the change is about and highlights it', async () => {
-    const el = mount('', '', 'question:q3');
-    await settle(el);
-    const card = await showChange(el);
-    expect(card?.getAttribute('data-card')).toBe('q3');
-    expect(el.navigation['card']).toBe('q3');
-  });
-});
-
-describe('example-mapping marks for questions (grill)', () => {
-  const marked = {
-    ...base,
-    stories: [{ ...base.stories[0], questions: 'Q2' }, base.stories[1]],
-    rules: [{ ...base.rules[0], questions: 'Q1 Q2' }, base.rules[1]],
-    examples: [{ ...base.examples[0], questions: 'Q1' }, base.examples[1]],
-    questions: [{ ...base.questions[0], questions: 'Q1' }, ...base.questions.slice(1)],
-  };
-  const grill = {
-    questions: [
-      { id: 'reserve', title: 'Hold stock for unpaid orders?' },
-      { id: 'hours', title: 'Do holidays count as business hours?' },
-    ],
-  };
-
-  it('keeps a card’s question references through parsing and edits', () => {
-    const parsed = parseExampleMappingBase(marked);
-    expect(parsed.rules[0]?.questions).toBe('Q1 Q2');
-    const renamed = applyExampleMappingAction(
-      parsed,
-      action('SET_RULE_NAME', { type: 'rule', id: 'r1' }, { name: 'x' }),
-    );
-    expect(renamed?.rules.find((rule) => rule.id === 'r1')?.questions).toBe('Q1 Q2');
-  });
-
-  it('marks each card it names and lays a badge on it', async () => {
-    window.location.hash = '';
-    document.body.innerHTML = `
-      <dpk-template-example-mapping storage="memory">
-        <script type="application/json">${JSON.stringify(marked)}</script>
-        <script type="application/json" data-dpk-grill>${JSON.stringify(grill)}</script>
-      </dpk-template-example-mapping>`;
-    const el = document.querySelector('dpk-template-example-mapping') as DpkTemplateExampleMapping;
-    await settle(el);
-    await settle(el);
-    const root = el.shadowRoot!;
-    const marks = [...root.querySelectorAll('dpk-internal-example-mapping-card[data-grill-questions]')].map((card) => [
-      card.getAttribute('data-card'),
-      card.getAttribute('data-grill-questions'),
+  it('renders its kit text in English by default', async () => {
+    const element = await mount();
+    expect([...element.renderRoot.querySelectorAll('.legend li')].map((li) => li.textContent?.trim())).toEqual([
+      m.kindLabel('story'),
+      m.kindLabel('rule'),
+      m.kindLabel('example'),
+      m.kindLabel('question'),
     ]);
-    expect(marks).toEqual([
-      ['s1', 'Q2'],
-      ['r1', 'Q1 Q2'],
-      ['e1', 'Q1'],
-      ['q1', 'Q1'],
-    ]);
-    expect(root.querySelectorAll('.dpk-grill-badge')).toHaveLength(5);
-    document.body.innerHTML = '';
   });
 });

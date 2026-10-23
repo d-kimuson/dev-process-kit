@@ -1,7 +1,7 @@
 import { css } from 'lit';
 
 /**
- * Board chrome of `<dpk-template-example-mapping>`: the table the cards sit on.
+ * Board chrome of `<dpk-example-mapping>`: the table the cards sit on.
  *
  * Grouping is shown by a tinted lane around a rule, and inside it a green area
  * for its examples above a red one for its questions — never by a border on
@@ -160,6 +160,8 @@ export const exampleMappingStyles = css`
     gap: 14px;
     min-width: 0;
     overflow-x: auto;
+    /* An edge swipe here must pan the row, never fall through to browser back/forward. */
+    overscroll-behavior-x: contain;
     padding: 4px 4px 16px;
     border-radius: var(--dpk-radius);
   }
@@ -223,7 +225,7 @@ export const exampleMappingStyles = css`
     background: var(--dpk-danger-soft);
   }
 
-  .card-area--question dpk-internal-example-mapping-card {
+  .card-area--question .em-card {
     min-height: 56px;
   }
 
@@ -318,5 +320,123 @@ export const exampleMappingStyles = css`
     margin: 0;
     color: var(--dpk-ink-soft);
     line-height: 1.7;
+  }
+
+  /* ------------------------------------------------------------- cards */
+
+  /* The sticky note itself: positioned and tilted by the board (--em-tilt,
+     --em-card-bg, --em-card-ink), painted here. */
+  .em-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-sizing: border-box;
+    min-height: 76px;
+    padding: 17px 11px 11px;
+    border-radius: 3px;
+    background: var(--em-card-bg, var(--dpk-paper-raised));
+    color: var(--em-card-ink, var(--dpk-ink));
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+    cursor: grab;
+    transform: rotate(var(--em-tilt, 0deg));
+    transition:
+      transform 180ms var(--dpk-ease),
+      box-shadow 180ms var(--dpk-ease),
+      opacity 180ms var(--dpk-ease);
+  }
+
+  .em-card:hover {
+    z-index: 6;
+    transform: rotate(0deg) translateY(-2px);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow);
+  }
+
+  .em-card.is-focused {
+    z-index: 5;
+    transform: rotate(0deg);
+    box-shadow:
+      var(--dpk-bevel),
+      var(--dpk-shadow),
+      0 0 0 2px color-mix(in srgb, var(--dpk-blue) 30%, transparent);
+  }
+
+  .em-card[data-mode='editing'] {
+    z-index: 7;
+    transform: rotate(0deg);
+  }
+
+  .em-card.is-dragging {
+    opacity: 0.4;
+  }
+
+  .em-card[data-card-kind='story'] {
+    min-height: 68px;
+    padding: 19px 14px 13px;
+  }
+
+  /* Small, faint, top-left: readable when looked for, quiet when not. */
+  .em-card .card-kind {
+    position: absolute;
+    top: 5px;
+    left: 8px;
+    font-family: var(--dpk-mono);
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    opacity: 0.5;
+  }
+
+  .em-card .card-name {
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 680;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+    cursor: text;
+  }
+
+  .em-card[data-card-kind='story'] .card-name {
+    font-size: 15.5px;
+    line-height: 1.3;
+  }
+
+  .em-card .card-text {
+    font-size: 11.5px;
+    line-height: 1.5;
+    opacity: 0.72;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  /* A side rail of round buttons that fades in on hover, like Event Storming:
+     nothing crosses the card's face. */
+  .em-card .card-tools {
+    position: absolute;
+    top: 9px;
+    right: -11px;
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 140ms var(--dpk-ease);
+  }
+
+  .em-card:hover .card-tools,
+  .em-card .card-tools:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .em-card .card-tools .dpk-icon-btn {
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
+    box-shadow: var(--dpk-shadow-xs);
   }
 `;

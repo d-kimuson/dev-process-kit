@@ -1,5 +1,5 @@
-export { exampleMappingDefinitionFor, exampleMappingHasTarget } from './definition';
-export { DpkTemplateExampleMapping, defineExampleMappingElement } from './element';
+export { DpkExampleMapping, defineExampleMapping } from './element';
+export type { MappingSelection } from './element';
 export { exampleMappingMessages } from './messages';
 export type { ExampleMappingMessages } from './messages';
 export { CARD_KINDS, cardPaletteStyle } from './components/mapping-card';
@@ -8,15 +8,12 @@ export type { ExampleMappingAction } from './actions';
 export { applyExampleMappingAction, reorderById } from './apply';
 export {
   describeExampleMappingAction,
-  serializeExampleMappingAction,
-  exampleMappingCommentTargets,
-  exampleMappingCurrentTarget,
   exampleMappingTargetLabel,
   exampleMappingTitle,
-  resolveExampleMappingNavigation,
   presentStorySummary,
 } from './present';
 export type { StoryReadiness, StorySummary } from './present';
+export { reduceExampleMappingActions } from './reduce';
 export {
   emptyExampleMappingBase,
   parseExampleMappingBase,

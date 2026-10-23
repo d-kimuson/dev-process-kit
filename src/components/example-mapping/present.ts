@@ -1,17 +1,9 @@
-import type {
-  ActionDescription,
-  ActionTarget,
-  ActionTone,
-  CommentTargetOption,
-  DraftAction,
-  Navigation,
-} from '../../core/types';
+import type { ActionDescription, ActionTarget, ActionTone, DraftAction } from '../../core/types';
 import type { ExampleMappingMessages } from './messages';
 
 import { payloadFor, type ActionName } from '../../core/schema';
-import { targetRef } from '../../core/target';
 import { exampleMappingActions } from './actions';
-import { findCard, findExample, findQuestion, findRule, findStory, type ExampleMappingState } from './model';
+import { findExample, findQuestion, findRule, findStory, type ExampleMappingState } from './model';
 
 type Summary = {
   readonly title: string;
@@ -209,10 +201,6 @@ export const describeExampleMappingAction = (
   };
 };
 
-export const serializeExampleMappingAction = (action: DraftAction): string => {
-  return `${action.type} ${targetRef(action.target)} ${JSON.stringify(action.payload)}`;
-};
-
 export const exampleMappingTargetLabel = (
   m: ExampleMappingMessages,
   state: ExampleMappingState,
@@ -248,64 +236,6 @@ export const exampleMappingTargetLabel = (
   } catch {
     return `${target.type} · ${target.id}`;
   }
-};
-
-export const exampleMappingCommentTargets = (
-  m: ExampleMappingMessages,
-  state: ExampleMappingState,
-  _nav: Navigation,
-): readonly CommentTargetOption[] => {
-  const options: CommentTargetOption[] = [{ value: 'page:example-mapping', label: m.wholeMap, group: m.map }];
-  for (const story of state.stories) {
-    options.push({
-      value: targetRef({ type: 'story', id: story.id }),
-      label: story.name,
-      group: m.kindLabel('story'),
-    });
-  }
-  for (const rule of state.rules) {
-    const story = findStory(state, rule.storyId);
-    options.push({
-      value: targetRef({ type: 'rule', id: rule.id }),
-      label: story ? `${story.name} › ${rule.name}` : rule.name,
-      group: m.kindLabel('rule'),
-    });
-  }
-  for (const example of state.examples) {
-    const rule = findRule(state, example.ruleId);
-    options.push({
-      value: targetRef({ type: 'example', id: example.id }),
-      label: rule ? `${rule.name} › ${example.name}` : example.name,
-      group: m.kindLabel('example'),
-    });
-  }
-  for (const question of state.questions) {
-    const rule = findRule(state, question.ruleId);
-    options.push({
-      value: targetRef({ type: 'question', id: question.id }),
-      label: rule ? `${rule.name} › ${question.name}` : question.name,
-      group: m.kindLabel('question'),
-    });
-  }
-  return options;
-};
-
-/**
- * The card the reader is looking at: the composer attaches a note to it when
- * the checkbox is on, otherwise the note is map-wide.
- */
-export const exampleMappingCurrentTarget = (
-  m: ExampleMappingMessages,
-  state: ExampleMappingState,
-  nav: Navigation,
-): CommentTargetOption | null => {
-  const card = findCard(state, nav['card']);
-  if (!card) return null;
-  return {
-    value: targetRef({ type: card.kind, id: card.id }),
-    label: card.name,
-    group: m.kindLabel(card.kind),
-  };
 };
 
 /**
@@ -351,12 +281,4 @@ export const presentStorySummary = (
 
 export const exampleMappingTitle = (state: ExampleMappingState): string => {
   return state.title ?? 'Example Mapping';
-};
-
-export const resolveExampleMappingNavigation = (state: ExampleMappingState, nav: Navigation): Navigation => {
-  const card = findCard(state, nav['card']);
-  const next: Record<string, string> = { ...nav };
-  if (card) next['card'] = card.id;
-  else delete next['card'];
-  return next;
 };

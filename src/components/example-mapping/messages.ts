@@ -35,6 +35,7 @@ const READINESS_LABEL_JA: Record<StoryReadiness, string> = {
 
 export const exampleMappingMessages = defineMessages({
   en: {
+    heading: 'Example Mapping',
     /** The four card kinds, board order: Story / Rule / Example / Question. */
     kindLabel: (kind: MappingCardKind) => KIND_LABEL_EN[kind],
     readinessLabel: (readiness: StoryReadiness) => READINESS_LABEL_EN[readiness],
@@ -53,7 +54,6 @@ export const exampleMappingMessages = defineMessages({
     noQuestions: 'No open questions',
 
     // -------------------------------------------------------------- card
-    commentButton: 'Comment',
     deleteButton: 'Delete',
     nameField: (kindLabel: string) => `${kindLabel} name`,
 
@@ -100,6 +100,7 @@ export const exampleMappingMessages = defineMessages({
     wholeMap: 'Whole map',
   },
   ja: {
+    heading: 'Example Mapping',
     kindLabel: (kind: MappingCardKind) => KIND_LABEL_JA[kind],
     readinessLabel: (readiness: StoryReadiness) => READINESS_LABEL_JA[readiness],
     map: 'マップ',
@@ -114,7 +115,6 @@ export const exampleMappingMessages = defineMessages({
     noExamples: '具体例がまだありません',
     noQuestions: '未解決の質問はありません',
 
-    commentButton: 'コメント',
     deleteButton: '削除',
     nameField: (kindLabel: string) => `${kindLabel}名`,
 

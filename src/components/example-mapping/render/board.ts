@@ -1,14 +1,11 @@
 import { html, nothing, type TemplateResult } from 'lit';
-import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { DragController, Drop } from '../../../lib/dom/drag';
 import type { ExampleMappingMessages } from '../messages';
 
 import { grillMark } from '../../../core/grill';
-import { targetRef } from '../../../core/target';
-import { CARD_KINDS, cardPaletteStyle } from '../components/mapping-card';
+import { CARD_KINDS, cardPaletteStyle, renderMappingCard } from '../components/mapping-card';
 import {
   examplesOfRule,
   questionsOfRule,
@@ -34,14 +31,18 @@ export type BoardHandlers = {
   readonly dropRule: (storyId: string, drop: Drop<'rule'>) => void;
   readonly dropExample: (ruleId: string, drop: Drop<'example'>) => void;
   readonly dropQuestion: (ruleId: string, drop: Drop<'question'>) => void;
+  /** Whether a card is the element's current selection: drives its highlight. */
+  readonly isSelected: (kind: MappingCardKind, id: string) => boolean;
 };
 
 export type BoardProps = {
-  readonly context: TemplateRenderContext<ExampleMappingState>;
+  readonly state: ExampleMappingState;
   readonly mode: ExampleMappingUiMode;
   readonly drag: DragController<MappingDragType>;
   readonly handlers: BoardHandlers;
   readonly m: ExampleMappingMessages;
+  /** The host's own `commentRef`, so a card can be marked as a right-click comment target. */
+  readonly commentRef: (kind: string, id: string) => string;
 };
 
 type Entity = {
@@ -70,8 +71,8 @@ export const renderLegend = (m: ExampleMappingMessages): TemplateResult => {
 
 /** One story per section: story on top, rules side by side, and under each rule its examples, then its questions. */
 export const renderBoard = (props: BoardProps): TemplateResult => {
-  const { context, handlers, m } = props;
-  if (context.state.stories.length === 0) {
+  const { state, handlers, m } = props;
+  if (state.stories.length === 0) {
     return html`
       <div class="empty">
         <h2>${m.noStoriesTitle}</h2>
@@ -83,7 +84,7 @@ export const renderBoard = (props: BoardProps): TemplateResult => {
   return html`
     <div class="board" data-testid="example-mapping-board">
       ${repeat(
-        context.state.stories,
+        state.stories,
         (story) => story.id,
         (story) => renderStorySection(props, story),
       )}
@@ -93,35 +94,34 @@ export const renderBoard = (props: BoardProps): TemplateResult => {
 };
 
 const renderCard = (props: BoardProps, kind: MappingCardKind, entity: Entity): TemplateResult => {
-  const { context, mode, drag, handlers } = props;
-  const notes = context.comments.filter((c) => c.target.type === kind && c.target.id === entity.id);
+  const { mode, drag, handlers, m } = props;
   const source = drag.source({ type: kind, id: entity.id });
-  return html`<dpk-internal-example-mapping-card
-    data-card=${entity.id}
-    data-card-kind=${kind}
-    data-dpk-target=${targetRef({ type: kind, id: entity.id })}
-    data-grill-questions=${ifDefined(grillMark(entity.questions))}
-    draggable="true"
-    .card=${{
+  const grillQuestions = grillMark(entity.questions);
+  return html`<span class="card-slot">
+    ${renderMappingCard({
       kind,
-      id: entity.id,
-      name: entity.name,
-      ...(entity.description === undefined ? {} : { description: entity.description }),
-    }}
-    .notes=${notes}
-    .tilt=${tiltOf(kind, entity.id)}
-    .mode=${cardModeOf(mode, entity.id)}
-    .onIntent=${(intent: MappingCardIntent) => handlers.cardIntent(entity.id, kind, intent)}
-    ?focused=${context.navigation['card'] === entity.id}
-    ?dragging=${drag.isDragging(kind, entity.id)}
-    @dragstart=${source.dragstart}
-    @dragend=${source.dragend}
-  ></dpk-internal-example-mapping-card>`;
+      card: {
+        id: entity.id,
+        name: entity.name,
+        ...(entity.description === undefined ? {} : { description: entity.description }),
+      },
+      tilt: tiltOf(kind, entity.id),
+      mode: cardModeOf(mode, entity.id),
+      focused: handlers.isSelected(kind, entity.id),
+      dragging: drag.isDragging(kind, entity.id),
+      m,
+      dpkTarget: props.commentRef(kind, entity.id),
+      ...(grillQuestions === undefined ? {} : { grillQuestions }),
+      onIntent: (intent) => handlers.cardIntent(entity.id, kind, intent),
+      onDragStart: source.dragstart,
+      onDragEnd: source.dragend,
+    })}
+  </span>`;
 };
 
 const renderStorySection = (props: BoardProps, story: MappingStory): TemplateResult => {
-  const { context, drag, handlers, m } = props;
-  const summary = presentStorySummary(m, context.state, story.id);
+  const { state, drag, handlers, m } = props;
+  const summary = presentStorySummary(m, state, story.id);
   const sectionKey = `story:${story.id}`;
   const sectionTarget = drag.target({
     key: sectionKey,
@@ -173,7 +173,7 @@ const renderStorySection = (props: BoardProps, story: MappingStory): TemplateRes
         @drop=${rowTarget.drop}
       >
         ${repeat(
-          rulesOfStory(context.state, story.id),
+          rulesOfStory(state, story.id),
           (rule) => rule.id,
           (rule) => renderRuleColumn(props, rule),
         )}
@@ -209,7 +209,7 @@ const areaOf = (m: ExampleMappingMessages, kind: AreaKind) => ({
 
 /** A rule's examples or questions: its own drop target, its own add button. */
 const renderArea = (props: BoardProps, ruleId: string, kind: AreaKind): TemplateResult => {
-  const { context, drag, handlers, m } = props;
+  const { state, drag, handlers, m } = props;
   const area = areaOf(m, kind);
   const key = `${area.testid}:${ruleId}`;
   const target =
@@ -226,7 +226,7 @@ const renderArea = (props: BoardProps, ruleId: string, kind: AreaKind): Template
           hovered: closestCard('question'),
           onDrop: (drop) => handlers.dropQuestion(ruleId, drop),
         });
-  const cards = kind === 'example' ? examplesOfRule(context.state, ruleId) : questionsOfRule(context.state, ruleId);
+  const cards = kind === 'example' ? examplesOfRule(state, ruleId) : questionsOfRule(state, ruleId);
   const add = kind === 'example' ? handlers.addExample : handlers.addQuestion;
   return html`<div
     class="card-area card-area--${kind}"
@@ -256,7 +256,7 @@ const renderArea = (props: BoardProps, ruleId: string, kind: AreaKind): Template
 const closestCard =
   (kind: MappingCardKind) =>
   (event: DragEvent): { id: string | null; element: Element } | null => {
-    const card = event.target instanceof Element ? event.target.closest('dpk-internal-example-mapping-card') : null;
+    const card = event.target instanceof Element ? event.target.closest('.em-card') : null;
     if (!card || card.getAttribute('data-card-kind') !== kind) return null;
     return { id: card.getAttribute('data-card'), element: card };
   };
