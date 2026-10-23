@@ -1,19 +1,12 @@
-export { whiteboardDefinitionFor, whiteboardHasTarget } from './definition';
-export { DpkTemplateWhiteboard, defineWhiteboardElement } from './element';
+export { DpkWhiteboard, defineWhiteboard } from './element';
+export type { WbSelectionRef } from './element';
 export { whiteboardMessages } from './messages';
 export type { WhiteboardMessages } from './messages';
 export { whiteboardAction, whiteboardActions, BOARD_TARGET } from './actions';
 export type { WhiteboardAction } from './actions';
 export { applyWhiteboardAction } from './apply';
-export {
-  describeWhiteboardAction,
-  serializeWhiteboardAction,
-  whiteboardCommentTargets,
-  whiteboardCurrentTarget,
-  whiteboardTargetLabel,
-  resolveWhiteboardNavigation,
-  whiteboardTitle,
-} from './present';
+export { describeWhiteboardAction, whiteboardTargetLabel } from './present';
+export { reduceWhiteboardActions } from './reduce';
 export {
   emptyWhiteboardBase,
   parseWhiteboardBase,
@@ -35,6 +28,7 @@ export type {
   WbText,
   WbShapeItem,
   WbFrame,
+  WbEmbed,
   WbConnector,
   WbColor,
   WbConnectorRoute,

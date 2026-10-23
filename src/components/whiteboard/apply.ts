@@ -17,23 +17,24 @@ export const applyWhiteboardAction = (state: WhiteboardState, action: DraftActio
       return { ...state, items: [...state.items, added] };
     }
     case 'SET_ITEM_TEXT':
-      return updateItem(state, id, (item) =>
-        item.kind === 'frame'
-          ? // A frame always has a title; clearing it is not a meaningful request.
-            typed.payload.text.trim() === ''
-            ? null
-            : { ...item, title: typed.payload.text }
-          : { ...item, text: typed.payload.text },
-      );
+      return updateItem(state, id, (item) => {
+        if (item.kind === 'embed') return null;
+        if (item.kind === 'frame')
+          // A frame always has a title; clearing it is not a meaningful request.
+          return typed.payload.text.trim() === '' ? null : { ...item, title: typed.payload.text };
+        return { ...item, text: typed.payload.text };
+      });
     case 'MOVE_ITEM':
       return updateItem(state, id, (item) => ({ ...item, x: typed.payload.x, y: typed.payload.y }));
     case 'RESIZE_ITEM':
       return updateItem(state, id, (item) => ({ ...item, w: typed.payload.w, h: typed.payload.h }));
     case 'SET_ITEM_COLOR':
-      return updateItem(state, id, (item) => (item.kind === 'text' ? null : { ...item, color: typed.payload.color }));
+      return updateItem(state, id, (item) =>
+        item.kind === 'text' || item.kind === 'embed' ? null : { ...item, color: typed.payload.color },
+      );
     case 'SET_ITEM_FONT_SIZE':
       return updateItem(state, id, (item) =>
-        item.kind === 'frame' ? null : { ...item, fontSize: typed.payload.fontSize },
+        item.kind === 'frame' || item.kind === 'embed' ? null : { ...item, fontSize: typed.payload.fontSize },
       );
     case 'REORDER_ITEM':
       return reorderItem(state, id, typed.payload.after);

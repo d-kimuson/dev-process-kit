@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { newItem } from './commands';
+import { newEmbedItem, newItem } from './commands';
 import {
   constrainViewport,
   fitRect,
@@ -174,5 +174,11 @@ describe('whiteboard layout', () => {
     expect(frame).toMatchObject({ kind: 'frame', title: 'New frame' });
     expect([frame.x, frame.y]).not.toEqual([-120, -60]);
     expect(itemAt({ ...state, items: [frame] }, { x: 70, y: 70 })).toBeUndefined();
+  });
+
+  it('lands a new diagram embed, seeded from its catalog entry', () => {
+    const entry = { tag: 'dpk-state-diagram', label: () => 'State diagram', seed: () => ({ states: [] }) };
+    const embed = newEmbedItem(state, entry, { x: 200, y: 220 });
+    expect(embed).toMatchObject({ kind: 'embed', tag: 'dpk-state-diagram', data: { states: [] }, w: 360, h: 260 });
   });
 });

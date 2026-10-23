@@ -1,19 +1,25 @@
 import { css } from 'lit';
 
-/** Canvas, items and chrome of `<dpk-template-whiteboard>`. */
+/** Canvas, items and chrome of `<dpk-whiteboard>`. */
 export const whiteboardStyles = css`
-  /* The board owns the whole main area; the canvas clips, never the shell. */
-  .dpk-main {
-    overflow: hidden;
+  /*
+   * The shell (\`<dpk-dialog-panel class="whiteboard">\`) is a panel: header, tag
+   * row, canvas; \`--dpk-dialog-panel-height\` is the knob it reads for its own
+   * height, mirroring \`diagram/styles.ts\`'s \`.diagram\` (the six graph diagrams'
+   * own shell class) since \`ElementChromeBase\` does not add that class for a
+   * component with its own \`render()\`.
+   */
+  .whiteboard {
+    --dpk-dialog-panel-height: 560px;
+    --dpk-dialog-panel-min-height: 260px;
   }
 
-  .dpk-main-body {
-    flex: 1 1 auto;
+  /* A board has no fixed height to fall back to: it takes all of what its
+     full-screen host (e.g. dpk-page) gives it, same as any other board. */
+  :host([variant='board']) .whiteboard {
+    --dpk-dialog-panel-height: 100%;
+    flex: 1 1 0%;
     min-height: 0;
-    display: flex;
-    flex-direction: column;
-    padding: 0;
-    gap: 0;
   }
 
   /* ---------------------------------------------------------------- canvas */
@@ -25,6 +31,8 @@ export const whiteboardStyles = css`
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
+    /* An edge swipe here must pan the canvas, never fall through to browser back/forward. */
+    overscroll-behavior-x: contain;
     touch-action: none;
     background: var(--dpk-dots), var(--dpk-paper-sunken);
     cursor: default;
@@ -273,29 +281,27 @@ export const whiteboardStyles = css`
     cursor: text;
   }
 
-  /* Comments already left: a corner flag, readable at a glance. */
-  .wb-flag {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    box-sizing: border-box;
-    border-radius: 999px;
-    background: var(--dpk-accent);
-    color: var(--dpk-accent-ink);
-    font-family: var(--dpk-mono);
-    font-size: 10px;
-    font-weight: 650;
-    line-height: 18px;
-    text-align: center;
+  /* Embed: a diagram placed on the board, framed like a window onto it. The
+     embedded element fills the card and never fields its own pointer input
+     here — the card itself is what drags, resizes and selects. */
+  .wb-item--embed {
+    padding: 0;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--dpk-paper-raised);
+    box-shadow: 0 1px 2px rgba(30, 24, 10, 0.14);
+  }
+
+  .wb-item-body--embed {
+    display: block;
     pointer-events: none;
   }
 
-  .wb-flag--inline {
-    position: static;
-    margin-left: 6px;
+  .wb-embed-el {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
   /* Selection handles keep their screen size at any zoom. */
@@ -768,86 +774,5 @@ export const whiteboardStyles = css`
   .wb-swatch[aria-checked='true'] {
     outline: 2px solid var(--dpk-blue);
     outline-offset: 1px;
-  }
-
-  /* --------------------------------------------------------------- sidebar */
-
-  .wb-frames {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 14px 12px;
-  }
-
-  .wb-frames p {
-    margin: 0;
-  }
-
-  .wb-frames-hint {
-    color: var(--dpk-ink-faint);
-    font-size: 11.5px;
-  }
-
-  .wb-frames ul {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin: 6px 0 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .wb-frame-link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 6px 8px;
-    border: none;
-    border-radius: var(--dpk-radius-sm);
-    background: transparent;
-    color: var(--dpk-ink);
-    font: inherit;
-    font-size: 13px;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .wb-frame-link:hover {
-    background: var(--dpk-blue-soft);
-  }
-
-  .wb-frame-link[aria-current='true'] {
-    background: color-mix(in srgb, var(--dpk-blue-soft) 80%, transparent);
-    color: var(--dpk-blue-strong);
-    font-weight: 650;
-  }
-
-  .wb-frame-dot {
-    flex: none;
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-    background: var(--wb-stroke);
-  }
-
-  .wb-frame-dot--board {
-    border: 1.5px dashed var(--dpk-ink-faint);
-    background: transparent;
-  }
-
-  .wb-frame-name {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .wb-frame-count {
-    flex: none;
-    color: var(--dpk-ink-faint);
-    font-family: var(--dpk-mono);
-    font-size: 10.5px;
   }
 `;

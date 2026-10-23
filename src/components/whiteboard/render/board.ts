@@ -1,8 +1,8 @@
 import { html, nothing, svg, type TemplateResult } from 'lit';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
+import { html as staticHtml, unsafeStatic } from 'lit/static-html.js';
 
-import type { TemplateRenderContext } from '../../../core/shell/contracts';
 import type { WbGesture } from '../gesture';
 import type { WhiteboardMessages } from '../messages';
 
@@ -13,9 +13,11 @@ import { toScreen, type Viewport } from '../interactions';
 import { centerOf, connectorPath, outlinePoint, paintOrder, type Rect } from '../layout';
 import {
   findItem,
+  hasColor,
   hasFontSize,
   itemText,
   type WbConnector,
+  type WbEmbed,
   type WbFontSize,
   type WbItem,
   type WhiteboardState,
@@ -49,20 +51,21 @@ export type WbBoardHandlers = {
 
 export type WbBoardProps = {
   readonly m: WhiteboardMessages;
-  readonly context: TemplateRenderContext<WhiteboardState>;
   /** The state as drawn: the derived state with the gesture in flight applied. */
   readonly state: WhiteboardState;
   readonly viewport: Viewport;
   readonly gesture: WbGesture | undefined;
   readonly mode: WbMode;
-  /** The selected items or connector (`#item=`), or what a marquee in flight picks. */
+  /** The selected items or connector, or what a marquee in flight picks. */
   readonly selectedIds: ReadonlySet<string>;
   /** The marquee being dragged out, in canvas coordinates. */
   readonly marquee: Rect | undefined;
   /** Space is held: a drag pans the board. */
   readonly panReady: boolean;
-  /** The selection toolbar and composer, already positioned in screen space. */
+  /** The selection toolbar and comment composer, already positioned in screen space. */
   readonly overlay: TemplateResult | typeof nothing;
+  /** The host's own `commentRef`, so the board can mark items and connectors as right-click comment targets. */
+  readonly commentRef: (kind: string, id: string) => string;
   readonly handlers: WbBoardHandlers;
 };
 
@@ -157,11 +160,10 @@ const itemClass = (props: WbBoardProps, item: WbItem): string => {
 };
 
 const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
-  const { m, context, handlers } = props;
+  const { handlers } = props;
   const box = `left:${item.x}px;top:${item.y}px;width:${item.w}px;height:${item.h}px`;
-  const color = item.kind === 'text' ? '' : `;${colorStyle(item.color)}`;
+  const color = hasColor(item) ? `;${colorStyle(item.color)}` : '';
   const scale = hasFontSize(item) ? `;--wb-font-scale:${FONT_SCALE[item.fontSize]}` : '';
-  const comments = context.commentCount({ type: 'item', id: item.id });
   // Handles belong to a single selected item; a group only moves together.
   const selected = props.selectedIds.size === 1 && props.selectedIds.has(item.id) && props.gesture?.moved !== true;
   const press = (event: PointerEvent): void => handlers.itemPointerDown(item.id, event);
@@ -170,7 +172,7 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
     class=${itemClass(props, item)}
     style=${`${box}${color}${scale}`}
     data-item-id=${item.id}
-    data-dpk-target=${`item:${item.id}`}
+    data-dpk-target=${props.commentRef('item', item.id)}
     data-grill-questions=${ifDefined(grillMark(item.questions))}
     data-kind=${item.kind}
     @pointerdown=${item.kind === 'frame' ? nothing : press}
@@ -178,26 +180,36 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
     ${
       item.kind === 'frame'
         ? html`<div class="wb-frame-title" @pointerdown=${press}>${renderText(props, item)}</div>`
-        : html`<div class="wb-item-body">${renderText(props, item)}</div>`
+        : item.kind === 'embed'
+          ? html`<div class="wb-item-body wb-item-body--embed">${renderEmbed(item)}</div>`
+          : html`<div class="wb-item-body">${renderText(props, item)}</div>`
     }
-    ${comments > 0 ? html`<span class="wb-flag" title=${m.commentCount(comments)}>${comments}</span>` : nothing}
     ${
       selected
         ? html`<span
               class="wb-handle wb-handle--resize"
               role="presentation"
-              title=${m.resizeHandle}
+              title=${props.m.resizeHandle}
               @pointerdown=${(event: PointerEvent) => handlers.resizePointerDown(item.id, event)}
             ></span>
             <span
               class="wb-handle wb-handle--connect"
               role="presentation"
-              title=${m.connectHandle}
+              title=${props.m.connectHandle}
               @pointerdown=${(event: PointerEvent) => handlers.connectPointerDown(item.id, event)}
             ></span>`
         : nothing
     }
   </div>`;
+};
+
+/**
+ * A diagram embed shows a live instance of its own component, read-only here
+ * (a preview to reposition or remove, not a second place to edit it in).
+ */
+const renderEmbed = (item: WbEmbed): TemplateResult => {
+  const tag = unsafeStatic(item.tag);
+  return staticHtml`<${tag} class="wb-embed-el" inert .data=${item.data}></${tag}>`;
 };
 
 /** A wheel over the editor scrolls its text, not the board. */
@@ -263,13 +275,12 @@ const ends = (state: WhiteboardState, connector: WbConnector): [WbItem, WbItem] 
   return from === undefined || to === undefined ? undefined : [from, to];
 };
 
-/** A labelled or commented connector shows an HTML chip at its middle. */
-const hasChip = (props: WbBoardProps, connector: WbConnector): boolean =>
-  connector.label !== undefined || props.context.commentCount({ type: 'connector', id: connector.id }) > 0;
+/** A labelled connector shows an HTML chip at its middle. */
+const hasChip = (connector: WbConnector): boolean => connector.label !== undefined;
 
 /** "Show" points at the chip when there is one: a thin stroke behind it hardly glows. */
 const connectorTarget = (props: WbBoardProps, connector: WbConnector, onChip: boolean): string | typeof nothing =>
-  hasChip(props, connector) === onChip ? `connector:${connector.id}` : nothing;
+  hasChip(connector) === onChip ? props.commentRef('connector', connector.id) : nothing;
 
 const renderConnectors = (props: WbBoardProps): TemplateResult => {
   const { state, handlers, gesture } = props;
@@ -302,11 +313,10 @@ const renderConnectors = (props: WbBoardProps): TemplateResult => {
 
 /** Labels are HTML, so they wrap, take the theme's type and can be clicked like the stroke. */
 const renderLabels = (props: WbBoardProps): TemplateResult[] => {
-  const { state, context, handlers } = props;
+  const { state, handlers } = props;
   return state.connectors.flatMap((connector) => {
     const pair = ends(state, connector);
-    if (pair === undefined || !hasChip(props, connector)) return [];
-    const comments = context.commentCount({ type: 'connector', id: connector.id });
+    if (pair === undefined || !hasChip(connector)) return [];
     const { mid } = connectorPath(...pair, connector.route);
     const selected = props.selectedIds.has(connector.id) ? ' is-selected' : '';
     return [
@@ -318,7 +328,6 @@ const renderLabels = (props: WbBoardProps): TemplateResult[] => {
         @pointerdown=${(event: PointerEvent) => handlers.connectorPointerDown(connector.id, event)}
       >
         ${connector.label ?? nothing}
-        ${comments > 0 ? html`<span class="wb-flag wb-flag--inline">${comments}</span>` : nothing}
       </div>`,
     ];
   });

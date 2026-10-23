@@ -1,22 +1,18 @@
-import { html, nothing, type TemplateResult } from 'lit';
+import { html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
-import type { Locale } from '../../core/i18n';
-import type { ShellRegions, TemplateRenderContext } from '../../core/shell/contracts';
-import type { ActionInput, ActionTarget } from '../../core/types';
+import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
+import type { ElementActionResult } from '../../core/element-actions';
+import type { ActionInput, CommentTargetOption, DraftAction } from '../../core/types';
+import type { DiagramCatalogEntry } from '../diagram/registry';
 
-import { composerMessages } from '../../components/comment-composer/messages';
-import { presentComposer } from '../../components/comment-composer/present';
-import { renderComposer } from '../../components/comment-composer/view';
-import { commentBody } from '../../core/comment';
-import { TemplateElement } from '../../core/element';
-import { PopoverController } from '../../core/popover-controller';
-import { targetRef } from '../../core/target';
-import { popoverSurface } from '../../core/theme';
+import { contextMenuMessages } from '../../core/context-menu/messages';
+import { ElementChromeBase, isActionPayload } from '../diagram/element';
+import { openDiagramPicker } from '../diagram/insert-picker';
+import { chromeStyles } from '../diagram/styles';
 import { whiteboardAction } from './actions';
 import { arrangeActions, arrangeOptions, type ArrangeDirection } from './arrange';
 import { caretOffsetAt } from './caret';
-import { newConnectorId, newItem, PASTE_OFFSET, pasteItems, type NewItemKind } from './commands';
-import { whiteboardDefinitionFor } from './definition';
+import { newConnectorId, newEmbedItem, newItem, PASTE_OFFSET, pasteItems, type NewItemKind } from './commands';
 import { editedText } from './editor';
 import {
   finishGesture,
@@ -51,32 +47,34 @@ import {
 import { boardBounds, grownToHold, type Point, type Rect } from './layout';
 import { whiteboardMessages, type WhiteboardMessages } from './messages';
 import {
+  emptyWhiteboardBase,
   findConnector,
   findItem,
   hasColor,
   hasFontSize,
+  parseWhiteboardBase,
   type WbColor,
   type WbFontSize,
   type WbItem,
   type WhiteboardState,
 } from './model';
+import { connectorLabel, itemLabel } from './present';
+import { reduceWhiteboardActions } from './reduce';
 import { FONT_SCALE, renderWhiteboard } from './render/board';
-import { renderFrames } from './render/frames';
 import { renderSelectionToolbar, type WbSelection } from './render/toolbar';
-import { parseSelection, serializeSelection, toggleSelection } from './selection';
+import { toggleSelection } from './selection';
 import { whiteboardStyles } from './styles';
 import { isEditing, WB_IDLE, type WbMode } from './ui-mode';
 
-const COMPOSER_SIZE = { width: 300, height: 260 };
-const stop = (event: Event): void => event.stopPropagation();
+/** What the chrome's own comment trigger (and `hasSelection`) addresses: one item or one connector. */
+export type WbSelectionRef = { readonly kind: 'item' | 'connector'; readonly id: string };
+
 /** Canvas units an arrow key moves the selection (Shift: a single unit). */
 const NUDGE = 10;
 /** Room the selection toolbar keeps from the edges of the view. */
 const TOOLBAR_MARGIN = 8;
 /** Wide enough a margin around a fitted view that the add toolbar on the left never covers the board. */
 const FIT_PADDING = 72;
-
-type Context = TemplateRenderContext<WhiteboardState>;
 
 /** Where the last press landed: a double-click edits an item, and adds a sticky only on open ground. */
 type WbPress =
@@ -90,40 +88,40 @@ type ClientPoint = { readonly clientX: number; readonly clientY: number };
 
 const isDefined = <T>(value: T | undefined): value is T => value !== undefined;
 
+const BOARD_ANCHOR = 'whiteboard';
+
 /**
- * `<dpk-template-whiteboard>` — a free-form board, like a shared whiteboard.
+ * `<dpk-whiteboard>` — a free-form board, like a shared whiteboard.
  *
  * The element is the seam between the pure parts: it owns the ephemeral UI
- * state (viewport, pointer gesture, mode), measures its canvas, and turns
- * gestures and toolbar intents into actions. Selection (`#item=a,b`) and the
- * frame in focus (`#frame=`) are navigation. Geometry lives in `layout.ts`,
- * pan / zoom in `interactions.ts`, gestures in `gesture.ts`, stacking order in
- * `arrange.ts`, and drawing in `render/`.
+ * state (viewport, pointer gesture, mode, the multi-item selection), measures
+ * its canvas, and turns gestures and toolbar intents into element actions.
+ * Geometry lives in `layout.ts`, pan / zoom in `interactions.ts`, gestures in
+ * `gesture.ts`, stacking order in `arrange.ts`, and drawing in `render/` — all
+ * unchanged since the template days (ADR 20261023_diagram-as-board). Comments
+ * are the chrome's own contextual trigger, rendered in the selection toolbar.
  */
-export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
-  static override styles = [TemplateElement.styles, whiteboardStyles, popoverSurface];
+export class DpkWhiteboard extends ElementChromeBase<WhiteboardState, WbSelectionRef> {
+  static override styles: CSSResultGroup = [chromeStyles, whiteboardStyles];
 
-  static override properties = {
-    mode: { state: true },
-    viewport: { state: true },
-    gesture: { state: true },
-    panReady: { state: true },
-    arrangeMenu: { state: true },
-  };
-
-  declare private mode: WbMode;
-  declare private viewport: Viewport;
-  declare private gesture: WbGesture | undefined;
+  // Ephemeral UI state (viewport, gesture, mode, selection) is plain fields, not Lit
+  // reactive properties: `ElementChromeBase.properties` is an unannotated object
+  // literal, so TypeScript's static-side inheritance check requires any subclass
+  // override to be structurally identical to it, not just a superset. The rest of
+  // this file calls `requestUpdate()` after mutating these (see `example-mapping`'s
+  // `#mode` for the same pattern).
+  private mode: WbMode = WB_IDLE;
+  private viewport: Viewport = INITIAL_VIEWPORT;
+  private gesture: WbGesture | undefined = undefined;
   /** Space is held on the canvas: a drag pans instead of selecting. */
-  declare private panReady: boolean;
+  private panReady = false;
   /** The toolbar's stacking order menu is open. */
-  declare private arrangeMenu: boolean;
+  private arrangeMenu = false;
+  /** The ids the reader has picked; several may be items, or one a connector. */
+  private selectedIds: readonly string[] = [];
 
-  /** Typed composer text; read on submit, cleared when the composer closes. */
-  #composerDraft = '';
-  /** Whether the view has been placed once, and for which frame it was placed last. */
+  /** Whether the view has been placed once. */
   #placed = false;
-  #placedFrame: string | undefined;
   /** The view is still the one a fit chose: until the reader pans or zooms, a canvas that changes size fits again. */
   #fitted = false;
   /** Watches the canvas, once it is drawn, for a change of size. */
@@ -139,84 +137,151 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
   /** The press landed on one item of a larger selection: a click (no drag) then selects just it. */
   #pressedInGroup = false;
   #pressPoint: ClientPoint | undefined;
-  readonly #popovers = new PopoverController(this);
+  /** Items copied with Ctrl/Cmd+C; each paste lands a step further from the originals. */
+  #clipboard: readonly WbItem[] = [];
+  #pasteCount = 0;
 
-  constructor() {
-    super();
-    this.mode = WB_IDLE;
-    this.viewport = INITIAL_VIEWPORT;
-    this.gesture = undefined;
-    this.panReady = false;
-    this.arrangeMenu = false;
+  protected override parseData(input: unknown): WhiteboardState {
+    return parseWhiteboardBase(input);
   }
 
-  protected override definitionFor(locale: Locale) {
-    return whiteboardDefinitionFor(locale);
+  protected override emptyData(): WhiteboardState {
+    return emptyWhiteboardBase();
   }
 
-  protected override renderRegions(context: Context): ShellRegions {
+  protected override reduceElementActions(
+    data: WhiteboardState,
+    actions: readonly DraftAction[],
+  ): { readonly data: WhiteboardState; readonly results: readonly ElementActionResult[] } {
+    return reduceWhiteboardActions(whiteboardMessages(this.locale), data, actions);
+  }
+
+  protected override defaultHeading(): string {
+    return whiteboardMessages(this.locale).heading;
+  }
+
+  protected override shellClass(): string {
+    return 'whiteboard';
+  }
+
+  protected override commentItems(): readonly CommentTargetOption[] {
+    const state = this.items();
     const m = whiteboardMessages(this.locale);
-    const hasFrames = context.state.items.some((item) => item.kind === 'frame');
-    const state = previewState(context.state, this.gesture);
+    return [
+      { value: this.commentRef('page', BOARD_ANCHOR), label: m.wholeBoard },
+      ...state.items.map((item) => ({ value: this.commentRef('item', item.id), label: itemLabel(m, item) })),
+      ...state.connectors.map((connector) => ({
+        value: this.commentRef('connector', connector.id),
+        label: connectorLabel(m, state, connector),
+      })),
+    ];
+  }
+
+  protected override hasSelection(selection: WbSelectionRef): boolean {
+    const state = this.items();
+    return selection.kind === 'item'
+      ? findItem(state, selection.id) !== undefined
+      : findConnector(state, selection.id) !== undefined;
+  }
+
+  /** The board's own context-menu contribution: a diagram can be dropped at the press, alongside the inherited comment item. */
+  override getContextMenuItems(request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
+    const cm = contextMenuMessages(this.locale);
+    const { clientX, clientY } = request;
+    const addDiagram: ContextMenuGroup = {
+      id: 'wb-add-diagram',
+      entries: [
+        {
+          kind: 'item',
+          id: 'add-diagram',
+          label: cm.addDiagramHere,
+          run: () =>
+            openDiagramPicker(clientX, clientY, this.locale, cm, (entry) =>
+              this.#addEmbed(entry, this.#canvasPoint({ clientX, clientY })),
+            ),
+        },
+      ],
+    };
+    return [...(super.getContextMenuItems(request) ?? []), addDiagram];
+  }
+
+  protected override render(): TemplateResult {
+    this.prepareRender();
+    const m = whiteboardMessages(this.locale);
+    const chrome = this.chromeMessages;
+    const subject = this.subject ?? this.defaultSubject();
+    const state = previewState(this.items(), this.gesture);
     const marquee = marqueeRect(this.gesture);
     const selected =
       marquee !== undefined && this.gesture !== undefined
-        ? marqueeSelection(context.state, this.gesture)
-        : parseSelection(context.navigation['item']);
-    return {
-      ...(hasFrames
-        ? {
-            sidebar: renderFrames({
-              m,
-              state: context.state,
-              focused: context.navigation['frame'],
-              focusFrame: (frameId) => this.#focusFrame(frameId),
-              showBoard: () => this.#showBoard(),
-            }),
-          }
-        : { sidebarHidden: true }),
-      main: renderWhiteboard({
-        m,
-        context,
-        state,
-        viewport: this.viewport,
-        gesture: this.gesture,
-        mode: this.mode,
-        selectedIds: new Set(selected),
-        marquee,
-        panReady: this.panReady,
-        overlay: this.#renderOverlay(context, state, m),
-        handlers: {
-          canvasPointerDown: (event) => this.#onCanvasPointerDown(event),
-          canvasPointerMove: (event) => this.#onPointerMove(event),
-          canvasPointerUp: (event) => this.#onPointerUp(event),
-          canvasPointerCancel: () => (this.gesture = undefined),
-          canvasWheel: (event) => this.#onWheel(event),
-          canvasDblClick: (event) => this.#onCanvasDblClick(event),
-          canvasKeyDown: (event) => this.#onKeyDown(event),
-          canvasKeyUp: (event) => {
-            if (event.key === ' ') this.panReady = false;
-            if (event.key === 'Shift') this.#holdRatio(false);
-          },
-          canvasBlur: () => (this.panReady = false),
-          itemPointerDown: (itemId, event) => this.#onItemPointerDown(itemId, event),
-          resizePointerDown: (itemId, event) =>
-            this.#onHandlePointerDown(
-              event,
-              startResize(context.state, itemId, event.pointerId, this.#canvasPoint(event)),
-            ),
-          connectPointerDown: (itemId, event) =>
-            this.#onHandlePointerDown(event, startConnect(itemId, event.pointerId, this.#canvasPoint(event))),
-          connectorPointerDown: (connectorId, event) => this.#onConnectorPointerDown(connectorId, event),
-          editBlur: (itemId, value) => this.#finishEdit(itemId, value),
-          editKeyDown: (itemId, event) => this.#onEditKeyDown(itemId, event),
-          addItem: (kind) => this.#addItem(kind, this.#viewCenter()),
-          zoomStep: (direction) => this.#zoomBy(direction === 1 ? 1.2 : 1 / 1.2),
-          zoomFit: () => this.#showBoard(),
-          zoomReset: () => this.#zoomBy(1 / this.viewport.zoom),
-        },
-      }),
-    };
+        ? marqueeSelection(this.items(), this.gesture)
+        : this.selectedIds;
+    return html`
+      <dpk-dialog-panel
+        class=${this.shellClass()}
+        flush
+        ?maximizable=${this.frameControls}
+        ?resizable=${this.frameControls}
+        heading=${this.heading ?? this.defaultHeading()}
+        subject=${subject === '' ? nothing : subject}
+        @dpk-maximize-change=${() => this.closeComposer()}
+      >
+        ${this.renderToolbarActionsSlot()} ${this.renderTagFilterRow()}
+        ${
+          this.dataError !== null
+            ? html`<p class="wb-notice" role="alert">${chrome.dataError}<br />${this.dataError}</p>`
+            : renderWhiteboard({
+                m,
+                state,
+                viewport: this.viewport,
+                gesture: this.gesture,
+                mode: this.mode,
+                selectedIds: new Set(selected),
+                marquee,
+                panReady: this.panReady,
+                overlay: this.#renderOverlay(state, m),
+                commentRef: (kind, id) => this.commentRef(kind, id),
+                handlers: {
+                  canvasPointerDown: (event) => this.#onCanvasPointerDown(event),
+                  canvasPointerMove: (event) => this.#onPointerMove(event),
+                  canvasPointerUp: (event) => this.#onPointerUp(event),
+                  canvasPointerCancel: () => {
+                    this.gesture = undefined;
+                    this.requestUpdate();
+                  },
+                  canvasWheel: (event) => this.#onWheel(event),
+                  canvasDblClick: (event) => this.#onCanvasDblClick(event),
+                  canvasKeyDown: (event) => this.#onKeyDown(event),
+                  canvasKeyUp: (event) => {
+                    if (event.key === ' ') this.panReady = false;
+                    if (event.key === 'Shift') this.#holdRatio(false);
+                    this.requestUpdate();
+                  },
+                  canvasBlur: () => {
+                    this.panReady = false;
+                    this.requestUpdate();
+                  },
+                  itemPointerDown: (itemId, event) => this.#onItemPointerDown(itemId, event),
+                  resizePointerDown: (itemId, event) =>
+                    this.#onHandlePointerDown(
+                      event,
+                      startResize(this.items(), itemId, event.pointerId, this.#canvasPoint(event)),
+                    ),
+                  connectPointerDown: (itemId, event) =>
+                    this.#onHandlePointerDown(event, startConnect(itemId, event.pointerId, this.#canvasPoint(event))),
+                  connectorPointerDown: (connectorId, event) => this.#onConnectorPointerDown(connectorId, event),
+                  editBlur: (itemId, value) => this.#finishEdit(itemId, value),
+                  editKeyDown: (itemId, event) => this.#onEditKeyDown(itemId, event),
+                  addItem: (kind) => this.#addItem(kind, this.#viewCenter()),
+                  zoomStep: (direction) => this.#zoomBy(direction === 1 ? 1.2 : 1 / 1.2),
+                  zoomFit: () => this.#showBoard(),
+                  zoomReset: () => this.#zoomBy(1 / this.viewport.zoom),
+                },
+              })
+        }
+      </dpk-dialog-panel>
+      ${this.renderSelection()}
+    `;
   }
 
   protected override updated(): void {
@@ -228,7 +293,13 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     this.#placeView();
     this.#fitToolbar();
     this.#openEditor();
-    this.#openComposer();
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.#resize?.disconnect();
+    this.#resize = undefined;
+    this.#observed = undefined;
   }
 
   /**
@@ -259,29 +330,28 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
 
   /* ------------------------------------------------------------ selection */
 
-  #selected(): readonly string[] {
-    return parseSelection(this.context().navigation['item']);
-  }
-
   #select(ids: readonly string[]): void {
-    const context = this.context();
-    const next = serializeSelection(ids);
-    if (context.navigation['item'] === next) return;
     this.arrangeMenu = false;
-    context.navigate({ item: next ?? null });
+    this.selectedIds = ids;
+    if (ids.length === 1) {
+      const id = ids[0];
+      if (id !== undefined)
+        this.select({ kind: findConnector(this.items(), id) !== undefined ? 'connector' : 'item', id });
+    } else {
+      this.select(null);
+    }
+    this.requestUpdate();
   }
 
   #selectedItems(state: WhiteboardState): readonly WbItem[] {
-    return this.#selected()
-      .map((id) => findItem(state, id))
-      .filter(isDefined);
+    return this.selectedIds.map((id) => findItem(state, id)).filter(isDefined);
   }
 
   /* -------------------------------------------------------------- overlay */
 
-  #renderOverlay(context: Context, state: WhiteboardState, m: WhiteboardMessages): TemplateResult | typeof nothing {
+  #renderOverlay(state: WhiteboardState, m: WhiteboardMessages): TemplateResult | typeof nothing {
     if (this.mode.kind === 'editing') return nothing;
-    const ids = this.#selected();
+    const ids = this.selectedIds;
     const items = this.#selectedItems(state);
     const connector = ids.length === 1 ? findConnector(state, ids[0]) : undefined;
     const selection: WbSelection | undefined =
@@ -291,82 +361,33 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
           ? { kind: 'items', items }
           : undefined;
     if (selection === undefined) return nothing;
-    // Comments attach to one thing, so only a single selection offers them.
-    const [only] = items;
-    const ref =
-      connector !== undefined
-        ? targetRef({ type: 'connector', id: connector.id })
-        : items.length === 1 && only !== undefined
-          ? targetRef({ type: 'item', id: only.id })
-          : undefined;
-    const commenting = ref !== undefined && this.mode.kind === 'commenting' && this.mode.target === ref;
-    const toolbar = renderSelectionToolbar({
+    return renderSelectionToolbar({
       m,
       state,
       viewport: this.viewport,
       selection,
       arrange: arrangeOptions(state, ids),
       arrangeMenuOpen: this.arrangeMenu,
-      commenting,
-      comments: ref === undefined ? 0 : context.commentCount(ref),
       handlers: {
         setColor: (color) => this.#setColor(color),
         setFontSize: (fontSize) => this.#setFontSize(fontSize),
         arrange: (direction) => {
           this.arrangeMenu = false;
           this.#arrange(direction);
+          this.requestUpdate();
         },
-        toggleArrangeMenu: () => (this.arrangeMenu = !this.arrangeMenu),
-        toggleComment: (target) => {
-          this.#composerDraft = '';
-          this.mode = commenting ? WB_IDLE : { kind: 'commenting', target };
+        toggleArrangeMenu: () => {
+          this.arrangeMenu = !this.arrangeMenu;
+          this.requestUpdate();
         },
         deleteSelection: () => this.#deleteSelection(),
-        setLabel: (connectorId, label) => context.dispatch(whiteboardAction.setConnectorLabel(connectorId, label)),
+        setLabel: (connectorId, label) => this.#dispatch(whiteboardAction.setConnectorLabel(connectorId, label)),
         setRoute: (connectorId, route) => {
-          if (findConnector(context.state, connectorId)?.route !== route)
-            context.dispatch(whiteboardAction.setConnectorRoute(connectorId, route));
+          if (findConnector(state, connectorId)?.route !== route)
+            this.#dispatch(whiteboardAction.setConnectorRoute(connectorId, route));
         },
       },
     });
-    // The composer is the toolbar's sibling, so none of the toolbar's styles leak into it.
-    // It floats in the top layer but still sits in the canvas: presses in it must not reach the board.
-    return html`${toolbar}
-      <div class="wb-composer" @pointerdown=${stop} @dblclick=${stop}>
-        ${commenting && ref !== undefined ? this.#renderComposer(context, ref) : nothing}
-      </div>`;
-  }
-
-  #renderComposer(context: Context, ref: string): TemplateResult {
-    const notes = context.comments.filter((comment) => targetRef(comment.target) === ref).map(commentBody);
-    const label = this.definition.commentTargets(context.state, context.navigation).find((t) => t.value === ref)?.label;
-    return renderComposer(
-      composerMessages(this.locale),
-      presentComposer(this.#composerDraft, notes, { key: ref, ...(label === undefined ? {} : { label }) }),
-      (intent) => {
-        if (intent.kind === 'input') {
-          this.#composerDraft = intent.body;
-          this.requestUpdate();
-          return;
-        }
-        if (intent.kind === 'comment') {
-          const outcome = context.dispatch({ type: 'comment', target: ref, payload: { body: intent.body } });
-          if (!outcome.ok) return;
-        }
-        this.#composerDraft = '';
-        this.mode = WB_IDLE;
-      },
-    );
-  }
-
-  /** The composer floats in the top layer, next to the toolbar's comment button. */
-  #openComposer(): void {
-    if (this.mode.kind !== 'commenting') return;
-    const surface = this.renderRoot.querySelector<HTMLElement>('.wb-composer .comment-pop');
-    const button = this.renderRoot.querySelector('.wb-toolbar [data-role="comment"]');
-    if (!surface || !button || surface.matches(':popover-open')) return;
-    this.#popovers.open(surface, button, COMPOSER_SIZE);
-    surface.querySelector('textarea')?.focus();
   }
 
   /* ------------------------------------------------------------- editing */
@@ -385,16 +406,17 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
   #enterEdit(itemId: string, at?: ClientPoint): void {
     if (isEditing(this.mode, itemId)) return;
     this.#commitEditor();
-    const context = this.context();
-    if (findItem(context.state, itemId) === undefined) return;
+    const state = this.items();
+    if (findItem(state, itemId) === undefined) return;
     const text =
       at === undefined
         ? null
         : this.renderRoot.querySelector(`.wb-item[data-item-id="${CSS.escape(itemId)}"] .wb-text`);
     this.#caret = text === null || at === undefined ? undefined : caretOffsetAt(text, at.clientX, at.clientY);
-    const ids = this.#selected();
+    const ids = this.selectedIds;
     if (ids.length !== 1 || ids[0] !== itemId) this.#select([itemId]);
     this.mode = { kind: 'editing', itemId };
+    this.requestUpdate();
   }
 
   #openEditor(): void {
@@ -421,9 +443,9 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
   #finishEdit(itemId: string, raw: string): void {
     if (!isEditing(this.mode, itemId)) return;
     this.mode = WB_IDLE;
+    this.requestUpdate();
     this.#editorOpened = undefined;
-    const context = this.context();
-    const item = findItem(context.state, itemId);
+    const item = findItem(this.items(), itemId);
     const text = item === undefined ? undefined : editedText(item, raw);
     if (item === undefined || text === undefined) return;
     this.#dispatchAll([whiteboardAction.setText(itemId, text), ...this.#fitText(item)]);
@@ -465,6 +487,7 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     const field = this.#editorField(itemId);
     if (field === null) {
       this.mode = WB_IDLE;
+      this.requestUpdate();
       return;
     }
     this.#finishEdit(itemId, field.value);
@@ -476,10 +499,11 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
       // Leaves without committing: the blur that follows finds the edit already over.
       event.preventDefault();
       this.mode = WB_IDLE;
+      this.requestUpdate();
       this.#focusCanvas();
       return;
     }
-    const oneLine = findItem(this.context().state, itemId)?.kind === 'frame';
+    const oneLine = findItem(this.items(), itemId)?.kind === 'frame';
     if (event.key === 'Enter' && (oneLine || event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       // Blurring commits.
@@ -527,6 +551,7 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
       }
     }
     this.gesture = gesture;
+    this.requestUpdate();
   }
 
   /** Focus moves to the canvas, so its keys work. */
@@ -545,7 +570,6 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     const pan = event.button === 1 || (event.button === 0 && (this.panReady || event.pointerType === 'touch'));
     if (!pan && event.button !== 0) return;
     this.#commitEditor();
-    if (this.mode.kind === 'commenting') this.mode = WB_IDLE;
     this.arrangeMenu = false;
     this.#focusCanvas();
     if (pan) {
@@ -556,11 +580,11 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
       return;
     }
     this.#lastPress = { on: 'ground' };
-    const context = this.context();
-    const ids = this.#selected().filter((id) => findItem(context.state, id) !== undefined);
+    const state = this.items();
+    const ids = this.selectedIds.filter((id) => findItem(state, id) !== undefined);
     const gesture = event.shiftKey
       ? startMarquee(event.pointerId, this.#canvasPoint(event), ids)
-      : startGroundPress(context.state, ids, event.pointerId, this.#canvasPoint(event), []);
+      : startGroundPress(state, ids, event.pointerId, this.#canvasPoint(event), []);
     // A click (no drag) inside a selected frame narrows a larger selection to the frame; it never edits.
     this.#pressedSelected = false;
     this.#pressedInGroup = gesture.kind === 'move' && ids.length > 1;
@@ -583,8 +607,8 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     this.#focusCanvas();
     this.arrangeMenu = false;
     if (this.mode.kind !== 'idle') this.mode = WB_IDLE;
-    const context = this.context();
-    const ids = this.#selected();
+    const state = this.items();
+    const ids = this.selectedIds;
     if (event.shiftKey) {
       this.#pressedSelected = false;
       this.#pressedInGroup = false;
@@ -596,7 +620,7 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     this.#pressPoint = { clientX: event.clientX, clientY: event.clientY };
     if (!ids.includes(itemId)) this.#select([itemId]);
     const carry = this.#pressedInGroup ? ids : [itemId];
-    this.#capture(event, startMove(context.state, itemId, event.pointerId, this.#canvasPoint(event), carry));
+    this.#capture(event, startMove(state, itemId, event.pointerId, this.#canvasPoint(event), carry));
   }
 
   #onHandlePointerDown(event: PointerEvent, gesture: WbGesture | undefined): void {
@@ -627,16 +651,18 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
       const step = panTo(gesture, this.#local(event));
       this.gesture = step.gesture;
       this.#setViewport(panBy(this.viewport, step.dx, step.dy));
+      this.requestUpdate();
       return;
     }
     this.gesture = updateGesture(
-      this.context().state,
+      this.items(),
       gesture,
       event.pointerId,
       this.#canvasPoint(event),
       this.viewport.zoom,
       event.shiftKey,
     );
+    this.requestUpdate();
   }
 
   /** Shift pressed or let go mid-resize reshapes the item at once, without waiting for the pointer to move. */
@@ -644,40 +670,35 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     const gesture = this.gesture;
     if (gesture?.kind !== 'resize' || gesture.keepRatio === keepRatio) return;
     this.gesture = updateGesture(
-      this.context().state,
+      this.items(),
       gesture,
       gesture.pointerId,
       gesture.current,
       this.viewport.zoom,
       keepRatio,
     );
+    this.requestUpdate();
   }
 
   #onPointerUp(event: PointerEvent): void {
     const gesture = this.gesture;
     if (gesture === undefined || gesture.pointerId !== event.pointerId) return;
-    const context = this.context();
+    const state = this.items();
     const final =
       gesture.kind === 'pan'
         ? gesture
-        : updateGesture(
-            context.state,
-            gesture,
-            event.pointerId,
-            this.#canvasPoint(event),
-            this.viewport.zoom,
-            event.shiftKey,
-          );
+        : updateGesture(state, gesture, event.pointerId, this.#canvasPoint(event), this.viewport.zoom, event.shiftKey);
     this.gesture = undefined;
-    const outcome = finishGesture(context.state, final);
+    this.requestUpdate();
+    const outcome = finishGesture(state, final);
     switch (outcome.kind) {
       case 'none':
         return;
       case 'dispatch':
-        context.dispatchBatch(outcome.inputs);
+        this.#dispatchAll(outcome.inputs);
         return;
       case 'connect':
-        this.#connect(context, outcome.from, outcome.to);
+        this.#connect(outcome.from, outcome.to);
         return;
       case 'select':
         this.#select(outcome.ids);
@@ -723,11 +744,11 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
 
   #onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Shift') this.#holdRatio(true);
-    // Typing somewhere (editor, composer, label) owns its keys.
+    // Typing somewhere (editor, label) owns its keys.
     if (event.target !== event.currentTarget) return;
-    const context = this.context();
-    const ids = this.#selected();
-    const items = this.#selectedItems(context.state);
+    const state = this.items();
+    const ids = this.selectedIds;
+    const items = this.#selectedItems(state);
     const [only] = items;
     const mod = event.metaKey || event.ctrlKey;
     const arrows: Record<string, readonly [number, number]> = {
@@ -752,16 +773,16 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     } else if (mod && event.key.toLowerCase() === 'v' && this.#clipboard.length > 0) {
       this.#paste();
     } else if (mod && event.key.toLowerCase() === 'a') {
-      this.#select(context.state.items.map((item) => item.id));
+      this.#select(state.items.map((item) => item.id));
     } else if ((event.key === ']' || event.key === '[') && ids.length > 0) {
       const up = event.key === ']';
       this.#arrange(mod ? (up ? 'front' : 'back') : up ? 'forward' : 'backward');
     } else if (direction !== undefined) {
       const step = event.shiftKey ? 1 : NUDGE;
       if (items.length > 0)
-        context.dispatchBatch(
+        this.#dispatchAll(
           moveBy(
-            context.state,
+            state,
             items.map((item) => item.id),
             direction[0] * step,
             direction[1] * step,
@@ -772,17 +793,24 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     else if (event.key === '-') this.#zoomBy(1 / 1.2);
     else if (event.key === '0') this.#showBoard();
     else return;
+    this.requestUpdate();
     event.preventDefault();
   }
 
   /* ------------------------------------------------------------ mutations */
 
+  #dispatch(input: ActionInput): boolean {
+    const { target, payload } = input;
+    if (typeof target === 'string') return false;
+    return this.dispatchElementAction(input.type, [target.type, target.id], isActionPayload(payload) ? payload : {});
+  }
+
   #dispatchAll(inputs: readonly ActionInput[]): void {
-    if (inputs.length > 0) this.context().dispatchBatch(inputs);
+    for (const input of inputs) this.#dispatch(input);
   }
 
   #setColor(color: WbColor): void {
-    const items = this.#selectedItems(this.context().state);
+    const items = this.#selectedItems(this.items());
     this.#dispatchAll(
       items
         .filter(hasColor)
@@ -791,7 +819,7 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
   }
 
   #setFontSize(fontSize: WbFontSize): void {
-    const items = this.#selectedItems(this.context().state);
+    const items = this.#selectedItems(this.items());
     this.#dispatchAll(
       items
         .filter(hasFontSize)
@@ -804,25 +832,26 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
   }
 
   #arrange(direction: ArrangeDirection): void {
-    this.#dispatchAll(arrangeActions(this.context().state, this.#selected(), direction));
+    this.#dispatchAll(arrangeActions(this.items(), this.selectedIds, direction));
   }
 
   /** Connectors first: deleting an item takes its connectors along, which would leave theirs stale. */
   #deleteSelection(): void {
-    const { state } = this.context();
-    const ids = this.#selected();
+    const state = this.items();
+    const ids = this.selectedIds;
     this.#dispatchAll([
       ...ids.filter((id) => findConnector(state, id) !== undefined).map((id) => whiteboardAction.deleteConnector(id)),
       ...ids.filter((id) => findItem(state, id) !== undefined).map((id) => whiteboardAction.deleteItem(id)),
     ]);
     this.mode = WB_IDLE;
+    this.requestUpdate();
   }
 
   #addItem(kind: NewItemKind, center: Point): void {
     this.#commitEditor();
-    const context = this.context();
-    const item = newItem(context.state, whiteboardMessages(this.locale), kind, center);
-    if (!context.dispatch(whiteboardAction.addItem(item)).ok) return;
+    const state = this.items();
+    const item = newItem(state, whiteboardMessages(this.locale), kind, center);
+    if (!this.#dispatch(whiteboardAction.addItem(item))) return;
     // The free spot may lie off screen; the reader should see what they just added.
     const size = this.#canvasSize();
     if (size.width > 0 && size.height > 0) this.#setViewport(revealRect(this.viewport, item, size));
@@ -831,36 +860,46 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
     this.mode = { kind: 'editing', itemId: item.id };
   }
 
-  /** Items copied with Ctrl/Cmd+C; each paste lands a step further from the originals. */
-  #clipboard: readonly WbItem[] = [];
-  #pasteCount = 0;
+  /** A diagram dropped from the context menu's picker, seeded from the catalog entry it resolved. */
+  #addEmbed(entry: DiagramCatalogEntry, center: Point): void {
+    this.#commitEditor();
+    const state = this.items();
+    const item = newEmbedItem(state, entry, center);
+    if (!this.#dispatch(whiteboardAction.addItem(item))) return;
+    const size = this.#canvasSize();
+    if (size.width > 0 && size.height > 0) this.#setViewport(revealRect(this.viewport, item, size));
+    this.#select([item.id]);
+  }
 
   #paste(): void {
-    const context = this.context();
     this.#pasteCount += 1;
-    const copies = pasteItems(context.state, this.#clipboard, PASTE_OFFSET * this.#pasteCount);
+    const copies = pasteItems(this.items(), this.#clipboard, PASTE_OFFSET * this.#pasteCount);
     const added: string[] = [];
-    for (const copy of copies) if (context.dispatch(whiteboardAction.addItem(copy)).ok) added.push(copy.id);
+    for (const copy of copies) if (this.#dispatch(whiteboardAction.addItem(copy))) added.push(copy.id);
     if (added.length > 0) this.#select(added);
   }
 
-  #connect(context: Context, from: string, to: string): void {
+  #connect(from: string, to: string): void {
     if (from === to) return;
-    const existing = context.state.connectors.find((connector) => connector.from === from && connector.to === to);
+    const state = this.items();
+    const existing = state.connectors.find((connector) => connector.from === from && connector.to === to);
     if (existing !== undefined) {
       this.#select([existing.id]);
       return;
     }
-    const id = newConnectorId(context.state, from, to);
-    if (context.dispatch(whiteboardAction.connect(id, from, to)).ok) this.#select([id]);
+    const id = newConnectorId(state, from, to);
+    if (this.#dispatch(whiteboardAction.connect(id, from, to))) this.#select([id]);
   }
 
   /* ------------------------------------------------------------- viewport */
 
   #setViewport(next: Viewport): void {
     this.#fitted = false;
-    const clamped = constrainViewport(next, boardBounds(this.context().state.items), this.#canvasSize());
-    if (!sameViewport(clamped, this.viewport)) this.viewport = clamped;
+    const clamped = constrainViewport(next, boardBounds(this.items().items), this.#canvasSize());
+    if (!sameViewport(clamped, this.viewport)) {
+      this.viewport = clamped;
+      this.requestUpdate();
+    }
   }
 
   #zoomBy(factor: number): void {
@@ -878,7 +917,7 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
 
   /** The board, or the part of it a fit can show (see `focusRect`). */
   #boardFocus(): Rect | null {
-    return focusRect(this.context().state.items, this.#canvasSize(), FIT_PADDING);
+    return focusRect(this.items().items, this.#canvasSize(), FIT_PADDING);
   }
 
   #observeCanvas(canvas: HTMLElement): void {
@@ -896,71 +935,30 @@ export class DpkTemplateWhiteboard extends TemplateElement<WhiteboardState> {
       return;
     }
     if (!this.#fitted) return;
-    const frame = this.#placedFrame;
-    this.#fit(frame === undefined ? this.#boardFocus() : (findItem(this.context().state, frame) ?? null));
-  }
-
-  override disconnectedCallback(): void {
-    super.disconnectedCallback();
-    this.#resize?.disconnect();
-    this.#resize = undefined;
-    this.#observed = undefined;
-  }
-
-  /** The canvas pans rather than scrolls: a frame is focused, anything else panned into view. */
-  protected override showTarget(target: ActionTarget): void {
-    const { state } = this.context();
-    const item = target.type === 'item' ? findItem(state, target.id) : undefined;
-    if (item?.kind === 'frame') {
-      this.#focusFrame(item.id);
-      return;
-    }
-    const connector = target.type === 'connector' ? findConnector(state, target.id) : undefined;
-    const ends = connector === undefined ? [] : [findItem(state, connector.from), findItem(state, connector.to)];
-    const rect = item ?? boardBounds(ends.filter((end) => end !== undefined));
-    const size = this.#canvasSize();
-    if (rect && size.width > 0 && size.height > 0) this.#setViewport(revealRect(this.viewport, rect, size));
-  }
-
-  #focusFrame(frameId: string): void {
-    const context = this.context();
-    context.navigate({ frame: frameId });
-    this.#placedFrame = frameId;
-    this.#fit(findItem(context.state, frameId) ?? null);
-  }
-
-  #showBoard(): void {
-    const context = this.context();
-    if (context.navigation['frame'] !== undefined) context.navigate({ frame: null });
-    this.#placedFrame = undefined;
     this.#fit(this.#boardFocus());
   }
 
-  /**
-   * The view opens on the frame the URL names, or on the whole board, once
-   * the canvas has a size; a later `#frame=` (a link, the back button) flies
-   * there too.
-   */
+  #showBoard(): void {
+    this.#fit(this.#boardFocus());
+  }
+
+  /** The view opens on the whole board, once the canvas has a size. */
   #placeView(): void {
-    const context = this.context();
-    const frame = context.navigation['frame'];
-    if (this.#placed && frame === this.#placedFrame) return;
-    if (frame === undefined && this.#placed) {
-      this.#placedFrame = undefined;
-      return;
-    }
-    const target = frame === undefined ? this.#boardFocus() : (findItem(context.state, frame) ?? null);
+    if (this.#placed) return;
     const size = this.#canvasSize();
     if (size.width <= 0 || size.height <= 0) return;
+    const target = this.#boardFocus();
     // An empty board opens with its origin in the middle, where the first item lands.
-    if (target === null) this.viewport = { x: size.width / 2, y: size.height / 2, zoom: 1 };
-    else this.#fit(target);
+    if (target === null) {
+      this.viewport = { x: size.width / 2, y: size.height / 2, zoom: 1 };
+      this.requestUpdate();
+    } else {
+      this.#fit(target);
+    }
     this.#placed = true;
-    this.#placedFrame = frame;
   }
 }
 
-export const defineWhiteboardElement = (): void => {
-  if (!customElements.get('dpk-template-whiteboard'))
-    customElements.define('dpk-template-whiteboard', DpkTemplateWhiteboard);
+export const defineWhiteboard = (): void => {
+  if (!customElements.get('dpk-whiteboard')) customElements.define('dpk-whiteboard', DpkWhiteboard);
 };

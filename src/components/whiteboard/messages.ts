@@ -7,12 +7,14 @@ const KIND_LABEL_EN: Record<WbItemKind, string> = {
   text: 'Text',
   shape: 'Shape',
   frame: 'Frame',
+  embed: 'Diagram',
 };
 const KIND_LABEL_JA: Record<WbItemKind, string> = {
   sticky: '付箋',
   text: 'テキスト',
   shape: '図形',
   frame: 'フレーム',
+  embed: '図',
 };
 
 /** The noun an English sentence uses for a kind ("Moved the text box"). */
@@ -21,6 +23,7 @@ const KIND_NOUN_EN: Record<WbItemKind, string> = {
   text: 'text box',
   shape: 'shape',
   frame: 'frame',
+  embed: 'diagram',
 };
 
 const SHAPE_LABEL_EN: Record<WbShape, string> = { rect: 'Rectangle', ellipse: 'Ellipse' };
@@ -71,6 +74,7 @@ export const whiteboardMessages = defineMessages({
     fontSizeLabel: (fontSize: WbFontSize) => FONT_SIZE_LABEL_EN[fontSize],
     fontSizeShort: (fontSize: WbFontSize) => FONT_SIZE_SHORT[fontSize],
     routeLabel: (route: WbConnectorRoute) => ROUTE_LABEL_EN[route],
+    heading: 'Whiteboard',
     connector: 'Connector',
     board: 'Board',
     wholeBoard: 'Whole board',
@@ -114,11 +118,6 @@ export const whiteboardMessages = defineMessages({
     zoomFit: 'Fit the board',
     zoomReset: 'Reset to 100%',
 
-    // --------------------------------------------------------- sidebar
-    framesHeading: 'Frames',
-    framesHint: 'Pick a frame to bring it into view.',
-    memberCount: (count: number) => `${count} item${count === 1 ? '' : 's'}`,
-
     // --------------------------------------------------- action titles
     addedTitle: (kind: WbItemKind) => `Added a ${KIND_NOUN_EN[kind]}`,
     textEditedTitle: (kind: WbItemKind) =>
@@ -160,6 +159,7 @@ export const whiteboardMessages = defineMessages({
     fontSizeLabel: (fontSize: WbFontSize) => FONT_SIZE_LABEL_JA[fontSize],
     fontSizeShort: (fontSize: WbFontSize) => FONT_SIZE_SHORT[fontSize],
     routeLabel: (route: WbConnectorRoute) => ROUTE_LABEL_JA[route],
+    heading: 'ホワイトボード',
     connector: 'コネクタ',
     board: 'ボード',
     wholeBoard: 'ボード全体',
@@ -199,10 +199,6 @@ export const whiteboardMessages = defineMessages({
     zoomOut: '縮小',
     zoomFit: 'ボード全体を表示',
     zoomReset: '100% に戻す',
-
-    framesHeading: 'フレーム',
-    framesHint: 'フレームを選ぶとそこへ移動します。',
-    memberCount: (count: number) => `${count} 件`,
 
     addedTitle: (kind: WbItemKind) => `${KIND_LABEL_JA[kind]}を追加`,
     textEditedTitle: (kind: WbItemKind) =>

@@ -4,10 +4,10 @@ import type { DraftAction } from '../../core/types';
 
 import { whiteboardAction } from './actions';
 import { applyWhiteboardAction } from './apply';
-import { whiteboardDefinitionFor } from './definition';
+import { paintOrder } from './layout';
 import { whiteboardMessages } from './messages';
 import { findItem, frameMembers, frameOf, parseWhiteboardBase, type WhiteboardState } from './model';
-import { resolveWhiteboardNavigation, whiteboardCommentTargets, whiteboardCurrentTarget } from './present';
+import { describeWhiteboardAction } from './present';
 
 const SAMPLE_BASE = {
   title: 'Retro',
@@ -70,6 +70,33 @@ describe('whiteboard base data', () => {
     const wentWell = findItem(parsed, 'went-well');
     if (wentWell?.kind !== 'frame') throw new Error('expected a frame');
     expect(frameMembers(parsed, wentWell).map((item) => item.id)).toEqual(['pairing', 'inner']);
+  });
+});
+
+describe('whiteboard embeds', () => {
+  it('accepts a diagram embed, sized and seeded like any other item', () => {
+    const parsed = parseWhiteboardBase({
+      items: [...SAMPLE_BASE.items, { id: 'chart', kind: 'embed', x: 10, y: 10, tag: 'dpk-state-diagram', data: {} }],
+    });
+    expect(findItem(parsed, 'chart')).toMatchObject({ kind: 'embed', tag: 'dpk-state-diagram', w: 360, h: 260 });
+  });
+
+  it('is immune to text, color and font-size edits — it has none of its own', () => {
+    const withEmbed = apply(
+      state(),
+      whiteboardAction.addItem({ id: 'chart', kind: 'embed', x: 10, y: 10, tag: 'dpk-state-diagram', data: {} }),
+    )!;
+    expect(apply(withEmbed, whiteboardAction.setText('chart', 'nope'))).toBeNull();
+    expect(apply(withEmbed, whiteboardAction.setColor('chart', 'pink'))).toBeNull();
+    expect(apply(withEmbed, whiteboardAction.setFontSize('chart', 'large'))).toBeNull();
+    // Moving, resizing, reordering and deleting stay generic, the same as any other item.
+    expect(findItem(apply(withEmbed, whiteboardAction.move('chart', 50, 50))!, 'chart')).toMatchObject({
+      x: 50,
+      y: 50,
+    });
+    expect(apply(withEmbed, whiteboardAction.deleteItem('chart'))?.items.some((item) => item.id === 'chart')).toBe(
+      false,
+    );
   });
 });
 
@@ -140,9 +167,8 @@ describe('whiteboard actions', () => {
   });
 
   it('treats frames as painted first, so a reorder across them changes nothing', () => {
-    const definition = whiteboardDefinitionFor('en');
     const moved = apply(state(), whiteboardAction.reorder('pairing', null))!;
-    expect(definition.canonicalState?.(moved)).toEqual(definition.canonicalState?.(state()));
+    expect(paintOrder(moved)).toEqual(paintOrder(state()));
   });
 
   it('deletes an item together with its connectors', () => {
@@ -193,11 +219,11 @@ describe('whiteboard connector routes', () => {
 });
 
 describe('whiteboard descriptions', () => {
-  const definition = whiteboardDefinitionFor('en');
+  const m = whiteboardMessages('en');
   const describeOn = (input: { type: string; target: unknown; payload?: unknown }) => {
     const base = state();
     const after = applyWhiteboardAction(base, action(input)) ?? base;
-    return definition.describe(action(input), after, base);
+    return describeWhiteboardAction(m, action(input), after, base);
   };
 
   it('says which frame a move leaves and joins', () => {
@@ -263,59 +289,12 @@ describe('whiteboard descriptions', () => {
   });
 
   it('speaks Japanese too', () => {
-    const ja = whiteboardDefinitionFor('ja');
+    const ja = whiteboardMessages('ja');
     const base = state();
     const input = action(whiteboardAction.move('pairing', 540, 80));
-    expect(ja.describe(input, applyWhiteboardAction(base, input)!, base)).toMatchObject({
+    expect(describeWhiteboardAction(ja, input, applyWhiteboardAction(base, input)!, base)).toMatchObject({
       title: '付箋を移動',
       summary: 'フレーム「Went well」→「To improve」 (540, 80)',
     });
-  });
-});
-
-describe('whiteboard navigation and comment targets', () => {
-  const m = whiteboardMessages('en');
-
-  it('keeps only a frame in focus and an item or connector that exist', () => {
-    expect(resolveWhiteboardNavigation(state(), { frame: 'went-well', item: 'flaky-goal' })).toEqual({
-      frame: 'went-well',
-      item: 'flaky-goal',
-    });
-    expect(resolveWhiteboardNavigation(state(), { frame: 'pairing', item: 'nope', other: 'x' })).toEqual({
-      other: 'x',
-    });
-  });
-
-  it('keeps every selected item that exists, and a connector only on its own', () => {
-    expect(resolveWhiteboardNavigation(state(), { item: 'pairing,nope,goal' })).toEqual({ item: 'pairing,goal' });
-    expect(resolveWhiteboardNavigation(state(), { item: 'nope,gone' })).toEqual({});
-    expect(resolveWhiteboardNavigation(state(), { item: 'pairing,flaky-goal' })).toEqual({ item: 'pairing' });
-  });
-
-  it('lists the board, every item (frames first) and every connector', () => {
-    const targets = whiteboardCommentTargets(m, state());
-    expect(targets.map((target) => target.value)).toEqual([
-      'page:whiteboard',
-      'item:went-well',
-      'item:to-improve',
-      'item:pairing',
-      'item:flaky',
-      'item:note',
-      'item:goal',
-      'connector:flaky-goal',
-    ]);
-    expect(targets.find((target) => target.value === 'item:pairing')?.label).toBe('Went well › Pairing on the parser');
-  });
-
-  it('attaches composer notes to the selection, else to the frame in focus', () => {
-    expect(whiteboardCurrentTarget(m, state(), { item: 'flaky' })?.value).toBe('item:flaky');
-    expect(whiteboardCurrentTarget(m, state(), { item: 'flaky-goal' })?.value).toBe('connector:flaky-goal');
-    expect(whiteboardCurrentTarget(m, state(), { frame: 'went-well' })?.value).toBe('item:went-well');
-    expect(whiteboardCurrentTarget(m, state(), {})).toBeNull();
-    // Several items selected: a note has no single one to attach to, so it falls back to the frame.
-    expect(whiteboardCurrentTarget(m, state(), { item: 'flaky,goal' })).toBeNull();
-    expect(whiteboardCurrentTarget(m, state(), { item: 'flaky,goal', frame: 'went-well' })?.value).toBe(
-      'item:went-well',
-    );
   });
 });

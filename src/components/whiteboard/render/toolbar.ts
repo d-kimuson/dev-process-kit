@@ -2,7 +2,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 
 import type { WhiteboardMessages } from '../messages';
 
-import { iconChevronDown, iconComment, iconTrash } from '../../../core/icons';
+import { iconChevronDown, iconTrash } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { ARRANGE_DIRECTIONS, type ArrangeDirection } from '../arrange';
 import { toScreen, type Viewport } from '../interactions';
@@ -29,7 +29,6 @@ export type WbToolbarHandlers = {
   readonly setFontSize: (fontSize: WbFontSize) => void;
   readonly arrange: (direction: ArrangeDirection) => void;
   readonly toggleArrangeMenu: () => void;
-  readonly toggleComment: (target: string) => void;
   readonly deleteSelection: () => void;
   readonly setLabel: (connectorId: string, label: string) => void;
   readonly setRoute: (connectorId: string, route: WbConnectorRoute) => void;
@@ -48,8 +47,6 @@ export type WbToolbarProps = {
   /** The stacking moves that would change what covers what; none hides the control. */
   readonly arrange: ReadonlySet<ArrangeDirection>;
   readonly arrangeMenuOpen: boolean;
-  readonly commenting: boolean;
-  readonly comments: number;
   readonly handlers: WbToolbarHandlers;
 };
 
@@ -82,21 +79,13 @@ const shared = <T>(values: readonly T[]): T | undefined =>
 
 /**
  * The floating toolbar over the selection: color, text size and stacking
- * order (when something overlaps) for items, line shape and label for a connector; comment (one thing
- * selected) and delete for both.
+ * order (when something overlaps) for items, line shape and label for a
+ * connector; delete for both. A comment goes through the right-click menu.
  */
 export const renderSelectionToolbar = (props: WbToolbarProps): TemplateResult | typeof nothing => {
   const anchor = anchorOf(props);
   if (anchor === undefined) return nothing;
   const { m, selection, handlers } = props;
-  const single =
-    selection.kind === 'connector'
-      ? selection.connector
-      : selection.items.length === 1
-        ? selection.items[0]
-        : undefined;
-  const ref =
-    single === undefined ? undefined : selection.kind === 'connector' ? `connector:${single.id}` : `item:${single.id}`;
   const label =
     selection.kind === 'items' && selection.items.length > 1
       ? m.selectionCount(selection.items.length)
@@ -111,22 +100,6 @@ export const renderSelectionToolbar = (props: WbToolbarProps): TemplateResult | 
     @keydown=${stop}
   >
     ${selection.kind === 'items' ? renderItemTools(props, selection.items) : renderConnectorTools(props, selection.connector)}
-    ${
-      ref === undefined
-        ? nothing
-        : html`<button
-            type="button"
-            class="dpk-icon-btn wb-toolbar-btn"
-            data-role="comment"
-            aria-label=${m.comment}
-            title=${m.comment}
-            data-active=${String(props.commenting)}
-            @click=${() => handlers.toggleComment(ref)}
-          >
-            ${iconComment()}
-            ${props.comments > 0 ? html`<span class="wb-toolbar-count">${props.comments}</span>` : nothing}
-          </button>`
-    }
     <button
       type="button"
       class="dpk-icon-btn wb-toolbar-btn"
@@ -271,11 +244,11 @@ const renderConnectorTools = (props: WbToolbarProps, connector: WbConnector): Te
       )}
     </div>
     ${separator}
-    <dpk-component-inline-edit
+    <dpk-inline-edit
       class="wb-toolbar-label"
       .value=${connector.label ?? ''}
       .placeholder=${m.labelPlaceholder}
       .label=${m.labelField}
       @dpk-commit=${onCommit((label) => handlers.setLabel(connector.id, label))}
-    ></dpk-component-inline-edit>`;
+    ></dpk-inline-edit>`;
 };

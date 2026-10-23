@@ -1,15 +1,7 @@
-import type {
-  ActionDescription,
-  ActionTarget,
-  ActionTone,
-  CommentTargetOption,
-  DraftAction,
-  Navigation,
-} from '../../core/types';
+import type { ActionDescription, ActionTarget, ActionTone, DraftAction } from '../../core/types';
 import type { WhiteboardMessages } from './messages';
 
 import { parseTemplateAction } from '../../core/schema';
-import { targetRef } from '../../core/target';
 import { whiteboardActions, type WhiteboardAction } from './actions';
 import {
   findConnector,
@@ -22,7 +14,6 @@ import {
   type WbItem,
   type WhiteboardState,
 } from './model';
-import { parseSelection, serializeSelection } from './selection';
 
 const QUOTE_LENGTH = 40;
 
@@ -213,9 +204,6 @@ export const describeWhiteboardAction = (
   };
 };
 
-export const serializeWhiteboardAction = (action: DraftAction): string =>
-  `${action.type} ${targetRef(action.target)} ${JSON.stringify(action.payload)}`;
-
 export const whiteboardTargetLabel = (
   m: WhiteboardMessages,
   state: WhiteboardState,
@@ -234,80 +222,8 @@ export const whiteboardTargetLabel = (
         : connectorLabel(m, state, connector, base);
     }
     case 'page':
-      return `${m.board} · ${whiteboardTitle(state)}`;
+      return `${m.board} · ${state.title ?? 'Whiteboard'}`;
     default:
       return `${target.type} · ${target.id}`;
   }
-};
-
-export const whiteboardCommentTargets = (
-  m: WhiteboardMessages,
-  state: WhiteboardState,
-): readonly CommentTargetOption[] => {
-  const options: CommentTargetOption[] = [{ value: 'page:whiteboard', label: m.wholeBoard, group: m.board }];
-  const frames = state.items.filter((item) => item.kind === 'frame');
-  const rest = state.items.filter((item) => item.kind !== 'frame');
-  for (const item of [...frames, ...rest]) {
-    const frame = frameOf(state, item);
-    const text = excerpt(m, itemText(item));
-    options.push({
-      value: targetRef({ type: 'item', id: item.id }),
-      label: frame === undefined ? text : `${frame.title} › ${text}`,
-      group: m.kindLabel(item.kind),
-    });
-  }
-  for (const connector of state.connectors) {
-    options.push({
-      value: targetRef({ type: 'connector', id: connector.id }),
-      label: m.connection(endName(m, state, state, connector.from), endName(m, state, state, connector.to)),
-      group: m.connector,
-    });
-  }
-  return options;
-};
-
-/**
- * The selected item or connector, else the frame in focus: what a composer
- * note attaches to. Several selected items have no single one to attach to.
- */
-export const whiteboardCurrentTarget = (
-  m: WhiteboardMessages,
-  state: WhiteboardState,
-  nav: Navigation,
-): CommentTargetOption | null => {
-  const selection = parseSelection(nav['item']);
-  const selected = selection.length === 1 ? selection[0] : undefined;
-  const item = findItem(state, selected) ?? findItem(state, nav['frame']);
-  if (item !== undefined) {
-    return {
-      value: targetRef({ type: 'item', id: item.id }),
-      label: excerpt(m, itemText(item)),
-      group: m.kindLabel(item.kind),
-    };
-  }
-  const connector = findConnector(state, selected);
-  if (connector === undefined) return null;
-  return {
-    value: targetRef({ type: 'connector', id: connector.id }),
-    label: m.connection(endName(m, state, state, connector.from), endName(m, state, state, connector.to)),
-    group: m.connector,
-  };
-};
-
-export const whiteboardTitle = (state: WhiteboardState): string => state.title ?? 'Whiteboard';
-
-/**
- * `frame` brings a frame into view, `item` selects items (`a,b,c`) or one
- * connector. Ids that no longer exist are dropped, so the hash stays canonical.
- */
-export const resolveWhiteboardNavigation = (state: WhiteboardState, nav: Navigation): Navigation => {
-  const next: Record<string, string> = { ...nav };
-  if (findItem(state, nav['frame'])?.kind !== 'frame') delete next['frame'];
-  const selection = parseSelection(nav['item']);
-  const items = selection.filter((id) => findItem(state, id) !== undefined);
-  const connector = selection.length === 1 ? findConnector(state, selection[0]) : undefined;
-  const kept = serializeSelection(connector === undefined ? items : [connector.id]);
-  if (kept === undefined) delete next['item'];
-  else next['item'] = kept;
-  return next;
 };
