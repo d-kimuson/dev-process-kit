@@ -208,7 +208,10 @@ describe('<dpk-event-storming>', () => {
     expect(card.shadowRoot?.querySelector('.note-hotspot')?.textContent).toContain(m.addHotspot);
     expect(card.shadowRoot?.querySelectorAll('.note-tools button')).toHaveLength(1);
     await (edit as unknown as { updateComplete: Promise<boolean> }).updateComplete;
-    edit?.shadowRoot?.querySelector<HTMLElement>('.view')?.click();
+    // The field itself is the resting display (readonly); a click on it starts editing.
+    const resting = edit?.shadowRoot?.querySelector<HTMLInputElement | HTMLTextAreaElement>('.field');
+    resting?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true, cancelable: true }));
+    resting?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
     await (edit as unknown as { updateComplete: Promise<boolean> }).updateComplete;
     const input = edit?.shadowRoot?.querySelector<HTMLInputElement | HTMLTextAreaElement>('.field');
     expect(input).not.toBeNull();

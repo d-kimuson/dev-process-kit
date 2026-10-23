@@ -70,7 +70,7 @@ describe('usm template', () => {
     if (!(editor instanceof DpkInlineEdit)) throw new Error('missing editor');
     editor.startEditing();
     await editor.updateComplete;
-    const input = editor.shadowRoot?.querySelector('input');
+    const input = editor.shadowRoot?.querySelector('textarea');
     if (!input) throw new Error('missing input');
     input.value = 'Draft S1';
     input.dispatchEvent(new Event('input'));

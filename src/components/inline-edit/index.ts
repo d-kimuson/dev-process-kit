@@ -12,16 +12,22 @@ import { inlineEditMessages } from './messages';
  * Small inline editor used by every template for "local edits".
  * It never mutates anything: it only emits `dpk-commit`, so the edit still
  * travels through the draft action pipeline.
+ *
+ * Design principle: the editable surface IS the displayed surface. Outside
+ * `markdown`, the same `<textarea>` is on screen at rest and while editing —
+ * only its `readonly` attribute (and the caret) change, never its box, font,
+ * wrapping or position. A `.mirror`, an invisible twin of the same text laid
+ * out with the exact same rules, sits underneath only so the browser (not
+ * script) can size that box from real content; it is never a second,
+ * differently-rendered view. `markdown` is the one case that cannot keep this
+ * literally (rendered HTML vs. raw source are different content), so it swaps
+ * a rendered view in for rest and the same mirrored textarea for editing.
  */
 export class DpkInlineEdit extends LitElement {
   static override styles = [
     tokens,
     prose,
     css`
-      /* One atomic box in both states, so the text can be edited where it sits:
-         while editing, the text stays (hidden) underneath and keeps sizing the
-         box, and the field lies over it. Starting an edit moves nothing; the
-         box grows only as the draft does. */
       :host {
         display: inline-block;
         max-width: 100%;
@@ -36,33 +42,202 @@ export class DpkInlineEdit extends LitElement {
         color: inherit;
       }
 
+      :host([truncate]) {
+        vertical-align: top;
+      }
+
       .box {
         position: relative;
         display: block;
       }
 
-      /* truncate clips the resting view with overflow: hidden, but never the
-         hidden sizer underneath a field (it must keep the field's real height).
-         Per CSS, a box clipped by overflow: hidden takes its bottom margin
-         edge as its baseline instead of its text's — so the host's inherited
-         vertical-align: baseline lines resting up on a different edge than
-         editing, and the whole box visibly shifts by the line's descent the
-         moment a click swaps which edge is "the" baseline. Baseline alignment
-         only matters next to surrounding text anyway, which single-line
-         truncated text rarely is; aligning to the top edge instead removes the
-         mismatch in both states. */
-      :host([truncate]) {
-        vertical-align: top;
+      /* The mirror is never seen: visibility: hidden keeps it out of paint but
+         still in flow, so the browser sizes .box from its real text layout —
+         the same layout rules the field below uses, kept in lockstep by
+         sharing every selector in this file. It never clips differently than
+         the field, which is what used to make a click snap the box open. */
+      .mirror {
+        display: block;
+        visibility: hidden;
+        pointer-events: none;
       }
 
-      /* No vertical padding or border: the box is exactly the lines of text.
-         The underline and ring are shadows, which never move the layout. */
+      .mirror,
+      .field {
+        margin: 0;
+        padding: 0 4px;
+        box-sizing: border-box;
+        min-width: 0;
+        border-radius: var(--dpk-radius-xs);
+        font: inherit;
+        line-height: inherit;
+        letter-spacing: inherit;
+        color: inherit;
+        white-space: pre;
+        overflow-wrap: anywhere;
+      }
+
+      :host([wrap]) .mirror,
+      :host([wrap]) .field,
+      :host([multiline]) .mirror,
+      :host([multiline]) .field {
+        white-space: pre-wrap;
+      }
+
+      /* The field always sits over the mirror at the field's natural size —
+         never the other way around — so the box never depends on the field's
+         own (absent) intrinsic size, only on the mirror's real text layout. */
+      .field {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        outline: none;
+        resize: none;
+        cursor: text;
+        background: transparent;
+        box-shadow: none;
+        transition:
+          background 140ms var(--dpk-ease),
+          box-shadow 140ms var(--dpk-ease);
+      }
+
+      .field::placeholder {
+        color: var(--dpk-ink-faint);
+        font-style: italic;
+        opacity: 1;
+      }
+
+      /* Resting: a plain, readonly textbox with a click/hover affordance. */
+      .field[readonly] {
+        background: transparent;
+      }
+
+      .field[readonly]:hover {
+        background: var(--dpk-blue-soft);
+        box-shadow:
+          inset 0 -1px 0 var(--dpk-blue),
+          inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
+      }
+
+      .field[readonly]:placeholder-shown {
+        box-shadow: inset 0 -1px 0 var(--dpk-rule-strong);
+      }
+
+      .field[readonly]:placeholder-shown:hover {
+        box-shadow: inset 0 -1px 0 var(--dpk-blue);
+      }
+
+      .field::placeholder,
+      .field[readonly]:placeholder-shown {
+        color: var(--dpk-ink-faint);
+        font-style: italic;
+      }
+
+      /* Editing: a subtle inset ring stands in for a focus ring (no native
+         outline), so the box still reads as "being edited", not "a focused
+         form control" — a deliberate a11y trade-off for seamless editing. */
+      .field:not([readonly]) {
+        background: var(--dpk-paper-raised);
+        box-shadow: inset 0 0 0 1px var(--dpk-blue);
+        animation: dpk-inline-edit-in 140ms var(--dpk-ease) backwards;
+      }
+
+      @keyframes dpk-inline-edit-in {
+        from {
+          opacity: 0;
+        }
+      }
+
+      /* truncate, alone: the box's width is whatever the surrounding layout
+         gives it (often shrunk by a flex ancestor) — never the mirror's full
+         width — and only the field clips with an ellipsis. Clicking to edit
+         changes nothing about the box; focusing it lets the browser scroll
+         the caret into view the same way any truncated text input does. */
+      :host([truncate]:not([wrap]):not([multiline])) .field {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* truncate with wrap or multiline: there is no native ellipsis for
+         several wrapped lines, so the rest state is redefined as a clamp —
+         a fixed number of lines, faded at the edge — instead of a line that
+         pops open on hover. Editing lifts the clamp and the box grows straight
+         down from the same top edge: the first line never moves. */
+      :host([truncate][wrap]) .mirror,
+      :host([truncate][wrap]) .field,
+      :host([truncate][multiline]) .mirror,
+      :host([truncate][multiline]) .field {
+        overflow: hidden;
+        max-height: calc(var(--dpk-inline-edit-lines, 3) * 1.6em);
+      }
+
+      @supports (height: 1lh) {
+        :host([truncate][wrap]) .mirror,
+        :host([truncate][wrap]) .field,
+        :host([truncate][multiline]) .mirror,
+        :host([truncate][multiline]) .field {
+          max-height: calc(var(--dpk-inline-edit-lines, 3) * 1lh);
+        }
+      }
+
+      :host([truncate][wrap]) .field[readonly],
+      :host([truncate][multiline]) .field[readonly] {
+        mask-image: linear-gradient(to bottom, black calc(100% - 1.4em), transparent 100%);
+        -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 1.4em), transparent 100%);
+      }
+
+      /* Once editing removes readonly, the clamp lifts on both layers at once
+         (the box grows; nothing jumps) — :has() keeps this a pure CSS rule
+         instead of a second class the script would have to keep in sync. */
+      .box:has(.field:not([readonly])) .mirror,
+      .box:has(.field:not([readonly])) .field {
+        max-height: none;
+        mask-image: none;
+        -webkit-mask-image: none;
+      }
+
+      /* seamless: no field chrome at all — the text sits exactly where a
+         plain run of text would, in both states. .view is included so the
+         markdown-at-rest case lines up with the field's own zero padding;
+         otherwise the two states would read at different left edges. */
+      :host([seamless]) .mirror,
+      :host([seamless]) .field,
+      :host([seamless]) .view {
+        padding: 0;
+      }
+
+      :host([seamless]) .field[readonly] {
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      :host([seamless]) .field[readonly]:hover {
+        background: transparent;
+      }
+
+      /* seamless, editing: still no border or padding (the text must not
+         move), but a paint-only outline keeps "this is being edited" visible
+         — an outline sits outside the box and never affects layout. */
+      :host([seamless]) .field:not([readonly]) {
+        border-radius: var(--dpk-radius-xs);
+        background: transparent;
+        box-shadow: none;
+        outline: 1px solid var(--dpk-blue);
+        outline-offset: 1px;
+      }
+
+      /* markdown, at rest: rendered HTML, since there is no plain text box
+         that could show bold or a list. The field (raw source) replaces it
+         entirely once editing starts, rather than existing underneath it —
+         same font and block layout are kept as close as the two can get, but
+         the trade-off (a rendered line is not a source line) is real. */
       .view {
         display: block;
         padding: 0 4px;
         border-radius: var(--dpk-radius-xs);
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
         cursor: text;
         transition:
           background 140ms var(--dpk-ease),
@@ -76,96 +251,15 @@ export class DpkInlineEdit extends LitElement {
           inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 22%, transparent);
       }
 
-      /* Formatted text keeps its own line breaks: a break in the source is a <br>. */
-      .view.dpk-prose {
-        white-space: normal;
-      }
-
-      .view[data-empty='true'] {
-        box-shadow: inset 0 -1px 0 var(--dpk-rule-strong);
-        color: var(--dpk-ink-faint);
-        font-style: italic;
-      }
-
-      .view[data-empty='true']:hover {
-        box-shadow: inset 0 -1px 0 var(--dpk-blue);
-      }
-
-      .view[aria-hidden='true'] {
-        visibility: hidden;
-        transition: none;
-      }
-
-      .field {
-        position: absolute;
-        inset: 0;
-        box-sizing: border-box;
-        width: 100%;
-        height: 100%;
-        min-width: 0;
-        margin: 0;
-        padding: 0 4px;
-        border: none;
-        border-radius: var(--dpk-radius-xs);
-        /* No focus ring while editing: the field should look like the text is
-           being edited in place, not like a focused form control (a11y trade-off
-           accepted for this seamless-editing component). */
-        outline: none;
-        background: var(--dpk-paper-raised);
-        box-shadow: inset 0 0 0 1px var(--dpk-blue);
-        font: inherit;
-        line-height: inherit;
-        letter-spacing: inherit;
-        color: inherit;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        overflow: hidden;
-        resize: none;
-        animation: dpk-inline-edit-in 140ms var(--dpk-ease) backwards;
-      }
-
-      .field::placeholder {
-        color: var(--dpk-ink-faint);
-        font-style: italic;
-        opacity: 1;
-      }
-
-      @keyframes dpk-inline-edit-in {
-        from {
-          opacity: 0;
-        }
-      }
-
-      /* Only the visible rest view clips to an ellipsis. The hidden sizer must
-         keep wrapping like the field above it (the plain view's white-space),
-         or editing would collapse the box to one line while the field itself
-         still wraps: the field overflows the box, auto-scrolls to the caret
-         at the end, and the top of the draft is clipped out of view. */
-      :host([truncate]) .view:not([aria-hidden='true']) {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: pre;
-      }
-
-      /* Wrapped, it keeps --dpk-inline-edit-lines lines; the hidden text under a
-         field still sizes the box to the whole draft. */
-      :host([truncate][wrap]) .view:not([aria-hidden='true']) {
+      :host([truncate]) .view {
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: var(--dpk-inline-edit-lines, 3);
-        white-space: pre-wrap;
+        overflow: hidden;
       }
 
-      /* seamless: no field chrome at all — the text is edited where it sits. */
-      :host([seamless]) .view,
-      :host([seamless]) .field {
-        padding: 0;
-      }
-
-      :host([seamless]) .field {
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
+      :host([truncate]:not([wrap]):not([multiline])) .view {
+        -webkit-line-clamp: 1;
       }
     `,
   ];
@@ -177,8 +271,9 @@ export class DpkInlineEdit extends LitElement {
     /** A wrapping field whose value stays one line: Enter commits. */
     wrap: { type: Boolean, reflect: true },
     /**
-     * Ends in an ellipsis where the value does not fit; hovering names the whole value.
-     * One line, or with `wrap` as many as `--dpk-inline-edit-lines` (3 unless set).
+     * At rest, clamps to one line (or, with `wrap`/`multiline`, as many as
+     * `--dpk-inline-edit-lines`, 3 unless set); editing lifts the clamp and
+     * the box grows in place to show the rest.
      */
     truncate: { type: Boolean, reflect: true },
     /** Chromeless: the field looks like the text it edits. */
@@ -237,7 +332,7 @@ export class DpkInlineEdit extends LitElement {
 
   protected override updated(): void {
     if (!this.editing) return;
-    const field = this.renderRoot.querySelector<HTMLInputElement | HTMLTextAreaElement>('.field');
+    const field = this.renderRoot.querySelector<HTMLTextAreaElement>('.field');
     const root = this.renderRoot;
     const active = root instanceof ShadowRoot ? root.activeElement : document.activeElement;
     if (field && active !== field) {
@@ -256,17 +351,11 @@ export class DpkInlineEdit extends LitElement {
     const hint = this.placeholder || m.unset;
     const { editing } = this;
     const text = editing ? this.#draft : this.value;
-    // While editing, the same text element stays underneath, hidden, and keeps
-    // sizing the box: the hint while empty, and a last empty line still takes a line.
-    const shown = text === '' ? hint : editing && text.endsWith('\n') ? `${text}\u200b` : text;
+    const name = this.label || this.placeholder || m.edit;
     if (this.markdown && !editing && text !== '') {
-      // No whitespace around the expression: a newline here would become a real text
-      // node, and `white-space: pre`/`pre-wrap` (truncate) renders it as a blank line,
-      // pushing the rendered markdown down and inflating the box past its real content.
       return html`<span class="box"
         ><div
           class="view dpk-prose"
-          data-empty="false"
           role="button"
           tabindex="0"
           title=${m.clickToEdit}
@@ -277,42 +366,28 @@ export class DpkInlineEdit extends LitElement {
         </div></span
       >`;
     }
+    // While editing, the same text stays on the mirror underneath and keeps
+    // sizing the box: the hint while empty, and a last empty line still takes a
+    // line (a trailing \n alone collapses in most engines' line box math).
+    const mirrorText = text === '' ? hint : text.endsWith('\n') ? `${text}​` : text;
     return html`<span class="box"
-      ><span
-        class="view"
-        data-empty=${String(text === '')}
-        aria-hidden=${editing ? 'true' : nothing}
-        role=${editing ? nothing : 'button'}
-        tabindex=${editing ? nothing : '0'}
-        title=${editing ? nothing : this.truncate && text !== '' ? text : m.clickToEdit}
-        @click=${this.#start}
-        @keydown=${this.#onKeydownView}
-        >${shown}</span
-      >${editing ? this.#renderField(this.label || this.placeholder || m.edit, hint) : nothing}</span
-    >`;
-  }
-
-  #renderField(name: string, hint: string): TemplateResult {
-    return this.multiline || this.wrap
-      ? html`<textarea
-          class="field"
-          rows="1"
-          .value=${live(this.#draft)}
-          placeholder=${hint}
-          aria-label=${name}
-          @input=${this.#onInput}
-          @keydown=${this.#onKeydownField}
-          @blur=${this.#onBlur}
-        ></textarea>`
-      : html`<input
-          class="field"
-          .value=${live(this.#draft)}
-          placeholder=${hint}
-          aria-label=${name}
-          @input=${this.#onInput}
-          @keydown=${this.#onKeydownField}
-          @blur=${this.#onBlur}
-        />`;
+      ><span class="mirror" aria-hidden="true">${mirrorText}</span
+      ><textarea
+        class="field"
+        ?readonly=${!editing}
+        rows="1"
+        wrap=${this.multiline || this.wrap ? 'soft' : 'off'}
+        .value=${live(text)}
+        placeholder=${hint}
+        aria-label=${name}
+        title=${editing ? nothing : m.clickToEdit}
+        @mousedown=${this.#onFieldMousedown}
+        @click=${this.#onFieldClick}
+        @input=${this.#onInput}
+        @keydown=${this.#onKeydownField}
+        @blur=${this.#onBlur}
+      ></textarea>
+    </span>`;
   }
 
   #start = (event: Event): void => {
@@ -332,8 +407,23 @@ export class DpkInlineEdit extends LitElement {
     }
   };
 
+  #onFieldMousedown = (event: MouseEvent): void => {
+    // Readonly still lets the browser place a native caret/selection on
+    // mousedown; suppressed only at rest, so the click-to-end-of-text logic
+    // below decides the caret instead. While editing, a normal click should
+    // place the caret exactly where the pointer landed, as any textarea does.
+    if (!this.editing) event.preventDefault();
+  };
+
+  #onFieldClick = (event: Event): void => {
+    event.stopPropagation();
+    if (this.editing) return;
+    this.#draft = this.value;
+    this.editing = true;
+  };
+
   #onInput = (event: Event): void => {
-    const target = elementOf(event.target, HTMLInputElement) ?? elementOf(event.target, HTMLTextAreaElement);
+    const target = elementOf(event.target, HTMLTextAreaElement);
     if (target === null) return;
     this.#draft = target.value;
     this.requestUpdate();
@@ -341,21 +431,33 @@ export class DpkInlineEdit extends LitElement {
 
   #onKeydownField = (event: KeyboardEvent): void => {
     if (event.isComposing) return;
+    if (!this.editing) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        this.#draft = this.value;
+        this.editing = true;
+      }
+      return;
+    }
     if (event.key === 'Escape') {
       event.preventDefault();
       this.#draft = this.value;
       this.editing = false;
       return;
     }
-    if (event.key === 'Enter' && (!this.multiline || this.wrap || event.metaKey || event.ctrlKey)) {
+    if (event.key === 'Enter') {
+      // Shift+Enter inserts a line break when multiline allows one; plain
+      // Enter always commits, the same as blur does.
+      if (event.shiftKey && this.multiline) return;
       event.preventDefault();
+      if (event.shiftKey) return;
       this.#commit();
     }
   };
 
   #onBlur = (event: FocusEvent): void => {
-    const field = event.currentTarget;
-    if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
+    const field = elementOf(event.currentTarget, HTMLTextAreaElement);
+    if (field === null) return;
     const version = this.#connectionVersion;
     const { selectionStart, selectionEnd } = field;
     // insertBefore (used by keyed lists) blurs a focused descendant before its

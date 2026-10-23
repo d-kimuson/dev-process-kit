@@ -109,8 +109,8 @@ describe('<dpk-page>', () => {
   /** The crumb's own text lives in `<dpk-inline-edit>`'s shadow root, not as a light-DOM text node. */
   const crumbLabel = (page: PageElement): string => {
     const edit = page.renderRoot.querySelector('.dpk-page-crumb dpk-inline-edit');
-    const view = edit?.shadowRoot?.querySelector('.view');
-    return view?.textContent?.trim() ?? '';
+    const field = edit?.shadowRoot?.querySelector<HTMLTextAreaElement>('.field');
+    return field?.value.trim() ?? '';
   };
 
   it('adds a board from the switcher as a change of the draft', async () => {
@@ -358,13 +358,14 @@ describe('<dpk-page>', () => {
     };
     const startEditing = (page: PageElement): void => {
       const edit = crumbEdit(page);
-      const view = edit.shadowRoot?.querySelector<HTMLElement>('.view');
-      if (!view) throw new Error('no crumb view');
-      view.click();
+      const resting = edit.shadowRoot?.querySelector<HTMLElement>('.field');
+      if (!resting) throw new Error('no crumb field');
+      resting.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true, cancelable: true }));
+      resting.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
     };
-    const field = (page: PageElement): HTMLInputElement => {
+    const field = (page: PageElement): HTMLTextAreaElement => {
       const edit = crumbEdit(page);
-      const input = edit.shadowRoot?.querySelector<HTMLInputElement>('.field');
+      const input = edit.shadowRoot?.querySelector<HTMLTextAreaElement>('.field');
       if (!input) throw new Error('no crumb field');
       return input;
     };

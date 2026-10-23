@@ -1,6 +1,6 @@
 # dpk-inline-edit
 
-Small inline editor used throughout every template for "local edits": a title, a description, a label. Click (or Enter/Space) turns the shown text into a field in place, keeping its position and type scale; Enter (or blur) commits, Escape cancels. It never writes anything itself — it only emits `dpk-commit`, so the edit still travels through the host's own draft action.
+Small inline editor used throughout every template for "local edits": a title, a description, a label. The shown text and the field are the same element: a `<textarea>` that is `readonly` at rest, so editing never swaps in a different box, font, or wrapping — only a caret appears. Click (or Enter/Space) starts editing in place; Enter (or blur) commits, Escape cancels. It never writes anything itself — it only emits `dpk-commit`, so the edit still travels through the host's own draft action.
 
 ```html
 <dpk-inline-edit value="Sign in with Google" placeholder="Untitled"></dpk-inline-edit>
@@ -16,16 +16,16 @@ Small inline editor used throughout every template for "local edits": a title, a
 
 ## Contract
 
-| Property/attribute | Type                 | Meaning                                                                                                                                                                           |
-| ------------------ | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `value`            | `string`             | The committed text. The host owns it — a commit does not update `value` itself; the host does, once it applies the change.                                                        |
-| `placeholder`      | `string`             | Shown (in italics) in place of an empty value, and as the field's own placeholder while editing.                                                                                  |
-| `multiline`        | `boolean`            | A `<textarea>` instead of an `<input>`; Enter inserts a line break, Ctrl/Cmd+Enter commits.                                                                                       |
-| `wrap`             | `boolean` (reflects) | A wrapping field whose value stays one line: it grows across several lines while editing, but line breaks are stripped on commit, and Enter commits rather than inserting one.    |
-| `truncate`         | `boolean` (reflects) | Ends in an ellipsis where the value does not fit while not editing; hovering names the whole value. One line, or with `wrap` as many as `--dpk-inline-edit-lines` (3 unless set). |
-| `seamless`         | `boolean` (reflects) | Chromeless: the field looks like the text it edits, with no border or background.                                                                                                 |
-| `markdown`         | `boolean`            | Shows the committed value as Markdown while not editing; the field itself always edits the plain source.                                                                          |
-| `label`            | `string`             | The field's accessible name while editing; falls back to `placeholder`.                                                                                                           |
+| Property/attribute | Type                 | Meaning                                                                                                                                                                                                                                                                   |
+| ------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `value`            | `string`             | The committed text. The host owns it — a commit does not update `value` itself; the host does, once it applies the change.                                                                                                                                                |
+| `placeholder`      | `string`             | Shown (in italics) in place of an empty value, and as the field's own placeholder while editing.                                                                                                                                                                          |
+| `multiline`        | `boolean`            | Allows real line breaks: Shift+Enter inserts one, plain Enter still commits.                                                                                                                                                                                              |
+| `wrap`             | `boolean` (reflects) | A wrapping field whose value stays one line: it grows across several lines while editing, but line breaks are stripped on commit, and (without `multiline`) Enter never inserts one.                                                                                      |
+| `truncate`         | `boolean` (reflects) | Clips the value while not editing, in place: one line with an ellipsis on its own, or — combined with `wrap`/`multiline` — a fixed number of lines (`--dpk-inline-edit-lines`, 3 unless set) with a fade at the bottom, that grows downward in place once editing starts. |
+| `seamless`         | `boolean` (reflects) | Chromeless: the field looks like the text it edits, with no border or background.                                                                                                                                                                                         |
+| `markdown`         | `boolean`            | Shows the committed value as Markdown while not editing; the field itself always edits the plain source.                                                                                                                                                                  |
+| `label`            | `string`             | The field's accessible name while editing; falls back to `placeholder`.                                                                                                                                                                                                   |
 
 | Method           | Meaning                                                                                                                                                             |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

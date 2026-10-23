@@ -88,12 +88,12 @@ describe('keeping unsent text through a reload', () => {
   };
 
   /** Opens the step name editor and returns its field, focused as a click would. */
-  const openStepName = async (el: DpkTemplatePrototype): Promise<HTMLInputElement> => {
+  const openStepName = async (el: DpkTemplatePrototype): Promise<HTMLTextAreaElement> => {
     const editor = el.shadowRoot?.querySelector<DpkInlineEdit>('.detail dpk-inline-edit');
     if (!editor) throw new Error('no step name editor');
     editor.startEditing();
     await editor.updateComplete;
-    const field = editor.shadowRoot?.querySelector('input');
+    const field = editor.shadowRoot?.querySelector('textarea');
     if (!field) throw new Error('no field');
     await editor.updateComplete;
     return field;

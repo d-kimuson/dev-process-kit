@@ -5,7 +5,31 @@ import { DpkInlineEdit, defineInlineEdit } from './index';
 
 defineInlineEdit();
 afterEach(() => document.body.replaceChildren());
+
+/** The one box a reader sees, at rest or while editing. */
+const field = (editor: DpkInlineEdit): HTMLTextAreaElement | null =>
+  editor.shadowRoot?.querySelector<HTMLTextAreaElement>('.box > .field') ?? null;
+
+/** The invisible twin that sizes the box from real text layout. */
+const mirror = (editor: DpkInlineEdit): HTMLElement | null =>
+  editor.shadowRoot?.querySelector<HTMLElement>('.box > .mirror') ?? null;
+
 describe('inline editing', () => {
+  it('is the very same element at rest and while editing: nothing swaps, only readonly toggles', async () => {
+    const editor = new DpkInlineEdit();
+    editor.value = 'a name long enough to wrap onto two lines';
+    document.body.append(editor);
+    await editor.updateComplete;
+    const resting = field(editor);
+    if (!resting) throw new Error('missing field');
+    expect(resting.readOnly).toBe(true);
+    editor.startEditing();
+    await editor.updateComplete;
+    expect(field(editor)).toBe(resting);
+    expect(resting.readOnly).toBe(false);
+    expect(resting.value).toBe('a name long enough to wrap onto two lines');
+  });
+
   it('preserves an unfinished draft and selection when a keyed move blurs the field', async () => {
     const editor = new DpkInlineEdit();
     editor.value = 'old';
@@ -13,7 +37,7 @@ describe('inline editing', () => {
     await editor.updateComplete;
     editor.startEditing();
     await editor.updateComplete;
-    const input = editor.shadowRoot?.querySelector('input');
+    const input = field(editor);
     if (!input) throw new Error('missing editor');
     input.value = 'unfinished';
     input.dispatchEvent(new Event('input'));
@@ -32,6 +56,7 @@ describe('inline editing', () => {
     await Promise.resolve();
     expect(commit).toHaveBeenCalledOnce();
   });
+
   it('does not interpret IME Enter or Escape as editor commands', async () => {
     const editor = new DpkInlineEdit();
     editor.value = 'old';
@@ -39,7 +64,7 @@ describe('inline editing', () => {
     await editor.updateComplete;
     editor.startEditing();
     await editor.updateComplete;
-    const input = editor.shadowRoot?.querySelector('input');
+    const input = field(editor);
     if (!input) throw new Error('missing editor');
     input.value = '変換中';
     input.dispatchEvent(new Event('input'));
@@ -49,15 +74,12 @@ describe('inline editing', () => {
       input.dispatchEvent(new KeyboardEvent('keydown', { key, isComposing: true }));
     await editor.updateComplete;
     expect(commit).not.toHaveBeenCalled();
-    expect(editor.shadowRoot?.querySelector('input')).toBe(input);
+    expect(field(editor)).toBe(input);
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     expect(commit).toHaveBeenCalledOnce();
   });
-  /** What the box is sized by while editing: the hidden copy of the text under the field. */
-  const sizer = (editor: DpkInlineEdit): HTMLElement | null | undefined =>
-    editor.shadowRoot?.querySelector<HTMLElement>('.box > .view[aria-hidden="true"]');
 
-  it('edits over a hidden copy of the text, so the box keeps its size and grows only with the draft', async () => {
+  it('mirrors the shown text exactly, so the box only ever grows with the draft, never jumps', async () => {
     for (const mode of ['line', 'wrap', 'multiline'] as const) {
       const editor = new DpkInlineEdit();
       editor.value = 'a name long enough to wrap onto two lines';
@@ -65,18 +87,15 @@ describe('inline editing', () => {
       editor.multiline = mode === 'multiline';
       document.body.append(editor);
       await editor.updateComplete;
-      const view = editor.shadowRoot?.querySelector('.box > .view');
+      expect(mirror(editor)?.textContent).toBe('a name long enough to wrap onto two lines');
       editor.startEditing();
       await editor.updateComplete;
-      // The very element that showed the text stays in place and keeps the box.
-      expect(sizer(editor)).toBe(view);
-      expect(sizer(editor)?.textContent).toBe('a name long enough to wrap onto two lines');
-      const field = editor.shadowRoot?.querySelector<HTMLInputElement | HTMLTextAreaElement>('.box > .field');
-      if (!field) throw new Error(`missing field (${mode})`);
-      field.value = 'short';
-      field.dispatchEvent(new Event('input'));
+      const input = field(editor);
+      if (!input) throw new Error(`missing field (${mode})`);
+      input.value = 'short';
+      input.dispatchEvent(new Event('input'));
       await editor.updateComplete;
-      expect(sizer(editor)?.textContent).toBe('short');
+      expect(mirror(editor)?.textContent).toBe('short');
       editor.remove();
     }
   });
@@ -90,34 +109,33 @@ describe('inline editing', () => {
     await editor.updateComplete;
     editor.startEditing();
     await editor.updateComplete;
-    const field = editor.shadowRoot?.querySelector('textarea');
-    if (!field) throw new Error('missing field');
-    expect(field.placeholder).toBe('Add a note');
-    field.value = '';
-    field.dispatchEvent(new Event('input'));
+    const input = field(editor);
+    if (!input) throw new Error('missing field');
+    expect(input.placeholder).toBe('Add a note');
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
     await editor.updateComplete;
-    expect(sizer(editor)?.textContent).toBe('Add a note');
-    field.value = 'one\n';
-    field.dispatchEvent(new Event('input'));
+    expect(mirror(editor)?.textContent).toBe('Add a note');
+    input.value = 'one\n';
+    input.dispatchEvent(new Event('input'));
     await editor.updateComplete;
-    expect(sizer(editor)?.textContent).toBe('one\n\u200b');
+    expect(mirror(editor)?.textContent).toBe('one\n​');
   });
 
-  it('shows the text again, with the edit committed, once the field leaves', async () => {
+  it('shows the text again, read-only, once the edit commits', async () => {
     const editor = new DpkInlineEdit();
     editor.value = 'old';
     document.body.append(editor);
     await editor.updateComplete;
     editor.startEditing();
     await editor.updateComplete;
-    const input = editor.shadowRoot?.querySelector('input');
+    const input = field(editor);
     if (!input) throw new Error('missing field');
     input.value = 'new';
     input.dispatchEvent(new Event('input'));
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await editor.updateComplete;
-    expect(editor.shadowRoot?.querySelector('.field')).toBeNull();
-    expect(editor.shadowRoot?.querySelector('.view')?.getAttribute('aria-hidden')).toBeNull();
+    expect(field(editor)?.readOnly).toBe(true);
   });
 
   it('commits the typed value on Enter, the same as it does on blur', async () => {
@@ -127,7 +145,7 @@ describe('inline editing', () => {
     await editor.updateComplete;
     editor.startEditing();
     await editor.updateComplete;
-    const input = editor.shadowRoot?.querySelector('input');
+    const input = field(editor);
     if (!input) throw new Error('missing field');
     input.value = 'new';
     input.dispatchEvent(new Event('input'));
@@ -139,20 +157,97 @@ describe('inline editing', () => {
     expect(event instanceof CustomEvent ? event.detail : null).toEqual({ value: 'new' });
   });
 
+  it('inserts a line break on Shift+Enter when multiline, instead of committing', async () => {
+    const editor = new DpkInlineEdit();
+    editor.value = 'old';
+    editor.multiline = true;
+    document.body.append(editor);
+    await editor.updateComplete;
+    editor.startEditing();
+    await editor.updateComplete;
+    const input = field(editor);
+    if (!input) throw new Error('missing field');
+    const commit = vi.fn();
+    editor.addEventListener('dpk-commit', commit);
+    const shiftEnter = new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, cancelable: true });
+    input.dispatchEvent(shiftEnter);
+    expect(shiftEnter.defaultPrevented).toBe(false);
+    expect(commit).not.toHaveBeenCalled();
+    // jsdom does not perform the native "insert a newline" that a real browser
+    // would on the un-prevented keydown above; simulate its result directly.
+    input.value = 'old\nmore';
+    input.dispatchEvent(new Event('input'));
+    const plainEnter = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+    input.dispatchEvent(plainEnter);
+    expect(plainEnter.defaultPrevented).toBe(true);
+    expect(commit).toHaveBeenCalledOnce();
+  });
+
+  it('does not insert a line break on Shift+Enter without multiline', async () => {
+    const editor = new DpkInlineEdit();
+    editor.value = 'old';
+    editor.wrap = true;
+    document.body.append(editor);
+    await editor.updateComplete;
+    editor.startEditing();
+    await editor.updateComplete;
+    const input = field(editor);
+    if (!input) throw new Error('missing field');
+    const commit = vi.fn();
+    editor.addEventListener('dpk-commit', commit);
+    const shiftEnter = new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, cancelable: true });
+    input.dispatchEvent(shiftEnter);
+    expect(shiftEnter.defaultPrevented).toBe(true);
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('restores the original value on Escape without committing', async () => {
+    const editor = new DpkInlineEdit();
+    editor.value = 'old';
+    document.body.append(editor);
+    await editor.updateComplete;
+    editor.startEditing();
+    await editor.updateComplete;
+    const input = field(editor);
+    if (!input) throw new Error('missing field');
+    input.value = 'changed';
+    input.dispatchEvent(new Event('input'));
+    const commit = vi.fn();
+    editor.addEventListener('dpk-commit', commit);
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    await editor.updateComplete;
+    expect(commit).not.toHaveBeenCalled();
+    expect(field(editor)?.readOnly).toBe(true);
+    expect(field(editor)?.value).toBe('old');
+  });
+
+  it('never shows a focus-ring outline, only a subtle inset border while editing', () => {
+    const cssText = (DpkInlineEdit.styles as unknown as { cssText: string }[]).map((style) => style.cssText).join('\n');
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(cssText);
+    const fieldRule = Array.from(sheet.cssRules).find((rule) => (rule as CSSStyleRule).selectorText === '.field') as
+      | CSSStyleRule
+      | undefined;
+    expect(fieldRule?.style.outline).toBe('none');
+  });
+
   it('puts the caret at the end of the text instead of selecting it all, so typing appends', async () => {
     const editor = new DpkInlineEdit();
     editor.value = 'Googleでログイン';
     document.body.append(editor);
     await editor.updateComplete;
-    const view = editor.shadowRoot?.querySelector<HTMLElement>('.view');
-    if (!view) throw new Error('missing view');
-    view.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    const resting = field(editor);
+    if (!resting) throw new Error('missing field');
+    resting.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true, cancelable: true }));
+    resting.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
     await editor.updateComplete;
-    const input = editor.shadowRoot?.querySelector('input');
+    const input = field(editor);
     if (!input) throw new Error('missing field');
+    expect(input.readOnly).toBe(false);
     expect(input.selectionStart).toBe(input.value.length);
     expect(input.selectionEnd).toBe(input.value.length);
   });
+
   describe('markdown', () => {
     const mountMarkdown = async (value: string): Promise<DpkInlineEdit> => {
       const editor = new DpkInlineEdit();
@@ -172,8 +267,8 @@ describe('inline editing', () => {
 
       editor.startEditing();
       await editor.updateComplete;
-      expect(editor.shadowRoot?.querySelector('textarea')?.value).toBe('**Note**\n- one\n- two');
-      expect(sizer(editor)?.textContent).toBe('**Note**\n- one\n- two');
+      expect(field(editor)?.value).toBe('**Note**\n- one\n- two');
+      expect(mirror(editor)?.textContent).toBe('**Note**\n- one\n- two');
     });
 
     it('never runs markup in the value', async () => {
@@ -189,50 +284,58 @@ describe('inline editing', () => {
       link?.addEventListener('click', (event) => event.preventDefault());
       link?.click();
       await editor.updateComplete;
-      expect(editor.shadowRoot?.querySelector('textarea')).toBeNull();
+      expect(field(editor)).toBeNull();
 
       editor.shadowRoot?.querySelector<HTMLElement>('.view')?.click();
       await editor.updateComplete;
-      expect(editor.shadowRoot?.querySelector('textarea')).not.toBeNull();
+      expect(field(editor)).not.toBeNull();
     });
 
     it('shows the placeholder while there is nothing to format', async () => {
       const editor = await mountMarkdown('');
       editor.placeholder = 'Add a note';
       await editor.updateComplete;
-      const view = editor.shadowRoot?.querySelector('.view');
-      expect(view?.textContent?.trim()).toBe('Add a note');
-      expect(view?.getAttribute('data-empty')).toBe('true');
+      expect(editor.shadowRoot?.querySelector('.view')).toBeNull();
+      expect(field(editor)?.placeholder).toBe('Add a note');
     });
   });
-  it('names the whole value on a truncated view, where the line may end in an ellipsis', async () => {
+
+  it('clamps a truncated multi-line field at rest, via a CSS rule keyed on [truncate][wrap]/[multiline]', async () => {
     const editor = new DpkInlineEdit();
-    editor.value = 'a label far too long for its chip';
+    editor.value = 'a name long enough to wrap onto two lines';
     editor.truncate = true;
+    editor.wrap = true;
     document.body.append(editor);
     await editor.updateComplete;
     expect(editor.hasAttribute('truncate')).toBe(true);
-    expect(editor.shadowRoot?.querySelector('.view')?.getAttribute('title')).toBe('a label far too long for its chip');
+    const cssText = (DpkInlineEdit.styles as unknown as { cssText: string }[]).map((style) => style.cssText).join('\n');
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(cssText);
+    const clampRule = Array.from(sheet.cssRules).some((rule) => {
+      const style = rule as CSSStyleRule;
+      return style.selectorText?.includes('[truncate][wrap]') && style.style.maxHeight !== '';
+    });
+    const liftRule = Array.from(sheet.cssRules).some((rule) => {
+      const style = rule as CSSStyleRule;
+      return style.selectorText?.includes(':has(.field:not([readonly]))') && style.style.maxHeight === 'none';
+    });
+    // The clamp (rest) and its lift (editing) are plain CSS, exercised for real
+    // in browser QA — jsdom does not evaluate :has() or compute max-height here.
+    expect(clampRule).toBe(true);
+    expect(liftRule).toBe(true);
   });
 
-  it('never forces the hidden sizer onto one line while truncated, or editing would clip the draft', () => {
-    // Regression for the editor box collapsing to one line (text cut off and
-    // pushed out of view) the moment `truncate` combines with `wrap` or
-    // `multiline`: the hidden copy that sizes the box must keep wrapping
-    // like the field above it, so only the visible rest view may switch to
-    // a single clipped line.
-    const sheet = new CSSStyleSheet();
+  it('keeps a single-line truncated field permanently clipped with an ellipsis, not clamped by height', () => {
     const cssText = (DpkInlineEdit.styles as unknown as { cssText: string }[]).map((style) => style.cssText).join('\n');
+    const sheet = new CSSStyleSheet();
     sheet.replaceSync(cssText);
-    const collapsesToOneLine = Array.from(sheet.cssRules).some((rule) => {
+    const ellipsisRule = Array.from(sheet.cssRules).some((rule) => {
       const style = rule as CSSStyleRule;
       return (
-        style.selectorText?.includes('.view') &&
-        style.selectorText.includes('[truncate]') &&
-        !style.selectorText.includes(':not([aria-hidden') &&
-        style.style.whiteSpace === 'pre'
+        style.selectorText?.includes('[truncate]:not([wrap]):not([multiline])') &&
+        style.style.textOverflow === 'ellipsis'
       );
     });
-    expect(collapsesToOneLine).toBe(false);
+    expect(ellipsisRule).toBe(true);
   });
 });
