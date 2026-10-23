@@ -146,7 +146,7 @@ Tables are laid out bottom-up, as nested boxes: Bounded Context (a contiguous, f
 2. Inside each Bounded Context, its aggregate boxes and any loose (aggregate-less) tables are ordered by the edges that cross between them, then wrapped into rows or a 2D grid so the BC box comes out close to square instead of a tall strip.
 3. The Bounded Context boxes are packed in 2D — ordered by how heavily they reference each other, so the pairs with the most relations end up adjacent — aiming for a wide-ish overall bounding box rather than one long column.
 
-Cross-box edges leave and enter at the box's border rather than cutting across an unrelated table. A table dragged out of its computed position keeps that position across a re-layout (`position` override), and the same data always lays out into the same positions otherwise (deterministic). Picking a Bounded Context from the filter (see [Reading it](#reading-it)) only dims the rest and refocuses the view — it never moves a table.
+Cross-box edges leave and enter at the box's border rather than cutting across an unrelated table or through an aggregate/Bounded Context frame they do not join. A table dragged out of its computed position keeps that position across a re-layout (`position` override), and the same data always lays out into the same positions otherwise (deterministic). Picking a Bounded Context from the filter (see [Reading it](#reading-it)) only dims the rest and refocuses the view — it never moves a table.
 
 Bounded Context and aggregate labels are counter-scaled so they stay legible at the zoomed-out fit level a large diagram starts at, with their own reserved clearance so they don't run into a nested label below them.
 

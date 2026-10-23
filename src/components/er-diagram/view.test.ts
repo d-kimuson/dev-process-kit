@@ -5,17 +5,36 @@ import { parseErData, type ErTableDiff } from './model';
 import {
   columnIcon,
   detourRoute,
+  type ErBox,
   editorVerdict,
   fieldChanges,
   fieldDetail,
   highlightOf,
   relationPath,
+  relationRoute,
   resumeEditor,
   roundedPath,
   typeMenu,
   typeSuggestions,
   type ColumnEditor,
 } from './view';
+
+/** Whether any segment of `points` passes through `box`'s open interior. */
+const routeHitsBox = (points: readonly { readonly x: number; readonly y: number }[], box: ErBox): boolean =>
+  points.some((p, i) => {
+    const prev = points[i - 1];
+    if (prev === undefined) return false;
+    if (prev.x === p.x) {
+      const top = Math.min(prev.y, p.y);
+      const bottom = Math.max(prev.y, p.y);
+      return (
+        prev.x > box.x && prev.x < box.x + box.width && Math.max(box.y, top) < Math.min(box.y + box.height, bottom)
+      );
+    }
+    const left = Math.min(prev.x, p.x);
+    const right = Math.max(prev.x, p.x);
+    return prev.y > box.y && prev.y < box.y + box.height && Math.max(box.x, left) < Math.min(box.x + box.width, right);
+  });
 
 const m = erDiagramMessages('en');
 
@@ -335,13 +354,15 @@ describe('relationPath', () => {
 describe('detourRoute', () => {
   const start = { x: 0, y: 100 };
 
-  it('steps once, halfway, between two neighbouring tables', () => {
-    expect(detourRoute(start, { x: 200, y: 160 }, [], 20)).toEqual([
-      start,
-      { x: 100, y: 100 },
-      { x: 100, y: 160 },
-      { x: 200, y: 160 },
-    ]);
+  // Behavioural assertions, not exact coordinates: `detourRoute` delegates to
+  // the general router in `lib/layout` (see `orthogonal-router.test.ts` for
+  // its own, thorough coverage), so this only has to prove the delegation —
+  // the result never clips a table and always starts/ends at the given ports.
+
+  it('reaches a port not level with the start without crossing anything, when nothing is in the way', () => {
+    const route = detourRoute(start, { x: 200, y: 160 }, [], 20);
+    expect(route[0]).toEqual(start);
+    expect(route.at(-1)).toEqual({ x: 200, y: 160 });
   });
 
   it('runs straight when both ends are level and nothing is in the way', () => {
@@ -349,31 +370,95 @@ describe('detourRoute', () => {
     expect(detourRoute(start, { x: 800, y: 100 }, [box], 20)).toEqual([start, { x: 800, y: 100 }]);
   });
 
-  it('passes a table in a layer between, through the gap nearest its way', () => {
-    // The table spans y 40–260 in the layer between x 300 and 500.
+  it('detours around a table in the way instead of crossing it', () => {
     const box = { x: 300, y: 40, width: 200, height: 220 };
-    expect(detourRoute(start, { x: 800, y: 40 }, [box], 20)).toEqual([
-      start,
-      { x: 150, y: 100 },
-      { x: 150, y: 20 },
-      { x: 650, y: 20 },
-      { x: 650, y: 40 },
-      { x: 800, y: 40 },
-    ]);
+    const route = detourRoute(start, { x: 800, y: 40 }, [box], 20);
+    expect(route[0]).toEqual(start);
+    expect(route.at(-1)).toEqual({ x: 800, y: 40 });
+    expect(routeHitsBox(route, box)).toBe(false);
   });
 
-  it('keeps clear of every table stacked in that layer', () => {
+  it('keeps clear of every table stacked in the way', () => {
     const upper = { x: 300, y: 0, width: 200, height: 90 };
     const lower = { x: 300, y: 130, width: 200, height: 200 };
-    // The gap between them (90–130) is the nearest free lane, 20 from each.
-    expect(detourRoute(start, { x: 800, y: 100 }, [upper, lower], 20)).toEqual([
-      start,
-      { x: 150, y: 100 },
-      { x: 150, y: 110 },
-      { x: 650, y: 110 },
-      { x: 650, y: 100 },
-      { x: 800, y: 100 },
-    ]);
+    const route = detourRoute(start, { x: 800, y: 100 }, [upper, lower], 20);
+    expect(routeHitsBox(route, upper)).toBe(false);
+    expect(routeHitsBox(route, lower)).toBe(false);
+  });
+
+  it('detours around a table even when the ports are not left-to-right (the compound-layout case)', () => {
+    // A table placed squarely between a port below it and one above and to the
+    // side: the case the old column-based detour (which assumed start.x <=
+    // end.x) had no answer for, and the one that let relation lines cut
+    // through unrelated tables in the 2D Bounded Context pack.
+    const box = { x: 100, y: 100, width: 200, height: 200 };
+    const route = detourRoute({ x: 150, y: 350 }, { x: 250, y: 50 }, [box], 10);
+    expect(routeHitsBox(route, box)).toBe(false);
+  });
+});
+
+describe('relationRoute', () => {
+  const tables = [
+    { id: 'a', box: { x: 0, y: 0, width: 100, height: 40 } },
+    { id: 'b', box: { x: 300, y: 0, width: 100, height: 40 } },
+    { id: 'c', box: { x: 150, y: 0, width: 80, height: 200 } }, // sits between a and b
+  ];
+
+  it('detours the route between two tables around any other visible table', () => {
+    const points = [
+      { x: 100, y: 20 },
+      { x: 300, y: 20 },
+    ];
+    const route = relationRoute({ from: 'a', to: 'b' }, points, tables, 20);
+    expect(routeHitsBox(route, tables[2]!.box)).toBe(false);
+  });
+
+  it('detours around a frame box it does not belong to', () => {
+    const d = { id: 'd', box: { x: 400, y: 0, width: 100, height: 40 } };
+    const points = [
+      { x: 100, y: 20 },
+      { x: 400, y: 20 },
+    ];
+    const frame = { box: { x: 200, y: 0, width: 100, height: 40 }, members: ['c'] };
+    const route = relationRoute({ from: 'a', to: 'd' }, points, [tables[0]!, d], 20, [frame]);
+    expect(routeHitsBox(route, frame.box)).toBe(false);
+  });
+
+  it('does not detour around a frame that contains one of the relation’s own endpoints', () => {
+    const points = [
+      { x: 100, y: 20 },
+      { x: 150, y: 20 },
+    ];
+    // The frame spans both endpoints' tables (a, c), so it must not be
+    // charged as an obstacle even though the direct route crosses its box.
+    const frame = { box: { x: 50, y: 0, width: 150, height: 40 }, members: ['a', 'c'] };
+    expect(relationRoute({ from: 'a', to: 'c' }, points, [tables[0]!, tables[2]!], 20, [frame])).toEqual(points);
+  });
+
+  it('never treats the relation’s own endpoint tables as obstacles', () => {
+    const points = [
+      { x: 100, y: 20 },
+      { x: 150, y: 20 },
+    ];
+    // a and c would collide with each other if either were passed through as an obstacle;
+    // excluding both endpoints means the direct route is returned untouched.
+    expect(relationRoute({ from: 'a', to: 'c' }, points, tables, 20)).toEqual(points);
+  });
+
+  it('leaves a self-reference’s route untouched', () => {
+    const points = [
+      { x: 100, y: 10 },
+      { x: 120, y: 10 },
+      { x: 120, y: 30 },
+      { x: 10, y: 30 },
+      { x: 10, y: 20 },
+      { x: 0, y: 20 },
+    ];
+    expect(relationRoute({ from: 'a', to: 'a' }, points, tables, 20)).toBe(points);
+  });
+
+  it('returns the raw points unchanged when there is no start or end to route between', () => {
+    expect(relationRoute({ from: 'a', to: 'b' }, [], tables, 20)).toEqual([]);
   });
 });
 

@@ -2,6 +2,8 @@ import type { LayoutPoint } from '../../lib/layout/layered';
 import type { ErDiagramMessages } from './messages';
 import type { ErCardinality, ErData, ErField, ErFieldDiff, ErRelation, ErTableDiff } from './model';
 
+import { routeAroundObstacles } from '../../lib/layout/orthogonal-router';
+
 /**
  * Presentation of a table card's rows and of the column editor, apart from
  * how the element renders them.
@@ -321,50 +323,48 @@ export const boundedContextGroups = (
   }));
 
 /**
- * A forward relation's orthogonal route from the referenced column's right
- * edge to the FK column's left edge that never crosses a table on the way.
- * In each layer of tables between them the line keeps its height when that
- * is clear, and otherwise moves to the free lane (at least `margin` from any
- * table) costing the least detour toward its end. Each change of height
- * happens halfway across the gap before that layer, and the last one halfway
- * before the FK table.
+ * A relation's orthogonal route between two ports that never crosses a table
+ * on the way, for ports in any relative position — not only the common
+ * left-to-right case. Delegates to the generic, direction-agnostic router in
+ * `lib/layout`, so this is the one and only place in the ER view that decides
+ * how a line actually bends around obstacles.
  */
 export const detourRoute = (
   start: LayoutPoint,
   end: LayoutPoint,
   boxes: readonly ErBox[],
   margin: number,
+): readonly LayoutPoint[] => routeAroundObstacles(start, end, boxes, margin);
+
+/**
+ * The relation's actual drawn route: the ports from the initial layout
+ * (`points[0]`/`points.at(-1)`), then detoured around every other visible
+ * table — and every aggregate/Bounded Context frame it does not belong to —
+ * so the line never runs through a table it does not join, nor cuts through
+ * a frame that is not its own. A self-reference (a field referencing its own
+ * table) keeps its initial loop unchanged — `detourRoute` only knows how to
+ * route between two different points.
+ *
+ * Shared by the live view (`element.ts`'s `#route`) and the layout-complexity
+ * bench, so the metric always scores exactly what the view draws.
+ */
+export const relationRoute = (
+  relation: { readonly from: string; readonly to: string },
+  points: readonly LayoutPoint[],
+  tables: readonly { readonly id: string; readonly box: ErBox }[],
+  margin: number,
+  frames: readonly { readonly box: ErBox; readonly members: readonly string[] }[] = [],
 ): readonly LayoutPoint[] => {
-  const between = boxes.filter((box) => box.x >= start.x && box.x + box.width <= end.x);
-  const layers: ErBox[][] = [];
-  for (const box of [...between].sort((a, b) => a.x - b.x)) {
-    const layer = layers.find((group) =>
-      group.some((other) => box.x < other.x + other.width && other.x < box.x + box.width),
-    );
-    if (layer) layer.push(box);
-    else layers.push([box]);
-  }
-  const points: LayoutPoint[] = [start];
-  let x = start.x;
-  let y = start.y;
-  const step = (channel: number, to: number) => {
-    if (to === y) return;
-    points.push({ x: channel, y }, { x: channel, y: to });
-    y = to;
-  };
-  for (const layer of layers) {
-    const left = Math.min(...layer.map((box) => box.x));
-    const right = Math.max(...layer.map((box) => box.x + box.width));
-    const free = (lane: number) => layer.every((box) => lane <= box.y - margin || lane >= box.y + box.height + margin);
-    const lanes = [y, end.y, ...layer.flatMap((box) => [box.y - margin, box.y + box.height + margin])].filter(free);
-    const cost = (lane: number) => Math.abs(lane - y) + Math.abs(lane - end.y);
-    const lane = lanes.reduce((best, next) => (cost(next) < cost(best) ? next : best), lanes[0] ?? y);
-    step((x + left) / 2, lane);
-    x = right;
-  }
-  step((x + end.x) / 2, end.y);
-  points.push(end);
-  return points;
+  const start = points[0];
+  const end = points.at(-1);
+  if (start === undefined || end === undefined || relation.from === relation.to) return points;
+  const tableObstacles = tables
+    .filter((table) => table.id !== relation.from && table.id !== relation.to)
+    .map((t) => t.box);
+  const frameObstacles = frames.flatMap((frame) =>
+    frame.members.includes(relation.from) || frame.members.includes(relation.to) ? [] : [frame.box],
+  );
+  return detourRoute(start, end, [...tableObstacles, ...frameObstacles], margin);
 };
 
 const CORNER_RADIUS = 10;

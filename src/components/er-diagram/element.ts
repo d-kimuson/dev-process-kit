@@ -14,8 +14,6 @@ import { revealWithin } from '../../lib/dom/scroll';
 import {
   fixedLayout,
   layeredLayout,
-  type LayoutEdgeSpec,
-  type LayoutNodeSpec,
   type LayoutOptions,
   type LayoutPoint,
   type LayoutResult,
@@ -43,6 +41,7 @@ import {
   cardinalityText,
   constraintText,
   emptyErData,
+  erLayoutSpec,
   fieldRelations,
   outgoingFan,
   parseErData,
@@ -61,15 +60,14 @@ import {
   boundedContextGroups,
   cardinalityValue,
   columnIcon,
-  detourRoute,
   editorVerdict,
   fieldChanges,
   fieldDetail,
   GROUP_LABEL_SPACE,
   GROUP_PADDING,
   highlightOf,
-  isForward,
   relationPath,
+  relationRoute,
   resumeEditor,
   typeMenu,
   typeSuggestions,
@@ -88,7 +86,12 @@ const LABEL_LIFT = 7;
 // extends GROUP_PADDING below its bottommost table and GROUP_PADDING + GROUP_LABEL_SPACE above its topmost
 // one (the label's own space), so both sides of that gap must fit before the next band's tables begin, plus
 // a little margin so adjacent frames never touch.
-const LAYOUT = {
+/**
+ * Exported (not just an internal const) so anything that needs to run the
+ * same layout off-DOM — the layout-complexity bench, in particular — uses
+ * these exact tuning numbers instead of a copy that could quietly drift.
+ */
+export const LAYOUT = {
   nodeSpacing: 40,
   layerSpacing: 136,
   padding: 32,
@@ -98,7 +101,7 @@ const LAYOUT = {
   superGroupSpacing: BC_PADDING * 2 + BC_LABEL_SPACE + 12,
 } as const satisfies LayoutOptions;
 /** How far a relation keeps from a table it passes: the middle of the gap between two. */
-const LANE_MARGIN = LAYOUT.nodeSpacing / 2;
+export const LANE_MARGIN = LAYOUT.nodeSpacing / 2;
 /** How wide a relation's curve may reach: half the gap between two layers. */
 const CURVE_REACH = LAYOUT.layerSpacing / 2;
 
@@ -333,22 +336,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
    * mirrors the base `computePlacement`, which only knows about `group`.
    */
   protected override computePlacement(visible: ErData): LayoutResult {
-    const nodes: LayoutNodeSpec[] = visible.nodes.map((node) => ({
-      id: node.id,
-      width: node.width,
-      height: node.height,
-      ...(node.ports === undefined ? {} : { ports: node.ports }),
-      ...(node.position === undefined ? {} : { position: node.position }),
-      ...(node.group === undefined ? {} : { group: node.group }),
-      ...(node.boundedContext === null ? {} : { superGroup: node.boundedContext }),
-    }));
-    const edges: LayoutEdgeSpec[] = visible.edges.map((edge) => ({
-      id: edge.id,
-      from: edge.from,
-      to: edge.to,
-      ...(edge.fromPort === undefined ? {} : { fromPort: edge.fromPort }),
-      ...(edge.toPort === undefined ? {} : { toPort: edge.toPort }),
-    }));
+    const { nodes, edges } = erLayoutSpec(visible);
     const options = this.layoutOptions();
     return this.layoutMode === 'fixed' ? fixedLayout(nodes, edges, options) : layeredLayout(nodes, edges, options);
   }
@@ -521,19 +509,27 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   }
 
   /**
-   * The relation's route. A forward one is re-routed through the gaps between
-   * the tables it passes, so a line never runs behind a card it does not join.
+   * The relation's route, re-routed through the gaps between the tables it
+   * passes (any two of them, in any relative position), so a line never runs
+   * behind a card it does not join.
    */
   #route(relation: ErRelation, visible: ErData): readonly LayoutPoint[] {
     const points = this.routeOf(relation.id);
-    const start = points[0];
-    const end = points.at(-1);
-    if (start === undefined || end === undefined || !isForward(points)) return points;
-    const boxes = visible.nodes.flatMap((node) => {
+    const tables = visible.nodes.flatMap((node) => {
       const placed = this.placedNode(node.id);
-      return placed === undefined ? [] : [placed];
+      return placed === undefined ? [] : [{ id: node.id, box: placed }];
     });
-    return detourRoute(start, end, boxes, LANE_MARGIN);
+    const groupable = visible.nodes.map((node) => ({
+      id: node.id,
+      aggregate: node.aggregate,
+      boundedContext: node.boundedContext,
+      box: this.placedNode(node.id) ?? null,
+    }));
+    const frames = [
+      ...aggregateGroups(groupable).map((group) => ({ box: group.box, members: group.tables })),
+      ...boundedContextGroups(groupable).map((group) => ({ box: group.box, members: group.tables })),
+    ];
+    return relationRoute(relation, points, tables, LANE_MARGIN, frames);
   }
 
   protected override renderCanvas(): TemplateResult {

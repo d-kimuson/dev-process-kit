@@ -2,6 +2,7 @@ import * as v from 'valibot';
 
 import type { ElementActionResult } from '../../core/element-actions';
 import type { DraftAction } from '../../core/types';
+import type { LayoutEdgeSpec, LayoutNodeSpec } from '../../lib/layout/layered';
 import type { ErDiagramMessages } from './messages';
 
 import { elementRefSegments, type DiagramEdgeInput, type DiagramNodeInput } from '../diagram/model';
@@ -190,6 +191,38 @@ export type ErData = {
 };
 
 export const emptyErData = (): ErData => ({ nodes: [], edges: [] });
+
+/**
+ * `ErData` as plain layout input: every table's Bounded Context becomes its
+ * `superGroup`, one level above the aggregate grouping `group` already gives,
+ * so the layout keeps a whole BC's aggregates — and any lone tables outside
+ * an aggregate — together in one band, apart from the other BCs'.
+ *
+ * The one place this mapping is written, reused by the live element
+ * (`element.ts`'s `computePlacement`) and by anything else that needs to run
+ * the real layout off-DOM, such as the layout-complexity bench, so neither
+ * can quietly drift from what the view actually lays out.
+ */
+export const erLayoutSpec = (
+  data: ErData,
+): { readonly nodes: readonly LayoutNodeSpec[]; readonly edges: readonly LayoutEdgeSpec[] } => ({
+  nodes: data.nodes.map((node) => ({
+    id: node.id,
+    width: node.width,
+    height: node.height,
+    ...(node.ports === undefined ? {} : { ports: node.ports }),
+    ...(node.position === undefined ? {} : { position: node.position }),
+    ...(node.group === undefined ? {} : { group: node.group }),
+    ...(node.boundedContext === null ? {} : { superGroup: node.boundedContext }),
+  })),
+  edges: data.edges.map((edge) => ({
+    id: edge.id,
+    from: edge.from,
+    to: edge.to,
+    ...(edge.fromPort === undefined ? {} : { fromPort: edge.fromPort }),
+    ...(edge.toPort === undefined ? {} : { toPort: edge.toPort }),
+  })),
+});
 
 const keysOf = (field: SnapshotField): readonly ErKey[] =>
   field.key === undefined ? [] : [...new Set(typeof field.key === 'string' ? [field.key] : field.key)];
