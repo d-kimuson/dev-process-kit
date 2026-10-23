@@ -10,7 +10,7 @@ events / slots だけを公開契約にする（Lit は実装詳細）。
 ```text
 .
 ├── src/
-│   ├── components/    # 公開コンポーネント dpk-component-*（レビューレール / インライン編集 / 図）
+│   ├── components/    # 公開コンポーネント dpk-*（レビューレール / インライン編集 / 図）
 │   ├── templates/     # 公開テンプレート dpk-template-*（prototype / usm / event-storming / example-mapping / plain / slides / task-board / delegation-poker / whiteboard）
 │   ├── core/          # 内部実装（pipeline / persistence / element 基底 / 契約）
 │   ├── lib/           # 依存を持たない小さな共通ヘルパー（lib/dom/*）
