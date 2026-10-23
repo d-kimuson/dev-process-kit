@@ -271,7 +271,12 @@ export const erStyles = css`
 
   .er-field-line {
     display: grid;
-    grid-template-columns: auto 16px minmax(0, 1fr) auto auto;
+    /*
+     * The name keeps a floor (long enough for a handful of glyphs either script):
+     * without it, a wide type diff squeezes an unbroken identifier down toward
+     * 0 and it wraps one character per line instead of a few.
+     */
+    grid-template-columns: auto 16px minmax(64px, 1fr) auto auto;
     align-items: center;
     gap: 7px;
     min-height: 31px;
@@ -292,7 +297,7 @@ export const erStyles = css`
   }
 
   .er-table:not(.has-diff) .er-field-line {
-    grid-template-columns: 16px minmax(0, 1fr) auto auto;
+    grid-template-columns: 16px minmax(64px, 1fr) auto auto;
   }
 
   .er-icon {
