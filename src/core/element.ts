@@ -506,6 +506,20 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   /**
+   * Whether the page this board sits in is in focus (present) mode right
+   * now — its own header hidden, this board given the full area under it.
+   * Always `false` on its own, where there is no page chrome to hide.
+   */
+  get focused(): boolean {
+    return this.#boardHost()?.focused() ?? false;
+  }
+
+  /** Asks the page to enter or leave focus mode; a no-op on its own. */
+  setFocused(active: boolean): void {
+    this.#boardHost()?.setFocus(active);
+  }
+
+  /**
    * Whether this template draws its own sidebar column right now. A page's
    * rail reads this on its active board to decide whether to show a fold
    * toggle for it.

@@ -59,9 +59,12 @@ export class DpkTemplateSlides extends TemplateElement<SlidesState> {
       sidebarHidden: context.state.slides.length === 0,
       main: renderStage(context, m, {
         canFullscreen: document.fullscreenEnabled === true,
+        canFocus: this.board !== null,
+        focused: this.focused,
         draftFor: (slideId) => this.#drafts.get(slideId) ?? '',
         onStep: (step) => this.#go(step),
         onFullscreen: () => this.#fullscreen(),
+        onToggleFocus: () => this.setFocused(!this.focused),
         onDraft: (slideId, body) => this.#setDraft(slideId, body),
         onComment: (slideId) => this.#comment(slideId),
         onDeleteComment: (commentId) => this.removeAction(commentId),
@@ -116,7 +119,10 @@ export class DpkTemplateSlides extends TemplateElement<SlidesState> {
   }
 
   #onKeydown = (event: KeyboardEvent): void => {
-    if (event.defaultPrevented) return;
+    // Listens on `document` so a clicker's PageUp/PageDown reaches it from anywhere, not just while
+    // the deck has focus — but that means a board parked behind another one on the same page (hidden,
+    // per `PageElement#syncBoards`) must not swallow keys meant for whichever board is active.
+    if (event.defaultPrevented || this.hidden) return;
     const step = slideKeyStep(event);
     if (step === null || event.composedPath().some(isTypingTarget)) return;
     event.preventDefault();

@@ -274,6 +274,17 @@ describe('<dpk-template-slides>', () => {
     expect(element.navigation['slide']).toBe('flow');
   });
 
+  it('leaves the arrow keys alone while hidden, as a board parked behind another one is', async () => {
+    const element = mount();
+    await settle(element);
+    element.hidden = true;
+    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, composed: true, cancelable: true });
+    document.dispatchEvent(event);
+    await settle(element);
+    expect(element.navigation['slide']).toBe('cover');
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it('moves with the previous / next buttons and the outline', async () => {
     const element = mount('#slide=how');
     await settle(element);
@@ -391,6 +402,25 @@ describe('<dpk-template-slides>', () => {
     const element = mount();
     await settle(element);
     expect(element.shadowRoot?.querySelector('.deck-fullscreen')).toBeNull();
+  });
+
+  it('offers the focus toggle only as a board of <dpk-page>, never on its own', async () => {
+    const standalone = mount();
+    await settle(standalone);
+    expect(standalone.shadowRoot?.querySelector('.deck-focus')).toBeNull();
+
+    window.location.hash = '';
+    document.body.innerHTML = `
+      <dpk-page>
+        <dpk-template-slides board="slides" storage="memory">
+          <script type="application/json">${JSON.stringify(base)}</script>
+        </dpk-template-slides>
+      </dpk-page>`;
+    const boarded = document.querySelector('dpk-template-slides') as DpkTemplateSlides;
+    await settle(boarded);
+    const button = boarded.shadowRoot?.querySelector<HTMLButtonElement>('.deck-focus');
+    expect(button).not.toBeNull();
+    expect(button?.getAttribute('aria-pressed')).toBe('false');
   });
 
   it('says how to add slides when the deck is empty', async () => {

@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { PageElement } from './element';
+import { BOARD_HOST, type BoardHost } from './host';
 import { SWITCHER_ID } from './switcher';
 import '../../index';
 
@@ -597,6 +598,50 @@ describe('<dpk-page>', () => {
       await (commentable as unknown as { updateComplete: Promise<unknown> }).updateComplete;
       await page.updateComplete;
       expect(page.api.stale).toEqual([]);
+    });
+  });
+
+  describe('focus (present) mode', () => {
+    /** The host a board reaches through `boardHostOf`; used directly here since no fixture board asks for it. */
+    const host = (page: PageElement): BoardHost => {
+      const value = page[BOARD_HOST];
+      if (value === undefined) throw new Error('no board host yet');
+      return value;
+    };
+
+    it('reflects a board’s focus request as `data-focused`, and drops it again once the board stops asking', async () => {
+      const { page } = await mount();
+      expect(host(page).focused()).toBe(false);
+      expect(page.hasAttribute('data-focused')).toBe(false);
+
+      host(page).setFocus(true);
+      await page.updateComplete;
+      expect(host(page).focused()).toBe(true);
+      expect(page.hasAttribute('data-focused')).toBe(true);
+
+      host(page).setFocus(false);
+      await page.updateComplete;
+      expect(host(page).focused()).toBe(false);
+      expect(page.hasAttribute('data-focused')).toBe(false);
+    });
+
+    it('leaves focus mode on Escape, like the switcher popover already does', async () => {
+      const { page } = await mount();
+      host(page).setFocus(true);
+      await page.updateComplete;
+      expect(host(page).focused()).toBe(true);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      await page.updateComplete;
+      expect(host(page).focused()).toBe(false);
+    });
+
+    it('does not leave focus mode on a press elsewhere, unlike the switcher popover', async () => {
+      const { page } = await mount();
+      host(page).setFocus(true);
+      await page.updateComplete;
+      document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+      await page.updateComplete;
+      expect(host(page).focused()).toBe(true);
     });
   });
 });

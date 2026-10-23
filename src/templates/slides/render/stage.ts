@@ -6,17 +6,23 @@ import type { SlideStep } from '../interactions';
 import type { SlidesMessages } from '../messages';
 import type { Slide, SlidesState } from '../model';
 
-import { iconChevronLeft, iconChevronRight, iconClose, iconMaximize } from '../../../core/icons';
+import { iconChevronLeft, iconChevronRight, iconClose, iconFocus, iconMaximize } from '../../../core/icons';
 import { targetRef } from '../../../core/target';
 import { slideComments, slidePosition, type SlideComment } from '../present';
 
 export type StageOptions = {
   /** Whether the browser lets this page go full screen (a sandboxed frame may not). */
   readonly canFullscreen: boolean;
+  /** Whether this deck is a board of `<dpk-page>` — only there is a page header to hide by focusing. */
+  readonly canFocus: boolean;
+  /** Whether the page is in focus (present) mode right now. */
+  readonly focused: boolean;
   /** The unsent comment on a slide; each slide keeps its own. */
   readonly draftFor: (slideId: string) => string;
   readonly onStep: (step: SlideStep) => void;
   readonly onFullscreen: () => void;
+  /** Enters or leaves focus mode; the same control does either, like the browser's own full screen. */
+  readonly onToggleFocus: () => void;
   readonly onDraft: (slideId: string, body: string) => void;
   readonly onComment: (slideId: string) => void;
   readonly onDeleteComment: (commentId: string) => void;
@@ -75,6 +81,19 @@ export const renderStage = (
         <div class="deck-progress" aria-hidden="true">
           <span style=${`width:${((index + 1) / total) * 100}%`}></span>
         </div>
+        ${
+          options.canFocus
+            ? html`<button
+                class="dpk-btn deck-focus"
+                type="button"
+                aria-pressed=${options.focused ? 'true' : 'false'}
+                title=${options.focused ? m.focusModeHint : m.focusMode}
+                @click=${options.onToggleFocus}
+              >
+                ${iconFocus()} ${options.focused ? m.exitFocusMode : m.focusMode}
+              </button>`
+            : nothing
+        }
         ${
           options.canFullscreen
             ? html`<button

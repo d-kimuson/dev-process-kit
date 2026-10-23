@@ -14,6 +14,7 @@ import {
   CircleQuestionMark,
   Copy,
   Diamond,
+  Focus,
   GripHorizontal,
   GripVertical,
   History,
@@ -100,6 +101,7 @@ export const iconChevronRight = lucide(ChevronRight);
 export const iconChevronDown = lucide(ChevronDown);
 export const iconMaximize = lucide(Maximize2);
 export const iconMinimize = lucide(Minimize2);
+export const iconFocus = lucide(Focus);
 export const iconSun = lucide(Sun);
 export const iconMoon = lucide(Moon);
 export const iconBell = lucide(Bell);
