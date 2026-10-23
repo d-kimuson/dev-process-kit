@@ -27,7 +27,7 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir _site
-          cp sample/*.html sample/*.js _site/
+          cp sample/*.html sample/*.js sample/*.ico sample/*.png _site/
           if grep -l 'dev-process-kit\.localhost' _site/*.html; then
             echo 'a sample points at the dev asset server instead of loading through kit.js' >&2
             exit 1
