@@ -25,7 +25,13 @@ describe('startEntry', () => {
       visit(search);
       const register = vi.fn();
       const importModule = vi.fn(async () => undefined);
-      startEntry({ entry: 'templates/demo.js', templates: ['demo'], register, importModule });
+      startEntry({
+        entry: 'templates/demo.js',
+        templates: ['demo'],
+        url: 'https://example.test/dist/templates/demo.js',
+        register,
+        importModule,
+      });
       expect(register).toHaveBeenCalledOnce();
       expect(importModule).not.toHaveBeenCalled();
     }
@@ -33,6 +39,7 @@ describe('startEntry', () => {
       version: FRAMEWORK_VERSION,
       templates: ['demo'],
       versionParam: 'dpk-version',
+      entryUrl: 'https://example.test/dist/templates/demo.js',
     });
   });
 
@@ -42,7 +49,13 @@ describe('startEntry', () => {
     const importModule = vi.fn(async () => {
       Object.assign(window, { devProcessKit: { version: '0.0.1', templates: ['demo'], versionParam: 'dpk-version' } });
     });
-    startEntry({ entry: 'templates/demo.js', templates: ['demo'], register, importModule });
+    startEntry({
+      entry: 'templates/demo.js',
+      templates: ['demo'],
+      url: 'https://example.test/dist/templates/demo.js',
+      register,
+      importModule,
+    });
     await settle();
     expect(importModule).toHaveBeenCalledWith(
       'https://cdn.jsdelivr.net/npm/dev-process-kit@0.0.1/dist/templates/demo.js',
@@ -57,8 +70,20 @@ describe('startEntry', () => {
     const importModule = vi.fn(async () => {
       Object.assign(window, { devProcessKit: { version: '0.0.1', templates: ['demo'] } });
     });
-    startEntry({ entry: 'templates/demo.js', templates: ['demo'], register: vi.fn(), importModule });
-    startEntry({ entry: 'components.js', templates: [], register: vi.fn(), importModule });
+    startEntry({
+      entry: 'templates/demo.js',
+      templates: ['demo'],
+      url: 'https://example.test/dist/templates/demo.js',
+      register: vi.fn(),
+      importModule,
+    });
+    startEntry({
+      entry: 'components.js',
+      templates: [],
+      url: 'https://example.test/dist/components.js',
+      register: vi.fn(),
+      importModule,
+    });
     await settle();
     const selects = document.querySelectorAll('dpk-template-demo > select');
     expect(selects).toHaveLength(1);
@@ -75,6 +100,7 @@ describe('startEntry', () => {
     startEntry({
       entry: 'templates/demo.js',
       templates: ['demo'],
+      url: 'https://example.test/dist/templates/demo.js',
       register,
       importModule: async () => {
         throw new TypeError('Failed to fetch dynamically imported module');

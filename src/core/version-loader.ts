@@ -49,6 +49,11 @@ export type EntryStart = {
   readonly entry: string;
   /** The template elements the entry registers, for `window.devProcessKit`. */
   readonly templates: readonly string[];
+  /**
+   * The entry's own resolved URL: `import.meta.url`, read where `startEntry` is
+   * called so it names this chunk, not one it is bundled into.
+   */
+  readonly url: string;
   /** Defines the entry's custom elements. Runs only when this version runs the page. */
   readonly register: () => void;
   /** Imports another version's entry; tests replace it. */
@@ -65,10 +70,10 @@ const importFromCdn = (url: string): Promise<unknown> => import(/* @vite-ignore 
  * (no such version, no such entry in it, offline), this version runs the page
  * after all.
  */
-export const startEntry = ({ entry, templates, register, importModule = importFromCdn }: EntryStart): void => {
+export const startEntry = ({ entry, templates, url, register, importModule = importFromCdn }: EntryStart): void => {
   const run = (): void => {
     register();
-    announce(FRAMEWORK_VERSION, templates, VERSION_PARAM);
+    announce(FRAMEWORK_VERSION, templates, VERSION_PARAM, url);
   };
   const target = typeof location === 'undefined' ? null : delegationTarget(location.search, FRAMEWORK_VERSION);
   if (target === null) {
