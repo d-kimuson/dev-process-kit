@@ -4,7 +4,7 @@ Every custom element, event, attribute and CSS custom property the framework shi
 
 ## Status
 
-accepted
+accepted. Its component tag, `dpk-component-<name>`, is narrowed by [20261022_drop-component-role-word.md](20261022_drop-component-role-word.md) to `dpk-<name>`; the rest of this decision stands.
 
 ## Context
 
