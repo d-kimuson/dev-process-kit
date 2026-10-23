@@ -142,6 +142,15 @@ export type TemplateDefinition<S> = {
   /** Human label used in shell chrome and exports. */
   readonly label: string;
 
+  /**
+   * Whether a page's "+" may add an empty board of this template. Defaults to
+   * `true`; a template whose board only makes sense pre-filled by an agent
+   * (it has nothing to show empty, or exists to hold data a reader does not
+   * author by hand) sets this to `false`. The page author can still add it by
+   * writing the board's HTML themselves — this only gates the reader's menu.
+   */
+  readonly addable?: boolean;
+
   /** Validates and normalizes the JSON baked into the HTML. Throws when invalid. */
   parseBase(input: unknown): S;
   /** Used when the element has no base JSON at all. */
