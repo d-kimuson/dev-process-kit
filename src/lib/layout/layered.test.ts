@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { fixedLayout, layeredLayout, type LayoutEdgeSpec, type LayoutNodeSpec } from './layered';
+import {
+  applyPositionOverrides,
+  fixedLayout,
+  layeredLayout,
+  type LayoutEdgeSpec,
+  type LayoutNodeSpec,
+} from './layered';
 
 const node = (id: string, width = 120, height = 60): LayoutNodeSpec => ({ id, width, height });
 const edge = (from: string, to: string, extra: Partial<LayoutEdgeSpec> = {}): LayoutEdgeSpec => ({
@@ -100,6 +106,81 @@ describe('layeredLayout', () => {
   });
 });
 
+describe('layeredLayout with groups', () => {
+  /** The box bounding every node in `ids`, the same way a diagram draws a group frame. */
+  const groupBox = (result: ReturnType<typeof layeredLayout>, ids: readonly string[]) => {
+    const boxes = ids.flatMap((id) => {
+      const found = result.nodes.find((entry) => entry.id === id);
+      return found ? [found] : [];
+    });
+    return {
+      left: Math.min(...boxes.map((box) => box.x)),
+      top: Math.min(...boxes.map((box) => box.y)),
+      right: Math.max(...boxes.map((box) => box.x + box.width)),
+      bottom: Math.max(...boxes.map((box) => box.y + box.height)),
+    };
+  };
+  const boxesOverlap = (a: ReturnType<typeof groupBox>, b: ReturnType<typeof groupBox>): boolean =>
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  const containsPoint = (box: ReturnType<typeof groupBox>, x: number, y: number): boolean =>
+    x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+
+  it('never overlaps two groups, even when they interleave across ranks', () => {
+    const nodes: LayoutNodeSpec[] = [
+      { id: 'a1', width: 100, height: 40, group: 'A' },
+      { id: 'a2', width: 100, height: 40, group: 'A' },
+      { id: 'b1', width: 100, height: 40, group: 'B' },
+      { id: 'b2', width: 100, height: 40, group: 'B' },
+      { id: 'lone', width: 100, height: 40 },
+    ];
+    const edges: LayoutEdgeSpec[] = [
+      edge('a1', 'b1'),
+      edge('b1', 'a2'),
+      edge('a2', 'b2'),
+      edge('b2', 'lone'),
+      edge('lone', 'a1'),
+    ];
+    const result = layeredLayout(nodes, edges);
+    const boxA = groupBox(result, ['a1', 'a2']);
+    const boxB = groupBox(result, ['b1', 'b2']);
+    expect(boxesOverlap(boxA, boxB)).toBe(false);
+    // The lone node (no group) must never land inside either group's box.
+    const lone = result.nodes.find((entry) => entry.id === 'lone');
+    expect(containsPoint(boxA, (lone?.x ?? 0) + 1, (lone?.y ?? 0) + 1)).toBe(false);
+    expect(containsPoint(boxB, (lone?.x ?? 0) + 1, (lone?.y ?? 0) + 1)).toBe(false);
+  });
+
+  it('keeps a group isolated from an ungrouped node even sharing its rank', () => {
+    const nodes: LayoutNodeSpec[] = [
+      { id: 'a1', width: 80, height: 30, group: 'A' },
+      { id: 'a2', width: 80, height: 30, group: 'A' },
+      { id: 'solo', width: 80, height: 30 },
+    ];
+    // a1, a2 and solo all share rank 0 (no edges), so they would interleave
+    // under plain ordering if groups were not banded.
+    const result = layeredLayout(nodes, []);
+    const boxA = groupBox(result, ['a1', 'a2']);
+    const solo = result.nodes.find((entry) => entry.id === 'solo');
+    expect(containsPoint(boxA, (solo?.x ?? 0) + 1, (solo?.y ?? 0) + 1)).toBe(false);
+  });
+
+  it('is deterministic and matches the ungrouped layout exactly when no node has a group', () => {
+    const nodes = [node('a'), node('b'), node('c')];
+    const edges = [edge('a', 'b'), edge('b', 'c')];
+    expect(layeredLayout(nodes, edges)).toEqual(layeredLayout(nodes, edges));
+  });
+
+  it('adds extra room between two groups, via groupSpacing', () => {
+    const nodes: LayoutNodeSpec[] = [
+      { id: 'a1', width: 80, height: 30, group: 'A' },
+      { id: 'b1', width: 80, height: 30, group: 'B' },
+    ];
+    const tight = layeredLayout(nodes, [], { groupSpacing: 10 });
+    const loose = layeredLayout(nodes, [], { groupSpacing: 100 });
+    expect(loose.height).toBeGreaterThan(tight.height);
+  });
+});
+
 describe('fixedLayout', () => {
   it('keeps authored positions and routes between them', () => {
     const nodes: LayoutNodeSpec[] = [
@@ -122,5 +203,52 @@ describe('fixedLayout', () => {
     const result = fixedLayout(nodes, [edge('a', 'ghost')]);
     expect(result.nodes[0]).toMatchObject({ x: 28, y: 28 });
     expect(result.routes).toEqual([]);
+  });
+});
+
+describe('applyPositionOverrides', () => {
+  it('returns the same layout untouched when there are no overrides', () => {
+    const nodes = [node('a'), node('b')];
+    const edges = [edge('a', 'b')];
+    const layout = layeredLayout(nodes, edges);
+    expect(applyPositionOverrides(layout, new Map(), nodes, edges)).toBe(layout);
+  });
+
+  it('moves only the overridden node, leaving the rest at the computed layout', () => {
+    const nodes = [node('a'), node('b'), node('c')];
+    const edges = [edge('a', 'b'), edge('b', 'c')];
+    const layout = layeredLayout(nodes, edges);
+    const b = layout.nodes.find((entry) => entry.id === 'b');
+    const result = applyPositionOverrides(layout, new Map([['b', { x: 500, y: 500 }]]), nodes, edges);
+    const [ra, rb, rc] = ['a', 'b', 'c'].map((id) => result.nodes.find((entry) => entry.id === id));
+    expect(ra).toEqual(layout.nodes.find((entry) => entry.id === 'a'));
+    expect(rc).toEqual(layout.nodes.find((entry) => entry.id === 'c'));
+    expect(rb).toMatchObject({ x: 500, y: 500, width: b?.width, height: b?.height });
+  });
+
+  it('re-routes edges to follow a moved node', () => {
+    const nodes = [node('a'), node('b')];
+    const edges = [edge('a', 'b')];
+    const layout = layeredLayout(nodes, edges);
+    const result = applyPositionOverrides(layout, new Map([['b', { x: 900, y: 900 }]]), nodes, edges);
+    const route = result.routes.find((entry) => entry.id === 'a-b');
+    expect(route?.points.at(-1)).toEqual({ x: 900, y: 900 + 30 });
+  });
+
+  it('grows the bounding box to cover a node dragged outside the original layout', () => {
+    const nodes = [node('a'), node('b')];
+    const edges = [edge('a', 'b')];
+    const layout = layeredLayout(nodes, edges);
+    const result = applyPositionOverrides(layout, new Map([['b', { x: 2000, y: 2000 }]]), nodes, edges);
+    expect(result.width).toBeGreaterThan(layout.width);
+    expect(result.height).toBeGreaterThan(layout.height);
+  });
+
+  it('ignores an override for a node that is no longer in the layout', () => {
+    const nodes = [node('a')];
+    const edges: LayoutEdgeSpec[] = [];
+    const layout = layeredLayout(nodes, edges);
+    const result = applyPositionOverrides(layout, new Map([['missing', { x: 1, y: 1 }]]), nodes, edges);
+    expect(result.nodes).toEqual(layout.nodes);
   });
 });

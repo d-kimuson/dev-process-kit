@@ -21,6 +21,12 @@ export type LayoutNodeSpec = {
   readonly ports?: Readonly<Record<string, LayoutPoint>>;
   /** Hand-authored position. `fixedLayout` uses it; `layeredLayout` ignores it. */
   readonly position?: LayoutPoint;
+  /**
+   * Nodes sharing a `group` are kept in one contiguous vertical band across
+   * every layer, so a bounding box drawn around one group's nodes never
+   * overlaps another group's box, and never contains a node outside it.
+   */
+  readonly group?: string;
 };
 
 export type LayoutEdgeSpec = {
@@ -60,6 +66,8 @@ export type LayoutOptions = {
   /** Median-ordering sweeps. Higher is tidier and slower. */
   readonly sweeps?: number;
   readonly coordinatePasses?: number;
+  /** Gap kept between two different `group`s' bands. Defaults to `nodeSpacing`. */
+  readonly groupSpacing?: number;
 };
 
 const DEFAULTS = {
@@ -68,6 +76,7 @@ const DEFAULTS = {
   padding: 28,
   sweeps: 4,
   coordinatePasses: 6,
+  groupSpacing: 34,
 } as const;
 
 type Config = Required<LayoutOptions>;
@@ -238,6 +247,143 @@ const assignCoordinates = (
         const node = byId.get(id);
         if (node) node.y += shift;
       }
+    }
+  }
+};
+
+/**
+ * Group-aware variant of `packLayer`: every node is given a fixed vertical
+ * band, keyed by `bandOf`, in `bandOrder`'s sequence — the same band, at the
+ * same `y`, in every layer, regardless of which bands that particular layer
+ * happens to use. `desired` only breaks ties inside one band's members in one
+ * layer; it never moves a node outside its band. Because the bands are fixed
+ * and disjoint, a bounding box drawn around one band's nodes can never reach
+ * into another band's — the invariant `clusterByGroup` exists to guarantee.
+ */
+const bandPackLayer = (
+  ids: readonly string[],
+  byId: ReadonlyMap<string, MutableNode>,
+  desired: ReadonlyMap<string, number>,
+  bandOf: ReadonlyMap<string, string>,
+  bandOrder: readonly string[],
+  bandTop: ReadonlyMap<string, number>,
+  nodeSpacing: number,
+): void => {
+  for (const key of bandOrder) {
+    const members = ids.filter((id) => bandOf.get(id) === key);
+    if (members.length === 0) continue;
+    const items = members
+      .map((id, index) => ({ id, want: desired.get(id) ?? index, index }))
+      .sort((a, b) => a.want - b.want || a.index - b.index);
+    let y = bandTop.get(key) ?? 0;
+    for (const item of items) {
+      const node = byId.get(item.id);
+      if (!node) continue;
+      node.y = y;
+      y += node.spec.height + nodeSpacing;
+    }
+  }
+};
+
+/** The tallest a band's members ever get packed to, across every layer — the band's reserved height. */
+const bandHeightOf = (
+  layers: ReadonlyMap<number, readonly string[]>,
+  byId: ReadonlyMap<string, MutableNode>,
+  bandOf: ReadonlyMap<string, string>,
+  key: string,
+  nodeSpacing: number,
+): number => {
+  let tallest = 0;
+  for (const ids of layers.values()) {
+    const members = ids.filter((id) => bandOf.get(id) === key);
+    if (members.length === 0) continue;
+    const height =
+      members.reduce((sum, id) => sum + (byId.get(id)?.spec.height ?? 0), 0) + nodeSpacing * (members.length - 1);
+    if (height > tallest) tallest = height;
+  }
+  return tallest;
+};
+
+/**
+ * Packs and refines coordinates like `assignCoordinates`, but keeps every
+ * `group`'s nodes (and every ungrouped node, each its own singleton band) in
+ * one fixed vertical band, identical in every layer. A band's order is the
+ * average of its members' plain, ungrouped ordering, so grouping never
+ * fights the crossing-minimising heuristic more than it has to.
+ */
+const assignCoordinatesGrouped = (
+  nodes: readonly LayoutNodeSpec[],
+  layers: Map<number, string[]>,
+  byId: ReadonlyMap<string, MutableNode>,
+  neighbours: ReadonlyMap<string, readonly string[]>,
+  layerOf: ReadonlyMap<string, number>,
+  orderOf: ReadonlyMap<string, number>,
+  config: Config,
+): void => {
+  const bandOf = new Map<string, string>(nodes.map((n) => [n.id, n.group ?? n.id]));
+  const realGroups = new Set(nodes.flatMap((n) => (n.group === undefined ? [] : [n.group])));
+  const ranks = [...layers.keys()].sort((a, b) => a - b);
+
+  const normalisedOrder = (id: string): number => {
+    const rank = layerOf.get(id) ?? 0;
+    const size = (layers.get(rank) ?? []).length;
+    const index = orderOf.get(id) ?? 0;
+    return size <= 1 ? 0 : index / (size - 1);
+  };
+  const bandKeys = [...new Set(bandOf.values())];
+  const centreOf = (key: string): number => {
+    const members = nodes.filter((n) => (bandOf.get(n.id) ?? n.id) === key).map((n) => n.id);
+    return members.length === 0 ? 0 : members.reduce((sum, id) => sum + normalisedOrder(id), 0) / members.length;
+  };
+  const bandOrder = bandKeys.sort((a, b) => centreOf(a) - centreOf(b));
+
+  const bandHeight = new Map(
+    bandOrder.map((key) => [key, bandHeightOf(layers, byId, bandOf, key, config.nodeSpacing)]),
+  );
+  const bandTop = new Map<string, number>();
+  let top = 0;
+  for (const [index, key] of bandOrder.entries()) {
+    bandTop.set(key, top);
+    top += bandHeight.get(key) ?? 0;
+    const next = bandOrder[index + 1];
+    if (next !== undefined)
+      top += realGroups.has(key) || realGroups.has(next) ? config.groupSpacing : config.nodeSpacing;
+  }
+
+  for (const rank of ranks) {
+    const ids = layers.get(rank) ?? [];
+    bandPackLayer(
+      ids,
+      byId,
+      new Map(ids.map((id) => [id, orderOf.get(id) ?? 0])),
+      bandOf,
+      bandOrder,
+      bandTop,
+      config.nodeSpacing,
+    );
+  }
+
+  const desiredFrom = (id: string, targetRank: number): number | null => {
+    const centres = (neighbours.get(id) ?? [])
+      .filter((other) => layerOf.get(other) === targetRank)
+      .flatMap((other) => {
+        const node = byId.get(other);
+        return node ? [node.y + node.spec.height / 2] : [];
+      });
+    return centres.length > 0 ? median(centres) : null;
+  };
+  for (let pass = 0; pass < config.coordinatePasses; pass++) {
+    const ascending = pass % 2 === 0;
+    for (const rank of ascending ? ranks : [...ranks].reverse()) {
+      const ids = layers.get(rank) ?? [];
+      const desired = new Map<string, number>();
+      for (const id of ids) {
+        const neighbour = desiredFrom(id, rank + (ascending ? -1 : 1));
+        const node = byId.get(id);
+        if (node === undefined) continue;
+        desired.set(id, neighbour === null ? node.y + node.spec.height / 2 : neighbour);
+      }
+      bandPackLayer(ids, byId, desired, bandOf, bandOrder, bandTop, config.nodeSpacing);
     }
   }
 };
@@ -414,7 +560,11 @@ export const layeredLayout = (
   for (const ids of layers.values()) ids.forEach((id, index) => orderOf.set(id, index));
   const placed = toMutable(nodes, layerOf, orderOf, () => ({ x: 0, y: 0 }));
   const byId = new Map(placed.map((node) => [node.spec.id, node]));
-  assignCoordinates(layers, byId, neighbourIndex(nodes, usable), layerOf, config);
+  if (nodes.some((node) => node.group !== undefined)) {
+    assignCoordinatesGrouped(nodes, layers, byId, neighbourIndex(nodes, usable), layerOf, orderOf, config);
+  } else {
+    assignCoordinates(layers, byId, neighbourIndex(nodes, usable), layerOf, config);
+  }
 
   const ranks = [...layers.keys()].sort((a, b) => a - b);
   let x = 0;
@@ -431,6 +581,49 @@ export const layeredLayout = (
     routeEdges(usable, reversed, { byId, layerSpacing: config.layerSpacing, padding: config.padding }),
     config.padding,
   );
+};
+
+/**
+ * Merges reader-dragged absolute positions into a computed layout: an overridden
+ * node moves to its stored position and everything else stays exactly where the
+ * layout put it (no re-ranking, no re-packing, no shifting the whole canvas).
+ * Edges are re-routed so they still reach the nodes they connect. Returns the
+ * input layout unchanged when there is nothing to override.
+ */
+export const applyPositionOverrides = (
+  layout: LayoutResult,
+  overrides: ReadonlyMap<string, LayoutPoint>,
+  nodeSpecs: readonly LayoutNodeSpec[],
+  edgeSpecs: readonly LayoutEdgeSpec[],
+  options: LayoutOptions = {},
+): LayoutResult => {
+  if (overrides.size === 0) return layout;
+  const config: Config = { ...DEFAULTS, ...options };
+  const specById = new Map(nodeSpecs.map((spec) => [spec.id, spec]));
+  const nodes: readonly PlacedNode[] = layout.nodes.map((placed) => {
+    const override = overrides.get(placed.id);
+    return override === undefined ? placed : { ...placed, x: override.x, y: override.y };
+  });
+  const byId = new Map<string, MutableNode>(
+    nodes.map((placed) => [
+      placed.id,
+      {
+        spec: specById.get(placed.id) ?? { id: placed.id, width: placed.width, height: placed.height },
+        layer: placed.layer,
+        order: placed.order,
+        x: placed.x,
+        y: placed.y,
+      },
+    ]),
+  );
+  const ids = new Set(nodes.map((placed) => placed.id));
+  const usable = edgeSpecs.filter((edge) => ids.has(edge.from) && ids.has(edge.to));
+  const routes = routeEdges(usable, new Set(), { byId, layerSpacing: config.layerSpacing, padding: config.padding });
+  const xs = [...nodes.map((n) => n.x + n.width), ...routes.flatMap((route) => route.points.map((p) => p.x))];
+  const ys = [...nodes.map((n) => n.y + n.height), ...routes.flatMap((route) => route.points.map((p) => p.y))];
+  const width = Math.max(layout.width, Math.max(0, ...xs) + config.padding);
+  const height = Math.max(layout.height, Math.max(0, ...ys) + config.padding);
+  return { width, height, nodes, routes };
 };
 
 /** Places nodes exactly where the data says, and routes the same way. */
