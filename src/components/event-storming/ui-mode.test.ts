@@ -13,11 +13,6 @@ describe('event-storming ui mode', () => {
     expect(reduceNoteIntent(editing, 'n2', { kind: 'rename', name: 'x' })).toEqual(editing);
   });
 
-  it('the comment tool toggles the composer for exactly one note', () => {
-    expect(reduceNoteIntent(editing, 'n1', { kind: 'toggle-comment' })).toEqual({ kind: 'commenting', noteId: 'n1' });
-    expect(reduceNoteIntent({ kind: 'commenting', noteId: 'n1' }, 'n1', { kind: 'toggle-comment' })).toEqual(ES_IDLE);
-  });
-
   it('noteCardModeOf only singles out the edited note', () => {
     expect(noteCardModeOf(editing, 'n1')).toBe('editing');
     expect(noteCardModeOf(editing, 'n2')).toBe('view');

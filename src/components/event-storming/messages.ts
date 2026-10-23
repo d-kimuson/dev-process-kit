@@ -26,6 +26,10 @@ const noteTypeLabelsJa: Record<NoteType, string> = {
 
 export const eventStormingMessages = defineMessages({
   en: {
+    // ------------------------------------------------------------- chrome
+    heading: 'Event Storming',
+    wholeBoard: 'Whole board',
+
     // ---------------------------------------------------------- action log
     renameElementTitle: 'Rename element',
     updateDescriptionTitle: 'Update element description',
@@ -103,6 +107,10 @@ export const eventStormingMessages = defineMessages({
     deleteButton: 'Delete',
   },
   ja: {
+    // ------------------------------------------------------------- chrome
+    heading: 'イベントストーミング',
+    wholeBoard: 'ボード全体',
+
     // ---------------------------------------------------------- action log
     renameElementTitle: '要素名を変更',
     updateDescriptionTitle: '要素の説明を更新',

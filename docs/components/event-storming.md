@@ -1,6 +1,8 @@
-# Template: event-storming (`<dpk-template-event-storming>`)
+# dpk-event-storming
 
 Event Storming board: sticky notes in timeline order, grouped into slices by the links between them.
+
+Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`, board hosting — `variant`): `docs/components/diagrams.md`.
 
 ```text
 actor > command > aggregate > event > policy > readmodel (+ external, hotspot)
@@ -8,11 +10,7 @@ array order of elements = timeline order (left to right)
 a `member` link keeps two notes in the same slice; a `flow` link is succession
 ```
 
-- Element: `<dpk-template-event-storming>`
-- Definition name: `event-storming`
-- Accent token: `--dpk-accent` (vermilion)
-
-## Base data
+## Data
 
 ```json
 {
@@ -66,6 +64,12 @@ a `member` link keeps two notes in the same slice; a `flow` link is succession
 
 A link to an unknown note, or a note pointing at an unknown context, is an error.
 
+参照形式: `element:<id>`（note も context も一意な id 空間）、`link:<id>`、ボード全体は `page:event-storming`。Hosted inside a `<dpk-page>` board, qualify with `@<board-id>` as any target is (`docs/page.md`).
+
+## Selection
+
+`selection` is `{ kind: 'note', id }` — only a note (an `elements[]` entry) is individually selectable this way; a bounded context is instead filtered via `#context=` (below), not selected.
+
 ## Action vocabulary
 
 | Action                    | target  | payload                                                                                                            |
@@ -87,6 +91,7 @@ A link to an unknown note, or a note pointing at an unknown context, is an error
 - The order of the `elements` array **is** the timeline order, and only `MOVE_ELEMENT` changes it. `after` is an anchor id, not an offset: `{ "after": "order-cmd" }` means "directly after order-cmd", and an unknown anchor makes the action stale.
 - An unknown endpoint, an unknown `contextId` (or one that no longer exists) makes the action stale: `SET_ELEMENT_CONTEXT`, `ADD_ELEMENT` and `LINK_ELEMENTS` are the ones that can carry one.
 - `DELETE_ELEMENT` also drops every link that referenced the note, so follow-up edits to those links go stale instead of dangling. `DELETE_CONTEXT` keeps the notes and only clears their `contextId`.
+- Embedded inside a template, or hosted as a board (`variant="board"` inside `<dpk-page>`), every action above is an **element action** on `element:<id>/element/<note-id>`, `element:<id>/context/<context-id>` or `element:<id>/link/<link-id>` (`docs/components/diagrams.md`, Element comments and template integration), with `ADD_ELEMENT` / `LINK_ELEMENTS` / `ADD_CONTEXT` landing on `element:<id>/page`. Note that the component's **comment** kind for a note is `note`, not `element` — see [Comment targets](#comment-targets). The enclosing template (or the page, for a board) owns the draft.
 
 ## Navigation
 
@@ -97,7 +102,7 @@ A link to an unknown note, or a note pointing at an unknown context, is an error
 - `note` selects a note: it gets the accent outline on the board and its editor opens. `context` filters the board to that bounded context (notes without that `contextId` are hidden; link lines stay computed from timeline positions).
 - Unknown ids fall back and the URL is rewritten to the canonical form.
 
-## UI provided by the template
+## UI provided by the component
 
 | Region | Content                                                                                                                           |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -110,7 +115,7 @@ The board is a fixed grid — notes keep their size so the link lines never need
 
 ## Comment targets
 
-Elements and contexts: `element:<id>` labelled with the note name under group `Element`, `context:<id>` labelled with the context name under group `Bounded context`.
+Elements and contexts: `element:<id>` labelled with the note name under group `Element`, `context:<id>` labelled with the context name under group `Bounded context`. In the chaos harness and any other code that wraps these into the `element:<diagram-id>/<kind>/<id>` scheme (`docs/components/diagrams.md`), the kind for a note is `note` — matching this section's own group label, not the `element` action-vocabulary target kind above.
 
 ## Change notices
 

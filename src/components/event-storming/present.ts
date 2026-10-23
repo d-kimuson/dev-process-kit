@@ -1,15 +1,7 @@
-import type {
-  ActionDescription,
-  ActionTarget,
-  ActionTone,
-  CommentTargetOption,
-  DraftAction,
-  Navigation,
-} from '../../core/types';
+import type { ActionDescription, ActionTarget, ActionTone, DraftAction } from '../../core/types';
 import type { EventStormingMessages } from './messages';
 
 import { payloadFor, type ActionName } from '../../core/schema';
-import { targetRef } from '../../core/target';
 import { eventStormingActions } from './actions';
 import { findContext, findLink, findNote, type EventStormingState } from './model';
 
@@ -110,10 +102,6 @@ export const describeEventStormingAction = (
   };
 };
 
-export const serializeEventStormingAction = (action: DraftAction): string => {
-  return `${action.type} ${targetRef(action.target)} ${JSON.stringify(action.payload)}`;
-};
-
 export const eventStormingTargetLabel = (
   m: EventStormingMessages,
   state: EventStormingState,
@@ -133,53 +121,8 @@ export const eventStormingTargetLabel = (
       return l ? m.linkLabel(l.from, l.to) : `${m.linkGroup} · ${target.id} (missing)`;
     }
     case 'page':
-      return m.pageLabel(eventStormingTitle(state));
+      return m.pageLabel(state.title ?? 'Event Storming');
     default:
       return `${target.type} · ${target.id}`;
   }
-};
-
-export const eventStormingCommentTargets = (
-  m: EventStormingMessages,
-  state: EventStormingState,
-): readonly CommentTargetOption[] => {
-  return [
-    ...state.elements.map((n) => ({
-      value: targetRef({ type: 'element', id: n.id }),
-      label: n.name,
-      group: m.elementGroup,
-    })),
-    ...state.contexts.map((c) => ({
-      value: targetRef({ type: 'context', id: c.id }),
-      label: c.name,
-      group: m.contextGroup,
-    })),
-  ];
-};
-
-/**
- * The note the reader selected on the board: the composer attaches a note to it
- * when the checkbox is on, otherwise the note is board-wide.
- */
-export const eventStormingCurrentTarget = (
-  m: EventStormingMessages,
-  state: EventStormingState,
-  nav: Navigation,
-): CommentTargetOption | null => {
-  const element = state.elements.find((candidate) => candidate.id === nav['note']);
-  if (!element) return null;
-  return { value: targetRef({ type: 'element', id: element.id }), label: element.name, group: m.elementGroup };
-};
-
-export const eventStormingTitle = (state: EventStormingState): string => {
-  return state.title ?? 'Event Storming';
-};
-
-export const resolveEventStormingNavigation = (state: EventStormingState, nav: Navigation): Navigation => {
-  const next: Record<string, string> = { ...nav };
-  const note = findNote(state, nav['note']);
-  if (nav['note'] !== undefined && !note) delete next['note'];
-  const ctx = findContext(state, nav['context']);
-  if (nav['context'] !== undefined && !ctx) delete next['context'];
-  return next;
 };

@@ -3,13 +3,12 @@ import { html, nothing, svg, type TemplateResult } from 'lit';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type { TemplateRenderContext } from '../../../core/shell/contracts';
+import type { SelectController } from '../../../core/select/controller';
 import type { Viewport } from '../interactions';
 import type { EventStormingMessages } from '../messages';
 import type { EventStormingState, NoteType } from '../model';
 
 import { grillMark } from '../../../core/grill';
-import { elementOf } from '../../../lib/dom/element';
 import { notePaletteStyle } from '../components/note-card';
 import { buildSlices, planSliceBands, sliceArrows, type EsSlice, type SliceArrow } from '../layout';
 import { noteCardModeOf, type EsGesture, type EsUiMode, type NoteIntent, type Point } from '../ui-mode';
@@ -105,7 +104,7 @@ export type EsBoardHandlers = {
 
 export type EsBoardProps = {
   readonly m: EventStormingMessages;
-  readonly context: TemplateRenderContext<EventStormingState>;
+  readonly state: EventStormingState;
   readonly mode: EsUiMode;
   /** Pixel budget for one wrapped band of flows (connector gaps included). */
   readonly maxRowWidth: number;
@@ -116,6 +115,12 @@ export type EsBoardProps = {
   readonly hoverSliceId: string | undefined;
   readonly selectedSliceIds: readonly string[];
   readonly selectedLinkIds: readonly string[];
+  /** The note the chrome's own selection currently names, if any. */
+  readonly selectedNoteId: string | undefined;
+  /** The one-shot "assign to an existing context" command select in the selection bar. */
+  readonly assignSelect: SelectController;
+  /** The host's own `commentRef`, so the board can mark notes and contexts as right-click comment targets. */
+  readonly commentRef: (kind: string, id: string) => string;
   readonly handlers: EsBoardHandlers;
 };
 
@@ -224,8 +229,7 @@ const wallGeometry = (
 };
 
 export const renderEsBoard = (props: EsBoardProps): TemplateResult => {
-  const { m, context, maxRowWidth, pinHeights, viewport, handlers } = props;
-  const { state } = context;
+  const { m, state, maxRowWidth, pinHeights, viewport, handlers } = props;
   const dot = 24 * viewport.zoom;
   const surfaceStyle = `background-size:${dot}px ${dot}px;background-position:${viewport.panX}px ${viewport.panY}px`;
   if (state.elements.length === 0) {
@@ -293,8 +297,7 @@ const renderBand = (
   band: BandGeometry,
   bandIndex: number,
 ): TemplateResult => {
-  const { m, context, mode, gesture, hoverSliceId, handlers } = props;
-  const { navigation } = context;
+  const { m, mode, gesture, hoverSliceId, selectedNoteId, handlers } = props;
   const bandSlices = band.sliceIds.flatMap((id) => geometry.slices.filter((slice) => slice.id === id));
   const rect = (slice: EsSlice): { x: number; y: number; w: number } => {
     return { x: geometry.xOf.get(slice.id) ?? 0, y: band.head, w: geometry.widthOf.get(slice.id) ?? 0 };
@@ -303,12 +306,11 @@ const renderBand = (
     html`<dpk-internal-event-storming-note
       style=${style}
       .note=${note}
-      .notes=${context.comments.filter((c) => c.target.type === 'element' && c.target.id === note.id)}
       .mode=${noteCardModeOf(mode, note.id)}
-      ?focused=${navigation['note'] === note.id}
+      ?focused=${selectedNoteId === note.id}
       ?compact=${compact}
       data-pin=${compact ? note.id : nothing}
-      data-dpk-target=${`element:${note.id}`}
+      data-dpk-target=${props.commentRef('note', note.id)}
       data-grill-questions=${ifDefined(grillMark(note.questions))}
       .onIntent=${(intent: NoteIntent) => handlers.noteIntent(note.id, intent)}
     ></dpk-internal-event-storming-note>`;
@@ -331,9 +333,10 @@ const renderBand = (
           ({ slice, note, slot }) => {
             const { x, y } = rect(slice);
             const noteX = x + SLICE_PAD_X + slot * (SLOT_W + SLOT_GAP);
+            const noteY = y + SLICE_PAD_Y;
             return noteCard(
               note,
-              `${notePaletteStyle(note.type)};position:absolute;left:${noteX}px;top:${y + SLICE_PAD_Y}px;width:${SLOT_W}px;height:${SLOT_H}px;--es-tilt:${tiltOf(note.id)}deg;z-index:2`,
+              `${notePaletteStyle(note.type)};position:absolute;left:${noteX}px;top:${noteY}px;width:${SLOT_W}px;height:${SLOT_H}px;--es-tilt:${tiltOf(note.id)}deg;z-index:2`,
             );
           },
         )}
@@ -349,11 +352,12 @@ const renderBand = (
           ({ pin, slot, index, at }) => {
             const noteX = at.x + SLICE_PAD_X + slot * (SLOT_W + SLOT_GAP);
             const noteY = at.y + SLICE_PAD_Y;
+            const lift = geometry.pinLiftOf.get(pin.note.id) ?? 0;
             return noteCard(
               pin.note,
               // Anchored by the bottom edge: a wordy pin grows upward, never onto its note.
               `${notePaletteStyle(pin.note.type)};position:absolute;left:${noteX + SLOT_W - PIN_W - 6 - index * 10}px;` +
-                `bottom:${band.height - (noteY - (geometry.pinLiftOf.get(pin.note.id) ?? 0))}px;` +
+                `bottom:${band.height - (noteY - lift)}px;` +
                 `width:${PIN_W}px;min-height:${PIN_H}px;--es-tilt:-2.4deg;z-index:3`,
               true,
             );
@@ -403,8 +407,8 @@ const renderContextRegions = (
   geometry: WallGeometry,
   bandIndex: number,
 ): TemplateResult | typeof nothing => {
-  const { m, context, handlers } = props;
-  const regions = context.state.contexts.flatMap((boundedContext, index) => {
+  const { m, state, handlers } = props;
+  const regions = state.contexts.flatMap((boundedContext, index) => {
     const members = geometry.slices.filter((slice) => slice.contextId === boundedContext.id);
     const placed = members.flatMap((slice) => {
       const x = geometry.xOf.get(slice.id);
@@ -424,7 +428,7 @@ const renderContextRegions = (
       html`<div
           class="context-region"
           data-hue=${hue}
-          data-dpk-target=${`context:${boundedContext.id}`}
+          data-dpk-target=${props.commentRef('context', boundedContext.id)}
           data-grill-questions=${ifDefined(grillMark(boundedContext.questions))}
           style=${`left:${left}px;top:${top}px;width:${right - left}px;height:${bottom - top}px`}
           title=${boundedContext.description ?? boundedContext.name}
@@ -506,11 +510,15 @@ const renderZoomControls = (props: EsBoardProps): TemplateResult => {
 };
 
 const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothing => {
-  const { m, context, selectedSliceIds, selectedLinkIds, handlers } = props;
+  const { m, state, selectedSliceIds, selectedLinkIds, assignSelect, handlers } = props;
   if (selectedLinkIds.length === 0 && selectedSliceIds.length === 0) return nothing;
-  const contexts = context.state.contexts;
+  const contexts = state.contexts;
   if (selectedLinkIds.length > 0) {
-    return html`<div class="board-selection" @pointerdown=${(event: PointerEvent) => event.stopPropagation()}>
+    return html`<dpk-selection-bar
+      label=${m.selectedLinks(selectedLinkIds.length)}
+      @pointerdown=${(event: PointerEvent) => event.stopPropagation()}
+      @dpk-selection-clear=${() => handlers.clearSelection()}
+    >
       <span class="board-selection-count">${m.selectedLinks(selectedLinkIds.length)}</span>
       <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => handlers.deleteSelection()}>
         ${m.deleteLinks}
@@ -524,9 +532,13 @@ const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothin
       >
         ✕
       </button>
-    </div>`;
+    </dpk-selection-bar>`;
   }
-  return html`<div class="board-selection" @pointerdown=${(event: PointerEvent) => event.stopPropagation()}>
+  return html`<dpk-selection-bar
+    label=${m.selectedSlices(selectedSliceIds.length)}
+    @pointerdown=${(event: PointerEvent) => event.stopPropagation()}
+    @dpk-selection-clear=${() => handlers.clearSelection()}
+  >
     <span class="board-selection-count">${m.selectedSlices(selectedSliceIds.length)}</span>
     <button
       class="dpk-btn dpk-btn--accent"
@@ -537,19 +549,15 @@ const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothin
     </button>
     ${
       contexts.length > 0
-        ? html`<select
-            class="dpk-select"
-            aria-label=${m.addToExistingAria}
-            @change=${(event: Event) => {
-              const select = elementOf(event.target, HTMLSelectElement);
-              if (select === null) return;
-              if (select.value !== '') handlers.assignSelection(select.value);
-              select.value = '';
-            }}
-          >
-            <option value="" selected>${m.addToExistingOption}</option>
-            ${contexts.map((c) => html`<option value=${c.id}>${c.name}</option>`)}
-          </select>`
+        ? assignSelect.render({
+            options: contexts.map((c) => ({ value: c.id, label: c.name })),
+            value: '',
+            onChange: (value) => {
+              if (value !== '') handlers.assignSelection(value);
+            },
+            ariaLabel: m.addToExistingAria,
+            placeholder: m.addToExistingOption,
+          })
         : nothing
     }
     <button class="dpk-btn" type="button" @click=${() => handlers.stripSelectionContext()}>
@@ -559,7 +567,7 @@ const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothin
     <button class="dpk-icon-btn" type="button" aria-label=${m.clearSelection} @click=${() => handlers.clearSelection()}>
       ✕
     </button>
-  </div>`;
+  </dpk-selection-bar>`;
 };
 
 /* ------------------------------------------------------------------ arrows */

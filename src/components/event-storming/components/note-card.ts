@@ -1,22 +1,14 @@
 import { css, html, LitElement, nothing, type PropertyValues, type TemplateResult } from 'lit';
 
-import type { DpkComponentInlineEdit } from '../../../components/inline-edit';
-import type { DraftAction } from '../../../core/types';
+import type { DpkInlineEdit } from '../../../components/inline-edit';
 import type { StickyNote } from '../model';
 import type { NoteCardMode, NoteIntent } from '../ui-mode';
 
-import { composerMessages, type ComposerMessages } from '../../../components/comment-composer/messages';
-import { presentComposer } from '../../../components/comment-composer/present';
-import { renderComposer } from '../../../components/comment-composer/view';
-import { commentBody } from '../../../core/comment';
-import { iconComment, iconTrash } from '../../../core/icons';
+import { iconTrash } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
-import { PopoverController } from '../../../core/popover-controller';
 import { controls, popoverSurface } from '../../../core/theme';
 import { onCommit } from '../../../lib/dom/events';
 import { eventStormingMessages } from '../messages';
-
-const COMPOSER_SIZE = { width: 300, height: 260 };
 
 /** Sticky color per type — the single source for the notes and the legend. */
 const NOTE_TYPE_COLORS: Record<StickyNote['type'], { readonly bg: string; readonly ink: string }> = {
@@ -94,8 +86,7 @@ const cardStyles = css`
     z-index: 5;
   }
 
-  :host([data-mode='editing']),
-  :host([data-mode='commenting']) {
+  :host([data-mode='editing']) {
     z-index: 7;
     transform: rotate(0deg);
   }
@@ -141,26 +132,6 @@ const cardStyles = css`
     flex: 0 1 auto;
     font-size: 11.5px;
     line-height: 1.3;
-  }
-
-  /* Comments already left: a passive corner flag, readable without hover. */
-  .note-flag {
-    position: absolute;
-    top: -7px;
-    right: -7px;
-    min-width: 17px;
-    height: 17px;
-    padding: 0 4px;
-    border: 1.5px solid var(--dpk-paper-raised);
-    border-radius: 999px;
-    background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent));
-    color: var(--dpk-accent-ink);
-    font-family: var(--dpk-mono);
-    font-size: 9.5px;
-    font-weight: 650;
-    line-height: 17px;
-    text-align: center;
-    box-shadow: 0 1px 4px rgba(217, 73, 32, 0.35);
   }
 
   /* A side rail of round buttons that fades in on hover, like the hotspot chip:
@@ -218,7 +189,6 @@ const cardStyles = css`
   }
 
   :host(:hover) .note-tools,
-  :host([data-mode='commenting']) .note-tools,
   .note-tools:focus-within {
     opacity: 1;
     pointer-events: auto;
@@ -239,16 +209,16 @@ const cardStyles = css`
  * `<dpk-internal-event-storming-note>` — one sticky note on the wall.
  *
  * The board positions and sizes the host; the note only paints itself and
- * reports `NoteIntent`s. Which note is being edited or commented on is the
- * host element's decision (`EsUiMode`); the card renders the mode it is given
- * and never dispatches actions itself.
+ * reports `NoteIntent`s. Which note is being edited is the host element's
+ * decision (`EsUiMode`); the card renders the mode it is given and never
+ * dispatches actions itself. Comments are the chrome's own contextual
+ * trigger, rendered by the board as the note's sibling (ADR 20261023_diagram-as-board).
  */
 export class DpkInternalEventStormingNote extends LitElement {
   static override styles = [controls, cardStyles, popoverSurface];
 
   static override properties = {
     note: { attribute: false },
-    notes: { attribute: false },
     mode: { type: String, reflect: true, attribute: 'data-mode' },
     focused: { type: Boolean, reflect: true },
     /** A pin-sized card: keeps the type label off it. */
@@ -257,22 +227,16 @@ export class DpkInternalEventStormingNote extends LitElement {
   };
 
   declare note: StickyNote | null;
-  /** Comments already left on this note. */
-  declare notes: readonly DraftAction[];
   declare mode: NoteCardMode;
   declare focused: boolean;
   declare compact: boolean;
   declare onIntent: ((intent: NoteIntent) => void) | null;
 
-  /** Typed text is read on submit; the textarea owns it while typing. */
-  #draft = '';
-  readonly #popovers = new PopoverController(this);
   readonly #i18n = new LocaleController(this);
 
   constructor() {
     super();
     this.note = null;
-    this.notes = [];
     this.mode = 'view';
     this.focused = false;
     this.compact = false;
@@ -287,26 +251,18 @@ export class DpkInternalEventStormingNote extends LitElement {
       if (this.note.description === undefined) this.removeAttribute('title');
       else this.setAttribute('title', this.note.description);
     }
-    if (changed.has('mode')) {
-      if (this.mode !== 'commenting') this.#draft = '';
-      if (this.mode === 'editing') {
-        this.renderRoot.querySelector<DpkComponentInlineEdit>('dpk-component-inline-edit')?.startEditing();
-      }
+    if (changed.has('mode') && this.mode === 'editing') {
+      this.renderRoot.querySelector<DpkInlineEdit>('dpk-inline-edit')?.startEditing();
     }
-    if (this.mode !== 'commenting') return;
-    const composer = this.renderRoot.querySelector<HTMLElement>('.comment-pop');
-    const button = this.renderRoot.querySelector('[data-role="comment"]');
-    if (composer && button) this.#popovers.open(composer, button, COMPOSER_SIZE);
   }
 
   protected override render(): TemplateResult | typeof nothing {
     const note = this.note;
     if (!note) return nothing;
     const m = eventStormingMessages(this.#i18n.locale);
-    const cm = composerMessages(this.#i18n.locale);
     return html`
       <div class="note-type">${m.noteTypeLabel(note.type)}</div>
-      <dpk-component-inline-edit
+      <dpk-inline-edit
         class="note-name"
         ?wrap=${true}
         ?truncate=${!this.compact}
@@ -314,8 +270,7 @@ export class DpkInternalEventStormingNote extends LitElement {
         .value=${note.name}
         .label=${m.noteNameLabel}
         @dpk-commit=${onCommit((name) => this.#report({ kind: 'rename', name }))}
-      ></dpk-component-inline-edit>
-      ${this.notes.length > 0 ? html`<span class="note-flag">${this.notes.length}</span>` : nothing}
+      ></dpk-inline-edit>
       ${
         note.type === 'hotspot'
           ? nothing
@@ -333,16 +288,6 @@ export class DpkInternalEventStormingNote extends LitElement {
         <button
           class="dpk-icon-btn"
           type="button"
-          data-role="comment"
-          aria-label=${cm.comment}
-          data-active=${String(this.mode === 'commenting')}
-          @click=${this.#tool(() => ({ kind: 'toggle-comment' }))}
-        >
-          ${iconComment()}
-        </button>
-        <button
-          class="dpk-icon-btn"
-          type="button"
           data-role="delete"
           aria-label=${m.deleteNote}
           @click=${this.#tool(() => ({ kind: 'delete' }))}
@@ -350,22 +295,7 @@ export class DpkInternalEventStormingNote extends LitElement {
           ${iconTrash()}
         </button>
       </div>
-      ${this.mode === 'commenting' ? this.#renderComposer(cm) : nothing}
     `;
-  }
-
-  #renderComposer(cm: ComposerMessages): TemplateResult {
-    return renderComposer(
-      cm,
-      presentComposer(this.#draft, this.notes.map(commentBody), this.note ? { key: `note:${this.note.id}` } : {}),
-      (intent) => {
-        if (intent.kind === 'input') {
-          this.#draft = intent.body;
-          this.requestUpdate();
-          // Without a choice, the composer never sends `choose`.
-        } else if (intent.kind !== 'choose') this.#report(intent);
-      },
-    );
   }
 
   /** Tool buttons must not also select the note. */

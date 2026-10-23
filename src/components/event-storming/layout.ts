@@ -167,17 +167,6 @@ export const buildSlices = (state: EventStormingState): readonly EsSlice[] => {
 };
 
 /**
- * Notes are only ever shown in their slices, so their global order matters only
- * as far as it orders the slices and the notes inside one: moving a slice away
- * and back regroups the array but not the board.
- */
-export const canonicalEventStormingState = (state: EventStormingState): EventStormingState => {
-  const laidOut = buildSlices(state).flatMap((slice) => [...slice.notes, ...slice.pins.map((pin) => pin.note)]);
-  const placed = new Set(laidOut.map((note) => note.id));
-  return { ...state, elements: [...laidOut, ...state.elements.filter((note) => !placed.has(note.id))] };
-};
-
-/**
  * Where a freshly added note of `type` should hook into an existing slice:
  * the member it forms a natural pair with (so kind inference agrees), else
  * the slice head. `incoming` means the new note is the link's `from` side.

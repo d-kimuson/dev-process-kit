@@ -1,19 +1,25 @@
 import { css } from 'lit';
 
-/** Wall chrome of `<dpk-template-event-storming>`. Notes style themselves. */
+/** Wall chrome of `<dpk-event-storming>`. Notes style themselves. */
 export const eventStormingStyles = css`
-  /* The board owns the whole main area; the viewport clips, never the shell. */
-  .dpk-main {
-    overflow: hidden;
+  /*
+   * The shell (\`<dpk-dialog-panel class="event-storming">\`) is a panel: header, tag
+   * row, viewport; \`--dpk-dialog-panel-height\` is the knob it reads for its own
+   * height, mirroring \`diagram/styles.ts\`'s \`.diagram\` (the six graph diagrams'
+   * own shell class) since \`ElementChromeBase\` does not add that class for a
+   * component with its own \`render()\`.
+   */
+  .event-storming {
+    --dpk-dialog-panel-height: 560px;
+    --dpk-dialog-panel-min-height: 260px;
   }
 
-  .dpk-main-body {
-    flex: 1 1 auto;
+  /* A board has no fixed height to fall back to: it takes all of what its
+     full-screen host (e.g. dpk-page) gives it, same as any other board. */
+  :host([variant='board']) .event-storming {
+    --dpk-dialog-panel-height: 100%;
+    flex: 1 1 0%;
     min-height: 0;
-    display: flex;
-    flex-direction: column;
-    padding: 0;
-    gap: 0;
   }
 
   /* ------------------------------------------------------------- viewport */
@@ -28,6 +34,8 @@ export const eventStormingStyles = css`
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
+    /* An edge swipe here must pan the wall, never fall through to browser back/forward. */
+    overscroll-behavior-x: contain;
     touch-action: none;
     background: var(--dpk-dots), var(--dpk-paper-sunken);
   }
@@ -512,23 +520,12 @@ export const eventStormingStyles = css`
     font-size: 10.5px;
   }
 
-  .board-selection {
-    position: absolute;
-    left: 50%;
-    bottom: 14px;
-    transform: translateX(-50%);
-    z-index: 45;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    padding: 8px 12px;
-    border: 1px solid var(--dpk-rule-strong);
-    border-radius: var(--dpk-radius);
-    background: var(--dpk-glass);
-    backdrop-filter: blur(12px);
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
-    animation: dpk-hud-in 200ms var(--dpk-ease-spring) backwards;
-  }
+  /*
+   * The outer chrome (position, background, border, the clipping-proof
+   * top-layer promotion) is dpk-selection-bar's own, shared across every
+   * board or component that claims it (components/selection-bar).
+   * Only the slotted text below is still this template's own.
+   */
 
   .board-selection-count {
     font-family: var(--dpk-mono);
