@@ -406,8 +406,12 @@ export const erStyles = css`
   }
 
   .er-field.is-lit .er-field-name {
+    /*
+     * Color only: a weight change shifts a long name's own wrap points
+     * (bold glyphs are wider), so hovering or selecting would jitter the
+     * row it highlights instead of just tinting it.
+     */
     color: var(--dpk-blue);
-    font-weight: 600;
   }
 
   .er-field.is-lit .er-field-type {

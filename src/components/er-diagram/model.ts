@@ -18,6 +18,8 @@ export const TABLE_WIDTH = 280;
 export const TABLE_HEAD_HEIGHT = 40;
 const ROW_HEIGHT = 32;
 const CHANGED_ROW_HEIGHT = 52;
+/** A table never grows past this, so one pathological identifier cannot blow up the whole diagram. */
+const MAX_TABLE_WIDTH = 440;
 
 export type ErStatus = 'same' | 'added' | 'removed' | 'changed';
 export type ErKey = 'PK' | 'FK' | 'UQ';
@@ -313,13 +315,62 @@ const withPorts = (table: ErTableDiff, edges: readonly ErRelation[]): ErTableDif
   for (const edge of edges) {
     if (edge.from === table.id) {
       ports[`${edge.id}:out`] = {
-        x: TABLE_WIDTH,
+        x: table.width,
         y: fieldOffset(table.fields, edge.sourceField) + (fan.get(edge.id) ?? 0),
       };
     }
     if (edge.to === table.id) ports[`${edge.id}:in`] = { x: 0, y: fieldOffset(table.fields, edge.targetField) };
   }
   return { ...table, ports };
+};
+
+/**
+ * A deterministic identifier-width estimate (full-width CJK glyphs take a
+ * whole em, everything else a little over half), mirroring mind-map's own
+ * `estimateTextWidth` — kept local since ER's chrome (icon/type/action
+ * columns) is different enough that sharing the function wouldn't help.
+ */
+const estimateIdentifierWidth = (text: string, fontSize: number): number => {
+  let width = 0;
+  for (const char of text) width += (char.codePointAt(0) ?? 0) >= 0x2e80 ? fontSize : fontSize * 0.62;
+  return width;
+};
+
+/** A field row's own chrome, besides its name column: mark + icon + gaps + row padding (see `.er-field-line`). */
+const FIELD_ROW_CHROME = 70;
+/** Both action buttons at their widest (edit + delete, 20px each plus the row's 2px gap). */
+const FIELD_ACTION_WIDTH = 42;
+/** `.er-field-type`'s own `max-width` — a changed type (old + new, side by side) never grows past it. */
+const FIELD_TYPE_MAX_WIDTH = 168;
+
+/** How wide `field`'s type column asks for: both values when it changed, one otherwise, capped at its CSS max-width. */
+const fieldTypeWidth = (field: ErFieldDiff): number => {
+  const after = estimateIdentifierWidth(field.type, 11);
+  const before =
+    field.before === null || field.before.type === field.type ? 0 : estimateIdentifierWidth(field.before.type, 11) + 5;
+  return Math.min(FIELD_TYPE_MAX_WIDTH, Math.ceil(before + after));
+};
+
+/**
+ * `TABLE_WIDTH` fits ordinary identifiers. A table whose own id or any
+ * field's id runs long gets a bit more room — enough to wrap the longest one
+ * into a few lines instead of one short fragment per line — capped at
+ * `MAX_TABLE_WIDTH` so a single pathological identifier cannot widen the
+ * whole diagram. The field estimate also budgets for its row's own type and
+ * action columns, since a wide type diff squeezes the name column further
+ * than the table's own total width would suggest.
+ */
+const tableWidthFor = (id: string, fields: readonly ErFieldDiff[]): number => {
+  // Chrome around the header's own id: icon, badges, gaps and padding.
+  const headerNeed = estimateIdentifierWidth(id, 13) / 2 + 100;
+  const fieldNeed = Math.max(
+    0,
+    ...fields.map(
+      (field) =>
+        estimateIdentifierWidth(field.id, 12) / 2 + FIELD_ROW_CHROME + FIELD_ACTION_WIDTH + fieldTypeWidth(field),
+    ),
+  );
+  return Math.min(MAX_TABLE_WIDTH, Math.max(TABLE_WIDTH, Math.ceil(Math.max(headerNeed, fieldNeed))));
 };
 
 export const parseErData = (input: unknown): ErData => {
@@ -367,7 +418,7 @@ export const parseErData = (input: unknown): ErData => {
         // tables sharing an aggregate are clustered into one non-overlapping band on the canvas.
         ...(aggregate === null ? {} : { group: aggregate }),
         pattern: patterns.get(id) ?? null,
-        width: TABLE_WIDTH,
+        width: tableWidthFor(id, fields),
         height: tableHeight(fields),
         ...(source.questions === undefined ? {} : { questions: source.questions }),
       } satisfies ErTableDiff,
@@ -470,7 +521,10 @@ const replaceTable = (data: ErData, id: string, fields: readonly ErFieldDiff[]):
         : fields.some((field) => field.status !== 'same')
           ? 'changed'
           : 'same';
-    return withPorts({ ...node, status, fields, height: tableHeight(fields) }, data.edges);
+    return withPorts(
+      { ...node, status, fields, width: tableWidthFor(node.id, fields), height: tableHeight(fields) },
+      data.edges,
+    );
   });
   return { ...data, nodes };
 };
