@@ -554,6 +554,29 @@ describe('DiagramElement', () => {
       expect(reloadedNode?.style.left).toBe(moved);
     });
 
+    it('offers reset positions only after a node has actually been dragged', async () => {
+      const element = await mount('tiny-diagram', tinyData);
+      const node = element.renderRoot.querySelector<HTMLElement>('[data-node="a"]');
+      if (!node) throw new Error('missing node');
+      const target = parseTargetRef(node.getAttribute('data-dpk-target') ?? '');
+      const resetEntry = () =>
+        (element.getContextMenuItems({ clientX: 0, clientY: 0, target }) ?? [])
+          .flatMap((group) => group.entries)
+          .find((entry) => entry.id === 'reset-positions');
+
+      // Nothing has moved: no dead (disabled) action in the menu.
+      expect(resetEntry()).toBeUndefined();
+
+      pointer(node, 'pointerdown', 10, 10);
+      pointer(node, 'pointermove', 60, 40);
+      pointer(node, 'pointerup', 60, 40);
+      await element.updateComplete;
+
+      const entry = resetEntry();
+      expect(entry?.kind).toBe('item');
+      expect(entry?.kind === 'item' ? entry.disabled : true).not.toBe(true);
+    });
+
     it('clears a dragged position through the public resetPositions() API, same as the context menu item', async () => {
       const element = await mount('tiny-diagram', tinyData);
       const node = element.renderRoot.querySelector<HTMLElement>('[data-node="a"]');

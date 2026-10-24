@@ -1172,6 +1172,11 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
 
   /** The board's right-click menu: reset every node, alongside the inherited comment item. */
   override getContextMenuItems(request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
+    const inherited = super.getContextMenuItems(request);
+    // With nothing dragged there is nothing to reset. Showing a disabled
+    // native <button> for it swallowed the click and left the menu open — the
+    // reader read that as "the button does not work". Omit the action instead.
+    if (!this.hasPositionOverrides()) return inherited;
     const cm = contextMenuMessages(this.locale);
     const resetPositions: ContextMenuGroup = {
       id: 'diagram-reset-positions',
@@ -1180,12 +1185,11 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
           kind: 'item',
           id: 'reset-positions',
           label: cm.resetPositions,
-          disabled: !this.hasPositionOverrides(),
           run: () => this.resetPositions(),
         },
       ],
     };
-    return [...(super.getContextMenuItems(request) ?? []), resetPositions];
+    return [...(inherited ?? []), resetPositions];
   }
 
   /**
