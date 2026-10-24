@@ -2,7 +2,7 @@ import type { LayoutPoint } from '../../lib/layout/layered';
 import type { ErDiagramMessages } from './messages';
 import type { ErCardinality, ErData, ErField, ErFieldDiff, ErRelation, ErTableDiff } from './model';
 
-import { countRouteCrossings, routeAroundObstacles, type RouteSegment } from '../../lib/layout/orthogonal-router';
+import { routeAroundObstacles, type RouteSegment } from '../../lib/layout/orthogonal-router';
 import { nudgeParallelRoutes, type NudgeInput } from '../../lib/layout/route-nudge';
 
 /**
@@ -420,7 +420,7 @@ export const relationRoute = (
     frame.members.includes(relation.from) || frame.members.includes(relation.to) ? [] : [frame.box],
   );
   // Just this relation's own table(s) and own frame(s) — exactly the boxes
-  // excluded from `obstacles` above, so `gridRoute` is blind to them and can
+  // excluded from `obstacles` above, so the router is blind to them and can
   // otherwise route right along one of their borders (#151 round 2:
   // `legacy_api_tokens`'s relation hugging its own left edge, then its own
   // aggregate frame's bottom border). Deliberately *not* every table's and
@@ -450,37 +450,15 @@ const manhattanSpan = (points: readonly LayoutPoint[]): number => {
   return Math.abs(end.x - start.x) + Math.abs(end.y - start.y);
 };
 
-/** How many times `route` crosses every *other* route in `all` (itself excluded). */
-const crossingsAgainstBatch = (
-  id: string,
-  route: readonly LayoutPoint[],
-  all: ReadonlyMap<string, readonly LayoutPoint[]>,
-): number => {
-  let sum = 0;
-  for (const [otherId, otherRoute] of all) if (otherId !== id) sum += countRouteCrossings(route, otherRoute);
-  return sum;
-};
-
-/**
- * A bounded rip-up-and-reroute pass: every edge is re-tried, in the same
- * short-first order, against every *other* edge's latest route (not just the
- * ones routed earlier), keeping the new shape only when it strictly lowers
- * that edge's own crossing count. Never worse, never equal-but-different, so
- * it cannot oscillate forever; the fixed pass cap means it always terminates
- * even on a batch that has not fully settled by then.
- */
-const RIPUP_PASSES = 2;
-
 /**
  * Every relation's drawn route, in one pass: routed short-first so a later,
  * longer edge is the one that has to detour around an earlier, shorter one
  * (not the reverse), each route aware of every edge already routed via
  * `avoid` so the router can prefer the candidate shape that crosses fewer of
- * them; then a bounded rip-up-reroute pass lets a later edge's route improve
- * an earlier edge's choice too; then the whole batch is pulled apart by
- * `nudgeParallelRoutes` so two routes sharing a corridor — or one hugging a
- * frame border — separate into their own tracks instead of running on top of
- * each other (`scoreLayout`'s `collinearOverlap` term).
+ * them; then the whole batch is pulled apart by `nudgeParallelRoutes` so two
+ * routes sharing a corridor — or one hugging a frame border — separate into
+ * their own tracks instead of running on top of each other (`scoreLayout`'s
+ * `collinearOverlap` term).
  *
  * Nudging's output is kept unconditionally, even where it adds a crossing:
  * a per-edge revert ("only nudge where it does not add a crossing") was
@@ -489,30 +467,22 @@ const RIPUP_PASSES = 2;
  * same corridor each look, in isolation, like they are "adding a crossing"
  * by leaving it, so the revert discarded most of nudging's fixes and
  * collinear overlap exploded back up (~3,300 → ~50,000 length on that
- * fixture) for a few crossings saved elsewhere. Routing order, edge-aware L
- * selection and rip-up-reroute below already deliver the crossing
- * improvement without that trade, so nudging is left to do only its one job.
+ * fixture) for a few crossings saved elsewhere. Routing order and edge-aware
+ * L/lane selection already deliver the crossing improvement without that
+ * trade, so nudging is left to do only its one job.
  *
- * #152: this used to also search, for every relation whose default field/field
- * route hugged a border, every top/bottom port combination on both ends (up to
- * 9 candidate reroutes each), fan-spread the ones that shared a card edge, and
- * finally re-check every such swap against the fully-settled batch and revert
- * it if the plain field/field default would have crossed less. Profiling the
- * live component (not this module's own `pnpm bench:layout`, which never timed
- * routing at all — see `dev/layout-bench/geometry.ts`) found that search alone
- * cost ~60% of `relationRoutes`' total time (~640ms of ~1,080ms on `er-complex`,
- * 38 tables/51 edges) and the revert pass another ~13%, for a readability
- * improvement (`outlineHugging`, a soft metric the task explicitly allows to
- * move) bought at the cost of every hover, selection, search, filter and drag
- * frame re-running the entire pipeline from scratch — multi-second browser
- * long tasks on hover/click/drag, the reported "ブラウザバカ重い". Deleted
- * rather than kept behind a cache, per the request to simplify the idea rather
- * than patch around it again: `dev/layout-bench/baseline.ts` records the
- * resulting `outlineHugging`/`crossings` deltas per fixture. The cheaper,
- * still-active defence against the original #151 report (a route hugging its
- * own card/frame border) is `orthogonal-router.ts`'s `gridRoute`
- * `OUTLINE_HUG_STEP_PENALTY`, which steers the Dijkstra fallback away from a
- * border at no extra routing passes — that stays.
+ * #152 round 1 deleted the port-side hug search described in an earlier
+ * version of this comment (~60% of this function's total time for a
+ * readability-only win — see `dev/layout-bench/baseline.ts`). #152 round 2
+ * went further and deleted the bounded rip-up-and-reroute pass that used to
+ * run here too: profiling found `orthogonal-router.ts`'s grid-and-Dijkstra
+ * fallback it kept re-invoking was ~95% of all routing time on the densest
+ * fixture, not because any one call was slow but because every edge paid
+ * for it again on every rip-up pass. That fallback is gone, replaced by a
+ * fast-by-construction 2-bend lane detour (`laneDetour`) that is cheap
+ * enough not to need amortizing across passes — see that module's own doc
+ * comment. `dev/layout-bench/baseline.ts` records the resulting
+ * `crossings`/`outlineHugging` deltas per fixture from dropping rip-up.
  *
  * Shared by the live view (`element.ts`) and the layout-complexity bench, so
  * the metric always scores exactly what the view draws.
@@ -540,22 +510,6 @@ export const relationRoutes = (
   for (const relation of order) {
     const avoid = [...routed.values()].flatMap((points) => segmentsOf(points));
     routed.set(relation.id, routeFor(relation, avoid));
-  }
-
-  // Bounded rip-up-reroute, see `RIPUP_PASSES`'s doc comment.
-  for (let pass = 0; pass < RIPUP_PASSES; pass++) {
-    let improvedAny = false;
-    for (const relation of order) {
-      if (relation.from === relation.to) continue; // a self-loop's shape never varies; nothing to re-try
-      const current = routed.get(relation.id) ?? [];
-      const avoid = [...routed].flatMap(([id, points]) => (id === relation.id ? [] : segmentsOf(points)));
-      const candidate = routeFor(relation, avoid);
-      if (crossingsAgainstBatch(relation.id, candidate, routed) < crossingsAgainstBatch(relation.id, current, routed)) {
-        routed.set(relation.id, candidate);
-        improvedAny = true;
-      }
-    }
-    if (!improvedAny) break;
   }
 
   const inputs: NudgeInput[] = relations.map((relation) => {

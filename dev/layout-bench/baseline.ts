@@ -293,17 +293,100 @@
  * violations throughout — the hard ratchet is untouched; only the soft
  * metrics the task named as tradeable moved, in exchange for every hover,
  * selection, filter and drag frame no longer re-running this search at all.
+ *
+ * 2026-10 (#152 round 2): round 1's caching papered over the symptom
+ * (unmemoized re-routing on every render) without touching the cause: every
+ * *genuine* layout change (initial load, a drop after drag) still paid the
+ * full cost of `orthogonal-router.ts`'s grid-and-Dijkstra fallback
+ * (`gridRoute`), measured at ~300–380ms headless for `er-complex` alone.
+ * Asked to change the idea rather than patch on top again, `gridRoute` —
+ * the per-edge grid search with `AVOID_CROSSING_PENALTY`/
+ * `OUTLINE_HUG_STEP_PENALTY`-weighted Dijkstra steering and a gated
+ * narrow/richer two-pass search — is deleted outright and replaced with two
+ * tiers: `laneDetour`, a 2-bend detour whose candidate bend-lines come
+ * directly from the handful of obstacle borders actually overlapping the
+ * route's span (`laneCandidates`) — no grid, nothing to search exhaustively,
+ * `pickBest` just filters/sorts a short list by hug-avoidance then crossing
+ * count then length; and `rareFallbackRoute`, a plain BFS over a small local
+ * grid (no bend pricing, no direction-per-cell state, no avoid/hug steering,
+ * no priority queue — just a FIFO queue and a visited check) kept only as a
+ * correctness net for the rare dense pack `laneDetour` cannot solve with a
+ * 2-bend shape at all. `view.ts`'s bounded rip-up-and-reroute pass is
+ * deleted too (explicitly, not only because it is now unneeded): profiling
+ * found `gridRoute` was ~95% of `relationRoutes`' total time specifically
+ * because every edge paid for it again on every rip-up pass — with that
+ * fallback gone, re-amortizing a now-cheap search across passes bought back
+ * only a little (measured by hand: reinstating 2 extra passes on top of the
+ * replacement router cut `er-complex`'s crossings 48→38 but more than
+ * tripled its `routingMs`) for a cost the task asked to remove, not
+ * reintroduce.
+ *
+ * `rareFallbackRoute` itself went through two intermediate shapes before
+ * landing on plain BFS, both measured and rejected: a bend-priced Dijkstra
+ * with a binary min-heap (a direct, trimmed port of the old `gridRoute`)
+ * was fast but barely smaller in code than what it replaced, since a
+ * priority queue's bookkeeping dominates a small function's line count
+ * regardless of what it is searching; swapping the heap for a linear O(V^2)
+ * scan (no search-structure code at all) shrank it further but made
+ * `routingMs` *worse* than before this round on the two fixtures whose
+ * edges actually reach this fallback (`synthetic-random-2`: ~3ms→~52ms) —
+ * the ×3 direction-tagged state space this fallback never needed to begin
+ * with (nothing above it ever asked this function to prefer fewer bends;
+ * that preference was inherited from `gridRoute` without being re-examined)
+ * made the quadratic scan itself the new bottleneck. Dropping the
+ * direction state entirely — this function only has to guarantee *a* clear
+ * route, not a bend-optimal one, since `laneDetour` already owns every
+ * quality preference whenever it finds a route at all — cuts the state
+ * space 3x and turns the search into a plain unweighted BFS, which is both
+ * the smallest version of this function and the fastest, because a FIFO
+ * queue is simpler than either a heap or a quadratic scan and `laneDetour`
+ * already carries every edge that needs a quality-steered path.
+ *
+ * This is the real, structural trade for deleting `gridRoute`: its
+ * `AVOID_CROSSING_PENALTY`-weighted search over every grid cell, re-run on
+ * every rip-up pass, was *also* the single biggest lever this corpus had for
+ * driving crossings down, and `laneDetour`'s short, obstacle-border-sourced
+ * candidate list is structurally weaker at that than an exhaustive grid
+ * search — the same mechanism that made it slow is most of what made it
+ * good at this. Every fixture's `routingMs` collapses by one to two orders
+ * of magnitude (`er-complex` ~300–380ms→~14ms, `synthetic-random-1`
+ * ~70–80ms→~2ms, `synthetic-random-2` ~55–80ms→~2–3ms — see
+ * `LAYOUT_BENCH_TIME_BASELINE`), which is what directly eliminates the
+ * browser-observed multi-hundred-ms-to-multi-second long tasks on load and
+ * drop this round was about; soft-metric totals move more than "moderate"
+ * on the fixtures with the most crossings to begin with: `er-complex`
+ * 5822.72→6892.70 (+18.4%, crossings 31→41 — BFS's fewest-hops path is not
+ * always `gridRoute`'s bend-optimal one on the 2 edges that reach this
+ * fallback, outlineHug 67→74), `synthetic-cross-bc` 672.34→1267.80 (+88.6%,
+ * crossings 1→4, outlineHug 18→25 — this fixture's one long cross-BC edge
+ * falls through to the fallback and BFS's path crosses more of the batch's
+ * already-routed traffic than the deleted `AVOID_CROSSING_PENALTY` steering
+ * did, the single largest crossing regression of this round in relative
+ * terms), `synthetic-random-1` 7157.73→8426.29 (+17.7%, crossings 57→71,
+ * outlineHug 15→13), `synthetic-random-2` 5070.62→7262.72 (+43.2%, crossings
+ * 36→59, outlineHug 21→22). `order-schema` is an outright improvement
+ * (369.24→275.84, -25.3%, crossings 1→0): its one hugging/crossing edge
+ * happens to have a clean `laneDetour` candidate, never reaching the
+ * fallback at all. `er-long-names`, `synthetic-no-bc`, `synthetic-hub-table`,
+ * `synthetic-self-reference` are byte-identical: none of their edges ever
+ * reached past the unchanged straight-line/L-shape tiers in either router.
+ * Zero overlaps/edge-through-node/frame violations on every fixture,
+ * confirmed after finding and fixing a real correctness bug this redesign
+ * introduced (`rareFallbackRoute`'s window not being grown to contain an
+ * obstacle that pokes into it — see that function's own doc comment) that
+ * briefly broke this guarantee on `er-complex` and `synthetic-random-2`
+ * during development.
  */
 export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 5822.720444101124,
-  'order-schema': 369.2371266002845,
+  'er-complex': 6892.700444101124,
+  'order-schema': 275.83712660028453,
   'er-long-names': 169.7817124073083,
   'synthetic-no-bc': 1522.9020464945997,
-  'synthetic-cross-bc': 672.3449380406827,
+  'synthetic-cross-bc': 1267.8049380406826,
   'synthetic-hub-table': 659.4210727969348,
   'synthetic-self-reference': 390.77998596244953,
-  'synthetic-random-1': 7157.732346185397,
-  'synthetic-random-2': 5070.618716727337,
+  'synthetic-random-1': 8426.292346185399,
+  'synthetic-random-2': 7262.718716727338,
 };
 
 /**
@@ -344,17 +427,47 @@ export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
  * the user prefers slightly more crossings over a sluggish page; every
  * fixture's hard metrics (overlaps/edge-through-node/frame violations)
  * remain 0.
+ *
+ * 2026-10 (#152 round 2): deleting `gridRoute`'s `AVOID_CROSSING_PENALTY`-
+ * weighted exhaustive grid search and the rip-up-and-reroute pass that
+ * re-ran it (see `LAYOUT_BENCH_BASELINE` above for the full accounting) was,
+ * on this corpus, also deleting the single biggest crossing-reduction lever
+ * — `laneDetour`'s short, obstacle-border-sourced candidate list cannot
+ * match an exhaustive weighted search at this job. Crossings rise on every
+ * fixture that had more than a couple to begin with: `er-complex` 31→48,
+ * `synthetic-random-1` 57→71, `synthetic-random-2` 36→68 — the last one
+ * nearly doubling, the largest single regression of this round. Accepted
+ * per the task's own explicit framing (soft metrics tradeable for deleting
+ * the actual slow core, not just caching around it); `order-schema` is an
+ * outright improvement (1→0). The rest are unchanged.
+ *
+ * 2026-10 (#152 round 2, final): the number above (48/71/68) was measured
+ * against an intermediate `rareFallbackRoute` that still priced bends
+ * (a trimmed Dijkstra). The final design drops bend pricing for a plain BFS
+ * (see `LAYOUT_BENCH_BASELINE` above) — a *cheaper* search, but one with no
+ * preference among equal-length paths, so the 2 edges per corpus that
+ * actually reach this fallback land on whichever clear path BFS's queue
+ * order happens to find first rather than the fewest-bends/fewest-crossings
+ * one Dijkstra was steered toward. Net: `er-complex` 48→41 (down — BFS's
+ * path happened to cross less here), `synthetic-cross-bc` 1→4 (up — its one
+ * long cross-BC edge reaches the fallback and BFS's path crosses more of the
+ * batch's already-routed traffic), `synthetic-random-2` 68→59 (down). The
+ * rest (`order-schema`, `er-long-names`, `synthetic-no-bc`,
+ * `synthetic-hub-table`, `synthetic-self-reference`, `synthetic-random-1`)
+ * are unchanged — their edges never reach `rareFallbackRoute` at all, so a
+ * change inside it cannot move them. Every fixture's hard metrics
+ * (overlaps/edge-through-node/frame violations) remain 0.
  */
 export const LAYOUT_BENCH_CROSSINGS_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 31,
-  'order-schema': 1,
+  'er-complex': 41,
+  'order-schema': 0,
   'er-long-names': 0,
   'synthetic-no-bc': 0,
-  'synthetic-cross-bc': 1,
+  'synthetic-cross-bc': 4,
   'synthetic-hub-table': 0,
   'synthetic-self-reference': 2,
-  'synthetic-random-1': 57,
-  'synthetic-random-2': 36,
+  'synthetic-random-1': 71,
+  'synthetic-random-2': 59,
 };
 
 /**
@@ -393,17 +506,47 @@ export const LAYOUT_BENCH_CROSSINGS_BASELINE: Readonly<Record<string, number>> =
  * unchanged. Accepted per the task: this metric was explicitly named as
  * tradeable for removing the single highest-cost lever in the live
  * component's render path (~60% of `relationRoutes`' total time).
+ *
+ * 2026-10 (#152 round 2): `pickBest` (`laneDetour`'s candidate chooser)
+ * prefers a non-hugging candidate over a hugging one outright whenever both
+ * are obstacle-clear, replacing `gridRoute`'s length-proportional
+ * `OUTLINE_HUG_STEP_PENALTY` steering — a hard preference over a short list
+ * instead of a weighted cost over a whole grid, which the margin(20) >
+ * `OUTLINE_HUG_CLEARANCE`(6) insight in `orthogonal-router.ts`'s top-of-file
+ * comment makes safe to do unconditionally. Net effect is small either way:
+ * `er-complex` 67→72 (+5), `synthetic-cross-bc` 18→25 (+7, both from the
+ * lost rip-up pass finding fewer non-hugging alternatives after the fact),
+ * `synthetic-random-1` 15→12 (-3, an improvement). `synthetic-random-2`,
+ * `order-schema`, `er-long-names`, `synthetic-no-bc`, `synthetic-hub-table`,
+ * `synthetic-self-reference` are unchanged.
+ *
+ * 2026-10 (#152 round 2, final): swapping `rareFallbackRoute`'s bend-priced
+ * Dijkstra for a plain BFS (see `LAYOUT_BENCH_BASELINE` and
+ * `LAYOUT_BENCH_CROSSINGS_BASELINE` above) moves this metric by the same
+ * mechanism — BFS has no preference among equal-length clear paths, so the
+ * handful of edges that reach this fallback can land flush against an
+ * obstacle border that a bend-steered search would have preferred not to.
+ * `er-complex` 72→74 (+2), `synthetic-random-1` 12→13 (+1),
+ * `synthetic-random-2` 21→22 (+1). `order-schema`, `er-long-names`,
+ * `synthetic-no-bc`, `synthetic-cross-bc`, `synthetic-hub-table`,
+ * `synthetic-self-reference` are unchanged — none of their edges reach
+ * `rareFallbackRoute`, or (`synthetic-cross-bc`) the one that does happens
+ * not to change its hugging status under BFS. All single-digit-or-less
+ * moves; `routeHugsOutline`'s own dedicated regression guard
+ * (`dev/layout-bench.test.ts`'s "#151 round 2" describe block) still passes
+ * unchanged, confirming the hug-avoidance *mechanism* itself
+ * (`pickBest`'s hard preference) is untouched by this fallback-only change.
  */
 export const LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 67,
+  'er-complex': 74,
   'order-schema': 7,
   'er-long-names': 1,
   'synthetic-no-bc': 11,
-  'synthetic-cross-bc': 18,
+  'synthetic-cross-bc': 25,
   'synthetic-hub-table': 7,
   'synthetic-self-reference': 3,
-  'synthetic-random-1': 15,
-  'synthetic-random-2': 21,
+  'synthetic-random-1': 13,
+  'synthetic-random-2': 22,
 };
 
 /**
@@ -449,17 +592,37 @@ export const LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE: Readonly<Record<string, numb
  * rather than the tighter ~2x it first shipped with, which is what that
  * spike caught; `synthetic-cross-bc` got the same treatment after it alone
  * flaked once in the same sampling.
+ *
+ * 2026-10 (#152 round 2): this is the ratchet the whole round was about.
+ * `gridRoute` (per-edge exhaustive grid-and-Dijkstra, gated narrow/richer
+ * two-pass search) and the rip-up-and-reroute pass that re-ran it are both
+ * deleted; routing is now `laneDetour` (an O(obstacles) candidate list, no
+ * grid) with `rareFallbackRoute` (a plain, unweighted BFS over a small local
+ * grid — see `LAYOUT_BENCH_BASELINE`'s final design note) only as a rare
+ * correctness net. Measured repeatedly with plain `node
+ * dev/layout-bench.ts`: `er-complex`'s `routingMs` — ~300–380ms before this
+ * round, and the fixture whose browser-observed hover/click/drag long tasks
+ * #152 round 1 fixed everywhere *except* load and drop, which still paid
+ * this cost in full — now sits at ~14ms; `synthetic-random-1`/
+ * `synthetic-random-2` (the densest synthetic fixtures) fall from ~70–80ms/
+ * ~55–80ms to ~2–3ms each. `layoutMs` is unaffected (unrelated code path)
+ * and stays in the same low-single-to-low-double-digit-ms range it already
+ * was. Ceilings below are lowered to roughly the same ~2–3x headroom
+ * convention as before, scaled to the new, much smaller measured numbers —
+ * not left at the old, now-meaningless thousand-millisecond scale, since a
+ * ceiling that loose would no longer catch a reintroduced expensive lever
+ * (exactly what this ratchet exists for).
  */
 export const LAYOUT_BENCH_TIME_BASELINE: Readonly<
   Record<string, { readonly layoutMs: number; readonly routingMs: number }>
 > = {
-  'er-complex': { layoutMs: 50, routingMs: 1000 },
+  'er-complex': { layoutMs: 50, routingMs: 50 },
   'order-schema': { layoutMs: 10, routingMs: 10 },
   'er-long-names': { layoutMs: 10, routingMs: 10 },
   'synthetic-no-bc': { layoutMs: 10, routingMs: 10 },
-  'synthetic-cross-bc': { layoutMs: 10, routingMs: 50 },
+  'synthetic-cross-bc': { layoutMs: 10, routingMs: 10 },
   'synthetic-hub-table': { layoutMs: 10, routingMs: 10 },
   'synthetic-self-reference': { layoutMs: 10, routingMs: 10 },
-  'synthetic-random-1': { layoutMs: 15, routingMs: 250 },
-  'synthetic-random-2': { layoutMs: 15, routingMs: 200 },
+  'synthetic-random-1': { layoutMs: 15, routingMs: 15 },
+  'synthetic-random-2': { layoutMs: 15, routingMs: 15 },
 };
