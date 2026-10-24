@@ -913,6 +913,9 @@ export abstract class DiagramChromeElement<D, S extends SelectionRef = GraphSele
 /** Screen pixels a press on a node may wander before it counts as a drag instead of a click. */
 const DRAG_THRESHOLD_PX = 4;
 
+/** Shared empty set for `draggedNodeIds()`'s idle case, so it never allocates one just to say "none". */
+const EMPTY_IDS: ReadonlySet<string> = new Set();
+
 /** A node root may itself be a button (most diagrams) or wrap real controls of its own (the ER table); either way, a press that lands on one of these — other than the node root itself — never starts a drag. */
 const NODE_INTERACTIVE_SELECTOR = 'button,[role="button"],a,input,textarea,select';
 
@@ -1242,6 +1245,21 @@ export abstract class DiagramElement<D extends DiagramData> extends DiagramChrom
    */
   protected isDraggingGroup(key: string): boolean {
     return this.#drag.kind === 'group' && this.#drag.moved && this.#drag.key === key;
+  }
+
+  /**
+   * Every node id currently being moved by a drag past the movement
+   * threshold — empty outside a drag. For a subclass whose own per-render
+   * work (e.g. an ER view's obstacle-avoiding route search) is too costly to
+   * redo in full on every drag tick: it can route only the edges touching
+   * one of these ids cheaply, instead of its whole batch, while the drag is
+   * live, and recompute the full, accurate result once this goes empty again.
+   */
+  protected draggedNodeIds(): ReadonlySet<string> {
+    const drag = this.#drag;
+    if (drag.kind === 'node' && drag.moved) return new Set([drag.id]);
+    if (drag.kind === 'group' && drag.moved) return new Set(drag.starts.keys());
+    return EMPTY_IDS;
   }
 
   /**

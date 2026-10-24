@@ -69,6 +69,7 @@ import {
   GROUP_PADDING,
   highlightOf,
   relationPath,
+  relationRoute,
   relationRoutes,
   resumeEditor,
   typeMenu,
@@ -203,6 +204,9 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   #cardinalityEditor: CardinalityEditor | null = null;
   /** Which columns render: every one, only keys (so the relationships alone can be read), or none (header only). */
   #columnFilter: 'all' | 'keys' | 'tables-only' = 'all';
+  /** `#routes`' memoised full batch result, see its own doc comment. */
+  #routesCache: { readonly signature: string; readonly result: ReadonlyMap<string, readonly LayoutPoint[]> } | null =
+    null;
 
   constructor() {
     super();
@@ -592,8 +596,26 @@ export class DpkErDiagram extends DiagramElement<ErData> {
    * tables it passes (any two of them, in any relative position) and then
    * pulled apart from any other route sharing its corridor, so a line never
    * runs behind a card it does not join, nor on top of another line or a
-   * frame border. Computed once per render — the tables/groups/frames it
-   * routes around depend only on `visible`, not on which relation is asking.
+   * frame border.
+   *
+   * Memoised by `#routesCache`, keyed by every visible table's placed box
+   * plus the visible node/edge id sets (#152): hovering, selecting,
+   * searching or changing the column filter never moves a table, so none of
+   * them change this signature, and the render reuses the last computed
+   * batch instead of re-running the full pipeline (Pass 1 + rip-up-reroute +
+   * nudge over every edge) — measured, before this cache, as the single
+   * costliest step in the live component's render path (multi-second main-
+   * thread long tasks on a 38-table/51-edge diagram, for work whose result
+   * had not actually changed).
+   *
+   * While a node or group is being dragged (`draggedNodeIds()`), the cached
+   * batch is left exactly as it was and only the edges touching a dragged
+   * table are re-routed, each with one cheap, single-edge `relationRoute`
+   * call (no batch `avoid` awareness, no rip-up, no nudge) instead of the
+   * full pipeline — so a drag tick's cost depends on how many edges touch
+   * the table being moved, not on the diagram's total edge count. The full,
+   * batch-aware route is recomputed once the drag commits, since the
+   * dragged table's final box then differs from the cached signature.
    */
   #routes(visible: ErData): ReadonlyMap<string, readonly LayoutPoint[]> {
     const tables = visible.nodes.flatMap((node) => {
@@ -611,7 +633,35 @@ export class DpkErDiagram extends DiagramElement<ErData> {
       ...boundedContextGroups(groupable).map((group) => ({ box: group.box, members: group.tables })),
     ];
     const pointsById = new Map(visible.edges.map((relation) => [relation.id, this.routeOf(relation.id)] as const));
-    return relationRoutes(visible.edges, pointsById, tables, LANE_MARGIN, frames);
+
+    const boxSignature = (id: string): string => {
+      const box = this.placedNode(id);
+      return box === undefined ? '' : `${box.x},${box.y},${box.width},${box.height}`;
+    };
+    const signature = [
+      visible.nodes.map((node) => `${node.id}:${boxSignature(node.id)}`).join(','),
+      visible.edges.map((relation) => `${relation.id}:${relation.from}>${relation.to}`).join(','),
+    ].join('|');
+
+    const dragged = this.draggedNodeIds();
+    const cached = this.#routesCache;
+    if (dragged.size > 0 && cached !== null) {
+      const touching = visible.edges.filter((relation) => dragged.has(relation.from) || dragged.has(relation.to));
+      if (touching.length === 0) return cached.result;
+      const overridden = new Map(cached.result);
+      for (const relation of touching) {
+        overridden.set(
+          relation.id,
+          relationRoute(relation, pointsById.get(relation.id) ?? [], tables, LANE_MARGIN, frames),
+        );
+      }
+      return overridden;
+    }
+
+    if (cached !== null && cached.signature === signature) return cached.result;
+    const result = relationRoutes(visible.edges, pointsById, tables, LANE_MARGIN, frames);
+    this.#routesCache = { signature, result };
+    return result;
   }
 
   protected override renderCanvas(): TemplateResult {

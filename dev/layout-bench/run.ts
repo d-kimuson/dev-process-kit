@@ -43,13 +43,21 @@ export type BenchRow = MetricResult & {
   readonly tableCount: number;
   readonly edgeCount: number;
   readonly layoutMs: number;
+  readonly routingMs: number;
 };
 
 /** Parses, lays out and scores every fixture in `FIXTURES`. Deterministic: same input, same numbers, every run. */
 export const runBench = (): readonly BenchRow[] =>
   FIXTURES.map((fixture) => {
     const data = parseErData(fixture.input);
-    const { geometry, layoutMs } = geometryOf(data);
+    const { geometry, layoutMs, routingMs } = geometryOf(data);
     const score = scoreLayout(geometry);
-    return { name: fixture.name, tableCount: data.nodes.length, edgeCount: data.edges.length, layoutMs, ...score };
+    return {
+      name: fixture.name,
+      tableCount: data.nodes.length,
+      edgeCount: data.edges.length,
+      layoutMs,
+      routingMs,
+      ...score,
+    };
   });

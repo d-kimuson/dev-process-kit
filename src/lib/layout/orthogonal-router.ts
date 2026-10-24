@@ -37,19 +37,6 @@ export type RouteBox = { readonly x: number; readonly y: number; readonly width:
 export type RouteSegment = readonly [RoutePoint, RoutePoint];
 
 /**
- * The orientation a port's own border requires of the one segment that
- * touches it, so the route leaves/enters perpendicular to that border
- * instead of running along it: `'horizontal'` for a port on a left/right
- * table edge (a field-row port), `'vertical'` for one on a top/bottom edge.
- * Passed to `routeAroundObstacles` so it can avoid a shape that hugs the
- * port's own card (see `RouteExits` there).
- */
-export type ExitOrientation = 'horizontal' | 'vertical';
-
-/** Per-endpoint exit-orientation hints for `routeAroundObstacles`. Either side may be omitted when unknown. */
-export type RouteExits = { readonly start?: ExitOrientation; readonly end?: ExitOrientation };
-
-/**
  * A vertical run at `x` between `yTop` and `yBottom` passes through an
  * obstacle's open interior. Exported for `route-nudge.ts`, which must re-check
  * clearance itself before sliding an already-routed segment sideways.
@@ -228,70 +215,6 @@ const AVOID_CROSSING_PENALTY = 100;
  * for a lane and pushes two edges into crossing each other instead.
  */
 const OUTLINE_HUG_STEP_PENALTY = 0.3;
-
-/**
- * Below this perpendicular gap between two same-orientation ports, the
- * cheap 2-segment L-shape's unavoidable hug (see `routeAroundObstacles`'s
- * `exits` handling) is too short to read as "drawn on top of the border" —
- * a few pixels at a shared port, not a run down the side of a card — so it
- * is not worth the extra bend a hug-free Z-shape costs. Set to the same
- * order of magnitude as `route-nudge.ts`'s `frameClearance` default (6):
- * big enough to skip the near-straight cases that are not the readability
- * problem (#151) this guards against, small enough that any genuine
- * field-row-to-field-row offset (table rows are tens of pixels apart) still
- * gets the fix.
- */
-const MIN_HUG_LENGTH = 12;
-/** Fractions of the start→end span tried for a Z-shape's middle segment, most-centred first. */
-const Z_FRACTIONS = [0.5, 0.33, 0.67, 0.2, 0.8];
-
-/**
- * A horizontal-vertical-horizontal detour: touches both `start` and `end`
- * horizontally, for two ports that both require a horizontal touch (two
- * left/right field-row ports). Used instead of a 2-segment L-shape when the
- * L-shape's unavoidable hug (see `routeAroundObstacles`) would run too long
- * to ignore. `null` when no middle column tried is clear of `inflated`.
- */
-const zViaVerticalMiddle = (
-  start: RoutePoint,
-  end: RoutePoint,
-  inflated: readonly RouteBox[],
-  avoid: readonly RouteSegment[],
-): readonly RoutePoint[] | null => {
-  let best: { readonly shape: readonly RoutePoint[]; readonly crossings: number } | null = null;
-  for (const fraction of Z_FRACTIONS) {
-    const midX = start.x + (end.x - start.x) * fraction;
-    if (horizontalBlocked(start.y, Math.min(start.x, midX), Math.max(start.x, midX), inflated)) continue;
-    if (verticalBlocked(midX, Math.min(start.y, end.y), Math.max(start.y, end.y), inflated)) continue;
-    if (horizontalBlocked(end.y, Math.min(midX, end.x), Math.max(midX, end.x), inflated)) continue;
-    const shape = simplify([start, { x: midX, y: start.y }, { x: midX, y: end.y }, end]);
-    const crossings = crossingsAgainst(shape, avoid);
-    if (best === null || crossings < best.crossings) best = { shape, crossings };
-    if (crossings === 0) break;
-  }
-  return best?.shape ?? null;
-};
-
-/** A vertical-horizontal-vertical detour: the top/bottom-port counterpart of `zViaVerticalMiddle`. See there. */
-const zViaHorizontalMiddle = (
-  start: RoutePoint,
-  end: RoutePoint,
-  inflated: readonly RouteBox[],
-  avoid: readonly RouteSegment[],
-): readonly RoutePoint[] | null => {
-  let best: { readonly shape: readonly RoutePoint[]; readonly crossings: number } | null = null;
-  for (const fraction of Z_FRACTIONS) {
-    const midY = start.y + (end.y - start.y) * fraction;
-    if (verticalBlocked(start.x, Math.min(start.y, midY), Math.max(start.y, midY), inflated)) continue;
-    if (horizontalBlocked(midY, Math.min(start.x, end.x), Math.max(start.x, end.x), inflated)) continue;
-    if (verticalBlocked(end.x, Math.min(midY, end.y), Math.max(midY, end.y), inflated)) continue;
-    const shape = simplify([start, { x: start.x, y: midY }, { x: end.x, y: midY }, end]);
-    const crossings = crossingsAgainst(shape, avoid);
-    if (best === null || crossings < best.crossings) best = { shape, crossings };
-    if (crossings === 0) break;
-  }
-  return best?.shape ?? null;
-};
 
 /** Direction a grid-search state arrived from: `0` only at the very start. */
 const NONE = 0;
@@ -613,17 +536,6 @@ const gridRoute = (
  * fewer of them wins, so a batch of edges routed one at a time still comes
  * out mutually crossing-aware instead of each being blind to the others.
  *
- * `exits` (#151): the orientation each port's own border requires of the
- * segment touching it (see `ExitOrientation`). A plain 2-segment L-shape's
- * two segments necessarily alternate orientation, so when both ports
- * require the *same* orientation (two field-row ports, both `'horizontal'`;
- * or two top/bottom ports, both `'vertical'`) no L-shape can touch both
- * correctly — one end is always left hugging its own border for exactly the
- * ports' perpendicular gap. Past `MIN_HUG_LENGTH`, this swaps in a
- * 3-segment Z-shape that touches both ends correctly instead. Omitted
- * entirely, this parameter changes nothing: every caller that does not pass
- * it keeps the exact L-shape selection above.
- *
  * `outlines` (#151 round 2): every node's and every frame's *true* box,
  * passed on to `gridRoute`'s hug-clearance steering (`OUTLINE_HUG_STEP_PENALTY`)
  * when both L-shapes are blocked and it has to fall back to the grid search.
@@ -640,7 +552,6 @@ export const routeAroundObstacles = (
   obstacles: readonly RouteBox[],
   margin: number,
   avoid: readonly RouteSegment[] = [],
-  exits?: RouteExits,
   outlines: readonly RouteBox[] = [],
 ): readonly RoutePoint[] => {
   if (start.x === end.x && start.y === end.y) return [start, end];
@@ -694,40 +605,6 @@ export const routeAroundObstacles = (
     if (horizontalOk) return simplify([start, horizontalFirst, end]);
     return gridRoute(start, end, inflated, margin, avoid, outlines) ?? simplify([start, horizontalFirst, end]);
   };
-
-  const startExit = exits?.start;
-  const endExit = exits?.end;
-  if (startExit !== undefined && endExit !== undefined) {
-    if (startExit !== endExit) {
-      // Mixed orientations: exactly one L-shape touches both ends correctly
-      // (`verticalShape` when `start` needs a vertical touch, since its first
-      // segment is vertical and its second, touching `end`, is horizontal).
-      // Always prefer it when it is obstacle-clear — there is no trade to make.
-      const wantVertical = startExit === 'vertical';
-      if (wantVertical && verticalOk) return simplify([start, verticalFirst, end]);
-      if (!wantVertical && horizontalOk) return simplify([start, horizontalFirst, end]);
-    } else {
-      const gap = startExit === 'horizontal' ? Math.abs(start.y - end.y) : Math.abs(start.x - end.x);
-      const degenerate = startExit === 'horizontal' ? start.x === end.x : start.y === end.y;
-      if (gap > MIN_HUG_LENGTH && !degenerate) {
-        const zShape =
-          startExit === 'horizontal'
-            ? zViaVerticalMiddle(start, end, inflated, avoid)
-            : zViaHorizontalMiddle(start, end, inflated, avoid);
-        // The Z-shape only replaces the L-shape when it does not cost more
-        // crossings against the batch — crossings are a hard ratchet
-        // (`LAYOUT_BENCH_CROSSINGS_BASELINE`), so a border-hug-free shape
-        // that would cut across more already-routed traffic loses to the
-        // plain L-shape instead, hug and all; `route-nudge.ts`'s later pass
-        // still has a chance to pull a surviving hug off the border.
-        if (zShape !== null) {
-          const lShape = pickBetweenLShapes();
-          if (crossingsAgainst(zShape, avoid) <= crossingsAgainst(lShape, avoid)) return zShape;
-          return lShape;
-        }
-      }
-    }
-  }
 
   return pickBetweenLShapes();
 };

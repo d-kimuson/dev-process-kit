@@ -2,15 +2,7 @@ import type { LayoutPoint } from '../../lib/layout/layered';
 import type { ErDiagramMessages } from './messages';
 import type { ErCardinality, ErData, ErField, ErFieldDiff, ErRelation, ErTableDiff } from './model';
 
-import { routeHugsOutline } from '../../lib/layout/metrics';
-import {
-  countRouteCrossings,
-  crossingsAgainst,
-  routeAroundObstacles,
-  type ExitOrientation,
-  type RouteExits,
-  type RouteSegment,
-} from '../../lib/layout/orthogonal-router';
+import { countRouteCrossings, routeAroundObstacles, type RouteSegment } from '../../lib/layout/orthogonal-router';
 import { nudgeParallelRoutes, type NudgeInput } from '../../lib/layout/route-nudge';
 
 /**
@@ -395,9 +387,8 @@ export const detourRoute = (
   boxes: readonly ErBox[],
   margin: number,
   avoid: readonly RouteSegment[] = [],
-  exits?: RouteExits,
   outlines: readonly ErBox[] = [],
-): readonly LayoutPoint[] => routeAroundObstacles(start, end, boxes, margin, avoid, exits, outlines);
+): readonly LayoutPoint[] => routeAroundObstacles(start, end, boxes, margin, avoid, outlines);
 
 /**
  * The relation's actual drawn route: the ports from the initial layout
@@ -418,7 +409,6 @@ export const relationRoute = (
   margin: number,
   frames: readonly { readonly box: ErBox; readonly members: readonly string[] }[] = [],
   avoid: readonly RouteSegment[] = [],
-  exits?: RouteExits,
 ): readonly LayoutPoint[] => {
   const start = points[0];
   const end = points.at(-1);
@@ -446,7 +436,7 @@ export const relationRoute = (
       .filter((frame) => frame.members.includes(relation.from) || frame.members.includes(relation.to))
       .map((frame) => frame.box),
   ];
-  return detourRoute(start, end, [...tableObstacles, ...frameObstacles], margin, avoid, exits, outlines);
+  return detourRoute(start, end, [...tableObstacles, ...frameObstacles], margin, avoid, outlines);
 };
 
 const segmentsOf = (points: readonly LayoutPoint[]): readonly RouteSegment[] =>
@@ -503,94 +493,30 @@ const RIPUP_PASSES = 2;
  * selection and rip-up-reroute below already deliver the crossing
  * improvement without that trade, so nudging is left to do only its one job.
  *
+ * #152: this used to also search, for every relation whose default field/field
+ * route hugged a border, every top/bottom port combination on both ends (up to
+ * 9 candidate reroutes each), fan-spread the ones that shared a card edge, and
+ * finally re-check every such swap against the fully-settled batch and revert
+ * it if the plain field/field default would have crossed less. Profiling the
+ * live component (not this module's own `pnpm bench:layout`, which never timed
+ * routing at all — see `dev/layout-bench/geometry.ts`) found that search alone
+ * cost ~60% of `relationRoutes`' total time (~640ms of ~1,080ms on `er-complex`,
+ * 38 tables/51 edges) and the revert pass another ~13%, for a readability
+ * improvement (`outlineHugging`, a soft metric the task explicitly allows to
+ * move) bought at the cost of every hover, selection, search, filter and drag
+ * frame re-running the entire pipeline from scratch — multi-second browser
+ * long tasks on hover/click/drag, the reported "ブラウザバカ重い". Deleted
+ * rather than kept behind a cache, per the request to simplify the idea rather
+ * than patch around it again: `dev/layout-bench/baseline.ts` records the
+ * resulting `outlineHugging`/`crossings` deltas per fixture. The cheaper,
+ * still-active defence against the original #151 report (a route hugging its
+ * own card/frame border) is `orthogonal-router.ts`'s `gridRoute`
+ * `OUTLINE_HUG_STEP_PENALTY`, which steers the Dijkstra fallback away from a
+ * border at no extra routing passes — that stays.
+ *
  * Shared by the live view (`element.ts`) and the layout-complexity bench, so
  * the metric always scores exactly what the view draws.
  */
-/** A relation end's attach-point candidate: the field-row port, or a top/bottom card-edge alternative (#151). */
-type PortSide = 'field' | 'top' | 'bottom';
-type PortCandidate = { readonly point: LayoutPoint; readonly exit: ExitOrientation; readonly side: PortSide };
-
-/** `table`'s top/bottom attach points, centred before `fannedX` spreads them apart for siblings sharing the same side. */
-const verticalCandidatesOf = (table: ErBox): { readonly top: PortCandidate; readonly bottom: PortCandidate } => {
-  const x = table.x + table.width / 2;
-  return {
-    top: { point: { x, y: table.y }, exit: 'vertical', side: 'top' },
-    bottom: { point: { x, y: table.y + table.height }, exit: 'vertical', side: 'bottom' },
-  };
-};
-
-/** Every port a relation's end could attach to: `fieldPoint`'s own field-row port, plus `table`'s top/bottom alternatives. */
-const endCandidatesOf = (fieldPoint: LayoutPoint | undefined, table: ErBox | undefined): readonly PortCandidate[] => {
-  const candidates: PortCandidate[] = [];
-  if (fieldPoint !== undefined) candidates.push({ point: fieldPoint, exit: 'horizontal', side: 'field' });
-  if (table !== undefined) {
-    const { top, bottom } = verticalCandidatesOf(table);
-    candidates.push(top, bottom);
-  }
-  return candidates;
-};
-
-/**
- * `routeAroundObstacles`'s `exits` hint is only worth paying for when a
- * candidate pair actually needs one — a plain field/field pair must route
- * *exactly* as it did before #151 (no hint, old L-shape selection
- * unchanged), or every ordinary edge would start trying the hug-free
- * Z-shape and its extra bend, which is how an earlier version of this pass
- * raised crossing counts and scores across fixtures that had no hugging
- * problem at all. Only a pair that actually touches a card's top or bottom
- * needs the hint, since only vertical touches have to be told apart from
- * the field-row default.
- */
-const exitsFor = (start: PortCandidate, end: PortCandidate): RouteExits | undefined =>
-  start.side === 'field' && end.side === 'field' ? undefined : { start: start.exit, end: end.exit };
-
-const routeLength = (points: readonly LayoutPoint[]): number =>
-  segmentsOf(points).reduce((sum, [a, b]) => sum + Math.abs(a.x - b.x) + Math.abs(a.y - b.y), 0);
-
-/**
- * How costly a candidate port pair is to route (#151): length and bends
- * dominate, with a steep per-crossing charge so a cleaner-looking exit never
- * wins by cutting across traffic already routed in the batch. This is a
- * cheap stand-in for `scoreLayout`, used while *picking* ports — long before
- * every edge has a settled route to score the real metric against.
- *
- * `PORT_HUG_COST` (#151 round 2): a candidate that still hugs an outline
- * (`routeHugsOutline`, over `outlineBoxes`) is charged a flat penalty, so a
- * port pair that happens to be a little shorter but still runs along a
- * border — most often one whose route fell back to `gridRoute` for a
- * crowded corridor, where a hug can survive even after
- * `OUTLINE_HUG_STEP_PENALTY`'s steering — never wins over a pair that
- * actually clears the problem #151 reports. Below `PORT_CROSSING_COST`
- * (crossings stay the harder ratchet) but well above the length/bend
- * differences typical between a field-row and a top/bottom candidate, so
- * hugging status decides the comparison whenever it differs.
- */
-const PORT_BEND_COST = 60;
-const PORT_CROSSING_COST = 500;
-const PORT_HUG_COST = 0;
-const portRouteCost = (
-  points: readonly LayoutPoint[],
-  avoid: readonly RouteSegment[],
-  outlineBoxes: readonly ErBox[] = [],
-): number =>
-  routeLength(points) +
-  Math.max(0, points.length - 2) * PORT_BEND_COST +
-  crossingsAgainst(points, avoid) * PORT_CROSSING_COST +
-  (routeHugsOutline(points, outlineBoxes) ? PORT_HUG_COST : 0);
-
-/** Horizontal spacing between two relations' attach points sharing the same table's top or bottom edge (#151). */
-const SIDE_FAN_GAP = 28;
-/** Keeps a spread attach point off the card's rounded corners. */
-const SIDE_FAN_INSET = 16;
-
-/** `index`-th of `count` attach points spread evenly across `table`'s width, centred. */
-const fannedX = (table: ErBox, index: number, count: number): number => {
-  if (count <= 1) return table.x + table.width / 2;
-  const span = Math.min(SIDE_FAN_GAP * (count - 1), Math.max(0, table.width - SIDE_FAN_INSET * 2));
-  const start = table.x + table.width / 2 - span / 2;
-  return start + (span * index) / (count - 1);
-};
-
 export const relationRoutes = (
   relations: readonly { readonly id: string; readonly from: string; readonly to: string }[],
   pointsById: ReadonlyMap<string, readonly LayoutPoint[]>,
@@ -598,8 +524,6 @@ export const relationRoutes = (
   margin: number,
   frames: readonly { readonly box: ErBox; readonly members: readonly string[] }[] = [],
 ): ReadonlyMap<string, readonly LayoutPoint[]> => {
-  const tablesById = new Map(tables.map((table) => [table.id, table.box]));
-  const relationsById = new Map(relations.map((relation) => [relation.id, relation]));
   const order = [...relations].sort(
     (a, b) =>
       manhattanSpan(pointsById.get(a.id) ?? []) - manhattanSpan(pointsById.get(b.id) ?? []) || a.id.localeCompare(b.id),
@@ -607,153 +531,15 @@ export const relationRoutes = (
 
   const routeFor = (
     relation: { readonly id: string; readonly from: string; readonly to: string },
-    points: readonly LayoutPoint[],
     avoid: readonly RouteSegment[],
-    exits?: RouteExits,
-  ): readonly LayoutPoint[] => relationRoute(relation, points, tables, margin, frames, avoid, exits);
-
-  // --- Port-side selection (#151): the field-row port is only one option.
-  // For every non-self-loop relation, also try attaching to the top/bottom
-  // of each end's card, and keep whichever port pair routes cheapest
-  // (`portRouteCost`) against every relation already decided, short edges
-  // first — the same order and avoid-awareness the routing passes below use.
-  // A static, order-independent picture of "every other edge's usual route",
-  // used only to judge whether a candidate port swap is crossings-safe
-  // (below). The evolving `chosenPoints` avoid-list the routing passes use
-  // is just *earlier-in-order* edges, which is too thin a picture for this
-  // decision — most of the batch has not been decided yet when the first
-  // few relations are considered, so a swap that looked crossings-safe
-  // against that thin set could still land on top of a same-area edge
-  // decided later, raising the fixture's final crossing count even though
-  // every individual swap looked safe when it was made.
-  const defaultRouteOf = new Map<string, readonly LayoutPoint[]>(
-    relations
-      .filter((relation) => relation.from !== relation.to)
-      .map((relation) => [relation.id, routeFor(relation, pointsById.get(relation.id) ?? [], [], undefined)] as const),
-  );
-  /** Every outline a candidate route is checked against for hugging (see below): every table's and every frame's box. */
-  const outlineBoxes = [...tables.map((table) => table.box), ...frames.map((frame) => frame.box)];
-
-  const chosenPoints = new Map<string, readonly LayoutPoint[]>();
-  const chosenExits = new Map<string, RouteExits>();
-  const chosenCandidates = new Map<string, { readonly start: PortCandidate; readonly end: PortCandidate }>();
-  for (const relation of order) {
-    const points = pointsById.get(relation.id) ?? [];
-    if (relation.from === relation.to || points.length === 0) {
-      chosenPoints.set(relation.id, points);
-      continue;
-    }
-    const startCandidates = endCandidatesOf(points[0], tablesById.get(relation.from));
-    const endCandidates = endCandidatesOf(points.at(-1), tablesById.get(relation.to));
-    const avoid = [...chosenPoints.values()].flatMap((p) => segmentsOf(p));
-    // The richer, static set this decision's crossing guard checks against
-    // (see the comment on `defaultRouteOf` above) — every other relation's
-    // usual route, not just the prefix already decided.
-    const decisionAvoid = [
-      ...avoid,
-      ...[...defaultRouteOf].flatMap(([id, pts]) => (id === relation.id ? [] : segmentsOf(pts))),
-    ];
-    // The field/field pair is the pre-#151 default and the fallback this
-    // search can never do worse than crossings-wise (see `exitsFor`): its
-    // own crossing count against `decisionAvoid` is the ceiling every
-    // alternative (a top/bottom touch) must still clear, so a
-    // cleaner-looking exit never wins by quietly trading away the
-    // crossings ratchet.
-    const baselineStart = startCandidates.find((c) => c.side === 'field') ?? startCandidates[0]!;
-    const baselineEnd = endCandidates.find((c) => c.side === 'field') ?? endCandidates[0]!;
-    const baselineRoute = routeFor(relation, [baselineStart.point, baselineEnd.point], avoid, undefined);
-    // Only bother searching top/bottom alternatives when the plain
-    // field/field route actually has the readability problem #151 reports
-    // (`routeHugsOutline`, the same check `outlineHugging` scores): most
-    // relations' default route never runs along anything's border, and
-    // re-weighing those against a top/bottom touch anyway was this pass's
-    // earlier, too-eager version — it swapped the large majority of a
-    // random fixture's edges onto a card edge for a marginally shorter
-    // route, each swap locally crossings-safe, but the batch's crossing
-    // count still rose once enough of them landed near each other.
-    if (!routeHugsOutline(baselineRoute, outlineBoxes)) {
-      chosenPoints.set(relation.id, baselineRoute);
-      chosenCandidates.set(relation.id, { start: baselineStart, end: baselineEnd });
-      continue;
-    }
-    const baselineCrossings = crossingsAgainst(baselineRoute, decisionAvoid);
-    let best: {
-      readonly route: readonly LayoutPoint[];
-      readonly cost: number;
-      readonly start: PortCandidate;
-      readonly end: PortCandidate;
-    } = {
-      route: baselineRoute,
-      cost: portRouteCost(baselineRoute, avoid, outlineBoxes),
-      start: baselineStart,
-      end: baselineEnd,
-    };
-    for (const start of startCandidates) {
-      for (const end of endCandidates) {
-        if (start.side === 'field' && end.side === 'field') continue; // already `best`'s starting point
-        const route = routeFor(relation, [start.point, end.point], avoid, exitsFor(start, end));
-        if (crossingsAgainst(route, decisionAvoid) > baselineCrossings) continue; // never trade a clean exit for more crossings
-        const cost = portRouteCost(route, avoid, outlineBoxes);
-        if (cost < best.cost) best = { route, cost, start, end };
-      }
-    }
-    chosenPoints.set(relation.id, best.route);
-    const exits = exitsFor(best.start, best.end);
-    if (exits !== undefined) chosenExits.set(relation.id, exits);
-    chosenCandidates.set(relation.id, { start: best.start, end: best.end });
-  }
-
-  // --- Fan spreading (#151): when more than one relation's chosen port
-  // lands on the same table's top or bottom edge, spread their x across the
-  // card (like `model.ts`'s `outgoingFan` does for field-row ports sharing a
-  // column) instead of stacking them on its centre, then reroute just those.
-  type FanMember = { readonly relationId: string; readonly end: 'start' | 'end'; readonly tableId: string };
-  const bySide = new Map<string, FanMember[]>();
-  const addMember = (tableId: string, side: 'top' | 'bottom', relationId: string, end: 'start' | 'end') => {
-    const key = `${tableId}:${side}`;
-    bySide.set(key, [...(bySide.get(key) ?? []), { relationId, end, tableId }]);
-  };
-  for (const relation of order) {
-    const chosen = chosenCandidates.get(relation.id);
-    if (chosen === undefined) continue;
-    if (chosen.start.side !== 'field') addMember(relation.from, chosen.start.side, relation.id, 'start');
-    if (chosen.end.side !== 'field') addMember(relation.to, chosen.end.side, relation.id, 'end');
-  }
-  for (const members of bySide.values()) {
-    if (members.length < 2) continue;
-    const table = tablesById.get(members[0]!.tableId);
-    if (table === undefined) continue;
-    const sorted = [...members].sort((a, b) => a.relationId.localeCompare(b.relationId));
-    sorted.forEach((member, index) => {
-      const chosen = chosenCandidates.get(member.relationId);
-      if (chosen === undefined) return;
-      const x = fannedX(table, index, sorted.length);
-      const target = member.end === 'start' ? chosen.start : chosen.end;
-      const updated: PortCandidate = { ...target, point: { x, y: target.point.y } };
-      chosenCandidates.set(
-        member.relationId,
-        member.end === 'start' ? { ...chosen, start: updated } : { ...chosen, end: updated },
-      );
-    });
-  }
-  for (const [relationId, chosen] of chosenCandidates) {
-    const relation = relationsById.get(relationId);
-    if (relation === undefined) continue;
-    const avoid = [...chosenPoints].flatMap(([id, points]) => (id === relationId ? [] : segmentsOf(points)));
-    const exits = exitsFor(chosen.start, chosen.end);
-    const route = routeFor(relation, [chosen.start.point, chosen.end.point], avoid, exits);
-    chosenPoints.set(relationId, route);
-    if (exits !== undefined) chosenExits.set(relationId, exits);
-  }
-
-  const pointsFor = (relation: { readonly id: string }): readonly LayoutPoint[] =>
-    chosenPoints.get(relation.id) ?? pointsById.get(relation.id) ?? [];
+  ): readonly LayoutPoint[] =>
+    relationRoute(relation, pointsById.get(relation.id) ?? [], tables, margin, frames, avoid);
 
   // Pass 1: short edges first, each aware of every edge already routed.
   const routed = new Map<string, readonly LayoutPoint[]>();
   for (const relation of order) {
     const avoid = [...routed.values()].flatMap((points) => segmentsOf(points));
-    routed.set(relation.id, routeFor(relation, pointsFor(relation), avoid, chosenExits.get(relation.id)));
+    routed.set(relation.id, routeFor(relation, avoid));
   }
 
   // Bounded rip-up-reroute, see `RIPUP_PASSES`'s doc comment.
@@ -763,42 +549,13 @@ export const relationRoutes = (
       if (relation.from === relation.to) continue; // a self-loop's shape never varies; nothing to re-try
       const current = routed.get(relation.id) ?? [];
       const avoid = [...routed].flatMap(([id, points]) => (id === relation.id ? [] : segmentsOf(points)));
-      const candidate = routeFor(relation, pointsFor(relation), avoid, chosenExits.get(relation.id));
+      const candidate = routeFor(relation, avoid);
       if (crossingsAgainstBatch(relation.id, candidate, routed) < crossingsAgainstBatch(relation.id, current, routed)) {
         routed.set(relation.id, candidate);
         improvedAny = true;
       }
     }
     if (!improvedAny) break;
-  }
-
-  // Final crossings safety net (#151): the port-side search above only ever
-  // checks a candidate against an *approximation* of the final picture (the
-  // prefix routed so far, plus every other relation's default route — see
-  // `defaultRouteOf`), because the real final picture does not exist until
-  // every relation has been through rip-up-reroute. Two relations can each
-  // look crossings-safe on their own approximation and still end up crossing
-  // *each other* once both their chosen (non-field) ports land. So once
-  // `routed` is as final as it gets, re-check every relation that took a
-  // non-field port against the final batch, and revert any one of them
-  // whose field/field default would have crossed less — never the reverse,
-  // so this can only ever lower the batch's crossing count, guaranteeing it
-  // never ends up above what the pre-#151, field-only pipeline would score.
-  for (let pass = 0; pass < RIPUP_PASSES; pass++) {
-    let revertedAny = false;
-    for (const relation of order) {
-      if (!chosenExits.has(relation.id)) continue;
-      const current = routed.get(relation.id) ?? [];
-      const avoid = [...routed].flatMap(([id, points]) => (id === relation.id ? [] : segmentsOf(points)));
-      const fieldPoints = pointsById.get(relation.id) ?? [];
-      const fieldRoute = routeFor(relation, fieldPoints, avoid, undefined);
-      if (crossingsAgainst(fieldRoute, avoid) < crossingsAgainst(current, avoid)) {
-        routed.set(relation.id, fieldRoute);
-        chosenExits.delete(relation.id);
-        revertedAny = true;
-      }
-    }
-    if (!revertedAny) break;
   }
 
   const inputs: NudgeInput[] = relations.map((relation) => {

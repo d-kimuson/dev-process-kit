@@ -464,14 +464,21 @@ describe('relationRoute', () => {
   });
 });
 
-describe('relationRoutes (#151)', () => {
-  // Reproduces the screenshot report: a field-row port on the left edge of a
-  // table whose plain port-to-port route has to drop well below the port
-  // before it can turn toward the other end, so the straight-down leg of the
-  // naive L-shape runs for a long stretch right next to — in this geometry,
-  // exactly along — the table's own left border. The user's ask was literal:
-  // "この例だと普通に下から出たら良いと思うんだよな" (it should just exit from
-  // the bottom here) — this test pins that outcome, not just "no hug".
+describe('relationRoutes (#152: no port-side search)', () => {
+  // #151 used to make `relationRoutes` search every top/bottom port
+  // alternative whenever a relation's plain field-row route hugged a card's
+  // own border (the screenshot report this geometry reproduces: a field-row
+  // port whose naive L-shape has to drop straight down right along the
+  // table's own left edge). #152 deleted that search — live-browser
+  // profiling found it alone cost ~60% of `relationRoutes`' total time
+  // (~640ms of ~1,080ms on the `er-complex` fixture), for a readability-only
+  // win on a metric (`outlineHugging`) the task explicitly allows to move —
+  // see `dev/layout-bench/baseline.ts` for the measured per-fixture deltas.
+  // So this hug is no longer avoided here; `relationRoutes` just routes,
+  // orders and rips up around whatever port `relationRoute` already picked.
+  // The cheaper, still-active defence against the original report is
+  // `orthogonal-router.ts`'s `gridRoute` `OUTLINE_HUG_STEP_PENALTY`, which
+  // only ever applies once both direct L-shapes are obstacle-blocked.
   const a = { id: 'a', box: { x: 0, y: 0, width: 160, height: 120 } };
   const b = { id: 'b', box: { x: 400, y: 280, width: 160, height: 40 } };
   const relations = [{ id: 'a-b', from: 'a', to: 'b' }];
@@ -485,21 +492,16 @@ describe('relationRoutes (#151)', () => {
     ],
   ]);
 
-  it('moves the exit off the field row to the bottom of the card instead of hugging the left border', () => {
+  it('routes the plain field-row ports as-is, hug and all — there is no port-side search left to move it', () => {
     const routed = relationRoutes(relations, pointsById, [a, b], 10);
     const route = routed.get('a-b')!;
-    // Leaves from the bottom-centre of `a`, not the original field-row port.
-    expect(route[0]).toEqual({ x: 80, y: 120 });
-    expect(routeHugsOutline(route, [a.box, b.box])).toBe(false);
-  });
-
-  it('still reports the hug when ports are forced back to field/field, proving the fix is the port choice, not the router', () => {
-    // Routing the exact same ports directly through `relationRoute` (no
-    // port-side search) reproduces the original bug, confirming the
-    // repro geometry above is faithful to the report rather than accidentally
-    // already clean.
+    expect(route[0]).toEqual({ x: 0, y: 60 });
+    expect(routeHugsOutline(route, [a.box, b.box])).toBe(true);
+    // Same shape `relationRoute` alone (no batch, no rip-up) produces for
+    // these exact ports — confirming `relationRoutes` no longer diverges
+    // from it by picking a different port.
     const naive = relationRoute({ from: 'a', to: 'b' }, pointsById.get('a-b')!, [a, b], 10);
-    expect(routeHugsOutline(naive, [a.box, b.box])).toBe(true);
+    expect(route).toEqual(naive);
   });
 
   it('keeps the plain field-row exit for an edge whose default route never hugs anything', () => {

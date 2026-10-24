@@ -22,6 +22,7 @@ const printTable = (rows: readonly BenchRow[]): void => {
     { header: 'tables', value: (row) => String(row.tableCount) },
     { header: 'edges', value: (row) => String(row.edgeCount) },
     { header: 'layoutMs', value: (row) => formatNumber(row.layoutMs) },
+    { header: 'routingMs', value: (row) => formatNumber(row.routingMs) },
     { header: 'crossings', value: (row) => String(row.crossings) },
     {
       header: 'edgeThruNode',

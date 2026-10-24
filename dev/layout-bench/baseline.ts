@@ -258,17 +258,52 @@
  * none of their hugging routes had a same-crossing-or-better alternative for
  * the new cost to find. All nine fixtures' `layoutMs` stayed well under
  * 100ms (max ~17ms, `er-complex`).
+ *
+ * 2026-10 (#152): "ブラウザバカ重い" — real in-browser profiling (not this
+ * module's own `pnpm bench:layout`, which, until this change, only ever timed
+ * `layeredLayout` and never `relationRoutes` at all — see
+ * `dev/layout-bench/geometry.ts`) found hovering or clicking a filter chip on
+ * `er-complex` cost 1–2 *seconds* of main-thread long task, and a single drag
+ * tick cost over a second, because `er-diagram/element.ts`'s `#routes` reruns
+ * the entire routing pipeline, unmemoized, on every render. Breaking down
+ * `relationRoutes`' own cost on that fixture (38 tables, 51 edges) found the
+ * #151/#151-round-2 port-side search — trying every top/bottom port
+ * alternative on both ends whenever a relation's plain route hugged an
+ * outline, then fan-spreading siblings sharing a card edge, then a final
+ * revert-safety-net pass — alone was ~60% of the ~1,080ms total (the revert
+ * pass itself another ~13%), entirely to improve a soft metric
+ * (`outlineHugging`) the task explicitly allows to move. It is deleted
+ * outright (not cached, not throttled): the ask was to simplify the idea, not
+ * patch around it again. `orthogonal-router.ts`'s Z-shape/`exits` machinery,
+ * which only this search ever invoked, is deleted with it. The independent,
+ * still-active defence against the *original* #151 report — `gridRoute`'s
+ * `OUTLINE_HUG_STEP_PENALTY`, which steers the Dijkstra fallback away from a
+ * border whenever both direct L-shapes are obstacle-blocked — is untouched.
+ *
+ * This raises every fixture whose plain route the search used to improve on;
+ * the other four (`er-long-names`, `synthetic-no-bc`, `synthetic-hub-table`,
+ * `synthetic-self-reference`) are byte-identical, since the search never
+ * found a cheaper port for any of their edges in the first place:
+ * `er-complex` 4976.71→5822.72 (+17.0%, crossings 30→31, outlineHug 40→67),
+ * `order-schema` 201.62→369.24 (+83.1%, crossings unchanged, outlineHug
+ * 1→7), `synthetic-cross-bc` 227.09→672.34 (+196.1%, crossings unchanged,
+ * outlineHug 0→18), `synthetic-random-1` 6574.42→7157.73 (+8.9%, crossings
+ * 53→57, outlineHug 10→15), `synthetic-random-2` 4187.42→5070.62 (+21.1%,
+ * crossings 29→36, outlineHug 20→21). Zero overlaps/edge-through-node/frame
+ * violations throughout — the hard ratchet is untouched; only the soft
+ * metrics the task named as tradeable moved, in exchange for every hover,
+ * selection, filter and drag frame no longer re-running this search at all.
  */
 export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 4976.705444101124,
-  'order-schema': 201.6171266002845,
+  'er-complex': 5822.720444101124,
+  'order-schema': 369.2371266002845,
   'er-long-names': 169.7817124073083,
   'synthetic-no-bc': 1522.9020464945997,
-  'synthetic-cross-bc': 227.0949380406827,
+  'synthetic-cross-bc': 672.3449380406827,
   'synthetic-hub-table': 659.4210727969348,
   'synthetic-self-reference': 390.77998596244953,
-  'synthetic-random-1': 6574.422346185397,
-  'synthetic-random-2': 4187.418716727338,
+  'synthetic-random-1': 7157.732346185397,
+  'synthetic-random-2': 5070.618716727337,
 };
 
 /**
@@ -298,17 +333,28 @@ export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
  * `LAYOUT_BENCH_BASELINE` dropped crossings further on two fixtures:
  * `er-complex` 31→30, `synthetic-random-1` 57→53. The rest are unchanged, and
  * none increased — the new narrow-vs-richer crossings gate guarantees that.
+ *
+ * 2026-10 (#152): deleting the port-side search (see `LAYOUT_BENCH_BASELINE`
+ * above) removed the one mechanism that had been nudging some edges onto a
+ * cheaper, less-crossing port; without it, three fixtures' crossing counts
+ * rise back toward (not above) their pre-#151 figures: `er-complex` 30→31,
+ * `synthetic-random-1` 53→57, `synthetic-random-2` 29→36. `order-schema` and
+ * `synthetic-cross-bc` are unchanged — the search never found a cheaper port
+ * for either's edges. This is the accepted trade the task named explicitly:
+ * the user prefers slightly more crossings over a sluggish page; every
+ * fixture's hard metrics (overlaps/edge-through-node/frame violations)
+ * remain 0.
  */
 export const LAYOUT_BENCH_CROSSINGS_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 30,
+  'er-complex': 31,
   'order-schema': 1,
   'er-long-names': 0,
   'synthetic-no-bc': 0,
   'synthetic-cross-bc': 1,
   'synthetic-hub-table': 0,
   'synthetic-self-reference': 2,
-  'synthetic-random-1': 53,
-  'synthetic-random-2': 29,
+  'synthetic-random-1': 57,
+  'synthetic-random-2': 36,
 };
 
 /**
@@ -332,15 +378,88 @@ export const LAYOUT_BENCH_CROSSINGS_BASELINE: Readonly<Record<string, number>> =
  * unchanged. `er-complex`'s 40 is a known, open shortfall against the
  * "well under half of 56" target — see the doc comment on
  * `LAYOUT_BENCH_BASELINE` above for why the penalty was not pushed further.
+ *
+ * 2026-10 (#152): deleting the port-side search (see `LAYOUT_BENCH_BASELINE`
+ * above) was specifically a trade of this metric for speed — this search was
+ * the *only* mechanism that ever moved a hugging edge off a field-row port
+ * onto a card's top/bottom edge, so removing it raises this count on every
+ * fixture it used to help, back toward (`er-complex`, `synthetic-random-1`,
+ * `synthetic-random-2`) or above (`order-schema`, `synthetic-cross-bc`) their
+ * pre-#151 figures: `er-complex` 40→67, `order-schema` 1→7,
+ * `synthetic-cross-bc` 0→18, `synthetic-random-1` 10→15, `synthetic-random-2`
+ * 20→21. `gridRoute`'s `OUTLINE_HUG_STEP_PENALTY` — the cheaper, still-active
+ * mechanism that only applies once both direct L-shapes are obstacle-blocked
+ * — is what keeps these from rising further; the rest of the fixtures are
+ * unchanged. Accepted per the task: this metric was explicitly named as
+ * tradeable for removing the single highest-cost lever in the live
+ * component's render path (~60% of `relationRoutes`' total time).
  */
 export const LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 40,
-  'order-schema': 1,
+  'er-complex': 67,
+  'order-schema': 7,
   'er-long-names': 1,
   'synthetic-no-bc': 11,
-  'synthetic-cross-bc': 0,
+  'synthetic-cross-bc': 18,
   'synthetic-hub-table': 7,
   'synthetic-self-reference': 3,
-  'synthetic-random-1': 10,
-  'synthetic-random-2': 20,
+  'synthetic-random-1': 15,
+  'synthetic-random-2': 21,
+};
+
+/**
+ * A fourth, independent ratchet (#152): a per-fixture ceiling on
+ * `layoutMs`/`routingMs` (`dev/layout-bench/geometry.ts`'s `geometryOf`), so
+ * the thing #152 was actually about — the pipeline getting slow enough to
+ * jank the live component — has a regression guard of its own, not only the
+ * quality-score ratchets above (which do not measure time at all). Before
+ * #152, this bench never timed `relationRoutes`, so a reintroduced expensive
+ * lever (a port-side search, a new search over alternatives, an unbounded
+ * rip-up loop, …) could regress this exact cost with every other ratchet
+ * here staying green.
+ *
+ * These ceilings are deliberately generous (headroom of roughly 2–3x the
+ * measured number below, and a flat 5–15ms floor under the smallest
+ * fixtures) rather than tight bisected values like the scores above: a
+ * single-process, single-run wall-clock timing is inherently noisier across
+ * machines/CI/JIT warm-up than a pure layout computation, and the goal here
+ * is to catch "someone brought back an O(n^2)-ish lever" (a multi-x jump),
+ * not to chase single-digit-percent timing noise. `LAYOUT_BENCH_BASELINE`
+ * above remains the tight, bisected ratchet for layout *quality*; this one
+ * is only a backstop for layout/routing *time*.
+ *
+ * Measured once, right after #152 deleted the port-side search/Z-shape
+ * machinery (`view.ts`'s `relationRoutes`, `orthogonal-router.ts`'s
+ * `routeAroundObstacles`) — see `LAYOUT_BENCH_BASELINE`'s own #152 entry for
+ * what changed. `er-complex`'s `routingMs` (the fixture the user's original
+ * complaint was about) went from an unmeasured, browser-observed ~1,080ms to
+ * ~300–380ms headless (plain `node`, repeated); `synthetic-random-1`/
+ * `synthetic-random-2` (the densest synthetic fixtures) sit at ~70ms/~55ms.
+ * All nine fixtures' `layoutMs` stays in the low single-digit milliseconds,
+ * as it has since #151 round 2 (`layeredLayout` was never the costly step).
+ *
+ * `er-complex` runs first in `FIXTURES`, so under `vitest` specifically
+ * (rather than a plain `node` run of `dev/layout-bench.ts`) its `routingMs`
+ * is the one most exposed to this process's own cold-start/JIT-warm-up and
+ * whatever else is sharing the machine at that moment — confirmed by hand:
+ * repeated plain-`node` runs stayed a tight ~300–380ms, but repeated
+ * `vitest run dev/layout-bench.test.ts` runs occasionally (not reliably
+ * reproducible; environment-dependent) spiked past 1,000ms on this exact
+ * fixture with no code change at all. Its ceiling below is therefore set to
+ * roughly the same ~3x headroom the densest synthetic fixtures already get,
+ * rather than the tighter ~2x it first shipped with, which is what that
+ * spike caught; `synthetic-cross-bc` got the same treatment after it alone
+ * flaked once in the same sampling.
+ */
+export const LAYOUT_BENCH_TIME_BASELINE: Readonly<
+  Record<string, { readonly layoutMs: number; readonly routingMs: number }>
+> = {
+  'er-complex': { layoutMs: 50, routingMs: 1000 },
+  'order-schema': { layoutMs: 10, routingMs: 10 },
+  'er-long-names': { layoutMs: 10, routingMs: 10 },
+  'synthetic-no-bc': { layoutMs: 10, routingMs: 10 },
+  'synthetic-cross-bc': { layoutMs: 10, routingMs: 50 },
+  'synthetic-hub-table': { layoutMs: 10, routingMs: 10 },
+  'synthetic-self-reference': { layoutMs: 10, routingMs: 10 },
+  'synthetic-random-1': { layoutMs: 15, routingMs: 250 },
+  'synthetic-random-2': { layoutMs: 15, routingMs: 200 },
 };

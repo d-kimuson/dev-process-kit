@@ -6,8 +6,8 @@ import {
   LAYOUT_BENCH_BASELINE,
   LAYOUT_BENCH_CROSSINGS_BASELINE,
   LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE,
+  LAYOUT_BENCH_TIME_BASELINE,
 } from './layout-bench/baseline';
-import { erComplexFixtureBefore } from './layout-bench/fixtures/er-complex';
 import { seededRandomSchema } from './layout-bench/fixtures/synthetic';
 import { geometryOf } from './layout-bench/geometry';
 import { runBench } from './layout-bench/run';
@@ -67,6 +67,20 @@ describe('layout bench ratchet', () => {
     expect(baseline).toBeDefined();
     expect(row.outlineHugging.incidents).toBeLessThanOrEqual(baseline!);
   });
+
+  /**
+   * A fourth, independent ratchet (#152): layout/routing time itself, not
+   * just layout quality. Deliberately loose (see
+   * `LAYOUT_BENCH_TIME_BASELINE`'s own doc comment) — it exists to catch a
+   * reintroduced expensive lever (a multi-x jump), not to chase ordinary
+   * run-to-run timing noise.
+   */
+  it.each(rows)('$name does not regress past its baseline layout/routing time', (row) => {
+    const baseline = LAYOUT_BENCH_TIME_BASELINE[row.name];
+    expect(baseline).toBeDefined();
+    expect(row.layoutMs).toBeLessThanOrEqual(baseline!.layoutMs);
+    expect(row.routingMs).toBeLessThanOrEqual(baseline!.routingMs);
+  });
 });
 
 /**
@@ -75,38 +89,20 @@ describe('layout bench ratchet', () => {
  * ratchet above.
  */
 describe('#151 round 2: outline-hugging regressions', () => {
-  it("legacy_api_tokens's own relation does not hug its card or the Identity/Access frames", () => {
-    // This is the literal table from the user's #151 report (dark theme,
-    // `legacy_api_tokens`, Identity BC / Access aggregate): its relation left
-    // the card hugging its own left border, then the Access frame's bottom
-    // border, instead of exiting cleanly. `erComplexFixtureBefore` is the
-    // only fixture that still contains this table (`erComplexFixtureAfter`,
-    // what `FIXTURES`/`runBench` above actually exercise, represents a later
-    // schema state without it) — so this test is not part of the bench
-    // ratchet and does not gate on `LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE`.
-    //
-    // Caveat, confirmed by hand while fixing #151 round 2: this specific
-    // edge's headless-pipeline geometry (table sizes from this repo's
-    // estimated, not DOM/canvas-measured, text widths) does not reproduce a
-    // hug even with `OUTLINE_HUG_STEP_PENALTY` set back to 0 — so this
-    // assertion passing is not, by itself, proof the fix works; it only
-    // guards against this literal case regressing in whatever geometry this
-    // headless pipeline does produce. The live-rendered browser screenshot
-    // (`.agents/tmp/qa-shots/r151b-dark-legacy-tokens.png`) is the actual
-    // check for the reported bug; `#151 round 2: a flipped synthetic edge
-    // demonstrates the Dijkstra clearance cost` below is the discriminating
-    // automated guard for the fix itself.
-    const data = parseErData({ after: erComplexFixtureBefore });
-    const { geometry } = geometryOf(data);
-    const outlineBoxes = [
-      ...geometry.nodes.map((node) => node.box),
-      ...(geometry.frames ?? []).map((frame) => frame.box),
-    ];
-    const edge = geometry.edges.find((e) => e.from === 'legacy_api_tokens' || e.to === 'legacy_api_tokens');
-    expect(edge).toBeDefined();
-    expect(routeHugsOutline(edge!.points, outlineBoxes)).toBe(false);
-  });
-
+  // This describe block used to also guard the literal table from the user's
+  // #151 report (dark theme, `legacy_api_tokens`, Identity BC / Access
+  // aggregate: its relation left the card hugging its own left border, then
+  // the Access frame's bottom border). That guard's own doc comment already
+  // conceded it was not a discriminating test for the fix mechanism below
+  // (`OUTLINE_HUG_STEP_PENALTY`) — by its own account, this literal case's
+  // headless-pipeline geometry did not reproduce the hug through that
+  // mechanism at all; it only passed because `view.ts`'s port-side search
+  // (#151) picked a different port for this specific edge. #152 deleted that
+  // search (~60% of `relationRoutes`' total pipeline time for a readability-
+  // only win — see `dev/layout-bench/baseline.ts`), so this edge hugs again:
+  // a known, accepted consequence, not a regression in the mechanism this
+  // block actually guards. The test below remains the discriminating guard
+  // for `OUTLINE_HUG_STEP_PENALTY` itself, independent of the removed search.
   it('#151 round 2: a flipped synthetic edge demonstrates the Dijkstra clearance cost', () => {
     // `rnd_2:id>rnd_3:ref_0_id` in the seeded `synthetic-random-2` fixture
     // (`seededRandomSchema(2)`) hugs the `bc:south` frame's left border for
