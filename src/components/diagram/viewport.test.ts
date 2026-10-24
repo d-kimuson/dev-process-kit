@@ -7,6 +7,7 @@ import {
   MAX_SCALE,
   MIN_SCALE,
   openingCorner,
+  PAN_SLACK_FRACTION,
   pinchZoomFactor,
   wheelPan,
   type ViewportBounds,
@@ -50,23 +51,114 @@ describe('viewport geometry', () => {
     // Both branches have to be exercised, or this test would pass vacuously.
     expect(centred.length).toBeGreaterThan(0);
     expect(overflowing.length).toBeGreaterThan(0);
-    for (const sample of centred) expect(sample.begin).toBeCloseTo(sample.centred, 6);
+    for (const sample of centred) {
+      // A fitting axis also has `PAN_SLACK_FRACTION * viewport` of room to
+      // move away from its centred rest position (see the dedicated slack
+      // test below) — dragged this far (±1e6), it sits exactly at that edge
+      // of the slack, not pinned to `centred` regardless of how far it was
+      // dragged.
+      const slack = sample.viewport * PAN_SLACK_FRACTION;
+      const edge = sample.centred + Math.sign(sample.offset) * slack;
+      expect(sample.begin).toBeCloseTo(edge, 6);
+    }
     for (const sample of overflowing) {
-      expect(sample.begin).toBeLessThanOrEqual(1e-6);
-      expect(sample.end).toBeGreaterThanOrEqual(sample.viewport - 1e-6);
+      // An overflowing axis may be dragged `PAN_SLACK_FRACTION * viewport` past
+      // either edge (see the dedicated slack test below) — it is no longer
+      // flush against 0/viewport the instant it overflows.
+      const slack = sample.viewport * PAN_SLACK_FRACTION;
+      expect(sample.begin).toBeLessThanOrEqual(slack + 1e-6);
+      expect(sample.end).toBeGreaterThanOrEqual(sample.viewport - slack - 1e-6);
     }
     const empty: ViewportBounds = expandedBounds([]);
     expect(constrainView({ x: 1e6, y: -1e6, scale: 1 }, empty, 500, 350)).toEqual({ x: 0, y: 0, scale: 1 });
   });
 
-  it('pins content that fits to the top-left corner when aligned to the start', () => {
+  it('allows a symmetric, zoom-independent pan slack around overflowing content (#156)', () => {
+    // A wide, short board: the content margin `expandedBounds` grows (10% of
+    // the content's own size) is far smaller vertically than horizontally —
+    // exactly the asymmetry reported in #156 ("especially upward"). The pan
+    // slack below must not depend on it: it is a fraction of the *viewport*,
+    // identical on every side and at every zoom level. Both dimensions are
+    // large enough that the content still overflows the viewport even at
+    // MIN_SCALE, so every sampled scale exercises the overflow branch.
+    const content = { x: 0, y: 0, width: 20_000, height: 6000 };
+    const area = expandedBounds([content]);
+    const width = 800;
+    const height = 500;
+    for (const scale of [MIN_SCALE, 0.5, 1, MAX_SCALE]) {
+      const past = { x: 1e7, y: 1e7, scale };
+      const before = { x: -1e7, y: -1e7, scale };
+      const top = constrainView(past, area, width, height);
+      const bottom = constrainView(before, area, width, height);
+      const left = constrainView(past, area, width, height);
+      const right = constrainView(before, area, width, height);
+
+      const slackX = width * PAN_SLACK_FRACTION;
+      const slackY = height * PAN_SLACK_FRACTION;
+      // Panned as far as possible in one direction, the content's leading edge
+      // sits exactly `slack` past the canvas edge — not flush against it — and
+      // that distance is the same whether it is the top or the left edge.
+      expect(top.y + area.y * scale).toBeCloseTo(slackY, 6);
+      expect(left.x + area.x * scale).toBeCloseTo(slackX, 6);
+      // Panned the other way, the trailing edge sits `slack` short of the far
+      // canvas edge — symmetric with the leading-edge case above.
+      expect(bottom.y + (area.y + area.height) * scale).toBeCloseTo(height - slackY, 6);
+      expect(right.x + (area.x + area.width) * scale).toBeCloseTo(width - slackX, 6);
+      // The slack itself never depends on `scale`: only the viewport size.
+      expect(slackX).toBe(width * PAN_SLACK_FRACTION);
+      expect(slackY).toBe(height * PAN_SLACK_FRACTION);
+    }
+  });
+
+  it('rests content that fits at the top-left corner when aligned to the start, with the same slack as centred content', () => {
     const area = expandedBounds([{ x: 0, y: 0, width: 300, height: 200 }]);
-    expect(constrainView({ x: 1e6, y: -1e6, scale: 1 }, area, 500, 350, 'start')).toEqual({ x: 16, y: 16, scale: 1 });
-    expect(constrainView({ x: 0, y: 0, scale: 0.5 }, area, 500, 350, 'start')).toEqual({ x: 16, y: 16, scale: 0.5 });
+    // Dragged as far as possible, the view clamps to `rest ± slack` around the
+    // start-aligned rest position (16, 16) — not around the centred one, and
+    // not pinned to it outright regardless of how far it was dragged.
+    expect(constrainView({ x: 1e6, y: -1e6, scale: 1 }, area, 500, 350, 'start')).toEqual({
+      x: 16 + 500 * PAN_SLACK_FRACTION,
+      y: 16 - 350 * PAN_SLACK_FRACTION,
+      scale: 1,
+    });
+    // A nudge well inside the slack passes through rather than snapping back
+    // to rest — the start corner is a resting position with room to move,
+    // not a rigid pin.
+    expect(constrainView({ x: 20, y: 10, scale: 0.5 }, area, 500, 350, 'start')).toEqual({
+      x: 20,
+      y: 10,
+      scale: 0.5,
+    });
     // An overflowing axis pans exactly as it does when centred.
     const wide = expandedBounds([{ x: 0, y: 0, width: 900, height: 200 }]);
     const view = { x: -100, y: 0, scale: 1 };
     expect(constrainView(view, wide, 500, 350, 'start').x).toBe(constrainView(view, wide, 500, 350).x);
+  });
+
+  it('allows a symmetric, zoom-independent pan slack around content that fits the canvas (#156)', () => {
+    // #156: an ER diagram wide enough to overflow horizontally but short
+    // enough to fit vertically. Before this, the vertical axis — the one
+    // "fitting" — was pinned outright: a drag or an arrow key could not move
+    // it at all, which is the "hits the upper limit immediately" report. The
+    // slack here must be symmetric and the same at every zoom level, exactly
+    // like the overflow case.
+    const content = { x: 0, y: 0, width: 3000, height: 100 };
+    const area = expandedBounds([content]);
+    const width = 800;
+    const height = 500;
+    for (const scale of [MIN_SCALE, 0.1, 0.2]) {
+      // Vertical still fits the canvas at every one of these scales
+      // (area.height * scale <= height); horizontal overflows.
+      expect(area.height * scale).toBeLessThanOrEqual(height);
+      const rest = (height - area.height * scale) / 2 - area.y * scale;
+      const slack = height * PAN_SLACK_FRACTION;
+      const past = constrainView({ x: 0, y: 1e7, scale }, area, width, height);
+      const before = constrainView({ x: 0, y: -1e7, scale }, area, width, height);
+      expect(past.y).toBeCloseTo(rest + slack, 6);
+      expect(before.y).toBeCloseTo(rest - slack, 6);
+      // The slack is a fraction of the viewport alone, not of `scale` or of
+      // the content's own (tiny, vertically) size.
+      expect(slack).toBe(height * PAN_SLACK_FRACTION);
+    }
   });
 });
 
@@ -257,6 +349,49 @@ describe('viewport controller', () => {
       expect(viewport.view()).toEqual({ x: 16, y: 16, scale: 1 });
       viewport.fit();
       expect(viewport.view()).toMatchObject({ x: 16, y: 16 });
+    } finally {
+      viewport.destroy();
+    }
+  });
+
+  it('moves a fitting axis with the keyboard, within the new pan slack, and fit/reset recentre through it (#156)', () => {
+    // A wide, short board: horizontal overflows, vertical fits — exactly the
+    // #156 report ("hits the upper limit immediately, especially upward").
+    // happy-dom lays nothing out, so the canvas falls back to 1000×560; this
+    // content is short enough (100px tall) to fit that fallback height.
+    const { canvas, viewport } = mount();
+    canvas.tabIndex = 0;
+    const arrow = (key: string): boolean =>
+      canvas.dispatchEvent(new KeyboardEvent('keydown', { key, cancelable: true }));
+    try {
+      viewport.setContent({ x: 0, y: 0, width: 5000, height: 100 });
+      viewport.reset();
+      const resting = viewport.view().y;
+      // Before this fix, a fitting axis was pinned to `resting` outright: the
+      // very first ArrowUp/ArrowDown would have had no effect at all.
+      arrow('ArrowDown');
+      expect(viewport.view().y).toBeLessThan(resting);
+      // Keep going well past the slack: it must clamp, not pan forever.
+      for (let index = 0; index < 50; index++) arrow('ArrowDown');
+      const clamped = viewport.view().y;
+      expect(clamped).toBeGreaterThan(resting - 560 * PAN_SLACK_FRACTION - 1);
+      expect(clamped).toBeLessThan(resting);
+      arrow('ArrowDown');
+      expect(viewport.view().y).toBe(clamped);
+      // `reset` lands exactly back on rest, not wherever the slack-aware drag
+      // left the view — the slack is room to move away from rest, not a new
+      // place for the default view to open on.
+      viewport.reset();
+      expect(viewport.view().y).toBe(resting);
+      // Same guarantee for `fit`, at whatever scale it settles on: record its
+      // own rest, drag away within the slack, and confirm it lands back on
+      // that exact rest rather than passing the dragged offset through.
+      viewport.fit();
+      const fitRest = viewport.view().y;
+      arrow('ArrowDown');
+      expect(viewport.view().y).toBeLessThan(fitRest);
+      viewport.fit();
+      expect(viewport.view().y).toBe(fitRest);
     } finally {
       viewport.destroy();
     }

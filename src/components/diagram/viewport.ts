@@ -4,8 +4,12 @@ import { clamp } from 'es-toolkit/math';
  * Pan / zoom for a diagram canvas.
  *
  * The world element is transformed imperatively (a Lit re-render must not fight
- * the gesture), and panning is constrained to the content box grown by 10% per
- * side so the diagram can never be dragged out of sight.
+ * the gesture). Panning past the content — whether an axis overflows the
+ * canvas or fits inside it — is allowed up to `PAN_SLACK_FRACTION` of the
+ * viewport in every direction from where that axis rests, so the diagram is
+ * generous to pan around but never dragged entirely out of sight. `fit` and
+ * `reset` still land exactly on the resting position: the slack is room to
+ * move away from it, not a new place to rest.
  */
 
 export type ViewState = { readonly x: number; readonly y: number; readonly scale: number };
@@ -53,10 +57,36 @@ export const openingCorner = (boxes: readonly ViewportBox[], height: number): Vi
 const START_MARGIN = 16;
 
 /**
+ * Extra pan slack on an overflowing axis, as a fraction of the *viewport*
+ * itself rather than of the content's own size: a diagram can be dragged
+ * until content this far past the canvas edge is still showing, the same
+ * amount in every direction and at every zoom level (Figma/Miro-style
+ * canvas panning). At the extreme this still leaves `1 - PAN_SLACK_FRACTION`
+ * of the viewport covered by content, so the diagram is never dragged
+ * entirely out of sight.
+ *
+ * Before this, the only slack came from `expandedBounds`'s 10%-of-content
+ * margin (needed there for `fit`/`reset`, not as pan slack): in world units
+ * it is a fixed fraction of the *content's* size, so in screen pixels it
+ * shrinks to nothing as the reader zooms out, and is tiny on an axis the
+ * content is short along regardless of zoom — the "hits the upper limit
+ * immediately, especially upward" report, dev-process-kit#156. The axis an
+ * oversized board *fits* on (e.g. vertically, for a wide-and-short diagram)
+ * had no slack at all: it was pinned to its resting offset outright,
+ * regardless of how far the reader dragged — the exact axis #156 reports
+ * hitting a limit on first.
+ */
+export const PAN_SLACK_FRACTION = 0.8;
+
+/**
  * Where content that fits in the canvas sits: `center` in the middle, `start`
  * at the top-left corner (for content read from there, like a board).
  */
 export type ViewportAlign = 'center' | 'start';
+
+/** Where an axis that fits the canvas (`size * scale <= viewport`) rests, before any pan slack. */
+const restOffset = (align: ViewportAlign, start: number, size: number, scale: number, viewport: number): number =>
+  align === 'start' ? START_MARGIN - contentStart(start, size) * scale : (viewport - size * scale) / 2 - start * scale;
 
 export const constrainView = (
   candidate: ViewState,
@@ -68,12 +98,12 @@ export const constrainView = (
   if (area.width === 0 || area.height === 0) return { ...candidate, x: 0, y: 0 };
   const axis = (offset: number, start: number, size: number, viewport: number): number => {
     const scaled = size * candidate.scale;
+    const slack = viewport * PAN_SLACK_FRACTION;
     if (scaled <= viewport) {
-      return align === 'start'
-        ? START_MARGIN - contentStart(start, size) * candidate.scale
-        : (viewport - scaled) / 2 - start * candidate.scale;
+      const rest = restOffset(align, start, size, candidate.scale, viewport);
+      return clamp(offset, rest - slack, rest + slack);
     }
-    return Math.min(-start * candidate.scale, Math.max(viewport - (start + size) * candidate.scale, offset));
+    return clamp(offset, viewport - (start + size) * candidate.scale - slack, -start * candidate.scale + slack);
   };
   return {
     ...candidate,
@@ -83,10 +113,14 @@ export const constrainView = (
 };
 
 /**
- * The view a plain wheel scroll moves to, or `null` when the diagram is already
- * at the edge a vertical scroll heads for (or fits vertically): the scroll then
- * belongs to the page, so reading carries on past the diagram. A horizontal
- * scroll always stays in the diagram, so it never turns into history navigation.
+ * The view a plain wheel scroll moves to, or `null` when the scroll belongs to
+ * the page instead: a vertical scroll over content that fits vertically (read
+ * off the content box directly, not inferred from the view failing to move —
+ * that axis now has its own pan slack, so it moves on a drag or an arrow key,
+ * but a plain wheel still hands it straight to the page), or a vertical scroll
+ * that has already reached the (slack-extended) edge it heads for. A
+ * horizontal scroll always stays in the diagram, so it never turns into
+ * history navigation.
  */
 export const wheelPan = (
   view: ViewState,
@@ -97,8 +131,9 @@ export const wheelPan = (
   deltaY: number,
   align: ViewportAlign = 'center',
 ): ViewState | null => {
-  const next = constrainView({ ...view, x: view.x - deltaX, y: view.y - deltaY }, area, width, height, align);
   const vertical = Math.abs(deltaY) > Math.abs(deltaX);
+  if (vertical && area.height * view.scale <= height) return null;
+  const next = constrainView({ ...view, x: view.x - deltaX, y: view.y - deltaY }, area, width, height, align);
   return vertical && next.y === view.y ? null : next;
 };
 
@@ -193,14 +228,17 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
     // `area` is the content grown by 10%; undo that so fit means "content fits".
     const contentWidth = area.width / 1.2 || 1;
     const contentHeight = area.height / 1.2 || 1;
+    const scale = clamp(Math.min((width - 24) / contentWidth, (height - 40) / contentHeight), MIN_SCALE, 1);
+    // Both axes fit the canvas at this scale by construction (the governing
+    // one right up to its margin, the other with room to spare), so this is
+    // exactly the resting offset `apply`'s `constrainView` would land on too —
+    // landing on it directly, rather than through the fits branch's slack,
+    // means fit() always re-centers (or re-aligns to start) rather than
+    // merely passing through wherever the view happened to be dragged to.
     view = {
-      ...view,
-      scale: clamp(Math.min((width - 24) / contentWidth, (height - 40) / contentHeight), MIN_SCALE, 1),
-    };
-    view = {
-      ...view,
-      x: (width - area.width * view.scale) / 2 - area.x * view.scale,
-      y: (height - area.height * view.scale) / 2 - area.y * view.scale,
+      scale,
+      x: restOffset(align, area.x, area.width, scale, width),
+      y: restOffset(align, area.y, area.height, scale, height),
     };
     apply();
   };
@@ -238,10 +276,24 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
   };
 
   const reset = (corner?: ViewportPoint): void => {
+    const { width, height } = size();
+    // An explicit corner always anchors there, near the top-left, regardless
+    // of alignment or whether the content fits — it is a deliberate "open on
+    // this point" request (e.g. a focused group), not the default open view.
+    // Without one, an axis that fits lands on its exact resting offset (like
+    // `fit`, bypassing the fits branch's slack so this never opens off-center
+    // for `align: 'center'`); an axis that overflows keeps opening near the
+    // content's own top-left corner, same as before.
+    const axisReset = (start: number, contentSize: number, viewport: number, at: number | undefined): number =>
+      at !== undefined
+        ? START_MARGIN - at
+        : contentSize <= viewport
+          ? restOffset(align, start, contentSize, 1, viewport)
+          : START_MARGIN - contentStart(start, contentSize);
     view = {
       scale: 1,
-      x: START_MARGIN - (corner?.x ?? contentStart(area.x, area.width)),
-      y: START_MARGIN - (corner?.y ?? contentStart(area.y, area.height)),
+      x: axisReset(area.x, area.width, width, corner?.x),
+      y: axisReset(area.y, area.height, height, corner?.y),
     };
     apply();
   };
