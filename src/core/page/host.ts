@@ -36,9 +36,6 @@ export type BoardHost = {
   navigate(patch: NavigationPatch, options?: { replace?: boolean }): void;
   hashFor(patch: NavigationPatch): string;
   requestComment(target: string): void;
-  /** Enters or leaves focus (present) mode: the page's own header hidden, a board's full area kept. */
-  setFocus(active: boolean): void;
-  focused(): boolean;
 };
 
 /**

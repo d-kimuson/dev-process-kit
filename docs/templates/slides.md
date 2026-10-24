@@ -90,7 +90,6 @@ The slide on screen lives in the URL hash: `#slide=<id>`. An unknown or missing 
 - The outline, the deck bar and `data-dpk-navigate="slide=<id>"` on your markup move between slides.
 - `→` / `PageDown` next, `←` / `PageUp` previous, `Home` / `End` first / last. Keys typed into a text field are left alone, and `↑` / `↓` keep scrolling.
 - **Full screen** shows the slide alone, as large as the screen allows; the same keys move through it and `Esc` leaves. The button is hidden where the browser does not allow full screen (for example a sandboxed frame).
-- Hosted as a board of `<dpk-page>` (`board="<id>"`, `docs/page.md`), a **Focus mode** button also appears: it hides the page's own header (and, with it, the board switcher), leaving the deck the whole area under it. The same button, or `Esc`, leaves focus mode again.
 
 ## Change notices
 

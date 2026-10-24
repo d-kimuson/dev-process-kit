@@ -404,25 +404,6 @@ describe('<dpk-template-slides>', () => {
     expect(element.shadowRoot?.querySelector('.deck-fullscreen')).toBeNull();
   });
 
-  it('offers the focus toggle only as a board of <dpk-page>, never on its own', async () => {
-    const standalone = mount();
-    await settle(standalone);
-    expect(standalone.shadowRoot?.querySelector('.deck-focus')).toBeNull();
-
-    window.location.hash = '';
-    document.body.innerHTML = `
-      <dpk-page>
-        <dpk-template-slides board="slides" storage="memory">
-          <script type="application/json">${JSON.stringify(base)}</script>
-        </dpk-template-slides>
-      </dpk-page>`;
-    const boarded = document.querySelector('dpk-template-slides') as DpkTemplateSlides;
-    await settle(boarded);
-    const button = boarded.shadowRoot?.querySelector<HTMLButtonElement>('.deck-focus');
-    expect(button).not.toBeNull();
-    expect(button?.getAttribute('aria-pressed')).toBe('false');
-  });
-
   it('says how to add slides when the deck is empty', async () => {
     window.location.hash = '';
     document.body.innerHTML = `<dpk-template-slides storage="memory" lang="ja"><script type="application/json">{}</script></dpk-template-slides>`;

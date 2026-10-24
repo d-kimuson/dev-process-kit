@@ -59,12 +59,9 @@ export class DpkTemplateSlides extends TemplateElement<SlidesState> {
       sidebarHidden: context.state.slides.length === 0,
       main: renderStage(context, m, {
         canFullscreen: document.fullscreenEnabled === true,
-        canFocus: this.board !== null,
-        focused: this.focused,
         draftFor: (slideId) => this.#drafts.get(slideId) ?? '',
         onStep: (step) => this.#go(step),
         onFullscreen: () => this.#fullscreen(),
-        onToggleFocus: () => this.setFocused(!this.focused),
         onDraft: (slideId, body) => this.#setDraft(slideId, body),
         onComment: (slideId) => this.#comment(slideId),
         onDeleteComment: (commentId) => this.removeAction(commentId),

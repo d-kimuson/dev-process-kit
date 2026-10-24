@@ -246,14 +246,6 @@ const pageStyles = css`
     min-height: 0;
   }
 
-  /* Focus (present) mode: the header's row collapses (dpk-internal-layout-app
-     sizes it from its slotted content), so the active board gets the full
-     area under it. The board switcher lives in this same header, so hiding
-     it hides the switcher too, as presenting means. */
-  :host([data-focused]) .dpk-header {
-    display: none;
-  }
-
   ::slotted(*) {
     min-width: 0;
     min-height: 0;
@@ -316,8 +308,6 @@ export class PageElement extends TemplateElement<PageState> {
   #switcherAdding = false;
   #switcherCloseTimer: ReturnType<typeof setTimeout> | undefined;
   readonly #popovers = new PopoverController(this);
-  /** Focus (present) mode: the page's own header hidden, the active board given the full area under it. */
-  #focused = false;
 
   constructor() {
     super();
@@ -329,14 +319,6 @@ export class PageElement extends TemplateElement<PageState> {
         ),
       ownsEscape: () => true,
       dismiss: () => this.#closeSwitcher(),
-    });
-    new DismissController(this, {
-      open: () => this.#focused,
-      // Only Escape (or the board's own control) leaves focus mode; a stray press on the slide
-      // itself — advancing it, say — must not drop the reader out of presenting.
-      closesOn: () => false,
-      ownsEscape: () => true,
-      dismiss: () => this.#setFocused(false),
     });
   }
 
@@ -400,17 +382,8 @@ export class PageElement extends TemplateElement<PageState> {
       navigate: (patch, options) => this.navigate(patch, options),
       hashFor: (patch) => this.hashFor(patch),
       requestComment: (target) => this.requestComment(target),
-      setFocus: (active) => this.#setFocused(active),
-      focused: () => this.#focused,
     };
     return this.#host;
-  }
-
-  /** Enters or leaves focus mode; a no-op if it is already there. */
-  #setFocused(active: boolean): void {
-    if (this.#focused === active) return;
-    this.#focused = active;
-    this.requestUpdate();
   }
 
   #boards(): readonly BoardElement[] {
@@ -873,7 +846,6 @@ export class PageElement extends TemplateElement<PageState> {
 
   protected override updated(): void {
     super.updated();
-    this.toggleAttribute('data-focused', this.#focused);
     this.#placeSwitcherMenu();
     this.#syncBoards();
   }
