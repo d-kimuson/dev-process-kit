@@ -7,6 +7,7 @@ import {
   MAX_SCALE,
   MIN_SCALE,
   openingCorner,
+  pinchZoomFactor,
   wheelPan,
   type ViewportBounds,
 } from './viewport';
@@ -117,6 +118,23 @@ describe('wheel pan', () => {
   it('keeps a horizontal scroll inside the diagram even at its edge', () => {
     const right = constrainView({ x: -1e6, y: 0, scale: 1 }, area, 500, 350);
     expect(wheelPan(right, area, 500, 350, 40, 0)).toEqual(right);
+  });
+});
+
+describe('pinch zoom factor', () => {
+  it('matches the whiteboard and event-storming canvases, exp(-deltaY * 0.01)', () => {
+    expect(pinchZoomFactor(-10)).toBeCloseTo(Math.exp(0.1), 10);
+    expect(pinchZoomFactor(10)).toBeCloseTo(Math.exp(-0.1), 10);
+    expect(pinchZoomFactor(0)).toBe(1);
+  });
+
+  it('compounds a pinch-like sequence (10 events of deltaY -10) to a clear zoom-in, not an imperceptible one', () => {
+    // Before the fix this used a 0.0012 coefficient instead of 0.01: the same
+    // sequence only reached exp(0.12) ≈ 1.127, which read as "almost nothing"
+    // on a pinch gesture that strong.
+    const factor = Array.from({ length: 10 }, () => pinchZoomFactor(-10)).reduce((acc, f) => acc * f, 1);
+    expect(factor).toBeCloseTo(Math.exp(1), 10);
+    expect(factor).toBeGreaterThan(2.5);
   });
 });
 
@@ -258,6 +276,28 @@ describe('viewport controller', () => {
       expect(wheel(200)).toBe(true);
       expect(viewport.view().y).toBeLessThan(panned);
       expect(wheel(-200)).toBe(false);
+    } finally {
+      viewport.destroy();
+    }
+  });
+
+  it('zooms a trackpad pinch (ctrl-wheel) at the same sensitivity as the whiteboard and event-storming canvases', () => {
+    const { canvas, viewport } = mount();
+    const pinch = (deltaY: number): void => {
+      const event = new WheelEvent('wheel', { deltaY, cancelable: true, bubbles: true });
+      // happy-dom's WheelEvent extends UIEvent, not MouseEvent, so `ctrlKey`
+      // is not settable through the constructor's init dict as it is in a
+      // real browser; set it directly to simulate a trackpad pinch.
+      Object.defineProperty(event, 'ctrlKey', { value: true });
+      canvas.dispatchEvent(event);
+    };
+    try {
+      viewport.setContent({ x: 0, y: 0, width: 2000, height: 2000 });
+      viewport.reset();
+      expect(viewport.view().scale).toBe(1);
+      // Three events of deltaY -10, as a slow pinch sends: factor exp(-deltaY * 0.01) per event.
+      for (let index = 0; index < 3; index++) pinch(-10);
+      expect(viewport.view().scale).toBeCloseTo(Math.exp(0.3), 5);
     } finally {
       viewport.destroy();
     }

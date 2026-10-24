@@ -102,6 +102,17 @@ export const wheelPan = (
   return vertical && next.y === view.y ? null : next;
 };
 
+/**
+ * The zoom factor one ctrl/meta-modified wheel event applies: a trackpad pinch
+ * arrives this way, with a small `deltaY` per event. Same factor-per-pixel as
+ * the whiteboard and event-storming canvases (`Math.exp(-deltaY * 0.01)`), so
+ * a pinch feels identical across every diagram. Reads `deltaY` directly rather
+ * than scaling it by the wheel event's line/page `unit` first: ctrl-wheel
+ * always reports DOM_DELTA_PIXEL in practice, and scaling a raw line/page count
+ * by a pixel-sized unit is what previously made the result swing wildly.
+ */
+export const pinchZoomFactor = (deltaY: number): number => Math.exp(-deltaY * 0.01);
+
 export type ViewportOptions = {
   readonly canvas: HTMLElement;
   readonly world: HTMLElement;
@@ -253,11 +264,7 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
       const rect = canvas.getBoundingClientRect();
-      zoom(
-        Math.exp(-clamp(event.deltaY * unit, -60, 60) * 0.0012),
-        event.clientX - rect.left,
-        event.clientY - rect.top,
-      );
+      zoom(pinchZoomFactor(event.deltaY), event.clientX - rect.left, event.clientY - rect.top);
       return;
     }
     const { width, height } = size();
