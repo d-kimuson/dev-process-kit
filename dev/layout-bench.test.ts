@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseErData } from '../src/components/er-diagram/model';
 import { routeHugsOutline } from '../src/lib/layout/metrics';
+import { routeAroundObstacles } from '../src/lib/layout/orthogonal-router';
 import {
   LAYOUT_BENCH_BASELINE,
   LAYOUT_BENCH_CROSSINGS_BASELINE,
   LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE,
   LAYOUT_BENCH_TIME_BASELINE,
 } from './layout-bench/baseline';
-import { seededRandomSchema } from './layout-bench/fixtures/synthetic';
-import { geometryOf } from './layout-bench/geometry';
 import { runBench } from './layout-bench/run';
 
 /**
@@ -84,63 +82,21 @@ describe('layout bench ratchet', () => {
 });
 
 /**
- * #151 round 2: targeted regressions for `orthogonal-router.ts`'s
- * hug-avoidance preference (`pickBest`, since #152 round 2 — see below), on
- * top of the aggregate ratchet above.
+ * #151/#152: the router prefers a shape that does not hug a border when the
+ * competing shapes tie on every higher-priority cost. Hug avoidance used to
+ * be unconditional; the v0.3 loop ranks crossings and shared-lane overlap
+ * above it (a hug is a readability cost, a crossing is the reader's top
+ * complaint; two lines in one lane cannot be told apart at all), so this
+ * guards the tie-break that remains rather than claiming it is absolute.
  */
-describe('#151 round 2: outline-hugging regressions', () => {
-  // This describe block used to also guard the literal table from the user's
-  // #151 report (dark theme, `legacy_api_tokens`, Identity BC / Access
-  // aggregate: its relation left the card hugging its own left border, then
-  // the Access frame's bottom border). That guard's own doc comment already
-  // conceded it was not a discriminating test for the fix mechanism below —
-  // by its own account, this literal case's headless-pipeline geometry did
-  // not reproduce the hug through that mechanism at all; it only passed
-  // because `view.ts`'s port-side search (#151) picked a different port for
-  // this specific edge. #152 round 1 deleted that search (~60% of
-  // `relationRoutes`' total pipeline time for a readability-only win — see
-  // `dev/layout-bench/baseline.ts`), so this edge hugs again: a known,
-  // accepted consequence, not a regression in the mechanism this block
-  // actually guards. The test below remains the discriminating guard for
-  // the hug-avoidance mechanism itself, independent of the removed search.
-  //
-  // #152 round 2 replaced that mechanism's implementation, not its
-  // guarantee: `orthogonal-router.ts`'s `gridRoute` (a length-proportional
-  // `OUTLINE_HUG_STEP_PENALTY` steering a Dijkstra search over a full grid)
-  // is gone, along with the rest of `gridRoute`. Its replacement,
-  // `laneDetour`, generates only a short list of 2-bend candidates sourced
-  // directly from nearby obstacles' own borders, and its `pickBest` picks
-  // among them: any candidate that does not hug an outline (`routeHugsOutline`)
-  // beats every candidate that does, unconditionally — a hard preference
-  // over a short list rather than a weighted cost over a whole grid, safe to
-  // do unconditionally specifically because `LANE_MARGIN` (`element.ts`, 20)
-  // is already larger than `OUTLINE_HUG_CLEARANCE` (`metrics.ts`, 6): a route
-  // sitting at a margin-inflated obstacle boundary is never itself classified
-  // as hugging that same obstacle's true border, so preferring "does not hug"
-  // can never fight the margin into picking something blocked. The assertion
-  // below still holds under the new mechanism (confirmed: this test passes
-  // unchanged against the replacement router) — only the comment needed
-  // updating, not the guarantee it guards.
-  it('#151 round 2: a flipped synthetic edge demonstrates the hug-avoidance preference', () => {
-    // `rnd_2:id>rnd_3:ref_0_id` in the seeded `synthetic-random-2` fixture
-    // (`seededRandomSchema(2)`) hugs the `bc:south` frame's left border for
-    // its entire vertical run when `laneDetour`'s hug preference in
-    // `pickBest` is disabled (verified by hand against the pre-#152-round-2
-    // `gridRoute`/`OUTLINE_HUG_STEP_PENALTY` mechanism this one replaces: with
-    // that penalty zeroed out, the equivalent assertion failed the same way),
-    // and clears it once a non-hugging candidate is available and preferred.
-    // Unlike the `legacy_api_tokens` case above, this edge's headless
-    // geometry does exhibit the bug when hug-avoidance is absent, so it is a
-    // real regression guard for the mechanism itself, not only for this
-    // literal fixture.
-    const data = parseErData({ after: seededRandomSchema(2) });
-    const { geometry } = geometryOf(data);
-    const outlineBoxes = [
-      ...geometry.nodes.map((node) => node.box),
-      ...(geometry.frames ?? []).map((frame) => frame.box),
-    ];
-    const edge = geometry.edges.find((e) => e.id === 'rnd_2:id>rnd_3:ref_0_id');
-    expect(edge).toBeDefined();
-    expect(routeHugsOutline(edge!.points, outlineBoxes)).toBe(false);
+describe('outline-hugging preference', () => {
+  it('prefers a non-hugging shape when crossings, parallel runs and length tie', () => {
+    // The vertical-first L runs at x = 0, six pixels from this outline's left
+    // border: a hug (within OUTLINE_HUG_CLEARANCE, longer than
+    // MIN_HUG_OVERLAP) but not zero-gap contact. The horizontal-first L
+    // clears both, and has the same length, crossings and parallel cost.
+    const outline = { x: 6, y: 50, width: 10, height: 100 };
+    const route = routeAroundObstacles({ x: 0, y: 0 }, { x: 100, y: 100 }, [], 0, [], [outline]);
+    expect(routeHugsOutline(route, [outline])).toBe(false);
   });
 });

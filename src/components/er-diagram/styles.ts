@@ -551,6 +551,19 @@ export const erStyles = css`
     overflow-wrap: anywhere;
   }
 
+  /* ---- Legend ---- */
+
+  /*
+   * The shared diagram legend is pinned bottom-left over the canvas. The ER
+   * fit view is left-heavy (the world is taller than it is wide), so that
+   * corner is where the bottom row of cards sits; the right side is the empty
+   * one. Keep the legend off the schema.
+   */
+  .diagram-legend {
+    left: auto;
+    right: 12px;
+  }
+
   /* ---- Relations ---- */
 
   .er-edge {
@@ -642,9 +655,11 @@ export const erStyles = css`
   }
 
   /*
-   * Multiplicities and labels appear with the relation's highlight, as in
-   * Liam ERD, so the resting diagram stays quiet. A changed relation keeps
-   * them on: the change is in them.
+   * Multiplicities are part of the relation's meaning, not hover decoration:
+   * the reader reported that 1..N was simply absent until a pointer happened
+   * to land on the line. They stay visible at rest (settled to a slightly
+   * softer ink) and sharpen on hover/selection. The label boxes are placed
+   * beside the stroke, so showing them does not cover the line.
    */
   .er-cardinality,
   .er-relation-label {
@@ -652,7 +667,7 @@ export const erStyles = css`
     stroke: var(--dpk-paper-sunken);
     stroke-linejoin: round;
     fill: var(--dpk-ink-soft);
-    opacity: 0;
+    opacity: 0.85;
     transition: opacity 120ms ease;
   }
 

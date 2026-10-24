@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ERD appraisal harness</title>
+    <style>
+      :root {
+        /* Follow the sample the reader reviews: the shell's default there is dark. */
+        color-scheme: dark;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+      body {
+        background: #0a0b0e;
+      }
+      dpk-er-diagram {
+        display: block;
+        --diagram-height: 1200px;
+        height: 1200px;
+      }
+      body > :not(:defined) {
+        visibility: hidden;
+      }
+    </style>
+    <script type="module">
+      /*
+       * A headless appraisal page: renders the same er-complex schema as the
+       * sample, without the page shell, so the browser eval can measure the
+       * diagram's own layout/render cost and capture clean screenshots.
+       *
+       * The schema is read from `er-complex.html` instead of copied, so this
+       * page always measures the sample the reader is reviewing.
+       */
+      import { loadKit } from './kit.js';
+
+      const started = performance.now();
+      const longTasks = [];
+      const errors = [];
+      try {
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) longTasks.push({ start: entry.startTime, duration: entry.duration });
+        }).observe({ entryTypes: ['longtask'] });
+      } catch {
+        /* longtask is optional (Safari); the report says so when the array stays empty. */
+      }
+      window.addEventListener('error', (event) => errors.push(String(event.message)));
+      window.addEventListener('unhandledrejection', (event) => errors.push(String(event.reason)));
+
+      const status = { phase: 'loading', error: null };
+      window.__erEvalStatus = status;
+
+      const measure = () => {
+        const element = document.querySelector('dpk-er-diagram');
+        const panel = element?.shadowRoot?.querySelector('dpk-dialog-panel');
+        const world = panel?.shadowRoot?.querySelector('.world');
+        const canvas = panel?.shadowRoot?.querySelector('.canvas');
+        const tables = [...(element?.shadowRoot?.querySelectorAll('.er-table') ?? [])];
+        const fields = [...(element?.shadowRoot?.querySelectorAll('.er-field') ?? [])];
+        const edges = [...(element?.shadowRoot?.querySelectorAll('.er-edge') ?? [])];
+        const paths = [...(element?.shadowRoot?.querySelectorAll('path') ?? [])];
+        const transform = world === undefined || world === null ? '' : getComputedStyle(world).transform;
+        const scale = transform.startsWith('matrix(') ? Number(transform.slice(7).split(',')[0]) : 1;
+        return {
+          fitScale: scale,
+          world:
+            world === null || world === undefined ? null : { width: world.offsetWidth, height: world.offsetHeight },
+          canvas:
+            canvas === null || canvas === undefined ? null : { width: canvas.clientWidth, height: canvas.clientHeight },
+          dom: {
+            tables: tables.length,
+            fields: fields.length,
+            edges: edges.length,
+            paths: paths.length,
+            elements: element?.shadowRoot?.querySelectorAll('*').length ?? 0,
+          },
+          pathCommands: paths.reduce((sum, path) => sum + (path.getAttribute('d')?.match(/[MLCQ]/gu)?.length ?? 0), 0),
+        };
+      };
+
+      const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+      const action = async (name, run) => {
+        const before = performance.now();
+        await run();
+        const after = performance.now();
+        // Let the paint settle for the screenshot path, but do not charge the
+        // two-frame wait to the interaction: it is ~33ms at 60Hz and would
+        // swamp the work being measured.
+        await frame();
+        return { name, ms: after - before };
+      };
+
+      try {
+        const html = await fetch('er-complex.html').then((response) => {
+          if (!response.ok) throw new Error(`er-complex.html answered ${response.status}`);
+          return response.text();
+        });
+        const source = new DOMParser()
+          .parseFromString(html, 'text/html')
+          .querySelector('dpk-er-diagram script[type="application/json"]');
+        if (source === null) throw new Error('er-complex.html has no dpk-er-diagram JSON');
+
+        await loadKit(['components.js']);
+        await customElements.whenDefined('dpk-er-diagram');
+
+        const createStart = performance.now();
+        const element = document.createElement('dpk-er-diagram');
+        element.id = 'eval-diagram';
+        element.setAttribute('lang', 'ja');
+        const data = document.createElement('script');
+        data.type = 'application/json';
+        data.textContent = source.textContent;
+        element.append(data);
+        document.body.append(element);
+        const createMs = performance.now() - createStart;
+
+        const updateStart = performance.now();
+        await element.updateComplete;
+        const updateMs = performance.now() - updateStart;
+        await document.fonts.ready;
+        await frame();
+
+        const root = element.shadowRoot;
+        const table = root?.querySelector('.er-table');
+        const entries = [];
+        entries.push(
+          await action('hover-table', async () => {
+            table?.dispatchEvent(new PointerEvent('pointerenter', { bubbles: false, composed: true }));
+            await element.updateComplete;
+          }),
+        );
+        entries.push(
+          await action('leave-table', async () => {
+            table?.dispatchEvent(new PointerEvent('pointerleave', { bubbles: false, composed: true }));
+            await element.updateComplete;
+          }),
+        );
+        const filter = root?.querySelectorAll('.er-column-filter button')[1];
+        entries.push(
+          await action('column-filter-keys', async () => {
+            filter?.click();
+            await element.updateComplete;
+          }),
+        );
+        const grouping = root?.querySelectorAll('.er-grouping-filter button')[0];
+        entries.push(
+          await action('toggle-bc-frames', async () => {
+            grouping?.click();
+            await element.updateComplete;
+          }),
+        );
+
+        // Every edge's own label must become visible when either endpoint is
+        // highlighted. This catches a label that is generated but positioned
+        // off-canvas or behind a card, not only one that is missing from the DOM.
+        const labelAudit = [];
+        const cards = [...(root?.querySelectorAll('.er-table') ?? [])];
+        for (const card of cards.slice(0, 8)) {
+          card.dispatchEvent(new PointerEvent('pointerenter', { bubbles: false, composed: true }));
+          await element.updateComplete;
+          // The CSS opacity transition is 120ms; measure the settled state.
+          await new Promise((resolve) => setTimeout(resolve, 180));
+          for (const edge of root?.querySelectorAll('.er-edge.is-lit') ?? []) {
+            const labels = [...edge.querySelectorAll('.er-cardinality, .er-relation-label')];
+            if (labels.length === 0) {
+              labelAudit.push({ edge: edge.getAttribute('data-relation'), issue: 'no-label' });
+              continue;
+            }
+            for (const label of labels) {
+              const style = getComputedStyle(label);
+              const rect = label.getBoundingClientRect();
+              if (Number(style.opacity) === 0 || rect.width === 0 || rect.height === 0) {
+                labelAudit.push({ edge: edge.getAttribute('data-relation'), issue: 'hidden', text: label.textContent });
+              }
+            }
+          }
+          card.dispatchEvent(new PointerEvent('pointerleave', { bubbles: false, composed: true }));
+          await element.updateComplete;
+        }
+
+        window.__erEval = {
+          createMs,
+          updateMs,
+          readyMs: performance.now() - started,
+          longTasks,
+          errors,
+          metrics: measure(),
+          interactions: entries,
+          labelAudit,
+          status: 'ready',
+        };
+        status.phase = 'ready';
+        document.documentElement.dataset['erEvalReady'] = 'true';
+      } catch (error) {
+        status.phase = 'error';
+        status.error = String(error);
+        window.__erEval = { status: 'error', error: String(error), errors, longTasks };
+        document.documentElement.dataset['erEvalError'] = String(error);
+      }
+    </script>
+  </head>
+  <body></body>
+</html>

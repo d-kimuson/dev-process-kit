@@ -55,7 +55,9 @@
     "test": "vitest run",
     "qa:browser": "node dev/qa/browser-smoke.ts",
     "qa:chaos": "node dev/qa/chaos-capture.ts",
-    "bench:layout": "node dev/layout-bench.ts"
+    "bench:layout": "node dev/layout-bench.ts",
+    "eval": "node dev/eval.ts",
+    "eval:browser": "node dev/qa/er-eval.ts"
   },
   "devDependencies": {
     "@floating-ui/dom": "1.8.0",

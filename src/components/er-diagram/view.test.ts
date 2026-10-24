@@ -415,15 +415,20 @@ describe('relationRoute', () => {
     expect(routeHitsBox(route, tables[2]!.box)).toBe(false);
   });
 
-  it('detours around a frame box it does not belong to', () => {
+  it('treats a frame it does not belong to as a soft outline, not a wall', () => {
     const d = { id: 'd', box: { x: 400, y: 0, width: 100, height: 40 } };
     const points = [
       { x: 100, y: 20 },
       { x: 400, y: 20 },
     ];
-    const frame = { box: { x: 200, y: 0, width: 100, height: 40 }, members: ['c'] };
+    // A frame is a semantic grouping, not an obstacle: a cross-context relation
+    // has to be able to cross it. A tall frame around `c` would force a hard
+    // detour far above/below under the old "frame = wall" model.
+    const frame = { box: { x: 200, y: -200, width: 100, height: 400 }, members: ['c'] };
     const route = relationRoute({ from: 'a', to: 'd' }, points, [tables[0]!, d], 20, [frame]);
-    expect(routeHitsBox(route, frame.box)).toBe(false);
+    // The frame spans the whole vertical area; a hard obstacle would force the
+    // route far outside it. Crossing it near y = 20 proves it is permeable.
+    expect(Math.max(...route.map((point) => Math.abs(point.y - 20)))).toBeLessThan(100);
   });
 
   it('does not detour around a frame that contains one of the relation’s own endpoints', () => {
@@ -447,7 +452,7 @@ describe('relationRoute', () => {
     expect(relationRoute({ from: 'a', to: 'c' }, points, tables, 20)).toEqual(points);
   });
 
-  it('leaves a self-reference’s route untouched', () => {
+  it('keeps a self-reference loop outside its own card', () => {
     const points = [
       { x: 100, y: 10 },
       { x: 120, y: 10 },
@@ -456,7 +461,15 @@ describe('relationRoute', () => {
       { x: 10, y: 20 },
       { x: 0, y: 20 },
     ];
-    expect(relationRoute({ from: 'a', to: 'a' }, points, tables, 20)).toBe(points);
+    const route = relationRoute({ from: 'a', to: 'a' }, points, tables, 20);
+    expect(route).not.toBe(points);
+    const box = tables[0]!.box;
+    const inside = route
+      .slice(1, -1)
+      .filter(
+        (point) => point.x > box.x && point.x < box.x + box.width && point.y > box.y && point.y < box.y + box.height,
+      );
+    expect(inside).toEqual([]);
   });
 
   it('returns the raw points unchanged when there is no start or end to route between', () => {
@@ -464,21 +477,13 @@ describe('relationRoute', () => {
   });
 });
 
-describe('relationRoutes (#152: no port-side search)', () => {
-  // #151 used to make `relationRoutes` search every top/bottom port
-  // alternative whenever a relation's plain field-row route hugged a card's
-  // own border (the screenshot report this geometry reproduces: a field-row
-  // port whose naive L-shape has to drop straight down right along the
-  // table's own left edge). #152 deleted that search — live-browser
-  // profiling found it alone cost ~60% of `relationRoutes`' total time
-  // (~640ms of ~1,080ms on the `er-complex` fixture), for a readability-only
-  // win on a metric (`outlineHugging`) the task explicitly allows to move —
-  // see `dev/layout-bench/baseline.ts` for the measured per-fixture deltas.
-  // So this hug is no longer avoided here; `relationRoutes` just routes,
-  // orders and rips up around whatever port `relationRoute` already picked.
-  // The cheaper, still-active defence against the original report is
-  // `orthogonal-router.ts`'s `gridRoute` `OUTLINE_HUG_STEP_PENALTY`, which
-  // only ever applies once both direct L-shapes are obstacle-blocked.
+describe('relationRoutes (direction-aware ports)', () => {
+  // The old model always left through a card's right edge and arrived at its
+  // left edge, so a relation whose target was left/above had to detour around
+  // its own card (and its cardinality label sat opposite the visible line).
+  // `relationRoute` now picks the side that faces the other end and escapes
+  // straight out of it, so the plain case leaves through the right edge —
+  // because `b` really is to the right — and never hugs either border.
   const a = { id: 'a', box: { x: 0, y: 0, width: 160, height: 120 } };
   const b = { id: 'b', box: { x: 400, y: 280, width: 160, height: 40 } };
   const relations = [{ id: 'a-b', from: 'a', to: 'b' }];
@@ -486,20 +491,19 @@ describe('relationRoutes (#152: no port-side search)', () => {
     [
       'a-b',
       [
-        { x: 0, y: 60 }, // a's field-row port, left edge
-        { x: 400, y: 300 }, // b's field-row port, left edge
+        { x: 0, y: 60 }, // the layout's nominal left-edge port, no longer used as-is
+        { x: 400, y: 300 }, // b's field-row port
       ],
     ],
   ]);
 
-  it('routes the plain field-row ports as-is, hug and all — there is no port-side search left to move it', () => {
+  it('leaves through the card side facing the other end, without hugging', () => {
     const routed = relationRoutes(relations, pointsById, [a, b], 10);
     const route = routed.get('a-b')!;
-    expect(route[0]).toEqual({ x: 0, y: 60 });
-    expect(routeHugsOutline(route, [a.box, b.box])).toBe(true);
-    // Same shape `relationRoute` alone (no batch, no rip-up) produces for
-    // these exact ports — confirming `relationRoutes` no longer diverges
-    // from it by picking a different port.
+    expect(route[0]).toEqual({ x: 160, y: 60 });
+    expect(routeHugsOutline(route, [a.box, b.box])).toBe(false);
+    // Same shape `relationRoute` alone produces: `relationRoutes` orders and
+    // nudges, it does not pick a different port behind its back.
     const naive = relationRoute({ from: 'a', to: 'b' }, pointsById.get('a-b')!, [a, b], 10);
     expect(route).toEqual(naive);
   });

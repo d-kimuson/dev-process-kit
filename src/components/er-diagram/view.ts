@@ -2,7 +2,14 @@ import type { LayoutPoint } from '../../lib/layout/layered';
 import type { ErDiagramMessages } from './messages';
 import type { ErCardinality, ErData, ErField, ErFieldDiff, ErRelation, ErTableDiff } from './model';
 
-import { routeAroundObstacles, type RouteSegment } from '../../lib/layout/orthogonal-router';
+import {
+  crossingsAgainst,
+  horizontalBlocked,
+  parallelOverlapAgainst,
+  routeAroundObstacles,
+  verticalBlocked,
+  type RouteSegment,
+} from '../../lib/layout/orthogonal-router';
 import { nudgeParallelRoutes, type NudgeInput } from '../../lib/layout/route-nudge';
 
 /**
@@ -369,6 +376,106 @@ export const boundedContextGroups = (
   }));
 
 /**
+ * The side of a card a relation leaves or enters through. The old model always
+ * left through the right edge and arrived at the left edge, which is fine for
+ * a strictly left-to-right schema but forces every other direction into a
+ * long detour around the card (and made the cardinality label sit on the
+ * opposite side from the visible line). The side is now chosen from where the
+ * other table actually is.
+ */
+type RouteSide = 'left' | 'right' | 'top' | 'bottom';
+
+const centreOf = (box: ErBox): LayoutPoint => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+
+const clampPort = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
+
+/** The card side facing `to`: the dominant axis first, so a mostly horizontal relation leaves sideways. */
+const facingSide = (from: ErBox, to: ErBox): RouteSide => {
+  const a = centreOf(from);
+  const b = centreOf(to);
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+  return dy >= 0 ? 'bottom' : 'top';
+};
+
+/** Keeps a port this far from a card corner, so its glyph never spills off the edge. */
+const PORT_INSET = 12;
+
+/**
+ * Moves the layout's field-row anchor onto `side` of `box`. On left/right the
+ * anchor's own y (the FK column's row) is preserved; on top/bottom the same
+ * row fraction picks an x along the edge, so two relations leaving different
+ * columns still separate even when they leave vertically.
+ */
+const portOnSide = (box: ErBox, side: RouteSide, anchor: LayoutPoint): LayoutPoint => {
+  const innerY = clampPort(anchor.y - box.y, PORT_INSET, Math.max(PORT_INSET, box.height - PORT_INSET));
+  const rowFraction = box.height <= 0 ? 0.5 : innerY / box.height;
+  const alongEdge =
+    box.x + clampPort(rowFraction * box.width, PORT_INSET, Math.max(PORT_INSET, box.width - PORT_INSET));
+  switch (side) {
+    case 'left':
+      return { x: box.x, y: box.y + innerY };
+    case 'right':
+      return { x: box.x + box.width, y: box.y + innerY };
+    case 'top':
+      return { x: alongEdge, y: box.y };
+    case 'bottom':
+      return { x: alongEdge, y: box.y + box.height };
+    default:
+      return { x: box.x + box.width, y: box.y + innerY };
+  }
+};
+
+/** The start/end ports a relation should actually use, given where both cards ended up. */
+const directedPorts = (
+  relation: { readonly from: string; readonly to: string },
+  points: readonly LayoutPoint[],
+  tables: readonly { readonly id: string; readonly box: ErBox }[],
+): {
+  readonly start: LayoutPoint;
+  readonly end: LayoutPoint;
+  readonly startSide: RouteSide;
+  readonly endSide: RouteSide;
+  readonly source: ErBox;
+  readonly target: ErBox;
+} | null => {
+  const start = points[0];
+  const end = points.at(-1);
+  if (start === undefined || end === undefined || relation.from === relation.to) return null;
+  const source = tables.find((table) => table.id === relation.from)?.box;
+  const target = tables.find((table) => table.id === relation.to)?.box;
+  if (source === undefined || target === undefined) return null;
+  const startSide = facingSide(source, target);
+  const endSide = facingSide(target, source);
+  return {
+    start: portOnSide(source, startSide, start),
+    end: portOnSide(target, endSide, end),
+    startSide,
+    endSide,
+    source,
+    target,
+  };
+};
+
+/** Distance a route travels straight out of a port before it may turn; keeps it off its own card's border. */
+const PORT_ESCAPE = 12;
+
+/** The outward unit normal of a card side. */
+const outward = (side: RouteSide): LayoutPoint => {
+  switch (side) {
+    case 'left':
+      return { x: -1, y: 0 };
+    case 'right':
+      return { x: 1, y: 0 };
+    case 'top':
+      return { x: 0, y: -1 };
+    case 'bottom':
+      return { x: 0, y: 1 };
+  }
+};
+
+/**
  * A relation's orthogonal route between two ports that never crosses a table
  * on the way, for ports in any relative position — not only the common
  * left-to-right case. Delegates to the generic, direction-agnostic router in
@@ -388,16 +495,115 @@ export const detourRoute = (
   margin: number,
   avoid: readonly RouteSegment[] = [],
   outlines: readonly ErBox[] = [],
-): readonly LayoutPoint[] => routeAroundObstacles(start, end, boxes, margin, avoid, outlines);
+  blocked: readonly ErBox[] = [],
+): readonly LayoutPoint[] => routeAroundObstacles(start, end, boxes, margin, avoid, outlines, blocked);
+
+/** Drops a point that only continues the previous direction, so the port stubs read as one straight run. */
+const simplifyRoute = (points: readonly LayoutPoint[]): readonly LayoutPoint[] => {
+  const out: LayoutPoint[] = [];
+  for (const point of points) {
+    const a = out.at(-2);
+    const b = out.at(-1);
+    if (a !== undefined && b !== undefined && a.x === b.x && b.x === point.x) {
+      out[out.length - 1] = point;
+      continue;
+    }
+    if (a !== undefined && b !== undefined && a.y === b.y && b.y === point.y) {
+      out[out.length - 1] = point;
+      continue;
+    }
+    if (b !== undefined && b.x === point.x && b.y === point.y) continue;
+    out.push(point);
+  }
+  return out;
+};
 
 /**
- * The relation's actual drawn route: the ports from the initial layout
- * (`points[0]`/`points.at(-1)`), then detoured around every other visible
- * table — and every aggregate/Bounded Context frame it does not belong to —
- * so the line never runs through a table it does not join, nor cuts through
- * a frame that is not its own. A self-reference (a field referencing its own
- * table) keeps its initial loop unchanged — `detourRoute` only knows how to
- * route between two different points.
+ * A self-reference's loop, kept beside its own card instead of wrapping
+ * around it. The layered layout's default loop leaves the right edge, drops
+ * below the card and comes back to the left edge, which crosses every other
+ * relation leaving the same table — on a hub table such as `users` that was
+ * the single largest crossing source. This tries the four sides and keeps
+ * the loop that crosses the fewest already-routed edges (then shares the
+ * least lane, then is shortest).
+ */
+const selfLoopRoute = (
+  relation: { readonly from: string; readonly to: string },
+  points: readonly LayoutPoint[],
+  tables: readonly { readonly id: string; readonly box: ErBox }[],
+  margin: number,
+  avoid: readonly RouteSegment[],
+): readonly LayoutPoint[] => {
+  const box = tables.find((table) => table.id === relation.from)?.box;
+  const start = points[0];
+  const end = points.at(-1);
+  if (box === undefined || start === undefined || end === undefined) return points;
+  const y1 = clampPort(start.y, box.y + PORT_INSET, Math.max(box.y + PORT_INSET, box.y + box.height - PORT_INSET));
+  const y2 = clampPort(end.y, box.y + PORT_INSET, Math.max(box.y + PORT_INSET, box.y + box.height - PORT_INSET));
+  const x1 = clampPort(start.x, box.x + PORT_INSET, Math.max(box.x + PORT_INSET, box.x + box.width - PORT_INSET));
+  const x2 = clampPort(end.x, box.x + PORT_INSET, Math.max(box.x + PORT_INSET, box.x + box.width - PORT_INSET));
+  const obstacles = tables.filter((table) => table.id !== relation.from).map((table) => table.box);
+  const channel = margin + PORT_ESCAPE;
+  const candidates: readonly (readonly LayoutPoint[])[] = [
+    // Right: out, down/up, back in.
+    simplifyRoute([
+      { x: box.x + box.width, y: y1 },
+      { x: box.x + box.width + channel, y: y1 },
+      { x: box.x + box.width + channel, y: y2 },
+      { x: box.x + box.width, y: y2 },
+    ]),
+    // Left: the mirror.
+    simplifyRoute([
+      { x: box.x, y: y1 },
+      { x: box.x - channel, y: y1 },
+      { x: box.x - channel, y: y2 },
+      { x: box.x, y: y2 },
+    ]),
+    // Bottom and top: vertical stubs, horizontal channel.
+    simplifyRoute([
+      { x: x1, y: box.y + box.height },
+      { x: x1, y: box.y + box.height + channel },
+      { x: x2, y: box.y + box.height + channel },
+      { x: x2, y: box.y + box.height },
+    ]),
+    simplifyRoute([
+      { x: x1, y: box.y },
+      { x: x1, y: box.y - channel },
+      { x: x2, y: box.y - channel },
+      { x: x2, y: box.y },
+    ]),
+  ].filter((candidate) => {
+    const segments = candidate.slice(1).map((point, index) => [candidate[index]!, point] as const);
+    return segments.every(([a, b]) =>
+      a.x === b.x
+        ? !verticalBlocked(a.x, Math.min(a.y, b.y), Math.max(a.y, b.y), obstacles)
+        : !horizontalBlocked(a.y, Math.min(a.x, b.x), Math.max(a.x, b.x), obstacles),
+    );
+  });
+  if (candidates.length === 0) return points;
+  const best = candidates.reduce((a, b) => {
+    const aCross = crossingsAgainst(a, avoid);
+    const bCross = crossingsAgainst(b, avoid);
+    if (aCross !== bCross) return bCross < aCross ? b : a;
+    const aParallel = parallelOverlapAgainst(a, avoid);
+    const bParallel = parallelOverlapAgainst(b, avoid);
+    if (aParallel !== bParallel) return bParallel < aParallel ? b : a;
+    return b.length < a.length ? b : a;
+  });
+  return best;
+};
+
+/**
+ * The relation's actual drawn route, from the card side that faces the other
+ * end (`directedPorts`) around every other visible table. Aggregate/Bounded
+ * Context frames are *soft* outlines, not walls: a frame is a semantic
+ * grouping, and treating its padded rectangle as a hard obstacle forces
+ * every cross-context line to run all the way around a whole context instead
+ * of through the gutter beside its tables — the long "frame roller" detours
+ * in the v0.3 review. The frames still feed the router as `outlines`, so a
+ * candidate lane that would run along a frame border is rejected in favour of
+ * one that keeps its distance. A self-reference keeps its initial loop
+ * unchanged — `detourRoute` only knows how to route between two points.
  *
  * Shared by the live view (`element.ts`'s `#route`) and the layout-complexity
  * bench, so the metric always scores exactly what the view draws.
@@ -410,33 +616,60 @@ export const relationRoute = (
   frames: readonly { readonly box: ErBox; readonly members: readonly string[] }[] = [],
   avoid: readonly RouteSegment[] = [],
 ): readonly LayoutPoint[] => {
-  const start = points[0];
-  const end = points.at(-1);
-  if (start === undefined || end === undefined || relation.from === relation.to) return points;
+  if (relation.from === relation.to) return selfLoopRoute(relation, points, tables, margin, avoid);
+  const ports = directedPorts(relation, points, tables);
+  if (ports === null) return points;
   const tableObstacles = tables
     .filter((table) => table.id !== relation.from && table.id !== relation.to)
     .map((t) => t.box);
-  const frameObstacles = frames.flatMap((frame) =>
-    frame.members.includes(relation.from) || frame.members.includes(relation.to) ? [] : [frame.box],
-  );
-  // Just this relation's own table(s) and own frame(s) — exactly the boxes
-  // excluded from `obstacles` above, so the router is blind to them and can
-  // otherwise route right along one of their borders (#151 round 2:
+  // Just this relation's own table(s) and every frame's outline — exactly the
+  // boxes excluded from `obstacles` above, so the router is blind to them and
+  // can otherwise route right along one of their borders (#151 round 2:
   // `legacy_api_tokens`'s relation hugging its own left edge, then its own
-  // aggregate frame's bottom border). Deliberately *not* every table's and
-  // every frame's box: the other, already-hard-obstacle boxes are routed
-  // clear of anyway (margin already keeps distance from them), and a soft
-  // penalty against every one of them as well nudged enough unrelated
-  // edges' shapes across the fixture corpus to raise several fixtures'
-  // crossing counts — a much larger blast radius than the actual bug,
-  // which is specifically about a route and its own card/frame.
-  const outlines = [
-    ...tables.filter((table) => table.id === relation.from || table.id === relation.to).map((t) => t.box),
-    ...frames
-      .filter((frame) => frame.members.includes(relation.from) || frame.members.includes(relation.to))
-      .map((frame) => frame.box),
-  ];
-  return detourRoute(start, end, [...tableObstacles, ...frameObstacles], margin, avoid, outlines);
+  // aggregate frame's bottom border). Frames are outlines, not obstacles:
+  // crossing one perpendicularly is normal (a cross-context relation must),
+  // running along one is not.
+  const ownTables = tables.filter((table) => table.id === relation.from || table.id === relation.to).map((t) => t.box);
+  // Frames are soft outlines, but checking every frame on every candidate was
+  // the routing pass's dominant cost on a large schema. Keep the edge's own
+  // frame(s) unconditionally (the hug the reader reported is its own card or
+  // its own frame), plus any frame within a generous window of the two ports —
+  // a lane candidate never needs an outline far outside the span it is
+  // considering.
+  const ownFrames = frames
+    .filter((frame) => frame.members.includes(relation.from) || frame.members.includes(relation.to))
+    .map((frame) => frame.box);
+  const OUTLINE_WINDOW = margin * 12;
+  const left = Math.min(ports.start.x, ports.end.x) - OUTLINE_WINDOW;
+  const right = Math.max(ports.start.x, ports.end.x) + OUTLINE_WINDOW;
+  const top = Math.min(ports.start.y, ports.end.y) - OUTLINE_WINDOW;
+  const bottom = Math.max(ports.start.y, ports.end.y) + OUTLINE_WINDOW;
+  const nearbyFrames = frames
+    .filter(
+      (frame) =>
+        frame.box.x < right &&
+        frame.box.x + frame.box.width > left &&
+        frame.box.y < bottom &&
+        frame.box.y + frame.box.height > top,
+    )
+    .map((frame) => frame.box);
+  const outlines = [...new Set([...ownTables, ...ownFrames, ...nearbyFrames])];
+  // Leave each card straight out of its chosen side before turning. Without
+  // this, a route whose first move is parallel to the card edge occupies the
+  // border's own row/column (the reader's "line and column line have no gap"
+  // failure) even though the router never enters the card.
+  const startNormal = outward(ports.startSide);
+  const endNormal = outward(ports.endSide);
+  const startEscape = {
+    x: ports.start.x + startNormal.x * PORT_ESCAPE,
+    y: ports.start.y + startNormal.y * PORT_ESCAPE,
+  };
+  const endEscape = {
+    x: ports.end.x + endNormal.x * PORT_ESCAPE,
+    y: ports.end.y + endNormal.y * PORT_ESCAPE,
+  };
+  const middle = detourRoute(startEscape, endEscape, tableObstacles, margin, avoid, outlines, ownTables);
+  return simplifyRoute([ports.start, ...middle, ports.end]);
 };
 
 const segmentsOf = (points: readonly LayoutPoint[]): readonly RouteSegment[] =>
@@ -494,9 +727,25 @@ export const relationRoutes = (
   margin: number,
   frames: readonly { readonly box: ErBox; readonly members: readonly string[] }[] = [],
 ): ReadonlyMap<string, readonly LayoutPoint[]> => {
+  // Group by source table, then route the farthest target of each source
+  // first. Edges leaving one card share its exit corridor: the one that turns
+  // last must take the inner lane, the one that turns first the outer lane,
+  // or every earlier turn crosses a later edge's vertical run (the hub-table
+  // fan-out). Groups themselves stay short-first, so a long cross-context
+  // edge still detours around the short local ones it meets. Within one
+  // source, ties fall back to the id for determinism.
+  const span = (relation: { readonly id: string }): number => manhattanSpan(pointsById.get(relation.id) ?? []);
+  const groupSpan = new Map<string, number>();
+  for (const relation of relations) {
+    const current = groupSpan.get(relation.from);
+    if (current === undefined || span(relation) < current) groupSpan.set(relation.from, span(relation));
+  }
   const order = [...relations].sort(
     (a, b) =>
-      manhattanSpan(pointsById.get(a.id) ?? []) - manhattanSpan(pointsById.get(b.id) ?? []) || a.id.localeCompare(b.id),
+      (groupSpan.get(a.from) ?? 0) - (groupSpan.get(b.from) ?? 0) ||
+      a.from.localeCompare(b.from) ||
+      span(b) - span(a) ||
+      a.id.localeCompare(b.id),
   );
 
   const routeFor = (
@@ -505,11 +754,15 @@ export const relationRoutes = (
   ): readonly LayoutPoint[] =>
     relationRoute(relation, pointsById.get(relation.id) ?? [], tables, margin, frames, avoid);
 
-  // Pass 1: short edges first, each aware of every edge already routed.
+  // Pass 1: short edges first, each aware of every edge already routed. The
+  // `avoid` list is appended to instead of rebuilt per edge (rebuilding it
+  // was O(edges²) segment copies on the densest schema).
   const routed = new Map<string, readonly LayoutPoint[]>();
+  const avoid: RouteSegment[] = [];
   for (const relation of order) {
-    const avoid = [...routed.values()].flatMap((points) => segmentsOf(points));
-    routed.set(relation.id, routeFor(relation, avoid));
+    const points = routeFor(relation, avoid);
+    routed.set(relation.id, points);
+    avoid.push(...segmentsOf(points));
   }
 
   const inputs: NudgeInput[] = relations.map((relation) => {

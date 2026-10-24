@@ -11,3 +11,6 @@ dist/
 
 # docs
 docs/tmp
+
+# generated appraisal reports and screenshots
+dev/eval/out/

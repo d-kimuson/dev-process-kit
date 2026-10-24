@@ -60,6 +60,9 @@ const inward = (points: readonly LayoutPoint[], end: ErEnd): LayoutPoint => {
   return { x: (next.x - tip.x) / length, y: (next.y - tip.y) / length };
 };
 
+/** The route's direction at one end, for placing a label beside the stroke rather than on it. */
+export const endDirection = (points: readonly LayoutPoint[], end: ErEnd): LayoutPoint => inward(points, end);
+
 const round = (value: number): number => Math.round(value * 100) / 100 || 0;
 
 export const endGlyph = (points: readonly LayoutPoint[], end: ErEnd, multiplicity: ErMultiplicity): ErEndGlyph => {

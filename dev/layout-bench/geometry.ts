@@ -29,6 +29,9 @@ import { layeredLayout } from '../../src/lib/layout/layered';
  */
 export type GeometryResult = {
   readonly geometry: LayoutGeometry;
+  /** The placed world's own box (`layeredLayout`'s width/height), which is what the viewport fits. */
+  readonly width: number;
+  readonly height: number;
   readonly layoutMs: number;
   readonly routingMs: number;
 };
@@ -77,6 +80,8 @@ export const geometryOf = (data: ErData): GeometryResult => {
 
   return {
     geometry: { nodes: tables, edges: metricEdges, frames },
+    width: result.width,
+    height: result.height,
     layoutMs,
     routingMs,
   };

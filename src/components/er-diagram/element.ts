@@ -30,6 +30,7 @@ import {
   type TagState,
 } from '../diagram/model';
 import { diagramStyles } from '../diagram/styles';
+import { relationLabelPlans, type RelationLabelPlan } from './labels';
 import { erDiagramMessages, type ErDiagramMessages } from './messages';
 import {
   ADD_FIELD,
@@ -82,9 +83,6 @@ import {
   type ParkedEditor,
 } from './view';
 
-/** Distance from a line to the centre of the text beside it. */
-const LABEL_LIFT = 7;
-
 // Extra room between two aggregates' bands, so their drawn frames never touch, let alone overlap: the frame
 // extends GROUP_PADDING below its bottommost table and GROUP_PADDING + GROUP_LABEL_SPACE above its topmost
 // one (the label's own space), so both sides of that gap must fit before the next band's tables begin, plus
@@ -97,7 +95,13 @@ const LABEL_LIFT = 7;
 export const LAYOUT = {
   nodeSpacing: 40,
   layerSpacing: 136,
-  padding: 32,
+  // A Bounded Context frame extends BC_PADDING on every side and another
+  // BC_LABEL_SPACE above its topmost table. The world box has to contain that
+  // frame, not just the nodes and routes, or the fit view clips the top/bottom
+  // frames (and the bottom row of cards) — the stale world size the tuned
+  // review measured. The old 32 was smaller than the frame's own top label
+  // space (76).
+  padding: BC_PADDING + BC_LABEL_SPACE + 4,
   groupSpacing: GROUP_PADDING * 2 + GROUP_LABEL_SPACE + 12,
   // Same reasoning one level up: a Bounded Context's frame must clear the aggregate frames nested
   // inside it (not just their tables), so it needs BC_PADDING's own room on top of groupSpacing.
@@ -222,6 +226,8 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   /** `#routes`' memoised full batch result, see its own doc comment. */
   #routesCache: { readonly signature: string; readonly result: ReadonlyMap<string, readonly LayoutPoint[]> } | null =
     null;
+  /** Label placement memoised by the same signature: hovering re-renders, but never moves a line or a label. */
+  #labelsCache: { readonly signature: string; readonly result: ReadonlyMap<string, RelationLabelPlan> } | null = null;
 
   constructor() {
     super();
@@ -724,7 +730,6 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     const m = erDiagramMessages(this.locale);
     const visible = this.visible;
     const lit = this.#highlight(visible);
-    const fan = outgoingFan(visible.edges);
     // While a Bounded Context is the active filter, every table outside it (and every
     // relation touching one) dims instead of disappearing — `filtered()` above keeps
     // them in `visible` on purpose, so the schema's shape around the chosen BC still reads.
@@ -738,6 +743,37 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     // moved on top keeps its own element and the pointer stays on the line it entered.
     const ordered = [...visible.edges].sort((a, b) => Number(lit.edges.has(a.id)) - Number(lit.edges.has(b.id)));
     const routed = this.#routes(visible);
+    // End labels are placed once for the whole batch, so two labels can avoid
+    // each other. The same function backs the offline appraisal, so a label
+    // the reader cannot read is measured, not guessed at.
+    const placedTables = visible.nodes.flatMap((node) => {
+      const placed = this.placedNode(node.id);
+      return placed === undefined ? [] : [{ id: node.id, box: placed }];
+    });
+    const labelGroupable = visible.nodes.map((node) => ({
+      id: node.id,
+      aggregate: node.aggregate,
+      boundedContext: node.boundedContext,
+      box: this.placedNode(node.id) ?? null,
+    }));
+    const labelFrames = [
+      ...aggregateGroups(labelGroupable).map((group) => ({ box: group.box })),
+      ...boundedContextGroups(labelGroupable).map((group) => ({ box: group.box })),
+    ];
+    const labelSignature = `${this.#routesCache?.signature ?? ''}|${this.layout?.width ?? 0}x${this.layout?.height ?? 0}`;
+    const draggingLabel = this.draggedNodeIds().size > 0;
+    let labelPlans =
+      !draggingLabel && this.#labelsCache?.signature === labelSignature ? this.#labelsCache.result : null;
+    if (labelPlans === null) {
+      labelPlans = relationLabelPlans(visible.edges, routed, {
+        nodes: placedTables,
+        frames: labelFrames,
+        edges: [...routed.values()],
+        width: this.layout?.width ?? 0,
+        height: this.layout?.height ?? 0,
+      });
+      if (!draggingLabel) this.#labelsCache = { signature: labelSignature, result: labelPlans };
+    }
     // Built here, not inside repeat(), which would defer them past renderSelection().
     const edges = ordered.map((relation) => {
       const state = this.edgeState(relation.id);
@@ -787,7 +823,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
               select();
             }}
           ></path>
-          ${points.length > 0 ? this.#renderEnds(points, relation, fan.get(relation.id) ?? 0) : nothing}
+          ${points.length > 0 ? this.#renderEnds(points, relation, labelPlans.get(relation.id)) : nothing}
         </g>
       `;
     });
@@ -855,13 +891,17 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   /**
    * Crow's foot symbols with their multiplicity beside each end: the
    * referenced table's (`parent`) where the line leaves it, the FK table's
-   * (`child`) where it arrives. The relation's label sits under the FK end:
-   * one referenced column often sends several relations whose lines leave it
-   * together, but every FK column receives exactly one. Relations fanned out
-   * of one column put the lower ones' start text under their line, clear of
-   * the sibling above. A changed value keeps its previous one, struck through.
+   * (`child`) where it arrives. `plan` is the batch placement from
+   * `labels.ts` — beside the stroke, beyond the glyph, and clear of cards,
+   * frames, other labels and other lines. It is shared with the offline
+   * appraisal, so this method never invents a position the metric cannot see.
+   * A changed value keeps its previous one, struck through.
    */
-  #renderEnds(points: readonly LayoutPoint[], relation: ErRelation, fan: number): TemplateResult {
+  #renderEnds(
+    points: readonly LayoutPoint[],
+    relation: ErRelation,
+    plan: RelationLabelPlan | undefined,
+  ): TemplateResult {
     const previous = relation.before;
     const value = (now: string | null, was: string | null | undefined) =>
       svg`${
@@ -871,6 +911,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
       const multiplicity = side === 'start' ? relation.cardinality.parent : relation.cardinality.child;
       const was = previous && (side === 'start' ? previous.cardinality.parent : previous.cardinality.child);
       const glyph = endGlyph(points, side, multiplicity);
+      const placed = plan?.[side];
       return {
         glyph,
         content: svg`
@@ -881,10 +922,10 @@ export class DpkErDiagram extends DiagramElement<ErData> {
           <text
             class="er-cardinality is-${relation.status}"
             data-end=${side}
-            text-anchor=${glyph.label.anchor}
+            text-anchor=${placed?.anchor ?? glyph.label.anchor}
             dominant-baseline="central"
-            x=${glyph.label.x}
-            y=${glyph.label.y + (side === 'start' && fan > 0 ? LABEL_LIFT : -LABEL_LIFT)}
+            x=${placed?.x ?? glyph.label.x}
+            y=${placed?.y ?? glyph.label.y}
           >${value(multiplicity, was)}</text>
         `,
       };
@@ -892,6 +933,7 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     const start = end('start');
     const finish = end('end');
     const label = relation.label ?? previous?.label ?? null;
+    const relationLabel = plan?.relation;
     return svg`
       ${start.content}${finish.content}
       ${
@@ -899,10 +941,10 @@ export class DpkErDiagram extends DiagramElement<ErData> {
           ? nothing
           : svg`<text
               class="er-relation-label is-${relation.status}"
-              text-anchor=${finish.glyph.label.anchor}
-              x=${finish.glyph.label.x}
+              text-anchor=${relationLabel?.anchor ?? finish.glyph.label.anchor}
+              x=${relationLabel?.x ?? finish.glyph.label.x}
               dominant-baseline="central"
-              y=${finish.glyph.label.y + LABEL_LIFT}
+              y=${relationLabel?.y ?? finish.glyph.label.y}
             >${value(relation.label, previous?.label)}</text>`
       }
     `;
@@ -1398,7 +1440,29 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   #hover(focus: ErFocus | null): void {
     if (JSON.stringify(this.#hovered) === JSON.stringify(focus)) return;
     this.#hovered = focus;
-    this.requestUpdate();
+    // Hover changes only classes on the existing nodes/edges. Re-rendering the
+    // whole template for that re-diffed ~2,800 elements per pointer move; the
+    // layout, routes and label boxes are all unchanged by a hover.
+    this.#applyHighlight();
+  }
+
+  /** Applies the current hover/selection highlight to the rendered DOM, without a template re-render. */
+  #applyHighlight(): void {
+    const lit = this.#highlight(this.visible);
+    const root = this.renderRoot;
+    for (const edge of root.querySelectorAll<SVGGElement>('.er-edge')) {
+      const id = edge.getAttribute('data-relation') ?? '';
+      edge.classList.toggle('is-lit', lit.edges.has(id));
+      edge.classList.toggle('is-faded', lit.edges.size > 0 && !lit.edges.has(id));
+    }
+    for (const table of root.querySelectorAll<HTMLElement>('.er-table')) {
+      const id = table.getAttribute('data-er-table') ?? '';
+      table.classList.toggle('is-lit', lit.tables.has(id));
+      for (const field of table.querySelectorAll<HTMLElement>('.er-field')) {
+        const fieldId = field.getAttribute('data-field') ?? '';
+        field.classList.toggle('is-lit', lit.columns.has(`${id}.${fieldId}`));
+      }
+    }
   }
 
   /** Its trigger opens an editor, or puts it away when that editor is the open one. */

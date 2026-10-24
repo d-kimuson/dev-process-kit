@@ -6,7 +6,7 @@
  */
 import { parseErData } from '../../src/components/er-diagram/model';
 import { scoreLayout, type MetricResult } from '../../src/lib/layout/metrics';
-import { erComplexFixtureAfter } from './fixtures/er-complex';
+import { erComplexFixtureAfter, erComplexFixtureBefore } from './fixtures/er-complex';
 import { erLongNamesFixtureAfter } from './fixtures/er-long-names';
 import { orderSchemaFixtureAfter } from './fixtures/order-schema';
 import {
@@ -27,7 +27,11 @@ export type BenchFixture = { readonly name: string; readonly input: unknown };
  * and two seeded-random schemas for a denser, messier mix.
  */
 export const FIXTURES: readonly BenchFixture[] = [
-  { name: 'er-complex', input: { after: erComplexFixtureAfter } },
+  // Both snapshots, like `sample/er-complex.html` itself: passing only
+  // `after` drops the removed tables/relations the sample still draws (the
+  // reader's view is a diff), so the bench would measure a different, smaller
+  // schema than the page it claims to describe.
+  { name: 'er-complex', input: { before: erComplexFixtureBefore, after: erComplexFixtureAfter } },
   { name: 'order-schema', input: { after: orderSchemaFixtureAfter } },
   { name: 'er-long-names', input: { after: erLongNamesFixtureAfter } },
   { name: 'synthetic-no-bc', input: { after: noBcSchema() } },
@@ -50,8 +54,19 @@ export type BenchRow = MetricResult & {
 export const runBench = (): readonly BenchRow[] =>
   FIXTURES.map((fixture) => {
     const data = parseErData(fixture.input);
-    const { geometry, layoutMs, routingMs } = geometryOf(data);
-    const score = scoreLayout(geometry);
+    const measured = geometryOf(data);
+    // Timing under a parallel test runner is noisy enough to trip a loose
+    // ratchet on a busy machine. The layout itself is deterministic, so run it
+    // twice more and report the fastest pass: that is the closest available
+    // estimate of the work, not of the scheduler.
+    let layoutMs = measured.layoutMs;
+    let routingMs = measured.routingMs;
+    for (let pass = 0; pass < 2; pass++) {
+      const repeat = geometryOf(data);
+      layoutMs = Math.min(layoutMs, repeat.layoutMs);
+      routingMs = Math.min(routingMs, repeat.routingMs);
+    }
+    const score = scoreLayout(measured.geometry);
     return {
       name: fixture.name,
       tableCount: data.nodes.length,

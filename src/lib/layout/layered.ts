@@ -101,6 +101,16 @@ export type LayoutOptions = {
    * Defaults to 0.
    */
   readonly superGroupColumnGap?: number;
+  /**
+   * Force the number of rows the top-level Bounded Context pack uses, instead
+   * of letting `arrangeBoxes` choose it from its centre-line proxy. 0 (the
+   * default) keeps the automatic choice. This exists so the tuning loop can
+   * measure what each row count actually costs once real routing runs — the
+   * proxy alone cannot see the difference between a vertical stack and a
+   * grid, and the live budget is too tight to run several full routings on
+   * every load.
+   */
+  readonly superGroupRowCount?: number;
 };
 
 const DEFAULTS = {
@@ -113,6 +123,7 @@ const DEFAULTS = {
   superGroupSpacing: 34,
   superGroupRowGap: 0,
   superGroupColumnGap: 0,
+  superGroupRowCount: 0,
 } as const;
 
 type Config = Required<LayoutOptions>;
@@ -657,6 +668,66 @@ export const layeredLayout = (
 
 type Box = { readonly id: string; readonly width: number; readonly height: number };
 
+/** The side of a box a relation leaves or enters through. */
+export type LayoutSide = 'left' | 'right' | 'top' | 'bottom';
+
+/** Keeps a port this far from a box corner, so an end glyph never spills off the edge. */
+export const PORT_INSET = 12;
+
+const centreOf = (box: {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}): LayoutPoint => ({
+  x: box.x + box.width / 2,
+  y: box.y + box.height / 2,
+});
+
+/** The side of `from` that faces `to`: the dominant axis first. */
+export const facingSide = (
+  from: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  to: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+): LayoutSide => {
+  const a = centreOf(from);
+  const b = centreOf(to);
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+  return dy >= 0 ? 'bottom' : 'top';
+};
+
+const clampPort = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
+
+/**
+ * Moves a field-row anchor onto `side` of `box`. On left/right the anchor's
+ * own y (the FK column's row) is preserved; on top/bottom the same row
+ * fraction picks an x along the edge, so two relations leaving different
+ * columns still separate when they leave vertically.
+ */
+export const portOnSide = (
+  box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  side: LayoutSide,
+  anchor: LayoutPoint,
+): LayoutPoint => {
+  const innerY = clampPort(anchor.y - box.y, PORT_INSET, Math.max(PORT_INSET, box.height - PORT_INSET));
+  const rowFraction = box.height <= 0 ? 0.5 : innerY / box.height;
+  const alongEdge =
+    box.x + clampPort(rowFraction * box.width, PORT_INSET, Math.max(PORT_INSET, box.width - PORT_INSET));
+  switch (side) {
+    case 'left':
+      return { x: box.x, y: box.y + innerY };
+    case 'right':
+      return { x: box.x + box.width, y: box.y + innerY };
+    case 'top':
+      return { x: alongEdge, y: box.y };
+    case 'bottom':
+      return { x: alongEdge, y: box.y + box.height };
+    default:
+      return { x: box.x + box.width, y: box.y + innerY };
+  }
+};
+
 /**
  * A box's position purely from the crossing-minimising order the plain pipeline
  * already computes (rank by longest path, then median ordering) — the ranks and
@@ -794,36 +865,82 @@ const segmentsCrossEstimate = (
 };
 
 /**
- * How many of `edges`' centre-to-centre lines cross, given boxes already
- * placed at `packed.positions`. A cheap, box-level proxy for the real,
- * per-table crossing count `scoreLayout` reports over actually-routed
- * polylines — good enough to *rank* candidate orders/packings before any
- * routing exists, not a replacement for the real metric. Exported for tests
- * and for `arrangeBoxes`'s own internal scoring.
+ * A box's port on the side facing `other`, at the middle of that side. Used
+ * only by the arrangement proxy below: a centre-to-centre straight line
+ * bears little resemblance to the orthogonal route the reader actually sees,
+ * so two arrangements that tie on straight-line crossings can differ by
+ * dozens of real ones.
+ */
+const facingPoint = (box: Box & { x: number; y: number }, other: Box & { x: number; y: number }): LayoutPoint => {
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const ox = other.x + other.width / 2;
+  const oy = other.y + other.height / 2;
+  const dx = ox - cx;
+  const dy = oy - cy;
+  if (Math.abs(dx) >= Math.abs(dy)) return { x: dx >= 0 ? box.x + box.width : box.x, y: cy };
+  return { x: cx, y: dy >= 0 ? box.y + box.height : box.y };
+};
+
+/**
+ * How many orthogonal L-routes cross each other for an arrangement, choosing
+ * each edge's bend orientation greedily against the edges already placed (the
+ * same order-independent rule the real router applies, at box level). This
+ * replaces a centre-to-centre straight-line count, which could not tell a
+ * vertical stack of BCs from a 2×2 grid: both have few straight-line
+ * crossings, but the stack forces long parallel runs while the grid routes
+ * through gutters.
  */
 export const estimatePackedCrossings = (
   packed: Packed,
   sizeOf: ReadonlyMap<string, { readonly width: number; readonly height: number }>,
   edges: readonly { readonly from: string; readonly to: string }[],
 ): number => {
-  const centreOf = (id: string): LayoutPoint | null => {
+  const boxOf = (id: string): (Box & { x: number; y: number }) | null => {
     const position = packed.positions.get(id);
     const size = sizeOf.get(id);
     if (!position || !size) return null;
-    return { x: position.x + size.width / 2, y: position.y + size.height / 2 };
+    return { id, x: position.x, y: position.y, width: size.width, height: size.height };
   };
-  const segments: (readonly [LayoutPoint, LayoutPoint])[] = [];
+  const chosen: (readonly [LayoutPoint, LayoutPoint])[] = [];
+  let crossings = 0;
   for (const edge of edges) {
     if (edge.from === edge.to) continue;
-    const a = centreOf(edge.from);
-    const b = centreOf(edge.to);
-    if (a && b) segments.push([a, b]);
-  }
-  let crossings = 0;
-  for (let i = 0; i < segments.length; i++) {
-    for (let j = i + 1; j < segments.length; j++) {
-      if (segmentsCrossEstimate(segments[i]!, segments[j]!)) crossings++;
+    const a = boxOf(edge.from);
+    const b = boxOf(edge.to);
+    if (!a || !b) continue;
+    const start = facingPoint(a, b);
+    const end = facingPoint(b, a);
+    if (start.x === end.x || start.y === end.y) {
+      const straight: readonly [LayoutPoint, LayoutPoint] = [start, end];
+      crossings += chosen.filter((segment) => segmentsCrossEstimate(straight, segment)).length;
+      chosen.push(straight);
+      continue;
     }
+    const shapes: readonly (readonly [LayoutPoint, LayoutPoint])[][] = [
+      [
+        [start, { x: end.x, y: start.y }],
+        [{ x: end.x, y: start.y }, end],
+      ],
+      [
+        [start, { x: start.x, y: end.y }],
+        [{ x: start.x, y: end.y }, end],
+      ],
+    ];
+    let bestShape = shapes[0]!;
+    let bestCrossings = Number.POSITIVE_INFINITY;
+    for (const shape of shapes) {
+      const count = shape.reduce(
+        (sum, segment) => sum + chosen.filter((other) => segmentsCrossEstimate(segment, other)).length,
+        0,
+      );
+      if (count < bestCrossings) {
+        bestCrossings = count;
+        bestShape = shape;
+      }
+    }
+    crossings += bestCrossings;
+    chosen.push(...bestShape);
   }
   return crossings;
 };
@@ -850,21 +967,120 @@ const estimatePackedEdgeLength = (
   return total;
 };
 
-/** Weights for ranking candidate box arrangements: crossings dominate, length tie-breaks, aspect only matters once the first two are equal. */
+/**
+ * Two axis-aligned segments crossing at a point interior to both. Collinear
+ * overlap and a shared endpoint are *not* crossings (the general
+ * `segmentsCrossEstimate` above does count them, which is right for diagonal
+ * centre-to-centre lines and badly wrong for orthogonal L routes).
+ */
+const axisCross = (a: readonly [LayoutPoint, LayoutPoint], b: readonly [LayoutPoint, LayoutPoint]): boolean => {
+  const aVertical = a[0].x === a[1].x;
+  const bVertical = b[0].x === b[1].x;
+  if (aVertical === bVertical) return false;
+  const [v1, v2, h1, h2] = aVertical ? [a[0], a[1], b[0], b[1]] : [b[0], b[1], a[0], a[1]];
+  const x = v1.x;
+  const y = h1.y;
+  return x > Math.min(h1.x, h2.x) && x < Math.max(h1.x, h2.x) && y > Math.min(v1.y, v2.y) && y < Math.max(v1.y, v2.y);
+};
+
+/** An edge's port on a placed node, falling back to the right/left edge centre when the spec has no port. */
+const placedPort = (
+  node: LayoutNodeSpec,
+  position: LayoutPoint,
+  name: string | undefined,
+  side: 'out' | 'in',
+): LayoutPoint => {
+  const point = name === undefined ? undefined : node.ports?.[name];
+  if (point !== undefined) return { x: position.x + point.x, y: position.y + point.y };
+  return side === 'out'
+    ? { x: position.x + node.width, y: position.y + node.height / 2 }
+    : { x: position.x, y: position.y + node.height / 2 };
+};
+
+/**
+ * The table-level crossing count for an *already composed* set of node
+ * positions: every edge's real field-row ports, projected onto the side that
+ * faces the other end, joined by a one-bend route (the orientation that
+ * crosses fewer already-placed routes wins). This is the arrangement proxy
+ * the outer BC pack uses to choose its row count. The BC-level centre-line
+ * proxy it replaces reported 0 crossings for both a vertical stack and a 2×2
+ * grid — it literally could not see the difference — while this one tracks
+ * the routed count closely enough to pick the right arrangement (for
+ * `synthetic-random-2`, 18 vs 25 for 37 vs 62 real crossings).
+ */
+export const estimateArrangementCrossings = (
+  nodes: readonly LayoutNodeSpec[],
+  edges: readonly LayoutEdgeSpec[],
+  positions: ReadonlyMap<string, LayoutPoint>,
+): number => {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const chosen: (readonly [LayoutPoint, LayoutPoint])[] = [];
+  let crossings = 0;
+  for (const edge of edges) {
+    if (edge.from === edge.to) continue;
+    const from = byId.get(edge.from);
+    const to = byId.get(edge.to);
+    const fromPosition = positions.get(edge.from);
+    const toPosition = positions.get(edge.to);
+    if (from === undefined || to === undefined || fromPosition === undefined || toPosition === undefined) continue;
+    const fromBox = { x: fromPosition.x, y: fromPosition.y, width: from.width, height: from.height };
+    const toBox = { x: toPosition.x, y: toPosition.y, width: to.width, height: to.height };
+    const start = portOnSide(fromBox, facingSide(fromBox, toBox), placedPort(from, fromPosition, edge.fromPort, 'out'));
+    const end = portOnSide(toBox, facingSide(toBox, fromBox), placedPort(to, toPosition, edge.toPort, 'in'));
+    const segments = (shape: readonly LayoutPoint[]): readonly (readonly [LayoutPoint, LayoutPoint])[] =>
+      shape.slice(1).map((point, index) => [shape[index]!, point] as const);
+    if (start.x === end.x || start.y === end.y) {
+      const straight: readonly [LayoutPoint, LayoutPoint] = [start, end];
+      crossings += chosen.filter((other) => axisCross(straight, other)).length;
+      chosen.push(straight);
+      continue;
+    }
+    const shapes: readonly (readonly LayoutPoint[])[] = [
+      [start, { x: end.x, y: start.y }, end],
+      [start, { x: start.x, y: end.y }, end],
+    ];
+    let best = shapes[0]!;
+    let bestCrossings = Number.POSITIVE_INFINITY;
+    for (const shape of shapes) {
+      const count = segments(shape).reduce(
+        (sum, segment) => sum + chosen.filter((other) => axisCross(segment, other)).length,
+        0,
+      );
+      if (count < bestCrossings) {
+        best = shape;
+        bestCrossings = count;
+      }
+    }
+    crossings += bestCrossings;
+    chosen.push(...segments(best));
+  }
+  return crossings;
+};
 const ARRANGEMENT_WEIGHTS = { crossings: 10_000, edgeLength: 1, aspectDeviation: 50 } as const;
+
+/**
+ * Interior packs (a table inside its aggregate, an aggregate inside its BC)
+ * care more about being square than the outer BC pack does: an interior pack
+ * that ends up a tall strip forces every outer arrangement into a tall world
+ * and leaves no gutter for cross-context lines. The outer pack keeps the
+ * crossing-first weight, so a square interior never buys a crossing.
+ */
+const INTERIOR_ASPECT_WEIGHT = 50;
+const OUTER_ASPECT_WEIGHT = ARRANGEMENT_WEIGHTS.aspectDeviation;
 
 const arrangementCost = (
   packed: Packed,
   sizeOf: ReadonlyMap<string, { readonly width: number; readonly height: number }>,
   edges: readonly { readonly from: string; readonly to: string }[],
   targetAspect: number,
+  aspectWeight: number,
 ): number => {
   const aspect =
     packed.width <= 0 || packed.height <= 0 ? 0 : Math.abs(Math.log(packed.width / packed.height / targetAspect));
   return (
     estimatePackedCrossings(packed, sizeOf, edges) * ARRANGEMENT_WEIGHTS.crossings +
     estimatePackedEdgeLength(packed, sizeOf, edges) * ARRANGEMENT_WEIGHTS.edgeLength +
-    aspect * ARRANGEMENT_WEIGHTS.aspectDeviation
+    aspect * aspectWeight
   );
 };
 
@@ -924,6 +1140,9 @@ export const arrangeBoxes = (
   spacing: number,
   targetAspect: number,
   sweeps: number = DEFAULTS.sweeps,
+  forcedRowCount = 0,
+  aspectWeight: number = ARRANGEMENT_WEIGHTS.aspectDeviation,
+  localSearchCap = LOCAL_SEARCH_CAP,
 ): Packed => {
   if (boxes.length === 0) return { positions: new Map(), width: 0, height: 0 };
   if (boxes.length === 1) {
@@ -941,10 +1160,12 @@ export const arrangeBoxes = (
     let best: Packed = packForRowCount(list, spacing, 1);
     let bestCost = Number.POSITIVE_INFINITY;
     let bestRowCount = 1;
-    for (let rowCount = 1; rowCount <= list.length; rowCount++) {
+    const first = forcedRowCount > 0 ? Math.min(forcedRowCount, list.length) : 1;
+    const last = forcedRowCount > 0 ? first : list.length;
+    for (let rowCount = first; rowCount <= last; rowCount++) {
       const packed = packForRowCount(list, spacing, rowCount);
       if (packed.width <= 0 || packed.height <= 0) continue;
-      const cost = arrangementCost(packed, sizeOf, usableEdges, targetAspect);
+      const cost = arrangementCost(packed, sizeOf, usableEdges, targetAspect, aspectWeight);
       if (cost < bestCost) {
         bestCost = cost;
         best = packed;
@@ -971,23 +1192,24 @@ export const arrangeBoxes = (
     return best.packed;
   }
 
-  // Fallback for larger sets: start from the existing crossing-oblivious
-  // barycenter order, pick its best row count once (the only full row-count
-  // search this path runs), then hill-climb *only the order* with adjacent
-  // swaps at that fixed row count — repeating the full row-count search on
-  // every candidate swap would not terminate quickly for a few dozen boxes —
-  // scored by the real cost function, until no swap improves it or the hard
-  // cap is reached.
+  // A forced row count is a probe from the outer arrangement search: it still
+  // hill-climbs the order (otherwise the probe's arrangement is not the one
+  // the real pack would choose), but with a much smaller cap than the final,
+  // unforced search. The full 400-swap search on every candidate multiplied
+  // the layout pass on schemas with several loose tables (~18ms of probes);
+  // 50 swaps keeps the compared arrangements representative.
+  const searchCap = forcedRowCount > 0 ? Math.min(localSearchCap, 50) : localSearchCap;
   let order = sequenceByLayeredOrder(boxes, usableEdges, sweeps);
   const initial = bestForOrder(order);
-  const rowCount = initial.rowCount;
-  let bestPacked = initial.packed;
-  let bestCost = initial.cost;
+  const rowCount = forcedRowCount > 0 ? Math.min(forcedRowCount, order.length) : initial.rowCount;
+  let bestPacked = forcedRowCount > 0 ? packOrderAt(order, rowCount) : initial.packed;
+  let bestCost =
+    forcedRowCount > 0 ? arrangementCost(bestPacked, sizeOf, usableEdges, targetAspect, aspectWeight) : initial.cost;
   let attempts = 0;
   let improved = true;
-  while (improved && attempts < LOCAL_SEARCH_CAP) {
+  while (improved && attempts < searchCap) {
     improved = false;
-    for (let i = 0; i < order.length - 1 && attempts < LOCAL_SEARCH_CAP; i++) {
+    for (let i = 0; i < order.length - 1 && attempts < searchCap; i++) {
       attempts++;
       const candidateOrder = [...order];
       const a = candidateOrder[i]!;
@@ -995,7 +1217,7 @@ export const arrangeBoxes = (
       candidateOrder[i + 1] = a;
       const packed = packOrderAt(candidateOrder, rowCount);
       if (packed.width <= 0 || packed.height <= 0) continue;
-      const cost = arrangementCost(packed, sizeOf, usableEdges, targetAspect);
+      const cost = arrangementCost(packed, sizeOf, usableEdges, targetAspect, aspectWeight);
       if (cost < bestCost - LOCAL_SEARCH_EPSILON) {
         bestCost = cost;
         bestPacked = packed;
@@ -1178,6 +1400,8 @@ export const compoundLayout = (
       config.nodeSpacing,
       BC_INTERIOR_ASPECT,
       config.sweeps,
+      0,
+      INTERIOR_ASPECT_WEIGHT,
     );
     groupLayouts.set(key, { size: { width: packed.width, height: packed.height }, relative: packed.positions });
   }
@@ -1224,19 +1448,40 @@ export const compoundLayout = (
       config.groupSpacing,
       BC_INTERIOR_ASPECT,
       config.sweeps,
+      0,
+      INTERIOR_ASPECT_WEIGHT,
     );
     bcLayouts.set(superKey, { size: { width: packed.width, height: packed.height }, relative: packed.positions });
   }
 
   // Step 3: wrap the Bounded Context boxes into rows aiming for ~16:10.
   const bcBoxSizes = new Map([...bcLayouts].map(([key, bc]) => [key, bc.size] as const));
-  const bcOffsets = new Map<string, LayoutPoint>();
   const bcKeys = [...bcLayouts.keys()];
   // Only a key backed by a real `superGroup` gets a drawn frame
   // (`boundedContextGroups` in `view.ts` skips tables without one); the
   // `__top:` fallback keys above band a loose table on its own but draw
   // nothing, so `spreadPacked` must not treat them as BCs to widen around.
   const realSuperKeys = new Set(nodes.flatMap((node) => (node.superGroup === undefined ? [] : [node.superGroup])));
+  const composeAbsolute = (offsets: ReadonlyMap<string, LayoutPoint>): Map<string, LayoutPoint> => {
+    const absolute = new Map<string, LayoutPoint>();
+    for (const [superKey, groupKeys] of byBc) {
+      const bcOffset = offsets.get(superKey) ?? { x: 0, y: 0 };
+      const bc = bcLayouts.get(superKey);
+      for (const groupKey of groupKeys) {
+        const groupRelative = bc?.relative.get(groupKey) ?? { x: 0, y: 0 };
+        const group = groupLayouts.get(groupKey);
+        if (!group) continue;
+        for (const [nodeId, nodeRelative] of group.relative) {
+          absolute.set(nodeId, {
+            x: bcOffset.x + groupRelative.x + nodeRelative.x,
+            y: bcOffset.y + groupRelative.y + nodeRelative.y,
+          });
+        }
+      }
+    }
+    return absolute;
+  };
+  let bcOffsets = new Map<string, LayoutPoint>();
   if (bcKeys.length <= 1) {
     for (const key of bcKeys) bcOffsets.set(key, { x: 0, y: 0 });
   } else {
@@ -1246,42 +1491,52 @@ export const compoundLayout = (
       if (from === undefined || to === undefined || from === to) return [];
       return [{ id: edge.id, from, to }];
     });
-    const packed = arrangeBoxes(
-      bcKeys.map((key) => ({ id: key, ...bcBoxSizes.get(key)! })),
-      interBcEdges,
-      config.superGroupSpacing,
-      BC_PACK_ASPECT,
-      config.sweeps,
-    );
-    // Two separate budgets (`spreadPacked`'s own doc above has why): the
-    // stacked (different-row) BC gap is the one #150 reported as cramped and
-    // tolerates a far bigger widening before routing regresses it into new
-    // crossings, while the side-by-side (same-row) gap already had more room
-    // from `superGroupSpacing` alone and only tolerates a modest one.
-    const spread = spreadPacked(packed, bcBoxSizes, config.superGroupRowGap, config.superGroupColumnGap, (key) =>
-      realSuperKeys.has(key),
-    );
-    for (const [key, point] of spread.positions) bcOffsets.set(key, point);
+    const packAt = (rows: number): Packed =>
+      arrangeBoxes(
+        bcKeys.map((key) => ({ id: key, ...bcBoxSizes.get(key)! })),
+        interBcEdges,
+        config.superGroupSpacing,
+        BC_PACK_ASPECT,
+        config.sweeps,
+        rows,
+        OUTER_ASPECT_WEIGHT,
+      );
+    // The BC-level crossing proxy cannot see the difference between a stack
+    // and a grid (it reported zero for both). Score each legal row count with
+    // the table-level proxy instead, and only move away from the automatic
+    // arrangement when it is a clear crossing win that does not cost fit.
+    const auto = packAt(config.superGroupRowCount);
+    const rowChoices = config.superGroupRowCount > 0 ? [] : [1, 2, 3, 4].filter((rows) => rows <= bcKeys.length);
+    const candidates = [auto, ...rowChoices.map((rows) => packAt(rows))];
+    const evaluate = (
+      packed: Packed,
+    ): { offsets: ReadonlyMap<string, LayoutPoint>; crossings: number; fit: number } => {
+      const spread = spreadPacked(packed, bcBoxSizes, config.superGroupRowGap, config.superGroupColumnGap, (key) =>
+        realSuperKeys.has(key),
+      );
+      const crossings = estimateArrangementCrossings(nodes, usable, composeAbsolute(spread.positions));
+      const fit = Math.min(1180 / Math.max(1, spread.width), 900 / Math.max(1, spread.height), 1);
+      return { offsets: spread.positions, crossings, fit };
+    };
+    const evaluated = candidates.map(evaluate);
+    const autoEval = evaluated[0]!;
+    let best = autoEval;
+    for (const candidate of evaluated.slice(1)) {
+      if (candidate.crossings > autoEval.crossings * 0.8) continue;
+      if (candidate.fit < autoEval.fit * 0.9) continue;
+      if (
+        candidate.crossings < best.crossings ||
+        (candidate.crossings === best.crossings && candidate.fit > best.fit)
+      ) {
+        best = candidate;
+      }
+    }
+    bcOffsets = new Map(best.offsets);
   }
 
   // Compose: Bounded Context offset + its aggregate box's offset inside it + the
   // table's own offset inside that aggregate's sub-layout.
-  const absolute = new Map<string, LayoutPoint>();
-  for (const [superKey, groupKeys] of byBc) {
-    const bcOffset = bcOffsets.get(superKey) ?? { x: 0, y: 0 };
-    const bc = bcLayouts.get(superKey);
-    for (const groupKey of groupKeys) {
-      const groupRelative = bc?.relative.get(groupKey) ?? { x: 0, y: 0 };
-      const group = groupLayouts.get(groupKey);
-      if (!group) continue;
-      for (const [nodeId, nodeRelative] of group.relative) {
-        absolute.set(nodeId, {
-          x: bcOffset.x + groupRelative.x + nodeRelative.x,
-          y: bcOffset.y + groupRelative.y + nodeRelative.y,
-        });
-      }
-    }
-  }
+  const absolute = composeAbsolute(bcOffsets);
 
   // Routing only needs to tell a forward-looking edge from a backward one; with
   // boxes placed in a 2D pack rather than along one rank axis, comparing the
