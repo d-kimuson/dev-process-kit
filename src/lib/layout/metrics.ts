@@ -62,6 +62,19 @@ export type MetricBreakdown = {
    * "crosses" another.
    */
   readonly collinearOverlap: { readonly incidents: number; readonly length: number };
+  /**
+   * An edge segment running parallel to, and within `OUTLINE_HUG_CLEARANCE`
+   * of, a node's or a frame's border for more than `MIN_HUG_OVERLAP` — drawn
+   * so close to an outline it reads as traced on top of it (#151), even when
+   * it is not exactly collinear (`collinearOverlap`, above, only fires at
+   * `COLLINEAR_EPSILON`) and even against a box the edge's own endpoint sits
+   * inside (a table hugging its *own* card's or its *own* aggregate/BC
+   * frame's border is exactly the screenshot bug this guards against — a
+   * table the edge does not join is already a harder violation,
+   * `edgeThroughNode`/`frameViolations`, above). How many (edge segment,
+   * border) pairs, and their total overlap length.
+   */
+  readonly outlineHugging: { readonly incidents: number; readonly length: number };
   /** How far the overall bounding box's aspect ratio sits from 16:10, as `abs(ratio - 1.6)`. */
   readonly aspectDeviation: number;
   /** Bounding box area not covered by any node, as a fraction of the bounding box (0 = fully packed). */
@@ -94,15 +107,35 @@ export const METRIC_WEIGHTS: Readonly<Record<keyof MetricBreakdown, number>> = {
   aspectDeviation: 40,
   wastedArea: 60,
   collinearOverlap: 10, // per incident; `collinearOverlap.length` is also charged, below, at a lower per-pixel rate
+  outlineHugging: 15, // per incident; `outlineHugging.length` is also charged, below, at a lower per-pixel rate — a touch above `collinearOverlap` since a clearance-range hug is the more common, more visible case #151 reports
 };
 /** Per-pixel charge for an edge's total length spent inside node boxes it does not join (on top of the per-incident weight above). */
 const EDGE_THROUGH_NODE_LENGTH_WEIGHT = 0.05;
 /** Per-pixel charge for a shared collinear run (on top of the per-incident weight above): lower than edge-through-node's, since this is a readability cost, not a hard structural violation. */
 const COLLINEAR_OVERLAP_LENGTH_WEIGHT = 0.04;
+/** Per-pixel charge for an outline-hugging run (on top of the per-incident weight above), same scale as `COLLINEAR_OVERLAP_LENGTH_WEIGHT`. */
+const OUTLINE_HUG_LENGTH_WEIGHT = 0.04;
 /** How close two segments' constant coordinates must be to count as "running along the same line" — not just exactly equal, since a near-exact hug against a frame border reads the same way to an eye. */
 const COLLINEAR_EPSILON = 1.5;
 /** Ignore an overlap this short or shorter: two lines merely touching at a shared port is not the readability problem this term targets. */
 const MIN_COLLINEAR_OVERLAP = 1;
+/**
+ * How close a segment must run to a node's or frame's border, parallel to
+ * it, to read as hugging that outline (#151) — wider than
+ * `COLLINEAR_EPSILON`, since the readability problem is "drawn right next to
+ * the border", not only "drawn exactly on it". The same order of magnitude
+ * as `route-nudge.ts`'s `frameClearance` default (6): the clearance lane a
+ * route is expected to keep from an outline it passes.
+ */
+export const OUTLINE_HUG_CLEARANCE = 6;
+/**
+ * Ignore a hug this short or shorter: a port sits exactly on its own card's
+ * border, so the short stub leaving it is technically within
+ * `OUTLINE_HUG_CLEARANCE` of that border for a few px — not the "runs down
+ * the side of a card" problem #151 reports. The same threshold
+ * `orthogonal-router.ts`'s `MIN_HUG_LENGTH` uses for the same reason.
+ */
+export const MIN_HUG_OVERLAP = 12;
 
 const segments = (points: readonly MetricPoint[]): readonly (readonly [MetricPoint, MetricPoint])[] =>
   points.slice(1).map((point, i) => [points[i]!, point] as const);
@@ -184,6 +217,38 @@ const collinearOverlapLength = (
   return Math.max(0, Math.min(aRight, bRight) - Math.max(aLeft, bLeft));
 };
 
+/**
+ * Like `collinearOverlapLength`, but for two segments that merely run
+ * parallel within `clearance` of the same line instead of (near-)exactly on
+ * it — the general form `outlineHugging` needs, since a route hugging a
+ * border a few px off still reads as traced on top of it.
+ */
+const nearLineOverlapLength = (
+  a: readonly [MetricPoint, MetricPoint],
+  b: readonly [MetricPoint, MetricPoint],
+  clearance: number,
+): number => {
+  const [a1, a2] = a;
+  const [b1, b2] = b;
+  const aVertical = a1.x === a2.x;
+  const bVertical = b1.x === b2.x;
+  if (aVertical !== bVertical) return 0;
+  if (aVertical) {
+    if (Math.abs(a1.x - b1.x) > clearance) return 0;
+    const aTop = Math.min(a1.y, a2.y);
+    const aBottom = Math.max(a1.y, a2.y);
+    const bTop = Math.min(b1.y, b2.y);
+    const bBottom = Math.max(b1.y, b2.y);
+    return Math.max(0, Math.min(aBottom, bBottom) - Math.max(aTop, bTop));
+  }
+  if (Math.abs(a1.y - b1.y) > clearance) return 0;
+  const aLeft = Math.min(a1.x, a2.x);
+  const aRight = Math.max(a1.x, a2.x);
+  const bLeft = Math.min(b1.x, b2.x);
+  const bRight = Math.max(b1.x, b2.x);
+  return Math.max(0, Math.min(aRight, bRight) - Math.max(aLeft, bLeft));
+};
+
 /** A frame box's four border segments, each a candidate line an edge can run along instead of merely crossing. */
 const borderSegmentsOf = (box: MetricBox): readonly (readonly [MetricPoint, MetricPoint])[] => [
   [
@@ -203,6 +268,22 @@ const borderSegmentsOf = (box: MetricBox): readonly (readonly [MetricPoint, Metr
     { x: box.x + box.width, y: box.y + box.height },
   ],
 ];
+
+/**
+ * Whether `points` hugs any of `boxes`' borders for more than
+ * `MIN_HUG_OVERLAP` (see `outlineHugging`, the metric term this is also used
+ * to compute) — exported for `view.ts`'s port-side selection (#151), which
+ * only bothers searching a relation's top/bottom alternatives when its plain
+ * field-row route would actually hug something; this keeps that search
+ * scoped to the relations with a real readability problem instead of
+ * re-weighing every edge in the batch regardless of whether it needs it.
+ */
+export const routeHugsOutline = (points: readonly MetricPoint[], boxes: readonly MetricBox[]): boolean =>
+  boxes.some((box) =>
+    borderSegmentsOf(box).some((border) =>
+      segments(points).some((seg) => nearLineOverlapLength(seg, border, OUTLINE_HUG_CLEARANCE) > MIN_HUG_OVERLAP),
+    ),
+  );
 
 /** A polyline's bends: points where the direction changes: `length - 2` for a simple path with `length >= 2`, 0 otherwise. */
 const bendsOf = (points: readonly MetricPoint[]): number => Math.max(0, points.length - 2);
@@ -253,6 +334,28 @@ export const scoreLayout = (geometry: LayoutGeometry): MetricResult => {
           if (overlap > MIN_COLLINEAR_OVERLAP) {
             collinearIncidents++;
             collinearLength += overlap;
+          }
+        }
+      }
+    }
+  }
+
+  // Outline hugging (#151): every edge segment against every node's and
+  // every frame's border, node or frame owning the edge or not — a route
+  // drawn right alongside its own table's or its own aggregate/BC frame's
+  // border is exactly the bug this guards against, so neither is excluded.
+  let outlineHugIncidents = 0;
+  let outlineHugLength = 0;
+  const outlineBoxes = [...geometry.nodes.map((n) => n.box), ...(geometry.frames ?? []).map((f) => f.box)];
+  for (const box of outlineBoxes) {
+    const borders = borderSegmentsOf(box);
+    for (const edge of edgeList) {
+      for (const seg of segments(edge.points)) {
+        for (const border of borders) {
+          const overlap = nearLineOverlapLength(seg, border, OUTLINE_HUG_CLEARANCE);
+          if (overlap > MIN_HUG_OVERLAP) {
+            outlineHugIncidents++;
+            outlineHugLength += overlap;
           }
         }
       }
@@ -332,6 +435,7 @@ export const scoreLayout = (geometry: LayoutGeometry): MetricResult => {
     aspectDeviation,
     wastedArea,
     collinearOverlap: { incidents: collinearIncidents, length: collinearLength },
+    outlineHugging: { incidents: outlineHugIncidents, length: outlineHugLength },
   };
   const total =
     breakdown.crossings * METRIC_WEIGHTS.crossings +
@@ -344,7 +448,9 @@ export const scoreLayout = (geometry: LayoutGeometry): MetricResult => {
     breakdown.aspectDeviation * METRIC_WEIGHTS.aspectDeviation +
     breakdown.wastedArea * METRIC_WEIGHTS.wastedArea +
     breakdown.collinearOverlap.incidents * METRIC_WEIGHTS.collinearOverlap +
-    breakdown.collinearOverlap.length * COLLINEAR_OVERLAP_LENGTH_WEIGHT;
+    breakdown.collinearOverlap.length * COLLINEAR_OVERLAP_LENGTH_WEIGHT +
+    breakdown.outlineHugging.incidents * METRIC_WEIGHTS.outlineHugging +
+    breakdown.outlineHugging.length * OUTLINE_HUG_LENGTH_WEIGHT;
 
   return { ...breakdown, total };
 };

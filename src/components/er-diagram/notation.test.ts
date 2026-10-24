@@ -70,4 +70,43 @@ describe('er diagram crow’s foot notation', () => {
     expect(endGlyph(point, 'start', '1').label.anchor).toBe('start');
     expect(endGlyph(point, 'end', '1').label.anchor).toBe('end');
   });
+
+  // #151: a route can now leave a table's top or bottom edge instead of only
+  // its left/right field row (`view.ts`'s port-side selection), so the first
+  // segment touching the port can be vertical, not just horizontal. The glyph
+  // geometry below is built from the line's own direction (`inward`), not an
+  // assumption that it runs left-right, so these only need to prove that
+  // assumption actually holds rather than changing any production code.
+  const vertical = [
+    { x: 80, y: 120 }, // leaves the bottom of a card
+    { x: 80, y: 300 },
+    { x: 400, y: 300 },
+  ];
+
+  it('draws a bar crossing a vertical first segment as horizontal, not along the line', () => {
+    const glyph = endGlyph(vertical, 'start', '1');
+    expect(glyph.circle).toBeNull();
+    expect(glyph.segments).toHaveLength(2);
+    for (const [a, b] of glyph.segments) {
+      expect(a.y).toBe(b.y); // perpendicular to a vertical line means constant y, varying x
+      expect(a.x).not.toBe(b.x);
+    }
+    // Drawn below the tip, into the line and away from the table, not sideways.
+    expect(glyph.segments.every(([a]) => a.y > 120)).toBe(true);
+  });
+
+  it('draws "many" feet converging back onto a vertical table edge, spread across x', () => {
+    const glyph = endGlyph(vertical, 'start', '0..N');
+    const prongs = glyph.segments.filter(([a, b]) => a.y !== b.y);
+    expect(prongs).toHaveLength(3);
+    expect(prongs.map(([, b]) => b.y)).toEqual([120, 120, 120]); // every foot lands back on the card's bottom edge
+    expect(prongs.map(([, b]) => b.x).sort((a, b) => a - b)).toEqual([73, 80, 87]);
+    expect(glyph.circle?.y).toBeGreaterThan(prongs[0]?.[0].y ?? -Infinity); // circle sits further into the line, away from the card
+  });
+
+  it('places the multiplicity label along a vertical line, below the bottom-edge tip', () => {
+    const label = endGlyph(vertical, 'start', '1').label;
+    expect(label.x).toBe(80);
+    expect(label.y).toBeGreaterThan(120);
+  });
 });

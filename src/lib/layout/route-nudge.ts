@@ -25,7 +25,21 @@ export type NudgeInput = {
   readonly points: readonly LayoutPoint[];
   /** The exact obstacle set this route was already computed clear of — re-checked before sliding it. */
   readonly obstacles: readonly RouteBox[];
-  /** Frame boxes this edge belongs to (so excluded from `obstacles`) — nudged away from when hugged. */
+  /**
+   * This edge's own table(s) and own frame(s) — every box excluded from
+   * `obstacles` above so the edge is never blocked by the very card or frame
+   * it leaves from (see `view.ts`'s `relationRoute`) — nudged away from when
+   * hugged. Originally just frames (#151 round 2's first pass only covered
+   * the Bounded Context border half of the user's report); widened to also
+   * include the edge's own table(s), since the other half of that same
+   * report — `legacy_api_tokens`'s relation running down its *own card's*
+   * left border before ever reaching the frame — was a hug this module could
+   * not see at all: `orthogonal-router.ts`'s Dijkstra clearance cost already
+   * steers a fresh route off both, but nudging's own two rules (clear, then
+   * re-clear after track spacing) only re-checked the frame half, so a hug
+   * against the own table that survived routing — or one track spacing
+   * reintroduced — was never caught.
+   */
   readonly ownFrames?: readonly RouteBox[];
 };
 
@@ -68,23 +82,40 @@ const longestInteriorSegment = (
 
 const rangesOverlap = (aMin: number, aMax: number, bMin: number, bMax: number): boolean => aMax >= bMin && bMax >= aMin;
 
-/** Pushes `coord` at least `clearance` away from any own-frame border it runs alongside. */
-const clearOwnFrames = (candidate: Candidate, ownFrames: readonly RouteBox[], clearance: number): number => {
+/**
+ * Pushes `coord` at least `clearance` away from any of `boxes`'s borders it
+ * runs alongside — own frames (always; they are never a hard obstacle for
+ * this edge) or, when `checkBlocked` is set, the edge's own hard `obstacles`
+ * too (#151 round 2): sliding a segment sideways for track spacing (rule 2,
+ * below) can land it newly within clearance of an obstacle's border it
+ * never used to run alongside, which is itself exactly the hugging problem
+ * this whole module exists to fix elsewhere — nudging must not reintroduce
+ * it. Checked with `isBlocked` so a push away from one box's border can
+ * never land the segment inside a *different* obstacle; a push that would
+ * is skipped rather than applied, leaving `coord` as close as it safely can.
+ */
+const clearBorders = (
+  candidate: Candidate,
+  boxes: readonly RouteBox[],
+  clearance: number,
+  checkBlocked: boolean,
+): number => {
   let coord = candidate.coord;
-  for (const frame of ownFrames) {
+  for (const box of boxes) {
     const borders =
       candidate.orientation === 'vertical'
-        ? rangesOverlap(candidate.rangeMin, candidate.rangeMax, frame.y, frame.y + frame.height)
-          ? [frame.x, frame.x + frame.width]
+        ? rangesOverlap(candidate.rangeMin, candidate.rangeMax, box.y, box.y + box.height)
+          ? [box.x, box.x + box.width]
           : []
-        : rangesOverlap(candidate.rangeMin, candidate.rangeMax, frame.x, frame.x + frame.width)
-          ? [frame.y, frame.y + frame.height]
+        : rangesOverlap(candidate.rangeMin, candidate.rangeMax, box.x, box.x + box.width)
+          ? [box.y, box.y + box.height]
           : [];
     for (const border of borders) {
       const distance = Math.abs(coord - border);
       if (distance < clearance) {
         const direction = coord >= border ? 1 : -1;
-        coord += direction * (clearance - distance);
+        const pushed = coord + direction * (clearance - distance);
+        if (!checkBlocked || !isBlocked(candidate, pushed)) coord = pushed;
       }
     }
   }
@@ -97,15 +128,51 @@ const isBlocked = (candidate: Candidate, coord: number): boolean =>
     ? verticalBlocked(coord, candidate.rangeMin, candidate.rangeMax, candidate.obstacles)
     : horizontalBlocked(coord, candidate.rangeMin, candidate.rangeMax, candidate.obstacles);
 
-/** The furthest point toward `desired` (from `original`, which must itself be safe) that stays clear of obstacles. */
-const safeCoord = (candidate: Candidate, original: number, desired: number): number => {
+/** Whether sliding a candidate's segment to `coord` would run it within `clearance` of one of `boxes`'s borders. */
+const hugsBorder = (candidate: Candidate, coord: number, boxes: readonly RouteBox[], clearance: number): boolean =>
+  boxes.some((box) => {
+    const borders =
+      candidate.orientation === 'vertical'
+        ? rangesOverlap(candidate.rangeMin, candidate.rangeMax, box.y, box.y + box.height)
+          ? [box.x, box.x + box.width]
+          : []
+        : rangesOverlap(candidate.rangeMin, candidate.rangeMax, box.x, box.x + box.width)
+          ? [box.y, box.y + box.height]
+          : [];
+    return borders.some((border) => Math.abs(coord - border) < clearance);
+  });
+
+/**
+ * The furthest point toward `desired` (from `original`, which must itself be
+ * safe) that stays clear of obstacles and — when `hugBoxes` is given — does
+ * not newly run within `hugClearance` of one of its borders either (#151
+ * round 2): track spacing (rule 2, below) picks `desired` purely from where
+ * the *other* tracks in its cluster sit, so it can land a track back onto an
+ * own frame's border even though rule 1 already cleared it before
+ * clustering. Retreating toward `original` — the same, already-safe
+ * mechanism `isBlocked` uses, not a separate sideways push — means this can
+ * only ever pull a track closer to where it already was, never somewhere
+ * new, so it cannot reintroduce a crossing with some other edge nudging has
+ * no visibility into; an unconditional post-hoc push measurably could
+ * (swept against the fixture corpus, raising `synthetic-random-2`'s
+ * crossing count past its ratchet) and was rejected for exactly that reason.
+ */
+const safeCoord = (
+  candidate: Candidate,
+  original: number,
+  desired: number,
+  hugBoxes: readonly RouteBox[] = [],
+  hugClearance = 0,
+): number => {
+  const unsafe = (coord: number): boolean =>
+    isBlocked(candidate, coord) || (hugBoxes.length > 0 && hugsBorder(candidate, coord, hugBoxes, hugClearance));
   let coord = desired;
   let attempts = 0;
-  while (isBlocked(candidate, coord) && attempts < 8) {
+  while (unsafe(coord) && attempts < 8) {
     coord = (coord + original) / 2;
     attempts++;
   }
-  return isBlocked(candidate, coord) ? original : coord;
+  return unsafe(coord) ? original : coord;
 };
 
 /** Union-find over candidate indices, merging two that share (near enough) the same line and overlap along it. */
@@ -172,11 +239,12 @@ export const nudgeParallelRoutes = (
     if (edge.ownFrames !== undefined) ownFramesById.set(edge.id, edge.ownFrames);
   }
 
-  // Rule 1: clear each candidate's own frame borders first, so grouping (rule 2) clusters around the cleared position.
+  // Rule 1: clear each candidate's own frame borders first, so grouping
+  // (rule 2) clusters around the cleared position.
   for (const candidate of candidates) {
     const ownFrames = ownFramesById.get(candidate.edgeId);
     if (ownFrames !== undefined && ownFrames.length > 0) {
-      candidate.coord = clearOwnFrames(candidate, ownFrames, frameClearance);
+      candidate.coord = clearBorders(candidate, ownFrames, frameClearance, false);
     }
   }
 
@@ -205,7 +273,23 @@ export const nudgeParallelRoutes = (
         const original = byEdge.get(candidate.edgeId)!.points[candidate.segIndex]![
           orientation === 'vertical' ? 'x' : 'y'
         ];
-        const finalCoord = safeCoord(candidate, original, desired);
+        // Track spacing (just above) picks `desired` purely from where the
+        // *other* tracks in the cluster sit — it can land a track back
+        // within clearance of its own frame's border even though rule 1
+        // already cleared it before clustering (#151 round 2). Guarded the
+        // same way `isBlocked` already is: `safeCoord` retreats toward
+        // `original` (the already-safe, pre-nudge position), so a track can
+        // only ever end up closer to where it already was, never somewhere
+        // new — unlike a separate sideways push, which measurably could
+        // (and did, against the fixture corpus) land a track into a new
+        // crossing with some other edge nudging has no visibility into.
+        const finalCoord = safeCoord(
+          candidate,
+          original,
+          desired,
+          ownFramesById.get(candidate.edgeId) ?? [],
+          frameClearance,
+        );
         const edge = byEdge.get(candidate.edgeId)!;
         const points = (result.get(candidate.edgeId) ?? edge.points).map((point, index2) => {
           if (index2 !== candidate.segIndex && index2 !== candidate.segIndex + 1) return point;

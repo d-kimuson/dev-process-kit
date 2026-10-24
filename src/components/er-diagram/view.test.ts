@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { routeHugsOutline } from '../../lib/layout/metrics';
 import { erDiagramMessages } from './messages';
 import { parseErData, type ErTableDiff } from './model';
 import {
@@ -12,6 +13,7 @@ import {
   highlightOf,
   relationPath,
   relationRoute,
+  relationRoutes,
   resumeEditor,
   roundedPath,
   typeMenu,
@@ -459,6 +461,62 @@ describe('relationRoute', () => {
 
   it('returns the raw points unchanged when there is no start or end to route between', () => {
     expect(relationRoute({ from: 'a', to: 'b' }, [], tables, 20)).toEqual([]);
+  });
+});
+
+describe('relationRoutes (#151)', () => {
+  // Reproduces the screenshot report: a field-row port on the left edge of a
+  // table whose plain port-to-port route has to drop well below the port
+  // before it can turn toward the other end, so the straight-down leg of the
+  // naive L-shape runs for a long stretch right next to — in this geometry,
+  // exactly along — the table's own left border. The user's ask was literal:
+  // "この例だと普通に下から出たら良いと思うんだよな" (it should just exit from
+  // the bottom here) — this test pins that outcome, not just "no hug".
+  const a = { id: 'a', box: { x: 0, y: 0, width: 160, height: 120 } };
+  const b = { id: 'b', box: { x: 400, y: 280, width: 160, height: 40 } };
+  const relations = [{ id: 'a-b', from: 'a', to: 'b' }];
+  const pointsById = new Map([
+    [
+      'a-b',
+      [
+        { x: 0, y: 60 }, // a's field-row port, left edge
+        { x: 400, y: 300 }, // b's field-row port, left edge
+      ],
+    ],
+  ]);
+
+  it('moves the exit off the field row to the bottom of the card instead of hugging the left border', () => {
+    const routed = relationRoutes(relations, pointsById, [a, b], 10);
+    const route = routed.get('a-b')!;
+    // Leaves from the bottom-centre of `a`, not the original field-row port.
+    expect(route[0]).toEqual({ x: 80, y: 120 });
+    expect(routeHugsOutline(route, [a.box, b.box])).toBe(false);
+  });
+
+  it('still reports the hug when ports are forced back to field/field, proving the fix is the port choice, not the router', () => {
+    // Routing the exact same ports directly through `relationRoute` (no
+    // port-side search) reproduces the original bug, confirming the
+    // repro geometry above is faithful to the report rather than accidentally
+    // already clean.
+    const naive = relationRoute({ from: 'a', to: 'b' }, pointsById.get('a-b')!, [a, b], 10);
+    expect(routeHugsOutline(naive, [a.box, b.box])).toBe(true);
+  });
+
+  it('keeps the plain field-row exit for an edge whose default route never hugs anything', () => {
+    const c = { id: 'c', box: { x: 0, y: 0, width: 100, height: 40 } };
+    const d = { id: 'd', box: { x: 300, y: 0, width: 100, height: 40 } };
+    const relations2 = [{ id: 'c-d', from: 'c', to: 'd' }];
+    const points2 = new Map([
+      [
+        'c-d',
+        [
+          { x: 100, y: 20 },
+          { x: 300, y: 20 },
+        ],
+      ],
+    ]);
+    const routed = relationRoutes(relations2, points2, [c, d], 10);
+    expect(routed.get('c-d')).toEqual(points2.get('c-d'));
   });
 });
 

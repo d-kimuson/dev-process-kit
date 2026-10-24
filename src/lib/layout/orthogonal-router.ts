@@ -23,12 +23,31 @@
  *    own edges) with a Dijkstra that prices a direction change, so the
  *    result still reads as a small number of deliberate jogs instead of a
  *    staircase.
+ *
+ * All three steer away from (but, unlike `obstacles`, never hard-block) a run
+ * along any node's or frame's true border — see `OUTLINE_HUG_STEP_PENALTY`
+ * (#151 round 2).
  */
+
+import { OUTLINE_HUG_CLEARANCE, routeHugsOutline } from './metrics';
 
 export type RoutePoint = { readonly x: number; readonly y: number };
 export type RouteBox = { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
 /** One already-drawn segment from an edge routed earlier in the same batch, to steer a new route away from. */
 export type RouteSegment = readonly [RoutePoint, RoutePoint];
+
+/**
+ * The orientation a port's own border requires of the one segment that
+ * touches it, so the route leaves/enters perpendicular to that border
+ * instead of running along it: `'horizontal'` for a port on a left/right
+ * table edge (a field-row port), `'vertical'` for one on a top/bottom edge.
+ * Passed to `routeAroundObstacles` so it can avoid a shape that hugs the
+ * port's own card (see `RouteExits` there).
+ */
+export type ExitOrientation = 'horizontal' | 'vertical';
+
+/** Per-endpoint exit-orientation hints for `routeAroundObstacles`. Either side may be omitted when unknown. */
+export type RouteExits = { readonly start?: ExitOrientation; readonly end?: ExitOrientation };
 
 /**
  * A vertical run at `x` between `yTop` and `yBottom` passes through an
@@ -44,6 +63,45 @@ export const verticalBlocked = (x: number, yTop: number, yBottom: number, obstac
 export const horizontalBlocked = (y: number, xLeft: number, xRight: number, obstacles: readonly RouteBox[]): boolean =>
   obstacles.some(
     (box) => y > box.y && y < box.y + box.height && Math.max(box.x, xLeft) < Math.min(box.x + box.width, xRight) - 1e-6,
+  );
+
+/**
+ * A horizontal run at `y` between `xLeft` and `xRight` runs parallel to, and
+ * within `OUTLINE_HUG_CLEARANCE` of, one of `boxes`'s top or bottom borders,
+ * with some horizontal overlap against that border's own span. `boxes` here
+ * is every node's and every frame's *true* geometry — not `obstacles`, which
+ * this specific edge is only routed clear of after being inflated by
+ * `margin` and after its own table/frame is excluded (see `view.ts`'s
+ * `relationRoute`) — so this still catches a route hugging its own card or
+ * its own aggregate frame, exactly like `metrics.ts`'s `routeHugsOutline`.
+ */
+const hugsHorizontalBorder = (
+  y: number,
+  xLeft: number,
+  xRight: number,
+  boxes: readonly RouteBox[],
+  clearance: number,
+): boolean =>
+  boxes.some(
+    (box) =>
+      xRight > box.x &&
+      xLeft < box.x + box.width &&
+      (Math.abs(y - box.y) <= clearance || Math.abs(y - (box.y + box.height)) <= clearance),
+  );
+
+/** A vertical run at `x` between `yTop` and `yBottom` hugging a left/right border. See `hugsHorizontalBorder`. */
+const hugsVerticalBorder = (
+  x: number,
+  yTop: number,
+  yBottom: number,
+  boxes: readonly RouteBox[],
+  clearance: number,
+): boolean =>
+  boxes.some(
+    (box) =>
+      yBottom > box.y &&
+      yTop < box.y + box.height &&
+      (Math.abs(x - box.x) <= clearance || Math.abs(x - (box.x + box.width)) <= clearance),
   );
 
 /** Drops a point that only continues the previous direction, so a route reads as its real turns. */
@@ -143,6 +201,98 @@ const BEND_PENALTY = 60;
  * stayed at or below `LAYOUT_BENCH_CROSSINGS_BASELINE`.
  */
 const AVOID_CROSSING_PENALTY = 100;
+
+/**
+ * Dijkstra cost added, per unit of grid-step length, for a step that runs
+ * parallel to — and within `OUTLINE_HUG_CLEARANCE` of — any node's or
+ * frame's *true* border (`hugsHorizontalBorder`/`hugsVerticalBorder`), not
+ * only the `obstacles` this edge is routed clear of. Mirrors
+ * `AVOID_CROSSING_PENALTY`'s shape (added into the same `relax` step, a
+ * steering cost rather than a hard block, so a hug that is genuinely
+ * unavoidable — e.g. the one step beside a port's own card — still gets a
+ * route instead of the search giving up) but scales with the hugging run's
+ * length instead of a flat per-incident fee: a one-step brush past a corner
+ * barely costs anything, while a long run down the side of a card — the
+ * exact #151 user report (`legacy_api_tokens`'s relation leaving its own
+ * card's left edge and running down it, then along its aggregate frame's
+ * bottom border) — costs enough that a lane through the middle of the gap
+ * below the card, a few steps longer, wins instead.
+ *
+ * Priced well above `BEND_PENALTY` (60) per unit so that even a short hug
+ * run outweighs one extra bend, since an extra bend is exactly the trade
+ * `gridRoute` must be willing to make to clear a border it would otherwise
+ * run alongside; tuned against the fixture corpus (#151 round 2) so that no
+ * fixture's `outlineHugging` incident count rises and none of its
+ * `crossings` count rises either — a value high enough to move
+ * `er-complex`'s count but not so high it fights `AVOID_CROSSING_PENALTY`
+ * for a lane and pushes two edges into crossing each other instead.
+ */
+const OUTLINE_HUG_STEP_PENALTY = 0.3;
+
+/**
+ * Below this perpendicular gap between two same-orientation ports, the
+ * cheap 2-segment L-shape's unavoidable hug (see `routeAroundObstacles`'s
+ * `exits` handling) is too short to read as "drawn on top of the border" —
+ * a few pixels at a shared port, not a run down the side of a card — so it
+ * is not worth the extra bend a hug-free Z-shape costs. Set to the same
+ * order of magnitude as `route-nudge.ts`'s `frameClearance` default (6):
+ * big enough to skip the near-straight cases that are not the readability
+ * problem (#151) this guards against, small enough that any genuine
+ * field-row-to-field-row offset (table rows are tens of pixels apart) still
+ * gets the fix.
+ */
+const MIN_HUG_LENGTH = 12;
+/** Fractions of the start→end span tried for a Z-shape's middle segment, most-centred first. */
+const Z_FRACTIONS = [0.5, 0.33, 0.67, 0.2, 0.8];
+
+/**
+ * A horizontal-vertical-horizontal detour: touches both `start` and `end`
+ * horizontally, for two ports that both require a horizontal touch (two
+ * left/right field-row ports). Used instead of a 2-segment L-shape when the
+ * L-shape's unavoidable hug (see `routeAroundObstacles`) would run too long
+ * to ignore. `null` when no middle column tried is clear of `inflated`.
+ */
+const zViaVerticalMiddle = (
+  start: RoutePoint,
+  end: RoutePoint,
+  inflated: readonly RouteBox[],
+  avoid: readonly RouteSegment[],
+): readonly RoutePoint[] | null => {
+  let best: { readonly shape: readonly RoutePoint[]; readonly crossings: number } | null = null;
+  for (const fraction of Z_FRACTIONS) {
+    const midX = start.x + (end.x - start.x) * fraction;
+    if (horizontalBlocked(start.y, Math.min(start.x, midX), Math.max(start.x, midX), inflated)) continue;
+    if (verticalBlocked(midX, Math.min(start.y, end.y), Math.max(start.y, end.y), inflated)) continue;
+    if (horizontalBlocked(end.y, Math.min(midX, end.x), Math.max(midX, end.x), inflated)) continue;
+    const shape = simplify([start, { x: midX, y: start.y }, { x: midX, y: end.y }, end]);
+    const crossings = crossingsAgainst(shape, avoid);
+    if (best === null || crossings < best.crossings) best = { shape, crossings };
+    if (crossings === 0) break;
+  }
+  return best?.shape ?? null;
+};
+
+/** A vertical-horizontal-vertical detour: the top/bottom-port counterpart of `zViaVerticalMiddle`. See there. */
+const zViaHorizontalMiddle = (
+  start: RoutePoint,
+  end: RoutePoint,
+  inflated: readonly RouteBox[],
+  avoid: readonly RouteSegment[],
+): readonly RoutePoint[] | null => {
+  let best: { readonly shape: readonly RoutePoint[]; readonly crossings: number } | null = null;
+  for (const fraction of Z_FRACTIONS) {
+    const midY = start.y + (end.y - start.y) * fraction;
+    if (verticalBlocked(start.x, Math.min(start.y, midY), Math.max(start.y, midY), inflated)) continue;
+    if (horizontalBlocked(midY, Math.min(start.x, end.x), Math.max(start.x, end.x), inflated)) continue;
+    if (verticalBlocked(end.x, Math.min(midY, end.y), Math.max(midY, end.y), inflated)) continue;
+    const shape = simplify([start, { x: start.x, y: midY }, { x: end.x, y: midY }, end]);
+    const crossings = crossingsAgainst(shape, avoid);
+    if (best === null || crossings < best.crossings) best = { shape, crossings };
+    if (crossings === 0) break;
+  }
+  return best?.shape ?? null;
+};
+
 /** Direction a grid-search state arrived from: `0` only at the very start. */
 const NONE = 0;
 const HORIZONTAL = 1;
@@ -171,8 +321,14 @@ const segmentsCross = (a: RouteSegment, b: RouteSegment): boolean => {
   return x > hLeft && x < hRight && y > vTop && y < vBottom;
 };
 
-/** How many of `avoid`'s segments a candidate polyline would cross. The crossing-awareness penalty used to pick between otherwise-equal candidate shapes. */
-const crossingsAgainst = (points: readonly RoutePoint[], avoid: readonly RouteSegment[]): number => {
+/**
+ * How many of `avoid`'s segments a candidate polyline would cross. The
+ * crossing-awareness penalty this module's own shape selection uses to pick
+ * between otherwise-equal candidates; exported for `view.ts`'s port-side
+ * selection (#151), which scores candidate ports the same way before any of
+ * them is actually committed to.
+ */
+export const crossingsAgainst = (points: readonly RoutePoint[], avoid: readonly RouteSegment[]): number => {
   if (avoid.length === 0) return 0;
   let count = 0;
   for (const segment of segmentsOf(points)) for (const other of avoid) if (segmentsCross(segment, other)) count++;
@@ -201,9 +357,10 @@ const avoidCrossingsOfUnitSegment = (a: RoutePoint, b: RoutePoint, avoid: readon
 /**
  * The bounded grid fallback: coordinates compressed from the obstacles near
  * `start`/`end` plus a routing margin, searched with a bend-priced Dijkstra
- * that also prices crossing `avoid` (see `AVOID_CROSSING_PENALTY`). `null`
- * when the search space is empty (start and end coincide) or nothing reaches
- * the target, in which case the caller falls back to a plain L-shape.
+ * that also prices crossing `avoid` (see `AVOID_CROSSING_PENALTY`) and
+ * hugging `outlines` (see `OUTLINE_HUG_STEP_PENALTY`). `null` when the
+ * search space is empty (start and end coincide) or nothing reaches the
+ * target, in which case the caller falls back to a plain L-shape.
  */
 const gridRoute = (
   start: RoutePoint,
@@ -211,6 +368,7 @@ const gridRoute = (
   obstacles: readonly RouteBox[],
   margin: number,
   avoid: readonly RouteSegment[] = [],
+  outlines: readonly RouteBox[] = [],
 ): readonly RoutePoint[] | null => {
   const buffer = Math.max(margin * 4, 160);
   const seedLeft = Math.min(start.x, end.x) - buffer;
@@ -233,102 +391,212 @@ const gridRoute = (
   );
   if (relevant.length > 120) return null; // bail to the simple fallback rather than search an unbounded grid
 
-  const xs = new Set([start.x, end.x, left, right]);
-  const ys = new Set([start.y, end.y, top, bottom]);
-  for (const box of relevant) {
-    xs.add(clamp(box.x, left, right));
-    xs.add(clamp(box.x + box.width, left, right));
-    ys.add(clamp(box.y, top, bottom));
-    ys.add(clamp(box.y + box.height, top, bottom));
-  }
-  const xList = [...xs].sort((a, b) => a - b);
-  const yList = [...ys].sort((a, b) => a - b);
-  const width = xList.length;
-  const height = yList.length;
-  const startX = xList.indexOf(start.x);
-  const startY = yList.indexOf(start.y);
-  const endX = xList.indexOf(end.x);
-  const endY = yList.indexOf(end.y);
-  if (startX < 0 || startY < 0 || endX < 0 || endY < 0) return null;
-
-  // Precompute which unit segments of the grid are clear, once each.
-  const hClear: boolean[][] = Array.from({ length: width - 1 }, (_, xi) =>
-    Array.from({ length: height }, (_, yi) => !horizontalBlocked(yList[yi]!, xList[xi]!, xList[xi + 1]!, relevant)),
-  );
-  const vClear: boolean[][] = Array.from({ length: width }, (_, xi) =>
-    Array.from({ length: height - 1 }, (_, yi) => !verticalBlocked(xList[xi]!, yList[yi]!, yList[yi + 1]!, relevant)),
-  );
-  // Same shape as `hClear`/`vClear`, but counting `avoid` crossings per unit
-  // segment instead of a hard obstacle block — priced into the search below,
-  // not filtered out here, so a route that must cross still gets one.
-  const hAvoid: number[][] = Array.from({ length: width - 1 }, (_, xi) =>
-    Array.from({ length: height }, (_, yi) =>
-      avoidCrossingsOfUnitSegment({ x: xList[xi]!, y: yList[yi]! }, { x: xList[xi + 1]!, y: yList[yi]! }, avoid),
-    ),
-  );
-  const vAvoid: number[][] = Array.from({ length: width }, (_, xi) =>
-    Array.from({ length: height - 1 }, (_, yi) =>
-      avoidCrossingsOfUnitSegment({ x: xList[xi]!, y: yList[yi]! }, { x: xList[xi]!, y: yList[yi + 1]! }, avoid),
-    ),
-  );
-
-  const encode = (xi: number, yi: number, dir: number): number => (xi * height + yi) * 3 + dir;
-  const dist = new Float64Array(width * height * 3).fill(Number.POSITIVE_INFINITY);
-  const prev = new Int32Array(width * height * 3).fill(-1);
-  const startState = encode(startX, startY, NONE);
-  dist[startState] = 0;
-  const heap = new MinHeap();
-  heap.push(0, startState);
-
-  while (heap.size > 0) {
-    const popped = heap.pop();
-    if (popped === undefined) break;
-    const { priority, value } = popped;
-    if (priority > (dist[value] ?? Number.POSITIVE_INFINITY)) continue;
-    const dir = value % 3;
-    const cell = (value - dir) / 3;
-    const yi = cell % height;
-    const xi = (cell - yi) / height;
-    if (xi === endX && yi === endY) break;
-    const relax = (nextXi: number, nextYi: number, nextDir: number, step: number, avoidHits: number) => {
-      const bend = dir !== NONE && dir !== nextDir ? BEND_PENALTY : 0;
-      const next = encode(nextXi, nextYi, nextDir);
-      const candidate = priority + step + bend + avoidHits * AVOID_CROSSING_PENALTY;
-      if (candidate < (dist[next] ?? Number.POSITIVE_INFINITY)) {
-        dist[next] = candidate;
-        prev[next] = value;
-        heap.push(candidate, next);
+  // The whole grid-plus-Dijkstra search, parameterized on whether extra
+  // "hug lane" grid lines are added (see below). Run twice: a first,
+  // narrower pass that matches this function's pre-#151-round-2 grid
+  // exactly or its rare lines, is left untouched; only when that pass still
+  // hugs an outline does the (slightly higher-risk — more grid lines shift
+  // Dijkstra's tie-breaking on ties, which is exactly why this is now
+  // gated instead of unconditional) richer pass run, so an edge that was
+  // never going to hug anything keeps its original route byte-for-byte.
+  // Carries the Dijkstra's own total cost alongside the points, so the
+  // two-pass gate below can compare candidates by what the search actually
+  // weighed (bends + `avoid` crossings + outline hugging, all already priced
+  // into this number) instead of recomputing a plain path length, which
+  // cannot tell a short, crossing-inducing detour from a short, clean one
+  // (#151 round 2 — see the gate's own comment).
+  const search = (
+    includeHugLanes: boolean,
+  ): { readonly points: readonly RoutePoint[]; readonly cost: number } | null => {
+    const xs = new Set([start.x, end.x, left, right]);
+    const ys = new Set([start.y, end.y, top, bottom]);
+    for (const box of relevant) {
+      xs.add(clamp(box.x, left, right));
+      xs.add(clamp(box.x + box.width, left, right));
+      ys.add(clamp(box.y, top, bottom));
+      ys.add(clamp(box.y + box.height, top, bottom));
+    }
+    if (includeHugLanes) {
+      // Without this, the only lines the grid ever has near an `outlines`
+      // box are the box's own border (always flagged as a hug) and
+      // whatever the next obstacle over happens to contribute — so
+      // avoiding the hug could only ever mean a detour all the way out to
+      // that next obstacle. Adding a line just past the hug-clearance band
+      // on each side gives the search a lane immediately next to the box
+      // that is NOT flagged, so "prefer a lane in the middle of the gap"
+      // has an actual nearby lane to prefer (#151 round 2).
+      const hugLaneOffset = OUTLINE_HUG_CLEARANCE + 1;
+      for (const box of outlines) {
+        xs.add(clamp(box.x - hugLaneOffset, left, right));
+        xs.add(clamp(box.x + box.width + hugLaneOffset, left, right));
+        ys.add(clamp(box.y - hugLaneOffset, top, bottom));
+        ys.add(clamp(box.y + box.height + hugLaneOffset, top, bottom));
       }
-    };
-    if (xi > 0 && (vClear[xi - 1] === undefined ? false : true) && hClear[xi - 1]?.[yi])
-      relax(xi - 1, yi, HORIZONTAL, xList[xi]! - xList[xi - 1]!, hAvoid[xi - 1]?.[yi] ?? 0);
-    if (xi < width - 1 && hClear[xi]?.[yi])
-      relax(xi + 1, yi, HORIZONTAL, xList[xi + 1]! - xList[xi]!, hAvoid[xi]?.[yi] ?? 0);
-    if (yi > 0 && vClear[xi]?.[yi - 1])
-      relax(xi, yi - 1, VERTICAL, yList[yi]! - yList[yi - 1]!, vAvoid[xi]?.[yi - 1] ?? 0);
-    if (yi < height - 1 && vClear[xi]?.[yi])
-      relax(xi, yi + 1, VERTICAL, yList[yi + 1]! - yList[yi]!, vAvoid[xi]?.[yi] ?? 0);
-  }
+    }
+    const hugOutlines = outlines;
+    const xList = [...xs].sort((a, b) => a - b);
+    const yList = [...ys].sort((a, b) => a - b);
+    const width = xList.length;
+    const height = yList.length;
+    const startX = xList.indexOf(start.x);
+    const startY = yList.indexOf(start.y);
+    const endX = xList.indexOf(end.x);
+    const endY = yList.indexOf(end.y);
+    if (startX < 0 || startY < 0 || endX < 0 || endY < 0) return null;
 
-  const reachable = [NONE, HORIZONTAL, VERTICAL]
-    .map((dir) => encode(endX, endY, dir))
-    .filter((state) => Number.isFinite(dist[state]));
-  if (reachable.length === 0) return null;
-  const best = reachable.reduce((a, b) => ((dist[a] ?? Infinity) <= (dist[b] ?? Infinity) ? a : b));
+    // Precompute which unit segments of the grid are clear, once each.
+    const hClear: boolean[][] = Array.from({ length: width - 1 }, (_, xi) =>
+      Array.from({ length: height }, (_, yi) => !horizontalBlocked(yList[yi]!, xList[xi]!, xList[xi + 1]!, relevant)),
+    );
+    const vClear: boolean[][] = Array.from({ length: width }, (_, xi) =>
+      Array.from({ length: height - 1 }, (_, yi) => !verticalBlocked(xList[xi]!, yList[yi]!, yList[yi + 1]!, relevant)),
+    );
+    // Same shape as `hClear`/`vClear`, but counting `avoid` crossings per unit
+    // segment instead of a hard obstacle block — priced into the search below,
+    // not filtered out here, so a route that must cross still gets one.
+    const hAvoid: number[][] = Array.from({ length: width - 1 }, (_, xi) =>
+      Array.from({ length: height }, (_, yi) =>
+        avoidCrossingsOfUnitSegment({ x: xList[xi]!, y: yList[yi]! }, { x: xList[xi + 1]!, y: yList[yi]! }, avoid),
+      ),
+    );
+    const vAvoid: number[][] = Array.from({ length: width }, (_, xi) =>
+      Array.from({ length: height - 1 }, (_, yi) =>
+        avoidCrossingsOfUnitSegment({ x: xList[xi]!, y: yList[yi]! }, { x: xList[xi]!, y: yList[yi + 1]! }, avoid),
+      ),
+    );
+    // Same shape again, but flagging a unit segment that hugs a true border
+    // (see `OUTLINE_HUG_STEP_PENALTY`) — checked against `outlines`, not
+    // `relevant`/`obstacles`, since the box being hugged (the edge's own table
+    // or aggregate frame) is often exactly the one excluded from this edge's
+    // hard obstacle list.
+    const hHug: boolean[][] = Array.from({ length: width - 1 }, (_, xi) =>
+      Array.from({ length: height }, (_, yi) =>
+        hugsHorizontalBorder(yList[yi]!, xList[xi]!, xList[xi + 1]!, hugOutlines, OUTLINE_HUG_CLEARANCE),
+      ),
+    );
+    const vHug: boolean[][] = Array.from({ length: width }, (_, xi) =>
+      Array.from({ length: height - 1 }, (_, yi) =>
+        hugsVerticalBorder(xList[xi]!, yList[yi]!, yList[yi + 1]!, hugOutlines, OUTLINE_HUG_CLEARANCE),
+      ),
+    );
 
-  const points: RoutePoint[] = [];
-  let at: number | undefined = best;
-  while (at !== undefined && at >= 0) {
-    const dir = at % 3;
-    const cell = (at - dir) / 3;
-    const yi = cell % height;
-    const xi = (cell - yi) / height;
-    points.push({ x: xList[xi]!, y: yList[yi]! });
-    const previousState: number = prev[at] ?? -1;
-    at = previousState === -1 ? undefined : previousState;
-  }
-  points.reverse();
-  return simplify(points);
+    const encode = (xi: number, yi: number, dir: number): number => (xi * height + yi) * 3 + dir;
+    const dist = new Float64Array(width * height * 3).fill(Number.POSITIVE_INFINITY);
+    const prev = new Int32Array(width * height * 3).fill(-1);
+    const startState = encode(startX, startY, NONE);
+    dist[startState] = 0;
+    const heap = new MinHeap();
+    heap.push(0, startState);
+
+    while (heap.size > 0) {
+      const popped = heap.pop();
+      if (popped === undefined) break;
+      const { priority, value } = popped;
+      if (priority > (dist[value] ?? Number.POSITIVE_INFINITY)) continue;
+      const dir = value % 3;
+      const cell = (value - dir) / 3;
+      const yi = cell % height;
+      const xi = (cell - yi) / height;
+      if (xi === endX && yi === endY) break;
+      const relax = (
+        nextXi: number,
+        nextYi: number,
+        nextDir: number,
+        step: number,
+        avoidHits: number,
+        hugs: boolean,
+      ) => {
+        const bend = dir !== NONE && dir !== nextDir ? BEND_PENALTY : 0;
+        const next = encode(nextXi, nextYi, nextDir);
+        const hug = hugs ? step * OUTLINE_HUG_STEP_PENALTY : 0;
+        const candidate = priority + step + bend + avoidHits * AVOID_CROSSING_PENALTY + hug;
+        if (candidate < (dist[next] ?? Number.POSITIVE_INFINITY)) {
+          dist[next] = candidate;
+          prev[next] = value;
+          heap.push(candidate, next);
+        }
+      };
+      if (xi > 0 && (vClear[xi - 1] === undefined ? false : true) && hClear[xi - 1]?.[yi])
+        relax(
+          xi - 1,
+          yi,
+          HORIZONTAL,
+          xList[xi]! - xList[xi - 1]!,
+          hAvoid[xi - 1]?.[yi] ?? 0,
+          hHug[xi - 1]?.[yi] ?? false,
+        );
+      if (xi < width - 1 && hClear[xi]?.[yi])
+        relax(xi + 1, yi, HORIZONTAL, xList[xi + 1]! - xList[xi]!, hAvoid[xi]?.[yi] ?? 0, hHug[xi]?.[yi] ?? false);
+      if (yi > 0 && vClear[xi]?.[yi - 1])
+        relax(
+          xi,
+          yi - 1,
+          VERTICAL,
+          yList[yi]! - yList[yi - 1]!,
+          vAvoid[xi]?.[yi - 1] ?? 0,
+          vHug[xi]?.[yi - 1] ?? false,
+        );
+      if (yi < height - 1 && vClear[xi]?.[yi])
+        relax(xi, yi + 1, VERTICAL, yList[yi + 1]! - yList[yi]!, vAvoid[xi]?.[yi] ?? 0, vHug[xi]?.[yi] ?? false);
+    }
+
+    const reachable = [NONE, HORIZONTAL, VERTICAL]
+      .map((dir) => encode(endX, endY, dir))
+      .filter((state) => Number.isFinite(dist[state]));
+    if (reachable.length === 0) return null;
+    const best = reachable.reduce((a, b) => ((dist[a] ?? Infinity) <= (dist[b] ?? Infinity) ? a : b));
+    const cost = dist[best] ?? 0;
+
+    const points: RoutePoint[] = [];
+    let at: number | undefined = best;
+    while (at !== undefined && at >= 0) {
+      const dir = at % 3;
+      const cell = (at - dir) / 3;
+      const yi = cell % height;
+      const xi = (cell - yi) / height;
+      points.push({ x: xList[xi]!, y: yList[yi]! });
+      const previousState: number = prev[at] ?? -1;
+      at = previousState === -1 ? undefined : previousState;
+    }
+    points.reverse();
+    return { points: simplify(points), cost };
+  };
+
+  const narrow = search(false);
+  if (outlines.length === 0 || narrow === null || !routeHugsOutline(narrow.points, outlines))
+    return narrow?.points ?? null;
+  // The narrow pass still hugs one of this edge's own boxes — retry with the
+  // richer, lane-equipped grid (see `search`'s own comment). Only reached
+  // when `narrow` actually hugs: trying the richer pass unconditionally for
+  // every edge, including ones `narrow` already routes cleanly, let a
+  // long cross-diagram edge's richer pass pick a cheaper-but-wilder detour
+  // over `narrow`'s perfectly good, non-hugging route purely because it
+  // shaved a handful of Manhattan units off the total (both passes score
+  // routes on cost, not on how locally sane they look) — a regression this
+  // gate avoids by never even running the richer search when there is
+  // nothing for it to fix (#151 round 2).
+  const richer = search(true);
+  if (richer === null) return narrow.points;
+  // Mirrors `routeAroundObstacles`'s own Z-shape-vs-L-shape selection below:
+  // crossings against `avoid` are a hard ratchet
+  // (`LAYOUT_BENCH_CROSSINGS_BASELINE`), so the richer, hug-avoiding pass only
+  // wins when it does not cross more of the batch's already-routed traffic
+  // than the plain narrow pass — never trading more crossings for less
+  // hugging. Checked directly against the actual crossing count rather than
+  // folded into `cost` (both passes' internal Dijkstra cost blends bends,
+  // `avoid` crossings and hug length into one number, so a route that saves
+  // enough on hugging/bends can out-cost a route with strictly fewer
+  // crossings — exactly the earlier, cost-only comparison's failure mode: a
+  // long cross-diagram edge's richer pass picking a "cheaper" detour that
+  // nets more crossings against edges routed elsewhere in the batch, once
+  // this same `gridRoute` call is re-run with the fuller `avoid` list later
+  // passes (`view.ts`'s rip-up-reroute) supply) (#151 round 2). A route that
+  // still hugs even after this still gets a chance to clear it in
+  // `route-nudge.ts`'s later pass.
+  if (crossingsAgainst(richer.points, avoid) > crossingsAgainst(narrow.points, avoid)) return narrow.points;
+  // Both passes can still land on a route that hugs (e.g. a port genuinely
+  // has no non-hugging option): prefer whichever the search found cheaper.
+  return richer.cost < narrow.cost ? richer.points : narrow.points;
 };
 
 /**
@@ -344,6 +612,27 @@ const gridRoute = (
  * but when more than one shape is equally obstacle-clear, the one crossing
  * fewer of them wins, so a batch of edges routed one at a time still comes
  * out mutually crossing-aware instead of each being blind to the others.
+ *
+ * `exits` (#151): the orientation each port's own border requires of the
+ * segment touching it (see `ExitOrientation`). A plain 2-segment L-shape's
+ * two segments necessarily alternate orientation, so when both ports
+ * require the *same* orientation (two field-row ports, both `'horizontal'`;
+ * or two top/bottom ports, both `'vertical'`) no L-shape can touch both
+ * correctly — one end is always left hugging its own border for exactly the
+ * ports' perpendicular gap. Past `MIN_HUG_LENGTH`, this swaps in a
+ * 3-segment Z-shape that touches both ends correctly instead. Omitted
+ * entirely, this parameter changes nothing: every caller that does not pass
+ * it keeps the exact L-shape selection above.
+ *
+ * `outlines` (#151 round 2): every node's and every frame's *true* box,
+ * passed on to `gridRoute`'s hug-clearance steering (`OUTLINE_HUG_STEP_PENALTY`)
+ * when both L-shapes are blocked and it has to fall back to the grid search.
+ * Kept separate from `obstacles` because the box actually hugged in the
+ * dense cases this guards against (#151) is typically the edge's own table
+ * or its own aggregate frame, both deliberately excluded from `obstacles` so
+ * the edge is never blocked by the very card or frame it leaves from.
+ * Omitted entirely, this changes nothing: `gridRoute` then has no
+ * hug-clearance cost, exactly as before.
  */
 export const routeAroundObstacles = (
   start: RoutePoint,
@@ -351,6 +640,8 @@ export const routeAroundObstacles = (
   obstacles: readonly RouteBox[],
   margin: number,
   avoid: readonly RouteSegment[] = [],
+  exits?: RouteExits,
+  outlines: readonly RouteBox[] = [],
 ): readonly RoutePoint[] => {
   if (start.x === end.x && start.y === end.y) return [start, end];
   const inflated = obstacles.map((box) => ({
@@ -390,15 +681,53 @@ export const routeAroundObstacles = (
   // already-routed segments wins regardless of this preference.
   const verticalOk = freeVia(verticalFirst);
   const horizontalOk = freeVia(horizontalFirst);
-  if (verticalOk && horizontalOk) {
-    const verticalShape = simplify([start, verticalFirst, end]);
-    const horizontalShape = simplify([start, horizontalFirst, end]);
-    const verticalCrossings = crossingsAgainst(verticalShape, avoid);
-    const horizontalCrossings = crossingsAgainst(horizontalShape, avoid);
-    return horizontalCrossings < verticalCrossings ? horizontalShape : verticalShape;
-  }
-  if (verticalOk) return simplify([start, verticalFirst, end]);
-  if (horizontalOk) return simplify([start, horizontalFirst, end]);
 
-  return gridRoute(start, end, inflated, margin, avoid) ?? simplify([start, horizontalFirst, end]);
+  const pickBetweenLShapes = (): readonly RoutePoint[] => {
+    if (verticalOk && horizontalOk) {
+      const verticalShape = simplify([start, verticalFirst, end]);
+      const horizontalShape = simplify([start, horizontalFirst, end]);
+      const verticalCrossings = crossingsAgainst(verticalShape, avoid);
+      const horizontalCrossings = crossingsAgainst(horizontalShape, avoid);
+      return horizontalCrossings < verticalCrossings ? horizontalShape : verticalShape;
+    }
+    if (verticalOk) return simplify([start, verticalFirst, end]);
+    if (horizontalOk) return simplify([start, horizontalFirst, end]);
+    return gridRoute(start, end, inflated, margin, avoid, outlines) ?? simplify([start, horizontalFirst, end]);
+  };
+
+  const startExit = exits?.start;
+  const endExit = exits?.end;
+  if (startExit !== undefined && endExit !== undefined) {
+    if (startExit !== endExit) {
+      // Mixed orientations: exactly one L-shape touches both ends correctly
+      // (`verticalShape` when `start` needs a vertical touch, since its first
+      // segment is vertical and its second, touching `end`, is horizontal).
+      // Always prefer it when it is obstacle-clear — there is no trade to make.
+      const wantVertical = startExit === 'vertical';
+      if (wantVertical && verticalOk) return simplify([start, verticalFirst, end]);
+      if (!wantVertical && horizontalOk) return simplify([start, horizontalFirst, end]);
+    } else {
+      const gap = startExit === 'horizontal' ? Math.abs(start.y - end.y) : Math.abs(start.x - end.x);
+      const degenerate = startExit === 'horizontal' ? start.x === end.x : start.y === end.y;
+      if (gap > MIN_HUG_LENGTH && !degenerate) {
+        const zShape =
+          startExit === 'horizontal'
+            ? zViaVerticalMiddle(start, end, inflated, avoid)
+            : zViaHorizontalMiddle(start, end, inflated, avoid);
+        // The Z-shape only replaces the L-shape when it does not cost more
+        // crossings against the batch — crossings are a hard ratchet
+        // (`LAYOUT_BENCH_CROSSINGS_BASELINE`), so a border-hug-free shape
+        // that would cut across more already-routed traffic loses to the
+        // plain L-shape instead, hug and all; `route-nudge.ts`'s later pass
+        // still has a chance to pull a surviving hug off the border.
+        if (zShape !== null) {
+          const lShape = pickBetweenLShapes();
+          if (crossingsAgainst(zShape, avoid) <= crossingsAgainst(lShape, avoid)) return zShape;
+          return lShape;
+        }
+      }
+    }
+  }
+
+  return pickBetweenLShapes();
 };

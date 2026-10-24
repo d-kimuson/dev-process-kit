@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { LAYOUT_BENCH_BASELINE, LAYOUT_BENCH_CROSSINGS_BASELINE } from './layout-bench/baseline';
+import { parseErData } from '../src/components/er-diagram/model';
+import { routeHugsOutline } from '../src/lib/layout/metrics';
+import {
+  LAYOUT_BENCH_BASELINE,
+  LAYOUT_BENCH_CROSSINGS_BASELINE,
+  LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE,
+} from './layout-bench/baseline';
+import { erComplexFixtureBefore } from './layout-bench/fixtures/er-complex';
+import { seededRandomSchema } from './layout-bench/fixtures/synthetic';
+import { geometryOf } from './layout-bench/geometry';
 import { runBench } from './layout-bench/run';
 
 /**
@@ -44,5 +53,78 @@ describe('layout bench ratchet', () => {
     const baseline = LAYOUT_BENCH_CROSSINGS_BASELINE[row.name];
     expect(baseline).toBeDefined();
     expect(row.crossings).toBeLessThanOrEqual(baseline!);
+  });
+
+  /**
+   * A third, independent ratchet: a route drawn on top of (within clearance
+   * of, and parallel to) a node's or a frame's outline is #151's actual
+   * readability complaint, and it is possible to trade it away for a cheaper
+   * weighted total elsewhere, so it is checked on its own raw incident count
+   * too — see `dev/layout-bench/baseline.ts`.
+   */
+  it.each(rows)('$name does not regress past its baseline outline-hugging incident count', (row) => {
+    const baseline = LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE[row.name];
+    expect(baseline).toBeDefined();
+    expect(row.outlineHugging.incidents).toBeLessThanOrEqual(baseline!);
+  });
+});
+
+/**
+ * #151 round 2: targeted regressions for `orthogonal-router.ts`'s Dijkstra
+ * clearance cost (`OUTLINE_HUG_STEP_PENALTY`), on top of the aggregate
+ * ratchet above.
+ */
+describe('#151 round 2: outline-hugging regressions', () => {
+  it("legacy_api_tokens's own relation does not hug its card or the Identity/Access frames", () => {
+    // This is the literal table from the user's #151 report (dark theme,
+    // `legacy_api_tokens`, Identity BC / Access aggregate): its relation left
+    // the card hugging its own left border, then the Access frame's bottom
+    // border, instead of exiting cleanly. `erComplexFixtureBefore` is the
+    // only fixture that still contains this table (`erComplexFixtureAfter`,
+    // what `FIXTURES`/`runBench` above actually exercise, represents a later
+    // schema state without it) — so this test is not part of the bench
+    // ratchet and does not gate on `LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE`.
+    //
+    // Caveat, confirmed by hand while fixing #151 round 2: this specific
+    // edge's headless-pipeline geometry (table sizes from this repo's
+    // estimated, not DOM/canvas-measured, text widths) does not reproduce a
+    // hug even with `OUTLINE_HUG_STEP_PENALTY` set back to 0 — so this
+    // assertion passing is not, by itself, proof the fix works; it only
+    // guards against this literal case regressing in whatever geometry this
+    // headless pipeline does produce. The live-rendered browser screenshot
+    // (`.agents/tmp/qa-shots/r151b-dark-legacy-tokens.png`) is the actual
+    // check for the reported bug; `#151 round 2: a flipped synthetic edge
+    // demonstrates the Dijkstra clearance cost` below is the discriminating
+    // automated guard for the fix itself.
+    const data = parseErData({ after: erComplexFixtureBefore });
+    const { geometry } = geometryOf(data);
+    const outlineBoxes = [
+      ...geometry.nodes.map((node) => node.box),
+      ...(geometry.frames ?? []).map((frame) => frame.box),
+    ];
+    const edge = geometry.edges.find((e) => e.from === 'legacy_api_tokens' || e.to === 'legacy_api_tokens');
+    expect(edge).toBeDefined();
+    expect(routeHugsOutline(edge!.points, outlineBoxes)).toBe(false);
+  });
+
+  it('#151 round 2: a flipped synthetic edge demonstrates the Dijkstra clearance cost', () => {
+    // `rnd_2:id>rnd_3:ref_0_id` in the seeded `synthetic-random-2` fixture
+    // (`seededRandomSchema(2)`) hugs the `bc:south` frame's left border for
+    // its entire vertical run when `OUTLINE_HUG_STEP_PENALTY` is 0 (verified
+    // by hand: with the penalty zeroed out, this same assertion fails), and
+    // clears it once the penalty steers `gridRoute`'s search away from
+    // lanes that run parallel to an outline within `OUTLINE_HUG_CLEARANCE`.
+    // Unlike the `legacy_api_tokens` case above, this edge's headless
+    // geometry does exhibit the bug pre-fix, so it is a real regression
+    // guard for the fix itself, not only for this literal fixture.
+    const data = parseErData({ after: seededRandomSchema(2) });
+    const { geometry } = geometryOf(data);
+    const outlineBoxes = [
+      ...geometry.nodes.map((node) => node.box),
+      ...(geometry.frames ?? []).map((frame) => frame.box),
+    ];
+    const edge = geometry.edges.find((e) => e.id === 'rnd_2:id>rnd_3:ref_0_id');
+    expect(edge).toBeDefined();
+    expect(routeHugsOutline(edge!.points, outlineBoxes)).toBe(false);
   });
 });

@@ -32,6 +32,10 @@ const printTable = (rows: readonly BenchRow[]): void => {
       header: 'collinear',
       value: (row) => `${row.collinearOverlap.incidents}/${formatNumber(row.collinearOverlap.length, 0)}`,
     },
+    {
+      header: 'outlineHug',
+      value: (row) => `${row.outlineHugging.incidents}/${formatNumber(row.outlineHugging.length, 0)}`,
+    },
     { header: 'edgeLen', value: (row) => formatNumber(row.totalEdgeLength, 0) },
     { header: 'bends', value: (row) => String(row.totalBends) },
     { header: 'overlaps', value: (row) => String(row.overlaps) },

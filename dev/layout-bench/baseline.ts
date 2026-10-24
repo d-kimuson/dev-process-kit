@@ -173,17 +173,102 @@
  * router routes more cleanly even independent of the gap change:
  * `er-complex` 4885.80→4553.95 (-6.8%), `synthetic-random-1`
  * 8020.33→6834.80 (-14.8%), `synthetic-random-2` 5287.73→4387.75 (-17.0%).
+ *
+ * 2026-10 (#151): `scoreLayout` gained an `outlineHugging` term (an edge
+ * segment running parallel to, and within a few px of, a node's or a frame's
+ * border for a meaningful stretch — a route that reads as traced onto the
+ * outline it is passing, the readability complaint #151 reported about a
+ * relation leaving a table's left edge and then running straight down its
+ * own card border). Weighted at 15/incident + 0.04/px
+ * (`METRIC_WEIGHTS.outlineHugging`, `OUTLINE_HUG_LENGTH_WEIGHT`), it raises
+ * every fixture's total by a fixed, computable amount
+ * (`incidents * 15 + length * 0.04`) purely from measuring something that was
+ * already there and invisible to every prior term — a one-time, conscious
+ * jump, same as #148's `collinearOverlap` addition above.
+ *
+ * Landed in the same change (not a separate step, since the metric exists
+ * specifically to gate it): `view.ts`'s `relationRoutes` now picks a table's
+ * exit side (left/right/top/bottom) by routed cost instead of always the
+ * field row, and `orthogonal-router.ts` gained a 3-segment "Z-shape" for two
+ * same-orientation ports, but *only* when the plain field-to-field route
+ * actually hugs an outline (`routeHugsOutline`) and only when the alternative
+ * does not cost more crossings — routing every edge through the search
+ * regardless of need caused severe crossing regressions during development
+ * (see the router's and `relationRoutes`'s own comments), so it stays scoped
+ * to routes that need it. Comparing each fixture's total jump against the
+ * metric's own fixed cost shows exactly where this real routing improvement
+ * landed: `er-long-names` 152.82→169.78, `synthetic-no-bc` 1344.46→1522.90,
+ * `synthetic-hub-table` 545.42→659.42 and `synthetic-self-reference`
+ * 336.90→390.78 moved by *exactly* the metric's fixed cost (16.96, 178.44,
+ * 114.00 and 53.88 respectively) — no edge in these fixtures' baseline route
+ * hugged an outline badly enough, or had a same-crossing-or-better
+ * alternative, for the gate to change anything, so what you see is the raw
+ * cost of measuring a pre-existing issue, not a regression. The rest moved by
+ * *less* than the metric's fixed cost, meaning the new routing logic paid
+ * part or all of the metric's cost back: `er-complex` 4553.95→5377.44 (metric
+ * cost 1256.86, actual rise only 823.49 — crossings also fell 32→31),
+ * `synthetic-cross-bc` 340.46→609.22 (metric cost 382.72, actual rise only
+ * 268.76), `synthetic-random-1` 6834.80→7110.86 (metric cost 410.00, actual
+ * rise only 276.06 — crossings fell 59→57). `order-schema` and
+ * `synthetic-random-2` are outright improvements despite the new cost added:
+ * `order-schema` 241.84→201.62 and `synthetic-random-2` 4387.75→4344.31 both
+ * fall even though the metric alone would have raised them (by 16.84 and
+ * 495.40 respectively) — `synthetic-random-2`'s crossings also fell 33→29.
+ * Crossing counts never increased on any fixture; see
+ * `LAYOUT_BENCH_CROSSINGS_BASELINE` below for the independent ratchet, and
+ * `LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE` for the new one this term gets.
+ *
+ * 2026-10 (#151 round 2): round 1's gate only ever chose *between* existing
+ * shapes (plain field route vs. Z-shape) by whether the plain route hugged —
+ * it never changed how a hugging route itself was found, so the gridRoute
+ * fallback (used whenever both direct L-shapes are obstacle-blocked, e.g. the
+ * user's literal report: a relation leaving `legacy_api_tokens` with nowhere
+ * clear to go but along its own left border and then the Access frame's
+ * bottom border) still happily hugged whenever that was its cheapest path.
+ * `orthogonal-router.ts`'s `gridRoute` Dijkstra gained a length-proportional
+ * `OUTLINE_HUG_STEP_PENALTY` (0.3) on any grid step that runs parallel to,
+ * and within `OUTLINE_HUG_CLEARANCE` of, a node's or frame's border (checked
+ * against `outlines`, the edge's own table/frame geometry — not the inflated
+ * `obstacles` list), so the search now prefers a lane through the middle of
+ * a gap over one scraping a wall. `gridRoute`'s narrow/richer pass selection
+ * also gained a direct "does the richer, hug-avoiding pass cost more
+ * crossings against the batch's `avoid` list" gate, mirroring the existing
+ * Z-shape-vs-L-shape selection, so hug-avoidance is never bought with a
+ * crossing regression. `route-nudge.ts`'s own-border clearance (previously
+ * only checked against an edge's own *frame*) was widened to also cover its
+ * own *table* — the other half of the same user report — via `view.ts`'s
+ * `ownFrames` list.
+ *
+ * `OUTLINE_HUG_STEP_PENALTY` was bisected against the full corpus: 0.3 is the
+ * largest value in the low range (0.1–0.3) that keeps every fixture's
+ * crossing count at or below its #151-round-1 figure; past ~0.35 there is an
+ * unexplained cliff where `synthetic-random-2`'s final crossing count
+ * regresses (29→34+) even with the new crossings gate in place, so the
+ * penalty is deliberately left at 0.3 rather than pushed further — this means
+ * `er-complex`'s outline-hugging incident count (56→40) does not reach "well
+ * under half of 56"; that shortfall is a known, open limitation, not an
+ * oversight (crossings are the harder constraint and were not traded away for
+ * it). Every fixture's crossing count fell or held, so the totals below
+ * ratchet down: `er-complex` 5377.44→4976.71 (crossings 31→30, outlineHug
+ * 56→40), `synthetic-cross-bc` 609.22→227.09 (outlineHug 14→0, crossings
+ * unchanged), `synthetic-random-1` 7110.86→6574.42 (crossings 57→53,
+ * outlineHug 16→10), `synthetic-random-2` 4344.31→4187.42 (outlineHug 25→20,
+ * crossings unchanged). `order-schema`, `er-long-names`, `synthetic-no-bc`,
+ * `synthetic-hub-table` and `synthetic-self-reference` are byte-identical:
+ * none of their hugging routes had a same-crossing-or-better alternative for
+ * the new cost to find. All nine fixtures' `layoutMs` stayed well under
+ * 100ms (max ~17ms, `er-complex`).
  */
 export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 4553.950444101124,
-  'order-schema': 241.83712660028453,
-  'er-long-names': 152.8217124073083,
-  'synthetic-no-bc': 1344.4620464945997,
-  'synthetic-cross-bc': 340.4649380406827,
-  'synthetic-hub-table': 545.4210727969348,
-  'synthetic-self-reference': 336.89998596244953,
-  'synthetic-random-1': 6834.802346185397,
-  'synthetic-random-2': 4387.7487167273375,
+  'er-complex': 4976.705444101124,
+  'order-schema': 201.6171266002845,
+  'er-long-names': 169.7817124073083,
+  'synthetic-no-bc': 1522.9020464945997,
+  'synthetic-cross-bc': 227.0949380406827,
+  'synthetic-hub-table': 659.4210727969348,
+  'synthetic-self-reference': 390.77998596244953,
+  'synthetic-random-1': 6574.422346185397,
+  'synthetic-random-2': 4187.418716727338,
 };
 
 /**
@@ -201,15 +286,61 @@ export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
  * correcting this field's stale `48`, which a comment above already said
  * should have ratcheted to 44 after #148 round 3's own `nudgeParallelRoutes`
  * change but never did). The rest are unchanged.
+ *
+ * 2026-10 (#151): the gated port-side/Z-shape routing change described above
+ * `LAYOUT_BENCH_BASELINE` dropped crossings further on the fixtures it
+ * touched: `er-complex` 32→31, `synthetic-random-1` 59→57, `synthetic-random-2`
+ * 33→29. The rest are unchanged — the gate (`routeHugsOutline`) found nothing
+ * to fix, or found nothing that did not cost at least one more crossing, so
+ * it left those fixtures' routes exactly as they were.
+ *
+ * 2026-10 (#151 round 2): the `gridRoute` clearance cost described above
+ * `LAYOUT_BENCH_BASELINE` dropped crossings further on two fixtures:
+ * `er-complex` 31→30, `synthetic-random-1` 57→53. The rest are unchanged, and
+ * none increased — the new narrow-vs-richer crossings gate guarantees that.
  */
 export const LAYOUT_BENCH_CROSSINGS_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 32,
+  'er-complex': 30,
   'order-schema': 1,
   'er-long-names': 0,
   'synthetic-no-bc': 0,
   'synthetic-cross-bc': 1,
   'synthetic-hub-table': 0,
   'synthetic-self-reference': 2,
-  'synthetic-random-1': 59,
-  'synthetic-random-2': 33,
+  'synthetic-random-1': 53,
+  'synthetic-random-2': 29,
+};
+
+/**
+ * A third, independent ratchet alongside the weighted total and crossings: a
+ * fixture's raw outline-hugging incident count (`scoreLayout`'s
+ * `outlineHugging.incidents`, see `src/lib/layout/metrics.ts`) may never
+ * increase, even when the weighted total falls. Crossings stay the user's
+ * named top priority and are never traded away for this, but this fixture's
+ * incident count is the most direct signal available for #151's actual
+ * complaint — a route drawn on top of an outline — so it gets its own ratchet
+ * rather than relying on the weighted total alone to catch a regression here.
+ *
+ * 2026-10 (#151): first measurement, taken right after the `outlineHugging`
+ * term and the gated port-side/Z-shape routing fix landed together (see
+ * `LAYOUT_BENCH_BASELINE` above for why they are not measured separately).
+ *
+ * 2026-10 (#151 round 2): the `gridRoute` clearance cost described above
+ * `LAYOUT_BENCH_BASELINE` dropped this fixture's own card/frame-hugging
+ * incidents directly: `er-complex` 56→40, `synthetic-cross-bc` 14→0,
+ * `synthetic-random-1` 16→10, `synthetic-random-2` 25→20. The rest are
+ * unchanged. `er-complex`'s 40 is a known, open shortfall against the
+ * "well under half of 56" target — see the doc comment on
+ * `LAYOUT_BENCH_BASELINE` above for why the penalty was not pushed further.
+ */
+export const LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE: Readonly<Record<string, number>> = {
+  'er-complex': 40,
+  'order-schema': 1,
+  'er-long-names': 1,
+  'synthetic-no-bc': 11,
+  'synthetic-cross-bc': 0,
+  'synthetic-hub-table': 7,
+  'synthetic-self-reference': 3,
+  'synthetic-random-1': 10,
+  'synthetic-random-2': 20,
 };

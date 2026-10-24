@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { METRIC_WEIGHTS, scoreLayout, type LayoutGeometry } from './metrics';
+import { METRIC_WEIGHTS, routeHugsOutline, scoreLayout, type LayoutGeometry } from './metrics';
 
 const box = (x: number, y: number, width: number, height: number) => ({ x, y, width, height });
 
@@ -414,5 +414,129 @@ describe('scoreLayout', () => {
       };
       expect(scoreLayout(geometry).collinearOverlap).toEqual({ incidents: 0, length: 0 });
     });
+  });
+
+  describe('outlineHugging (#151)', () => {
+    it('counts an edge segment running down the side of its own node — the screenshot bug, not excluded like edgeThroughNode', () => {
+      // The relation's own field port exits table `a` on its left edge, then
+      // runs straight down, tracing `a`'s own left border for a long stretch
+      // before turning to reach `b` — exactly what the #151 report screenshot
+      // showed for `legacy_api_tokens`: a line drawn on top of its own card.
+      const geometry: LayoutGeometry = {
+        nodes: [
+          { id: 'a', box: box(0, 0, 160, 120) },
+          { id: 'b', box: box(400, 280, 160, 40) },
+        ],
+        edges: [
+          {
+            id: 'a-b',
+            from: 'a',
+            to: 'b',
+            points: [
+              { x: 0, y: 60 },
+              { x: 0, y: 300 },
+              { x: 400, y: 300 },
+            ],
+          },
+        ],
+      };
+      const result = scoreLayout(geometry);
+      expect(result.outlineHugging.incidents).toBeGreaterThan(0);
+      expect(result.outlineHugging.length).toBeGreaterThan(0);
+    });
+
+    it('counts an edge segment running along its own aggregate/BC frame border, not only a frame it does not belong to', () => {
+      const geometry: LayoutGeometry = {
+        nodes: [
+          { id: 'a', box: box(0, 0, 100, 40) },
+          { id: 'b', box: box(300, 0, 100, 40) },
+        ],
+        edges: [
+          {
+            id: 'a-b',
+            from: 'a',
+            to: 'b',
+            points: [
+              { x: 50, y: 40 },
+              { x: 50, y: 150 },
+              { x: 350, y: 150 },
+            ],
+          },
+        ],
+        // `a-b` joins a table inside this frame, so it is not a `frameViolations`
+        // obstacle — but a segment drawn along the frame's own bottom border
+        // is still the #151 readability problem, so it must still count here.
+        frames: [{ id: 'frame', box: box(-20, -20, 420, 170), members: ['a', 'b'] }],
+      };
+      const result = scoreLayout(geometry);
+      expect(result.outlineHugging.incidents).toBeGreaterThan(0);
+      expect(result.outlineHugging.length).toBeGreaterThan(0);
+    });
+
+    it('does not count a segment that merely touches a border perpendicularly at a port, with no parallel run', () => {
+      const geometry: LayoutGeometry = {
+        nodes: [
+          { id: 'a', box: box(0, 0, 100, 40) },
+          { id: 'b', box: box(200, 0, 100, 40) },
+        ],
+        edges: [
+          {
+            id: 'a-b',
+            from: 'a',
+            to: 'b',
+            points: [
+              { x: 100, y: 20 },
+              { x: 200, y: 20 },
+            ],
+          },
+        ],
+      };
+      expect(scoreLayout(geometry).outlineHugging).toEqual({ incidents: 0, length: 0 });
+    });
+
+    it('does not count a short stub below the minimum overlap length', () => {
+      const geometry: LayoutGeometry = {
+        nodes: [
+          { id: 'a', box: box(0, 0, 160, 120) },
+          { id: 'b', box: box(400, 280, 160, 40) },
+        ],
+        edges: [
+          {
+            id: 'a-b',
+            from: 'a',
+            to: 'b',
+            // Same shape as the first test above, but the vertical run next to
+            // `a`'s left border is only 8px — too short to read as "traced on
+            // the card", so it must stay under the minimum-overlap filter.
+            points: [
+              { x: 0, y: 60 },
+              { x: 0, y: 68 },
+              { x: 400, y: 68 },
+            ],
+          },
+        ],
+      };
+      expect(scoreLayout(geometry).outlineHugging).toEqual({ incidents: 0, length: 0 });
+    });
+  });
+});
+
+describe('routeHugsOutline', () => {
+  it('is true for a route that runs down the side of a box it passes near, including a box it starts inside', () => {
+    const route = [
+      { x: 0, y: 60 },
+      { x: 0, y: 300 },
+      { x: 400, y: 300 },
+    ];
+    expect(routeHugsOutline(route, [box(0, 0, 160, 120)])).toBe(true);
+  });
+
+  it('is false for a route that stays clear of every given box', () => {
+    const route = [
+      { x: 80, y: 120 },
+      { x: 80, y: 300 },
+      { x: 400, y: 300 },
+    ];
+    expect(routeHugsOutline(route, [box(0, 0, 160, 120), box(400, 280, 160, 40)])).toBe(false);
   });
 });
