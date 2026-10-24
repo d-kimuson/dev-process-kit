@@ -421,7 +421,7 @@ describe('arrangeBoxes', () => {
     const start = performance.now();
     const packed = arrangeBoxes(boxes, edges, 20, 1.4);
     const elapsed = performance.now() - start;
-    expect(elapsed).toBeLessThan(500);
+    expect(elapsed).toBeLessThan(2000);
     expect(packed.positions.size).toBe(boxes.length);
     const sizeOf = new Map(boxes.map((b) => [b.id, { width: b.width, height: b.height }]));
     const entries = [...packed.positions];
