@@ -78,7 +78,14 @@ export const appendAction = (
   const key = dedupeKeyOf(action, descriptor);
   if (key === null) return [...actions, action];
   const previous = actions.at(-1);
-  if (!previous || dedupeKeyOf(previous, descriptor) !== key || !sameTargetDescriptor(previous, action)) {
+  // A key is only meaningful among actions of one type: a descriptor's `dedupeKey` may read
+  // payload fields another type shares (a rename and an addition both carry a board id).
+  if (
+    !previous ||
+    previous.type !== action.type ||
+    dedupeKeyOf(previous, descriptor) !== key ||
+    !sameTargetDescriptor(previous, action)
+  ) {
     return [...actions, action];
   }
   return [...actions.slice(0, -1), action];

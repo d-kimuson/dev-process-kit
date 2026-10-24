@@ -370,6 +370,25 @@ describe('<dpk-page>', () => {
       return input;
     };
 
+    it('keeps a board added just before: renaming it must not drop its ADD_BOARD', async () => {
+      const { page, board, settle } = await mount();
+      trigger(page).click();
+      await page.updateComplete;
+      page.renderRoot.querySelector<HTMLElement>('[data-key="add"]')?.click();
+      await page.updateComplete;
+      page.renderRoot.querySelector<HTMLElement>('[data-key="template:usm"]')?.click();
+      await settle();
+      startEditing(page);
+      await page.updateComplete;
+      const input = field(page);
+      input.value = 'Roadmap';
+      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await settle();
+      expect(page.api.actions.map((action) => action.type)).toEqual(['ADD_BOARD', 'RENAME_BOARD']);
+      expect(board('usm').hidden).toBe(false);
+    });
+
     it('commits a rename on Enter, recorded in the draft and undoable', async () => {
       const { page } = await mount();
       startEditing(page);
