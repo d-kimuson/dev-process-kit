@@ -204,6 +204,21 @@ export class DpkErDiagram extends DiagramElement<ErData> {
   #cardinalityEditor: CardinalityEditor | null = null;
   /** Which columns render: every one, only keys (so the relationships alone can be read), or none (header only). */
   #columnFilter: 'all' | 'keys' | 'tables-only' = 'all';
+  /**
+   * Whether the Bounded Context / aggregate frames draw at all (bottom
+   * controls bar, like `#columnFilter` above) — on by default, matching the
+   * previously always-on behavior. Reader-local, in-memory only, like
+   * `#columnFilter`: neither is part of the draft, and this component has no
+   * other precedent for persisting a view toggle across reloads.
+   *
+   * Deliberately visual-only: hiding a frame never reruns layout or routing.
+   * The tables stay exactly where the grouped layout placed them, and
+   * `#routes` keeps avoiding the same (now undrawn) frame boundaries, so a
+   * toggle click never redoes `computePlacement` or the route search — the
+   * one thing #152/#153 made expensive on a large schema.
+   */
+  #groupByBoundedContext = true;
+  #groupByAggregate = true;
   /** `#routes`' memoised full batch result, see its own doc comment. */
   #routesCache: { readonly signature: string; readonly result: ReadonlyMap<string, readonly LayoutPoint[]> } | null =
     null;
@@ -540,7 +555,13 @@ export class DpkErDiagram extends DiagramElement<ErData> {
     </div>`;
   }
 
-  /** Beside zoom and maximize: how much of each table's columns render. */
+  /**
+   * Beside zoom and maximize: how much of each table's columns render, and
+   * whether the Bounded Context / aggregate frames draw at all. The second
+   * group only flips `#groupByBoundedContext` / `#groupByAggregate`
+   * (gating `renderCanvas`'s frame `<div>`s) and never touches placement, so
+   * a click here is as cheap as a column-filter click.
+   */
   protected override renderControls(): TemplateResult {
     const m = erDiagramMessages(this.locale);
     const options: readonly { readonly value: 'all' | 'keys' | 'tables-only'; readonly label: string }[] = [
@@ -548,19 +569,54 @@ export class DpkErDiagram extends DiagramElement<ErData> {
       { value: 'keys', label: m.columnFilterKeys },
       { value: 'tables-only', label: m.columnFilterTablesOnly },
     ];
-    return html`<div class="dpk-segmented er-column-filter" role="group" aria-label=${m.columnFilterLabel}>
-      ${options.map(
-        (option) => html`<button
-          type="button"
-          aria-pressed=${this.#columnFilter === option.value ? 'true' : 'false'}
-          @click=${() => {
-            this.#columnFilter = option.value;
-            this.requestUpdate();
-          }}
-        >
-          ${option.label}
-        </button>`,
-      )}
+    const groupingOptions: readonly {
+      readonly pressed: boolean;
+      readonly label: string;
+      readonly onClick: () => void;
+    }[] = [
+      {
+        pressed: this.#groupByBoundedContext,
+        label: m.boundedContextLabel,
+        onClick: () => {
+          this.#groupByBoundedContext = !this.#groupByBoundedContext;
+          this.requestUpdate();
+        },
+      },
+      {
+        pressed: this.#groupByAggregate,
+        label: m.aggregateLabel,
+        onClick: () => {
+          this.#groupByAggregate = !this.#groupByAggregate;
+          this.requestUpdate();
+        },
+      },
+    ];
+    return html`<div class="er-controls-row">
+      <div class="dpk-segmented er-column-filter" role="group" aria-label=${m.columnFilterLabel}>
+        ${options.map(
+          (option) => html`<button
+            type="button"
+            aria-pressed=${this.#columnFilter === option.value ? 'true' : 'false'}
+            @click=${() => {
+              this.#columnFilter = option.value;
+              this.requestUpdate();
+            }}
+          >
+            ${option.label}
+          </button>`,
+        )}
+      </div>
+      <div class="dpk-segmented er-grouping-filter" role="group" aria-label=${m.groupingLabel}>
+        ${groupingOptions.map(
+          (option) => html`<button
+            type="button"
+            aria-pressed=${option.pressed ? 'true' : 'false'}
+            @click=${option.onClick}
+          >
+            ${option.label}
+          </button>`,
+        )}
+      </div>
     </div>`;
   }
 
@@ -735,20 +791,29 @@ export class DpkErDiagram extends DiagramElement<ErData> {
         </g>
       `;
     });
-    const bcGroups = boundedContextGroups(
-      visible.nodes.map((table) => ({
-        id: table.id,
-        boundedContext: table.boundedContext,
-        box: this.placedNode(table.id) ?? null,
-      })),
-    );
-    const groups = aggregateGroups(
-      visible.nodes.map((table) => ({
-        id: table.id,
-        aggregate: table.aggregate,
-        box: this.placedNode(table.id) ?? null,
-      })),
-    );
+    // Hiding a frame (bottom controls bar) never touches placement: the tables
+    // underneath stay at the boxes `computePlacement` already gave them, and
+    // `#routes` keeps avoiding the same (now undrawn) frame boundaries — only
+    // which of these two arrays is non-empty changes, so toggling never reruns
+    // layout or re-routes a single relation.
+    const bcGroups = this.#groupByBoundedContext
+      ? boundedContextGroups(
+          visible.nodes.map((table) => ({
+            id: table.id,
+            boundedContext: table.boundedContext,
+            box: this.placedNode(table.id) ?? null,
+          })),
+        )
+      : [];
+    const groups = this.#groupByAggregate
+      ? aggregateGroups(
+          visible.nodes.map((table) => ({
+            id: table.id,
+            aggregate: table.aggregate,
+            box: this.placedNode(table.id) ?? null,
+          })),
+        )
+      : [];
     return html`${bcGroups.map(
       (group) =>
         html`<div

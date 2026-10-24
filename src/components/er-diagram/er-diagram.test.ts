@@ -2170,6 +2170,55 @@ describe('dpk-er-diagram', () => {
       await settle(element);
       expect(fieldsOf('customers')).toEqual(['id', 'email', 'note']);
     });
+
+    it('toggles the Bounded Context and aggregate frames independently from the bottom controls bar, without moving any table', async () => {
+      const element = await mount2();
+      const group = (): HTMLElement => {
+        const node = element.renderRoot.querySelector('.er-grouping-filter');
+        if (!(node instanceof HTMLElement)) throw new Error('no grouping control');
+        return node;
+      };
+      const toggle = (label: string): HTMLButtonElement => {
+        const button = [...group().querySelectorAll('button')].find(
+          (candidate) => candidate.textContent?.trim() === label,
+        );
+        if (!(button instanceof HTMLButtonElement)) throw new Error(`no toggle for ${label}`);
+        return button;
+      };
+      const positionsOf = (id: string) => {
+        const table = element.renderRoot.querySelector<HTMLElement>(`[data-er-table="${id}"]`);
+        return { left: table?.style.left, top: table?.style.top };
+      };
+      const before = { customers: positionsOf('customers'), profiles: positionsOf('profiles') };
+
+      // Both frames show by default, and both toggles report pressed.
+      expect(element.renderRoot.querySelector('.er-bc')).not.toBeNull();
+      expect(element.renderRoot.querySelector('.er-aggregate')).not.toBeNull();
+      expect(toggle(m.boundedContextLabel).getAttribute('aria-pressed')).toBe('true');
+      expect(toggle(m.aggregateLabel).getAttribute('aria-pressed')).toBe('true');
+
+      toggle(m.boundedContextLabel).click();
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-bc')).toBeNull();
+      expect(element.renderRoot.querySelector('.er-aggregate')).not.toBeNull();
+      expect(toggle(m.boundedContextLabel).getAttribute('aria-pressed')).toBe('false');
+
+      toggle(m.aggregateLabel).click();
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-bc')).toBeNull();
+      expect(element.renderRoot.querySelector('.er-aggregate')).toBeNull();
+      expect(toggle(m.aggregateLabel).getAttribute('aria-pressed')).toBe('false');
+
+      // Hiding the frames is purely visual: no table moved.
+      expect(positionsOf('customers')).toEqual(before.customers);
+      expect(positionsOf('profiles')).toEqual(before.profiles);
+
+      toggle(m.boundedContextLabel).click();
+      toggle(m.aggregateLabel).click();
+      await settle(element);
+      expect(element.renderRoot.querySelector('.er-bc')).not.toBeNull();
+      expect(element.renderRoot.querySelector('.er-aggregate')).not.toBeNull();
+    });
   });
 
   describe('whole-table drag', () => {

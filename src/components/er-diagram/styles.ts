@@ -999,12 +999,23 @@ export const erStyles = css`
    * Slotted into dpk-dialog-panel's own floating controls bar, beside zoom and
    * maximize: the \`.dpk-segmented\` atom (via \`controlAtom\`, composed into
    * this component's own styles) trimmed down to that bar's compact height.
+   * \`renderControls\` wraps both segmented groups (columns shown, grouping
+   * frames) in \`.er-controls-row\` so they sit side by side as one slotted
+   * flex item.
    */
-  .er-column-filter {
+  .er-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .er-column-filter,
+  .er-grouping-filter {
     height: 28px;
   }
 
-  .er-column-filter > button {
+  .er-column-filter > button,
+  .er-grouping-filter > button {
     padding: 0 10px;
     font-size: 10.5px;
   }

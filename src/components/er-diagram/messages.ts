@@ -75,6 +75,8 @@ export const erDiagramMessages = defineMessages({
     columnFilterKeys: 'Keys',
     columnFilterTablesOnly: 'Tables only',
     tableConstraintsLabel: 'Table-level constraints',
+    groupingLabel: 'Grouping',
+    boundedContextLabel: 'Bounded Context',
   },
   ja: {
     heading: 'ER図',
@@ -139,6 +141,8 @@ export const erDiagramMessages = defineMessages({
     columnFilterKeys: 'キーのみ',
     columnFilterTablesOnly: 'テーブルのみ',
     tableConstraintsLabel: 'テーブル制約',
+    groupingLabel: 'グルーピング',
+    boundedContextLabel: '境界づけられたコンテキスト',
   },
 });
 
