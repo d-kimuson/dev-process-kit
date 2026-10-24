@@ -33,14 +33,15 @@ events / slots だけを公開契約にする（Lit は実装詳細）。
 
 必要な文書だけを読む（Progressive Disclosure）。タスクに応じて次を参照する。
 
-| File                                                | Target                                          | When to refer                            |
-| :-------------------------------------------------- | :---------------------------------------------- | :--------------------------------------- |
-| [Harness](dev-docs/guidelines/harness.md)           | `AGENTS.md`, `docs/**`, `dev-docs/**`, `dev/**` | 指示・文書・lint 構成を変えるとき        |
-| [Architecture](dev-docs/guidelines/architecture.md) | `src/**`                                        | 責務境界や依存方向に関わる変更をするとき |
-| [Coding](dev-docs/guidelines/coding.md)             | `src/**`                                        | コードを書く・直すとき                   |
-| [Testing and QA](dev-docs/guidelines/qa.md)         | tests, browser verification                     | 検証方法を計画・実行するとき             |
-| [Commit](dev-docs/guidelines/commit.md)             | Git commits                                     | コミットを作成するとき                   |
-| [ADR](dev-docs/guidelines/adr.md)                   | `dev-docs/adr/**`                               | 意思決定を記録するとき                   |
+| File                                                      | Target                                          | When to refer                            |
+| :-------------------------------------------------------- | :---------------------------------------------- | :--------------------------------------- |
+| [Harness](dev-docs/guidelines/harness.md)                 | `AGENTS.md`, `docs/**`, `dev-docs/**`, `dev/**` | 指示・文書・lint 構成を変えるとき        |
+| [Architecture](dev-docs/guidelines/architecture.md)       | `src/**`                                        | 責務境界や依存方向に関わる変更をするとき |
+| [Coding](dev-docs/guidelines/coding.md)                   | `src/**`                                        | コードを書く・直すとき                   |
+| [Testing and QA](dev-docs/guidelines/qa.md)               | tests, browser verification                     | 検証方法を計画・実行するとき             |
+| [ER optimization](dev-docs/playbooks/erd-optimization.md) | ER layout/routing/labels, `dev/eval/**`         | ER の読みやすさを計測・改善するとき      |
+| [Commit](dev-docs/guidelines/commit.md)                   | Git commits                                     | コミットを作成するとき                   |
+| [ADR](dev-docs/guidelines/adr.md)                         | `dev-docs/adr/**`                               | 意思決定を記録するとき                   |
 
 利用者向け文書は `docs/index.md`（利用方法と API 契約）と `docs/templates/*` / `docs/components/*`（個別ページ）で、npm パッケージには含めない。利用者（Agent）は `skills/dev-process-kit/SKILL.md` に従い、npm で最新バージョンを調べ、そのバージョンの Git tag（`v<version>`）の docs を読む。docs の URL 例は `dev-process-kit@<version>` と書く。開発者向け文書（`dev-docs/`）と混同しない。
 
