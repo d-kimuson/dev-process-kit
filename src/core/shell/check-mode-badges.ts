@@ -117,6 +117,8 @@ export class CheckModeBadgeController implements ReactiveController {
   #ownMarks = '';
   /** Shadow roots listened to for scrolls: a scroll inside one never reaches the document. */
   readonly #scrollRoots = new Set<ShadowRoot>();
+  /** The frame loop that keeps badges on their targets while a canvas pans or the page scrolls. */
+  #frame: number | null = null;
 
   constructor(host: ReactiveControllerHost & HTMLElement, options: CheckModeBadgeOptions) {
     this.#host = host;
@@ -136,6 +138,7 @@ export class CheckModeBadgeController implements ReactiveController {
     window.removeEventListener('resize', this.#schedule);
     this.#host.removeEventListener('dpk-diagram-view', this.#schedule);
     this.#host.removeEventListener('dpk-canvas-change', this.#schedule);
+    this.#stopLoop();
     this.#observer?.disconnect();
     this.#observer = null;
     for (const root of this.#scrollRoots) root.removeEventListener('scroll', this.#schedule, true);
@@ -144,7 +147,10 @@ export class CheckModeBadgeController implements ReactiveController {
 
   hostUpdated(): void {
     this.#observer?.disconnect();
-    if (!this.#options.active()) return;
+    if (!this.#options.active()) {
+      this.#stopLoop();
+      return;
+    }
     const ownMarks = this.#ownMarksOf();
     if (ownMarks !== this.#ownMarks) {
       this.#ownMarks = ownMarks;
@@ -160,6 +166,7 @@ export class CheckModeBadgeController implements ReactiveController {
     }
     this.#listenForScrolls();
     this.#schedule();
+    this.#startLoop();
   }
 
   /** Places every badge again now, e.g. as soon as a top-layer layer has been shown (`./check-mode-top-layer`). */
@@ -180,13 +187,36 @@ export class CheckModeBadgeController implements ReactiveController {
     return Array.from(marks, (mark) => mark.getAttribute(TARGET_ATTRIBUTE) ?? '').join('|');
   }
 
+  #positionNow(): void {
+    if (!this.#options.active()) return;
+    const bindings = this.#options.bindings();
+    for (const layer of this.#options.layers()) positionCheckBadges(layer, bindings);
+  }
+
+  #startLoop(): void {
+    if (this.#frame !== null) return;
+    this.#frame = requestAnimationFrame(this.#tick);
+  }
+
+  #stopLoop(): void {
+    if (this.#frame === null) return;
+    cancelAnimationFrame(this.#frame);
+    this.#frame = null;
+  }
+
+  #tick = (): void => {
+    this.#frame = null;
+    if (!this.#options.active()) return;
+    this.#positionNow();
+    this.#frame = requestAnimationFrame(this.#tick);
+  };
+
   #schedule = (): void => {
     if (this.#pending || !this.#options.active()) return;
     this.#pending = true;
     requestAnimationFrame(() => {
       this.#pending = false;
-      const bindings = this.#options.bindings();
-      for (const layer of this.#options.layers()) positionCheckBadges(layer, bindings);
+      this.#positionNow();
     });
   };
 }

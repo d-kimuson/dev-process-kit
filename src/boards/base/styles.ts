@@ -32,6 +32,14 @@ export const chromeStyles = [
       min-height: 0;
     }
 
+    /* The panel is the board's frame: on a page-content board it takes the
+       rest of the host instead of the embedded diagram height. */
+    :host([data-dpk-page-content]) dpk-dialog-panel {
+      flex: 1;
+      min-height: 0;
+      --dpk-dialog-panel-height: 100%;
+    }
+
     .diagram-toolbar-rows {
       flex-shrink: 0;
       /* The toolbar arrives with the board rather than before it: one fade, so

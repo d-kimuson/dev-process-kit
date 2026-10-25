@@ -27,6 +27,8 @@ export type PageContentElement = HTMLElement & {
   readonly controller: { replaceActions(actions: readonly unknown[]): void };
   /** Resolves once the content is upgraded and has read its own base. */
   readonly ready?: Promise<void>;
+  /** A board's own reset/fit; a view has no such viewport. */
+  readonly resetView?: () => void;
   requestUpdate(): void;
 };
 
@@ -151,6 +153,9 @@ export class PageElement extends LitElement {
       if (this.name !== null) console.warn(`[dev-process-kit] <dpk-page name="${this.name}"> holds no view or board`);
       return;
     }
+    // A board that is a page's whole subject fills the page's box; it does not
+    // carry the marker itself (a view sets its own).
+    if (content.localName.startsWith('dpk-board-')) content.setAttribute('data-dpk-page-content', '');
     if (contents.length > 1) {
       console.warn(
         `[dev-process-kit] <dpk-page name="${this.name}"> holds ${contents.length} views or boards; only the first is used`,
@@ -164,6 +169,8 @@ export class PageElement extends LitElement {
     void ready.then(() => {
       this.#resolveReady();
       this.requestUpdate();
+      // A page-content board opens fitted, the way entering fullscreen re-fits it.
+      if (content.localName.startsWith('dpk-board-')) requestAnimationFrame(() => content.resetView?.());
     });
     this.requestUpdate();
   }
