@@ -929,8 +929,14 @@
         max-width: 100%;
       }
 
+      /* A chart's SVG scales with its demo; let the demo take the stage's readable width so the
+         ticks and labels stay legible. */
+      .showcase-canvas:has(dpk-line-chart) > .demo {
+        width: 100%;
+      }
+
       /* A table's own content-based column widths shift as the search box filters rows; fit-content
-         sizing would track that and resize the whole demo, so it fills its stable max-width instead. */
+       * sizing would track that and resize the whole demo, so it fills its stable max-width instead. */
       .showcase-canvas:has(dpk-table) > .demo {
         width: 100%;
       }
@@ -1491,6 +1497,7 @@
               <a href="#catalog-stat">stat</a>
               <a href="#catalog-steps">steps</a>
               <a href="#catalog-progress">progress / meter</a>
+              <a href="#catalog-line-chart">line chart</a>
               <a href="#catalog-disclosure">disclosure</a>
               <a href="#catalog-tabs">tabs</a>
               <a href="#catalog-code">code</a>
@@ -3677,6 +3684,51 @@
                   </div>
                 </article>
 
+                <article id="catalog-line-chart" class="entry">
+                  <header>
+                    <h3>&lt;dpk-line-chart&gt;</h3>
+                  </header>
+                  <p>データから折れ線・補助線・マークを描く。</p>
+                  <div class="demo" data-code>
+                    <dpk-line-chart>
+                      <script type="application/json">
+                        {
+                          "title": "残りのストーリー",
+                          "caption": "19 → 4",
+                          "series": [
+                            {
+                              "id": "remaining",
+                              "label": "残り",
+                              "area": true,
+                              "points": [
+                                { "x": "08/01", "y": 19 },
+                                { "x": "08/04", "y": 17 },
+                                { "x": "08/07", "y": 15 },
+                                { "x": "08/10", "y": 12 },
+                                { "x": "08/13", "y": 7 },
+                                { "x": "08/15", "y": 4 }
+                              ]
+                            }
+                          ],
+                          "guides": [
+                            {
+                              "id": "ideal",
+                              "label": "理想",
+                              "points": [
+                                { "x": "08/01", "y": 19 },
+                                { "x": "08/15", "y": 0 }
+                              ]
+                            }
+                          ],
+                          "marks": [{ "x": "08/13", "label": "今日" }],
+                          "xAxis": { "label": "日付" },
+                          "yAxis": { "label": "件数", "min": 0 }
+                        }
+                      </script>
+                    </dpk-line-chart>
+                  </div>
+                </article>
+
                 <article id="catalog-disclosure" class="entry">
                   <header>
                     <h3>details.dpk-disclosure</h3>
@@ -4135,58 +4187,58 @@
 
                 <article id="catalog-mind-map" class="entry">
                   <header>
-                    <h3>&lt;dpk-mind-map&gt;</h3>
+                    <h3>&lt;dpk-board-mind-map&gt;</h3>
                   </header>
                   <p>1 つのテーマがどう分かれるか</p>
-                  <div class="stage" data-tag="dpk-mind-map"></div>
+                  <div class="stage" data-tag="dpk-board-mind-map"></div>
                 </article>
 
                 <article id="catalog-state-diagram" class="entry">
                   <header>
-                    <h3>&lt;dpk-state-diagram&gt;</h3>
+                    <h3>&lt;dpk-board-state-diagram&gt;</h3>
                   </header>
                   <p>どんな状態があり、何で移るか</p>
-                  <div class="stage" data-tag="dpk-state-diagram"></div>
+                  <div class="stage" data-tag="dpk-board-state-diagram"></div>
                 </article>
 
                 <article id="catalog-sequence-diagram" class="entry">
                   <header>
-                    <h3>&lt;dpk-sequence-diagram&gt;</h3>
+                    <h3>&lt;dpk-board-sequence-diagram&gt;</h3>
                   </header>
                   <p>参加者がどの順でやりとりするか</p>
-                  <div class="stage" data-tag="dpk-sequence-diagram"></div>
+                  <div class="stage" data-tag="dpk-board-sequence-diagram"></div>
                 </article>
 
                 <article id="catalog-dependency-graph" class="entry">
                   <header>
-                    <h3>&lt;dpk-dependency-graph&gt;</h3>
+                    <h3>&lt;dpk-board-dependency-graph&gt;</h3>
                   </header>
                   <p>何が何に依存し、どこが循環するか</p>
-                  <div class="stage" data-tag="dpk-dependency-graph"></div>
+                  <div class="stage" data-tag="dpk-board-dependency-graph"></div>
                 </article>
 
                 <article id="catalog-er-diagram" class="entry">
                   <header>
-                    <h3>&lt;dpk-er-diagram&gt;</h3>
+                    <h3>&lt;dpk-board-er-diagram&gt;</h3>
                   </header>
                   <p>2 つのスキーマの間で何が変わったか</p>
-                  <div class="stage" data-tag="dpk-er-diagram"></div>
+                  <div class="stage" data-tag="dpk-board-er-diagram"></div>
                 </article>
 
                 <article id="catalog-architecture-map" class="entry">
                   <header>
-                    <h3>&lt;dpk-architecture-map&gt;</h3>
+                    <h3>&lt;dpk-board-architecture-map&gt;</h3>
                   </header>
                   <p>どのサービスがどの境界にあるか</p>
-                  <div class="stage" data-tag="dpk-architecture-map"></div>
+                  <div class="stage" data-tag="dpk-board-architecture-map"></div>
                 </article>
 
                 <article id="catalog-kanban" class="entry">
                   <header>
-                    <h3>&lt;dpk-kanban&gt;</h3>
+                    <h3>&lt;dpk-board-kanban&gt;</h3>
                   </header>
                   <p>どの作業がどこまで進んでいるか</p>
-                  <div class="stage is-document" data-tag="dpk-kanban"></div>
+                  <div class="stage is-document" data-tag="dpk-board-kanban"></div>
                 </article>
 
                 <article id="catalog-dpk-matrix" class="entry">
