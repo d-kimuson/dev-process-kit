@@ -41,7 +41,7 @@
   </style>
   <h1>ERD · 長いテーブル名とカラム名</h1>
   <p>日本語・区切りのない英語・変更前後の型・複数の関連。拡大とドラッグで各テーブルを確認できます。</p>
-  <dpk-er-diagram id="long-schema" lang="ja">
+  <dpk-board-er-diagram id="long-schema" lang="ja">
     <script type="application/json">
       {
         "before": {
@@ -150,9 +150,9 @@
         }
       }
     </script>
-  </dpk-er-diagram>
+  </dpk-board-er-diagram>
   <script type="module">
     import { loadKit } from './kit.js';
-    await loadKit(['components.js']);
+    await loadKit(['components.js', 'boards.js']);
   </script>
 </html>
