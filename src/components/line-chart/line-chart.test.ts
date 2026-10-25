@@ -139,6 +139,9 @@ describe('dpk-line-chart', () => {
     expect(root?.querySelectorAll('.guide')).toHaveLength(1);
     expect(root?.querySelectorAll('.dpk-chart-mark')).toHaveLength(1);
     expect(root?.querySelectorAll('.dpk-chart-key')).toHaveLength(4);
+    // SVG children must be created in the SVG namespace, not HTML.
+    expect(root?.querySelector('.dpk-chart-line')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
+    expect(root?.querySelector('.dpk-chart-point')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
   });
 
   it('reads the same shape from a JSON child', async () => {

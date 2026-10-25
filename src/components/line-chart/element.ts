@@ -178,11 +178,11 @@ export class DpkLineChart extends LitElement {
 
   #renderSeries(series: LineChartSeriesLayout): TemplateResult | typeof nothing {
     if (series.path === '') return nothing;
-    return html`${series.areaPath === null ? nothing : html`<path class="dpk-chart-area" d=${series.areaPath} style=${toneStyle(series.tone)}></path>`}
+    return svg`${series.areaPath === null ? nothing : svg`<path class="dpk-chart-area" d=${series.areaPath} style=${toneStyle(series.tone)}></path>`}
       <path class="dpk-chart-line" d=${series.path} style=${toneStyle(series.tone)}></path>
       ${series.nodes.map(
         (node) =>
-          html`<circle
+          svg`<circle
             class="dpk-chart-point"
             cx=${node.x}
             cy=${node.y}
@@ -194,7 +194,7 @@ export class DpkLineChart extends LitElement {
 
   #renderGuide(guide: LineChartGuideLayout): TemplateResult | typeof nothing {
     if (guide.path === '') return nothing;
-    return html`<path
+    return svg`<path
       class="guide"
       d=${guide.path}
       style=${toneStyle(guide.tone)}
@@ -203,7 +203,7 @@ export class DpkLineChart extends LitElement {
   }
 
   #renderMark(mark: LineChartMarkLayout, top: number, baseline: number): TemplateResult {
-    return html`<line
+    return svg`<line
         class="dpk-chart-mark"
         x1=${mark.x}
         x2=${mark.x}
