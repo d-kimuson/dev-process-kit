@@ -235,25 +235,16 @@
       }
 
       .star-count {
-        min-width: 14px;
-        padding: 1px 5px;
-        border-radius: 999px;
-        background: var(--paper-sunken);
+        color: var(--ink-soft);
         font-family: var(--mono);
-        font-size: 10.5px;
+        font-size: 11px;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
-        text-align: center;
+        line-height: 1;
       }
 
       .star-count[hidden] {
         display: none;
-      }
-
-      @media (max-width: 560px) {
-        .star-button .star-label {
-          display: none;
-        }
       }
 
       /* ---- intro ---- */
@@ -288,6 +279,7 @@
         margin: 20px 0 0;
         color: var(--ink-soft);
         font-size: 15px;
+        line-height: 1.85;
       }
 
       /* The steps that follow the lede are the intro's main content; same clear gap as an entry's. */
@@ -303,6 +295,10 @@
         line-height: 1.75;
       }
 
+      .intro > .intro-lede + .hero-points {
+        margin-top: 10px;
+      }
+
       .hero-points li + li {
         margin-top: 4px;
       }
@@ -311,33 +307,35 @@
         margin-top: 24px;
       }
 
-      .code-tabs .dpk-segmented {
-        margin-bottom: 10px;
-      }
-
-      .code-tabs pre[hidden] {
-        display: none;
-      }
-
       /* ---- sections ---- */
 
       .samples section {
         padding-top: 64px;
       }
 
-      .samples h2 {
-        margin: 0;
+      .samples .dpk-prose > h2 {
+        margin: 36px 0 12px;
         font-size: 20px;
         font-weight: 700;
         letter-spacing: -0.015em;
       }
 
-      .samples h2 + p {
-        margin: 6px 0 0;
+      .samples .dpk-prose > h2:first-child {
+        margin-top: 0;
+      }
+
+      .samples .dpk-prose > h2 + p {
+        margin-top: 0;
         color: var(--ink-soft);
       }
 
-      .samples h3 {
+      .samples .dpk-prose > h3 {
+        margin: 24px 0 8px;
+        font-size: 15px;
+        font-weight: 650;
+      }
+
+      .samples .dpk-card h3 {
         margin: 0;
         font-size: 15px;
         font-weight: 650;
@@ -1428,27 +1426,11 @@
         { "title": "dev-process-kit" }
       </script>
       <!--
-        The repo and package links: the page's own fixed-header items, carried by the
-        same `slot="header"` a board uses for its own header content (docs/page.md) —
-        as direct children of <dpk-page> they land in the page's header instead of a
-        board's bar. `.dpk-icon-btn` is the kit's shared icon-button atom
-        (src/core/theme.ts#iconButtonCss); `data-variant="subtle"` keeps it visible at
-        rest since nothing else here reveals it on hover.
+        The repo star button and the package link: the page's own fixed-header items,
+        carried by the same `slot="header"` a board uses for its own header content
+        (docs/page.md). The GitHub mark and the star count are one link, so the count
+        doubles as the repository entry point.
       -->
-      <a
-        slot="header"
-        class="dpk-icon-btn"
-        data-variant="subtle"
-        href="https://github.com/d-kimuson/dev-process-kit"
-        aria-label="GitHub repository"
-        title="GitHub"
-      >
-        <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
-          <path
-            d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"
-          />
-        </svg>
-      </a>
       <a
         slot="header"
         class="star-button"
@@ -1460,9 +1442,10 @@
         title="Star dev-process-kit on GitHub"
       >
         <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
-          <path d="M8 1.3l2.02 4.1 4.53.66-3.28 3.2.77 4.5L8 11.64l-4.04 2.12.77-4.5L1.45 6.06l4.53-.66L8 1.3Z" />
+          <path
+            d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"
+          />
         </svg>
-        <span class="star-label">Star</span>
         <span class="star-count" data-github-stars-count hidden></span>
       </a>
       <a
@@ -1587,6 +1570,7 @@
               <a href="#catalog-disclosure">disclosure</a>
               <a href="#catalog-tabs">tabs</a>
               <a href="#catalog-code">code</a>
+              <a href="#catalog-code-group">code group</a>
               <a href="#catalog-dialog-panel">dialog panel</a>
               <a href="#catalog-commentable">commentable</a>
               <a href="#catalog-comment-popover">comment popover</a>
@@ -1619,6 +1603,7 @@
               <div class="intro">
                 <p class="dpk-eyebrow">dev-process-kit</p>
                 <h1 data-i18n="title">Agent が書く HTML のためのデザインシステム</h1>
+                <p class="lede intro-lede" data-i18n="intro">dev-process-kit は、Agent が生成するペライチの HTML に</p>
                 <ul class="hero-points">
                   <li data-i18n="pointData">Agent にとって解釈・記載しやすいデータ構造</li>
                   <li data-i18n="pointDesign">人間にとって見やすい図形や規定となるデザインシステム</li>
@@ -1660,56 +1645,36 @@
               <section class="dpk-prose" aria-labelledby="getting-started">
                 <h2 id="getting-started" data-i18n="gettingStartedTitle">Getting Started</h2>
                 <p data-i18n="gettingStartedLede">
-                  Agent にスキルを渡すか、Claude Code のプラグインとして入れるか、CDN から直接読み込んで試せます。
+                  Agent にスキルを渡すか、Claude Code のプラグインとして入れるか、プロンプトをそのまま試せます。
                 </p>
-                <div class="usage code-tabs" data-code-tabs>
-                  <div class="dpk-segmented" role="tablist" aria-label="Getting started">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected="true"
-                      data-code-tab="skills"
-                      data-i18n="agentSkills"
-                    >
-                      Agent Skills
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected="false"
-                      data-code-tab="claude"
-                      data-i18n="claudeCode"
-                    >
-                      Claude Code
-                    </button>
-                    <button type="button" role="tab" aria-selected="false" data-code-tab="try" data-i18n="tryIt">
-                      お試し
-                    </button>
-                  </div>
-                  <pre data-code-panel="skills"><code>npx skills add d-kimuson/dev-process-kit
-
-# then ask the agent:
-Create a USM for this product.
-Follow https://raw.githubusercontent.com/d-kimuson/dev-process-kit/main/skills/dev-process-kit/SKILL.md.</code></pre>
-                  <pre data-code-panel="claude" hidden><code>/plugin marketplace add d-kimuson/dev-process-kit
-/plugin install dev-process-kit@dev-process-kit</code></pre>
-                  <pre data-code-panel="try" hidden><code>&lt;script type="module"
-  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/views/plain.js"&gt;&lt;/script&gt;
-&lt;script type="module"
-  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/boards.js"&gt;&lt;/script&gt;
-
-&lt;dpk-app storage-key="try"&gt;
-  &lt;script type="application/json"&gt;{ "title": "Try" }&lt;/script&gt;
-  &lt;dpk-page name="try" label="Try"&gt;
-    &lt;dpk-view-plain&gt;…&lt;/dpk-view-plain&gt;
-  &lt;/dpk-page&gt;
-&lt;/dpk-app&gt;</code></pre>
-                  <p data-i18n="tryNote">
-                    そのまま開ける例は <a href="usm.html">USM</a> と
-                    <a href="diagrams.html">diagrams</a> にあります。詳しくは
-                    <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/</a> へ。
-                  </p>
-                </div>
+                <dpk-code-group>
+                  <script type="application/json">
+                    {
+                      "label": "Install",
+                      "variants": [
+                        {
+                          "label": "Agent Skills",
+                          "language": "sh",
+                          "code": "npx skills add d-kimuson/dev-process-kit"
+                        },
+                        {
+                          "label": "Claude Code",
+                          "language": "sh",
+                          "code": "/plugin marketplace add d-kimuson/dev-process-kit\n/plugin install dev-process-kit@dev-process-kit"
+                        },
+                        {
+                          "label": "お試し",
+                          "language": "md",
+                          "code": "USM を作成してください。\n\nFollow https://raw.githubusercontent.com/d-kimuson/dev-process-kit/main/skills/dev-process-kit/SKILL.md"
+                        }
+                      ]
+                    }
+                  </script>
+                </dpk-code-group>
+                <p data-i18n="tryNote">
+                  プロンプトを Agent に渡すと、USM の HTML が生成されます。詳しくは
+                  <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/</a> へ。
+                </p>
               </section>
 
               <section class="dpk-prose" aria-labelledby="features">
@@ -3852,6 +3817,39 @@ Follow https://raw.githubusercontent.com/d-kimuson/dev-process-kit/main/skills/d
                   </div>
                 </article>
 
+                <article id="catalog-code-group" class="entry">
+                  <header>
+                    <h3>&lt;dpk-code-group&gt;</h3>
+                  </header>
+                  <p>複数のコードをタブで切り替えるブロック。コピーは表示中のものだけをコピーする。</p>
+                  <div class="demo" data-code data-controls='{"hide":["code"]}'>
+                    <dpk-code-group>
+                      <script type="application/json">
+                        {
+                          "label": "Install",
+                          "variants": [
+                            {
+                              "label": "npm",
+                              "language": "sh",
+                              "code": "npm create dev-process-kit@latest"
+                            },
+                            {
+                              "label": "pnpm",
+                              "language": "sh",
+                              "code": "pnpm create dev-process-kit"
+                            },
+                            {
+                              "label": "yarn",
+                              "language": "sh",
+                              "code": "yarn create dev-process-kit"
+                            }
+                          ]
+                        }
+                      </script>
+                    </dpk-code-group>
+                  </div>
+                </article>
+
                 <article id="catalog-comment-thread" class="entry">
                   <header>
                     <h3>&lt;dpk-comment-thread&gt;</h3>
@@ -4539,6 +4537,7 @@ Follow https://raw.githubusercontent.com/d-kimuson/dev-process-kit/main/skills/d
         views: 'View',
         language: 'Language',
         title: 'A design system for the HTML an agent writes',
+        intro: 'dev-process-kit gives the single HTML page an agent writes',
         lede: 'One set of Web Components that gives the single HTML an agent writes an agent-friendly data shape, a design system humans read at a glance, and a standard process for building shared understanding. Built-in views such as USM and ERD — and custom ones composed from the design system — follow one loop.',
         pointData: 'Data structures an agent can read and write',
         pointDesign: 'A design system of shapes and rules a human reads at a glance',
@@ -4556,13 +4555,9 @@ Follow https://raw.githubusercontent.com/d-kimuson/dev-process-kit/main/skills/d
         optimized:
           'dev-process-kit is built for a single HTML page that has to work as-is: no build step, one script tag. Compose tokens, CSS atoms, components, views and boards into one page.',
         gettingStartedTitle: 'Getting Started',
-        gettingStartedLede:
-          'Hand the skill to an agent, install the Claude Code plugin, or load it from the CDN and try it.',
-        agentSkills: 'Agent Skills',
-        claudeCode: 'Claude Code',
-        tryIt: 'Try it',
+        gettingStartedLede: 'Hand the skill to an agent, install the Claude Code plugin, or try the prompt as-is.',
         tryNote:
-          'Open <a href="usm.html">USM</a> or <a href="diagrams.html">diagrams</a> as-is. The details are in <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/</a>.',
+          'Hand the prompt to an agent and it writes the USM HTML. The details are in <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/</a>.',
         featuresTitle: 'Features',
         featureDesignTitle: 'A one-page design system',
         featureDesignBody:
@@ -4774,19 +4769,6 @@ Follow https://raw.githubusercontent.com/d-kimuson/dev-process-kit/main/skills/d
             starCount.hidden = false;
           })
           .catch(() => {});
-      }
-
-      // Getting Started: one code block at a time.
-      for (const button of document.querySelectorAll('[data-code-tab]')) {
-        button.addEventListener('click', () => {
-          const tab = button.dataset.codeTab;
-          for (const other of document.querySelectorAll('[data-code-tab]')) {
-            other.setAttribute('aria-selected', String(other === button));
-          }
-          for (const panel of document.querySelectorAll('[data-code-panel]')) {
-            panel.hidden = panel.dataset.codePanel !== tab;
-          }
-        });
       }
 
       // Scale each live preview (rendered at 1280px wide) down to its card.
