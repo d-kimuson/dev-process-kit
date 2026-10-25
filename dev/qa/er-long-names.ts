@@ -15,11 +15,11 @@ const ab = (...args: string[]) =>
   }).trim();
 
 /** The diagram's canvas panel, which carries the pan/zoom transform and the control menu. */
-const panel = "document.querySelector('dpk-er-diagram').shadowRoot.querySelector('dpk-dialog-panel')";
+const panel = "document.querySelector('dpk-board-er-diagram').shadowRoot.querySelector('dpk-dialog-panel')";
 const worldTransform = `${panel}.shadowRoot.querySelector('[part~="world"]').style.transform`;
 
 const probe = `(() => {
-  const el = document.querySelector('dpk-er-diagram');
+  const el = document.querySelector('dpk-board-er-diagram');
   const root = el.shadowRoot;
   const cards = [...root.querySelectorAll('.er-table')];
   const errors = [];
@@ -69,11 +69,11 @@ try {
     ab('eval', 'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
     console.log(`${width}px: ${ab('eval', probe)}`);
   }
-  ab('eval', `document.querySelector('dpk-er-diagram').shadowRoot.querySelector('.er-head').click()`);
+  ab('eval', `document.querySelector('dpk-board-er-diagram').shadowRoot.querySelector('.er-head').click()`);
   console.log(
     ab(
       'eval',
-      `(() => { const el=document.querySelector('dpk-er-diagram'); if(el.selection?.kind!=='node') throw new Error('selection'); return 'PASS selection'; })()`,
+      `(() => { const el=document.querySelector('dpk-board-er-diagram'); if(el.selection?.kind!=='node') throw new Error('selection'); return 'PASS selection'; })()`,
     ),
   );
   const before = ab('eval', worldTransform);

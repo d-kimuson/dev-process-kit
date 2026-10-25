@@ -15,12 +15,13 @@ import pkg from './package.json' with { type: 'json' };
 const ENTRIES = {
   index: 'src/index.ts',
   components: 'src/entries/components.ts',
-  'templates/prototype': 'src/entries/prototype.ts',
-  'templates/usm': 'src/entries/usm.ts',
-  'templates/plain': 'src/entries/plain.ts',
-  'templates/slides': 'src/entries/slides.ts',
-  'templates/task-board': 'src/entries/task-board.ts',
-  'templates/delegation-poker': 'src/entries/delegation-poker.ts',
+  boards: 'src/entries/boards.ts',
+  'views/prototype': 'src/entries/prototype.ts',
+  'views/usm': 'src/entries/usm.ts',
+  'views/plain': 'src/entries/plain.ts',
+  'views/slides': 'src/entries/slides.ts',
+  'views/task-board': 'src/entries/task-board.ts',
+  'views/delegation-poker': 'src/entries/delegation-poker.ts',
 } as const satisfies Record<string, string>;
 
 // `exports` in package.json is the same list seen from a bundler; keep the two from drifting.

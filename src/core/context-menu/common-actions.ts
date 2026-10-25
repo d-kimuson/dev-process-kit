@@ -2,21 +2,21 @@
  * The context menu's one group that needs no per-component or per-template
  * code at all: it reads the target already resolved from the DOM
  * (`data-dpk-target` / `data-dpk-comment`, see `./provider.ts`) against
- * surface the template already exposes — `TemplateDefinition.hasTarget`
- * and `TemplateElement`'s own public `requestComment` — so "copy text",
+ * surface the template already exposes — `ViewDefinition.hasTarget`
+ * and `ViewElement`'s own public `requestComment` — so "copy text",
  * "give feedback" and so on map to behaviour that already exists, rather
  * than inventing new review semantics.
  */
-import type { TemplateDefinition, ActionTarget } from '../types';
+import type { ViewDefinition, ActionTarget } from '../types';
 import type { ContextMenuMessages } from './messages';
 import type { ContextMenuGroup, ContextMenuItem } from './types';
 
 import { copyText } from '../../lib/dom/clipboard';
 import { targetRef } from '../target';
 
-/** What `buildCommonContextMenuGroup` needs from the host element — `TemplateElement`'s public surface. */
+/** What `buildCommonContextMenuGroup` needs from the host element — `ViewElement`'s public surface. */
 export type CommonActionsHost = {
-  readonly definition: TemplateDefinition<unknown>;
+  readonly definition: ViewDefinition<unknown>;
   readonly requestComment: (target: string | ActionTarget) => void;
 };
 

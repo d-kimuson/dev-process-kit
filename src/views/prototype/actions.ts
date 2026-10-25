@@ -1,0 +1,287 @@
+import * as v from 'valibot';
+
+import type { ActionInput, DraftAction } from '../../core/types';
+
+import { defineAction, entityDedupeKey, entityIdSchema, type ActionSpecs, type ViewAction } from '../../core/schema';
+import {
+  PREVIEW_KINDS,
+  PREVIEW_VIEWPORTS,
+  paneSchema,
+  previewSchema,
+  uiNoteAtSchema,
+  uiNoteBodySchema,
+  uiTargetId,
+  UI_TARGET,
+  type PrototypePreview,
+  type StepPane,
+  type UiTarget,
+} from './model';
+
+const noteIdSchema = v.pipe(v.string(), v.minLength(1));
+
+/**
+ * One element can keep several notes, so an action on a note is told apart by
+ * the note it names, not by its target alone.
+ */
+const noteDedupeKey = (action: DraftAction): string => {
+  const payload = v.safeParse(v.object({ noteId: noteIdSchema }), action.payload);
+  return `${action.type}|${payload.success ? payload.output.noteId : JSON.stringify(action.payload)}`;
+};
+
+/**
+ * Prototype action vocabulary.
+ *
+ * Vocabulary stays in the template's domain language: no generic
+ * `SET_FIELD` / `MOVE`. Patch actions describe the *end state*, so
+ * replaying a draft is idempotent.
+ */
+export const prototypeActions = {
+  SET_ACTIVITY_NAME: defineAction(
+    'SET_ACTIVITY_NAME',
+    'activity',
+    v.object({ name: v.pipe(v.string(), v.minLength(1)) }),
+  ),
+  SET_ACTIVITY_DESCRIPTION: defineAction('SET_ACTIVITY_DESCRIPTION', 'activity', v.object({ description: v.string() })),
+  SET_STORY_NAME: defineAction('SET_STORY_NAME', 'story', v.object({ name: v.pipe(v.string(), v.minLength(1)) })),
+  SET_STORY_DESCRIPTION: defineAction('SET_STORY_DESCRIPTION', 'story', v.object({ description: v.string() })),
+  SET_STEP_NAME: defineAction('SET_STEP_NAME', 'step', v.object({ name: v.pipe(v.string(), v.minLength(1)) })),
+  SET_STEP_DESCRIPTION: defineAction('SET_STEP_DESCRIPTION', 'step', v.object({ description: v.string() })),
+
+  SET_PREVIEW_KIND: defineAction('SET_PREVIEW_KIND', 'preview', v.object({ kind: v.picklist(PREVIEW_KINDS) })),
+  SET_PREVIEW_VIEWPORT: defineAction(
+    'SET_PREVIEW_VIEWPORT',
+    'preview',
+    v.object({ viewport: v.picklist(PREVIEW_VIEWPORTS) }),
+  ),
+  SET_PREVIEW_LABEL: defineAction('SET_PREVIEW_LABEL', 'preview', v.object({ label: v.string() })),
+
+  REORDER_ACTIVITY: defineAction('REORDER_ACTIVITY', 'activity', v.object({ after: v.nullable(v.string()) }), {
+    mode: 'sequence',
+  }),
+  REORDER_STORY: defineAction('REORDER_STORY', 'story', v.object({ after: v.nullable(v.string()) }), {
+    mode: 'sequence',
+  }),
+  REORDER_STEP: defineAction('REORDER_STEP', 'step', v.object({ after: v.nullable(v.string()) }), { mode: 'sequence' }),
+  MOVE_STORY: defineAction(
+    'MOVE_STORY',
+    'story',
+    v.object({ toActivity: v.pipe(v.string(), v.minLength(1)), after: v.nullable(v.string()) }),
+    { mode: 'sequence' },
+  ),
+  MOVE_STEP: defineAction(
+    'MOVE_STEP',
+    'step',
+    v.object({ toStory: v.pipe(v.string(), v.minLength(1)), after: v.nullable(v.string()) }),
+    { mode: 'sequence' },
+  ),
+
+  ADD_ACTIVITY: defineAction(
+    'ADD_ACTIVITY',
+    'page',
+    v.object({
+      id: entityIdSchema,
+      name: v.pipe(v.string(), v.minLength(1)),
+      description: v.exactOptional(v.string()),
+    }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  ADD_STORY: defineAction(
+    'ADD_STORY',
+    'activity',
+    v.object({
+      id: entityIdSchema,
+      name: v.pipe(v.string(), v.minLength(1)),
+      description: v.exactOptional(v.string()),
+    }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  ADD_STEP: defineAction(
+    'ADD_STEP',
+    'story',
+    v.object({
+      id: entityIdSchema,
+      name: v.pipe(v.string(), v.minLength(1)),
+      description: v.exactOptional(v.string()),
+      /**
+       * What the user sees, in order: screens declared under `apps[].screens`
+       * (optionally pinned to one rendition) and materials at hand.
+       */
+      panes: v.exactOptional(v.array(paneSchema)),
+    }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  /** Adds a material at the end of a step's panes; the product's screens are base data only. */
+  ADD_PREVIEW: defineAction('ADD_PREVIEW', 'step', previewSchema, { dedupeKey: entityDedupeKey }),
+
+  DELETE_ACTIVITY: defineAction('DELETE_ACTIVITY', 'activity', v.object({})),
+  DELETE_STORY: defineAction('DELETE_STORY', 'story', v.object({})),
+  DELETE_STEP: defineAction('DELETE_STEP', 'step', v.object({})),
+  DELETE_PREVIEW: defineAction('DELETE_PREVIEW', 'preview', v.object({})),
+
+  /** Keeps a note on the element the `ui` target names, at the end of its preview's notes. */
+  ADD_UI_NOTE: defineAction(
+    'ADD_UI_NOTE',
+    UI_TARGET,
+    v.object({ id: entityIdSchema, body: uiNoteBodySchema, createdAt: v.exactOptional(uiNoteAtSchema) }),
+    { dedupeKey: entityDedupeKey },
+  ),
+  /** Rewrites what a note says; the last rewrite of the same note wins. */
+  SET_UI_NOTE_BODY: defineAction(
+    'SET_UI_NOTE_BODY',
+    UI_TARGET,
+    v.object({ noteId: noteIdSchema, body: uiNoteBodySchema }),
+    {
+      dedupeKey: noteDedupeKey,
+    },
+  ),
+  DELETE_UI_NOTE: defineAction('DELETE_UI_NOTE', UI_TARGET, v.object({ noteId: noteIdSchema }), {
+    dedupeKey: noteDedupeKey,
+  }),
+} satisfies ActionSpecs;
+
+/** The discriminated union of this template's actions. */
+export type PrototypeAction = ViewAction<typeof prototypeActions>;
+
+/**
+ * Ergonomic builders for template UI code. They only shape `ActionInput`;
+ * validation still happens in the core pipeline.
+ */
+export const prototypeAction = {
+  setActivityName: (id: string, name: string): ActionInput => ({
+    type: 'SET_ACTIVITY_NAME',
+    target: { type: 'activity', id },
+    payload: { name },
+  }),
+  setActivityDescription: (id: string, description: string): ActionInput => ({
+    type: 'SET_ACTIVITY_DESCRIPTION',
+    target: { type: 'activity', id },
+    payload: { description },
+  }),
+  setStoryName: (id: string, name: string): ActionInput => ({
+    type: 'SET_STORY_NAME',
+    target: { type: 'story', id },
+    payload: { name },
+  }),
+  setStoryDescription: (id: string, description: string): ActionInput => ({
+    type: 'SET_STORY_DESCRIPTION',
+    target: { type: 'story', id },
+    payload: { description },
+  }),
+  setStepName: (id: string, name: string): ActionInput => ({
+    type: 'SET_STEP_NAME',
+    target: { type: 'step', id },
+    payload: { name },
+  }),
+  setStepDescription: (id: string, description: string): ActionInput => ({
+    type: 'SET_STEP_DESCRIPTION',
+    target: { type: 'step', id },
+    payload: { description },
+  }),
+  setPreviewViewport: (id: string, viewport: PrototypePreview['viewport']): ActionInput => ({
+    type: 'SET_PREVIEW_VIEWPORT',
+    target: { type: 'preview', id },
+    payload: { viewport },
+  }),
+  setPreviewKind: (id: string, kind: PrototypePreview['kind']): ActionInput => ({
+    type: 'SET_PREVIEW_KIND',
+    target: { type: 'preview', id },
+    payload: { kind },
+  }),
+  setPreviewLabel: (id: string, label: string): ActionInput => ({
+    type: 'SET_PREVIEW_LABEL',
+    target: { type: 'preview', id },
+    payload: { label },
+  }),
+  reorderActivity: (id: string, after: string | null): ActionInput => ({
+    type: 'REORDER_ACTIVITY',
+    target: { type: 'activity', id },
+    payload: { after },
+  }),
+  reorderStory: (id: string, after: string | null): ActionInput => ({
+    type: 'REORDER_STORY',
+    target: { type: 'story', id },
+    payload: { after },
+  }),
+  reorderStep: (id: string, after: string | null): ActionInput => ({
+    type: 'REORDER_STEP',
+    target: { type: 'step', id },
+    payload: { after },
+  }),
+  moveStep: (id: string, toStory: string, after: string | null): ActionInput => ({
+    type: 'MOVE_STEP',
+    target: { type: 'step', id },
+    payload: { toStory, after },
+  }),
+  moveStory: (id: string, toActivity: string, after: string | null): ActionInput => ({
+    type: 'MOVE_STORY',
+    target: { type: 'story', id },
+    payload: { toActivity, after },
+  }),
+  addActivity: (id: string, name: string, description?: string): ActionInput => ({
+    type: 'ADD_ACTIVITY',
+    target: { type: 'page', id: 'prototype' },
+    payload: {
+      id,
+      name,
+      ...(description === undefined ? {} : { description }),
+    },
+  }),
+  addStory: (activityId: string, id: string, name: string, description?: string): ActionInput => ({
+    type: 'ADD_STORY',
+    target: { type: 'activity', id: activityId },
+    payload: {
+      id,
+      name,
+      ...(description === undefined ? {} : { description }),
+    },
+  }),
+  addStep: (storyId: string, id: string, name: string, panes?: readonly StepPane[]): ActionInput => ({
+    type: 'ADD_STEP',
+    target: { type: 'story', id: storyId },
+    payload: {
+      id,
+      name,
+      ...(panes === undefined ? {} : { panes }),
+    },
+  }),
+  addPreview: (stepId: string, preview: PrototypePreview): ActionInput => ({
+    type: 'ADD_PREVIEW',
+    target: { type: 'step', id: stepId },
+    payload: { ...preview },
+  }),
+  deleteActivity: (id: string): ActionInput => ({
+    type: 'DELETE_ACTIVITY',
+    target: { type: 'activity', id },
+    payload: {},
+  }),
+  deleteStory: (id: string): ActionInput => ({
+    type: 'DELETE_STORY',
+    target: { type: 'story', id },
+    payload: {},
+  }),
+  deleteStep: (id: string): ActionInput => ({
+    type: 'DELETE_STEP',
+    target: { type: 'step', id },
+    payload: {},
+  }),
+  deletePreview: (id: string): ActionInput => ({
+    type: 'DELETE_PREVIEW',
+    target: { type: 'preview', id },
+    payload: {},
+  }),
+  addUiNote: (target: UiTarget, id: string, body: string, createdAt?: string): ActionInput => ({
+    type: 'ADD_UI_NOTE',
+    target: { type: UI_TARGET, id: uiTargetId(target) },
+    payload: { id, body, ...(createdAt === undefined ? {} : { createdAt }) },
+  }),
+  setUiNoteBody: (target: UiTarget, noteId: string, body: string): ActionInput => ({
+    type: 'SET_UI_NOTE_BODY',
+    target: { type: UI_TARGET, id: uiTargetId(target) },
+    payload: { noteId, body },
+  }),
+  deleteUiNote: (target: UiTarget, noteId: string): ActionInput => ({
+    type: 'DELETE_UI_NOTE',
+    target: { type: UI_TARGET, id: uiTargetId(target) },
+    payload: { noteId },
+  }),
+};

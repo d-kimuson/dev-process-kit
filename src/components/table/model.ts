@@ -4,13 +4,13 @@ import type { ElementActionResult } from '../../core/element-actions';
 import type { DraftAction } from '../../core/types';
 import type { TableMessages } from './messages';
 
-import { elementRefSegments } from '../diagram/model';
+import { elementRefSegments } from '../../core/board-model';
 
 /**
  * Domain model of a generic table of records: typed columns, authored once,
  * and rows a reviewer can sort, group and filter without touching the data,
  * plus add, edit, delete and reorder through element actions (`reduceTableActions`)
- * the same way `dpk-kanban` records moves and new cards.
+ * the same way `dpk-board-kanban` records moves and new cards.
  */
 
 export const TABLE_TONES = ['gray', 'blue', 'green', 'amber', 'violet', 'red'] as const;

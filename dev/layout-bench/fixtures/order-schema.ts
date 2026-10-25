@@ -1,4 +1,4 @@
-// Extracted from sample/diagrams.html, <dpk-er-diagram id="order-schema">. Do not hand-edit; keep in sync if the sample changes.
+// Extracted from sample/diagrams.html, <dpk-board-er-diagram id="order-schema">. Do not hand-edit; keep in sync if the sample changes.
 
 export const orderSchemaFixtureBefore = {
   tables: [

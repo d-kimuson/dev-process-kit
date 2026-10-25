@@ -1,7 +1,7 @@
 /**
  * The element-side contracts a template and slot content see.
  *
- * `TemplateElement` implements `TemplateApi`; `TemplateRenderContext` is the
+ * `ViewElement` implements `ViewApi`; `ViewRenderContext` is the
  * read-only view handed to templates and author slot content.
  */
 import type { TemplateResult, nothing } from 'lit';
@@ -20,7 +20,7 @@ import type {
   ValidationIssue,
 } from '../types';
 
-export type TemplateSnapshot<S> = {
+export type ViewSnapshot<S> = {
   readonly base: S;
   readonly state: S;
   readonly navigation: Navigation;
@@ -34,7 +34,7 @@ export type TemplateSnapshot<S> = {
 };
 
 /** Read-only view handed to slot content and template components. */
-export type TemplateRenderContext<S> = {
+export type ViewRenderContext<S> = {
   readonly state: S;
   readonly base: S;
   readonly navigation: Navigation;
@@ -49,7 +49,7 @@ export type TemplateRenderContext<S> = {
   readonly requestComment: (target: string | ActionTarget) => void;
 };
 
-export type TemplateApi<S> = {
+export type ViewApi<S> = {
   readonly version: string;
   readonly template: string;
   readonly host: HTMLElement;
@@ -71,10 +71,10 @@ export type TemplateApi<S> = {
   importDraft(actions: readonly DraftAction[]): void;
   navigate(patch: NavigationPatch, options?: { replace?: boolean }): void;
   hashFor(patch: NavigationPatch): string;
-  snapshot(): TemplateSnapshot<S>;
+  snapshot(): ViewSnapshot<S>;
   exportDraft(): DraftExport;
   exportBrief(): string;
-  subscribe(listener: (snapshot: TemplateSnapshot<S>) => void): () => void;
+  subscribe(listener: (snapshot: ViewSnapshot<S>) => void): () => void;
 };
 
 /**

@@ -1,10 +1,17 @@
 import { LitElement, css, html, nothing, type CSSResultGroup } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
+import {
+  clearTags,
+  setTagMatch,
+  tagStateMatches,
+  toggleTag,
+  type TagMatch,
+  type TagState,
+} from '../../boards/base/model';
 import { LocaleController } from '../../core/locale-controller';
 import { tokens } from '../../core/theme';
 import { observeJsonChild } from '../../lib/dom/base-data';
-import { clearTags, setTagMatch, tagStateMatches, toggleTag, type TagMatch, type TagState } from '../diagram/model';
 import { tagFilterMessages, type TagFilterMessages } from './messages';
 import { normalizeOptions, parseTagFilterData, type TagFilterOption } from './model';
 

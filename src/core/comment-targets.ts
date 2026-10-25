@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 
-import type { CommentTargetOption, TemplateDefinition } from './types';
+import type { CommentTargetOption, ViewDefinition } from './types';
 
 import { elementActionResultSchema, isElementAction, type ElementActionResult } from './element-actions';
 import { targetRef } from './target';
@@ -39,10 +39,10 @@ const labelOf = (target: CommentTargetOption): string =>
  * only on the captured snapshot and domain state.
  */
 export const withComponentSnapshot = <S>(
-  definition: TemplateDefinition<S>,
+  definition: ViewDefinition<S>,
   targets: readonly CommentTargetOption[],
   results: ReadonlyMap<string, ElementActionResult>,
-): TemplateDefinition<S> => {
+): ViewDefinition<S> => {
   const byRef = new Map(targets.map((target) => [target.value, target]));
   return {
     ...definition,

@@ -5,11 +5,11 @@
  * browser does not paint.
  */
 
-import type { ErData, ErRelation } from '../../src/components/er-diagram/model';
+import type { ErData, ErRelation } from '../../src/boards/er-diagram/model';
 import type { LayoutGeometry } from '../../src/lib/layout/metrics';
 import type { AppraisalLabel } from './appraisal';
 
-import { relationLabelPlans } from '../../src/components/er-diagram/labels';
+import { relationLabelPlans } from '../../src/boards/er-diagram/labels';
 
 /**
  * Every label the view would paint for `data`'s edges, in the same world

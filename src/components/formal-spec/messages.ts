@@ -32,7 +32,7 @@ export const formalSpecMessages = defineMessages({
     bound: 'Checked within',
     gaps: 'Unfinished',
     commentOn: (label: string) => `Comment on ${label}`,
-    sendFailed: 'Could not send. Place this inside a dpk-template-* element.',
+    sendFailed: 'Could not send. Place this inside a dpk-view-* element.',
   },
   ja: {
     heading: '形式仕様',
@@ -65,7 +65,7 @@ export const formalSpecMessages = defineMessages({
     bound: '確認した範囲',
     gaps: '終わっていない部分',
     commentOn: (label: string) => `${label}にコメント`,
-    sendFailed: '送信できませんでした（dpk-template-* 要素の中に置いてください）。',
+    sendFailed: '送信できませんでした（dpk-view-* 要素の中に置いてください）。',
   },
 });
 

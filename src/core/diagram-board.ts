@@ -3,10 +3,10 @@
  *
  * A diagram component owns no template-like machinery of its own: when it
  * acts as a full board of `<dpk-page>` (or stands alone, outside any page),
- * it needs only a `TemplateDefinition` to drive a `DraftController` with —
+ * it needs only a `ViewDefinition` to drive a `DraftController` with —
  * exactly what a template needs. This is that definition, generic over every
  * diagram: the diagram keeps no state of its own (`DiagramBoardState`), since
- * its real data is the element actions its own `ElementChromeBase` already
+ * its real data is the element actions its own `BoardChromeBase` already
  * replays over its authored JSON (ADR 20260924_component-element-actions).
  * `derive()` never calls `apply()` for an element action or a comment, so
  * this definition's own state is never touched by either.
@@ -17,7 +17,7 @@
  * reuses it on itself, as its own (and only) provider.
  */
 import type { ElementActionResult } from './element-actions';
-import type { CommentTargetOption, TemplateDefinition } from './types';
+import type { CommentTargetOption, ViewDefinition } from './types';
 
 import { withComponentSnapshot } from './comment-targets';
 import { targetRef } from './target';
@@ -39,15 +39,16 @@ export type DiagramBoardSource = {
 };
 
 /**
- * A `TemplateDefinition` for a diagram acting as a whole board. Call it fresh
+ * A `ViewDefinition` for a diagram acting as a whole board. Call it fresh
  * wherever a live, externally-read `definition` is needed (e.g. a page's own
  * global comment composer); a `DraftController` that owns the actual draft
  * instead keeps itself fresh through `setComponentSnapshot` (the same
  * mechanism an embedded component's host uses), so it only needs the bare
  * form — omit `commentTargets`/`elementActionResults` for that case.
  */
-export const diagramBoardDefinition = (source: DiagramBoardSource): TemplateDefinition<DiagramBoardState> => {
-  const bare: TemplateDefinition<DiagramBoardState> = {
+export const diagramBoardDefinition = (source: DiagramBoardSource): ViewDefinition<DiagramBoardState> => {
+  const bare: ViewDefinition<DiagramBoardState> = {
+    kind: 'board',
     name: source.name,
     label: source.label,
     addable: false,

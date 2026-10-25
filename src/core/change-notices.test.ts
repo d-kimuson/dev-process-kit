@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DpkTemplatePlain } from '../templates/plain/element';
+import type { DpkViewPlain } from '../views/plain/element';
 
 import { coreMessages } from './messages';
 import { TOAST_MS } from './shell/change-notice-controller';
@@ -19,20 +19,20 @@ const changeLog = (revision: string) => ({
   ],
 });
 
-const mount = (log: unknown, storage = 'storage-key="notices"'): DpkTemplatePlain => {
+const mount = (log: unknown, storage = 'storage-key="notices"'): DpkViewPlain => {
   window.location.hash = '';
   document.body.innerHTML = `
-    <dpk-template-plain ${storage}>
+    <dpk-view-plain ${storage}>
       <script type="application/json" data-dpk-changes>${JSON.stringify(log)}</script>
       <script type="application/json">${JSON.stringify(base)}</script>
       <section slot="main" data-dpk-target="section:background"><h2>Background</h2></section>
-    </dpk-template-plain>`;
-  const element = document.querySelector('dpk-template-plain');
+    </dpk-view-plain>`;
+  const element = document.querySelector('dpk-view-plain');
   if (!(element instanceof HTMLElement)) throw new Error('element did not upgrade');
-  return element as DpkTemplatePlain;
+  return element as DpkViewPlain;
 };
 
-const settle = async (element: DpkTemplatePlain): Promise<void> => {
+const settle = async (element: DpkViewPlain): Promise<void> => {
   await element.api.ready;
   for (let i = 0; i < 3; i += 1) {
     await element.updateComplete;
@@ -40,14 +40,14 @@ const settle = async (element: DpkTemplatePlain): Promise<void> => {
   }
 };
 
-const root = (element: DpkTemplatePlain): ShadowRoot => {
+const root = (element: DpkViewPlain): ShadowRoot => {
   if (!element.shadowRoot) throw new Error('no shadow root');
   return element.shadowRoot;
 };
 
-const bell = (element: DpkTemplatePlain) => root(element).querySelector<HTMLButtonElement>('.dpk-bell');
-const badge = (element: DpkTemplatePlain) => root(element).querySelector('.dpk-bell-badge')?.textContent?.trim();
-const toasts = (element: DpkTemplatePlain) =>
+const bell = (element: DpkViewPlain) => root(element).querySelector<HTMLButtonElement>('.dpk-bell');
+const badge = (element: DpkViewPlain) => root(element).querySelector('.dpk-bell-badge')?.textContent?.trim();
+const toasts = (element: DpkViewPlain) =>
   [...root(element).querySelectorAll('.dpk-toast .dpk-change-title')].map((node) => node.textContent?.trim());
 const click = (node: Element | null | undefined): void => {
   if (!(node instanceof HTMLElement)) throw new Error('nothing to click');
@@ -66,9 +66,9 @@ afterEach(() => {
 
 describe('change notices', () => {
   it('puts no bell in the header of a page without a change log', async () => {
-    document.body.innerHTML = `<dpk-template-plain storage="memory">
-      <script type="application/json">${JSON.stringify(base)}</script></dpk-template-plain>`;
-    const element = document.querySelector('dpk-template-plain') as DpkTemplatePlain;
+    document.body.innerHTML = `<dpk-view-plain storage="memory">
+      <script type="application/json">${JSON.stringify(base)}</script></dpk-view-plain>`;
+    const element = document.querySelector('dpk-view-plain') as DpkViewPlain;
     await settle(element);
     expect(bell(element)).toBeNull();
   });

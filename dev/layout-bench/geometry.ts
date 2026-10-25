@@ -2,7 +2,7 @@ import type { LayoutGeometry } from '../../src/lib/layout/metrics';
 
 /**
  * `ErData` -> the geometry `scoreLayout` needs, built from the exact same
- * pipeline `dpk-er-diagram` runs: `erLayoutSpec` -> `layeredLayout` (same
+ * pipeline `dpk-board-er-diagram` runs: `erLayoutSpec` -> `layeredLayout` (same
  * `LAYOUT` tuning as the live element) -> `relationRoute` for every edge's
  * actual drawn polyline, plus `aggregateGroups`/`boundedContextGroups` for the
  * frame boxes. Nothing here is a simplified stand-in; this is the one place
@@ -10,9 +10,9 @@ import type { LayoutGeometry } from '../../src/lib/layout/metrics';
  * constants and the view's own routing/grouping functions rather than
  * reimplementing them.
  */
-import { LANE_MARGIN, LAYOUT } from '../../src/components/er-diagram/element';
-import { erLayoutSpec, type ErData } from '../../src/components/er-diagram/model';
-import { aggregateGroups, boundedContextGroups, relationRoutes } from '../../src/components/er-diagram/view';
+import { LANE_MARGIN, LAYOUT } from '../../src/boards/er-diagram/element';
+import { erLayoutSpec, type ErData } from '../../src/boards/er-diagram/model';
+import { aggregateGroups, boundedContextGroups, relationRoutes } from '../../src/boards/er-diagram/view';
 import { layeredLayout } from '../../src/lib/layout/layered';
 
 /**

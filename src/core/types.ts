@@ -5,17 +5,17 @@
  *
  * 1. **Public contract** (what generated HTML may use): custom elements,
  *    attributes, properties, DOM events and slots. That contract lives in
- *    `src/components` / `src/templates` and is documented in `docs/index.md`;
+ *    `src/components` / `src/views` and is documented in `docs/index.md`;
  *    nothing in this file is part of it.
  * 2. **Template extension API** (what a template implements or produces):
- *    `TemplateDefinition`, `ActionDescriptor`, `ActionInput`, `ApplyResult`,
+ *    `ViewDefinition`, `ActionDescriptor`, `ActionInput`, `ApplyResult`,
  *    `ActionDescription`, `CommentTargetOption`.
  * 3. **Internal pipeline types** (owned by the core, read by templates):
  *    `DraftAction`, `ActionTarget`, `ActionMode`, `ActionTone`, `Navigation`,
  *    `ValidationIssue`, `DispatchOutcome`.
  *
  * Everything here is template-agnostic: the core must never learn about
- * `Activity`, `UserStory`, `DomainEvent`, ... Those live in `src/templates/*`.
+ * `Activity`, `UserStory`, `DomainEvent`, ... Those live in `src/views/*`.
  * A template's action union is derived from its own action map
  * (`src/core/schema.ts`), so payload types are never written twice.
  */
@@ -113,7 +113,7 @@ export type CommentTargetOption = {
 };
 
 /** One switch of the page's settings. Flipping it is a change of the draft, so the agent sees it. */
-export type TemplateSetting = {
+export type ViewSetting = {
   /** Stable within the template; exposed as `data-setting` on the option. */
   readonly key: string;
   readonly label: string;
@@ -124,8 +124,8 @@ export type TemplateSetting = {
 };
 
 /** The page's settings menu: its switches, and a note under them. */
-export type TemplateSettings = {
-  readonly items: readonly TemplateSetting[];
+export type ViewSettings = {
+  readonly items: readonly ViewSetting[];
   readonly note?: string;
 };
 
@@ -133,21 +133,23 @@ export type TemplateSettings = {
  * The template contract. Everything here is a pure function of
  * `(baseState | derivedState, action)` so it can be unit tested without a DOM.
  *
- * Implemented by each `src/templates/<name>/definition.ts`; the element side
- * (`src/templates/<name>/element.ts`) only renders what this returns.
+ * Implemented by each `src/views/<name>/definition.ts`; the element side
+ * (`src/views/<name>/element.ts`) only renders what this returns.
  */
-export type TemplateDefinition<S> = {
-  /** Machine name, also exposed as `element.dataset.template`. */
+export type ViewDefinition<S> = {
+  /** Which tier the content belongs to: a page-only view, or an embeddable board. */
+  readonly kind: 'view' | 'board';
+  /** Machine name, also exposed as `element.dataset.view`. */
   readonly name: string;
   /** Human label used in shell chrome and exports. */
   readonly label: string;
 
   /**
-   * Whether a page's "+" may add an empty board of this template. Defaults to
-   * `true`; a template whose board only makes sense pre-filled by an agent
+   * Whether the app's "+" may add an empty page of this content. Defaults to
+   * `true`; content whose page only makes sense pre-filled by an agent
    * (it has nothing to show empty, or exists to hold data a reader does not
-   * author by hand) sets this to `false`. The page author can still add it by
-   * writing the board's HTML themselves — this only gates the reader's menu.
+   * author by hand) sets this to `false`. The author can still add it by
+   * writing the page's HTML themselves — this only gates the reader's menu.
    */
   readonly addable?: boolean;
 
@@ -233,7 +235,7 @@ export type TemplateDefinition<S> = {
    * The page's settings, behind the gear in the shared header. Without it (or
    * with no items) the header has no settings button.
    */
-  settings?(state: S): TemplateSettings;
+  settings?(state: S): ViewSettings;
 
   /** Title shown in the template chrome. */
   title(state: S): string;

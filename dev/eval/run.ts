@@ -9,7 +9,7 @@
  * corpus: real samples plus synthetic stress patterns.
  */
 
-import { parseErData, type ErData } from '../../src/components/er-diagram/model';
+import { parseErData, type ErData } from '../../src/boards/er-diagram/model';
 import { geometryOf } from '../layout-bench/geometry';
 import { FIXTURES } from '../layout-bench/run';
 import { appraiseGeometry, fitScaleFor, type Appraisal } from './appraisal';

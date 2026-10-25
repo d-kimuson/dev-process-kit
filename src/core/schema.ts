@@ -46,7 +46,7 @@ export const draftActionEnvelopeSchema = v.object({
  * template's payloads typed.
  *
  * `actionType` and `payloadSchema` are never read at runtime. They exist so that
- * `TemplateAction` can derive a discriminated union from a template's action
+ * `ViewAction` can derive a discriminated union from a template's action
  * map, which is what makes `apply`'s switch exhaustive and its payload typed.
  */
 /** The action object a spec's schema produces. */
@@ -82,7 +82,7 @@ export type PayloadOfSpec<D> = D extends { readonly payloadSchema: infer P exten
   : never;
 
 /** The discriminated union of a template's actions, derived from its action map. */
-export type TemplateAction<M extends ActionSpecs> = {
+export type ViewAction<M extends ActionSpecs> = {
   [K in ActionName<M>]: {
     readonly id: string;
     readonly type: K;
@@ -155,13 +155,13 @@ export const defineAction = <T extends string, P extends v.GenericSchema>(
  * union needs one assertion — the only one in the codebase, and it never runs
  * on unvalidated data.
  */
-export const parseTemplateAction = <M extends ActionSpecs>(specs: M, action: DraftAction): TemplateAction<M> | null => {
+export const parseViewAction = <M extends ActionSpecs>(specs: M, action: DraftAction): ViewAction<M> | null => {
   const spec = ownAction(specs, action.type);
   if (spec === undefined) return null;
   const parsed = spec.parse(action);
   if (parsed === null) return null;
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- validated above; TS cannot correlate the lookup.
-  return parsed as TemplateAction<M>;
+  return parsed as ViewAction<M>;
 };
 
 /**

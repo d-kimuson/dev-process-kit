@@ -2,9 +2,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { DpkInlineEdit } from '../components/inline-edit';
-import type { DpkTemplatePrototype } from '../templates/prototype/element';
+import type { DpkViewPrototype } from '../views/prototype/element';
 
-import { prototypeAction } from '../templates/prototype/actions';
+import { prototypeAction } from '../views/prototype/actions';
 import {
   forgetUnsentText,
   recordUnsentText,
@@ -71,16 +71,16 @@ describe('keeping unsent text through a reload', () => {
     ],
   };
 
-  const mount = (): DpkTemplatePrototype => {
+  const mount = (): DpkViewPrototype => {
     document.body.innerHTML = `
-      <dpk-template-prototype storage-key="unsent-test" notes="on">
+      <dpk-view-prototype storage-key="unsent-test" notes="on">
         <script type="application/json">${JSON.stringify(base)}</script>
         <div slot="preview" data-preview-id="landing-mobile"><input id="mock-field" /></div>
-      </dpk-template-prototype>`;
-    return document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+      </dpk-view-prototype>`;
+    return document.querySelector('dpk-view-prototype') as DpkViewPrototype;
   };
 
-  const settle = async (el: DpkTemplatePrototype): Promise<void> => {
+  const settle = async (el: DpkViewPrototype): Promise<void> => {
     await el.api.ready;
     await el.updateComplete;
     await Promise.resolve();
@@ -88,7 +88,7 @@ describe('keeping unsent text through a reload', () => {
   };
 
   /** Opens the step name editor and returns its field, focused as a click would. */
-  const openStepName = async (el: DpkTemplatePrototype): Promise<HTMLTextAreaElement> => {
+  const openStepName = async (el: DpkViewPrototype): Promise<HTMLTextAreaElement> => {
     const editor = el.shadowRoot?.querySelector<DpkInlineEdit>('.detail dpk-inline-edit');
     if (!editor) throw new Error('no step name editor');
     editor.startEditing();
@@ -134,7 +134,7 @@ describe('keeping unsent text through a reload', () => {
   });
 
   it('keeps a review comment through a reload until it is sent', async () => {
-    const composer = async (el: DpkTemplatePrototype): Promise<HTMLTextAreaElement> => {
+    const composer = async (el: DpkViewPrototype): Promise<HTMLTextAreaElement> => {
       const panel = el.shadowRoot?.querySelector('dpk-comment-panel');
       await (panel as DpkInlineEdit | null)?.updateComplete;
       const area = panel?.shadowRoot?.querySelector<HTMLTextAreaElement>('.composer textarea');

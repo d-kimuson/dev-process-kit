@@ -4,28 +4,28 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import pkg from '../package.json' with { type: 'json' };
-import { parseDelegationPokerBase } from './templates/delegation-poker/model';
-import { parsePlainBase } from './templates/plain/model';
-import { parsePrototypeBase } from './templates/prototype/model';
-import { parseSlidesBase } from './templates/slides/model';
-import { parseTaskBoardBase } from './templates/task-board/model';
-import { parseUsmBase } from './templates/usm/model';
+import { parseDelegationPokerBase } from './views/delegation-poker/model';
+import { parsePlainBase } from './views/plain/model';
+import { parsePrototypeBase } from './views/prototype/model';
+import { parseSlidesBase } from './views/slides/model';
+import { parseTaskBoardBase } from './views/task-board/model';
+import { parseUsmBase } from './views/usm/model';
 
 /**
  * A reader's first draft of a page is usually the Base data example copied straight out of
- * `docs/templates/<name>.md`. If that example cannot parse, every page built from it opens
+ * `docs/views/<name>.md`. If that example cannot parse, every page built from it opens
  * to the error banner. `vite.config.ts` already asserts `package.json`'s `exports` matches its
  * `ENTRIES`, so the public template entries there are the single source of truth for which
- * `docs/templates/<name>.md` pages exist — this list is not hand-maintained a second time here.
+ * `docs/views/<name>.md` pages exist — this list is not hand-maintained a second time here.
  */
 const TEMPLATE_NAMES = Object.keys(pkg.exports)
-  .filter((key) => key.startsWith('./templates/'))
-  .map((key) => key.replace('./templates/', ''));
+  .filter((key) => key.startsWith('./views/'))
+  .map((key) => key.replace('./views/', ''));
 
 /**
- * Each template's own `parse<Name>Base` (from `src/templates/<name>/model.ts`) is the strict
+ * Each template's own `parse<Name>Base` (from `src/views/<name>/model.ts`) is the strict
  * validator the custom element itself runs against the base data `<script>` child — the same
- * function wired into that template's `TemplateDefinition.parseBase`. The mapping is hand-written
+ * function wired into that template's `ViewDefinition.parseBase`. The mapping is hand-written
  * because every template names its parser differently; `TEMPLATE_NAMES` is what must not drift.
  */
 const parseBaseFor: Record<string, (input: unknown) => unknown> = {
@@ -50,14 +50,14 @@ const baseDataExample = (markdown: string): string | undefined => {
   return /```json\n([\s\S]*?)\n```/.exec(afterHeading)?.[1];
 };
 
-describe('docs/templates/*.md "## Base data" examples parse', () => {
+describe('docs/views/*.md "## Base data" examples parse', () => {
   it.each(TEMPLATE_NAMES)('%s.md', (name) => {
     const parseBase = parseBaseFor[name];
     expect(parseBase, `no parser wired up in parseBaseFor for template "${name}"`).toBeDefined();
 
     const markdown = doc(name);
     const json = baseDataExample(markdown);
-    expect(json, `docs/templates/${name}.md has no json example under "## Base data"`).toBeDefined();
+    expect(json, `docs/views/${name}.md has no json example under "## Base data"`).toBeDefined();
 
     const data: unknown = JSON.parse(json as string);
     expect(() => parseBase?.(data)).not.toThrow();

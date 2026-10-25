@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { DpkTemplatePrototype } from '../../templates/prototype/element';
+import { DpkViewPrototype } from '../../views/prototype/element';
 import '../../index';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './comment-targets';
 
 const mount = async () => {
-  const host = document.createElement('dpk-template-prototype');
-  if (!(host instanceof DpkTemplatePrototype)) throw new Error('not upgraded');
+  const host = document.createElement('dpk-view-prototype');
+  if (!(host instanceof DpkViewPrototype)) throw new Error('not upgraded');
   host.storage = 'memory';
   host.innerHTML = '<script type="application/json">{"title":"Review","activities":[]}</script>';
   document.body.append(host);

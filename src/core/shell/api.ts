@@ -1,6 +1,6 @@
 /**
  * The element's public facade: the read-only snapshot, the render context handed
- * to templates and slot content, and the `TemplateApi` object authors use.
+ * to templates and slot content, and the `ViewApi` object authors use.
  *
  * These are pure views over the element's state. The element owns the pipeline,
  * lifecycle and DOM wiring; keeping the views here means the facade can be read
@@ -15,10 +15,10 @@ import type {
   DispatchOutcome,
   Navigation,
   NavigationPatch,
-  TemplateDefinition,
+  ViewDefinition,
   ValidationIssue,
 } from '../types';
-import type { TemplateApi, TemplateSnapshot, TemplateRenderContext } from './contracts';
+import type { ViewApi, ViewSnapshot, ViewRenderContext } from './contracts';
 
 import { COMMENT_ACTION } from '../action';
 import { buildAgentBrief } from '../export';
@@ -26,8 +26,8 @@ import { targetRef } from '../target';
 import { FRAMEWORK_VERSION } from '../version';
 
 /** Everything the facade needs from the element, as plain accessors. */
-export type TemplateFacadeSource<S> = {
-  readonly definition: TemplateDefinition<S>;
+export type ViewFacadeSource<S> = {
+  readonly definition: ViewDefinition<S>;
   readonly controller: () => DraftController<S>;
   readonly derivation: () => Derivation<S>;
   readonly ready: Promise<void>;
@@ -35,7 +35,7 @@ export type TemplateFacadeSource<S> = {
   readonly issues: () => readonly ValidationIssue[];
   readonly dispatch: (input: ActionInput) => DispatchOutcome;
   readonly dispatchBatch: (inputs: readonly ActionInput[]) => BatchDispatchOutcome;
-  readonly subscribe: (listener: (snapshot: TemplateSnapshot<S>) => void) => () => void;
+  readonly subscribe: (listener: (snapshot: ViewSnapshot<S>) => void) => () => void;
   readonly editComment: (id: string, body: string) => DispatchOutcome;
   readonly removeAction: (id: string) => void;
   readonly clearActions: () => void;
@@ -43,11 +43,11 @@ export type TemplateFacadeSource<S> = {
   readonly hashFor: (patch: NavigationPatch) => string;
   readonly requestComment: (target: string | ActionTarget) => void;
   /** The brief for a snapshot; the plain brief of the definition when absent. */
-  readonly brief?: (snapshot: TemplateSnapshot<S>) => string;
+  readonly brief?: (snapshot: ViewSnapshot<S>) => string;
 };
 
 /** The immutable view emitted with `dpk-change` and returned by `snapshot()`. */
-export const snapshotOf = <S>(source: TemplateFacadeSource<S>): TemplateSnapshot<S> => {
+export const snapshotOf = <S>(source: ViewFacadeSource<S>): ViewSnapshot<S> => {
   const derivation = source.derivation();
   return {
     base: derivation.base,
@@ -63,7 +63,7 @@ export const snapshotOf = <S>(source: TemplateFacadeSource<S>): TemplateSnapshot
 };
 
 /** The read-only view templates render from. */
-export const renderContextOf = <S>(source: TemplateFacadeSource<S>): TemplateRenderContext<S> => {
+export const renderContextOf = <S>(source: ViewFacadeSource<S>): ViewRenderContext<S> => {
   const derivation = source.derivation();
   return {
     state: derivation.state,
@@ -88,8 +88,8 @@ export const renderContextOf = <S>(source: TemplateFacadeSource<S>): TemplateRen
  * The object behind `element.api`. Getters close over `source`, so the
  * facade always reads current state instead of a stale copy.
  */
-export const createTemplateApi = <S>(source: TemplateFacadeSource<S>, host: HTMLElement): TemplateApi<S> => {
-  const snapshot = (): TemplateSnapshot<S> => snapshotOf(source);
+export const createViewApi = <S>(source: ViewFacadeSource<S>, host: HTMLElement): ViewApi<S> => {
+  const snapshot = (): ViewSnapshot<S> => snapshotOf(source);
   return {
     version: FRAMEWORK_VERSION,
     template: source.definition.name,

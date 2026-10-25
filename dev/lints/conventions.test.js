@@ -3,7 +3,7 @@ import { describe, it } from 'vitest';
 
 import {
   colocatedTests,
-  coreTemplateBoundaries,
+  coreContentBoundaries,
   discardOnCancel,
   elementNaming,
   entrypointImports,
@@ -11,7 +11,7 @@ import {
   localizedText,
   noSideStripe,
   pureLayerBoundaries,
-  templateIsolation,
+  contentIsolation,
 } from './conventions.js';
 
 RuleTester.describe = describe;
@@ -21,10 +21,10 @@ const ruleTester = new RuleTester({ languageOptions: { parserOptions: { lang: 't
 
 const CORE = '/project/src/core';
 const LIB = '/project/src/lib';
-const USM = '/project/src/templates/usm';
-const PROTOTYPE = '/project/src/templates/prototype';
+const USM = '/project/src/views/usm';
+const PROTOTYPE = '/project/src/views/prototype';
 
-ruleTester.run('core-template-boundaries', coreTemplateBoundaries, {
+ruleTester.run('core-content-boundaries', coreContentBoundaries, {
   valid: [
     {
       name: 'core may import core',
@@ -37,29 +37,29 @@ ruleTester.run('core-template-boundaries', coreTemplateBoundaries, {
       filename: `${CORE}/schema.ts`,
     },
     {
-      name: 'templates may import core',
+      name: 'views may import core',
       code: "import { parseTemplateAction } from '../../core/schema';",
       filename: `${USM}/apply.ts`,
     },
   ],
   invalid: [
     {
-      name: 'core must not import a template',
-      code: "import type { UsmState } from '../templates/usm/model';",
+      name: 'core must not import a view',
+      code: "import type { UsmState } from '../views/usm/model';",
       filename: `${CORE}/controller.ts`,
-      errors: [{ message: /Core must not import a template or a component/ }],
+      errors: [{ message: /Core must not import a view, a board or a component/ }],
     },
     {
       name: 'core must not import a component',
       code: "import { DpkCommentPanel } from '../components/comment-panel';",
       filename: `${CORE}/element.ts`,
-      errors: [{ message: /Core must not import a template or a component/ }],
+      errors: [{ message: /Core must not import a view, a board or a component/ }],
     },
     {
-      name: 'core must not dynamically import a template',
-      code: "export const load = () => import('../templates/usm/model');",
+      name: 'core must not dynamically import a view',
+      code: "export const load = () => import('../views/usm/model');",
       filename: `${CORE}/controller.ts`,
-      errors: [{ message: /Core must not import a template/ }],
+      errors: [{ message: /Core must not import a view/ }],
     },
   ],
 });
@@ -97,32 +97,32 @@ ruleTester.run('lib-boundaries', libBoundaries, {
     },
     {
       name: 'lib must not import a template',
-      code: "import { usmDefinition } from '../../templates/usm/definition';",
+      code: "import { usmDefinition } from '../../views/usm/definition';",
       filename: `${LIB}/dom/events.ts`,
       errors: [{ message: /lib must stay dependency-free/ }],
     },
   ],
 });
 
-ruleTester.run('template-isolation', templateIsolation, {
+ruleTester.run('content-isolation', contentIsolation, {
   valid: [
     {
-      name: 'a template may import itself',
+      name: 'a view may import itself',
       code: "import { findStep } from './model';",
       filename: `${USM}/apply.ts`,
     },
     {
-      name: 'a template may import core',
+      name: 'a view may import core',
       code: "import { defineAction } from '../../core/schema';",
       filename: `${USM}/actions.ts`,
     },
   ],
   invalid: [
     {
-      name: 'a template must not import another template',
+      name: 'a view must not import another view',
       code: "import { prototypeDefinition } from '../prototype/definition';",
       filename: `${USM}/definition.ts`,
-      errors: [{ message: /must not import template 'prototype'/ }],
+      errors: [{ message: /must not import view 'prototype'/ }],
     },
   ],
 });
@@ -167,7 +167,7 @@ ruleTester.run('pure-layer-boundaries', pureLayerBoundaries, {
     {
       name: 'gesture transitions cannot import a DOM adapter',
       code: "import { openPopover } from '../../lib/dom/popover';",
-      filename: '/project/src/templates/event-storming/gesture.ts',
+      filename: '/project/src/boards/event-storming/gesture.ts',
       errors: [{ message: /must not import a DOM adapter or view/ }],
     },
     {
@@ -189,10 +189,10 @@ ruleTester.run('pure-layer-boundaries', pureLayerBoundaries, {
       errors: [{ message: /must not import Lit/ }],
     },
     {
-      name: 'pure modules must not import another template',
+      name: 'pure modules must not import another view',
       code: "import { usmDefinition } from '../usm/definition';",
       filename: `${PROTOTYPE}/present.ts`,
-      errors: [{ message: /must not depend on another template/ }],
+      errors: [{ message: /must not depend on another view or board/ }],
     },
     {
       name: 'reading a global through globalThis is still a global read',
@@ -271,8 +271,8 @@ const define = (tag, className) => `customElements.define('${tag}', ${className}
 ruleTester.run('element-naming', elementNaming, {
   valid: [
     {
-      name: 'a template registers dpk-template-<its directory>',
-      code: define('dpk-template-usm', 'DpkTemplateUsm'),
+      name: 'a view registers dpk-view-<its directory>',
+      code: define('dpk-view-usm', 'DpkViewUsm'),
       filename: `${USM}/element.ts`,
     },
     {
@@ -282,18 +282,18 @@ ruleTester.run('element-naming', elementNaming, {
     },
     {
       name: 'a component registers dpk-<its directory>',
-      code: define('dpk-er-diagram', 'DpkErDiagram'),
-      filename: '/project/src/components/er-diagram/index.ts',
+      code: define('dpk-board-er-diagram', 'DpkBoardErDiagram'),
+      filename: '/project/src/boards/er-diagram/index.ts',
     },
     {
       name: 'a component-owned sub-element is dpk-internal-<component>-*',
       code: define('dpk-internal-event-storming-note', 'DpkInternalEventStormingNote'),
-      filename: '/project/src/components/event-storming/components/note-card.ts',
+      filename: '/project/src/boards/event-storming/components/note-card.ts',
     },
     {
       name: 'tests may register fixtures under any name',
       code: define('tiny-diagram', 'TinyDiagram'),
-      filename: '/project/src/components/diagram/element.test.ts',
+      filename: '/project/src/boards/base/element.test.ts',
     },
     {
       name: 'a layout registers dpk-internal-layout-<its directory>',
@@ -317,19 +317,19 @@ ruleTester.run('element-naming', elementNaming, {
       name: 'the old artifact-* prefix is rejected',
       code: define('artifact-usm', 'DpkTemplateUsm'),
       filename: `${USM}/element.ts`,
-      errors: [{ message: /must be `dpk-template-usm` or `dpk-internal-usm-\*`/ }],
+      errors: [{ message: /must be `dpk-view-usm` or `dpk-internal-usm-\*`/ }],
     },
     {
-      name: 'a template must not register another template',
-      code: define('dpk-template-prototype', 'DpkTemplatePrototype'),
+      name: 'a view must not register another view',
+      code: define('dpk-view-prototype', 'DpkViewPrototype'),
       filename: `${USM}/element.ts`,
-      errors: [{ message: /must be `dpk-template-usm`/ }],
+      errors: [{ message: /must be `dpk-view-usm`/ }],
     },
     {
       name: 'a component tag follows its directory',
       code: define('dpk-erd', 'DpkErd'),
-      filename: '/project/src/components/er-diagram/index.ts',
-      errors: [{ message: /must be `dpk-er-diagram`/ }],
+      filename: '/project/src/boards/er-diagram/index.ts',
+      errors: [{ message: /must be `dpk-board-er-diagram`/ }],
     },
     {
       name: 'a layout tag follows its directory',
@@ -339,21 +339,21 @@ ruleTester.run('element-naming', elementNaming, {
     },
     {
       name: 'the class is the PascalCase of the tag',
-      code: define('dpk-template-usm', 'UsmElement'),
+      code: define('dpk-view-usm', 'UsmElement'),
       filename: `${USM}/element.ts`,
-      errors: [{ message: /must be named `DpkTemplateUsm`/ }],
+      errors: [{ message: /must be named `DpkViewUsm`/ }],
     },
     {
       name: 'the tag must be a string literal',
-      code: "const tag = 'dpk-template-usm'; customElements.define(tag, DpkTemplateUsm);",
+      code: "const tag = 'dpk-view-usm'; customElements.define(tag, DpkViewUsm);",
       filename: `${USM}/element.ts`,
       errors: [{ message: /string literal/ }],
     },
     {
-      name: 'nothing outside templates and components registers elements',
+      name: 'nothing outside views, boards and components registers elements',
       code: define('dpk-thing', 'DpkThing'),
       filename: `${CORE}/element.ts`,
-      errors: [{ message: /registered only in src\/templates/ }],
+      errors: [{ message: /registered only in src\/views/ }],
     },
   ],
 });
@@ -480,7 +480,7 @@ ruleTester.run('discard-on-cancel', discardOnCancel, {
     {
       name: 'a Cancel with no text field beside it',
       code: 'const view = html`<input type="checkbox" .checked=${skip} /><button @click=${cancel}>${m.confirmCancel}</button>`;',
-      filename: '/project/src/templates/delegation-poker/render/confirm.ts',
+      filename: '/project/src/views/delegation-poker/render/confirm.ts',
     },
     {
       name: 'a text field whose other buttons keep the text',
@@ -498,7 +498,7 @@ ruleTester.run('discard-on-cancel', discardOnCancel, {
     {
       name: 'a Cancel beside a text input',
       code: 'const view = html`<input type="text" .value=${name} /><div><button @click=${() => (this.naming = undefined)}>${m.cancel}</button></div>`;',
-      filename: '/project/src/templates/event-storming/element.ts',
+      filename: '/project/src/boards/event-storming/element.ts',
       errors: [{ message: /data-dpk-text-discard/ }],
     },
   ],

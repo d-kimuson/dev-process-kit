@@ -2,15 +2,15 @@
  * oxlint JS plugin — dev-process-kit project conventions.
  *
  * Rules:
- *   - core-template-boundaries: `src/core/**` must not import `src/templates/**` or `src/components/**`
- *   - lib-boundaries:           `src/lib/**` must not import core / components / templates
- *   - template-isolation:       a template must not import another template
- *   - pure-layer-boundaries:    pure modules must not reach DOM / Lit / other templates
+ *   - core-content-boundaries: `src/core/**` must not import a view, a board or a component
+ *   - lib-boundaries:           `src/lib/**` must not import core / components / views / boards
+ *   - content-isolation:       a view or board must not import another of its kind
+ *   - pure-layer-boundaries:    pure modules must not reach DOM / Lit / other views or boards
  *   - entrypoint-imports:       internal modules must not import the public entrypoint
  *                              (`src/index.ts`, `src/entries/*`)
  *   - colocated-tests:          test files must sit next to their source, not in `__tests__/`
- *   - element-naming:           custom element tags are `dpk-template-<name>` / `dpk-internal-<template>-*`
- *                              (in src/templates), `dpk-<name>` / `dpk-internal-<name>-*` (in src/components) or
+ *   - element-naming:           custom element tags are `dpk-view-<name>` or `dpk-board-<name>`, plus `dpk-internal-<name>-*`
+ *                              (in src/views), `dpk-<name>` / `dpk-internal-<name>-*` (in src/components) or
  *                              `dpk-internal-layout-<name>` (in src/core/layouts), and the registered class is
  *                              the tag in PascalCase
  *   - localized-text:           Japanese text in `src/**` lives only in `messages.ts` dictionaries
@@ -18,7 +18,7 @@
  *
  * The architecture this encodes is the one `dev-docs/guidelines/architecture.md`
  * describes: `lib` holds dependency-free helpers, `core` owns the pipeline and
- * must stay template-agnostic, `components` and `templates` are the shipped
+ * must stay content-agnostic, `components`, `views` and `boards` are the shipped
  * elements, and the public entrypoint composes them without being re-imported
  * from inside.
  *
@@ -38,19 +38,24 @@ const classify = (path) => {
   // `src/index.ts`, and `..` from `src/core` (which resolves to `src`), are both
   // the public entrypoint.
   if (target.endsWith('/src')) return { kind: 'entrypoint' };
-  // The template barrel is a composition root: it registers every template, so
-  // it is the one place allowed to import them all.
-  if (normalized.endsWith('/src/templates/index.ts')) return { kind: 'entrypoint' };
-  // `src/entries/*` are the shipped entrypoints (`components.js`,
-  // `templates/<name>.js`): they register elements and export the public API, so
+  // The view and board barrels are composition roots: they register every
+  // content, so they are the one place allowed to import them all.
+  if (normalized.endsWith('/src/views/index.ts') || normalized.endsWith('/src/boards/index.ts')) {
+    return { kind: 'entrypoint' };
+  }
+  // `src/entries/*` are the shipped entrypoints (`components.js`, `boards.js`,
+  // `views/<name>.js`): they register elements and export the public API, so
   // nothing inside the framework may import one back either.
   if (/\/src\/entries\/[^/]+$/.test(target)) return { kind: 'entrypoint' };
   if (/\/src\/core(\/|$)/.test(target)) return { kind: 'core' };
   if (/\/src\/components(\/|$)/.test(target)) return { kind: 'components' };
   if (/\/src\/lib(\/|$)/.test(target)) return { kind: 'lib' };
-  const template = target.match(/\/src\/templates\/([^/]+)(?:\/|$)/);
-  if (template) return { kind: 'template', name: template[1] };
-  if (/\/src\/templates(\/|$)/.test(target)) return { kind: 'template', name: 'index' };
+  const view = target.match(/\/src\/views\/([^/]+)(?:\/|$)/);
+  if (view) return { kind: 'view', name: view[1] };
+  const board = target.match(/\/src\/boards\/([^/]+)(?:\/|$)/);
+  if (board) return { kind: 'board', name: board[1] };
+  if (/\/src\/views(\/|$)/.test(target)) return { kind: 'view', name: 'index' };
+  if (/\/src\/boards(\/|$)/.test(target)) return { kind: 'board', name: 'index' };
   return { kind: 'other' };
 };
 
@@ -122,17 +127,17 @@ const onDynamicImport = (context, check) => ({
   },
 });
 
-const coreTemplateBoundaries = {
+const coreContentBoundaries = {
   create(context) {
     const filename = context.filename ?? context.getFilename();
     if (classify(filename).kind !== 'core') return {};
     const check = (edge) => {
       const target = classify(edge.resolved);
-      if (target.kind !== 'template' && target.kind !== 'components') return;
+      if (target.kind !== 'view' && target.kind !== 'board' && target.kind !== 'components') return;
       context.report({
         node: edge.node,
         message:
-          'Core must not import a template or a component: the core is template-agnostic, and templates/components depend on the core, never the reverse.',
+          'Core must not import a view, a board or a component: the core is content-agnostic, and the three tiers depend on the core, never the reverse.',
       });
     };
     return { ...onImports(context, check), ...onDynamicImport(context, check) };
@@ -149,7 +154,7 @@ const libBoundaries = {
     if (classify(filename).kind !== 'lib') return {};
     const check = (edge) => {
       const target = classify(edge.resolved);
-      if (target.kind === 'core' || target.kind === 'components' || target.kind === 'template') {
+      if (target.kind === 'core' || target.kind === 'components' || target.kind === 'view' || target.kind === 'board') {
         context.report({
           node: edge.node,
           message: `lib must stay dependency-free: it must not import '${target.kind}'. Move the shared behaviour into lib instead.`,
@@ -160,26 +165,28 @@ const libBoundaries = {
   },
 };
 
-const templateIsolation = {
+const contentIsolation = {
   create(context) {
     const filename = context.filename ?? context.getFilename();
     const self = classify(filename);
-    if (self.kind !== 'template') return {};
+    if (self.kind !== 'view' && self.kind !== 'board') return {};
     const check = (edge) => {
       const target = classify(edge.resolved);
-      if (target.kind !== 'template' || target.name === self.name) return;
+      if (target.kind !== self.kind || target.name === self.name) return;
+      // A board may build on the shared board base; it is not another board.
+      if (self.kind === 'board' && target.name === 'base') return;
       context.report({
         node: edge.node,
-        message: `Template '${self.name}' must not import template '${target.name}'. Share the behaviour through src/core instead.`,
+        message: `${self.kind === 'view' ? 'View' : 'Board'} '${self.name}' must not import ${self.kind} '${target.name}'. Share the behaviour through src/core or src/boards/base instead.`,
       });
     };
     return { ...onImports(context, check), ...onDynamicImport(context, check) };
   },
 };
 
-/** Modules that must stay pure: no DOM, no Lit, no template knowledge. */
+/** Modules that must stay pure: no DOM, no Lit, no content knowledge. */
 const PURE_FILE =
-  /\/src\/(?:core\/derive\.ts|templates\/[^/]+\/(?:model|apply|present|layout|drop|commands|ui-mode|gesture|interactions)\.ts|components\/[^/]+\/(?:model|present)\.ts)$/;
+  /\/src\/(?:core\/derive\.ts|views\/[^/]+\/(?:model|apply|present|layout|drop|commands|ui-mode|gesture|interactions)\.ts|boards\/[^/]+\/(?:model|apply|present|layout|drop|commands|ui-mode|gesture|interactions)\.ts|components\/[^/]+\/(?:model|present)\.ts)$/;
 
 const FORBIDDEN_PURE_IMPORTS = [
   { pattern: /^lit(?:$|\/)/, message: 'pure modules must not import Lit' },
@@ -293,8 +300,11 @@ const pureLayerBoundaries = {
         return;
       }
       const target = classify(edge.resolved);
-      if (target.kind === 'template' && target.name !== self.name) {
-        context.report({ node: edge.node, message: 'pure modules must not depend on another template' });
+      if ((target.kind === 'view' || target.kind === 'board') && target.name !== self.name) {
+        // The shared board base is the one pure foundation both a board and a
+        // component may read; it is not another content element.
+        if (self.kind === 'board' && target.name === 'base') return;
+        context.report({ node: edge.node, message: 'pure modules must not depend on another view or board' });
       }
     };
 
@@ -382,23 +392,35 @@ const isDefineCall = (node) => {
 };
 
 /**
- * Where a file may register elements, and the tags it may use: a template
- * registers `dpk-template-<name>` plus sub-elements `dpk-internal-<name>-*`,
- * a component registers `dpk-<directory>` plus the same `dpk-internal-<directory>-*`
- * sub-elements (a nested Custom Element still adds a shadow boundary, so a
- * component's own composed-together pieces — e.g. a sticky note card — follow
- * the template layer's naming rather than inventing their own).
+ * Where a file may register elements, and the tags it may use: a view
+ * registers `dpk-view-<name>` plus sub-elements `dpk-internal-<name>-*`, a
+ * board registers `dpk-board-<name>` plus the same `dpk-internal-<name>-*`
+ * sub-elements, and a component registers `dpk-<directory>` plus its own
+ * `dpk-internal-<directory>-*` (a nested Custom Element still adds a shadow
+ * boundary, so a piece composed by one of them follows that tier's naming
+ * rather than inventing its own).
  */
 const allowedTags = (filename) => {
-  const template = filename.match(/\/src\/templates\/([^/]+)\//);
-  if (template) {
-    const name = template[1];
+  const view = filename.match(/\/src\/views\/([^/]+)\//);
+  if (view) {
+    const name = view[1];
     return {
-      matches: (tag) => tag === `dpk-template-${name}` || tag.startsWith(`dpk-internal-${name}-`),
-      expected: `\`dpk-template-${name}\` or \`dpk-internal-${name}-*\``,
+      matches: (tag) => tag === `dpk-view-${name}` || tag.startsWith(`dpk-internal-${name}-`),
+      expected: `\`dpk-view-${name}\` or \`dpk-internal-${name}-*\``,
     };
   }
-  // The page host is the one role named without a suffix (`dev-docs/adr/20261020_multi-board-pages.md`).
+  const board = filename.match(/\/src\/boards\/([^/]+)\//);
+  if (board) {
+    const name = board[1];
+    return {
+      matches: (tag) => tag === `dpk-board-${name}` || tag.startsWith(`dpk-internal-${name}-`),
+      expected: `\`dpk-board-${name}\` or \`dpk-internal-${name}-*\``,
+    };
+  }
+  // The app and page hosts are the two roles named without a tier prefix.
+  if (/\/src\/app\//.test(filename)) {
+    return { matches: (tag) => tag === 'dpk-app', expected: '`dpk-app`' };
+  }
   if (/\/src\/page\//.test(filename)) {
     return { matches: (tag) => tag === 'dpk-page', expected: '`dpk-page`' };
   }
@@ -431,7 +453,7 @@ const elementNaming = {
           context.report({
             node,
             message:
-              'Custom elements are registered only in src/templates/**, src/components/**, src/core/layouts/** and src/page/**.',
+              'Custom elements are registered only in src/views/**, src/boards/**, src/components/**, src/core/layouts/**, src/app/** and src/page/**.',
           });
           return;
         }
@@ -586,9 +608,9 @@ const plugin = {
     name: 'conventions',
   },
   rules: {
-    'core-template-boundaries': coreTemplateBoundaries,
+    'core-content-boundaries': coreContentBoundaries,
     'lib-boundaries': libBoundaries,
-    'template-isolation': templateIsolation,
+    'content-isolation': contentIsolation,
     'pure-layer-boundaries': pureLayerBoundaries,
     'entrypoint-imports': entrypointImports,
     'colocated-tests': colocatedTests,
@@ -602,9 +624,9 @@ const plugin = {
 export default plugin;
 
 export {
-  coreTemplateBoundaries,
+  coreContentBoundaries,
   libBoundaries,
-  templateIsolation,
+  contentIsolation,
   pureLayerBoundaries,
   entrypointImports,
   colocatedTests,

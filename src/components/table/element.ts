@@ -43,7 +43,7 @@ const cls = (...entries: readonly (string | false | null | undefined)[]): string
  * recorded), select a row (`dpk-table-select`), and add, edit, delete or
  * reorder rows: each is a `ADD_ROW` / `SET_CELL` / `DELETE_ROW` / `REORDER_ROW`
  * element action recorded by the hosting template, the same way
- * `dpk-kanban` records a move or a new card. A host template can
+ * `dpk-board-kanban` records a move or a new card. A host template can
  * also drive the table reactively by setting `.data` instead of authoring a
  * JSON child (see `dpk-diagram`'s own `.data` property).
  */
@@ -121,7 +121,7 @@ export class DpkTable extends LitElement {
     return [
       // The table itself, so a hosting template can accept `ADD_ROW` (its target names this
       // collection, not a row — a new row has no target of its own until it exists), the same
-      // way `dpk-kanban` lists each column so `ADD_CARD` can target one.
+      // way `dpk-board-kanban` lists each column so `ADD_CARD` can target one.
       { value: tableRowsTarget(this.id), label: this.#heading, group },
       ...this.#data.rows.map((row) => ({ value: rowTarget(this.id, row.id), label: this.#rowLabel(row), group })),
     ];

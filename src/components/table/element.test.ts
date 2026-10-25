@@ -193,11 +193,11 @@ describe('<dpk-table>', () => {
   });
 
   it('adds a row through a template that only records actions targeting a known comment target', async () => {
-    // Regression: a real `TemplateElement` only records a component element action whose
+    // Regression: a real `ViewElement` only records a component element action whose
     // `target` is one of the component's own `commentTargets` (`#onElementAction` in
     // `src/core/element.ts`). `ADD_ROW` must target something that is *already* addressable —
     // a new row has none yet — so the table itself must be one of `commentTargets`, the same way
-    // `dpk-kanban` lists its columns so `ADD_CARD` can target one. Without that, every `+ Row`
+    // `dpk-board-kanban` lists its columns so `ADD_CARD` can target one. Without that, every `+ Row`
     // click is silently dropped on the next sync, even though nothing ever throws or logs.
     const element = await mount();
     element.addEventListener('dpk-element-action', (event) => {

@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing, type CSSResultGroup, type PropertyValues, type TemplateResult } from 'lit';
 
-import type { ViewportAlign, ViewportBox, ViewportPoint, ViewState } from '../diagram/viewport';
+import type { ViewportAlign, ViewportBox, ViewportPoint, ViewState } from '../../boards/base/viewport';
 
 import { iconGripHorizontal, iconMaximize, iconMinimize, iconMinus, iconPlus } from '../../core/icons';
 import { LocaleController } from '../../core/locale-controller';

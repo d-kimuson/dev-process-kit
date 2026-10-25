@@ -68,7 +68,7 @@
  * ratchet this weight change is reinforcing, not replacing.
  *
  * Immediately after, routing itself became edge-aware (#148 round 3,
- * `src/components/er-diagram/view.ts`'s `relationRoutes` and
+ * `src/boards/er-diagram/view.ts`'s `relationRoutes` and
  * `src/lib/layout/orthogonal-router.ts`'s `routeAroundObstacles`): edges are
  * routed short-first so a long edge detours around a short one rather than
  * the reverse; each route is routed aware of every edge already placed in

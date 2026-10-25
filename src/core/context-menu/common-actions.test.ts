@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { TemplateDefinition } from '../types';
+import type { ViewDefinition } from '../types';
 import type { ContextMenuMessages } from './messages';
 
 import { buildCommonContextMenuGroup, type CommonActionsHost } from './common-actions';
@@ -16,14 +16,14 @@ const messages: ContextMenuMessages = {
   delete: 'Delete',
 };
 
-const definition = (overrides: Partial<TemplateDefinition<unknown>> = {}): TemplateDefinition<unknown> =>
+const definition = (overrides: Partial<ViewDefinition<unknown>> = {}): ViewDefinition<unknown> =>
   ({
     hasTarget: () => false,
     navigationFor: undefined,
     ...overrides,
-  }) as TemplateDefinition<unknown>;
+  }) as ViewDefinition<unknown>;
 
-const host = (def: TemplateDefinition<unknown>): CommonActionsHost => ({
+const host = (def: ViewDefinition<unknown>): CommonActionsHost => ({
   definition: def,
   requestComment: vi.fn(),
 });

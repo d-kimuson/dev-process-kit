@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 
-import type { ActionTarget, Navigation, TemplateDefinition } from '../types';
+import type { ActionTarget, Navigation, ViewDefinition } from '../types';
 
 import { defineAction, entityDedupeKey, payloadFor, type ActionSpecs } from '../schema';
 
@@ -34,7 +34,8 @@ const tinyActions = {
   DELETE_ITEM: defineAction('DELETE_ITEM', 'item', v.object({})),
 } satisfies ActionSpecs;
 
-export const tinyDefinition: TemplateDefinition<TinyState> = {
+export const tinyDefinition: ViewDefinition<TinyState> = {
+  kind: 'view',
   name: 'tiny',
   label: 'Tiny',
   parseBase: (input) =>

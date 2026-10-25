@@ -2,12 +2,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DpkCommentPanel } from '../components/comment-panel';
-import type { DpkTemplatePrototype } from '../templates/prototype/element';
+import type { DpkViewPrototype } from '../views/prototype/element';
 import type { DpkInternalLayoutSidebar } from './layouts/sidebar/element';
 
 import { panelMessages } from '../components/comment-panel/messages';
-import { prototypeDefinitionFor } from '../templates/prototype/definition';
-import { prototypeMessages } from '../templates/prototype/messages';
+import { prototypeDefinitionFor } from '../views/prototype/definition';
+import { prototypeMessages } from '../views/prototype/messages';
 import { COMMENT_ACTION } from './action';
 import { sidebarMessages } from './layouts/sidebar/messages';
 import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH } from './layouts/sidebar/model';
@@ -55,26 +55,26 @@ const base = {
   ],
 };
 
-const mount = (hash = '', attributes = ''): DpkTemplatePrototype => {
+const mount = (hash = '', attributes = ''): DpkViewPrototype => {
   window.location.hash = hash;
   document.body.innerHTML = `
-    <dpk-template-prototype storage="memory" ${attributes}>
+    <dpk-view-prototype storage="memory" ${attributes}>
       <script type="application/json">${JSON.stringify(base)}</script>
       <div slot="preview" data-preview-id="landing-mobile"><p id="landing-body">hello</p></div>
       <div slot="preview" data-preview-id="auth-mobile"><p id="auth-body">auth</p></div>
       <div slot="preview" data-preview-id="auth-desktop"><p id="auth-desktop-body">auth wide</p></div>
-    </dpk-template-prototype>`;
-  return document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    </dpk-view-prototype>`;
+  return document.querySelector('dpk-view-prototype') as DpkViewPrototype;
 };
 
-const settle = async (el: DpkTemplatePrototype): Promise<void> => {
+const settle = async (el: DpkViewPrototype): Promise<void> => {
   await el.api.ready;
   await el.updateComplete;
   await Promise.resolve();
   await el.updateComplete;
 };
 
-describe('<dpk-template-prototype>', () => {
+describe('<dpk-view-prototype>', () => {
   beforeEach(() => {
     window.location.hash = '';
     document.body.innerHTML = '';
@@ -333,10 +333,10 @@ describe('<dpk-template-prototype>', () => {
 
   it('falls back to an empty state with a visible error when base data is invalid', async () => {
     document.body.innerHTML = `
-      <dpk-template-prototype storage="memory">
+      <dpk-view-prototype storage="memory">
         <script type="application/json">{"activities":[{"id":"a","name":"A","oops":true}]}</script>
-      </dpk-template-prototype>`;
-    const el = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+      </dpk-view-prototype>`;
+    const el = document.querySelector('dpk-view-prototype') as DpkViewPrototype;
     await settle(el);
     expect(el.api.state.activities).toHaveLength(0);
     expect(el.shadowRoot?.querySelector('.dpk-banner')).not.toBeNull();
@@ -367,8 +367,8 @@ describe('<dpk-template-prototype>', () => {
     const removeEventListener = vi.spyOn(window, 'removeEventListener');
 
     // No base JSON: this is the path that installs the MutationObserver.
-    document.body.innerHTML = '<dpk-template-prototype storage="memory"></dpk-template-prototype>';
-    const el = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    document.body.innerHTML = '<dpk-view-prototype storage="memory"></dpk-view-prototype>';
+    const el = document.querySelector('dpk-view-prototype') as DpkViewPrototype;
     await settle(el);
 
     el.remove();
@@ -385,7 +385,7 @@ describe('<dpk-template-prototype>', () => {
 });
 
 describe('color scheme', () => {
-  const toggle = (el: DpkTemplatePrototype): HTMLButtonElement =>
+  const toggle = (el: DpkViewPrototype): HTMLButtonElement =>
     el.shadowRoot?.querySelector('.dpk-theme-toggle') as HTMLButtonElement;
 
   beforeEach(() => {
@@ -429,14 +429,14 @@ describe('color scheme', () => {
 
 describe('editing a review comment', () => {
   const STORAGE_KEY = 'edit-test';
-  const mountStored = (): DpkTemplatePrototype => {
+  const mountStored = (): DpkViewPrototype => {
     document.body.innerHTML = `
-      <dpk-template-prototype storage-key="${STORAGE_KEY}" notes="on">
+      <dpk-view-prototype storage-key="${STORAGE_KEY}" notes="on">
         <script type="application/json">${JSON.stringify(base)}</script>
-      </dpk-template-prototype>`;
-    return document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+      </dpk-view-prototype>`;
+    return document.querySelector('dpk-view-prototype') as DpkViewPrototype;
   };
-  const panelOf = async (el: DpkTemplatePrototype): Promise<DpkCommentPanel> => {
+  const panelOf = async (el: DpkViewPrototype): Promise<DpkCommentPanel> => {
     const panel = el.shadowRoot?.querySelector('dpk-comment-panel') as DpkCommentPanel;
     await panel.updateComplete;
     return panel;
@@ -518,7 +518,7 @@ describe('sidebar width', () => {
   const pointer = (target: HTMLElement, type: string, clientX: number): void => {
     target.dispatchEvent(new PointerEvent(type, { pointerId: 1, button: 0, clientX, bubbles: true }));
   };
-  const settleAll = async (el: DpkTemplatePrototype): Promise<void> => {
+  const settleAll = async (el: DpkViewPrototype): Promise<void> => {
     await settle(el);
     await layout(el).updateComplete;
   };
@@ -589,21 +589,21 @@ describe('sidebar width', () => {
   });
 
   it("remembers the reader's width for every page of the same template", async () => {
-    document.body.innerHTML = '<dpk-template-prototype storage-key="first"></dpk-template-prototype>';
-    const first = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    document.body.innerHTML = '<dpk-view-prototype storage-key="first"></dpk-view-prototype>';
+    const first = document.querySelector('dpk-view-prototype') as DpkViewPrototype;
     await settleAll(first);
     press(edge(first) as HTMLElement, 'End');
     await settleAll(first);
 
-    document.body.innerHTML = '<dpk-template-prototype storage-key="second"></dpk-template-prototype>';
-    const second = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    document.body.innerHTML = '<dpk-view-prototype storage-key="second"></dpk-view-prototype>';
+    const second = document.querySelector('dpk-view-prototype') as DpkViewPrototype;
     await settleAll(second);
     expect(width(second)).toBe(`${SIDEBAR_WIDTH.max}px`);
   });
 
   it('puts the edge of a right-hand sidebar on its left, growing it as the edge moves left', async () => {
-    document.body.innerHTML = '<dpk-template-task-board storage="memory"></dpk-template-task-board>';
-    const el = document.querySelector('dpk-template-task-board') as DpkTemplatePrototype;
+    document.body.innerHTML = '<dpk-view-task-board storage="memory"></dpk-view-task-board>';
+    const el = document.querySelector('dpk-view-task-board') as DpkViewPrototype;
     await settleAll(el);
     const handle = edge(el) as HTMLElement;
     expect(handle.nextElementSibling).toBe(sidebar(el));
@@ -615,8 +615,8 @@ describe('sidebar width', () => {
   });
 
   it('has no edge when the template shows no sidebar', async () => {
-    document.body.innerHTML = '<dpk-template-usm storage="memory"></dpk-template-usm>';
-    const el = document.querySelector('dpk-template-usm') as DpkTemplatePrototype;
+    document.body.innerHTML = '<dpk-view-usm storage="memory"></dpk-view-usm>';
+    const el = document.querySelector('dpk-view-usm') as DpkViewPrototype;
     await settleAll(el);
     expect(sidebar(el).hidden).toBe(true);
     expect(edge(el)).toBeNull();
@@ -634,7 +634,7 @@ describe('sidebar collapse', () => {
   };
   const toggle = (el: Element): HTMLButtonElement | null => inner(el).querySelector<HTMLButtonElement>('.toggle');
   const edge = (el: Element): HTMLElement | null => inner(el).querySelector('.resizer');
-  const settleAll = async (el: DpkTemplatePrototype): Promise<void> => {
+  const settleAll = async (el: DpkViewPrototype): Promise<void> => {
     await settle(el);
     await layout(el).updateComplete;
   };
@@ -686,14 +686,14 @@ describe('sidebar collapse', () => {
   });
 
   it("remembers the reader's choice for every page of the same template", async () => {
-    document.body.innerHTML = '<dpk-template-prototype storage-key="first"></dpk-template-prototype>';
-    const first = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    document.body.innerHTML = '<dpk-view-prototype storage-key="first"></dpk-view-prototype>';
+    const first = document.querySelector('dpk-view-prototype') as DpkViewPrototype;
     await settleAll(first);
     (toggle(first) as HTMLButtonElement).click();
     await settleAll(first);
 
-    document.body.innerHTML = '<dpk-template-prototype storage-key="second"></dpk-template-prototype>';
-    const second = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    document.body.innerHTML = '<dpk-view-prototype storage-key="second"></dpk-view-prototype>';
+    const second = document.querySelector('dpk-view-prototype') as DpkViewPrototype;
     await settleAll(second);
     expect(sidebar(second).hidden).toBe(true);
 
@@ -711,8 +711,8 @@ describe('sidebar collapse', () => {
   });
 
   it('folds a right-hand sidebar towards the right', async () => {
-    document.body.innerHTML = '<dpk-template-task-board storage="memory"></dpk-template-task-board>';
-    const el = document.querySelector('dpk-template-task-board') as DpkTemplatePrototype;
+    document.body.innerHTML = '<dpk-view-task-board storage="memory"></dpk-view-task-board>';
+    const el = document.querySelector('dpk-view-task-board') as DpkViewPrototype;
     await settleAll(el);
     const button = toggle(el) as HTMLButtonElement;
     expect(button.nextElementSibling).toBe(edge(el));
@@ -723,10 +723,10 @@ describe('sidebar collapse', () => {
   });
 
   it("puts an aside on the side the template's sidebar leaves free, with its own fold", async () => {
-    document.body.innerHTML = `<dpk-template-prototype storage="memory">
+    document.body.innerHTML = `<dpk-view-prototype storage="memory">
       <div slot="aside">Notes</div>
-    </dpk-template-prototype>`;
-    const el = document.querySelector('dpk-template-prototype') as DpkTemplatePrototype;
+    </dpk-view-prototype>`;
+    const el = document.querySelector('dpk-view-prototype') as DpkViewPrototype;
     await settleAll(el);
     const toggles = Array.from(inner(el).querySelectorAll<HTMLButtonElement>('.toggle'));
     expect(toggles.map((button) => button.dataset['side'])).toEqual(['left', 'right']);
@@ -738,17 +738,17 @@ describe('sidebar collapse', () => {
   });
 
   it('offers no fold button when the template shows no sidebar', async () => {
-    document.body.innerHTML = '<dpk-template-usm storage="memory"></dpk-template-usm>';
-    const usm = document.querySelector('dpk-template-usm') as DpkTemplatePrototype;
+    document.body.innerHTML = '<dpk-view-usm storage="memory"></dpk-view-usm>';
+    const usm = document.querySelector('dpk-view-usm') as DpkViewPrototype;
     await settleAll(usm);
     expect(toggle(usm)).toBeNull();
   });
 });
 
 describe('language', () => {
-  const trigger = (el: DpkTemplatePrototype): HTMLButtonElement =>
+  const trigger = (el: DpkViewPrototype): HTMLButtonElement =>
     el.shadowRoot?.querySelector('.dpk-lang-select') as HTMLButtonElement;
-  const currentLocale = async (el: DpkTemplatePrototype): Promise<string> => {
+  const currentLocale = async (el: DpkViewPrototype): Promise<string> => {
     trigger(el).click();
     await settle(el);
     const selected = el.shadowRoot?.querySelector<HTMLElement>(
@@ -759,13 +759,13 @@ describe('language', () => {
     await settle(el);
     return value;
   };
-  const pick = async (el: DpkTemplatePrototype, locale: string): Promise<void> => {
+  const pick = async (el: DpkViewPrototype, locale: string): Promise<void> => {
     trigger(el).click();
     await settle(el);
     el.shadowRoot?.querySelector<HTMLElement>(`[role="option"][data-value="${locale}"]`)?.click();
     await settle(el);
   };
-  const railText = async (el: DpkTemplatePrototype): Promise<string> => {
+  const railText = async (el: DpkViewPrototype): Promise<string> => {
     const panel = el.shadowRoot?.querySelector('dpk-comment-panel') as DpkCommentPanel;
     await panel.updateComplete;
     return panel.shadowRoot?.textContent ?? '';
@@ -811,13 +811,13 @@ describe('language', () => {
 });
 
 describe('send to Claude', () => {
-  const sendButton = (el: DpkTemplatePrototype): HTMLButtonElement | undefined => {
+  const sendButton = (el: DpkViewPrototype): HTMLButtonElement | undefined => {
     const panel = el.shadowRoot?.querySelector('dpk-comment-panel') as DpkCommentPanel;
     return Array.from(panel.shadowRoot?.querySelectorAll('button') ?? []).find(
       (button) => button.textContent?.trim() === panelMessages('en').sendToClaude,
     );
   };
-  const flush = async (el: DpkTemplatePrototype): Promise<void> => {
+  const flush = async (el: DpkViewPrototype): Promise<void> => {
     for (let i = 0; i < 4; i += 1) {
       await new Promise((resolve) => setTimeout(resolve, 0));
       await settle(el);

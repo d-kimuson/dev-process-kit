@@ -1,26 +1,26 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { DpkTemplatePlain } from '../templates/plain/element';
+import type { DpkViewPlain } from '../views/plain/element';
 
 import { coreMessages } from './messages';
 import '../index';
 
 const messages = coreMessages('en');
 
-const mount = (supplements = ''): DpkTemplatePlain => {
+const mount = (supplements = ''): DpkViewPlain => {
   document.body.innerHTML = `
-    <dpk-template-plain storage="memory">
+    <dpk-view-plain storage="memory">
       <script type="application/json">${JSON.stringify({ title: 'Cancel orders' })}</script>
       <section slot="main"><p>Body</p></section>
       ${supplements}
-    </dpk-template-plain>`;
-  const element = document.querySelector('dpk-template-plain');
+    </dpk-view-plain>`;
+  const element = document.querySelector('dpk-view-plain');
   if (!(element instanceof HTMLElement)) throw new Error('element did not upgrade');
-  return element as DpkTemplatePlain;
+  return element as DpkViewPlain;
 };
 
-const settle = async (element: DpkTemplatePlain): Promise<void> => {
+const settle = async (element: DpkViewPlain): Promise<void> => {
   await element.api.ready;
   for (let i = 0; i < 3; i += 1) {
     await element.updateComplete;
@@ -28,16 +28,16 @@ const settle = async (element: DpkTemplatePlain): Promise<void> => {
   }
 };
 
-const root = (element: DpkTemplatePlain): ShadowRoot => {
+const root = (element: DpkViewPlain): ShadowRoot => {
   if (!element.shadowRoot) throw new Error('no shadow root');
   return element.shadowRoot;
 };
 
-const tabs = (element: DpkTemplatePlain): HTMLButtonElement[] => [
+const tabs = (element: DpkViewPlain): HTMLButtonElement[] => [
   ...root(element).querySelectorAll<HTMLButtonElement>('.dpk-supplement-tab'),
 ];
 
-const body = (element: DpkTemplatePlain): HTMLElement | null =>
+const body = (element: DpkViewPlain): HTMLElement | null =>
   root(element).querySelector<HTMLElement>('.dpk-supplements-body');
 
 const THREE = `

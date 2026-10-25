@@ -3,21 +3,21 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { parseArchitectureData } from './components/architecture-map/model';
-import { parseDependencyData } from './components/dependency-graph/model';
-import { parseErData } from './components/er-diagram/model';
-import { parseExampleMappingBase } from './components/example-mapping/model';
-import { parseKanbanData } from './components/kanban/model';
-import { parseMindMapData } from './components/mind-map/model';
-import { parseSequenceData } from './components/sequence-diagram/model';
-import { parseStateData } from './components/state-diagram/model';
-import { frameOf, parseWhiteboardBase } from './components/whiteboard/model';
+import { parseArchitectureData } from './boards/architecture-map/model';
+import { parseDependencyData } from './boards/dependency-graph/model';
+import { parseErData } from './boards/er-diagram/model';
+import { parseExampleMappingBase } from './boards/example-mapping/model';
+import { parseKanbanData } from './boards/kanban/model';
+import { parseMindMapData } from './boards/mind-map/model';
+import { parseSequenceData } from './boards/sequence-diagram/model';
+import { parseStateData } from './boards/state-diagram/model';
+import { frameOf, parseWhiteboardBase } from './boards/whiteboard/model';
 import { parseChangeLog, revisionsOf } from './core/changes';
 import { parseGrill } from './core/grill';
-import { parseDelegationPokerBase } from './templates/delegation-poker/model';
-import { parsePlainBase } from './templates/plain/model';
-import { parseSlidesBase } from './templates/slides/model';
-import { parseTaskBoardBase } from './templates/task-board/model';
+import { parseDelegationPokerBase } from './views/delegation-poker/model';
+import { parsePlainBase } from './views/plain/model';
+import { parseSlidesBase } from './views/slides/model';
+import { parseTaskBoardBase } from './views/task-board/model';
 
 /**
  * The samples are what a reader opens first, and their data is hand-written JSON
@@ -81,31 +81,31 @@ describe('sample pages', () => {
 
   it('diagrams.html carries data every diagram accepts', () => {
     const html = sample('diagrams.html');
-    expect(parseStateData(jsonChild(html, 'dpk-state-diagram')).nodes).toHaveLength(8);
-    const sequence = parseSequenceData(jsonChild(html, 'dpk-sequence-diagram'));
+    expect(parseStateData(jsonChild(html, 'dpk-board-state-diagram')).nodes).toHaveLength(8);
+    const sequence = parseSequenceData(jsonChild(html, 'dpk-board-sequence-diagram'));
     expect(sequence.participants).toHaveLength(5);
     expect(sequence.items.length).toBeGreaterThan(3);
-    expect(parseDependencyData(jsonChild(html, 'dpk-dependency-graph')).nodes).toHaveLength(7);
-    const er = parseErData(jsonChild(html, 'dpk-er-diagram'));
+    expect(parseDependencyData(jsonChild(html, 'dpk-board-dependency-graph')).nodes).toHaveLength(7);
+    const er = parseErData(jsonChild(html, 'dpk-board-er-diagram'));
     expect(er.nodes.map((node) => node.status)).toEqual(
       expect.arrayContaining(['added', 'removed', 'changed', 'same']),
     );
-    const architecture = parseArchitectureData(jsonChild(html, 'dpk-architecture-map'));
+    const architecture = parseArchitectureData(jsonChild(html, 'dpk-board-architecture-map'));
     expect(architecture.nodes).toHaveLength(8);
     expect(architecture.boundaries).toHaveLength(3);
-    const mindMap = parseMindMapData(jsonChild(html, 'dpk-mind-map'));
+    const mindMap = parseMindMapData(jsonChild(html, 'dpk-board-mind-map'));
     expect(mindMap.nodes.filter((node) => node.depth === 1).length).toBeGreaterThan(3);
     expect(new Set(mindMap.nodes.map((node) => node.side))).toEqual(new Set([null, 'left', 'right']));
-    const kanban = parseKanbanData(jsonChild(html, 'dpk-kanban'));
+    const kanban = parseKanbanData(jsonChild(html, 'dpk-board-kanban'));
     expect(kanban.columns.length).toBeGreaterThan(2);
     expect(kanban.columns.flatMap((column) => column.cards).length).toBeGreaterThan(3);
   });
 
-  it('diagrams.html is an dpk-template-plain page whose sections and diagrams are commentable', () => {
+  it('diagrams.html is an dpk-view-plain page whose sections and diagrams are commentable', () => {
     const html = sample('diagrams.html');
-    expect(entriesOf(html)).toContain('templates/plain.js');
+    expect(entriesOf(html)).toContain('views/plain.js');
     expect(entriesOf(html)).toContain('components.js');
-    const plain = parsePlainBase(jsonChild(html, 'dpk-template-plain'));
+    const plain = parsePlainBase(jsonChild(html, 'dpk-view-plain'));
     expect(plain.title).not.toBe('');
     // Every declared section has a comment button, and every button names a section.
     const sections = plain.sections.map((section) => section.id);
@@ -113,7 +113,7 @@ describe('sample pages', () => {
     const byName = (a: string | undefined, b: string | undefined): number => (a ?? '').localeCompare(b ?? '');
     expect([...buttons].sort(byName)).toEqual([...sections].sort(byName));
     // Element comments need a stable, unique id on every diagram (not the page or template wrapper).
-    const diagrams = [...html.matchAll(/<dpk-(?!page\b|template-|internal-)[a-z-]+\b([^>]*)>/g)].map(
+    const diagrams = [...html.matchAll(/<dpk-(?!page\b|app\b|view-|internal-)[a-z-]+\b([^>]*)>/g)].map(
       (match) => match[1] ?? '',
     );
     const ids = diagrams.map((attributes) => /\bid="([^"]+)"/.exec(attributes)?.[1]);
@@ -125,7 +125,7 @@ describe('sample pages', () => {
   it('example-mapping.html maps the flow through the example-mapping diagram', () => {
     const html = sample('example-mapping.html');
     expect(entriesOf(html)).toContain('components.js');
-    const mapping = parseExampleMappingBase(jsonChild(html, 'dpk-example-mapping'));
+    const mapping = parseExampleMappingBase(jsonChild(html, 'dpk-board-example-mapping'));
     expect(mapping.title).not.toBe('');
     expect(mapping.stories.length).toBeGreaterThan(1);
     expect(mapping.rules.length).toBeGreaterThan(1);
@@ -142,24 +142,24 @@ describe('sample pages', () => {
 
   it('grill.html asks its questions over a plain page', () => {
     const html = sample('grill.html');
-    expect(entriesOf(html)).toEqual(expect.arrayContaining(['templates/plain.js', 'components.js']));
-    expect(parsePlainBase(jsonChild(html, 'dpk-template-plain')).title).not.toBe('');
+    expect(entriesOf(html)).toEqual(expect.arrayContaining(['views/plain.js', 'components.js']));
+    expect(parsePlainBase(jsonChild(html, 'dpk-view-plain')).title).not.toBe('');
     const grill = parseGrill(JSON.parse(GRILL.exec(html)?.[1] ?? 'null'));
     expect(grill.questions.length).toBeGreaterThan(3);
 
     // The diagrams are the author's main area, annotated with question references.
-    const er = parseErData(jsonChild(html, 'dpk-er-diagram'));
+    const er = parseErData(jsonChild(html, 'dpk-board-er-diagram'));
     expect(er.nodes.find((node) => node.id === 'refunds')?.status).toBe('added');
     expect(er.nodes.find((node) => node.id === 'orders')?.status).toBe('changed');
     expect(er.edges.filter((edge) => edge.status === 'added')).toHaveLength(1);
-    const sequence = parseSequenceData(jsonChild(html, 'dpk-sequence-diagram'));
+    const sequence = parseSequenceData(jsonChild(html, 'dpk-board-sequence-diagram'));
     expect(sequence.participants.map((participant) => participant.id)).toContain('refund');
 
     // Every badge points at a question, and every question has a badge.
     const refs = new Set(grill.questions.map((question) => question.ref));
     const referenced = [
       ...[...html.matchAll(/data-grill-questions="([^"]*)"/g)].flatMap((match) => (match[1] ?? '').split(/\s+/)),
-      ...['dpk-er-diagram', 'dpk-sequence-diagram'].flatMap((tag) => questionsIn(jsonChild(html, tag))),
+      ...['dpk-board-er-diagram', 'dpk-board-sequence-diagram'].flatMap((tag) => questionsIn(jsonChild(html, tag))),
     ].filter((token) => token !== '');
     expect(referenced.length).toBeGreaterThan(0);
     for (const ref of referenced) expect(refs.has(ref), `${ref} has no question`).toBe(true);
@@ -169,8 +169,8 @@ describe('sample pages', () => {
 
   it('slides.html explains a mechanism through the slides template', () => {
     const html = sample('slides.html');
-    expect(entriesOf(html)).toContain('templates/slides.js');
-    const deck = parseSlidesBase(jsonChild(html, 'dpk-template-slides'));
+    expect(entriesOf(html)).toContain('views/slides.js');
+    const deck = parseSlidesBase(jsonChild(html, 'dpk-view-slides'));
     expect(deck.title).not.toBe('');
     expect(new Set(deck.slides.map((slide) => slide.layout))).toEqual(new Set(['title', 'section', 'content']));
 
@@ -183,9 +183,9 @@ describe('sample pages', () => {
 
   it('task-board.html follows a task through the task-board template', () => {
     const html = sample('task-board.html');
-    expect(entriesOf(html)).toContain('templates/task-board.js');
+    expect(entriesOf(html)).toContain('views/task-board.js');
     expect(entriesOf(html)).toContain('components.js');
-    const board = parseTaskBoardBase(jsonChild(html, 'dpk-template-task-board'));
+    const board = parseTaskBoardBase(jsonChild(html, 'dpk-view-task-board'));
     expect(board.title).not.toBe('');
     expect(board.status).not.toBeNull();
     // The context tab reads as a design doc, with the diagrams under it.
@@ -193,8 +193,8 @@ describe('sample pages', () => {
     expect(board.context.what).not.toBeNull();
     expect(board.context.goals.length).toBeGreaterThan(0);
     expect(board.context.nonGoals.length).toBeGreaterThan(0);
-    expect(parseErData(jsonChild(html, 'dpk-er-diagram')).nodes.length).toBeGreaterThan(1);
-    expect(parseSequenceData(jsonChild(html, 'dpk-sequence-diagram')).participants.length).toBeGreaterThan(1);
+    expect(parseErData(jsonChild(html, 'dpk-board-er-diagram')).nodes.length).toBeGreaterThan(1);
+    expect(parseSequenceData(jsonChild(html, 'dpk-board-sequence-diagram')).participants.length).toBeGreaterThan(1);
     expect([...html.matchAll(/<dpk-[a-z-]+\b[^>]*\bslot="main"/g)]).toHaveLength(2);
     // The log is a conversation: both sides speak in it.
     const kinds = new Set(
@@ -220,8 +220,8 @@ describe('sample pages', () => {
 
   it('delegation-poker.html deals the decisions the reader still has to play', () => {
     const html = sample('delegation-poker.html');
-    expect(entriesOf(html)).toContain('templates/delegation-poker.js');
-    const poker = parseDelegationPokerBase(jsonChild(html, 'dpk-template-delegation-poker'));
+    expect(entriesOf(html)).toContain('views/delegation-poker.js');
+    const poker = parseDelegationPokerBase(jsonChild(html, 'dpk-view-delegation-poker'));
     expect(poker.title).not.toBe('');
     expect(poker.players.length).toBeGreaterThan(1);
     // Most areas wait for the reader's card; one is already agreed, so the board shows both.
@@ -234,7 +234,7 @@ describe('sample pages', () => {
   it('whiteboard.html lays out a brainstorm on the whiteboard diagram', () => {
     const html = sample('whiteboard.html');
     expect(entriesOf(html)).toContain('components.js');
-    const board = parseWhiteboardBase(jsonChild(html, 'dpk-whiteboard'));
+    const board = parseWhiteboardBase(jsonChild(html, 'dpk-board-whiteboard'));
     expect(board.title).not.toBe('');
     // Every kind of item, and connectors with and without a label.
     expect(new Set(board.items.map((item) => item.kind))).toEqual(new Set(['sticky', 'text', 'shape', 'frame']));

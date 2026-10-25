@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { DpkCommentPanel } from '../components/comment-panel';
-import type { DpkTemplatePlain } from '../templates/plain/element';
+import type { DpkViewPlain } from '../views/plain/element';
 
 import { coreMessages } from './messages';
 import { changeLogScript, showChange } from './testing/change-notices';
@@ -25,21 +25,21 @@ const grill = {
   history: [{ questions: [{ id: 'deadline', title: 'Deadline?', answer: { kind: 'free', text: 'Before dispatch' } }] }],
 };
 
-const mount = (questions: unknown = grill, attributes = '', log = ''): DpkTemplatePlain => {
+const mount = (questions: unknown = grill, attributes = '', log = ''): DpkViewPlain => {
   window.location.hash = '';
   document.body.innerHTML = `
-    <dpk-template-plain storage="memory" ${attributes}>
+    <dpk-view-plain storage="memory" ${attributes}>
       ${log}
       <script type="application/json">${JSON.stringify({ title: 'Cancel orders' })}</script>
       ${questions === null ? '' : `<script type="application/json" data-dpk-grill>${JSON.stringify(questions)}</script>`}
       <section slot="main"><p id="retry-mark" data-grill-questions="Q1 Q2">Payment</p></section>
-    </dpk-template-plain>`;
-  const element = document.querySelector('dpk-template-plain');
+    </dpk-view-plain>`;
+  const element = document.querySelector('dpk-view-plain');
   if (!(element instanceof HTMLElement)) throw new Error('element did not upgrade');
-  return element as DpkTemplatePlain;
+  return element as DpkViewPlain;
 };
 
-const settle = async (element: DpkTemplatePlain): Promise<void> => {
+const settle = async (element: DpkViewPlain): Promise<void> => {
   await element.api.ready;
   for (let i = 0; i < 3; i += 1) {
     await element.updateComplete;
@@ -47,12 +47,12 @@ const settle = async (element: DpkTemplatePlain): Promise<void> => {
   }
 };
 
-const root = (element: DpkTemplatePlain): ShadowRoot => {
+const root = (element: DpkViewPlain): ShadowRoot => {
   if (!element.shadowRoot) throw new Error('no shadow root');
   return element.shadowRoot;
 };
 
-const toggle = (element: DpkTemplatePlain, section: string): HTMLElement | null =>
+const toggle = (element: DpkViewPlain, section: string): HTMLElement | null =>
   root(element).querySelector<HTMLElement>(`.dpk-review-toggle[data-section="${section}"]`);
 
 afterEach(() => {

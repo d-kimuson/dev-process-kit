@@ -106,7 +106,7 @@ const setViewport = (width: number, height: number): void => {
 /** Pans/zooms the world directly, so screenshots can cover a legible region without fighting the fit controller. */
 const setWorld = (scale: number, x: number, y: number): void => {
   evalJson(`(() => {
-    const panel = document.querySelector('dpk-er-diagram').shadowRoot.querySelector('dpk-dialog-panel');
+    const panel = document.querySelector('dpk-board-er-diagram').shadowRoot.querySelector('dpk-dialog-panel');
     const world = panel.shadowRoot.querySelector('.world');
     const controls = panel.shadowRoot.querySelector('.controls');
     if (controls) controls.hidden = true;
@@ -117,7 +117,7 @@ const setWorld = (scale: number, x: number, y: number): void => {
 
 const shot = (name: string): void => {
   const path = join(outDir, name);
-  ab(['screenshot', 'dpk-er-diagram', path]);
+  ab(['screenshot', 'dpk-board-er-diagram', path]);
   console.log(`  shot ${name}`);
 };
 
@@ -169,7 +169,7 @@ if (metrics?.world !== undefined && metrics.world !== null && metrics.canvas !==
 
   // One hovered card, framed near its centre, so the label audit has a visual counterpart.
   evalJson(`(() => {
-    const card = document.querySelector('dpk-er-diagram').shadowRoot.querySelectorAll('.er-table')[0];
+    const card = document.querySelector('dpk-board-er-diagram').shadowRoot.querySelectorAll('.er-table')[0];
     card?.dispatchEvent(new PointerEvent('pointerenter', { bubbles: false, composed: true }));
     return JSON.stringify({ ok: true });
   })()`);
@@ -180,7 +180,7 @@ if (metrics?.world !== undefined && metrics.world !== null && metrics.canvas !==
   // cardinality text is at its authored size, so a reviewer can judge label
   // placement and contrast rather than inferring them from a 55% thumbnail.
   const focus = evalJson(`(() => {
-    const root = document.querySelector('dpk-er-diagram').shadowRoot;
+    const root = document.querySelector('dpk-board-er-diagram').shadowRoot;
     const card = root.querySelector('[data-er-table="users"]') ?? root.querySelector('.er-table');
     if (card === null) return JSON.stringify({ x: 0, y: 0 });
     return JSON.stringify({ x: parseFloat(card.style.left) || 0, y: parseFloat(card.style.top) || 0 });

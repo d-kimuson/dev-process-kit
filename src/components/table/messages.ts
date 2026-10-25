@@ -4,7 +4,7 @@ export const tableMessages = defineMessages({
   en: {
     heading: 'Table',
     empty: 'No rows.',
-    notRecorded: 'Could not record it. Place this inside a dpk-template-* element.',
+    notRecorded: 'Could not record it. Place this inside a dpk-view-* element.',
     filterPlaceholder: 'Filter…',
     filterAriaLabel: 'Filter rows',
     groupByLabel: 'Group by',
@@ -28,7 +28,7 @@ export const tableMessages = defineMessages({
   ja: {
     heading: 'テーブル',
     empty: '行がありません。',
-    notRecorded: '記録できませんでした（dpk-template-* 要素の中に置いてください）。',
+    notRecorded: '記録できませんでした（dpk-view-* 要素の中に置いてください）。',
     filterPlaceholder: '絞り込み…',
     filterAriaLabel: '行を絞り込む',
     groupByLabel: 'グループ化',

@@ -4,7 +4,7 @@
  * (`dev/layout-bench.test.ts`), so the two can never silently disagree on
  * what a fixture's score is.
  */
-import { parseErData } from '../../src/components/er-diagram/model';
+import { parseErData } from '../../src/boards/er-diagram/model';
 import { scoreLayout, type MetricResult } from '../../src/lib/layout/metrics';
 import { erComplexFixtureAfter, erComplexFixtureBefore } from './fixtures/er-complex';
 import { erLongNamesFixtureAfter } from './fixtures/er-long-names';

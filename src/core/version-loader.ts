@@ -45,10 +45,10 @@ export const switchPageTo = (version: string | null): void => {
 };
 
 export type EntryStart = {
-  /** The entry's path under `dist/`, the same in every version: `templates/usm.js`. */
+  /** The entry's path under `dist/`, the same in every version: `views/usm.js`. */
   readonly entry: string;
-  /** The template elements the entry registers, for `window.devProcessKit`. */
-  readonly templates: readonly string[];
+  /** The view elements the entry registers, for `window.devProcessKit`. */
+  readonly views: readonly string[];
   /**
    * The entry's own resolved URL: `import.meta.url`, read where `startEntry` is
    * called so it names this chunk, not one it is bundled into.
@@ -70,10 +70,10 @@ const importFromCdn = (url: string): Promise<unknown> => import(/* @vite-ignore 
  * (no such version, no such entry in it, offline), this version runs the page
  * after all.
  */
-export const startEntry = ({ entry, templates, url, register, importModule = importFromCdn }: EntryStart): void => {
+export const startEntry = ({ entry, views, url, register, importModule = importFromCdn }: EntryStart): void => {
   const run = (): void => {
     register();
-    announce(FRAMEWORK_VERSION, templates, VERSION_PARAM, url);
+    announce(FRAMEWORK_VERSION, views, VERSION_PARAM, url);
   };
   const target = typeof location === 'undefined' ? null : delegationTarget(location.search, FRAMEWORK_VERSION);
   if (target === null) {
@@ -100,7 +100,7 @@ const switchesItself = (): boolean => {
 
 const FALLBACK_CLASS = 'dpk-version-fallback';
 
-// Light DOM, slotted into the template header of a version this one knows nothing about: its tokens apply when
+// Light DOM, slotted into the view header of a version this one knows nothing about: its tokens apply when
 // they still exist, and the fallbacks cover them when they do not.
 const FALLBACK_STYLES = `
   .${FALLBACK_CLASS} {
@@ -124,21 +124,21 @@ const FALLBACK_STYLES = `
 `;
 
 /**
- * Puts a version select into the `header` slot of each template on the page,
+ * Puts a version select into the `header` slot of each view on the page,
  * a public slot every version has, so the reader can switch again from a
  * version that renders none.
  */
 const addFallbackSelects = (current: string): void => {
-  const templates = [...document.body.querySelectorAll('*')].filter(
-    (element) => element.localName.startsWith('dpk-template-') && !element.querySelector(`:scope > .${FALLBACK_CLASS}`),
+  const views = [...document.body.querySelectorAll('*')].filter(
+    (element) => element.localName.startsWith('dpk-view-') && !element.querySelector(`:scope > .${FALLBACK_CLASS}`),
   );
-  if (templates.length === 0) return;
+  if (views.length === 0) return;
   document.head.append(Object.assign(document.createElement('style'), { textContent: FALLBACK_STYLES }));
-  for (const template of templates) template.append(fallbackSelect(template, current));
+  for (const view of views) view.append(fallbackSelect(view, current));
 };
 
-const fallbackSelect = (template: Element, current: string): HTMLSelectElement => {
-  const messages = coreMessages(matchLocale(closestLang(template)));
+const fallbackSelect = (view: Element, current: string): HTMLSelectElement => {
+  const messages = coreMessages(matchLocale(closestLang(view)));
   const select = document.createElement('select');
   select.className = FALLBACK_CLASS;
   select.slot = 'header';

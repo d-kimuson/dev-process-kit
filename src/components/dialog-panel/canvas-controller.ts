@@ -1,7 +1,7 @@
 /**
  * The effects behind a canvas panel's body: the pan/zoom controller on the
  * canvas, the measuring of its content, and the view it opens in. The view
- * math lives in `../diagram/viewport`.
+ * math lives in `../base/viewport`.
  */
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
@@ -12,7 +12,7 @@ import {
   type ViewportController,
   type ViewportPoint,
   type ViewState,
-} from '../diagram/viewport';
+} from '../../boards/base/viewport';
 
 /** The view the content opens in: fitted, fitted to the width, at 100%, or left to the caller. */
 export type CanvasInitial = 'fit' | 'fit-width' | 'actual' | 'none';

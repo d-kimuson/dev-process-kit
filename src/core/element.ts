@@ -2,7 +2,7 @@ import { LitElement, html, nothing, type CSSResultGroup, type PropertyDeclaratio
 import { safeParse } from 'valibot';
 
 import type { HandoffOutcome } from './claude-handoff';
-import type { TemplateApi, TemplateSnapshot, ShellRegions, TemplateRenderContext } from './shell/contracts';
+import type { ViewApi, ViewSnapshot, ShellRegions, ViewRenderContext } from './shell/contracts';
 import type {
   ActionInput,
   BatchDispatchOutcome,
@@ -10,7 +10,7 @@ import type {
   DispatchOutcome,
   Navigation,
   NavigationPatch,
-  TemplateDefinition,
+  ViewDefinition,
   ValidationIssue,
 } from './types';
 
@@ -62,13 +62,13 @@ import {
 } from './layouts/sidebar/model';
 import { coreMessages, LANGUAGE_NAMES, type CoreMessages } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
-import { resolveBoardTarget } from './page/board-target';
-import { boardHostOf, boardIdOf, DRAFT_BOARD_ATTRIBUTE, type BoardHost } from './page/host';
-import { boardNavigation, pagePatchFor } from './page/navigation';
+import { pageHostOf, pageNameOf, DRAFT_PAGE_ATTRIBUTE, type PageHost } from './page/host';
+import { pageNavigation, pagePatchFor } from './page/navigation';
+import { resolvePageTarget } from './page/page-target';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { PopoverController } from './popover-controller';
 import { SelectController } from './select/controller';
-import { createTemplateApi, renderContextOf, snapshotOf, type TemplateFacadeSource } from './shell/api';
+import { createViewApi, renderContextOf, snapshotOf, type ViewFacadeSource } from './shell/api';
 import { ChangeNoticeController } from './shell/change-notice-controller';
 import {
   NOTICE_LIST_ID,
@@ -149,7 +149,7 @@ type ReviewSection = 'changes' | 'questions' | 'comments';
 /** The part of the shell a badge layer lies over. */
 type BadgeRegion = 'main' | 'sidebar';
 
-export abstract class TemplateElement<S> extends LitElement {
+export abstract class ViewElement<S> extends LitElement {
   static override styles: CSSResultGroup = [chromeStyles, contextMenuStyles];
 
   /**
@@ -321,7 +321,7 @@ export abstract class TemplateElement<S> extends LitElement {
    * The template in one language. Called again whenever the locale changes:
    * on connect, and when the reader picks a language in the header.
    */
-  protected abstract definitionFor(locale: Locale): TemplateDefinition<S>;
+  protected abstract definitionFor(locale: Locale): ViewDefinition<S>;
 
   #versionChoice = new VersionChoiceController(this);
   readonly #langSelect = new SelectController(this);
@@ -335,12 +335,12 @@ export abstract class TemplateElement<S> extends LitElement {
       this.#controller?.setGrill({ grill: this.#grill, locale: this.locale });
     },
   );
-  #definition: { readonly locale: Locale; readonly value: TemplateDefinition<S> } | undefined;
+  #definition: { readonly locale: Locale; readonly value: ViewDefinition<S> } | undefined;
 
   #controller: DraftController<S> | undefined;
   #navigation: Navigation = EMPTY_NAVIGATION;
   #pendingCommentTarget: string | null = null;
-  readonly #listeners = new Set<(snapshot: TemplateSnapshot<S>) => void>();
+  readonly #listeners = new Set<(snapshot: ViewSnapshot<S>) => void>();
   #baseError: string | null = null;
   #unsubscribe: (() => void) | undefined;
   #previewObserver: MutationObserver | undefined;
@@ -350,7 +350,7 @@ export abstract class TemplateElement<S> extends LitElement {
   #readyPromise: Promise<void> = new Promise<void>((resolve) => {
     this.#resolveReady = resolve;
   });
-  #api: TemplateApi<S> | undefined;
+  #api: ViewApi<S> | undefined;
   /**
    * The id this template has as a board of `<dpk-page>`, or `null` when it is
    * the page root itself. A board renders its regions and nothing of the
@@ -369,7 +369,7 @@ export abstract class TemplateElement<S> extends LitElement {
     return this.#boardHost()?.locale() ?? this.#localeChoice.locale;
   }
 
-  get definition(): TemplateDefinition<S> {
+  get definition(): ViewDefinition<S> {
     const locale = this.locale;
     if (this.#definition?.locale !== locale) this.#definition = { locale, value: this.definitionFor(locale) };
     return this.#definition.value;
@@ -384,14 +384,14 @@ export abstract class TemplateElement<S> extends LitElement {
    * the raw definition before the controller exists (a board may render once
    * before its draft starts).
    */
-  get liveDefinition(): TemplateDefinition<S> {
+  get liveDefinition(): ViewDefinition<S> {
     return this.#controller?.definition ?? this.definition;
   }
 
   override connectedCallback(): void {
     // The shell is drawn with the layouts; whichever entry loaded the template, they are there.
     defineLayoutElements();
-    this.#boardId = boardIdOf(this);
+    this.#boardId = pageNameOf(this);
     if (this.#boardId === null && !this.#undoRedoKeyboardReady) {
       this.#undoRedoKeyboardReady = true;
       new UndoRedoKeyboardController(this, this.#undoRedoIntents);
@@ -482,7 +482,7 @@ export abstract class TemplateElement<S> extends LitElement {
 
   // ------------------------------------------------------------------ public
 
-  get api(): TemplateApi<S> {
+  get api(): ViewApi<S> {
     this.#api ??= this.#createApi();
     return this.#api;
   }
@@ -648,7 +648,7 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   /** Layout hook. The base provides the review rail, header and footer chrome. */
-  protected abstract renderRegions(context: TemplateRenderContext<S>): ShellRegions;
+  protected abstract renderRegions(context: ViewRenderContext<S>): ShellRegions;
 
   /**
    * Inside a Claude Artifact that declared `comments` (and `db` for long
@@ -668,7 +668,7 @@ export abstract class TemplateElement<S> extends LitElement {
     });
   }
 
-  protected renderReviewPanel(context: TemplateRenderContext<S>): TemplateResult {
+  protected renderReviewPanel(context: ViewRenderContext<S>): TemplateResult {
     return html`<dpk-comment-panel
       .definition=${this.controller.definition}
       .state=${context.state}
@@ -690,7 +690,7 @@ export abstract class TemplateElement<S> extends LitElement {
     ></dpk-comment-panel>`;
   }
 
-  protected renderChrome(context: TemplateRenderContext<S>, regions: ShellRegions): TemplateResult {
+  protected renderChrome(context: ViewRenderContext<S>, regions: ShellRegions): TemplateResult {
     if (this.#boardId !== null) return this.#renderBoardChrome(regions);
     const draftCount = context.actions.length;
     const { changeCount, commentCount } = this.reviewCounts(context);
@@ -858,7 +858,7 @@ export abstract class TemplateElement<S> extends LitElement {
    * header so they never cover its other controls. Their popovers hang below
    * the whole group, aligned to its right edge.
    */
-  #renderHeaderActions(context: TemplateRenderContext<S>, changeCount: number, commentCount: number): TemplateResult {
+  #renderHeaderActions(context: ViewRenderContext<S>, changeCount: number, commentCount: number): TemplateResult {
     const settings = this.definition.settings?.(context.state);
     const hasSettings = settings !== undefined && settings.items.length > 0;
     const messages = coreMessages(this.locale);
@@ -934,7 +934,7 @@ export abstract class TemplateElement<S> extends LitElement {
    * The counts the review toggles show: changes, answers and comments all
    * share one draft, so the header tells them apart here.
    */
-  protected reviewCounts(context: TemplateRenderContext<S>): { changeCount: number; commentCount: number } {
+  protected reviewCounts(context: ViewRenderContext<S>): { changeCount: number; commentCount: number } {
     const draftCount = context.actions.length;
     const commentCount = context.actions.filter((action) => action.type === COMMENT_ACTION).length;
     // An answer is shown with its question, unless it no longer fits one.
@@ -947,7 +947,7 @@ export abstract class TemplateElement<S> extends LitElement {
    * Kept in the tree while closed, so a comment half written survives closing
    * it; the popover only shows and hides it, over the page.
    */
-  #renderReviewPopover(context: TemplateRenderContext<S>): TemplateResult {
+  #renderReviewPopover(context: ViewRenderContext<S>): TemplateResult {
     const messages = coreMessages(this.locale);
     const section = this.#reviewSection;
     const label =
@@ -1328,15 +1328,15 @@ export abstract class TemplateElement<S> extends LitElement {
     return this.querySelector(':scope > [slot="footer"]') !== null;
   }
 
-  protected context(): TemplateRenderContext<S> {
+  protected context(): ViewRenderContext<S> {
     return this.#renderContext();
   }
 
   // --------------------------------------------------------------- internals
 
   /** The page this board sits in, once the page is upgraded; `null` on a template of its own. */
-  #boardHost(): BoardHost | null {
-    return this.#boardId === null ? null : boardHostOf(this);
+  #boardHost(): PageHost | null {
+    return this.#boardId === null ? null : pageHostOf(this);
   }
 
   /** The name the reader's per-template UI state is kept under; each board of a page keeps its own. */
@@ -1346,7 +1346,7 @@ export abstract class TemplateElement<S> extends LitElement {
 
   /** Runs a draft operation on the page; refused while the page is still upgrading. */
   #onPage<O>(
-    operation: (host: BoardHost) => O,
+    operation: (host: PageHost) => O,
   ): O | { readonly ok: false; readonly issues: readonly [ValidationIssue] } {
     const host = this.#boardHost();
     if (host === null) return { ok: false, issues: [{ path: 'board', message: 'the page is not ready yet' }] };
@@ -1360,7 +1360,7 @@ export abstract class TemplateElement<S> extends LitElement {
     const host = this.#boardHost();
     const board = this.#boardId;
     const resolved = toTarget(target, fallbackType);
-    return board === null || host === null ? resolved : resolveBoardTarget(resolved, board, host.boardIds());
+    return board === null || host === null ? resolved : resolvePageTarget(resolved, board, host.pageNames());
   }
 
   #toPage(input: ActionInput): ActionInput {
@@ -1373,10 +1373,10 @@ export abstract class TemplateElement<S> extends LitElement {
     const host = this.#boardHost();
     const board = this.#boardId;
     if (host === null || board === null) return patch;
-    return pagePatchFor(host.navigation(), board, patch, host.boardIds(), this.definition.navigationHierarchy);
+    return pagePatchFor(host.navigation(), board, patch, host.pageNames(), this.definition.navigationHierarchy);
   }
 
-  #facadeSource(): TemplateFacadeSource<S> {
+  #facadeSource(): ViewFacadeSource<S> {
     return {
       definition: this.definition,
       controller: () => this.controller,
@@ -1402,24 +1402,22 @@ export abstract class TemplateElement<S> extends LitElement {
     };
   }
 
-  #createApi(): TemplateApi<S> {
-    return createTemplateApi(this.#facadeSource(), this);
+  #createApi(): ViewApi<S> {
+    return createViewApi(this.#facadeSource(), this);
   }
 
-  #snapshot(): TemplateSnapshot<S> {
+  #snapshot(): ViewSnapshot<S> {
     return snapshotOf(this.#facadeSource());
   }
 
-  #renderContext(): TemplateRenderContext<S> {
+  #renderContext(): ViewRenderContext<S> {
     return renderContextOf(this.#facadeSource());
   }
 
   #effectiveNavigation(): Navigation {
     const host = this.#boardHost();
     const raw =
-      this.#boardId === null
-        ? this.#navigation
-        : boardNavigation(host?.navigation() ?? EMPTY_NAVIGATION, this.#boardId);
+      this.#boardId === null ? this.#navigation : pageNavigation(host?.navigation() ?? EMPTY_NAVIGATION, this.#boardId);
     // A board may render once before its draft starts, as a template on its own does.
     if (!this.#controller) return raw;
     return this.definition.resolveNavigation(this.derivation.state, raw);
@@ -1486,14 +1484,14 @@ export abstract class TemplateElement<S> extends LitElement {
   }
 
   /** The brief handed to the agent; a page groups it by board. */
-  protected buildBrief(snapshot: TemplateSnapshot<S>): string {
+  protected buildBrief(snapshot: ViewSnapshot<S>): string {
     return buildAgentBrief(snapshot, this.controller.definition, FRAMEWORK_VERSION);
   }
 
   #readBase(): S {
     const script = this.scriptOf(BASE_SELECTOR);
     // A board the draft added has no base JSON yet: the agent writes it from the draft.
-    if (script === null && this.hasAttribute(DRAFT_BOARD_ATTRIBUTE)) return this.definition.emptyBase();
+    if (script === null && this.hasAttribute(DRAFT_PAGE_ATTRIBUTE)) return this.definition.emptyBase();
     if (!script?.textContent || script.textContent.trim().length === 0) {
       console.warn(`[dev-process-kit] <${this.tagName.toLowerCase()}> has no base JSON; starting from an empty state.`);
       this.#baseError = 'no <script type="application/json"> child found';

@@ -1,5 +1,5 @@
 /**
- * Shell chrome styles: the shadow-DOM look of every `dpk-template-*` element.
+ * Shell chrome styles: the shadow-DOM look of every `dpk-view-*` element.
  *
  * Kept separate from the element so the class reads as behaviour, not CSS.
  */

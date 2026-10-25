@@ -1,5 +1,5 @@
 import type { Locale } from './i18n';
-import type { ActionDescription, ActionTone, DraftAction, TemplateDefinition } from './types';
+import type { ActionDescription, ActionTone, DraftAction, ViewDefinition } from './types';
 
 import { answerPayload, findQuestion, GRILL_TARGET_TYPE, isAnswerAction, questionLabel, type Grill } from './grill';
 import { coreMessages, type CoreMessages } from './messages';
@@ -31,7 +31,7 @@ const summarize = (
  * can point at, and the review describes answers to them. Like
  * `withComponentSnapshot`, every function depends only on what it captured.
  */
-export const withGrill = <S>(definition: TemplateDefinition<S>, layer: GrillLayer): TemplateDefinition<S> => {
+export const withGrill = <S>(definition: ViewDefinition<S>, layer: GrillLayer): ViewDefinition<S> => {
   const { grill } = layer;
   const m = coreMessages(layer.locale);
   return {

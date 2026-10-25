@@ -1,12 +1,6 @@
 import type { Derivation, StaleReason } from '../../core/derive';
 import type { Locale } from '../../core/i18n';
-import type {
-  ActionTone,
-  CommentTargetOption,
-  Navigation,
-  TemplateDefinition,
-  ValidationIssue,
-} from '../../core/types';
+import type { ActionTone, CommentTargetOption, Navigation, ViewDefinition, ValidationIssue } from '../../core/types';
 import type { PanelState } from './model';
 
 import { COMMENT_ACTION } from '../../core/action';
@@ -16,7 +10,7 @@ import { isAnswerAction } from '../../core/grill';
 import { panelMessages } from './messages';
 
 export type PanelInputs<S> = {
-  readonly definition: TemplateDefinition<S>;
+  readonly definition: ViewDefinition<S>;
   readonly state: S;
   readonly navigation: Navigation;
   readonly derivation: Derivation<S>;

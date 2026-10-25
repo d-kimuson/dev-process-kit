@@ -2,7 +2,7 @@
  * The right-click menu's contract: a flat ADT any part of the shell, a
  * template or a component can contribute to. An item runs a closure handed to
  * it by whoever built it — the menu itself interprets nothing and stores no
- * domain knowledge, the same way a `TemplateSetting.toggle` is dispatched by
+ * domain knowledge, the same way a `ViewSetting.toggle` is dispatched by
  * its owner rather than decided here.
  */
 import type { ActionTarget } from '../types';

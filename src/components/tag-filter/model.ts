@@ -1,8 +1,6 @@
 import * as v from 'valibot';
 
-import type { TagMatch } from '../diagram/model';
-
-import { BC_TAG_PREFIX } from '../er-diagram/model';
+import { BC_TAG_PREFIX, type TagMatch } from '../../core/board-model';
 
 /** A tag offered by the filter: its name, with how many items carry it when known. */
 export type TagFilterOption = string | { readonly tag: string; readonly count?: number };

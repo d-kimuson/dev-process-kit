@@ -1,13 +1,13 @@
 /**
  * The page's settings in the shell header: a gear among the header actions
  * and, while it is open, the menu of the template's switches. What the
- * switches are is the template's (`TemplateDefinition.settings`); flipping one
+ * switches are is the template's (`ViewDefinition.settings`); flipping one
  * dispatches the change it names, so the agent sees it in the draft.
  */
 import { html, nothing, type TemplateResult } from 'lit';
 
 import type { CoreMessages } from '../messages';
-import type { ActionInput, TemplateSetting, TemplateSettings } from '../types';
+import type { ActionInput, ViewSetting, ViewSettings } from '../types';
 
 import { iconCheck, iconSettings } from '../icons';
 
@@ -38,13 +38,13 @@ export const renderSettingsTrigger = (open: boolean, m: CoreMessages, on: Settin
   </button>`;
 
 /** Rendered only while open; it stays open for the next switch. */
-export const renderSettingsMenu = (settings: TemplateSettings, m: CoreMessages, on: SettingsIntents): TemplateResult =>
+export const renderSettingsMenu = (settings: ViewSettings, m: CoreMessages, on: SettingsIntents): TemplateResult =>
   html`<div id=${SETTINGS_ID} class="dpk-settings" popover="manual" role="menu" aria-label=${m.settings}>
     ${settings.items.map((item) => renderOption(item, on))}
     ${settings.note === undefined ? nothing : html`<p class="dpk-settings-note">${settings.note}</p>`}
   </div>`;
 
-const renderOption = (item: TemplateSetting, on: SettingsIntents): TemplateResult =>
+const renderOption = (item: ViewSetting, on: SettingsIntents): TemplateResult =>
   html`<button
     class="dpk-settings-option"
     type="button"

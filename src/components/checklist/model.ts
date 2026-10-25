@@ -4,7 +4,7 @@ import type { ElementActionResult } from '../../core/element-actions';
 import type { DraftAction } from '../../core/types';
 import type { ChecklistMessages } from './messages';
 
-import { elementRefSegments } from '../diagram/model';
+import { elementRefSegments } from '../../core/board-model';
 
 /**
  * Domain model of a checklist: items in reading order, each checked or not.

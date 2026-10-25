@@ -51,9 +51,9 @@ export default defineConfig({
     'vitest/require-mock-type-parameters': 'off',
 
     /* Project conventions (dev/lints/conventions.js) */
-    'conventions/core-template-boundaries': 'error',
+    'conventions/core-content-boundaries': 'error',
     'conventions/lib-boundaries': 'error',
-    'conventions/template-isolation': 'error',
+    'conventions/content-isolation': 'error',
     'conventions/pure-layer-boundaries': 'error',
     'conventions/entrypoint-imports': 'error',
     'conventions/colocated-tests': 'error',
@@ -114,7 +114,7 @@ export default defineConfig({
       rules: {
         'typescript/no-unsafe-assignment': 'off',
         'typescript/no-unsafe-type-assertion': 'off',
-        'conventions/core-template-boundaries': 'off',
+        'conventions/core-content-boundaries': 'off',
         'conventions/lib-boundaries': 'off',
         'conventions/entrypoint-imports': 'off',
       },

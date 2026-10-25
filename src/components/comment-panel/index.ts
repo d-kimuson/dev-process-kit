@@ -2,7 +2,7 @@ import { LitElement, nothing, type TemplateResult } from 'lit';
 
 import type { HandoffOutcome } from '../../core/claude-handoff';
 import type { Derivation } from '../../core/derive';
-import type { DispatchOutcome, Navigation, TemplateDefinition, ValidationIssue } from '../../core/types';
+import type { DispatchOutcome, Navigation, ViewDefinition, ValidationIssue } from '../../core/types';
 
 import { buildAgentBrief } from '../../core/export';
 import { LocaleController } from '../../core/locale-controller';
@@ -55,7 +55,7 @@ export class DpkCommentPanel extends LitElement {
   declare section: string | null;
 
   declare embedded: boolean;
-  declare definition: TemplateDefinition<unknown> | null;
+  declare definition: ViewDefinition<unknown> | null;
   declare state: unknown;
   declare navigation: Navigation;
   declare derivation: Derivation<unknown> | null;

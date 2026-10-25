@@ -26,7 +26,7 @@ export class LocaleChoiceController implements ReactiveController {
   /**
    * `persist` is read on first connect, like the color scheme's. `active` is
    * `false` for a board: its locale is resolved through the page host instead
-   * (`TemplateElement#locale`), so this controller must stay inert — never
+   * (`ViewElement#locale`), so this controller must stay inert — never
    * read or write the shared storage key, never stamp its own `lang`, never
    * dispatch `dpk-locale-change` — or it races the page's own controller for
    * the same key and can clobber a reader's real pick (see the regression

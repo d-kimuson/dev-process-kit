@@ -60,7 +60,7 @@ const probeSchema = v.object({ banner: v.boolean(), rail: v.boolean() });
  * itself when it is still the page root on its own.
  */
 const probeState = (template: string, shape: 'page' | 'standalone'): { banner: boolean; rail: boolean } | null => {
-  const selector = shape === 'page' ? 'dpk-page' : `dpk-template-${template}`;
+  const selector = shape === 'page' ? 'dpk-page' : `dpk-view-${template}`;
   try {
     const raw = ab(
       'eval',

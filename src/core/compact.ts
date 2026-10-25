@@ -1,7 +1,7 @@
-import type { DraftAction, TemplateDefinition } from './types';
+import type { DraftAction, ViewDefinition } from './types';
 
 import { COMMENT_ACTION } from './action';
-import { PAGE_TARGET_TYPE, sameState, type Derivation } from './derive';
+import { APP_TARGET_TYPE, PAGE_TARGET_TYPE, sameState, type Derivation } from './derive';
 import { isElementAction } from './element-actions';
 import { isAnswerAction } from './grill';
 import { ownAction } from './schema';
@@ -24,7 +24,7 @@ import { ownAction } from './schema';
  * actions are never removed, and a stale action is never part of a candidate.
  */
 export const compactDraft = <S>(
-  definition: TemplateDefinition<S>,
+  definition: ViewDefinition<S>,
   derivation: Derivation<S>,
   rederive: (actions: readonly DraftAction[]) => Derivation<S>,
   /** The actions just dispatched. Omitted, the whole draft is revisited. */
@@ -45,7 +45,7 @@ const templateActions = <S>(derivation: Derivation<S>): readonly DraftAction[] =
 };
 
 const cancel = <S>(
-  definition: TemplateDefinition<S>,
+  definition: ViewDefinition<S>,
   current: Derivation<S>,
   rederive: (actions: readonly DraftAction[]) => Derivation<S>,
   triggerId: string,
@@ -88,7 +88,7 @@ const cancel = <S>(
  * reproduce the derived state when replayed on the base in order.
  */
 const closedRuns = <S>(
-  definition: TemplateDefinition<S>,
+  definition: ViewDefinition<S>,
   base: S,
   actions: readonly DraftAction[],
   index: number,
@@ -112,7 +112,7 @@ const closedRuns = <S>(
  * deletion).
  */
 const relatedSets = <S>(
-  definition: TemplateDefinition<S>,
+  definition: ViewDefinition<S>,
   earlier: readonly DraftAction[],
   trigger: DraftAction,
 ): string[][] => {
@@ -136,7 +136,8 @@ const relatedSets = <S>(
  * still checked against the final state.
  */
 const referencesOf = (action: DraftAction): readonly string[] => {
-  const target = action.target.type === PAGE_TARGET_TYPE ? [] : action.target.id.split('.');
+  const whole = action.target.type === PAGE_TARGET_TYPE || action.target.type === APP_TARGET_TYPE;
+  const target = whole ? [] : action.target.id.split('.');
   const payload =
     typeof action.payload === 'object' && action.payload !== null
       ? Object.values(action.payload).filter((value): value is string => typeof value === 'string' && value !== '')
@@ -144,7 +145,7 @@ const referencesOf = (action: DraftAction): readonly string[] => {
   return [...target, ...payload];
 };
 
-const modeOf = <S>(definition: TemplateDefinition<S>, action: DraftAction) => {
+const modeOf = <S>(definition: ViewDefinition<S>, action: DraftAction) => {
   return ownAction(definition.actions, action.type)?.mode;
 };
 
@@ -153,7 +154,7 @@ const modeOf = <S>(definition: TemplateDefinition<S>, action: DraftAction) => {
  * those are gone, or `null` when that changes what the page means.
  */
 const withoutActions = <S>(
-  definition: TemplateDefinition<S>,
+  definition: ViewDefinition<S>,
   current: Derivation<S>,
   rederive: (actions: readonly DraftAction[]) => Derivation<S>,
   ids: readonly string[],

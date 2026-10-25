@@ -26,12 +26,13 @@
   "exports": {
     ".": "./dist/index.js",
     "./components": "./dist/components.js",
-    "./templates/prototype": "./dist/templates/prototype.js",
-    "./templates/usm": "./dist/templates/usm.js",
-    "./templates/plain": "./dist/templates/plain.js",
-    "./templates/slides": "./dist/templates/slides.js",
-    "./templates/task-board": "./dist/templates/task-board.js",
-    "./templates/delegation-poker": "./dist/templates/delegation-poker.js"
+    "./boards": "./dist/boards.js",
+    "./views/prototype": "./dist/views/prototype.js",
+    "./views/usm": "./dist/views/usm.js",
+    "./views/plain": "./dist/views/plain.js",
+    "./views/slides": "./dist/views/slides.js",
+    "./views/task-board": "./dist/views/task-board.js",
+    "./views/delegation-poker": "./dist/views/delegation-poker.js"
   },
   "scripts": {
     "dev": "run-p 'dev:*'",

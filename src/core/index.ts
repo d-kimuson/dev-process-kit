@@ -3,11 +3,11 @@
  * template element base and the contracts templates implement.
  *
  * Nothing here knows about a template, and nothing here is a custom element —
- * the shipped elements live in `src/components` and `src/templates`.
+ * the shipped elements live in `src/components` and `src/views`.
  */
 export { FRAMEWORK_VERSION } from './version';
-export { TemplateElement } from './element';
-export type { TemplateApi, TemplateSnapshot, ShellRegions, TemplateRenderContext } from './shell/contracts';
+export { ViewElement } from './element';
+export type { ViewApi, ViewSnapshot, ShellRegions, ViewRenderContext } from './shell/contracts';
 export { DraftController } from './controller';
 export type { DraftControllerOptions, DraftExport } from './controller';
 export { derive, liveActions, commentTargetKey } from './derive';
@@ -20,11 +20,11 @@ export {
   defineAction,
   draftActionEnvelopeSchema,
   entityDedupeKey,
-  parseTemplateAction,
+  parseViewAction,
   payloadFor,
   targetSchema,
 } from './schema';
-export type { ActionName, ActionSpec, ActionSpecs, PayloadOfSpec, TemplateAction } from './schema';
+export type { ActionName, ActionSpec, ActionSpecs, PayloadOfSpec, ViewAction } from './schema';
 export { parseHash, formatHash, patchNavigation, EMPTY_NAVIGATION } from './navigation';
 export { createActionId, createEntityId, parseTargetRef, slugify, targetRef, toTarget } from './target';
 export { WebStorageDraftStorage, MemoryDraftStorage, defaultStorage, defaultStorageKey } from './persistence';
@@ -57,6 +57,6 @@ export type {
   DraftAction,
   Navigation,
   NavigationPatch,
-  TemplateDefinition,
+  ViewDefinition,
   ValidationIssue,
 } from './types';

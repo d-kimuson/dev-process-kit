@@ -7,7 +7,7 @@ import type {
   BatchDispatchOutcome,
   DispatchOutcome,
   DraftAction,
-  TemplateDefinition,
+  ViewDefinition,
   ValidationIssue,
 } from './types';
 
@@ -31,7 +31,7 @@ import { toTarget } from './target';
 import { canRedo, canUndo, clearRedo, redoStep, undoStep, EMPTY_UNDO_REDO, type UndoRedoState } from './undo-redo';
 
 export type DraftControllerOptions<S> = {
-  readonly definition: TemplateDefinition<S>;
+  readonly definition: ViewDefinition<S>;
   readonly base: S;
   readonly storage?: DraftStorage | null;
   readonly storageKey?: string;
@@ -53,8 +53,8 @@ const batchInputSchema = array(unknown());
 
 /** Owns validation, canonical actions, derivation and a single persistence/notification boundary. */
 export class DraftController<S> {
-  #template: TemplateDefinition<S>;
-  #definition: TemplateDefinition<S>;
+  #template: ViewDefinition<S>;
+  #definition: ViewDefinition<S>;
   #snapshot: ComponentSnapshot = { targets: [], providers: [] };
   #grill: GrillLayer;
   #elementResults: ReadonlyMap<string, ElementActionResult> = new Map();
@@ -81,7 +81,7 @@ export class DraftController<S> {
     if (this.#normalize()) this.#persist();
   }
 
-  get definition(): TemplateDefinition<S> {
+  get definition(): ViewDefinition<S> {
     return this.#definition;
   }
 
@@ -103,7 +103,7 @@ export class DraftController<S> {
    * Replaces the template with the same one in another language. The draft,
    * the base and storage stay as they are; only the text derived from them changes.
    */
-  setTemplate(definition: TemplateDefinition<S>): void {
+  setTemplate(definition: ViewDefinition<S>): void {
     this.#template = definition;
     this.#rewrap();
     this.#derivation = this.#derive(this.#actions);
@@ -127,7 +127,7 @@ export class DraftController<S> {
     this.#definition = this.#wrap();
   }
 
-  #wrap(): TemplateDefinition<S> {
+  #wrap(): ViewDefinition<S> {
     return withGrill(withComponentSnapshot(this.#template, this.#snapshot.targets, this.#elementResults), this.#grill);
   }
 
@@ -359,7 +359,7 @@ export class DraftController<S> {
 }
 
 const descriptorOf = <S>(
-  definition: TemplateDefinition<S>,
+  definition: ViewDefinition<S>,
   type: string,
   target: ActionTarget | undefined,
 ): ActionDescriptor | undefined => {
@@ -375,7 +375,7 @@ const append = (actions: readonly DraftAction[], action: DraftAction, descriptor
   isAnswerAction(action) ? replaceAnswer(actions, action) : appendAction(actions, action, descriptor);
 
 /** Validate the envelope before reading fields; preserve normalized schema output. */
-const normalizeRestored = <S>(definition: TemplateDefinition<S>, actions: readonly unknown[]): DraftAction[] => {
+const normalizeRestored = <S>(definition: ViewDefinition<S>, actions: readonly unknown[]): DraftAction[] => {
   return actions.flatMap((input) => {
     const envelope = safeParse(draftActionEnvelopeSchema, input);
     if (!envelope.success) return [];

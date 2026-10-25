@@ -1,6 +1,6 @@
 import { isEqual } from 'es-toolkit/predicate';
 
-import type { DraftAction, TemplateDefinition } from './types';
+import type { DraftAction, ViewDefinition } from './types';
 
 import { COMMENT_ACTION } from './action';
 import { isElementAction, type ElementActionResult } from './element-actions';
@@ -10,8 +10,10 @@ import { targetRef } from './target';
 
 export type StaleReason = 'unsupported-action-type' | 'target-missing' | 'constraint-violated';
 
-/** Target type reserved by the core for "the page as a whole". */
+/** Target type reserved by the core for "the page content as a whole". */
 export const PAGE_TARGET_TYPE = 'page';
+/** Target type reserved by the core for "the whole document". */
+export const APP_TARGET_TYPE = 'app';
 
 export type StaleAction = {
   readonly action: DraftAction;
@@ -51,7 +53,7 @@ export const commentTargetKey = (target: { type: string; id: string }): string =
  * Answers never touch `state` either: they shape `answers` against `grill`.
  */
 export const derive = <S>(
-  definition: TemplateDefinition<S>,
+  definition: ViewDefinition<S>,
   base: S,
   actions: readonly DraftAction[],
   elementResults: ReadonlyMap<string, ElementActionResult> = new Map(),
@@ -124,10 +126,10 @@ export const derive = <S>(
   // position in the draft. A later deletion (or creation) must be visible here.
   for (const action of actions) {
     if (action.type !== COMMENT_ACTION) continue;
-    const exists =
-      action.target.type === PAGE_TARGET_TYPE
-        ? (definition.pageTargetExists?.(state, action.target) ?? true)
-        : definition.hasTarget(state, action.target);
+    const whole = action.target.type === PAGE_TARGET_TYPE || action.target.type === APP_TARGET_TYPE;
+    const exists = whole
+      ? (definition.pageTargetExists?.(state, action.target) ?? true)
+      : definition.hasTarget(state, action.target);
     if (!exists) {
       stale.push({ action, reason: 'target-missing' });
       continue;
@@ -154,7 +156,7 @@ export const derive = <S>(
 };
 
 /** Whether two states mean the same page, per the template's canonical form. */
-export const sameState = <S>(definition: TemplateDefinition<S>, a: S, b: S): boolean => {
+export const sameState = <S>(definition: ViewDefinition<S>, a: S, b: S): boolean => {
   if (a === b) return true;
   if (definition.canonicalState === undefined) return isEqual(a, b);
   return isEqual(definition.canonicalState(a), definition.canonicalState(b));

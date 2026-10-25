@@ -42,8 +42,8 @@ describe('delegationTarget', () => {
 
 describe('entryUrl', () => {
   it('points at the same entry of that version on jsDelivr', () => {
-    expect(entryUrl('0.0.7', 'templates/prototype.js')).toBe(
-      'https://cdn.jsdelivr.net/npm/dev-process-kit@0.0.7/dist/templates/prototype.js',
+    expect(entryUrl('0.0.7', 'views/prototype.js')).toBe(
+      'https://cdn.jsdelivr.net/npm/dev-process-kit@0.0.7/dist/views/prototype.js',
     );
     expect(entryUrl('1.0.0-beta.1', 'index.js')).toBe(
       'https://cdn.jsdelivr.net/npm/dev-process-kit@1.0.0-beta.1/dist/index.js',

@@ -1,5 +1,5 @@
-import type { TemplateSnapshot } from './shell/contracts';
-import type { DraftAction, TemplateDefinition } from './types';
+import type { ViewSnapshot } from './shell/contracts';
+import type { DraftAction, ViewDefinition } from './types';
 
 import { COMMENT_ACTION, serializeDraft } from './action';
 import { commentBody } from './comment';
@@ -31,8 +31,8 @@ const actionBlock = (action: DraftAction): string => {
  * presented as one ordered change request.
  */
 export const buildAgentBrief = <S>(
-  snapshot: TemplateSnapshot<S>,
-  definition: TemplateDefinition<S>,
+  snapshot: ViewSnapshot<S>,
+  definition: ViewDefinition<S>,
   frameworkVersion: string,
 ): string => {
   const { actions, state } = snapshot;

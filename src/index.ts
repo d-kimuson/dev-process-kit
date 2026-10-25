@@ -1,3 +1,5 @@
+import { defineAppElement } from './app/index';
+import { registerBoardElements } from './boards/index';
 import { registerComponentElements } from './components/index';
 import { FRAMEWORK_VERSION } from './core/index';
 import { startEntry } from './core/version-loader';
@@ -6,18 +8,19 @@ import { VERSION_PARAM } from './core/version-switch';
  * dev-process-kit.
  *
  * The `index.js` entry: every template and every component in one file. Pages that use
- * one template should load that template's entry instead (`templates/<name>.js`); this
+ * one template should load that template's entry instead (`views/<name>.js`); this
  * one is the union, and the entry the docs and samples pin when they do not care.
  *
  * Public contract: custom elements, attributes, properties, DOM
  * events and slots. Lit is an implementation detail and is never re-exported.
  */
 import { announce } from './lib/announce';
-import { registerTemplateElements } from './templates/index';
+import { definePageElement } from './page/index';
+import { registerViewElements } from './views/index';
 
 export { FRAMEWORK_VERSION } from './core/version';
 export {
-  TemplateElement,
+  ViewElement,
   DraftController,
   COMMENT_ACTION,
   buildAgentBrief,
@@ -29,7 +32,7 @@ export {
   parseHash,
   patchNavigation,
   payloadFor,
-  parseTemplateAction,
+  parseViewAction,
   assertNever,
   targetRef,
   parseTargetRef,
@@ -40,51 +43,52 @@ export {
   defaultStorage,
   defaultStorageKey,
 } from './core/index';
+export { DpkCommentPanel, DpkFormalSpec, DpkInlineEdit, registerComponentElements } from './components/index';
+export type { CommentPanelCallbacks, FormalSpecData } from './components/index';
 export {
-  DpkArchitectureMap,
-  DpkCommentPanel,
-  DpkDependencyGraph,
-  DpkErDiagram,
-  DpkEventStorming,
-  DpkExampleMapping,
-  DpkFormalSpec,
-  DpkInlineEdit,
-  DpkKanban,
-  DpkMindMap,
-  DpkSequenceDiagram,
-  DpkStateDiagram,
-  DpkWhiteboard,
-  registerComponentElements,
-  registerDiagramElements,
-} from './components/index';
+  BoardCanvasChromeElement,
+  BoardCanvasElement,
+  BoardChromeBase,
+  DpkBoardArchitectureMap,
+  DpkBoardDependencyGraph,
+  DpkBoardErDiagram,
+  DpkBoardEventStorming,
+  DpkBoardExampleMapping,
+  DpkBoardKanban,
+  DpkBoardMindMap,
+  DpkBoardSequenceDiagram,
+  DpkBoardStateDiagram,
+  DpkBoardWhiteboard,
+  registerBoardElements,
+} from './boards/index';
 export type {
   ArchitectureData,
   ArchitectureService,
-  CommentPanelCallbacks,
   DependencyData,
   DependencyModule,
   ErData,
   ErTableDiff,
   EventStormingState,
   ExampleMappingState,
-  FormalSpecData,
   KanbanData,
   MindMapData,
   SequenceDiagramData,
   StateDiagramData,
   WhiteboardState,
-} from './components/index';
+} from './boards/index';
+export { DpkApp, defineAppElement } from './app/index';
+export { DpkPage, definePageElement } from './page/index';
 export type {
   ActionDescriptor,
   ActionSpec,
   ActionSpecs,
-  TemplateAction,
+  ViewAction,
   ActionDescription,
   ActionInput,
   ActionTarget,
   ActionTone,
-  TemplateApi,
-  TemplateSnapshot,
+  ViewApi,
+  ViewSnapshot,
   CommentTargetOption,
   DispatchOutcome,
   BatchDispatchOutcome,
@@ -94,35 +98,41 @@ export type {
   NavigationPatch,
   ShellRegions,
   StaleAction,
-  TemplateDefinition,
-  TemplateRenderContext,
+  ViewDefinition,
+  ViewRenderContext,
   ValidationIssue,
 } from './core/index';
 
-export { registerTemplateElements } from './templates/index';
-export * as prototype from './templates/prototype';
-export * as usm from './templates/usm';
-export * as plain from './templates/plain';
-export * as slides from './templates/slides';
-export * as taskBoard from './templates/task-board';
-export * as delegationPoker from './templates/delegation-poker';
+export { registerViewElements } from './views/index';
+export * as prototype from './views/prototype';
+export * as usm from './views/usm';
+export * as plain from './views/plain';
+export * as slides from './views/slides';
+export * as taskBoard from './views/task-board';
+export * as delegationPoker from './views/delegation-poker';
 
-/** The template elements this entry registers, for `window.devProcessKit`. */
-const TEMPLATES = ['prototype', 'usm', 'plain', 'slides', 'task-board', 'delegation-poker'] as const;
+/** The view elements this entry registers, for `window.devProcessKit`. */
+const VIEWS = ['prototype', 'usm', 'plain', 'slides', 'task-board', 'delegation-poker'] as const;
 
 /** Registers every `dpk-*` custom element. Idempotent. */
 export const registerAllElements = (): void => {
   registerComponentElements();
-  registerTemplateElements();
-  announce(FRAMEWORK_VERSION, TEMPLATES, VERSION_PARAM, import.meta.url);
+  registerBoardElements();
+  registerViewElements();
+  defineAppElement();
+  definePageElement();
+  announce(FRAMEWORK_VERSION, VIEWS, VERSION_PARAM, import.meta.url);
 };
 
 startEntry({
   entry: 'index.js',
   url: import.meta.url,
-  templates: TEMPLATES,
+  views: VIEWS,
   register: () => {
     registerComponentElements();
-    registerTemplateElements();
+    registerBoardElements();
+    registerViewElements();
+    defineAppElement();
+    definePageElement();
   },
 });
