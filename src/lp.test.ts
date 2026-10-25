@@ -80,6 +80,17 @@ describe('lp pages', () => {
     expect(missing, 'landing page(s) missing the FOUC guard style (docs/index.md#page-height)').toEqual([]);
   });
 
+  it('every landing page with a board loads boards.js, so its element can upgrade at all', () => {
+    const files = readdirSync(resolve('lp')).filter((name) => name.endsWith('.html'));
+    const boardPages = files.filter((name) => {
+      const html = lpPage(name);
+      return html.includes('data-tag="dpk-board-') || /<dpk-board-/.test(html);
+    });
+    expect(boardPages.length).toBeGreaterThan(0);
+    const missing = boardPages.filter((name) => !entriesOf(lpPage(name)).includes('boards.js'));
+    expect(missing, 'landing page(s) with a dpk-board-* element must load boards.js').toEqual([]);
+  });
+
   it('diagrams.html carries data every diagram accepts', () => {
     const html = lpPage('diagrams.html');
     expect(parseStateData(jsonChild(html, 'dpk-board-state-diagram')).nodes).toHaveLength(8);

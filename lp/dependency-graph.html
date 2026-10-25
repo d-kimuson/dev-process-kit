@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!--
+      Hides the root element until it upgrades, so the content inside does not flash
+      before the kit paints its chrome (docs/index.md#page-height). The animation is a
+      safety net: if the script fails to load, the content still shows after 2s.
+    -->
+    <style>
+      body > :not(:defined) {
+        visibility: hidden;
+        animation: dpk-reveal 0s 2s forwards;
+      }
+      @keyframes dpk-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+    </style>
+    <title>注文モジュールの依存関係 — Dependency graph | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too. A generated page
+      loads the same files from jsDelivr instead, and so does this page on GitHub
+      Pages or with `?dpk-version=<version>` (`kit.js`).
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['components.js', 'boards.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-app {
+        display: block;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-app storage-key="sample-dependency-graph-order">
+      <script type="application/json">
+        { "title": "Sora Market — 注文モジュール" }
+      </script>
+
+      <dpk-page name="dependency-graph" label="Dependency graph">
+        <dpk-board-dependency-graph id="order-dependencies" heading="Dependencies" subject="注文モジュール">
+          <script type="application/json">
+            {
+              "modules": [
+                {
+                  "id": "checkout",
+                  "name": "Checkout UI",
+                  "path": "apps/checkout",
+                  "layer": "UI",
+                  "tags": ["UI"]
+                },
+                { "id": "api", "name": "Order API", "path": "api/orders", "layer": "API", "tags": ["API"] },
+                {
+                  "id": "orders",
+                  "name": "Order service",
+                  "path": "app/order-service",
+                  "layer": "アプリケーション",
+                  "tags": ["今回の変更"],
+                  "description": "価格見積・在庫確保・決済を調整する注文ユースケース。"
+                },
+                {
+                  "id": "pricing",
+                  "name": "Pricing",
+                  "path": "domain/pricing",
+                  "layer": "ドメイン",
+                  "tags": ["ドメイン", "今回の変更"]
+                },
+                {
+                  "id": "promotions",
+                  "name": "Promotion",
+                  "path": "domain/promotions",
+                  "layer": "ドメイン",
+                  "tags": ["ドメイン"]
+                },
+                {
+                  "id": "repository",
+                  "name": "Order repository",
+                  "path": "infra/order-repository",
+                  "layer": "インフラ",
+                  "tags": ["インフラ"]
+                },
+                { "id": "schema", "name": "Schema", "path": "shared/schema", "layer": "共通", "tags": ["共通"] }
+              ],
+              "dependencies": [
+                { "id": "checkout-api", "from": "checkout", "to": "api", "contract": "OrderClient" },
+                { "id": "api-orders", "from": "api", "to": "orders", "contract": "createOrder / cancelOrder" },
+                {
+                  "id": "orders-pricing",
+                  "from": "orders",
+                  "to": "pricing",
+                  "contract": "calculateQuote",
+                  "description": "注文を確定する前に、明細・値引き・合計金額を見積もる。"
+                },
+                {
+                  "id": "orders-repository",
+                  "from": "orders",
+                  "to": "repository",
+                  "contract": "save / updateStatus"
+                },
+                {
+                  "id": "pricing-promotions",
+                  "from": "pricing",
+                  "to": "promotions",
+                  "contract": "applyPromotion"
+                },
+                {
+                  "id": "promotions-pricing",
+                  "from": "promotions",
+                  "to": "pricing",
+                  "contract": "calculateSubtotal",
+                  "description": "割引条件の判定のため、小計計算を Pricing から再利用している。"
+                },
+                { "id": "repository-schema", "from": "repository", "to": "schema", "contract": "OrderRecord" }
+              ]
+            }
+          </script>
+        </dpk-board-dependency-graph>
+      </dpk-page>
+    </dpk-app>
+  </body>
+</html>

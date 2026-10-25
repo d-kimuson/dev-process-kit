@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!--
+      Hides the root element until it upgrades, so the content inside does not flash
+      before the kit paints its chrome (docs/index.md#page-height). The animation is a
+      safety net: if the script fails to load, the content still shows after 2s.
+    -->
+    <style>
+      body > :not(:defined) {
+        visibility: hidden;
+        animation: dpk-reveal 0s 2s forwards;
+      }
+      @keyframes dpk-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+    </style>
+    <title>注文ライフサイクル — State diagram | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too. A generated page
+      loads the same files from jsDelivr instead, and so does this page on GitHub
+      Pages or with `?dpk-version=<version>` (`kit.js`).
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['components.js', 'boards.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-app {
+        display: block;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-app storage-key="sample-state-diagram-order">
+      <script type="application/json">
+        { "title": "Sora Market — 注文ライフサイクル" }
+      </script>
+
+      <dpk-page name="state-diagram" label="State diagram">
+        <dpk-board-state-diagram id="order-lifecycle" heading="State machine" subject="注文ライフサイクル">
+          <script type="application/json">
+            {
+              "states": [
+                {
+                  "id": "pending",
+                  "name": "注文受付",
+                  "code": "pending",
+                  "kind": "initial",
+                  "position": { "x": 0, "y": 40 }
+                },
+                {
+                  "id": "processing",
+                  "name": "決済待ち",
+                  "code": "payment_pending",
+                  "position": { "x": 260, "y": 40 }
+                },
+                {
+                  "id": "paid",
+                  "name": "支払済み",
+                  "code": "paid",
+                  "description": "出荷指示前ならキャンセルを受け付ける。",
+                  "position": { "x": 520, "y": 40 }
+                },
+                { "id": "shipping", "name": "出荷中", "code": "shipping", "position": { "x": 780, "y": 40 } },
+                {
+                  "id": "completed",
+                  "name": "完了",
+                  "code": "completed",
+                  "kind": "terminal",
+                  "position": { "x": 1040, "y": 40 }
+                },
+                {
+                  "id": "cancelled",
+                  "name": "取消済み",
+                  "code": "cancelled",
+                  "kind": "terminal",
+                  "position": { "x": 260, "y": 260 }
+                },
+                {
+                  "id": "refunding",
+                  "name": "返金待ち",
+                  "code": "refund_pending",
+                  "kind": "compensation",
+                  "position": { "x": 520, "y": 260 }
+                },
+                {
+                  "id": "refunded",
+                  "name": "返金済み",
+                  "code": "refunded",
+                  "kind": "terminal",
+                  "position": { "x": 780, "y": 260 }
+                }
+              ],
+              "transitions": [
+                {
+                  "id": "reserve",
+                  "from": "pending",
+                  "to": "processing",
+                  "title": "在庫仮確保",
+                  "tags": ["正常系"],
+                  "guard": "受付から15分以内・必要数量を仮確保できる",
+                  "effect": "注文IDを冪等キーとして決済を要求する。"
+                },
+                {
+                  "id": "paid",
+                  "from": "processing",
+                  "to": "paid",
+                  "title": "決済成功",
+                  "tags": ["正常系"],
+                  "guard": "署名を検証した決済成功通知、または結果照会で成功を確認",
+                  "effect": "決済IDを保存し、paidへ一度だけ更新する。"
+                },
+                {
+                  "id": "dispatch",
+                  "from": "paid",
+                  "to": "shipping",
+                  "title": "出荷指示",
+                  "tags": ["正常系"],
+                  "guard": "返金・キャンセル処理がない"
+                },
+                {
+                  "id": "complete",
+                  "from": "shipping",
+                  "to": "completed",
+                  "title": "配送完了",
+                  "tags": ["正常系"]
+                },
+                {
+                  "id": "declined",
+                  "from": "processing",
+                  "to": "pending",
+                  "title": "決済失敗",
+                  "kind": "exception",
+                  "tags": ["決済失敗"],
+                  "guard": "カード拒否など、未請求であることが確定した",
+                  "effect": "決済方法の変更を促し、仮確保は維持する。"
+                },
+                {
+                  "id": "cancel",
+                  "from": "processing",
+                  "to": "cancelled",
+                  "title": "決済取消を確認",
+                  "kind": "exception",
+                  "tags": ["キャンセル"]
+                },
+                {
+                  "id": "refund",
+                  "from": "paid",
+                  "to": "refunding",
+                  "title": "キャンセル受付",
+                  "kind": "exception",
+                  "tags": ["キャンセル"],
+                  "guard": "出荷指示前であることを同一トランザクションで確認",
+                  "effect": "返金ジョブを発行し、出荷指示を禁止する。"
+                },
+                {
+                  "id": "refunded",
+                  "from": "refunding",
+                  "to": "refunded",
+                  "title": "返金成功",
+                  "tags": ["キャンセル", "非同期"]
+                },
+                {
+                  "id": "retry",
+                  "from": "processing",
+                  "to": "processing",
+                  "title": "結果照会 / 再試行",
+                  "tags": ["タイムアウト", "再試行"],
+                  "guard": "応答がタイムアウトし、結果が未確定",
+                  "effect": "結果を照会し、未処理なら同じ冪等キーで再送する。"
+                }
+              ]
+            }
+          </script>
+        </dpk-board-state-diagram>
+      </dpk-page>
+    </dpk-app>
+  </body>
+</html>

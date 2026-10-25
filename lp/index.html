@@ -36,12 +36,13 @@
     <!--
       The whole page is a <dpk-app> (one board, "catalog"), so its own review runtime (history,
       comments, hand-off) works for real; the Catalog view also renders the atoms and live diagrams,
-      so the page loads the components entry too. Its header is the single owner of the version /
+      so the page loads the components and boards entries too (a board element that no entry
+      registers would leave its catalog stage blank). Its header is the single owner of the version /
       language / theme controls now, so the catalog's own sidebar no longer shows a second set.
     -->
     <script type="module">
       import { loadKit } from './kit.js';
-      await loadKit(['views/plain.js', 'components.js']);
+      await loadKit(['views/plain.js', 'components.js', 'boards.js']);
     </script>
     <style>
       /*
@@ -1609,44 +1610,33 @@
                   <li data-i18n="pointDesign">人間にとって見やすい図形や規定となるデザインシステム</li>
                   <li data-i18n="pointProcess">Agent と人間が共通理解を構成するための標準化されたプロセス</li>
                 </ul>
-                <p class="lede" data-i18n="lede">
-                  これらを統合的に提供する Web Components のセットです。そのまま利用できる USM, ERD
-                  などの図形や、デザインシステムを用いて構成したカスタム図形をベースに一貫したループを実現します。
-                </p>
+                <!-- prettier-ignore -->
+                <p class="lede" data-i18n="lede">これらを統合的に提供する Web Components のセットです。そのまま利用できる USM, ERD などの図形や、デザインシステムを用いて構成したカスタム図形をベースに一貫したループを実現します。</p>
                 <ol class="dpk-steps" aria-label="レビューの流れ" data-i18n-aria="loop">
                   <li>
                     <b data-i18n="writeTitle">人間に適した認知モデルで描く</b>
-                    <p class="dpk-muted" data-i18n="writeBody">
-                      Agent が USM / ERD などの認知モデルに沿って、データを JSON で埋め込んだ HTML を書く。
-                    </p>
+                    <!-- prettier-ignore -->
+                    <p class="dpk-muted" data-i18n="writeBody">Agent が USM / ERD などの認知モデルに沿って、データを JSON で埋め込んだ HTML を書く。</p>
                   </li>
                   <li>
                     <b data-i18n="reviewTitle">レビューする</b>
-                    <p class="dpk-muted" data-i18n="reviewBody">
-                      人がブラウザ上で図を操作し、コメントと変更要求を残す。下書きは LocalStorage
-                      に残り、再読込しても消えない。
-                    </p>
+                    <!-- prettier-ignore -->
+                    <p class="dpk-muted" data-i18n="reviewBody">人がブラウザ上で図を操作し、コメントと変更要求を残す。下書きは LocalStorage に残り、再読込しても消えない。</p>
                   </li>
                   <li>
                     <b data-i18n="returnTitle">反映する</b>
-                    <p class="dpk-muted" data-i18n="returnBody">
-                      「変更・コメントをコピー」（または Claude に送る）で変更要求を Agent に渡し、HTML
-                      を更新してもらう。反映済みの下書きは自動で消える。
-                    </p>
+                    <!-- prettier-ignore -->
+                    <p class="dpk-muted" data-i18n="returnBody">「変更・コメントをコピー」（または Claude に送る）で変更要求を Agent に渡し、HTML を更新してもらう。反映済みの下書きは自動で消える。</p>
                   </li>
                 </ol>
-                <p class="lede" data-i18n="optimized">
-                  dev-process-kit はポン出しの HTML に最適化されており、ビルド不要で script
-                  タグ読み込みで利用可能。トークン、CSS atoms、コンポーネント、ビュー、ボードを組み合わせて、1
-                  枚のページをすぐに組み立てられます。
-                </p>
+                <!-- prettier-ignore -->
+                <p class="lede" data-i18n="optimized">dev-process-kit はポン出しの HTML に最適化されており、ビルド不要で script タグ読み込みで利用可能。トークン、CSS atoms、コンポーネント、ビュー、ボードを組み合わせて、1 枚のページをすぐに組み立てられます。</p>
               </div>
 
               <section class="dpk-prose" aria-labelledby="getting-started">
                 <h2 id="getting-started" data-i18n="gettingStartedTitle">Getting Started</h2>
-                <p data-i18n="gettingStartedLede">
-                  Agent にスキルを渡すか、Claude Code のプラグインとして入れるか、プロンプトをそのまま試せます。
-                </p>
+                <!-- prettier-ignore -->
+                <p data-i18n="gettingStartedLede">Agent にスキルを渡すか、Claude Code のプラグインとして入れるか、プロンプトをそのまま試せます。</p>
                 <dpk-code-group>
                   <script type="application/json">
                     {
@@ -1671,10 +1661,8 @@
                     }
                   </script>
                 </dpk-code-group>
-                <p data-i18n="tryNote">
-                  プロンプトを Agent に渡すと、USM の HTML が生成されます。詳しくは
-                  <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/</a> へ。
-                </p>
+                <!-- prettier-ignore -->
+                <p data-i18n="tryNote">プロンプトを Agent に渡すと、USM の HTML が生成されます。詳しくは <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/</a> へ。</p>
               </section>
 
               <section class="dpk-prose" aria-labelledby="features">
@@ -1682,49 +1670,39 @@
                 <div class="dpk-grid" data-cols="3">
                   <a class="dpk-card" href="#catalog">
                     <h3 data-i18n="featureDesignTitle">ペライチのデザインシステム</h3>
-                    <p class="dpk-muted" data-i18n="featureDesignBody">
-                      ライト / ダークで揃うトークン、レイアウト・コントロール・カード・表・チャートの CSS
-                      atoms、そしてレビューレールやインライン編集・表・選択・ダイアログなどのコンポーネント。
-                    </p>
+                    <!-- prettier-ignore -->
+                    <p class="dpk-muted" data-i18n="featureDesignBody">ライト / ダークで揃うトークン、レイアウト・コントロール・カード・表・チャートの CSS atoms、そしてレビューレールやインライン編集・表・選択・ダイアログなどのコンポーネント。</p>
                   </a>
                   <a class="dpk-card" href="#patterns-views">
                     <h3 data-i18n="featureViewsTitle">ビュー</h3>
-                    <p class="dpk-muted" data-i18n="featureViewsBody">
-                      ページ全体を担う型。User Story Mapping、UX Prototype、Slides、Task Context Board、Delegation
-                      Poker、Plain。
-                    </p>
+                    <!-- prettier-ignore -->
+                    <p class="dpk-muted" data-i18n="featureViewsBody">ページ全体を担う型。User Story Mapping、UX Prototype、Slides、Task Context Board、Delegation Poker。</p>
                   </a>
                   <a class="dpk-card" href="#patterns-boards">
                     <h3 data-i18n="featureBoardsTitle">ボード</h3>
-                    <p class="dpk-muted" data-i18n="featureBoardsBody">
-                      ビューに埋め込むことも、ページそのものにもできる視覚面。ER・ステート・シーケンス・依存関係・アーキテクチャ・マインドマップ・イベントストーミング・サンプルマッピング・ホワイトボード・カンバン。
-                    </p>
+                    <!-- prettier-ignore -->
+                    <p class="dpk-muted" data-i18n="featureBoardsBody">1ページに1枚のボードを置く例です。ボードは単体のページにも、他のビューに埋め込んでも使えます。</p>
                   </a>
                   <a class="dpk-card" href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/page.md">
                     <h3 data-i18n="featureLoopTitle">レビューループ</h3>
-                    <p class="dpk-muted" data-i18n="featureLoopBody">
-                      操作は構造化された変更要求として記録され、コメントと一緒に Agent
-                      へ返る。質問（grill）も、コピーも、Claude への送信も同じ 1 つの下書きに載る。
-                    </p>
+                    <!-- prettier-ignore -->
+                    <p class="dpk-muted" data-i18n="featureLoopBody">操作は構造化された変更要求として記録され、コメントと一緒に Agent へ返る。質問（grill）も、コピーも、Claude への送信も同じ 1 つの下書きに載る。</p>
                   </a>
                   <a
                     class="dpk-card"
                     href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/claude-artifact.md"
                   >
                     <h3 data-i18n="featureArtifactTitle">Claude Artifacts</h3>
-                    <p class="dpk-muted" data-i18n="featureArtifactBody">
-                      ページを Claude Artifact として公開すると、レビューを 1 クリックでその Claude
-                      セッションに返せる。テーマもビューアに合わせる。
-                    </p>
+                    <!-- prettier-ignore -->
+                    <p class="dpk-muted" data-i18n="featureArtifactBody">ページを Claude Artifact として公開すると、レビューを 1 クリックでその Claude セッションに返せる。テーマもビューアに合わせる。</p>
                   </a>
                   <a
                     class="dpk-card"
                     href="https://github.com/d-kimuson/dev-process-kit/blob/main/skills/dev-process-kit/SKILL.md"
                   >
                     <h3 data-i18n="featureAgentTitle">Agent-first</h3>
-                    <p class="dpk-muted" data-i18n="featureAgentBody">
-                      Agent が解釈しやすいデータ構造と、いつ・どのページを使うかを決めるスキル。ビルドも設定も要らない。
-                    </p>
+                    <!-- prettier-ignore -->
+                    <p class="dpk-muted" data-i18n="featureAgentBody">Agent が解釈しやすいデータ構造と、いつ・どのページを使うかを決めるスキル。ビルドも設定も要らない。</p>
                   </a>
                 </div>
               </section>
@@ -1743,12 +1721,11 @@
                 <div class="entry">
                   <div class="entry-head">
                     <div class="entry-head-row">
-                      <h1 class="entry-title" data-ct="templates">Views</h1>
+                      <h1 class="entry-title" data-ct="templates">View</h1>
                     </div>
                   </div>
-                  <p data-i18n="viewsLede">
-                    1ページ全体を使うビューです。Agent はデータを書くだけで、画面とレビューはビューが用意します。
-                  </p>
+                  <!-- prettier-ignore -->
+                  <p data-i18n="viewsLede">1ページ全体を使うビューです。Agent はデータを書くだけで、画面とレビューはビューが用意します。</p>
                   <div class="dpk-grid" data-cols="3">
                     <a class="dpk-card" href="usm.html">
                       <div class="thumb">
@@ -1760,9 +1737,8 @@
                         </ul>
                       </div>
                       <h4>User Story Mapping</h4>
-                      <p class="dpk-muted" data-i18n="usm">
-                        Activity と Step の背骨の下に、リリースごとにユーザーストーリーを並べる。
-                      </p>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="usm">Activity と Step の背骨の下に、リリースごとにユーザーストーリーを並べる。</p>
                     </a>
                     <a class="dpk-card" href="prototype.html">
                       <div class="thumb">
@@ -1774,9 +1750,8 @@
                         </ul>
                       </div>
                       <h4>UX Prototype</h4>
-                      <p class="dpk-muted" data-i18n="prototype">
-                        画面の流れをストーリーとステップに分けて並べ、プレビューで確かめる。
-                      </p>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="prototype">画面の流れをストーリーとステップに分けて並べ、プレビューで確かめる。</p>
                     </a>
                     <a class="dpk-card" href="slides.html">
                       <div class="thumb">
@@ -1788,9 +1763,8 @@
                         </ul>
                       </div>
                       <h4>Slides</h4>
-                      <p class="dpk-muted" data-i18n="slides">
-                        一枚ずつ順にめくるスライドで、仕組みや変更を Agent が解説する。
-                      </p>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="slides">一枚ずつ順にめくるスライドで、仕組みや変更を Agent が解説する。</p>
                     </a>
                     <a class="dpk-card" href="task-board.html">
                       <div class="thumb">
@@ -1802,9 +1776,8 @@
                         </ul>
                       </div>
                       <h4>Task Context Board</h4>
-                      <p class="dpk-muted" data-i18n="taskBoard">
-                        Agent と進めるタスクの状況・Todo・成果物・報告を一枚で追い、質問や提案に答える。
-                      </p>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="taskBoard">Agent と進めるタスクの状況・Todo・成果物・報告を一枚で追い、質問や提案に答える。</p>
                     </a>
                     <a class="dpk-card" href="delegation-poker.html">
                       <div class="thumb">
@@ -1816,10 +1789,167 @@
                         </ul>
                       </div>
                       <h4>Delegation Poker</h4>
-                      <p class="dpk-muted" data-i18n="delegationPoker">
-                        判断ごとに 7 段階の委任レベルのカードを出し合い、Agent に何をどこまで任せるかを合意する。
-                      </p>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="delegationPoker">判断ごとに 7 段階の委任レベルのカードを出し合い、Agent に何をどこまで任せるかを合意する。</p>
                     </a>
+                  </div>
+                </div>
+              </section>
+
+              <section id="patterns-boards" class="patterns-section">
+                <div class="entry">
+                  <div class="entry-head">
+                    <div class="entry-head-row">
+                      <h1 class="entry-title" data-ct="boards">Board</h1>
+                    </div>
+                  </div>
+                  <!-- prettier-ignore -->
+                  <p data-i18n="boardsLede">1ページに1枚のボードを置いた例です。ボードは単体でも、他のビューに埋め込んでも使えます。</p>
+                  <div class="dpk-grid" data-cols="3">
+                    <a class="dpk-card" href="er-complex.html">
+                      <div class="thumb">
+                        <iframe src="er-complex.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-er-diagram</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>ERD</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="erdSample">2 つのスキーマの間で何が変わったかを、テーブルと関連ごとに示す。</p>
+                    </a>
+                    <a class="dpk-card" href="state-diagram.html">
+                      <div class="thumb">
+                        <iframe src="state-diagram.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-state-diagram</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>State</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="stateSample">状態と遷移を並べ、選んだ状態の出入りと、条件・副作用を確かめる。</p>
+                    </a>
+                    <a class="dpk-card" href="sequence-diagram.html">
+                      <div class="thumb">
+                        <iframe src="sequence-diagram.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Sequence</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="sequenceSample">参加者がどの順でやりとりするかを示し、分岐は個別に折りたためる。</p>
+                    </a>
+                    <a class="dpk-card" href="dependency-graph.html">
+                      <div class="thumb">
+                        <iframe src="dependency-graph.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-dependency-graph</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Dependency</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="dependencySample">モジュール同士の依存をたどり、循環している箇所と層のまたぎ方を見つける。</p>
+                    </a>
+                    <a class="dpk-card" href="architecture-map.html">
+                      <div class="thumb">
+                        <iframe src="architecture-map.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-architecture-map</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Architecture</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="architectureSample">サービスと境界を一枚に置き、どこが何に依存するかを見る。</p>
+                    </a>
+                    <a class="dpk-card" href="mind-map.html">
+                      <div class="thumb">
+                        <iframe src="mind-map.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-mind-map</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Mind map</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="mindMapSample">中心のトピックから左右に枝を広げ、論点の全体像をつかむ。</p>
+                    </a>
+                    <a class="dpk-card" href="kanban.html">
+                      <div class="thumb">
+                        <iframe src="kanban.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-kanban</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Kanban</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="kanbanSample">作業を列に分けて並べ、どこがどこまで進んでいるかを追う。</p>
+                    </a>
+                    <a class="dpk-card" href="event-storming.html">
+                      <div class="thumb">
+                        <iframe src="event-storming.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-event-storming</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Event Storming</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="eventStorming">ドメインイベントを時系列に並べ、コマンド・集約・ポリシーとの因果をたどる。</p>
+                    </a>
+                    <a class="dpk-card" href="example-mapping.html">
+                      <div class="thumb">
+                        <iframe src="example-mapping.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-example-mapping</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Example Mapping</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="exampleMapping">ストーリーごとにルール・具体例・疑問を積み、要件の抜けを洗い出す。</p>
+                    </a>
+                    <a class="dpk-card" href="whiteboard.html">
+                      <div class="thumb">
+                        <iframe src="whiteboard.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-whiteboard</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Whiteboard</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="whiteboard">付箋・図形・フレームを自由に置いてつなぎ、ブレストや振り返りを一枚で進める。</p>
+                    </a>
+                  </div>
+                </div>
+              </section>
+
+              <section id="patterns-custom" class="patterns-section">
+                <div class="entry">
+                  <div class="entry-head">
+                    <div class="entry-head-row">
+                      <h1 class="entry-title" data-ct="custom">Custom</h1>
+                    </div>
+                  </div>
+                  <!-- prettier-ignore -->
+                  <p data-i18n="customLede">Plain に複数のボードを組み合わせた例です。図を添えた資料は、plain ビューにボードと自由な HTML を組み合わせて作ります。</p>
+                  <div class="dpk-grid" data-cols="3">
                     <a
                       class="dpk-card"
                       href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/views/plain.md"
@@ -1839,22 +1969,6 @@
                       <h4>Plain</h4>
                       <p class="dpk-muted" data-i18n="plain">ヘッダーとレビューだけを持ち、中身は自由に書く。</p>
                     </a>
-                  </div>
-                </div>
-              </section>
-
-              <section id="patterns-boards" class="patterns-section">
-                <div class="entry">
-                  <div class="entry-head">
-                    <div class="entry-head-row">
-                      <h1 class="entry-title" data-ct="boards">Boards</h1>
-                    </div>
-                  </div>
-                  <p data-i18n="boardsLede">
-                    1ページとしても、他のビューに埋め込んでも使えるボードです。図を添えた資料は、plain
-                    ビューにボードと自由な HTML を組み合わせて作ります。
-                  </p>
-                  <div class="dpk-grid" data-cols="3">
                     <a class="dpk-card" href="design-doc.html">
                       <div class="thumb">
                         <iframe src="design-doc.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
@@ -1874,9 +1988,8 @@
                         </ul>
                       </div>
                       <h4>Design Doc</h4>
-                      <p class="dpk-muted" data-i18n="designDoc">
-                        注文キャンセルと返金の設計を、状態遷移図・シーケンス図・ER 図を添えた Design Doc にまとめる。
-                      </p>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="designDoc">注文キャンセルと返金の設計を、状態遷移図・シーケンス図・ER 図を添えた Design Doc にまとめる。</p>
                     </a>
                     <a class="dpk-card" href="architecture.html">
                       <div class="thumb">
@@ -1897,9 +2010,8 @@
                         </ul>
                       </div>
                       <h4 data-i18n="architectureTitle">アーキテクチャ設計</h4>
-                      <p class="dpk-muted" data-i18n="architecture">
-                        注文システムの構成とインフラを、アーキテクチャ図・依存グラフ・シーケンス図と表で示す。
-                      </p>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="architecture">注文システムの構成とインフラを、アーキテクチャ図・依存グラフ・シーケンス図と表で示す。</p>
                     </a>
                     <a class="dpk-card" href="ddd-primer.html">
                       <div class="thumb">
@@ -1917,9 +2029,8 @@
                         </ul>
                       </div>
                       <h4 data-i18n="primerTitle">概念の解説</h4>
-                      <p class="dpk-muted" data-i18n="primer">
-                        DDD を、マインドマップ・コンテキストマップ・自作の表と図で説明する。
-                      </p>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="primer">DDD を、マインドマップ・コンテキストマップ・自作の表と図で説明する。</p>
                     </a>
                     <a class="dpk-card" href="formal-spec.html">
                       <div class="thumb">
@@ -1934,10 +2045,8 @@
                         </ul>
                       </div>
                       <h4 data-i18n="formalSpecTitle">形式検証の結果</h4>
-                      <p class="dpk-muted" data-i18n="formalSpecSample">
-                        Lean や TLA+
-                        で確かめた性質を、前提・結論・主張していないこと・保証の強さに分けてふだんの言葉で示す。
-                      </p>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="formalSpecSample">Lean や TLA+ で確かめた性質を、前提・結論・主張していないこと・保証の強さに分けてふだんの言葉で示す。</p>
                     </a>
                     <a class="dpk-card" href="grill.html">
                       <div class="thumb">
@@ -1955,52 +2064,42 @@
                         </ul>
                       </div>
                       <h4 data-i18n="grillTitle">Grill</h4>
-                      <p class="dpk-muted" data-i18n="grill">
-                        Agent からの質問を、どのテンプレートの上にも重ねて出す。ここでは Plain
-                        の上で、図とあわせて見せる。
-                      </p>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="grill">Agent からの質問を、どのテンプレートの上にも重ねて出す。ここでは Plain の上で、図とあわせて見せる。</p>
                     </a>
-                    <a class="dpk-card" href="event-storming.html">
+                    <a class="dpk-card" href="diagrams.html">
                       <div class="thumb">
-                        <iframe src="event-storming.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <iframe src="diagrams.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                         <ul class="thumb-tags">
                           <li>
-                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-event-storming</code></span>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-mind-map</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-state-diagram</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-dependency-graph</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-er-diagram</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-architecture-map</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-kanban</code></span>
                           </li>
                         </ul>
                       </div>
-                      <h4>Event Storming</h4>
-                      <p class="dpk-muted" data-i18n="eventStorming">
-                        ドメインイベントを時系列に並べ、コマンド・集約・ポリシーとの因果をたどる。
-                      </p>
-                    </a>
-                    <a class="dpk-card" href="example-mapping.html">
-                      <div class="thumb">
-                        <iframe src="example-mapping.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                        <ul class="thumb-tags">
-                          <li>
-                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-example-mapping</code></span>
-                          </li>
-                        </ul>
-                      </div>
-                      <h4>Example Mapping</h4>
-                      <p class="dpk-muted" data-i18n="exampleMapping">
-                        ストーリーごとにルール・具体例・疑問を積み、要件の抜けを洗い出す。
-                      </p>
-                    </a>
-                    <a class="dpk-card" href="whiteboard.html">
-                      <div class="thumb">
-                        <iframe src="whiteboard.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                        <ul class="thumb-tags">
-                          <li>
-                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-whiteboard</code></span>
-                          </li>
-                        </ul>
-                      </div>
-                      <h4>Whiteboard</h4>
-                      <p class="dpk-muted" data-i18n="whiteboard">
-                        付箋・図形・フレームを自由に置いてつなぎ、ブレストや振り返りを一枚で進める。
-                      </p>
+                      <h4>Diagrams</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="diagramsSample">7 種類の図を Plain の 1 ページに並べ、まとめて見る。</p>
                     </a>
                   </div>
                 </div>
@@ -2008,9 +2107,10 @@
             </main>
 
             <!--
-      The component catalog: every atom the kit ships for building a page from dpk-view-plain +
-      components.js alone. CSS class = styling only; Element = has behavior; Review = takes part in the
-      review (comment targets, element actions). The catalog chrome reads the --dpk-* tokens too.
+      The component catalog: every atom the kit ships for building a page from dpk-view-plain plus
+      components.js, and every board from boards.js. CSS class = styling only; Element = has behavior;
+      Review = takes part in the review (comment targets, element actions). The catalog chrome reads
+      the --dpk-* tokens too.
     -->
             <!--
             No data-template here: a demo's elements are real providers of this page's own
@@ -4564,10 +4664,9 @@
           'Tokens that match in light and dark, CSS atoms for layout, controls, cards, tables and charts, and components such as the review rail, inline editing, tables, selects and dialogs.',
         featureViewsTitle: 'Views',
         featureViewsBody:
-          'Page-only shapes: User Story Mapping, UX Prototype, Slides, Task Context Board, Delegation Poker, Plain.',
+          'Page-only shapes: User Story Mapping, UX Prototype, Slides, Task Context Board, Delegation Poker.',
         featureBoardsTitle: 'Boards',
-        featureBoardsBody:
-          'Visual surfaces that can be a page on their own or embedded in a view: ER, state, sequence, dependency, architecture, mind map, event storming, example mapping, whiteboard, kanban.',
+        featureBoardsBody: 'One board per page: a board works as a page on its own, or embedded in another view.',
         featureLoopTitle: 'Review loop',
         featureLoopBody:
           'Operations are recorded as structured change requests and handed back with comments. Questions (grill), copy and Send to Claude all ride the same draft.',
@@ -4592,8 +4691,19 @@
           'Play one of seven delegation levels for each decision, and agree on how much to hand over to the agent.',
         whiteboard:
           'Place sticky notes, shapes and frames anywhere and connect them, for a brainstorm or a retro on one board.',
-        boardsLede:
-          'A board can be a page on its own, or embedded in another view. A document with diagrams combines the plain view with boards and its own HTML.',
+        boardsLede: 'One board per page. A board works on its own, or embedded in another view.',
+        customLede:
+          'Examples that combine Plain with several boards. A document with diagrams is the plain view plus boards and its own HTML.',
+        erdSample: 'What changed between two schemas, table by table and relation by relation.',
+        stateSample:
+          'Lay out states and transitions, and check what enters and leaves the selected state, with its guards and effects.',
+        sequenceSample: 'Show the order participants exchange messages in, with each branch collapsible on its own.',
+        dependencySample:
+          'Follow the dependencies between modules to find cycles and layers that leak into each other.',
+        architectureSample: 'Place services and boundaries on one map and see what depends on what.',
+        mindMapSample: 'Grow branches left and right from a central topic to see the whole argument at a glance.',
+        kanbanSample: 'Split the work into columns and follow how far each item has come.',
+        diagramsSample: 'The seven diagram types side by side on one Plain page.',
         designDoc:
           'The design of order cancellation and refunds as a design doc, with state, sequence and ER diagrams.',
         architectureTitle: 'Architecture design',
@@ -4647,9 +4757,10 @@
           next: 'Next',
           overview: 'Overview',
           tokens: 'Tokens',
-          templates: 'Views',
+          templates: 'View',
           patterns: 'Patterns',
-          boards: 'Boards',
+          boards: 'Board',
+          custom: 'Custom',
           controls: 'Controls',
           controlsTitle: 'Controls',
           controlsReset: 'Reset',
@@ -4683,6 +4794,7 @@
           templates: 'ビュー',
           patterns: 'パターン',
           boards: 'ボード',
+          custom: 'カスタム',
           controls: 'コントロール',
           controlsTitle: 'コントロール',
           controlsReset: 'リセット',
@@ -5592,15 +5704,28 @@
 
       // `onReady` lets a showcase (built before this stage has any content of its own) refresh its Code
       // view and Controls once the organism actually lands, whether mount succeeds or not.
+      const failPreview = (stage, onReady) => {
+        const message = document.createElement('p');
+        message.textContent = TEXT[locale].previewFailed;
+        stage.replaceChildren(message);
+        onReady?.();
+      };
       const mount = async (stage, onReady) => {
         const { tag } = stage.dataset;
         const page = await source(stage.dataset.source ?? 'diagrams.html').catch(() => null);
         const original = page?.querySelector(tag);
         if (!original) {
-          const message = document.createElement('p');
-          message.textContent = TEXT[locale].previewFailed;
-          stage.replaceChildren(message);
-          onReady?.();
+          failPreview(stage, onReady);
+          return;
+        }
+        // A board element no loaded entry registers would mount as an inert, blank tag. The
+        // IntersectionObserver can run before the module that defines it (the catalog loads boards.js
+        // after the first parse), so give the definition a moment, then say so instead of staying blank.
+        if (customElements.get(tag) === undefined) {
+          await Promise.race([customElements.whenDefined(tag), new Promise((resolve) => setTimeout(resolve, 2000))]);
+        }
+        if (customElements.get(tag) === undefined) {
+          failPreview(stage, onReady);
           return;
         }
         const element = document.importNode(original, true);

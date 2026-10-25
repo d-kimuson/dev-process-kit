@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!--
+      Hides the root element until it upgrades, so the content inside does not flash
+      before the kit paints its chrome (docs/index.md#page-height). The animation is a
+      safety net: if the script fails to load, the content still shows after 2s.
+    -->
+    <style>
+      body > :not(:defined) {
+        visibility: hidden;
+        animation: dpk-reveal 0s 2s forwards;
+      }
+      @keyframes dpk-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+    </style>
+    <title>注文のセルフキャンセル — Kanban | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too. A generated page
+      loads the same files from jsDelivr instead, and so does this page on GitHub
+      Pages or with `?dpk-version=<version>` (`kit.js`).
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['components.js', 'boards.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-app {
+        display: block;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-app storage-key="sample-kanban-cancel">
+      <script type="application/json">
+        { "title": "Sora Market — 注文のセルフキャンセル" }
+      </script>
+
+      <dpk-page name="kanban" label="Kanban">
+        <dpk-board-kanban id="cancel-board" heading="Kanban" subject="注文のセルフキャンセル">
+          <script type="application/json">
+            {
+              "columns": [
+                {
+                  "id": "todo",
+                  "label": "ToDo",
+                  "color": "gray",
+                  "cards": [
+                    {
+                      "id": "cancel-screen",
+                      "title": "キャンセル確認画面",
+                      "description": "取り消す商品と返金額、返金までの目安を出す。",
+                      "tags": ["UI"]
+                    },
+                    {
+                      "id": "refund-mail",
+                      "title": "返金完了メール",
+                      "tags": ["通知"]
+                    },
+                    {
+                      "id": "stuck-refunds",
+                      "title": "滞っている返金の一覧",
+                      "description": "運営が再実行か手動返金を選べるようにする。",
+                      "tags": ["UI", "運用"]
+                    }
+                  ]
+                },
+                {
+                  "id": "doing",
+                  "label": "作業中",
+                  "color": "blue",
+                  "limit": 2,
+                  "cards": [
+                    {
+                      "id": "cancel-api",
+                      "title": "キャンセル API",
+                      "description": "出荷指示の前だけ受け付ける。冪等キーで二重実行を防ぐ。",
+                      "tags": ["API"],
+                      "assignee": "tanaka"
+                    },
+                    {
+                      "id": "refund-job",
+                      "title": "返金ジョブ",
+                      "description": "決済代行の返金を呼び、失敗は再試行して DLQ へ送る。",
+                      "tags": ["API"],
+                      "assignee": "sato"
+                    }
+                  ]
+                },
+                {
+                  "id": "review",
+                  "label": "レビュー",
+                  "color": "amber",
+                  "cards": [
+                    {
+                      "id": "refunds-table",
+                      "title": "refunds テーブル",
+                      "tags": ["DB"],
+                      "assignee": "tanaka"
+                    }
+                  ]
+                },
+                {
+                  "id": "done",
+                  "label": "完了",
+                  "color": "green",
+                  "cards": [
+                    {
+                      "id": "cancel-status",
+                      "title": "注文ステータスに「キャンセル済み」を追加",
+                      "tags": ["DB"]
+                    }
+                  ]
+                }
+              ]
+            }
+          </script>
+        </dpk-board-kanban>
+      </dpk-page>
+    </dpk-app>
+  </body>
+</html>

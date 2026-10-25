@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!--
+      Hides the root element until it upgrades, so the content inside does not flash
+      before the kit paints its chrome (docs/index.md#page-height). The animation is a
+      safety net: if the script fails to load, the content still shows after 2s.
+    -->
+    <style>
+      body > :not(:defined) {
+        visibility: hidden;
+        animation: dpk-reveal 0s 2s forwards;
+      }
+      @keyframes dpk-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+    </style>
+    <title>注文・決済のやりとり — Sequence diagram | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too. A generated page
+      loads the same files from jsDelivr instead, and so does this page on GitHub
+      Pages or with `?dpk-version=<version>` (`kit.js`).
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['components.js', 'boards.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-app {
+        display: block;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-app storage-key="sample-sequence-diagram-order">
+      <script type="application/json">
+        { "title": "Sora Market — 注文・決済" }
+      </script>
+
+      <dpk-page name="sequence-diagram" label="Sequence diagram">
+        <dpk-board-sequence-diagram id="order-sequence" heading="Sequence" subject="注文・決済">
+          <script type="application/json">
+            {
+              "participants": [
+                { "id": "browser", "name": "ブラウザ", "role": "購入者", "symbol": "UI" },
+                { "id": "orders", "name": "Order API", "role": "注文の整合性", "symbol": "API" },
+                { "id": "database", "name": "Database", "role": "注文・イベント記録", "symbol": "DB" },
+                {
+                  "id": "payment",
+                  "name": "Payment",
+                  "role": "決済プロバイダ",
+                  "kind": "external",
+                  "symbol": "PS",
+                  "description": "冪等キーで請求を重複排除し、結果照会と Webhook を提供する。"
+                },
+                { "id": "worker", "name": "Worker", "role": "出荷ジョブ", "symbol": "WK" }
+              ],
+              "items": [
+                {
+                  "kind": "message",
+                  "id": "create",
+                  "from": "browser",
+                  "to": "orders",
+                  "title": "POST /orders",
+                  "tags": ["正常系"],
+                  "guard": "購入者が注文内容と金額を確認済み",
+                  "detail": "二重送信では同じ注文を返す。"
+                },
+                {
+                  "kind": "message",
+                  "id": "persist",
+                  "from": "orders",
+                  "to": "database",
+                  "title": "注文作成・在庫仮確保",
+                  "tags": ["正常系"],
+                  "guard": "商品数量を仮確保できる"
+                },
+                {
+                  "kind": "message",
+                  "id": "charge",
+                  "from": "orders",
+                  "to": "payment",
+                  "title": "POST /payments",
+                  "tags": ["正常系"],
+                  "guard": "注文IDと請求額が確定済み",
+                  "detail": "Idempotency-Key: order_id。"
+                },
+                {
+                  "kind": "fragment",
+                  "id": "payment-result",
+                  "operator": "alt",
+                  "title": "決済結果",
+                  "branches": [
+                    {
+                      "label": "支払完了",
+                      "items": [
+                        {
+                          "kind": "message",
+                          "id": "success",
+                          "from": "payment",
+                          "to": "orders",
+                          "title": "payment_id / succeeded",
+                          "style": "response",
+                          "tags": ["正常系"]
+                        },
+                        {
+                          "kind": "message",
+                          "id": "mark-paid",
+                          "from": "orders",
+                          "to": "database",
+                          "title": "pending → paid",
+                          "tags": ["正常系"]
+                        },
+                        {
+                          "kind": "message",
+                          "id": "created",
+                          "from": "orders",
+                          "to": "browser",
+                          "title": "201 Created",
+                          "style": "response",
+                          "tags": ["正常系"]
+                        },
+                        {
+                          "kind": "message",
+                          "id": "webhook",
+                          "from": "payment",
+                          "to": "orders",
+                          "title": "payment.succeeded",
+                          "style": "async",
+                          "tags": ["正常系", "非同期"]
+                        },
+                        {
+                          "kind": "fragment",
+                          "id": "duplicate",
+                          "operator": "loop",
+                          "title": "通知の重複排除",
+                          "collapsed": true,
+                          "branches": [
+                            {
+                              "label": "同じイベントの受信ごと",
+                              "items": [
+                                {
+                                  "kind": "message",
+                                  "id": "event-insert",
+                                  "from": "orders",
+                                  "to": "database",
+                                  "title": "event_idを登録",
+                                  "tags": ["非同期", "再試行"]
+                                },
+                                {
+                                  "kind": "message",
+                                  "id": "publish",
+                                  "from": "orders",
+                                  "to": "worker",
+                                  "title": "初回のみ · order.confirmed",
+                                  "style": "async",
+                                  "tags": ["非同期"]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "カード拒否",
+                      "items": [
+                        {
+                          "kind": "message",
+                          "id": "declined",
+                          "from": "payment",
+                          "to": "orders",
+                          "title": "payment_failed",
+                          "style": "response",
+                          "tags": ["決済失敗"],
+                          "guard": "未請求が確定した拒否応答"
+                        },
+                        {
+                          "kind": "message",
+                          "id": "retry-prompt",
+                          "from": "orders",
+                          "to": "browser",
+                          "title": "422 · 決済方法の変更",
+                          "style": "response",
+                          "tags": ["決済失敗"]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          </script>
+        </dpk-board-sequence-diagram>
+      </dpk-page>
+    </dpk-app>
+  </body>
+</html>

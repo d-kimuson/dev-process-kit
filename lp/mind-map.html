@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!--
+      Hides the root element until it upgrades, so the content inside does not flash
+      before the kit paints its chrome (docs/index.md#page-height). The animation is a
+      safety net: if the script fails to load, the content still shows after 2s.
+    -->
+    <style>
+      body > :not(:defined) {
+        visibility: hidden;
+        animation: dpk-reveal 0s 2s forwards;
+      }
+      @keyframes dpk-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+    </style>
+    <title>注文フロー刷新の論点 — Mind map | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin: the sample server is a separate origin on purpose,
+      so the cross-origin (CORS) load is exercised locally too. A generated page
+      loads the same files from jsDelivr instead, and so does this page on GitHub
+      Pages or with `?dpk-version=<version>` (`kit.js`).
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['components.js', 'boards.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-app {
+        display: block;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-app storage-key="sample-mind-map-checkout">
+      <script type="application/json">
+        { "title": "Sora Market — 注文フロー刷新" }
+      </script>
+
+      <dpk-page name="mind-map" label="Mind map">
+        <dpk-board-mind-map id="checkout-mind-map" heading="Mind map" subject="注文フロー刷新の論点">
+          <script type="application/json">
+            {
+              "root": {
+                "id": "checkout-renewal",
+                "label": "注文フロー刷新",
+                "description": "在庫予約つき注文フローへの作り直しで、何を決め、何を決めていないか。",
+                "children": [
+                  {
+                    "id": "goals",
+                    "label": "目的",
+                    "tags": ["方針"],
+                    "children": [
+                      {
+                        "id": "conversion",
+                        "label": "購入完了率を上げる"
+                      },
+                      {
+                        "id": "no-double-charge",
+                        "label": "二重請求をなくす",
+                        "description": "タイムアウト後の再試行でも請求は一度だけにする。"
+                      },
+                      {
+                        "id": "fewer-tickets",
+                        "label": "問い合わせを減らす"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "payment",
+                    "label": "決済",
+                    "tags": ["今回の設計"],
+                    "children": [
+                      {
+                        "id": "idempotency",
+                        "label": "注文IDを冪等キーにする"
+                      },
+                      {
+                        "id": "lookup",
+                        "label": "結果照会してから再試行",
+                        "description": "応答がタイムアウトしたら、まず結果を照会する。"
+                      },
+                      {
+                        "id": "webhook-dedupe",
+                        "label": "Webhook の重複排除",
+                        "tags": ["非同期"]
+                      },
+                      {
+                        "id": "three-ds",
+                        "label": "3D セキュア",
+                        "tags": ["未決定"]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "stock",
+                    "label": "在庫",
+                    "tags": ["今回の設計"],
+                    "children": [
+                      {
+                        "id": "reserve",
+                        "label": "15 分の仮確保"
+                      },
+                      {
+                        "id": "expire",
+                        "label": "期限切れで自動解放",
+                        "tags": ["非同期"]
+                      },
+                      {
+                        "id": "oversell",
+                        "label": "売り越しの扱い",
+                        "tags": ["未決定"]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "cancel",
+                    "label": "キャンセル・返金",
+                    "collapsed": true,
+                    "children": [
+                      {
+                        "id": "before-dispatch",
+                        "label": "出荷指示前まで受け付ける"
+                      },
+                      {
+                        "id": "refund-job",
+                        "label": "返金ジョブで非同期に返す",
+                        "tags": ["非同期"]
+                      },
+                      {
+                        "id": "partial-refund",
+                        "label": "一部返金",
+                        "tags": ["未決定"]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "risks",
+                    "label": "リスク",
+                    "side": "left",
+                    "tags": ["リスク"],
+                    "children": [
+                      {
+                        "id": "provider-down",
+                        "label": "決済プロバイダの障害"
+                      },
+                      {
+                        "id": "unknown-result",
+                        "label": "タイムアウトで結果が不明"
+                      },
+                      {
+                        "id": "migration",
+                        "label": "既存注文の移行",
+                        "tags": ["未決定"]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "out-of-scope",
+                    "label": "今回やらないこと",
+                    "children": [
+                      {
+                        "id": "points",
+                        "label": "ポイント併用"
+                      },
+                      {
+                        "id": "gift",
+                        "label": "ギフト注文"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          </script>
+        </dpk-board-mind-map>
+      </dpk-page>
+    </dpk-app>
+  </body>
+</html>
