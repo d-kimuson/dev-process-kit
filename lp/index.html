@@ -22,7 +22,7 @@
         }
       }
     </style>
-    <title>dev-process-kit — Samples</title>
+    <title>dev-process-kit — a one-page design system for agent-written documents</title>
     <script>
       // Resolve the color scheme before the first paint, the way templates do: the reader's
       // toggle (shared with every template page of the origin), else the OS preference.
@@ -1330,7 +1330,7 @@
     </style>
   </head>
   <body>
-    <dpk-page storage-key="dev-process-kit-catalog" hash="off" board-nav="none">
+    <dpk-app storage-key="dev-process-kit-catalog" hash="off" page-nav="none">
       <script type="application/json">
         { "title": "dev-process-kit" }
       </script>
@@ -1425,7 +1425,7 @@
                   <rect x="2" y="9.5" width="5" height="4" rx="1" />
                   <rect x="9" y="9.5" width="5" height="4" rx="1" />
                 </svg>
-                <span data-ct="templates">Templates</span>
+                <span data-ct="templates">Views</span>
               </a>
               <a class="toc-top-link" href="#patterns" data-view="patterns">
                 <svg
@@ -1441,7 +1441,7 @@
                   <path d="M2.5 5 8 8l5.5-3" />
                   <path d="M8 8v6" />
                 </svg>
-                <span data-ct="patterns">Patterns</span>
+                <span data-ct="patterns">Boards</span>
               </a>
             </div>
             <div class="toc-groups-source">
@@ -1450,6 +1450,7 @@
               <a href="#catalog-status">status</a>
               <a href="#catalog-hover-tools">hover tools</a>
               <a href="#catalog-navlist">navigation list</a>
+              <a href="#catalog-tree">tree</a>
               <a href="#catalog-list-row">list row</a>
               <a href="#catalog-toolbar">toolbar</a>
               <a href="#catalog-grid">grid</a>
@@ -1460,6 +1461,14 @@
               <a href="#catalog-input">input</a>
               <a href="#catalog-inline-edit">inline edit</a>
               <a href="#catalog-meter">meter</a>
+              <a href="#catalog-comment-button">comment button</a>
+              <a href="#catalog-copy-button">copy button</a>
+              <a href="#catalog-link-chip">link chip</a>
+              <a href="#catalog-menu">menu</a>
+              <a href="#catalog-timeline">timeline / milestone</a>
+              <a href="#catalog-status-mark">status mark</a>
+              <a href="#catalog-weight-bar">weight bar</a>
+              <a href="#catalog-chart">chart</a>
               <b>Components</b>
               <a href="#catalog-prose">prose</a>
               <a href="#catalog-eyebrow">eyebrow / muted / kbd</a>
@@ -1515,23 +1524,25 @@
           <div class="catalog-body" slot="main">
             <main class="wrap samples" id="samples">
               <div class="intro">
-                <h1 data-i18n="title">Agent が書く単一 HTML を、人がレビューして Agent に返す</h1>
+                <h1 data-i18n="title">Agent が書く単一 HTML のための、ペライチのデザインシステム</h1>
                 <p class="lede" data-i18n="lede">
-                  dev-process-kit は、Agent に生成させる単一 HTML
-                  ページ（プロトタイプ、ストーリーマップ、イベントストーミングなど）に共通の構造とレビューの仕組みを与えるフレームワークです。ビルド不要で、script
-                  タグ 1 つで読み込めます。
+                  dev-process-kit は、Agent が生成する単一 HTML
+                  に、共通のデザイン・ページの型・レビューの仕組みをまとめて与える Web Components
+                  のセットです。ビルド不要、script タグ 1 つ。トークン、CSS
+                  atoms、コンポーネント、ビュー、ボードを組み合わせて、1 枚のページをすぐに組み立てられます。
                 </p>
                 <ol class="dpk-steps" aria-label="レビューの流れ" data-i18n-aria="loop">
                   <li>
                     <b data-i18n="writeTitle">書く</b>
                     <p class="dpk-muted" data-i18n="writeBody">
-                      Agent がテンプレートに沿って単一 HTML を書く。中身のデータは JSON で HTML に埋め込む。
+                      Agent がビューまたはボードに沿って単一 HTML を書く。中身のデータは JSON で HTML に埋め込む。
                     </p>
                   </li>
                   <li>
                     <b data-i18n="reviewTitle">レビューする</b>
                     <p class="dpk-muted" data-i18n="reviewBody">
-                      人がブラウザ上でコメントや構造の変更を残す。下書きは LocalStorage に残り、再読込しても消えない。
+                      人がブラウザ上でページを操作し、変更とコメントを残す。下書きは LocalStorage
+                      に残り、再読込しても消えない。
                     </p>
                   </li>
                   <li>
@@ -1544,14 +1555,102 @@
                 </ol>
               </div>
 
+              <section class="dpk-prose" aria-labelledby="what-you-get">
+                <h2 id="what-you-get">What you get</h2>
+                <div class="dpk-grid" data-cols="2">
+                  <a class="dpk-card" href="#catalog">
+                    <h3>デザインシステム</h3>
+                    <p class="dpk-muted">
+                      ライト / ダークで揃うトークン、レイアウト・コントロール・カード・表・チャートの CSS
+                      atoms、そしてレビューレールやインライン編集・表・選択・ダイアログなどのコンポーネント。
+                    </p>
+                  </a>
+                  <a class="dpk-card" href="#templates-view">
+                    <h3>ビュー</h3>
+                    <p class="dpk-muted">
+                      ページ全体を担う型。User Story Mapping、UX Prototype、Slides、Task Context Board、Delegation
+                      Poker、Plain。
+                    </p>
+                  </a>
+                  <a class="dpk-card" href="#patterns-view">
+                    <h3>ボード</h3>
+                    <p class="dpk-muted">
+                      ビューに埋め込むことも、ページそのものにもできる視覚面。ER・ステート・シーケンス・依存関係・アーキテクチャ・マインドマップ・イベントストーミング・サンプルマッピング・ホワイトボード・カンバン。
+                    </p>
+                  </a>
+                  <a class="dpk-card" href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/page.md">
+                    <h3>レビューループ</h3>
+                    <p class="dpk-muted">
+                      操作は構造化された変更要求として記録され、コメントと一緒に Agent
+                      へ返る。質問（grill）も、コピーも、Claude への送信も同じ 1 つの下書きに載る。
+                    </p>
+                  </a>
+                </div>
+              </section>
+
+              <section class="dpk-prose" aria-labelledby="shape">
+                <h2 id="shape">形</h2>
+                <pre><code>&lt;dpk-app storage-key="checkout"&gt;
+  &lt;script type="application/json"&gt;{ "title": "Checkout review" }&lt;/script&gt;
+
+  &lt;dpk-page name="scope" label="Scope"&gt;
+    &lt;dpk-view-usm&gt;…&lt;/dpk-view-usm&gt;
+  &lt;/dpk-page&gt;
+
+  &lt;dpk-page name="domain" label="Domain"&gt;
+    &lt;dpk-board-event-storming&gt;…&lt;/dpk-board-event-storming&gt;
+  &lt;/dpk-page&gt;
+&lt;/dpk-app&gt;</code></pre>
+                <p>
+                  <code>&lt;dpk-app&gt;</code> は 1 ファイルに 1 つ。ヘッダー、レビュー、1 つの下書き、1
+                  つの保存領域、ハッシュ、Undo/Redo を持ちます。<code>&lt;dpk-page&gt;</code> は切り替え可能な 1
+                  つの主題で、中身はビューかボード 1
+                  つ。ビューの中のボードは埋め込み、ページ直下のボードはページそのものになります。
+                </p>
+              </section>
+
+              <section class="dpk-prose" aria-labelledby="load-it">
+                <h2 id="load-it">Load it</h2>
+                <p>バージョンを固定した URL から、必要な entry だけを読み込みます。</p>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Entry</th>
+                      <th>使うとき</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>views/usm.js</code> ほか</td>
+                      <td>ページがそのビュー</td>
+                    </tr>
+                    <tr>
+                      <td><code>boards.js</code></td>
+                      <td>ページがボードを使う（埋め込み / ページ直下）</td>
+                    </tr>
+                    <tr>
+                      <td><code>components.js</code></td>
+                      <td>ビューに載っていないコンポーネントを使う</td>
+                    </tr>
+                    <tr>
+                      <td><code>index.js</code></td>
+                      <td>全部入り</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <pre><code>&lt;script type="module"
+  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/views/usm.js"&gt;&lt;/script&gt;
+&lt;script type="module"
+  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/boards.js"&gt;&lt;/script&gt;</code></pre>
+                <p>
+                  詳しくは <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/</a> へ。
+                </p>
+              </section>
+
               <section id="catalog-policy" class="dpk-prose">
                 <p class="dpk-eyebrow">v0.3.0 draft</p>
                 <h2>Component Catalog</h2>
-                <p>
-                  Plain テンプレートと
-                  <code>components.js</code>
-                  だけでページを組むための部品の一覧。各デモの下にあるのは、そのデモ自身のマークアップ。
-                </p>
+                <p>トークン、CSS atoms、コンポーネントの一覧。各デモの下にあるのは、そのデモ自身のマークアップ。</p>
               </section>
 
               <footer>dev-process-kit</footer>
@@ -1561,12 +1660,11 @@
               <div class="entry">
                 <div class="entry-head">
                   <div class="entry-head-row">
-                    <h1 class="entry-title" data-ct="templates">Templates</h1>
+                    <h1 class="entry-title" data-ct="templates">Views</h1>
                   </div>
                 </div>
-                <p data-i18n="templatesLede">
-                  開発プロセスの成果物ごとのテンプレートです。Agent
-                  はデータを書くだけで、画面とレビューはテンプレートが用意します。
+                <p data-i18n="viewsLede">
+                  ページ全体を担うビューです。Agent はデータを書くだけで、画面とレビューはビューが用意します。
                 </p>
                 <div class="dpk-grid" data-cols="3">
                   <a class="dpk-card" href="usm.html">
@@ -1574,7 +1672,7 @@
                       <iframe src="usm.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-usm</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-usm</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1588,7 +1686,7 @@
                       <iframe src="prototype.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-prototype</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-prototype</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1602,7 +1700,7 @@
                       <iframe src="slides.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-slides</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-slides</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1616,7 +1714,7 @@
                       <iframe src="task-board.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-task-board</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-task-board</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1630,7 +1728,7 @@
                       <iframe src="delegation-poker.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-delegation-poker</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-delegation-poker</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1639,10 +1737,7 @@
                       判断ごとに 7 段階の委任レベルのカードを出し合い、Agent に何をどこまで任せるかを合意する。
                     </p>
                   </a>
-                  <a
-                    class="dpk-card"
-                    href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/templates/plain.md"
-                  >
+                  <a class="dpk-card" href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/views/plain.md">
                     <div class="thumb">
                       <div class="shell" aria-hidden="true">
                         <div class="shell-header">header</div>
@@ -1651,7 +1746,7 @@
                       </div>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-plain</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1662,18 +1757,22 @@
 
                 <section id="usage">
                   <h2 data-i18n="usageTitle">使い方</h2>
-                  <p data-i18n="usageLede">
-                    バージョンを固定した URL から、使うテンプレートの entry を 1 つ読み込みます。
-                  </p>
+                  <p data-i18n="usageLede">バージョンを固定した URL から、ページに必要な entry だけを読み込みます。</p>
                   <div class="usage">
                     <pre><code>&lt;script type="module"
-  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/templates/prototype.js"&gt;&lt;/script&gt;
+  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/views/prototype.js"&gt;&lt;/script&gt;
 
-&lt;dpk-template-prototype storage-key="my-flow"&gt;
-  &lt;script type="application/json"&gt;{ "activities": [] }&lt;/script&gt;
-&lt;/dpk-template-prototype&gt;</code></pre>
+&lt;dpk-app storage-key="my-flow"&gt;
+  &lt;script type="application/json"&gt;{ "title": "Signup" }&lt;/script&gt;
+  &lt;dpk-page name="flow" label="Flow"&gt;
+    &lt;dpk-view-prototype&gt;
+      &lt;script type="application/json"&gt;{ "activities": [] }&lt;/script&gt;
+    &lt;/dpk-view-prototype&gt;
+  &lt;/dpk-page&gt;
+&lt;/dpk-app&gt;</code></pre>
                     <p data-i18n="usageNote">
-                      図を使うときは <code>components.js</code> も読み込みます(全部入りは <code>index.js</code>)。
+                      ボードには <code>boards.js</code>、コンポーネントには
+                      <code>components.js</code> も読み込みます（全部入りは <code>index.js</code>）。
                     </p>
                   </div>
                 </section>
@@ -1685,12 +1784,17 @@
                       <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/index.md</a>
                     </li>
                     <li>
-                      <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/templates/prototype.md"
-                        >docs/templates/*.md</a
+                      <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/views/prototype.md"
+                        >docs/views/*.md</a
                       >
                     </li>
                     <li>
-                      <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/components/diagrams.md"
+                      <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/boards/index.md"
+                        >docs/boards/*.md</a
+                      >
+                    </li>
+                    <li>
+                      <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/components/comment-panel.md"
                         >docs/components/*.md</a
                       >
                     </li>
@@ -1703,11 +1807,12 @@
               <div class="entry">
                 <div class="entry-head">
                   <div class="entry-head-row">
-                    <h1 class="entry-title" data-ct="patterns">Patterns</h1>
+                    <h1 class="entry-title" data-ct="patterns">Boards</h1>
                   </div>
                 </div>
-                <p data-i18n="patternsLede">
-                  テンプレートに当たらない資料は、Plain に図のコンポーネントと自由な HTML を組み合わせて作ります。
+                <p data-i18n="boardsLede">
+                  ボードは、ビューの中に埋め込むことも、ページそのものにもできます。図を添えた資料は、plain
+                  ビューにボードと自由な HTML を組み合わせて作ります。
                 </p>
                 <div class="dpk-grid" data-cols="3">
                   <a class="dpk-card" href="design-doc.html">
@@ -1715,16 +1820,16 @@
                       <iframe src="design-doc.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-plain</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
                         </li>
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>state-diagram</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-state-diagram</code></span>
                         </li>
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>sequence-diagram</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
                         </li>
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>er-diagram</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-er-diagram</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1738,16 +1843,16 @@
                       <iframe src="architecture.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-plain</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
                         </li>
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>architecture-map</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-architecture-map</code></span>
                         </li>
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dependency-graph</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-dependency-graph</code></span>
                         </li>
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>sequence-diagram</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1761,13 +1866,13 @@
                       <iframe src="ddd-primer.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-plain</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
                         </li>
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>mind-map</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-mind-map</code></span>
                         </li>
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>architecture-map</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-architecture-map</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1781,7 +1886,7 @@
                       <iframe src="formal-spec.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-plain</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
                         </li>
                         <li>
                           <span class="dpk-badge" data-tone="violet"><code>formal-spec</code></span>
@@ -1799,13 +1904,13 @@
                       <iframe src="grill.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-template-plain</code></span>
+                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
                         </li>
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>er-diagram</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-er-diagram</code></span>
                         </li>
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>sequence-diagram</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1820,7 +1925,7 @@
                       <iframe src="event-storming.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-event-storming</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-event-storming</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1834,7 +1939,7 @@
                       <iframe src="example-mapping.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-example-mapping</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-example-mapping</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1848,7 +1953,7 @@
                       <iframe src="whiteboard.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                       <ul class="thumb-tags">
                         <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-whiteboard</code></span>
+                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-whiteboard</code></span>
                         </li>
                       </ul>
                     </div>
@@ -1862,13 +1967,13 @@
             </main>
 
             <!--
-      The component catalog: every atom the kit ships for building a page from dpk-template-plain +
+      The component catalog: every atom the kit ships for building a page from dpk-view-plain +
       components.js alone. CSS class = styling only; Element = has behavior; Review = takes part in the
       review (comment targets, element actions). The catalog chrome reads the --dpk-* tokens too.
     -->
             <!--
             No data-template here: a demo's elements are real providers of this page's own
-            dpk-template-plain (`board="catalog"`) via findComponentProviders
+            dpk-view-plain (`board="catalog"`) via findComponentProviders
             (src/core/shell/comment-targets.ts), so an edit inside a demo (an ER diagram column,
             a table row, a comment, …) is recorded in this page's own draft and reaches the fixed
             header's change history exactly like any other page (#94). "Reset demo" removes that
@@ -1971,6 +2076,52 @@
                   </div>
                 </article>
 
+                <article id="catalog-tree" class="entry">
+                  <header>
+                    <h3>ul.dpk-tree</h3>
+                  </header>
+                  <p>入れ子の項目を、階層の深さに応じて字下げして並べる。</p>
+                  <div class="demo" data-code>
+                    <ul class="dpk-tree">
+                      <li class="dpk-tree-node">
+                        <details open>
+                          <summary class="dpk-tree-row">注文</summary>
+                          <ul class="dpk-tree">
+                            <li class="dpk-tree-node">
+                              <a class="dpk-tree-row" data-leaf href="#catalog-tree">注文を受け付ける</a>
+                            </li>
+                            <li class="dpk-tree-node">
+                              <details>
+                                <summary class="dpk-tree-row">返金する</summary>
+                                <ul class="dpk-tree">
+                                  <li class="dpk-tree-node">
+                                    <a class="dpk-tree-row" data-leaf href="#catalog-tree" aria-current="page"
+                                      >返金を申請する</a
+                                    >
+                                  </li>
+                                  <li class="dpk-tree-node">
+                                    <a class="dpk-tree-row" data-leaf href="#catalog-tree">返金を承認する</a>
+                                  </li>
+                                </ul>
+                              </details>
+                            </li>
+                          </ul>
+                        </details>
+                      </li>
+                      <li class="dpk-tree-node">
+                        <details>
+                          <summary class="dpk-tree-row">在庫</summary>
+                          <ul class="dpk-tree">
+                            <li class="dpk-tree-node">
+                              <a class="dpk-tree-row" data-leaf href="#catalog-tree">引き当てる</a>
+                            </li>
+                          </ul>
+                        </details>
+                      </li>
+                    </ul>
+                  </div>
+                </article>
+
                 <article id="catalog-list-row" class="entry">
                   <header>
                     <h3>.dpk-list-row</h3>
@@ -1990,6 +2141,30 @@
                         <span class="dpk-badge" data-tone="green">OK</span>
                         <span>確認済みの項目</span>
                         <span class="dpk-muted">昨日</span>
+                      </div>
+                      <div class="dpk-list-row">
+                        <span class="dpk-list-row-swatch" style="--tone: var(--dpk-blue)"></span>
+                        <span class="dpk-list-row-name">返金フロー</span>
+                        <div class="dpk-list-row-tools">
+                          <span class="dpk-list-row-meta">12 ストーリー</span>
+                          <button class="dpk-icon-btn" data-size="sm" type="button" aria-label="編集">✎</button>
+                        </div>
+                      </div>
+                      <div class="dpk-list-row">
+                        <span class="dpk-list-row-icon" style="--tone: var(--dpk-green)">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                          >
+                            <circle cx="8" cy="8" r="6.2" />
+                            <path d="m5.4 8.2 1.8 1.8 3.4-3.6" />
+                          </svg>
+                        </span>
+                        <span class="dpk-list-row-name">返金を承認する</span>
+                        <span class="dpk-list-row-meta">完了</span>
                       </div>
                     </div>
                   </div>
@@ -2264,6 +2439,148 @@
                   </div>
                 </article>
 
+                <article id="catalog-comment-button" class="entry">
+                  <header>
+                    <h3>.dpk-comment-btn</h3>
+                  </header>
+                  <p>その場にレビューコメントを付けるための、控えめなピル型のボタン。</p>
+                  <div class="demo" data-code>
+                    <div class="dpk-stack">
+                      <div class="dpk-cluster">
+                        <button class="dpk-comment-btn" type="button" aria-label="注文にコメントする">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                          >
+                            <path d="M2.5 3.2h11v7.4H7.4L4 13.3v-2.7H2.5z" />
+                          </svg>
+                          コメント
+                        </button>
+                        <button class="dpk-comment-btn" type="button" aria-expanded="true">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                          >
+                            <path d="M2.5 3.2h11v7.4H7.4L4 13.3v-2.7H2.5z" />
+                          </svg>
+                          コメント中
+                        </button>
+                        <button class="dpk-comment-btn" type="button" aria-label="コメントする">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                          >
+                            <path d="M2.5 3.2h11v7.4H7.4L4 13.3v-2.7H2.5z" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div class="dpk-card dpk-hover-host" style="max-width: 420px">
+                        <div class="dpk-cluster" style="justify-content: space-between">
+                          <strong>返金申請</strong>
+                          <button class="dpk-comment-btn" data-reveal type="button" aria-label="返金申請にコメントする">
+                            <svg
+                              viewBox="0 0 16 16"
+                              aria-hidden="true"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.5"
+                            >
+                              <path d="M2.5 3.2h11v7.4H7.4L4 13.3v-2.7H2.5z" />
+                            </svg>
+                          </button>
+                        </div>
+                        <p class="dpk-muted" style="margin: 8px 0 0">このカードに触れるとコメントのボタンが現れる。</p>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
+                <article id="catalog-copy-button" class="entry">
+                  <header>
+                    <h3>.dpk-copy-btn</h3>
+                  </header>
+                  <p>コピーや受け渡しの操作と、その結果を小さく示すボタン。</p>
+                  <div class="demo" data-code>
+                    <div class="dpk-stack">
+                      <div class="dpk-cluster">
+                        <button class="dpk-copy-btn" type="button">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                          >
+                            <rect x="5.5" y="2.5" width="8" height="9" rx="1.5" />
+                            <path d="M10.5 11.5v2H2.5v-8h2" />
+                          </svg>
+                          コピー
+                        </button>
+                        <button class="dpk-copy-btn" data-variant="outline" type="button">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                          >
+                            <rect x="5.5" y="2.5" width="8" height="9" rx="1.5" />
+                            <path d="M10.5 11.5v2H2.5v-8h2" />
+                          </svg>
+                          受け渡し
+                        </button>
+                        <button class="dpk-copy-btn" data-variant="outline" data-state="copied" type="button">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                          >
+                            <path d="m3.2 8.4 3 3 6.6-7" />
+                          </svg>
+                          コピーしました
+                        </button>
+                        <button class="dpk-copy-btn" data-copied="true" type="button">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                          >
+                            <path d="m3.2 8.4 3 3 6.6-7" />
+                          </svg>
+                          USM-12
+                        </button>
+                        <button class="dpk-copy-btn" data-state="failed" type="button">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                          >
+                            <circle cx="8" cy="8" r="6.2" />
+                            <path d="M8 4.8v3.6M8 10.9v.1" />
+                          </svg>
+                          コピーできません
+                        </button>
+                        <button class="dpk-copy-btn" type="button" disabled>コピー</button>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
                 <article id="catalog-badge" class="entry">
                   <header>
                     <h3>.dpk-badge / .dpk-chip</h3>
@@ -2288,6 +2605,46 @@
                     </div>
                   </div>
                 </article>
+                <article id="catalog-link-chip" class="entry">
+                  <header>
+                    <h3>.dpk-link-chip</h3>
+                  </header>
+                  <p>外部のチケットや資料への参照を、サービスの印と短い名前で示す。</p>
+                  <div class="demo" data-code>
+                    <div class="dpk-cluster" style="max-width: 460px">
+                      <a class="dpk-link-chip" href="#catalog-link-chip">
+                        <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+                          <path
+                            d="M8 0c4.42 0 8 3.58 8 8a8.01 8.01 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"
+                          />
+                        </svg>
+                        <span>注文 #1021</span>
+                      </a>
+                      <a class="dpk-link-chip" href="#catalog-link-chip">
+                        <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+                          <path
+                            d="M14.6 7.4 8.6 1.4 8 .8 3.5 5.3 1.4 7.4a.85.85 0 0 0 0 1.2l4.1 4.1L8 15.2l4.5-4.5.07-.07 2.03-2.03a.85.85 0 0 0 0-1.2zM8 9.9 5.9 8 8 5.9 10.1 8z"
+                          />
+                        </svg>
+                        <span>REFUND-214</span>
+                      </a>
+                      <a class="dpk-link-chip" href="#catalog-link-chip">
+                        <svg
+                          viewBox="0 0 16 16"
+                          aria-hidden="true"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                        >
+                          <path d="M6.4 9.6a2.6 2.6 0 0 0 3.7 0l2-2a2.6 2.6 0 0 0-3.7-3.7l-.9.9" />
+                          <path d="M9.6 6.4a2.6 2.6 0 0 0-3.7 0l-2 2a2.6 2.6 0 0 0 3.7 3.7l.9-.9" />
+                        </svg>
+                        <span>返金フローの資料</span>
+                      </a>
+                    </div>
+                  </div>
+                </article>
+
                 <article id="catalog-segmented" class="entry">
                   <header>
                     <h3>.dpk-segmented</h3>
@@ -2713,6 +3070,95 @@
                     </div>
                   </div>
                 </article>
+
+                <article id="catalog-menu" class="entry">
+                  <header>
+                    <h3>.dpk-menu</h3>
+                  </header>
+                  <p>操作や選択肢を、浮かぶ一枚のパネルにまとめて並べる。</p>
+                  <div class="demo" data-code>
+                    <div class="dpk-menu" style="max-width: 280px">
+                      <p class="dpk-menu-heading">ストーリー</p>
+                      <button class="dpk-menu-item" type="button" data-active>
+                        <svg
+                          viewBox="0 0 16 16"
+                          aria-hidden="true"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                        >
+                          <path d="M3.5 2.5h6l3 3v8h-9z" />
+                          <path d="M5.5 8h5M5.5 10.5h3" />
+                        </svg>
+                        開く
+                        <span class="dpk-menu-shortcut">↵</span>
+                      </button>
+                      <button class="dpk-menu-item" type="button">
+                        <svg
+                          viewBox="0 0 16 16"
+                          aria-hidden="true"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                        >
+                          <rect x="5.5" y="2.5" width="8" height="9" rx="1.5" />
+                          <path d="M10.5 11.5v2H2.5v-8h2" />
+                        </svg>
+                        複製
+                        <span class="dpk-menu-shortcut">⌘D</span>
+                      </button>
+                      <button class="dpk-menu-item" type="button" role="menuitemcheckbox" aria-checked="true">
+                        <span class="dpk-menu-check">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3"
+                          >
+                            <path d="m3.2 8.4 3 3 6.6-7" />
+                          </svg>
+                        </span>
+                        <span class="dpk-menu-text">
+                          <span class="dpk-menu-label">レビューの通知</span>
+                          <span class="dpk-menu-hint">コメントが付いたときだけ知らせる。</span>
+                        </span>
+                      </button>
+                      <button class="dpk-menu-item" type="button" role="menuitemcheckbox" aria-checked="false">
+                        <span class="dpk-menu-check">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3"
+                          >
+                            <path d="m3.2 8.4 3 3 6.6-7" />
+                          </svg>
+                        </span>
+                        <span class="dpk-menu-text">
+                          <span class="dpk-menu-label">下書きを自動保存</span>
+                          <span class="dpk-menu-hint">編集中のページを一定間隔で残す。</span>
+                        </span>
+                      </button>
+                      <hr class="dpk-menu-separator" />
+                      <button class="dpk-menu-item" type="button" data-tone="danger">
+                        <svg
+                          viewBox="0 0 16 16"
+                          aria-hidden="true"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                        >
+                          <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 9h5.8l.6-9" />
+                        </svg>
+                        削除
+                        <span class="dpk-menu-shortcut">⌘⌫</span>
+                      </button>
+                      <button class="dpk-menu-item" type="button" disabled>アーカイブ</button>
+                    </div>
+                  </div>
+                </article>
               </section>
 
               <section class="group">
@@ -2942,6 +3388,74 @@
                   </div>
                 </article>
 
+                <article id="catalog-timeline" class="entry">
+                  <header>
+                    <h3>ol.dpk-timeline</h3>
+                  </header>
+                  <p>縦のレールに節目を並べ、日付と内容で時間の流れを示す。</p>
+                  <div class="demo" data-code>
+                    <ol class="dpk-timeline" style="max-width: 640px">
+                      <li class="dpk-timeline-entry" data-tone="green">
+                        <div class="dpk-timeline-when">
+                          <span class="dpk-timeline-date">2026-08-04</span>
+                        </div>
+                        <div class="dpk-timeline-rail"><span class="dpk-timeline-node">1</span></div>
+                        <div class="dpk-timeline-body">
+                          <h4 class="dpk-timeline-title">返金の受け付けを止める</h4>
+                          <p class="dpk-timeline-text">返金待ちの注文を一覧で確認できるようにする。</p>
+                          <dl class="dpk-timeline-facts">
+                            <div>
+                              <dt>ストーリー</dt>
+                              <dd><strong>6</strong><span>全体の 22%</span></dd>
+                            </div>
+                            <div>
+                              <dt>担当</dt>
+                              <dd><strong>注文</strong><span>決済と協働</span></dd>
+                            </div>
+                          </dl>
+                        </div>
+                      </li>
+                      <li class="dpk-timeline-entry" data-tone="blue" data-at>
+                        <div class="dpk-timeline-when">
+                          <span class="dpk-timeline-date">2026-08-18</span>
+                        </div>
+                        <div class="dpk-timeline-rail"><span class="dpk-timeline-node">2</span></div>
+                        <div class="dpk-timeline-body">
+                          <h4 class="dpk-timeline-title">決済代行の返金 API をつなぐ</h4>
+                          <p class="dpk-timeline-text">冪等キーを付けて再試行できるようにする。</p>
+                          <dl class="dpk-timeline-facts">
+                            <div>
+                              <dt>ストーリー</dt>
+                              <dd><strong>9</strong><span>全体の 33%</span></dd>
+                            </div>
+                            <div>
+                              <dt>進捗</dt>
+                              <dd><strong>4 / 9</strong><span>進行中</span></dd>
+                            </div>
+                          </dl>
+                        </div>
+                      </li>
+                      <li class="dpk-timeline-entry">
+                        <div class="dpk-timeline-when">
+                          <span class="dpk-timeline-date" data-empty>未定</span>
+                        </div>
+                        <div class="dpk-timeline-rail"><span class="dpk-timeline-node">3</span></div>
+                        <div class="dpk-timeline-body">
+                          <h4 class="dpk-timeline-title" data-empty>在庫の引き当てを戻す</h4>
+                          <p class="dpk-timeline-text" data-empty>この期間の内容はまだ決まっていない。</p>
+                        </div>
+                      </li>
+                      <li class="dpk-timeline-entry" data-variant="add">
+                        <div class="dpk-timeline-when"></div>
+                        <div class="dpk-timeline-rail"><span class="dpk-timeline-node"></span></div>
+                        <div class="dpk-timeline-body">
+                          <button class="dpk-add" type="button">+ マイルストーンを追加</button>
+                        </div>
+                      </li>
+                    </ol>
+                  </div>
+                </article>
+
                 <article id="catalog-progress" class="entry">
                   <header>
                     <h3>progress / meter.dpk-progress</h3>
@@ -2993,6 +3507,173 @@
                         style="--dpk-value: 88"
                       ></div>
                     </div>
+                  </div>
+                </article>
+
+                <article id="catalog-status-mark" class="entry">
+                  <header>
+                    <h3>.dpk-status-mark / .dpk-status-segments</h3>
+                  </header>
+                  <p>状態を小さな印で示し、通ってきた状態は細い帯に分けて並べる。</p>
+                  <div class="demo" data-code>
+                    <div class="dpk-stack">
+                      <div class="dpk-cluster" style="--dpk-gap: 18px">
+                        <span class="dpk-status-mark" data-tone="green" role="img" aria-label="完了">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                          >
+                            <circle cx="8" cy="8" r="6.2" />
+                            <path d="m5.4 8.2 1.8 1.8 3.4-3.6" />
+                          </svg>
+                        </span>
+                        <span class="dpk-status-mark" data-size="sm" data-tone="blue" role="img" aria-label="進行中">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.9"
+                          >
+                            <circle cx="8" cy="8" r="6.2" />
+                            <path d="M8 4.6V8l2.4 1.6" />
+                          </svg>
+                        </span>
+                        <span class="dpk-status-mark" data-size="lg" data-tone="amber" role="img" aria-label="確認待ち">
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                          >
+                            <circle cx="8" cy="8" r="6.2" />
+                            <path d="M8 5v3.4M8 10.8v.1" />
+                          </svg>
+                        </span>
+                        <span
+                          class="dpk-status-mark"
+                          data-tone="accent"
+                          data-progress
+                          role="img"
+                          aria-label="返金の進捗 62%"
+                          style="--dpk-progress: 62"
+                        >
+                          <svg
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                          >
+                            <circle cx="8" cy="8" r="6.2" />
+                            <path d="m5.4 8.2 1.8 1.8 3.4-3.6" />
+                          </svg>
+                        </span>
+                      </div>
+                      <div
+                        class="dpk-status-segments"
+                        role="img"
+                        aria-label="完了 3 / 進行中 2 / 未着手 2"
+                        style="max-width: 320px"
+                      >
+                        <span class="dpk-status-segment" data-tone="green" style="--dpk-value: 3"></span>
+                        <span class="dpk-status-segment" data-tone="blue" style="--dpk-value: 2"></span>
+                        <span class="dpk-status-segment" data-empty style="--dpk-value: 2"></span>
+                      </div>
+                      <div
+                        class="dpk-status-segments"
+                        data-size="lg"
+                        role="img"
+                        aria-label="完了 5 / 進行中 3 / 未着手 1"
+                        style="max-width: 320px"
+                      >
+                        <span class="dpk-status-segment" data-tone="green" style="--dpk-value: 5"></span>
+                        <span class="dpk-status-segment" data-tone="violet" style="--dpk-value: 3"></span>
+                        <span class="dpk-status-segment" data-empty style="--dpk-value: 1"></span>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
+                <article id="catalog-weight-bar" class="entry">
+                  <header>
+                    <h3>.dpk-weight-bar</h3>
+                  </header>
+                  <p>全体をどの状態がどれだけ占めるかを、ひとつの帯と目盛りで示す。</p>
+                  <div class="demo" data-code>
+                    <div class="dpk-weight-bar" style="max-width: 560px">
+                      <div class="dpk-weight-track" role="img" aria-label="未着手 4 / 進行中 3 / 確認 2 / 完了 1">
+                        <span class="dpk-weight-part" data-tone="amber" style="--dpk-value: 4">
+                          <span class="dpk-weight-name">未着手</span><span class="dpk-weight-value">4</span>
+                        </span>
+                        <span class="dpk-weight-part" data-tone="blue" style="--dpk-value: 3">
+                          <span class="dpk-weight-name">進行中</span><span class="dpk-weight-value">3</span>
+                        </span>
+                        <span class="dpk-weight-part" data-tone="violet" style="--dpk-value: 2">
+                          <span class="dpk-weight-name">確認</span><span class="dpk-weight-value">2</span>
+                        </span>
+                        <span class="dpk-weight-part" data-tone="green" style="--dpk-value: 1">
+                          <span class="dpk-weight-name">完了</span><span class="dpk-weight-value">1</span>
+                        </span>
+                      </div>
+                      <span class="dpk-weight-end">10</span>
+                      <div class="dpk-weight-scale" aria-hidden="true">
+                        <span class="dpk-weight-tick" style="--dpk-at: 40">4</span>
+                        <span class="dpk-weight-tick" style="--dpk-at: 70">7</span>
+                        <span class="dpk-weight-tick" style="--dpk-at: 90">9</span>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
+                <article id="catalog-chart" class="entry">
+                  <header>
+                    <h3>.dpk-chart</h3>
+                  </header>
+                  <p>見出しと折れ線を一枚にまとめ、残りの推移を読ませる。</p>
+                  <div class="demo" data-code>
+                    <figure class="dpk-chart" style="max-width: 560px">
+                      <figcaption class="dpk-chart-head">
+                        <span class="dpk-chart-title">残りのストーリー</span>
+                        <span class="dpk-chart-value">19 → 4</span>
+                      </figcaption>
+                      <div class="dpk-chart-plot">
+                        <svg viewBox="0 0 320 160" role="img" aria-label="8 月 1 日は 19 件、8 月 15 日は 4 件">
+                          <g class="dpk-chart-grid">
+                            <line x1="32" y1="24" x2="308" y2="24" />
+                            <line x1="32" y1="60" x2="308" y2="60" />
+                            <line x1="32" y1="96" x2="308" y2="96" />
+                          </g>
+                          <g class="dpk-chart-axis">
+                            <line x1="32" y1="132" x2="308" y2="132" />
+                          </g>
+                          <text class="dpk-chart-tick" x="26" y="28" text-anchor="end">20</text>
+                          <text class="dpk-chart-tick" x="26" y="64" text-anchor="end">10</text>
+                          <text class="dpk-chart-tick" x="26" y="100" text-anchor="end">5</text>
+                          <text class="dpk-chart-tick" x="32" y="148" text-anchor="middle">08/01</text>
+                          <text class="dpk-chart-tick" x="170" y="148" text-anchor="middle">08/08</text>
+                          <text class="dpk-chart-tick" x="308" y="148" text-anchor="middle">08/15</text>
+                          <path class="dpk-chart-ideal" d="M32 34 L308 132" />
+                          <path
+                            class="dpk-chart-area"
+                            d="M32 34 L78 52 L124 74 L170 96 L216 118 L262 126 L262 132 L32 132 Z"
+                          />
+                          <path class="dpk-chart-line" d="M32 34 L78 52 L124 74 L170 96 L216 118 L262 126" />
+                          <line class="dpk-chart-mark" x1="216" y1="20" x2="216" y2="132" />
+                          <text class="dpk-chart-mark-label" x="216" y="14" text-anchor="middle">今日</text>
+                          <circle class="dpk-chart-point" cx="32" cy="34" r="3" />
+                          <circle class="dpk-chart-point" cx="78" cy="52" r="3" />
+                          <circle class="dpk-chart-point" cx="124" cy="74" r="3" />
+                          <circle class="dpk-chart-point" cx="170" cy="96" r="3" />
+                          <circle class="dpk-chart-point" cx="216" cy="118" r="3" />
+                          <circle class="dpk-chart-point" cx="262" cy="126" r="3" />
+                        </svg>
+                      </div>
+                    </figure>
                   </div>
                 </article>
 
@@ -3247,8 +3928,8 @@
                         class="dpk-terminal-body"
                       ><span class="dpk-terminal-prompt">d-kimuson@ubuntu</span> <span class="dpk-terminal-command">pnpm test</span>
 <span class="dpk-terminal-success"> ✓ src/core/element.test.ts (45 tests)</span>
-<span class="dpk-terminal-success"> ✓ src/templates/prototype/element.test.ts (27 tests)</span>
-<span class="dpk-terminal-error"> ✗ src/templates/usm/element.test.ts (1 failed)</span>
+<span class="dpk-terminal-success"> ✓ src/views/prototype/element.test.ts (27 tests)</span>
+<span class="dpk-terminal-error"> ✗ src/views/usm/element.test.ts (1 failed)</span>
 <span class="dpk-terminal-error"> Test Files  1 failed | 3 passed (4)</span>
 <span class="dpk-terminal-output"> Duration  1.42s</span></pre>
                     </figure>
@@ -3704,7 +4385,7 @@
           </div>
         </dpk-view-plain></dpk-page
       >
-    </dpk-page>
+    </dpk-app>
 
     <script>
       // ---- language and theme: the same choices, stored under the same keys, as the template header.
@@ -3736,18 +4417,19 @@
       const EN = {
         views: 'View',
         language: 'Language',
-        title: 'An agent writes a single HTML page; people review it and hand it back',
-        lede: 'dev-process-kit gives the single HTML pages you have an agent generate (prototypes, story maps, event storming and more) a shared structure and a way to review them. No build step: one script tag loads it.',
+        title: 'A one-page design system for the documents an agent writes and a human reviews',
+        lede: 'dev-process-kit gives the single HTML pages an agent writes a shared design, a set of page shapes, and a review loop. No build step: one script tag loads it. Compose tokens, CSS atoms, components, views and boards into one page.',
         loop: 'The review loop',
         writeTitle: 'Write',
-        writeBody: 'The agent writes a single HTML page from a template, with its data embedded in the HTML as JSON.',
+        writeBody:
+          'The agent writes a single HTML page from a view or a board, with its data embedded in the HTML as JSON.',
         reviewTitle: 'Review',
         reviewBody:
           'People leave comments and structural changes in the browser. The draft stays in LocalStorage and survives a reload.',
         returnTitle: 'Hand back',
         returnBody:
           'Copy changes & comments (or Send to Claude) hands the requested changes to the agent, which rewrites the HTML. Drafts it has applied clear themselves.',
-        templatesLede:
+        viewsLede:
           'One template per development-process artifact. The agent only writes the data; the template provides the screen and the review.',
         eventStorming:
           'Lay domain events out in time and trace their causes through commands, aggregates and policies.',
@@ -3762,7 +4444,7 @@
           'Play one of seven delegation levels for each decision, and agree on how much to hand over to the agent.',
         whiteboard:
           'Place sticky notes, shapes and frames anywhere and connect them, for a brainstorm or a retro on one board.',
-        patternsLede: 'For material no template fits, combine Plain with the diagram components and your own HTML.',
+        boardsLede: 'Boards can be embedded inside a view or be the page itself.',
         designDoc:
           'The design of order cancellation and refunds as a design doc, with state, sequence and ER diagrams.',
         architectureTitle: 'Architecture design',
@@ -3774,10 +4456,12 @@
         formalSpecSample:
           'Properties checked in Lean or TLA+, restated in plain words as premises, conclusions, what is not claimed and how strongly each holds.',
         grillTitle: 'Grill',
-        grill: 'Ask questions from the agent on top of any template. Here they sit over Plain, alongside the diagrams.',
+        grill:
+          'Ask questions from the agent on top of any view or board. Here they sit over the plain view, alongside the boards.',
         usageTitle: 'Usage',
-        usageLede: 'Load the entry of the template you use, from a version-pinned URL.',
-        usageNote: 'Load <code>components.js</code> too when you use diagrams (<code>index.js</code> has everything).',
+        usageLede: 'Load only the entries the page needs, from a version-pinned URL.',
+        usageNote:
+          'Add <code>boards.js</code> for boards and <code>components.js</code> for components (<code>index.js</code> has everything).',
       };
 
       const JA = Object.fromEntries([
@@ -3814,8 +4498,8 @@
           next: 'Next',
           overview: 'Overview',
           tokens: 'Tokens',
-          templates: 'Templates',
-          patterns: 'Patterns',
+          templates: 'Views',
+          patterns: 'Boards',
           controls: 'Controls',
           controlsTitle: 'Controls',
           controlsReset: 'Reset',
@@ -3846,8 +4530,8 @@
           next: '次へ',
           overview: '概要',
           tokens: 'トークン',
-          templates: 'テンプレート',
-          patterns: 'パターン',
+          templates: 'ビュー',
+          patterns: 'ボード',
           controls: 'コントロール',
           controlsTitle: 'コントロール',
           controlsReset: 'リセット',
@@ -3888,14 +4572,14 @@
           frame.setAttribute('src', frame.getAttribute('src'));
       };
 
-      // The page header (<dpk-page>'s own shell) is the single language / theme control now: the
-      // catalog has no lang-select / theme-toggle of its own, and instead follows what the page
+      // The app header (<dpk-app>'s own shell) is the single language / theme control now: the
+      // catalog has no lang-select / theme-toggle of its own, and instead follows what the app
       // resolves. Its locale pick fires the same `dpk-locale-change` event every kit component
-      // already listens for; its theme has no public event, so a MutationObserver on the page's own
+      // already listens for; its theme has no public event, so a MutationObserver on the app's own
       // (documented) `data-theme` reflection stands in for one. `catalog-locale-sync` /
       // `catalog-scheme-sync` are this script's own signal for the catalog-only listeners further
       // down (sidebar / showcase text and per-stage theme toggles) that still need to re-render.
-      const shellPage = document.querySelector('dpk-page');
+      const shellPage = document.querySelector('dpk-app');
 
       document.addEventListener('dpk-locale-change', () => {
         const next = shellPage.lang === 'en' ? 'en' : 'ja';
@@ -3939,7 +4623,7 @@
       };
       // The one template hosting every demo's draft now (no more data-template opt-out, #94):
       // "Reset demo" uses its `removeAction` to drop a demo's own draft entries before rebuilding it.
-      const catalogTemplate = document.querySelector('dpk-template-plain');
+      const catalogTemplate = document.querySelector('dpk-view-plain');
       // Removes every draft entry (element action or comment) already recorded against a demo's own
       // provider(s), so resetting the demo (rebuilding its markup, or remounting a diagram with the
       // same id) does not leave old entries that reapply, or stay posted, against the fresh instance.
