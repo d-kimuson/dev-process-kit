@@ -4,7 +4,7 @@
  *
  * Usage:
  *   pnpm dev                            # dev asset server + sample server, via portless
- *   node dev/qa/browser-smoke.ts https://sample.dev-process-kit.localhost
+ *   node dev/qa/browser-smoke.ts https://lp.dev-process-kit.localhost
  *
  * Drives the repo's `agent-browser` devDependency (headless, shared agent profile
  * per the browser-ops skill) and fails when a sample reports a page error or
@@ -15,7 +15,7 @@ import * as v from 'valibot';
 
 const base = process.argv[2];
 if (base === undefined) {
-  console.error('usage: node dev/qa/browser-smoke.ts <sample-server-url>');
+  console.error('usage: node dev/qa/browser-smoke.ts <lp-url>');
   process.exit(2);
 }
 

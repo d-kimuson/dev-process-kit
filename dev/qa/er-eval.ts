@@ -2,7 +2,7 @@
 /**
  * Real-browser half of the ER readability appraisal.
  *
- * Opens `sample/er-eval.html`, which renders the er-complex schema without the
+ * Opens `lp/er-eval.html`, which renders the er-complex schema without the
  * page shell and records initial layout/render/long-task numbers plus a
  * hover-label audit. This script then captures:
  *
@@ -25,8 +25,7 @@ const args = process.argv.slice(2);
 const outIndex = args.indexOf('--out');
 const outDir = resolve(outIndex >= 0 ? (args[outIndex + 1] ?? 'dev/eval/out') : 'dev/eval/out');
 const base = (
-  args.find((arg, index) => !arg.startsWith('--') && index !== outIndex + 1) ??
-  'https://sample.dev-process-kit.localhost'
+  args.find((arg, index) => !arg.startsWith('--') && index !== outIndex + 1) ?? 'https://lp.dev-process-kit.localhost'
 ).replace(/\/+$/u, '');
 
 const SESSION = process.env['AGENT_BROWSER_SESSION'] ?? 'browser-ops';

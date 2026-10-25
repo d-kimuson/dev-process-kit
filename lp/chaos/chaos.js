@@ -4,13 +4,13 @@
  * `<script type="application/json">` child, loaded via `../kit.js`), so the result
  * can be screenshotted headlessly across viewport/theme/lang by `dev/qa/chaos-capture.ts`.
  *
- * Not published: `.github/workflows/pages.yml` only copies top-level `sample/*.html`
- * and `sample/*.js`, so `sample/chaos/**` never reaches GitHub Pages.
+ * Not published: `.github/workflows/pages.yml` only copies top-level `lp/*.html`
+ * and `lp/*.js`, so `lp/chaos/**` never reaches GitHub Pages.
  *
  * URL contract: `?template=<name>&fixture=<name>[&theme=light|dark][&lang=ja|en][&notes=on]`.
  * With no `template`, this renders an index of every template x fixture as links.
  *
- * Fixture contract (see `sample/chaos/fixtures/plain.js` for a worked example).
+ * Fixture contract (see `lp/chaos/fixtures/plain.js` for a worked example).
  * `fixtures/components.js` and `fixtures/grill.js` are special-cased: components have
  * no template of their own, and grill (ADR 20261016_grill-in-core) is a feature of
  * every template's shell rather than a template of its own, so both render through
@@ -37,7 +37,7 @@ import { loadKit } from '../kit.js';
  * (ADR 20261023_diagram-as-board): no `dpk-template-<name>` tag or
  * `templates/<name>.js` entry exists for them any more — each is its own
  * board (`<dpk-${name}>`, unhosted here — `board` left unset, the way
- * `sample/<name>.html` hosts it under `<dpk-page>` with `board`/`variant`
+ * `lp/<name>.html` hosts it under `<dpk-page>` with `board`/`variant`
  * set instead), bundled only in `components.js`. This harness still renders
  * one per fixture, same as any template, so they stay listed in `TEMPLATES`.
  */
@@ -68,7 +68,7 @@ const app = document.getElementById('app');
 /** Escapes `</` so JSON embedded inside a `<script type="application/json">` string can't close the tag early. */
 const escapeJsonForScript = (json) => json.replace(/<\//g, '<\\/');
 
-/** Loads one `sample/chaos/fixtures/*.js` registry module, or `null` when there is none (yet). */
+/** Loads one `lp/chaos/fixtures/*.js` registry module, or `null` when there is none (yet). */
 const loadFixtureModule = async (name) => {
   try {
     const module = await import(`./fixtures/${name}.js`);
@@ -80,7 +80,7 @@ const loadFixtureModule = async (name) => {
 };
 
 /**
- * Loads `sample/chaos/fixtures/<template>.js`, or `null` when there is none (yet).
+ * Loads `lp/chaos/fixtures/<template>.js`, or `null` when there is none (yet).
  *
  * Components aren't templates, so `fixtures/components.js` (diagrams and standalone
  * components, rendered through `slot="main"`) has no template of its own; neither is
@@ -357,7 +357,7 @@ const main = async () => {
 
   const fixtures = await loadFixtures(template);
   if (fixtures === null) {
-    renderError(`no fixtures registered for template "${template}" (sample/chaos/fixtures/${template}.js)`);
+    renderError(`no fixtures registered for template "${template}" (lp/chaos/fixtures/${template}.js)`);
     return;
   }
 

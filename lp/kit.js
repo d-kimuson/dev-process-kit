@@ -1,7 +1,7 @@
 /**
- * Loads the framework bundle for the samples, and lets the reader switch it between versions.
+ * Loads the framework bundle for the landing pages, and lets the reader switch it between versions.
  *
- * Under `pnpm dev` a sample loads the bundle built from the working tree (`local`) by default, from the dev asset
+ * Under `pnpm dev` a landing page loads the bundle built from the working tree (`local`) by default, from the dev asset
  * server's origin. Anywhere else (GitHub Pages) it loads the latest version published to npm, from jsDelivr, the way
  * a generated page does. `?dpk-version=<version>` (the parameter the kit's own version select sets; the older
  * `?version=` still works) picks a published version in both. Only the bundle changes: the markup stays this
@@ -9,7 +9,7 @@
  *
  * A version that renders its own version select in the template header (it announces `versionParam`) needs nothing
  * more. For one from before that, this helper puts a select into the template's `header` slot, a public slot every
- * version has, so the reader can always switch back. The samples' own helper, not part of the package.
+ * version has, so the reader can always switch back. The landing pages' own helper, not part of the package.
  */
 
 const LOCAL_BASE = 'https://dev-process-kit.localhost/';
@@ -18,7 +18,7 @@ const LEGACY_VERSION_PARAM = 'version';
 const VERSIONS_API = 'https://data.jsdelivr.com/v1/packages/npm/dev-process-kit';
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
-/** `pnpm dev` serves the samples from a `*.localhost` origin (portless); only there is a local build to load. */
+/** `pnpm dev` serves the landing pages from a `*.localhost` origin (portless); only there is a local build to load. */
 const hasLocalBuild = location.hostname.endsWith('.localhost');
 
 /** The published version this page asks for, or `null` for the default. */
@@ -70,7 +70,7 @@ const pageFor = (version) => {
 // Light DOM styles: the select is slotted into the template header, where the template's tokens still inherit.
 // The fallbacks cover a version whose tokens differ, and the note, which sits outside any template.
 const STYLES = `
-  .sample-version-select {
+  .lp-version-select {
     flex: none;
     height: 24px;
     margin-left: auto;
@@ -90,11 +90,11 @@ const STYLES = `
     cursor: pointer;
   }
 
-  .sample-version-select:hover {
+  .lp-version-select:hover {
     color: var(--dpk-ink, inherit);
   }
 
-  .sample-version-note {
+  .lp-version-note {
     position: fixed;
     left: 12px;
     bottom: 12px;
@@ -110,7 +110,7 @@ const STYLES = `
     font: 12px/1.4 ui-monospace, monospace;
   }
 
-  .sample-version-note .sample-version-select {
+  .lp-version-note .lp-version-select {
     --dpk-paper-sunken: #fff;
     --dpk-ink-soft: #b42318;
     --dpk-ink: #7a1a12;
@@ -130,7 +130,7 @@ const option = (value, label) => {
  */
 const versionSelect = (loaded) => {
   const select = document.createElement('select');
-  select.className = 'sample-version-select';
+  select.className = 'lp-version-select';
   select.setAttribute('aria-label', 'dev-process-kit version');
   select.title = 'dev-process-kit version';
   // `''` stands for no `?version`: the local build, which exists under `pnpm dev` only.
@@ -159,7 +159,7 @@ const versionSelect = (loaded) => {
 // the select when the template could not take it.
 const showNote = (text, select) => {
   const note = document.createElement('p');
-  note.className = 'sample-version-note';
+  note.className = 'lp-version-note';
   note.setAttribute('role', 'alert');
   note.append(text, ...(select ? [select] : []));
   document.body.append(note);

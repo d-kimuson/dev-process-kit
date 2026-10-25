@@ -10,7 +10,7 @@ import { ensurePaperFont, mockAtom } from './mock';
  * only thing worth guarding at this layer is that each class a mock is built
  * from is still declared in the stylesheet — a cheap trip wire against a typo
  * or an accidental deletion while editing the sheet. Real rendering is
- * verified in the browser via the sample catalog (see `sample/index.html`).
+ * verified in the browser via the sample catalog (see `lp/index.html`).
  */
 describe('mockAtom', () => {
   const css = mockAtom.cssText;

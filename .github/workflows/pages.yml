@@ -1,6 +1,6 @@
 name: Pages
 
-# Publishes the samples of `main` to GitHub Pages. They load the latest npm release from jsDelivr (`sample/kit.js`),
+# Publishes the landing site of `main` to GitHub Pages. They load the latest npm release from jsDelivr (`lp/kit.js`),
 # or the one picked in each sample's header, so the site shows what a generated page gets; `main`'s markup may be ahead of it.
 on:
   push:
@@ -23,11 +23,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # The samples need no build: they load the package from jsDelivr, never from the dev asset server.
+      # The landing site needs no build: they load the package from jsDelivr, never from the dev asset server.
       - name: Assemble the site
         run: |
           mkdir _site
-          cp sample/*.html sample/*.js sample/*.ico sample/*.png _site/
+          cp lp/*.html lp/*.js lp/*.ico lp/*.png _site/
           if grep -l 'dev-process-kit\.localhost' _site/*.html; then
             echo 'a sample points at the dev asset server instead of loading through kit.js' >&2
             exit 1

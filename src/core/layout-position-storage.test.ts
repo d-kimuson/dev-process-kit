@@ -21,7 +21,7 @@ describe('layout-position-storage', () => {
 
   it('round-trips through a store', () => {
     const store = memoryPositionStore();
-    const key = positionStorageKey('/sample/diagrams.html');
+    const key = positionStorageKey('/lp/diagrams.html');
     expect(store.read(key)).toBeNull();
     const state = setPosition(EMPTY_POSITION_STATE, { board: 'b', diagram: 'd', node: 'n' }, { x: 5, y: 6 });
     expect(store.write(key, state)).toBe(true);
@@ -29,8 +29,8 @@ describe('layout-position-storage', () => {
   });
 
   it('keys storage by path, so different pages do not collide', () => {
-    const a = positionStorageKey('/sample/diagrams.html');
-    const b = positionStorageKey('/sample/other.html');
+    const a = positionStorageKey('/lp/diagrams.html');
+    const b = positionStorageKey('/lp/other.html');
     expect(a).not.toBe(b);
   });
 });

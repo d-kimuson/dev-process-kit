@@ -8,7 +8,7 @@ accepted. Settles, for slides, the open question left by [20261022_page-as-the-b
 
 ## Context
 
-[20261022_page-as-the-base-form.md](20261022_page-as-the-base-form.md) made `<dpk-page>` the one shape every page is taught as, but left whole-screen templates — `slides`, `whiteboard` — without an answer for how they sit inside a page's chrome. [20261023_diagram-as-board.md](20261023_diagram-as-board.md) answered it for whiteboard by moving it to a diagram component with its own `variant="board"`, and explicitly left slides unsettled: a deck paged through one slide at a time is a presentation mode, not a canvas, so the diagram contract does not fit it. `sample/slides.html` still used a bare `<dpk-template-slides>` outside `<dpk-page>`, the one template left on the old standalone path.
+[20261022_page-as-the-base-form.md](20261022_page-as-the-base-form.md) made `<dpk-page>` the one shape every page is taught as, but left whole-screen templates — `slides`, `whiteboard` — without an answer for how they sit inside a page's chrome. [20261023_diagram-as-board.md](20261023_diagram-as-board.md) answered it for whiteboard by moving it to a diagram component with its own `variant="board"`, and explicitly left slides unsettled: a deck paged through one slide at a time is a presentation mode, not a canvas, so the diagram contract does not fit it. `lp/slides.html` still used a bare `<dpk-template-slides>` outside `<dpk-page>`, the one template left on the old standalone path.
 
 Two concerns kept slides off the `<dpk-page>` path:
 
@@ -25,7 +25,7 @@ A smaller bug surfaced while checking the first concern: `#onKeydown` listens on
 
 ## Consequences
 
-- `sample/slides.html` uses the `<dpk-page storage-key="…">` / `<dpk-template-slides board="slides">` form used by every other sample (`usm.html`, `whiteboard.html`), with the page's own JSON holding just the title.
+- `lp/slides.html` uses the `<dpk-page storage-key="…">` / `<dpk-template-slides board="slides">` form used by every other sample (`usm.html`, `whiteboard.html`), with the page's own JSON holding just the title.
 - While a deck is read inside a page that is not full screen, the page header and board switcher stay on screen. A reader who wants them gone uses the browser's full screen.
 - Slides keeps `addable: false` (`TemplateDefinition`); a page author places it once, by hand — this decision does not change how a board is added, only how it behaves once placed.
 - **Slides as components placed in a plain board, rather than a template of its own, is deliberately deferred, not blocked.** Nothing here forecloses it.

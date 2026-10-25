@@ -27,7 +27,7 @@ export type BenchFixture = { readonly name: string; readonly input: unknown };
  * and two seeded-random schemas for a denser, messier mix.
  */
 export const FIXTURES: readonly BenchFixture[] = [
-  // Both snapshots, like `sample/er-complex.html` itself: passing only
+  // Both snapshots, like `lp/er-complex.html` itself: passing only
   // `after` drops the removed tables/relations the sample still draws (the
   // reader's view is a diff), so the bench would measure a different, smaller
   // schema than the page it claims to describe.

@@ -20,13 +20,14 @@ import { parseSlidesBase } from './views/slides/model';
 import { parseTaskBoardBase } from './views/task-board/model';
 
 /**
- * The samples are what a reader opens first, and their data is hand-written JSON
- * inside HTML — the exact place where drift hides. Parsing them here means a
- * sample can never teach a shape the component would reject.
+ * The landing pages are what a reader opens first, and their data is
+ * hand-written JSON inside HTML — the exact place where drift hides. Parsing
+ * them here means a landing page can never teach a shape the component would
+ * reject.
  */
 // `import.meta.url` is root-relative under the test environment, so resolve the
-// sample directory from the vitest root instead.
-const sample = (name: string): string => readFileSync(resolve('sample', name), 'utf8');
+// landing-page directory from the vitest root instead.
+const lpPage = (name: string): string => readFileSync(resolve('lp', name), 'utf8');
 
 /** The questions a page asks, read apart from its base data. */
 const GRILL = /<script type="application\/json" data-dpk-grill>([\s\S]*?)<\/script>/;
@@ -46,14 +47,14 @@ const jsonChild = (html: string, tag: string, index = 0): unknown => {
   ];
   // The last group: the change log's own group comes first.
   const json = blocks[index]?.at(-1);
-  if (!json) throw new Error(`sample has no JSON child #${index} for <${tag}>`);
+  if (!json) throw new Error(`landing page has no JSON child #${index} for <${tag}>`);
   return JSON.parse(json);
 };
 
-/** The bundle entries a sample loads through `sample/kit.js` (`loadKit([...])`). */
+/** The bundle entries a landing page loads through `lp/kit.js` (`loadKit([...])`). */
 const entriesOf = (html: string): readonly string[] => {
   const list = /loadKit\(\[([^\]]*)\]\)/.exec(html)?.[1];
-  if (list === undefined) throw new Error('sample loads no entry through loadKit');
+  if (list === undefined) throw new Error('landing page loads no entry through loadKit');
   return [...list.matchAll(/'([^']*)'/g)].map((match) => match[1] ?? '');
 };
 
@@ -71,16 +72,16 @@ const questionsIn = (value: unknown, found: string[] = []): string[] => {
   return found;
 };
 
-describe('sample pages', () => {
-  it('every sample hides its root element until the kit defines it, so raw content cannot flash', () => {
-    const files = readdirSync(resolve('sample')).filter((name) => name.endsWith('.html'));
+describe('lp pages', () => {
+  it('every landing page hides its root element until the kit defines it, so raw content cannot flash', () => {
+    const files = readdirSync(resolve('lp')).filter((name) => name.endsWith('.html'));
     expect(files.length).toBeGreaterThan(0);
-    const missing = files.filter((name) => !sample(name).includes('body > :not(:defined)'));
-    expect(missing, 'sample(s) missing the FOUC guard style (docs/index.md#page-height)').toEqual([]);
+    const missing = files.filter((name) => !lpPage(name).includes('body > :not(:defined)'));
+    expect(missing, 'landing page(s) missing the FOUC guard style (docs/index.md#page-height)').toEqual([]);
   });
 
   it('diagrams.html carries data every diagram accepts', () => {
-    const html = sample('diagrams.html');
+    const html = lpPage('diagrams.html');
     expect(parseStateData(jsonChild(html, 'dpk-board-state-diagram')).nodes).toHaveLength(8);
     const sequence = parseSequenceData(jsonChild(html, 'dpk-board-sequence-diagram'));
     expect(sequence.participants).toHaveLength(5);
@@ -102,7 +103,7 @@ describe('sample pages', () => {
   });
 
   it('diagrams.html is an dpk-view-plain page whose sections and diagrams are commentable', () => {
-    const html = sample('diagrams.html');
+    const html = lpPage('diagrams.html');
     expect(entriesOf(html)).toContain('views/plain.js');
     expect(entriesOf(html)).toContain('components.js');
     const plain = parsePlainBase(jsonChild(html, 'dpk-view-plain'));
@@ -123,7 +124,7 @@ describe('sample pages', () => {
   });
 
   it('example-mapping.html maps the flow through the example-mapping diagram', () => {
-    const html = sample('example-mapping.html');
+    const html = lpPage('example-mapping.html');
     expect(entriesOf(html)).toContain('components.js');
     const mapping = parseExampleMappingBase(jsonChild(html, 'dpk-board-example-mapping'));
     expect(mapping.title).not.toBe('');
@@ -141,7 +142,7 @@ describe('sample pages', () => {
   });
 
   it('grill.html asks its questions over a plain page', () => {
-    const html = sample('grill.html');
+    const html = lpPage('grill.html');
     expect(entriesOf(html)).toEqual(expect.arrayContaining(['views/plain.js', 'components.js']));
     expect(parsePlainBase(jsonChild(html, 'dpk-view-plain')).title).not.toBe('');
     const grill = parseGrill(JSON.parse(GRILL.exec(html)?.[1] ?? 'null'));
@@ -168,7 +169,7 @@ describe('sample pages', () => {
   });
 
   it('slides.html explains a mechanism through the slides template', () => {
-    const html = sample('slides.html');
+    const html = lpPage('slides.html');
     expect(entriesOf(html)).toContain('views/slides.js');
     const deck = parseSlidesBase(jsonChild(html, 'dpk-view-slides'));
     expect(deck.title).not.toBe('');
@@ -182,7 +183,7 @@ describe('sample pages', () => {
   });
 
   it('task-board.html follows a task through the task-board template', () => {
-    const html = sample('task-board.html');
+    const html = lpPage('task-board.html');
     expect(entriesOf(html)).toContain('views/task-board.js');
     expect(entriesOf(html)).toContain('components.js');
     const board = parseTaskBoardBase(jsonChild(html, 'dpk-view-task-board'));
@@ -219,7 +220,7 @@ describe('sample pages', () => {
   });
 
   it('delegation-poker.html deals the decisions the reader still has to play', () => {
-    const html = sample('delegation-poker.html');
+    const html = lpPage('delegation-poker.html');
     expect(entriesOf(html)).toContain('views/delegation-poker.js');
     const poker = parseDelegationPokerBase(jsonChild(html, 'dpk-view-delegation-poker'));
     expect(poker.title).not.toBe('');
@@ -232,7 +233,7 @@ describe('sample pages', () => {
   });
 
   it('whiteboard.html lays out a brainstorm on the whiteboard diagram', () => {
-    const html = sample('whiteboard.html');
+    const html = lpPage('whiteboard.html');
     expect(entriesOf(html)).toContain('components.js');
     const board = parseWhiteboardBase(jsonChild(html, 'dpk-board-whiteboard'));
     expect(board.title).not.toBe('');
@@ -249,7 +250,7 @@ describe('sample pages', () => {
   });
 
   it.each(['usm.html', 'whiteboard.html'])('%s announces changes about things the page has', (name) => {
-    const html = sample(name);
+    const html = lpPage(name);
     const log = parseChangeLog(JSON.parse(CHANGE_LOG.exec(html)?.[1] ?? 'null'));
     if (!log.ok) throw new Error(log.error);
     // A version before this one, so the bell shows how the history reads.

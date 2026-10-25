@@ -82,8 +82,8 @@ only `after` silently measures a smaller schema (38/51 instead of 39/53).
 
 ### 2. Real browser — `pnpm eval:browser`
 
-`dev/qa/er-eval.ts` opens `sample/er-eval.html`, which loads the schema from
-`sample/er-complex.html` itself, renders it without the page shell, and writes
+`dev/qa/er-eval.ts` opens `lp/er-eval.html`, which loads the schema from
+`lp/er-complex.html` itself, renders it without the page shell, and writes
 `dev/eval/out/browser.json` plus screenshots:
 
 - `fit.png` — the default fit
@@ -158,7 +158,7 @@ hard gate. Use it to pick the next core change, then re-run layers 1 and 2.
 | Rendering, `LAYOUT` constants, caches, imperative hover                                         | `src/components/er-diagram/element.ts`     |
 | Always-visible cardinalities, label ink, legend position                                        | `src/components/er-diagram/styles.ts`      |
 | Deterministic appraisal and corpus                                                              | `dev/eval/`, `dev/layout-bench/`           |
-| Browser harness and screenshots                                                                 | `dev/qa/er-eval.ts`, `sample/er-eval.html` |
+| Browser harness and screenshots                                                                 | `dev/qa/er-eval.ts`, `lp/er-eval.html` |
 
 The renderer and the appraisal must call the **same** label placement and route
 functions. If they drift, the report scores geometry the reader does not see.

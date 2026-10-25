@@ -20,7 +20,7 @@ Some behavior is a matter of degree rather than pass/fail — a generated layout
 
 Follow the shared `browser-ops` skill for browser lifecycle, profiles, and authentication. Start development servers through `pueue`, and use the repository's browser smoke script for the repeatable baseline. Add direct browser interaction only for behavior outside that script's coverage.
 
-To look at how a template or component actually renders an arbitrary data pattern — the analog of swapping a backend response — rather than asserting pass/fail, use the chaos harness (`sample/chaos/`, driven headlessly by `dev/qa/chaos-capture.ts`). It is not a regression test; see its own header comment for usage.
+To look at how a template or component actually renders an arbitrary data pattern — the analog of swapping a backend response — rather than asserting pass/fail, use the chaos harness (`lp/chaos/`, driven headlessly by `dev/qa/chaos-capture.ts`). It is not a regression test; see its own header comment for usage.
 
 Exercise the built bundle from the sample's separate origin. This preserves the deployment boundary and catches failures hidden by importing source modules directly. For a typical change, verify the affected scenarios among:
 
@@ -33,7 +33,7 @@ Exercise the built bundle from the sample's separate origin. This preserves the 
 
 When adopting an API with limited browser availability, verify both the supported path and the fallback or feature-detection path in the relevant engines.
 
-`main` publishes the samples to GitHub Pages (`.github/workflows/pages.yml`), where they load the latest npm release instead of a local build (`sample/kit.js`); the smoke script accepts that site too: `pnpm qa:browser https://d-kimuson.github.io/dev-process-kit`. Under `pnpm dev`, `?dpk-version=<version>` on a sample loads a published version the same way.
+`main` publishes the samples to GitHub Pages (`.github/workflows/pages.yml`), where they load the latest npm release instead of a local build (`lp/kit.js`); the smoke script accepts that site too: `pnpm qa:browser https://d-kimuson.github.io/dev-process-kit`. Under `pnpm dev`, `?dpk-version=<version>` on a sample loads a published version the same way.
 
 Use HTTP-level checks for CORS headers and missing assets. These are protocol contracts and are more directly observed without a browser UI.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Headless screenshot matrix for the chaos harness (`sample/chaos/`).
+ * Headless screenshot matrix for the chaos harness (`lp/chaos/`).
  *
  * For each selected template x fixture x theme x lang, opens the chaos page once and,
  * for every viewport, takes a screenshot — then records whether the template rendered
@@ -11,12 +11,12 @@
  *
  * Usage:
  *   pnpm dev                                            # already running; do not start/stop it
- *   node dev/qa/chaos-capture.ts <sample-base-url> --out <dir> \
+ *   node dev/qa/chaos-capture.ts <lp-url> --out <dir> \
  *     [--template a,b] [--fixture x,y] \
  *     [--viewport 1440x900,390x844] [--theme light,dark] [--lang ja,en]
  *
  * Fixtures are discovered from the chaos index page's `window.chaosFixtures`
- * (set by sample/chaos/chaos.js) — nothing here duplicates that list.
+ * (set by lp/chaos/chaos.js) — nothing here duplicates that list.
  *
  * Drives the repo's `agent-browser` devDependency the same way dev/qa/browser-smoke.ts does.
  */
@@ -26,7 +26,7 @@ import { dirname, join } from 'node:path';
 import * as v from 'valibot';
 
 const USAGE =
-  'usage: node dev/qa/chaos-capture.ts <sample-base-url> --out <dir> ' +
+  'usage: node dev/qa/chaos-capture.ts <lp-url> --out <dir> ' +
   '[--template a,b] [--fixture x,y] [--viewport 1440x900,390x844] [--theme light,dark] [--lang ja,en]';
 
 type Viewport = { readonly width: number; readonly height: number };

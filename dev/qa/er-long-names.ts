@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Long-label regression against the built bundle on the separate sample origin.
  * AGENT_BROWSER_SESSION and AGENT_BROWSER_PROFILE must identify an isolated browser.
- * Usage: node dev/qa/er-long-names.ts <sample-url>
+ * Usage: node dev/qa/er-long-names.ts <lp-url>
  */
 import { execFileSync } from 'node:child_process';
 

@@ -1,4 +1,4 @@
-// Extracted from sample/er-long-names.html, <dpk-board-er-diagram id="long-schema">. Do not hand-edit; keep in sync if the sample changes.
+// Extracted from lp/er-long-names.html, <dpk-board-er-diagram id="long-schema">. Do not hand-edit; keep in sync if the sample changes.
 
 export const erLongNamesFixtureBefore = {
   tables: [

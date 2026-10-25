@@ -8,7 +8,7 @@ accepted
 
 ## Context
 
-A generated page pins one exact version of the kit, and that stays the contract ([ADR](20260924_npm-jsdelivr-distribution.md)). Readers still want to look at the same page with another version: to check whether a newer release renders it better, or whether a regression came with an upgrade. Until now only the samples could do that, through their own loader (`sample/kit.js`), which decides which bundle to import before any of it runs. A normal page has no such loader: it loads one entry with a `<script type="module">`, and that entry defines the custom elements as soon as it is evaluated.
+A generated page pins one exact version of the kit, and that stays the contract ([ADR](20260924_npm-jsdelivr-distribution.md)). Readers still want to look at the same page with another version: to check whether a newer release renders it better, or whether a regression came with an upgrade. Until now only the samples could do that, through their own loader (`lp/kit.js`), which decides which bundle to import before any of it runs. A normal page has no such loader: it loads one entry with a `<script type="module">`, and that entry defines the custom elements as soon as it is evaluated.
 
 The forces:
 

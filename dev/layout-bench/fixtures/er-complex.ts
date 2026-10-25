@@ -1,4 +1,4 @@
-// Extracted from sample/er-complex.html, <dpk-board-er-diagram id="complex-schema">. Do not hand-edit; keep in sync if the sample changes.
+// Extracted from lp/er-complex.html, <dpk-board-er-diagram id="complex-schema">. Do not hand-edit; keep in sync if the sample changes.
 
 export const erComplexFixtureBefore = {
   tables: [
