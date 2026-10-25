@@ -22,7 +22,7 @@
         }
       }
     </style>
-    <title>dev-process-kit — a one-page design system for agent-written documents</title>
+    <title>dev-process-kit — Agent が書く HTML のためのデザインシステム</title>
     <script>
       // Resolve the color scheme before the first paint, the way templates do: the reader's
       // toggle (shared with every template page of the origin), else the OS preference.
@@ -194,6 +194,68 @@
         box-shadow: var(--focus);
       }
 
+      /* A GitHub star button: a quiet pill with the count once the API answers. */
+      .star-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 10px;
+        border: 1px solid var(--rule);
+        border-radius: 999px;
+        background: var(--paper-raised);
+        color: var(--ink-soft);
+        font-size: 12px;
+        font-weight: 650;
+        line-height: 1;
+        white-space: nowrap;
+        text-decoration: none;
+        transition:
+          background 140ms var(--ease),
+          border-color 140ms var(--ease),
+          color 140ms var(--ease);
+      }
+
+      .star-button:hover {
+        border-color: var(--rule-strong);
+        background: var(--paper-sunken);
+        color: var(--ink);
+      }
+
+      .star-button:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--blue-soft);
+      }
+
+      .star-button svg {
+        flex: none;
+        width: 13px;
+        height: 13px;
+        fill: currentColor;
+      }
+
+      .star-count {
+        min-width: 14px;
+        padding: 1px 5px;
+        border-radius: 999px;
+        background: var(--paper-sunken);
+        font-family: var(--mono);
+        font-size: 10.5px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+      }
+
+      .star-count[hidden] {
+        display: none;
+      }
+
+      @media (max-width: 560px) {
+        .star-button .star-label {
+          display: none;
+        }
+      }
+
       /* ---- intro ---- */
 
       .intro {
@@ -231,6 +293,30 @@
       /* The steps that follow the lede are the intro's main content; same clear gap as an entry's. */
       .intro > .lede + * {
         margin-top: 28px;
+      }
+
+      .hero-points {
+        margin: 16px 0 0;
+        padding-left: 20px;
+        color: var(--ink-soft);
+        font-size: 15px;
+        line-height: 1.75;
+      }
+
+      .hero-points li + li {
+        margin-top: 4px;
+      }
+
+      .intro > .lede + .lede {
+        margin-top: 24px;
+      }
+
+      .code-tabs .dpk-segmented {
+        margin-bottom: 10px;
+      }
+
+      .code-tabs pre[hidden] {
+        display: none;
       }
 
       /* ---- sections ---- */
@@ -644,16 +730,18 @@
       }
 
       #catalog-view,
-      #templates-view,
       #patterns-view {
         padding: 28px 48px 96px;
       }
 
       #catalog-view > :is(section, .group),
-      #templates-view > .entry,
-      #patterns-view > .entry {
+      .patterns-section > .entry {
         max-width: 960px;
         margin-inline: auto;
+      }
+
+      .patterns-section + .patterns-section {
+        margin-top: 44px;
       }
 
       .group > h2,
@@ -1277,7 +1365,6 @@
         }
 
         #catalog-view,
-        #templates-view,
         #patterns-view {
           padding: 16px 16px 64px;
         }
@@ -1364,6 +1451,22 @@
       </a>
       <a
         slot="header"
+        class="star-button"
+        data-github-stars
+        href="https://github.com/d-kimuson/dev-process-kit"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Star dev-process-kit on GitHub"
+        title="Star dev-process-kit on GitHub"
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+          <path d="M8 1.3l2.02 4.1 4.53.66-3.28 3.2.77 4.5L8 11.64l-4.04 2.12.77-4.5L1.45 6.06l4.53-.66L8 1.3Z" />
+        </svg>
+        <span class="star-label">Star</span>
+        <span class="star-count" data-github-stars-count hidden></span>
+      </a>
+      <a
+        slot="header"
         class="dpk-icon-btn"
         data-variant="subtle"
         href="https://www.npmjs.com/package/dev-process-kit"
@@ -1416,23 +1519,6 @@
                 </svg>
                 <span data-ct="tokens">Tokens</span>
               </a>
-              <a class="toc-top-link" href="#templates" data-view="templates">
-                <svg
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <rect x="2" y="2.5" width="5" height="5" rx="1" />
-                  <rect x="9" y="2.5" width="5" height="5" rx="1" />
-                  <rect x="2" y="9.5" width="5" height="4" rx="1" />
-                  <rect x="9" y="9.5" width="5" height="4" rx="1" />
-                </svg>
-                <span data-ct="templates">Views</span>
-              </a>
               <a class="toc-top-link" href="#patterns" data-view="patterns">
                 <svg
                   viewBox="0 0 16 16"
@@ -1447,7 +1533,7 @@
                   <path d="M2.5 5 8 8l5.5-3" />
                   <path d="M8 8v6" />
                 </svg>
-                <span data-ct="patterns">Boards</span>
+                <span data-ct="patterns">Patterns</span>
               </a>
             </div>
             <div class="toc-groups-source">
@@ -1531,127 +1617,151 @@
           <div class="catalog-body" slot="main">
             <main class="wrap samples" id="samples">
               <div class="intro">
-                <h1 data-i18n="title">Agent が書く単一 HTML のための、ペライチのデザインシステム</h1>
+                <p class="dpk-eyebrow">dev-process-kit</p>
+                <h1 data-i18n="title">Agent が書く HTML のためのデザインシステム</h1>
+                <ul class="hero-points">
+                  <li data-i18n="pointData">Agent にとって解釈・記載しやすいデータ構造</li>
+                  <li data-i18n="pointDesign">人間にとって見やすい図形や規定となるデザインシステム</li>
+                  <li data-i18n="pointProcess">Agent と人間が共通理解を構成するための標準化されたプロセス</li>
+                </ul>
                 <p class="lede" data-i18n="lede">
-                  dev-process-kit は、Agent が生成する単一 HTML
-                  に、共通のデザイン・ページの型・レビューの仕組みをまとめて与える Web Components
-                  のセットです。ビルド不要、script タグ 1 つ。トークン、CSS
-                  atoms、コンポーネント、ビュー、ボードを組み合わせて、1 枚のページをすぐに組み立てられます。
+                  これらを統合的に提供する Web Components のセットです。そのまま利用できる USM, ERD
+                  などの図形や、デザインシステムを用いて構成したカスタム図形をベースに一貫したループを実現します。
                 </p>
                 <ol class="dpk-steps" aria-label="レビューの流れ" data-i18n-aria="loop">
                   <li>
-                    <b data-i18n="writeTitle">書く</b>
+                    <b data-i18n="writeTitle">人間に適した認知モデルで描く</b>
                     <p class="dpk-muted" data-i18n="writeBody">
-                      Agent がビューまたはボードに沿って単一 HTML を書く。中身のデータは JSON で HTML に埋め込む。
+                      Agent が USM / ERD などの認知モデルに沿って、データを JSON で埋め込んだ HTML を書く。
                     </p>
                   </li>
                   <li>
                     <b data-i18n="reviewTitle">レビューする</b>
                     <p class="dpk-muted" data-i18n="reviewBody">
-                      人がブラウザ上でページを操作し、変更とコメントを残す。下書きは LocalStorage
+                      人がブラウザ上で図を操作し、コメントと変更要求を残す。下書きは LocalStorage
                       に残り、再読込しても消えない。
                     </p>
                   </li>
                   <li>
-                    <b data-i18n="returnTitle">返す</b>
+                    <b data-i18n="returnTitle">反映する</b>
                     <p class="dpk-muted" data-i18n="returnBody">
                       「変更・コメントをコピー」（または Claude に送る）で変更要求を Agent に渡し、HTML
-                      を作り直してもらう。反映済みの下書きは自動で消える。
+                      を更新してもらう。反映済みの下書きは自動で消える。
                     </p>
                   </li>
                 </ol>
+                <p class="lede" data-i18n="optimized">
+                  dev-process-kit はポン出しの HTML に最適化されており、ビルド不要で script
+                  タグ読み込みで利用可能。トークン、CSS atoms、コンポーネント、ビュー、ボードを組み合わせて、1
+                  枚のページをすぐに組み立てられます。
+                </p>
               </div>
 
-              <section class="dpk-prose" aria-labelledby="what-you-get">
-                <h2 id="what-you-get">What you get</h2>
-                <div class="dpk-grid" data-cols="2">
+              <section class="dpk-prose" aria-labelledby="getting-started">
+                <h2 id="getting-started" data-i18n="gettingStartedTitle">Getting Started</h2>
+                <p data-i18n="gettingStartedLede">
+                  Agent にスキルを渡すか、Claude Code のプラグインとして入れるか、CDN から直接読み込んで試せます。
+                </p>
+                <div class="usage code-tabs" data-code-tabs>
+                  <div class="dpk-segmented" role="tablist" aria-label="Getting started">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected="true"
+                      data-code-tab="skills"
+                      data-i18n="agentSkills"
+                    >
+                      Agent Skills
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected="false"
+                      data-code-tab="claude"
+                      data-i18n="claudeCode"
+                    >
+                      Claude Code
+                    </button>
+                    <button type="button" role="tab" aria-selected="false" data-code-tab="try" data-i18n="tryIt">
+                      お試し
+                    </button>
+                  </div>
+                  <pre data-code-panel="skills"><code>npx skills add d-kimuson/dev-process-kit
+
+# then ask the agent:
+Create a USM for this product.
+Follow https://raw.githubusercontent.com/d-kimuson/dev-process-kit/main/skills/dev-process-kit/SKILL.md.</code></pre>
+                  <pre data-code-panel="claude" hidden><code>/plugin marketplace add d-kimuson/dev-process-kit
+/plugin install dev-process-kit@dev-process-kit</code></pre>
+                  <pre data-code-panel="try" hidden><code>&lt;script type="module"
+  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/views/plain.js"&gt;&lt;/script&gt;
+&lt;script type="module"
+  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/boards.js"&gt;&lt;/script&gt;
+
+&lt;dpk-app storage-key="try"&gt;
+  &lt;script type="application/json"&gt;{ "title": "Try" }&lt;/script&gt;
+  &lt;dpk-page name="try" label="Try"&gt;
+    &lt;dpk-view-plain&gt;…&lt;/dpk-view-plain&gt;
+  &lt;/dpk-page&gt;
+&lt;/dpk-app&gt;</code></pre>
+                  <p data-i18n="tryNote">
+                    そのまま開ける例は <a href="usm.html">USM</a> と
+                    <a href="diagrams.html">diagrams</a> にあります。詳しくは
+                    <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/</a> へ。
+                  </p>
+                </div>
+              </section>
+
+              <section class="dpk-prose" aria-labelledby="features">
+                <h2 id="features" data-i18n="featuresTitle">Features</h2>
+                <div class="dpk-grid" data-cols="3">
                   <a class="dpk-card" href="#catalog">
-                    <h3>デザインシステム</h3>
-                    <p class="dpk-muted">
+                    <h3 data-i18n="featureDesignTitle">ペライチのデザインシステム</h3>
+                    <p class="dpk-muted" data-i18n="featureDesignBody">
                       ライト / ダークで揃うトークン、レイアウト・コントロール・カード・表・チャートの CSS
                       atoms、そしてレビューレールやインライン編集・表・選択・ダイアログなどのコンポーネント。
                     </p>
                   </a>
-                  <a class="dpk-card" href="#templates-view">
-                    <h3>ビュー</h3>
-                    <p class="dpk-muted">
+                  <a class="dpk-card" href="#patterns-views">
+                    <h3 data-i18n="featureViewsTitle">ビュー</h3>
+                    <p class="dpk-muted" data-i18n="featureViewsBody">
                       ページ全体を担う型。User Story Mapping、UX Prototype、Slides、Task Context Board、Delegation
                       Poker、Plain。
                     </p>
                   </a>
-                  <a class="dpk-card" href="#patterns-view">
-                    <h3>ボード</h3>
-                    <p class="dpk-muted">
+                  <a class="dpk-card" href="#patterns-boards">
+                    <h3 data-i18n="featureBoardsTitle">ボード</h3>
+                    <p class="dpk-muted" data-i18n="featureBoardsBody">
                       ビューに埋め込むことも、ページそのものにもできる視覚面。ER・ステート・シーケンス・依存関係・アーキテクチャ・マインドマップ・イベントストーミング・サンプルマッピング・ホワイトボード・カンバン。
                     </p>
                   </a>
                   <a class="dpk-card" href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/page.md">
-                    <h3>レビューループ</h3>
-                    <p class="dpk-muted">
+                    <h3 data-i18n="featureLoopTitle">レビューループ</h3>
+                    <p class="dpk-muted" data-i18n="featureLoopBody">
                       操作は構造化された変更要求として記録され、コメントと一緒に Agent
                       へ返る。質問（grill）も、コピーも、Claude への送信も同じ 1 つの下書きに載る。
                     </p>
                   </a>
+                  <a
+                    class="dpk-card"
+                    href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/claude-artifact.md"
+                  >
+                    <h3 data-i18n="featureArtifactTitle">Claude Artifacts</h3>
+                    <p class="dpk-muted" data-i18n="featureArtifactBody">
+                      ページを Claude Artifact として公開すると、レビューを 1 クリックでその Claude
+                      セッションに返せる。テーマもビューアに合わせる。
+                    </p>
+                  </a>
+                  <a
+                    class="dpk-card"
+                    href="https://github.com/d-kimuson/dev-process-kit/blob/main/skills/dev-process-kit/SKILL.md"
+                  >
+                    <h3 data-i18n="featureAgentTitle">Agent-first</h3>
+                    <p class="dpk-muted" data-i18n="featureAgentBody">
+                      Agent が解釈しやすいデータ構造と、いつ・どのページを使うかを決めるスキル。ビルドも設定も要らない。
+                    </p>
+                  </a>
                 </div>
-              </section>
-
-              <section class="dpk-prose" aria-labelledby="shape">
-                <h2 id="shape">形</h2>
-                <pre><code>&lt;dpk-app storage-key="checkout"&gt;
-  &lt;script type="application/json"&gt;{ "title": "Checkout review" }&lt;/script&gt;
-
-  &lt;dpk-page name="scope" label="Scope"&gt;
-    &lt;dpk-view-usm&gt;…&lt;/dpk-view-usm&gt;
-  &lt;/dpk-page&gt;
-
-  &lt;dpk-page name="domain" label="Domain"&gt;
-    &lt;dpk-board-event-storming&gt;…&lt;/dpk-board-event-storming&gt;
-  &lt;/dpk-page&gt;
-&lt;/dpk-app&gt;</code></pre>
-                <p>
-                  <code>&lt;dpk-app&gt;</code> は 1 ファイルに 1 つ。ヘッダー、レビュー、1 つの下書き、1
-                  つの保存領域、ハッシュ、Undo/Redo を持ちます。<code>&lt;dpk-page&gt;</code> は切り替え可能な 1
-                  つの主題で、中身はビューかボード 1
-                  つ。ビューの中のボードは埋め込み、ページ直下のボードはページそのものになります。
-                </p>
-              </section>
-
-              <section class="dpk-prose" aria-labelledby="load-it">
-                <h2 id="load-it">Load it</h2>
-                <p>バージョンを固定した URL から、必要な entry だけを読み込みます。</p>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Entry</th>
-                      <th>使うとき</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td><code>views/usm.js</code> ほか</td>
-                      <td>ページがそのビュー</td>
-                    </tr>
-                    <tr>
-                      <td><code>boards.js</code></td>
-                      <td>ページがボードを使う（埋め込み / ページ直下）</td>
-                    </tr>
-                    <tr>
-                      <td><code>components.js</code></td>
-                      <td>ビューに載っていないコンポーネントを使う</td>
-                    </tr>
-                    <tr>
-                      <td><code>index.js</code></td>
-                      <td>全部入り</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <pre><code>&lt;script type="module"
-  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/views/usm.js"&gt;&lt;/script&gt;
-&lt;script type="module"
-  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/boards.js"&gt;&lt;/script&gt;</code></pre>
-                <p>
-                  詳しくは <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/</a> へ。
-                </p>
               </section>
 
               <section id="catalog-policy" class="dpk-prose">
@@ -1663,314 +1773,273 @@
               <footer>dev-process-kit</footer>
             </main>
 
-            <main id="templates-view" hidden class="samples">
-              <div class="entry">
-                <div class="entry-head">
-                  <div class="entry-head-row">
-                    <h1 class="entry-title" data-ct="templates">Views</h1>
-                  </div>
-                </div>
-                <p data-i18n="viewsLede">
-                  ページ全体を担うビューです。Agent はデータを書くだけで、画面とレビューはビューが用意します。
-                </p>
-                <div class="dpk-grid" data-cols="3">
-                  <a class="dpk-card" href="usm.html">
-                    <div class="thumb">
-                      <iframe src="usm.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-usm</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4>User Story Mapping</h4>
-                    <p class="dpk-muted" data-i18n="usm">
-                      Activity と Step の背骨の下に、リリースごとにユーザーストーリーを並べる。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="prototype.html">
-                    <div class="thumb">
-                      <iframe src="prototype.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-prototype</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4>UX Prototype</h4>
-                    <p class="dpk-muted" data-i18n="prototype">
-                      画面の流れをストーリーとステップに分けて並べ、プレビューで確かめる。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="slides.html">
-                    <div class="thumb">
-                      <iframe src="slides.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-slides</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4>Slides</h4>
-                    <p class="dpk-muted" data-i18n="slides">
-                      一枚ずつ順にめくるスライドで、仕組みや変更を Agent が解説する。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="task-board.html">
-                    <div class="thumb">
-                      <iframe src="task-board.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-task-board</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4>Task Context Board</h4>
-                    <p class="dpk-muted" data-i18n="taskBoard">
-                      Agent と進めるタスクの状況・Todo・成果物・報告を一枚で追い、質問や提案に答える。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="delegation-poker.html">
-                    <div class="thumb">
-                      <iframe src="delegation-poker.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-delegation-poker</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4>Delegation Poker</h4>
-                    <p class="dpk-muted" data-i18n="delegationPoker">
-                      判断ごとに 7 段階の委任レベルのカードを出し合い、Agent に何をどこまで任せるかを合意する。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/views/plain.md">
-                    <div class="thumb">
-                      <div class="shell" aria-hidden="true">
-                        <div class="shell-header">header</div>
-                        <div class="shell-main">slot="main"</div>
-                        <div>review</div>
-                      </div>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4>Plain</h4>
-                    <p class="dpk-muted" data-i18n="plain">ヘッダーとレビューだけを持ち、中身は自由に書く。</p>
-                  </a>
-                </div>
-
-                <section id="usage">
-                  <h2 data-i18n="usageTitle">使い方</h2>
-                  <p data-i18n="usageLede">バージョンを固定した URL から、ページに必要な entry だけを読み込みます。</p>
-                  <div class="usage">
-                    <pre><code>&lt;script type="module"
-  src="https://cdn.jsdelivr.net/npm/dev-process-kit@&lt;version&gt;/dist/views/prototype.js"&gt;&lt;/script&gt;
-
-&lt;dpk-app storage-key="my-flow"&gt;
-  &lt;script type="application/json"&gt;{ "title": "Signup" }&lt;/script&gt;
-  &lt;dpk-page name="flow" label="Flow"&gt;
-    &lt;dpk-view-prototype&gt;
-      &lt;script type="application/json"&gt;{ "activities": [] }&lt;/script&gt;
-    &lt;/dpk-view-prototype&gt;
-  &lt;/dpk-page&gt;
-&lt;/dpk-app&gt;</code></pre>
-                    <p data-i18n="usageNote">
-                      ボードには <code>boards.js</code>、コンポーネントには
-                      <code>components.js</code> も読み込みます（全部入りは <code>index.js</code>）。
-                    </p>
-                  </div>
-                </section>
-
-                <section id="docs">
-                  <h2>Docs</h2>
-                  <ul class="docs">
-                    <li>
-                      <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/index.md</a>
-                    </li>
-                    <li>
-                      <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/views/prototype.md"
-                        >docs/views/*.md</a
-                      >
-                    </li>
-                    <li>
-                      <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/boards/index.md"
-                        >docs/boards/*.md</a
-                      >
-                    </li>
-                    <li>
-                      <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/components/comment-panel.md"
-                        >docs/components/*.md</a
-                      >
-                    </li>
-                  </ul>
-                </section>
-              </div>
-            </main>
-
             <main id="patterns-view" hidden class="samples">
-              <div class="entry">
-                <div class="entry-head">
-                  <div class="entry-head-row">
-                    <h1 class="entry-title" data-ct="patterns">Boards</h1>
+              <section id="patterns-views" class="patterns-section">
+                <div class="entry">
+                  <div class="entry-head">
+                    <div class="entry-head-row">
+                      <h1 class="entry-title" data-ct="templates">Views</h1>
+                    </div>
+                  </div>
+                  <p data-i18n="viewsLede">
+                    1ページ全体を使うビューです。Agent はデータを書くだけで、画面とレビューはビューが用意します。
+                  </p>
+                  <div class="dpk-grid" data-cols="3">
+                    <a class="dpk-card" href="usm.html">
+                      <div class="thumb">
+                        <iframe src="usm.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-usm</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>User Story Mapping</h4>
+                      <p class="dpk-muted" data-i18n="usm">
+                        Activity と Step の背骨の下に、リリースごとにユーザーストーリーを並べる。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="prototype.html">
+                      <div class="thumb">
+                        <iframe src="prototype.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-prototype</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>UX Prototype</h4>
+                      <p class="dpk-muted" data-i18n="prototype">
+                        画面の流れをストーリーとステップに分けて並べ、プレビューで確かめる。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="slides.html">
+                      <div class="thumb">
+                        <iframe src="slides.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-slides</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Slides</h4>
+                      <p class="dpk-muted" data-i18n="slides">
+                        一枚ずつ順にめくるスライドで、仕組みや変更を Agent が解説する。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="task-board.html">
+                      <div class="thumb">
+                        <iframe src="task-board.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-task-board</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Task Context Board</h4>
+                      <p class="dpk-muted" data-i18n="taskBoard">
+                        Agent と進めるタスクの状況・Todo・成果物・報告を一枚で追い、質問や提案に答える。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="delegation-poker.html">
+                      <div class="thumb">
+                        <iframe src="delegation-poker.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-delegation-poker</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Delegation Poker</h4>
+                      <p class="dpk-muted" data-i18n="delegationPoker">
+                        判断ごとに 7 段階の委任レベルのカードを出し合い、Agent に何をどこまで任せるかを合意する。
+                      </p>
+                    </a>
+                    <a
+                      class="dpk-card"
+                      href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/views/plain.md"
+                    >
+                      <div class="thumb">
+                        <div class="shell" aria-hidden="true">
+                          <div class="shell-header">header</div>
+                          <div class="shell-main">slot="main"</div>
+                          <div>review</div>
+                        </div>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Plain</h4>
+                      <p class="dpk-muted" data-i18n="plain">ヘッダーとレビューだけを持ち、中身は自由に書く。</p>
+                    </a>
                   </div>
                 </div>
-                <p data-i18n="boardsLede">
-                  ボードは、ビューの中に埋め込むことも、ページそのものにもできます。図を添えた資料は、plain
-                  ビューにボードと自由な HTML を組み合わせて作ります。
-                </p>
-                <div class="dpk-grid" data-cols="3">
-                  <a class="dpk-card" href="design-doc.html">
-                    <div class="thumb">
-                      <iframe src="design-doc.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-state-diagram</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-er-diagram</code></span>
-                        </li>
-                      </ul>
+              </section>
+
+              <section id="patterns-boards" class="patterns-section">
+                <div class="entry">
+                  <div class="entry-head">
+                    <div class="entry-head-row">
+                      <h1 class="entry-title" data-ct="boards">Boards</h1>
                     </div>
-                    <h4>Design Doc</h4>
-                    <p class="dpk-muted" data-i18n="designDoc">
-                      注文キャンセルと返金の設計を、状態遷移図・シーケンス図・ER 図を添えた Design Doc にまとめる。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="architecture.html">
-                    <div class="thumb">
-                      <iframe src="architecture.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-architecture-map</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-dependency-graph</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4 data-i18n="architectureTitle">アーキテクチャ設計</h4>
-                    <p class="dpk-muted" data-i18n="architecture">
-                      注文システムの構成とインフラを、アーキテクチャ図・依存グラフ・シーケンス図と表で示す。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="ddd-primer.html">
-                    <div class="thumb">
-                      <iframe src="ddd-primer.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-mind-map</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-architecture-map</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4 data-i18n="primerTitle">概念の解説</h4>
-                    <p class="dpk-muted" data-i18n="primer">
-                      DDD を、マインドマップ・コンテキストマップ・自作の表と図で説明する。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="formal-spec.html">
-                    <div class="thumb">
-                      <iframe src="formal-spec.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>formal-spec</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4 data-i18n="formalSpecTitle">形式検証の結果</h4>
-                    <p class="dpk-muted" data-i18n="formalSpecSample">
-                      Lean や TLA+
-                      で確かめた性質を、前提・結論・主張していないこと・保証の強さに分けてふだんの言葉で示す。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="grill.html">
-                    <div class="thumb">
-                      <iframe src="grill.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-er-diagram</code></span>
-                        </li>
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4 data-i18n="grillTitle">Grill</h4>
-                    <p class="dpk-muted" data-i18n="grill">
-                      Agent からの質問を、どのテンプレートの上にも重ねて出す。ここでは Plain
-                      の上で、図とあわせて見せる。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="event-storming.html">
-                    <div class="thumb">
-                      <iframe src="event-storming.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-event-storming</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4>Event Storming</h4>
-                    <p class="dpk-muted" data-i18n="eventStorming">
-                      ドメインイベントを時系列に並べ、コマンド・集約・ポリシーとの因果をたどる。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="example-mapping.html">
-                    <div class="thumb">
-                      <iframe src="example-mapping.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-example-mapping</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4>Example Mapping</h4>
-                    <p class="dpk-muted" data-i18n="exampleMapping">
-                      ストーリーごとにルール・具体例・疑問を積み、要件の抜けを洗い出す。
-                    </p>
-                  </a>
-                  <a class="dpk-card" href="whiteboard.html">
-                    <div class="thumb">
-                      <iframe src="whiteboard.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
-                      <ul class="thumb-tags">
-                        <li>
-                          <span class="dpk-badge" data-tone="violet"><code>dpk-board-whiteboard</code></span>
-                        </li>
-                      </ul>
-                    </div>
-                    <h4>Whiteboard</h4>
-                    <p class="dpk-muted" data-i18n="whiteboard">
-                      付箋・図形・フレームを自由に置いてつなぎ、ブレストや振り返りを一枚で進める。
-                    </p>
-                  </a>
+                  </div>
+                  <p data-i18n="boardsLede">
+                    1ページとしても、他のビューに埋め込んでも使えるボードです。図を添えた資料は、plain
+                    ビューにボードと自由な HTML を組み合わせて作ります。
+                  </p>
+                  <div class="dpk-grid" data-cols="3">
+                    <a class="dpk-card" href="design-doc.html">
+                      <div class="thumb">
+                        <iframe src="design-doc.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-state-diagram</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-er-diagram</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Design Doc</h4>
+                      <p class="dpk-muted" data-i18n="designDoc">
+                        注文キャンセルと返金の設計を、状態遷移図・シーケンス図・ER 図を添えた Design Doc にまとめる。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="architecture.html">
+                      <div class="thumb">
+                        <iframe src="architecture.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-architecture-map</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-dependency-graph</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4 data-i18n="architectureTitle">アーキテクチャ設計</h4>
+                      <p class="dpk-muted" data-i18n="architecture">
+                        注文システムの構成とインフラを、アーキテクチャ図・依存グラフ・シーケンス図と表で示す。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="ddd-primer.html">
+                      <div class="thumb">
+                        <iframe src="ddd-primer.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-mind-map</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-architecture-map</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4 data-i18n="primerTitle">概念の解説</h4>
+                      <p class="dpk-muted" data-i18n="primer">
+                        DDD を、マインドマップ・コンテキストマップ・自作の表と図で説明する。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="formal-spec.html">
+                      <div class="thumb">
+                        <iframe src="formal-spec.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>formal-spec</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4 data-i18n="formalSpecTitle">形式検証の結果</h4>
+                      <p class="dpk-muted" data-i18n="formalSpecSample">
+                        Lean や TLA+
+                        で確かめた性質を、前提・結論・主張していないこと・保証の強さに分けてふだんの言葉で示す。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="grill.html">
+                      <div class="thumb">
+                        <iframe src="grill.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-er-diagram</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-sequence-diagram</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4 data-i18n="grillTitle">Grill</h4>
+                      <p class="dpk-muted" data-i18n="grill">
+                        Agent からの質問を、どのテンプレートの上にも重ねて出す。ここでは Plain
+                        の上で、図とあわせて見せる。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="event-storming.html">
+                      <div class="thumb">
+                        <iframe src="event-storming.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-event-storming</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Event Storming</h4>
+                      <p class="dpk-muted" data-i18n="eventStorming">
+                        ドメインイベントを時系列に並べ、コマンド・集約・ポリシーとの因果をたどる。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="example-mapping.html">
+                      <div class="thumb">
+                        <iframe src="example-mapping.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-example-mapping</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Example Mapping</h4>
+                      <p class="dpk-muted" data-i18n="exampleMapping">
+                        ストーリーごとにルール・具体例・疑問を積み、要件の抜けを洗い出す。
+                      </p>
+                    </a>
+                    <a class="dpk-card" href="whiteboard.html">
+                      <div class="thumb">
+                        <iframe src="whiteboard.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-whiteboard</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>Whiteboard</h4>
+                      <p class="dpk-muted" data-i18n="whiteboard">
+                        付箋・図形・フレームを自由に置いてつなぎ、ブレストや振り返りを一枚で進める。
+                      </p>
+                    </a>
+                  </div>
                 </div>
-              </div>
+              </section>
             </main>
 
             <!--
@@ -4469,20 +4538,52 @@
       const EN = {
         views: 'View',
         language: 'Language',
-        title: 'A one-page design system for the documents an agent writes and a human reviews',
-        lede: 'dev-process-kit gives the single HTML pages an agent writes a shared design, a set of page shapes, and a review loop. No build step: one script tag loads it. Compose tokens, CSS atoms, components, views and boards into one page.',
+        title: 'A design system for the HTML an agent writes',
+        lede: 'One set of Web Components that gives the single HTML an agent writes an agent-friendly data shape, a design system humans read at a glance, and a standard process for building shared understanding. Built-in views such as USM and ERD — and custom ones composed from the design system — follow one loop.',
+        pointData: 'Data structures an agent can read and write',
+        pointDesign: 'A design system of shapes and rules a human reads at a glance',
+        pointProcess: 'A standard process for building shared understanding between agent and human',
         loop: 'The review loop',
-        writeTitle: 'Write',
+        writeTitle: 'Draw in a human cognitive model',
         writeBody:
-          'The agent writes a single HTML page from a view or a board, with its data embedded in the HTML as JSON.',
+          'The agent writes an HTML page along a cognitive model such as USM or ERD, with the data embedded as JSON.',
         reviewTitle: 'Review',
         reviewBody:
-          'People leave comments and structural changes in the browser. The draft stays in LocalStorage and survives a reload.',
-        returnTitle: 'Hand back',
+          'The human operates the drawing in the browser and leaves comments and change requests. The draft stays in LocalStorage.',
+        returnTitle: 'Reflect',
         returnBody:
-          'Copy changes & comments (or Send to Claude) hands the requested changes to the agent, which rewrites the HTML. Drafts it has applied clear themselves.',
+          'Copy changes & comments (or Send to Claude) hands the request to the agent, which updates the HTML. Applied drafts clear themselves.',
+        optimized:
+          'dev-process-kit is built for a single HTML page that has to work as-is: no build step, one script tag. Compose tokens, CSS atoms, components, views and boards into one page.',
+        gettingStartedTitle: 'Getting Started',
+        gettingStartedLede:
+          'Hand the skill to an agent, install the Claude Code plugin, or load it from the CDN and try it.',
+        agentSkills: 'Agent Skills',
+        claudeCode: 'Claude Code',
+        tryIt: 'Try it',
+        tryNote:
+          'Open <a href="usm.html">USM</a> or <a href="diagrams.html">diagrams</a> as-is. The details are in <a href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/index.md">docs/</a>.',
+        featuresTitle: 'Features',
+        featureDesignTitle: 'A one-page design system',
+        featureDesignBody:
+          'Tokens that match in light and dark, CSS atoms for layout, controls, cards, tables and charts, and components such as the review rail, inline editing, tables, selects and dialogs.',
+        featureViewsTitle: 'Views',
+        featureViewsBody:
+          'Page-only shapes: User Story Mapping, UX Prototype, Slides, Task Context Board, Delegation Poker, Plain.',
+        featureBoardsTitle: 'Boards',
+        featureBoardsBody:
+          'Visual surfaces that can be a page on their own or embedded in a view: ER, state, sequence, dependency, architecture, mind map, event storming, example mapping, whiteboard, kanban.',
+        featureLoopTitle: 'Review loop',
+        featureLoopBody:
+          'Operations are recorded as structured change requests and handed back with comments. Questions (grill), copy and Send to Claude all ride the same draft.',
+        featureArtifactTitle: 'Claude Artifacts',
+        featureArtifactBody:
+          'Published as a Claude Artifact, the review goes back to that Claude session in one click, and the page follows the viewer theme.',
+        featureAgentTitle: 'Agent-first',
+        featureAgentBody:
+          'Data shapes an agent can interpret and a skill that decides when and which page to use. No build, no setup.',
         viewsLede:
-          'One template per development-process artifact. The agent only writes the data; the template provides the screen and the review.',
+          'A view uses the whole page. The agent only writes the data; the view provides the screen and the review.',
         eventStorming:
           'Lay domain events out in time and trace their causes through commands, aggregates and policies.',
         usm: 'Line user stories up by release under a backbone of activities and steps.',
@@ -4496,7 +4597,8 @@
           'Play one of seven delegation levels for each decision, and agree on how much to hand over to the agent.',
         whiteboard:
           'Place sticky notes, shapes and frames anywhere and connect them, for a brainstorm or a retro on one board.',
-        boardsLede: 'Boards can be embedded inside a view or be the page itself.',
+        boardsLede:
+          'A board can be a page on its own, or embedded in another view. A document with diagrams combines the plain view with boards and its own HTML.',
         designDoc:
           'The design of order cancellation and refunds as a design doc, with state, sequence and ER diagrams.',
         architectureTitle: 'Architecture design',
@@ -4551,7 +4653,8 @@
           overview: 'Overview',
           tokens: 'Tokens',
           templates: 'Views',
-          patterns: 'Boards',
+          patterns: 'Patterns',
+          boards: 'Boards',
           controls: 'Controls',
           controlsTitle: 'Controls',
           controlsReset: 'Reset',
@@ -4583,7 +4686,8 @@
           overview: '概要',
           tokens: 'トークン',
           templates: 'ビュー',
-          patterns: 'ボード',
+          patterns: 'パターン',
+          boards: 'ボード',
           controls: 'コントロール',
           controlsTitle: 'コントロール',
           controlsReset: 'リセット',
@@ -4656,6 +4760,35 @@
       renderLocale();
       renderScheme();
 
+      // The GitHub star count, once the public API answers (the button still links without it).
+      const starCount = document.querySelector('[data-github-stars-count]');
+      if (starCount !== null) {
+        fetch('https://api.github.com/repos/d-kimuson/dev-process-kit', {
+          headers: { Accept: 'application/vnd.github+json' },
+        })
+          .then((response) => (response.ok ? response.json() : null))
+          .then((repo) => {
+            const count = repo?.stargazers_count;
+            if (typeof count !== 'number') return;
+            starCount.textContent = count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
+            starCount.hidden = false;
+          })
+          .catch(() => {});
+      }
+
+      // Getting Started: one code block at a time.
+      for (const button of document.querySelectorAll('[data-code-tab]')) {
+        button.addEventListener('click', () => {
+          const tab = button.dataset.codeTab;
+          for (const other of document.querySelectorAll('[data-code-tab]')) {
+            other.setAttribute('aria-selected', String(other === button));
+          }
+          for (const panel of document.querySelectorAll('[data-code-panel]')) {
+            panel.hidden = panel.dataset.codePanel !== tab;
+          }
+        });
+      }
+
       // Scale each live preview (rendered at 1280px wide) down to its card.
       const PREVIEW_WIDTH = 1280;
       const observer = new ResizeObserver((entries) => {
@@ -4669,7 +4802,6 @@
 
       const views = {
         overview: document.getElementById('samples'),
-        templates: document.getElementById('templates-view'),
         patterns: document.getElementById('patterns-view'),
         catalog: document.getElementById('catalog-view'),
       };
@@ -4715,13 +4847,7 @@
       // A bare #catalog (the old catalog landing, now folded into Overview) lands on Overview too;
       // only a specific entry hash (#catalog-<name>) opens the catalog view.
       const viewOf = (hash) =>
-        hash.startsWith('#catalog-')
-          ? 'catalog'
-          : hash === '#templates'
-            ? 'templates'
-            : hash === '#patterns'
-              ? 'patterns'
-              : 'overview';
+        hash.startsWith('#catalog-') ? 'catalog' : hash.startsWith('#patterns') ? 'patterns' : 'overview';
       // The catalog shows one page at a time, picked from its sidebar: one entry.
       const pages = [...document.querySelectorAll('#catalog-view .entry')];
       let view = null;
