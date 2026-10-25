@@ -1,4 +1,4 @@
-# Template: delegation-poker (`<dpk-template-delegation-poker>`)
+# View: delegation-poker (`<dpk-view-delegation-poker>`)
 
 Delegation Poker（Management 3.0, Jurgen Appelo）: 誰が何をどこまで決めるかを、判断領域ごとに 7 段階の委任レベルのカードで合わせる。各プレイヤーがカードを伏せて出し、全員そろってから開く。いちばん低いカードといちばん高いカードを出した人が先に理由を話し、最後に 1 つのレベルに合意する。合意したレベルの一覧がデリゲーションボードになる。
 
@@ -14,13 +14,13 @@ Delegation Poker（Management 3.0, Jurgen Appelo）: 誰が何をどこまで決
 
 Agent が読み手（ユーザー）と「Agent に何を任せるか」を決めるときに使う。画面はデリゲーションボード（判断領域 × 7 レベルの表）だけで、ゲームもこの表の上で進む。Agent 自身や他のメンバーのカードは base に書き、読み手はセルをクリックしてカードを出す（draft として返ってくる）。読み手がその行にカードを出すまで他のカードは伏せたままなので、先に見たカードに引きずられない。
 
-- Element: `<dpk-template-delegation-poker>`
+- Element: `<dpk-view-delegation-poker>`
 - Definition name: `delegation-poker`
 - Level hue: `--dpk-blue`（1）から `--dpk-green`（7）へのグラデーション
 
 ## Attributes
 
-共通の属性（`storage-key` / `storage` / `notes` / `theme`）に加えて、`mode` を持つ。
+`storage-key` / `storage` / `notes` / `theme` は app のもの（`docs/index.md`, Persistence）。この view は `mode` を持つ。
 
 | Attribute | Values                   | Notes                                                                                                                                                                      |
 | --------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -38,11 +38,15 @@ Agent が読み手（ユーザー）と「Agent に何を任せるか」を決�
 ヘッダーのチップに今のモード（`出し直し可` / `出し直し不可`）が出る。
 
 ```html
-<dpk-template-delegation-poker mode="strict" storage-key="…">
-  <script type="application/json">
-    { … }
-  </script>
-</dpk-template-delegation-poker>
+<dpk-app storage-key="…">
+  <dpk-page name="delegation" label="何を任せるか">
+    <dpk-view-delegation-poker mode="strict">
+      <script type="application/json">
+        { … }
+      </script>
+    </dpk-view-delegation-poker>
+  </dpk-page>
+</dpk-app>
 ```
 
 ## Base data
@@ -101,9 +105,9 @@ Agent が読み手（ユーザー）と「Agent に何を任せるか」を決�
 
 ## Navigation
 
-なし。ボード全体が 1 ページで、URL の hash は使わない。
+なし。デリゲーションボードだけで、URL の hash は使わない。
 
-## UI provided by the template
+## UI provided by the view
 
 サイドバーなし。ヘッダーに「任せる側 → 任される側」、モード、進み具合（提出 x/n · 合意 y/n）のチップ。本体はデリゲーションボードだけ。
 
@@ -121,7 +125,7 @@ UI から編集できるのはカード、合意レベル、判断領域の名�
 
 ## Comment targets
 
-`page:delegation-poker`（ボード全体）と、すべての判断領域 `decision:<id>` が `commentTargets` に列挙される。行のコメントボタンは、その判断領域へのコメントをレビューレールで開く。
+`page:delegation-poker`（この view 全体）と、すべての判断領域 `decision:<id>` が `commentTargets` に列挙される。行のコメントボタンは、その判断領域へのコメントをレビューレールで開く。
 
 ## Naming
 
@@ -129,4 +133,4 @@ UI から編集できるのはカード、合意レベル、判断領域の名�
 
 ## Change notices
 
-[Change notices](../index.md#change-notices) の "Show" は `decision:<id>` でその判断領域の行をハイライトする。ボードは 1 ページだけなので、遷移は起きない。
+[Change notices](../index.md#change-notices) の "Show" は `decision:<id>` でその判断領域の行をハイライトする。デリゲーションボードだけなので、遷移は起きない。

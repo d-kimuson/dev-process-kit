@@ -1,11 +1,11 @@
-# dpk-er-diagram
+# dpk-board-er-diagram
 
 Tables, fields and foreign keys — with an **always-on diff** between two schema snapshots: added is green, removed is red and struck through, changed shows the previous value struck through next to the new one.
 
-Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
+Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/boards/index.md`.
 
 ```html
-<dpk-er-diagram heading="注文スキーマ">
+<dpk-board-er-diagram heading="注文スキーマ">
   <script type="application/json">
     {
       "before": {
@@ -43,7 +43,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
       }
     }
   </script>
-</dpk-er-diagram>
+</dpk-board-er-diagram>
 ```
 
 `heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`ERD` / `ER図`). `subject` adds a smaller subtitle beside the title.
@@ -118,7 +118,7 @@ The cards follow the look of [Liam ERD](https://liambx.com/): a header with the 
 - **Bounded Context filter** — picking a `BC:<name>` chip never hides the other tables: every table keeps its position, the picked Bounded Context and its relations stay at full opacity, everything else (tables, relations, frames) dims, and the view pans/zooms to fit the picked Bounded Context. Clearing the filter restores full opacity without moving anything.
 - **Pattern badge** — a table's `pattern` (`immutable`, `mutable`, `sti`, `cti`, `value-object`) shows as a small badge beside its name. An auxiliary attribute, not a filter.
 - **Column filter** — a toolbar three-way toggle: **All** (default), **Keys** (only columns with a key or `ref`, so the relationships alone can be read) and **Tables only** (header only, no columns). Table-level constraints still render in **Tables only**, since they describe the table rather than any one column.
-- **Comments** — give the diagram a stable HTML `id` and place it inside a template. Right-click a table or a relationship and choose "Review comment" from the context menu to open the shared composer beside it. Selection alone does not open the input. The composer follows pan/zoom without resizing the diagram. Send there with the button or `Ctrl`/`Cmd+Enter`; the comment is saved to the template's Review without opening its rail. Escape/cancel closes the surface, and switching selections preserves unsent text per target for the mounted component. Fields are not separate comment targets.
+- **Comments** — give the board a stable HTML `id` and place it inside a view, or make it a page's content. Right-click a table or a relationship and choose "Review comment" from the context menu to open the shared composer beside it. Selection alone does not open the input. The composer follows pan/zoom without resizing the diagram. Send there with the button or `Ctrl`/`Cmd+Enter`; the comment is saved to the enclosing view's Review — or the page's, when the board is its content — without opening its rail. Escape/cancel closes the surface, and switching selections preserves unsent text per target for the mounted component. Fields are not separate comment targets.
 
 ## Adding, editing and deleting columns
 
@@ -128,14 +128,14 @@ Deleting a column is an action inside its editor: a danger-styled **Delete colum
 
 Selecting a relation (its line, not a table) opens a small editor beside it for the relation's cardinality — a `parent : child` picker over the same values `fields[].cardinality` accepts. Picking a value commits it at once: there is no Cancel or Save. It opens and closes with the selection itself, so no separate trigger is needed; deselecting the relation (a press elsewhere, or Escape) puts it away.
 
-These changes are not written into the JSON child. They are recorded as element actions in the enclosing template's draft and replayed over the authored data, so they survive a reload and reach the agent in the brief. Like comments, they are addressed by the diagram's `id`: without one, **Add column**, the pencils and the cardinality editor are not shown. Outside a template the diagram shows an error and keeps the input.
+These changes are not written into the JSON child. They are recorded as element actions in the enclosing view's draft — or the page's, when the board is its content — and replayed over the authored data, so they survive a reload and reach the agent in the brief. Like comments, they are addressed by the board's `id`: without one, **Add column**, the pencils and the cardinality editor are not shown. Outside a view or a page the board shows an error and keeps the input.
 
-| Action             | Target                                 | Payload                                                                            | Result                                                                                         |
-| ------------------ | -------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `ADD_FIELD`        | `element:<diagram-id>/node/<table-id>` | `{ "id": string, "type": string, "nullable"?: boolean, "description"?: string }`   | Appends `{ id, type }` (plus `nullable`, `description`) to the table's `after` fields          |
-| `EDIT_FIELD`       | `element:<diagram-id>/node/<table-id>` | `{ "field": string, "type": string, "nullable": boolean, "description"?: string }` | Sets the column's `type`, `nullable` (and `description`, when given) in `after`                |
-| `DELETE_FIELD`     | `element:<diagram-id>/node/<table-id>` | `{ "field": string }`                                                              | Removes `field` from `after` fields, or marks it `removed` if it predates the draft            |
-| `EDIT_CARDINALITY` | `element:<diagram-id>/edge/<edge-id>`  | `{ "cardinality": string }`                                                        | Sets the relation's `cardinality` in `after` (`parent:child`, see [Cardinality](#cardinality)) |
+| Action             | Target                               | Payload                                                                            | Result                                                                                         |
+| ------------------ | ------------------------------------ | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `ADD_FIELD`        | `element:<board-id>/node/<table-id>` | `{ "id": string, "type": string, "nullable"?: boolean, "description"?: string }`   | Appends `{ id, type }` (plus `nullable`, `description`) to the table's `after` fields          |
+| `EDIT_FIELD`       | `element:<board-id>/node/<table-id>` | `{ "field": string, "type": string, "nullable": boolean, "description"?: string }` | Sets the column's `type`, `nullable` (and `description`, when given) in `after`                |
+| `DELETE_FIELD`     | `element:<board-id>/node/<table-id>` | `{ "field": string }`                                                              | Removes `field` from `after` fields, or marks it `removed` if it predates the draft            |
+| `EDIT_CARDINALITY` | `element:<board-id>/edge/<edge-id>`  | `{ "cardinality": string }`                                                        | Sets the relation's `cardinality` in `after` (`parent:child`, see [Cardinality](#cardinality)) |
 
 `ADD_FIELD` is stale when the table no longer exists (`target-missing`), or when the id is empty or already used (`constraint-violated`). `EDIT_FIELD` and `DELETE_FIELD` are both stale when the table or column no longer exists (`target-missing`), or the column is already `removed` (`constraint-violated`); `EDIT_FIELD` is additionally stale when the column has a `ref` (`constraint-violated`), since editing it would contradict the relation its keys derive — `DELETE_FIELD` carries no such restriction, and removes any relations the column carries, on either end, along with it. `EDIT_CARDINALITY` is stale when the relation no longer exists (`target-missing`), or `cardinality` is not one of the accepted values (`constraint-violated`). Actions replay in order. To apply them, edit the `after` snapshot's table in draft order.
 

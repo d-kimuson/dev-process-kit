@@ -1,6 +1,6 @@
 # dpk-matrix
 
-A grid of rows and columns — optionally two-level columns, banding sub-columns under a group head — whose rows, columns and sub-columns can each be dragged to reorder. Unlike `dpk-table` or `dpk-kanban`, it holds no data of its own: every head and cell is the host's own markup, placed through a named slot, so the host keeps its own CSS scope, content and semantics. The matrix only lays the grid out and runs the drag mechanics, firing an event instead of moving anything itself.
+A grid of rows and columns — optionally two-level columns, banding sub-columns under a group head — whose rows, columns and sub-columns can each be dragged to reorder. Unlike `dpk-table` or `dpk-board-kanban`, it holds no data of its own: every head and cell is the host's own markup, placed through a named slot, so the host keeps its own CSS scope, content and semantics. The matrix only lays the grid out and runs the drag mechanics, firing an event instead of moving anything itself.
 
 ```html
 <dpk-matrix id="map"></dpk-matrix>
@@ -33,7 +33,7 @@ A grid of rows and columns — optionally two-level columns, banding sub-columns
 
 ## Data
 
-`rows` and `columns` are properties only (no matching attributes — set them from script, as a host template does from its render function).
+`rows` and `columns` are properties only (no matching attributes — set them from script, as a host view does from its render function).
 
 | `rows[]` field | Required | Meaning                                                                                                                                 |
 | -------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------- |

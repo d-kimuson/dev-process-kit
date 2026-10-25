@@ -148,16 +148,16 @@ hard gate. Use it to pick the next core change, then re-run layers 1 and 2.
 
 ## Where to change what
 
-| Concern                                                                                         | File                                       |
-| :---------------------------------------------------------------------------------------------- | :----------------------------------------- |
-| BC/aggregate/table packing, row-count candidates, arrangement proxy                             | `src/lib/layout/layered.ts`                |
-| Orthogonal route candidates, contact/crossing/parallel/hug ranking, lane search, bbox rejection | `src/lib/layout/orthogonal-router.ts`      |
-| Parallel track separation after routing                                                         | `src/lib/layout/route-nudge.ts`            |
-| Direction-aware ports, port escape, self-loop routing, frame softness                           | `src/components/er-diagram/view.ts`        |
-| Shared end/relation label placement                                                             | `src/components/er-diagram/labels.ts`      |
-| Rendering, `LAYOUT` constants, caches, imperative hover                                         | `src/components/er-diagram/element.ts`     |
-| Always-visible cardinalities, label ink, legend position                                        | `src/components/er-diagram/styles.ts`      |
-| Deterministic appraisal and corpus                                                              | `dev/eval/`, `dev/layout-bench/`           |
+| Concern                                                                                         | File                                   |
+| :---------------------------------------------------------------------------------------------- | :------------------------------------- |
+| BC/aggregate/table packing, row-count candidates, arrangement proxy                             | `src/lib/layout/layered.ts`            |
+| Orthogonal route candidates, contact/crossing/parallel/hug ranking, lane search, bbox rejection | `src/lib/layout/orthogonal-router.ts`  |
+| Parallel track separation after routing                                                         | `src/lib/layout/route-nudge.ts`        |
+| Direction-aware ports, port escape, self-loop routing, frame softness                           | `src/components/er-diagram/view.ts`    |
+| Shared end/relation label placement                                                             | `src/components/er-diagram/labels.ts`  |
+| Rendering, `LAYOUT` constants, caches, imperative hover                                         | `src/components/er-diagram/element.ts` |
+| Always-visible cardinalities, label ink, legend position                                        | `src/components/er-diagram/styles.ts`  |
+| Deterministic appraisal and corpus                                                              | `dev/eval/`, `dev/layout-bench/`       |
 | Browser harness and screenshots                                                                 | `dev/qa/er-eval.ts`, `lp/er-eval.html` |
 
 The renderer and the appraisal must call the **same** label placement and route

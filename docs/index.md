@@ -1,84 +1,134 @@
 # dev-process-kit
 
-Web Components for single-file HTML pages that a human reviews in the browser, with a structured draft/feedback loop back to an agent.
+A one-page design system and review loop for the single HTML files an agent writes and a human
+reviews. The public contract is custom elements, attributes, properties, DOM events and slots —
+Lit is an implementation detail.
 
 ```text
-Page = Base Data (JSON baked into the HTML)
-     + Template (meaning model + action vocabulary)
-     + Draft Actions (the human's change requests, persisted in LocalStorage)
-     + Navigation State (URL hash, never a draft action)
-     + Slots (author-owned light DOM UI)
+Document = Base Data (JSON baked into the HTML)
+         + Page content (a view or a board: meaning model + action vocabulary)
+         + Draft Actions (the human's change requests, persisted in LocalStorage)
+         + Navigation State (URL hash, never a draft action)
+         + Slots (author-owned light DOM UI)
 ```
 
-The template owns meaning: what a "step", a "story" or a sticky note _is_, and which actions apply to it. Your HTML owns the content. The public contract is custom elements, attributes, properties, DOM events and slots — Lit is an implementation detail.
+## The three tiers
 
-## Choose a template
+```text
+dpk-app              one document: header, review, draft, storage, hash, undo/redo
+  dpk-page           one switchable subject: its name and label
+    dpk-view-*       page-only content: owns the whole page, cannot be embedded
+    dpk-board-*      embeddable content: can sit inside a view, or be a page
+  dpk-*              a component inside the content or your own markup
+```
 
-Pick the one template whose subject is what you need to agree on with the reader.
+- **A view** owns the whole page and cannot be embedded.
+- **A board** is a self-contained visual surface. It can be embedded inside a view, and it can be
+  the content of a page. The same element is used two ways; placement decides which.
+- **A component** is embeddable only and never fills a page.
 
-| Agree on                                   | Template                         |
-| ------------------------------------------ | -------------------------------- |
-| Scope and release slicing                  | `usm`                            |
-| Screen flow and what each step looks like  | `prototype`                      |
-| An explanation walked through step by step | `slides`                         |
-| Where a task shared with the user stands   | `task-board`                     |
-| Who decides what, between you and the user | `delegation-poker`               |
-| Anything else                              | `plain`, with diagram components |
+The page content owns meaning: what a "step", a "story" or a sticky note _is_, and which actions
+apply to it. Your HTML owns the content.
 
-Three more subjects are diagram components rather than templates (below), since each can stand alone as a page's board or be dropped inside any of the above:
+## Choose a view
 
-| Agree on                                  | Component             |
-| ----------------------------------------- | --------------------- |
-| Domain events, commands and causality     | `dpk-event-storming`  |
-| Rules of a story, with concrete examples  | `dpk-example-mapping` |
-| Loose ideas to group, cluster and connect | `dpk-whiteboard`      |
+Pick the one view whose subject is what you need to agree on with the reader.
 
-Every page is a `<dpk-page>` with the template (or board-hosted diagram) as its board. With one board the page reads as that template alone; several subjects at once — scope, domain and screens of one feature — are more boards of the same page, with one review for all of them: see [page.md](page.md).
+| Agree on                                   | View                        |
+| ------------------------------------------ | --------------------------- |
+| Scope and release slicing                  | `dpk-view-usm`              |
+| Screen flow and what each step looks like  | `dpk-view-prototype`        |
+| An explanation walked through step by step | `dpk-view-slides`           |
+| Where a task shared with the user stands   | `dpk-view-task-board`       |
+| Who decides what, between you and the user | `dpk-view-delegation-poker` |
+| Anything else                              | `dpk-view-plain`            |
 
-Decisions you still need from the reader are not a template of their own: any template can ask them with [Questions (grill)](#questions-grill).
+## Choose a board
+
+A board can be a page's content, or sit inside a view.
+
+| Agree on                                  | Board                        |
+| ----------------------------------------- | ---------------------------- |
+| Domain events, commands and causality     | `dpk-board-event-storming`   |
+| Rules of a story, with concrete examples  | `dpk-board-example-mapping`  |
+| Loose ideas to group, cluster and connect | `dpk-board-whiteboard`       |
+| Schema changes                            | `dpk-board-er-diagram`       |
+| States and transitions                    | `dpk-board-state-diagram`    |
+| Message order                             | `dpk-board-sequence-diagram` |
+| Dependencies and cycles                   | `dpk-board-dependency-graph` |
+| Services and boundaries                   | `dpk-board-architecture-map` |
+| A topic and its subtopics                 | `dpk-board-mind-map`         |
+| Cards in columns                          | `dpk-board-kanban`           |
+
+Every page is a `<dpk-page name="…">` inside one `<dpk-app>`. A page holds one view or board; a
+board inside a view is embedded, a board directly inside a page is the page. The app has one
+header, one review, one draft and one brief for every page, so the reader reviews and hands off
+once, and a comment can point from one page to another: see [page.md](page.md).
+
+Decisions you still need from the reader are not a view of their own: any view or board can ask
+them with [Questions (grill)](#questions-grill).
 
 ## Load it
 
-Load one entry from jsDelivr, with the version pinned: a page has to keep working when a new version is published, so never generate HTML against a floating URL such as `@latest`. `<version>` below is the version these docs belong to — the `v<version>` Git tag you are reading them at.
+Load one entry from jsDelivr, with the version pinned: a page has to keep working when a new
+version is published, so never generate HTML against a floating URL such as `@latest`.
+`<version>` below is the version these docs belong to — the `v<version>` Git tag you are reading
+them at.
 
-| Entry                                                                                                                                                      | Use it when                                                                                                                                                                                                                      |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `templates/prototype.js` / `templates/usm.js` / `templates/plain.js` / `templates/slides.js` / `templates/task-board.js` / `templates/delegation-poker.js` | the page is that template (`plain`: none of the others fits — header and review only)                                                                                                                                            |
-| `components.js`                                                                                                                                            | the page uses the review rail or the diagram elements — including `dpk-event-storming` / `dpk-example-mapping` / `dpk-whiteboard`, each usable embedded or as its own board (`docs/components/diagrams.md`) — without a template |
-| `index.js`                                                                                                                                                 | one URL for everything                                                                                                                                                                                                           |
+| Entry                                                                                                                              | Use it when                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `views/usm.js` / `views/prototype.js` / `views/plain.js` / `views/slides.js` / `views/task-board.js` / `views/delegation-poker.js` | the page is that view                             |
+| `boards.js`                                                                                                                        | the page uses a board, embedded or as its content |
+| `components.js`                                                                                                                    | the page uses components without a view           |
+| `index.js`                                                                                                                         | one URL for everything                            |
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/prototype.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/views/prototype.js"></script>
 ```
 
-A template entry registers that template, `<dpk-page>`, the review rail and inline editing. Add `components.js` when the page also uses the diagram elements directly — this is how `dpk-event-storming`, `dpk-example-mapping` and `dpk-whiteboard` are loaded, whether embedded in a template or hosted as a page's board on their own.
+A view entry registers that view, `<dpk-app>`, `<dpk-page>`, the review rail and inline editing.
+Add `boards.js` when the page uses a board — this is how `dpk-board-event-storming`,
+`dpk-board-example-mapping`, `dpk-board-whiteboard` and the rest are loaded, embedded in a view or
+hosted as a page's content. Add `components.js` when the page uses components the view does not
+carry. `index.js` is the union of all of them.
 
-## Minimal page
+## Minimal document
 
 ```html
-<dpk-page storage-key="my-flow">
+<dpk-app storage-key="my-flow">
   <script type="application/json">
     { "title": "Signup" }
   </script>
 
-  <dpk-template-prototype board="flow">
-    <!-- base data: the initial meaning state -->
-    <script type="application/json">
-      { "title": "Signup", "activities": [] }
-    </script>
+  <dpk-page name="flow" label="Flow">
+    <dpk-view-prototype>
+      <!-- base data: the initial meaning state -->
+      <script type="application/json">
+        { "title": "Signup", "activities": [] }
+      </script>
 
-    <!-- your markup, slotted into framework chrome -->
-    <p slot="header">…</p>
-    <div slot="main">…</div>
-  </dpk-template-prototype>
-</dpk-page>
+      <!-- your markup, slotted into framework chrome -->
+      <p slot="header">…</p>
+      <div slot="main">…</div>
+    </dpk-view-prototype>
+  </dpk-page>
+</dpk-app>
 ```
 
-One HTML file holds exactly one `<dpk-page>`. With one board there is no rail of boards and the header shows the page alone; its **+** adds a board, and the rail appears from the second one ([page.md](page.md)). A template element as the page root on its own still works, as in earlier versions, but write new pages as a `<dpk-page>`. What goes inside the base data, and which light DOM a template matches, is the template's business: each template documents its own shape under `docs/templates/`.
+One HTML file holds exactly one `<dpk-app>`. With one page there is no name beside the switcher
+icon and the header shows the document alone; its **+** adds a page, and the name appears from the
+second one ([page.md](page.md)). What goes inside the base data, and which light DOM a view
+matches, is the view's business: each view documents its own shape under `docs/views/`.
 
 ## Page height
 
-Every template is a bounded shell: its header stays on top, the supplements bar at the bottom of the main column, and the sidebar, main column and review popover each scroll on their own. That needs the page's height on the template element, and the same `<style>` block hides the element until its custom element is defined, so the light DOM inside (your markup, the base data's text) does not flash on screen before the kit's own chrome paints over it — `loadKit` / the jsDelivr `<script type="module">` runs after the document parses, so without this the page is briefly just your content with none of the kit's UI:
+Every view and board is a bounded shell: its header stays on top, the supplements bar at the bottom
+of the main column, and the sidebar, main column and review popover each scroll on their own. That
+needs the document's height on the `<dpk-app>` element, and the same `<style>` block hides the
+element until its custom element is defined, so the light DOM inside (your markup, the base
+data's text) does not flash on screen before the kit's own chrome paints over it — `loadKit` /
+the jsDelivr `<script type="module">` runs after the document parses, so without this the page is
+briefly just your content with none of the kit's UI:
 
 ```html
 <style>
@@ -87,7 +137,7 @@ Every template is a bounded shell: its header stays on top, the supplements bar 
     height: 100%;
     margin: 0;
   }
-  dpk-template-prototype {
+  dpk-app {
     display: block;
     height: 100%;
   }
@@ -108,15 +158,22 @@ Every template is a bounded shell: its header stays on top, the supplements bar 
 </style>
 ```
 
-Put the element directly in `body`, with no wrapper or padding around it. This one form works in a local file and inside a Claude Artifact ([claude-artifact.md](claude-artifact.md)); do not size the element with `100vh` / `100dvh`, which overflows a host that pads the page. Without a height, the template falls back to the window's height (less a Claude Artifact's safe-area padding), so it still fills the window. Set the height anyway: the fallback assumes the element is the whole page, and only the height you give it follows the page you actually wrote.
+Put the element directly in `body`, with no wrapper or padding around it. This one form works in a
+local file and inside a Claude Artifact ([claude-artifact.md](claude-artifact.md)); do not size the
+element with `100vh` / `100dvh`, which overflows a host that pads the page. Without a height, the
+app falls back to the window's height (less a Claude Artifact's safe-area padding), so it still
+fills the window. Set the height anyway: the fallback assumes the element is the whole page, and
+only the height you give it follows the page you actually wrote.
 
-`body > :not(:defined)` only ever matches the one root element — ordinary elements are always "defined" — so it works whichever root the page uses (`<dpk-page>`, a template element on its own, or a component such as `<dpk-er-diagram>`), with nothing to rename when you change it.
+`body > :not(:defined)` only ever matches the one root element — ordinary elements are always
+"defined" — so it works whichever root the page uses (`<dpk-app>`, a view or board on its own, or
+a component such as `<dpk-board-er-diagram>`), with nothing to rename when you change it.
 
 ## Base data
 
-The base data is the state the template would render with zero draft actions. It is JSON, baked into the HTML, and it has **no envelope**: the custom element already names the template and the script URL already pins the version, so `{ "activities": [] }` is the whole document, not `{ "template": …, "schema": …, "data": … }`. Keep it free of drafts, revisions and framework metadata.
+The base data is the state the content would render with zero draft actions. It is JSON, baked into the HTML, and it has **no envelope**: the custom element already names the view and the script URL already pins the version, so `{ "activities": [] }` is the whole document, not `{ "view": …, "schema": …, "data": … }`. Keep it free of drafts, revisions and framework metadata.
 
-Each template parses its own shape with strict validation: an unknown key is an error, not a silent no-op, and the element renders an error banner and starts from an empty state. Missing optional collections default to empty arrays, so a minimal document is often just `{ "title": "…" }`.
+Each view or board parses its own shape with strict validation: an unknown key is an error, not a silent no-op, and the element renders an error banner and starts from an empty state. Missing optional collections default to empty arrays, so a minimal document is often just `{ "title": "…" }`.
 
 ### Escaping inside the JSON script block
 
@@ -126,14 +183,14 @@ The base data lives inside an HTML `<script>` element, so a literal `</script>` 
 { "body": "… <script>alert(1)<\/script> …" }
 ```
 
-`\/` is valid JSON and parses back to `/`. This matters for any template whose bodies contain HTML or code fences (a step description quoting a script tag, for example).
+`\/` is valid JSON and parses back to `/`. This matters for any view whose bodies contain HTML or code fences (a step description quoting a script tag, for example).
 
 ## Ids
 
 Ids come from the HTML and are the contract between the base data and the draft actions. Never generate them randomly at runtime for content that lives in the base: if the concept changes, change the id; if it survives a regeneration, keep it.
 
 - Ids are referenced as `"<type>:<id>"` in DOM attributes and in the review rail (`step:google-auth`).
-- An id has to be unique where it identifies a path element or a slot; a duplicate is a parse error. Which ids that covers, and which characters are allowed, is the template's rule — see its page.
+- An id has to be unique where it identifies a path element or a slot; a duplicate is a parse error. Which ids that covers, and which characters are allowed, is the content's rule — see its page.
 - Ids created _by the UI_ (for example "add step") are generated once from the name and then live inside the draft action, so they are stable from that point on.
 
 ## Draft actions
@@ -150,7 +207,7 @@ A draft action is a structured change request produced by a human in the browser
 }
 ```
 
-`id` is the action's own identity (used to delete it), `createdAt` is set by the browser, and `note` is an optional free-form note. Everything else is the template's vocabulary: there is no generic `SET_FIELD` / `DELETE` / `MOVE`. An action describes the desired end state, so replaying a draft produces the same page every time.
+`id` is the action's own identity (used to delete it), `createdAt` is set by the browser, and `note` is an optional free-form note. Everything else is the content's vocabulary: there is no generic `SET_FIELD` / `DELETE` / `MOVE`. An action describes the desired end state, so replaying a draft produces the same page every time.
 
 ### Targets
 
@@ -160,7 +217,7 @@ A target is `{ "type": …, "id": … }`, written `type:id` in DOM attributes an
 step:onboarding.account.landing
 ```
 
-The path states _where_ the target lives, which is the difference between "rename the `landing` step" and a wrong guess at which story's `landing` was meant. A bare id is accepted while it resolves uniquely; dispatch stores canonical paths, and ambiguous shorthand never picks the first match. `{ "type": "page", "id": "<template name>" }` means "the page as a whole".
+The path states _where_ the target lives, which is the difference between "rename the `landing` step" and a wrong guess at which story's `landing` was meant. A bare id is accepted while it resolves uniquely; dispatch stores canonical paths, and ambiguous shorthand never picks the first match. `{ "type": "page", "id": "<view name>" }` means "the page as a whole".
 
 ### Validation and staleness
 
@@ -173,7 +230,7 @@ The path states _where_ the target lives, which is the difference between "renam
 
 ## Persistence
 
-Drafts live in `LocalStorage`, so a reload keeps the review in progress. A stored draft is ignored when its template does not match or when it is not version 1; an action that no longer validates is dropped on its own, not with the rest of the draft. Drafts are per-browser, and nothing is uploaded anywhere.
+Drafts live in `LocalStorage`, so a reload keeps the review in progress. A stored draft is ignored when its view does not match or when it is not version 1; an action that no longer validates is dropped on its own, not with the rest of the draft. Drafts are per-browser, and nothing is uploaded anywhere.
 
 Text the reader has typed but not sent yet — a comment in a composer, a name in an inline edit, any text field the kit renders — is kept in `sessionStorage` (key `<storage key>:unsent-text`) for the tab's session. When a reload, a republished page or a stray `Esc` closes the field, opening the same field again puts the text back, as long as the field starts from the same text it did then. Sending the text into the draft, or pressing a Cancel button beside the field, forgets it. Your own markup (a prototype's mock form) is left alone. Under `storage="off"` / `"memory"` it is kept for this page load only.
 
@@ -189,16 +246,16 @@ Text the reader has typed but not sent yet — a comment in a composer, a name i
 Navigation is the URL hash and is completely separate from draft actions: selecting an activity, story, step or note is not a page change.
 
 - The hash is the single source of truth: sidebar selection, internal links, browser back/forward and deep links all agree.
-- The element canonicalizes the hash — missing keys are filled from the template's defaults and written back with `replaceState` — so the URL is always shareable. After a draft removes the current target, the hash is re-canonicalized to something that still exists.
+- The element canonicalizes the hash — missing keys are filled from the content's defaults and written back with `replaceState` — so the URL is always shareable. After a draft removes the current target, the hash is re-canonicalized to something that still exists.
 - Inside a Claude Artifact all of this works within the page; only a deep link from outside does not reach it ([claude-artifact.md](claude-artifact.md)).
-- `data-dpk-navigate="step=next"` on any element inside the template element navigates on click; `data-dpk-comment="step:google-auth"` focuses the review composer for that target.
+- `data-dpk-navigate="step=next"` on any element inside the content element navigates on click; `data-dpk-comment="step:google-auth"` focuses the review composer for that target.
 
 ## Element API
 
 Reach the facade with `element.api`, and wait for `element.api.ready` before the first read:
 
 ```js
-const el = document.querySelector('dpk-template-prototype');
+const el = document.querySelector('dpk-view-prototype');
 await el.api.ready;
 
 el.api.state; // derived meaning state (read-only)
@@ -221,7 +278,7 @@ el.api.navigate({ step: 'google-auth' });
 el.api.hashFor({ step: 'google-auth' }); // canonical "#activity=…&step=…"
 
 el.api.snapshot(); // { base, state, navigation, actions, comments, stale, issues }
-el.api.exportDraft(); // { template, frameworkVersion, exportedAt, actions }
+el.api.exportDraft(); // { view, frameworkVersion, exportedAt, actions }
 el.api.exportBrief(); // markdown hand-off for the agent
 el.api.subscribe(fn); // returns an unsubscribe function
 ```
@@ -235,18 +292,18 @@ el.api.subscribe(fn); // returns an unsubscribe function
 | `dpk-error`    | `{ issues }`     | a dispatch was rejected                    |
 | `dpk-commit`   | `{ value }`      | from `dpk-inline-edit` (bubbles, composed) |
 
-All events bubble and are composed. `dpk-comment-panel` (the review rail) and `dpk-inline-edit` (the inline editor, `docs/components/inline-edit.md`) are registered by every entry; the diagram elements are components, not templates — no review rail, no navigation of their own; their comments and element actions go into the enclosing template's draft, or into the page's own draft when the diagram is hosted as a board of its own (`variant="board"`, `docs/components/diagrams.md`) — and have their own pages under `docs/components/`. `dpk-formal-spec` (verified properties restated in plain words, `docs/components/formal-spec.md`) works the same way for comments. `dpk-comment-popover` (`docs/components/comment-popover.md`) is that same contextual composer on its own, for markup that is not one of these components: wrap any trigger in it and toggle `open`.
+All events bubble and are composed. `dpk-comment-panel` (the review rail) and `dpk-inline-edit` (the inline editor, `docs/components/inline-edit.md`) are registered by every entry; a view or a board is page content, not a component — a view owns the page, a board can be embedded or own it — and its comments and element actions go into the page's draft. `dpk-formal-spec` (verified properties restated in plain words, `docs/components/formal-spec.md`) is a component; its comments work the same way. `dpk-comment-popover` (`docs/components/comment-popover.md`) is that same contextual composer on its own, for markup that is not one of these: wrap any trigger in it and toggle `open`. Each view and board has a page under `docs/views/` or `docs/boards/`; each component under `docs/components/`.
 
 ## Slots and styling
 
 | Slot         | Notes                                                                                                                                                 |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `header`     | appended after the template header content                                                                                                            |
-| `sidebar`    | appended after the template sidebar content                                                                                                           |
-| `aside`      | a second sidebar, on the side of the main column the template's sidebar leaves free; drawn (with its edge and button) only when you slot content in   |
-| `main`       | appended after the template main content                                                                                                              |
+| `header`     | appended after the view header content                                                                                                                |
+| `sidebar`    | appended after the view sidebar content                                                                                                               |
+| `aside`      | a second sidebar, on the side of the main column the view's sidebar leaves free; drawn (with its edge and button) only when you slot content in       |
+| `main`       | appended after the view main content                                                                                                                  |
 | `footer`     | appended after the framework footer                                                                                                                   |
-| `preview`    | template-specific; the template documents how it matches your markup                                                                                  |
+| `preview`    | view-specific; the view documents how it matches your markup                                                                                          |
 | `supplement` | supporting material (an ERD, a checklist, a sequence diagram), named tabs in a bar at the bottom of the main column — see [Supplements](#supplements) |
 
 Framework chrome (shell, sidebar, review rail, preview frames) is Shadow DOM; everything you write stays in the light DOM, so your CSS and JS work normally. The `--dpk-*` custom properties declared on `:host` are inherited into your content, so you can reuse the palette without importing anything:
@@ -271,69 +328,69 @@ Slot content reaches the page through the public API and DOM events, never throu
 
 ### Color scheme
 
-Every template renders light or dark, and its header carries a sun / moon toggle for the reader. The scheme is decided in this order, strongest first:
+Every view renders light or dark, and its header carries a sun / moon toggle for the reader. The scheme is decided in this order, strongest first:
 
 1. the reader's toggle — remembered per browser for every page of the origin (for this page load only under `storage="off"` / `"memory"`); toggling back to the default forgets it
-2. the `theme` attribute on the template element
+2. the `theme` attribute on the content element
 3. `<html data-theme="light|dark">` on the page — how a host such as the Claude Artifact viewer passes its reader's choice down
 4. the OS preference (`prefers-color-scheme`)
 
-The template sets `color-scheme` on itself, and the color tokens switch with it, so author content that uses `var(--dpk-*)` follows without extra CSS. Hard-coded colors do not: write page CSS with the tokens, and do not paint `html` / `body` with a fixed background (leave the page ground to the template). A mockup that must stay light can set `color-scheme: light` on its own container. A component used on its own follows the page's `color-scheme` (light when the page declares none).
+The app sets `color-scheme` on itself, and the color tokens switch with it, so author content that uses `var(--dpk-*)` follows without extra CSS. Hard-coded colors do not: write page CSS with the tokens, and do not paint `html` / `body` with a fixed background (leave the page ground to the view). A mockup that must stay light can set `color-scheme: light` on its own container. A component used on its own follows the page's `color-scheme` (light when the page declares none).
 
 ### Theme
 
-`--dpk-accent*` and `--dpk-blue*` come from two inputs, `--dpk-brand-primary` and `--dpk-brand-secondary`. The kit already redeclares them from these two inputs on every component's host and on the document `:root`, so setting them there is enough — a class in your own page CSS, or an inline `style`, on any ancestor up to and including the `<html>` root. For a point in the tree with neither boundary (light DOM slotted into an already-instantiated component, an app screen a template renders with its own brand), set the two inputs on an element that also carries the `data-dpk-theme` attribute (shipped with the CSS atoms, so it travels with them); every `.dpk-btn`, chip, badge, input, card, link and focus ring under that element then recolors to match, in both color schemes. Leave the inputs unset and an element keeps the kit's own indigo-violet and blue. This is how a prototyped application screen can carry its own brand inside `dpk-template-prototype` while the template's own chrome stays `dev-process-kit`'s colors (see [Prototype](templates/prototype.md)).
+`--dpk-accent*` and `--dpk-blue*` come from two inputs, `--dpk-brand-primary` and `--dpk-brand-secondary`. The kit already redeclares them from these two inputs on every component's host and on the document `:root`, so setting them there is enough — a class in your own page CSS, or an inline `style`, on any ancestor up to and including the `<html>` root. For a point in the tree with neither boundary (light DOM slotted into an already-instantiated component, an app screen a view renders with its own brand), set the two inputs on an element that also carries the `data-dpk-theme` attribute (shipped with the CSS atoms, so it travels with them); every `.dpk-btn`, chip, badge, input, card, link and focus ring under that element then recolors to match, in both color schemes. Leave the inputs unset and an element keeps the kit's own indigo-violet and blue. This is how a prototyped application screen can carry its own brand inside `dpk-view-prototype` while the kit's own chrome stays `dev-process-kit`'s colors (see [Prototype](views/prototype.md)).
 
 ### Language
 
-The kit's own text — the review rail, template chrome, diagram controls and the titles of draft actions — follows the page's `lang`. Every element uses the closest `lang` attribute: its own, then its ancestors', through shadow roots. Only the primary subtag counts (`ja-JP` is `ja`). The kit ships English (`en`) and Japanese (`ja`); a missing or unsupported `lang` renders English.
+The kit's own text — the review rail, the kit's chrome, board controls and the titles of draft actions — follows the page's `lang`. Every element uses the closest `lang` attribute: its own, then its ancestors', through shadow roots. Only the primary subtag counts (`ja-JP` is `ja`). The kit ships English (`en`) and Japanese (`ja`); a missing or unsupported `lang` renders English.
 
 ```html
 <html lang="ja">
   …
-  <dpk-template-usm lang="ja" storage-key="checkout-usm">…</dpk-template-usm>
+  <dpk-view-usm lang="ja" storage-key="checkout-usm">…</dpk-view-usm>
 </html>
 ```
 
-Write `lang` on `<html>`, and also on the template element when you do not control `<html>` (a Claude Artifact wraps your file in its own document). The language is read when the element connects; changing `lang` afterwards has no effect.
+Write `lang` on `<html>`, and also on the content element when you do not control `<html>` (a Claude Artifact wraps your file in its own document). The language is read when the element connects; changing `lang` afterwards has no effect.
 
-The template header has a language select that starts on that language. The reader's pick switches the template and every element inside it, and is remembered per origin (`localStorage` key `dev-process-kit:locale`) unless `storage` is `off` or `memory`. Picking the page's own language forgets the pick. The template applies a pick by setting its own `lang`, so do not read that attribute back as the page's language. Your content (base data, slot markup, a diagram's `heading` / `subject`) is never translated. The hand-off brief keeps its headings and instructions in English for the agent; the action titles in it follow the page's language.
+The app header has a language select that starts on that language. The reader's pick switches the app and every element inside it, and is remembered per origin (`localStorage` key `dev-process-kit:locale`) unless `storage` is `off` or `memory`. Picking the page's own language forgets the pick. The app applies a pick by setting its own `lang`, so do not read that attribute back as the page's language. Your content (base data, slot markup, a board's `heading` / `subject`) is never translated. The hand-off brief keeps its headings and instructions in English for the agent; the action titles in it follow the page's language.
 
 ### Sidebar width and folding
 
-The reader can resize the template sidebar by dragging the edge that faces the main column, or by focusing that edge and pressing the arrow keys (they move the edge; Shift for larger steps, Home / End for the narrowest and widest). Double-clicking the edge restores the template's default width. The width stays between 180px and 560px and is remembered per template for every page of the origin (`localStorage` key `dev-process-kit:sidebar-width:<template>`) unless `storage` is `off` or `memory`. A side with nothing in it has no edge and no button.
+The reader can resize the content sidebar by dragging the edge that faces the main column, or by focusing that edge and pressing the arrow keys (they move the edge; Shift for larger steps, Home / End for the narrowest and widest). Double-clicking the edge restores the content's default width. The width stays between 180px and 560px and is remembered per content for the whole app (`localStorage` key `dev-process-kit:sidebar-width:<content>`) unless `storage` is `off` or `memory`. A side with nothing in it has no edge and no button.
 
-The round button on that edge folds the sidebar away entirely; a button floating at that end of the main column brings it back (both are ordinary buttons, so Tab and Enter / Space work, and they carry `aria-expanded`). The folded state is remembered the same way as the width (`localStorage` key `dev-process-kit:sidebar-collapsed:<template>`). Grill has no such button: its own Questions / Review button already folds its rail.
+The round button on that edge folds the sidebar away entirely; a button floating at that end of the main column brings it back (both are ordinary buttons, so Tab and Enter / Space work, and they carry `aria-expanded`). The folded state is remembered the same way as the width (`localStorage` key `dev-process-kit:sidebar-collapsed:<content>`). Grill has no such button: its own Questions / Review button already folds its rail.
 
-The `aside` sidebar on the other side resizes and folds the same way, on its own, under the same keys with `:aside` appended (`dev-process-kit:sidebar-width:<template>:aside`). On a narrow screen the `aside` sidebar opens as a drawer over the main column.
+The `aside` sidebar on the other side resizes and folds the same way, on its own, under the same keys with `:aside` appended (`dev-process-kit:sidebar-width:<content>:aside`). On a narrow screen the `aside` sidebar opens as a drawer over the main column.
 
 ### Version
 
-The template header shows the version running the page (`dev-process-kit@<version>`) as a select. When the reader first reaches for it, it lists every version published to npm (from jsDelivr's API, `data.jsdelivr.com`), the `latest` one marked; where that API cannot be reached, only the running version is listed. Picking a version reloads the page with `?dpk-version=<version>`, and the entry the page loads hands the page to that version's same entry on jsDelivr instead of defining its own elements: a document defines a custom element once, so switching needs a fresh page. Nothing else about the page changes — the markup and base data stay the ones you wrote, so a version older than the page may not render everything in it.
+The app header shows the version running the page (`dev-process-kit@<version>`) as a select. When the reader first reaches for it, it lists every version published to npm (from jsDelivr's API, `data.jsdelivr.com`), the `latest` one marked; where that API cannot be reached, only the running version is listed. Picking a version reloads the page with `?dpk-version=<version>`, and the entry the page loads hands the page to that version's same entry on jsDelivr instead of defining its own elements: a document defines a custom element once, so switching needs a fresh page. Nothing else about the page changes — the markup and base data stay the ones you wrote, so a version older than the page may not render everything in it.
 
 - Only an exact version is honoured (`1.2.3`, `1.2.3-beta.1`); anything else, or the version already running, leaves the page on its pinned version. When the version asked for cannot be loaded (it does not exist, or lacks that entry), the pinned version runs the page and logs why.
 - While the URL overrides the version, the select also offers `Pinned by the page`, which drops the parameter.
-- A version from before this select renders none of its own; the entry that handed the page over then puts one into the template's `header` slot, so the reader can always come back.
+- A version from before this select renders none of its own; the entry that handed the page over then puts one into the content's `header` slot, so the reader can always come back.
 - Your pinned URL stays the contract: never write `?dpk-version=` into a link to make a page run another version, and never load `@latest`. The parameter is for the reader trying a version out.
-- `window.devProcessKit` names the version that defined the elements (`version`), the templates it registered (`templates`), and the query parameter above (`versionParam`).
+- `window.devProcessKit` names the version that defined the elements (`version`), the views it registered (`views`), and the query parameter above (`versionParam`).
 
 ### Supplements
 
 Slot each piece of supporting material as its own element with a `data-name`:
 
 ```html
-<section slot="supplement" data-name="ERD"><dpk-er-diagram>…</dpk-er-diagram></section>
+<section slot="supplement" data-name="ERD"><dpk-board-er-diagram>…</dpk-board-er-diagram></section>
 <section slot="supplement" data-name="Checklist">
   <ul>
     …
   </ul>
 </section>
 <section slot="supplement" data-name="Sequence">
-  <dpk-sequence-diagram>…</dpk-sequence-diagram>
+  <dpk-board-sequence-diagram>…</dpk-board-sequence-diagram>
 </section>
 ```
 
-The shell lines the names up, in the order written, in a bar the full width of the main column, pinned to its bottom. The reader presses a name to open that supplement alone, growing upward over the content; pressing another switches, and pressing the open one folds it. The chevron at the start of the bar folds it too, and reopens the supplement last opened (the first, before any). One without a `data-name` is labelled "Memo". The bar is rendered only while at least one supplement is slotted, and follows ones added later. A supplement may hold the diagram elements (load `components.js` too).
+The shell lines the names up, in the order written, in a bar the full width of the main column, pinned to its bottom. The reader presses a name to open that supplement alone, growing upward over the content; pressing another switches, and pressing the open one folds it. The chevron at the start of the bar folds it too, and reopens the supplement last opened (the first, before any). One without a `data-name` is labelled "Memo". The bar is rendered only while at least one supplement is slotted, and follows ones added later. A supplement may hold the boards (load `components.js` too).
 
 The `memo` slot is gone: content left in `slot="memo"` is not shown, and the console says so. Wrap it in a `slot="supplement"` element instead.
 
@@ -341,42 +398,49 @@ The `memo` slot is gone: content left in `slot="memo"` is not shown, and the con
 
 The review rail's `Copy changes & comments` button puts the hand-off brief on the clipboard: readable markdown that ends with the canonical draft JSON. Once there is a draft, the same `Copy changes & comments` (and `Send to Claude`, below) also floats at the bottom right while the rail is closed, so a reader who only wants to hand the review back does not have to open it. Hand the brief to the agent: it applies the requested end state to the base HTML, keeps the ids of the concepts that survived, and drops the draft envelope from the JSON. The page never mutates its own base data, so the HTML the agent writes back is the new source of truth.
 
-The header's Undo/Redo buttons (and Cmd+Z/Ctrl+Z, Shift+Cmd+Z/Ctrl+Shift+Z/Ctrl+Y) step through that log one entry at a time; each is disabled when there is nothing to undo or redo. A page with boards shows these once, in the page's own header: undo and redo apply to the whole page's draft, not to one board at a time.
+The header's Undo/Redo buttons (and Cmd+Z/Ctrl+Z, Shift+Cmd+Z/Ctrl+Shift+Z/Ctrl+Y) step through that log one entry at a time; each is disabled when there is nothing to undo or redo. An app with pages shows these once, in the app's own header: undo and redo apply to the whole app's draft, not to one page at a time.
 
-Inside a Claude Artifact published with the `comments` capability, the rail also offers **Send to Claude**: the brief is posted as a comment sent to the Claude session that published the page, pinned to the template element. A brief over the 4 KiB comment limit is stored as a document in the `reviews` collection of the artifact's database (when the page also declares `db`), and the comment points at it; the document holds `brief` (the same markdown) and `draft` (the canonical JSON). The button appears only when the viewer can send to Claude right now; a failed send says why and leaves the copy button as the way on. Elsewhere nothing changes.
+Inside a Claude Artifact published with the `comments` capability, the rail also offers **Send to Claude**: the brief is posted as a comment sent to the Claude session that published the page, pinned to the content element. A brief over the 4 KiB comment limit is stored as a document in the `reviews` collection of the artifact's database (when the page also declares `db`), and the comment points at it; the document holds `brief` (the same markdown) and `draft` (the canonical JSON). The button appears only when the viewer can send to Claude right now; a failed send says why and leaves the copy button as the way on. Elsewhere nothing changes.
 
 ## Questions (grill)
 
-Any template can ask the reader questions — decisions you still need from them — alongside its usual content ([ADR](../dev-docs/adr/20261016_grill-in-core.md)). Put them in a script of their own, another child of the template element, separate from the base data:
+Any view can ask the reader questions — decisions you still need from them — alongside its usual content ([ADR](../dev-docs/adr/20261016_grill-in-core.md)). Put them in a script of their own, another child of the content element, separate from the base data:
 
 ```html
-<dpk-template-usm storage-key="checkout-usm">
-  <script type="application/json" data-dpk-grill>
-    {
-      "questions": [
+<dpk-app storage-key="checkout-usm">
+  <script type="application/json">
+    { "title": "Checkout" }
+  </script>
+  <dpk-page name="scope" label="Scope">
+    <dpk-view-usm>
+      <script type="application/json" data-dpk-grill>
         {
-          "id": "reservation-table",
-          "ref": "Q1",
-          "title": "在庫予約テーブルは本当に必要？",
-          "description": "在庫数を直接減らす案と比べて、予約を第一級の概念にするかを決めます。",
-          "note": "予約が残ったまま消えると、在庫が永久に引当たままになる。",
-          "options": [
-            { "id": "own-table", "label": "専用テーブルで予約を持ち、有効期限と解放を明示的に管理する" },
-            { "id": "counter", "label": "在庫テーブルに確保数のカラムを足し、予約は持たない" }
+          "questions": [
+            {
+              "id": "reservation-table",
+              "ref": "Q1",
+              "title": "在庫予約テーブルは本当に必要？",
+              "description": "在庫数を直接減らす案と比べて、予約を第一級の概念にするかを決めます。",
+              "note": "予約が残ったまま消えると、在庫が永久に引当たままになる。",
+              "options": [
+                { "id": "own-table", "label": "専用テーブルで予約を持ち、有効期限と解放を明示的に管理する" },
+                { "id": "counter", "label": "在庫テーブルに確保数のカラムを足し、予約は持たない" }
+              ]
+            }
           ]
         }
-      ]
-    }
-  </script>
-  <script type="application/json">
-    { "activities": [] }
-  </script>
-</dpk-template-usm>
+      </script>
+      <script type="application/json">
+        { "activities": [] }
+      </script>
+    </dpk-view-usm>
+  </dpk-page>
+</dpk-app>
 ```
 
 Leave the block out until there is a question to ask. A malformed block renders an error banner; the base data keeps working regardless.
 
-On a [page of boards](page.md#questions), each board keeps its questions in a block of its own, and the page asks them all in one panel.
+On an [app with pages](page.md#questions), each page keeps its questions in a block of its own, and the app asks them all in one panel.
 
 | Field         | Required | Meaning                                          |
 | ------------- | -------- | ------------------------------------------------ |
@@ -424,11 +488,11 @@ When you revise the page with the next round of questions, move the answered rou
 
 ### Marking what a question is about
 
-Mark page content a question is about with `data-grill-questions="Q1 Q4"` (space-separated refs), either in your own light DOM markup or, inside a diagram component's data, on a node, field or message that supports it (see `docs/components/diagrams.md`, `docs/components/kanban.md`, `docs/components/mind-map.md`, `docs/components/table.md`), or on a card a template or diagram component renders from its base data: give the card `questions` (`"Q1 Q4"`) as its own page lists (usm, task-board, delegation-poker; event-storming, example-mapping, whiteboard). The shell lays a badge for each reference over the main column — on the right, level with the element, for your own markup; on the corner of a diagram node (following its pan and zoom) or of a template's card. A reference no question matches is ignored, and pressing a badge opens that question.
+Mark page content a question is about with `data-grill-questions="Q1 Q4"` (space-separated refs), either in your own light DOM markup or, inside a board's data, on a node, field or message that supports it (see `docs/boards/index.md`, `docs/components/kanban.md`, `docs/components/mind-map.md`, `docs/components/table.md`), or on a card a view or board renders from its base data: give the card `questions` (`"Q1 Q4"`) as its own page lists (usm, task-board, delegation-poker; event-storming, example-mapping, whiteboard). The shell lays a badge for each reference over the main column — on the right, level with the element, for your own markup; on the corner of a board node (following its pan and zoom) or of a view's card. A reference no question matches is ignored, and pressing a badge opens that question.
 
 ### The questions toggle
 
-A question-mark toggle appears in the header between **Changes** and **Review comments**, but only while the page has questions; its badge reads `answered / total`. It opens the same review popover, on a **Questions** tab instead of the comments list; `notes="questions"` on the template element opens the popover there on load (alongside the existing `"on"` / `"comments"` / `"changes"`). With `history`, the tab is a round select — current questions first, then earlier rounds newest first, each read-only.
+A question-mark toggle appears in the header between **Changes** and **Review comments**, but only while the page has questions; its badge reads `answered / total`. It opens the same review popover, on a **Questions** tab instead of the comments list; `notes="questions"` on the content element opens the popover there on load (alongside the existing `"on"` / `"comments"` / `"changes"`). With `history`, the tab is a round select — current questions first, then earlier rounds newest first, each read-only.
 
 ### Answers
 
@@ -448,10 +512,10 @@ On the next round, move the questions the reader answered into `history` togethe
 
 ## Change notices
 
-When you regenerate a page at the reader's request, tell them what changed. Put a change log beside the base data, as another child of the template element. It is the page's history: **each regeneration appends one version at the end**, and earlier versions stay as they were.
+When you regenerate a page at the reader's request, tell them what changed. Put a change log beside the base data, as another child of the content element. It is the page's history: **each regeneration appends one version at the end**, and earlier versions stay as they were.
 
 ```html
-<dpk-template-usm storage-key="checkout-usm">
+<dpk-view-usm storage-key="checkout-usm">
   <script type="application/json" data-dpk-changes>
     {
       "revisions": [
@@ -477,13 +541,13 @@ When you regenerate a page at the reader's request, tell them what changed. Put 
   <script type="application/json">
     { "activities": [] }
   </script>
-</dpk-template-usm>
+</dpk-view-usm>
 ```
 
 - `revisions` lists the versions **oldest first**; the last one is this version of the page. On each regeneration, add a new entry at the end with a new `revision` name (unique in the log) and **only the changes made in that regeneration**. Do not edit, merge or repeat the changes of earlier versions. You may drop versions from the start once the log gets long.
 - Each change has a `title`, and optionally a `body`, an `id` (unique within its version; the position is used when omitted, so give ids when the list can be reordered), a `target` (`type:id`, as in [Targets](#targets)) and a `navigate` (hash syntax, `view=flow&screen=cart`) for where it is seen when the target alone does not say.
 - Leave the block out until there is something to announce. A log of one version may also be written as `{ "revision": "…", "changes": [ … ] }`.
-- The change log is not base data: the template never reads it, and a malformed log shows a banner without touching the page.
+- The change log is not base data: the view never reads it, and a malformed log shows a banner without touching the page.
 
 The header gets a bell, and each reader is told only what is new to them:
 
@@ -496,11 +560,11 @@ The header gets a bell, and each reader is told only what is new to them:
 - **Mark all as read** (in the list, and under the toasts when there are several) clears every unread change at once.
 - Where the reader is in the history is remembered in `localStorage` under the key `<storage key>:seen-changes`. Under `storage="off"` / `"memory"` it lasts only for this page load, so every load counts as a first visit.
 
-**Show** (on a toast or in the list) navigates to where the target is seen, brings it into view and highlights it for a few seconds. Templates mark the elements their targets render as; each template page lists the targets it can show. In your own markup — plain's sections, a prototype's slotted screens — mark the element yourself with `data-dpk-target="type:id"` (space-separated when one element stands for several targets). A change with only `navigate` just navigates; one with neither has no **Show**.
+**Show** (on a toast or in the list) navigates to where the target is seen, brings it into view and highlights it for a few seconds. Views and boards mark the elements their targets render as; each view page lists the targets it can show. In your own markup — the plain view's sections, a prototype's slotted screens — mark the element yourself with `data-dpk-target="type:id"` (space-separated when one element stands for several targets). A change with only `navigate` just navigates; one with neither has no **Show**.
 
 ## Check Mode
 
-A toggle in the header lets the reader tally what they have already looked over during a long review, independent of comments or questions. Turning it on shows a small badge at the corner of every element already marked `data-dpk-target` — the same marker [Change notices](#change-notices)' **Show** and the [context menu](#context-menu) use, so most templates need no change to support it: a template page's own [targets](#targets) list is what Check Mode covers. Clicking a badge marks it checked; clicking again clears it.
+A toggle in the header lets the reader tally what they have already looked over during a long review, independent of comments or questions. Turning it on shows a small badge at the corner of every element already marked `data-dpk-target` — the same marker [Change notices](#change-notices)' **Show** and the [context menu](#context-menu) use, so most views need no change to support it: a content page's own [targets](#targets) list is what Check Mode covers. Clicking a badge marks it checked; clicking again clears it.
 
 A checked element that a later change log entry targets (its `target` matching the same ref) shows "(?)" instead, until the reader checks it again — Check Mode reuses the change log already on the page rather than tracking changes on its own, so a page with no change log never goes stale, only checked or not.
 
@@ -508,17 +572,17 @@ This state is entirely the reader's: it lives in `localStorage` under `<storage 
 
 ## Context menu
 
-A plain right-click anywhere on the page opens a menu instead of the browser's own, with whatever applies to what was clicked: **Copy text** (when it is one of the template's targets — the same ones `data-dpk-target`/[Targets](#targets) mark), **Give feedback** (when that target accepts comments — feedback to the agent, distinct from any comments a template keeps of its own), and **Reset view** on a diagram component, regardless of target. A template or component may add its own entries (for example, "Duplicate" or "Delete" where supported); its own page says so when it does. Labels stay short — this is not where explanations live.
+A plain right-click anywhere on the page opens a menu instead of the browser's own, with whatever applies to what was clicked: **Copy text** (when it is one of the content's targets — the same ones `data-dpk-target`/[Targets](#targets) mark), **Give feedback** (when that target accepts comments — feedback to the agent, distinct from any comments a page keeps of its own), and **Reset view** on a board, regardless of target. A view, board or component may add its own entries (for example, "Duplicate" or "Delete" where supported); its own page says so when it does. Labels stay short — this is not where explanations live.
 
 Shift+right-click, and a plain right-click inside a text field or an editable region, always get the browser's own menu (cut/paste and spellcheck need it). Inside the custom menu: arrow keys move, Enter/Space runs the highlighted entry, Escape or a click elsewhere closes it.
 
 ## Read next
 
-| Question                          | Read                                                                                                                                                    |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The template I am actually using  | `docs/templates/<name>.md` (prototype / usm / plain / slides / task-board / delegation-poker)                                                           |
-| The component I am actually using | `docs/components/<name>.md` (comment-panel / inline-edit / comment-thread / diagrams / formal-spec / event-storming / example-mapping / whiteboard / …) |
-| Several templates on one page     | `docs/page.md`                                                                                                                                          |
-| Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                               |
+| Question                          | Read                                                                                                                                                                                                                                         |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The view or board I am using      | `docs/views/<name>.md` (usm / prototype / plain / slides / task-board / delegation-poker) or `docs/boards/<name>.md` (ER / state / sequence / dependency / architecture / mind map / event storming / example mapping / whiteboard / kanban) |
+| The component I am actually using | `docs/components/<name>.md` (comment-panel / inline-edit / comment-thread / formal-spec / table / select / …)                                                                                                                                |
+| Several pages in one app          | `docs/page.md`                                                                                                                                                                                                                               |
+| Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                                                                                                                    |
 
 Read the page for what you are actually using, plus this one.

@@ -1,11 +1,11 @@
-# dpk-dependency-graph
+# dpk-board-dependency-graph
 
 Modules and the references between them. Selecting a module answers two questions at once: what it uses, and what would be affected by changing it.
 
-Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
+Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/boards/index.md`.
 
 ```html
-<dpk-dependency-graph heading="注文モジュール">
+<dpk-board-dependency-graph heading="注文モジュール">
   <script type="application/json">
     {
       "modules": [
@@ -25,7 +25,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
       ]
     }
   </script>
-</dpk-dependency-graph>
+</dpk-board-dependency-graph>
 ```
 
 `heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`Dependencies` / `依存関係グラフ`). `subject` adds a smaller subtitle beside the title.

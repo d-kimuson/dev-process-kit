@@ -1,11 +1,11 @@
-# dpk-mind-map
+# dpk-board-mind-map
 
 A central topic and a tree of subtopics, fanned out to the left and the right. Selecting a topic lights its path to the centre and everything beneath it; a topic with subtopics folds down to a count.
 
-Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
+Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/boards/index.md`.
 
 ```html
-<dpk-mind-map id="checkout-mind-map" heading="注文フロー刷新の論点">
+<dpk-board-mind-map id="checkout-mind-map" heading="注文フロー刷新の論点">
   <script type="application/json">
     {
       "root": {
@@ -26,7 +26,7 @@ Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing, 
       }
     }
   </script>
-</dpk-mind-map>
+</dpk-board-mind-map>
 ```
 
 `heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`Mind map` / `マインドマップ`). `subject` adds a smaller subtitle beside the title.
@@ -35,16 +35,16 @@ Shared contract (data paths, tags, pan/zoom, comments, element actions, sizing, 
 
 `root` is one topic; every topic has the same shape:
 
-| Field         | Required | Meaning                                                                                               |
-| ------------- | -------- | ----------------------------------------------------------------------------------------------------- |
-| `id`          | yes      | Stable id, unique across the whole tree. It is the comment target (`element:<diagram-id>/node/<id>`). |
-| `label`       | yes      | Text on the topic. Long labels are ellipsized; the full text is the tooltip.                          |
-| `description` | no       | Shown as the tooltip.                                                                                 |
-| `tags`        | no       | Tag filter values.                                                                                    |
-| `collapsed`   | no       | `true` opens the topic folded.                                                                        |
-| `side`        | no       | `left` \| `right`. Only on a main topic (a child of `root`); its subtopics follow it.                 |
-| `children`    | no       | Subtopics, in reading order (top to bottom).                                                          |
-| `questions`   | no       | Question references for the page's questions (`docs/index.md`, Questions (grill)).                    |
+| Field         | Required | Meaning                                                                                             |
+| ------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `id`          | yes      | Stable id, unique across the whole tree. It is the comment target (`element:<board-id>/node/<id>`). |
+| `label`       | yes      | Text on the topic. Long labels are ellipsized; the full text is the tooltip.                        |
+| `description` | no       | Shown as the tooltip.                                                                               |
+| `tags`        | no       | Tag filter values.                                                                                  |
+| `collapsed`   | no       | `true` opens the topic folded.                                                                      |
+| `side`        | no       | `left` \| `right`. Only on a main topic (a child of `root`); its subtopics follow it.               |
+| `children`    | no       | Subtopics, in reading order (top to bottom).                                                        |
+| `questions`   | no       | Question references for the page's questions (`docs/index.md`, Questions (grill)).                  |
 
 Duplicate ids, `side` below a main topic and unknown keys are errors, and the element renders the reason instead of a wrong map.
 
@@ -79,13 +79,13 @@ Branches are not selectable and are not comment targets: comment on the topic in
 
 ## Adding topics
 
-The action bar under a selected topic offers **+ Subtopic** and **Comment** (the latter needs a diagram `id`). Type a label and press `Enter` to add a subtopic; `Escape` cancels. The new topic is drawn with a dashed border, its parent unfolds, and the new topic is selected.
+The action bar under a selected topic offers **+ Subtopic** and **Comment** (the latter needs a board `id`). Type a label and press `Enter` to add a subtopic; `Escape` cancels. The new topic is drawn with a dashed border, its parent unfolds, and the new topic is selected.
 
-An added topic is not written into the JSON child. It is recorded as an element action in the enclosing template's draft, next to its actions and comments, and appears in its review rail. The map replays these actions over the authored data, so they survive a reload and reach the agent in the brief. Outside a template, or without a diagram `id`, there is nothing to record into: the bar shows an error and keeps the input.
+An added topic is not written into the JSON child. It is recorded as an element action in the enclosing view's draft — or the page's, when the board is its content — next to its actions and comments, and appears in that draft's review rail. The map replays these actions over the authored data, so they survive a reload and reach the agent in the brief. Outside a view or a page, or without a board `id`, there is nothing to record into: the bar shows an error and keeps the input.
 
-| Action      | Target                                  | Payload                             | Result                                                                   |
-| ----------- | --------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------ |
-| `ADD_TOPIC` | `element:<diagram-id>/node/<parent-id>` | `{ "id": string, "label": string }` | Appends a subtopic `{ id, label }` to the end of the parent's `children` |
+| Action      | Target                                | Payload                             | Result                                                                   |
+| ----------- | ------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------ |
+| `ADD_TOPIC` | `element:<board-id>/node/<parent-id>` | `{ "id": string, "label": string }` | Appends a subtopic `{ id, label }` to the end of the parent's `children` |
 
 `ADD_TOPIC` is stale when the parent no longer exists (`target-missing`), or when the label is empty or the id is already in use (`constraint-violated`). A new main topic (a child of `root`) keeps the map balanced like an authored one. The sides of the authored main topics never move.
 

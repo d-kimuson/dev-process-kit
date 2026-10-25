@@ -1,6 +1,6 @@
 # dpk-comment-popover
 
-The same tooltip-like review-comment composer every diagram, `dpk-formal-spec` and `dpk-commentable` already open from their right-click menu (`docs/components/diagrams.md`, `docs/components/formal-spec.md`), on its own: wrap any clickable trigger in it so markup that is not one of those components can still open the identical UI, without building a context menu first.
+The same tooltip-like review-comment composer every board, `dpk-formal-spec` and `dpk-commentable` already open from their right-click menu (`docs/boards/index.md`, `docs/components/formal-spec.md`), on its own: wrap any clickable trigger in it so markup that is not one of those components can still open the identical UI, without building a context menu first.
 
 ```html
 <p>
@@ -35,4 +35,4 @@ It composes like `<details open>`: toggling `open` shows or hides the popover, w
 | -------------------- | ---------------------------------- | ------------------------------------------------------------------ |
 | `dpk-comment-submit` | `{ target: string, body: string }` | The composer submits a comment (bubbles, composed, **cancelable**) |
 
-There is no board here: whatever encloses `dpk-comment-popover` saves the comment and calls `preventDefault()` once it has, the same acceptance protocol diagrams and `dpk-formal-spec` use (`docs/components/diagrams.md`). Leaving the event unhandled, or not cancelling it, keeps the composer open with its draft intact and shows a "could not send" message — the popover never discards what was typed merely because nothing accepted it.
+There is no draft here: whatever encloses `dpk-comment-popover` saves the comment and calls `preventDefault()` once it has, the same acceptance protocol boards and `dpk-formal-spec` use (`docs/boards/index.md`). Leaving the event unhandled, or not cancelling it, keeps the composer open with its draft intact and shows a "could not send" message — the popover never discards what was typed merely because nothing accepted it.

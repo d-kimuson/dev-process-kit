@@ -39,4 +39,4 @@ It owns no storage: the host passes `comments` and listens for `dpk-thread-comme
 
 ## Where it is used today
 
-The user story map keeps each story's comments as part of the map (`UserStory.comments`, `docs/templates/usm.md`); its story panel uses `<dpk-comment-thread inline>` for that thread, inside the already-open drawer. A card-level trigger (the default, non-`inline` mode) suits templates whose cards may host their own small tools.
+The user story map keeps each story's comments as part of the map (`UserStory.comments`, `docs/views/usm.md`); its story panel uses `<dpk-comment-thread inline>` for that thread, inside the already-open drawer. A card-level trigger (the default, non-`inline` mode) suits templates whose cards may host their own small tools.

@@ -1,15 +1,13 @@
-# Template: plain (`<dpk-template-plain>`)
+# View: plain (`<dpk-view-plain>`)
 
-The shell and the review pipeline, and nothing else. Use it for a page no other template fits: design notes, a set of diagrams, a comparison table. The author owns every region; the template brings the header chrome, the review rail, persistence and the agent hand-off.
+Your own markup, with the review loop around it, and nothing else of its own. Use it for a page no other view fits: design notes, a set of diagrams, a comparison table. You own every region.
 
 ```text
-dpk-template-plain
-  header  template label + title, draft / note counts; slot="header" for your own controls
+dpk-view-plain
   main    slot="main" — your content
-  rail    Review notes, opened from the floating button (top right)
 ```
 
-There is no action vocabulary: everything a reader produces is a comment. Comments can target the whole page, a declared section, or an element of a diagram placed inside.
+The header, the review and the hand-off are the app's ([page.md](../page.md)), and the view brings no subject of its own: everything a reader produces is a comment. Comments can target the view as a whole, a declared section, or an element of a board placed inside.
 
 ## Base data
 
@@ -25,50 +23,56 @@ There is no action vocabulary: everything a reader produces is a comment. Commen
 
 | Field        | Required | Meaning                                                   |
 | ------------ | -------- | --------------------------------------------------------- |
-| `title`      | no       | Page title in the chrome. Defaults to `Plain`.            |
+| `title`      | no       | Title of the view. Defaults to `Plain`.                   |
 | `sections[]` | no       | `{ id, title }` — parts of your prose that take comments. |
 
 Section ids follow the common id rule (letters, digits, `_`, `-`); a duplicate id or an unknown key is an error. A minimal document is `{}`.
 
 ## Main area
 
-Put anything in `slot="main"`. Load `components.js` alongside `templates/plain.js` when it contains diagram elements (or use the all-in-one `index.js`):
+Put anything in `slot="main"`. Load `components.js` alongside `views/plain.js` when it contains components or an embedded board (or use the all-in-one `index.js`):
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/templates/plain.js"></script>
-<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/components.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/views/plain.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/boards.js"></script>
 
-<dpk-template-plain storage-key="checkout-notes">
-  <script type="application/json">
-    { "title": "注文フローの設計メモ", "sections": [{ "id": "decision", "title": "決めたこと" }] }
-  </script>
+<dpk-app storage-key="checkout-notes">
+  <dpk-page name="notes">
+    <dpk-view-plain>
+      <script type="application/json">
+        { "title": "注文フローの設計メモ", "sections": [{ "id": "decision", "title": "決めたこと" }] }
+      </script>
 
-  <div slot="main">
-    <section>
-      <h2>決めたこと</h2>
-      <button type="button" data-dpk-comment="section:decision">このセクションにコメント</button>
-      <p>…</p>
-    </section>
-    <dpk-state-diagram id="order-lifecycle">…</dpk-state-diagram>
-  </div>
-</dpk-template-plain>
+      <div slot="main">
+        <section>
+          <h2>決めたこと</h2>
+          <button type="button" data-dpk-comment="section:decision">このセクションにコメント</button>
+          <p>…</p>
+        </section>
+        <dpk-board-state-diagram id="order-lifecycle">…</dpk-board-state-diagram>
+      </div>
+    </dpk-view-plain>
+  </dpk-page>
+</dpk-app>
 ```
 
-Give the host the page's height (`docs/index.md`, Page height): the main area scrolls inside the shell.
+Give `<dpk-app>` the page's height (`docs/index.md`, Page height): the main area scrolls inside the shell.
 
 ## Comment targets
 
-| Target                     | How the reader reaches it                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------ |
-| `page:plain`               | The review composer, with nothing attached                                                 |
-| `section:<id>`             | `data-dpk-comment="section:<id>"` on your markup, or the composer's target list            |
-| `element:<diagram-id>/...` | A diagram's element comment icon (see `docs/components/diagrams.md`); needs a diagram `id` |
+| Target                   | How the reader reaches it                                                       |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| `page:plain`             | The review composer, with nothing attached (the view as a whole)                |
+| `section:<id>`           | `data-dpk-comment="section:<id>"` on your markup, or the composer's target list |
+| `element:<board-id>/...` | A board's element comment icon (see `docs/boards/index.md`); needs a board `id` |
 
-A comment on a section that disappears from the base data, or on a diagram element that no longer exists, stays in the draft as **stale** instead of being dropped. Keep section and diagram ids stable across revisions so existing comments keep their targets.
+Inside a page the app qualifies each of these with the page's name (`section:decision@notes`); write the bare form in the view's own markup.
+
+A comment on a section that disappears from the base data, or on a board element that no longer exists, stays in the draft as **stale** instead of being dropped. Keep section and board ids stable across revisions so existing comments keep their targets.
 
 ## Navigation
 
-None. The template leaves the URL hash untouched; `data-dpk-navigate` on your markup has nothing to navigate to.
+None. The view leaves the URL hash untouched; `data-dpk-navigate` on your markup has nothing to navigate to.
 
 ## Change notices
 

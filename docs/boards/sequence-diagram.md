@@ -1,11 +1,11 @@
-# dpk-sequence-diagram
+# dpk-board-sequence-diagram
 
 Participants on a rail, messages as numbered rows, and `alt` / `opt` / `loop` / `par` fragments that fold individually.
 
-Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
+Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/boards/index.md`.
 
 ```html
-<dpk-sequence-diagram heading="注文と決済">
+<dpk-board-sequence-diagram heading="注文と決済">
   <script type="application/json">
     {
       "participants": [
@@ -52,7 +52,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
       ]
     }
   </script>
-</dpk-sequence-diagram>
+</dpk-board-sequence-diagram>
 ```
 
 `heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`Sequence` / `シーケンス図`). `subject` adds a smaller subtitle beside the title.

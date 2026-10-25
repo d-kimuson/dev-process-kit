@@ -1,4 +1,4 @@
-# Template: usm (`<dpk-template-usm>`)
+# View: usm (`<dpk-view-usm>`)
 
 User Story Mapping: バックボーン（`Activity › Step`）を列に、マイルストーンを行に取るストーリーマップ。
 
@@ -8,7 +8,7 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 セル = その列 × その行に属する UserStory の並び
 ```
 
-- Element: `<dpk-template-usm>`
+- Element: `<dpk-view-usm>`
 - Definition name: `usm`
 - Accent token: `--dpk-blue`（選択・フォーカス）
 
@@ -248,6 +248,8 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 #activity=onboarding&step=signup&story=google-signup&tab=milestones&view=activity&status=ready,done&label=dev&estimate=~none&assignee=kim&done=show&highlight=critical-path
 ```
 
+ページの中では、キーにページ名が付く（`#page=scope&scope.activity=onboarding&scope.step=signup&…`）。
+
 - `status` / `label` / `estimate` / `assignee` はマップのフィルター（ステータス / ラベル / 見積もり / 担当者）。それぞれカンマ区切りの id。`label` / `estimate` / `assignee` では `~none` が「ラベルなし」「見積もりなし」「担当者なし」のストーリーを選ぶ。`estimate` と `assignee` は、その機能が無効な間は落とす。1 つのフィルターの中は OR、フィルター同士は AND。省略 = そのフィルターなし。存在しない id は落とし、マップでの並び順（`~none` は最後）に正規化される。
 - `done` はマップに完了したストーリー（完了とするステータスとそれより後にあるもの）を出すかどうか。値は `show` だけで、それ以外の値は落とす。省略 = 出さない。出さない間はステータスのフィルターからもそれらのステータスが外れ、フィルターの件数はマップに出るストーリーで数える。ステータスが 2 つ未満のマップは何も隠さない。変更の「表示」で完了したストーリーへ移るときは `show` になる。
 - `highlight` はマップで強調するもの。値は `critical-path`（クリティカルパス）だけで、それ以外の値は落とす。省略 = 強調なし。クリティカルパスは、まだ完了していないストーリーが依存先を待って連なる鎖のうち、残りの作業量の合計が最も大きいもの（同点の鎖はすべて含む）。残りの作業量はバーンダウンと同じ計測方法（`measure`）で数える。`stories` なら 1 ストーリー 1、`points` なら見積もりのポイント、`weighted` ならポイント × そのストーリーに残る割合で、`estimates` が無効な間は `stories` と同じく数える。完了したストーリーは誰も待たせないので、鎖はそこで切れる。強調中は鎖上のカードに強調色の縁が付き、それ以外のカードは薄くなる（ポインターを乗せると戻る）。変更の「表示」でストーリーへ移るときは、フィルターと同じく外れる。
@@ -259,7 +261,7 @@ User Story Mapping: バックボーン（`Activity › Step`）を列に、マ�
 - `story` はストーリーの id のほか、キー（`STORY-12`。大文字小文字は問わない）でもよく、id に正規化される。同じ文字列の id があれば id が優先される。
 - `step` の選択はその列をハイライトし、`story` の選択はカードをフォーカスして、マップの右にストーリーパネルを開く。パネルを閉じると `story` は外れる。開いているストーリーの依存先のカードと、それを待つカードは枠線（依存先は amber、待つ側は violet の破線）で示される。
 
-## UI provided by the template
+## UI provided by the view
 
 サイドバーなし。ページ上部のタブで「User Story Mapping」（マップ）、「テーブル」（全ストーリーのフラットな一覧表、読み取り専用）、「マイルストーン」（スライスの一覧）、「ステータス」（ステータスの定義）、「ラベル」（ラベルの定義）、有効な追加機能のタブ「メンバー」（メンバーの定義）と「バーンダウン」（マイルストーンごとの進み具合と見積もりの目盛り）を切り替える自己完結レイアウト。
 

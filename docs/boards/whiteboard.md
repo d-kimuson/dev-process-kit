@@ -1,8 +1,8 @@
-# dpk-whiteboard
+# dpk-board-whiteboard
 
 A free-form board in the spirit of Miro: sticky notes, text, shapes and frames placed anywhere on a pannable, zoomable canvas, joined by connectors. Use it when the material has no fixed structure yet — a brainstorm, a retro, an affinity map, a rough flow — and the reader should move things around rather than fill in a form.
 
-Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`, board hosting — `variant`): `docs/components/diagrams.md`.
+Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/boards/index.md`.
 
 ```text
 frame    — a titled area; whatever sits inside it belongs to it and moves with it
@@ -69,7 +69,7 @@ Coordinates are canvas units (1 unit = 1 CSS px at 100 % zoom). `x` / `y` are th
 
 描画順は frames → その他の items（配列順）→ connectors。後に書いた item が上に重なる。
 
-参照形式: `item:<id>`（フレームも item）、`connector:<id>`、ボード全体は `page:whiteboard`。Hosted inside a `<dpk-page>` board, qualify with `@<board-id>` as any target is (`docs/page.md`).
+参照形式: `item:<id>`（フレームも item）、`connector:<id>`、ボード全体は `page:whiteboard`。ページの内容にするときは、他の target と同じく `@<page>` を付ける（`docs/page.md`）。
 
 ## Selection
 
@@ -97,7 +97,7 @@ Coordinates are canvas units (1 unit = 1 CSS px at 100 % zoom). `x` / `y` are th
 - `REORDER_ITEM` の `after` は anchor id で、frame を除いた重なり順の中で「その item の直後」を指す（`null` は最背面）。frame は常に他の item より背面に描かれるので、anchor になるのも並び替えられるのも frame 以外の item だけ。
 - review rail と brief は移動を所属の変化で説明する（`frame “現状の課題” → frame “アイデア” (981, 267)`、`into frame “…”`、`out of frame “…”`）。所属が変わらない移動は座標の before → after。**brief を受け取ったら、所属の変化を意味の変化として読む**（課題からアイデアへ移された、など）。
 - 追加した item に続けて入力したテキストは `SET_ITEM_TEXT` として別に記録されるが、`ADD_ITEM` の説明は最終的なテキストで表示される。
-- Embedded inside a template, or hosted as a board (`variant="board"` inside `<dpk-page>`), every action above is an **element action** on `element:<id>/item/<item-id>` or `element:<id>/connector/<connector-id>` (`docs/components/diagrams.md`, Element comments and template integration), with `ADD_ITEM` / `CONNECT_ITEMS` landing on `element:<id>/page` instead of a page-level target. The enclosing template (or the page, for a board) owns the draft.
+- Embedded inside a view, or the content of a page, every action above is an **element action** on `element:<id>/item/<item-id>` or `element:<id>/connector/<connector-id>` (`docs/boards/index.md`, Element comments and view integration), with `ADD_ITEM` / `CONNECT_ITEMS` landing on `element:<id>/page` instead of a page-level target. The enclosing view (or the page, when the board is its content) owns the draft; inside a page, every target above ends in `@<page>`.
 
 ## Navigation
 
@@ -134,7 +134,7 @@ Coordinates are canvas units (1 unit = 1 CSS px at 100 % zoom). `x` / `y` are th
 
 ## Comment targets
 
-`page:whiteboard`（ボード全体）と、すべての item（フレームを先頭に、所属フレーム名付き）と connector が `commentTargets` に列挙される。
+`page:whiteboard`（ボード全体。ページの内容にするときは `page:whiteboard@<page>`）と、すべての item（フレームを先頭に、所属フレーム名付き）と connector が `commentTargets` に列挙される。
 
 ## Authoring guidance
 

@@ -4,7 +4,7 @@ The review panel: the list of draft actions and comments, the stale markers, edi
 
 Every template uses the shared panel. Most templates float it in a popover over the page, closed by default and opened by two toggles pinned to the top right corner of the header: **Activity log** (the history icon) shows the structural changes of the draft, and **Review comments** (the comment icon) shows the comments for the agent and the composer. The popover hangs below the header's icon buttons, aligned to their right edge, and takes the height down to the bottom of the screen; the main column keeps its full width under it. It stays open while the reader works on the page (a comment often points at what they click next), and closes from the pressed toggle or Escape; text half written survives closing it. Each toggle's badge counts its part of the draft, and hovering or focusing an icon button names it. A page with questions gets a third toggle between them for the questions themselves, with an `answered / total` badge (`docs/index.md`, Questions (grill)).
 
-Review comments are requests to the agent ("fix this here"): they live in the draft and leave with the hand-off. They are not the comments a template keeps as part of its content, such as the comments on a user story map's story (`docs/templates/usm.md`), which are base data.
+Review comments are requests to the agent ("fix this here"): they live in the draft and leave with the hand-off. They are not the comments a template keeps as part of its content, such as the comments on a user story map's story (`docs/views/usm.md`), which are base data.
 
 ## Rendering contract
 
@@ -18,11 +18,11 @@ The composer dispatches a core `comment` action:
 { "type": "comment", "target": "step:google-auth", "payload": { "body": "…" } }
 ```
 
-| State                                        | Target                                      |
-| -------------------------------------------- | ------------------------------------------- |
-| an explicit request is pending               | that target (shown as a chip you can clear) |
-| the "attach to the current …" checkbox is on | `currentTarget(state, nav)` of the template |
-| otherwise                                    | the page as a whole, `page:<template name>` |
+| State                                        | Target                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------ |
+| an explicit request is pending               | that target (shown as a chip you can clear)                                    |
+| the "attach to the current …" checkbox is on | `currentTarget(state, nav)` of the template                                    |
+| otherwise                                    | the page as a whole, `page:<content name>` (qualified `@<page>` inside a page) |
 
 The checkbox only appears when the template implements `currentTarget()`. `requestComment(target)` on the template element (or `data-dpk-comment="step:id"` in author markup) pre-fills the composer with that exact target, which is how per-element comment buttons work; the chip shows where the note will land, and clearing it returns to the checkbox. `Ctrl`/`Cmd`+Enter submits, except during IME composition. The `onComment` callback returns the dispatch outcome: a rejected submission retains its text and a successful one clears it.
 
@@ -30,7 +30,7 @@ The checkbox only appears when the template implements `currentTarget()`. `reque
 
 A posted comment has an edit button beside its delete button. It turns the comment into an editor holding its text: `Save` (or `Ctrl`/`Cmd`+Enter) replaces the comment's body, `Cancel` (or Escape) leaves it as it was, and neither fires during IME composition. A blank text cannot be saved; delete the comment instead. An edit changes only the body: the comment keeps its id, target, time and place in the draft, and the stored draft keeps its format, so drafts saved before editing existed load and edit as usual. One comment is edited at a time, separately from the composer's unsent text. Only comments are editable; a structural change is undone by deleting it and making it again. The panel calls `onEditComment(id, body)`; a rejected edit keeps the editor and its text. Without that callback there is no edit button. On a template, `element.api.editComment(id, body)` does the same.
 
-Diagram-element requests use the same composer, with component labels and stable `element:` references; see `docs/components/diagrams.md`. They do not create a separate comment history.
+Board-element requests use the same composer, with component labels and stable `element:` references; see `docs/boards/index.md`. They do not create a separate comment history.
 
 ## Hand-off
 

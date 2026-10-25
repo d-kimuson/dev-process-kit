@@ -1,11 +1,11 @@
-# dpk-state-diagram
+# dpk-board-state-diagram
 
 States and the transitions between them. Selecting a state highlights what enters and leaves it; a transition's condition and effect are its tooltip.
 
-Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`.
+Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/boards/index.md`.
 
 ```html
-<dpk-state-diagram heading="注文ライフサイクル">
+<dpk-board-state-diagram heading="注文ライフサイクル">
   <script type="application/json">
     {
       "states": [
@@ -25,7 +25,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
       ]
     }
   </script>
-</dpk-state-diagram>
+</dpk-board-state-diagram>
 ```
 
 `heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`State machine` / `ステートマシン`). `subject` adds a smaller subtitle beside the title.

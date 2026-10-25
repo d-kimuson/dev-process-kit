@@ -36,4 +36,4 @@ A second `ask()` called before the first settles cancels the first (it resolves 
 
 ## Where it is used today
 
-The shell itself uses the same `ConfirmDialogController` internally, before an action that would silently throw away reader-local state: turning off [Check Mode](../index.md#check-mode) (clears every check mark) and resetting a diagram's layout (moves every dragged node back). Reaching for `dpk-confirm-dialog` for a page's own destructive actions keeps the same look and behavior as these built-in prompts.
+The shell itself uses the same `ConfirmDialogController` internally, before an action that would silently throw away reader-local state: turning off [Check Mode](../index.md#check-mode) (clears every check mark) and resetting a board's layout (moves every dragged node back). Reaching for `dpk-confirm-dialog` for a page's own destructive actions keeps the same look and behavior as these built-in prompts.

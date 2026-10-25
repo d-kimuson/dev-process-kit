@@ -1,6 +1,6 @@
 # dpk-table
 
-A generic table of typed columns — text, number, tag, status, person. Reviewers sort, group and filter rows in the browser (view-only, never recorded), select a row, and add, edit, delete or reorder rows; each change is recorded as a draft action for the agent to fold into the JSON — the same way `dpk-kanban` records a move or a new card.
+A generic table of typed columns — text, number, tag, status, person. Reviewers sort, group and filter rows in the browser (view-only, never recorded), select a row, and add, edit, delete or reorder rows; each change is recorded as a draft action for the agent to fold into the JSON — the same way `dpk-board-kanban` records a move or a new card.
 
 ```html
 <dpk-table id="stories" heading="Stories">
@@ -31,7 +31,7 @@ A generic table of typed columns — text, number, tag, status, person. Reviewer
 </dpk-table>
 ```
 
-`heading` replaces the title shown above the toolbar; without it the title reads the kit's own name (`Table` / `テーブル`). Unlike the diagrams and the kanban board, the table takes no `subject` and is not a diagram: no maximize, no pan/zoom, no tag filter — it sits in the page's normal flow at the height its rows need. A host template can also drive it reactively by setting its `.data` property instead of authoring a JSON child (see `dpk-diagram`'s own `.data`).
+`heading` replaces the title shown above the toolbar; without it the title reads the kit's own name (`Table` / `テーブル`). Unlike the boards, the table takes no `subject` and is not a diagram: no maximize, no pan/zoom, no tag filter — it sits in the page's normal flow at the height its rows need. A host view can also drive it reactively by setting its `.data` property instead of authoring a JSON child (see the boards' own `.data`, `docs/boards/index.md`).
 
 ## Data
 
@@ -74,7 +74,7 @@ The toolbar offers a filter box (substring, case-insensitive, over every cell) a
 
 ## Selection
 
-Click a row, or focus it and press `Enter` / `Space`, to select it; the element dispatches `dpk-table-select` with `{ id: <row-id> }` and nothing is recorded. The hosting template decides what selection means — for example, the USM template opens the story panel for the row's story.
+Click a row, or focus it and press `Enter` / `Space`, to select it; the element dispatches `dpk-table-select` with `{ id: <row-id> }` and nothing is recorded. The hosting view decides what selection means — for example, the USM template opens the story panel for the row's story.
 
 ## Comments
 
@@ -84,7 +84,7 @@ Every row is a comment target (`element:<table-id>/row/<id>`), listed under `com
 
 **+ Row** at the end of the toolbar adds an empty row (every cell empty) and selects it. Double-click a `text` or `number` cell to edit it inline; `Enter` or blurring the input commits, `Escape` cancels. Drag a row by its handle and drop it before another row, or past the last one; a marker shows where it will land. The handle, and reordering, are only offered while the rows are in their authored order (no sort and no group-by active).
 
-None of this touches the JSON child directly. Every change is recorded as an element action in the enclosing template's draft, next to its actions and comments, and appears in its review rail. The table replays these actions over the authored data, so they survive a reload and reach the agent in the brief. Outside a template, or without a table `id`, there is nothing to record into: the table stays as it is and shows an error (**+ Row** leaves the row count unchanged).
+None of this touches the JSON child directly. Every change is recorded as an element action in the enclosing view's draft, next to its actions and comments, and appears in its review rail. The table replays these actions over the authored data, so they survive a reload and reach the agent in the brief. Outside a view, or without a table `id`, there is nothing to record into: the table stays as it is and shows an error (**+ Row** leaves the row count unchanged).
 
 | Action        | Target                          | Payload                                            | Result                                                                       |
 | ------------- | ------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------- |

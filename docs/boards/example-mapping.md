@@ -1,8 +1,8 @@
-# dpk-example-mapping
+# dpk-board-example-mapping
 
 Example Mapping (Matt Wynne): one table per story. The story heads it, the rules sit side by side beneath it, and under each rule sit two areas: its examples on top, the questions still open about it below.
 
-Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`, board hosting — `variant`): `docs/components/diagrams.md`.
+Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and subtitle — `heading`, `subject`): `docs/boards/index.md`.
 
 ```text
 story (yellow)   — one section per story, top to bottom
@@ -35,7 +35,7 @@ question (red)   — under its rule, in a separate area below the examples
 
 存在しない `storyId` / `ruleId` を参照するカードは reject される。質問はルールに属し、ストーリーや具体例に直接ぶら下げることはできない。`stories` / `rules` / `examples` / `questions` をまたぐ id の重複も reject される。
 
-参照形式: `story:<id>`、`rule:<id>`、`example:<id>`、`question:<id>`。ボード全体は `page:example-mapping`。Hosted inside a `<dpk-page>` board, qualify with `@<board-id>` as any target is (`docs/page.md`).
+参照形式: `story:<id>`、`rule:<id>`、`example:<id>`、`question:<id>`。ボード全体は `page:example-mapping`。ページの内容にするときは、他の target と同じく `@<page>` を付ける（`docs/page.md`）。
 
 ## Selection
 
@@ -72,7 +72,7 @@ question (red)   — under its rule, in a separate area below the examples
 - `after` は anchor id であり offset ではない。`{ "after": "r1" }` は「r1 の直後へ」、`{ "after": null }` は「先頭へ」を意味し、存在しない anchor を指すと stale になる。
 - `MOVE_*` は列・レーン間の移動を 1 文で表す。`after` は移動先レーン内の anchor でなければならない。`REORDER_*` は同一レーン（同一ストーリー / 同一ルール）内の並び替え専用で、他レーンの anchor を指すと stale になる。
 - Delete の cascade は表のとおりで、親を消してから子を編集する draft は stale になる。
-- Embedded inside a template, or hosted as a board (`variant="board"` inside `<dpk-page>`), every action above is an **element action** on `element:<id>/story/<story-id>`, `element:<id>/rule/<rule-id>`, `element:<id>/example/<example-id>` or `element:<id>/question/<question-id>` (`docs/components/diagrams.md`, Element comments and template integration), with `ADD_STORY` landing on `element:<id>/page` and `ADD_RULE` / `ADD_EXAMPLE` / `ADD_QUESTION` on their parent's target. The enclosing template (or the page, for a board) owns the draft.
+- Embedded inside a view, or the content of a page, every action above is an **element action** on `element:<id>/story/<story-id>`, `element:<id>/rule/<rule-id>`, `element:<id>/example/<example-id>` or `element:<id>/question/<question-id>` (`docs/boards/index.md`, Element comments and view integration), with `ADD_STORY` landing on `element:<id>/page` and `ADD_RULE` / `ADD_EXAMPLE` / `ADD_QUESTION` on their parent's target. The enclosing view (or the page, when the board is its content) owns the draft; inside a page, every target above ends in `@<page>`.
 
 ## Navigation
 
@@ -104,7 +104,7 @@ UI から編集できるのはカード名、追加、ドラッグ移動（ス�
 
 ## Comment targets
 
-`page:example-mapping`（マップ全体）と、すべての story / rule / example / question が `commentTargets` に列挙される。カードのコメントアイコンはそのカードへの composer を top layer の popover として開き、popover 内に textarea + Send / Cancel + 既存コメント一覧がある（カード自体のレイアウトは動かない）。
+`page:example-mapping`（マップ全体。ページの内容にするときは `page:example-mapping@<page>`）と、すべての story / rule / example / question が `commentTargets` に列挙される。カードのコメントアイコンはそのカードへの composer を top layer の popover として開き、popover 内に textarea + Send / Cancel + 既存コメント一覧がある（カード自体のレイアウトは動かない）。
 
 ## Naming
 

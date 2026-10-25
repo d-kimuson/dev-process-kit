@@ -15,18 +15,18 @@ import { parseUsmBase } from './views/usm/model';
  * A reader's first draft of a page is usually the Base data example copied straight out of
  * `docs/views/<name>.md`. If that example cannot parse, every page built from it opens
  * to the error banner. `vite.config.ts` already asserts `package.json`'s `exports` matches its
- * `ENTRIES`, so the public template entries there are the single source of truth for which
+ * `ENTRIES`, so the public view entries there are the single source of truth for which
  * `docs/views/<name>.md` pages exist — this list is not hand-maintained a second time here.
  */
-const TEMPLATE_NAMES = Object.keys(pkg.exports)
+const VIEW_NAMES = Object.keys(pkg.exports)
   .filter((key) => key.startsWith('./views/'))
   .map((key) => key.replace('./views/', ''));
 
 /**
  * Each template's own `parse<Name>Base` (from `src/views/<name>/model.ts`) is the strict
  * validator the custom element itself runs against the base data `<script>` child — the same
- * function wired into that template's `ViewDefinition.parseBase`. The mapping is hand-written
- * because every template names its parser differently; `TEMPLATE_NAMES` is what must not drift.
+ * function wired into that view's `ViewDefinition.parseBase`. The mapping is hand-written
+ * because every view names its parser differently; `VIEW_NAMES` is what must not drift.
  */
 const parseBaseFor: Record<string, (input: unknown) => unknown> = {
   prototype: parsePrototypeBase,
@@ -37,7 +37,7 @@ const parseBaseFor: Record<string, (input: unknown) => unknown> = {
   'delegation-poker': parseDelegationPokerBase,
 };
 
-const doc = (name: string): string => readFileSync(resolve('docs/templates', `${name}.md`), 'utf8');
+const doc = (name: string): string => readFileSync(resolve('docs/views', `${name}.md`), 'utf8');
 
 /**
  * The first ```json fenced block directly under the `## Base data` heading: the example of the
@@ -51,7 +51,7 @@ const baseDataExample = (markdown: string): string | undefined => {
 };
 
 describe('docs/views/*.md "## Base data" examples parse', () => {
-  it.each(TEMPLATE_NAMES)('%s.md', (name) => {
+  it.each(VIEW_NAMES)('%s.md', (name) => {
     const parseBase = parseBaseFor[name];
     expect(parseBase, `no parser wired up in parseBaseFor for template "${name}"`).toBeDefined();
 
@@ -65,17 +65,16 @@ describe('docs/views/*.md "## Base data" examples parse', () => {
 });
 
 /**
- * The skill sends an agent to `docs/index.md` to pick a template, so its "## Choose a template"
- * table is the only list of what each template is for. A template missing from it is one an
- * agent never picks.
+ * The skill sends an agent to `docs/index.md` to pick a view, so its "## Choose a view" table is
+ * the only list of what each view is for. A view missing from it is one an agent never picks.
  */
-describe('docs/index.md "## Choose a template" lists every template', () => {
+describe('docs/index.md "## Choose a view" lists every view', () => {
   const section = readFileSync(resolve('docs/index.md'), 'utf8')
-    .split(/^## Choose a template$/m)[1]
+    .split(/^## Choose a view$/m)[1]
     ?.split(/^## /m)[0];
 
-  it.each(TEMPLATE_NAMES)('%s', (name) => {
-    expect(section, 'docs/index.md has no "## Choose a template" section').toBeDefined();
-    expect(section).toMatch(new RegExp(`\\| \`${name}\``));
+  it.each(VIEW_NAMES)('%s', (name) => {
+    expect(section, 'docs/index.md has no "## Choose a view" section').toBeDefined();
+    expect(section).toMatch(new RegExp(`\\| \`dpk-view-${name}\``));
   });
 });

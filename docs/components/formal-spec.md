@@ -51,7 +51,7 @@ It also serves before the work starts: write the properties a new feature should
 </dpk-formal-spec>
 ```
 
-Load `components.js` (or the all-in-one `index.js`). Put the element in a template — usually `dpk-template-plain` (`docs/templates/plain.md`) — to keep the comments.
+Load `components.js` (or the all-in-one `index.js`). Put the element in a view — usually `dpk-view-plain` (`docs/views/plain.md`) — to keep the comments.
 
 ## Data
 
@@ -139,7 +139,7 @@ The element only shows what you write; whether the page is faithful to the forma
 
 ## Comments
 
-With an `id`, right-click a target heading, a claim or a clause and choose "Review comment" from the context menu. It opens a composer beside it that submits straight into the enclosing template's draft, like a diagram's (`docs/components/diagrams.md`, "Element comments and template integration").
+With an `id`, right-click a target heading, a claim or a clause and choose "Review comment" from the context menu. It opens a composer beside it that submits straight into the enclosing view's draft, like a board's (`docs/boards/index.md`, "Element comments and view integration").
 
 | Target                                       | What it is                                                    |
 | -------------------------------------------- | ------------------------------------------------------------- |
@@ -149,4 +149,4 @@ With an `id`, right-click a target heading, a claim or a clause and choose "Revi
 
 The review rail labels a claim by the start of its statement, and a clause by that label followed by the clause. A clause's "Review comment" is only offered once its claim is unfolded. A term's definition has no target of its own: comment on the claim or the clause that uses it.
 
-A comment whose target, claim or clause disappears in a revision stays in the draft as stale; keep ids stable. Without an `id` there is no "Review comment" item, and outside a template a submission keeps its text and says why it was not saved.
+A comment whose target, claim or clause disappears in a revision stays in the draft as stale; keep ids stable. Without an `id` there is no "Review comment" item, and outside a view a submission keeps its text and says why it was not saved.

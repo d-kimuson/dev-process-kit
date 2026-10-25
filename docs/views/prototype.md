@@ -1,4 +1,4 @@
-# Template: prototype (`<dpk-template-prototype>`)
+# View: prototype (`<dpk-view-prototype>`)
 
 UX prototypes: the product's **apps** and their **screens**, walked through by **activities › user stories › steps**.
 
@@ -11,10 +11,10 @@ Step   = one moment of a story: the Screen the user is on, plus the Materials at
 
 The app view reads the apps alone, so a screen is drawn once no matter how many stories pass through it, and the mock's own links can be followed as one app, outside of any story.
 
-- Element: `<dpk-template-prototype>`
+- Element: `<dpk-view-prototype>`
 - Definition name: `prototype`
 - Accent token: `--dpk-blue`
-- A screen's own preview markup can carry its product's brand by declaring `--dpk-brand-primary` / `--dpk-brand-secondary` plus `data-dpk-theme` on the same element (see [Theme](../index.md#theme)) — the template renders the chrome and the slotted screens in one shared host, so the two inputs alone would also recolor the chrome; `data-dpk-theme` is what scopes the recoloring to just that screen, which stays `dev-process-kit`'s colors everywhere else.
+- A screen's own preview markup can carry its product's brand by declaring `--dpk-brand-primary` / `--dpk-brand-secondary` plus `data-dpk-theme` on the same element (see [Theme](../index.md#theme)) — the view renders the chrome and the slotted screens in one shared host, so the two inputs alone would also recolor the chrome; `data-dpk-theme` is what scopes the recoloring to just that screen, which stays `dev-process-kit`'s colors everywhere else.
 
 Check before you hand the page over:
 
@@ -182,7 +182,7 @@ Shared UI is the case that is easiest to forget: link **every** item of a sideba
 
 A `<dialog>` the mock opens with `showModal()` opens inside its frame, dimming the preview behind it, instead of covering the whole page: a modal dialog in the browser's top layer would make the review page around the mock unusable. Open it from the mock's own script as you would in the real screen, or mark a step's dialog state up as `<dialog open>`.
 
-Leave an element inert only when it changes nothing but the screen itself (a toggle, an input) or ends the flow. Never write `href="#"` or an `<a>` without a destination. When the page loads, the template checks the links of every preview and warns on the console about each one that names no destination or a screen, step, story, activity or preview the page does not have.
+Leave an element inert only when it changes nothing but the screen itself (a toggle, an input) or ends the flow. Never write `href="#"` or an `<a>` without a destination. When the page loads, the view checks the links of every preview and warns on the console about each one that names no destination or a screen, step, story, activity or preview the page does not have.
 
 ### Stub screens
 
@@ -247,7 +247,7 @@ A reviewer trying a form should not have to type a whole order to see what happe
 - `click` lists CSS selectors whose first match is clicked, in order, after `fill`.
 - Then the preview wrapper dispatches a bubbling `dpk-action` event whose `detail` is `{ "id", "screen" }`. A mock with its own state listens to it to do what a selector cannot (load a sample cart, jump to an error state).
 
-Selectors are relative to the preview wrapper (`[data-preview-id]`), and an action plays on the screen's renditions **on stage** only — a rendition behind another tab is left as it was. With several screens side by side, the menu groups the actions under each screen's title. An action is the reader's alone: it changes only the mock in front of them, never the draft, and a reload of the browser preview starts the form over. When a selector matches nothing on stage, the template warns on the console, naming the action and the selector.
+Selectors are relative to the preview wrapper (`[data-preview-id]`), and an action plays on the screen's renditions **on stage** only — a rendition behind another tab is left as it was. With several screens side by side, the menu groups the actions under each screen's title. An action is the reader's alone: it changes only the mock in front of them, never the draft, and a reload of the browser preview starts the form over. When a selector matches nothing on stage, the view warns on the console, naming the action and the selector.
 
 Name an action by what the reader sees afterwards (`エラーになる入力`, `上限ぎりぎりの注文`), not by how it works: it is a way into a state the scenario wants to discuss.
 
@@ -295,9 +295,11 @@ Name an action by what the reader sees afterwards (`エラーになる入力`, `
 #activity=onboarding&preview=signin-mobile&step=google-auth&story=account
 ```
 
+Inside a page the app prefixes each key with the page's name (`#page=flow&flow.step=google-auth`).
+
 Only `step` is required (`#step=google-auth` resolves the containing activity and story); `#story=account` alone opens the first step of that story, or the story itself when it has none. `preview` lists the selected rendition of each screen the step shows with tabs, comma-separated in pane order (`preview=cart-mobile,admin-refund-desktop`); a screen with one rendition or a pinned one has no entry, and a step with none has no `preview`. Preview ids are unique across the page, so each entry names its screen. Moving to another screen or step — a link of the mock, the step list — carries the rendition the reader is on, and the destination opens on its rendition of the same `kind` and `viewport` — a link inside the phone app stays in the app — else on its first rendition, as an unknown id does. It is navigation state, so it lives in the hash and is shareable like everything else. `view=app` opens the [app view](#scenario-and-app-views); the scenario view is the default and leaves no `view` in the hash. There, the hash instead carries `screen` and `preview` alone — `activity`, `story` and `step` are dropped, and a `step=`/`story=` hash resolves to the screen that step shows.
 
-## UI provided by the template
+## UI provided by the view
 
 | Region  | Content                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -305,7 +307,7 @@ Only `step` is required (`#step=google-auth` resolves the containing activity an
 | main    | page head (the `actor` chip and the page `title`), preview tabs (only when the screen has more than one rendition), the [device](#devices) select (app view), "Comment on UI" and "Maximize" (scenario view) or "Demo" (app view) buttons, the [Actions](#screen-actions) menu (when a screen on stage has actions), the step's `situation`, plus the frame of the selected rendition — or, with more than one pane, every pane side by side |
 | frame   | browser chrome (traffic dots + address bar; in the app view, a [simulated browser](#the-app-views-browser)); for `native`, a device bezel with a phone status bar and a home indicator; for `mail`, the subject and envelope; for `plain`, nothing. Only a side-by-side pane has a caption: a screen's `title` (with its rendition tabs) or a material's `label`.                                                                            |
 
-The sidebar and the main column each scroll on their own, because the shell is bounded: the page head and its tools stay at the top of the main column and the supplements bar at its bottom, while the situation and the frame scroll between them. Give the host the page's height (`docs/index.md`, Page height). Without one, the template falls back to the window's height instead of growing with its longest column and scrolling the whole page.
+The sidebar and the main column each scroll on their own, because the shell is bounded: the page head and its tools stay at the top of the main column and the supplements bar at its bottom, while the situation and the frame scroll between them. Give `<dpk-app>` the page's height (`docs/index.md`, Page height). Without one, the view falls back to the window's height instead of growing with its longest column and scrolling the whole page.
 
 In the scenario view frames are sized by content, not by a fixed height: the viewport has a per-kind minimum height (mobile 620 · tablet 640 · desktop 520 · fluid 420) and grows with the mock, so a preview never scrolls inside its own frame — the page main column scrolls instead. The app view runs a screen on a device of a fixed size instead, and the mock scrolls inside it ([Devices](#devices)). A `plain` preview has no minimum: it is exactly as tall as what it draws. The author wrapper element is stretched to fill the frame, so a mock can rely on being at least as tall as that minimum without using a percentage height. A maximized stage or a demo makes the frame as tall as the screen, so lay the mock out to stretch (a grid or flex column whose side navigation and backgrounds fill the wrapper) rather than pinning a fixed `min-height`, and start the page content at the top as the real screen would.
 

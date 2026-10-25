@@ -1,11 +1,11 @@
-# dpk-kanban
+# dpk-board-kanban
 
 Columns of cards, read left to right, with cards in priority order top to bottom. Reviewers move cards between and within columns and add new ones; each change is recorded as a draft action for the agent to fold into the JSON.
 
-A board, not a diagram: it sits in the page's normal flow at its natural height, not over a pan/zoom canvas. It shares most of the diagrams' public contract (data paths, tags, comments, element actions, toolbar title and subtitle — `heading`, `subject`): `docs/components/diagrams.md`, except the canvas-only parts — there is no `resetView()`, no pan/zoom, and no `--diagram-height` sizing. Maximize still works, lifting the board to fill the viewport as for any diagram.
+A board, not a diagram: it sits in the page's normal flow at its natural height, not over a pan/zoom canvas. It shares most of the diagrams' public contract (data paths, tags, comments, element actions, toolbar title and subtitle — `heading`, `subject`): `docs/boards/index.md`, except the canvas-only parts — there is no `resetView()`, no pan/zoom, and no `--diagram-height` sizing. Embedded, maximize still works, lifting the board to fill the viewport as for any diagram; as a page's content it already fills the page.
 
 ```html
-<dpk-kanban id="checkout-board" heading="注文フロー刷新">
+<dpk-board-kanban id="checkout-board" heading="注文フロー刷新">
   <script type="application/json">
     {
       "columns": [
@@ -29,7 +29,7 @@ A board, not a diagram: it sits in the page's normal flow at its natural height,
       ]
     }
   </script>
-</dpk-kanban>
+</dpk-board-kanban>
 ```
 
 `heading` replaces the toolbar title, so name the diagram after what it shows (the model, aggregate or flow); without it the toolbar reads the diagram's kind (`Kanban` / `カンバン`). `subject` adds a smaller subtitle beside the title.
@@ -40,21 +40,21 @@ A board, not a diagram: it sits in the page's normal flow at its natural height,
 
 | Column field  | Required | Meaning                                                                                        |
 | ------------- | -------- | ---------------------------------------------------------------------------------------------- |
-| `id`          | yes      | Stable id, unique on the board. It is the comment target (`element:<diagram-id>/column/<id>`). |
+| `id`          | yes      | Stable id, unique on the board. It is the comment target (`element:<board-id>/column/<id>`).   |
 | `label`       | yes      | Column heading.                                                                                |
 | `description` | no       | Shown under the heading and as its tooltip.                                                    |
 | `color`       | no       | Heading color: `gray` \| `blue` \| `green` \| `amber` \| `violet` \| `red`. Cards keep theirs. |
 | `limit`       | no       | WIP limit, an integer ≥ 1. The count reads `n / limit`, and a column over it is highlighted.   |
 | `cards`       | no       | Cards, in priority order (top to bottom).                                                      |
 
-| Card field    | Required | Meaning                                                                                                |
-| ------------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| `id`          | yes      | Stable id, unique across the whole board. It is the comment target (`element:<diagram-id>/card/<id>`). |
-| `title`       | yes      | Text on the card.                                                                                      |
-| `description` | no       | Shown on the card (up to three lines) and in full as the tooltip.                                      |
-| `tags`        | no       | Tag filter values, shown on the card.                                                                  |
-| `assignee`    | no       | Shown at the card's bottom right.                                                                      |
-| `questions`   | no       | Question references for the page's questions (`docs/index.md`, Questions (grill)).                     |
+| Card field    | Required | Meaning                                                                                              |
+| ------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `id`          | yes      | Stable id, unique across the whole board. It is the comment target (`element:<board-id>/card/<id>`). |
+| `title`       | yes      | Text on the card.                                                                                    |
+| `description` | no       | Shown on the card (up to three lines) and in full as the tooltip.                                    |
+| `tags`        | no       | Tag filter values, shown on the card.                                                                |
+| `assignee`    | no       | Shown at the card's bottom right.                                                                    |
+| `questions`   | no       | Question references for the page's questions (`docs/index.md`, Questions (grill)).                   |
 
 Duplicate column or card ids and unknown keys are errors, and the element renders the reason instead of a wrong board.
 
@@ -82,12 +82,12 @@ Cards move by drag and drop only. A moved card is selected and drawn with a blue
 
 **+ Card** at the bottom of each column opens an input. Type a title and press `Enter` to add a card at the end of the column; `Escape` cancels. The new card is drawn with a dashed border and selected. Its id is derived from the title and kept unique on the board.
 
-Moves and added cards are not written into the JSON child. They are recorded as element actions in the enclosing template's draft, next to its actions and comments, and appear in its review rail. The board replays these actions over the authored data, so they survive a reload and reach the agent in the brief. Outside a template, or without a diagram `id`, there is nothing to record into: the board stays as it is and shows an error (the add input keeps its text).
+Moves and added cards are not written into the JSON child. They are recorded as element actions in the enclosing view's draft — or the page's, when the board is its content — next to its actions and comments, and appear in that draft's review rail. The board replays these actions over the authored data, so they survive a reload and reach the agent in the brief. Outside a view or a page, or without a board `id`, there is nothing to record into: the board stays as it is and shows an error (the add input keeps its text).
 
-| Action      | Target                                    | Payload                                          | Result                                                                |
-| ----------- | ----------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------- |
-| `ADD_CARD`  | `element:<diagram-id>/column/<column-id>` | `{ "id": string, "title": string }`              | Appends a card `{ id, title }` to the end of the column's `cards`     |
-| `MOVE_CARD` | `element:<diagram-id>/card/<card-id>`     | `{ "column": string, "before": string \| null }` | Moves the card into `column`, before the card `before`, or to its end |
+| Action      | Target                                  | Payload                                          | Result                                                                |
+| ----------- | --------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------- |
+| `ADD_CARD`  | `element:<board-id>/column/<column-id>` | `{ "id": string, "title": string }`              | Appends a card `{ id, title }` to the end of the column's `cards`     |
+| `MOVE_CARD` | `element:<board-id>/card/<card-id>`     | `{ "column": string, "before": string \| null }` | Moves the card into `column`, before the card `before`, or to its end |
 
 `ADD_CARD` is stale when the column no longer exists (`target-missing`), or when the title is empty or the id is already in use (`constraint-violated`). `MOVE_CARD` is stale when the card no longer exists (`target-missing`), or when the destination column is missing, `before` is not in it, or `before` is the card itself (`constraint-violated`). Actions replay in order, so a later action sees the board the earlier ones left.
 
