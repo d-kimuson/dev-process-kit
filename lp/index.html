@@ -1574,6 +1574,7 @@
               <a href="#catalog-code-group">code group</a>
               <a href="#catalog-dialog-panel">dialog panel</a>
               <a href="#catalog-commentable">commentable</a>
+              <a href="#catalog-extend-right-click">extend right click</a>
               <a href="#catalog-comment-popover">comment popover</a>
               <a href="#catalog-comment-thread">comment thread</a>
               <a href="#catalog-checklist">checklist</a>
@@ -4305,6 +4306,57 @@
                         </tbody>
                       </table>
                     </dpk-commentable>
+                  </div>
+                </article>
+
+                <article id="catalog-extend-right-click" class="entry">
+                  <header>
+                    <h3>&lt;dpk-extend-right-click&gt;</h3>
+                  </header>
+                  <p>
+                    任意の要素を包み、右クリックメニューへ独自の項目を JSON で足す。内側の selector
+                    に一致した要素で、そのグループがコアの項目と並んで出る。
+                  </p>
+                  <div class="demo" data-code data-controls='{"hide":["id"]}'>
+                    <dpk-extend-right-click id="right-click-demo">
+                      <script type="application/json">
+                        {
+                          "targets": [
+                            {
+                              "selector": ".dpk-card",
+                              "label": "card",
+                              "groups": [
+                                {
+                                  "id": "card",
+                                  "heading": "Card",
+                                  "entries": [
+                                    { "kind": "item", "id": "copy-id", "label": "ID をコピー", "copy": "data-id" },
+                                    { "kind": "item", "id": "open", "label": "開く", "event": "demo:open" },
+                                    {
+                                      "kind": "item",
+                                      "id": "remove",
+                                      "label": "削除",
+                                      "danger": true,
+                                      "event": "demo:remove"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      </script>
+                      <div class="dpk-grid" data-cols="2">
+                        <div class="dpk-card" data-id="card-a">
+                          <h3>返金を非同期にする</h3>
+                          <p class="dpk-muted">返金 API の結果を待たず、注文をキャンセル済みにする。</p>
+                        </div>
+                        <div class="dpk-card" data-id="card-b">
+                          <h3>出荷指示を止める</h3>
+                          <p class="dpk-muted">キャンセルと出荷指示が競合したら、同一トランザクションで判定する。</p>
+                        </div>
+                      </div>
+                    </dpk-extend-right-click>
                   </div>
                 </article>
 
