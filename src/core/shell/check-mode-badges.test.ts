@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { EMPTY_CHECK_STATE, type CheckState } from '../check-mode';
 import {
@@ -130,25 +130,6 @@ describe('scrollRootsAround', () => {
   });
 });
 
-const box = (left: number, top: number, width: number, height: number): DOMRect =>
-  ({
-    left,
-    top,
-    width,
-    height,
-    right: left + width,
-    bottom: top + height,
-    x: left,
-    y: top,
-    toJSON: () => ({}),
-  }) as DOMRect;
-
-const measured = (element: HTMLElement, rect: DOMRect): void => {
-  element.getBoundingClientRect = () => rect;
-  Object.defineProperty(element, 'clientWidth', { value: rect.width });
-  Object.defineProperty(element, 'clientHeight', { value: rect.height });
-};
-
 const frames = async (count = 2): Promise<void> => {
   for (let index = 0; index < count; index += 1) {
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
@@ -156,35 +137,22 @@ const frames = async (count = 2): Promise<void> => {
 };
 
 /**
- * A view host slotted into an app's shadow root, with one mark and the badge
- * layer the render would draw over it: the shape the shell actually has when
- * a page's app owns the scrolling column.
+ * A host with one mark in a positioned parent: the shape a board node has in
+ * its diagram world, where a portal can share its coordinate space.
  */
-const mountBadges = () => {
-  const app = document.createElement('div');
-  const appRoot = app.attachShadow({ mode: 'open' });
-  const scroll = document.createElement('div');
-  const host = document.createElement('div');
-  scroll.append(host);
-  appRoot.append(scroll);
-  document.body.append(app);
+let active: CheckModeBadgeController | null = null;
 
-  const root = host.attachShadow({ mode: 'open' });
+const mountBadges = () => {
+  const host = document.createElement('div');
+  const parent = document.createElement('div');
+  parent.style.position = 'relative';
   const target = document.createElement('div');
   target.setAttribute(TARGET_ATTRIBUTE, 'card:a');
-  const layer = document.createElement('div');
-  layer.className = 'dpk-check-badges';
-  const badge = document.createElement('button');
-  badge.dataset['badge'] = '0';
-  layer.append(badge);
-  root.append(target, layer);
-
-  measured(app, box(0, 0, 800, 600));
-  measured(host, box(0, 0, 800, 600));
-  measured(target, box(100, 120, 80, 40));
-  measured(layer, box(0, 0, 800, 600));
-  Object.defineProperty(badge, 'offsetWidth', { value: 22 });
-  Object.defineProperty(badge, 'offsetHeight', { value: 22 });
+  Object.defineProperty(target, 'offsetWidth', { value: 80 });
+  Object.defineProperty(target, 'offsetHeight', { value: 40 });
+  parent.append(target);
+  host.append(parent);
+  document.body.append(host);
 
   const withControllers = Object.assign(host, {
     addController: () => {},
@@ -193,38 +161,58 @@ const mountBadges = () => {
     updateComplete: Promise.resolve(true),
   });
 
+  let on = true;
   const bindings = [{ index: 0, target, ref: 'card:a', status: 'unchecked' as const }];
+  const onToggle = vi.fn();
   const controller = new CheckModeBadgeController(withControllers, {
-    active: () => true,
-    layers: () => [layer],
+    active: () => on,
     bindings: () => bindings,
+    onToggle,
+    labelOf: (status) => `label:${status}`,
   });
-  controller.hostConnected();
+  active = controller;
   controller.hostUpdated();
-  return { controller, appRoot, scroll, host, target, layer, badge };
+  return { controller, host, parent, target, onToggle, bindings, setActive: (value: boolean) => (on = value) };
 };
 
+afterEach(() => {
+  active?.hostDisconnected();
+  active = null;
+  document.body.innerHTML = '';
+});
+
 describe('CheckModeBadgeController', () => {
-  it('places a badge on its mark', async () => {
-    const { badge } = mountBadges();
+  it('puts the badge inside the target’s own positioned parent, not a viewport layer', async () => {
+    const { parent } = mountBadges();
     await frames();
-    expect(badge.dataset['visible']).toBe('true');
-    expect(badge.style.transform).toMatch(/^translate\(/);
+    const portal = parent.querySelector('.dpk-check-portal');
+    const badge = portal?.querySelector<HTMLButtonElement>('.dpk-check-badge');
+    expect(portal).not.toBeNull();
+    expect(badge).not.toBeNull();
+    expect(badge?.dataset['status']).toBe('unchecked');
+    expect(badge?.getAttribute('aria-label')).toBe('label:unchecked');
   });
 
-  it('moves the badges when the shell above the view host scrolls, though that scroll never reaches the view', async () => {
-    const { badge, scroll } = mountBadges();
+  it('toggles the mark when its badge is clicked', async () => {
+    const { parent, onToggle } = mountBadges();
     await frames();
-    expect(badge.style.transform).toMatch(/^translate\(/);
+    parent.querySelector<HTMLButtonElement>('.dpk-check-badge')?.click();
+    expect(onToggle).toHaveBeenCalledWith('card:a');
+  });
 
-    // A `scroll` is not composed: this one is raised inside the app's shadow root,
-    // above the view host, so a listener anywhere under the host would never see it.
-    badge.style.transform = '';
-    badge.dataset['visible'] = 'false';
-    scroll.dispatchEvent(new Event('scroll'));
+  it('updates the badge in place when the status changes', async () => {
+    const { controller, parent, bindings } = mountBadges();
     await frames();
+    (bindings[0] as { status: string }).status = 'checked';
+    controller.hostUpdated();
+    expect(parent.querySelector('.dpk-check-badge')?.getAttribute('data-status')).toBe('checked');
+  });
 
-    expect(badge.dataset['visible']).toBe('true');
-    expect(badge.style.transform).toMatch(/^translate\(/);
+  it('removes the portal when Check Mode turns off', async () => {
+    const { controller, parent, setActive } = mountBadges();
+    await frames();
+    setActive(false);
+    controller.hostUpdated();
+    expect(parent.querySelector('.dpk-check-portal')).toBeNull();
   });
 });

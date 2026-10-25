@@ -44,7 +44,6 @@ import { presentDock, type DockViewModel } from './handoff-dock';
 import { LOCALES, type Locale } from './i18n';
 import {
   brandMark,
-  iconCheck,
   iconChecklist,
   iconChevronRight,
   iconComment,
@@ -79,7 +78,6 @@ import {
 } from './shell/change-notices';
 import { collectCheckBindings, CheckModeBadgeController, type CheckBadgeBinding } from './shell/check-mode-badges';
 import { CheckModeController } from './shell/check-mode-controller';
-import { CheckModeTopLayerController } from './shell/check-mode-top-layer';
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
@@ -206,10 +204,6 @@ export abstract class ViewElement<S> extends LitElement {
   #badges: readonly BadgeBinding[] = [];
   /** Check Mode's own badges, collected the same way as the grill's (`renderChrome`/`#renderBoardChrome`). */
   #checkBindings: readonly CheckBadgeBinding[] = [];
-  /** Keeps the badges on their targets as the page scrolls, resizes or a diagram pans. */
-  readonly #checkBadges: CheckModeBadgeController;
-  /** Lifts the badges into the top layer while a diagram panel is maximized (`./shell/check-mode-top-layer`). */
-  readonly #checkTopLayer: CheckModeTopLayerController;
   #grillPanelIntents: GrillPanelIntents = {
     open: (questionId) => this.#openQuestion(questionId),
     answer: (questionId, payload) => this.#answer(questionId, payload),
@@ -297,15 +291,18 @@ export abstract class ViewElement<S> extends LitElement {
       layers: () => Array.from(this.renderRoot.querySelectorAll<HTMLElement>('.dpk-grill-badges')),
       bindings: () => this.#badges,
     });
-    this.#checkBadges = new CheckModeBadgeController(this, {
+    new CheckModeBadgeController(this, {
       active: () => this.#checkMode.enabled,
-      layers: () => Array.from(this.renderRoot.querySelectorAll<HTMLElement>('.dpk-check-badges')),
       bindings: () => this.#checkBindings,
-    });
-    this.#checkTopLayer = new CheckModeTopLayerController(this, {
-      active: () => this.#checkMode.enabled,
-      layer: () => this.renderRoot.querySelector<HTMLElement>('.dpk-check-badges[data-region="top"]'),
-      placed: () => this.#checkBadges.refresh(),
+      onToggle: (ref) => this.#checkMode.toggle(ref),
+      labelOf: (status) => {
+        const messages = coreMessages(this.locale);
+        return status === 'checked'
+          ? messages.checkModeChecked
+          : status === 'stale'
+            ? messages.checkModeStale
+            : messages.checkModeUnchecked;
+      },
     });
     // A board renders no `.dpk-header` of its own: its boards' panels stay
     // clear of the page's, inherited from the page root through the flattened tree.
@@ -738,7 +735,7 @@ export abstract class ViewElement<S> extends LitElement {
         ${this.#renderBody(regions)} ${this.#renderFooter(regions)}
         <div slot="overlay" class="dpk-overlay">
           ${this.#renderReviewPopover(context)} ${this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
-          ${this.#renderMaximizedCheckBadges()} ${this.#confirmDialog.render()}
+          ${this.#confirmDialog.render()}
         </div>
       </dpk-internal-layout-app>
     `;
@@ -799,7 +796,7 @@ export abstract class ViewElement<S> extends LitElement {
           : html`<div slot=${layout.side} class="dpk-sidebar">
               ${regions.sidebar ?? nothing}
               <slot name="sidebar"></slot>
-              ${this.#renderBadges('sidebar')} ${this.#renderCheckBadges('sidebar')}
+              ${this.#renderBadges('sidebar')}
             </div>`
       }
       ${
@@ -847,7 +844,7 @@ export abstract class ViewElement<S> extends LitElement {
             <p class="dpk-label">previews without metadata</p>
             <slot name="preview"></slot>
           </section>
-          ${this.#renderBadges('main')} ${this.#renderCheckBadges('main')}
+          ${this.#renderBadges('main')}
         </div>
         ${this.#renderSupplements(messages)}
       </main>
@@ -1080,56 +1077,6 @@ export abstract class ViewElement<S> extends LitElement {
         </button>`,
       )}
     </div>`;
-  }
-
-  /** A badge per `data-dpk-target` of the region, over its corner, while Check Mode is on. */
-  #renderCheckBadges(region: BadgeRegion): TemplateResult | typeof nothing {
-    // A maximized panel draws its badges in the top layer instead (`#renderMaximizedCheckBadges`).
-    if (this.#checkTopLayer.maximized) return nothing;
-    const bindings = this.#checkBindings.filter((binding) => this.#badgeRegionOf(binding) === region);
-    if (bindings.length === 0) return nothing;
-    return html`<div class="dpk-check-badges" data-region=${region}>${this.#renderCheckBadgeButtons(bindings)}</div>`;
-  }
-
-  /**
-   * Check Mode's badges over a maximized panel. The panel is a top-layer
-   * popover, so an ordinary layer inside the view's shadow root paints behind
-   * it; `shell/check-mode-top-layer.ts` shows this one as a popover too, after
-   * the panel's. Only the maximized panel's own targets are drawn: everything
-   * else on the page is behind it.
-   */
-  #renderMaximizedCheckBadges(): TemplateResult | typeof nothing {
-    const panels = this.#checkTopLayer.panels;
-    if (!this.#checkMode.enabled || panels.length === 0) return nothing;
-    const bindings = this.#checkBindings.filter((binding) => panels.some((panel) => panel.contains(binding.target)));
-    if (bindings.length === 0) return nothing;
-    return html`<div class="dpk-check-badges" data-region="top" popover="manual">
-      ${this.#renderCheckBadgeButtons(bindings)}
-    </div>`;
-  }
-
-  #renderCheckBadgeButtons(bindings: readonly CheckBadgeBinding[]): TemplateResult {
-    const messages = coreMessages(this.locale);
-    const labelOf = (status: (typeof bindings)[number]['status']): string =>
-      status === 'checked'
-        ? messages.checkModeChecked
-        : status === 'stale'
-          ? messages.checkModeStale
-          : messages.checkModeUnchecked;
-    return html`${bindings.map(
-      (binding) => html`<button
-        type="button"
-        class="dpk-check-badge"
-        data-badge=${binding.index}
-        data-status=${binding.status}
-        data-visible="false"
-        aria-label=${labelOf(binding.status)}
-        title=${labelOf(binding.status)}
-        @click=${() => this.#checkMode.toggle(binding.ref)}
-      >
-        ${binding.status === 'stale' ? iconQuestion() : iconCheck()}
-      </button>`,
-    )}`;
   }
 
   #renderNoticeBell(): TemplateResult | typeof nothing {

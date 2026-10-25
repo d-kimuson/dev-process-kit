@@ -215,6 +215,7 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
     const { width, height } = size();
     view = constrainView(view, area, width, height, align);
     world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
+    world.style.setProperty('--dpk-zoom-inverse', String(1 / view.scale));
     // Exposed as a custom property (inherited through shadow boundaries and
     // slots, same as any other inherited CSS value) so content drawn inside
     // the world — e.g. a diagram's group labels — can counter-scale itself

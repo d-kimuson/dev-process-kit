@@ -5,13 +5,13 @@
  * has checked it off, and turning into a "needs another look" mark once the
  * change log records something about it afterwards (`../check-mode`).
  */
-import type { ReactiveController, ReactiveControllerHost } from 'lit';
+import { render, type ReactiveController, type ReactiveControllerHost } from 'lit';
 
 import type { ChangeLog } from '../changes';
 
 import { queryAllDeep } from '../../lib/dom/deep';
 import { statusOf, type CheckState, type CheckStatus } from '../check-mode';
-import { positionBadges as positionBadgesOn } from './badge-dom';
+import { iconCheck, iconQuestion } from '../icons';
 import { TARGET_ATTRIBUTE } from './reveal';
 
 /**
@@ -83,114 +83,235 @@ export const scrollRootsAround = (host: Element): readonly ShadowRoot[] => {
   return [...roots];
 };
 
-/** Always the target's corner: unlike the grill's Q badges, Check Mode never uses the author's-markup gutter. */
-export const positionCheckBadges = (layer: HTMLElement, bindings: readonly CheckBadgeBinding[]): void => {
-  positionBadgesOn(layer, bindings, { gutterOf: () => false });
-};
+const BADGE_CSS = `
+  .dpk-check-portal {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    pointer-events: none;
+  }
+
+  .dpk-check-badge {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 2px solid var(--dpk-paper-raised);
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
+    box-shadow: var(--dpk-shadow-sm);
+    cursor: pointer;
+    pointer-events: auto;
+    transform: translate(-50%, -50%) scale(var(--dpk-zoom-inverse, 1));
+    transform-origin: center;
+    transition:
+      box-shadow 160ms var(--dpk-ease),
+      background 160ms var(--dpk-ease),
+      color 160ms var(--dpk-ease);
+  }
+
+  .dpk-check-badge svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .dpk-check-badge:hover {
+    box-shadow: var(--dpk-shadow-md);
+    background: var(--dpk-paper-inset);
+  }
+
+  .dpk-check-badge[data-status='checked'] {
+    border-color: var(--dpk-green);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--dpk-green) 85%, white), var(--dpk-green));
+    color: var(--dpk-accent-ink);
+  }
+
+  .dpk-check-badge[data-status='stale'] {
+    border-color: var(--dpk-amber);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--dpk-amber) 85%, white), var(--dpk-amber));
+    color: var(--dpk-accent-ink);
+  }
+
+  .dpk-check-badge:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+`;
 
 export type CheckModeBadgeOptions = {
+  /** Check Mode is on: without marks there are no badges. */
   readonly active: () => boolean;
-  /** The layers the badges are drawn on: the main column's, and the sidebar's when it has marks. */
-  readonly layers: () => readonly HTMLElement[];
+  /** The marks, in render order. */
   readonly bindings: () => readonly CheckBadgeBinding[];
+  /** One click on a badge. */
+  readonly onToggle: (ref: string) => void;
+  /** The accessible label for a mark's status, in the view's language. */
+  readonly labelOf: (status: CheckStatus) => string;
 };
 
-const OBSERVED: MutationObserverInit = {
-  childList: true,
-  subtree: true,
-  attributes: true,
-  attributeFilter: [TARGET_ATTRIBUTE],
+type BadgeRecord = {
+  readonly target: Element;
+  readonly button: HTMLButtonElement;
+  readonly portal: HTMLElement;
+  readonly parent: HTMLElement;
+};
+
+type Portal = { readonly layer: HTMLElement };
+
+/** Tags that cannot contain an absolutely positioned HTML portal. */
+const TABLE_TAGS = new Set(['TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'COLGROUP']);
+
+/**
+ * The box a badge can be positioned in. A board node's offsetParent is its
+ * world (which itself is transformed by the canvas), so offset coordinates
+ * keep the badge on the node through a fit, a pan and a zoom. A table row has
+ * no such box, so fall back to the nearest positioned ancestor and measure.
+ */
+const portalParentOf = (target: Element): HTMLElement | null => {
+  const offsetParent = target instanceof HTMLElement ? target.offsetParent : null;
+  if (offsetParent instanceof HTMLElement && !TABLE_TAGS.has(offsetParent.localName.toUpperCase())) return offsetParent;
+  // jsdom has no offsetParent; a real browser gives a table row none either. Stay
+  // inside the board's own tree so the portal moves with its content.
+  let parent = target.parentElement;
+  while (parent !== null && TABLE_TAGS.has(parent.localName.toUpperCase())) parent = parent.parentElement;
+  return parent ?? document.body;
 };
 
 /**
- * Keeps the badges on their marks, mirroring `GrillBadgeController`: bindings
- * are collected by the render that draws them; this re-renders when marks
- * change, and moves the badges when the page scrolls, resizes, or a diagram
- * pans.
+ * Check Mode's badges: each mark gets a button in a portal inside the mark's
+ * own positioned parent, so the badge shares the target's coordinate space
+ * rather than the view's viewport. A canvas fit, pan, zoom or a scroll moves
+ * the target and the badge together; a small frame loop only refreshes the
+ * offset after a drag.
  */
 export class CheckModeBadgeController implements ReactiveController {
-  readonly #host: ReactiveControllerHost & HTMLElement;
   readonly #options: CheckModeBadgeOptions;
-  #observer: MutationObserver | null = null;
-  #pending = false;
-  /** The marks of the host's own shadow root at the last update. */
-  #ownMarks = '';
-  /** Shadow roots listened to for scrolls: a scroll inside one never reaches the document. */
-  readonly #scrollRoots = new Set<ShadowRoot>();
-  /** The frame loop that keeps badges on their targets while a canvas pans or the page scrolls. */
+  readonly #records = new Map<string, BadgeRecord>();
+  readonly #portals = new Map<HTMLElement, Portal>();
   #frame: number | null = null;
 
   constructor(host: ReactiveControllerHost & HTMLElement, options: CheckModeBadgeOptions) {
-    this.#host = host;
     this.#options = options;
     host.addController(this);
   }
 
-  hostConnected(): void {
-    document.addEventListener('scroll', this.#schedule, true);
-    window.addEventListener('resize', this.#schedule);
-    this.#host.addEventListener('dpk-diagram-view', this.#schedule);
-    this.#host.addEventListener('dpk-canvas-change', this.#schedule);
-  }
-
   hostDisconnected(): void {
-    document.removeEventListener('scroll', this.#schedule, true);
-    window.removeEventListener('resize', this.#schedule);
-    this.#host.removeEventListener('dpk-diagram-view', this.#schedule);
-    this.#host.removeEventListener('dpk-canvas-change', this.#schedule);
     this.#stopLoop();
-    this.#observer?.disconnect();
-    this.#observer = null;
-    for (const root of this.#scrollRoots) root.removeEventListener('scroll', this.#schedule, true);
-    this.#scrollRoots.clear();
+    this.#clear();
   }
 
   hostUpdated(): void {
-    this.#observer?.disconnect();
     if (!this.#options.active()) {
       this.#stopLoop();
+      this.#clear();
       return;
     }
-    const ownMarks = this.#ownMarksOf();
-    if (ownMarks !== this.#ownMarks) {
-      this.#ownMarks = ownMarks;
-      this.#host.requestUpdate();
-    }
-    this.#observer ??= new MutationObserver(() => {
-      this.#host.requestUpdate();
-      this.#schedule();
-    });
-    this.#observer.observe(this.#host, OBSERVED);
-    for (const element of this.#host.querySelectorAll('*')) {
-      if (element.shadowRoot) this.#observer.observe(element.shadowRoot, OBSERVED);
-    }
-    this.#listenForScrolls();
-    this.#schedule();
+    this.#sync();
     this.#startLoop();
   }
 
-  /** Places every badge again now, e.g. as soon as a top-layer layer has been shown (`./check-mode-top-layer`). */
-  refresh(): void {
-    this.#schedule();
-  }
-
-  #listenForScrolls(): void {
-    for (const root of scrollRootsAround(this.#host)) {
-      if (this.#scrollRoots.has(root)) continue;
-      root.addEventListener('scroll', this.#schedule, true);
-      this.#scrollRoots.add(root);
+  #sync(): void {
+    const bindings = this.#options.bindings();
+    const seen = new Set<string>();
+    for (const binding of bindings) {
+      const key = `${binding.index}:${binding.ref}`;
+      seen.add(key);
+      let record = this.#records.get(key);
+      if (record === undefined || record.target !== binding.target) {
+        if (record !== undefined) this.#removeRecord(record);
+        const created = this.#createRecord(binding.target, key);
+        if (created === null) continue;
+        this.#records.set(key, created);
+        record = created;
+      }
+      if (record === undefined) continue;
+      this.#updateRecord(record, binding);
+    }
+    for (const [key, record] of this.#records) {
+      if (seen.has(key)) continue;
+      this.#removeRecord(record);
+      this.#records.delete(key);
+    }
+    for (const [parent, portal] of this.#portals) {
+      if (portal.layer.querySelector('.dpk-check-badge') !== null) continue;
+      portal.layer.remove();
+      this.#portals.delete(parent);
     }
   }
 
-  #ownMarksOf(): string {
-    const marks = this.#host.shadowRoot?.querySelectorAll(`[${TARGET_ATTRIBUTE}]`) ?? [];
-    return Array.from(marks, (mark) => mark.getAttribute(TARGET_ATTRIBUTE) ?? '').join('|');
+  #createRecord(target: Element, key: string): BadgeRecord | null {
+    const parent = portalParentOf(target);
+    if (parent === null) return null;
+    const portal = this.#portal(parent);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'dpk-check-badge';
+    button.dataset['checkKey'] = key;
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.#options.onToggle(button.dataset['checkRef'] ?? '');
+    });
+    portal.layer.append(button);
+    return { target, button, portal: portal.layer, parent };
   }
 
-  #positionNow(): void {
-    if (!this.#options.active()) return;
-    const bindings = this.#options.bindings();
-    for (const layer of this.#options.layers()) positionCheckBadges(layer, bindings);
+  #portal(parent: HTMLElement): Portal {
+    const existing = this.#portals.get(parent);
+    if (existing !== undefined) return existing;
+    const layer = document.createElement('div');
+    layer.className = 'dpk-check-portal';
+    const style = document.createElement('style');
+    style.textContent = BADGE_CSS;
+    layer.append(style);
+    parent.append(layer);
+    const portal = { layer };
+    this.#portals.set(parent, portal);
+    return portal;
+  }
+
+  #updateRecord(record: BadgeRecord, binding: CheckBadgeBinding): void {
+    const { button } = record;
+    button.dataset['checkRef'] = binding.ref;
+    button.dataset['status'] = binding.status;
+    const label = this.#options.labelOf(binding.status);
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    render(binding.status === 'stale' ? iconQuestion() : iconCheck(), button);
+    button.hidden = binding.target.getClientRects().length === 0;
+    this.#place(record);
+  }
+
+  #place(record: BadgeRecord): void {
+    const { button, parent, target } = record;
+    if (target instanceof HTMLElement && parent === target.offsetParent) {
+      button.style.left = `${target.offsetLeft + target.offsetWidth}px`;
+      button.style.top = `${target.offsetTop}px`;
+      return;
+    }
+    const targetRect = target.getBoundingClientRect();
+    const parentRect = parent.getBoundingClientRect();
+    button.style.left = `${targetRect.right - parentRect.left + parent.scrollLeft}px`;
+    button.style.top = `${targetRect.top - parentRect.top + parent.scrollTop}px`;
+  }
+
+  #removeRecord(record: BadgeRecord): void {
+    record.button.remove();
+    if (record.portal.querySelector('.dpk-check-badge') === null) {
+      record.portal.remove();
+      this.#portals.delete(record.parent);
+    }
+  }
+
+  #clear(): void {
+    for (const record of this.#records.values()) record.button.remove();
+    this.#records.clear();
+    for (const portal of this.#portals.values()) portal.layer.remove();
+    this.#portals.clear();
   }
 
   #startLoop(): void {
@@ -207,16 +328,7 @@ export class CheckModeBadgeController implements ReactiveController {
   #tick = (): void => {
     this.#frame = null;
     if (!this.#options.active()) return;
-    this.#positionNow();
+    for (const record of this.#records.values()) this.#place(record);
     this.#frame = requestAnimationFrame(this.#tick);
-  };
-
-  #schedule = (): void => {
-    if (this.#pending || !this.#options.active()) return;
-    this.#pending = true;
-    requestAnimationFrame(() => {
-      this.#pending = false;
-      this.#positionNow();
-    });
   };
 }

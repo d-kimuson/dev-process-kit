@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * Check Mode over a maximized diagram panel: the panel lifts itself into the
- * top layer, so the badges have to be lifted too (`./check-mode-top-layer`).
+ * Check Mode on a diagram: badges live in portals inside each table's own
+ * world, so a maximized panel carries them into the top layer with it.
  * These tests drive the real view: a plain template with an ER diagram in its
  * main column, Check Mode switched on from the header, then the panel
  * maximized and restored.
@@ -77,94 +77,104 @@ const root = (element: DpkViewPlain): ShadowRoot => {
   return element.shadowRoot;
 };
 
-const layers = (element: DpkViewPlain, region: string): HTMLElement[] => [
-  ...root(element).querySelectorAll<HTMLElement>(`.dpk-check-badges[data-region="${region}"]`),
-];
+const frames = async (): Promise<void> => {
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+};
+
+/** Every badge under the view, including the portals inside the board's shadow root. */
+const badges = (element: DpkViewPlain): HTMLButtonElement[] => {
+  const found: HTMLButtonElement[] = [];
+  const visit = (root: ParentNode): void => {
+    for (const node of root.querySelectorAll('*')) {
+      if (node instanceof HTMLButtonElement && node.classList.contains('dpk-check-badge')) found.push(node);
+      if (node.shadowRoot) visit(node.shadowRoot);
+    }
+  };
+  visit(element);
+  return found;
+};
+
+const panelOf = (element: DpkViewPlain): Element | null =>
+  element.querySelector('dpk-board-er-diagram')?.shadowRoot?.querySelector('dpk-dialog-panel') ?? null;
 
 const enableCheckMode = async (element: DpkViewPlain): Promise<void> => {
   root(element).querySelector<HTMLButtonElement>('.dpk-check-toggle')?.click();
   await settle(element);
+  await frames();
 };
 
 const maximize = async (element: DpkViewPlain): Promise<void> => {
-  const panel = element.querySelector('dpk-board-er-diagram')?.shadowRoot?.querySelector('dpk-dialog-panel');
-  panel?.shadowRoot?.querySelector<HTMLButtonElement>('.maximize')?.click();
+  panelOf(element)?.shadowRoot?.querySelector<HTMLButtonElement>('.maximize')?.click();
   await settle(element);
+  await frames();
 };
 
 const restore = async (element: DpkViewPlain): Promise<void> => {
-  const panel = element.querySelector('dpk-board-er-diagram')?.shadowRoot?.querySelector('dpk-dialog-panel');
-  panel?.shadowRoot?.querySelector<HTMLButtonElement>('.exit-fullscreen')?.click();
+  panelOf(element)?.shadowRoot?.querySelector<HTMLButtonElement>('.exit-fullscreen')?.click();
   await settle(element);
+  await frames();
 };
 
 afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('Check Mode badges over a maximized panel', () => {
-  it('draws the badges on the page while no panel is maximized', async () => {
+describe('Check Mode badges on a diagram', () => {
+  it('places one badge per table inside the board’s own coordinate space', async () => {
     const element = mount();
     await settle(element);
     await enableCheckMode(element);
 
-    expect(layers(element, 'main').length).toBe(1);
-    expect(layers(element, 'top')).toEqual([]);
-    expect(layers(element, 'main')[0]?.querySelectorAll('.dpk-check-badge').length).toBe(2);
+    const found = badges(element);
+    expect(found).toHaveLength(2);
+    expect(found.every((badge) => badge.closest('.dpk-check-portal') !== null)).toBe(true);
   });
 
-  it('moves the badges into a top-layer layer of their own once the panel is maximized', async () => {
+  it('keeps the same badges when the panel is maximized, so they inherit the top layer with it', async () => {
     const element = mount();
     await settle(element);
     await enableCheckMode(element);
     await maximize(element);
 
-    const top = layers(element, 'top');
-    expect(top.length).toBe(1);
-    // Shown as a popover after the panel's, which is what puts it above the panel.
-    expect(top[0]?.getAttribute('popover')).toBe('manual');
-    expect(top[0]?.querySelectorAll('.dpk-check-badge').length).toBe(2);
-    // Only one layer draws badges at a time: the page's own layers step aside.
-    expect(layers(element, 'main')).toEqual([]);
+    const found = badges(element);
+    expect(found).toHaveLength(2);
+    const portal = found[0]?.closest('.dpk-check-portal') ?? null;
+    expect(panelOf(element)?.contains(portal)).toBe(true);
   });
 
-  it('draws only the maximized panel’s own targets, not what is behind it', async () => {
+  it('draws only the tables, never the relation line', async () => {
     const element = mount();
     await settle(element);
     await enableCheckMode(element);
     await maximize(element);
 
-    const top = layers(element, 'top')[0];
-    const refs = [...(top?.querySelectorAll<HTMLButtonElement>('.dpk-check-badge') ?? [])].map((badge) =>
-      badge.getAttribute('data-badge'),
-    );
-    // The ER diagram's two tables; its relation line is not a Check Mode target at all.
-    expect(refs).toEqual(['0', '1']);
+    expect(badges(element).map((badge) => badge.dataset['checkRef'])).toEqual([
+      'element:schema/node/customers',
+      'element:schema/node/orders',
+    ]);
     const board = element.querySelector('dpk-board-er-diagram');
     expect(board?.shadowRoot?.querySelector('.er-edge')?.getAttribute('data-dpk-check')).toBe('off');
   });
 
-  it('puts the badges back on the page when the panel is restored', async () => {
+  it('leaves the badges in place when the panel is restored', async () => {
     const element = mount();
     await settle(element);
     await enableCheckMode(element);
     await maximize(element);
-    expect(layers(element, 'top').length).toBe(1);
-
     await restore(element);
-    expect(layers(element, 'top')).toEqual([]);
-    expect(layers(element, 'main').length).toBe(1);
+    expect(badges(element)).toHaveLength(2);
   });
 
-  it('leaves no top-layer layer behind when Check Mode is turned off while maximized', async () => {
+  it('removes every portal when Check Mode is turned off while maximized', async () => {
     const element = mount();
     await settle(element);
     await enableCheckMode(element);
     await maximize(element);
-    expect(layers(element, 'top').length).toBe(1);
-
     root(element).querySelector<HTMLButtonElement>('.dpk-check-toggle')?.click();
     await settle(element);
-    expect(layers(element, 'top')).toEqual([]);
+    await frames();
+    expect(badges(element)).toEqual([]);
+    expect(element.querySelectorAll('.dpk-check-portal')).toHaveLength(0);
   });
 });
