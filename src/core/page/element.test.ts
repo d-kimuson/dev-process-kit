@@ -12,6 +12,7 @@ type Board = HTMLElement & {
     readonly actions: readonly { type: string; target: unknown }[];
     readonly ready: Promise<void>;
     comment(target: string, body: string): unknown;
+    navigate(patch: Readonly<Record<string, string | null | undefined>>): void;
   };
 };
 
@@ -80,6 +81,50 @@ describe('<dpk-page>', () => {
     page.api.navigate({ board: 'after' });
     await page.updateComplete;
     expect([before.hidden, after.hidden]).toEqual([true, false]);
+  });
+
+  it('fires dpk-navigate on the board whose own navigation changed (#17)', async () => {
+    const page = document.createElement('dpk-page');
+    if (!(page instanceof PageElement)) throw new Error('not upgraded');
+    page.storage = 'memory';
+    page.innerHTML = `<script type="application/json">{"title":"Doc"}</script>
+      <dpk-template-plain board="first" label="First"><script type="application/json">{"title":"First"}</script></dpk-template-plain>
+      <dpk-template-plain board="second" label="Second"><script type="application/json">{"title":"Second"}</script></dpk-template-plain>`;
+    document.body.append(page);
+    await page.api.ready;
+    await page.updateComplete;
+    const first = page.querySelector('[board="first"]');
+    const second = page.querySelector('[board="second"]');
+    if (!(first instanceof HTMLElement) || !(second instanceof HTMLElement)) throw new Error('no boards');
+    const seen = (element: HTMLElement): unknown[] => {
+      const events: unknown[] = [];
+      element.addEventListener('dpk-navigate', (event) => events.push((event as CustomEvent).detail));
+      return events;
+    };
+    const firstEvents = seen(first);
+    const secondEvents = seen(second);
+
+    page.api.navigate({ 'first.note': 'paid' });
+    expect(firstEvents).toEqual([{ navigation: { note: 'paid' } }]);
+    expect(secondEvents).toEqual([]);
+  });
+
+  it('relays a board-initiated navigation back to the board (#17)', async () => {
+    const page = document.createElement('dpk-page');
+    if (!(page instanceof PageElement)) throw new Error('not upgraded');
+    page.storage = 'memory';
+    page.innerHTML = `<script type="application/json">{"title":"Doc"}</script>
+      <dpk-template-plain board="only" label="Only"><script type="application/json">{"title":"Only"}</script></dpk-template-plain>`;
+    document.body.append(page);
+    await page.api.ready;
+    await page.updateComplete;
+    const board = page.querySelector('[board="only"]');
+    if (!(board instanceof HTMLElement) || !('api' in board)) throw new Error('no board');
+    const events: unknown[] = [];
+    board.addEventListener('dpk-navigate', (event) => events.push((event as CustomEvent).detail));
+
+    (board as Board).api.navigate({ note: 'paid' });
+    expect(events).toEqual([{ navigation: { note: 'paid' } }]);
   });
 
   it('reports the work on a board that is taken away as stale', async () => {

@@ -19,7 +19,7 @@ import { LayoutTemplate } from 'lucide';
 
 import type { Locale } from '../i18n';
 import type { ShellRegions, TemplateApi, TemplateRenderContext, TemplateSnapshot } from '../shell/contracts';
-import type { DraftAction, TemplateDefinition } from '../types';
+import type { DraftAction, Navigation, TemplateDefinition } from '../types';
 
 import { announcedEntryUrl } from '../../lib/announce';
 import { DismissController } from '../../lib/dom/dismiss';
@@ -47,7 +47,7 @@ import {
 import { boardOfMark, pageGrill, refCandidates } from './grill';
 import { BOARD_ATTRIBUTE, BOARD_HOST, boardIdOf, DRAFT_BOARD_ATTRIBUTE, type BoardHost } from './host';
 import { pageMessages } from './messages';
-import { BOARD_KEY } from './navigation';
+import { BOARD_KEY, boardNavigation } from './navigation';
 import { renderSwitcherMenu, renderSwitcherTrigger, SWITCHER_ID, type SwitcherRow } from './switcher';
 import { siblingEntryUrl } from './template-loader';
 
@@ -106,6 +106,14 @@ const sliceOf = (actions: readonly DraftAction[], board: string): readonly Draft
     const scoped = splitBoard(action.target);
     return scoped?.board === board ? [{ ...action, target: scoped.target }] : [];
   });
+
+const isNavigation = (value: unknown): value is Navigation =>
+  typeof value === 'object' && value !== null && Object.values(value).every((item) => typeof item === 'string');
+
+const sameNavigation = (a: Navigation, b: Navigation): boolean => {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
+};
 
 const isPopoverOpen = (element: Element): boolean => {
   try {
@@ -302,6 +310,8 @@ export class PageElement extends TemplateElement<PageState> {
   /** One dynamic import per template name, so a second click before it settles does not import it twice. */
   readonly #pendingImports = new Map<string, Promise<unknown>>();
   #host: BoardHost | undefined;
+  /** The page's navigation as of the last `dpk-navigate` handed to its boards. */
+  #lastPageNavigation: Navigation | null = null;
   /** Whether the switcher popover is open. */
   #switcherOpen = false;
   /** Within the open switcher, whether it shows addable templates instead of the page's boards. */
@@ -339,6 +349,8 @@ export class PageElement extends TemplateElement<PageState> {
   override connectedCallback(): void {
     super.connectedCallback();
     this.addEventListener('dpk-comment-targets-change', this.#onBoardTargetsChange);
+    this.addEventListener('dpk-navigate', this.#onPageNavigate);
+    this.#lastPageNavigation = this.navigation;
     void this.api.ready.then(() => {
       this.#started = true;
       this.#baseIds = this.#idsOf(this.#markupBoards());
@@ -349,8 +361,42 @@ export class PageElement extends TemplateElement<PageState> {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.removeEventListener('dpk-comment-targets-change', this.#onBoardTargetsChange);
+    this.removeEventListener('dpk-navigate', this.#onPageNavigate);
     this.#cancelSwitcherClose();
   }
+
+  /**
+   * A board keeps the `dpk-navigate` contract it has on its own: the page
+   * fires it on every board whose board-relative navigation changed, with
+   * that navigation as the detail (a board's slot content listens on the
+   * board, and moving it into a page must not stop it from re-rendering).
+   * A board's own event bubbles back up here; only the page's own event is
+   * fanned out, so this cannot loop.
+   */
+  #onPageNavigate = (event: Event): void => {
+    if (event.target !== this || !(event instanceof CustomEvent)) return;
+    const detail: unknown = event.detail;
+    if (typeof detail !== 'object' || detail === null || !('navigation' in detail)) return;
+    const navigation = detail.navigation;
+    if (!isNavigation(navigation)) return;
+    const previous = this.#lastPageNavigation;
+    this.#lastPageNavigation = navigation;
+    if (previous === null) return;
+    for (const board of this.#boards()) {
+      const id = board.board;
+      if (id === null) continue;
+      const before = boardNavigation(previous, id);
+      const after = boardNavigation(navigation, id);
+      if (sameNavigation(before, after)) continue;
+      board.dispatchEvent(
+        new CustomEvent('dpk-navigate', {
+          detail: { navigation: after },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+    }
+  };
 
   /**
    * A board's own component registered or dropped a target (`dpk-commentable`,
