@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ContextMenuRequest } from '../../core/context-menu/types';
 
+import { EMPTY_CHECK_STATE, withEnabled } from '../../core/check-mode';
+import { collectCheckBindings } from '../../core/shell/check-mode-badges';
 import { parseTargetRef } from '../../core/target';
 import { DpkBoardSequenceDiagram } from './element';
 import { defineSequenceDiagram } from './index';
@@ -133,6 +135,17 @@ describe('sequence comment targets', () => {
     element.tagFilter = { match: 'single', active: ['absent'] };
     await settle(element);
     expect(element.commentTargets).toEqual(targets);
+  });
+
+  it('offers only its participants as Check Mode targets, never a message', async () => {
+    const element = await mount();
+    element.id = 'checkout';
+    await settle(element);
+    const bindings = collectCheckBindings(element, withEnabled(EMPTY_CHECK_STATE, true), null);
+    expect(bindings.map((binding) => binding.ref)).toContain('element:checkout/participant/api');
+    expect(element.renderRoot.querySelectorAll('[data-message-label]').length).toBeGreaterThan(0);
+    expect(bindings.filter((binding) => binding.ref.includes('/message/'))).toEqual([]);
+    expect(bindings.filter((binding) => binding.target.matches('.sequence-label'))).toEqual([]);
   });
 
   it('opens the contextual composer beside a participant or a message', async () => {

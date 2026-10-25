@@ -629,7 +629,7 @@ const renderArrows = (props: EsBoardProps, geometry: WallGeometry): TemplateResu
     const selected = props.selectedLinkIds.includes(arrow.id) ? ' is-selected' : '';
     const dx = { start: 6, end: -6, middle: 0 }[anchor];
     parts.push(
-      svg`<g data-link-id=${arrow.id} data-dpk-target=${`link:${arrow.id}`}>
+      svg`<g data-link-id=${arrow.id} data-dpk-target=${`link:${arrow.id}`} data-dpk-check="off">
         <path class="link-hit" d=${d} @pointerdown=${(event: PointerEvent) => event.stopPropagation()} @click=${(
           event: MouseEvent,
         ) => props.handlers.linkClick(arrow.id, event.shiftKey || event.metaKey || event.ctrlKey)}></path>

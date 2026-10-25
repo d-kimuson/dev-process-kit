@@ -1675,6 +1675,28 @@ export const chromeStyles = [
       pointer-events: none;
     }
 
+    /*
+     * Over a maximized diagram panel: the panel is a top-layer popover, so no
+     * z-index inside the page can reach above it. This layer is shown as a
+     * popover of its own after the panel's (\`shell/check-mode-top-layer.ts\`),
+     * covering the viewport the badges are measured against. Without the
+     * Popover API the panel is only a fixed box with a very high z-index, so
+     * this one stacks just above that instead.
+     */
+    .dpk-check-badges[data-region='top'] {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483001;
+      width: auto;
+      height: auto;
+      max-width: none;
+      max-height: none;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+
     .dpk-check-badge {
       position: absolute;
       display: inline-flex;

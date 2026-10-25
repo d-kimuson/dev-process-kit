@@ -276,7 +276,7 @@ const renderConnectors = (props: WbBoardProps): TemplateResult => {
     if (pair === undefined) return nothing;
     const { d } = connectorPath(...pair, connector.route);
     const selected = props.selectedIds.has(connector.id) ? ' is-selected' : '';
-    return svg`<g data-connector-id=${connector.id} data-dpk-target=${connectorTarget(props, connector, false)}>
+    return svg`<g data-connector-id=${connector.id} data-dpk-target=${connectorTarget(props, connector, false)} data-dpk-check="off">
       <path class="wb-link-hit" d=${d} @pointerdown=${(event: PointerEvent) =>
         handlers.connectorPointerDown(connector.id, event)}></path>
       <path class=${`wb-link${selected}`} d=${d} marker-end=${connector.style === 'arrow' ? 'url(#wb-arrow)' : nothing}></path>
@@ -311,6 +311,7 @@ const renderLabels = (props: WbBoardProps): TemplateResult[] => {
         class=${`wb-link-label${selected}`}
         data-connector-label=${connector.id}
         data-dpk-target=${connectorTarget(props, connector, true)}
+        data-dpk-check="off"
         style=${`left:${mid.x}px;top:${mid.y}px`}
         @pointerdown=${(event: PointerEvent) => handlers.connectorPointerDown(connector.id, event)}
       >

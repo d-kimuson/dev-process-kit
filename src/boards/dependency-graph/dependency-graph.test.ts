@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ContextMenuRequest } from '../../core/context-menu/types';
 
+import { EMPTY_CHECK_STATE, withEnabled } from '../../core/check-mode';
+import { collectCheckBindings } from '../../core/shell/check-mode-badges';
 import { parseTargetRef } from '../../core/target';
 import { DpkBoardDependencyGraph } from './element';
 import { defineDependencyGraph } from './index';
@@ -110,6 +112,17 @@ describe('dpk-board-dependency-graph', () => {
     expect(classes(element, 'promotions')).toContain('is-cyclic');
     expect(classes(element, 'orders')).not.toContain('is-cyclic');
     expect(element.renderRoot.querySelector('[data-toggle="cycles"]')?.textContent?.trim()).toBe(m.cyclesCount(1));
+  });
+
+  it('offers only its modules as Check Mode targets, never a dependency line', async () => {
+    const element = await mount();
+    element.id = 'architecture';
+    await settle(element);
+    const bindings = collectCheckBindings(element, withEnabled(EMPTY_CHECK_STATE, true), null);
+    expect(bindings.map((binding) => binding.ref)).toContain('element:architecture/node/orders');
+    expect(element.renderRoot.querySelectorAll('[data-dependency]').length).toBeGreaterThan(0);
+    expect(bindings.filter((binding) => binding.ref.includes('/edge/'))).toEqual([]);
+    expect(bindings.filter((binding) => binding.target.matches('.dep-edge'))).toEqual([]);
   });
 
   it('renders its stats and toggle label in the element’s language', async () => {

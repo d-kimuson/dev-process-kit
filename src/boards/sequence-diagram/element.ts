@@ -385,6 +385,7 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
         data-message-label=${message.id}
         data-grill-questions=${this.questionsOf(message)}
         data-dpk-target=${this.commentRef('message', message.id)}
+        data-dpk-check="off"
         style="left:${left}px; top:${y - 28}px; width:${width}px"
         title=${this.#tooltip(message, m)}
         @click=${() => this.select({ kind: 'message', id: message.id })}

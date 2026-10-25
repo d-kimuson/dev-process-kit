@@ -798,6 +798,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
           )}
           data-relation=${relation.id}
           data-dpk-target=${this.commentRef('edge', relation.id)}
+          data-dpk-check="off"
           @pointerenter=${() => this.#hover({ kind: 'relation', id: relation.id })}
           @pointerleave=${() => this.#hover(null)}
         >

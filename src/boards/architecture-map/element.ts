@@ -153,6 +153,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
           class=${this.elementClass(state, 'd-edge', 'arch-link')}
           data-link=${link.id}
           data-dpk-target=${this.commentRef('edge', link.id)}
+          data-dpk-check="off"
         >
           <title>${link.label ?? link.id}</title>
           <path

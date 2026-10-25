@@ -570,6 +570,17 @@ describe('dpk-board-er-diagram', () => {
     expect(bindings.map((binding) => binding.ref)).toContain('element:schema/node/orders');
   });
 
+  it('leaves relation lines out of Check Mode: only the tables are checkable', async () => {
+    const element = await mount();
+    element.id = 'schema';
+    await settle(element);
+    expect(element.renderRoot.querySelectorAll('[data-relation]').length).toBeGreaterThan(0);
+    const bindings = collectCheckBindings(element, withEnabled(EMPTY_CHECK_STATE, true), null);
+    expect(bindings.length).toBeGreaterThan(0);
+    expect(bindings.filter((binding) => binding.ref.includes('/edge/'))).toEqual([]);
+    expect(bindings.filter((binding) => binding.target.matches('.er-edge'))).toEqual([]);
+  });
+
   it('opens a comment only through "Review comment", never from selecting or focusing a table', async () => {
     const element = await mount();
     element.id = 'schema';

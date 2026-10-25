@@ -221,6 +221,7 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
           class=${this.elementClass(state, 'd-edge', 'dep-edge')}
           data-dependency=${link.id}
           data-dpk-target=${this.commentRef('edge', link.id)}
+          data-dpk-check="off"
         >
           <title>${[link.contract, link.description].filter((value) => value !== null).join('\n') || link.id}</title>
           <path class="d-edge-path" d=${points} marker-end=${`url(#${this.#edgeMarker(link, membership)})`}></path>

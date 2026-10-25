@@ -192,6 +192,7 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
           data-transition-label=${edge.id}
           data-grill-questions=${this.questionsOf(edge)}
           data-dpk-target=${this.commentRef('edge', edge.id)}
+          data-dpk-check="off"
           title=${this.#tooltip(edge)}
           @click=${() => this.select({ kind: 'edge', id: edge.id })}
         >

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ContextMenuRequest } from '../../core/context-menu/types';
 
+import { EMPTY_CHECK_STATE, withEnabled } from '../../core/check-mode';
+import { collectCheckBindings } from '../../core/shell/check-mode-badges';
 import { parseTargetRef } from '../../core/target';
 import { DpkBoardStateDiagram } from './element';
 import { defineStateDiagram } from './index';
@@ -132,6 +134,16 @@ describe('dpk-board-state-diagram', () => {
     expect(element.renderRoot.querySelector<HTMLElement>('[data-state="paid"]')?.getAttribute('aria-pressed')).toBe(
       'true',
     );
+  });
+
+  it('offers only its states as Check Mode targets, never a transition label', async () => {
+    const element = await mount();
+    element.id = 'lifecycle';
+    await settle(element);
+    const bindings = collectCheckBindings(element, withEnabled(EMPTY_CHECK_STATE, true), null);
+    expect(bindings.map((binding) => binding.ref)).toContain('element:lifecycle/node/pending');
+    expect(bindings.filter((binding) => binding.ref.includes('/edge/'))).toEqual([]);
+    expect(bindings.filter((binding) => binding.target.matches('.state-label'))).toEqual([]);
   });
 
   it('opens the contextual composer beside a state or a transition label', async () => {
