@@ -1,6 +1,6 @@
 import { css } from 'lit';
 
-import { iconButtonCss, themeScope } from '../../core/theme';
+import { iconButtonCss, motion, themeScope } from '../../core/theme';
 import { cardAtom } from './card';
 import { chartAtom } from './chart';
 import { controlAtom } from './controls';
@@ -14,11 +14,54 @@ import { mockAtom } from './mock';
  *
  * Everything is wrapped in `:where()` so a page's own CSS always wins without a
  * specificity fight.
+ *
+ * Motion: author content is the document, not a shadow root, so the atoms
+ * declare the motion keyframes themselves (`motion`, shared with the
+ * components) and each entrance is opt-in per atom. Because a document-level
+ * `*` reset would override the page's own CSS, every atom animation is
+ * declared inside `@media (prefers-reduced-motion: no-preference)` instead:
+ * with motion turned down, nothing in this sheet animates at all.
  */
 export const atomStyles = css`
   /* ------------------------------------------------------------ theme scope */
 
   ${themeScope}
+
+  /* ------------------------------------------------------------ motion */
+
+  ${motion}
+
+  /*
+   * A group that should arrive in sequence rather than all at once: put
+   * 'data-dpk-stagger' on the container (a .dpk-stack, a .dpk-grid, a list) and
+   * its children rise in one after another, --dpk-stagger apart. Opt-in, so no
+   * ordinary list animates; the seventh child onwards arrives with the sixth.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    :where([data-dpk-stagger]) > :where(*) {
+      animation: dpk-rise-in var(--dpk-dur) var(--dpk-ease-out) backwards;
+    }
+
+    :where([data-dpk-stagger]) > :where(:nth-child(2)) {
+      animation-delay: var(--dpk-stagger);
+    }
+
+    :where([data-dpk-stagger]) > :where(:nth-child(3)) {
+      animation-delay: calc(var(--dpk-stagger) * 2);
+    }
+
+    :where([data-dpk-stagger]) > :where(:nth-child(4)) {
+      animation-delay: calc(var(--dpk-stagger) * 3);
+    }
+
+    :where([data-dpk-stagger]) > :where(:nth-child(5)) {
+      animation-delay: calc(var(--dpk-stagger) * 4);
+    }
+
+    :where([data-dpk-stagger]) > :where(:nth-child(n + 6)) {
+      animation-delay: calc(var(--dpk-stagger) * 5);
+    }
+  }
 
   /* ------------------------------------------------------------ layout */
 
@@ -86,18 +129,24 @@ export const atomStyles = css`
     align-items: center;
     gap: var(--dpk-gap, 4px);
     opacity: 0;
+    /* Revealed by its host: fades up a hair, so the row does not just blink. */
+    transform: translateY(2px);
     pointer-events: none;
-    transition: opacity 140ms var(--dpk-ease);
+    transition:
+      opacity var(--dpk-dur-fast) var(--dpk-ease),
+      transform var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(.dpk-hover-host):is(:hover, :focus-within) :where(.dpk-hover-tools) {
     opacity: 1;
+    transform: none;
     pointer-events: auto;
   }
 
   @media (hover: none) {
     :where(.dpk-hover-tools) {
       opacity: 1;
+      transform: none;
       pointer-events: auto;
     }
   }
@@ -132,9 +181,9 @@ export const atomStyles = css`
     text-decoration: none;
     cursor: pointer;
     transition:
-      background 140ms var(--dpk-ease),
-      color 140ms var(--dpk-ease),
-      box-shadow 140ms var(--dpk-ease);
+      background var(--dpk-dur-fast) var(--dpk-ease),
+      color var(--dpk-dur-fast) var(--dpk-ease),
+      box-shadow var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(.dpk-navlist) > :where(li) > :where(a, button):hover {
@@ -198,8 +247,8 @@ export const atomStyles = css`
     text-decoration: none;
     cursor: pointer;
     transition:
-      background 140ms var(--dpk-ease),
-      color 140ms var(--dpk-ease);
+      background var(--dpk-dur-fast) var(--dpk-ease),
+      color var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(button.dpk-tree-row) {
@@ -235,7 +284,7 @@ export const atomStyles = css`
     border-right: 1.5px solid currentColor;
     border-bottom: 1.5px solid currentColor;
     transform: rotate(-45deg);
-    transition: transform 160ms var(--dpk-ease);
+    transition: transform var(--dpk-dur) var(--dpk-ease);
   }
 
   :where(details[open]) > :where(summary.dpk-tree-row)::before,
@@ -267,7 +316,7 @@ export const atomStyles = css`
     padding: 8px 10px;
     border-radius: var(--dpk-radius-sm);
     color: var(--dpk-ink);
-    transition: background 140ms var(--dpk-ease);
+    transition: background var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(.dpk-list-row):hover {
@@ -515,6 +564,19 @@ export const atomStyles = css`
     background: var(--dpk-paper-sunken);
   }
 
+  /*
+   * A code block is revealed rather than simply present: the frame fades up as
+   * its already-highlighted lines land, at the slow step so a long block reads
+   * as one panel instead of a flicker. 'dpk-code' (its own element) gets the
+   * same entrance from the outside, since its frame is in its shadow root.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    :where(.dpk-prose) :where(pre),
+    :where(dpk-code, dpk-code-group) {
+      animation: dpk-rise-in var(--dpk-dur-slow) var(--dpk-ease-out) backwards;
+    }
+  }
+
   :where(.dpk-eyebrow) {
     color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
@@ -550,10 +612,10 @@ export const atomStyles = css`
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     cursor: pointer;
     transition:
-      background 160ms var(--dpk-ease),
-      border-color 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease),
-      transform 120ms var(--dpk-ease);
+      background var(--dpk-dur) var(--dpk-ease),
+      border-color var(--dpk-dur) var(--dpk-ease),
+      box-shadow var(--dpk-dur) var(--dpk-ease),
+      transform var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(.dpk-btn):hover:not(:disabled) {
@@ -646,10 +708,10 @@ export const atomStyles = css`
     white-space: nowrap;
     cursor: pointer;
     transition:
-      background 140ms var(--dpk-ease),
-      border-color 140ms var(--dpk-ease),
-      color 140ms var(--dpk-ease),
-      opacity 140ms var(--dpk-ease);
+      background var(--dpk-dur-fast) var(--dpk-ease),
+      border-color var(--dpk-dur-fast) var(--dpk-ease),
+      color var(--dpk-dur-fast) var(--dpk-ease),
+      opacity var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(.dpk-comment-btn):hover,
@@ -718,9 +780,9 @@ export const atomStyles = css`
     white-space: nowrap;
     cursor: pointer;
     transition:
-      background 140ms var(--dpk-ease),
-      border-color 140ms var(--dpk-ease),
-      color 140ms var(--dpk-ease);
+      background var(--dpk-dur-fast) var(--dpk-ease),
+      border-color var(--dpk-dur-fast) var(--dpk-ease),
+      color var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(.dpk-copy-btn):hover:not(:disabled) {
@@ -876,8 +938,8 @@ export const atomStyles = css`
     line-height: 18px;
     text-decoration: none;
     transition:
-      color 140ms var(--dpk-ease),
-      border-color 140ms var(--dpk-ease);
+      color var(--dpk-dur-fast) var(--dpk-ease),
+      border-color var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(.dpk-link-chip):hover {
@@ -916,6 +978,34 @@ export const atomStyles = css`
     font-size: 0.82em;
     line-height: 1.5;
     text-align: center;
+  }
+
+  /* ------------------------------------------------------------ motion on state */
+
+  /*
+   * A figure that appears beside a thing — a status, a badge, a chip, a count —
+   * grows into its place over the fast step. It is the same pop the kit's own
+   * count badge uses (src/core/theme), at the size of a chip: enough to say
+   * "this is new" without the row moving.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    :where(.dpk-status, .dpk-badge, .dpk-chip, .dpk-link-chip, .dpk-kbd) {
+      animation: dpk-scale-in var(--dpk-dur-fast) var(--dpk-ease-out);
+    }
+
+    /* A press: the surface gives a hair, and the shadow with it. */
+    :where(.dpk-btn, .dpk-copy-btn, .dpk-comment-btn, .dpk-add, .dpk-filter, .dpk-segmented > *):active {
+      transform: scale(var(--dpk-press));
+    }
+
+    /* A menu is lifted into place from the control that opened it. */
+    :where(.dpk-menu[popover]:popover-open) {
+      animation: dpk-scale-in var(--dpk-dur-fast) var(--dpk-ease-out);
+    }
+  }
+
+  :where(.dpk-menu-item):active {
+    background: var(--dpk-paper-inset);
   }
 
   ${controlAtom}
@@ -997,6 +1087,19 @@ export const atomStyles = css`
 
   :where(.dpk-callout) > :where(*) {
     margin: 0;
+  }
+
+  /* A callout arrives as a block of its own — and its mark lands a step later,
+     like a stamp on the block it belongs to. */
+  @media (prefers-reduced-motion: no-preference) {
+    :where(.dpk-callout) {
+      animation: dpk-rise-in var(--dpk-dur-slow) var(--dpk-ease-out) backwards;
+    }
+
+    :where(.dpk-callout)::before {
+      animation: dpk-pop var(--dpk-dur) var(--dpk-ease-spring) both;
+      animation-delay: calc(var(--dpk-stagger) * 2);
+    }
   }
 
   :where(.dpk-callout) > :where(strong:first-child, b:first-child) {
@@ -1095,8 +1198,8 @@ export const atomStyles = css`
     text-decoration: none;
     cursor: pointer;
     transition:
-      background 140ms var(--dpk-ease),
-      color 140ms var(--dpk-ease);
+      background var(--dpk-dur-fast) var(--dpk-ease),
+      color var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   /* The row a pointer or a keyboard arrow is on, and the one the menu opened from. */
@@ -1234,6 +1337,9 @@ export const atomStyles = css`
     border-bottom: 1px solid var(--dpk-rule);
     text-align: left;
     vertical-align: top;
+    /* A row's highlight follows the pointer across it instead of jumping cell
+       to cell; a background fade costs no layout. */
+    transition: background var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(table.dpk-table) :where(thead th) {
@@ -1646,7 +1752,33 @@ export const atomStyles = css`
     height: 100%;
     border-radius: inherit;
     background: var(--tone, var(--dpk-blue));
-    transition: width 240ms var(--dpk-ease);
+    transform-origin: left center;
+    transition: width var(--dpk-dur-slow) var(--dpk-ease);
+  }
+
+  /*
+   * The fill grows in from its start edge the first time the bar is drawn, and
+   * a bar with no value yet ('data-loading') says so with the one continuous
+   * animation in the kit: a shimmer sweeping across the fill. Both are
+   * transform/opacity only — a progress bar never nudges its own row.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    :where(.dpk-meter)::before {
+      animation: dpk-grow-in var(--dpk-dur-slow) var(--dpk-ease-out);
+    }
+
+    :where(.dpk-meter[data-loading])::before {
+      width: 100%;
+      background-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        color-mix(in srgb, var(--dpk-paper-raised) 65%, transparent) 50%,
+        transparent 100%
+      );
+      background-size: 50% 100%;
+      background-repeat: no-repeat;
+      animation: dpk-shimmer 1.4s var(--dpk-ease) infinite;
+    }
   }
 
   /*
@@ -1720,7 +1852,7 @@ export const atomStyles = css`
     min-width: 4px;
     border-radius: 3px;
     background: var(--tone, var(--dpk-blue));
-    transition: flex-grow 240ms var(--dpk-ease);
+    transition: flex-grow var(--dpk-dur-slow) var(--dpk-ease);
   }
 
   :where(.dpk-status-segment[data-empty]) {
@@ -1772,7 +1904,7 @@ export const atomStyles = css`
     font-size: 11.5px;
     font-weight: 600;
     white-space: nowrap;
-    transition: flex-grow 200ms var(--dpk-ease);
+    transition: flex-grow var(--dpk-dur) var(--dpk-ease);
   }
 
   :where(.dpk-weight-name) {
@@ -1874,7 +2006,7 @@ export const atomStyles = css`
     border-right: 1.5px solid var(--dpk-ink-faint);
     border-bottom: 1.5px solid var(--dpk-ink-faint);
     transform: rotate(-45deg);
-    transition: transform 160ms var(--dpk-ease);
+    transition: transform var(--dpk-dur) var(--dpk-ease);
   }
 
   :where(details.dpk-disclosure[open]) > :where(summary)::before {

@@ -29,11 +29,11 @@ export const cardAtom = css`
       0 1px 1px var(--dpk-shade-1),
       0 2px 6px -3px var(--dpk-shade-2);
     transition:
-      box-shadow 180ms var(--dpk-ease),
-      transform 180ms var(--dpk-ease),
-      border-color 180ms var(--dpk-ease),
-      opacity 180ms var(--dpk-ease),
-      filter 180ms var(--dpk-ease);
+      box-shadow var(--dpk-dur) var(--dpk-ease),
+      transform var(--dpk-dur) var(--dpk-ease),
+      border-color var(--dpk-dur) var(--dpk-ease),
+      opacity var(--dpk-dur) var(--dpk-ease),
+      filter var(--dpk-dur) var(--dpk-ease);
   }
 
   :where(.dpk-card[data-tone]) {
@@ -70,12 +70,21 @@ export const cardAtom = css`
     text-align: start;
   }
 
+  /* A card that opens something lifts under the pointer: it rises by the kit's
+     one lift step, its edge warms toward its own tone and its elevation grows
+     into the room the rise leaves under it. Transform only — the cards beside
+     it never move. */
   :where(a.dpk-card:hover, button.dpk-card:hover, .dpk-card[tabindex]:hover, .dpk-card[data-interactive]:hover) {
     border-color: color-mix(in oklab, var(--_card-tone) 45%, var(--dpk-rule));
     box-shadow:
       0 1px 2px var(--dpk-shade-1),
       0 8px 20px -10px var(--dpk-shade-3);
-    transform: translateY(-1px);
+    transform: translateY(var(--dpk-lift));
+  }
+
+  /* Pressed, it settles back down: the gesture a button makes under the finger. */
+  :where(a.dpk-card:active, button.dpk-card:active, .dpk-card[tabindex]:active, .dpk-card[data-interactive]:active) {
+    transform: translateY(0) scale(var(--dpk-press));
   }
 
   :where(.dpk-card:focus-visible) {
@@ -349,5 +358,13 @@ export const cardAtom = css`
 
   :where(.dpk-avatars) > :where(.dpk-avatar + .dpk-avatar) {
     margin-left: -5px;
+  }
+
+  /* A label and a face land in their place: the same pop a count uses, so the
+     small figures on a card read as one family of "just appeared" marks. */
+  @media (prefers-reduced-motion: no-preference) {
+    :where(.dpk-pill, .dpk-avatar) {
+      animation: dpk-pop var(--dpk-dur) var(--dpk-ease-spring);
+    }
   }
 `;

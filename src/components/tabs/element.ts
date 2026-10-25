@@ -33,6 +33,7 @@ export class DpkTabs extends LitElement {
       }
 
       [role='tablist'] {
+        position: relative;
         display: flex;
         gap: 2px;
         margin-bottom: 12px;
@@ -44,7 +45,42 @@ export class DpkTabs extends LitElement {
         background: var(--dpk-paper-sunken);
       }
 
+      /*
+       * The raised chip the reader picked, drawn once and slid between the
+       * tabs instead of each tab painting its own: the selection is a thing
+       * that moves, so the eye follows it. It is placed by the two custom
+       * properties 'updated()' measures off the selected tab, and it is
+       * absolutely positioned inside the padding box, which is what
+       * 'offsetLeft' counts from too.
+       */
+      .indicator {
+        position: absolute;
+        top: 3px;
+        left: 0;
+        z-index: 0;
+        width: var(--dpk-tabs-indicator-w, 0px);
+        height: calc(100% - 6px);
+        border: 1px solid var(--dpk-rule-strong);
+        border-radius: var(--dpk-radius-sm);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+        transform: translateX(var(--dpk-tabs-indicator-x, 0px));
+        pointer-events: none;
+        transition:
+          transform var(--dpk-dur) var(--dpk-ease),
+          width var(--dpk-dur) var(--dpk-ease);
+      }
+
+      /* Before the first measurement there is nothing to slide, and nothing to
+         slide it from: the indicator is hidden until the tablist says where. */
+      [role='tablist']:not([data-ready]) .indicator {
+        opacity: 0;
+        transition: none;
+      }
+
       [role='tab'] {
+        position: relative;
+        z-index: 1;
         flex: none;
         padding: 5px 12px;
         border: 1px solid transparent;
@@ -54,6 +90,9 @@ export class DpkTabs extends LitElement {
         font-size: 12.5px;
         font-weight: 550;
         cursor: pointer;
+        transition:
+          color var(--dpk-dur-fast) var(--dpk-ease),
+          border-color var(--dpk-dur-fast) var(--dpk-ease);
       }
 
       [role='tab']:hover {
@@ -61,15 +100,22 @@ export class DpkTabs extends LitElement {
       }
 
       [role='tab'][aria-selected='true'] {
-        border-color: var(--dpk-rule-strong);
-        background: var(--dpk-paper-raised);
         color: var(--dpk-ink);
-        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+        font-weight: 650;
       }
 
       [role='tab']:focus-visible {
         outline: none;
         box-shadow: var(--dpk-focus);
+      }
+
+      /*
+       * The panel the reader just picked fades in under the strip. A slotted
+       * panel that is not the current one is not rendered at all, so its
+       * animation starts again when it is assigned back to the slot.
+       */
+      ::slotted([data-name]) {
+        animation: dpk-fade-in var(--dpk-dur) var(--dpk-ease) backwards;
       }
     `,
   ];
@@ -82,6 +128,8 @@ export class DpkTabs extends LitElement {
   readonly #observer = new MutationObserver(() => {
     this.requestUpdate();
   });
+  /** Re-places the indicator when the strip's own width (or a font) changes. */
+  readonly #resize = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.#syncIndicator()) : null;
 
   constructor() {
     super();
@@ -91,11 +139,13 @@ export class DpkTabs extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     this.#observer.observe(this, { childList: true, attributes: true, attributeFilter: ['data-name'] });
+    this.#resize?.observe(this);
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.#observer.disconnect();
+    this.#resize?.disconnect();
   }
 
   get #panels(): readonly HTMLElement[] {
@@ -107,6 +157,7 @@ export class DpkTabs extends LitElement {
     const names = panels.map((panel) => panel.dataset['name'] ?? '');
     const current = selectedIndex(names, this.selected);
     return html`<div role="tablist" @keydown=${this.#onKeydown}>
+        <span class="indicator" aria-hidden="true"></span>
         ${repeat(
           names,
           (name, index) => `${index}:${name}`,
@@ -136,6 +187,26 @@ export class DpkTabs extends LitElement {
     const names = panels.map((panel) => panel.dataset['name'] ?? '');
     const panel = panels[selectedIndex(names, this.selected)];
     this.renderRoot.querySelector('slot')?.assign(...(panel === undefined ? [] : [panel]));
+    this.#syncIndicator();
+  }
+
+  /**
+   * Places the indicator over the selected tab, from the geometry the browser
+   * laid out — the tabs size themselves, so no percentage can stand in for
+   * this. `data-ready` is set one frame later: the first placement must not be
+   * animated from wherever the indicator happened to start, and only after
+   * that is a move between tabs a move.
+   */
+  #syncIndicator(): void {
+    const tablist = this.renderRoot.querySelector<HTMLElement>('[role="tablist"]');
+    const tab = this.renderRoot.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+    if (tablist === null || tab === null) return;
+    tablist.style.setProperty('--dpk-tabs-indicator-x', `${tab.offsetLeft}px`);
+    tablist.style.setProperty('--dpk-tabs-indicator-w', `${tab.offsetWidth}px`);
+    if (tablist.hasAttribute('data-ready') || typeof requestAnimationFrame !== 'function') return;
+    requestAnimationFrame(() => {
+      tablist.setAttribute('data-ready', '');
+    });
   }
 
   #select(name: string): void {

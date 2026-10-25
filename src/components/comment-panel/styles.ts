@@ -68,7 +68,7 @@ export const panelStyles = [
       font-size: 12px;
       color: var(--dpk-ink-soft);
       cursor: pointer;
-      transition: color 140ms var(--dpk-ease);
+      transition: color var(--dpk-dur-fast) var(--dpk-ease);
     }
 
     .composer .attach:hover {
@@ -95,9 +95,9 @@ export const panelStyles = [
       font-size: 11.5px;
       cursor: pointer;
       transition:
-        border-color 140ms var(--dpk-ease),
-        box-shadow 140ms var(--dpk-ease),
-        transform 140ms var(--dpk-ease);
+        border-color var(--dpk-dur-fast) var(--dpk-ease),
+        box-shadow var(--dpk-dur-fast) var(--dpk-ease),
+        transform var(--dpk-dur-fast) var(--dpk-ease);
     }
 
     .composer .chip svg {
@@ -186,23 +186,40 @@ export const panelStyles = [
       background: var(--dpk-paper-raised);
       box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
       transition:
-        box-shadow 160ms var(--dpk-ease),
-        border-color 160ms var(--dpk-ease),
-        transform 160ms var(--dpk-ease);
-      animation: dpk-item-in 200ms var(--dpk-ease) backwards;
+        box-shadow var(--dpk-dur) var(--dpk-ease),
+        border-color var(--dpk-dur) var(--dpk-ease),
+        transform var(--dpk-dur) var(--dpk-ease);
+      /* A comment slides out of the rail's own edge, as if it were just
+         written there, and settles before the one after it does. */
+      animation: dpk-slide-in var(--dpk-dur) var(--dpk-ease-out) backwards;
     }
 
-    @keyframes dpk-item-in {
-      from {
-        opacity: 0;
-        transform: translateY(3px);
-      }
+    /* Comments arrive in reading order: the first six are staggered, and the
+       rest land with the sixth rather than waiting in a long queue. */
+    .item:nth-child(2) {
+      animation-delay: var(--dpk-stagger);
+    }
+
+    .item:nth-child(3) {
+      animation-delay: calc(var(--dpk-stagger) * 2);
+    }
+
+    .item:nth-child(4) {
+      animation-delay: calc(var(--dpk-stagger) * 3);
+    }
+
+    .item:nth-child(5) {
+      animation-delay: calc(var(--dpk-stagger) * 4);
+    }
+
+    .item:nth-child(n + 6) {
+      animation-delay: calc(var(--dpk-stagger) * 5);
     }
 
     .item:hover {
       border-color: var(--dpk-rule-hover);
       box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
-      transform: translateY(-1px);
+      transform: translateY(var(--dpk-lift));
     }
 
     .item[data-tone='comment'] {
@@ -313,6 +330,8 @@ export const panelStyles = [
       display: grid;
       gap: 8px;
       margin-top: 2px;
+      /* The box that opens on a comment arrives from just under it. */
+      animation: dpk-rise-in var(--dpk-dur-fast) var(--dpk-ease-out);
     }
 
     .item-editor textarea {
@@ -413,11 +432,17 @@ export const panelStyles = [
       margin-left: auto;
     }
 
+    /*
+     * The one line a send or a copy leaves behind. It is the rail's own toast:
+     * it pops in where the footer's line of text sits, so the outcome reads as
+     * a thing that just happened rather than as another label.
+     */
     .flash {
       font-family: var(--dpk-mono);
       font-size: 10px;
       letter-spacing: 0.04em;
       color: var(--dpk-green);
+      animation: dpk-pop var(--dpk-dur) var(--dpk-ease-spring);
     }
   `,
 ];

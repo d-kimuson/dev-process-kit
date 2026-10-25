@@ -71,6 +71,12 @@ export class DpkDialogPanel extends LitElement {
         background: var(--dpk-paper-raised);
         box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
         overflow: hidden;
+        /*
+         * The panel arrives as one surface: a short rise and fade over the slow
+         * step, because it is the largest thing a page draws. It is a
+         * transform only, so nothing beside it is laid out again.
+         */
+        animation: dpk-rise-in var(--dpk-dur-slow) var(--dpk-ease-out);
       }
 
       /*
@@ -116,6 +122,13 @@ export class DpkDialogPanel extends LitElement {
         --dpk-dock-overlap: 0px;
         /* Nothing behind a maximized panel is visible: no axis should chain past it. */
         overscroll-behavior: contain;
+        /*
+         * Maximizing is the same panel taking the viewport rather than a new
+         * surface: it settles out of just-under-full size instead of rising,
+         * which would read as a bounce. Restoring drops the class, and the
+         * base '.panel' entrance above plays again — the way back out.
+         */
+        animation: dpk-scale-in var(--dpk-dur) var(--dpk-ease-out);
       }
 
       header {
@@ -249,6 +262,13 @@ export class DpkDialogPanel extends LitElement {
         background: var(--dpk-glass);
         backdrop-filter: blur(12px);
         box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+        /*
+         * The menu comes up a step after the panel it floats on, so the eye
+         * lands on the content first and the tools arrive once it is there.
+         * Fade only: the panel's own rise already moves it.
+         */
+        animation: dpk-fade-in var(--dpk-dur) var(--dpk-ease) backwards;
+        animation-delay: var(--dpk-stagger);
       }
 
       .controls[hidden] {
@@ -279,8 +299,11 @@ export class DpkDialogPanel extends LitElement {
         color: var(--dpk-ink-soft);
         cursor: pointer;
         transition:
-          background 140ms var(--dpk-ease),
-          color 140ms var(--dpk-ease);
+          background var(--dpk-dur-fast) var(--dpk-ease),
+          color var(--dpk-dur-fast) var(--dpk-ease);
+        /* It exists only while maximized, so it fades in with the transition. */
+        animation: dpk-fade-in var(--dpk-dur) var(--dpk-ease-out) backwards;
+        animation-delay: calc(var(--dpk-stagger) * 2);
       }
 
       .exit-fullscreen svg {
@@ -330,8 +353,8 @@ export class DpkDialogPanel extends LitElement {
         font-size: 10.5px;
         cursor: pointer;
         transition:
-          background 140ms var(--dpk-ease),
-          color 140ms var(--dpk-ease);
+          background var(--dpk-dur-fast) var(--dpk-ease),
+          color var(--dpk-dur-fast) var(--dpk-ease);
       }
 
       .controls button svg,

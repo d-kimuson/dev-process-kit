@@ -37,6 +37,13 @@ export const controlAtom = css`
     line-height: 16px;
   }
 
+  /* A count lands like the kit's own count badge does: it pops into place. */
+  @media (prefers-reduced-motion: no-preference) {
+    :where(.dpk-count) {
+      animation: dpk-pop var(--dpk-dur) var(--dpk-ease-spring);
+    }
+  }
+
   /* ------------------------------------------------------------ segmented */
 
   /* A sunken track with the selected segment raised on top of it. */
@@ -66,9 +73,9 @@ export const controlAtom = css`
     white-space: nowrap;
     cursor: pointer;
     transition:
-      background 160ms var(--dpk-ease),
-      color 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease);
+      background var(--dpk-dur) var(--dpk-ease),
+      color var(--dpk-dur) var(--dpk-ease),
+      box-shadow var(--dpk-dur) var(--dpk-ease);
   }
 
   :where(.dpk-segmented) > :where(a:hover, button:hover) {
@@ -92,6 +99,20 @@ export const controlAtom = css`
     color: var(--dpk-ink);
     font-weight: 650;
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+  }
+
+  /* The pick landing in its track: the raised segment grows into place, so the
+     eye follows the selection instead of finding it already moved. */
+  @media (prefers-reduced-motion: no-preference) {
+    :where(.dpk-segmented)
+      > :where(
+        [aria-selected='true'],
+        [aria-pressed='true'],
+        [aria-checked='true'],
+        [aria-current]:not([aria-current='false'])
+      ) {
+      animation: dpk-scale-in var(--dpk-dur-fast) var(--dpk-ease-out);
+    }
   }
 
   /* ------------------------------------------------------------ tab strip */
@@ -130,8 +151,8 @@ export const controlAtom = css`
     white-space: nowrap;
     cursor: pointer;
     transition:
-      color 160ms var(--dpk-ease),
-      background 160ms var(--dpk-ease);
+      color var(--dpk-dur) var(--dpk-ease),
+      background var(--dpk-dur) var(--dpk-ease);
   }
 
   :where(.dpk-tabstrip) > :where(a:hover, button:hover) {
@@ -160,6 +181,15 @@ export const controlAtom = css`
     height: 2px;
     border-radius: 2px;
     background: var(--dpk-tabstrip-accent, var(--dpk-blue));
+    transform-origin: center;
+  }
+
+  /* The underline is drawn out from under its label as the tab takes over. */
+  @media (prefers-reduced-motion: no-preference) {
+    :where(.dpk-tabstrip)
+      > :where([aria-selected='true'], [aria-pressed='true'], [aria-current]:not([aria-current='false']))::after {
+      animation: dpk-grow-in var(--dpk-dur-fast) var(--dpk-ease-out);
+    }
   }
 
   :where(.dpk-tabstrip)
@@ -195,9 +225,10 @@ export const controlAtom = css`
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     cursor: pointer;
     transition:
-      border-color 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease),
-      background-color 160ms var(--dpk-ease);
+      border-color var(--dpk-dur) var(--dpk-ease),
+      box-shadow var(--dpk-dur) var(--dpk-ease),
+      background-color var(--dpk-dur) var(--dpk-ease),
+      transform var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(.dpk-filter:hover) {
@@ -250,9 +281,10 @@ export const controlAtom = css`
     text-decoration: none;
     cursor: pointer;
     transition:
-      background 160ms var(--dpk-ease),
-      border-color 160ms var(--dpk-ease),
-      color 160ms var(--dpk-ease);
+      background var(--dpk-dur) var(--dpk-ease),
+      border-color var(--dpk-dur) var(--dpk-ease),
+      color var(--dpk-dur) var(--dpk-ease),
+      transform var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   :where(.dpk-add:hover) {
@@ -287,9 +319,9 @@ export const controlAtom = css`
     font-size: 12.5px;
     box-shadow: inset 0 1px 2px var(--dpk-shade-1);
     transition:
-      border-color 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease),
-      background 160ms var(--dpk-ease);
+      border-color var(--dpk-dur) var(--dpk-ease),
+      box-shadow var(--dpk-dur) var(--dpk-ease),
+      background var(--dpk-dur) var(--dpk-ease);
   }
 
   :where(.dpk-input, .dpk-textarea)::placeholder {
@@ -300,10 +332,13 @@ export const controlAtom = css`
     border-color: var(--dpk-rule-hover);
   }
 
+  /* The ring arrives over the fast step rather than snapping on: the same
+     focus ring, given the time to read as feedback. */
   :where(.dpk-input:focus, .dpk-textarea:focus, .dpk-select:focus) {
     outline: none;
     border-color: var(--dpk-blue);
     box-shadow: var(--dpk-focus);
+    transition-duration: var(--dpk-dur-fast);
   }
 
   :where(.dpk-input:disabled, .dpk-textarea:disabled, .dpk-select:disabled) {

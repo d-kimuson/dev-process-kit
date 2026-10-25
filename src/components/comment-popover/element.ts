@@ -41,6 +41,9 @@ export class DpkCommentPopover extends LitElement {
         margin: 0;
         font-size: 11px;
         color: var(--dpk-accent);
+        /* A refusal lands under the composer it belongs to, rather than
+           simply being there when the reader looks back. */
+        animation: dpk-rise-in var(--dpk-dur-fast) var(--dpk-ease-out);
       }
     `,
   ];

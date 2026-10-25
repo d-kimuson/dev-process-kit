@@ -90,7 +90,100 @@ const brandTokens = (primary: string, secondary: string) =>
   --dpk-blue-soft: color-mix(in srgb, var(--dpk-blue) 9%, transparent);
 `);
 
-/** The non-color tokens: type, shape, elevation and motion. */
+/**
+ * The keyframes of the kit's motion language.
+ *
+ * `@keyframes` are scoped to the tree that declares them, so a shadow root and
+ * the document each need their own copy: `tokens` interpolates this for every
+ * component, `atomStyles` for author content. Nothing else declares a
+ * keyframe of its own — a surface picks one of these six and supplies the
+ * duration (fast / base / slow) and curve from the tokens in `scale`.
+ *
+ * Every entrance is one-shot, `from`-only, and moves nothing but `opacity`
+ * and `transform`: an element that ends where the layout already put it costs
+ * no layout pass, so a reveal never shifts the page under the reader.
+ * `dpk-shimmer` is the one loop, and only a loading state uses it.
+ */
+export const motion = css`
+  /* A surface appearing where it stands: a popover, a menu, a dialog backdrop. */
+  @keyframes dpk-fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* A block arriving from just below: a card, a comment, a panel. */
+  @keyframes dpk-rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  /* An entrance from above: a bar or a notice dropping in under a header. */
+  @keyframes dpk-drop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
+
+  /* A chip growing into place rather than flying in: a badge, an indicator. */
+  @keyframes dpk-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+
+  /* A bar filling from its start edge: give the element a 'transform-origin'
+     at that edge (left / top) and the size it should end at. */
+  @keyframes dpk-grow-in {
+    from {
+      opacity: 0.4;
+      transform: scaleX(0);
+    }
+  }
+
+  /* A rail's contents entering from its edge: a comment, a sidebar row. */
+  @keyframes dpk-slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+  }
+
+  /* A figure that should read as "just appeared": a count, a badge, a stat. */
+  @keyframes dpk-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+  }
+
+  /* A loading sweep. The one continuous animation in the kit: pair it with a
+     gradient and a background-size, and only on a state that is waiting. */
+  @keyframes dpk-shimmer {
+    from {
+      background-position: -150% 0;
+    }
+    to {
+      background-position: 250% 0;
+    }
+  }
+`;
+
+/**
+ * The non-color tokens: type, shape, elevation and motion.
+ *
+ * Motion is a three-step duration scale (`fast` for a pointer's feedback,
+ * `--dpk-dur` for a surface changing state, `slow` for a surface arriving) on
+ * two named curves: `--dpk-ease` for anything that moves between two states,
+ * `--dpk-ease-spring` for a figure that should land with a little weight.
+ * `--dpk-stagger` is the step between siblings in a revealed group;
+ * `--dpk-lift` and `--dpk-press` are how far a surface rises under the pointer
+ * and how small it gets under the press. Nothing is slower than the slow step.
+ */
 const scale = css`
   --dpk-display: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --dpk-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -110,8 +203,17 @@ const scale = css`
     0 2px 4px var(--dpk-shade-1), 0 12px 28px -6px var(--dpk-shade-2), 0 32px 64px -20px var(--dpk-shade-3);
   --dpk-focus: 0 0 0 1px var(--dpk-paper-raised), 0 0 0 3.5px color-mix(in srgb, var(--dpk-blue) 45%, transparent);
   --dpk-control-h: 32px;
+  /* Motion: see the comment above this block for what each step is for. */
+  --dpk-dur-fast: 120ms;
+  --dpk-dur: 180ms;
+  --dpk-dur-slow: 320ms;
   --dpk-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dpk-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Decelerating: an entrance that should feel like it settles, not stops. */
+  --dpk-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dpk-stagger: 26ms;
+  --dpk-lift: -2px;
+  --dpk-press: 0.985;
   /* Frosted chrome: headers and toolbars that float over scrolling content. */
   --dpk-glass: color-mix(in srgb, var(--dpk-paper-raised) 78%, transparent);
   /* Working surface behind boards and canvases: a quiet dot lattice. */
@@ -123,6 +225,8 @@ const scale = css`
  * light DOM as well — user CSS can theme pages with `var(--dpk-*)`.
  */
 export const tokens = css`
+  ${motion}
+
   :host {
     /* Browsers without light-dark() stay light. */
     ${declarations((light) => light)}
@@ -185,13 +289,23 @@ export const tokens = css`
     color: var(--dpk-ink-faint);
   }
 
+  /*
+   * The global reduced-motion reset: every animation and transition this tree
+   * declares collapses to one imperceptible frame, including the staggered
+   * entrances (their delay is zeroed too, so nothing arrives late). It is
+   * '*'-wide on purpose: a component should never have to remember this rule
+   * for a new surface, and a stylesheet that adds motion inside this tree is
+   * covered the moment it is written.
+   */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
       animation-duration: 1ms !important;
+      animation-delay: 0ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 1ms !important;
+      transition-delay: 0ms !important;
     }
   }
 `;
@@ -270,10 +384,10 @@ export const iconButtonCss = (wrap: (selector: string) => string = (selector) =>
     line-height: 1;
     cursor: pointer;
     transition:
-      background 160ms var(--dpk-ease),
-      border-color 160ms var(--dpk-ease),
-      color 160ms var(--dpk-ease),
-      transform 160ms var(--dpk-ease-spring);
+      background var(--dpk-dur) var(--dpk-ease),
+      border-color var(--dpk-dur) var(--dpk-ease),
+      color var(--dpk-dur) var(--dpk-ease),
+      transform var(--dpk-dur-fast) var(--dpk-ease-spring);
   }
 
   ${wrap('.dpk-icon-btn')}:hover:not([disabled]) {
@@ -361,14 +475,8 @@ export const iconButtonCss = (wrap: (selector: string) => string = (selector) =>
     line-height: 13px;
     text-align: center;
     box-shadow: 0 2px 6px -1px color-mix(in srgb, var(--dpk-accent) 55%, transparent);
-    animation: dpk-pop 260ms var(--dpk-ease-spring);
-  }
-
-  @keyframes dpk-pop {
-    from {
-      transform: scale(0.4);
-      opacity: 0;
-    }
+    /* A count that just appeared lands with a little weight (shared 'dpk-pop'). */
+    animation: dpk-pop var(--dpk-dur) var(--dpk-ease-spring);
   }
 `);
 
@@ -391,11 +499,11 @@ export const controls = css`
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     cursor: pointer;
     transition:
-      background 160ms var(--dpk-ease),
-      border-color 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease),
-      color 160ms var(--dpk-ease),
-      transform 120ms var(--dpk-ease);
+      background var(--dpk-dur) var(--dpk-ease),
+      border-color var(--dpk-dur) var(--dpk-ease),
+      box-shadow var(--dpk-dur) var(--dpk-ease),
+      color var(--dpk-dur) var(--dpk-ease),
+      transform var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   .dpk-btn:hover:not([disabled]) {
@@ -404,7 +512,7 @@ export const controls = css`
   }
 
   .dpk-btn:active:not([disabled]) {
-    transform: translateY(1px) scale(0.985);
+    transform: translateY(1px) scale(var(--dpk-press));
     box-shadow: none;
   }
 
@@ -523,9 +631,9 @@ export const controls = css`
     font-size: 12.5px;
     box-shadow: inset 0 1px 2px var(--dpk-shade-1);
     transition:
-      border-color 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease),
-      background 160ms var(--dpk-ease);
+      border-color var(--dpk-dur) var(--dpk-ease),
+      box-shadow var(--dpk-dur) var(--dpk-ease),
+      background var(--dpk-dur) var(--dpk-ease);
   }
 
   .dpk-input::placeholder,
@@ -539,12 +647,15 @@ export const controls = css`
     border-color: var(--dpk-rule-hover);
   }
 
+  /* The focus ring grows out of the field's own edge over the base step,
+     rather than snapping on: the same ring, arriving as motion. */
   .dpk-input:focus,
   .dpk-textarea:focus,
   .dpk-select:focus {
     outline: none;
     border-color: var(--dpk-blue);
     box-shadow: var(--dpk-focus);
+    transition-duration: var(--dpk-dur-fast);
   }
 
   .dpk-select {
@@ -578,8 +689,8 @@ export const controls = css`
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     cursor: pointer;
     transition:
-      border-color 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease);
+      border-color var(--dpk-dur) var(--dpk-ease),
+      box-shadow var(--dpk-dur) var(--dpk-ease);
   }
 
   .dpk-rich-select:hover {
@@ -610,7 +721,7 @@ export const controls = css`
     flex: none;
     display: inline-flex;
     color: var(--dpk-ink-faint);
-    transition: transform 160ms var(--dpk-ease);
+    transition: transform var(--dpk-dur) var(--dpk-ease);
   }
 
   .dpk-rich-select-chevron[data-open='true'] {
@@ -636,14 +747,7 @@ export const controls = css`
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
     color: var(--dpk-ink);
     font-size: 12.5px;
-    animation: dpk-rich-select-pop-in 140ms var(--dpk-ease);
-  }
-
-  @keyframes dpk-rich-select-pop-in {
-    from {
-      opacity: 0;
-      transform: translateY(4px) scale(0.98);
-    }
+    animation: dpk-scale-in var(--dpk-dur-fast) var(--dpk-ease-out);
   }
 
   .dpk-rich-select-option {
@@ -653,6 +757,7 @@ export const controls = css`
     gap: 8px;
     padding: 6px 12px;
     cursor: pointer;
+    transition: background var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   .dpk-rich-select-option:hover,
@@ -705,14 +810,8 @@ export const controls = css`
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
     color: var(--dpk-ink);
     font: inherit;
-    animation: dpk-floatbar-in 200ms var(--dpk-ease-spring) backwards;
-  }
-
-  @keyframes dpk-floatbar-in {
-    from {
-      opacity: 0;
-      transform: translateY(6px) scale(0.98);
-    }
+    /* Lifted into place by the spring, the way the control menu is. */
+    animation: dpk-rise-in var(--dpk-dur) var(--dpk-ease-spring) backwards;
   }
 
   /**
@@ -731,6 +830,17 @@ export const controls = css`
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
     color: var(--dpk-ink);
+  }
+
+  /* The panel and its backdrop arrive together: the sheet rises a little as
+     the ground behind it darkens. Both are one-shot entrances, so closing is
+     the browser's own immediate dismissal (no exit state to get stuck in). */
+  .dpk-confirm-dialog[open] {
+    animation: dpk-rise-in var(--dpk-dur) var(--dpk-ease-out);
+  }
+
+  .dpk-confirm-dialog[open]::backdrop {
+    animation: dpk-fade-in var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   .dpk-confirm-dialog::backdrop {
@@ -784,14 +894,8 @@ export const popoverSurface = css`
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
     color: var(--dpk-ink);
     font-size: 12.5px;
-    animation: dpk-pop-in 180ms var(--dpk-ease);
-  }
-
-  @keyframes dpk-pop-in {
-    from {
-      opacity: 0;
-      transform: translateY(4px) scale(0.98);
-    }
+    /* A floating surface appears where it was anchored, not flying in. */
+    animation: dpk-scale-in var(--dpk-dur-fast) var(--dpk-ease-out);
   }
 
   .comment-pop .comment-target {
@@ -814,6 +918,20 @@ export const popoverSurface = css`
     padding: 6px 10px;
     border-radius: var(--dpk-radius-xs);
     background: var(--dpk-accent-soft);
+    animation: dpk-rise-in var(--dpk-dur) var(--dpk-ease) backwards;
+  }
+
+  /* A short list of what was already said: each line arrives just after the one above it. */
+  .comment-pop .comment-list li:nth-child(2) {
+    animation-delay: var(--dpk-stagger);
+  }
+
+  .comment-pop .comment-list li:nth-child(3) {
+    animation-delay: calc(var(--dpk-stagger) * 2);
+  }
+
+  .comment-pop .comment-list li:nth-child(n + 4) {
+    animation-delay: calc(var(--dpk-stagger) * 3);
   }
 
   .comment-pop .dpk-textarea {
@@ -851,6 +969,10 @@ export const popoverSurface = css`
     color: var(--dpk-ink-soft);
     font-weight: 550;
     cursor: pointer;
+    transition:
+      background var(--dpk-dur-fast) var(--dpk-ease),
+      color var(--dpk-dur-fast) var(--dpk-ease),
+      box-shadow var(--dpk-dur-fast) var(--dpk-ease);
   }
 
   .comment-kind input {

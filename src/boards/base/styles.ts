@@ -34,6 +34,9 @@ export const chromeStyles = [
 
     .diagram-toolbar-rows {
       flex-shrink: 0;
+      /* The toolbar arrives with the board rather than before it: one fade, so
+         the rows it carries do not each announce themselves. */
+      animation: dpk-fade-in var(--dpk-dur) var(--dpk-ease-out);
     }
 
     .diagram-toolbar-actions {
@@ -54,6 +57,8 @@ export const chromeStyles = [
       color: var(--dpk-ink-faint);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+      /* How much is on the canvas is a figure: it pops in once it is counted. */
+      animation: dpk-pop var(--dpk-dur) var(--dpk-ease-spring);
     }
 
     /*
@@ -76,12 +81,12 @@ export const chromeStyles = [
       opacity: 0;
       pointer-events: none;
       transition:
-        opacity 120ms ease,
-        background 160ms var(--dpk-ease),
-        color 160ms var(--dpk-ease),
-        border-color 160ms var(--dpk-ease),
-        box-shadow 160ms var(--dpk-ease),
-        transform 160ms var(--dpk-ease-spring);
+        opacity var(--dpk-dur-fast) var(--dpk-ease),
+        background var(--dpk-dur) var(--dpk-ease),
+        color var(--dpk-dur) var(--dpk-ease),
+        border-color var(--dpk-dur) var(--dpk-ease),
+        box-shadow var(--dpk-dur) var(--dpk-ease),
+        transform var(--dpk-dur) var(--dpk-ease-spring);
     }
 
     .diagram-comment-trigger.is-placed {
@@ -184,6 +189,16 @@ export const canvasStyles = css`
     inset: 0;
     overflow: visible;
     pointer-events: none;
+    /*
+     * The edges are drawn after the frame they connect: one fade over the whole
+     * layer, a step after the panel arrives. One animation on one element, not
+     * one per edge — a plan of four hundred links must not cost four hundred
+     * animations. (A true stroke draw-in is not possible from CSS alone here:
+     * each board writes its own path data, so no path has a known length to
+     * dash against.)
+     */
+    animation: dpk-fade-in var(--dpk-dur-slow) var(--dpk-ease-out) backwards;
+    animation-delay: calc(var(--dpk-stagger) * 2);
   }
 
   .diagram-legend {
@@ -202,6 +217,9 @@ export const canvasStyles = css`
     box-shadow: var(--dpk-shadow-xs);
     font-size: 9.5px;
     color: var(--dpk-ink-faint);
+    /* The key to the canvas arrives last, once there is something to read. */
+    animation: dpk-rise-in var(--dpk-dur) var(--dpk-ease-out) backwards;
+    animation-delay: calc(var(--dpk-stagger) * 3);
   }
 
   .diagram-legend span {
@@ -227,6 +245,10 @@ export const canvasStyles = css`
     color: var(--dpk-ink-faint);
     text-align: center;
     pointer-events: none;
+    /* Fade only: these two are centered by a transform of their own, so an
+       entrance that moved them would knock them off the canvas middle. */
+    animation: dpk-fade-in var(--dpk-dur-slow) var(--dpk-ease-out) backwards;
+    animation-delay: calc(var(--dpk-stagger) * 2);
   }
 
   .diagram-empty {
@@ -256,11 +278,21 @@ export const canvasStyles = css`
     position: absolute;
     cursor: pointer;
     transition:
-      opacity 150ms ease,
-      border-color 160ms var(--dpk-ease),
-      box-shadow 160ms var(--dpk-ease),
-      background 160ms var(--dpk-ease),
-      transform 160ms var(--dpk-ease);
+      opacity var(--dpk-dur-fast) var(--dpk-ease),
+      border-color var(--dpk-dur) var(--dpk-ease),
+      box-shadow var(--dpk-dur) var(--dpk-ease),
+      background var(--dpk-dur) var(--dpk-ease),
+      transform var(--dpk-dur) var(--dpk-ease);
+  }
+
+  /*
+   * A node lifts a hair under the pointer, as a card does — the same
+   * --dpk-lift, so a board and a page of cards feel like one product. Written
+   * at :where() specificity on purpose: a board that gives its own node a
+   * bigger gesture (a scale, a tone, a different offset) keeps it.
+   */
+  :where(.d-node):hover:not(.is-dragging) {
+    transform: translateY(var(--dpk-lift));
   }
 
   .d-node.is-dimmed,
@@ -303,8 +335,8 @@ export const canvasStyles = css`
     stroke-linejoin: round;
     stroke-linecap: round;
     transition:
-      stroke 160ms var(--dpk-ease),
-      stroke-width 160ms var(--dpk-ease);
+      stroke var(--dpk-dur) var(--dpk-ease),
+      stroke-width var(--dpk-dur) var(--dpk-ease);
   }
 
   .d-edge.is-selected .d-edge-path,
