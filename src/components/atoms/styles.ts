@@ -445,7 +445,7 @@ export const atomStyles = css`
     max-width: var(--dpk-measure, 860px);
     color: var(--dpk-ink-soft);
     font-size: 13.5px;
-    line-height: 1.75;
+    line-height: 1.8;
     overflow-wrap: anywhere;
     word-break: auto-phrase;
     text-wrap: pretty;
@@ -465,17 +465,25 @@ export const atomStyles = css`
   }
 
   :where(.dpk-prose) :where(h2) {
-    margin: 36px 0 10px;
+    margin: 36px 0 12px;
     font-size: 16px;
   }
 
   :where(.dpk-prose) :where(h3) {
-    margin: 22px 0 6px;
+    margin: 22px 0 8px;
     font-size: 13.5px;
   }
 
   :where(.dpk-prose) :where(p, ul, ol, blockquote, pre, table) {
-    margin: 0 0 10px;
+    margin: 0 0 12px;
+  }
+
+  :where(.dpk-prose) > :where(:first-child) {
+    margin-top: 0;
+  }
+
+  :where(.dpk-prose) > :where(:last-child) {
+    margin-bottom: 0;
   }
 
   :where(.dpk-prose) :where(ul, ol) {
