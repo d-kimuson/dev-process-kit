@@ -37,8 +37,8 @@
   "scripts": {
     "dev": "run-p 'dev:*'",
     "dev:build": "vite build --watch --mode dev",
-    "dev:assets": "portless run --name dev-process-kit pnpm run base-dev:assets",
-    "dev:lp": "portless run --name lp.dev-process-kit pnpm run base-dev:lp",
+    "dev:assets": "portless run --force --name dev-process-kit pnpm run base-dev:assets",
+    "dev:lp": "portless run --force --name lp.dev-process-kit pnpm run base-dev:lp",
     "base-dev:assets": "http-server dist --cors -c-1 --silent -p \"${PORT:-8787}\"",
     "base-dev:lp": "http-server lp -c-1 --silent -p \"${PORT:-8080}\"",
     "build": "vite build",
