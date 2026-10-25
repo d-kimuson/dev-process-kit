@@ -21,6 +21,16 @@ export { DpkFormalSpec, defineFormalSpec, parseFormalSpecData } from './formal-s
 export type { Assurance, Claim, Clause, FormalSpecData, Term } from './formal-spec/index';
 export { atomStyles, cardAtom, controlAtom, defineAtomStyles, mockAtom } from './atoms/index';
 export { DpkCommentable, defineCommentable } from './commentable/index';
+export { DpkExtendRightClick, defineExtendRightClick, parseExtendRightClickData } from './extend-right-click/index';
+export type {
+  ExtendRightClickConfig,
+  ExtendRightClickEntry,
+  ExtendRightClickGroup,
+  ExtendRightClickItem,
+  ExtendRightClickRunDetail,
+  ExtendRightClickSubmenu,
+  ExtendRightClickTarget,
+} from './extend-right-click/index';
 export { DpkCommentPopover, defineCommentPopover } from './comment-popover/index';
 export { DpkCommentThread, defineCommentThread } from './comment-thread/index';
 export type { CommentThreadItem } from './comment-thread/index';
@@ -85,6 +95,7 @@ import { defineCommentThread } from './comment-thread/index';
 import { defineCommentable } from './commentable/index';
 import { defineConfirmDialog } from './confirm-dialog/index';
 import { defineDialogPanel } from './dialog-panel/index';
+import { defineExtendRightClick } from './extend-right-click/index';
 import { defineFormalSpec } from './formal-spec/index';
 import { defineInlineEdit } from './inline-edit';
 import { defineLineChart } from './line-chart/index';
@@ -123,4 +134,5 @@ export const registerAtoms = (): void => {
   defineBrowser();
   defineSelectionBar();
   defineConfirmDialog();
+  defineExtendRightClick();
 };

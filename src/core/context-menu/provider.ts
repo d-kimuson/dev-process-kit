@@ -30,6 +30,18 @@ export const collectContextMenuGroups = (
 };
 
 /**
+ * What the click actually landed on: the first `Element` on the composed path.
+ * `path[0]` is the event target, which is not necessarily an element (a click
+ * on bare text reaches no `Element`), so the first element is taken instead.
+ */
+export const contextMenuOrigin = (path: readonly EventTarget[]): Element | null => {
+  for (const node of path) {
+    if (node instanceof Element) return node;
+  }
+  return null;
+};
+
+/**
  * The nearest `data-dpk-target` / `data-dpk-comment` ancestor's target along
  * the path, innermost first — the reverse of `findTarget` in `./reveal.ts`. A
  * marked element wins over a `data-dpk-comment` button for the same target,

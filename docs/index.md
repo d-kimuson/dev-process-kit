@@ -576,12 +576,14 @@ A plain right-click anywhere on the page opens a menu instead of the browser's o
 
 Shift+right-click, and a plain right-click inside a text field or an editable region, always get the browser's own menu (cut/paste and spellcheck need it). Inside the custom menu: arrow keys move, Enter/Space runs the highlighted entry, Escape or a click elsewhere closes it.
 
+Your own markup can add entries too, without writing a component: wrap it in `<dpk-extend-right-click>` and list the selectors and entries in a JSON child ([extend-right-click.md](components/extend-right-click.md)). It needs a `dpk-view-*` above it, which is where the menu lives.
+
 ## Read next
 
 | Question                          | Read                                                                                                                                                                                                                                         |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The view or board I am using      | `docs/views/<name>.md` (usm / prototype / plain / slides / task-board / delegation-poker) or `docs/boards/<name>.md` (ER / state / sequence / dependency / architecture / mind map / event storming / example mapping / whiteboard / kanban) |
-| The component I am actually using | `docs/components/<name>.md` (comment-panel / inline-edit / comment-thread / formal-spec / line-chart / code-group / table / select / …)                                                                                                      |
+| The component I am actually using | `docs/components/<name>.md` (comment-panel / inline-edit / comment-thread / formal-spec / line-chart / code-group / table / select / extend-right-click / …)                                                                                 |
 | Several pages in one app          | `docs/page.md`                                                                                                                                                                                                                               |
 | Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                                                                                                                    |
 

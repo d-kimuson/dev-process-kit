@@ -29,7 +29,13 @@ import {
   openSubmenuById,
   type ContextMenuState,
 } from './model';
-import { collectContextMenuGroups, findMarkedElement, findMethodProvider, resolveContextMenuTarget } from './provider';
+import {
+  collectContextMenuGroups,
+  contextMenuOrigin,
+  findMarkedElement,
+  findMethodProvider,
+  resolveContextMenuTarget,
+} from './provider';
 import { CONTEXT_MENU_ID, renderContextMenu, type ContextMenuIntents } from './render';
 
 const MENU_SIZE = { width: 220, height: 420 } as const;
@@ -183,8 +189,8 @@ export class ContextMenuController implements ReactiveController {
   #onContextMenu = (event: MouseEvent): void => {
     if (event.defaultPrevented || event.shiftKey) return;
     const path = event.composedPath();
-    const origin = path[0];
-    if (origin instanceof Element && isTextEditingSurface(origin)) return;
+    const origin = contextMenuOrigin(path);
+    if (origin !== null && isTextEditingSurface(origin)) return;
     event.preventDefault();
 
     const target: ActionTarget | null = resolveContextMenuTarget(path);
@@ -192,6 +198,7 @@ export class ContextMenuController implements ReactiveController {
       clientX: event.clientX,
       clientY: event.clientY,
       target,
+      origin,
     });
     const common = buildCommonContextMenuGroup({
       host: this.#host,

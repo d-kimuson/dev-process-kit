@@ -38,6 +38,13 @@ export type ContextMenuRequest = {
   readonly clientY: number;
   /** The nearest `data-dpk-target` / `data-dpk-comment` ancestor's target, if any. */
   readonly target: ActionTarget | null;
+  /**
+   * The first `Element` on the event's composed path — the element the click
+   * actually landed on, which `target` (a `data-dpk-*` ref) does not say.
+   * Optional so a hand-built request (a test literal, a provider called with
+   * only what it needs) still compiles; `null`/absent means "unknown".
+   */
+  readonly origin?: Element | null;
 };
 
 /**
