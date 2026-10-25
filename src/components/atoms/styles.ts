@@ -155,6 +155,108 @@ export const atomStyles = css`
       var(--dpk-shadow-xs);
   }
 
+  /*
+   * A tree: rows nested one step per level, with a guide line down each level
+   * and a caret on the rows that open. A branch is a details element whose
+   * summary is the row (or a row carrying aria-expanded); a leaf is a
+   * plain row, indented to the label column so the levels still read as one
+   * list. aria-current="page" marks the row the reader is on.
+   */
+  :where(.dpk-tree) {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  :where(.dpk-tree) :where(.dpk-tree) {
+    margin-left: 14px;
+    padding-left: 7px;
+    border-left: 1px solid var(--dpk-rule);
+  }
+
+  :where(.dpk-tree-node) {
+    min-width: 0;
+  }
+
+  :where(.dpk-tree-row) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 5px 8px;
+    border: none;
+    border-radius: var(--dpk-radius-sm);
+    background: transparent;
+    color: var(--dpk-ink-soft);
+    font: inherit;
+    font-size: 12.5px;
+    line-height: 1.45;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease);
+  }
+
+  :where(button.dpk-tree-row) {
+    width: 100%;
+  }
+
+  :where(.dpk-tree-row):hover {
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
+  }
+
+  :where(.dpk-tree-row):focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  /* The caret, turned the way a disclosure's is: closed points along the row, open points down it. */
+  :where(summary.dpk-tree-row, .dpk-tree-row[aria-expanded]) {
+    list-style: none;
+  }
+
+  :where(summary.dpk-tree-row)::-webkit-details-marker {
+    display: none;
+  }
+
+  :where(summary.dpk-tree-row)::before,
+  :where(.dpk-tree-row[aria-expanded])::before {
+    content: '';
+    flex: none;
+    width: 6px;
+    height: 6px;
+    margin-right: 2px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 160ms var(--dpk-ease);
+  }
+
+  :where(details[open]) > :where(summary.dpk-tree-row)::before,
+  :where(.dpk-tree-row[aria-expanded='true'])::before {
+    transform: rotate(45deg);
+  }
+
+  /* A leaf keeps the column of the labels above it, with no caret to take. */
+  :where(.dpk-tree-row[data-leaf]) {
+    padding-left: 22px;
+    cursor: default;
+  }
+
+  :where(.dpk-tree-row[aria-current='page'], .dpk-tree-row[aria-selected='true'], .dpk-tree-row[data-current]) {
+    background: color-mix(in srgb, var(--dpk-accent) 8%, var(--dpk-paper-raised));
+    color: var(--dpk-ink);
+    font-weight: 650;
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--dpk-accent) 20%, transparent),
+      var(--dpk-shadow-xs);
+  }
+
   :where(.dpk-list-row) {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -185,6 +287,66 @@ export const atomStyles = css`
   :where(.dpk-list-row[data-density='compact']) {
     gap: 8px;
     padding: 5px 8px;
+  }
+
+  /*
+   * An overview row: the same row carrying what a list of the page's own
+   * things needs — a tone swatch or a status icon in the first column, a name
+   * that is edited in place, and the row's tools at the end.
+   */
+  :where(.dpk-list-row-name) {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--dpk-ink);
+    font-size: 13.5px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* The editor pads its text by 4px; pull it back so the name sits on the row's own line. */
+  :where(.dpk-list-row-name) > :where(dpk-inline-edit) {
+    display: block;
+    margin: 0 -4px;
+  }
+
+  /* A label's color: a small rounded swatch in --tone. */
+  :where(.dpk-list-row-swatch) {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    background: var(--tone, var(--dpk-ink-faint));
+  }
+
+  /* A status's icon, where a label shows its swatch. */
+  :where(.dpk-list-row-icon) {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--tone, var(--dpk-ink-faint));
+  }
+
+  :where(.dpk-list-row-icon) > :where(svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* What the row is worth: a share, a count, a note. */
+  :where(.dpk-list-row-meta) {
+    min-width: 0;
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The row's own tools, gathered in its last column. */
+  :where(.dpk-list-row-tools) {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
   }
 
   :where(.dpk-toolbar) {
@@ -452,6 +614,155 @@ export const atomStyles = css`
    */
   ${iconButtonCss((selector) => `:where(${selector})`)}
 
+  /*
+   * The comment trigger: a quiet pill that opens a review comment on the thing
+   * it sits beside (a commentable region's corner, a board's chrome). It stays
+   * out of the way at rest, warms to the accent on hover and while its popover
+   * is open, and with data-reveal it only appears once its .dpk-hover-host is
+   * hovered or focused (always, on a touch screen).
+   */
+  :where(.dpk-comment-btn) {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px 2px 6px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--dpk-ink-faint);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 550;
+    line-height: 18px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease),
+      opacity 140ms var(--dpk-ease);
+  }
+
+  :where(.dpk-comment-btn):hover,
+  :where(.dpk-comment-btn[aria-expanded='true']) {
+    border-color: color-mix(in srgb, var(--dpk-accent) 30%, transparent);
+    background: var(--dpk-accent-soft);
+    color: var(--dpk-accent);
+  }
+
+  :where(.dpk-comment-btn):focus-visible {
+    outline: none;
+    color: var(--dpk-accent);
+    box-shadow: var(--dpk-focus);
+  }
+
+  :where(.dpk-comment-btn) > :where(svg) {
+    flex: none;
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Revealed by its host rather than standing at rest: the row or card it belongs to turns it up. */
+  :where(.dpk-comment-btn[data-reveal]) {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  :where(.dpk-hover-host):is(:hover, :focus-within) :where(.dpk-comment-btn[data-reveal]),
+  :where(.dpk-comment-btn[data-reveal]):is(:focus-visible, [aria-expanded='true']) {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  @media (hover: none) {
+    :where(.dpk-comment-btn[data-reveal]) {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :where(.dpk-comment-btn) {
+      transition: none;
+    }
+  }
+
+  /*
+   * The copy button: compact, and it says what happened. data-state='copied'
+   * (or data-copied='true') turns it green, a failure red; data-variant
+   * 'outline' gives it a border where it stands on its own instead of in a row.
+   */
+  :where(.dpk-copy-btn) {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 24px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: var(--dpk-radius-sm);
+    background: transparent;
+    color: var(--dpk-ink-soft);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease);
+  }
+
+  :where(.dpk-copy-btn):hover:not(:disabled) {
+    background: var(--dpk-paper-sunken);
+    color: var(--dpk-ink);
+  }
+
+  :where(.dpk-copy-btn):focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  :where(.dpk-copy-btn[data-variant='outline']) {
+    border-color: var(--dpk-rule-strong);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+  }
+
+  :where(.dpk-copy-btn[data-variant='outline']):hover:not(:disabled) {
+    border-color: var(--dpk-rule-hover);
+  }
+
+  :where(.dpk-copy-btn):is([data-state='copied'], [data-copied='true']) {
+    color: var(--dpk-green);
+  }
+
+  :where(.dpk-copy-btn[data-variant='outline']):is([data-state='copied'], [data-copied='true']) {
+    border-color: color-mix(in srgb, var(--dpk-green) 35%, transparent);
+    background: var(--dpk-green-soft);
+  }
+
+  :where(.dpk-copy-btn):is([data-state='failed'], [data-status='failed']) {
+    color: var(--dpk-danger);
+  }
+
+  :where(.dpk-copy-btn[data-variant='outline']):is([data-state='failed'], [data-status='failed']) {
+    border-color: color-mix(in srgb, var(--dpk-danger) 35%, transparent);
+    background: var(--dpk-danger-soft);
+  }
+
+  :where(.dpk-copy-btn):disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  :where(.dpk-copy-btn) > :where(svg) {
+    flex: none;
+    width: 13px;
+    height: 13px;
+  }
+
   /* ------------------------------------------------------------ badge / chip / kbd */
 
   :where(.dpk-badge) {
@@ -532,6 +843,55 @@ export const atomStyles = css`
     font-weight: 550;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  /*
+   * A link chip: the service's mark and the short label, for a story's
+   * references and anything else that points outward. The mark is a 12px SVG
+   * slot in currentColor; the label truncates rather than widening its line.
+   */
+  :where(.dpk-link-chip) {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 1px 8px 1px 6px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 18px;
+    text-decoration: none;
+    transition:
+      color 140ms var(--dpk-ease),
+      border-color 140ms var(--dpk-ease);
+  }
+
+  :where(.dpk-link-chip):hover {
+    border-color: var(--dpk-ink-faint);
+    color: var(--dpk-ink);
+  }
+
+  :where(.dpk-link-chip):focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  :where(.dpk-link-chip) > :where(svg) {
+    flex: none;
+    width: 12px;
+    height: 12px;
+  }
+
+  :where(.dpk-link-chip) > :where(span) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   :where(.dpk-kbd) {
@@ -662,6 +1022,188 @@ export const atomStyles = css`
     height: 24px;
     color: var(--dpk-ink-faint);
     opacity: 0.7;
+  }
+
+  /*
+   * A menu: the shell's settings menu and the context menu turned into an atom
+   * for author content. One raised panel on the lg radius with the kit's own
+   * bevel and shadow, 6px of padding and a 2px gap between its rows; a row is
+   * a button, a link or an option that is on. It opens as a popover (the
+   * browser places it) or sits inline as a plain panel.
+   */
+  :where(.dpk-menu) {
+    box-sizing: border-box;
+    display: grid;
+    align-content: start;
+    gap: 2px;
+    min-width: 180px;
+    margin: 0;
+    padding: 6px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
+    color: var(--dpk-ink);
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+
+  /*
+   * As a popover it keeps the browser's own hiding: this reset takes the UA's
+   * margins and border off it, and its layout waits for :popover-open, so a
+   * closed menu is never laid out.
+   */
+  :where(.dpk-menu[popover]) {
+    position: fixed;
+    inset: auto;
+    display: none;
+    max-height: min(70vh, 480px);
+    margin: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  :where(.dpk-menu[popover]:popover-open) {
+    display: grid;
+  }
+
+  :where(.dpk-menu-item) {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-width: 0;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: var(--dpk-radius-sm);
+    background: none;
+    color: var(--dpk-ink);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 550;
+    line-height: 1.4;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      background 140ms var(--dpk-ease),
+      color 140ms var(--dpk-ease);
+  }
+
+  /* The row a pointer or a keyboard arrow is on, and the one the menu opened from. */
+  :where(.dpk-menu-item):hover,
+  :where(.dpk-menu-item[data-active]) {
+    background: var(--dpk-paper-sunken);
+  }
+
+  :where(.dpk-menu-item):focus-visible {
+    outline: none;
+    background: var(--dpk-paper-sunken);
+    box-shadow: var(--dpk-focus);
+  }
+
+  :where(.dpk-menu-item):is(:disabled, [aria-disabled='true']) {
+    color: var(--dpk-ink-faint);
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  :where(.dpk-menu-item[aria-checked='true'], .dpk-menu-item[aria-selected='true'], .dpk-menu-item[data-checked]) {
+    font-weight: 650;
+  }
+
+  /* A destructive row carries the danger tone's own ink and hover tint. */
+  :where(.dpk-menu-item[data-tone='danger']) {
+    color: var(--dpk-danger);
+  }
+
+  :where(.dpk-menu-item[data-tone='danger']):hover {
+    background: var(--dpk-danger-soft);
+  }
+
+  :where(.dpk-menu-item) > :where(svg) {
+    flex: none;
+    width: 15px;
+    height: 15px;
+  }
+
+  :where(.dpk-menu-heading) {
+    margin: 0;
+    padding: 6px 9px 2px;
+    color: var(--dpk-ink-faint);
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  :where(.dpk-menu-separator) {
+    height: 0;
+    margin: 4px 2px;
+    border: 0;
+    border-top: 1px solid var(--dpk-rule);
+  }
+
+  /* What the row is bound to on the keyboard, kept out of its label's way. */
+  :where(.dpk-menu-shortcut) {
+    margin-inline-start: auto;
+    padding-inline-start: 16px;
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* The check column: a box that fills with the accent while its row is on. */
+  :where(.dpk-menu-check) {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: 4px;
+    background: var(--dpk-paper-raised);
+    /* A tick always in the markup keeps its place and shows only when checked. */
+    color: transparent;
+  }
+
+  :where(.dpk-menu-check) > :where(svg) {
+    width: 12px;
+    height: 12px;
+    stroke-width: 3;
+  }
+
+  :where(.dpk-menu-item[aria-checked='true'], .dpk-menu-item[data-checked]) > :where(.dpk-menu-check) {
+    border-color: var(--dpk-accent-strong);
+    background: var(--dpk-accent-strong);
+    color: var(--dpk-accent-ink);
+  }
+
+  /* A row of two lines: what it does, and what that means. */
+  :where(.dpk-menu-text) {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  :where(.dpk-menu-label) {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--dpk-ink);
+    font-size: 13px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :where(.dpk-menu-hint) {
+    color: var(--dpk-ink-soft);
+    font-size: 11.5px;
+    font-weight: 400;
+    line-height: 1.45;
+    white-space: normal;
   }
 
   /* ------------------------------------------------------------ table */
@@ -826,6 +1368,235 @@ export const atomStyles = css`
     line-height: 24px;
   }
 
+  /*
+   * A timeline: a vertical rail with a node per entry, the date beside it in
+   * the when column and the entry itself in the body. The rail runs through
+   * each entry's own padding, so the nodes read as one line; data-variant
+   * 'add' ends it in a dashed stub, and a data-tone colors a node through
+   * --tone.
+   */
+  :where(ol.dpk-timeline) {
+    --dpk-timeline-when: 96px;
+    --dpk-timeline-node: 26px;
+    --dpk-timeline-gap: 24px;
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  :where(.dpk-timeline-entry) {
+    display: grid;
+    grid-template-columns: var(--dpk-timeline-when) var(--dpk-timeline-node) minmax(0, 1fr);
+    grid-template-areas: 'when rail body';
+    column-gap: 14px;
+    padding-bottom: var(--dpk-timeline-gap);
+  }
+
+  :where(.dpk-timeline-entry:last-child) {
+    padding-bottom: 0;
+  }
+
+  :where(.dpk-timeline-when) {
+    grid-area: when;
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 3px;
+  }
+
+  :where(.dpk-timeline-date) {
+    color: var(--dpk-ink);
+    font-family: var(--dpk-mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  :where(.dpk-timeline-rail) {
+    grid-area: rail;
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+
+  :where(.dpk-timeline-rail)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: calc(-1 * var(--dpk-timeline-gap));
+    left: calc(50% - 1px);
+    width: 2px;
+    border-radius: 1px;
+    background: var(--dpk-rule-strong);
+  }
+
+  /* The first node starts the rail, the last one ends it. */
+  :where(.dpk-timeline-entry:first-child) > :where(.dpk-timeline-rail)::before {
+    top: calc(var(--dpk-timeline-node) / 2);
+  }
+
+  :where(.dpk-timeline-entry:last-child) > :where(.dpk-timeline-rail)::before {
+    bottom: auto;
+    height: calc(var(--dpk-timeline-node) / 2);
+  }
+
+  :where(.dpk-timeline-entry[data-variant='add']) > :where(.dpk-timeline-rail)::before {
+    bottom: auto;
+    height: calc(var(--dpk-timeline-node) / 2);
+    background: repeating-linear-gradient(to bottom, var(--dpk-rule-strong) 0 3px, transparent 3px 7px);
+  }
+
+  :where(.dpk-timeline-node) {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: var(--dpk-timeline-node);
+    height: var(--dpk-timeline-node);
+    border: 1px solid color-mix(in srgb, var(--tone, var(--dpk-rule-strong)) 45%, transparent);
+    border-radius: 50%;
+    background: var(--dpk-paper-raised);
+    color: var(--tone, var(--dpk-ink));
+    font-family: var(--dpk-mono);
+    font-size: 11px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    /* A ring of page color cuts the rail around the node. */
+    box-shadow:
+      0 0 0 4px var(--dpk-timeline-ring, var(--dpk-paper)),
+      var(--dpk-bevel),
+      var(--dpk-shadow-xs);
+  }
+
+  :where(.dpk-timeline-entry[data-variant='add']) > :where(.dpk-timeline-node) {
+    border-style: dashed;
+    border-color: var(--dpk-rule-strong);
+    background: var(--dpk-paper);
+    box-shadow: 0 0 0 4px var(--dpk-timeline-ring, var(--dpk-paper));
+  }
+
+  /* The add node draws its own plus, so an empty node is enough. */
+  :where(.dpk-timeline-entry[data-variant='add']) > :where(.dpk-timeline-node)::before,
+  :where(.dpk-timeline-entry[data-variant='add']) > :where(.dpk-timeline-node)::after {
+    content: '';
+    position: absolute;
+    top: calc(50% - 0.75px);
+    left: calc(50% - 5px);
+    width: 10px;
+    height: 1.5px;
+    border-radius: 1px;
+    background: var(--dpk-ink-faint);
+  }
+
+  :where(.dpk-timeline-entry[data-variant='add']) > :where(.dpk-timeline-node)::after {
+    transform: rotate(90deg);
+  }
+
+  :where(.dpk-timeline-body) {
+    grid-area: body;
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    justify-items: start;
+  }
+
+  /*
+   * A milestone: the same timeline, one slice of the work per entry — a title,
+   * what it is for, and the facts that measure it. data-at marks the entry the
+   * page stands on, whose node takes the accent; data-empty leaves a date or a
+   * text the timeline has none for faint rather than blank.
+   */
+  :where(.dpk-timeline-entry[data-at]) > :where(.dpk-timeline-node) {
+    border-color: color-mix(in srgb, var(--dpk-blue) 55%, transparent);
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
+  }
+
+  :where(.dpk-timeline-title) {
+    min-width: 0;
+    margin: 0;
+    color: var(--dpk-ink);
+    font-family: var(--dpk-display);
+    font-size: 16px;
+    font-weight: 660;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  :where(.dpk-timeline-text) {
+    max-width: 62ch;
+    margin: 0;
+    color: var(--dpk-ink-soft);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  :where(.dpk-timeline-date[data-empty], .dpk-timeline-title[data-empty], .dpk-timeline-text[data-empty]) {
+    color: var(--dpk-ink-faint);
+    font-weight: 500;
+  }
+
+  /* What the slice is worth: label over value, as many facts as fit on the line. */
+  :where(dl.dpk-timeline-facts) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 32px;
+    margin: 2px 0 0;
+  }
+
+  :where(dl.dpk-timeline-facts) > :where(div) {
+    min-width: 0;
+  }
+
+  :where(dl.dpk-timeline-facts) :where(dt) {
+    margin-bottom: 3px;
+    color: var(--dpk-ink-faint);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  :where(dl.dpk-timeline-facts) :where(dd) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    color: var(--dpk-ink-faint);
+    font-size: 12px;
+  }
+
+  :where(dl.dpk-timeline-facts) :where(strong) {
+    color: var(--dpk-ink);
+    font-size: 15px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Narrow: the date moves above the name and the rail takes the left column. */
+  @media (max-width: 640px) {
+    :where(ol.dpk-timeline) {
+      --dpk-timeline-node: 24px;
+    }
+
+    :where(.dpk-timeline-entry) {
+      grid-template-columns: var(--dpk-timeline-node) minmax(0, 1fr);
+      grid-template-areas:
+        'rail when'
+        'rail body';
+      column-gap: 14px;
+    }
+
+    :where(.dpk-timeline-when) {
+      justify-content: flex-start;
+      padding-top: 0;
+    }
+
+    :where(.dpk-timeline-date) {
+      text-align: left;
+    }
+  }
+
   :where(progress.dpk-progress, meter.dpk-progress) {
     width: 100%;
     height: 6px;
@@ -867,6 +1638,307 @@ export const atomStyles = css`
     border-radius: inherit;
     background: var(--tone, var(--dpk-blue));
     transition: width 240ms var(--dpk-ease);
+  }
+
+  /*
+   * A status mark: a 16px slot for a status's own SVG (data-size 'sm' or 'lg'
+   * resizes it), and with data-progress a ring around it, swept from the tone
+   * to --dpk-progress (0-100) and masked to a hairline, so one small mark says
+   * both which status a thing is in and how far through it is.
+   */
+  :where(.dpk-status-mark) {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    color: var(--tone, var(--dpk-ink-faint));
+  }
+
+  :where(.dpk-status-mark) > :where(svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  :where(.dpk-status-mark[data-size='sm']) {
+    width: 12px;
+    height: 12px;
+  }
+
+  :where(.dpk-status-mark[data-size='lg']) {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* The ring sits outside the slot, so it never squeezes the mark it measures. */
+  :where(.dpk-status-mark[data-progress]) {
+    position: relative;
+  }
+
+  :where(.dpk-status-mark[data-progress])::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: conic-gradient(
+      var(--tone, var(--dpk-blue)) calc(var(--dpk-progress, 0) * 1%),
+      color-mix(in srgb, var(--dpk-ink-faint) 25%, transparent) 0
+    );
+    mask: radial-gradient(closest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+    -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+  }
+
+  /*
+   * A segmented status bar: the statuses a thing has passed through, one 6px
+   * bar of them. Each segment grows by --dpk-value, an empty one stays faint,
+   * and data-size 'lg' thickens the whole bar where it is the point of a view.
+   */
+  :where(.dpk-status-segments) {
+    display: flex;
+    gap: 2px;
+    height: 6px;
+    min-width: 0;
+  }
+
+  :where(.dpk-status-segments[data-size='lg']) {
+    height: 8px;
+  }
+
+  :where(.dpk-status-segment) {
+    flex-grow: var(--dpk-value, 1);
+    flex-basis: 0;
+    min-width: 4px;
+    border-radius: 3px;
+    background: var(--tone, var(--dpk-blue));
+    transition: flex-grow 240ms var(--dpk-ease);
+  }
+
+  :where(.dpk-status-segment[data-empty]) {
+    background: color-mix(in srgb, var(--dpk-ink-faint) 30%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :where(.dpk-status-segment) {
+      transition: none;
+    }
+  }
+
+  /*
+   * The weight bar: how a whole is shared out between named parts, as one bar
+   * of them with a scale under it. CSS only and no dragging: a part grows by
+   * --dpk-value, and a scale's ticks stand at --dpk-at, a percentage of the
+   * track's own width.
+   */
+  :where(.dpk-weight-bar) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 10px;
+    row-gap: 4px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  :where(.dpk-weight-track) {
+    grid-area: 1 / 1;
+    display: flex;
+    gap: 2px;
+    height: 32px;
+    border-radius: var(--dpk-radius-sm);
+    background: var(--dpk-paper-sunken);
+    overflow: hidden;
+  }
+
+  :where(.dpk-weight-part) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-grow: var(--dpk-value, 1);
+    flex-basis: 0;
+    min-width: 0;
+    padding: 0 9px;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--tone, var(--dpk-blue)) 16%, var(--dpk-paper-raised));
+    color: var(--dpk-ink);
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: flex-grow 200ms var(--dpk-ease);
+  }
+
+  :where(.dpk-weight-name) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  :where(.dpk-weight-value) {
+    flex: none;
+    color: var(--tone, var(--dpk-blue));
+    font-family: var(--dpk-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* What the bar is out of: the whole at its end, outside the track. */
+  :where(.dpk-weight-end) {
+    grid-area: 1 / 2;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dpk-ink-faint);
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  :where(.dpk-weight-scale) {
+    grid-area: 2 / 1;
+    position: relative;
+    height: 14px;
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 10px;
+  }
+
+  /* A tick with its value under it, standing where --dpk-at puts it. */
+  :where(.dpk-weight-tick) {
+    position: absolute;
+    top: 0;
+    left: calc(var(--dpk-at, 0) * 1%);
+    padding-top: 5px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  :where(.dpk-weight-tick)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1px;
+    height: 3px;
+    background: var(--dpk-rule-strong);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :where(.dpk-weight-part) {
+      transition: none;
+    }
+  }
+
+  /*
+   * A chart: a framed plot with its head above it. CSS only — the author draws
+   * the SVG and this styles it, so a line chart reads as the kit's own: rules
+   * in the grid, an axis, ticks, the line with the area under it, its points,
+   * the ideal it should have followed and the mark where a moment is called
+   * out.
+   */
+  :where(.dpk-chart) {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 14px 16px 10px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-shadow-xs);
+  }
+
+  :where(.dpk-chart-head) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+
+  :where(.dpk-chart-title) {
+    color: var(--dpk-ink);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  :where(.dpk-chart-value) {
+    margin-inline-start: auto;
+    color: var(--dpk-ink-soft);
+    font-family: var(--dpk-mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :where(.dpk-chart-plot) {
+    position: relative;
+    min-width: 0;
+  }
+
+  :where(.dpk-chart-plot) > :where(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  :where(.dpk-chart-grid) :where(line, path) {
+    fill: none;
+    stroke: var(--dpk-rule);
+    stroke-width: 1;
+  }
+
+  :where(.dpk-chart-axis) :where(line, path) {
+    fill: none;
+    stroke: var(--dpk-rule-strong);
+    stroke-width: 1;
+  }
+
+  /* Ticks read as text on both sides: an SVG text is filled, an HTML one is colored. */
+  :where(.dpk-chart-tick) {
+    color: var(--dpk-ink-faint);
+    fill: currentColor;
+    font-family: var(--dpk-mono);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :where(.dpk-chart-line) {
+    fill: none;
+    stroke: var(--tone, var(--dpk-blue));
+    stroke-width: 2.25;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  :where(.dpk-chart-area) {
+    fill: color-mix(in srgb, var(--tone, var(--dpk-blue)) 14%, transparent);
+    stroke: none;
+  }
+
+  :where(.dpk-chart-point) {
+    fill: var(--dpk-paper-raised);
+    stroke: var(--tone, var(--dpk-blue));
+    stroke-width: 2;
+  }
+
+  /* Where the line should have gone: the same shape, dashed and gray. */
+  :where(.dpk-chart-ideal) {
+    fill: none;
+    stroke: var(--dpk-ink-faint);
+    stroke-width: 1.25;
+    stroke-dasharray: 5 4;
+  }
+
+  /* The moment the chart calls out, ruled down through the plot. */
+  :where(.dpk-chart-mark) {
+    stroke: var(--tone, var(--dpk-accent));
+    stroke-width: 1.5;
+    stroke-dasharray: 2 3;
+  }
+
+  :where(.dpk-chart-mark-label) {
+    color: var(--tone, var(--dpk-accent));
+    fill: currentColor;
+    font-family: var(--dpk-mono);
+    font-size: 10px;
+    font-weight: 650;
   }
 
   ${mockAtom}
