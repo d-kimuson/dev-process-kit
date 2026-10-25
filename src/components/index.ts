@@ -5,6 +5,16 @@
  * content must be a view (`dpk-view-*`) or a board (`dpk-board-*`).
  */
 export { DpkInlineEdit, defineInlineEdit } from './inline-edit';
+export { DpkLineChart, defineLineChart } from './line-chart/index';
+export type {
+  LineChartAxis,
+  LineChartData,
+  LineChartGuide,
+  LineChartMark,
+  LineChartPoint,
+  LineChartSeries,
+  LineChartTone,
+} from './line-chart/index';
 export { DpkCommentPanel, defineCommentPanel } from './comment-panel/index';
 export type { CommentPanelCallbacks } from './comment-panel/index';
 export { DpkFormalSpec, defineFormalSpec, parseFormalSpecData } from './formal-spec/index';
@@ -74,6 +84,7 @@ import { defineConfirmDialog } from './confirm-dialog/index';
 import { defineDialogPanel } from './dialog-panel/index';
 import { defineFormalSpec } from './formal-spec/index';
 import { defineInlineEdit } from './inline-edit';
+import { defineLineChart } from './line-chart/index';
 import { defineMatrix } from './matrix/index';
 import { defineSelect } from './select/index';
 import { defineSelectionBar } from './selection-bar/index';
@@ -85,6 +96,7 @@ import { defineTagFilter } from './tag-filter/index';
 export const registerComponentElements = (): void => {
   defineCommentPanel();
   defineInlineEdit();
+  defineLineChart();
   defineFormalSpec();
   registerAtoms();
 };

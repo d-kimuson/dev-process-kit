@@ -43,8 +43,24 @@ export {
   defaultStorage,
   defaultStorageKey,
 } from './core/index';
-export { DpkCommentPanel, DpkFormalSpec, DpkInlineEdit, registerComponentElements } from './components/index';
-export type { CommentPanelCallbacks, FormalSpecData } from './components/index';
+export {
+  DpkCommentPanel,
+  DpkFormalSpec,
+  DpkInlineEdit,
+  DpkLineChart,
+  registerComponentElements,
+} from './components/index';
+export type {
+  CommentPanelCallbacks,
+  FormalSpecData,
+  LineChartAxis,
+  LineChartData,
+  LineChartGuide,
+  LineChartMark,
+  LineChartPoint,
+  LineChartSeries,
+  LineChartTone,
+} from './components/index';
 export {
   BoardCanvasChromeElement,
   BoardCanvasElement,

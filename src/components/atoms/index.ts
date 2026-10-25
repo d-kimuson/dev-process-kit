@@ -4,6 +4,7 @@ import { atomStyles } from './styles';
 
 export { atomStyles } from './styles';
 export { cardAtom } from './card';
+export { chartAtom } from './chart';
 export { controlAtom } from './controls';
 export { ensurePaperFont, mockAtom } from './mock';
 
