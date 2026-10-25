@@ -255,6 +255,7 @@ const pageStyles = css`
   .dpk-app-pages {
     flex: 1 1 0%;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     min-width: 0;
     min-height: 0;

@@ -156,7 +156,11 @@ export class PageElement extends LitElement {
         `[dev-process-kit] <dpk-page name="${this.name}"> holds ${contents.length} views or boards; only the first is used`,
       );
     }
-    const ready = content.ready ?? content.api.ready;
+    // The content may still be an unupgraded element when the page connects: wait for
+    // its definition before reading `ready`/`api`, so a board entry that arrives after
+    // the page cannot strand the page's own ready promise.
+    const ready =
+      content.ready ?? customElements.whenDefined(content.localName).then(() => content.ready ?? content.api.ready);
     void ready.then(() => {
       this.#resolveReady();
       this.requestUpdate();
