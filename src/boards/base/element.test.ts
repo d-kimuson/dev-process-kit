@@ -440,7 +440,11 @@ describe('BoardCanvasElement', () => {
     expect(shell.maximize()).not.toBeNull();
     expect(shell.panel?.hasAttribute('resizable')).toBe(true);
 
-    element.setAttribute('variant', 'board');
+    // A page's content is a full-page board: the enclosing `<dpk-page>` decides it.
+    const page = document.createElement('dpk-page');
+    page.setAttribute('name', 'scope');
+    document.body.append(page);
+    page.append(element);
     await settle(element);
     expect(shell.maximize()).toBeNull();
     expect(shell.panel?.hasAttribute('resizable')).toBe(false);

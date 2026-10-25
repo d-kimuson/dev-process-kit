@@ -392,6 +392,7 @@ export abstract class ViewElement<S> extends LitElement {
     // The shell is drawn with the layouts; whichever entry loaded the template, they are there.
     defineLayoutElements();
     this.#boardId = pageNameOf(this);
+    this.toggleAttribute('data-dpk-page-content', this.#boardId !== null);
     if (this.#boardId === null && !this.#undoRedoKeyboardReady) {
       this.#undoRedoKeyboardReady = true;
       new UndoRedoKeyboardController(this, this.#undoRedoIntents);

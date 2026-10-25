@@ -25,7 +25,7 @@ export const chromeStyles = [
     /* A board fills whatever a dpk-page (or any other full-screen container)
        gives it, in place of the maximize affordance embedded use relies on
        instead. */
-    :host([variant='board']) {
+    :host([data-dpk-page-content]) {
       display: flex;
       flex-direction: column;
       height: 100%;
@@ -162,7 +162,7 @@ export const canvasStyles = css`
 
   /* A board has no fixed height to fall back to: it takes all of what its
      full-screen host (e.g. dpk-page) gives it, same as any other board. */
-  :host([variant='board']) .diagram {
+  :host([data-dpk-page-content]) .diagram {
     --dpk-dialog-panel-height: 100%;
     flex: 1 1 0%;
     min-height: 0;

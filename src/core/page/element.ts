@@ -54,6 +54,7 @@ const EMPTY_DEFINITION: ViewDefinition<Record<string, never>> = {
 const pageStyles = css`
   :host {
     display: block;
+    height: 100%;
     min-width: 0;
     min-height: 0;
   }
@@ -63,6 +64,7 @@ const pageStyles = css`
   }
 
   ::slotted(*) {
+    height: 100%;
     min-width: 0;
     min-height: 0;
   }

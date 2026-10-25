@@ -539,7 +539,7 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
    * instead of re-deriving `variant !== 'board'` on its own.
    */
   protected get frameControls(): boolean {
-    return this.variant !== 'board';
+    return this.board === null;
   }
 
   protected defaultHeading(): string {
