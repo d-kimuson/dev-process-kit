@@ -98,6 +98,9 @@ const BOARD_ANCHOR = 'whiteboard';
  * are the chrome's own contextual trigger, rendered in the selection toolbar.
  */
 export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelectionRef> {
+  protected override boardAddable(): boolean {
+    return true;
+  }
   static override styles: CSSResultGroup = [chromeStyles, whiteboardStyles];
 
   // Ephemeral UI state (viewport, gesture, mode, selection) is plain fields, not Lit

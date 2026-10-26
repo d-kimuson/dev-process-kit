@@ -276,6 +276,11 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     return this.heading ?? this.defaultHeading();
   }
 
+  /** Whether the app's add-page menu offers an empty page of this board. */
+  protected boardAddable(): boolean {
+    return false;
+  }
+
   /**
    * Read fresh on every access: a page reads this directly (its own global
    * comment composer, the add-board catalog), so it always carries this
@@ -285,6 +290,7 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     return diagramBoardDefinition({
       name: this.boardName(),
       label: this.boardLabel(),
+      addable: this.boardAddable(),
       commentTargets: () => this.commentTargets,
       elementActionResults: () => this.elementActionResults,
     });
@@ -308,7 +314,11 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     // definition is captured once by the controller. Freshness instead comes
     // from `setComponentSnapshot`, below — the same mechanism an embedded
     // component's host template already uses for itself.
-    const definition = diagramBoardDefinition({ name: this.boardName(), label: this.boardLabel() });
+    const definition = diagramBoardDefinition({
+      name: this.boardName(),
+      label: this.boardLabel(),
+      addable: this.boardAddable(),
+    });
     const controller = new DraftController<DiagramBoardState>(
       hosted ? { definition, base: {}, storage: null } : { definition, base: {} },
     );

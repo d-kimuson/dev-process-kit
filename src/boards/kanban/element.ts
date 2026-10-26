@@ -42,6 +42,9 @@ export type KanbanSelection = { readonly kind: 'column' | 'card'; readonly id: s
  * which lists them with its other draft actions; the board shows their result.
  */
 export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection> {
+  protected override boardAddable(): boolean {
+    return true;
+  }
   static override styles: CSSResultGroup = [chromeStyles, cardAtom, kanbanStyles];
 
   #seededFrom: KanbanData | null = null;

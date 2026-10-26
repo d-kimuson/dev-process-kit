@@ -32,6 +32,8 @@ export type DiagramBoardSource = {
   readonly name: string;
   /** Shown in the page's board switcher and review list. */
   readonly label: string;
+  /** Whether the app's add-page menu offers an empty page of this board. */
+  readonly addable?: boolean;
   /** The diagram's own live comment targets, read fresh on every call. */
   readonly commentTargets?: () => readonly CommentTargetOption[];
   /** How each of the diagram's own element actions applied, for the review list. */
@@ -51,7 +53,7 @@ export const diagramBoardDefinition = (source: DiagramBoardSource): ViewDefiniti
     kind: 'board',
     name: source.name,
     label: source.label,
-    addable: false,
+    addable: source.addable ?? false,
     parseBase: () => EMPTY_STATE,
     emptyBase: () => EMPTY_STATE,
     actions: {},

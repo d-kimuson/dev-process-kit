@@ -511,7 +511,11 @@ export class AppElement extends ViewElement<AppState> {
 
   /** The contents the "+" menu offers: those the catalog does not mark unaddable. */
   #addableContents(): readonly PageContent[] {
-    return this.pageContents().filter((content) => content.addable !== false);
+    return this.pageContents().filter(
+      (content) =>
+        content.addable !== false &&
+        (content.kind === 'view' || customElements.get(`dpk-board-${content.name}`) !== undefined),
+    );
   }
 
   /**

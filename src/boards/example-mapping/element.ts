@@ -54,6 +54,9 @@ const MAP_ANCHOR = 'example-mapping';
  * chrome's own contextual trigger, rendered beside each card.
  */
 export class DpkBoardExampleMapping extends BoardChromeBase<ExampleMappingState, MappingSelection> {
+  protected override boardAddable(): boolean {
+    return true;
+  }
   static override styles: CSSResultGroup = [chromeStyles, exampleMappingStyles];
 
   readonly #drag = new DragController<MappingDragType>(this);

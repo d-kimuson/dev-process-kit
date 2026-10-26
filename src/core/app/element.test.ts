@@ -181,6 +181,24 @@ describe('<dpk-page>', () => {
     expect(crumbLabel(page)).toBe('Page 3');
   });
 
+  it('offers Whiteboard, Example Mapping and Kanban, and adds the picked board as a page', async () => {
+    const { page, board, settle } = await mount();
+    trigger(page).click();
+    await page.updateComplete;
+    page.renderRoot.querySelector<HTMLElement>('[data-key="add"]')?.click();
+    await page.updateComplete;
+    for (const name of ['whiteboard', 'example-mapping', 'kanban']) {
+      expect(page.renderRoot.querySelector(`[data-key="content:board:${name}"]`)).not.toBeNull();
+    }
+    page.renderRoot.querySelector<HTMLElement>('[data-key="content:board:whiteboard"]')?.click();
+    await settle();
+    expect(page.api.actions.map((action) => [action.type, action.target])).toEqual([
+      ['ADD_PAGE', { type: 'app', id: 'app' }],
+    ]);
+    expect(board('whiteboard').localName).toBe('dpk-board-whiteboard');
+    expect(page.api.navigation).toMatchObject({ page: 'whiteboard' });
+  });
+
   it('keeps the add view open when the clicked "+" row loses focus as it is replaced (#86)', async () => {
     const { page } = await mount();
     trigger(page).click();
