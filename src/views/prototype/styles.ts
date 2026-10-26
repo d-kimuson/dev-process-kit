@@ -12,19 +12,37 @@ export const prototypeStyles = css`
 
   .nav {
     display: grid;
+    /* The sidebar's column, never its content's: a long story name is ellipsized
+       inside the rich select instead of widening the rail. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
     align-content: start;
-    min-width: 188px;
+    min-width: 0;
+  }
+
+  .nav > * {
+    min-width: 0;
   }
 
   .field {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 5px;
+    min-width: 0;
+  }
+
+  .field > * {
+    min-width: 0;
   }
 
   /* Scenario or app: the segmented atom, stretched across the top of the sidebar. */
   .view-switch {
     display: flex;
+    min-width: 0;
+  }
+
+  .view-switch > * {
+    min-width: 0;
   }
 
   .view-option {

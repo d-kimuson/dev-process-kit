@@ -21,6 +21,7 @@ import {
   resolvePrototypeNavigation,
   serializePrototypeAction,
 } from './present';
+import { prototypeStyles } from './styles';
 
 const m = prototypeMessages('en');
 
@@ -672,5 +673,13 @@ describe('prototype change targets', () => {
       'step:onboarding.account.a',
       'screen:screen-a',
     ]);
+  });
+});
+
+describe('prototype sidebar width', () => {
+  it('keeps long story names inside the sidebar grid instead of widening the nav', () => {
+    const css = String(prototypeStyles);
+    expect(css).toContain('grid-template-columns: minmax(0, 1fr)');
+    expect(css).toContain('.field > *');
   });
 });
