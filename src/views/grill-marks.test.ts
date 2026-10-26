@@ -130,7 +130,7 @@ describe.each(cases)('$tag cards name the questions they are about', ({ tag, bas
     const board = box === undefined ? null : root.querySelector(box);
     expect(box === undefined || board !== null).toBe(true);
     const inBoard = board === null ? [] : badges;
-    expect(inBoard.every((badge) => acrossShadow(badge, board))).toBe(true);
+    expect(inBoard.every((badge) => acrossShadow(badge, board!))).toBe(true);
     // The main column is not a portal parent: a badge put there stays put
     // while the map scrolls sideways under it.
     const main = root.querySelector('.dpk-main-body');
