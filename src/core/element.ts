@@ -105,6 +105,8 @@ import {
   type SettingsIntents,
 } from './shell/settings-menu';
 import { chromeStyles } from './shell/styles';
+import { SUPPLEMENT_HEIGHT } from './shell/supplement-height';
+import { SupplementHeightController } from './shell/supplement-height-controller';
 import {
   FOLDED_SUPPLEMENTS,
   LEGACY_MEMO_SLOT,
@@ -218,6 +220,10 @@ export abstract class ViewElement<S> extends LitElement {
   #previewRouter = new PreviewRouter(this);
   /** The supplement the reader picked in the bar, and whether it is open. */
   #supplements: SupplementView = FOLDED_SUPPLEMENTS;
+  /** How tall the drawer is: one height for every supplement, dragged from its top edge. */
+  #supplementHeight = new SupplementHeightController(this, {
+    persistKey: () => (this.storage === 'off' || this.storage === 'memory' ? null : this.#persistedName),
+  });
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
   #claude = new ClaudeHandoffController(this);
   #dock = new HandoffDockController(this);
@@ -288,8 +294,10 @@ export abstract class ViewElement<S> extends LitElement {
     });
     new GrillBadgeController(this, {
       active: () => this.#grill.questions.length > 0,
-      layers: () => Array.from(this.renderRoot.querySelectorAll<HTMLElement>('.dpk-grill-badges')),
       bindings: () => this.#badges,
+      open: (questionId) => this.#openQuestion(questionId),
+      labelOf: (binding) => coreMessages(this.locale).grillOpen(`${binding.ref} · ${binding.title}`),
+      gutterOf: (target) => this.contains(target) && this.#badgeRegionOf(target) === 'main',
     });
     new CheckModeBadgeController(this, {
       active: () => this.#checkMode.enabled,
@@ -796,7 +804,6 @@ export abstract class ViewElement<S> extends LitElement {
           : html`<div slot=${layout.side} class="dpk-sidebar">
               ${regions.sidebar ?? nothing}
               <slot name="sidebar"></slot>
-              ${this.#renderBadges('sidebar')}
             </div>`
       }
       ${
@@ -805,15 +812,7 @@ export abstract class ViewElement<S> extends LitElement {
           : nothing
       }
       <main class="dpk-main">
-        <div
-          class="dpk-main-body"
-          ?data-fill=${fill}
-          ?data-grill-gutter=${
-            // A filled main column is a canvas or a board, which places its own badges.
-            !fill &&
-            this.#badges.some((binding) => this.contains(binding.target) && this.#badgeRegionOf(binding) === 'main')
-          }
-        >
+        <div class="dpk-main-body" ?data-fill=${fill}>
           ${
             this.#baseError
               ? html`<div class="dpk-banner" role="alert">
@@ -844,7 +843,6 @@ export abstract class ViewElement<S> extends LitElement {
             <p class="dpk-label">previews without metadata</p>
             <slot name="preview"></slot>
           </section>
-          ${this.#renderBadges('main')}
         </div>
         ${this.#renderSupplements(messages)}
       </main>
@@ -1041,42 +1039,20 @@ export abstract class ViewElement<S> extends LitElement {
   }
 
   /**
-   * Where a mark's badge goes: over the sidebar for a mark in it, since the
-   * sidebar scrolls on its own, and over the main column otherwise.
+   * Where a mark's badge goes: in the sidebar's own column for a mark in it,
+   * since the sidebar scrolls on its own, and in the main column otherwise.
+   * Only the author's own markup in the main column takes the gutter — a
+   * corner badge there would cover the line it marks.
    */
-  #badgeRegionOf(binding: { readonly target: Element }): BadgeRegion {
+  #badgeRegionOf(target: Element): BadgeRegion {
     const sidebar = this.renderRoot.querySelector('.dpk-sidebar');
-    let node: Element | null = binding.target;
+    let node: Element | null = target;
     while (node !== null && node !== this) {
       if (node === sidebar) return 'sidebar';
       const root = node.getRootNode();
       node = node.assignedSlot ?? node.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
     }
     return 'main';
-  }
-
-  /** A badge per mark of the region, over it; pressing one opens its question. */
-  #renderBadges(region: BadgeRegion): TemplateResult | typeof nothing {
-    const bindings = this.#badges.filter((binding) => this.#badgeRegionOf(binding) === region);
-    if (bindings.length === 0) return nothing;
-    const messages = coreMessages(this.locale);
-    return html`<div class="dpk-grill-badges" data-region=${region}>
-      ${bindings.map(
-        (binding) => html`<button
-          type="button"
-          class="dpk-grill-badge"
-          data-badge=${binding.index}
-          data-answered=${String(binding.answered)}
-          data-visible="false"
-          aria-pressed=${binding.open ? 'true' : 'false'}
-          aria-label=${messages.grillOpen(`${binding.ref} · ${binding.title}`)}
-          title=${`${binding.ref} · ${binding.title}`}
-          @click=${() => this.#openQuestion(binding.questionId)}
-        >
-          ${binding.ref}
-        </button>`,
-      )}
-    </div>`;
   }
 
   #renderNoticeBell(): TemplateResult | typeof nothing {
@@ -1670,16 +1646,46 @@ export abstract class ViewElement<S> extends LitElement {
   /**
    * The supplements bar at the bottom of the main column: one tab per
    * supplement, opening it alone above the bar. It exists only when the author
-   * slotted a supplement, and follows the slot as the author adds more.
+   * slotted a supplement, and follows the slot as the author adds more. The
+   * drawer keeps one height for every tab, which the reader sets from its top
+   * edge; taller content scrolls inside it.
    */
   #renderSupplements(messages: CoreMessages): TemplateResult {
     const supplements = supplementsOf(this, messages.memo);
     const open = openSupplementOf(this.#supplements, supplements);
+    const height = this.#supplementHeight;
     const show = (view: SupplementView): void => {
       this.#supplements = view;
       this.requestUpdate();
     };
-    return html`<div class="dpk-supplements" ?hidden=${supplements.length === 0} ?data-open=${open !== null}>
+    const on = height.handlers;
+    return html`<div
+      class="dpk-supplements"
+      ?hidden=${supplements.length === 0}
+      ?data-open=${open !== null}
+      style=${`--dpk-supplement-height: ${height.height}px`}
+    >
+      <div
+        class="dpk-supplements-edge"
+        ?hidden=${open === null}
+        role="separator"
+        tabindex="0"
+        aria-orientation="horizontal"
+        aria-controls="dpk-supplements-body"
+        aria-label=${messages.resizeSupplements}
+        aria-valuemin=${SUPPLEMENT_HEIGHT.min}
+        aria-valuemax=${height.max}
+        aria-valuenow=${height.height}
+        title=${messages.resizeSupplementsHint}
+        ?data-dragging=${height.dragging}
+        @pointerdown=${on.pointerdown}
+        @pointermove=${on.pointermove}
+        @pointerup=${on.pointerup}
+        @pointercancel=${on.pointercancel}
+        @lostpointercapture=${on.lostpointercapture}
+        @keydown=${on.keydown}
+        @dblclick=${on.dblclick}
+      ></div>
       <div class="dpk-supplements-bar" role="group" aria-label=${messages.supplements}>
         <button
           type="button"

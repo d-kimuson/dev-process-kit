@@ -28,9 +28,16 @@ export const matrixStyles = css`
        line, indent that line to the same start the first line's text gets. */
     --dpk-matrix-grip-span: 22px;
   }
+  /* The scroll frame fills the host a fill layout gave a height to, so the
+     grid scrolls inside it instead of spilling out of it: a frame taller than
+     its host would push the whole page into scrolling under a board that was
+     supposed to scroll itself, taking anything pinned to the page's bottom
+     edge with it. A host whose own height is its content keeps that height
+     (a percentage against an automatic height resolves to the content's). */
   .matrix-scroll {
     min-width: 0;
     max-width: 100%;
+    height: 100%;
     overflow: auto;
     overscroll-behavior-x: contain;
     border: 1px solid var(--dpk-rule);

@@ -354,7 +354,7 @@ export type TodoViewModel = {
   readonly questions?: string;
 };
 
-/** The whole list, or only the todos people have. */
+/** The whole board, or only the todos people have. */
 export type TodoFilter = 'all' | 'human';
 
 export type TodoProgress = {
@@ -363,11 +363,21 @@ export type TodoProgress = {
   readonly label: string;
 };
 
-export type TodosViewModel = {
-  /** What is still open (and what the reader finished in this draft), in the agent's order. */
-  readonly todos: readonly TodoViewModel[];
-  /** Done before this draft: folded away until the reader opens them. */
-  readonly done: readonly TodoViewModel[];
+/** A column's tone, the same one its status pill uses: grey to do, blue moving, red stuck, green done. */
+export type TaskLaneTone = 'gray' | 'blue' | 'red' | 'green';
+
+/** One column of the Tasks board: a status and the todos that stand in it. */
+export type TaskLaneViewModel = {
+  readonly status: TodoStatus;
+  readonly label: string;
+  readonly tone: TaskLaneTone;
+  /** The todos in it, in the agent's order. */
+  readonly cards: readonly TodoViewModel[];
+};
+
+export type TasksViewModel = {
+  /** Every status in reading order: an empty column keeps the board's shape. */
+  readonly lanes: readonly TaskLaneViewModel[];
   /** `all` whenever the board names no person to filter by. */
   readonly filter: TodoFilter;
   readonly canFilter: boolean;
@@ -378,6 +388,13 @@ export type TodosViewModel = {
   readonly statuses: readonly { readonly value: TodoStatus; readonly label: string }[];
   /** Empty when the board names nobody: then there is nothing to assign to. */
   readonly members: readonly MemberOption[];
+};
+
+const LANE_TONES: Readonly<Record<TodoStatus, TaskLaneTone>> = {
+  todo: 'gray',
+  doing: 'blue',
+  blocked: 'red',
+  done: 'green',
 };
 
 const presentTodo = (
@@ -408,25 +425,33 @@ const presentTodo = (
   };
 };
 
-export const presentTodos = (
+/**
+ * The todo list as a board: one column per status, read left to right, each
+ * todo a card in the column it stands in. A proposal is a card in the column
+ * its status puts it in, marked "?" until the reader accepts or declines it;
+ * an accepted one is a regular todo from then on.
+ */
+export const presentTasks = (
   m: TaskBoardMessages,
   state: TaskBoardState,
   base: TaskBoardState,
   comments: CommentCount,
   requested: TodoFilter = 'all',
-): TodosViewModel => {
-  const planned = state.todos.filter((todo) => isPlanned(state, todo));
-  const done = planned.filter((todo) => todo.status === 'done').length;
+): TasksViewModel => {
   const canFilter = state.members.some((member) => member.kind === 'human');
   const filter = canFilter ? requested : 'all';
-  const human = (todo: TodoViewModel): boolean => todo.assigneeKind === 'human';
   const todos = state.todos.map((todo) => presentTodo(m, state, base, todo, comments));
+  const human = (todo: TodoViewModel): boolean => todo.assigneeKind === 'human';
   const shown = filter === 'human' ? todos.filter(human) : todos;
-  // Folded only when it was done before this draft and still is, so nothing jumps away under the reader.
-  const folded = (todo: TodoViewModel): boolean => todo.status === 'done' && findTodo(base, todo.id)?.status === 'done';
+  const planned = state.todos.filter((todo) => isPlanned(state, todo));
+  const done = planned.filter((todo) => todo.status === 'done').length;
   return {
-    todos: shown.filter((todo) => !folded(todo)),
-    done: shown.filter(folded),
+    lanes: TODO_STATUSES.map((status) => ({
+      status,
+      label: todoStatusLabel(m, status),
+      tone: LANE_TONES[status],
+      cards: shown.filter((todo) => todo.status === status),
+    })),
     filter,
     canFilter,
     humanCount: todos.filter(human).length,

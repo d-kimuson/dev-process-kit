@@ -82,7 +82,10 @@ export type { SelectOption } from './select/index';
 export { DpkSelectionBar, defineSelectionBar } from './selection-bar/index';
 export { DpkConfirmDialog, defineConfirmDialog } from './confirm-dialog/index';
 export type { ConfirmDialogOptions } from './confirm-dialog/index';
+export { DpkAlternatives, defineAlternatives, parseAlternativesData } from './alternatives/index';
+export type { AlternativeOption, AlternativeStatus, AlternativesData } from './alternatives/index';
 
+import { defineAlternatives } from './alternatives/index';
 import { defineAtomStyles } from './atoms/index';
 import { defineBrowser } from './browser/index';
 import { defineChecklist } from './checklist/index';
@@ -135,4 +138,5 @@ export const registerAtoms = (): void => {
   defineSelectionBar();
   defineConfirmDialog();
   defineExtendRightClick();
+  defineAlternatives();
 };

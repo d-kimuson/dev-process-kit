@@ -5,7 +5,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import type { SelectControllerRegistry } from '../../../core/select/controller';
 import type { TaskBoardMessages } from '../messages';
 import type { TodoStatus } from '../model';
-import type { TodoFilter, TodoViewModel, TodosViewModel } from '../present';
+import type { TaskLaneViewModel, TasksViewModel, TodoFilter, TodoViewModel } from '../present';
 
 import { DpkSelect } from '../../../components/select/element';
 import { iconTrash } from '../../../core/icons';
@@ -14,83 +14,68 @@ import { commentButton, type BoardHandlers } from './shared';
 
 const UNASSIGNED = '';
 
-const isTodoStatus = (value: string, vm: TodosViewModel): value is TodoStatus =>
+const isTodoStatus = (value: string, vm: TasksViewModel): value is TodoStatus =>
   vm.statuses.some((status) => status.value === value);
 
 /**
- * The todo list in the agent's order, with what the agent proposes on its own
- * mixed in under a "?" mark. The reader accepts a proposal to make it a todo,
- * sets the status of a todo a person has, and asks for more work with the form
- * at the end. The agent's own statuses and the assignees are the agent's to
- * write, so they only show. What was already done folds away above the rest,
- * out of the way but where the list starts.
+ * The work as a board, the way `dpk-board-kanban` draws one: one column per
+ * status, read left to right, each todo a card in the column it stands in.
+ *
+ * It is the same visual language — sunken lanes with a colored heading and a
+ * count, cards on the kit's card atom — over this view's own model instead of
+ * a board of its own: a card keeps its todo's actions (accept or decline a
+ * proposal, set the status of a todo a person has, comment, remove one the
+ * reader added), and dragging a person's card to another column records the
+ * same `SET_TODO_STATUS` the select does. A lane with nothing in it keeps its
+ * place, so the board's shape says where the work is without it.
  */
-export const renderTodos = (
+export const renderTasks = (
   m: TaskBoardMessages,
-  vm: TodosViewModel,
+  vm: TasksViewModel,
   handlers: BoardHandlers,
   statusSelects: SelectControllerRegistry,
 ): TemplateResult => html`
-  <section class="board-section board-rail-section" data-section="todos" aria-labelledby="board-todos">
-    <header class="board-section-head">
-      <h2 id="board-todos">${m.todos}</h2>
-      <span class="board-section-meta">${vm.progress.label}</span>
-    </header>
-    ${
-      vm.progress.total === 0
-        ? nothing
-        : html`<div
-            class="board-progress"
-            role="progressbar"
-            aria-label=${vm.progress.label}
-            aria-valuemin="0"
-            aria-valuemax=${vm.progress.total}
-            aria-valuenow=${vm.progress.done}
-          >
-            <span class="board-progress-fill" style=${`width: ${(vm.progress.done / vm.progress.total) * 100}%`}></span>
-          </div>`
-    }
-    ${vm.canFilter ? renderFilter(m, vm, handlers) : nothing}
-    ${
-      vm.todos.length === 0 && vm.done.length === 0
-        ? html`<p class="dpk-empty board-empty" data-variant="dashed">
-            ${vm.filter === 'human' ? m.noHumanTodos : m.noTodos}
-          </p>`
-        : nothing
-    }
-    ${
-      vm.done.length === 0
-        ? nothing
-        : html`<details class="board-done">
-            <summary class="board-done-summary">
-              <span class="board-done-chevron" aria-hidden="true"></span>${m.doneGroup(vm.done.length)}
-            </summary>
-            ${renderList(m, vm, vm.done, handlers, statusSelects)}
-          </details>`
-    }
-    ${vm.todos.length === 0 ? nothing : renderList(m, vm, vm.todos, handlers, statusSelects)}
-    ${renderAddTodo(m, vm, handlers)}
+  <section class="board-tasks" data-section="tasks" aria-label=${m.tasksBoard}>
+    ${renderSummary(m, vm, handlers)}
+    <div class="board-kanban" role="group" aria-label=${m.tasksBoard}>
+      ${repeat(
+        vm.lanes,
+        (lane) => lane.status,
+        (lane) => renderLane(m, vm, lane, handlers, statusSelects),
+      )}
+    </div>
   </section>
 `;
 
-const renderList = (
-  m: TaskBoardMessages,
-  vm: TodosViewModel,
-  todos: readonly TodoViewModel[],
-  handlers: BoardHandlers,
-  statusSelects: SelectControllerRegistry,
-): TemplateResult => html`
-  <ul class="board-todos">
-    ${repeat(
-      todos,
-      (todo) => todo.id,
-      (todo) => renderTodo(m, vm, todo, handlers, statusSelects),
-    )}
-  </ul>
+/** How far the work has got, and whose it is: the whole task's, whatever a lane shows. */
+const renderSummary = (m: TaskBoardMessages, vm: TasksViewModel, handlers: BoardHandlers): TemplateResult => html`
+  <div class="board-tasks-bar">
+    <div class="board-tasks-progress">
+      <span class="board-tasks-progress-label">${vm.progress.label}</span>
+      ${
+        vm.progress.total === 0
+          ? nothing
+          : html`<div
+              class="board-progress"
+              role="progressbar"
+              aria-label=${vm.progress.label}
+              aria-valuemin="0"
+              aria-valuemax=${vm.progress.total}
+              aria-valuenow=${vm.progress.done}
+            >
+              <span
+                class="board-progress-fill"
+                style=${`width: ${(vm.progress.done / vm.progress.total) * 100}%`}
+              ></span>
+            </div>`
+      }
+    </div>
+    ${vm.canFilter ? renderFilter(m, vm, handlers) : nothing}
+  </div>
 `;
 
 /** Everything, or only what people have to do: what the reader looks for first. */
-const renderFilter = (m: TaskBoardMessages, vm: TodosViewModel, handlers: BoardHandlers): TemplateResult => {
+const renderFilter = (m: TaskBoardMessages, vm: TasksViewModel, handlers: BoardHandlers): TemplateResult => {
   const option = (filter: TodoFilter, label: string, count: number | null): TemplateResult => html`
     <button
       type="button"
@@ -107,16 +92,55 @@ const renderFilter = (m: TaskBoardMessages, vm: TodosViewModel, handlers: BoardH
   </div>`;
 };
 
-const renderMark = (m: TaskBoardMessages, todo: TodoViewModel): TemplateResult =>
+const renderLane = (
+  m: TaskBoardMessages,
+  vm: TasksViewModel,
+  lane: TaskLaneViewModel,
+  handlers: BoardHandlers,
+  statusSelects: SelectControllerRegistry,
+): TemplateResult => html`
+  <section
+    class="board-lane"
+    data-column=${lane.status}
+    data-tone=${lane.tone}
+    aria-label=${lane.label}
+    @dragover=${handlers.allowTodoDrop}
+    @drop=${(event: DragEvent) => {
+      event.preventDefault();
+      handlers.dropTodo(lane.status);
+    }}
+  >
+    <header class="board-lane-head">
+      <h3 class="board-lane-title">${lane.label}</h3>
+      <span class="board-lane-count" title=${m.laneCount(lane.cards.length)}>${lane.cards.length}</span>
+    </header>
+    ${
+      lane.cards.length === 0
+        ? html`<p class="board-lane-empty">${m.laneEmpty}</p>`
+        : html`<ul class="board-cards">
+            ${repeat(
+              lane.cards,
+              (todo) => todo.id,
+              (todo) => renderCard(m, vm, todo, handlers, statusSelects),
+            )}
+          </ul>`
+    }
+    ${lane.status === 'todo' ? renderAddTodo(m, vm, handlers) : nothing}
+  </section>
+`;
+
+/** A proposal is not work yet: a question mark in place of the status it would have. */
+const renderMark = (m: TaskBoardMessages, todo: TodoViewModel): TemplateResult | typeof nothing =>
   todo.proposal === 'pending' || todo.proposal === 'decline'
     ? html`<span
-        class="board-todo-mark board-todo-mark--proposal"
+        class="board-card-mark"
+        data-proposal=${todo.proposal}
         role="img"
         aria-label=${m.proposedMark}
         title=${m.proposedMark}
         >?</span
       >`
-    : html`<span class="board-todo-mark" data-status=${todo.status} aria-hidden="true"></span>`;
+    : nothing;
 
 const renderTags = (m: TaskBoardMessages, todo: TodoViewModel): TemplateResult => html`
   ${todo.proposal === 'accept' ? html`<span class="board-tag" data-tone="done">${m.acceptedTag}</span>` : nothing}
@@ -125,33 +149,40 @@ const renderTags = (m: TaskBoardMessages, todo: TodoViewModel): TemplateResult =
   ${todo.changed ? html`<span class="board-tag" data-tone="changed">${m.changedTag}</span>` : nothing}
 `;
 
-const renderTodo = (
+const renderCard = (
   m: TaskBoardMessages,
-  vm: TodosViewModel,
+  vm: TasksViewModel,
   todo: TodoViewModel,
   handlers: BoardHandlers,
   statusSelects: SelectControllerRegistry,
 ): TemplateResult => html`
-  <li
-    class="board-todo"
-    data-todo=${todo.id}
-    data-dpk-target=${`todo:${todo.id}`}
-    data-grill-questions=${ifDefined(todo.questions)}
-    data-status=${todo.status}
-    data-proposal=${todo.proposal ?? 'none'}
-    data-added=${String(todo.added)}
-    data-changed=${String(todo.changed)}
-  >
-    ${renderMark(m, todo)}
-    <div class="board-todo-body">
-      <div class="board-todo-title"><span class="board-todo-text">${todo.title}</span>${renderTags(m, todo)}</div>
-      ${todo.note === null ? nothing : html`<p class="board-todo-note">${todo.note}</p>`}
+  <li class="board-card-slot">
+    <article
+      class="dpk-card board-card"
+      data-todo=${todo.id}
+      data-dpk-target=${`todo:${todo.id}`}
+      data-grill-questions=${ifDefined(todo.questions)}
+      data-status=${todo.status}
+      data-proposal=${todo.proposal ?? 'none'}
+      data-added=${String(todo.added)}
+      data-changed=${String(todo.changed)}
+      draggable=${ifDefined(todo.editable ? 'true' : undefined)}
+      title=${ifDefined(todo.editable ? m.dragHint : undefined)}
+      @dragstart=${() => handlers.beginTodoDrag(todo.id)}
+      @dragend=${() => handlers.endTodoDrag()}
+    >
+      <div class="board-card-head">
+        ${renderMark(m, todo)}
+        <h4 class="dpk-card-title board-card-title">${todo.title}</h4>
+        <div class="board-card-tags">${renderTags(m, todo)}</div>
+      </div>
+      ${todo.note === null ? nothing : html`<p class="dpk-card-text board-card-note">${todo.note}</p>`}
       ${
         todo.reason === null || todo.proposal === 'accept'
           ? nothing
           : html`<p class="board-reason"><span class="board-reason-label">${m.reason}</span>${todo.reason}</p>`
       }
-      <div class="board-todo-controls">
+      <div class="board-card-controls">
         ${
           todo.proposal === 'pending'
             ? renderDecision(m, todo, handlers)
@@ -192,7 +223,7 @@ const renderTodo = (
             : nothing
         }
       </div>
-    </div>
+    </article>
   </li>
 `;
 
@@ -220,7 +251,7 @@ const renderDecision = (m: TaskBoardMessages, todo: TodoViewModel, handlers: Boa
 /** A person's todo takes a status from the reader; the agent's own only shows where it stands. */
 const renderStatus = (
   m: TaskBoardMessages,
-  vm: TodosViewModel,
+  vm: TasksViewModel,
   todo: TodoViewModel,
   handlers: BoardHandlers,
   statusSelects: SelectControllerRegistry,
@@ -238,7 +269,7 @@ const renderStatus = (
     : html`<span class="board-todo-state" data-status=${todo.status}>${todo.statusLabel}</span>`;
 
 /** A new todo is a request to the agent: a title and, when the board names people, who should do it. */
-const renderAddTodo = (m: TaskBoardMessages, vm: TodosViewModel, handlers: BoardHandlers): TemplateResult => html`
+const renderAddTodo = (m: TaskBoardMessages, vm: TasksViewModel, handlers: BoardHandlers): TemplateResult => html`
   <form
     class="board-add-todo"
     @submit=${(event: SubmitEvent) => {

@@ -40,16 +40,17 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 
 `services[]`:
 
-| Field         | Required | Meaning                                                                                                                 |
-| ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `id`          | yes      | Stable id; links reference it.                                                                                          |
-| `name`        | yes      | Name on the card.                                                                                                       |
-| `position`    | yes      | `{ x, y }` of the card's top-left corner. Cards are 220 × 112; leave about 80 px between cards in different boundaries. |
-| `boundary`    | no       | Boundary id. A service without one is drawn outside every rectangle.                                                    |
-| `description` | no       | Shown under the name (clamped to 3 lines) and as the card tooltip.                                                      |
-| `symbol`      | no       | Fallback glyph when there is no `artwork` (`DB`, `SES`); defaults to the first two characters of the name.              |
-| `tags`        | no       | The tag filter applies to services.                                                                                     |
-| `artwork`     | no       | `{ src, alt, license? }` — see below.                                                                                   |
+| Field         | Required | Meaning                                                                                                                                                       |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | yes      | Stable id; links reference it.                                                                                                                                |
+| `name`        | yes      | Name on the card.                                                                                                                                             |
+| `position`    | yes      | `{ x, y }` of the card's top-left corner. Cards are 220 × 112; leave about 80 px between cards in different boundaries.                                       |
+| `boundary`    | no       | Boundary id. A service without one is drawn outside every rectangle.                                                                                          |
+| `description` | no       | Shown under the name (clamped to 3 lines) and as the card tooltip.                                                                                            |
+| `symbol`      | no       | Fallback glyph when there is no `artwork` (`DB`, `SES`); defaults to the first two characters of the name.                                                    |
+| `tags`        | no       | The tag filter applies to services.                                                                                                                           |
+| `artwork`     | no       | `{ src, alt, license? }` — see below.                                                                                                                         |
+| `questions`   | no       | Refs of the page's questions (grill) the service is about, space-separated (`"Q1 Q4"`); each gets a Q badge on the card (`docs/index.md`, Questions (grill)). |
 
 `links[]`: `id`, `from`, `to` (required) and `label` (optional, drawn on the edge). Unknown endpoints and unknown boundaries are errors.
 

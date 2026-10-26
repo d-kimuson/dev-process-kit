@@ -27,6 +27,10 @@ dpk-app              one document: header, review, draft, storage, hash, undo/re
   the content of a page. The same element is used two ways; placement decides which.
 - **A component** is embeddable only and never fills a page.
 
+Each has a page of its own under `docs/views/`, `docs/boards/` and `docs/components/`; a component
+such as [`dpk-alternatives`](components/alternatives.md), for instance, lays out the options a
+decision weighed and which one it took.
+
 The page content owns meaning: what a "step", a "story" or a sticky note _is_, and which actions
 apply to it. Your HTML owns the content.
 
@@ -170,6 +174,8 @@ only the height you give it follows the page you actually wrote.
 a component such as `<dpk-board-er-diagram>`), with nothing to rename when you change it.
 
 ## Base data
+
+> **Base data comes first.** The base data is the **first** `<script type="application/json">` child of its content element (`<dpk-app>`, `<dpk-view-*>`, `<dpk-board-*>` or a component). The [questions](#questions-grill) block (`data-dpk-grill`) and the [change log](#change-notices) block (`data-dpk-changes`) are written **after** it — either of the two first, but never before the base data. This is the page's contract, not a detail of the current build: released bundles up to `0.2.1` (the latest on npm) read a component's first JSON child as its base data and do not skip the option blocks, so an option block written first opens the page to an error banner such as `Invalid key: Expected "states" but received undefined`. The current sources do skip both blocks, but a page is read by whichever bundle its URL pins, so never rely on that. Write the attribute exactly too — a stray character in `data-dpk-grill` makes the block an ordinary JSON child, which the element then reads as base data. `src/docs-script-order.test.ts` fails if any HTML example in `docs/**` or `README.md` writes an option block first.
 
 The base data is the state the content would render with zero draft actions. It is JSON, baked into the HTML, and it has **no envelope**: the custom element already names the view and the script URL already pins the version, so `{ "activities": [] }` is the whole document, not `{ "view": …, "schema": …, "data": … }`. Keep it free of drafts, revisions and framework metadata.
 
@@ -392,6 +398,8 @@ Slot each piece of supporting material as its own element with a `data-name`:
 
 The shell lines the names up, in the order written, in a bar the full width of the main column, pinned to its bottom. The reader presses a name to open that supplement alone, growing upward over the content; pressing another switches, and pressing the open one folds it. The chevron at the start of the bar folds it too, and reopens the supplement last opened (the first, before any). One without a `data-name` is labelled "Memo". The bar is rendered only while at least one supplement is slotted, and follows ones added later. A supplement may hold the boards (load `components.js` too).
 
+Every supplement opens at one height — 320px, the same for every tab and every page load — so switching tabs never moves the drawer: a shorter supplement leaves the rest of it empty and a taller one scrolls inside. The reader changes that height by dragging the drawer's top edge, or with the arrow keys on it once focused (Shift for a larger step, Home / End for the shortest and the tallest, a double-click for the default), clamped between 140px and 160px short of the window; it is the reader's own state, remembered per browser for that template (`localStorage` key `dev-process-kit:supplements-height:<content>`, for this page load only under `storage` `off` / `memory`) and never written to the draft.
+
 The `memo` slot is gone: content left in `slot="memo"` is not shown, and the console says so. Wrap it in a `slot="supplement"` element instead.
 
 ## Review and the hand-off
@@ -404,7 +412,7 @@ Inside a Claude Artifact published with the `comments` capability, the rail also
 
 ## Questions (grill)
 
-Any view can ask the reader questions — decisions you still need from them — alongside its usual content ([ADR](../dev-docs/adr/20261016_grill-in-core.md)). Put them in a script of their own, another child of the content element, separate from the base data:
+Any view can ask the reader questions — decisions you still need from them — alongside its usual content ([ADR](../dev-docs/adr/20261016_grill-in-core.md)). Put them in a script of their own, another child of the content element, **after** its [base data](#base-data) (base data first, always):
 
 ```html
 <dpk-app storage-key="checkout-usm">
@@ -413,6 +421,9 @@ Any view can ask the reader questions — decisions you still need from them —
   </script>
   <dpk-page name="scope" label="Scope">
     <dpk-view-usm>
+      <script type="application/json">
+        { "activities": [] }
+      </script>
       <script type="application/json" data-dpk-grill>
         {
           "questions": [
@@ -429,9 +440,6 @@ Any view can ask the reader questions — decisions you still need from them —
             }
           ]
         }
-      </script>
-      <script type="application/json">
-        { "activities": [] }
       </script>
     </dpk-view-usm>
   </dpk-page>
@@ -512,10 +520,13 @@ On the next round, move the questions the reader answered into `history` togethe
 
 ## Change notices
 
-When you regenerate a page at the reader's request, tell them what changed. Put a change log beside the base data, as another child of the content element. It is the page's history: **each regeneration appends one version at the end**, and earlier versions stay as they were.
+When you regenerate a page at the reader's request, tell them what changed. Put a change log **after** the [base data](#base-data) — base data first, always — as another child of the content element. It is the page's history: **each regeneration appends one version at the end**, and earlier versions stay as they were. Written before the base data, it is read as the base data by a released bundle that does not skip option blocks, and the page opens to the error banner.
 
 ```html
 <dpk-view-usm storage-key="checkout-usm">
+  <script type="application/json">
+    { "activities": [] }
+  </script>
   <script type="application/json" data-dpk-changes>
     {
       "revisions": [
@@ -537,9 +548,6 @@ When you regenerate a page at the reader's request, tell them what changed. Put 
         }
       ]
     }
-  </script>
-  <script type="application/json">
-    { "activities": [] }
   </script>
 </dpk-view-usm>
 ```
@@ -566,6 +574,10 @@ The header gets a bell, and each reader is told only what is new to them:
 
 A toggle in the header lets the reader tally what they have already looked over during a long review, independent of comments or questions. Turning it on shows a small badge at the corner of every element already marked `data-dpk-target` — the same marker [Change notices](#change-notices)' **Show** and the [context menu](#context-menu) use, so most views need no change to support it: a content page's own [targets](#targets) list is what Check Mode covers. Clicking a badge marks it checked; clicking again clears it.
 
+A badge is a child of the box its target is laid out in, so it travels with the target — a scroll of its own column, a diagram pan, a zoom, a maximized panel — instead of being pinned over the page ([ADR](../dev-docs/adr/20261026_badge-portals.md)). A target panned out of a diagram's canvas takes its badge out of view with it.
+
+Not everything marked for **Show** is a unit the reader works through. A diagram's relation lines and links, a message, and a board's axis heads — a USM activity's column head, a step's head, a milestone row's head — keep the target so **Show** can point at them, and say `data-dpk-check="off"` to opt out of Check Mode; a badge on a header that stays on screen while its cards scroll under it would tally the axis, not the work. The attribute opts out the whole subtree below the element that carries it, and any other value still counts as a target. In your own markup, use it the same way — checkable items do not need it, and a container of them must not carry it.
+
 A checked element that a later change log entry targets (its `target` matching the same ref) shows "(?)" instead, until the reader checks it again — Check Mode reuses the change log already on the page rather than tracking changes on its own, so a page with no change log never goes stale, only checked or not.
 
 This state is entirely the reader's: it lives in `localStorage` under `<storage key>:check-mode`, the same way the change notices' own read history does, and it is never written into the draft or the hand-off brief — the agent never sees it. Turning Check Mode off clears every mark, so the reader is asked to confirm first, with the same prompt as `docs/components/confirm-dialog.md` — unless nothing is checked yet, in which case it turns off at once.
@@ -583,7 +595,7 @@ Your own markup can add entries too, without writing a component: wrap it in `<d
 | Question                          | Read                                                                                                                                                                                                                                         |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The view or board I am using      | `docs/views/<name>.md` (usm / prototype / plain / slides / task-board / delegation-poker) or `docs/boards/<name>.md` (ER / state / sequence / dependency / architecture / mind map / event storming / example mapping / whiteboard / kanban) |
-| The component I am actually using | `docs/components/<name>.md` (comment-panel / inline-edit / comment-thread / formal-spec / line-chart / code-group / table / select / extend-right-click / …)                                                                                 |
+| The component I am actually using | `docs/components/<name>.md` (comment-panel / inline-edit / comment-thread / formal-spec / line-chart / code-group / table / select / alternatives / extend-right-click / …)                                                                  |
 | Several pages in one app          | `docs/page.md`                                                                                                                                                                                                                               |
 | Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                                                                                                                    |
 

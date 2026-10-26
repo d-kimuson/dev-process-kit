@@ -1022,6 +1022,11 @@
         width: 100%;
       }
 
+      /* A comparison grid needs the width: one option per column, wrapping as the stage allows. */
+      .showcase-canvas:has(dpk-alternatives) > .demo {
+        width: 100%;
+      }
+
       /* A table's own content-based column widths shift as the search box filters rows; fit-content
        * sizing would track that and resize the whole demo, so it fills its stable max-width instead. */
       .showcase-canvas:has(dpk-table) > .demo {
@@ -1578,6 +1583,7 @@
               <a href="#catalog-comment-popover">comment popover</a>
               <a href="#catalog-comment-thread">comment thread</a>
               <a href="#catalog-checklist">checklist</a>
+              <a href="#catalog-alternatives">alternatives</a>
               <a href="#catalog-dpk-matrix">matrix</a>
               <b>Mock</b>
               <a href="#catalog-browser-frame">Browser frame</a>
@@ -4397,6 +4403,53 @@
                         }
                       </script>
                     </dpk-checklist>
+                  </div>
+                </article>
+
+                <article id="catalog-alternatives" class="entry">
+                  <header>
+                    <h3>&lt;dpk-alternatives&gt;</h3>
+                  </header>
+                  <p>
+                    検討した選択肢を並べ、どれを採用し、なぜ他を落としたか。左端の色帯ではなく、カード全体の色・リング・ヘッダのチップで状態を語る。
+                  </p>
+                  <div class="demo" data-code>
+                    <dpk-alternatives heading="通知の送信方法">
+                      <script type="application/json">
+                        {
+                          "options": [
+                            {
+                              "id": "a",
+                              "label": "送信時に直接送る",
+                              "status": "rejected",
+                              "summary": "リクエストの中で通知 API を 1 回呼ぶ。",
+                              "reason": "通知 API が落ちている間の通知は、そのまま消える。"
+                            },
+                            {
+                              "id": "b",
+                              "label": "非同期キューで送る",
+                              "status": "rejected",
+                              "summary": "送信をキューに積み、ワーカーが後で送る。",
+                              "reason": "キューを運用する人がいない。",
+                              "tradeoffs": ["滞留アラートを用意する", "順序保証を自前で持つ"]
+                            },
+                            {
+                              "id": "c",
+                              "label": "送信時に数回だけ再試行する",
+                              "status": "adopted",
+                              "summary": "指数バックオフで最大 3 回試し、駄目なら記録して諦める。",
+                              "reason": "外部の運用を増やさずに、一時的な失敗の大半を吸収できる。",
+                              "tradeoffs": ["p99 が最大 800ms 伸びる"]
+                            },
+                            {
+                              "id": "d",
+                              "status": "considered",
+                              "summary": "クライアントが失敗を受け取り、自分で再送する。"
+                            }
+                          ]
+                        }
+                      </script>
+                    </dpk-alternatives>
                   </div>
                 </article>
               </section>

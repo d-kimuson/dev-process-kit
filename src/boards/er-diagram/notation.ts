@@ -42,9 +42,38 @@ const BAR_HALF = 6;
 const FOOT_LENGTH = 12;
 const FOOT_HALF = 7;
 const NEAR = 7;
-const FAR = 14;
-const MANY_FAR = 19;
+const FAR = 13;
+const MANY_FAR = 14;
 const LABEL_GAP = 6;
+
+/** Where a "zero" circle's centre sits for a minimum symbol at `minAt`: its own position, nudged out by its radius. */
+const circleAt = (minAt: number): number => minAt + CIRCLE_RADIUS - 2;
+
+/**
+ * How far the furthest drawn part of any end glyph reaches from its port.
+ *
+ * The router escapes every port by at least this much
+ * (`view.ts`'s `PORT_STRAIGHT`) and the path never bends inside it, so a
+ * crow's foot and its "zero" circle are always drawn *on* the stroke. They
+ * used to be extrapolated along the port's nominal direction instead, and
+ * `PORT_ESCAPE` was 12 while `0..N`'s circle reaches 25: every relation that
+ * bent within 25px of a card — most of them, since the router turns as soon
+ * as it may — had its circle and multiplicity floating beside the line
+ * rather than on it (the reader's "the circle and the line start do not
+ * coincide" report).
+ *
+ * `MANY_FAR` and `FAR` are sized so this stays within the lane margin half of
+ * the smallest gap between two cards (`LAYOUT.nodeSpacing / 2`, see
+ * `element.ts`): a longer escape would put a route's first point inside the
+ * margin-inflated box of the card across that gap, where every candidate leg
+ * out of it counts as blocked.
+ */
+export const END_GLYPH_REACH: number = Math.max(
+  FAR,
+  MANY_FAR,
+  circleAt(MANY_FAR) + CIRCLE_RADIUS,
+  circleAt(FAR) + CIRCLE_RADIUS,
+);
 
 /**
  * Unit vector from the end into the line. A route with no length falls back
@@ -82,11 +111,10 @@ export const endGlyph = (points: readonly LayoutPoint[], end: ErEnd, multiplicit
       ? [-FOOT_HALF, 0, FOOT_HALF].map((across): ErSegment => [at(FOOT_LENGTH), at(0, across)])
       : [bar(NEAR)];
   const minAt = symbol.max === 'many' ? MANY_FAR : FAR;
-  const circleAt = minAt + CIRCLE_RADIUS - 2;
   const segments = symbol.min === 'one' ? [...maxSegments, bar(minAt)] : maxSegments;
-  const circle = symbol.min === 'zero' ? at(circleAt) : null;
+  const circle = symbol.min === 'zero' ? at(circleAt(minAt)) : null;
 
-  const reach = (symbol.min === 'zero' ? circleAt + CIRCLE_RADIUS : minAt) + LABEL_GAP;
+  const reach = (symbol.min === 'zero' ? circleAt(minAt) + CIRCLE_RADIUS : minAt) + LABEL_GAP;
   const label = at(reach);
   return { segments, circle, label: { ...label, anchor: u.x >= 0 ? 'start' : 'end' } };
 };

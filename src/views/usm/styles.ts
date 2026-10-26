@@ -13,13 +13,18 @@ export const usmStyles = css`
    * height left under the board head (tabs and toolbar), down to the page's
    * bottom edge: the hand-off dock floats over its corner, and the map's own
    * padding lets the last row scroll clear of it, so the page body keeps no
-   * second clearance under it. On a short screen it keeps 320px and the page
-   * scrolls instead.
+   * second clearance under it.
+   *
+   * The map's row is the space that is actually left, never a fixed minimum:
+   * the supplements bar at the foot of the column is sticky and takes its own
+   * height out of the column, so a floor taller than what remains would push the
+   * map's last rows under that bar — off screen, with nothing left to scroll
+   * them into view. The map itself scrolls; it does not need to be tall.
    */
   .dpk-main-body:has(> dpk-matrix) {
     flex: 1 1 0;
     min-height: 0;
-    grid-template-rows: auto minmax(320px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     padding-bottom: 16px;
   }
   /* The grid, its scroll, its sticky head and lead column are \`<dpk-matrix>\`'s
@@ -36,6 +41,9 @@ export const usmStyles = css`
   dpk-matrix {
     --dpk-matrix-dock-clearance: var(--dpk-dock-clearance, 0px);
     --dpk-matrix-head-pad: 4px;
+    /* A grid item will not shrink below its own content unless told to; the map
+       is a scroll frame, so it may be exactly as tall as the row it was given. */
+    min-height: 0;
   }
   .row-lead {
     display: flex;

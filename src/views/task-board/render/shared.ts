@@ -16,6 +16,13 @@ export type BoardHandlers = {
   readonly filterTodos: (filter: TodoFilter) => void;
   readonly addTodo: (title: string, assignee: string | null) => void;
   readonly deleteTodo: (todoId: string) => void;
+  /** A card the reader picked up: dropped on a column, it takes that column's status. */
+  readonly beginTodoDrag: (todoId: string) => void;
+  readonly endTodoDrag: () => void;
+  /** Keeps the browser from refusing the drop while a card is being carried. */
+  readonly allowTodoDrop: (event: DragEvent) => void;
+  /** The pointer let go over the column of `status`. */
+  readonly dropTodo: (status: TodoStatus) => void;
   /** Copies an output's URL or path to the clipboard. */
   readonly copy: (outputId: string, href: string) => void;
   /** Opens the review rail with a note on `target` (`todo:write-tests`). */

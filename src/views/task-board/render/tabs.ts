@@ -2,8 +2,11 @@ import { html, nothing, type TemplateResult } from 'lit';
 
 import type { TaskBoardMessages } from '../messages';
 
-/** The main area's sections, one at a time: the side rail keeps the rest of the width. */
-export const BOARD_TABS = ['context', 'log', 'questions'] as const;
+/**
+ * The main area's sections, one at a time: what the task is about, how it has
+ * gone, what the agent asks, and the work itself as a board.
+ */
+export const BOARD_TABS = ['context', 'log', 'questions', 'tasks'] as const;
 export type BoardTab = (typeof BOARD_TABS)[number];
 
 export type TabCounts = {
@@ -40,12 +43,15 @@ const tabLabel = (m: TaskBoardMessages, tab: BoardTab): string => {
       return m.tabLog;
     case 'questions':
       return m.tabQuestions;
+    case 'tasks':
+      return m.tabTasks;
   }
 };
 
 const tabCount = (tab: BoardTab, counts: TabCounts): number | null => {
   switch (tab) {
     case 'context':
+    case 'tasks':
       return null;
     case 'log':
       return counts.log;

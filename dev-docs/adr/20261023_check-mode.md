@@ -4,6 +4,8 @@
 
 accepted
 
+The badge rendering decided below (an overlay layer per region, and the shared `badge-dom.ts` it was pulled into) is superseded by [ADR: Badges live in their target's own box](20261026_badge-portals.md): both badge kinds are now drawn through a relative portal inside the target's own parent. The rest of this record — the target marker, staleness from the change log, reader-only storage, the confirm prompt before clearing — stands.
+
 ## Context
 
 A long review session loses track of what has already been looked over, especially on a page with many small items (a board's cards, an ER diagram's tables) and across several sittings. The reader wants to mark items off as they go, see at a glance what is left, and be warned when an item they already checked has since changed underneath them. None of this is a judgment about the content — it carries no opinion for the agent to read, unlike a comment or an answered question — so it must never enter the draft (`src/core/action.ts` / `serializeDraft`) or the hand-off brief; it is purely something the reader keeps for themselves, the same way the change notices' "seen" record is reader-only (`20261013_change-notices.md`).

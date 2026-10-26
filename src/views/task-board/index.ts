@@ -21,7 +21,7 @@ export {
   presentContext,
   presentLog,
   presentQuestions,
-  presentTodos,
+  presentTasks,
   resolveTaskBoardNavigation,
   serializeTaskBoardAction,
   taskBoardCommentTargets,
@@ -41,9 +41,11 @@ export type {
   QuestionReply,
   QuestionViewModel,
   QuestionsViewModel,
+  TaskLaneTone,
+  TaskLaneViewModel,
+  TasksViewModel,
   TodoProgress,
   TodoViewModel,
-  TodosViewModel,
 } from './present';
 export {
   CONTEXT_PARTS,

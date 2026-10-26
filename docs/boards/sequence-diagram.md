@@ -61,14 +61,15 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 
 `participants[]`:
 
-| Field         | Required | Meaning                                                                            |
-| ------------- | -------- | ---------------------------------------------------------------------------------- |
-| `id`          | yes      | Stable id; messages reference it.                                                  |
-| `name`        | yes      | Name on the rail.                                                                  |
-| `role`        | no       | Second line (`購入者`, `決済プロバイダ`).                                          |
-| `symbol`      | no       | Short glyph in the avatar tile (`UI`, `DB`); defaults to the first two characters. |
-| `kind`        | no       | `internal` (default) \| `external` (dashed tile, amber).                           |
-| `description` | no       | Shown as the participant tooltip.                                                  |
+| Field         | Required | Meaning                                                                                                                                                           |
+| ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | yes      | Stable id; messages reference it.                                                                                                                                 |
+| `name`        | yes      | Name on the rail.                                                                                                                                                 |
+| `role`        | no       | Second line (`購入者`, `決済プロバイダ`).                                                                                                                         |
+| `symbol`      | no       | Short glyph in the avatar tile (`UI`, `DB`); defaults to the first two characters.                                                                                |
+| `kind`        | no       | `internal` (default) \| `external` (dashed tile, amber).                                                                                                          |
+| `description` | no       | Shown as the participant tooltip.                                                                                                                                 |
+| `questions`   | no       | Refs of the page's questions (grill) the participant is about, space-separated (`"Q1 Q4"`); each gets a Q badge on the rail (`docs/index.md`, Questions (grill)). |
 
 `items[]` is an ordered list of two node kinds, and its order **is** the order of the diagram:
 
@@ -77,15 +78,16 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 { kind: 'fragment', id, operator, title, collapsed?, branches: [{ label, items: [...] }] }
 ```
 
-| Field         | Required       | Meaning                                                                                                                                         |
-| ------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `from` / `to` | yes            | Participant ids; `from === to` draws a self-message.                                                                                            |
-| `style`       | no             | `request` (default) \| `response` (dashed) \| `async` (blue, open arrow head).                                                                  |
-| `tags`        | no             | Filtered by the tag row; a fragment whose messages all disappear goes with them.                                                                |
-| `guard`       | no             | The condition, shown as the row tooltip.                                                                                                        |
-| `detail`      | no             | What the message guarantees, shown in the row tooltip labelled by `style` (`Process / guarantee`, `Response / guarantee`, `Async / guarantee`). |
-| `operator`    | yes (fragment) | `alt` \| `opt` \| `loop` \| `par`.                                                                                                              |
-| `collapsed`   | no             | `true` starts the fragment folded, showing its branch labels on one line.                                                                       |
+| Field         | Required       | Meaning                                                                                                                                                      |
+| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `from` / `to` | yes            | Participant ids; `from === to` draws a self-message.                                                                                                         |
+| `style`       | no             | `request` (default) \| `response` (dashed) \| `async` (blue, open arrow head).                                                                               |
+| `tags`        | no             | Filtered by the tag row; a fragment whose messages all disappear goes with them.                                                                             |
+| `guard`       | no             | The condition, shown as the row tooltip.                                                                                                                     |
+| `detail`      | no             | What the message guarantees, shown in the row tooltip labelled by `style` (`Process / guarantee`, `Response / guarantee`, `Async / guarantee`).              |
+| `questions`   | no             | Refs of the page's questions (grill) the message is about, space-separated (`"Q1 Q4"`); each gets a Q badge on the row (`docs/index.md`, Questions (grill)). |
+| `operator`    | yes (fragment) | `alt` \| `opt` \| `loop` \| `par`.                                                                                                                           |
+| `collapsed`   | no             | `true` starts the fragment folded, showing its branch labels on one line.                                                                                    |
 
 Message numbers follow declaration order, not the filter, so `Q`-style references stay valid while you narrow the view.
 

@@ -389,17 +389,32 @@
  * (25→7 and 7→0) on those two small fixtures — a trade accepted here, not an
  * unnoticed regression. Time caps rise for the two random fixtures because
  * the outer arrangement search evaluates four row-count candidates.
+ *
+ * 2026-10 (ERD end-glyph fix): the reader's "a relation line starts away from
+ * its source-side circle/marker" report made every route leave its port
+ * straight for the end glyph's whole footprint (`view.ts`'s `PORT_STRAIGHT`,
+ * 20px — the `0..N` end's "zero" circle reaches furthest), and made
+ * `nudgeParallelRoutes` refuse to slide a track into that run
+ * (`minPortRun`). Longer port stubs push every route further out of its card
+ * before it may bend, which is a large net win here — `er-complex` crossings
+ * 42→32 and total 5526→4722, `synthetic-cross-bc` 1034→761, `synthetic-random-1`
+ * 4859→4706 — at a small, conscious cost on two fixtures that were already
+ * hugging-dominated: `synthetic-random-2` 5155→5178 (+0.45%, crossings still
+ * 35→31: it trades `collinearOverlap` for the crossings, which is the user's
+ * named priority) and `synthetic-self-reference` 334.62→334.78 (+0.05%, four
+ * stubs 8px longer). `order-schema` (173→128) and `synthetic-hub-table`
+ * (428.37→428.05) improve with it.
  */
 export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 5525.651166237258,
-  'order-schema': 172.63548712864505,
+  'er-complex': 4721.999988081431,
+  'order-schema': 128.22094167409958,
   'er-long-names': 156.8217124073083,
   'synthetic-no-bc': 1366.4620464945997,
-  'synthetic-cross-bc': 1033.7708471315918,
-  'synthetic-hub-table': 428.3660727969349,
-  'synthetic-self-reference': 334.6199859624495,
-  'synthetic-random-1': 4859.1635152667495,
-  'synthetic-random-2': 5154.566918326812,
+  'synthetic-cross-bc': 761.3599380406827,
+  'synthetic-hub-table': 428.0460727969348,
+  'synthetic-self-reference': 334.7799859624496,
+  'synthetic-random-1': 4706.081192034428,
+  'synthetic-random-2': 5178.028837518731,
 };
 
 /**
@@ -470,17 +485,24 @@ export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
  * are unchanged — their edges never reach `rareFallbackRoute` at all, so a
  * change inside it cannot move them. Every fixture's hard metrics
  * (overlaps/edge-through-node/frame violations) remain 0.
+ *
+ * 2026-10 (ERD end-glyph fix, see `LAYOUT_BENCH_BASELINE` above): the longer
+ * straight port stub is, on this metric, the same lever that made the totals
+ * fall — it drops `er-complex` 42→32, `synthetic-cross-bc` 6→3,
+ * `synthetic-random-1` 32→24 and `synthetic-random-2` 35→31. `order-schema`
+ * (0), `er-long-names` (0), `synthetic-no-bc` (0), `synthetic-hub-table` (2)
+ * and `synthetic-self-reference` (2) are unchanged.
  */
 export const LAYOUT_BENCH_CROSSINGS_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 42,
+  'er-complex': 32,
   'order-schema': 0,
   'er-long-names': 0,
   'synthetic-no-bc': 0,
-  'synthetic-cross-bc': 6,
+  'synthetic-cross-bc': 3,
   'synthetic-hub-table': 2,
   'synthetic-self-reference': 2,
-  'synthetic-random-1': 32,
-  'synthetic-random-2': 35,
+  'synthetic-random-1': 24,
+  'synthetic-random-2': 31,
 };
 
 /**
@@ -549,17 +571,32 @@ export const LAYOUT_BENCH_CROSSINGS_BASELINE: Readonly<Record<string, number>> =
  * (`dev/layout-bench.test.ts`'s "#151 round 2" describe block) still passes
  * unchanged, confirming the hug-avoidance *mechanism* itself
  * (`pickBest`'s hard preference) is untouched by this fallback-only change.
+ *
+ * 2026-10 (ERD end-glyph fix, see `LAYOUT_BENCH_BASELINE` above): this is the
+ * one metric the longer straight port stub costs. Every route now runs 20px
+ * out of its card before it may bend, which on `er-complex` adds three
+ * incidents (13→16) and on `synthetic-random-2` removes three (19→16). The
+ * added `er-complex` cases are interior lane runs sitting ~2px outside an
+ * aggregate frame border (`users:id>carts:user_id`'s long vertical at
+ * x=750 against `Account`'s border at 752, `users:id>orders:user_id`'s the
+ * same, `warehouses:id>…`'s at x=1452 against `Inventory`'s 1454) — the
+ * "lane along a frame border" class `nudgeParallelRoutes` already targets,
+ * not the port stubs, which are perpendicular to every border they leave.
+ * Accepted as part of the same change that took this fixture's crossings
+ * 42→32: no route is drawn *on* a border, and `outlineHugging.length` (the
+ * visible extent) rises by 700 of ~3,800px. `order-schema` (2→0),
+ * `synthetic-cross-bc` (7→6) improve; `synthetic-random-1` stays at 12.
  */
 export const LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 13,
-  'order-schema': 2,
+  'er-complex': 16,
+  'order-schema': 0,
   'er-long-names': 0,
   'synthetic-no-bc': 0,
-  'synthetic-cross-bc': 7,
+  'synthetic-cross-bc': 6,
   'synthetic-hub-table': 0,
   'synthetic-self-reference': 0,
   'synthetic-random-1': 12,
-  'synthetic-random-2': 19,
+  'synthetic-random-2': 16,
 };
 
 /**

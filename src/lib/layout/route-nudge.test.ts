@@ -134,6 +134,83 @@ describe('nudgeParallelRoutes', () => {
     }
   });
 
+  /**
+   * The straight run a port leaves by is where a view draws its end
+   * decoration (`src/boards/er-diagram/notation.ts`'s crow's foot, bars and
+   * "zero" circle). Separating two tracks in one corridor may lengthen that
+   * run, never eat into it: on `er-complex`, a track that slid 6px toward its
+   * port left a `0..N` circle hanging 2px past the line's first corner.
+   */
+  it('holds a track at the bound instead of shortening the run at either port below `minPortRun`', () => {
+    const edges: readonly NudgeInput[] = [
+      {
+        id: 'a-b',
+        points: [
+          { x: 0, y: 10 },
+          { x: 20, y: 10 },
+          { x: 20, y: 90 },
+          { x: 100, y: 90 },
+        ],
+        obstacles: [],
+      },
+      {
+        id: 'c-d',
+        points: [
+          { x: 0, y: 20 },
+          { x: 24, y: 20 },
+          { x: 24, y: 100 },
+          { x: 100, y: 100 },
+        ],
+        obstacles: [],
+      },
+    ];
+    // Unguarded, the spread pulls the first track to x=19: one pixel inside
+    // the 20px run its end glyphs are drawn on.
+    const unguarded = nudgeParallelRoutes(edges);
+    expect(unguarded.get('a-b')![1]!.x).toBe(19);
+
+    const guarded = nudgeParallelRoutes(edges, { minPortRun: 20 });
+    const a = guarded.get('a-b')!;
+    const c = guarded.get('c-d')!;
+    // Held at the bound rather than pushed back to its original lane, and the
+    // other track still separates.
+    expect(a[1]!.x).toBe(20);
+    expect(c[1]!.x).toBe(25);
+    for (const points of [a, c]) {
+      expect(points[0]!.x === points[1]!.x && points[0]!.y === points[1]!.y).toBe(false);
+      expect(Math.abs(points[1]!.x - points[0]!.x)).toBeGreaterThanOrEqual(20);
+      expect(Math.abs(points.at(-1)!.x - points.at(-2)!.x)).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  it('leaves a route shorter than two stub runs where it is rather than serving one end', () => {
+    const edges: readonly NudgeInput[] = [
+      {
+        id: 'a-b',
+        points: [
+          { x: 0, y: 10 },
+          { x: 20, y: 10 },
+          { x: 20, y: 90 },
+          { x: 30, y: 90 },
+        ],
+        obstacles: [],
+      },
+      {
+        id: 'c-d',
+        points: [
+          { x: 0, y: 20 },
+          { x: 22, y: 20 },
+          { x: 22, y: 100 },
+          { x: 30, y: 100 },
+        ],
+        obstacles: [],
+      },
+    ];
+    const result = nudgeParallelRoutes(edges, { minPortRun: 20 });
+    expect(result.get('a-b')).toEqual(edges[0]!.points);
+    expect(result.get('c-d')).toEqual(edges[1]!.points);
+  });
+
   // Deterministic PRNG (mulberry32) — a fixed seed makes a failure reproducible
   // without pulling in a dependency just for test fuzzing.
   const mulberry32 = (seed: number) => {

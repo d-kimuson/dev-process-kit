@@ -11,6 +11,7 @@ import {
   type RouteSegment,
 } from '../../lib/layout/orthogonal-router';
 import { nudgeParallelRoutes, type NudgeInput } from '../../lib/layout/route-nudge';
+import { END_GLYPH_REACH } from './notation';
 
 /**
  * Presentation of a table card's rows and of the column editor, apart from
@@ -458,8 +459,27 @@ const directedPorts = (
   };
 };
 
-/** Distance a route travels straight out of a port before it may turn; keeps it off its own card's border. */
-const PORT_ESCAPE = 12;
+/**
+ * The straight run every route keeps out of a port before it may bend: the
+ * whole end glyph's own footprint (`notation.ts`'s `END_GLYPH_REACH`).
+ *
+ * `notation.ts` lays a crow's foot, its bars and its "zero" circle out along
+ * the port's outgoing direction only — it has no idea where the line actually
+ * bends. So the route has to *stay* straight for that whole length, or the
+ * glyph is drawn past the corner, in empty space beside the stroke: the
+ * reader's "the circle and the line start do not coincide" report, where
+ * `0..N`'s circle (21px out, 25px including its radius) sat beyond a corner
+ * only 12px from the card. Both the router's port escape (`relationRoute`)
+ * and the path builders (`relationPath`, `roundedPath`) use this one number:
+ * the escape reserves the run, the path refuses to spend it on a bend.
+ *
+ * Bounded above by the lane margin (half of `LAYOUT.nodeSpacing`, see
+ * `element.ts`): a longer escape would put the route's first point inside the
+ * margin-inflated box of the card across the nearest gap, where every leg out
+ * of it counts as blocked and no clear candidate exists. `view.test.ts`
+ * asserts the bound.
+ */
+export const PORT_STRAIGHT = END_GLYPH_REACH;
 
 /** The outward unit normal of a card side. */
 const outward = (side: RouteSide): LayoutPoint => {
@@ -543,7 +563,7 @@ const selfLoopRoute = (
   const x1 = clampPort(start.x, box.x + PORT_INSET, Math.max(box.x + PORT_INSET, box.x + box.width - PORT_INSET));
   const x2 = clampPort(end.x, box.x + PORT_INSET, Math.max(box.x + PORT_INSET, box.x + box.width - PORT_INSET));
   const obstacles = tables.filter((table) => table.id !== relation.from).map((table) => table.box);
-  const channel = margin + PORT_ESCAPE;
+  const channel = margin + PORT_STRAIGHT;
   const candidates: readonly (readonly LayoutPoint[])[] = [
     // Right: out, down/up, back in.
     simplifyRoute([
@@ -657,16 +677,19 @@ export const relationRoute = (
   // Leave each card straight out of its chosen side before turning. Without
   // this, a route whose first move is parallel to the card edge occupies the
   // border's own row/column (the reader's "line and column line have no gap"
-  // failure) even though the router never enters the card.
+  // failure) even though the router never enters the card. The escape is
+  // `PORT_STRAIGHT` long — the end glyph's own footprint — so that crow's
+  // foot, bars and "zero" circle are drawn on a straight tail rather than
+  // past a corner the glyph cannot see.
   const startNormal = outward(ports.startSide);
   const endNormal = outward(ports.endSide);
   const startEscape = {
-    x: ports.start.x + startNormal.x * PORT_ESCAPE,
-    y: ports.start.y + startNormal.y * PORT_ESCAPE,
+    x: ports.start.x + startNormal.x * PORT_STRAIGHT,
+    y: ports.start.y + startNormal.y * PORT_STRAIGHT,
   };
   const endEscape = {
-    x: ports.end.x + endNormal.x * PORT_ESCAPE,
-    y: ports.end.y + endNormal.y * PORT_ESCAPE,
+    x: ports.end.x + endNormal.x * PORT_STRAIGHT,
+    y: ports.end.y + endNormal.y * PORT_STRAIGHT,
   };
   const middle = detourRoute(startEscape, endEscape, tableObstacles, margin, avoid, outlines, ownTables);
   return simplifyRoute([ports.start, ...middle, ports.end]);
@@ -787,7 +810,7 @@ export const relationRoutes = (
       ownFrames,
     };
   });
-  return nudgeParallelRoutes(inputs);
+  return nudgeParallelRoutes(inputs, { minPortRun: PORT_STRAIGHT });
 };
 
 const CORNER_RADIUS = 10;
@@ -798,11 +821,20 @@ const CORNER_RADIUS = 10;
  * reaching at most `reach` to either side of its jog (and never past half of
  * a run it shares with the next jog), so a curve stays inside the gap between
  * tables its jog sits in. Anything else keeps its channels, with rounded corners.
+ *
+ * `straight` (default `PORT_STRAIGHT`) is the run at either end that no bend
+ * may touch: the end glyphs are laid out along the port's own direction, so
+ * the stroke has to stay straight underneath them (see `PORT_STRAIGHT`).
  */
-export const relationPath = (points: readonly LayoutPoint[], reach: number): string => {
+export const relationPath = (
+  points: readonly LayoutPoint[],
+  reach: number,
+  straight: number = PORT_STRAIGHT,
+): string => {
   const start = points[0];
   const end = points.at(-1);
-  if (start === undefined || end === undefined || !isForward(points)) return roundedPath(points, CORNER_RADIUS);
+  if (start === undefined || end === undefined || !isForward(points))
+    return roundedPath(points, CORNER_RADIUS, straight);
   const parts = [`M${point(start)}`];
   let at = start;
   const lineTo = (next: LayoutPoint) => {
@@ -815,9 +847,23 @@ export const relationPath = (points: readonly LayoutPoint[], reach: number): str
     const bottom = points[index + 1];
     if (top === undefined || bottom === undefined) continue;
     const share = (run: number, shared: boolean) => (shared ? run / 2 : run);
-    const before = share(top.x - (points[index - 1]?.x ?? top.x), index - 1 > 0);
-    const after = share((points[index + 2]?.x ?? bottom.x) - bottom.x, index + 2 < points.length - 1);
+    // The first and last run end at a port: reserve the glyph's own straight
+    // tail there before the curve may begin. Zero leaves a plain corner,
+    // which for a forward route is a straight vertical run (top.x === bottom.x).
+    const firstRun = index === 1;
+    const lastRun = index + 2 === points.length - 1;
+    const keep = (run: number, reserved: boolean) => (reserved ? Math.max(0, run - straight) : run);
+    const before = keep(share(top.x - (points[index - 1]?.x ?? top.x), index - 1 > 0), firstRun);
+    const after = keep(share((points[index + 2]?.x ?? bottom.x) - bottom.x, index + 2 < points.length - 1), lastRun);
     const r = round(Math.min(reach, before, after));
+    if (r === 0) {
+      // No room left to curve before the port: keep the jog square. All of a
+      // forward route's jogs are vertical, so this is still a right angle, not
+      // a diagonal.
+      lineTo(top);
+      lineTo(bottom);
+      continue;
+    }
     lineTo({ x: round(top.x - r), y: top.y });
     parts.push(`C${point(top)} ${point(bottom)} ${round(bottom.x + r)} ${bottom.y}`);
     at = { x: round(bottom.x + r), y: bottom.y };
@@ -843,8 +889,18 @@ const point = (p: LayoutPoint): string => `${p.x} ${p.y}`;
  * SVG path of an orthogonal route with its corners rounded, so relation lines
  * read as smooth steps. A corner never takes more than half of either
  * segment beside it, so short jogs still meet their neighbours.
+ *
+ * `straight` (default `PORT_STRAIGHT`) is the run kept straight at either end
+ * of the route: the end glyphs are laid out along the port's own direction,
+ * not along the line, so a corner that reached back into that run would leave
+ * its crow's foot or "zero" circle hanging beside the stroke. A corner too
+ * close to a port is left square instead.
  */
-export const roundedPath = (points: readonly LayoutPoint[], radius: number): string => {
+export const roundedPath = (
+  points: readonly LayoutPoint[],
+  radius: number,
+  straight: number = PORT_STRAIGHT,
+): string => {
   const [first, ...rest] = points;
   if (first === undefined) return '';
   const parts = [`M${point(first)}`];
@@ -857,8 +913,11 @@ export const roundedPath = (points: readonly LayoutPoint[], radius: number): str
     }
     const inLength = Math.hypot(corner.x - before.x, corner.y - before.y);
     const outLength = Math.hypot(after.x - corner.x, after.y - corner.y);
-    const r = Math.min(radius, inLength / 2, outLength / 2);
-    if (r === 0) {
+    // The first corner's in-run and the last one's out-run end at a port.
+    const inRoom = index === 0 ? inLength - straight : inLength;
+    const outRoom = rest[index + 2] === undefined ? outLength - straight : outLength;
+    const r = Math.min(radius, inLength / 2, outLength / 2, inRoom, outRoom);
+    if (r <= 0) {
       parts.push(`L${point(corner)}`);
       return;
     }

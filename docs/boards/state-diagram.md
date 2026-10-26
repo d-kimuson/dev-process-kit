@@ -34,26 +34,28 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 
 `states[]`:
 
-| Field         | Required | Meaning                                                                                                                                               |
-| ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`          | yes      | Stable id; transitions reference it.                                                                                                                  |
-| `name`        | yes      | Label on the card.                                                                                                                                    |
-| `code`        | no       | Model-side code (`payment_pending`), shown under the name.                                                                                            |
-| `kind`        | no       | `normal` (default) \| `initial` \| `terminal` \| `compensation`. `initial` draws the entry marker, `terminal` a double border, `compensation` a tint. |
-| `description` | no       | Shown as the state tooltip.                                                                                                                           |
-| `position`    | no       | `{ x, y }`. When **every** state has one the diagram keeps them, otherwise it lays the states out automatically.                                      |
+| Field         | Required | Meaning                                                                                                                                                     |
+| ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | yes      | Stable id; transitions reference it.                                                                                                                        |
+| `name`        | yes      | Label on the card.                                                                                                                                          |
+| `code`        | no       | Model-side code (`payment_pending`), shown under the name.                                                                                                  |
+| `kind`        | no       | `normal` (default) \| `initial` \| `terminal` \| `compensation`. `initial` draws the entry marker, `terminal` a double border, `compensation` a tint.       |
+| `description` | no       | Shown as the state tooltip.                                                                                                                                 |
+| `position`    | no       | `{ x, y }`. When **every** state has one the diagram keeps them, otherwise it lays the states out automatically.                                            |
+| `questions`   | no       | Refs of the page's questions (grill) the state is about, space-separated (`"Q1 Q4"`); each gets a Q badge on the card (`docs/index.md`, Questions (grill)). |
 
 `transitions[]`:
 
-| Field         | Required | Meaning                                                                                                              |
-| ------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
-| `id`          | yes      | Stable id.                                                                                                           |
-| `from` / `to` | yes      | State ids; a transition may point at its own state (self-loop).                                                      |
-| `title`       | yes      | Label on the edge.                                                                                                   |
-| `kind`        | no       | `normal` (default) \| `exception` (dashed, amber).                                                                   |
-| `tags`        | no       | **The tag filter applies to transitions here**, not to states: it hides transitions and the states left without any. |
-| `guard`       | no       | The condition, shown as the edge tooltip.                                                                            |
-| `effect`      | no       | What the transition does, shown in the edge tooltip after the guard.                                                 |
+| Field         | Required | Meaning                                                                                                                                                          |
+| ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | yes      | Stable id.                                                                                                                                                       |
+| `from` / `to` | yes      | State ids; a transition may point at its own state (self-loop).                                                                                                  |
+| `title`       | yes      | Label on the edge.                                                                                                                                               |
+| `kind`        | no       | `normal` (default) \| `exception` (dashed, amber).                                                                                                               |
+| `tags`        | no       | **The tag filter applies to transitions here**, not to states: it hides transitions and the states left without any.                                             |
+| `guard`       | no       | The condition, shown as the edge tooltip.                                                                                                                        |
+| `effect`      | no       | What the transition does, shown in the edge tooltip after the guard.                                                                                             |
+| `questions`   | no       | Refs of the page's questions (grill) the transition is about, space-separated (`"Q1 Q4"`); each gets a Q badge on the edge (`docs/index.md`, Questions (grill)). |
 
 Unknown transition endpoints and duplicate ids are errors, and the element renders the reason instead of a wrong diagram.
 

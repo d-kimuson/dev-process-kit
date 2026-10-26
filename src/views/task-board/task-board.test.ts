@@ -19,7 +19,7 @@ import {
   presentContext,
   presentLog,
   presentQuestions,
-  presentTodos,
+  presentTasks,
   taskBoardCommentTargets,
 } from './present';
 
@@ -254,75 +254,83 @@ describe('task board presentation', () => {
     expect(vm.blocking[0]).toMatchObject({ reply: 'none', resolved: false });
   });
 
-  it('lists proposals among the todos and leaves undecided or declined ones out of the progress', () => {
-    const vm = presentTodos(m, state, state, none);
-    expect(vm.done.map((todo) => todo.id)).toEqual(['design']);
-    expect(vm.todos.map((todo) => [todo.id, todo.proposal])).toEqual([
-      ['impl', null],
-      ['review', null],
-      ['deploy', null],
-      ['index', 'pending'],
+  it('stands every todo in the column of its status, proposals included, and keeps the rejected out of progress', () => {
+    const vm = presentTasks(m, state, state, none);
+    expect(vm.lanes.map((lane) => [lane.status, lane.label, lane.tone])).toEqual([
+      ['todo', 'To do', 'gray'],
+      ['doing', 'In progress', 'blue'],
+      ['blocked', 'Blocked', 'red'],
+      ['done', 'Done', 'green'],
     ]);
+    expect(vm.lanes.map((lane) => lane.cards.map((card) => card.id))).toEqual([
+      ['review', 'index'],
+      ['impl'],
+      ['deploy'],
+      ['design'],
+    ]);
+    expect(vm.lanes[0]?.cards.map((card) => card.proposal)).toEqual([null, 'pending']);
     expect(vm.progress).toMatchObject({ done: 1, total: 4, label: '1 of 4 done' });
     const accepted = apply(state, decideProposal('index', 'accept'));
     if (accepted === null) throw new Error('not applied');
-    const after = presentTodos(m, accepted, state, none);
-    expect(after.todos.at(-1)?.proposal).toBe('accept');
-    // Accepted, it is the agent's to carry out: still not the reader's to tick off.
-    expect(after.todos.at(-1)?.editable).toBe(false);
+    const after = presentTasks(m, accepted, state, none);
+    // Accepted, it is a regular todo in the column it stands in: still the agent's to carry out.
+    expect(after.lanes[0]?.cards.at(-1)?.proposal).toBe('accept');
+    expect(after.lanes[0]?.cards.at(-1)?.editable).toBe(false);
     expect(after.progress.total).toBe(5);
-    expect(presentTodos(m, emptyTaskBoardBase(), emptyTaskBoardBase(), none).progress.label).toBe('No todos yet');
-  });
-
-  it('lets the reader tick off only the todos a person has', () => {
-    const vm = presentTodos(m, state, state, none);
-    expect(vm.todos.map((todo) => [todo.id, todo.editable, todo.assigneeName])).toEqual([
-      ['impl', false, 'Claude'],
-      ['review', true, 'd-kimuson'],
-      ['deploy', false, null],
-      ['index', false, null],
+    const declined = apply(state, decideProposal('index', 'decline'));
+    if (declined === null) throw new Error('not applied');
+    expect(presentTasks(m, declined, state, none).lanes[0]?.cards.at(-1)?.proposal).toBe('decline');
+    expect(presentTasks(m, emptyTaskBoardBase(), emptyTaskBoardBase(), none).progress.label).toBe('No todos yet');
+    expect(presentTasks(m, emptyTaskBoardBase(), emptyTaskBoardBase(), none).lanes.map((lane) => lane.cards)).toEqual([
+      [],
+      [],
+      [],
+      [],
     ]);
   });
 
-  it('folds away what was already done, but not what the reader just finished', () => {
-    const finished = apply(state, setTodoStatus('review', 'done'));
-    if (finished === null) throw new Error('not applied');
-    const vm = presentTodos(m, finished, state, none);
-    expect(vm.done.map((todo) => todo.id)).toEqual(['design']);
-    expect(vm.todos.find((todo) => todo.id === 'review')?.status).toBe('done');
-    expect(vm.progress.done).toBe(2);
+  it('lets the reader tick off only the todos a person has', () => {
+    const cards = presentTasks(m, state, state, none).lanes.flatMap((lane) => lane.cards);
+    expect(Object.fromEntries(cards.map((card) => [card.id, [card.editable, card.assigneeName]]))).toEqual({
+      review: [true, 'd-kimuson'],
+      index: [false, null],
+      impl: [false, 'Claude'],
+      deploy: [false, null],
+      design: [false, 'Claude'],
+    });
   });
 
-  it('narrows the list to the todos people have, when the board names a person', () => {
-    const vm = presentTodos(m, state, state, none, 'human');
+  it('narrows the board to the todos people have, when the board names a person', () => {
+    const vm = presentTasks(m, state, state, none, 'human');
     expect(vm.filter).toBe('human');
     expect(vm.canFilter).toBe(true);
-    expect(vm.todos.map((todo) => todo.id)).toEqual(['review']);
-    expect(vm.done).toEqual([]);
+    expect(vm.lanes.map((lane) => lane.cards.map((card) => card.id))).toEqual([['review'], [], [], []]);
     expect(vm.humanCount).toBe(1);
-    // Progress is the whole task's, whatever the list shows.
+    // Progress is the whole task's, whatever the board shows.
     expect(vm.progress.total).toBe(4);
     const nobody = parseTaskBoardBase({ todos: [{ id: 'a', title: 'A' }] });
-    const unfiltered = presentTodos(m, nobody, nobody, none, 'human');
+    const unfiltered = presentTasks(m, nobody, nobody, none, 'human');
     expect(unfiltered.canFilter).toBe(false);
     expect(unfiltered.filter).toBe('all');
-    expect(unfiltered.todos).toHaveLength(1);
+    expect(unfiltered.lanes.flatMap((lane) => lane.cards)).toHaveLength(1);
   });
 
   it('marks todos the reader changed or added', () => {
     const changed = apply(state, setTodoStatus('review', 'doing'));
     const added = changed && apply(changed, addTodo('docs', 'Docs', null));
     if (added === null) throw new Error('not applied');
-    const todos = presentTodos(m, added, state, (target) => (target === 'todo:impl' ? 2 : 0)).todos;
-    expect(todos.map((todo) => [todo.id, todo.changed, todo.added])).toEqual([
-      ['impl', false, false],
-      ['review', true, false],
-      ['deploy', false, false],
-      ['index', false, false],
-      ['docs', false, true],
+    const lanes = presentTasks(m, added, state, (target) => (target === 'todo:impl' ? 2 : 0)).lanes;
+    // The status change moved the card: the board reads by column, not by the agent's order.
+    expect(lanes.map((lane) => lane.cards.map((card) => card.id))).toEqual([
+      ['index', 'docs'],
+      ['impl', 'review'],
+      ['deploy'],
+      ['design'],
     ]);
-    expect(todos[0]?.comments).toBe(2);
-    expect(todos[1]?.assigneeKind).toBe('human');
+    const cards = lanes.flatMap((lane) => lane.cards);
+    expect(cards.filter((card) => card.changed || card.added).map((card) => card.id)).toEqual(['docs', 'review']);
+    expect(cards.find((card) => card.id === 'impl')?.comments).toBe(2);
+    expect(cards.find((card) => card.id === 'review')?.assigneeKind).toBe('human');
   });
 
   it('tells a link from a file path', () => {
@@ -496,6 +504,13 @@ const type = (area: HTMLTextAreaElement, value: string): void => {
   area.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
 };
 
+/** A drag event: jsdom has no `DragEvent`, and the board only needs the type and the target. */
+const drag = (target: Element, kind: string): void => {
+  const event = new Event(kind, { bubbles: true, cancelable: true, composed: true });
+  Object.assign(event, { dataTransfer: null });
+  target.dispatchEvent(event);
+};
+
 afterEach(() => {
   document.body.replaceChildren();
   window.location.hash = '';
@@ -503,7 +518,7 @@ afterEach(() => {
 });
 
 describe('<dpk-view-task-board>', () => {
-  it('puts context, work log and questions under tabs in the main area, and the outputs and todos in the side rail', async () => {
+  it('puts context, work log, questions and the task board under tabs, and the outputs in a left-hand rail', async () => {
     const element = mount();
     await settle(element);
     const root = element.shadowRoot;
@@ -511,13 +526,18 @@ describe('<dpk-view-task-board>', () => {
     const main = root?.querySelector('.dpk-main');
     const side = root?.querySelector('.dpk-sidebar');
     expect(side?.hasAttribute('hidden')).toBe(false);
+    // The rail is the left-hand one: the review floats over the page's right edge and would cover it there.
+    expect(side?.getAttribute('slot')).toBe('left');
+    expect(root?.querySelector('.dpk-aside')).toBeNull();
+    expect((side?.compareDocumentPosition(main ?? element) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const tabs = [...(main?.querySelectorAll('[role="tab"]') ?? [])];
-    expect(tabs.map((tab) => tab.getAttribute('data-tab'))).toEqual(['context', 'log', 'questions']);
-    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
+    expect(tabs.map((tab) => tab.getAttribute('data-tab'))).toEqual(['context', 'log', 'questions', 'tasks']);
+    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
     const panel = (tab: string): HTMLElement => query(element, `#board-panel-${tab}`);
     expect(panel('context').hidden).toBe(false);
     expect(panel('log').hidden).toBe(true);
     expect(panel('questions').hidden).toBe(true);
+    expect(panel('tasks').hidden).toBe(true);
     expect(
       [...panel('context').querySelectorAll('[data-context]')].map((node) => node.getAttribute('data-context')),
     ).toEqual(['why', 'what', 'goals', 'nonGoals']);
@@ -528,11 +548,48 @@ describe('<dpk-view-task-board>', () => {
     expect(panel('context').querySelector('.board-status')).toBeNull();
     expect(panel('questions').querySelectorAll('.board-question')).toHaveLength(3);
     expect(panel('log').querySelectorAll('.board-log-entry')).toHaveLength(3);
+    // The rail holds what the agent produced and nothing else: the todos are the Tasks board.
     expect(side?.querySelectorAll('.board-output')).toHaveLength(2);
-    expect(side?.querySelectorAll('.board-todo')).toHaveLength(5);
+    expect(side?.querySelector('[data-section="todos"]')).toBeNull();
+    expect(side?.querySelector('.board-todo')).toBeNull();
     // The "waiting on you" card and its hand-back button are gone: the review button does that.
     expect(root?.querySelector('.board-overview')).toBeNull();
     expect(root?.querySelector('.board-hand-back')).toBeNull();
+  });
+
+  it('draws the todos as a kanban board of one column per status in the Tasks tab', async () => {
+    const element = mount();
+    await settle(element);
+    const lane = (status: string): HTMLElement => query(element, `#board-panel-tasks [data-column="${status}"]`);
+    const cards = (status: string): (string | null)[] =>
+      [...lane(status).querySelectorAll('.board-card')].map((card) => card.getAttribute('data-todo'));
+    expect(
+      [...query(element, '#board-panel-tasks .board-kanban').querySelectorAll('[data-column]')].map((column) =>
+        column.getAttribute('data-column'),
+      ),
+    ).toEqual(['todo', 'doing', 'blocked', 'done']);
+    expect([cards('todo'), cards('doing'), cards('blocked'), cards('done')]).toEqual([
+      ['review', 'index'],
+      ['impl'],
+      ['deploy'],
+      ['design'],
+    ]);
+    expect(lane('blocked').getAttribute('data-tone')).toBe('red');
+    expect(lane('done').querySelector('.board-lane-title')?.textContent?.trim()).toBe('Done');
+    expect(lane('done').querySelector('.board-lane-count')?.textContent?.trim()).toBe('1');
+    // A card carries the todo it stands for, so comments, grill badges and change notices still find it.
+    const review = lane('todo').querySelector<HTMLElement>('[data-todo="review"]');
+    expect(review?.getAttribute('data-dpk-target')).toBe('todo:review');
+    expect(review?.querySelector('.board-assignee')?.getAttribute('data-kind')).toBe('human');
+    expect(review?.querySelector('.board-todo-status')).not.toBeNull();
+    // The board is only drawn when its tab is open.
+    query<HTMLButtonElement>(element, '[data-tab="tasks"]').click();
+    await settle(element);
+    expect(query<HTMLElement>(element, '#board-panel-tasks').hidden).toBe(false);
+    expect(query<HTMLElement>(element, '#board-panel-context').hidden).toBe(true);
+    // The progress and the filter moved with the todos, out of the rail.
+    expect(query(element, '#board-panel-tasks .board-tasks-progress-label').textContent).toBe('1 of 4 done');
+    expect(query(element, '#board-panel-tasks [data-filter="all"]')).not.toBeNull();
   });
 
   it('shows the conversation newest first, with where the task stands on the newest entry', async () => {
@@ -582,23 +639,37 @@ describe('<dpk-view-task-board>', () => {
     expect(tab('questions').querySelector('.board-tab-count')?.textContent).toBe('3');
     expect(tab('questions').getAttribute('data-alert')).toBe('true');
     expect(tab('log').querySelector('.board-tab-count')?.textContent).toBe('3');
+    // Tasks says what it holds in its columns, not in a count.
+    expect(tab('tasks').querySelector('.board-tab-count')).toBeNull();
     tab('questions').click();
     await settle(element);
     expect(query<HTMLElement>(element, '#board-panel-questions').hidden).toBe(false);
     expect(query<HTMLElement>(element, '#board-panel-context').hidden).toBe(true);
     tab('questions').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     await settle(element);
+    expect(tab('tasks').getAttribute('aria-selected')).toBe('true');
+    expect(tab('tasks').getAttribute('tabindex')).toBe('0');
+    // Stepping past the last tab wraps to the first, and back.
+    tab('tasks').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await settle(element);
     expect(tab('context').getAttribute('aria-selected')).toBe('true');
     tab('context').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
     await settle(element);
-    expect(tab('questions').getAttribute('aria-selected')).toBe('true');
-    tab('questions').dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    expect(tab('tasks').getAttribute('aria-selected')).toBe('true');
+    tab('tasks').dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
     await settle(element);
     expect(tab('context').getAttribute('aria-selected')).toBe('true');
+    tab('context').dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    await settle(element);
+    expect(tab('tasks').getAttribute('aria-selected')).toBe('true');
+    // A tab stays selected across the renders its own actions cause.
+    tab('questions').click();
+    await settle(element);
     // Answering the blockers turns the badge from red to plain.
     query<HTMLButtonElement>(element, '[data-question="legacy"] .board-approve').click();
     type(query(element, '[data-answer-text="deadline"]'), '来週');
     await settle(element);
+    expect(query(element, '[role="tab"][aria-selected="true"]').getAttribute('data-tab')).toBe('questions');
     expect(tab('questions').querySelector('.board-tab-count')?.textContent).toBe('1');
     expect(tab('questions').getAttribute('data-alert')).toBe('false');
   });
@@ -667,12 +738,15 @@ describe('<dpk-view-task-board>', () => {
     expect(element.api.actions).toEqual([]);
   });
 
-  it('shows a proposal in the todo list and promotes it to a todo on approval', async () => {
+  it('shows a proposal as a card in its column and promotes it to a regular task on approval', async () => {
     const element = mount();
     await settle(element);
     const todo = (): HTMLElement => query(element, '[data-todo="index"]');
     expect(todo().getAttribute('data-proposal')).toBe('pending');
     expect(todo().querySelector('.board-todo-state')).toBeNull();
+    // A proposal is drawn apart from the work: a "?" beside its title, no status to set.
+    expect(todo().querySelector('.board-card-mark')?.textContent?.trim()).toBe('?');
+    expect(todo().closest('[data-column]')?.getAttribute('data-column')).toBe('todo');
     query<HTMLButtonElement>(element, '[data-todo="index"] [data-decision="accept"]').click();
     await settle(element);
     expect(element.api.state.decisions).toEqual({ index: 'accept' });
@@ -684,6 +758,9 @@ describe('<dpk-view-task-board>', () => {
     query<HTMLButtonElement>(element, '[data-todo="index"] [data-decision="decline"]').click();
     await settle(element);
     expect(todo().getAttribute('data-proposal')).toBe('decline');
+    // Declined, it keeps its column and offers the way back.
+    expect(todo().closest('[data-column]')?.getAttribute('data-column')).toBe('todo');
+    expect(todo().querySelector('.board-undo')).not.toBeNull();
   });
 
   it("changes the status of a person's todo in place, and only shows the agent's", async () => {
@@ -691,38 +768,65 @@ describe('<dpk-view-task-board>', () => {
     await settle(element);
     const root = element.shadowRoot;
     expect(root?.querySelectorAll('.board-todo-status')).toHaveLength(1);
-    expect(root?.querySelector('.board-todo-assignee')).toBeNull();
     expect(query(element, '[data-todo="impl"] .board-todo-state').textContent?.trim()).toBe('In progress');
     expect(query(element, '[data-todo="impl"] .board-assignee').textContent?.trim()).toBe('Claude');
     expect(query(element, '[data-todo="review"] .board-assignee').getAttribute('data-kind')).toBe('human');
     await chooseRich(element, '[data-todo="review"]', 'doing');
     expect(element.api.actions.map((entry) => entry.type)).toEqual(['SET_TODO_STATUS']);
     expect(query(element, '[data-todo="review"]').getAttribute('data-changed')).toBe('true');
+    // Set the status and the card moves to that status's column.
+    expect(query(element, '[data-todo="review"]').closest('[data-column]')?.getAttribute('data-column')).toBe('doing');
     // Setting it back leaves nothing to hand back.
     await chooseRich(element, '[data-todo="review"]', 'todo');
     expect(element.api.actions).toEqual([]);
   });
 
-  it('folds the done todos away until the reader opens them', async () => {
+  it("drops a person's card into another column to set its status, and leaves the agent's own alone", async () => {
     const element = mount();
     await settle(element);
-    const folded = query<HTMLDetailsElement>(element, 'details.board-done');
-    expect(folded.open).toBe(false);
-    expect(folded.querySelector('summary')?.textContent).toContain('Done (1)');
-    expect(folded.querySelector('[data-todo="design"]')).not.toBeNull();
-    // The finished ones sit above what is still open.
-    const open = query(element, '[data-section="todos"] > .board-todos');
-    expect(folded.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // A todo the reader just finished stays where it was.
-    await chooseRich(element, '[data-todo="review"]', 'done');
-    expect(query(element, '[data-todo="review"]').closest('details')).toBeNull();
+    const lane = (status: string): HTMLElement => query(element, `#board-panel-tasks [data-column="${status}"]`);
+    // Only a todo a person has can be picked up: the agent reports its own progress.
+    expect(query(element, '[data-todo="review"]').getAttribute('draggable')).toBe('true');
+    expect(query(element, '[data-todo="impl"]').getAttribute('draggable')).toBeNull();
+    drag(query(element, '[data-todo="review"]'), 'dragstart');
+    drag(lane('doing'), 'dragover');
+    drag(lane('doing'), 'drop');
+    await settle(element);
+    expect(element.api.actions.map((entry) => [entry.type, entry.payload])).toEqual([
+      ['SET_TODO_STATUS', { status: 'doing' }],
+    ]);
+    expect(query(element, '[data-todo="review"]').closest('[data-column]')?.getAttribute('data-column')).toBe('doing');
+    // Dropping a card back where it was records nothing.
+    drag(query(element, '[data-todo="review"]'), 'dragstart');
+    drag(lane('doing'), 'drop');
+    await settle(element);
+    expect(element.api.actions).toHaveLength(1);
   });
 
-  it('narrows the todos to the ones people have', async () => {
+  it('keeps every status as a column, the done ones included', async () => {
+    const element = mount();
+    await settle(element);
+    const cards = (status: string): (string | null)[] =>
+      [...query(element, `#board-panel-tasks [data-column="${status}"]`).querySelectorAll('.board-card')].map((card) =>
+        card.getAttribute('data-todo'),
+      );
+    expect(cards('done')).toEqual(['design']);
+    // Finishing a todo moves its card to the done column rather than folding it away.
+    await chooseRich(element, '[data-todo="review"]', 'done');
+    expect(cards('done')).toEqual(['design', 'review']);
+    expect(cards('todo')).toEqual(['index']);
+    // A column with nothing left in it keeps its place, so the board's shape still reads.
+    query<HTMLButtonElement>(element, '[data-filter="human"]').click();
+    await settle(element);
+    expect(query(element, '#board-panel-tasks [data-column="doing"] .board-lane-empty')).not.toBeNull();
+    expect(query(element, '#board-panel-tasks [data-column="doing"] .board-lane-count').textContent).toBe('0');
+  });
+
+  it('narrows the board to the todos people have', async () => {
     const element = mount();
     await settle(element);
     const ids = (): (string | null)[] =>
-      [...(element.shadowRoot?.querySelectorAll('.board-todo') ?? [])].map((node) => node.getAttribute('data-todo'));
+      [...(element.shadowRoot?.querySelectorAll('.board-card') ?? [])].map((node) => node.getAttribute('data-todo'));
     const human = query<HTMLButtonElement>(element, '[data-filter="human"]');
     expect(human.getAttribute('aria-pressed')).toBe('false');
     human.click();
@@ -806,6 +910,8 @@ describe('<dpk-view-task-board>', () => {
     const ja = taskBoardMessages('ja');
     expect(query(element, '#board-questions').textContent).toBe(ja.questions);
     expect(query(element, '[data-tab="log"]').textContent).toContain(ja.tabLog);
+    expect(query(element, '[data-tab="tasks"]').textContent).toContain(ja.tabTasks);
+    expect(query(element, '[data-column="doing"] .board-lane-title').textContent).toBe(ja.todoDoing);
     expect(query(element, '[data-group="blocking"] .board-group-title').textContent).toBe(ja.blockingGroup);
   });
 });
@@ -823,13 +929,14 @@ describe('task-board change notices', () => {
     expect(query(element, '[role="tab"][aria-selected="true"]').getAttribute('data-tab')).toBe('questions');
   });
 
-  it('"Show" on a todo the filter hides shows every todo', async () => {
+  it('"Show" on a todo opens the task board and clears the filter hiding it', async () => {
     const element = mountWith(base, 'en', 'todo:design');
     await settle(element);
     query<HTMLButtonElement>(element, '[data-filter="human"]').click();
     await settle(element);
     const todo = await showChange(element);
     expect(todo?.getAttribute('data-todo')).toBe('design');
+    expect(query(element, '[role="tab"][aria-selected="true"]').getAttribute('data-tab')).toBe('tasks');
     expect(query(element, '[data-filter="all"]').getAttribute('aria-pressed')).toBe('true');
   });
 });

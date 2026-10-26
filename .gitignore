@@ -14,3 +14,7 @@ docs/tmp
 
 # generated appraisal reports and screenshots
 dev/eval/out/
+
+# docs-only one-shot review artifacts (served by the LP dev server)
+lp/one-shot/
+lp/one-shot-2/

@@ -4,7 +4,7 @@ import type { DpkInlineEdit } from '../../../components/inline-edit';
 import type { StickyNote } from '../model';
 import type { NoteCardMode, NoteIntent } from '../ui-mode';
 
-import { iconTrash } from '../../../core/icons';
+import { iconPencil, iconTrash } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
 import { controls, popoverSurface } from '../../../core/theme';
 import { onCommit } from '../../../lib/dom/events';
@@ -31,6 +31,14 @@ export const notePaletteStyle = (type: StickyNote['type']): string => {
 };
 
 const cardStyles = css`
+  /*
+   * The host is the note's box and its ink. It is never rotated, scaled or
+   * filtered: any transform here promotes the note to a composited layer that
+   * is rasterized and then resampled, and the sub-degree --es-tilt alone is
+   * enough to make the whole name look out of focus. The hand-placed tilt
+   * lives on .paper instead — the silhouette leans, the text stays
+   * axis-aligned and crisp in every state.
+   */
   :host {
     display: flex;
     flex-direction: column;
@@ -40,24 +48,38 @@ const cardStyles = css`
     box-sizing: border-box;
     padding: 16px 9px 8px;
     border-radius: 3px;
+    color: var(--es-note-ink, var(--dpk-ink));
+    cursor: pointer;
+    /* Whole-pixel lifts only: a fractional offset would soften the ink again. */
+    transition: transform 180ms var(--dpk-ease);
+    overflow: visible;
+  }
+
+  /* The paper: gradient, bevel, shadow and the dog-eared corner. It alone
+     carries the tilt, so a note still looks hand-placed while its text stays
+     sharp. It never takes a pointer, so clicks land on the note (and its
+     editor) underneath. */
+  .paper {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: 3px;
     background:
       linear-gradient(165deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 40%),
       var(--es-note-bg, var(--dpk-paper-raised));
-    color: var(--es-note-ink, var(--dpk-ink));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.3),
       0 1px 2px rgba(30, 24, 10, 0.14),
       0 5px 10px -4px rgba(30, 24, 10, 0.24);
-    cursor: pointer;
     transform: rotate(var(--es-tilt, 0deg));
     transition:
       transform 180ms var(--dpk-ease),
       box-shadow 180ms var(--dpk-ease);
-    overflow: visible;
+    pointer-events: none;
   }
 
   /* A dog-eared corner: a quiet cue that this is a paper note, not a flat chip. */
-  :host::after {
+  .paper::after {
     content: '';
     position: absolute;
     top: 0;
@@ -67,28 +89,62 @@ const cardStyles = css`
     background: linear-gradient(135deg, transparent 50%, rgba(0, 0, 0, 0.16) 50%);
     border-bottom-left-radius: 3px;
     opacity: 0.6;
-    pointer-events: none;
   }
 
   :host(:hover) {
-    transform: rotate(0deg) translateY(-2px);
+    transform: translateY(-2px);
+    z-index: 6;
+  }
+
+  :host(:hover) .paper {
+    transform: rotate(0deg);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.32),
       0 2px 4px rgba(30, 24, 10, 0.16),
       0 12px 22px -6px rgba(30, 24, 10, 0.3);
-    z-index: 6;
   }
 
+  /* Selected: no outline. The note is picked off the wall — straightened,
+     lifted, and lit with a soft glow that reads as "chosen", not as a border. */
   :host([focused]) {
-    outline: 2px solid var(--dpk-blue);
-    outline-offset: 2px;
-    transform: rotate(0deg);
+    transform: translateY(-2px);
     z-index: 5;
   }
 
-  :host([data-mode='editing']) {
-    z-index: 7;
+  :host([focused]) .paper {
     transform: rotate(0deg);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.32),
+      0 2px 4px rgba(30, 24, 10, 0.16),
+      0 12px 22px -6px rgba(30, 24, 10, 0.3),
+      0 0 15px 1px color-mix(in srgb, var(--dpk-blue) 42%, transparent);
+  }
+
+  /* Editing — which is the editor's own state, so it is true whether the board
+     opened the edit (the data-mode it is given) or the reader clicked straight
+     onto the name. No outline and no box: the note is lifted off the wall, its
+     paper is straightened, and its type label gives way to a pencil. The side
+     rail stays out so delete is still in reach while typing. */
+  :host([data-editing]) {
+    transform: translateY(-3px);
+    z-index: 7;
+  }
+
+  :host([data-editing]) .paper {
+    transform: rotate(0deg);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.34),
+      0 3px 6px rgba(30, 24, 10, 0.2),
+      0 18px 30px -8px rgba(30, 24, 10, 0.4);
+  }
+
+  /* The type label and the pencil share the top-left corner: one or the other. */
+  :host([data-editing]) .note-type {
+    display: none;
+  }
+
+  :host([data-editing]) .note-editing {
+    display: block;
   }
 
   /* --------------------------------------------------- sticky note palette */
@@ -96,6 +152,7 @@ const cardStyles = css`
   /* Small, faint, top-left: readable when looked for, quiet when not. */
   .note-type {
     position: absolute;
+    z-index: 2;
     top: 5px;
     left: 7px;
     font-family: var(--dpk-mono);
@@ -105,17 +162,39 @@ const cardStyles = css`
     opacity: 0.5;
   }
 
+  /* The editing cue that replaces the type label: a pencil in the same corner,
+     plus the raised paper — an affordance that is not a box around the note. */
+  .note-editing {
+    position: absolute;
+    z-index: 2;
+    display: none;
+    top: 5px;
+    left: 7px;
+    width: 11px;
+    height: 11px;
+    opacity: 0.7;
+  }
+
+  .note-editing svg {
+    display: block;
+    width: 11px;
+    height: 11px;
+  }
+
   /* Pinned hotspots are small: the type label is off and the name is centered. */
   :host([compact]) {
     justify-content: center;
     padding: 7px 9px 8px;
   }
 
-  :host([compact]) .note-type {
+  :host([compact]) .note-type,
+  :host([compact]) .note-editing {
     display: none;
   }
 
   .note-name {
+    position: relative;
+    z-index: 1;
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
@@ -126,6 +205,13 @@ const cardStyles = css`
     overflow-wrap: anywhere;
     /* As many lines as the fixed-size card holds; the rest ends in an ellipsis. */
     --dpk-inline-edit-lines: 4;
+    /*
+     * The card marks the edit on its own surface (the raised, straightened paper
+     * and the pencil that replaces the type label), so the shared editor paints
+     * no ring around the name: a blue box over sticky-note text is exactly the
+     * "outline" this card does not have anywhere else.
+     */
+    --dpk-inline-edit-ring: none;
   }
 
   :host([compact]) .note-name {
@@ -175,8 +261,12 @@ const cardStyles = css`
       border-color 140ms var(--dpk-ease);
   }
 
+  /* The two tools come out on hover, and while anything in the card has focus
+     (the name being edited, or a tool reached with the keyboard): with no
+     outline marking the editing note, its controls must not hide behind the
+     pointer having to leave the text. */
   :host(:hover) .note-hotspot,
-  :host([data-mode='editing']) .note-hotspot,
+  :host(:focus-within) .note-hotspot,
   .note-hotspot:focus-visible {
     opacity: 1;
     pointer-events: auto;
@@ -189,6 +279,7 @@ const cardStyles = css`
   }
 
   :host(:hover) .note-tools,
+  :host(:focus-within) .note-tools,
   .note-tools:focus-within {
     opacity: 1;
     pointer-events: auto;
@@ -233,6 +324,14 @@ export class DpkInternalEventStormingNote extends LitElement {
   declare onIntent: ((intent: NoteIntent) => void) | null;
 
   readonly #i18n = new LocaleController(this);
+  /**
+   * The card's own "being edited" chrome keys on the name editor's real state,
+   * never on focus: a click straight onto the name starts an edit the board
+   * never hears about, and a committed name leaves the field focused. The
+   * editor reflects that state on itself (`data-editing`), so the card watches
+   * its one child and mirrors it onto its own attribute for the styles.
+   */
+  readonly #editor = new MutationObserver(() => this.#mirrorEditorState());
 
   constructor() {
     super();
@@ -242,6 +341,17 @@ export class DpkInternalEventStormingNote extends LitElement {
     this.compact = false;
     this.onIntent = null;
     this.addEventListener('click', () => this.#report({ kind: 'select' }));
+  }
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    this.#watchEditor();
+    this.#mirrorEditorState();
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.#editor.disconnect();
   }
 
   protected override updated(changed: PropertyValues<this>): void {
@@ -254,6 +364,20 @@ export class DpkInternalEventStormingNote extends LitElement {
     if (changed.has('mode') && this.mode === 'editing') {
       this.renderRoot.querySelector<DpkInlineEdit>('dpk-inline-edit')?.startEditing();
     }
+    this.#watchEditor();
+    this.#mirrorEditorState();
+  }
+
+  /** Re-attached on connect and after every render: the editor is our one child. */
+  #watchEditor(): void {
+    const editor = this.renderRoot.querySelector<DpkInlineEdit>('dpk-inline-edit');
+    if (editor) this.#editor.observe(editor, { attributes: true, attributeFilter: ['data-editing'] });
+  }
+
+  /** `data-editing` on the card is the editor's state, not the board's or focus's. */
+  #mirrorEditorState(): void {
+    const editing = this.renderRoot.querySelector('dpk-inline-edit')?.hasAttribute('data-editing') ?? false;
+    this.toggleAttribute('data-editing', editing);
   }
 
   protected override render(): TemplateResult | typeof nothing {
@@ -261,7 +385,9 @@ export class DpkInternalEventStormingNote extends LitElement {
     if (!note) return nothing;
     const m = eventStormingMessages(this.#i18n.locale);
     return html`
+      <div class="paper" aria-hidden="true"></div>
       <div class="note-type">${m.noteTypeLabel(note.type)}</div>
+      <div class="note-editing" aria-hidden="true">${iconPencil()}</div>
       <dpk-inline-edit
         class="note-name"
         ?wrap=${true}

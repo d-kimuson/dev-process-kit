@@ -450,6 +450,60 @@ describe('er diagram ports', () => {
   });
 });
 
+describe('er diagram grill questions', () => {
+  /** The same schema on both sides, so only the authored `questions` differ. */
+  const tables = (tableQuestions?: string, fieldQuestions?: string) => ({
+    tables: [
+      {
+        id: 'inventory_reservations',
+        name: '在庫予約',
+        ...(tableQuestions === undefined ? {} : { questions: tableQuestions }),
+        fields: [
+          { id: 'id', type: 'uuid', key: 'PK' },
+          {
+            id: 'order_id',
+            type: 'uuid',
+            key: 'FK',
+            ref: 'orders.id',
+            ...(fieldQuestions === undefined ? {} : { questions: fieldQuestions }),
+          },
+        ],
+      },
+      { id: 'orders', name: '注文', fields: [{ id: 'id', type: 'uuid', key: 'PK' }] },
+    ],
+  });
+
+  it('keeps a table’s and a column’s questions, taken from `after` and left out of the diff', () => {
+    const data = parseErData({
+      before: tables(),
+      after: tables('Q1 Q4', 'Q1@billing'),
+    });
+    const table = data.nodes.find((node) => node.id === 'inventory_reservations');
+    expect(table?.questions).toBe('Q1 Q4');
+    expect(table?.status).toBe('same');
+    expect(table?.fields.map((field) => [field.id, field.questions])).toEqual([
+      ['id', null],
+      ['order_id', 'Q1@billing'],
+    ]);
+    expect(table?.fields.every((field) => field.status === 'same')).toBe(true);
+    // A table that names none carries no `questions` at all, so no badge is drawn.
+    expect(data.nodes.find((node) => node.id === 'orders')?.questions).toBeUndefined();
+  });
+
+  it('marks the table and the column with data-grill-questions, and nothing on an unmarked one', async () => {
+    const element = new DpkBoardErDiagram();
+    element.data = parseErData({ after: tables('Q1 Q4', 'Q1@billing') });
+    document.body.append(element);
+    await settle(element);
+    const root = element.renderRoot;
+    const table = root.querySelector('[data-er-table="inventory_reservations"]');
+    expect(table?.getAttribute('data-grill-questions')).toBe('Q1 Q4');
+    expect(root.querySelector('[data-er-table="orders"]')?.hasAttribute('data-grill-questions')).toBe(false);
+    expect(table?.querySelector('[data-field="order_id"]')?.getAttribute('data-grill-questions')).toBe('Q1@billing');
+    expect(table?.querySelector('[data-field="id"]')?.hasAttribute('data-grill-questions')).toBe(false);
+  });
+});
+
 /** Runs the right-click "Review comment" action for a node or an edge, assuming `element.id = 'schema'`. */
 const openComment = async (element: DpkBoardErDiagram, kind: 'node' | 'edge', id: string): Promise<void> => {
   await settle(element);

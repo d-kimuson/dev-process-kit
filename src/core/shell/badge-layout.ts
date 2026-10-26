@@ -1,6 +1,6 @@
 /**
  * Where the Q badges go, as plain geometry: the DOM is measured and written by
- * `positionLabels`, the decision is here.
+ * the relative portal (`./badge-portal`), the decision is here.
  *
  * A diagram node wears its badges on its top-right corner, like a notification
  * count; badges a node is too narrow for wrap into rows above it. The author's

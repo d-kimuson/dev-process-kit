@@ -191,13 +191,15 @@ As a page's content the board takes the height the page gives it, and `--diagram
 
 ## Annotating for questions (grill)
 
-An annotatable element in the data may carry `questions`: a space-separated list of question references from the page's `data-dpk-grill` block (`docs/index.md`, Questions (grill)). Which elements those are is the board's rule (services, modules, tables, messages …), and its page says so.
+An annotatable element in the data may carry `questions`: a space-separated list of question references from the page's `data-dpk-grill` block (`docs/index.md`, Questions (grill)). Which elements those are is the board's rule, and its page says so: an ERD's tables and fields, an architecture map's services, a dependency graph's modules, a state diagram's states and transitions, a sequence diagram's participants and messages, a mind map's nodes, a kanban's cards, a whiteboard's items, an event storming's notes and contexts, an example mapping's cards.
 
 ```json
 { "id": "inventory_reservations", "name": "在庫予約", "questions": "Q1 Q4" }
 ```
 
-The element renders it as `data-grill-questions` on that card, which is what the shell hangs its Q badges on. Inside a page the ref is that page's question; write `Q1@<page>` to mark another page's.
+The element renders it as `data-grill-questions` on that card, which is what the shell hangs its Q badges on: one per reference, on the card's own corner (an ERD table's top-right, a kanban card's corner) rather than in the page's gutter column, so it stays with the node through a pan and a zoom. The author's own markup in the main column gets a badge in the right-hand gutter instead, where it would not cover what it points at. Inside a page the ref is that page's question; write `Q1@<page>` to mark another page's.
+
+A card that names no question carries no attribute at all, so a board whose data has no `questions` gets no Q badges even when its page asks plenty — annotate the cards, not just the page.
 
 Each board's main nodes (a table, a state, a participant, a service, a module) also carry `data-dpk-target`, so a page's [Check Mode](../index.md#check-mode) covers them the same way it covers a view's own cards, with no extra setup.
 

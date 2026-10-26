@@ -408,6 +408,12 @@ describe('<dpk-view-prototype> layout', () => {
         ['feedback', true],
         ['note', false],
       ]);
+      // the tabs read as a review comment for the agent, and a note kept on the element
+      expect(
+        [...root.querySelectorAll<HTMLLabelElement>('.comment-pop .comment-kind')].map((label) =>
+          label.textContent?.trim(),
+        ),
+      ).toEqual(['Review comment', 'Note']);
       expect(root.querySelector('.comment-kind-hint')?.textContent).toBe(m.uiCommentFeedbackHint);
       kinds[1]!.click();
       await settle(el);

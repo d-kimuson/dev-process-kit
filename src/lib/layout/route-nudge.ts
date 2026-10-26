@@ -48,6 +48,23 @@ export type NudgeOptions = {
   readonly trackSpacing?: number;
   /** Minimum distance kept from an own frame's border before a run counts as "hugging" it. */
   readonly frameClearance?: number;
+  /**
+   * Straight run kept at either end of a route, between a port and the first
+   * bend: a nudge may pull tracks apart, but never into it.
+   *
+   * Some views draw end decoration (an arrowhead, a crow's foot, an
+   * end-cardinality circle) laid out along the port's own outgoing direction,
+   * assuming the stroke continues straight underneath it — see the ER view's
+   * `endGlyph` and `PORT_STRAIGHT`. The router already leaves each port
+   * straight for that long, but a nudge slides the bend-to-bend segment next
+   * to a port sideways, which changes that stub's length: measured on
+   * `er-complex`, a track sharing a corridor moved 6px inward and left a
+   * `0..N` end's "zero" circle 2px beyond the line's first corner. So the
+   * caller that draws such decoration passes its own reach here, and a
+   * candidate whose slide would shorten a stub below it is held at the bound
+   * instead — sliding the other way, or not at all, stays allowed.
+   */
+  readonly minPortRun?: number;
 };
 
 const DEFAULTS = { trackSpacing: 6, frameClearance: 6 } as const;
@@ -175,6 +192,43 @@ const safeCoord = (
   return unsafe(coord) ? original : coord;
 };
 
+/**
+ * The coordinate range a candidate's segment may slide into without
+ * shortening the straight run at either end of its route below `minPortRun`.
+ *
+ * A route's first and last runs are port stubs: `port → corner`, along the
+ * axis the segment after them does *not* move on (the two are perpendicular
+ * at a genuine bend). Sliding such a segment moves that corner along the
+ * stub's own axis, so the stub's signed length becomes
+ * `(coord - port) * side`; the bound keeps that on the port's own side and at
+ * least `minPortRun` long. Both ends are constrained, because a four-point
+ * route's single interior segment is the corner for both.
+ *
+ * `low > high` means the two ends cannot both be served at once (a route
+ * shorter than two stub runs): callers then leave that candidate untouched.
+ */
+const portRunRange = (
+  points: readonly LayoutPoint[],
+  segIndex: number,
+  orientation: Orientation,
+  minPortRun: number,
+): { readonly low: number; readonly high: number } => {
+  const axis = orientation === 'vertical' ? 'x' : 'y';
+  let low = Number.NEGATIVE_INFINITY;
+  let high = Number.POSITIVE_INFINITY;
+  const bound = (port: LayoutPoint, corner: LayoutPoint): void => {
+    const side = Math.sign(corner[axis] - port[axis]);
+    if (side === 0) return;
+    const limit = port[axis] + side * minPortRun;
+    if (side > 0) low = Math.max(low, limit);
+    else high = Math.min(high, limit);
+  };
+  const last = points.length - 1;
+  if (segIndex === 1) bound(points[0]!, points[1]!);
+  if (segIndex + 1 === last - 1) bound(points[last]!, points[last - 1]!);
+  return { low, high };
+};
+
 /** Union-find over candidate indices, merging two that share (near enough) the same line and overlap along it. */
 const clusterIndices = (items: readonly Candidate[], mergeEps: number): readonly number[] => {
   const parent = items.map((_, i) => i);
@@ -214,6 +268,7 @@ export const nudgeParallelRoutes = (
 ): ReadonlyMap<string, readonly LayoutPoint[]> => {
   const trackSpacing = options.trackSpacing ?? DEFAULTS.trackSpacing;
   const frameClearance = options.frameClearance ?? DEFAULTS.frameClearance;
+  const minPortRun = options.minPortRun ?? 0;
 
   const candidates: Candidate[] = [];
   const ownFramesById = new Map<string, readonly RouteBox[]>();
@@ -268,11 +323,18 @@ export const nudgeParallelRoutes = (
       const sorted = [...group].sort((a, b) => a.edgeId.localeCompare(b.edgeId));
       const center = sorted.reduce((sum, c) => sum + c.coord, 0) / sorted.length;
       sorted.forEach((candidate, index) => {
-        const desired =
+        const spread =
           sorted.length === 1 ? candidate.coord : center + (index - (sorted.length - 1) / 2) * trackSpacing;
-        const original = byEdge.get(candidate.edgeId)!.points[candidate.segIndex]![
-          orientation === 'vertical' ? 'x' : 'y'
-        ];
+        const edge = byEdge.get(candidate.edgeId)!;
+        const original = edge.points[candidate.segIndex]![orientation === 'vertical' ? 'x' : 'y'];
+        // Separating tracks must not eat the straight run either end glyph is
+        // drawn on (`minPortRun`): hold the slide at that bound, which only
+        // ever moves the track *back* toward where it already was, so every
+        // safety check below still reasons about the same, already-clear
+        // segment. Both ends unservable at once (`low > high`) leaves the
+        // candidate exactly where it is.
+        const { low, high } = portRunRange(edge.points, candidate.segIndex, orientation, minPortRun);
+        const desired = minPortRun > 0 ? (low > high ? original : Math.min(high, Math.max(low, spread))) : spread;
         // Track spacing (just above) picks `desired` purely from where the
         // *other* tracks in the cluster sit — it can land a track back
         // within clearance of its own frame's border even though rule 1
@@ -290,7 +352,6 @@ export const nudgeParallelRoutes = (
           ownFramesById.get(candidate.edgeId) ?? [],
           frameClearance,
         );
-        const edge = byEdge.get(candidate.edgeId)!;
         const points = (result.get(candidate.edgeId) ?? edge.points).map((point, index2) => {
           if (index2 !== candidate.segIndex && index2 !== candidate.segIndex + 1) return point;
           return orientation === 'vertical' ? { x: finalCoord, y: point.y } : { x: point.x, y: finalCoord };

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DpkCommentPanel } from '../components/comment-panel';
 import type { DpkViewPlain } from '../views/plain/element';
 
+import { queryAllDeep } from '../lib/dom/deep';
 import { coreMessages } from './messages';
 import { changeLogScript, showChange } from './testing/change-notices';
 import '../index';
@@ -77,8 +78,8 @@ describe('questions on any template', () => {
     const element = mount(null);
     await settle(element);
     expect(toggle(element, 'questions')).toBeNull();
-    expect(root(element).querySelector('.dpk-grill-badges')).toBeNull();
-    expect(root(element).querySelector('.dpk-main-body')?.hasAttribute('data-grill-gutter')).toBe(false);
+    expect(queryAllDeep(element, '.dpk-grill-badge')).toEqual([]);
+    expect(queryAllDeep(element, '[data-dpk-badge-gutter]')).toEqual([]);
   });
 
   it('opens the questions in the review in place of the comment panel, which keeps its draft', async () => {
@@ -157,26 +158,29 @@ describe('questions on any template', () => {
   it('lays a badge per mark, and opens its question when pressed', async () => {
     const element = mount();
     await settle(element);
-    const badges = [...root(element).querySelectorAll<HTMLButtonElement>('.dpk-grill-badge')];
+    const badges = queryAllDeep(element, '.dpk-grill-badge') as HTMLButtonElement[];
     expect(badges.map((badge) => badge.textContent?.trim())).toEqual(['Q1', 'Q2']);
-    expect(root(element).querySelector('.dpk-main-body')?.hasAttribute('data-grill-gutter')).toBe(true);
+    // The mark's own box carries the badges and reserves the gutter column.
+    expect(queryAllDeep(element, '[data-dpk-badge-gutter]')).toHaveLength(1);
     badges[1]?.click();
     await settle(element);
     expect(element.notesOpen).toBe(true);
     expect(
       root(element).querySelector('[data-question="notify"] .dpk-grill-heading')?.getAttribute('aria-expanded'),
     ).toBe('true');
-    expect(root(element).querySelectorAll('.dpk-grill-badge')[1]?.getAttribute('aria-pressed')).toBe('true');
+    expect(queryAllDeep(element, '.dpk-grill-badge')[1]?.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('moves the badges when a part of the shell scrolls on its own', async () => {
+  it('lays every badge inside the box that holds its mark, not over the page', async () => {
     const element = mount();
     await settle(element);
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    const frame = vi.spyOn(window, 'requestAnimationFrame');
-    // A scroll inside the shadow root never reaches the document.
-    root(element).querySelector('.dpk-body')?.dispatchEvent(new Event('scroll'));
-    expect(frame).toHaveBeenCalledTimes(1);
+    const mark = queryAllDeep(element, '#retry-mark')[0];
+    const portal = queryAllDeep(element, '.dpk-grill-portal')[0];
+    expect(mark).not.toBeUndefined();
+    expect(portal).not.toBeUndefined();
+    // A child of the mark's own box moves with it: no scroll event has to move it.
+    expect(portal?.parentElement?.contains(mark ?? null)).toBe(true);
+    expect(document.querySelector('.dpk-grill-portal')?.parentElement).not.toBe(document.body);
   });
 
   it('follows marks the author adds later', async () => {
@@ -188,7 +192,7 @@ describe('questions on any template', () => {
     element.append(mark);
     await new Promise((resolve) => setTimeout(resolve, 0));
     await settle(element);
-    expect(root(element).querySelectorAll('.dpk-grill-badge')).toHaveLength(3);
+    expect(queryAllDeep(element, '.dpk-grill-badge')).toHaveLength(3);
   });
 
   it('"Show" on a change about a question opens it', async () => {
@@ -209,6 +213,21 @@ describe('questions on any template', () => {
     const panel = root(element).querySelector('dpk-comment-panel') as DpkCommentPanel;
     expect(panel).not.toBeNull();
     expect(element.api.exportBrief()).toContain('grill:notify');
+  });
+
+  it('reads the base data when the questions block is written before it', async () => {
+    window.location.hash = '';
+    document.body.innerHTML = `
+      <dpk-view-plain storage="memory">
+        <script type="application/json" data-dpk-grill>${JSON.stringify(grill)}</script>
+        <script type="application/json">${JSON.stringify({ title: 'Cancel orders' })}</script>
+        <section slot="main"><p>Body</p></section>
+      </dpk-view-plain>`;
+    const element = document.querySelector('dpk-view-plain');
+    if (!(element instanceof HTMLElement)) throw new Error('element did not upgrade');
+    await settle(element as DpkViewPlain);
+    expect(root(element as DpkViewPlain).querySelector('.dpk-header h1')?.textContent).toBe('Cancel orders');
+    expect(toggle(element as DpkViewPlain, 'questions')?.querySelector('.dpk-review-badge')?.textContent).toBe('0/2');
   });
 
   it('reports a malformed block and keeps the page', async () => {

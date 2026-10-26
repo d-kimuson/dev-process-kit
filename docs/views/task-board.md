@@ -6,29 +6,37 @@ The agent rewrites the base data as the work goes on. The person replies to ques
 
 ```text
 dpk-view-task-board
-  bar      the task status; slot="header" for your own controls
-  main     tabs, one shown at a time (Context is shown first):
-           Context     Why / What / Goals / Non-goals, then the author's
-                       diagrams (slot="main": ER, sequence, …)
-           Work log    the conversation, newest first (tab counts it);
-                       the newest entry carries the status and last update
-           Questions   Blockers first (the agent waits on them),
-                       then the ones it works on under an assumption
-                       (tab counts the unanswered ones; red while a blocker is open)
-  side     Outputs     one tight row each: open a URL, copy a URL or file path
-  (right)  Todos       progress, All / People filter, the done ones folded
-                       (above the rest), the todo list with proposals
-                       marked "?", add a todo
+  bar   the task status; slot="header" for your own controls
+  side  (left)  Outputs     one tight row each: open a URL, copy a URL or
+                            file path — clear of the review's right-hand rail
+  main  tabs, one shown at a time (Context is shown first):
+        Context     Why / What / Goals / Non-goals, then the author's
+                    diagrams (slot="main": ER, sequence, …)
+        Work log    the conversation, newest first (tab counts it);
+                    the newest entry carries the status and last update
+        Questions   Blockers first (the agent waits on them),
+                    then the ones it works on under an assumption
+                    (tab counts the unanswered ones; red while a blocker is open)
+        Tasks       the todos as a board, one column per status
+                    (Todo / In progress / Blocked / Done), read left to
+                    right; proposals are cards marked "?" until decided;
+                    progress and the All / People filter above it, and
+                    the add-a-todo form at the foot of the Todo column
 ```
 
-The title in the header, the review and the hand-off are the app's ([page.md](../page.md)); the review floats over the side rather than beside it. The main area and the right-hand side scroll separately, so the outputs and the todo list stay in view while the person reads a tab. The tab bar stays at the top of the main area. On a narrow screen the side comes after the main area, the page scrolls as one, and the review takes the whole screen.
+The title in the header, the review and the hand-off are the app's ([page.md](../page.md)). The rail is on the **left**: the review floats over the page's right-hand edge, so a rail there would be covered by it. The main area and the left-hand rail scroll separately, so the outputs stay in view while the person reads a tab, and the tab bar stays at the top of the main area. On a narrow screen the rail folds into a drawer over the board — the board keeps the whole width, and its own button slides the outputs out — and the page scrolls as one.
 
-In the todo list:
+## The Tasks tab is a board
 
-- The status of a todo a **person** has (`members[].kind: "human"`) is a select the person changes. The agent's own todos, unassigned ones and proposals show their status as a label: the agent reports its progress by rewriting the base data.
+The todos are drawn the way `dpk-board-kanban` draws a board ([kanban.md](../boards/kanban.md)): one lane per status in reading order — To do, In progress, Blocked, Done — each card titled, with its note, its reason (for a proposal), its assignee, its tags and its own controls. A lane with nothing in it keeps its place, so the board's shape says where the work is. Lanes share the width of the column and, when they no longer fit side by side, scroll sideways on their own — never the page.
+
+It is the view's own board, not a `<dpk-board-kanban>` element: the cards are this view's todos, so each keeps the actions the view already had, and every change is still the view's own draft action (`SET_TODO_STATUS`, `DECIDE_PROPOSAL`, `ADD_TODO`, `DELETE_TODO`) rather than a card move the agent would have to translate.
+
+- The status of a todo a **person** has (`members[].kind: "human"`) is a select the person changes; dragging its card to another lane records the same change. The agent's own todos, unassigned ones and proposals show their status as a label: the agent reports its progress by rewriting the base data.
+- A proposal is a card in the lane its status puts it in, marked "?" (violet) with Accept / Decline. Accepted, it is a regular todo and counts toward progress; declined, it stays where it is, dimmed, with Undo.
 - The assignee is a label. Who does what is the agent's to write; a person who wants it otherwise says so in a comment.
-- Todos already `done` in the base data fold into a closed "Done (n)" group at the top of the list. A todo the person marks done in the draft stays where it is.
-- When the view names a person, an All / People toggle narrows the list to the todos people have.
+- When the view names a person, an All / People toggle above the board narrows what is shown to the todos people have. Progress always covers the whole task.
+- The add-a-todo form sits at the foot of the Todo column: a title, and — when the board names members — who should do it. A todo the person adds is a request to the agent and can be removed again until the agent takes it.
 
 ## Base data
 
@@ -205,7 +213,7 @@ When the agent reads an accepted proposal, it drops `proposed` (and `reason`) fr
 | ----------------- | ----------------------------------------------------------------- |
 | `page:task-board` | The review composer with nothing attached ("Whole board")         |
 | `question:<id>`   | The comment button on the question, or the composer's target list |
-| `todo:<id>`       | The comment button on the todo or proposal                        |
+| `todo:<id>`       | The comment button on the card (the todo or proposal)             |
 | `log:<id>`        | The comment button on the log entry                               |
 | `context:<part>`  | The comment button on `why`, `what`, `goals` or `nonGoals`        |
 | `element:<id>/…`  | A board in `slot="main"` (see the board's own page)               |
@@ -214,9 +222,9 @@ Outputs take no comments: the person opens or copies them, and comments on the w
 
 ## Navigation
 
-The view has no navigation state: the open tab and the todo filter are the reader's view, not part of the draft.
+The view has no navigation state: the open tab and the todo filter are the reader's view, not part of the draft. The tabs are Context / Work log / Questions / Tasks, and the selected one stays selected while the person works in it. A card dropped in another lane is the same `SET_TODO_STATUS` change its select makes.
 
-Give `<dpk-app>` the page's height (`docs/index.md`, Page height): the main area and the side scroll inside the shell.
+Give `<dpk-app>` the page's height (`docs/index.md`, Page height): the main area and the rail scroll inside the shell.
 
 ## Writing the page
 
@@ -235,4 +243,4 @@ Give `<dpk-app>` the page's height (`docs/index.md`, Page height): the main area
 | `context:<part>` | Context                                                  |
 | `log:<id>`       | Work log                                                 |
 | `question:<id>`  | Questions                                                |
-| `todo:<id>`      | Todos — clears the All/People filter so it is not hidden |
+| `todo:<id>`      | Tasks — clears the All/People filter so it is not hidden |

@@ -666,9 +666,8 @@ export const chromeStyles = [
      * Supplements. They sit at the end of the main column and stick to the
      * bottom of the scrollport as a bar the full width of the column, edge to
      * edge: always in reach and never stealing height from the preview. The bar
-     * names each supplement; the one opened grows upward over the content and
-     * shows whole; only one taller than the window scrolls, so its top stays
-     * reachable.
+     * names each supplement; the one opened grows upward over the content at
+     * one height for every tab, so switching tabs never moves the drawer.
      */
     .dpk-supplements {
       position: sticky;
@@ -684,6 +683,60 @@ export const chromeStyles = [
 
     .dpk-supplements[hidden] {
       display: none;
+    }
+
+    /*
+     * The drawer's top edge: dragged (or moved with the arrow keys) to resize
+     * it. It straddles the border above the bar and takes no room of its own,
+     * so the bar's tabs stay clickable and the drawer stays where it sticks.
+     */
+    .dpk-supplements-edge {
+      position: absolute;
+      top: -4px;
+      left: 0;
+      right: 0;
+      z-index: 1;
+      height: 9px;
+      cursor: ns-resize;
+      touch-action: none;
+    }
+
+    .dpk-supplements-edge[hidden] {
+      display: none;
+    }
+
+    /* A short grip centred on the edge, so the drawer reads as resizable. */
+    .dpk-supplements-edge::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 50%;
+      width: 46px;
+      height: 3px;
+      margin-left: -23px;
+      border-radius: 2px;
+      background: color-mix(in srgb, var(--dpk-amber) 55%, var(--dpk-rule-strong));
+      transition: background 160ms var(--dpk-ease);
+    }
+
+    .dpk-supplements-edge:hover::after,
+    .dpk-supplements-edge:focus-visible::after,
+    .dpk-supplements-edge[data-dragging]::after {
+      background: var(--dpk-accent);
+    }
+
+    /* The ring hugs the grip: a ring around the whole edge would read as a border on the page. */
+    .dpk-supplements-edge:focus-visible {
+      outline: none;
+    }
+
+    .dpk-supplements-edge:focus-visible::after {
+      box-shadow: var(--dpk-focus);
+    }
+
+    /* While dragging, nothing underneath (the page, a board) reacts to the pointer. */
+    .dpk-supplements-edge[data-dragging] ~ .dpk-supplements-body {
+      user-select: none;
     }
 
     .dpk-supplements-bar {
@@ -778,8 +831,16 @@ export const chromeStyles = [
       box-shadow: var(--dpk-focus);
     }
 
+    /*
+     * One height for the open supplement, the reader's, not the content's: a
+     * shorter one leaves the rest of the drawer empty and a taller one scrolls
+     * inside, so a tab switch never resizes the drawer. The max-height keeps
+     * the same reserve above the drawer that SUPPLEMENT_HEIGHT clamps against,
+     * so a window shrinking mid-drag cannot push the page off screen.
+     */
     .dpk-supplements-body {
-      max-height: calc(100dvh - 120px);
+      height: var(--dpk-supplement-height, 320px);
+      max-height: calc(100dvh - 160px);
       overflow: auto;
       overscroll-behavior: contain;
       padding: 4px 16px 16px;
@@ -1592,77 +1653,19 @@ export const chromeStyles = [
 
     /* --------------------------------------------------------- Q badges */
 
-    /* The badges are laid over the main column; the page marks what a question
-       is about with \`data-grill-questions\`. */
+    /* A badge is a child of its mark's own box (the shared portal in
+       \`./badge-portal\`), so this column only has to be a containing block for
+       the author's own markup and to reserve the badges' column when they sit
+       in it. A filled main column is a canvas or a board, which places its own
+       badges and has its own gutter. */
     .dpk-main-body {
       position: relative;
     }
 
     /* Badges on the author's own markup stand in a column of their own on the
        right, beside the line they mark, so they never cover its words. */
-    .dpk-main-body[data-grill-gutter] {
+    .dpk-main-body[data-dpk-badge-gutter]:not([data-fill]) {
       padding-right: 56px;
-    }
-
-    .dpk-grill-badges {
-      position: absolute;
-      inset: 0;
-      z-index: 3;
-      overflow: hidden;
-      pointer-events: none;
-    }
-
-    .dpk-grill-badge {
-      position: absolute;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 30px;
-      height: 22px;
-      padding: 0 7px;
-      border: 2px solid var(--dpk-paper-raised);
-      border-radius: 999px;
-      background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent));
-      color: var(--dpk-accent-ink);
-      font-family: var(--dpk-mono);
-      font-size: 10px;
-      font-weight: 650;
-      font-variant-numeric: tabular-nums;
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.28),
-        0 2px 6px -2px color-mix(in srgb, var(--dpk-accent) 55%, transparent);
-      cursor: pointer;
-      pointer-events: auto;
-      transition:
-        transform 160ms var(--dpk-ease-spring),
-        box-shadow 160ms var(--dpk-ease),
-        background 160ms var(--dpk-ease);
-    }
-
-    .dpk-grill-badge[data-visible='false'] {
-      visibility: hidden;
-    }
-
-    .dpk-grill-badge:hover {
-      transform: translateY(-1px) scale(1.06);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.3),
-        0 4px 10px -2px color-mix(in srgb, var(--dpk-accent) 60%, transparent);
-    }
-
-    .dpk-grill-badge[data-answered='true'] {
-      background: linear-gradient(180deg, color-mix(in srgb, var(--dpk-green) 85%, white), var(--dpk-green));
-    }
-
-    .dpk-grill-badge[aria-pressed='true'] {
-      box-shadow:
-        0 0 0 2px color-mix(in srgb, var(--dpk-accent) 45%, transparent),
-        var(--dpk-shadow-sm);
-    }
-
-    .dpk-grill-badge:focus-visible {
-      outline: none;
-      box-shadow: var(--dpk-focus);
     }
 
     @media (max-width: 720px) {

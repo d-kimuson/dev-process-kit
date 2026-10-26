@@ -2,15 +2,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DpkCommentPanel } from '../components/comment-panel';
-import type { DpkViewPrototype } from '../views/prototype/element';
 import type { DpkInternalLayoutSidebar } from './layouts/sidebar/element';
 
 import { panelMessages } from '../components/comment-panel/messages';
 import { prototypeDefinitionFor } from '../views/prototype/definition';
+import { DpkViewPrototype } from '../views/prototype/element';
 import { prototypeMessages } from '../views/prototype/messages';
 import { COMMENT_ACTION } from './action';
 import { sidebarMessages } from './layouts/sidebar/messages';
-import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH } from './layouts/sidebar/model';
+import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, type SidebarLayout } from './layouts/sidebar/model';
 import { coreMessages } from './messages';
 import '../index';
 
@@ -72,6 +72,31 @@ const settle = async (el: DpkViewPrototype): Promise<void> => {
   await el.updateComplete;
   await Promise.resolve();
   await el.updateComplete;
+};
+
+/**
+ * A template whose own sidebar is on the right. The generic shell tests below
+ * need one, and no shipped template takes that side any more (the task board,
+ * which used to, keeps its outputs on the left so the review rail never covers
+ * them). The fixture states the side itself, so those tests do not depend on
+ * any one template's layout.
+ */
+class DpkViewRightSidebar extends DpkViewPrototype {
+  protected override get sidebarLayout(): SidebarLayout {
+    return { side: 'right', defaultWidth: DEFAULT_SIDEBAR_LAYOUT.defaultWidth };
+  }
+}
+
+if (!customElements.get('dpk-view-right-sidebar')) {
+  customElements.define('dpk-view-right-sidebar', DpkViewRightSidebar);
+}
+
+const mountRightSidebar = (): DpkViewPrototype => {
+  document.body.innerHTML = `
+    <dpk-view-right-sidebar storage="memory">
+      <script type="application/json">${JSON.stringify(base)}</script>
+    </dpk-view-right-sidebar>`;
+  return document.querySelector('dpk-view-right-sidebar') as DpkViewPrototype;
 };
 
 describe('<dpk-view-prototype>', () => {
@@ -602,8 +627,7 @@ describe('sidebar width', () => {
   });
 
   it('puts the edge of a right-hand sidebar on its left, growing it as the edge moves left', async () => {
-    document.body.innerHTML = '<dpk-view-task-board storage="memory"></dpk-view-task-board>';
-    const el = document.querySelector('dpk-view-task-board') as DpkViewPrototype;
+    const el = mountRightSidebar();
     await settleAll(el);
     const handle = edge(el) as HTMLElement;
     expect(handle.nextElementSibling).toBe(sidebar(el));
@@ -711,8 +735,7 @@ describe('sidebar collapse', () => {
   });
 
   it('folds a right-hand sidebar towards the right', async () => {
-    document.body.innerHTML = '<dpk-view-task-board storage="memory"></dpk-view-task-board>';
-    const el = document.querySelector('dpk-view-task-board') as DpkViewPrototype;
+    const el = mountRightSidebar();
     await settleAll(el);
     const button = toggle(el) as HTMLButtonElement;
     expect(button.nextElementSibling).toBe(edge(el));

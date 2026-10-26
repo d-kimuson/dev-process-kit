@@ -1,21 +1,22 @@
 import { css } from 'lit';
 
 /**
- * One colour per state, shared by the status pill and the todo marks: blue is
- * moving, amber is waiting on the reader, red is stuck, green is done, grey
- * has not started.
+ * One colour per state, shared by the status pill, the todo marks and the
+ * board's columns: blue is moving, amber is waiting on the reader, red is
+ * stuck, green is done, grey has not started.
  *
- * The page is `main | rail`. The main area is the conversation — context,
- * work log and questions, one tab at a time — and scrolls on its own; the
- * shell's sidebar becomes a right-hand rail holding the outputs and the todo
- * list, so the work itself stays in view. The review floats over the rail
- * instead of taking a column of its own. On a phone the main area and the rail
- * stack and the page scrolls as one.
+ * The page is `rail | main`. The main area is the conversation and the work —
+ * context, work log, questions and the task board, one tab at a time — and
+ * scrolls on its own; the shell's sidebar becomes a left-hand rail holding the
+ * outputs, so what the agent has produced stays in view. It sits on the left
+ * because the review floats over the page's right-hand edge: a rail there would
+ * be covered by it. On a phone the outputs fold into a drawer over the board
+ * and the page scrolls as one.
  */
 export const taskBoardStyles = css`
-  /* The shell's sidebar is a right-hand rail (see \`sidebarLayout\`), stacked below the board on a phone. */
+  /* The shell's sidebar is a left-hand rail (see \`sidebarLayout\`), a drawer on a phone. */
   :host {
-    --dpk-sidebar-padding: 10px 14px;
+    --dpk-sidebar-padding: 12px 16px;
     --dpk-sidebar-padding-end: 20px;
   }
 
@@ -27,12 +28,19 @@ export const taskBoardStyles = css`
   .board {
     display: grid;
     gap: 18px;
-    max-width: 880px;
+    max-width: 1100px;
     width: 100%;
     margin: 0 auto;
   }
 
-  /* Stacked, the rail is what ends the page: it clears the hand-off dock, not the board above it. */
+  /* A tab that reads keeps a comfortable measure; the task board takes the whole column. */
+  .board-panel > .board-context,
+  .board-panel > .board-section,
+  .board-panel > .board-empty {
+    max-width: 880px;
+  }
+
+  /* Stacked, the column is what ends the page: it clears the hand-off dock. */
   @media (max-width: 760px) {
     .dpk-main-body {
       padding-bottom: 24px;
@@ -568,7 +576,34 @@ export const taskBoardStyles = css`
     display: none;
   }
 
-  /* -------------------------------------------------------------- todos */
+  /* -------------------------------------------------------------- tasks */
+
+  .board-tasks {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .board-tasks-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+  }
+
+  .board-tasks-progress {
+    display: grid;
+    flex: 1 1 240px;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .board-tasks-progress-label {
+    color: var(--dpk-ink-soft);
+    font-size: 12.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
 
   .board-progress {
     height: 6px;
@@ -585,79 +620,163 @@ export const taskBoardStyles = css`
     transition: width 240ms var(--dpk-ease);
   }
 
-  .board-todos {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+  /*
+   * The board itself, drawn the way \`dpk-board-kanban\` draws one: lanes side by
+   * side in reading order, taking an equal share of the column and scrolling
+   * sideways on their own — never the page — once they no longer fit.
+   */
+  .board-kanban {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    max-width: 100%;
+    padding-bottom: 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .board-lane {
+    display: flex;
+    flex: 1 1 232px;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 232px;
+    max-width: 340px;
+    padding: 10px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper-sunken);
+    box-shadow: inset 0 1px 3px var(--dpk-shade-1);
+  }
+
+  /* The lane's own tone, from the shared \`data-tone\` map; grey has no entry there. */
+  .board-lane[data-tone='gray'] {
+    --tone: var(--dpk-ink-soft);
+    --tone-soft: var(--dpk-paper-raised);
+  }
+
+  /* Blocked reads red: the shared map names that tone \`danger\`, and the lane spells it \`red\`. */
+  .board-lane[data-tone='red'] {
+    --tone: var(--dpk-danger);
+    --tone-soft: var(--dpk-danger-soft);
+  }
+
+  .board-lane-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 2px;
+  }
+
+  .board-lane-title {
+    margin: 0;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--tone, var(--dpk-ink-soft)) 14%, transparent);
+    color: var(--tone, var(--dpk-ink-soft));
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .board-lane-count {
+    flex: none;
+    margin-left: auto;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
+    font-family: var(--dpk-mono);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+  }
+
+  .board-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 44px;
     margin: 0;
     padding: 0;
     list-style: none;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius);
-    background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-xs);
-    overflow: hidden;
   }
 
-  .board-todo {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-    gap: 10px;
-    padding: 9px 12px;
-    border-top: 1px solid var(--dpk-rule);
+  .board-card-slot {
+    min-width: 0;
   }
 
-  .board-todo:first-child {
-    border-top: 0;
+  /* A todo is the kit's card (the card atom), tighter for a lane. */
+  .board-card {
+    --dpk-card-gap: 6px;
+    padding: 10px 11px;
+    overflow-wrap: anywhere;
   }
 
-  .board-todo[data-added='true'] {
-    background: color-mix(in srgb, var(--dpk-accent) 5%, var(--dpk-paper-raised));
+  /* Only a todo a person has can be dragged: its status is the reader's to set. */
+  .board-card[draggable='true'] {
+    cursor: grab;
   }
 
-  .board-todo[data-proposal='pending'] {
-    background: color-mix(in srgb, var(--dpk-violet) 5%, var(--dpk-paper-raised));
+  .board-card[data-added='true'] {
+    background: color-mix(in srgb, var(--dpk-accent) 6%, var(--dpk-paper-raised));
   }
 
-  .board-todo[data-proposal='decline'] {
+  .board-card[data-proposal='pending'] {
+    --dpk-card-tone: var(--dpk-violet);
+  }
+
+  .board-card[data-proposal='decline'] {
     background: var(--dpk-paper-sunken);
   }
 
-  .board-todo[data-proposal='decline'] .board-todo-text,
-  .board-todo[data-proposal='decline'] .board-reason {
+  .board-card[data-proposal='decline'] .board-card-title,
+  .board-card[data-proposal='decline'] .board-reason {
     color: var(--dpk-ink-faint);
   }
 
-  .board-todo[data-proposal='decline'] .board-todo-text {
+  .board-card[data-proposal='decline'] .board-card-title {
     text-decoration: line-through;
   }
 
-  .board-todo-mark {
-    width: 12px;
-    height: 12px;
-    margin-top: 4px;
-    border: 2px solid var(--board-tone);
-    border-radius: 50%;
-    box-sizing: border-box;
+  .board-card[data-status='done'] .board-card-title {
+    color: var(--dpk-ink-faint);
+    text-decoration: line-through;
+    text-decoration-color: color-mix(in srgb, var(--dpk-ink-faint) 60%, transparent);
   }
 
-  .board-todo-mark[data-status='doing'] {
-    background: linear-gradient(90deg, var(--board-tone) 50%, transparent 50%);
+  .board-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
   }
 
-  .board-todo-mark[data-status='done'],
-  .board-todo-mark[data-status='blocked'] {
-    background: var(--board-tone);
+  .board-card-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.5;
   }
 
-  /* A proposal is not work yet: a question mark in place of the status. */
-  .board-todo-mark--proposal {
+  .board-card-tags {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  /* A proposal is not work yet: a question mark beside its title. */
+  .board-card-mark {
+    flex: none;
     display: grid;
     place-items: center;
     width: 16px;
     height: 16px;
-    margin: 2px -2px 0;
+    margin-top: 1px;
     border: 1.5px dashed var(--dpk-violet);
+    border-radius: 50%;
     background: var(--dpk-violet-soft);
     color: var(--dpk-violet);
     font-size: 10.5px;
@@ -665,36 +784,13 @@ export const taskBoardStyles = css`
     line-height: 1;
   }
 
-  .board-todo[data-proposal='decline'] .board-todo-mark--proposal {
+  .board-card-mark[data-proposal='decline'] {
     border-color: var(--dpk-rule-strong);
     background: transparent;
     color: var(--dpk-ink-faint);
   }
 
-  .board-todo-body {
-    display: grid;
-    gap: 4px;
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .board-todo-title {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 6px;
-    color: var(--dpk-ink);
-    font-size: 13.5px;
-    line-height: 1.5;
-  }
-
-  .board-todo[data-status='done'] .board-todo-text {
-    color: var(--dpk-ink-faint);
-    text-decoration: line-through;
-    text-decoration-color: color-mix(in srgb, var(--dpk-ink-faint) 60%, transparent);
-  }
-
-  .board-todo-note,
+  .board-card-note,
   .board-reason {
     margin: 0;
     color: var(--dpk-ink-soft);
@@ -712,13 +808,29 @@ export const taskBoardStyles = css`
     font-weight: 700;
   }
 
-  .board-todo-controls {
+  .board-card-controls {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    margin-top: 2px;
   }
+
+  .board-card-controls .board-comment {
+    margin-left: auto;
+  }
+
+  /* A lane with nothing in it keeps its place, so the board's shape still says where the work is. */
+  .board-lane-empty {
+    margin: 0;
+    padding: 10px 8px;
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-sm);
+    color: var(--dpk-ink-faint);
+    font-size: 11.5px;
+    text-align: center;
+  }
+
+  /* ------------------------------------------------------ status / filter */
 
   .board-todo-status {
     width: auto;
@@ -728,9 +840,6 @@ export const taskBoardStyles = css`
     padding-top: 0;
     padding-bottom: 0;
     font-size: 12px;
-  }
-
-  .board-todo-status {
     border-color: color-mix(in srgb, var(--board-tone) 45%, var(--dpk-rule));
     background-color: var(--board-tone-soft);
     color: var(--dpk-ink);
@@ -787,16 +896,17 @@ export const taskBoardStyles = css`
     color: inherit;
   }
 
-  /* ------------------------------------------------------ filter / done */
-
   .board-filter {
     display: inline-flex;
-    justify-self: start;
     gap: 2px;
     padding: 2px;
     border: 1px solid var(--dpk-rule);
     border-radius: var(--dpk-radius-sm);
     background: var(--dpk-paper-sunken);
+  }
+
+  .board-tasks-bar .board-filter {
+    margin-left: auto;
   }
 
   .board-filter-option {
@@ -833,58 +943,6 @@ export const taskBoardStyles = css`
     font-family: var(--dpk-mono);
     font-size: 10.5px;
     color: var(--dpk-violet);
-  }
-
-  .board-done {
-    display: grid;
-    gap: 6px;
-  }
-
-  .board-done-summary {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    justify-self: start;
-    padding: 3px 8px 3px 4px;
-    border-radius: var(--dpk-radius-xs);
-    color: var(--dpk-ink-soft);
-    font-size: 12px;
-    font-weight: 600;
-    list-style: none;
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .board-done-summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .board-done-summary:hover {
-    background: var(--dpk-paper-sunken);
-    color: var(--dpk-ink);
-  }
-
-  .board-done-summary:focus-visible {
-    outline: none;
-    box-shadow: var(--dpk-focus);
-  }
-
-  .board-done-chevron {
-    width: 6px;
-    height: 6px;
-    margin: 0 3px;
-    border-right: 1.5px solid currentColor;
-    border-bottom: 1.5px solid currentColor;
-    transform: rotate(-45deg);
-    transition: transform 160ms var(--dpk-ease);
-  }
-
-  .board-done[open] .board-done-chevron {
-    transform: rotate(45deg);
-  }
-
-  .board-todo-controls .board-comment {
-    margin-left: auto;
   }
 
   .board-decision {
@@ -927,6 +985,14 @@ export const taskBoardStyles = css`
 
   .board-add-submit {
     flex: 0 0 auto;
+  }
+
+  /* A phone shows one lane and a hint of the next: the board still scrolls sideways, never the page. */
+  @media (max-width: 640px) {
+    .board-lane {
+      flex-basis: 208px;
+      min-width: 208px;
+    }
   }
 
   /* ------------------------------------------------------------ outputs */

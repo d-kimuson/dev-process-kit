@@ -34,14 +34,15 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 
 `modules[]`:
 
-| Field         | Required | Meaning                                               |
-| ------------- | -------- | ----------------------------------------------------- |
-| `id`          | yes      | Stable id; dependencies reference it.                 |
-| `name`        | yes      | Name on the card.                                     |
-| `path`        | no       | Source location, shown under the name (mono).         |
-| `layer`       | no       | Layer label on the card (`アプリケーション`, `共通`). |
-| `tags`        | no       | The tag filter applies to modules.                    |
-| `description` | no       | Shown in the card tooltip, under the path.            |
+| Field         | Required | Meaning                                                                                                                                                      |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`          | yes      | Stable id; dependencies reference it.                                                                                                                        |
+| `name`        | yes      | Name on the card.                                                                                                                                            |
+| `path`        | no       | Source location, shown under the name (mono).                                                                                                                |
+| `layer`       | no       | Layer label on the card (`アプリケーション`, `共通`).                                                                                                        |
+| `tags`        | no       | The tag filter applies to modules.                                                                                                                           |
+| `description` | no       | Shown in the card tooltip, under the path.                                                                                                                   |
+| `questions`   | no       | Refs of the page's questions (grill) the module is about, space-separated (`"Q1 Q4"`); each gets a Q badge on the card (`docs/index.md`, Questions (grill)). |
 
 `dependencies[]`: `id`, `from`, `to` (required) plus `contract` (what the source uses, e.g. `calculateQuote`) and `description` (why it does). `from → to` reads "`from` depends on `to`". Unknown endpoints and duplicate ids are errors.
 

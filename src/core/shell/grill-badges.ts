@@ -1,16 +1,21 @@
 /**
  * The Q badges: the page marks what a question is about with
- * `data-grill-questions="Q1 Q4"`, and the shell lays a badge for each over the
- * main column. Pressing one opens its question.
+ * `data-grill-questions="Q1 Q4"`, and the shell lays a badge for each beside
+ * the mark — in the right-hand gutter for the author's own markup, on the
+ * corner of a board node or of a card a view renders. Pressing one opens its
+ * question.
+ *
+ * The badges are drawn through the shared relative portal
+ * (`./badge-portal`): a badge is a child of its mark's own positioned parent,
+ * so it stays on the mark through a scroll, a pan, a zoom or a maximized panel
+ * instead of being measured against the viewport.
  */
-import type { ReactiveController, ReactiveControllerHost } from 'lit';
+import type { ReactiveControllerHost } from 'lit';
 
 import { GRILL_QUESTIONS_ATTRIBUTE, isAnswered, type Grill, type GrillAnswers, type GrillQuestion } from '../grill';
-import { positionBadges as positionBadgesOn } from './badge-dom';
+import { BadgePortalController, type PortalBadgeBinding } from './badge-portal';
 
-export type BadgeBinding = {
-  /** Index into the rendered badges, which is also the render order. */
-  readonly index: number;
+export type BadgeBinding = PortalBadgeBinding & {
   readonly target: Element;
   readonly questionId: string;
   readonly ref: string;
@@ -69,26 +74,81 @@ export const collectBadges = (
 };
 
 /**
- * Moves each badge where `layoutBadges` puts it: beside the author's own
- * markup in the right gutter, on the corner of a diagram node. `contains`
- * stops at shadow boundaries, so a diagram's nodes are not the author's
- * markup; the sidebar has no gutter, so a badge there sits on its mark's
- * corner regardless.
+ * The Q badge's own look: the same accent pill the shell always drew, now
+ * carried with its badge into whichever box owns the mark. `--dpk-zoom-inverse`
+ * counter-scales a badge on a zoomed-out canvas so it stays legible, anchored
+ * at its top-right corner — the corner it points at its mark with.
  */
-export const positionBadges = (layer: HTMLElement, bindings: readonly BadgeBinding[]): void => {
-  const root = layer.getRootNode();
-  const host = root instanceof ShadowRoot ? root.host : null;
-  positionBadgesOn(layer, bindings, {
-    gutterOf: (target) => host?.contains(target) === true && layer.dataset['region'] !== 'sidebar',
-  });
-};
+const BADGE_CSS = `
+  .dpk-grill-badge {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 22px;
+    padding: 0 7px;
+    border: 2px solid var(--dpk-paper-raised);
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent));
+    color: var(--dpk-accent-ink);
+    font-family: var(--dpk-mono);
+    font-size: 10px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      0 2px 6px -2px color-mix(in srgb, var(--dpk-accent) 55%, transparent);
+    cursor: pointer;
+    pointer-events: auto;
+    transform: scale(var(--dpk-zoom-inverse, 1));
+    transform-origin: 100% 0;
+    transition:
+      transform 160ms var(--dpk-ease-spring),
+      box-shadow 160ms var(--dpk-ease),
+      background 160ms var(--dpk-ease);
+  }
+
+  .dpk-grill-badge:hover {
+    transform: scale(calc(var(--dpk-zoom-inverse, 1) * 1.06));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 4px 10px -2px color-mix(in srgb, var(--dpk-accent) 60%, transparent);
+  }
+
+  .dpk-grill-badge[data-answered='true'] {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--dpk-green) 85%, white), var(--dpk-green));
+  }
+
+  .dpk-grill-badge[aria-pressed='true'] {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--dpk-accent) 45%, transparent),
+      var(--dpk-shadow-sm);
+  }
+
+  .dpk-grill-badge:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dpk-grill-badge {
+      transition: none;
+    }
+  }
+`;
 
 export type GrillBadgeOptions = {
   /** Whether the page asks anything; without questions nothing is watched. */
   readonly active: () => boolean;
-  /** The layers the badges are drawn on: the main column's, and the sidebar's when it has marks. */
-  readonly layers: () => readonly HTMLElement[];
+  /** The marks to badge, collected by the render that draws the shell. */
   readonly bindings: () => readonly BadgeBinding[];
+  /** Pressing a badge opens its question. */
+  readonly open: (questionId: string) => void;
+  /** The badge's accessible label and tooltip, in the view's language. */
+  readonly labelOf: (binding: BadgeBinding) => string;
+  /** Whether the badge stands in the parent's right gutter: the author's own markup, which a corner badge would cover. */
+  readonly gutterOf: (target: Element) => boolean;
 };
 
 const OBSERVED: MutationObserverInit = {
@@ -98,49 +158,84 @@ const OBSERVED: MutationObserverInit = {
   attributeFilter: [GRILL_QUESTIONS_ATTRIBUTE],
 };
 
+/** The portal a Q badge lives in (`./badge-portal` names its own layer). */
+const PORTAL_CLASS = 'dpk-grill-portal';
+
 /**
- * Keeps the badges on their marks. Bindings are collected by the render that
- * draws them; this re-renders when marks change, and moves the badges when the
- * page scrolls, resizes, or a diagram pans.
+ * Whether a mutation happened inside a badge portal. A badge brought up to date
+ * writes its own label and attributes; the shell watching the page for marks
+ * must not read that as a new mark and render again, or every update would
+ * schedule the next one.
  */
-export class GrillBadgeController implements ReactiveController {
+const inPortal = (node: Node | null): boolean => {
+  const element = node instanceof Element ? node : (node?.parentElement ?? null);
+  return (element?.closest(`.${PORTAL_CLASS}`) ?? null) !== null;
+};
+
+/**
+ * Keeps a badge on every mark. Bindings are collected by the render that draws
+ * the shell; this re-renders when marks change, and the shared portal keeps
+ * each badge where its mark is.
+ */
+export class GrillBadgeController extends BadgePortalController<BadgeBinding> {
   readonly #host: ReactiveControllerHost & HTMLElement;
   readonly #options: GrillBadgeOptions;
   #observer: MutationObserver | null = null;
-  #pending = false;
   /** The marks of the host's own shadow root at the last update. */
   #ownMarks = '';
-  /** Shadow roots listened to for scrolls: a scroll inside one never reaches the document. */
-  readonly #scrollRoots = new Set<ShadowRoot>();
 
   constructor(host: ReactiveControllerHost & HTMLElement, options: GrillBadgeOptions) {
+    super(host, {
+      active: options.active,
+      bindings: options.bindings,
+      spec: {
+        portalClass: PORTAL_CLASS,
+        styles: BADGE_CSS,
+        keyOf: (binding) => `${binding.index}:${binding.ref}`,
+        create: (binding) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'dpk-grill-badge';
+          button.dataset['badge'] = String(binding.index);
+          // The current question is read at press time: a reused badge may have been updated since.
+          button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            options.open(button.dataset['question'] ?? '');
+          });
+          return button;
+        },
+        update: (button, binding) => {
+          const label = options.labelOf(binding);
+          button.dataset['badge'] = String(binding.index);
+          button.dataset['question'] = binding.questionId;
+          button.dataset['answered'] = String(binding.answered);
+          button.setAttribute('aria-pressed', String(binding.open));
+          button.setAttribute('aria-label', label);
+          button.title = `${binding.ref} · ${binding.title}`;
+          // Only when the ref changed: replacing the text node every render would
+          // be a DOM change of its own on a badge that already says the right thing.
+          if (button.textContent !== binding.ref) button.textContent = binding.ref;
+        },
+        gutterOf: (binding) => options.gutterOf(binding.target),
+      },
+    });
     this.#host = host;
     this.#options = options;
-    host.addController(this);
   }
 
-  hostConnected(): void {
-    document.addEventListener('scroll', this.#schedule, true);
-    window.addEventListener('resize', this.#schedule);
-    // A diagram (or a viewport the author composed) pans and zooms without scrolling, so its badges follow its view.
-    this.#host.addEventListener('dpk-diagram-view', this.#schedule);
-    this.#host.addEventListener('dpk-canvas-change', this.#schedule);
-  }
-
-  hostDisconnected(): void {
-    document.removeEventListener('scroll', this.#schedule, true);
-    window.removeEventListener('resize', this.#schedule);
-    this.#host.removeEventListener('dpk-diagram-view', this.#schedule);
-    this.#host.removeEventListener('dpk-canvas-change', this.#schedule);
+  override hostDisconnected(): void {
+    super.hostDisconnected();
     this.#observer?.disconnect();
     this.#observer = null;
-    for (const root of this.#scrollRoots) root.removeEventListener('scroll', this.#schedule, true);
-    this.#scrollRoots.clear();
   }
 
-  hostUpdated(): void {
+  override hostUpdated(): void {
     this.#observer?.disconnect();
-    if (!this.#options.active()) return;
+    if (!this.#options.active()) {
+      super.hostUpdated();
+      return;
+    }
     // Cards a template renders from its data appear in its own shadow root only
     // after the render that collected the bindings, so their marks take one more.
     const ownMarks = this.#ownMarksOf();
@@ -148,50 +243,21 @@ export class GrillBadgeController implements ReactiveController {
       this.#ownMarks = ownMarks;
       this.#host.requestUpdate();
     }
-    this.#observer ??= new MutationObserver(() => {
+    this.#observer ??= new MutationObserver((records) => {
+      if (records.every((record) => inPortal(record.target))) return;
       this.#host.requestUpdate();
-      this.#schedule();
+      this.refresh();
     });
     // The light DOM and every shadow root inside it (diagram internals).
     this.#observer.observe(this.#host, OBSERVED);
     for (const element of this.#host.querySelectorAll('*')) {
       if (element.shadowRoot) this.#observer.observe(element.shadowRoot, OBSERVED);
     }
-    this.#listenForScrolls();
-    this.#schedule();
-  }
-
-  /**
-   * The host's own shadow root, those of the layouts in it (the sidebar and
-   * main column scroll inside `<dpk-internal-layout-sidebar>`) and those of the boards
-   * in the light DOM.
-   */
-  #listenForScrolls(): void {
-    const own = this.#host.shadowRoot;
-    const roots = [
-      own,
-      ...Array.from(own?.querySelectorAll('*') ?? [], (element) => element.shadowRoot),
-      ...Array.from(this.#host.querySelectorAll('*'), (element) => element.shadowRoot),
-    ];
-    for (const root of roots) {
-      if (root === null || this.#scrollRoots.has(root)) continue;
-      root.addEventListener('scroll', this.#schedule, true);
-      this.#scrollRoots.add(root);
-    }
+    super.hostUpdated();
   }
 
   #ownMarksOf(): string {
     const marks = this.#host.shadowRoot?.querySelectorAll(`[${GRILL_QUESTIONS_ATTRIBUTE}]`) ?? [];
     return Array.from(marks, (mark) => mark.getAttribute(GRILL_QUESTIONS_ATTRIBUTE) ?? '').join('|');
   }
-
-  #schedule = (): void => {
-    if (this.#pending || !this.#options.active()) return;
-    this.#pending = true;
-    requestAnimationFrame(() => {
-      this.#pending = false;
-      const bindings = this.#options.bindings();
-      for (const layer of this.#options.layers()) positionBadges(layer, bindings);
-    });
-  };
 }

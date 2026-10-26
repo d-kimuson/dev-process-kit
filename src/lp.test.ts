@@ -32,21 +32,19 @@ const lpPage = (name: string): string => readFileSync(resolve('lp', name), 'utf8
 /** The questions a page asks, read apart from its base data. */
 const GRILL = /<script type="application\/json" data-dpk-grill>([\s\S]*?)<\/script>/;
 
-/** A change log, which a template element may carry before its base data. */
+/** A change log, which a content element carries after its base data. */
 const CHANGE_LOG = /<script type="application\/json" data-dpk-changes>([\s\S]*?)<\/script>/;
 
-/** The `n`-th `<script type="application/json">` base data child of a given element. */
+/**
+ * The `n`-th plain `<script type="application/json">` direct child of a given element: the base
+ * data. It has to come first, before any `data-dpk-grill` / `data-dpk-changes` block
+ * (`docs/index.md`, Base data), so the pattern does not allow an option block in between.
+ */
 const jsonChild = (html: string, tag: string, index = 0): unknown => {
   const blocks = [
-    ...html.matchAll(
-      new RegExp(
-        `<${tag}\\b[^>]*>\\s*(?:${CHANGE_LOG.source}\\s*)?<script type="application/json">([\\s\\S]*?)</script>`,
-        'g',
-      ),
-    ),
+    ...html.matchAll(new RegExp(`<${tag}\\b[^>]*>\\s*<script type="application/json">([\\s\\S]*?)</script>`, 'g')),
   ];
-  // The last group: the change log's own group comes first.
-  const json = blocks[index]?.at(-1);
+  const json = blocks[index]?.[1];
   if (!json) throw new Error(`landing page has no JSON child #${index} for <${tag}>`);
   return JSON.parse(json);
 };

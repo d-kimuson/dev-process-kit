@@ -174,8 +174,14 @@ export class DpkInlineEdit extends LitElement {
         }
       }
 
-      :host([truncate][wrap]) .field[readonly],
-      :host([truncate][multiline]) .field[readonly] {
+      /* The fade says "there is more below the clamp" — so it may only paint when
+         the clamp really hides text. Painted unconditionally, a box that is only
+         as tall as its (short) value sits entirely inside the gradient: the name
+         is then drawn through a partial alpha ramp and reads as blurred,
+         washed-out ink. The data-clipped attribute is that measurement (see
+         #measureClipped). */
+      :host([truncate][wrap][data-clipped]) .field[readonly],
+      :host([truncate][multiline][data-clipped]) .field[readonly] {
         mask-image: linear-gradient(to bottom, black calc(100% - 1.4em), transparent 100%);
         -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 1.4em), transparent 100%);
       }
@@ -207,13 +213,16 @@ export class DpkInlineEdit extends LitElement {
       }
 
       /* seamless, editing: still no border or padding (the text must not
-         move), but a paint-only outline keeps "this is being edited" visible
-         — an outline sits outside the box and never affects layout. */
+         move), but a paint-only ring keeps "this is being edited" visible
+         — an outline sits outside the box and never affects layout. A
+         surface that marks the edit itself (a sticky note raises its paper
+         and swaps its type label for a pencil) sets
+         --dpk-inline-edit-ring: none and paints no box at all. */
       :host([seamless]) .field:not([readonly]) {
         border-radius: var(--dpk-radius-xs);
         background: transparent;
         box-shadow: none;
-        outline: 1px solid var(--dpk-blue);
+        outline: var(--dpk-inline-edit-ring, 1px solid var(--dpk-blue));
         outline-offset: 1px;
       }
 
@@ -262,7 +271,16 @@ export class DpkInlineEdit extends LitElement {
     /** Shows the value as Markdown while not editing; the field edits the source. */
     markdown: { type: Boolean },
     label: { type: String },
-    editing: { state: true },
+    /**
+     * Reflected so a host can key its own chrome on the editor's real state
+     * (a card may mark the edit on its surface instead of on a box here).
+     */
+    editing: { type: Boolean, reflect: true, attribute: 'data-editing' },
+    /**
+     * Derived, not authored: the rest state really hides part of the value
+     * under the `truncate` clamp. Only then does the fade paint.
+     */
+    clipped: { type: Boolean, reflect: true, attribute: 'data-clipped' },
   };
 
   declare value: string;
@@ -274,6 +292,7 @@ export class DpkInlineEdit extends LitElement {
   declare markdown: boolean;
   declare label: string;
   declare private editing: boolean;
+  declare clipped: boolean;
 
   #draft = '';
   #connectionVersion = 0;
@@ -285,10 +304,21 @@ export class DpkInlineEdit extends LitElement {
   // always jumping to the end.
   #caretIntent: 'end' | 'click' = 'end';
   readonly #i18n = new LocaleController(this);
+  /**
+   * Re-measures the clamp when the box changes size: a wider box holds more of
+   * the text, so whether anything is hidden is a function of the width.
+   */
+  readonly #sizes = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.#measureClipped());
 
   override connectedCallback(): void {
     super.connectedCallback();
     this.#connectionVersion += 1;
+    this.#sizes?.observe(this);
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.#sizes?.disconnect();
   }
 
   constructor() {
@@ -302,6 +332,7 @@ export class DpkInlineEdit extends LitElement {
     this.markdown = false;
     this.label = '';
     this.editing = false;
+    this.clipped = false;
     this.#draft = '';
   }
 
@@ -320,6 +351,7 @@ export class DpkInlineEdit extends LitElement {
   }
 
   protected override updated(): void {
+    this.#measureClipped();
     if (!this.editing) return;
     const field = this.renderRoot.querySelector<HTMLTextAreaElement>('.field');
     if (!field) return;
@@ -335,6 +367,24 @@ export class DpkInlineEdit extends LitElement {
       const end = field.value.length;
       field.setSelectionRange(end, end);
     }
+  }
+
+  /**
+   * Records whether the `truncate` clamp hides any of the value. The mirror is
+   * the layer the browser sizes from real text layout (the field is absolutely
+   * positioned over it), so its unclamped `scrollHeight` against its clamped
+   * `clientHeight` is exactly "there is more". Without layout (tests) both are
+   * zero, which reads as "nothing hidden" — the safe answer, since the fade is
+   * only a hint.
+   */
+  #measureClipped(): void {
+    if (!this.truncate || !(this.wrap || this.multiline)) {
+      if (this.clipped) this.clipped = false;
+      return;
+    }
+    const mirror = this.renderRoot.querySelector<HTMLElement>('.box > .mirror');
+    const next = mirror !== null && mirror.scrollHeight > mirror.clientHeight + 1;
+    if (next !== this.clipped) this.clipped = next;
   }
 
   protected override render(): TemplateResult {

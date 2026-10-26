@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { layeredLayout, type LayoutPoint } from '../../lib/layout/layered';
 import { routeHugsOutline } from '../../lib/layout/metrics';
+import { LAYOUT, LANE_MARGIN } from './element';
 import { erDiagramMessages } from './messages';
-import { parseErData, type ErTableDiff } from './model';
+import { erLayoutSpec, parseErData, type ErTableDiff } from './model';
+import { END_GLYPH_REACH, endGlyph } from './notation';
 import {
   columnIcon,
   detourRoute,
@@ -11,6 +14,7 @@ import {
   fieldChanges,
   fieldDetail,
   highlightOf,
+  PORT_STRAIGHT,
   relationPath,
   relationRoute,
   relationRoutes,
@@ -267,6 +271,8 @@ describe('roundedPath', () => {
   });
 
   it('rounds each corner of an orthogonal route', () => {
+    // `0`: the port straight run is exercised on its own below; this case is
+    // about the rounding itself.
     expect(
       roundedPath(
         [
@@ -276,6 +282,7 @@ describe('roundedPath', () => {
           { x: 50, y: 40 },
         ],
         8,
+        0,
       ),
     ).toBe('M0 0 L12 0 Q20 0 20 8 L20 32 Q20 40 28 40 L50 40');
   });
@@ -290,8 +297,35 @@ describe('roundedPath', () => {
           { x: 50, y: 6 },
         ],
         8,
+        0,
       ),
     ).toBe('M0 0 L17 0 Q20 0 20 3 L20 3 Q20 6 23 6 L50 6');
+  });
+
+  it('keeps the run at each port straight, squaring a corner that would eat into it', () => {
+    // The end glyphs are laid out along the port's own direction, so a corner
+    // inside `PORT_STRAIGHT` of a port has to be left square — otherwise the
+    // crow's foot and its "zero" circle are drawn beside the stroke.
+    const route = [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 20, y: 40 },
+      { x: 50, y: 40 },
+    ];
+    expect(roundedPath(route, 8, 20)).toBe('M0 0 L20 0 L20 32 Q20 40 28 40 L50 40');
+    // The same route with a longer run at both ends keeps its rounded corners.
+    expect(
+      roundedPath(
+        [
+          { x: 0, y: 0 },
+          { x: 60, y: 0 },
+          { x: 60, y: 40 },
+          { x: 100, y: 40 },
+        ],
+        8,
+        20,
+      ),
+    ).toBe('M0 0 L52 0 Q60 0 60 8 L60 32 Q60 40 68 40 L100 40');
   });
 
   it('draws nothing for an empty route', () => {
@@ -301,6 +335,8 @@ describe('roundedPath', () => {
 
 describe('relationPath', () => {
   it('curves a route that runs forward, leaving and entering its tables level', () => {
+    // `0` here isolates the curving; see `roundedPath`'s port-run case and
+    // "relation end glyphs sit on the drawn line" below for the reserved run.
     expect(
       relationPath(
         [
@@ -310,6 +346,7 @@ describe('relationPath', () => {
           { x: 100, y: 40 },
         ],
         68,
+        0,
       ),
     ).toBe('M0 0 C50 0 50 40 100 40');
   });
@@ -340,6 +377,23 @@ describe('relationPath', () => {
         40,
       ),
     ).toBe('M0 10 L90 10');
+  });
+
+  it('starts its first curve after the straight run out of the port, not across it', () => {
+    // Runs of exactly `PORT_STRAIGHT` on both sides: nothing is left to curve,
+    // so both jogs stay square and the line leaves/enters level for the whole
+    // glyph — this is the shape a `0..N` end needs.
+    expect(
+      relationPath(
+        [
+          { x: 0, y: 0 },
+          { x: PORT_STRAIGHT, y: 0 },
+          { x: PORT_STRAIGHT, y: 40 },
+          { x: PORT_STRAIGHT * 2, y: 40 },
+        ],
+        68,
+      ),
+    ).toBe(`M0 0 L${PORT_STRAIGHT} 0 L${PORT_STRAIGHT} 40 L${PORT_STRAIGHT * 2} 40`);
   });
 
   it('keeps a route that turns back on its corners, rounded', () => {
@@ -523,6 +577,271 @@ describe('relationRoutes (direction-aware ports)', () => {
     ]);
     const routed = relationRoutes(relations2, points2, [c, d], 10);
     expect(routed.get('c-d')).toEqual(points2.get('c-d'));
+  });
+});
+
+describe('relation end glyphs sit on the drawn line', () => {
+  // The reader's report: "a relation line begins at a point that is separate
+  // from the source-side circle/marker … it should start at the circle/marker
+  // on the table edge". `notation.ts` lays the crow's foot, its bars and its
+  // "zero" circle out along the port's outgoing direction only; when the
+  // route bent sooner than the glyph was long, the glyph was drawn beside the
+  // stroke instead of on it. These assertions are geometric (they read the
+  // drawn `d`, not the DOM): each glyph element has to touch the stroke, and
+  // the stroke has to leave each port straight for the whole glyph.
+  const STROKE_TOLERANCE = 0.75;
+
+  /** Every point of an SVG path's `M`/`L`/`Q`/`C` commands, with curves sampled between their endpoints. */
+  const strokeOf = (d: string, steps = 24): readonly LayoutPoint[] => {
+    const tokens = d.match(/[MLQC]|-?\d+(?:\.\d+)?/gu) ?? [];
+    const out: LayoutPoint[] = [];
+    let at: LayoutPoint = { x: 0, y: 0 };
+    let index = 0;
+    while (index < tokens.length) {
+      const command = tokens[index];
+      if (command === undefined) break;
+      index += 1;
+      const take = (count: number): readonly number[] => {
+        const values = tokens.slice(index, index + count).map(Number);
+        index += count;
+        return values;
+      };
+      if (command === 'M' || command === 'L') {
+        const [x, y] = take(2) as [number, number];
+        at = { x, y };
+        out.push(at);
+        continue;
+      }
+      const points =
+        command === 'Q'
+          ? (() => {
+              const [cx, cy, x, y] = take(4) as [number, number, number, number];
+              return { control: [{ x: cx, y: cy }], end: { x, y } };
+            })()
+          : (() => {
+              const [c1x, c1y, c2x, c2y, x, y] = take(6) as [number, number, number, number, number, number];
+              return {
+                control: [
+                  { x: c1x, y: c1y },
+                  { x: c2x, y: c2y },
+                ],
+                end: { x, y },
+              };
+            })();
+      const from = at;
+      for (let step = 1; step <= steps; step++) {
+        const t = step / steps;
+        const u = 1 - t;
+        const controls = points.control;
+        out.push(
+          controls.length === 1
+            ? {
+                x: u * u * from.x + 2 * u * t * controls[0]!.x + t * t * points.end.x,
+                y: u * u * from.y + 2 * u * t * controls[0]!.y + t * t * points.end.y,
+              }
+            : {
+                x:
+                  u ** 3 * from.x +
+                  3 * u * u * t * controls[0]!.x +
+                  3 * u * t * t * controls[1]!.x +
+                  t ** 3 * points.end.x,
+                y:
+                  u ** 3 * from.y +
+                  3 * u * u * t * controls[0]!.y +
+                  3 * u * t * t * controls[1]!.y +
+                  t ** 3 * points.end.y,
+              },
+        );
+      }
+      at = points.end;
+    }
+    return out;
+  };
+
+  const distanceToStroke = (stroke: readonly LayoutPoint[], point: LayoutPoint): number => {
+    let best = Number.POSITIVE_INFINITY;
+    for (let index = 1; index < stroke.length; index++) {
+      const a = stroke[index - 1]!;
+      const b = stroke[index]!;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const length = dx * dx + dy * dy;
+      const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length));
+      best = Math.min(best, Math.hypot(point.x - (a.x + dx * t), point.y - (a.y + dy * t)));
+    }
+    return best;
+  };
+
+  /**
+   * Everything one end glyph draws, as the segments and circle it is made of:
+   * a bar's midpoints and a foot's apex are meant to lie *on* the stroke, and
+   * the "zero" circle is meant to be centred there, so each element only has
+   * to come within the stroke's tolerance somewhere along itself.
+   */
+  const glyphDistance = (
+    stroke: readonly LayoutPoint[],
+    points: readonly LayoutPoint[],
+    end: 'start' | 'end',
+    multiplicity: string,
+  ): number => {
+    const glyph = endGlyph(points, end, multiplicity as never);
+    const elements: readonly (readonly LayoutPoint[])[] = [
+      ...glyph.segments.map(([a, b]) =>
+        Array.from({ length: 9 }, (_, step) => ({
+          x: a.x + ((b.x - a.x) * step) / 8,
+          y: a.y + ((b.y - a.y) * step) / 8,
+        })),
+      ),
+      ...(glyph.circle === null ? [] : [[glyph.circle]]),
+    ];
+    return Math.min(...elements.map((element) => Math.min(...element.map((point) => distanceToStroke(stroke, point)))));
+  };
+
+  /**
+   * Asserts the invariant for one relation: the drawn path starts and ends at
+   * the ports the glyphs are anchored on, stays straight for the glyph's whole
+   * length there, and each glyph element touches the stroke.
+   */
+  const expectGlyphsOnStroke = (
+    points: readonly LayoutPoint[],
+    cardinality: { parent: string; child: string },
+  ): void => {
+    const d = relationPath(points, LAYOUT.layerSpacing / 2);
+    const stroke = strokeOf(d);
+    const start = points[0]!;
+    const end = points.at(-1)!;
+    // The path's own `M` is the port, exactly where the glyph's tip sits.
+    expect(stroke[0]).toEqual(start);
+    expect(stroke.at(-1)).toEqual(end);
+    for (const side of ['start', 'end'] as const) {
+      const tip = side === 'start' ? start : end;
+      const next = side === 'start' ? points[1]! : points[points.length - 2]!;
+      const length = Math.hypot(next.x - tip.x, next.y - tip.y);
+      const direction = { x: (next.x - tip.x) / length, y: (next.y - tip.y) / length };
+      // Straight for the glyph's whole reach: every stroke sample within it
+      // stays on the port's own row/column.
+      for (const point of stroke) {
+        const along = (point.x - tip.x) * direction.x + (point.y - tip.y) * direction.y;
+        const across = Math.abs((point.x - tip.x) * direction.y - (point.y - tip.y) * direction.x);
+        if (along > 0 && along < END_GLYPH_REACH) expect(across).toBeLessThanOrEqual(STROKE_TOLERANCE);
+      }
+      expect(length).toBeGreaterThanOrEqual(END_GLYPH_REACH);
+      expect(
+        glyphDistance(stroke, points, side, side === 'start' ? cardinality.parent : cardinality.child),
+      ).toBeLessThanOrEqual(STROKE_TOLERANCE);
+    }
+  };
+
+  it('keeps the port run long enough for the glyph, and the escape inside the lane margin', () => {
+    // `PORT_STRAIGHT` is the router's port escape *and* the straight run the
+    // path reserves; a longer one would land the route's first point inside
+    // the margin-inflated box of the card across the nearest gap.
+    expect(PORT_STRAIGHT).toBe(END_GLYPH_REACH);
+    expect(PORT_STRAIGHT).toBeLessThanOrEqual(LANE_MARGIN);
+  });
+
+  it('draws a `0..N` end on the stroke even when the route bends right after the port', () => {
+    // The reported shape: the source leaves sideways and the FK end arrives
+    // level, one port-escape from a corner. The old 12px escape put the
+    // "zero" circle (21px out) past that corner, in empty space.
+    const tables = [
+      { id: 'tenants', box: { x: 0, y: 0, width: 160, height: 120 } },
+      { id: 'retry_policies', box: { x: 400, y: 400, width: 160, height: 100 } },
+    ];
+    const points = [
+      { x: 160, y: 60 },
+      { x: 400, y: 450 },
+    ];
+    const route = relationRoute({ from: 'tenants', to: 'retry_policies' }, points, tables, LANE_MARGIN);
+    // The bend sits exactly one port-escape out, so the glyph's own reach is
+    // all the straight run there is — the case that used to put the circle past
+    // the corner.
+    expect(Math.hypot(route[1]!.x - route[0]!.x, route[1]!.y - route[0]!.y)).toBe(PORT_STRAIGHT);
+    expectGlyphsOnStroke(route, { parent: '1', child: '0..N' });
+    expectGlyphsOnStroke(route, { parent: '0..1', child: '1..N' });
+  });
+
+  it('holds for every relation of a laid-out schema, before and after the change', () => {
+    const schema = parseErData({
+      before: {
+        tables: [
+          {
+            id: 'tenants',
+            name: 'Tenants',
+            fields: [
+              { id: 'id', type: 'uuid', key: 'PK' },
+              { id: 'name', type: 'varchar' },
+            ],
+          },
+          {
+            id: 'customers',
+            name: 'Customers',
+            fields: [
+              { id: 'id', type: 'uuid', key: 'PK' },
+              { id: 'tenant_id', type: 'uuid', key: 'FK', ref: 'tenants.id' },
+            ],
+          },
+        ],
+      },
+      after: {
+        tables: [
+          {
+            id: 'tenants',
+            name: 'Tenants',
+            fields: [
+              { id: 'id', type: 'uuid', key: 'PK' },
+              { id: 'name', type: 'varchar' },
+            ],
+          },
+          {
+            id: 'customers',
+            name: 'Customers',
+            fields: [
+              { id: 'id', type: 'uuid', key: 'PK' },
+              { id: 'tenant_id', type: 'uuid', key: 'FK', ref: 'tenants.id' },
+            ],
+          },
+          {
+            id: 'invoices',
+            name: 'Invoices',
+            fields: [
+              { id: 'id', type: 'uuid', key: 'PK' },
+              { id: 'customer_id', type: 'uuid', key: 'FK', ref: 'customers.id' },
+            ],
+          },
+          {
+            id: 'retry_policies',
+            name: 'Retry policies',
+            fields: [
+              { id: 'id', type: 'uuid', key: 'PK' },
+              { id: 'tenant_id', type: 'uuid', key: 'FK', ref: 'tenants.id' },
+            ],
+          },
+          {
+            id: 'payments',
+            name: 'Payments',
+            fields: [
+              { id: 'id', type: 'uuid', key: 'PK' },
+              { id: 'invoice_id', type: 'uuid', key: 'FK', ref: 'invoices.id' },
+              { id: 'retry_policy_id', type: 'uuid', key: 'FK', ref: 'retry_policies.id' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(schema.edges.length).toBeGreaterThan(3);
+    expect(schema.edges.some((relation) => relation.status !== 'same')).toBe(true);
+
+    const { nodes, edges } = erLayoutSpec(schema);
+    const placed = layeredLayout(nodes, edges, LAYOUT);
+    const boxes = placed.nodes.map((node) => ({ id: node.id, box: node }));
+    const pointsById = new Map(placed.routes.map((route) => [route.id, route.points] as const));
+    const routed = relationRoutes(edges, pointsById, boxes, LANE_MARGIN);
+    for (const relation of schema.edges) {
+      const points = routed.get(relation.id);
+      expect(points?.length ?? 0).toBeGreaterThan(1);
+      expectGlyphsOnStroke(points!, relation.cardinality);
+    }
   });
 });
 

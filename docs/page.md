@@ -105,10 +105,10 @@ target only to point at another page: a link in the `domain` page can say
 ## Questions
 
 A page asks its questions as its content does on its own: a
-`<script type="application/json" data-dpk-grill>` child of the view or board, next to its base
-JSON ([index.md](index.md#questions-grill)). The app gathers every page's questions, and those of
-its own `data-dpk-grill` child (for questions about the document as a whole), into the one
-questions panel in its header.
+`<script type="application/json" data-dpk-grill>` child of the view or board, **after** its base
+JSON (the base data is the first JSON child; see [index.md](index.md#base-data)). The app gathers
+every page's questions, and those of its own `data-dpk-grill` child (for questions about the
+document as a whole), into the one questions panel in its header.
 
 A page's question is qualified by its page like any of its targets: question `retry` of the
 `scope` page is `grill:retry@scope`, and its ref shows as `Q1@scope`. Within the page's markup,

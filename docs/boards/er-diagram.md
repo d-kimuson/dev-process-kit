@@ -50,27 +50,29 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 
 ## Data
 
-Two snapshots of the same shape: `{ tables: [{ id, name, tags?, boundedContext?, aggregate?, pattern?, fields, constraints? }] }`.
+Two snapshots of the same shape: `{ tables: [{ id, name, tags?, boundedContext?, aggregate?, pattern?, fields, constraints?, questions? }] }`.
 
-| Field                     | Required | Meaning                                                                                                                                                            |
-| ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tables[].id`             | yes      | Stable id; `ref` and the diff match on it.                                                                                                                         |
-| `tables[].name`           | yes      | Human label next to the id.                                                                                                                                        |
-| `tables[].tags`           | no       | The tag filter applies to tables.                                                                                                                                  |
-| `tables[].boundedContext` | no       | Separate from `tags`, but folded into them as `BC:<name>` so it filters with the same Single/AND/OR semantics, in the same row; its chip sits ahead of plain tags. |
-| `tables[].aggregate`      | no       | Purely visual: tables sharing one are grouped with a labeled dashed boundary on the canvas.                                                                        |
-| `tables[].pattern`        | no       | One of `immutable`, `mutable`, `sti`, `cti`, `value-object` — shown as a small badge on the card. Not a filter.                                                    |
-| `tables[].constraints`    | no       | Composite, table-level constraints spanning more than one column — see [Table-level constraints](#table-level-constraints).                                        |
-| `fields[].id`             | yes      | Column name.                                                                                                                                                       |
-| `fields[].type`           | yes      | Column type, shown verbatim.                                                                                                                                       |
-| `fields[].key`            | no       | `PK` \| `FK` \| `UQ`, or an array of them for a column with several roles: `["FK", "UQ"]`, `["PK", "FK"]`.                                                         |
-| `fields[].ref`            | no       | `table.field` the FK points at. It **is** the relation: no separate edge list.                                                                                     |
-| `fields[].nullable`       | no       | `true` gives the row the hollow (nullable) icon, and makes the referenced side of the relation optional (`0..1`).                                                  |
-| `fields[].cardinality`    | no       | Needs `ref`. Declares the relation as `parent:child` when the keys alone cannot say it — see [Cardinality](#cardinality).                                          |
-| `fields[].label`          | no       | Needs `ref`. A short verb phrase naming the relation (`places`, `発注する`), read from the referenced table to the FK table.                                       |
-| `fields[].description`    | no       | Supplementary note shown in a smaller muted line under the column name, like a table's own `name` — never part of the diff.                                        |
+| Field                     | Required | Meaning                                                                                                                                                                                                      |
+| ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tables[].id`             | yes      | Stable id; `ref` and the diff match on it.                                                                                                                                                                   |
+| `tables[].name`           | yes      | Human label next to the id.                                                                                                                                                                                  |
+| `tables[].tags`           | no       | The tag filter applies to tables.                                                                                                                                                                            |
+| `tables[].boundedContext` | no       | Separate from `tags`, but folded into them as `BC:<name>` so it filters with the same Single/AND/OR semantics, in the same row; its chip sits ahead of plain tags.                                           |
+| `tables[].aggregate`      | no       | Purely visual: tables sharing one are grouped with a labeled dashed boundary on the canvas.                                                                                                                  |
+| `tables[].pattern`        | no       | One of `immutable`, `mutable`, `sti`, `cti`, `value-object` — shown as a small badge on the card. Not a filter.                                                                                              |
+| `tables[].constraints`    | no       | Composite, table-level constraints spanning more than one column — see [Table-level constraints](#table-level-constraints).                                                                                  |
+| `tables[].questions`      | no       | Refs of the page's questions (grill) the table is about, space-separated (`"Q1 Q4"`); each gets a Q badge on the table's top-right corner — see [Annotating for questions](#annotating-for-questions-grill). |
+| `fields[].id`             | yes      | Column name.                                                                                                                                                                                                 |
+| `fields[].type`           | yes      | Column type, shown verbatim.                                                                                                                                                                                 |
+| `fields[].key`            | no       | `PK` \| `FK` \| `UQ`, or an array of them for a column with several roles: `["FK", "UQ"]`, `["PK", "FK"]`.                                                                                                   |
+| `fields[].ref`            | no       | `table.field` the FK points at. It **is** the relation: no separate edge list.                                                                                                                               |
+| `fields[].nullable`       | no       | `true` gives the row the hollow (nullable) icon, and makes the referenced side of the relation optional (`0..1`).                                                                                            |
+| `fields[].cardinality`    | no       | Needs `ref`. Declares the relation as `parent:child` when the keys alone cannot say it — see [Cardinality](#cardinality).                                                                                    |
+| `fields[].label`          | no       | Needs `ref`. A short verb phrase naming the relation (`places`, `発注する`), read from the referenced table to the FK table.                                                                                 |
+| `fields[].description`    | no       | Supplementary note shown in a smaller muted line under the column name, like a table's own `name` — never part of the diff.                                                                                  |
+| `fields[].questions`      | no       | Same as a table's: the refs of the page's questions this column is about, space-separated; each gets a Q badge on that row.                                                                                  |
 
-`before` is optional; without it the baseline is `after` itself, so nothing is marked as changed (a plain schema diagram). The diff is derived, never authored — a table is `added` / `removed` / `changed` from what happened to its fields, a field is `changed` when type, key, ref, nullability, cardinality or label differ, and a relation is `added` / `removed` from the endpoint pair and `changed` when its cardinality or label differs — so red and green can never disagree with the data. `name`, `fields[].description` and `constraints` are supplementary and never diffed.
+`before` is optional; without it the baseline is `after` itself, so nothing is marked as changed (a plain schema diagram). The diff is derived, never authored — a table is `added` / `removed` / `changed` from what happened to its fields, a field is `changed` when type, key, ref, nullability, cardinality or label differ, and a relation is `added` / `removed` from the endpoint pair and `changed` when its cardinality or label differs — so red and green can never disagree with the data. `name`, `fields[].description`, `constraints` and `questions` are supplementary and never diffed.
 
 ## Table-level constraints
 
@@ -85,6 +87,28 @@ A constraint spanning more than one column together — a composite `UNIQUE` or 
 ```
 
 `kind` is `unique` \| `primary-key` \| `check` \| `exclude`. `unique` and `primary-key` take `columns` (at least one); `check` takes `expression`; `exclude` takes `elements` (each already reading `column WITH operator`) and an optional `using` (the index method, e.g. `gist`; omitted for the default `btree`). They render as a compact, monospace list under the column rows — `UNIQUE (tenant_id, email)`, `CHECK (amount > 0)`, `EXCLUDE USING gist (room WITH =, during WITH &&)` — and are reviewed through the table's own comment target, like `name`. They are read-only: there is no on-page editor for them yet.
+
+## Annotating for questions (grill)
+
+A table and a column may each carry `questions`: the refs of the page's questions (grill) that this table or this column is about (`docs/index.md`, Questions (grill); `docs/boards/index.md`, [Annotating for questions](index.md#annotating-for-questions-grill)) — the schema decisions still open, pinned to the part of the schema they concern.
+
+```json
+{
+  "id": "inventory_reservations",
+  "name": "在庫予約",
+  "questions": "Q1 Q4",
+  "fields": [
+    { "id": "id", "type": "uuid", "key": "PK" },
+    { "id": "order_id", "type": "uuid", "key": "FK", "ref": "orders.id", "questions": "Q1" }
+  ]
+}
+```
+
+Refs are space-separated, and each one is a Q badge: the table's sit together on its top-right corner (`Q1` and `Q4` above), a column's on its own row. Pressing one opens its question. That badge is the only thing `questions` does — with none on the tables, a diagram has no Q badges at all, however many questions the page asks.
+
+Inside an app the ref is the page's own question; write `Q1@<page>` to mark another page's — `"questions": "Q1@billing"` on a table in the `schema` page, for the `billing` page's `Q1` (`docs/page.md`, Questions). A page numbers its questions on its own, so an unqualified `Q1` means the page the diagram sits on.
+
+Like `name`, `fields[].description` and `constraints`, `questions` is read from the `after` snapshot and never diffed.
 
 ## Cardinality
 
@@ -117,6 +141,7 @@ The cards follow the look of [Liam ERD](https://liambx.com/): a header with the 
 - **Grouping toggle** — a toolbar control shows or hides the Bounded Context and aggregate frames independently (both on by default). It only draws or removes the frames; no table moves, and the layout never recomputes.
 - **Bounded Context filter** — picking a `BC:<name>` chip never hides the other tables: every table keeps its position, the picked Bounded Context and its relations stay at full opacity, everything else (tables, relations, frames) dims, and the view pans/zooms to fit the picked Bounded Context. Clearing the filter restores full opacity without moving anything.
 - **Pattern badge** — a table's `pattern` (`immutable`, `mutable`, `sti`, `cti`, `value-object`) shows as a small badge beside its name. An auxiliary attribute, not a filter.
+- **Q badges** — a table's `questions` puts a Q badge per ref on the table's top-right corner, and a column's own `questions` puts its badge on that row (see [Annotating for questions](#annotating-for-questions-grill)). Pressing one opens its question.
 - **Column filter** — a toolbar three-way toggle: **All** (default), **Keys** (only columns with a key or `ref`, so the relationships alone can be read) and **Tables only** (header only, no columns). Table-level constraints still render in **Tables only**, since they describe the table rather than any one column.
 - **Comments** — give the board a stable HTML `id` and place it inside a view, or make it a page's content. Right-click a table or a relationship and choose "Review comment" from the context menu to open the shared composer beside it. Selection alone does not open the input. The composer follows pan/zoom without resizing the diagram. Send there with the button or `Ctrl`/`Cmd+Enter`; the comment is saved to the enclosing view's Review — or the page's, when the board is its content — without opening its rail. Escape/cancel closes the surface, and switching selections preserves unsent text per target for the mounted component. Fields are not separate comment targets.
 

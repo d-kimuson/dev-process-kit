@@ -296,6 +296,11 @@ const renderAxisCorner = (m: UsmMessages, slot: string): TemplateResult => {
  * group view where the steps have no columns of their own, the steps it holds.
  * Placed through its column's slot; `<dpk-matrix>` is its drag handle's and
  * its lift's owner now, the way it owns a milestone row's.
+ *
+ * The head carries its activity's target so a change's "Show" can point at the
+ * column, and says `data-dpk-check="off"` because it is the map's axis rather
+ * than a unit the reader works through: a Check Mode mark here would be pinned
+ * to a header that stays on screen while the cards scroll under it.
  */
 const renderActivityHead = (props: BoardProps, activityId: string, listSteps = false): TemplateResult => {
   const { m, context } = props;
@@ -310,6 +315,7 @@ const renderActivityHead = (props: BoardProps, activityId: string, listSteps = f
       data-activity=${activity.id}
       data-column=${activity.id}
       data-dpk-target=${targetRef({ type: 'activity', id: activity.id })}
+      data-dpk-check="off"
       data-grill-questions=${ifDefined(grillMark(activity.questions))}
       slot=${columnHeadSlot(activity.id)}
     >
@@ -370,6 +376,9 @@ const renderActivityHead = (props: BoardProps, activityId: string, listSteps = f
  * A step's column head, placed through its sub-column's slot. It only moves
  * inside its own activity: `<dpk-matrix>` already confines a sub-column drag
  * to its own column, so nothing here has to guard against a cross-activity drop.
+ *
+ * Like the activity head it opts out of Check Mode (`data-dpk-check="off"`)
+ * and keeps its target for "Show".
  */
 const renderStepHead = (props: BoardProps, activityId: string, step: BackboneStep): TemplateResult => {
   const { m, context } = props;
@@ -382,6 +391,7 @@ const renderStepHead = (props: BoardProps, activityId: string, step: BackboneSte
       data-column-step=${step.id}
       data-current=${String(context.navigation['step'] === step.id)}
       data-dpk-target=${targetRef({ type: 'step', id: ref })}
+      data-dpk-check="off"
       data-grill-questions=${ifDefined(grillMark(step.questions))}
       slot=${subColumnHeadSlot(activityId, step.id)}
     >
@@ -434,6 +444,10 @@ const renderAddMilestoneRowHead = (m: UsmMessages, context: ViewRenderContext<Us
  * A milestone row's head (and meta), placed through the row's slot.
  * `<dpk-matrix>` is the row's drag target and its handle now; the unassigned
  * row is simply not draggable (its matrix row says so), as it always was.
+ *
+ * The head mirrors the row's target for "Show" and opts out of Check Mode for
+ * the same reason as the column heads: it is the map's row axis, and the
+ * milestone is tallied where it is listed as an item (the milestone tab).
  */
 const renderMilestoneRowHead = (props: BoardProps, row: MilestoneRow): TemplateResult => {
   const { m, context } = props;
@@ -452,6 +466,7 @@ const renderMilestoneRowHead = (props: BoardProps, row: MilestoneRow): TemplateR
         class="row-head"
         data-milestone=${milestoneId}
         data-dpk-target=${targetRef({ type: 'milestone', id: milestoneId })}
+        data-dpk-check="off"
         data-grill-questions=${ifDefined(grillMark(row.questions))}
       >
         ${rename}

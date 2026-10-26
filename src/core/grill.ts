@@ -7,7 +7,7 @@ import { entityIdSchema } from './schema';
 /**
  * Grill (ADR 20261016_grill-in-core): questions the agent asks the reader on
  * any page, to settle what is still open before building on it. The questions
- * are a block of their own next to the base data
+ * are a block of their own after the base data
  * (`<script type="application/json" data-dpk-grill>`), so every template can
  * carry them; the answers are core-owned draft actions, so they travel with the
  * reader's changes and comments in one hand-off.

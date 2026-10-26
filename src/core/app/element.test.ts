@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { queryAllDeep } from '../../lib/dom/deep';
 import { AppElement } from './element';
 import { SWITCHER_ID } from './switcher';
 import '../../index';
@@ -569,9 +570,7 @@ describe('<dpk-page>', () => {
 
     it('reads a mark inside a board as that board’s question', async () => {
       const page = await mountAsking();
-      const badges = Array.from(page.renderRoot.querySelectorAll('.dpk-grill-badge'), (badge) =>
-        badge.textContent?.trim(),
-      );
+      const badges = queryAllDeep(page, '.dpk-grill-badge').map((badge) => badge.textContent?.trim());
       expect(badges).toEqual(['Q1@before', 'Q2@before', 'Q1@after']);
     });
 
@@ -593,9 +592,7 @@ describe('<dpk-page>', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
         await page.updateComplete;
       }
-      const badges = Array.from(page.renderRoot.querySelectorAll('.dpk-grill-badge'), (badge) =>
-        badge.textContent?.trim(),
-      );
+      const badges = queryAllDeep(page, '.dpk-grill-badge').map((badge) => badge.textContent?.trim());
       expect(badges).toEqual(['Q1@rules']);
     });
 

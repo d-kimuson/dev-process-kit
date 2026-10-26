@@ -1,13 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { EMPTY_CHECK_STATE, type CheckState } from '../check-mode';
-import {
-  CHECK_ATTRIBUTE,
-  CHECK_OFF,
-  CheckModeBadgeController,
-  collectCheckBindings,
-  scrollRootsAround,
-} from './check-mode-badges';
+import { CHECK_ATTRIBUTE, CHECK_OFF, CheckModeBadgeController, collectCheckBindings } from './check-mode-badges';
 import { TARGET_ATTRIBUTE } from './reveal';
 
 const enabled: CheckState = { v: 1, enabled: true, checked: {} };
@@ -82,51 +76,6 @@ describe('collectCheckBindings', () => {
     const host = hostWith('card:a');
     host.firstElementChild?.setAttribute(CHECK_ATTRIBUTE, 'on');
     expect(collectCheckBindings(host, enabled, null).map((binding) => binding.ref)).toEqual(['card:a']);
-  });
-});
-
-describe('scrollRootsAround', () => {
-  it('includes the shadow roots the host renders, however deeply nested', () => {
-    const host = document.createElement('div');
-    const inner = document.createElement('div');
-    host.append(inner);
-    const own = host.attachShadow({ mode: 'open' });
-    const deepShadow = inner.attachShadow({ mode: 'open' });
-    const roots = scrollRootsAround(host);
-    expect(roots).toContain(own);
-    expect(roots).toContain(deepShadow);
-  });
-
-  it('includes the shadow root a view is slotted into, where the shell’s own scrolling column lives', () => {
-    // app shadow root → layout → the page and the view slotted into it: the
-    // view host's own root is the app's shadow root, above anything the view
-    // itself renders, and a scroll event never crosses down to the view.
-    const app = document.createElement('div');
-    const shell = app.attachShadow({ mode: 'open' });
-    const page = document.createElement('div');
-    const view = document.createElement('div');
-    page.append(view);
-    shell.append(page);
-    expect(scrollRootsAround(view)).toContain(shell);
-  });
-
-  it('walks every shadow boundary up to the document, not only the first', () => {
-    const outer = document.createElement('div');
-    const outerRoot = outer.attachShadow({ mode: 'open' });
-    const middle = document.createElement('div');
-    outerRoot.append(middle);
-    const middleRoot = middle.attachShadow({ mode: 'open' });
-    const view = document.createElement('div');
-    middleRoot.append(view);
-    const roots = scrollRootsAround(view);
-    expect(roots).toContain(middleRoot);
-    expect(roots).toContain(outerRoot);
-  });
-
-  it('adds no listener target for a host that is not in a shadow root: the document covers it', () => {
-    const host = document.createElement('div');
-    document.body.append(host);
-    expect(scrollRootsAround(host)).toEqual([]);
   });
 });
 

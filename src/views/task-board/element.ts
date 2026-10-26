@@ -4,7 +4,6 @@ import type { Locale } from '../../core/i18n';
 import type { SidebarLayout } from '../../core/layouts/sidebar/model';
 import type { ShellRegions, ViewRenderContext } from '../../core/shell/contracts';
 import type { ActionTarget } from '../../core/types';
-import type { TaskBoardState } from './model';
 
 import { atomStyles } from '../../components/atoms/styles';
 import { defineSelect } from '../../components/select';
@@ -15,12 +14,13 @@ import { copyText } from '../../lib/dom/clipboard';
 import { addTodo, answerQuestion, decideProposal, deleteTodo, setTodoStatus, type AnswerInput } from './actions';
 import { taskBoardDefinitionFor } from './definition';
 import { taskBoardMessages, type TaskBoardMessages } from './messages';
+import { findTodo, isHumanTodo, type TaskBoardState, type TodoStatus } from './model';
 import {
   presentContext,
   presentLog,
   presentOutputs,
   presentQuestions,
-  presentTodos,
+  presentTasks,
   taskStatusLabel,
   type TodoFilter,
 } from './present';
@@ -29,7 +29,7 @@ import { renderQuestions } from './render/questions';
 import { renderLog, renderOutputs } from './render/records';
 import { type BoardHandlers } from './render/shared';
 import { renderTabPanel, renderTabs, tabAfterKey, type BoardTab } from './render/tabs';
-import { renderTodos } from './render/todos';
+import { renderTasks } from './render/tasks';
 import { taskBoardStyles } from './styles';
 
 /** How long a copy button shows its check mark. */
@@ -40,10 +40,11 @@ const COPIED_MS = 1500;
  *
  * The main area is one tab at a time: what the task is about (a short design
  * doc with the author's diagrams), the conversation so far — its newest entry
- * says where the task stands — and what the agent asks. The right rail is the work itself — the
- * outputs to open or copy and the todo list, proposals included — and stays in
- * view. Every reply, decision and edit is a draft action the review hands back;
- * the review floats over the rail rather than pushing the board aside.
+ * says where the task stands — what the agent asks, and the work itself as a
+ * board of todos by status. The left rail is what the agent has produced —
+ * the outputs to open or copy — and stays in view: on the left it is out of
+ * the way of the review, which floats over the page's right-hand edge. Every
+ * reply, decision and edit is a draft action the review hands back.
  */
 export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
   static override styles = [ViewElement.styles, atomStyles, taskBoardStyles];
@@ -61,7 +62,9 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
   /** The output whose copy button shows the check mark. */
   #copied: string | null = null;
   #copiedTimer: ReturnType<typeof setTimeout> | undefined;
-  /** One status select per todo, since each row needs its own stable open/active state. */
+  /** The todo a card is being dragged by, if any; dropping it sets its status. */
+  #draggingTodo: string | null = null;
+  /** One status select per todo, since each card needs its own stable open/active state. */
   readonly #statusSelects = new SelectControllerRegistry(this);
 
   constructor() {
@@ -71,7 +74,7 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
   }
 
   protected override get sidebarLayout(): SidebarLayout {
-    return { side: 'right', defaultWidth: 360, narrow: 'stack' };
+    return { side: 'left', defaultWidth: 288, narrow: 'drawer' };
   }
 
   protected override definitionFor(locale: Locale) {
@@ -89,6 +92,7 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
         this.tab = 'questions';
         return;
       case 'todo':
+        this.tab = 'tasks';
         this.todoFilter = 'all';
         return;
     }
@@ -108,17 +112,10 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
     const tab = this.tab;
     return {
       header: this.#renderHeaderStatus(m, context.state),
-      sidebar: html`
-        <div class="board-rail">
-          ${renderOutputs(m, presentOutputs(context.state), this.#copied, handlers)}
-          ${renderTodos(
-            m,
-            presentTodos(m, context.state, context.base, count, this.todoFilter),
-            handlers,
-            this.#statusSelects,
-          )}
-        </div>
-      `,
+      // The outputs sit on the left, clear of the review's own right-hand rail.
+      sidebar: html`<div class="board-rail">
+        ${renderOutputs(m, presentOutputs(context.state), this.#copied, handlers)}
+      </div>`,
       main: html`
         <div class="board">
           ${renderTabs(
@@ -142,6 +139,16 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
             questions.total === 0
               ? html`<p class="dpk-empty board-empty" data-variant="dashed">${m.noQuestions}</p>`
               : renderQuestions(m, questions, handlers),
+          )}
+          ${renderTabPanel(
+            'tasks',
+            tab,
+            renderTasks(
+              m,
+              presentTasks(m, context.state, context.base, count, this.todoFilter),
+              handlers,
+              this.#statusSelects,
+            ),
           )}
         </div>
       `,
@@ -190,9 +197,33 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
       },
       addTodo: (title, assignee) => this.#addTodo(title, assignee),
       deleteTodo: (todoId) => this.dispatch(deleteTodo(todoId)),
+      beginTodoDrag: (todoId) => {
+        this.#draggingTodo = todoId;
+      },
+      endTodoDrag: () => {
+        this.#draggingTodo = null;
+      },
+      allowTodoDrop: (event) => {
+        // Only a card being carried can be dropped; anything else is the page's own drag.
+        if (this.#draggingTodo === null) return;
+        event.preventDefault();
+      },
+      dropTodo: (status) => this.#dropTodo(status),
       copy: (outputId, href) => void this.#copy(outputId, href),
       comment: (target) => this.requestComment(target),
     };
+  }
+
+  /** A dropped card takes the status of the column it landed in: the same change its select makes. */
+  #dropTodo(status: TodoStatus): void {
+    const id = this.#draggingTodo;
+    this.#draggingTodo = null;
+    if (id === null) return;
+    const { state } = this.derivation;
+    const todo = findTodo(state, id);
+    // Only a todo a person has: the agent reports its own progress by rewriting the board.
+    if (todo === undefined || todo.status === status || !isHumanTodo(state, todo)) return;
+    this.dispatch(setTodoStatus(id, status));
   }
 
   #answer(questionId: string, answer: AnswerInput): void {
