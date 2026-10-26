@@ -16,6 +16,7 @@ const LOCAL_BASE = 'https://dev-process-kit.localhost/';
 const VERSION_PARAM = 'dpk-version';
 const LEGACY_VERSION_PARAM = 'version';
 const VERSIONS_API = 'https://data.jsdelivr.com/v1/packages/npm/dev-process-kit';
+const PINNED_VERSION_URL = 'version.json';
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
 /** `pnpm dev` serves the landing pages from a `*.localhost` origin (portless); only there is a local build to load. */
@@ -29,6 +30,19 @@ const requestedVersion = () => {
 };
 
 let published = null;
+let pinned = undefined;
+
+/** The version this checkout was assembled as (GitHub Pages writes `version.json`); `null` when absent. */
+const pinnedVersion = () => {
+  pinned ??= fetch(PINNED_VERSION_URL, { cache: 'no-store' })
+    .then((response) => (response.ok ? response.json() : null))
+    .then((body) => {
+      const version = body?.version;
+      return typeof version === 'string' && SEMVER.test(version) ? version : null;
+    })
+    .catch(() => null);
+  return pinned;
+};
 
 /** `{ latest, versions }` of the npm package (newest first), fetched once per page. */
 const publishedVersions = () => {
@@ -52,7 +66,7 @@ const publishedVersions = () => {
 const resolvedVersion = async () => {
   const requested = requestedVersion();
   if (requested !== null || hasLocalBuild) return requested;
-  return (await publishedVersions()).latest;
+  return (await pinnedVersion()) ?? (await publishedVersions()).latest;
 };
 
 const bundleBase = (version) =>

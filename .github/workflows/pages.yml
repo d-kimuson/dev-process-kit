@@ -28,6 +28,10 @@ jobs:
         run: |
           mkdir _site
           cp lp/*.html lp/*.js lp/*.ico lp/*.png _site/
+          # The markup on main may be ahead of npm `latest` (a beta). Pin the
+          # version this checkout belongs to so the samples load matching code.
+          VERSION="$(node -p 'require("./package.json").version')"
+          printf '{"version":"%s"}\n' "$VERSION" > _site/version.json
           if grep -l 'dev-process-kit\.localhost' _site/*.html; then
             echo 'a sample points at the dev asset server instead of loading through kit.js' >&2
             exit 1
