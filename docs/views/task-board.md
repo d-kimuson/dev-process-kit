@@ -24,7 +24,7 @@ dpk-view-task-board
                     the add-a-todo form at the foot of the Todo column
 ```
 
-The title in the header, the review and the hand-off are the app's ([page.md](../page.md)). The rail is on the **left**: the review floats over the page's right-hand edge, so a rail there would be covered by it. The main area and the left-hand rail scroll separately, so the outputs stay in view while the person reads a tab, and the tab bar stays at the top of the main area. On a narrow screen the rail folds into a drawer over the board — the board keeps the whole width, and its own button slides the outputs out — and the page scrolls as one.
+The title in the header, the floating menu, the review and the hand-off are the page's ([page.md](../page.md)); the bar above the board is the view's own strip, under it. The outputs rail is on the **left**: the review floats over the page's right-hand edge, so a rail there would be covered by it. The main area and the left-hand rail scroll separately, so the outputs stay in view while the person reads a tab, and the tab bar stays at the top of the main area. On a narrow screen the rail folds into a drawer over the board — the board keeps the whole width, and its own button slides the outputs out — and the page scrolls as one.
 
 ## The Tasks tab is a board
 
@@ -170,6 +170,8 @@ The Context tab is what anyone coming back to the task reads first — the agent
   </dpk-page>
 </dpk-app>
 ```
+
+Each part is the kit's own card, titled in its head: `Why` and `What` read as neutral cards, exactly like `Goals` (marked `✓` per line) and `Non-goals` (`−` per line). No part is distinguished by a colored edge — a bar down one side is decoration, and the title already says which part it is.
 
 ## The log is a conversation
 

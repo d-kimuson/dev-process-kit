@@ -22,6 +22,7 @@ import {
   presentTasks,
   taskBoardCommentTargets,
 } from './present';
+import { taskBoardStyles } from './styles';
 
 const m = taskBoardMessages('en');
 
@@ -913,6 +914,19 @@ describe('<dpk-view-task-board>', () => {
     expect(query(element, '[data-tab="tasks"]').textContent).toContain(ja.tabTasks);
     expect(query(element, '[data-column="doing"] .board-lane-title').textContent).toBe(ja.todoDoing);
     expect(query(element, '[data-group="blocking"] .board-group-title').textContent).toBe(ja.blockingGroup);
+  });
+
+  it('marks a context part with its card and its head, never with a stripe along an edge', () => {
+    // Why and What are the same card as Goals and Non-goals: a colored bar down
+    // one side would be decoration the title already says better
+    // (dev-docs/guidelines/coding.md).
+    const css = String(taskBoardStyles);
+    const partRules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selector]) =>
+      (selector ?? '').includes('.board-context-part'),
+    );
+    expect(partRules.length).toBeGreaterThan(0);
+    const borders = partRules.flatMap(([, , body]) => [...(body ?? '').matchAll(/border(?:-[a-z]+)*\s*:[^;]*/g)]);
+    expect(borders.map((match) => match[0])).toEqual([]);
   });
 });
 

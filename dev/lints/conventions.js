@@ -14,7 +14,7 @@
  *                              `dpk-internal-layout-<name>` (in src/core/layouts), and the registered class is
  *                              the tag in PascalCase
  *   - localized-text:           Japanese text in `src/**` lives only in `messages.ts` dictionaries
- *   - no-side-stripe:           styles in `src/**` draw no colored stripe down one side of a box
+ *   - no-side-stripe:           styles in `src/**` draw no colored stripe along one edge of a box
  *
  * The architecture this encodes is the one `dev-docs/guidelines/architecture.md`
  * describes: `lib` holds dependency-free helpers, `core` owns the pipeline and
@@ -515,25 +515,39 @@ const localizedText = {
   },
 };
 
-/** A border thicker than a 1px divider, or a state that restyles only that one side. */
-const RE_SIDE_BORDER = /border-(?:left|inline-start)(?:\s*:\s*(?:[2-9]|\d{2,})px|-(?:width|color)\s*:)/;
-/** An inset shadow that paints only the left edge: `inset 2px 0 0 …`. */
-const RE_SIDE_SHADOW = /inset\s+(?:[2-9]|\d{2,})px\s+0(?:px)?\s+0(?:px)?\b/;
+/** A box's four edges, physical and logical: the sides a stripe can run along. */
+const EDGES = 'top|right|bottom|left|inline-start|inline-end|block-start|block-end';
+/** A border thicker than a 1px divider along one edge: `border-top: 3px …`. */
+const RE_EDGE_BORDER = new RegExp(`border-(?:${EDGES})\\s*:\\s*(?:[2-9]|\\d{2,})px`);
+/** A rule that restyles one edge only: `border-top-color: …`, `border-left-width: 3px`. */
+const RE_EDGE_RESTYLE = new RegExp(`border-(?:${EDGES})-(?:width|color)\\s*:`);
+/** The box's own ring on every side; beside it, one edge is thicker or heavier rather than colored. */
+const RE_RING = /(?:^|[\s;])border\s*:/;
+/** An inset shadow that paints only one side: `inset 2px 0 0 …`, `inset -2px 0 0 …`. */
+const RE_SIDE_SHADOW = /inset\s+-?(?:[2-9]|\d{2,})px\s+0(?:px)?\s+0(?:px)?\b/;
 /** One `selector { body }` rule; nested blocks are matched innermost first. */
 const RE_RULE = /([^{}]*)\{([^{}]*)\}/g;
 
-/** A pseudo-element laid along the left edge from top to bottom, a few pixels wide. */
-const isSideBar = (selector, body) =>
-  /::?(?:before|after)/.test(selector) &&
-  /(?:^|[\s;])left\s*:\s*0(?:px)?\s*;/.test(body) &&
-  /(?:^|[\s;])width\s*:\s*[1-5]px\s*;/.test(body) &&
-  /(?:^|[\s;])top\s*:/.test(body) &&
-  /(?:^|[\s;])bottom\s*:/.test(body);
+/** A pseudo-element laid along one edge, from one end of it to the other, a few pixels thick. */
+const isEdgeBar = (selector, body) => {
+  if (!/::?(?:before|after)/.test(selector)) return false;
+  const flush = (name) => new RegExp(`(?:^|[\\s;])${name}\\s*:\\s*0(?:px)?\\s*;`).test(body);
+  const set = (name) => new RegExp(`(?:^|[\\s;])${name}\\s*:`).test(body);
+  const thin = (name) => new RegExp(`(?:^|[\\s;])${name}\\s*:\\s*[1-5]px\\s*;`).test(body);
+  // Down a side: flush with it, stretched from top to bottom.
+  if ((flush('left') || flush('right')) && set('top') && set('bottom') && thin('width')) return true;
+  // Across the box: flush with the top or the bottom, stretched from end to end.
+  return (flush('top') || flush('bottom')) && set('left') && set('right') && thin('height');
+};
 
 /**
- * A colored stripe down one side of a card is the stock look of generated UI,
+ * A colored stripe along one edge of a card is the stock look of generated UI,
  * and it says nothing a tint, a ring, or a chip in the head would not say
- * better. A 1px `border-left` stays usable as a divider between columns.
+ * better. Any edge counts: a bar across the top or the bottom of a card says
+ * exactly what one down its left side says, so the rule keeps its name but
+ * reads every side. A box's ring — `border: 1px …` on every side, one of them
+ * thicker — is a bevel rather than a stripe, and a 1px `border-left` stays
+ * usable as a divider between columns.
  */
 const noSideStripe = {
   create(context) {
@@ -542,14 +556,17 @@ const noSideStripe = {
     const report = (node) =>
       context.report({
         node,
-        message: 'Draw no side stripe: mark the box with a tint, a ring on every side, or a chip in its head instead.',
+        message: 'Draw no edge stripe: mark the box with a tint, a ring on every side, or a chip in its head instead.',
       });
     return {
       TemplateElement(node) {
         const text = node.value?.raw ?? '';
-        if (RE_SIDE_BORDER.test(text) || RE_SIDE_SHADOW.test(text)) return report(node);
+        if (RE_SIDE_SHADOW.test(text)) return report(node);
         for (const [, selector, body] of text.matchAll(RE_RULE)) {
-          if (isSideBar(selector, body)) return report(node);
+          if (isEdgeBar(selector, body)) return report(node);
+          // One edge thicker or colored, without the ring that would make it a bevel.
+          if (RE_EDGE_BORDER.test(body)) return report(node);
+          if (RE_EDGE_RESTYLE.test(body) && !RE_RING.test(body)) return report(node);
         }
       },
     };

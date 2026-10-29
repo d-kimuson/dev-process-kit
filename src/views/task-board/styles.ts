@@ -236,15 +236,15 @@ export const taskBoardStyles = css`
     }
   }
 
-  /* A part is the kit's card (the card atom), roomier for prose. */
+  /*
+   * A part is the kit's card (the card atom), roomier for prose. Why and What
+   * stay neutral cards like Goals and Non-goals: the title names the part, so
+   * no edge is colored to tell them apart (a stripe along any edge says nothing
+   * the head does not; dev-docs/guidelines/coding.md).
+   */
   .board-context-part {
     --dpk-card-gap: 6px;
     padding: 14px 16px;
-  }
-
-  .board-context-part[data-context='why'],
-  .board-context-part[data-context='what'] {
-    border-top: 3px solid var(--dpk-accent);
   }
 
   .board-context-head {
