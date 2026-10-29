@@ -1,11 +1,10 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import { closePopover, openPopover } from '../../lib/dom/popover';
+import { reviewPlacementAt } from './review-popover';
 
 /** As wide as a comment reads comfortably; as tall as the screen lets it, since a review runs long. */
 const REVIEW_WIDTH = 440;
-/** The popover's offset from its anchor plus its margin to the screen edge. */
-const REVIEW_GAP = 16;
 
 export type ReviewPopoverOptions = {
   readonly surface: () => HTMLElement | null;
@@ -20,9 +19,12 @@ const containsNode = (path: readonly EventTarget[], node: Element | null): boole
   node !== null && path.includes(node);
 
 /**
- * Floats the review in the top layer below its toggles, so opening it never
- * takes room from the main column. It stays open while the reader works on the
- * page (a comment often points at what they click next) and closes from its
+ * Floats the review in the top layer beside the floating menu its toggles are
+ * in, so opening it never takes room from the main column. It opens on the
+ * side of that menu which has the room for it (see `review-popover.ts`): the
+ * menu docks anywhere on the screen, and a window sized by the room below a
+ * bottom-docked menu would have none. It stays open while the reader works on
+ * the page (a comment often points at what they click next) and closes from its
  * toggle, Escape, or a press outside it (the settings menu closes the same way).
  */
 export class ReviewPopoverController implements ReactiveController {
@@ -45,10 +47,10 @@ export class ReviewPopoverController implements ReactiveController {
     if (open === (this.#stop !== null)) return;
     if (open) {
       const anchor = this.#options.anchor() ?? { top: 0, bottom: 0, right: window.innerWidth };
-      // Any taller and it would not fit below the anchor, and would flip aside.
-      const bottom = anchor instanceof Element ? anchor.getBoundingClientRect().bottom : anchor.bottom;
-      const height = Math.max(0, window.innerHeight - bottom - REVIEW_GAP);
-      this.#stop = openPopover(surface, anchor, { width: REVIEW_WIDTH, height }, { placement: 'bottom-end' });
+      // An anchor that is not in the document yet has no box to open beside: it floats below the top edge.
+      const box = anchor instanceof Element ? anchor.getBoundingClientRect() : anchor;
+      const { placement, height } = reviewPlacementAt(window.innerHeight, box);
+      this.#stop = openPopover(surface, anchor, { width: REVIEW_WIDTH, height }, { placement });
       return;
     }
     this.#release();

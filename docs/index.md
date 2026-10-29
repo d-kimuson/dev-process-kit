@@ -44,7 +44,7 @@ Pick the one view whose subject is what you need to agree on with the reader.
 | Screen flow and what each step looks like  | `dpk-view-prototype`        |
 | An explanation walked through step by step | `dpk-view-slides`           |
 | Where a task shared with the user stands   | `dpk-view-task-board`       |
-| Who decides what, between you and the user | `dpk-view-delegation-poker` |
+| Who decides what, between two parties      | `dpk-view-delegation-poker` |
 | Anything else                              | `dpk-view-plain`            |
 
 ## Choose a board
@@ -119,15 +119,16 @@ carry. `index.js` is the union of all of them.
 </dpk-app>
 ```
 
-One HTML file holds exactly one `<dpk-app>`. With one page there is no name beside the switcher
-icon and the header shows the document alone; its **+** adds a page, and the name appears from the
-second one ([page.md](page.md)). What goes inside the base data, and which light DOM a view
+One HTML file holds exactly one `<dpk-app>`. The header names the document, and the switcher in it
+names the page shown when there is more than one; the switcher's **+** adds a page
+([page.md](page.md)). What goes inside the base data, and which light DOM a view
 matches, is the view's business: each view documents its own shape under `docs/views/`.
 
 ## Page height
 
-Every view and board is a bounded shell: its header stays on top, the supplements bar at the bottom
-of the main column, and the sidebar, main column and review popover each scroll on their own. That
+Every view and board is a bounded shell: its header stays on top, the floating menu floats over
+it, the supplements bar sits at the bottom of the main column, and the sidebar, main column and
+review popover each scroll on their own. That
 needs the document's height on the `<dpk-app>` element, and the same `<style>` block hides the
 element until its custom element is defined, so the light DOM inside (your markup, the base
 data's text) does not flash on screen before the kit's own chrome paints over it — `loadKit` /
@@ -231,7 +232,7 @@ The path states _where_ the target lives, which is the difference between "renam
 - **Applicability** is checked at derive time: an action whose target no longer exists stays in the draft as **stale**, is not applied, and is greyed out in the rail with a reason (`target-missing`, `constraint-violated`, `unsupported-action-type`). The brief lists stale actions in a section of their own ("Not applicable to the current base"), apart from the pending comments and changes.
 - A no-op patch — the base already says exactly that — is dropped automatically on the next derive. That is how a draft cleans itself when the agent applies it and regenerates the HTML.
 - The draft is the **plain log** of what the reader did, in order: adding a note and deleting it again shows both steps, and so does moving a story away and back. Adjacent patches to the same target still replace one another, so editing a field twice in a row leaves one entry, not one per keystroke.
-- The reader can **undo and redo** this log — Cmd+Z/Ctrl+Z and Shift+Cmd+Z/Ctrl+Shift+Z/Ctrl+Y, or the buttons in the header — ignored while focus is in a text field so native text-editing undo keeps working. Undo removes the draft's last entry (comments included) and redo replays it; dispatching a new action clears the redo stack. The redo stack does not survive a reload.
+- The reader can **undo and redo** this log — Cmd+Z/Ctrl+Z and Shift+Cmd+Z/Ctrl+Shift+Z/Ctrl+Y, or the buttons in the floating menu — ignored while focus is in a text field so native text-editing undo keeps working. Undo removes the draft's last entry (comments included) and redo replays it; dispatching a new action clears the redo stack. The redo stack does not survive a reload.
 - `comment` actions accumulate. They are draft actions, not a second channel, and their targets are meaning elements, not arbitrary DOM nodes.
 
 ## Persistence
@@ -304,13 +305,46 @@ All events bubble and are composed. `dpk-comment-panel` (the review rail) and `d
 
 | Slot         | Notes                                                                                                                                                 |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `header`     | appended after the view header content                                                                                                                |
+| `header`     | appended after the page title, in the screen's header row (see [Framework chrome](#framework-chrome))                                                 |
 | `sidebar`    | appended after the view sidebar content                                                                                                               |
 | `aside`      | a second sidebar, on the side of the main column the view's sidebar leaves free; drawn (with its edge and button) only when you slot content in       |
 | `main`       | appended after the view main content                                                                                                                  |
 | `footer`     | appended after the framework footer                                                                                                                   |
 | `preview`    | view-specific; the view documents how it matches your markup                                                                                          |
 | `supplement` | supporting material (an ERD, a checklist, a sequence diagram), named tabs in a bar at the bottom of the main column — see [Supplements](#supplements) |
+
+### Framework chrome
+
+Every page has the same two pieces of chrome, drawn by the element that owns the page: the app, or
+the view or board when it is used on its own. They hold no meaning of yours, and neither is a
+draft action.
+
+- **The header** is the fixed row across the top: the kit's mark, the page switcher whenever there is a
+  page to switch to or a content to add (the name of the page shown is in its own label, and **+**
+  adds one), the page's title as its `h1` (ellipsized, with the whole title on hover), then the
+  content's own header controls and your `slot="header"` markup, and, at the end, the language
+  select, the theme toggle and the settings gear. The gear opens the settings dialog: the page's own
+  switches and any section its view renders, in one frame whose height stays the same as the reader
+  switches sections. The row wraps rather than squeezing its
+  content, and on a phone the title takes a row of its own.
+- **The floating menu** carries the page's own controls, in one row or one column: the grip, undo and
+  redo, the review's sections (**Review comments**, **Activity log**, and **Questions** while the page
+  asks any), then Check Mode and the changes bell. The reader drags it by its grip and it snaps to
+  the nearest edge on release; its orientation follows that edge, so it is one row along the top or
+  bottom and one column along the left or right. Focusing the grip and pressing an arrow key docks
+  it to that edge, and Home / End send it to the start or the end of the edge it is on. Where it was
+  left is remembered per content (`localStorage` key `dev-process-kit:menu:<content>`) and clamped
+  into the window on restore and on resize; it is the reader's own state, never part of the draft and
+  never sent to the agent. It keeps clear of the header row, so a menu docked to the top edge never
+  covers the title or its controls.
+
+A page inside `<dpk-app>` draws neither of them: the app owns the screen. Its own header controls
+sit in a bar under the app's header instead, with no title of their own, since the header above
+already names the document and there is one of each of these per screen.
+
+Icon buttons name themselves with a tooltip and an `aria-label`. Everything in the floating menu has
+a keyboard path: Tab reaches each button, the shortcut above it works anywhere on the page, and
+Escape closes the review first.
 
 Framework chrome (shell, sidebar, review rail, preview frames) is Shadow DOM; everything you write stays in the light DOM, so your CSS and JS work normally. The `--dpk-*` custom properties declared on `:host` are inherited into your content, so you can reuse the palette without importing anything:
 
@@ -360,7 +394,7 @@ The kit's own text — the review rail, the kit's chrome, board controls and the
 
 Write `lang` on `<html>`, and also on the content element when you do not control `<html>` (a Claude Artifact wraps your file in its own document). The language is read when the element connects; changing `lang` afterwards has no effect.
 
-The app header has a language select that starts on that language. The reader's pick switches the app and every element inside it, and is remembered per origin (`localStorage` key `dev-process-kit:locale`) unless `storage` is `off` or `memory`. Picking the page's own language forgets the pick. The app applies a pick by setting its own `lang`, so do not read that attribute back as the page's language. Your content (base data, slot markup, a board's `heading` / `subject`) is never translated. The hand-off brief keeps its headings and instructions in English for the agent; the action titles in it follow the page's language.
+The header has a language select that starts on that language. The reader's pick switches the app and every element inside it, and is remembered per origin (`localStorage` key `dev-process-kit:locale`) unless `storage` is `off` or `memory`. Picking the page's own language forgets the pick. The app applies a pick by setting its own `lang`, so do not read that attribute back as the page's language. Your content (base data, slot markup, a board's `heading` / `subject`) is never translated. The hand-off brief keeps its headings and instructions in English for the agent; the action titles in it follow the page's language.
 
 ### Sidebar width and folding
 
@@ -372,12 +406,16 @@ The `aside` sidebar on the other side resizes and folds the same way, on its own
 
 ### Version
 
-The app header shows the version running the page (`dev-process-kit@<version>`) as a select. When the reader first reaches for it, it lists every version published to npm (from jsDelivr's API, `data.jsdelivr.com`), the `latest` one marked; where that API cannot be reached, only the running version is listed. Picking a version reloads the page with `?dpk-version=<version>`, and the entry the page loads hands the page to that version's same entry on jsDelivr instead of defining its own elements: a document defines a custom element once, so switching needs a fresh page. Nothing else about the page changes — the markup and base data stay the ones you wrote, so a version older than the page may not render everything in it.
+The page runs the version of `dev-process-kit` its own URL pins, and the settings dialog offers no
+other: a page defines a custom element once, so switching versions needs a fresh page. A
+`?dpk-version=<version>` on the page's URL hands the page to that version instead — the entry the page
+loads imports that version's same entry from jsDelivr and defines nothing itself. Nothing else about
+the page changes — the markup and base data stay the ones you wrote, so a version older than the page
+may not render everything in it.
 
 - Only an exact version is honoured (`1.2.3`, `1.2.3-beta.1`); anything else, or the version already running, leaves the page on its pinned version. When the version asked for cannot be loaded (it does not exist, or lacks that entry), the pinned version runs the page and logs why.
-- While the URL overrides the version, the select also offers `Pinned by the page`, which drops the parameter.
-- A version from before this select renders none of its own; the entry that handed the page over then puts one into the content's `header` slot, so the reader can always come back.
-- Your pinned URL stays the contract: never write `?dpk-version=` into a link to make a page run another version, and never load `@latest`. The parameter is for the reader trying a version out.
+- A version from before this switch was built in renders no control of its own; the entry that handed the page over then puts a select into the content's `header` slot. It lists the published versions, and `Pinned by the page` while the URL asks for another one, so the reader can always come back.
+- Your pinned URL stays the contract: never write `?dpk-version=` into a link to make a page run another version, and never load `@latest`. The parameter is for the reader trying a version out by hand.
 - `window.devProcessKit` names the version that defined the elements (`version`), the views it registered (`views`), and the query parameter above (`versionParam`).
 
 ### Supplements
@@ -406,7 +444,7 @@ The `memo` slot is gone: content left in `slot="memo"` is not shown, and the con
 
 The review rail's `Copy changes & comments` button puts the hand-off brief on the clipboard: readable markdown that ends with the canonical draft JSON. Once there is a draft, the same `Copy changes & comments` (and `Send to Claude`, below) also floats at the bottom right while the rail is closed, so a reader who only wants to hand the review back does not have to open it. Hand the brief to the agent: it applies the requested end state to the base HTML, keeps the ids of the concepts that survived, and drops the draft envelope from the JSON. The page never mutates its own base data, so the HTML the agent writes back is the new source of truth.
 
-The header's Undo/Redo buttons (and Cmd+Z/Ctrl+Z, Shift+Cmd+Z/Ctrl+Shift+Z/Ctrl+Y) step through that log one entry at a time; each is disabled when there is nothing to undo or redo. An app with pages shows these once, in the app's own header: undo and redo apply to the whole app's draft, not to one page at a time.
+The floating menu's Undo/Redo buttons (and Cmd+Z/Ctrl+Z, Shift+Cmd+Z/Ctrl+Shift+Z/Ctrl+Y) step through that log one entry at a time; each is disabled when there is nothing to undo or redo. An app with pages shows these once, in the app's own menu: undo and redo apply to the whole app's draft, not to one page at a time.
 
 Inside a Claude Artifact published with the `comments` capability, the rail also offers **Send to Claude**: the brief is posted as a comment sent to the Claude session that published the page, pinned to the content element. A brief over the 4 KiB comment limit is stored as a document in the `reviews` collection of the artifact's database (when the page also declares `db`), and the comment points at it; the document holds `brief` (the same markdown) and `draft` (the canonical JSON). The button appears only when the viewer can send to Claude right now; a failed send says why and leaves the copy button as the way on. Elsewhere nothing changes.
 
@@ -500,7 +538,7 @@ Mark page content a question is about with `data-grill-questions="Q1 Q4"` (space
 
 ### The questions toggle
 
-A question-mark toggle appears in the header between **Changes** and **Review comments**, but only while the page has questions; its badge reads `answered / total`. It opens the same review popover, on a **Questions** tab instead of the comments list; `notes="questions"` on the content element opens the popover there on load (alongside the existing `"on"` / `"comments"` / `"changes"`). With `history`, the tab is a round select — current questions first, then earlier rounds newest first, each read-only.
+A question-mark toggle appears in the floating menu after **Review comments** and **Activity log**, but only while the page has questions; its badge reads `answered / total`. It opens the same review popover, on a **Questions** tab instead of the comments list; `notes="questions"` on the content element opens the popover there on load (alongside the existing `"on"` / `"comments"` / `"changes"`). With `history`, the tab is a round select — current questions first, then earlier rounds newest first, each read-only.
 
 ### Answers
 
@@ -557,7 +595,7 @@ When you regenerate a page at the reader's request, tell them what changed. Put 
 - Leave the block out until there is something to announce. A log of one version may also be written as `{ "revision": "…", "changes": [ … ] }`.
 - The change log is not base data: the view never reads it, and a malformed log shows a banner without touching the page.
 
-The header gets a bell, and each reader is told only what is new to them:
+The floating menu gets a bell (after Check Mode), and each reader is told only what is new to them:
 
 - A reader who opens the page for the first time is told only this version's changes, not the whole history.
 - A returning reader is told every version since the one they left unread changes in. If that version has been dropped from the log, they are told every version kept.
@@ -572,7 +610,7 @@ The header gets a bell, and each reader is told only what is new to them:
 
 ## Check Mode
 
-A toggle in the header lets the reader tally what they have already looked over during a long review, independent of comments or questions. Turning it on shows a small badge at the corner of every element already marked `data-dpk-target` — the same marker [Change notices](#change-notices)' **Show** and the [context menu](#context-menu) use, so most views need no change to support it: a content page's own [targets](#targets) list is what Check Mode covers. Clicking a badge marks it checked; clicking again clears it.
+A toggle in the floating menu, after the review's own sections, lets the reader tally what they have already looked over during a long review, independent of comments or questions. Turning it on shows a small badge at the corner of every element already marked `data-dpk-target` — the same marker [Change notices](#change-notices)' **Show** and the [context menu](#context-menu) use, so most views need no change to support it: a content page's own [targets](#targets) list is what Check Mode covers. Clicking a badge marks it checked; clicking again clears it.
 
 A badge is a child of the box its target is laid out in, so it travels with the target — a scroll of its own column, a diagram pan, a zoom, a maximized panel — instead of being pinned over the page ([ADR](../dev-docs/adr/20261026_badge-portals.md)). A target panned out of a diagram's canvas takes its badge out of view with it.
 

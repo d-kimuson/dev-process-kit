@@ -14,7 +14,7 @@ Separate presentation derivation from rendering. A presentation function should 
 
 Text the kit renders itself comes from the module's `messages.ts` dictionary, one per language, never from a literal in code. A presentation function receives the dictionary as an input; the element resolves the locale from `lang` through `LocaleController`, on connect and again when the reader picks a language in the template header ([ADR](../adr/20260925_ui-localization.md)). The `conventions/localized-text` lint rule rejects Japanese text outside the dictionaries.
 
-Styles mark a box's kind or state with a tint, a ring on every side, or a chip in its head, never with a colored stripe down one side; a 1px `border-left` stays a divider between columns. The `conventions/no-side-stripe` lint rule rejects side stripes in `src/**`.
+Styles mark a box's kind or state with a tint, a ring on every side, or a chip in its head, never with a colored stripe along one edge — down a side, or across the top or the bottom; a 1px `border-left` stays a divider between columns. The `conventions/no-side-stripe` lint rule rejects an edge stripe in `src/**`: a border on a single edge, a border only one edge of which is recolored or widened, a pseudo-element bar laid along an edge, and an inset band down a side.
 
 A Cancel button beside a text field carries `data-dpk-text-discard`, so a click on it throws the typed text away, while an Escape keeps it for the next time the field opens. The `conventions/discard-on-cancel` lint rule rejects a Cancel without it.
 

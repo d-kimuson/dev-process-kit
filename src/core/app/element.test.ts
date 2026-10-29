@@ -2,6 +2,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { queryAllDeep } from '../../lib/dom/deep';
+import { contextMenuStyles } from '../context-menu/styles';
+import { floatingMenuStyles } from '../shell/floating-menu-view';
+import { settingsDialogStyles } from '../shell/settings-dialog';
+import { chromeStyles } from '../shell/styles';
 import { AppElement } from './element';
 import { SWITCHER_ID } from './switcher';
 import '../../index';
@@ -145,8 +149,20 @@ describe('<dpk-page>', () => {
     if (!(element instanceof HTMLElement)) throw new Error('no switcher trigger');
     return element;
   };
+  /** One row's name: the page shown now carries it in the inline edit it is renamed through. */
+  const rowLabel = (row: Element): string => {
+    const edit = row.querySelector('dpk-inline-edit');
+    if (edit) return edit.shadowRoot?.querySelector<HTMLTextAreaElement>('.field')?.value.trim() ?? '';
+    return row.textContent?.trim() ?? '';
+  };
   const rowLabels = (page: AppElement): string[] =>
-    Array.from(page.renderRoot.querySelectorAll('.dpk-page-switcher-option'), (row) => row.textContent?.trim() ?? '');
+    Array.from(page.renderRoot.querySelectorAll('.dpk-page-switcher-option'), (row) => rowLabel(row));
+  /** The row of the page shown now, which is the one named and renamed in the list. */
+  const currentRow = (page: AppElement): Element => {
+    const element = page.renderRoot.querySelector('.dpk-page-switcher-option[data-current]');
+    if (!element) throw new Error('no current page row');
+    return element;
+  };
   const popover = (page: AppElement): Element | null => page.renderRoot.querySelector(`#${SWITCHER_ID}`);
   const removeButton = (page: AppElement, label: string): HTMLElement => {
     const element = Array.from(page.renderRoot.querySelectorAll<HTMLElement>('.dpk-page-switcher-remove')).find(
@@ -155,11 +171,14 @@ describe('<dpk-page>', () => {
     if (!element) throw new Error(`no remove button for ${label}`);
     return element;
   };
-  /** The crumb's own text lives in `<dpk-inline-edit>`'s shadow root, not as a light-DOM text node. */
-  const crumbLabel = (page: AppElement): string => {
-    const edit = page.renderRoot.querySelector('.dpk-page-crumb dpk-inline-edit');
-    const field = edit?.shadowRoot?.querySelector<HTMLTextAreaElement>('.field');
-    return field?.value.trim() ?? '';
+  /**
+   * The page shown now, as the switcher's trigger names it: no second label
+   * stands beside the icon, so the trigger's own label carries it (and the
+   * list marks it, with the name it is renamed through).
+   */
+  const shownPage = (page: AppElement): string => {
+    const label = trigger(page).getAttribute('aria-label') ?? '';
+    return label.split(' · ')[0] ?? '';
   };
 
   it('adds a board from the switcher as a change of the draft', async () => {
@@ -178,7 +197,7 @@ describe('<dpk-page>', () => {
     expect(added.localName).toBe('dpk-view-usm');
     expect(pageOf('usm').hidden).toBe(false);
     // Never the template's own name: a board not yet explicitly renamed falls back to an ordinal.
-    expect(crumbLabel(page)).toBe('Page 3');
+    expect(shownPage(page)).toBe('Page 3');
   });
 
   it('offers Whiteboard, Example Mapping and Kanban, and adds the picked board as a page', async () => {
@@ -284,22 +303,21 @@ describe('<dpk-page>', () => {
     expect(rowLabels(page)).toEqual(['Before', 'Add a page']);
   });
 
-  it('names the board it shows in the shared header, the switcher trigger ahead of the crumb', async () => {
-    const { page, shadow } = await mount();
-    expect(crumbLabel(page)).toBe('Before');
-    // No layout shift between boards or name lengths: the trigger always comes first.
-    const heading = shadow('.dpk-page-heading');
-    const headingTrigger = heading.querySelector('.dpk-page-switcher-trigger');
-    const crumb = heading.querySelector('.dpk-page-crumb');
-    expect(headingTrigger?.compareDocumentPosition(crumb as Node) ?? 0).toSatisfy(
-      (mask: number) => (mask & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
-    );
+  it("names the page it shows in the header's switcher, and marks it in the list", async () => {
+    const { page } = await mount();
+    expect(shownPage(page)).toBe('Before');
+    // The switcher lives in the header; the header's title names the document, not the page.
+    expect(page.renderRoot.querySelector('.dpk-header .dpk-page-switcher-trigger')).not.toBeNull();
+    trigger(page).click();
+    await page.updateComplete;
+    expect(rowLabel(currentRow(page))).toBe('Before');
     page.api.navigate({ page: 'after' });
     await page.updateComplete;
-    expect(crumbLabel(page)).toBe('After');
+    expect(shownPage(page)).toBe('After');
+    expect(rowLabel(currentRow(page))).toBe('After');
   });
 
-  it('reads as the template alone with one board: the switcher still shows, but no crumb', async () => {
+  it('reads as the template alone with one board: the switcher still shows, with no count', async () => {
     const page = document.createElement('dpk-app');
     if (!(page instanceof AppElement)) throw new Error('not upgraded');
     page.storage = 'memory';
@@ -309,7 +327,8 @@ describe('<dpk-page>', () => {
     await page.api.ready;
     await page.updateComplete;
     expect(page.renderRoot.querySelector('.dpk-page-switcher-trigger')).not.toBeNull();
-    expect(page.renderRoot.querySelector('.dpk-page-crumb')).toBeNull();
+    // One page is nothing to count, and nothing to pick between.
+    expect(page.renderRoot.querySelector('.dpk-page-switcher-count')).toBeNull();
     trigger(page).click();
     await page.updateComplete;
     page.renderRoot.querySelector<HTMLElement>('[data-key="add"]')?.click();
@@ -320,7 +339,41 @@ describe('<dpk-page>', () => {
     expect(page.api.navigation).toMatchObject({ page: 'usm' });
   });
 
-  it('carries a direct child with slot="header" (not a board) into the page\'s own fixed header', async () => {
+  it("draws the screen's one header and one floating menu, its page content keeping only its own bar", async () => {
+    const page = document.createElement('dpk-app');
+    if (!(page instanceof AppElement)) throw new Error('not upgraded');
+    page.storage = 'memory';
+    page.innerHTML = `<script type="application/json">{"title":"Checkout"}</script>
+      <dpk-page name="only" label="Only"><dpk-view-plain>
+        <script type="application/json">{"title":"Only"}</script>
+        <p slot="header" id="own-controls">own</p>
+      </dpk-view-plain></dpk-page>`;
+    document.body.append(page);
+    await page.api.ready;
+    await page.updateComplete;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await page.updateComplete;
+    // One of each, drawn by the app: the page content inside it draws neither.
+    expect(page.renderRoot.querySelectorAll('.dpk-header')).toHaveLength(1);
+    expect(page.renderRoot.querySelectorAll('.dpk-floating-menu')).toHaveLength(1);
+    expect(page.renderRoot.querySelector('.dpk-header .dpk-page-switcher-trigger')).not.toBeNull();
+    // The header names the document.
+    expect(page.renderRoot.querySelector('.dpk-header h1')?.textContent).toBe('Checkout');
+
+    const content = page.querySelector('dpk-page[name="only"] dpk-view-plain');
+    const shadow = (content as HTMLElement).shadowRoot;
+    expect(shadow?.querySelector('.dpk-header')).toBeNull();
+    expect(shadow?.querySelector('.dpk-floating-menu')).toBeNull();
+    // Its own bar holds the template's controls, and no title of its own.
+    const bar = shadow?.querySelector('.dpk-board-bar');
+    expect(bar?.hasAttribute('hidden')).toBe(false);
+    expect(bar?.querySelector('h1')).toBeNull();
+    expect(bar?.querySelector<HTMLSlotElement>('slot[name="header"]')?.assignedElements()).toEqual([
+      content?.querySelector('#own-controls'),
+    ]);
+  });
+
+  it('carries a direct child with slot="header" (not a page) into the header', async () => {
     const page = document.createElement('dpk-app');
     if (!(page instanceof AppElement)) throw new Error('not upgraded');
     page.storage = 'memory';
@@ -358,8 +411,8 @@ describe('<dpk-page>', () => {
         `<script type="application/json">{"title":"Checkout"}</script>
         <dpk-page name="only"><dpk-view-prototype>${BASE}</dpk-view-prototype></dpk-page>`,
       );
-      // One board only: no name stands beside the trigger.
-      expect(page.renderRoot.querySelector('.dpk-page-crumb')).toBeNull();
+      // One board only: nothing shows beside the trigger.
+      expect(page.renderRoot.querySelector('.dpk-page-switcher-count')).toBeNull();
       expect(popover(page)).toBeNull();
       trigger(page).dispatchEvent(new Event('pointerenter'));
       await page.updateComplete;
@@ -369,7 +422,8 @@ describe('<dpk-page>', () => {
       // One board is nothing to switch between, so no count shows next to the icon
       // (the accessible name still carries it, for anyone who needs the detail).
       expect(trigger(page).querySelector('.dpk-page-switcher-count')).toBeNull();
-      expect(trigger(page).getAttribute('aria-label')).toBe('Switch page (1 available)');
+      // The label names the page shown, so no second label stands beside the icon.
+      expect(trigger(page).getAttribute('aria-label')).toBe('Checkout · Switch page (1 available)');
       trigger(page).dispatchEvent(new Event('pointerleave'));
       await new Promise((resolve) => setTimeout(resolve, 250));
       await page.updateComplete;
@@ -397,8 +451,8 @@ describe('<dpk-page>', () => {
       trigger(page).dispatchEvent(new Event('focus'));
       await page.updateComplete;
       expect(popover(page)).not.toBeNull();
-      // Two boards now: the active one's name shows beside the trigger, and the list offers both.
-      expect(crumbLabel(page)).toContain('Page 2');
+      // Two boards now: the trigger's label names the one shown, and the list offers both.
+      expect(shownPage(page)).toContain('Page 2');
       expect(rowLabels(page)).toEqual(['Checkout', 'Page 2', 'Add a page']);
       // Two boards now: a quiet inline count shows, never the notification-style corner badge.
       expect(trigger(page).querySelector('.dpk-icon-badge')).toBeNull();
@@ -417,23 +471,28 @@ describe('<dpk-page>', () => {
     });
   });
 
-  describe('rename the board in place from the header crumb', () => {
-    const crumbEdit = (page: AppElement): Element => {
-      const element = page.renderRoot.querySelector('.dpk-page-crumb dpk-inline-edit');
-      if (!element) throw new Error('no crumb inline edit');
+  describe('rename the page in place from the switcher', () => {
+    /** The page shown now is the row it is renamed on, so the open switcher is where renaming starts. */
+    const openSwitcher = async (page: AppElement): Promise<void> => {
+      trigger(page).click();
+      await page.updateComplete;
+    };
+    const pageEdit = (page: AppElement): Element => {
+      const element = currentRow(page).querySelector('dpk-inline-edit');
+      if (!element) throw new Error('no page inline edit');
       return element;
     };
     const startEditing = (page: AppElement): void => {
-      const edit = crumbEdit(page);
+      const edit = pageEdit(page);
       const resting = edit.shadowRoot?.querySelector<HTMLElement>('.field');
-      if (!resting) throw new Error('no crumb field');
+      if (!resting) throw new Error('no page field');
       resting.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true, cancelable: true }));
       resting.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
     };
     const field = (page: AppElement): HTMLTextAreaElement => {
-      const edit = crumbEdit(page);
+      const edit = pageEdit(page);
       const input = edit.shadowRoot?.querySelector<HTMLTextAreaElement>('.field');
-      if (!input) throw new Error('no crumb field');
+      if (!input) throw new Error('no page field');
       return input;
     };
 
@@ -445,6 +504,7 @@ describe('<dpk-page>', () => {
       await page.updateComplete;
       page.renderRoot.querySelector<HTMLElement>('[data-key="content:view:usm"]')?.click();
       await settle();
+      await openSwitcher(page);
       startEditing(page);
       await page.updateComplete;
       const input = field(page);
@@ -458,6 +518,7 @@ describe('<dpk-page>', () => {
 
     it('commits a rename on Enter, recorded in the draft and undoable', async () => {
       const { page } = await mount();
+      await openSwitcher(page);
       startEditing(page);
       await page.updateComplete;
       const input = field(page);
@@ -465,17 +526,18 @@ describe('<dpk-page>', () => {
       input.dispatchEvent(new Event('input'));
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
       await page.updateComplete;
-      expect(crumbLabel(page)).toBe('Checkout flow');
+      expect(shownPage(page)).toBe('Checkout flow');
       expect(page.api.actions.map((action) => [action.type, action.payload])).toEqual([
         ['RENAME_PAGE', { page: 'before', label: 'Checkout flow' }],
       ]);
       expect(page.controller.undo()).toBe(true);
       await page.updateComplete;
-      expect(crumbLabel(page)).toBe('Before');
+      expect(shownPage(page)).toBe('Before');
     });
 
     it('commits a rename on blur', async () => {
       const { page } = await mount();
+      await openSwitcher(page);
       startEditing(page);
       await page.updateComplete;
       const input = field(page);
@@ -484,12 +546,13 @@ describe('<dpk-page>', () => {
       input.dispatchEvent(new FocusEvent('blur'));
       await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
       await page.updateComplete;
-      expect(crumbLabel(page)).toBe('Renamed on blur');
+      expect(shownPage(page)).toBe('Renamed on blur');
       expect(page.api.actions.map((action) => action.type)).toEqual(['RENAME_PAGE']);
     });
 
     it('cancels on Escape, leaving the draft untouched', async () => {
       const { page } = await mount();
+      await openSwitcher(page);
       startEditing(page);
       await page.updateComplete;
       const input = field(page);
@@ -497,13 +560,117 @@ describe('<dpk-page>', () => {
       input.dispatchEvent(new Event('input'));
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       await page.updateComplete;
-      expect(crumbLabel(page)).toBe('Before');
+      expect(shownPage(page)).toBe('Before');
       expect(page.api.actions).toEqual([]);
     });
   });
 
+  describe("settings dialog shows a page's own sections", () => {
+    const USM_BASE = `<script type="application/json">${JSON.stringify({
+      activities: [{ id: 'a1', name: 'A1', steps: [{ id: 's1', name: 'S1' }] }],
+      statuses: [
+        { id: 'idea', name: 'Idea' },
+        { id: 'done', name: 'Done', tone: 'green' },
+      ],
+      stories: [{ id: 'u1', name: 'U1', activityId: 'a1', stepId: 's1', statusId: 'done' }],
+    })}</script>`;
+
+    const mountUsm = async () => {
+      const page = document.createElement('dpk-app');
+      if (!(page instanceof AppElement)) throw new Error('not upgraded');
+      page.storage = 'memory';
+      page.innerHTML = `<dpk-page name="map" label="Map"><dpk-view-usm>${USM_BASE}</dpk-view-usm></dpk-page>`;
+      document.body.append(page);
+      await page.api.ready;
+      await page.updateComplete;
+      const view = page.querySelector('dpk-view-usm');
+      if (!(view instanceof HTMLElement)) throw new Error('no usm');
+      /** The element the statuses section renders itself into, inside the app's dialog. */
+      const sectionHost = async (): Promise<HTMLElement> => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await page.updateComplete;
+        const found = page.renderRoot.querySelector('dpk-internal-usm-settings-section');
+        if (!(found instanceof HTMLElement)) throw new Error('no settings section element');
+        return found;
+      };
+      const section = async (): Promise<HTMLElement> => {
+        const found = (await sectionHost()).shadowRoot?.querySelector('[data-testid="usm-statuses"]');
+        if (!(found instanceof HTMLElement)) throw new Error('no statuses section');
+        return found;
+      };
+      return { page, view: view as HTMLElement & { openSettings(id?: string): void }, section, sectionHost };
+    };
+
+    const rows = (section: HTMLElement): (string | null)[] =>
+      [...section.querySelectorAll('[data-status]')].map((row) => row.getAttribute('data-status'));
+
+    // The app draws the dialog, so its body is built from the page's part of the
+    // state — which the page only takes in after the app's render (`#syncPages`).
+    // Without a second render an edit made inside the open dialog showed up only
+    // after closing and reopening it.
+    it('redraws the section when a status is added from inside the open dialog', async () => {
+      const { page, view, section } = await mountUsm();
+      view.openSettings('statuses');
+      await page.updateComplete;
+      const shown = await section();
+      expect(rows(shown)).toEqual(['idea', 'done']);
+      const add = [...shown.querySelectorAll('button')].at(-1);
+      if (add === undefined) throw new Error('no add button');
+      add.click();
+      expect(page.api.actions.map((action) => action.type)).toEqual(['ADD_STATUS']);
+      // No reopen: the same dialog, the same section, one more row.
+      await page.updateComplete;
+      expect(rows(await section())).toHaveLength(3);
+      expect((page.renderRoot.querySelector('dialog') as HTMLDialogElement).open).toBe(true);
+    });
+
+    // The section's markup is rendered by the page but drawn in the app's dialog,
+    // so it is put in an element that owns its shadow root and its CSS: otherwise
+    // it renders unstyled, since the app's root has none of the page's styles.
+    it('puts the section markup in its own element, not in the app root', async () => {
+      const { page, view, sectionHost } = await mountUsm();
+      view.openSettings('statuses');
+      await page.updateComplete;
+      const host = await sectionHost();
+      expect(page.renderRoot.querySelector('[data-testid="usm-statuses"]')).toBeNull();
+      expect(host.shadowRoot?.querySelector('[data-testid="usm-statuses"]')).not.toBeNull();
+    });
+
+    it("opens a status's icon menu in the dialog the app draws", async () => {
+      const { page, view, section, sectionHost } = await mountUsm();
+      view.openSettings('statuses');
+      await page.updateComplete;
+      const shown = await section();
+      const trigger = shown.querySelector('[data-status="idea"] [data-icon-trigger]');
+      if (!(trigger instanceof HTMLElement)) throw new Error('no icon trigger');
+      trigger.click();
+      await page.updateComplete;
+      // The menu belongs to the section element that drew the icon.
+      expect((await sectionHost()).shadowRoot?.querySelector('#icon-menu')).not.toBeNull();
+      expect(
+        (await section()).querySelector('[data-status="idea"] [data-icon-trigger]')?.getAttribute('aria-expanded'),
+      ).toBe('true');
+    });
+
+    it('redraws the section when a status is renamed from inside the open dialog', async () => {
+      const { page, view, section } = await mountUsm();
+      view.openSettings('statuses');
+      await page.updateComplete;
+      const shown = await section();
+      const name = shown.querySelector('[data-status="idea"] dpk-inline-edit');
+      if (!(name instanceof HTMLElement)) throw new Error('no name editor');
+      name.dispatchEvent(
+        new CustomEvent('dpk-commit', { detail: { value: 'Exploring' }, bubbles: true, composed: true }),
+      );
+      await page.updateComplete;
+      expect(page.api.actions.map((action) => action.type)).toEqual(['SET_STATUS_NAME']);
+      const renamed = (await section()).querySelector('[data-status="idea"] dpk-inline-edit');
+      expect((renamed as (HTMLElement & { value: string }) | null)?.value).toBe('Exploring');
+    });
+  });
+
   describe('page-nav="none"', () => {
-    it('draws no switcher or "+", keeping the page\'s own header', async () => {
+    it('draws no switcher or "+", keeping the page\'s own title bar', async () => {
       const page = document.createElement('dpk-app');
       if (!(page instanceof AppElement)) throw new Error('not upgraded');
       page.storage = 'memory';
@@ -515,9 +682,9 @@ describe('<dpk-page>', () => {
       await page.updateComplete;
       expect(page.renderRoot.querySelector('.dpk-page-switcher-trigger')).toBeNull();
       expect(page.renderRoot.querySelector('.dpk-page-add')).toBeNull();
-      // The page's own shared header still shows (title, version badge, notice bell, …).
+      // The page's own title bar still shows (title, settings, notice bell, …).
       expect(page.renderRoot.querySelector('.dpk-header')).not.toBeNull();
-      expect(page.renderRoot.querySelector('.dpk-title h1')?.textContent).toBe('Catalog');
+      expect(page.renderRoot.querySelector('.dpk-header h1')?.textContent).toBe('Catalog');
     });
   });
 
@@ -680,5 +847,34 @@ describe('<dpk-page>', () => {
       await page.updateComplete;
       expect(page.api.stale).toEqual([]);
     });
+  });
+});
+
+describe('AppElement styles', () => {
+  const flatten = (styles: unknown): unknown[] => (Array.isArray(styles) ? styles.flatMap(flatten) : [styles]);
+
+  it('adopts the context-menu styles, so a divider is a rule and not a stray dot', () => {
+    expect(flatten(AppElement.styles)).toContain(contextMenuStyles);
+  });
+
+  // The app draws the screen's floating menu and its settings dialog itself, and
+  // `static styles` replaces the inherited set: without these it renders them
+  // unstyled — the menu a stack of rows at the bottom edge, the dialog bare.
+  it.each([
+    ['the floating menu', floatingMenuStyles, '.dpk-floating-menu'],
+    ['the settings dialog', settingsDialogStyles, '.dpk-settings-list'],
+  ])('adopts the styles for %s, which it draws itself', (_label, styles, selector) => {
+    expect(flatten(AppElement.styles)).toContain(styles);
+    const cssText = (styles as unknown as { cssText: string }).cssText;
+    expect(cssText).toContain(`${selector} {`);
+  });
+
+  // The header row is the shell's, and the app owns it on every page: without the
+  // chrome styles' own sheet it draws unstyled next to the page content.
+  it('adopts the chrome styles, which the header row it owns is drawn with', () => {
+    const cssText = (styles: unknown): string => (styles as { cssText?: string }).cssText ?? '';
+    const shellSheet = flatten(chromeStyles).find((sheet) => cssText(sheet).includes('.dpk-header {'));
+    expect(shellSheet).toBeDefined();
+    expect(flatten(AppElement.styles)).toContain(shellSheet);
   });
 });

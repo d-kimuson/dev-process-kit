@@ -25,12 +25,12 @@ export const NOTICE_LIST_ID = 'dpk-changes';
 export const renderNoticeBell = (vm: NoticeViewModel, m: CoreMessages, on: NoticeIntents): TemplateResult => {
   const label = vm.unread > 0 ? m.changesUnread(vm.unread) : m.changes;
   return html`<button
-    class="dpk-bell"
+    class="dpk-chrome-action dpk-bell"
     type="button"
     aria-controls=${NOTICE_LIST_ID}
     aria-expanded=${vm.open ? 'true' : 'false'}
     aria-label=${label}
-    title=${label}
+    data-tooltip=${label}
     @click=${on.toggleList}
   >
     ${iconBell()} ${vm.unread > 0 ? html`<span class="dpk-bell-badge" aria-hidden="true">${vm.unread}</span>` : nothing}

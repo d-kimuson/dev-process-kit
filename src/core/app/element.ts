@@ -17,23 +17,31 @@ import { css, html, nothing, type CSSResultGroup, type PropertyDeclarations, typ
 import { LayoutTemplate } from 'lucide';
 
 import type { Locale } from '../i18n';
-import type { ShellRegions, ViewApi, ViewRenderContext, ViewSnapshot } from '../shell/contracts';
+import type {
+  BoundSettingsSection,
+  SettingsSection,
+  ShellRegions,
+  ViewApi,
+  ViewRenderContext,
+  ViewSnapshot,
+} from '../shell/contracts';
 import type { DraftAction, Navigation, ViewDefinition } from '../types';
 
 import { announcedEntryUrl } from '../../lib/announce';
 import { DismissController } from '../../lib/dom/dismiss';
-import { onCommit } from '../../lib/dom/events';
-import { ViewElement } from '../element';
+import { contextMenuStyles } from '../context-menu/styles';
+import { dialogStyles } from '../dialog/styles';
+import { ViewElement, type SettingsSwitches } from '../element';
 import { GRILL_ATTRIBUTE, GRILL_TARGET_TYPE, type Grill } from '../grill';
 import { iconPlus, iconSwitch, lucide } from '../icons';
-import { coreMessages } from '../messages';
 import { pageOfMark, pageGrill, refCandidates } from '../page/grill';
 import { DRAFT_PAGE_ATTRIBUTE, PAGE_HOST, PAGE_NAME_ATTRIBUTE, appPageNameOf, type PageHost } from '../page/host';
 import { PAGE_KEY, pageNavigation } from '../page/navigation';
 import { APP_WIDE_TARGET, isAppWide, splitPage } from '../page/page-target';
 import { PopoverController } from '../popover-controller';
 import { parseViewAction } from '../schema';
-import { renderSettingsMenu, renderSettingsTrigger, SETTINGS_ANCHOR } from '../shell/settings-menu';
+import { floatingMenuStyles } from '../shell/floating-menu-view';
+import { settingsDialogStyles } from '../shell/settings-dialog';
 import { chromeStyles } from '../shell/styles';
 import { appActions } from './actions';
 import { pagesSection, withPages } from './brief';
@@ -95,6 +103,20 @@ type PageElementLike = HTMLElement & {
 const isPageElement = (element: Element): element is PageElementLike =>
   element instanceof HTMLElement && 'definition' in element && 'api' in element && appPageNameOf(element) !== null;
 
+/**
+ * A page's content, as the app reads its settings: the page's own switches
+ * (`ViewDefinition.settings`) and the sections it renders itself. Read
+ * structurally, like `PageElementLike`, because each entry bundles its own
+ * core — but only a view or board element (`ViewElement`) has them, which is
+ * why a plain `HTMLElement` is narrowed with `in`.
+ */
+type SettingsContent = HTMLElement & {
+  readonly settingsSections: readonly BoundSettingsSection[];
+};
+
+const isSettingsContent = (element: Element | null): element is SettingsContent =>
+  element instanceof HTMLElement && 'settingsSections' in element;
+
 const isDefinition = (value: unknown): value is AnyDefinition =>
   typeof value === 'object' && value !== null && 'name' in value && 'emptyBase' in value;
 
@@ -138,50 +160,12 @@ const pageStyles = css`
     animation: none;
   }
 
-  /* The header reads "title / page ⚙": the title keeps its width and the page follows it. */
-  .dpk-title {
-    flex: 0 1 auto;
-  }
-
-  .dpk-header-slot {
-    flex: 1 1 0%;
-  }
-
-  .dpk-page-heading {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-  }
-
-  .dpk-page-crumb {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    color: var(--dpk-ink-soft);
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  .dpk-page-crumb::before {
-    content: '/';
-    color: var(--dpk-rule-strong);
-    font-weight: 400;
-  }
-
-  .dpk-page-crumb svg {
-    width: 15px;
-    height: 15px;
-  }
-
-  /* The switcher trigger is a .dpk-header-action icon button; its popover is
-     sized here, the rest of its rows reuse .dpk-settings as-is. With two or
-     more pages it widens to fit a quiet inline count next to the icon,
+  /* The switcher trigger is a .dpk-chrome-action icon button in the header; its
+     popover is sized here, the rest of its rows reuse .dpk-settings as-is. With
+     two or more pages it widens to fit a quiet inline count next to the icon,
      instead of the corner badge other icon buttons use for something unread
-     (there's nothing to read here, only to pick from). With one page, or
-     none shown, it stays the plain icon square. */
+     (there's nothing to read here, only to pick from). With one page, or none
+     shown, it stays the plain icon square. */
   .dpk-page-switcher-trigger {
     width: auto;
     min-width: 32px;
@@ -220,6 +204,22 @@ const pageStyles = css`
 
   .dpk-page-switcher-row .dpk-page-switcher-option {
     flex: 1 1 auto;
+  }
+
+  /* The page shown now: its name is renamed where it is listed, so the row is
+     that name rather than a button that would only re-open the page it is on. */
+  .dpk-page-switcher-option[data-current] {
+    cursor: default;
+    align-items: center;
+  }
+
+  .dpk-page-switcher-option[data-current] .dpk-settings-check {
+    margin-top: 0;
+  }
+
+  .dpk-page-switcher-name dpk-inline-edit {
+    display: block;
+    min-width: 0;
   }
 
   .dpk-page-switcher-remove {
@@ -273,7 +273,20 @@ const pageStyles = css`
 `;
 
 export class AppElement extends ViewElement<AppState> {
-  static override styles: CSSResultGroup = [chromeStyles, pageStyles];
+  /**
+   * The shell's chrome, plus the dialog frame and rows the settings panel draws.
+   * The app owns the screen's header row, its floating menu and its settings
+   * dialog, so their styles are part of this set too: `static styles` replaces —
+   * not merges with — the `ViewElement` one.
+   */
+  static override styles: CSSResultGroup = [
+    chromeStyles,
+    contextMenuStyles,
+    dialogStyles,
+    settingsDialogStyles,
+    floatingMenuStyles,
+    pageStyles,
+  ];
 
   static override properties: PropertyDeclarations = {
     pageNav: { type: String, attribute: 'page-nav' },
@@ -652,48 +665,37 @@ export class AppElement extends ViewElement<AppState> {
     return state.layout.find((entry) => entry.id === navigation[PAGE_KEY]);
   }
 
-  /** `page-nav="none"`: the app's own header stays (comment, history, …) but it offers no page nav at all. */
+  /** `page-nav="none"`: the app's own header stays (its title, settings, …) but it offers no page nav at all. */
   #isNoNav(): boolean {
     return this.pageNav === 'none';
   }
 
-  protected override renderRegions(context: ViewRenderContext<AppState>): ShellRegions {
-    const layout = context.state.layout;
-    const active = this.#activeEntry(context.state, context.navigation);
-    const addable = this.#addableContents();
-    const title = this.definition.title(context.state);
+  protected override renderRegions(_context: ViewRenderContext<AppState>): ShellRegions {
     const main = html`<div class="dpk-app-pages"><slot @slotchange=${() => this.#onPagesChange()}></slot></div>`;
-    if (this.#isNoNav()) {
-      const header =
-        active === undefined
-          ? nothing
-          : html`<div class="dpk-page-heading ${SETTINGS_ANCHOR}">${this.#renderPageSettings(context, active)}</div>`;
-      return { header, rail: nothing, main };
-    }
-    return { header: this.#renderHeaderNav(context, layout, active, addable, title), rail: nothing, main };
+    // The pages themselves only; the switcher is the header's, and the title
+    // (with the author's `slot="header"` markup) is the shell's own.
+    return { main };
   }
 
   /**
-   * The title keeps its spot, then (when there is more than one page) the
-   * switcher trigger — one icon that opens a popover of the app's pages on
-   * hover, click or focus, "+" its last row — ahead of the active page's own
-   * name, so the trigger never moves as a name appears or changes length;
-   * then the active page's settings.
+   * The header's lead: the switcher trigger ahead of the page's title, so the
+   * trigger never moves as a page is added or renamed, and, while it is open,
+   * the popover of the app's pages.
    */
-  #renderHeaderNav(
-    context: ViewRenderContext<AppState>,
-    layout: readonly PageEntry[],
-    active: PageEntry | undefined,
-    addable: readonly PageContent[],
-    title: string,
-  ): TemplateResult {
-    return html`<div class="dpk-page-heading ${SETTINGS_ANCHOR}">
-      ${this.#renderPageSwitcher(layout, active, title, addable)}
-      ${active === undefined ? nothing : this.#renderPageSettings(context, active)}
-    </div>`;
+  protected override renderHeaderLead(context: ViewRenderContext<AppState>): TemplateResult | typeof nothing {
+    if (this.#isNoNav()) return nothing;
+    const layout = context.state.layout;
+    const active = this.#activeEntry(context.state, context.navigation);
+    return this.#renderPageSwitcher(layout, active, this.definition.title(context.state), this.#addableContents());
   }
 
-  /** The switcher trigger, the active page's name (once there is more than one), and, while open, the popover. */
+  /**
+   * The switcher trigger — one icon in the header that opens the popover of the
+   * app's pages on hover, click or focus, "+" its last row — and, while open,
+   * that popover. The page shown is named in the trigger's own label and
+   * marked in the list, rather than written out beside it: the header names the
+   * document, not the page.
+   */
   #renderPageSwitcher(
     layout: readonly PageEntry[],
     active: PageEntry | undefined,
@@ -707,16 +709,9 @@ export class AppElement extends ViewElement<AppState> {
       scheduleClose: () => this.#scheduleSwitcherClose(),
     };
     return html`
-      ${renderSwitcherTrigger(iconSwitch, this.#switcherOpen, layout.length, messages, intents)}
-      ${
-        layout.length <= 1 || active === undefined
-          ? nothing
-          : this.#renderCrumb(
-              active,
-              layout.findIndex((entry) => entry.id === active.id),
-              title,
-            )
-      }
+      ${renderSwitcherTrigger(iconSwitch, this.#switcherOpen, layout.length, messages, intents, {
+        active: active === undefined ? null : this.#switcherLabel(active, this.#indexOf(layout, active), title),
+      })}
       ${
         this.#switcherOpen
           ? renderSwitcherMenu(this.#switcherRows(layout, active, title, addable), messages, {
@@ -728,17 +723,8 @@ export class AppElement extends ViewElement<AppState> {
     `;
   }
 
-  /** The active page's name beside the switcher trigger, renamed in place through the app's own draft. */
-  #renderCrumb(entry: PageEntry, index: number, title: string): TemplateResult {
-    const messages = appMessages(this.locale);
-    const label = this.#switcherLabel(entry, index, title);
-    return html`<span class="dpk-page-crumb"
-      >${this.#iconOf(entry)()}<dpk-inline-edit
-        .value=${label}
-        .label=${messages.renamePage}
-        @dpk-commit=${onCommit((name) => this.#renamePage(entry.id, name))}
-      ></dpk-inline-edit
-    ></span>`;
+  #indexOf(layout: readonly PageEntry[], entry: PageEntry): number {
+    return layout.findIndex((candidate) => candidate.id === entry.id);
   }
 
   /** The switcher's rows: the app's pages, or — past its trailing "+" — the views and boards it can add. */
@@ -764,15 +750,20 @@ export class AppElement extends ViewElement<AppState> {
     }
     const pages: SwitcherRow[] = layout.map((entry, index) => {
       const label = this.#switcherLabel(entry, index, title);
+      const current = entry.id === active?.id;
       return {
         key: `page:${entry.id}`,
         label,
         icon: this.#iconOf(entry),
-        current: entry.id === active?.id,
+        current,
         activate: () => {
           this.#closeSwitcher();
           this.navigate({ [PAGE_KEY]: entry.id });
         },
+        // The page shown now is renamed where it is listed: it has nowhere else to be named.
+        ...(current
+          ? { rename: { label: messages.renamePage, commit: (name: string) => this.#renamePage(entry.id, name) } }
+          : {}),
         ...(layout.length > 1
           ? { remove: { label: messages.removePage(label), activate: () => this.#removePage(entry.id) } }
           : {}),
@@ -809,7 +800,7 @@ export class AppElement extends ViewElement<AppState> {
     });
   }
 
-  /** The page's own name in the header crumb, dispatched like any other change of the draft. */
+  /** The page's own name, dispatched like any other change of the draft. */
   #renamePage(id: string, name: string): void {
     this.dispatch({ type: 'RENAME_PAGE', target: APP_WIDE_TARGET, payload: { page: id, label: name } });
   }
@@ -841,20 +832,47 @@ export class AppElement extends ViewElement<AppState> {
     this.requestUpdate();
   }
 
-  /** The active page's settings trigger and menu; shared between the rail heading and the header nav. */
-  #renderPageSettings(context: ViewRenderContext<AppState>, entry: PageEntry): TemplateResult | typeof nothing {
-    const page = this.#pages().find((element) => this.#nameOf(element) === entry.id);
-    const settings = page?.definition.settings?.(context.state.pages[entry.id]);
-    if (page === undefined || settings === undefined || settings.items.length === 0) return nothing;
-    const messages = coreMessages(this.locale);
-    const intents = {
-      toggle: () => {
-        this.settingsOpen = !this.settingsOpen;
-      },
-      flip: (input: Parameters<PageElementLike['api']['dispatch']>[0]) => void page.api.dispatch(input),
-    };
-    return html`${renderSettingsTrigger(this.settingsOpen, messages, intents)}
-    ${this.settingsOpen ? renderSettingsMenu(settings, messages, intents) : nothing}`;
+  /**
+   * The active page content's sections, after the kit's `display` section: a
+   * page's settings belong to the content the page holds, and only that
+   * content knows its own state.
+   */
+  protected override renderSettingsSections(
+    context: ViewRenderContext<AppState>,
+  ): readonly SettingsSection<AppState>[] {
+    const content = this.#settingsContent(context);
+    if (content === null) return [];
+    return content.settingsSections.map((section) => ({
+      id: section.id,
+      label: section.label,
+      render: () => section.render(),
+    }));
+  }
+
+  /**
+   * The active page content's switches, flipped on that content rather than on
+   * the app: a page's settings are a change of the page's own part of the
+   * draft, exactly as its template dispatches them on its own.
+   */
+  protected override settingsSwitches(context: ViewRenderContext<AppState>): SettingsSwitches | null {
+    const entry = this.#activeEntry(context.state, context.navigation);
+    const page = entry === undefined ? undefined : this.#pageOf(entry.id);
+    if (entry === undefined || page === undefined) return null;
+    const settings = page.definition.settings?.(context.state.pages[entry.id]);
+    if (settings === undefined || settings.items.length === 0) return null;
+    return { settings, flip: (input) => void page.api.dispatch(input) };
+  }
+
+  /** The page element of one entry, once it is there. */
+  #pageOf(id: string): PageElementLike | undefined {
+    return this.#pages().find((element) => this.#nameOf(element) === id);
+  }
+
+  /** The content of the page the reader is on, whose settings the dialog shows. */
+  #settingsContent(context: ViewRenderContext<AppState>): SettingsContent | null {
+    const entry = this.#activeEntry(context.state, context.navigation);
+    const content = (entry === undefined ? undefined : this.#pageOf(entry.id))?.content ?? null;
+    return isSettingsContent(content) ? content : null;
   }
 
   /**
@@ -939,6 +957,7 @@ export class AppElement extends ViewElement<AppState> {
     }
     const actions = this.controller.actions;
     const active = this.navigation[PAGE_KEY];
+    let handed = false;
     for (const page of this.#pages()) {
       const id = this.#nameOf(page);
       page.hidden = id !== active || !inLayout.has(id);
@@ -946,9 +965,16 @@ export class AppElement extends ViewElement<AppState> {
       if (this.#mirrored.get(page) !== actions) {
         this.#mirrored.set(page, actions);
         page.controller.replaceActions(sliceOf(actions, id));
+        handed = true;
       }
       page.refreshContent();
     }
+    // The settings dialog shows the active page's own sections, and they read
+    // that page's state — which the page only takes in here, after this render
+    // built the dialog. One more render of the app, with the page's fresh state,
+    // is what makes an edit inside the open dialog show itself (a status it
+    // just added, a name it just changed) instead of waiting for a reopen.
+    if (handed && this.settingsOpen) this.requestUpdate();
   }
 
   /** An element for a page the draft added; it starts from its content's empty base. */

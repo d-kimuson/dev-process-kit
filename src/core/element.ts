@@ -2,7 +2,15 @@ import { LitElement, html, nothing, type CSSResultGroup, type PropertyDeclaratio
 import { safeParse } from 'valibot';
 
 import type { HandoffOutcome } from './claude-handoff';
-import type { ViewApi, ViewSnapshot, ShellRegions, ViewRenderContext } from './shell/contracts';
+import type {
+  BoundSettingsSection,
+  SettingsSection,
+  ViewApi,
+  ViewSnapshot,
+  ShellRegions,
+  ViewRenderContext,
+} from './shell/contracts';
+import type { MenuArea } from './shell/floating-menu';
 import type {
   ActionInput,
   BatchDispatchOutcome,
@@ -11,10 +19,10 @@ import type {
   Navigation,
   NavigationPatch,
   ViewDefinition,
+  ViewSettings,
   ValidationIssue,
 } from './types';
 
-import { DismissController } from '../lib/dom/dismiss';
 import { revealWithin } from '../lib/dom/scroll';
 import { COMMENT_ACTION, serializeDraft } from './action';
 import { CHANGES_ATTRIBUTE, jumpOf, type ChangeEntry } from './changes';
@@ -26,6 +34,8 @@ import { ContextMenuController } from './context-menu/controller';
 import { contextMenuMessages } from './context-menu/messages';
 import { contextMenuStyles } from './context-menu/styles';
 import { DraftController } from './controller';
+import { DialogController } from './dialog/controller';
+import { dialogStyles } from './dialog/styles';
 import { componentElementActionSchema } from './element-actions';
 import { buildAgentBrief } from './export';
 import {
@@ -43,7 +53,6 @@ import {
 import { presentDock, type DockViewModel } from './handoff-dock';
 import { LOCALES, type Locale } from './i18n';
 import {
-  brandMark,
   iconChecklist,
   iconChevronRight,
   iconComment,
@@ -51,6 +60,7 @@ import {
   iconMoon,
   iconQuestion,
   iconSun,
+  brandMark,
 } from './icons';
 import { defineLayoutElements, type DpkInternalLayoutSidebar } from './layouts/index';
 import {
@@ -81,6 +91,8 @@ import { CheckModeController } from './shell/check-mode-controller';
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
+import { FloatingMenuController } from './shell/floating-menu-controller';
+import { floatingMenuStyles, renderFloatingMenu } from './shell/floating-menu-view';
 import { collectBadges, GrillBadgeController, type BadgeBinding } from './shell/grill-badges';
 import {
   openQuestionOf,
@@ -97,13 +109,14 @@ import { PreviewRouter } from './shell/preview-router';
 import { findTarget, highlightTarget, revealTarget } from './shell/reveal';
 import { ReviewPopoverController } from './shell/review-popover-controller';
 import {
-  renderSettingsMenu,
+  renderSettingsDialog,
+  renderSettingsSwitches,
   renderSettingsTrigger,
-  SETTINGS_ANCHOR,
+  SETTINGS_DISPLAY_SECTION,
   SETTINGS_ID,
-  SETTINGS_SIZE,
-  type SettingsIntents,
-} from './shell/settings-menu';
+  settingsDialogStyles,
+  type SettingsTriggerIntents,
+} from './shell/settings-dialog';
 import { chromeStyles } from './shell/styles';
 import { SUPPLEMENT_HEIGHT } from './shell/supplement-height';
 import { SupplementHeightController } from './shell/supplement-height-controller';
@@ -120,7 +133,6 @@ import {
 } from './shell/supplements';
 import { TextRecoveryController } from './shell/text-recovery-controller';
 import { renderUndoRedo, UndoRedoKeyboardController, type UndoRedoIntents } from './shell/undo-redo';
-import { VersionChoiceController } from './shell/version-choice-controller';
 import { parseTargetRef, targetRef, toTarget } from './target';
 import { FRAMEWORK_VERSION } from './version';
 
@@ -147,11 +159,36 @@ const countOf = (count: number): string | null => (count > 0 ? String(count) : n
 
 type ReviewSection = 'changes' | 'questions' | 'comments';
 
+/**
+ * The template's switches, and the change that flips one, as the settings
+ * dialog's `display` section shows them (`ViewElement.settingsSwitches`).
+ */
+export type SettingsSwitches = {
+  readonly settings: ViewSettings;
+  readonly flip: (input: ActionInput) => void;
+};
+
+/**
+ * The element that owns the page's chrome, as a board's `openSettings` reaches
+ * it — structural, because the element found up the tree has its own state
+ * type and only the settings entry point is used.
+ */
+type SettingsRoot = {
+  readonly board: string | null;
+  openSettings(sectionId?: string): void;
+};
+
 /** The part of the shell a badge layer lies over. */
 type BadgeRegion = 'main' | 'sidebar';
 
 export abstract class ViewElement<S> extends LitElement {
-  static override styles: CSSResultGroup = [chromeStyles, contextMenuStyles];
+  static override styles: CSSResultGroup = [
+    chromeStyles,
+    contextMenuStyles,
+    dialogStyles,
+    settingsDialogStyles,
+    floatingMenuStyles,
+  ];
 
   /**
    * Annotated so subclasses may declare their own reactive state without having
@@ -186,7 +223,7 @@ export abstract class ViewElement<S> extends LitElement {
   declare theme: string | null;
   /** Internal UI state of the review toggles. */
   declare notesOpen: boolean;
-  /** Whether the settings menu in the header is open. */
+  /** Whether the settings dialog is open. Viewing state of the page, never a change of the draft. */
   declare settingsOpen: boolean;
   /**
    * The part of the review shown: what the reader changed, what the page asks
@@ -269,23 +306,42 @@ export abstract class ViewElement<S> extends LitElement {
     state: () => this.controller.derivation.state,
     messages: () => contextMenuMessages(this.locale),
   });
-  readonly #settingsIntents: SettingsIntents = {
-    toggle: () => {
-      this.settingsOpen = !this.settingsOpen;
+  /** The settings section the dialog shows; the kit's display section until the reader picks another. */
+  #settingsSection: string = SETTINGS_DISPLAY_SECTION;
+  /**
+   * Keeps the settings `<dialog>` in step with `settingsOpen`: it is shown
+   * modally (never a popover), so the engine supplies the focus trap, the top
+   * layer and the inert background, and Escape and a press on the backdrop
+   * close it.
+   */
+  readonly #settingsDialog = new DialogController(this, {
+    dialog: () => this.renderRoot.querySelector<HTMLDialogElement>(`#${SETTINGS_ID}`),
+    open: () => this.settingsOpen,
+    dismiss: () => {
+      this.settingsOpen = false;
     },
-    flip: (input) => void this.dispatch(input),
-  };
+  });
   readonly #undoRedoIntents: UndoRedoIntents = {
     undo: () => this.controller.undo(),
     redo: () => this.controller.redo(),
   };
+  /**
+   * The reader's dock for the floating menu, kept per content. It is this
+   * reader's view state: never part of the draft, and forgotten with the page
+   * when the page keeps its state in memory or turns storage off.
+   */
+  readonly #floatingMenu = new FloatingMenuController(this, {
+    surface: () => this.renderRoot.querySelector<HTMLElement>('.dpk-floating-menu'),
+    area: () => this.#menuArea(),
+    persistKey: () => (this.storage === 'off' || this.storage === 'memory' ? null : this.#persistedName),
+  });
   constructor() {
     super();
     this.settingsOpen = false;
-    // The review floats over the page below the header actions.
+    // The review opens from the floating menu, and floats over the page beside it.
     new ReviewPopoverController(this, {
       surface: () => this.renderRoot.querySelector<HTMLElement>(`#${REVIEW_ID}`),
-      anchor: () => this.renderRoot.querySelector('.dpk-header-actions'),
+      anchor: () => this.renderRoot.querySelector('.dpk-floating-menu'),
       trigger: () => this.renderRoot.querySelector('.dpk-review-toggles'),
       open: () => this.notesOpen,
       close: () => {
@@ -312,24 +368,11 @@ export abstract class ViewElement<S> extends LitElement {
             : messages.checkModeUnchecked;
       },
     });
-    // A board renders no `.dpk-header` of its own: its boards' panels stay
-    // clear of the page's, inherited from the page root through the flattened tree.
+    // A board renders no header of its own: its panels stay clear of the
+    // screen's, inherited from the page root through the flattened tree.
     new HeaderHeightController(this, () =>
       this.#boardId === null ? this.renderRoot.querySelector<HTMLElement>('.dpk-header') : null,
     );
-    // The settings close on Escape and on a press outside them and their trigger.
-    new DismissController(this, {
-      open: () => this.settingsOpen,
-      // The trigger is left out, so its own click toggles the menu shut.
-      closesOn: (path) =>
-        !path.some(
-          (node) => node instanceof Element && (node.id === SETTINGS_ID || node.matches('.dpk-settings-trigger')),
-        ),
-      ownsEscape: () => true,
-      dismiss: () => {
-        this.settingsOpen = false;
-      },
-    });
   }
 
   /**
@@ -338,7 +381,6 @@ export abstract class ViewElement<S> extends LitElement {
    */
   protected abstract definitionFor(locale: Locale): ViewDefinition<S>;
 
-  #versionChoice = new VersionChoiceController(this);
   readonly #langSelect = new SelectController(this);
   readonly #roundSelect = new SelectController(this);
   #localeChoice = new LocaleChoiceController(
@@ -492,7 +534,6 @@ export abstract class ViewElement<S> extends LitElement {
     this.#routePreviews();
     this.#reserveDockSpace();
     this.#placeNoticeList();
-    this.#placeSettings();
     this.#settleQuestions();
   }
 
@@ -663,8 +704,82 @@ export abstract class ViewElement<S> extends LitElement {
     this.requestUpdate();
   }
 
-  /** Layout hook. The base provides the review rail, header and footer chrome. */
+  /**
+   * The template's own settings sections, bound to this element's current read
+   * of its own state — what a host that shows another element's settings reads
+   * (`<dpk-app>` draws its active page content's sections, and only that
+   * content knows its own state). Without its draft started, none: there is no
+   * state to describe yet.
+   */
+  get settingsSections(): readonly BoundSettingsSection[] {
+    if (!this.#controller) return [];
+    const context = this.#renderContext();
+    return this.#bindSettingsSections(this.renderSettingsSections(context));
+  }
+
+  /**
+   * Opens the settings dialog, on `sectionId` (the kit's `display` section by
+   * default): the entry point a template, a board or the shell's own chrome
+   * uses instead of reaching for the gear. Opening is viewing state, never a
+   * change of the draft.
+   *
+   * A board has no chrome of its own: it asks the element that owns the page
+   * (the `<dpk-app>`, or the page root it renders in) to open its settings, so
+   * one dialog shows what the reader is looking at.
+   */
+  openSettings(sectionId: string = SETTINGS_DISPLAY_SECTION): void {
+    const root = this.#settingsRoot();
+    if (root === null || root === this) {
+      this.#settingsSection = sectionId;
+      this.settingsOpen = true;
+      this.requestUpdate();
+      return;
+    }
+    root.openSettings(sectionId);
+  }
+
+  /** Layout hook. The base provides the page's chrome (the header row, the floating menu) and its body regions. */
   protected abstract renderRegions(context: ViewRenderContext<S>): ShellRegions;
+
+  /**
+   * The sections the settings dialog offers after the kit's own `display`
+   * section, in reading order (`SettingsSection`). One is shown at a time, and
+   * the nav that switches between them is drawn only when a second section
+   * exists. `openSettings(id)` opens the dialog on one of them.
+   */
+  protected renderSettingsSections(_context: ViewRenderContext<S>): readonly SettingsSection<S>[] {
+    return [];
+  }
+
+  /**
+   * The template's switches (`ViewDefinition.settings`), and the change that
+   * flips one, as the settings dialog's `display` section shows them. `null`
+   * when the template has none. A host that shows another element's settings
+   * (the app, showing its active page) overrides it.
+   */
+  protected settingsSwitches(context: ViewRenderContext<S>): SettingsSwitches | null {
+    const settings = this.definition.settings?.(context.state);
+    if (settings === undefined || settings.items.length === 0) return null;
+    return { settings, flip: (input) => void this.dispatch(input) };
+  }
+
+  /**
+   * The gear's intents, wherever the gear is drawn: it opens the dialog, and
+   * closes it again while it is open. A host that draws its own gear (the app,
+   * over the active page) reuses them, so both gears behave alike.
+   */
+  protected get settingsTriggerIntents(): SettingsTriggerIntents {
+    return {
+      open: this.settingsOpen,
+      toggle: () => {
+        if (this.settingsOpen) {
+          this.settingsOpen = false;
+          return;
+        }
+        this.openSettings();
+      },
+    };
+  }
 
   /**
    * Inside a Claude Artifact that declared `comments` (and `db` for long
@@ -720,12 +835,14 @@ export abstract class ViewElement<S> extends LitElement {
       (mark, token) => this.grillRefsOf(mark, token),
     );
     this.#checkBindings = collectCheckBindings(this, this.#checkMode.state, this.#notices.log);
-    // The header ellipsizes a long title; the tooltip has it whole.
+    // The header ellipsizes a long title; its `title` attribute has it whole.
     const title = this.definition.title(context.state);
+    const messages = coreMessages(this.locale);
     return html`
       <dpk-internal-layout-app class="dpk-shell">
         <header slot="header" class="dpk-header">
           <span class="dpk-brand" aria-hidden="true">${brandMark()}</span>
+          ${this.renderHeaderLead(context)}
           <div class="dpk-title">
             <h1 title=${title}>${title}</h1>
           </div>
@@ -733,31 +850,37 @@ export abstract class ViewElement<S> extends LitElement {
             ${regions.header ?? nothing}
             <slot name="header"></slot>
           </div>
-          <div class="dpk-header-meta">${this.#versionChoice.render(this.locale)}</div>
-          <div class="dpk-header-tools">
-            ${this.#renderNoticeBell()} ${this.#renderLanguageSelect()} ${this.#renderCheckModeToggle()}
-            ${this.#renderThemeToggle()}
-          </div>
-          ${this.#renderHeaderActions(context, changeCount, commentCount)}
+          <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
+          ${renderSettingsTrigger(messages, this.settingsTriggerIntents)}
         </header>
         ${this.#renderBody(regions)} ${this.#renderFooter(regions)}
         <div slot="overlay" class="dpk-overlay">
-          ${this.#renderReviewPopover(context)} ${this.#renderHandoffDock(draftCount)} ${this.#renderNoticeToasts()}
-          ${this.#confirmDialog.render()}
+          ${this.#renderMenu(changeCount, commentCount)} ${this.#renderReviewPopover(context)}
+          ${this.#renderHandoffDock(draftCount)} ${this.#renderNoticeList()} ${this.#renderNoticeToasts()}
+          ${this.#confirmDialog.render()} ${this.#renderSettingsDialog(context)}
         </div>
       </dpk-internal-layout-app>
     `;
   }
 
   /**
-   * A board of a page: the template's own header controls in a bar, then its
-   * sidebar, main column and footer. The header (with the board's name and
-   * settings), the review and the hand-off are the page's.
+   * What the header draws between the brand mark and the page's title. Only a
+   * chrome owner with things to switch between has anything there: the app's
+   * page switcher.
+   */
+  protected renderHeaderLead(_context: ViewRenderContext<S>): TemplateResult | typeof nothing {
+    return nothing;
+  }
+
+  /**
+   * A page content: the template's own header controls in a bar, then its
+   * sidebar, main column and footer. The header (with the page's title and
+   * settings), the floating menu and the review are the page's.
    */
   #renderBoardChrome(regions: ShellRegions): TemplateResult {
     this.#badges = [];
     this.#checkBindings = [];
-    // The page's header names the board and holds its settings; a bar stays only for the template's own header.
+    // The page's header names the page and holds its settings; a bar stays only for the template's own header.
     const bar =
       (regions.header !== undefined && regions.header !== nothing) ||
       this.querySelector(':scope > [slot="header"]') !== null;
@@ -772,6 +895,39 @@ export abstract class ViewElement<S> extends LitElement {
         ${this.#renderBody(regions)} ${this.#renderFooter(regions)}
       </dpk-internal-layout-app>
     `;
+  }
+
+  /**
+   * The screen's one floating menu, and where the reader left it. It holds the
+   * page's own controls, so it is drawn by the element that owns the chrome and
+   * never by a page content inside it.
+   */
+  #renderMenu(changeCount: number, commentCount: number): TemplateResult {
+    const messages = coreMessages(this.locale);
+    return renderFloatingMenu(
+      messages,
+      this.#floatingMenu.placement,
+      {
+        undoRedo: renderUndoRedo(this.controller.canUndo, this.controller.canRedo, messages, this.#undoRedoIntents),
+        review: this.#renderReviewToggles(changeCount, commentCount),
+        checkMode: this.#renderCheckModeToggle(),
+        notices: this.#renderNoticeBell(),
+      },
+      { grip: this.#floatingMenu.grip },
+      this.#floatingMenu.dragging,
+    );
+  }
+
+  /**
+   * The room the floating menu may use: the screen, less the header's own row,
+   * so a menu docked to the top edge never covers the header's controls.
+   */
+  #menuArea(): MenuArea {
+    const width = window.innerWidth || document.documentElement.clientWidth;
+    const height = window.innerHeight || document.documentElement.clientHeight;
+    const header = this.renderRoot.querySelector<HTMLElement>('.dpk-header');
+    const top = Math.min(header?.getBoundingClientRect().height ?? 0, height);
+    return { left: 0, top, width, height: height - top };
   }
 
   #renderBody(regions: ShellRegions): TemplateResult {
@@ -858,39 +1014,6 @@ export abstract class ViewElement<S> extends LitElement {
       : nothing;
   }
 
-  /**
-   * The icon buttons at the end of the header row: the page's settings when the
-   * template has any, then the review toggles. Laid out with the rest of the
-   * header so they never cover its other controls. Their popovers hang below
-   * the whole group, aligned to its right edge.
-   */
-  #renderHeaderActions(context: ViewRenderContext<S>, changeCount: number, commentCount: number): TemplateResult {
-    const settings = this.definition.settings?.(context.state);
-    const hasSettings = settings !== undefined && settings.items.length > 0;
-    const messages = coreMessages(this.locale);
-    return html`<div class="dpk-header-actions">
-      ${hasSettings ? renderSettingsTrigger(this.settingsOpen, messages, this.#settingsIntents) : nothing}
-      ${hasSettings && this.settingsOpen ? renderSettingsMenu(settings, messages, this.#settingsIntents) : nothing}
-      ${renderUndoRedo(this.controller.canUndo, this.controller.canRedo, messages, this.#undoRedoIntents)}
-      ${this.#renderReviewToggles(changeCount, commentCount)}
-    </div>`;
-  }
-
-  /** The open settings hang below the header actions in the top layer. */
-  #placeSettings(): void {
-    const menu = this.renderRoot.querySelector<HTMLElement>(`#${SETTINGS_ID}`);
-    // A page puts the active board's settings beside its name rather than among the header actions.
-    const own = this.renderRoot.querySelector(`.${SETTINGS_ANCHOR}`);
-    const anchor = own ?? this.renderRoot.querySelector('.dpk-header-actions');
-    if (!menu || !anchor || isPopoverOpen(menu)) return;
-    this.#popovers.open(
-      menu,
-      anchor,
-      { width: SETTINGS_SIZE.width, height: Math.min(SETTINGS_SIZE.height, window.innerHeight - 96) },
-      { placement: own === null ? 'bottom-end' : 'bottom-start' },
-    );
-  }
-
   /** One review button: pressed when its section is the one open, showing its count as a badge. */
   #renderReviewToggle(
     section: ReviewSection,
@@ -900,7 +1023,7 @@ export abstract class ViewElement<S> extends LitElement {
   ): TemplateResult {
     const pressed = this.notesOpen && this.#reviewSection === section;
     return html`<button
-      class="dpk-header-action dpk-review-toggle"
+      class="dpk-chrome-action dpk-review-toggle"
       type="button"
       data-section=${section}
       aria-controls=${REVIEW_ID}
@@ -917,28 +1040,29 @@ export abstract class ViewElement<S> extends LitElement {
   }
 
   /**
-   * Each part of the review has its own button: the changes made on the page,
-   * the questions the page asks (when it asks any), and the review comments
-   * for the agent. Pressing the one shown closes the review; another switches
-   * it over.
+   * Each part of the review has its own button, in the order the menu reads:
+   * the review comments for the agent (what the reader most often came to
+   * write), the changes made on the page, then the questions the page asks
+   * (only while it asks any). Pressing the one shown closes the review;
+   * another switches it over.
    */
   #renderReviewToggles(changeCount: number, commentCount: number): TemplateResult {
     const messages = coreMessages(this.locale);
     const counts = answerCounts(this.#grill, this.derivation.answers);
     return html`<div class="dpk-review-toggles" role="group" aria-label=${messages.review}>
+      ${this.#renderReviewToggle('comments', messages.reviewComments, iconComment(), countOf(commentCount))}
       ${this.#renderReviewToggle('changes', messages.reviewChanges, iconHistory(), countOf(changeCount))}
       ${
         counts.total === 0
           ? nothing
           : this.#renderReviewToggle('questions', messages.grill, iconQuestion(), `${counts.answered}/${counts.total}`)
       }
-      ${this.#renderReviewToggle('comments', messages.reviewComments, iconComment(), countOf(commentCount))}
     </div>`;
   }
 
   /**
    * The counts the review toggles show: changes, answers and comments all
-   * share one draft, so the header tells them apart here.
+   * share one draft, so the menu tells them apart here.
    */
   protected reviewCounts(context: ViewRenderContext<S>): { changeCount: number; commentCount: number } {
     const draftCount = context.actions.length;
@@ -1055,12 +1179,19 @@ export abstract class ViewElement<S> extends LitElement {
     return 'main';
   }
 
+  /**
+   * The bell lives in the floating menu; its list hangs off the bell in the top
+   * layer, so it is drawn beside the menu rather than inside it: the menu is a
+   * blurred surface, which would make it the list's containing block.
+   */
   #renderNoticeBell(): TemplateResult | typeof nothing {
     const vm = this.#notices.view;
-    if (!vm) return nothing;
-    const messages = coreMessages(this.locale);
-    return html`${renderNoticeBell(vm, messages, this.#noticeIntents)}
-    ${renderNoticeList(vm, messages, this.#noticeIntents)}`;
+    return vm ? renderNoticeBell(vm, coreMessages(this.locale), this.#noticeIntents) : nothing;
+  }
+
+  #renderNoticeList(): TemplateResult | typeof nothing {
+    const vm = this.#notices.view;
+    return vm ? renderNoticeList(vm, coreMessages(this.locale), this.#noticeIntents) : nothing;
   }
 
   #renderNoticeToasts(): TemplateResult | typeof nothing {
@@ -1190,12 +1321,12 @@ export abstract class ViewElement<S> extends LitElement {
     const messages = coreMessages(this.locale);
     const label = on ? messages.checkModeOn : messages.checkModeOff;
     return html`<button
-      class="dpk-check-toggle"
+      class="dpk-chrome-action dpk-check-toggle"
       type="button"
       data-active=${on ? 'true' : 'false'}
       aria-pressed=${on ? 'true' : 'false'}
       aria-label=${label}
-      title=${label}
+      data-tooltip=${label}
       @click=${() => void this.#toggleCheckMode()}
     >
       ${iconChecklist()}
@@ -1241,6 +1372,81 @@ export abstract class ViewElement<S> extends LitElement {
     if (!this.#controller) return nothing;
     const context = this.#renderContext();
     return html`${this.renderChrome(context, this.renderRegions(context))}${this.#renderContextMenu()}`;
+  }
+
+  /**
+   * The settings dialog, always in the tree and shown modally while
+   * `settingsOpen` (the `<dialog>` and its top layer are the engine's). Its
+   * `display` section holds the kit's own rows; the template's sections follow
+   * it. A board draws none: the page that owns it does.
+   */
+  #renderSettingsDialog(context: ViewRenderContext<S>): TemplateResult | typeof nothing {
+    if (this.#boardId !== null) return nothing;
+    const messages = coreMessages(this.locale);
+    // Closed, the panel shows nothing and its sections cost nothing: a template
+    // may build them from its whole state, so they are built only while opened.
+    const open = this.settingsOpen;
+    const display = open ? this.#renderSettingsDisplay(context) : nothing;
+    const sections: readonly BoundSettingsSection[] = open
+      ? [
+          { id: SETTINGS_DISPLAY_SECTION, label: messages.settingsDisplay, render: () => display },
+          ...this.#bindSettingsSections(this.renderSettingsSections(context)),
+        ]
+      : [];
+    return renderSettingsDialog({
+      id: SETTINGS_ID,
+      open,
+      label: messages.settings,
+      closeLabel: messages.settingsClose,
+      sectionsLabel: messages.settingsSections,
+      controller: this.#settingsDialog,
+      sections,
+      activeSection: this.#settingsSection,
+      onPick: (id) => this.#pickSettingsSection(id),
+      display,
+    });
+  }
+
+  /**
+   * What the kit's `display` section shows: the template's switches and their
+   * note. The reader's language and theme are not here: they are controls of
+   * the screen, so they live in the header.
+   */
+  #renderSettingsDisplay(context: ViewRenderContext<S>): TemplateResult | typeof nothing {
+    const messages = coreMessages(this.locale);
+    const switches = this.settingsSwitches(context);
+    return switches === null ? nothing : renderSettingsSwitches(switches.settings, messages, switches.flip);
+  }
+
+  /** The template's sections, each bound to the context the dialog renders them with. */
+  #bindSettingsSections(sections: readonly SettingsSection<S>[]): readonly BoundSettingsSection[] {
+    return sections.map((section) => ({
+      id: section.id,
+      label: section.label,
+      render: () => section.render(this.#renderContext()),
+    }));
+  }
+
+  /** Shows another section of the open dialog; the reader's choice of what to look at, not a change. */
+  #pickSettingsSection(id: string): void {
+    this.#settingsSection = id;
+    this.requestUpdate();
+  }
+
+  /**
+   * The element that owns the page's chrome — the one whose settings dialog a
+   * board's `openSettings()` opens. Itself when it is the page root, the
+   * closest enclosing view or app when it is a board, and `null` for a board
+   * with no page around it.
+   */
+  #settingsRoot(): SettingsRoot | null {
+    if (this.#boardId === null) return this;
+    let node: Node | null = this.parentNode;
+    while (node !== null) {
+      if (node instanceof ViewElement && node.board === null) return node;
+      node = node.parentNode;
+    }
+    return null;
   }
 
   /** The right-click menu's surface, rendered on top of the chrome; `nothing` while it is closed. */

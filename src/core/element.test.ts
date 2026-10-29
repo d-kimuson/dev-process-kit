@@ -10,7 +10,7 @@ import { DpkViewPrototype } from '../views/prototype/element';
 import { prototypeMessages } from '../views/prototype/messages';
 import { COMMENT_ACTION } from './action';
 import { sidebarMessages } from './layouts/sidebar/messages';
-import { DEFAULT_SIDEBAR_LAYOUT, SIDEBAR_WIDTH, type SidebarLayout } from './layouts/sidebar/model';
+import { DEFAULT_SIDEBAR_LAYOUT, FOLD_BUTTON, SIDEBAR_WIDTH, type SidebarLayout } from './layouts/sidebar/model';
 import { coreMessages } from './messages';
 import '../index';
 
@@ -262,16 +262,28 @@ describe('<dpk-view-prototype>', () => {
     expect(el.shadowRoot?.querySelector('.dpk-review-toggle')?.getAttribute('aria-controls')).toBe('dpk-review');
   });
 
-  it('names each header button in a label shown on hover, and leaves out settings a template does not have', async () => {
+  it('names each button of the floating menu in a label shown on hover, the header holding the settings gear', async () => {
     const el = mount();
     await settle(el);
     const messages = coreMessages('en');
-    const actions = el.shadowRoot?.querySelector('.dpk-header-actions');
-    expect(actions?.querySelector('.dpk-settings-trigger')).toBeNull();
+    const header = el.shadowRoot?.querySelector('.dpk-header');
+    // The gear is always there: the settings dialog holds the page's own settings.
+    expect(header?.querySelector('.dpk-settings-trigger')).not.toBeNull();
+    // The reader's own controls sit in the header, not in the dialog.
+    expect(header?.querySelector('.dpk-header-tools .dpk-lang-select')).not.toBeNull();
+    expect(header?.querySelector('.dpk-header-tools .dpk-theme-toggle')).not.toBeNull();
+    const menu = el.shadowRoot?.querySelector('.dpk-floating-menu');
     expect(
-      [...(actions?.querySelectorAll('[data-tooltip]') ?? [])].map((button) => button.getAttribute('data-tooltip')),
-    ).toEqual([messages.undo, messages.redo, messages.reviewChanges, messages.reviewComments]);
-    expect(actions?.querySelector('.dpk-review-toggle')?.hasAttribute('title')).toBe(false);
+      [...(menu?.querySelectorAll('[data-tooltip]') ?? [])].map((button) => button.getAttribute('data-tooltip')),
+    ).toEqual([
+      messages.menuMove,
+      messages.undo,
+      messages.redo,
+      messages.reviewComments,
+      messages.reviewChanges,
+      messages.checkModeOff,
+    ]);
+    expect(menu?.querySelector('.dpk-review-toggle')?.hasAttribute('title')).toBe(false);
   });
 
   it('keeps the review closed behind the changes and the review comments toggles', async () => {
@@ -410,8 +422,9 @@ describe('<dpk-view-prototype>', () => {
 });
 
 describe('color scheme', () => {
+  /** The theme toggle of the header, which is where the reader flips it. */
   const toggle = (el: DpkViewPrototype): HTMLButtonElement =>
-    el.shadowRoot?.querySelector('.dpk-theme-toggle') as HTMLButtonElement;
+    el.shadowRoot?.querySelector('.dpk-header-tools .dpk-theme-toggle') as HTMLButtonElement;
 
   beforeEach(() => {
     window.location.hash = '';
@@ -419,7 +432,7 @@ describe('color scheme', () => {
     delete document.documentElement.dataset['theme'];
   });
 
-  it('follows the environment and flips with the header toggle', async () => {
+  it('follows the environment and flips with the header theme toggle', async () => {
     const el = mount();
     await settle(el);
     expect(el.dataset['theme']).toBe('light');
@@ -766,11 +779,28 @@ describe('sidebar collapse', () => {
     await settleAll(usm);
     expect(toggle(usm)).toBeNull();
   });
+
+  it('tells the main column how far a folded button reaches into it, and nothing while the sidebar is out', async () => {
+    const el = mount();
+    await settleAll(el);
+    const clearance = (): string =>
+      inner(el).querySelector<HTMLElement>('.main')?.style.getPropertyValue('--dpk-fold-clearance-left') ?? '';
+    expect(clearance()).toBe('0px');
+
+    (toggle(el) as HTMLButtonElement).click();
+    await settleAll(el);
+    expect(clearance()).toBe(`${FOLD_BUTTON.inset + FOLD_BUTTON.size}px`);
+
+    (toggle(el) as HTMLButtonElement).click();
+    await settleAll(el);
+    expect(clearance()).toBe('0px');
+  });
 });
 
 describe('language', () => {
+  /** The language select of the header, which is where the reader picks the page's language. */
   const trigger = (el: DpkViewPrototype): HTMLButtonElement =>
-    el.shadowRoot?.querySelector('.dpk-lang-select') as HTMLButtonElement;
+    el.shadowRoot?.querySelector('.dpk-header-tools .dpk-lang-select') as HTMLButtonElement;
   const currentLocale = async (el: DpkViewPrototype): Promise<string> => {
     trigger(el).click();
     await settle(el);

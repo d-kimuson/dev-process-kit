@@ -1,17 +1,18 @@
 /**
- * The board switcher of `board-nav="header"`: one icon button in the header
- * that, on hover, click or keyboard focus, opens a kit-styled popover listing
- * the page's boards (the one shown now checked); choosing one switches. Its
- * last row is "+", so the add menu header-nav used to show as a separate
- * button next to the switcher now lives inside the same list, by way of the
- * same addable templates (`PageElement#addableTemplates`). `PageElement` owns
- * when it is open, the close delay (so moving the pointer from the trigger
- * into the popover does not close it) and which view (boards or templates) is
- * showing; this module is the pure half — how the trigger and list render for
- * a given state, and what each row does when it is picked.
+ * The page switcher of `page-nav`: one icon button in the header row that, on
+ * hover, click or keyboard focus, opens a kit-styled popover listing the app's
+ * pages (the one shown now checked); choosing one switches. Its last row is
+ * "+", so the add menu header-nav used to show as a separate button next to
+ * the switcher now lives inside the same list, by way of the same addable
+ * contents (`PageContent`). `AppElement` owns when it is open, the close delay
+ * (so moving the pointer from the trigger into the popover does not close it)
+ * and which view (pages or contents) is showing; this module is the pure half —
+ * how the trigger and list render for a given state, and what each row does
+ * when it is picked.
  */
 import { html, nothing, type TemplateResult } from 'lit';
 
+import { onCommit } from '../../lib/dom/events';
 import { iconCheck, iconClose } from '../icons';
 
 /** The popover `aria-controls` points at. */
@@ -31,8 +32,14 @@ export type SwitcherRow = {
    */
   readonly kind?: 'action';
   readonly activate: () => void;
-  /** A board row only: lets the popover remove that board, mirroring the rail's old remove button. */
+  /** A board row only: lets the popover remove that board, mirroring the page's old remove button. */
   readonly remove?: { readonly label: string; readonly activate: () => void };
+  /**
+   * The page shown now: its name is renamed where it is listed, in place, so
+   * the row is that name instead of a button that would only re-open the page
+   * it is already on.
+   */
+  readonly rename?: { readonly label: string; readonly commit: (name: string) => void };
 };
 
 export type SwitcherMessages = {
@@ -58,27 +65,33 @@ export const renderSwitcherTrigger = (
   boardCount: number,
   m: SwitcherMessages,
   on: SwitcherTriggerIntents,
-): TemplateResult => html`<button
-  class="dpk-header-action dpk-page-switcher-trigger"
-  type="button"
-  aria-haspopup="menu"
-  aria-controls=${SWITCHER_ID}
-  aria-expanded=${open ? 'true' : 'false'}
-  aria-label=${m.switcherCount(boardCount)}
-  title=${m.switcherCount(boardCount)}
-  @pointerenter=${on.open}
-  @pointerleave=${on.scheduleClose}
-  @focus=${on.open}
-  @click=${on.open}
->
-  ${icon()}
-  ${
-    // A single board is nothing to choose between, so the count would only draw an eye it
-    // doesn't need to; from two on, it shows as quiet inline text, never the corner badge
-    // `.dpk-icon-badge` uses elsewhere for something unread.
-    boardCount > 1 ? html`<span class="dpk-page-switcher-count" aria-hidden="true">${boardCount}</span>` : nothing
-  }
-</button>`;
+  /** The page shown now: the trigger's own label names it, so no second label stands beside the icon. */
+  active: { readonly active: string | null } = { active: null },
+): TemplateResult => {
+  const label =
+    active.active === null ? m.switcherCount(boardCount) : `${active.active} · ${m.switcherCount(boardCount)}`;
+  return html`<button
+    class="dpk-chrome-action dpk-page-switcher-trigger"
+    type="button"
+    aria-haspopup="menu"
+    aria-controls=${SWITCHER_ID}
+    aria-expanded=${open ? 'true' : 'false'}
+    aria-label=${label}
+    data-tooltip=${label}
+    @pointerenter=${on.open}
+    @pointerleave=${on.scheduleClose}
+    @focus=${on.open}
+    @click=${on.open}
+  >
+    ${icon()}
+    ${
+      // A single board is nothing to choose between, so the count would only draw an eye it
+      // doesn't need to; from two on, it shows as quiet inline text, never the corner badge
+      // `.dpk-icon-badge` uses elsewhere for something unread.
+      boardCount > 1 ? html`<span class="dpk-page-switcher-count" aria-hidden="true">${boardCount}</span>` : nothing
+    }
+  </button>`;
+};
 
 export const renderSwitcherMenu = (
   rows: readonly SwitcherRow[],
@@ -120,17 +133,38 @@ export const renderSwitcherMenu = (
   ${rows.map(
     (row) =>
       html`<div class="dpk-page-switcher-row" role="presentation">
-        <button
-          class="dpk-settings-option dpk-page-switcher-option"
-          type="button"
-          data-key=${row.key}
-          role=${row.kind === 'action' ? 'menuitem' : 'menuitemradio'}
-          aria-checked=${row.kind === 'action' ? nothing : row.current ? 'true' : 'false'}
-          @click=${row.activate}
-        >
-          <span class="dpk-settings-check" aria-hidden="true">${row.current ? iconCheck() : row.icon()}</span>
-          <span class="dpk-settings-text"><span class="dpk-settings-name">${row.label}</span></span>
-        </button>
+        ${
+          row.rename === undefined
+            ? html`<button
+                class="dpk-settings-option dpk-page-switcher-option"
+                type="button"
+                data-key=${row.key}
+                role=${row.kind === 'action' ? 'menuitem' : 'menuitemradio'}
+                aria-checked=${row.kind === 'action' ? nothing : row.current ? 'true' : 'false'}
+                @click=${row.activate}
+              >
+                <span class="dpk-settings-check" aria-hidden="true">${row.current ? iconCheck() : row.icon()}</span>
+                <span class="dpk-settings-text"><span class="dpk-settings-name">${row.label}</span></span>
+              </button>`
+            : html`<div
+                class="dpk-settings-option dpk-page-switcher-option"
+                data-key=${row.key}
+                data-current
+                role="menuitemradio"
+                aria-checked="true"
+              >
+                <span class="dpk-settings-check" aria-hidden="true">${iconCheck()}</span>
+                <span class="dpk-settings-text">
+                  <span class="dpk-settings-name dpk-page-switcher-name"
+                    ><dpk-inline-edit
+                      .value=${row.label}
+                      .label=${row.rename.label}
+                      @dpk-commit=${onCommit(row.rename.commit)}
+                    ></dpk-inline-edit
+                  ></span>
+                </span>
+              </div>`
+        }
         ${
           row.remove === undefined
             ? nothing

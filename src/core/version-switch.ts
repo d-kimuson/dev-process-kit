@@ -1,8 +1,8 @@
 /**
  * Switching a page to another published version of the kit: which version the
- * reader asked for, where that version's entry lives, and what the header's
- * version select lists. Pure; the effects are in `version-loader.ts` and the
- * shell's `version-choice-controller.ts` ([ADR](../../dev-docs/adr/20261007_reader-version-switch.md)).
+ * reader asked for, where that version's entry lives, and what a version select
+ * lists. Pure; the effects are in `version-loader.ts`
+ * ([ADR](../../dev-docs/adr/20261007_reader-version-switch.md)).
  */
 import * as v from 'valibot';
 

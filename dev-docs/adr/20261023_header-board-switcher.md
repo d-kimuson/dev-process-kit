@@ -4,7 +4,9 @@
 
 ## Status
 
-accepted. Supersedes the rail-specific guidance of [20261020_multi-board-pages.md](20261020_multi-board-pages.md) ("a left icon rail switches the visible board") and of [20261022_page-as-the-base-form.md](20261022_page-as-the-base-form.md) ("the rail is a region of its own, always drawn... it carries its own fold toggle"); the rest of both decisions stands.
+accepted. Its header placement stands again with [ADR: The screen's chrome is a fixed header row and a floating menu](20261029_fixed-header-with-floating-menu.md), after the side rail that briefly replaced it ([20261029_side-rail-and-floating-menu.md](20261029_side-rail-and-floating-menu.md)) was reverted. The switcher is one icon in the header row again, ahead of the title; one part of this record stays changed: the page shown is named in the trigger's own label and renamed on its row in the popover, never written out beside the icon. The rest — one switcher icon and a popover instead of a rail of boards, rename in place through the draft, remove inside the popover, one data-driven add list — stands.
+
+It supersedes the rail-specific guidance of [20261020_multi-board-pages.md](20261020_multi-board-pages.md) ("a left icon rail switches the visible board") and of [20261022_page-as-the-base-form.md](20261022_page-as-the-base-form.md) ("the rail is a region of its own, always drawn... it carries its own fold toggle"); the rest of both decisions stands.
 
 ## Context
 

@@ -2,8 +2,8 @@
 
 Every document is one `<dpk-app>` holding one or more `<dpk-page>` elements. A page is one
 switchable subject; its content is exactly one **view** (`dpk-view-*`, page-only) or **board**
-(`dpk-board-*`, embeddable and page-capable). The app owns the header, the review, one draft, one
-storage record, the hash and undo/redo; a page owns its name and its content.
+(`dpk-board-*`, embeddable and page-capable). The app owns the header, the floating menu, the review,
+one draft, one storage record, the hash and undo/redo; a page owns its name and its content.
 
 Most documents hold one page, and read as that view or board alone. When the reader has to agree
 on more than one subject at once — the scope (`usm`), the domain events (`event-storming`) and the
@@ -12,21 +12,22 @@ all of them: a comment can point from one page to another.
 
 ```text
 dpk-app
-  header  app title / a switcher icon, the page shown (renamed in place), its settings; language, theme, review
+  header  the document's title; the page switcher, then slot="header"; language, theme, gear
+  menu    undo / redo, the review's sections, Check Mode, the changes bell
   main    the page shown; the others stay mounted, hidden
 ```
 
-The header carries one switcher icon, ahead of the active page's name so neither ever shifts as a
-name appears or changes. Hover, click or keyboard focus opens a popover listing the app's pages
-(the one shown checked, with a × beside each to remove it) and, last, **+** to add one. With one
-page there is no name beside the icon — only the icon and, once a second page exists, the title the
-reader gave the first. Click (or Enter) the page's name in the header to rename it in place; Enter
-or blur commits, Escape cancels.
+The header carries the switcher ahead of the title, and the settings gear at its end
+([index.md](index.md#framework-chrome)). The switcher is one icon; its own label names the page
+shown, so nothing in the header shifts as a page is added or renamed. Hover, click or keyboard focus
+opens a popover listing the app's pages (the one shown checked, with a × beside each to remove it)
+and, last, **+** to add one. The page shown is renamed in that list, in place, on its own row:
+Enter or blur commits, Escape cancels.
 
-A direct child of `<dpk-app>` with `slot="header"` joins that same header, after the switcher and
-page settings but before the kit's own language, theme and review controls: the place for a fixed
-item of the document's own, such as a repo or package link. It is the ordinary `header` slot every
-view exposes ([index.md](index.md#slots-and-styling)).
+The header names the document. A direct child of `<dpk-app>` with `slot="header"` joins it
+after the title and before the kit's own language, theme and settings controls: the place for a
+fixed item of the document's own, such as a repo or package link. It is the ordinary `header` slot
+every view exposes ([index.md](index.md#slots-and-styling)).
 
 ## Load it
 
@@ -75,12 +76,12 @@ entry is loaded, so load `index.js` when the reader should be able to add a page
 
 | Where       | Attribute                                  | Meaning                                                                                                                                                                                  |
 | ----------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dpk-app`   | JSON child `{ "title" }`                   | The document's title in the header. Defaults to an untitled document.                                                                                                                    |
+| `dpk-app`   | JSON child `{ "title" }`                   | The document's title, in the header. Defaults to an untitled document.                                                                                                                   |
 | `dpk-app`   | `storage-key`, `storage`, `notes`, `theme` | As on a view ([index.md](index.md#persistence)): the app owns the draft and the chrome.                                                                                                  |
 | `dpk-app`   | `hash="off"`                               | Leaves `location.hash` alone (neither read nor written); pages still switch in memory.                                                                                                   |
-| `dpk-app`   | `page-nav="none"`                          | Draws no switcher or "+": the app's own header (title, review, hand-off) still shows, for a document embedded where pages are chosen some other way.                                     |
+| `dpk-app`   | `page-nav="none"`                          | Draws no switcher or "+": the app's own header, menu and review still show, for a document embedded where pages are chosen some other way.                                               |
 | `dpk-page`  | `name` (required)                          | The page's id: letters, digits, `_`, `-`; unique in the app. Targets and the hash use it.                                                                                                |
-| `dpk-page`  | `label`                                    | The page's name in the switcher and the header. Defaults to the content's name; the reader can rename it in place.                                                                       |
+| `dpk-page`  | `label`                                    | The page's name in the switcher (and in its trigger's label). Defaults to the content's name; the reader can rename it in place.                                                         |
 | the content | —                                          | Exactly one `dpk-view-*` or `dpk-board-*`. Its base JSON, slots and light DOM are exactly those of the view or board on its own; `storage-key` is ignored, since the draft is the app's. |
 
 A board inside a view is embedded; a board directly inside a page is the page. There is no
@@ -108,7 +109,7 @@ A page asks its questions as its content does on its own: a
 `<script type="application/json" data-dpk-grill>` child of the view or board, **after** its base
 JSON (the base data is the first JSON child; see [index.md](index.md#base-data)). The app gathers
 every page's questions, and those of its own `data-dpk-grill` child (for questions about the
-document as a whole), into the one questions panel in its header.
+document as a whole), into the one questions panel in the app's review.
 
 A page's question is qualified by its page like any of its targets: question `retry` of the
 `scope` page is `grill:retry@scope`, and its ref shows as `Q1@scope`. Within the page's markup,
@@ -133,7 +134,7 @@ adds three of its own, on `app:app`:
 | ------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ADD_PAGE`    | `{ "page": "<id>", "kind": "view" \| "board", "content": "<name>", "label": "<label>" }` | Add `<dpk-page name="<id>" label="<label>">` whose content is `<dpk-view-<name>>` or `<dpk-board-<name>>`. Its base JSON is the content's empty base with the draft's actions on `@<id>` applied. |
 | `REMOVE_PAGE` | `{ "page": "<id>" }`                                                                     | Take that page out of the document, together with everything the draft says about it.                                                                                                             |
-| `RENAME_PAGE` | `{ "page": "<id>", "label": "<label>" }`                                                 | Set that page's own name, as the header's inline edit records it.                                                                                                                                 |
+| `RENAME_PAGE` | `{ "page": "<id>", "label": "<label>" }`                                                 | Set that page's own name, as the switcher's inline edit records it.                                                                                                                               |
 
 A page the reader adds shows at once and takes changes and comments like any other page; it lives
 in the draft until you write it into the HTML. Removing a page the draft added takes back the

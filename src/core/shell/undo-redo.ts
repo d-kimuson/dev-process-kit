@@ -24,7 +24,7 @@ export const renderUndoRedo = (
 ): TemplateResult =>
   html`<div class="dpk-undo-redo" role="group" aria-label=${m.undoRedo}>
     <button
-      class="dpk-header-action dpk-undo"
+      class="dpk-chrome-action dpk-undo"
       type="button"
       ?disabled=${!canUndo}
       aria-label=${m.undo}
@@ -34,7 +34,7 @@ export const renderUndoRedo = (
       ${iconUndo()}
     </button>
     <button
-      class="dpk-header-action dpk-redo"
+      class="dpk-chrome-action dpk-redo"
       type="button"
       ?disabled=${!canRedo}
       aria-label=${m.redo}

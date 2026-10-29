@@ -7,7 +7,7 @@ dpk-view-plain
   main    slot="main" — your content
 ```
 
-The header, the review and the hand-off are the app's ([page.md](../page.md)), and the view brings no subject of its own: everything a reader produces is a comment. Comments can target the view as a whole, a declared section, or an element of a board placed inside.
+The header, the floating menu, the review and the hand-off are the app's ([page.md](../page.md)), and the view brings no subject of its own: everything a reader produces is a comment. Comments can target the view as a whole, a declared section, or an element of a board placed inside.
 
 ## Base data
 

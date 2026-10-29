@@ -57,12 +57,31 @@ describe('review popover', () => {
     expect(vi.mocked(openPopover).mock.calls[0]?.[3]).toMatchObject({ placement: 'bottom-end' });
   });
 
-  it('takes the height from below its anchor to the bottom of the screen, so it never has to flip aside', () => {
+  it('takes its height from the screen on the side it opens on, not from the room below the anchor', () => {
     const { controller, anchor } = setup(true);
     anchor.getBoundingClientRect = () => new DOMRect(0, 12, 120, 36);
     controller.hostConnected();
     controller.hostUpdated();
+    // jsdom's innerHeight is 768: a header-row anchor still has the screen below it to open into.
     expect(vi.mocked(openPopover).mock.calls[0]?.[2]).toEqual({ width: 440, height: window.innerHeight - 48 - 16 });
+    expect(vi.mocked(openPopover).mock.calls[0]?.[3]).toMatchObject({ placement: 'bottom-end' });
+  });
+
+  // The floating menu docks at the bottom of the screen too, where the room
+  // below it is negative: that measured a zero-height window drawn as its
+  // border. It opens above the anchor instead, on the screen the anchor leaves.
+  it('opens above a menu docked at the bottom, at a usable height on the screen', () => {
+    const { controller, anchor } = setup(true);
+    const top = window.innerHeight - 58;
+    anchor.getBoundingClientRect = () => new DOMRect(0, top, 258, 46);
+    controller.hostConnected();
+    controller.hostUpdated();
+    expect(vi.mocked(openPopover).mock.calls[0]?.[3]).toMatchObject({ placement: 'top-end' });
+    const size = vi.mocked(openPopover).mock.calls[0]?.[2];
+    expect(size?.width).toBe(440);
+    expect(size?.height).toBe(top - 16);
+    expect(size?.height).toBeGreaterThan(0);
+    expect(size?.height).toBeLessThan(window.innerHeight);
   });
 
   it('hides the surface and stops following the anchor when it closes', () => {

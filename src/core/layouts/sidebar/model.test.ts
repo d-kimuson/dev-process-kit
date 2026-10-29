@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_SIDEBAR_PANE,
+  FOLD_BUTTON,
   SIDEBAR_WIDTH,
   draggedSidebarWidth,
+  foldClearance,
   keyedSidebarWidth,
   parseSidebarCollapsed,
   parseSidebarWidth,
@@ -88,6 +90,13 @@ describe('sidebarToggle', () => {
   it('mirrors for a right-hand sidebar', () => {
     expect(sidebarToggle('right', false)).toEqual({ action: 'collapse', points: 'right' });
     expect(sidebarToggle('right', true)).toEqual({ action: 'expand', points: 'left' });
+  });
+});
+
+describe('foldClearance', () => {
+  it('is how far the floating fold button reaches into the main column, and nothing when it is not there', () => {
+    expect(foldClearance(false)).toBe(0);
+    expect(foldClearance(true)).toBe(FOLD_BUTTON.inset + FOLD_BUTTON.size);
   });
 });
 

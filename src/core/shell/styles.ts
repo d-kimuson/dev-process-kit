@@ -43,6 +43,11 @@ export const chromeStyles = [
       display: contents;
     }
 
+    /*
+     * A page content's own bar: the template's controls, in a row of their own
+     * under the screen's header. It is hidden while the template offers none,
+     * so an empty one takes no room.
+     */
     .dpk-board-bar {
       display: flex;
       flex-wrap: wrap;
@@ -134,45 +139,8 @@ export const chromeStyles = [
       gap: 10px;
     }
 
-    .dpk-header-meta {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      margin-left: auto;
-      padding: 3px;
-      border-radius: 999px;
-      border: 1px solid var(--dpk-rule);
-      background: var(--dpk-paper-sunken);
-      font-family: var(--dpk-mono);
-      font-size: 10px;
-      letter-spacing: 0.02em;
-      color: var(--dpk-ink-faint);
-      white-space: nowrap;
-    }
-
-    .dpk-header-meta span {
-      padding: 3px 9px;
-    }
-
-    .dpk-header-meta span + span {
-      border-left: 1px solid var(--dpk-rule);
-    }
-
-    .dpk-version-select {
-      margin: -3px 0;
-      padding: 3px 8px 3px 6px;
-      border: 0;
-      border-radius: 4px;
-      background: transparent;
-      color: inherit;
-      font: inherit;
-      letter-spacing: inherit;
-    }
-
-    .dpk-version-select:hover {
-      color: var(--dpk-ink-soft);
-    }
-
+    /* The reader's own controls, in one pill at the end of the row: the
+       language select and the theme toggle. */
     .dpk-header-tools {
       display: flex;
       flex: none;
@@ -240,80 +208,10 @@ export const chromeStyles = [
       box-shadow: var(--dpk-focus);
     }
 
-    .dpk-check-toggle {
-      display: inline-flex;
-      flex: none;
-      align-items: center;
-      justify-content: center;
-      width: 26px;
-      height: 26px;
-      padding: 0;
-      border: 0;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--dpk-ink-soft);
-      cursor: pointer;
-      transition:
-        color 160ms var(--dpk-ease),
-        background 160ms var(--dpk-ease);
-    }
-
-    .dpk-check-toggle svg {
-      width: 14px;
-      height: 14px;
-    }
-
-    .dpk-check-toggle:hover {
-      color: var(--dpk-ink);
-      background: var(--dpk-paper-raised);
-    }
-
-    .dpk-check-toggle[data-active='true'] {
-      color: var(--dpk-accent-ink);
-      background: linear-gradient(180deg, var(--dpk-accent-bright), var(--dpk-accent));
-    }
-
-    .dpk-check-toggle:focus-visible {
-      outline: none;
-      box-shadow: var(--dpk-focus);
-    }
-
     /* ------------------------------------------------------------ changes */
 
-    .dpk-bell {
-      position: relative;
-      display: inline-flex;
-      flex: none;
-      align-items: center;
-      justify-content: center;
-      width: 26px;
-      height: 26px;
-      padding: 0;
-      border: 0;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--dpk-ink-soft);
-      cursor: pointer;
-      transition:
-        color 160ms var(--dpk-ease),
-        background 160ms var(--dpk-ease);
-    }
-
-    .dpk-bell svg {
-      width: 14px;
-      height: 14px;
-    }
-
-    .dpk-bell:hover,
-    .dpk-bell[aria-expanded='true'] {
-      color: var(--dpk-ink);
-      background: var(--dpk-paper-raised);
-    }
-
-    .dpk-bell:focus-visible {
-      outline: none;
-      box-shadow: var(--dpk-focus);
-    }
+    /* Check Mode's toggle and the changes bell are .dpk-chrome-action icon
+       buttons: their pressed and open states are that class's own. */
 
     .dpk-bell-badge {
       position: absolute;
@@ -944,17 +842,6 @@ export const chromeStyles = [
       flex: 1 1 auto;
     }
 
-    /* Review toggles: the changes and the review comments of the draft, each
-       opening its own part of the review. The last group of the header row,
-       laid out with it instead of floating over it, so it can never cover
-       another header control. */
-    .dpk-header-actions {
-      display: flex;
-      flex: none;
-      align-items: center;
-      gap: 6px;
-    }
-
     .dpk-review-toggles {
       display: flex;
       gap: 6px;
@@ -965,7 +852,7 @@ export const chromeStyles = [
       gap: 6px;
     }
 
-    .dpk-header-action {
+    .dpk-chrome-action {
       position: relative;
       display: inline-flex;
       align-items: center;
@@ -987,44 +874,44 @@ export const chromeStyles = [
         transform 220ms var(--dpk-ease-spring);
     }
 
-    .dpk-header-action svg {
+    .dpk-chrome-action svg {
       width: 16px;
       height: 16px;
     }
 
-    .dpk-header-action:hover {
+    .dpk-chrome-action:hover {
       color: var(--dpk-ink);
       border-color: var(--dpk-rule-hover);
       transform: translateY(-1px);
       box-shadow: var(--dpk-bevel), var(--dpk-shadow);
     }
 
-    .dpk-header-action:active {
+    .dpk-chrome-action:active {
       transform: translateY(0) scale(0.95);
       box-shadow: var(--dpk-shadow-xs);
     }
 
-    .dpk-header-action:focus-visible {
+    .dpk-chrome-action:focus-visible {
       outline: none;
       box-shadow: var(--dpk-focus);
     }
 
-    .dpk-header-action:disabled {
+    .dpk-chrome-action:disabled {
       color: var(--dpk-ink-faint);
       cursor: default;
       box-shadow: none;
       transform: none;
     }
 
-    .dpk-header-action:disabled:hover {
+    .dpk-chrome-action:disabled:hover {
       color: var(--dpk-ink-faint);
       border-color: var(--dpk-rule-strong);
       transform: none;
       box-shadow: none;
     }
 
-    .dpk-header-action[aria-pressed='true'],
-    .dpk-header-action[aria-expanded='true'] {
+    .dpk-chrome-action[aria-pressed='true'],
+    .dpk-chrome-action[aria-expanded='true'] {
       color: var(--dpk-accent-ink);
       border-color: color-mix(in srgb, var(--dpk-accent-strong) 70%, transparent);
       background: linear-gradient(145deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
@@ -1033,8 +920,8 @@ export const chromeStyles = [
         0 6px 16px -6px color-mix(in srgb, var(--dpk-accent) 70%, transparent);
     }
 
-    .dpk-header-action[aria-pressed='true']:hover,
-    .dpk-header-action[aria-expanded='true']:hover {
+    .dpk-chrome-action[aria-pressed='true']:hover,
+    .dpk-chrome-action[aria-expanded='true']:hover {
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.25),
         0 10px 22px -8px color-mix(in srgb, var(--dpk-accent) 80%, transparent);
@@ -1070,7 +957,7 @@ export const chromeStyles = [
     }
 
     /* What an icon button does, named below it on hover or keyboard focus. */
-    .dpk-header-action[data-tooltip]::after {
+    .dpk-chrome-action[data-tooltip]::after {
       content: attr(data-tooltip);
       position: absolute;
       top: calc(100% + 8px);
@@ -1092,16 +979,11 @@ export const chromeStyles = [
         transform 120ms var(--dpk-ease);
     }
 
-    .dpk-header-action[data-tooltip]:hover::after,
-    .dpk-header-action[data-tooltip]:focus-visible::after {
+    .dpk-chrome-action[data-tooltip]:hover::after,
+    .dpk-chrome-action[data-tooltip]:focus-visible::after {
       opacity: 1;
       transform: none;
       transition-delay: 250ms;
-    }
-
-    /* An open popover hangs where the labels would show, and names itself. */
-    .dpk-header-actions:has([aria-pressed='true'], [aria-expanded='true']) .dpk-header-action::after {
-      display: none;
     }
 
     /* ----------------------------------------------------------- settings */
@@ -1669,29 +1551,7 @@ export const chromeStyles = [
     }
 
     @media (max-width: 720px) {
-      /* The version select stays: it is the reader's only way to switch versions. */
-      .dpk-header-meta > :not(.dpk-version) {
-        display: none;
-      }
-
-      /* On a phone the row may be narrower than the select: it gives up its width. */
-      .dpk-header-meta {
-        min-width: 0;
-        max-width: 100%;
-      }
-
-      .dpk-header-meta > .dpk-version {
-        display: flex;
-        min-width: 0;
-      }
-
-      .dpk-header-meta .dpk-version-select {
-        width: 100%;
-        min-width: 0;
-        text-overflow: ellipsis;
-      }
-
-      /* The title takes the first row whole; the version select and tools wrap below it. */
+      /* The title takes the first row whole; the reader's tools wrap below it. */
       .dpk-title {
         flex: 1 0 100%;
       }
@@ -1700,8 +1560,8 @@ export const chromeStyles = [
         display: none;
       }
 
-      /* The page's own content goes last, so a long one cannot push the version
-         select and tools below it. */
+      /* The template's own content goes last, so a long one cannot push the
+         reader's tools below it. */
       .dpk-header-slot {
         order: 1;
       }

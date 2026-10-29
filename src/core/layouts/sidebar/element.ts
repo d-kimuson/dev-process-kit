@@ -8,6 +8,8 @@ import { SidebarCollapseController } from './collapse-controller';
 import { sidebarMessages } from './messages';
 import {
   DEFAULT_SIDEBAR_PANE,
+  FOLD_BUTTON,
+  foldClearance,
   SIDEBAR_WIDTH,
   sidebarArrangement,
   sidebarToggle,
@@ -65,7 +67,8 @@ class Pane {
  *
  * Parts: `rail`, `sidebar`, `main`, `resizer`, `toggle`, `bar`, `scrim`.
  * Custom properties: `--dpk-sidebar-padding`, `--dpk-sidebar-padding-end`,
- * `--dpk-sidebar-background`.
+ * `--dpk-sidebar-background`. It publishes `--dpk-fold-clearance-left` and
+ * `--dpk-fold-clearance-right` to the main column (`foldClearance`).
  */
 export class DpkInternalLayoutSidebar extends LitElement {
   static override styles: CSSResultGroup = [
@@ -202,10 +205,10 @@ export class DpkInternalLayoutSidebar extends LitElement {
       /* Folded: a button floating a little in from the main column's outer edge, big enough to hit. */
       .toggle[data-float] {
         position: absolute;
-        top: 10px;
+        top: ${FOLD_BUTTON.inset}px;
         z-index: 26;
-        width: 32px;
-        height: 32px;
+        width: ${FOLD_BUTTON.size}px;
+        height: ${FOLD_BUTTON.size}px;
         margin: 0;
         border-radius: var(--dpk-radius, 8px);
         box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
@@ -217,11 +220,11 @@ export class DpkInternalLayoutSidebar extends LitElement {
       }
 
       .toggle[data-float='left'] {
-        left: 10px;
+        left: ${FOLD_BUTTON.inset}px;
       }
 
       .toggle[data-float='right'] {
-        right: 10px;
+        right: ${FOLD_BUTTON.inset}px;
       }
 
       /* An open drawer: the button rides its edge as a round one, ready to close it. */
@@ -475,9 +478,20 @@ export class DpkInternalLayoutSidebar extends LitElement {
       </div>
       <div class="body" ?data-stack=${stack} ?data-resizing=${left.width.dragging || right.width.dragging}>
         ${this.#renderSidebar(left)}${this.#renderEdge(left)}
-        <div part="main" class="main"><slot></slot></div>
+        <div part="main" class="main" style=${this.#clearanceStyle()}><slot></slot></div>
         ${this.#renderEdge(right)}${this.#renderSidebar(right)} ${scrim}
       </div>`;
+  }
+
+  /**
+   * What the main column tells its own content about the fold buttons floating
+   * over it: how far each reaches in from that side (`foldClearance`), inherited
+   * by the slotted content, so a template's first row clears the button.
+   */
+  #clearanceStyle(): string {
+    return (['left', 'right'] as const)
+      .map((side) => `--dpk-fold-clearance-${side}: ${foldClearance(this.foldedOn(side))}px;`)
+      .join(' ');
   }
 
   #renderSidebar(pane: Pane): TemplateResult {

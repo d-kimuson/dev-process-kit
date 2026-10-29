@@ -96,6 +96,21 @@ export type SidebarToggle = {
   readonly points: SidebarSide;
 };
 
+/**
+ * The fold button's geometry once its side is folded: a square floating
+ * `inset` from the main column's edge. The styles draw it from these numbers,
+ * and `foldClearance` publishes how far it reaches into that column.
+ */
+export const FOLD_BUTTON = { inset: 10, size: 32 } as const;
+
+/**
+ * How far a folded side's button reaches into the main column from that side's
+ * edge, and `0` while nothing floats there. The layout publishes it to the
+ * column as `--dpk-fold-clearance-<side>`, so a template's own first row (the
+ * prototype's page head) clears the button instead of sitting under it.
+ */
+export const foldClearance = (folded: boolean): number => (folded ? FOLD_BUTTON.inset + FOLD_BUTTON.size : 0);
+
 const opposite = (side: SidebarSide): SidebarSide => (side === 'left' ? 'right' : 'left');
 
 export const sidebarToggle = (side: SidebarSide, collapsed: boolean): SidebarToggle =>

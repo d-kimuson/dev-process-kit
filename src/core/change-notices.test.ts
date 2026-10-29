@@ -79,10 +79,10 @@ describe('change notices', () => {
     expect(element.derivation.state.title).toBe('Order flow');
   });
 
-  it('announces unread changes with toasts and a badge on the header bell', async () => {
+  it('announces unread changes with toasts and a badge on the bell in the floating menu', async () => {
     const element = mount(changeLog('r2'));
     await settle(element);
-    expect(root(element).querySelector('.dpk-header-tools .dpk-bell')).not.toBeNull();
+    expect(root(element).querySelector('.dpk-floating-menu .dpk-bell')).not.toBeNull();
     expect(badge(element)).toBe('2');
     expect(bell(element)?.getAttribute('aria-label')).toBe(m.changesUnread(2));
     expect(toasts(element)).toEqual(['Background rewritten', 'Wording fixes']);

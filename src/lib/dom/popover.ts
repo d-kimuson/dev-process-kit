@@ -58,6 +58,12 @@ export const openPopover = (
         };
   element.style.width = `${size.width}px`;
   element.style.maxHeight = `${size.height}px`;
+  // The UA's `[popover]` rule pins all four insets (`inset: 0`) and centres the
+  // box with `margin: auto`, so a surface whose own CSS did not unset them —
+  // one rendered in a root that has no rule for it — would ignore the
+  // coordinates below and float mid-viewport. The helper always places the box
+  // itself, so the insets it does not compute are cleared here.
+  element.style.inset = 'auto';
   const update = (): void => {
     const request = ++revision;
     void computePosition(reference, element, {

@@ -114,7 +114,7 @@ describe('plain definition', () => {
 });
 
 describe('<dpk-view-plain>', () => {
-  it('renders the header chrome and slots the author content into main', async () => {
+  it('renders the page chrome and slots the author content into main', async () => {
     const element = mount();
     await settle(element);
     const root = element.shadowRoot;

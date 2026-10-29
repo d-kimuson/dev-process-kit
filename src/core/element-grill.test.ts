@@ -63,13 +63,13 @@ afterEach(() => {
 });
 
 describe('questions on any template', () => {
-  it('puts the questions toggle between the changes and the comments, counting answers', async () => {
+  it('puts the questions toggle after the changes and the comments, counting answers', async () => {
     const element = mount();
     await settle(element);
     const sections = [...root(element).querySelectorAll('.dpk-review-toggle')].map((button) =>
       button.getAttribute('data-section'),
     );
-    expect(sections).toEqual(['changes', 'questions', 'comments']);
+    expect(sections).toEqual(['comments', 'changes', 'questions']);
     expect(toggle(element, 'questions')?.getAttribute('data-tooltip')).toBe(messages.grill);
     expect(toggle(element, 'questions')?.querySelector('.dpk-review-badge')?.textContent).toBe('0/2');
   });
