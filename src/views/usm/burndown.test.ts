@@ -521,11 +521,16 @@ describe('usm estimates and burndown: element', () => {
     expect(settings.textContent).toContain(m.weightsNeedStatuses);
   });
 
-  it('keeps the weights off the statuses tab', async () => {
-    const el = await mount('#tab=statuses');
+  it('keeps the weights off the statuses section of the settings', async () => {
+    const el = await mount('');
     el.api.dispatch({ type: 'SET_MEASURE', target: { type: 'page', id: 'usm' }, payload: { measure: 'weighted' } });
     await settle(el);
-    expect(el.shadowRoot!.querySelector('dpk-internal-usm-weight-bar')).toBeNull();
+    el.openSettings('statuses');
+    await settle(el);
+    const section = el
+      .shadowRoot!.querySelector('dpk-internal-usm-settings-section')!
+      .shadowRoot!.querySelector('[data-testid="usm-statuses"]')!;
+    expect(section.querySelector('dpk-internal-usm-weight-bar')).toBeNull();
   });
 
   it('draws the combined chart and one per status, and records a snapshot', async () => {

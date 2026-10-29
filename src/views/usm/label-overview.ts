@@ -17,7 +17,7 @@ export type LabelOverview = {
   readonly rows: readonly LabelRow[];
 };
 
-/** The labels tab: each label in order and how many stories carry it. */
+/** The labels section of the settings: each label in order and how many stories carry it. */
 export const presentLabelOverview = (state: UsmState): LabelOverview => {
   const total = state.stories.length;
   const rows = state.labels.map((label, index) => {

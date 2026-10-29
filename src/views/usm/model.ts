@@ -568,7 +568,7 @@ export const findSnapshot = (state: UsmState, id: string | undefined): Snapshot 
   return state.snapshots.find((snapshot) => snapshot.id === id);
 };
 
-/** The labels a story carries, in the order of the labels tab. */
+/** The labels a story carries, in the order of the labels. */
 export const labelsOfStory = (state: UsmState, story: UserStory): readonly StoryLabel[] => {
   const carried = new Set(story.labelIds ?? []);
   return state.labels.filter((label) => carried.has(label.id));

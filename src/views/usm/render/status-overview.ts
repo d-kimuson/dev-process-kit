@@ -13,12 +13,12 @@ import { STATUS_ICONS, STATUS_TONES, type StatusTone, type UsmState } from '../m
 import { statusIcon, statusToneStyle } from './tone';
 
 /**
- * The statuses tab: the statuses a story can stand in, in order, each with its
- * color and how many stories stand there. Names, colors, order and the status
- * a story is done at are edited here; which status a story has is set on its
- * card.
+ * The statuses, in the settings dialog: the statuses a story can stand in, in
+ * order, each with its color and how many stories stand there. Names, colors,
+ * order, icon and the status a story is done at are edited here; which status
+ * a story has is set on its card.
  */
-/** The one icon menu the tab may have open, and how to open or close it. */
+/** The one icon menu the section may have open, and how to open or close it. */
 export type IconMenu = {
   readonly openFor: string | null;
   readonly toggle: (statusId: string) => void;

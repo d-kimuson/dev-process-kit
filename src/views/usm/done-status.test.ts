@@ -145,8 +145,7 @@ describe('usm done status: element', () => {
     document.body.innerHTML = '';
   });
 
-  it('picks the done status on the statuses tab', async () => {
-    window.location.hash = '#tab=statuses';
+  it('picks the done status in the statuses section of the settings', async () => {
     document.body.innerHTML = `
       <dpk-view-usm storage="memory">
         <script type="application/json">${JSON.stringify(raw)}</script>
@@ -154,7 +153,11 @@ describe('usm done status: element', () => {
     const el = document.querySelector('dpk-view-usm') as DpkViewUsm;
     await el.api.ready;
     await el.updateComplete;
-    const section = el.shadowRoot!.querySelector('[data-testid="usm-statuses"]')!;
+    el.openSettings('statuses');
+    await el.updateComplete;
+    const section = el
+      .shadowRoot!.querySelector('dpk-internal-usm-settings-section')!
+      .shadowRoot!.querySelector('[data-testid="usm-statuses"]')!;
     const choices = () => [...section.querySelectorAll<HTMLInputElement>('input[data-role="done"]')];
     expect(choices().map((choice) => choice.checked)).toEqual([false, false, false, true]);
     expect(new Set(choices().map((choice) => choice.name)).size).toBe(1);

@@ -256,14 +256,14 @@ describe('usm template', () => {
     document.body.innerHTML = '';
   });
 
-  it('splits the page into the map, milestones and statuses tabs', async () => {
+  it('splits the page into the map, milestones and table tabs', async () => {
     const el = mount();
     await settle(el);
     const root = el.shadowRoot!;
     // no per-milestone filter any more: every slice is always on the map
     expect(root.querySelector('.milestone-tabs')).toBeNull();
     const tabs = [...root.querySelectorAll('.page-tabs [role="tab"]')];
-    expect(tabs.map((t) => t.getAttribute('data-tab'))).toEqual(['map', 'table', 'milestones', 'statuses', 'labels']);
+    expect(tabs.map((t) => t.getAttribute('data-tab'))).toEqual(['map', 'table', 'milestones']);
     expect(root.querySelector('.page-tabs [aria-selected="true"]')?.getAttribute('data-tab')).toBe('map');
     expect(root.querySelector('[data-testid="usm-map"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="usm-milestones"]')).toBeNull();
@@ -540,7 +540,7 @@ describe('usm change notices', () => {
     expect(column?.classList.contains('col-head')).toBe(true);
     expect(column?.getAttribute('data-dpk-target')).toBe('step:a1.s2');
 
-    const activity = mountWithChange('activity:a1', '#tab=statuses');
+    const activity = mountWithChange('activity:a1', '#tab=milestones');
     await settle(activity);
     expect((await showChange(activity))?.classList.contains('act-head')).toBe(true);
   });

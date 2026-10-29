@@ -25,7 +25,7 @@ export type StatusOverview = {
   readonly rows: readonly StatusRow[];
 };
 
-/** The statuses tab: each status in order and how many stories stand there. */
+/** The statuses section of the settings: each status in order and how many stories stand there. */
 export const presentStatusOverview = (state: UsmState): StatusOverview => {
   const total = state.stories.length;
   const shareOf = (count: number): number => (total === 0 ? 0 : count / total);

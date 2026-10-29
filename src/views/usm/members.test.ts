@@ -108,9 +108,10 @@ describe('usm members: actions', () => {
     ).toMatchObject({ title: m.renameMember, targetLabel: 'Member · Kimura', summary: '“Kimura” → “Kim”' });
   });
 
-  it('lists members as comment targets and keeps the members tab in navigation', () => {
+  it('lists members as comment targets, and sends a stored members tab back to the map', () => {
     expect(definition.commentTargets(base, {}).filter((option) => option.group === m.memberGroup)).toHaveLength(2);
-    expect(definition.resolveNavigation(base, { tab: 'members' })['tab']).toBe('members');
+    // the members are defined in the settings dialog now, so the tab they used to have is gone
+    expect(definition.resolveNavigation(base, { tab: 'members' })['tab']).toBeUndefined();
   });
 });
 
@@ -155,11 +156,18 @@ describe('usm members: element', () => {
     document.body.innerHTML = '';
   });
 
-  it('edits the members on their own tab', async () => {
-    const el = await mount('#tab=members');
+  it('edits the members in the settings dialog', async () => {
+    const el = await mount('');
     const root = el.shadowRoot!;
-    expect(root.querySelector('[role="tab"][data-tab="members"]')?.getAttribute('aria-selected')).toBe('true');
-    const section = root.querySelector('[data-testid="usm-members"]')!;
+    expect(root.querySelector('[role="tab"][data-tab="members"]')).toBeNull();
+    el.openSettings('members');
+    await settle(el);
+    expect((root.querySelector('#dpk-settings') as HTMLDialogElement | null)?.open).toBe(true);
+    expect(root.querySelector('.dpk-dialog-nav-item[aria-current="true"]')?.textContent?.trim()).toBe(m.membersSection);
+    // A self-styled section renders inside its own element: read it from there.
+    const section = root
+      .querySelector('dpk-internal-usm-settings-section')!
+      .shadowRoot!.querySelector('[data-testid="usm-members"]')!;
     expect([...section.querySelectorAll('[data-member]')].map((row) => row.getAttribute('data-member'))).toEqual([
       'kim',
       'sato',

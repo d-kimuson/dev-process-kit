@@ -629,6 +629,7 @@ const renderCard = (props: BoardProps, story: UserStory, stepName: string): Temp
     aria-label=${story.name}
     style=${statusToneStyle(statusViewOf(views, story)?.tone)}
     .story=${story}
+    .map=${context.state}
     .stepName=${stepName}
     .statuses=${views}
     .labels=${labelsOfStory(context.state, story)}

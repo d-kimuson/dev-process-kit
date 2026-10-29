@@ -13,9 +13,9 @@ import { renderRowTools, renderShare, renderTonePicker } from './status-overview
 import { statusToneStyle } from './tone';
 
 /**
- * The labels tab: the labels a story may carry, in order, each with its color
- * and how many stories carry it. Names, colors and order are edited here;
- * which labels a story carries is set in its panel.
+ * The labels, in the settings dialog: the labels a story may carry, in order,
+ * each with its color and how many stories carry it. Names, colors and order
+ * are edited here; which labels a story carries is set in its panel.
  */
 export const renderLabelOverview = (
   m: UsmMessages,

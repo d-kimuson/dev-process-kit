@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
 import type { DpkViewUsm } from './element';
 
 import '../../index';
@@ -13,23 +14,61 @@ const raw = {
   ],
 };
 
+// A story with every kind of metadata a copy carries.
+const richRaw = {
+  activities: [{ id: 'a1', name: 'A1', steps: [{ id: 's1', name: 'S1' }] }],
+  milestones: [{ id: 'mvp', name: 'MVP' }],
+  statuses: [
+    { id: 'todo', name: 'Todo' },
+    { id: 'done', name: 'Done' },
+  ],
+  labels: [{ id: 'fe', name: 'frontend' }],
+  stories: [
+    { id: 'u1', name: 'U1', activityId: 'a1', stepId: 's1' },
+    {
+      id: 'u2',
+      name: 'U2',
+      activityId: 'a1',
+      stepId: 's1',
+      milestoneId: 'mvp',
+      labelIds: ['fe'],
+      description: 'As a user, I can sign in.',
+      links: [{ url: 'https://example.com/design', label: 'Design' }],
+    },
+  ],
+};
+
+const richInfo = [
+  '### STORY-2 U2',
+  '',
+  '- Status: Todo',
+  '- Step: A1 › S1 (MVP)',
+  '- Labels: frontend',
+  '- Links: [Design](https://example.com/design)',
+  '',
+  'As a user, I can sign in.',
+  '',
+].join('\n');
+
 const settle = async (el: DpkViewUsm): Promise<void> => {
   await el.updateComplete;
   await new Promise((resolve) => setTimeout(resolve, 0));
   await el.updateComplete;
 };
 
-const mount = async (hash: string): Promise<DpkViewUsm> => {
+const mountWith = async (base: unknown, hash: string): Promise<DpkViewUsm> => {
   window.location.hash = hash;
   document.body.innerHTML = `
     <dpk-view-usm storage="memory">
-      <script type="application/json">${JSON.stringify(raw)}</script>
+      <script type="application/json">${JSON.stringify(base)}</script>
     </dpk-view-usm>`;
   const el = document.querySelector('dpk-view-usm') as DpkViewUsm;
   await el.api.ready;
   await settle(el);
   return el;
 };
+
+const mount = (hash: string): Promise<DpkViewUsm> => mountWith(raw, hash);
 
 const card = (el: DpkViewUsm, id: string): HTMLElement =>
   el.shadowRoot!.querySelector(`dpk-internal-usm-story-card[data-story="${id}"]`) as HTMLElement;
@@ -139,5 +178,70 @@ describe('usm story panel: the story key', () => {
     const copied = panel(el)!.querySelector('[data-role="copy-key"]') as HTMLButtonElement;
     expect(copied.getAttribute('data-copied')).toBe('true');
     expect(copied.getAttribute('aria-label')).toBe('Copied');
+  });
+});
+
+describe('usm story copy: the panel buttons and the card menu', () => {
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'clipboard');
+  });
+
+  const clipboard = () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    return writeText;
+  };
+
+  const copyButton = (el: DpkViewUsm, role: string): HTMLButtonElement =>
+    panel(el)!.querySelector(`[data-role="${role}"]`) as HTMLButtonElement;
+
+  it('copies the story’s id and title from the panel and says so on that button alone', async () => {
+    const writeText = clipboard();
+    const el = await mountWith(richRaw, '#story=u2');
+    const button = copyButton(el, 'copy-id-title');
+    expect(button.getAttribute('aria-label')).toBe('Copy ID + title');
+    expect(button.getAttribute('data-copied')).toBe('false');
+    button.click();
+    await settle(el);
+    expect(writeText).toHaveBeenCalledWith('STORY-2 U2');
+    const copied = copyButton(el, 'copy-id-title');
+    expect(copied.getAttribute('data-copied')).toBe('true');
+    expect(copied.getAttribute('aria-label')).toBe('Copied');
+    // The other copy buttons are still the ones they were.
+    expect(copyButton(el, 'copy-info').getAttribute('data-copied')).toBe('false');
+    expect(copyButton(el, 'copy-key').getAttribute('data-copied')).toBe('false');
+  });
+
+  it('copies the card as Markdown from the panel', async () => {
+    const writeText = clipboard();
+    const el = await mountWith(richRaw, '#story=u2');
+    const button = copyButton(el, 'copy-info');
+    expect(button.getAttribute('aria-label')).toBe('Copy card as Markdown');
+    button.click();
+    await settle(el);
+    expect(writeText).toHaveBeenCalledWith(richInfo);
+    expect(copyButton(el, 'copy-info').getAttribute('data-copied')).toBe('true');
+  });
+
+  it('offers the id, the id and title, and the card as Markdown on a card’s right-click menu', async () => {
+    const writeText = clipboard();
+    const el = await mountWith(richRaw, '#story=u2');
+    const u2 = card(el, 'u2') as HTMLElement & {
+      getContextMenuItems(request: ContextMenuRequest): readonly ContextMenuGroup[] | null;
+    };
+    const groups = u2.getContextMenuItems({ clientX: 0, clientY: 0, target: null });
+    expect(groups?.map((group) => group.id)).toEqual(['usm-story-card']);
+    const entries = groups!.flatMap((group) => group.entries);
+    expect(entries.map((entry) => entry.id)).toEqual(['copy-story-id', 'copy-story-id-title', 'copy-story-info']);
+    expect(entries.map((entry) => entry.label)).toEqual(['Copy ID', 'Copy ID + title', 'Copy card as Markdown']);
+    for (const entry of entries) {
+      if (entry.kind === 'item') entry.run();
+    }
+    await settle(el);
+    expect(writeText.mock.calls.map(([text]) => text)).toEqual(['STORY-2', 'STORY-2 U2', richInfo]);
   });
 });

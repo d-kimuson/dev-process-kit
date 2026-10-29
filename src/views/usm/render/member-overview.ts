@@ -14,9 +14,10 @@ import { renderRowTools, renderShare, renderTonePicker } from './status-overview
 import { statusToneStyle } from './tone';
 
 /**
- * The members tab: the people stories may be assigned to, in order, each with
- * their color and how many stories they are assigned. Names, colors and order
- * are edited here; who a story is assigned to is set in its panel.
+ * The members, in the settings dialog: the people stories may be assigned to,
+ * in order, each with their color and how many stories they are assigned.
+ * Names, colors and order are edited here; who a story is assigned to is set
+ * in its panel.
  */
 export const renderMemberOverview = (
   m: UsmMessages,

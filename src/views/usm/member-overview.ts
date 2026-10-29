@@ -17,7 +17,7 @@ export type MemberOverview = {
   readonly rows: readonly MemberRow[];
 };
 
-/** The members tab: each member in order and how many stories they are assigned. */
+/** The members section of the settings: each member in order and how many stories they are assigned. */
 export const presentMemberOverview = (state: UsmState): MemberOverview => {
   const total = state.stories.length;
   const rows = state.members.map((member, index) => {

@@ -1,10 +1,11 @@
 import { css, html, nothing, type TemplateResult } from 'lit';
+import { FileText, Tag } from 'lucide';
 import * as v from 'valibot';
 
 import type { ViewRenderContext } from '../../../core/shell/contracts';
 import type { UsmMessages } from '../messages';
 
-import { iconCheck, iconClose, iconComment, iconCopy, iconTrash } from '../../../core/icons';
+import { iconCheck, iconClose, iconComment, iconCopy, iconTrash, lucide } from '../../../core/icons';
 import { createEntityId } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { describeLink } from '../../../lib/link-label';
@@ -20,21 +21,34 @@ import {
   type UsmState,
 } from '../model';
 import { statusViews } from '../status-view';
+import { storyIdTitle, storyInfoMarkdown } from '../story-copy';
 import { storyKey } from '../story-key';
 import { initialOf } from './avatar';
 import { renderDependencyPicker, type DependencyPicker } from './dependency-picker';
 import { linkIcon } from './link-icon';
 import { statusIcon, statusToneStyle } from './tone';
 
+const iconIdTitle = lucide(Tag);
+const iconCardInfo = lucide(FileText);
+
 /** The story the panel shows: the one the reader navigated to, if it still exists. */
 export const panelStoryOf = (context: ViewRenderContext<UsmState>): UserStory | undefined => {
   return findStory(context.state, context.navigation['story']);
 };
 
-/** Copying the story's key from the panel: the host keeps whether it was just copied. */
-export type StoryKeyCopy = {
-  readonly copied: boolean;
-  readonly copy: (key: string) => void;
+/** Copying from the panel: the host keeps the text it last copied. */
+export type StoryCopy = {
+  /** The text the last press copied, while the buttons say so; `null` once they may have been. */
+  readonly copied: string | null;
+  readonly copy: (text: string) => void;
+};
+
+/**
+ * The panel's "Manage …" links point at the definitions its fields read, and
+ * those live in the settings dialog: the host opens it on that section.
+ */
+export type StoryManage = {
+  readonly open: (section: 'labels' | 'members') => void;
 };
 
 /**
@@ -48,7 +62,8 @@ export const renderStoryPanel = (
   context: ViewRenderContext<UsmState>,
   story: UserStory,
   picker: DependencyPicker,
-  keyCopy: StoryKeyCopy,
+  copy: StoryCopy,
+  manage: StoryManage,
 ): TemplateResult => {
   const { state } = context;
   const target = { type: 'story', id: story.id };
@@ -75,7 +90,21 @@ export const renderStoryPanel = (
     </header>
     <div class="sp-body">
       <div class="sp-heading">
-        ${renderKeyButton(m, storyKey(story), keyCopy)}
+        <div class="sp-copy-row">
+          ${renderKeyButton(m, story, copy)}
+          ${renderCopyButton(m, copy, {
+            role: 'copy-id-title',
+            label: m.copyIdTitle,
+            text: storyIdTitle(story),
+            icon: iconIdTitle,
+          })}
+          ${renderCopyButton(m, copy, {
+            role: 'copy-info',
+            label: m.copyStoryInfo,
+            text: storyInfoMarkdown(m, state, story),
+            icon: iconCardInfo,
+          })}
+        </div>
         <h2 class="sp-title">
           <dpk-inline-edit
             wrap
@@ -87,8 +116,8 @@ export const renderStoryPanel = (
       </div>
       ${state.statuses.length === 0 ? nothing : renderStatusField(m, context, story)}
       ${hasFeature(state, 'estimates') ? renderEstimateField(m, context, story) : nothing}
-      ${hasFeature(state, 'assignees') ? renderAssigneeField(m, context, story) : nothing}
-      ${renderLabelsField(m, context, story)} ${renderDependenciesField(m, context, story, picker)}
+      ${hasFeature(state, 'assignees') ? renderAssigneeField(m, context, story, manage) : nothing}
+      ${renderLabelsField(m, context, story, manage)} ${renderDependenciesField(m, context, story, picker)}
       <section class="sp-field">
         <h3>${m.storyDescriptionLabel}</h3>
         <dpk-inline-edit
@@ -120,18 +149,45 @@ export const renderStoryPanel = (
 };
 
 /** The story's key, which a press copies so the reader can name the story to someone else. */
-const renderKeyButton = (m: UsmMessages, key: string, keyCopy: StoryKeyCopy): TemplateResult => {
-  const label = keyCopy.copied ? m.storyKeyCopied : m.copyStoryKey(key);
+const renderKeyButton = (m: UsmMessages, story: UserStory, copy: StoryCopy): TemplateResult => {
+  const key = storyKey(story);
+  const copied = copy.copied === key;
+  const label = copied ? m.storyKeyCopied : m.copyStoryKey(key);
   return html`<button
     class="sp-key"
     type="button"
     data-role="copy-key"
-    data-copied=${keyCopy.copied ? 'true' : 'false'}
+    data-copied=${copied ? 'true' : 'false'}
     title=${label}
     aria-label=${label}
-    @click=${() => keyCopy.copy(key)}
+    @click=${() => copy.copy(key)}
   >
-    <span>${key}</span>${keyCopy.copied ? iconCheck() : iconCopy()}
+    <span>${key}</span>${copied ? iconCheck() : iconCopy()}
+  </button>`;
+};
+
+/**
+ * The heading's other copy buttons: the key and title people call the story by,
+ * and the whole card as Markdown. Both say they copied the same way the key
+ * button does — a check and "Copied" for a moment.
+ */
+const renderCopyButton = (
+  m: UsmMessages,
+  copy: StoryCopy,
+  button: { readonly role: string; readonly label: string; readonly text: string; readonly icon: () => TemplateResult },
+): TemplateResult => {
+  const copied = copy.copied === button.text;
+  const label = copied ? m.storyKeyCopied : button.label;
+  return html`<button
+    class="dpk-icon-btn sp-copy"
+    type="button"
+    data-role=${button.role}
+    data-copied=${copied ? 'true' : 'false'}
+    title=${label}
+    aria-label=${label}
+    @click=${() => copy.copy(button.text)}
+  >
+    ${copied ? iconCheck() : button.icon()}
   </button>`;
 };
 
@@ -214,11 +270,12 @@ const renderEstimateField = (
   </section>`;
 };
 
-/** Who the story is assigned to, one member or no one; the members are kept on their tab. */
+/** Who the story is assigned to, one member or no one; the members are kept in the settings. */
 const renderAssigneeField = (
   m: UsmMessages,
   context: ViewRenderContext<UsmState>,
   story: UserStory,
+  manage: StoryManage,
 ): TemplateResult => {
   const current = story.assigneeId ?? null;
   const pick = (memberId: string | null) => (): void => {
@@ -228,7 +285,7 @@ const renderAssigneeField = (
   return html`<section class="sp-field">
     <h3 id="sp-assignee-label" class="sp-field-head">
       <span>${m.storyAssigneeLabel}</span>
-      <a class="sp-manage" href=${context.hashFor({ tab: 'members', story: null })}>${m.manageMembers}</a>
+      <button class="sp-manage" type="button" @click=${() => manage.open('members')}>${m.manageMembers}</button>
     </h3>
     ${
       context.state.members.length === 0
@@ -264,15 +321,20 @@ const renderAssigneeField = (
 
 /**
  * Every label of the map as a toggle: pressing one puts it on the story or
- * takes it off. The labels themselves are kept on the labels tab.
+ * takes it off. The labels themselves are kept in the settings.
  */
-const renderLabelsField = (m: UsmMessages, context: ViewRenderContext<UsmState>, story: UserStory): TemplateResult => {
+const renderLabelsField = (
+  m: UsmMessages,
+  context: ViewRenderContext<UsmState>,
+  story: UserStory,
+  manage: StoryManage,
+): TemplateResult => {
   const target = { type: 'story', id: story.id };
   const carried = new Set(story.labelIds ?? []);
   return html`<section class="sp-field">
     <h3 id="sp-labels-label" class="sp-field-head">
       <span>${m.storyLabelsLabel}</span>
-      <a class="sp-manage" href=${context.hashFor({ tab: 'labels', story: null })}>${m.manageLabels}</a>
+      <button class="sp-manage" type="button" @click=${() => manage.open('labels')}>${m.manageLabels}</button>
     </h3>
     ${
       context.state.labels.length === 0
@@ -533,6 +595,23 @@ export const storyPanelStyles = css`
   .sp-heading .sp-title {
     justify-self: stretch;
   }
+  /* The three copy buttons sit on one line, the key's chip first. */
+  .sp-copy-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .sp-copy {
+    width: 22px;
+    height: 22px;
+  }
+  .sp-copy svg {
+    width: 13px;
+    height: 13px;
+  }
+  .sp-copy[data-copied='true'] {
+    color: var(--dpk-green);
+  }
   .sp-key {
     display: inline-flex;
     align-items: center;
@@ -739,11 +818,17 @@ export const storyPanelStyles = css`
     gap: 8px;
   }
   .sp-manage {
+    /* A button, since it opens the settings dialog rather than moving the page. */
+    padding: 0;
+    border: 0;
+    background: none;
     color: var(--dpk-ink-faint);
+    font: inherit;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0;
     text-transform: none;
+    cursor: pointer;
   }
   .sp-manage:hover {
     color: var(--dpk-blue);

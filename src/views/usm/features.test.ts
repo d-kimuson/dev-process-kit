@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DraftAction } from '../../core/types';
-import type { DpkViewUsm } from './element';
 
 import '../../index';
+import { coreMessages } from '../../core/messages';
 import { applyUsmAction } from './apply';
 import { usmDefinitionFor } from './definition';
+import { DpkViewUsm } from './element';
 import { filterOptionIds } from './map-filter';
 import { usmMessages } from './messages';
 import { hasFeature, parseUsmBase, type UsmState } from './model';
@@ -82,9 +83,7 @@ describe('usm features: actions', () => {
 describe('usm features: navigation', () => {
   it('opens the tab of a feature only while it is on', () => {
     expect(definition.resolveNavigation(off, { tab: 'burndown' })['tab']).toBeUndefined();
-    expect(definition.resolveNavigation(off, { tab: 'members' })['tab']).toBeUndefined();
     expect(definition.resolveNavigation(on, { tab: 'burndown' })['tab']).toBe('burndown');
-    expect(definition.resolveNavigation(on, { tab: 'members' })['tab']).toBe('members');
   });
 
   it('offers the estimate and assignee filters only while their feature is on', () => {
@@ -98,11 +97,13 @@ describe('usm features: navigation', () => {
     });
   });
 
-  it('shows an estimate or a member on its tab only while its feature is on', () => {
+  it('shows an estimate on its page, and a status, label or member nowhere the page can go', () => {
     expect(definition.navigationFor?.(on, { type: 'estimate', id: 'S' })).toEqual({ tab: 'burndown' });
-    expect(definition.navigationFor?.(on, { type: 'member', id: 'kim' })).toEqual({ tab: 'members' });
     expect(definition.navigationFor?.(off, { type: 'estimate', id: 'S' })).toBeNull();
-    expect(definition.navigationFor?.(off, { type: 'member', id: 'kim' })).toBeNull();
+    // the map defines these in the settings dialog, which "Show" opens instead of navigating
+    expect(definition.navigationFor?.(on, { type: 'status', id: 'todo' })).toBeNull();
+    expect(definition.navigationFor?.(on, { type: 'label', id: 'dev' })).toBeNull();
+    expect(definition.navigationFor?.(on, { type: 'member', id: 'kim' })).toBeNull();
   });
 });
 
@@ -127,6 +128,9 @@ describe('usm features: element', () => {
 
   const tabs = (el: DpkViewUsm) =>
     [...el.shadowRoot!.querySelectorAll('.page-tabs [role="tab"]')].map((tab) => tab.getAttribute('data-tab'));
+  /** The settings sections after the kit's own `display`, in reading order. */
+  const settingsSections = (el: DpkViewUsm) =>
+    el.settingsSections.map((section) => section.id).filter((id) => id !== 'display');
 
   beforeEach(() => {
     window.location.hash = '';
@@ -136,7 +140,9 @@ describe('usm features: element', () => {
   it('leaves out everything of a feature that is off', async () => {
     const el = await mount('#story=u1');
     const root = el.shadowRoot!;
-    expect(tabs(el)).toEqual(['map', 'table', 'milestones', 'statuses', 'labels']);
+    expect(tabs(el)).toEqual(['map', 'table', 'milestones']);
+    // a member is defined in the settings, and its section is part of the feature too
+    expect(settingsSections(el)).toEqual(['statuses', 'labels']);
     const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
     expect(panel.querySelector('[data-estimate]')).toBeNull();
     expect(panel.querySelector('[data-assignee]')).toBeNull();
@@ -185,14 +191,43 @@ describe('usm features: element', () => {
       type: 'SET_FEATURE',
       payload: { feature: 'estimates', enabled: true },
     });
-    expect(tabs(el)).toEqual(['map', 'table', 'milestones', 'statuses', 'labels', 'burndown']);
+    expect(tabs(el)).toEqual(['map', 'table', 'milestones', 'burndown']);
     expect(option('estimates').getAttribute('aria-checked')).toBe('true');
     option('assignees').click();
     await settle(el);
-    expect(tabs(el)).toEqual(['map', 'table', 'milestones', 'statuses', 'labels', 'members', 'burndown']);
+    expect(tabs(el)).toEqual(['map', 'table', 'milestones', 'burndown']);
+    expect(settingsSections(el)).toEqual(['statuses', 'labels', 'members']);
     option('estimates').click();
     await settle(el);
     expect(el.api.state.features).toEqual(['assignees']);
+  });
+
+  it("builds the page's own sections only while the dialog is open", async () => {
+    const built = vi.spyOn(
+      DpkViewUsm.prototype as unknown as { renderSettingsSections: () => readonly unknown[] },
+      'renderSettingsSections',
+    );
+    const el = await mount('');
+    const root = el.shadowRoot!;
+    // Closed, the panel is an empty frame: nothing of the page's state is described.
+    expect(built).not.toHaveBeenCalled();
+    const trigger = root.querySelector('.dpk-settings-trigger') as HTMLButtonElement;
+    trigger.click();
+    await settle(el);
+    expect(built).toHaveBeenCalled();
+    expect([...root.querySelectorAll('.dpk-dialog-nav-item')].map((item) => item.textContent?.trim())).toEqual([
+      coreMessages('en').settingsDisplay,
+      m.statusesSection,
+      m.labelsSection,
+    ]);
+    // Closed again, a render builds none of them.
+    trigger.click();
+    await settle(el);
+    built.mockClear();
+    el.requestUpdate();
+    await settle(el);
+    expect(built).not.toHaveBeenCalled();
+    built.mockRestore();
   });
 
   it('closes the settings on a press outside them', async () => {
@@ -204,6 +239,10 @@ describe('usm features: element', () => {
     // jsdom has no PointerEvent; the listener only reads the path and the button.
     document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, composed: true, button: 0 }));
     await settle(el);
-    expect(root.querySelector('#dpk-settings')).toBeNull();
+    // The `<dialog>` stays mounted so it can fire `close` and hand focus back, so a
+    // closed one is still in the tree: the press closed it, it did not remove it.
+    const settings = root.querySelector('#dpk-settings') as HTMLDialogElement;
+    expect(settings).not.toBeNull();
+    expect(settings.open).toBe(false);
   });
 });

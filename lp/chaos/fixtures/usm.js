@@ -344,9 +344,9 @@ const wipStoryPanelOpen = {
 /** @type {Fixture} */
 const statusFilterAndMenu = {
   description:
-    '8 statuses (a long status filter menu) with a status filter applied via hash, and the icon-picker menu for one status opened programmatically.',
+    '8 statuses (a long status filter menu) with a status filter applied via hash, and the settings dialog on its statuses section with the icon-picker menu for one status opened programmatically.',
   lang: 'en',
-  hash: 'status=idea,ready,doing,done&tab=statuses',
+  hash: 'status=idea,ready,doing,done',
   base: {
     title: 'Status-heavy map',
     activities: [activity('a1', 'Deliver', undefined, [step('build', 'Build'), step('ship', 'Ship')])],
@@ -368,7 +368,10 @@ const statusFilterAndMenu = {
       }),
     ),
   },
-  prepare: (el) => {
+  prepare: async (el) => {
+    // The statuses live in the settings dialog now: open it on them, then their icon menu.
+    el.openSettings?.('statuses');
+    await el.updateComplete;
     const trigger = el.shadowRoot?.querySelector('[data-icon-trigger="ready"]');
     trigger?.click();
   },
@@ -377,7 +380,7 @@ const statusFilterAndMenu = {
 /** @type {Fixture} */
 const featuresAllOn = {
   description:
-    'Both optional features on: 12 members with long names on cards and in the story panel, an estimate on every story, and the features menu opened programmatically.',
+    'Both optional features on: 12 members with long names on cards and in the story panel, an estimate on every story, and the settings dialog opened programmatically.',
   lang: 'ja',
   hash: 'story=s0',
   base: {
@@ -403,9 +406,10 @@ const featuresAllOn = {
       }),
     ),
   },
-  prepare: (el) => {
-    const trigger = el.shadowRoot?.querySelector('[data-features-trigger]');
-    trigger?.click();
+  prepare: async (el) => {
+    // The feature switches are the settings dialog's `display` section now.
+    el.openSettings?.();
+    await el.updateComplete;
   },
 };
 

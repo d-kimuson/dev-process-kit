@@ -110,9 +110,12 @@ export const usmMessages = defineMessages({
     mapTab: 'User Story Mapping',
     tableTab: 'Table',
     milestonesTab: 'Milestones',
-    statusesTab: 'Statuses',
-    labelsTab: 'Labels',
     burndownTab: 'Burndown',
+
+    // ------------------------------------------------------ settings sections
+    statusesSection: 'Statuses',
+    labelsSection: 'Labels',
+    membersSection: 'Members',
 
     // ---------------------------------------------------- milestones tab
     shareOfStories: (percent: number) => `${percent}% of all stories`,
@@ -126,7 +129,7 @@ export const usmMessages = defineMessages({
     commentCountAria: (count: number) => (count === 1 ? '1 comment' : `${count} comments`),
     reviewCountAria: (count: number) => (count === 1 ? '1 review comment' : `${count} review comments`),
 
-    // ------------------------------------------------------- statuses tab
+    // ---------------------------------------------------- statuses (settings)
     statusNameLabel: 'Status name',
     statusToneLabel: 'Color',
     toneName: (tone: StatusTone) =>
@@ -177,7 +180,7 @@ export const usmMessages = defineMessages({
     weightLineValue: (before: string, beforeWeight: string, after: string, afterWeight: string) =>
       `${before} ${beforeWeight}, ${after} ${afterWeight}`,
 
-    // --------------------------------------------------------- labels tab
+    // ------------------------------------------------------ labels (settings)
     labelNameLabel: 'Label name',
     noLabelsTitle: 'No labels yet',
     noLabelsBody: 'You can add labels here.',
@@ -242,6 +245,14 @@ export const usmMessages = defineMessages({
     storyKeyColumn: 'Key',
     /** The context menu's own entry on a story card (copies the bare id, e.g. `STORY-6`). */
     copyId: 'Copy ID',
+    /** Copies `STORY-6 Title`, the name people call the story by. */
+    copyIdTitle: 'Copy ID + title',
+    /** Copies the story as Markdown: key, title, metadata and description. */
+    copyStoryInfo: 'Copy card as Markdown',
+    /** The Markdown copy's own field names: short, so the metadata list stays readable. */
+    copyInfoStep: 'Step',
+    copyInfoBlocks: 'Blocks',
+    copyInfoWaitsOn: 'Waits on',
     storyTitleLabel: 'Title',
     storyDescriptionLabel: 'Description',
     storyLinksLabel: 'Links',
@@ -285,7 +296,6 @@ export const usmMessages = defineMessages({
     reorderMember: 'Reorder member',
     setStoryAssignee: 'Assign story',
     memberGroup: 'Member',
-    membersTab: 'Members',
     memberNameLabel: 'Member name',
     noMembersTitle: 'No members yet',
     noMembersBody: 'Add the people on the team, then assign each story to the one who takes it on.',
@@ -421,9 +431,12 @@ export const usmMessages = defineMessages({
     mapTab: 'User Story Mapping',
     tableTab: 'テーブル',
     milestonesTab: 'マイルストーン',
-    statusesTab: 'ステータス',
-    labelsTab: 'ラベル',
     burndownTab: 'バーンダウン',
+
+    // ------------------------------------------------------ 設定のセクション
+    statusesSection: 'ステータス',
+    labelsSection: 'ラベル',
+    membersSection: 'メンバー',
 
     shareOfStories: (percent: number) => `全ストーリーの ${percent}%`,
     coverageLabel: 'バックボーンの網羅',
@@ -545,6 +558,11 @@ export const usmMessages = defineMessages({
     storyKeyCopied: 'コピーしました',
     storyKeyColumn: 'キー',
     copyId: 'IDをコピー',
+    copyIdTitle: 'ID + Title をコピー',
+    copyStoryInfo: 'カード情報をコピー',
+    copyInfoStep: 'ステップ',
+    copyInfoBlocks: 'ブロック',
+    copyInfoWaitsOn: '依存先',
     storyTitleLabel: 'タイトル',
     storyDescriptionLabel: '説明',
     storyLinksLabel: 'リンク',
@@ -587,7 +605,6 @@ export const usmMessages = defineMessages({
     reorderMember: 'メンバーの順序を変更',
     setStoryAssignee: 'ストーリーの担当者を変更',
     memberGroup: 'メンバー',
-    membersTab: 'メンバー',
     memberNameLabel: 'メンバー名',
     noMembersTitle: 'メンバーがまだいません',
     noMembersBody: 'チームのメンバーを追加し、各ストーリーを引き受ける人に割り当てます。',

@@ -127,9 +127,10 @@ describe('usm statuses: actions', () => {
     ).toMatchObject({ targetLabel: 'Status · Ready', summary: '“Amber” → “Blue”' });
   });
 
-  it('lists statuses as comment targets and keeps the statuses tab in navigation', () => {
+  it('lists statuses as comment targets, and sends a stored statuses tab back to the map', () => {
     expect(definition.commentTargets(base, {}).filter((option) => option.group === m.statusGroup)).toHaveLength(3);
-    expect(definition.resolveNavigation(base, { tab: 'statuses' })['tab']).toBe('statuses');
+    // the statuses are defined in the settings dialog now, so the tab they used to have is gone
+    expect(definition.resolveNavigation(base, { tab: 'statuses' })['tab']).toBeUndefined();
   });
 });
 
@@ -265,7 +266,7 @@ describe('usm statuses: element', () => {
     const head = el.shadowRoot!.querySelector('[data-testid="usm-board-head"]')!;
     expect(head.querySelector('.board-bar')).not.toBeNull();
     expect(head.querySelector('[data-testid="usm-map-toolbar"] [data-testid="usm-map-filter"]')).not.toBeNull();
-    el.api.navigate({ tab: 'statuses' });
+    el.api.navigate({ tab: 'milestones' });
     await settle(el);
     expect(el.shadowRoot!.querySelector('[data-testid="usm-map-toolbar"]')).toBeNull();
   });
@@ -333,9 +334,21 @@ describe('usm statuses: element', () => {
     expect(el.api.state.activities[0]).not.toHaveProperty('actor');
   });
 
-  it('edits the statuses on their own tab', async () => {
-    const el = await mount('#tab=statuses');
-    const section = el.shadowRoot!.querySelector('[data-testid="usm-statuses"]')!;
+  it('edits the statuses in the settings dialog, icon menu and all', async () => {
+    const el = await mount('');
+    const root = el.shadowRoot!;
+    expect(root.querySelector('[role="tab"][data-tab="statuses"]')).toBeNull();
+    el.openSettings('statuses');
+    await settle(el);
+    const dialog = root.querySelector('#dpk-settings') as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
+    expect(root.querySelector('.dpk-dialog-nav-item[aria-current="true"]')?.textContent?.trim()).toBe(
+      m.statusesSection,
+    );
+    // A self-styled section renders inside its own element (it is drawn by the
+    // dialog of whichever element owns the chrome), so read it from there.
+    const host = root.querySelector('dpk-internal-usm-settings-section') as HTMLElement;
+    const section = host.shadowRoot!.querySelector('[data-testid="usm-statuses"]')!;
     expect([...section.querySelectorAll('[data-status]')].map((row) => row.getAttribute('data-status'))).toEqual([
       'idea',
       'ready',
@@ -351,16 +364,21 @@ describe('usm statuses: element', () => {
     ]);
     [...section.querySelectorAll('button')].find((button) => button.textContent?.trim() === m.newStatusButton)!.click();
     expect(el.api.state.statuses).toHaveLength(4);
-    // the icon is picked from a menu its own icon opens
+    // the icon is picked from a menu its own icon opens, inside the settings dialog
     expect(section.querySelector('#icon-menu')).toBeNull();
     (section.querySelector('[data-icon-trigger="ready"]') as HTMLButtonElement).click();
     await el.updateComplete;
-    const menu = el.shadowRoot!.querySelector('#icon-menu')!;
+    const menu = host.shadowRoot!.querySelector('#icon-menu')!;
     expect([...menu.querySelectorAll('[role="menuitemradio"]')]).toHaveLength(10);
     expect(menu.querySelector('[aria-checked="true"]')?.getAttribute('data-icon')).toBe('progress');
     (menu.querySelector('[data-icon="play"]') as HTMLButtonElement).click();
     await el.updateComplete;
     expect(el.api.state.statuses.find((status) => status.id === 'ready')?.icon).toBe('play');
-    expect(el.shadowRoot!.querySelector('#icon-menu')).toBeNull();
+    expect(host.shadowRoot!.querySelector('#icon-menu')).toBeNull();
+    // the pick redrew the overview, and the dialog is still the one the reader was in
+    expect(section.querySelector('[data-status="ready"] [data-icon-trigger]')?.getAttribute('title')).toBe(
+      m.iconName('play'),
+    );
+    expect(dialog.open).toBe(true);
   });
 });

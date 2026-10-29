@@ -110,9 +110,10 @@ describe('usm labels: actions', () => {
     ).toMatchObject({ title: m.renameLabel, targetLabel: 'Label · Dev', summary: '“Dev” → “Engineering”' });
   });
 
-  it('lists labels as comment targets and keeps the labels tab in navigation', () => {
+  it('lists labels as comment targets, and sends a stored labels tab back to the map', () => {
     expect(definition.commentTargets(base, {}).filter((option) => option.group === m.labelGroup)).toHaveLength(2);
-    expect(definition.resolveNavigation(base, { tab: 'labels' })['tab']).toBe('labels');
+    // the labels are defined in the settings dialog now, so the tab they used to have is gone
+    expect(definition.resolveNavigation(base, { tab: 'labels' })['tab']).toBeUndefined();
   });
 });
 
@@ -149,11 +150,18 @@ describe('usm labels: element', () => {
     document.body.innerHTML = '';
   });
 
-  it('edits the labels on their own tab', async () => {
-    const el = await mount('#tab=labels');
+  it('edits the labels in the settings dialog', async () => {
+    const el = await mount('');
     const root = el.shadowRoot!;
-    expect(root.querySelector('[role="tab"][data-tab="labels"]')?.getAttribute('aria-selected')).toBe('true');
-    const section = root.querySelector('[data-testid="usm-labels"]')!;
+    expect(root.querySelector('[role="tab"][data-tab="labels"]')).toBeNull();
+    el.openSettings('labels');
+    await settle(el);
+    expect((root.querySelector('#dpk-settings') as HTMLDialogElement | null)?.open).toBe(true);
+    expect(root.querySelector('.dpk-dialog-nav-item[aria-current="true"]')?.textContent?.trim()).toBe(m.labelsSection);
+    // A self-styled section renders inside its own element: read it from there.
+    const section = root
+      .querySelector('dpk-internal-usm-settings-section')!
+      .shadowRoot!.querySelector('[data-testid="usm-labels"]')!;
     expect([...section.querySelectorAll('[data-label]')].map((row) => row.getAttribute('data-label'))).toEqual([
       'dev',
       'pdm',
@@ -199,5 +207,15 @@ describe('usm labels: element', () => {
     await settle(el);
     expect(toggles()[1]!.getAttribute('aria-pressed')).toBe('false');
     expect(el.api.state.stories.find((story) => story.id === 'u3')).not.toHaveProperty('labelIds');
+  });
+
+  it('opens the labels section of the settings from the story panel', async () => {
+    const el = await mount('#story=u3');
+    const root = el.shadowRoot!;
+    const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
+    (panel.querySelector('button.sp-manage') as HTMLButtonElement).click();
+    await settle(el);
+    expect((root.querySelector('#dpk-settings') as HTMLDialogElement | null)?.open).toBe(true);
+    expect(root.querySelector('.dpk-dialog-section')?.getAttribute('data-dialog-section')).toBe('labels');
   });
 });

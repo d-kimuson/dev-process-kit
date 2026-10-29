@@ -597,9 +597,11 @@ export const usmTitle = (state: UsmState): string => {
  * The navigation that brings a target on screen, for a change's "Show": a
  * story, step or activity on the map grouped by activity, unfiltered (with
  * the finished stories shown, for a finished one) and without a highlight so
- * the story shows plainly; a milestone, a status, a label or a member on its own page; an
- * estimate or a snapshot on the burndown. A target of a feature that is off is
- * not on screen anywhere.
+ * the story shows plainly; a milestone on its own page; an estimate or a
+ * snapshot on the burndown. A status, a label and a member are defined in the
+ * settings dialog rather than on a page, so they move no page and only open it
+ * (`DpkViewUsm.showTarget`). A target of a feature that is off is not on
+ * screen anywhere.
  */
 export const usmNavigationFor = (state: UsmState, target: ActionTarget): NavigationPatch | null => {
   switch (target.type) {
@@ -619,11 +621,11 @@ export const usmNavigationFor = (state: UsmState, target: ActionTarget): Navigat
     case 'milestone':
       return { tab: 'milestones' };
     case 'status':
-      return { tab: 'statuses' };
     case 'label':
-      return { tab: 'labels' };
     case 'member':
-      return hasFeature(state, 'assignees') ? { tab: 'members' } : null;
+      // Defined in the settings dialog, which the show opens: leaping to a page
+      // would move the reader away from it for nothing.
+      return null;
     case 'estimate':
     case 'snapshot':
       return hasFeature(state, 'estimates') ? { tab: 'burndown' } : null;

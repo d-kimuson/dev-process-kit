@@ -32,11 +32,12 @@ export type TabsMenu = {
 };
 
 /**
- * The bar above the content: the page tabs (the map, its milestones, statuses
- * and labels, and the tabs of the features that are on), on the map the
- * grouping toggle that only makes sense there. The optional features are
- * switched on from the settings in the shared header. The tabs keep to one line: the ones that do not fit fold behind a more button,
- * all but the current one.
+ * The bar above the content: the page tabs (the map, its milestones and its
+ * burndown), on the map the grouping toggle that only makes sense there. The
+ * optional features are switched on from the settings, and what the map is
+ * made of (its statuses, labels and members) is defined there too. The tabs
+ * keep to one line: the ones that do not fit fold behind a more button, all but
+ * the current one.
  */
 export const renderBoardBar = (
   m: UsmMessages,
@@ -113,12 +114,6 @@ const tabLabel = (m: UsmMessages, tab: UsmTab): string => {
       return m.tableTab;
     case 'milestones':
       return m.milestonesTab;
-    case 'statuses':
-      return m.statusesTab;
-    case 'labels':
-      return m.labelsTab;
-    case 'members':
-      return m.membersTab;
     case 'burndown':
       return m.burndownTab;
   }
@@ -132,12 +127,6 @@ const tabCount = (state: UsmState, tab: UsmTab): number => {
       return state.stories.length;
     case 'milestones':
       return state.milestones.length;
-    case 'statuses':
-      return state.statuses.length;
-    case 'labels':
-      return state.labels.length;
-    case 'members':
-      return state.members.length;
     case 'burndown':
       return state.snapshots.length;
   }

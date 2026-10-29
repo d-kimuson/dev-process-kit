@@ -6,7 +6,8 @@ import type {
   MatrixReorderSubColumnDetail,
 } from '../../components/matrix';
 import type { Locale } from '../../core/i18n';
-import type { ShellRegions, ViewRenderContext } from '../../core/shell/contracts';
+import type { ShellRegions, SettingsSection, ViewRenderContext } from '../../core/shell/contracts';
+import type { ActionTarget } from '../../core/types';
 
 import { controlAtom } from '../../components/atoms/controls';
 import { ViewElement } from '../../core/element';
@@ -21,25 +22,22 @@ import { PriorityOverflowController } from '../../lib/dom/priority-overflow';
 import { revealInlineWithin, revealWithin } from '../../lib/dom/scroll';
 import { usmTabOf, type UsmTab } from './board-tabs';
 import { defineUsmBurndownChart } from './components/burndown-chart';
+import { defineInternalUsmSettingsSection } from './components/settings-section';
 import { defineUsmStoryCard } from './components/story-card';
 import { defineUsmWeightBar } from './components/weight-bar';
 import { highlightedStoriesOf, highlightOf } from './critical-path';
 import { usmDefinitionFor } from './definition';
 import { resolveCellDrop, resolveGroupDrop, resolvePickedStepMove, type CellRef } from './drop';
-import { presentLabelOverview } from './label-overview';
-import { presentMemberOverview } from './member-overview';
 import { usmMessages, type UsmMessages } from './messages';
 import { presentMilestoneOverview } from './milestone-overview';
-import { findStory, flatSteps, stepRefOf, type UsmState } from './model';
+import { findStory, flatSteps, hasFeature, stepRefOf, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
 import { burndownStyles, renderBurndown } from './render/burndown';
 import { dependencyPickerStyles, type DependencyPicker } from './render/dependency-picker';
 import { highlightStyles } from './render/highlight';
-import { renderLabelOverview } from './render/label-overview';
 import { linkStyles } from './render/link-icon';
 import { mapFilterStyles } from './render/map-filter';
 import { mapToolbarStyles, renderMapToolbar } from './render/map-toolbar';
-import { renderMemberOverview } from './render/member-overview';
 import { renderMilestoneOverview } from './render/milestone-overview';
 import { renderMoveDialog } from './render/move-dialog';
 import {
@@ -50,24 +48,45 @@ import {
   TABS_MENU_PADDING,
   TABS_MENU_WIDTH,
 } from './render/page-tabs';
-import { renderStatusOverview } from './render/status-overview';
-import { panelStoryOf, renderStoryPanel, storyPanelStyles, type StoryKeyCopy } from './render/story-panel';
+import { renderSettingsSection } from './render/settings-section';
+import {
+  panelStoryOf,
+  renderStoryPanel,
+  storyPanelStyles,
+  type StoryCopy,
+  type StoryManage,
+} from './render/story-panel';
 import { renderStoryTable } from './render/story-table';
 import { statusStyles } from './render/tone';
-import { presentStatusOverview } from './status-overview';
-import { storyKey } from './story-key';
 import { usmStyles } from './styles';
 import { IDLE_MODE, type UsmUiMode } from './ui-mode';
 
 const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
-const ICON_MENU_SIZE = { width: 228, height: 116 };
+
+/**
+ * The settings dialog's sections, after the kit's `display`: the statuses the
+ * stories move through, the labels they carry and the members they are
+ * assigned to. What the map is made of is defined there rather than on a page
+ * of its own; `openSettings(id)` opens one of them.
+ */
+const STATUSES_SECTION = 'statuses';
+const LABELS_SECTION = 'labels';
+const MEMBERS_SECTION = 'members';
+
+/** The settings section a target of the map's own model is defined in, for a change's "Show". */
+const SETTINGS_SECTION_OF: { readonly [type: string]: string | undefined } = {
+  status: STATUSES_SECTION,
+  label: LABELS_SECTION,
+  member: MEMBERS_SECTION,
+};
+
 const FILTER_MENU_WIDTH = 240;
 /** The height of one choice in a filter menu, and of the menu's padding: the room the menu asks for. */
 const FILTER_OPTION_HEIGHT = 31;
 const FILTER_MENU_PADDING = 14;
 /** Room kept around a highlighted card brought into view: about the backbone's height and the milestone column's width. */
 const HIGHLIGHT_REVEAL_MARGIN = 160;
-/** How long the story panel's key button says it copied the key. */
+/** How long the story panel's copy buttons say what they copied. */
 const COPIED_MS = 1500;
 
 /**
@@ -120,8 +139,8 @@ export class DpkViewUsm extends ViewElement<UsmState> {
   });
   /** Whether the map has brought its highlight into view since it was turned on, so the reader's own scrolling is left alone. */
   #revealedHighlight = false;
-  /** The story key the panel just copied, while its button says so. */
-  #copiedKey: string | null = null;
+  /** The text the story panel just copied, while its buttons say so. */
+  #copied: string | null = null;
   #copiedTimer: ReturnType<typeof setTimeout> | undefined;
   readonly #milestoneSelect = new SelectController(this);
   readonly #moveDialogSelect = new SelectController(this);
@@ -165,11 +184,45 @@ export class DpkViewUsm extends ViewElement<UsmState> {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     clearTimeout(this.#copiedTimer);
-    this.#copiedKey = null;
+    this.#copied = null;
   }
 
   protected override renderRegions(context: ViewRenderContext<UsmState>): ShellRegions {
     return { main: this.#renderMain(context) };
+  }
+
+  /**
+   * What the map is made of, in the settings dialog after the kit's `display`:
+   * the statuses a story can stand in, the labels it may carry and the people
+   * it may be assigned to — each the overview it always was, rendered in its own
+   * `<dpk-usm-settings-section>` so it looks the same whichever element draws
+   * the dialog. The members are offered while the feature that uses them is on.
+   */
+  protected override renderSettingsSections(
+    context: ViewRenderContext<UsmState>,
+  ): readonly SettingsSection<UsmState>[] {
+    const m = usmMessages(this.locale);
+    const sections = [
+      renderSettingsSection(STATUSES_SECTION, m.statusesSection, 'statuses', this.locale),
+      renderSettingsSection(LABELS_SECTION, m.labelsSection, 'labels', this.locale),
+    ];
+    if (hasFeature(context.state, 'assignees')) {
+      sections.push(renderSettingsSection(MEMBERS_SECTION, m.membersSection, 'members', this.locale));
+    }
+    return sections;
+  }
+
+  /**
+   * A change's "Show" for a status, a label or a member opens its section of
+   * the settings dialog: that is where the map defines them, and navigation
+   * cannot reach into the panel. A member is part of a feature, so while that
+   * is off there is nowhere to show one.
+   */
+  protected override showTarget(target: ActionTarget): void {
+    const section = SETTINGS_SECTION_OF[target.type];
+    if (section === undefined) return;
+    if (target.type === 'member' && !hasFeature(this.context().state, 'assignees')) return;
+    this.openSettings(section);
   }
 
   protected override updated(): void {
@@ -178,13 +231,6 @@ export class DpkViewUsm extends ViewElement<UsmState> {
     this.#syncPanelFocus();
     if (this.mode.kind === 'picking-dependency') {
       this.#syncDependencyChoices();
-      return;
-    }
-    // A status's icon menu hangs off the icon that opened it.
-    if (this.mode.kind === 'picking-icon') {
-      const menu = this.renderRoot.querySelector<HTMLElement>('#icon-menu');
-      const trigger = this.renderRoot.querySelector(`[data-icon-trigger="${CSS.escape(this.mode.statusId)}"]`);
-      if (menu && trigger) this.#popovers.open(menu, trigger, ICON_MENU_SIZE);
       return;
     }
     // A filter's menu hangs off its trigger, as tall as its choices.
@@ -346,20 +392,22 @@ export class DpkViewUsm extends ViewElement<UsmState> {
       search: this.mode.kind === 'picking-dependency' ? this.mode.search : null,
       set: (search) => (this.mode = search ? { kind: 'picking-dependency', search } : IDLE_MODE),
     };
-    const keyCopy: StoryKeyCopy = {
-      copied: this.#copiedKey === storyKey(story),
-      copy: (key) => void this.#copyKey(key),
+    const copy: StoryCopy = {
+      copied: this.#copied,
+      copy: (text) => void this.#copy(text),
     };
-    return renderStoryPanel(m, context, story, picker, keyCopy);
+    const manage: StoryManage = { open: (section) => this.openSettings(section) };
+    return renderStoryPanel(m, context, story, picker, copy, manage);
   }
 
-  async #copyKey(key: string): Promise<void> {
-    if (!(await copyText(key))) return;
+  /** Puts `text` on the clipboard and lets the panel say so for a moment. */
+  async #copy(text: string): Promise<void> {
+    if (!(await copyText(text))) return;
     clearTimeout(this.#copiedTimer);
-    this.#copiedKey = key;
+    this.#copied = text;
     this.requestUpdate();
     this.#copiedTimer = setTimeout(() => {
-      this.#copiedKey = null;
+      this.#copied = null;
       this.requestUpdate();
     }, COPIED_MS);
   }
@@ -370,19 +418,6 @@ export class DpkViewUsm extends ViewElement<UsmState> {
         return renderStoryTable(m, context);
       case 'milestones':
         return renderMilestoneOverview(m, context, presentMilestoneOverview(context.state));
-      case 'statuses':
-        return renderStatusOverview(m, context, presentStatusOverview(context.state), {
-          openFor: this.mode.kind === 'picking-icon' ? this.mode.statusId : null,
-          toggle: (statusId) => {
-            const open = this.mode.kind === 'picking-icon' && this.mode.statusId === statusId;
-            this.mode = open ? IDLE_MODE : { kind: 'picking-icon', statusId };
-          },
-          close: () => (this.mode = IDLE_MODE),
-        });
-      case 'labels':
-        return renderLabelOverview(m, context, presentLabelOverview(context.state));
-      case 'members':
-        return renderMemberOverview(m, context, presentMemberOverview(context.state));
       case 'burndown':
         return renderBurndown(m, context, new Date(), this.#milestoneSelect);
       case 'map':
@@ -483,6 +518,7 @@ export class DpkViewUsm extends ViewElement<UsmState> {
 
 export const defineUsmElement = (): void => {
   defineUsmStoryCard();
+  defineInternalUsmSettingsSection();
   defineUsmBurndownChart();
   defineUsmWeightBar();
   if (!customElements.get('dpk-view-usm')) customElements.define('dpk-view-usm', DpkViewUsm);

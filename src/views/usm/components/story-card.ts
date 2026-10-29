@@ -3,7 +3,6 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { Lock, Network } from 'lucide';
 
 import type { ContextMenuGroup, ContextMenuRequest } from '../../../core/context-menu/types';
-import type { Estimate, Member, StoryLabel, StoryLink, UserStory } from '../model';
 
 import { cardAtom } from '../../../components/atoms/card';
 import { iconComment, iconNote, lucide } from '../../../core/icons';
@@ -13,10 +12,20 @@ import { copyText } from '../../../lib/dom/clipboard';
 import { describeLink } from '../../../lib/link-label';
 import { renderMarkdown } from '../../../lib/markdown';
 import { usmMessages, type UsmMessages } from '../messages';
+import {
+  emptyUsmBase,
+  type Estimate,
+  type Member,
+  type StoryLabel,
+  type StoryLink,
+  type UserStory,
+  type UsmState,
+} from '../model';
 import { initialOf } from '../render/avatar';
 import { linkIcon, linkStyles } from '../render/link-icon';
 import { statusIcon, statusStyles, statusToneStyle } from '../render/tone';
 import { statusViewOf, type StatusView } from '../status-view';
+import { storyIdTitle, storyInfoMarkdown } from '../story-copy';
 import { storyKey } from '../story-key';
 
 const iconBlocks = lucide(Network);
@@ -124,6 +133,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
 
   static override properties = {
     story: { attribute: false },
+    map: { attribute: false },
     stepName: { attribute: false },
     statuses: { attribute: false },
     labels: { attribute: false },
@@ -139,11 +149,17 @@ export class DpkInternalUsmStoryCard extends LitElement {
   };
 
   declare story: UserStory | null;
+  /**
+   * The map the card sits in, for the Markdown its right-click menu copies
+   * (the step's path, the other stories' keys). The host that renders the map
+   * hands it to every card; a card shown on its own copies what it has.
+   */
+  declare map: UsmState;
   /** The story's step, shown where the column does not already say it; `''` hides it. */
   declare stepName: string;
   /** The statuses the map defines; with none, the card shows no status. */
   declare statuses: readonly StatusView[];
-  /** The labels the story carries, in the order of the labels tab. */
+  /** The labels the story carries, in the order of the labels. */
   declare labels: readonly StoryLabel[];
   /** How many review comments in the draft ask the agent for a change to this story. */
   declare reviewCount: number;
@@ -167,6 +183,7 @@ export class DpkInternalUsmStoryCard extends LitElement {
   constructor() {
     super();
     this.story = null;
+    this.map = emptyUsmBase();
     this.stepName = '';
     this.statuses = [];
     this.labels = [];
@@ -181,7 +198,11 @@ export class DpkInternalUsmStoryCard extends LitElement {
     this.relation = null;
   }
 
-  /** The card's own context-menu contribution: copy this story's id (e.g. `STORY-6`), not the page's URL. */
+  /**
+   * The card's own context-menu contribution: the story's key (`STORY-6`), its
+   * key and title, or the whole card as Markdown — how people pass a story on
+   * to someone else, rather than the page's URL.
+   */
   getContextMenuItems(_request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
     const story = this.story;
     if (!story) return null;
@@ -190,7 +211,21 @@ export class DpkInternalUsmStoryCard extends LitElement {
     return [
       {
         id: 'usm-story-card',
-        entries: [{ kind: 'item', id: 'copy-story-id', label: m.copyId, run: () => void copyText(key) }],
+        entries: [
+          { kind: 'item', id: 'copy-story-id', label: m.copyId, run: () => void copyText(key) },
+          {
+            kind: 'item',
+            id: 'copy-story-id-title',
+            label: m.copyIdTitle,
+            run: () => void copyText(storyIdTitle(story)),
+          },
+          {
+            kind: 'item',
+            id: 'copy-story-info',
+            label: m.copyStoryInfo,
+            run: () => void copyText(storyInfoMarkdown(m, this.map, story)),
+          },
+        ],
       },
     ];
   }
