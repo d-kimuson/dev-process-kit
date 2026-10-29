@@ -255,8 +255,8 @@ export const slidesStyles = css`
     background: linear-gradient(90deg, var(--dpk-accent-bright), var(--dpk-accent-strong));
   }
 
-  /* Full screen: the stage alone, the slide as large as the screen allows. */
-  .stage:fullscreen {
+  /* Full screen, entered from the presentation surface: the slide as large as the screen allows. */
+  .presentation:fullscreen {
     align-items: center;
     padding: 0;
     border: none;
@@ -264,12 +264,160 @@ export const slidesStyles = css`
     box-shadow: none;
     background: var(--dpk-dots), var(--dpk-paper-sunken);
   }
-
-  .stage:fullscreen .slide {
+  .presentation:fullscreen .slide {
     width: min(100vw, calc(100vh * 16 / 9));
     border: none;
     border-radius: 0;
     box-shadow: none;
+  }
+
+  /* ------------------------------------------------------------ notes */
+
+  /*
+   * The presenter's material, under the stage and never on it: what is written
+   * here is shown to the presenter alone (here, and in presentation mode).
+   */
+  .slide-notes {
+    display: grid;
+    gap: 8px;
+    width: min(100%, 1180px);
+    padding: 12px 14px;
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper);
+  }
+
+  .slide-notes-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+  }
+
+  .slide-notes-hint {
+    font-size: 11.5px;
+    color: var(--dpk-ink-faint);
+  }
+
+  .slide-notes-input {
+    min-height: 56px;
+    resize: vertical;
+    font-size: 13px;
+  }
+
+  .slide-notes-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .slide-notes-submit-hint {
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+    color: var(--dpk-ink-faint);
+    white-space: nowrap;
+  }
+
+  /* ------------------------------------------------------ presentation */
+
+  /*
+   * Presentation mode: the slide as the whole screen, owned by the view rather
+   * than by the browser's full screen API, so it works in a sandboxed frame and
+   * can be exercised without a browser. It covers the shell, including the
+   * outline and the deck bar, which are not rendered while it is open.
+   */
+  .presentation {
+    position: fixed;
+    inset: 0;
+    /*
+     * It is a manual popover, and the UA's [popover] rule sizes that to the
+     * content (width: fit-content) and centres it with margin: auto, which
+     * would leave the stage a small box in the middle of the screen rather than
+     * the screen itself. Pinned to all four edges with an automatic size, it
+     * covers the viewport.
+     */
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    z-index: 60;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    justify-items: center;
+    align-content: center;
+    gap: 14px;
+    padding: 20px clamp(16px, 3vw, 40px);
+    background: var(--dpk-dots), var(--dpk-paper-sunken);
+  }
+
+  .presentation:focus-visible {
+    outline: none;
+  }
+
+  .presentation-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 0;
+  }
+
+  /* As large as the screen allows, leaving room for the bar and the notes. */
+  .presentation .slide {
+    width: min(100%, calc((100dvh - 200px) * 16 / 9));
+    border: none;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
+  }
+
+  .presentation-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-glass);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+  }
+
+  .presentation-move {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .presentation-move .dpk-icon-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .presentation-bar .dpk-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .presentation-notes {
+    width: min(100%, 1180px);
+    max-height: 22dvh;
+    overflow-y: auto;
+    padding: 10px 14px;
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-lg);
+    background: var(--dpk-paper);
+  }
+
+  .presentation-notes-body {
+    margin: 4px 0 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--dpk-ink);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   /* ---------------------------------------------------------------- bar */

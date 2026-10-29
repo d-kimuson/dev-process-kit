@@ -167,16 +167,21 @@ const line = "${longAscii(320)}";
     ],
   },
 
-  'wip-unsent-comment-and-fullscreen': {
+  'wip-unsent-comment-and-present': {
     description:
-      'Navigates to a middle slide, then (prepare) types a very long unsent comment into the per-slide form without submitting and clicks "Full screen" — both are work-in-progress UI states, not draft actions.',
+      'Navigates to a middle slide, then (prepare) types a very long unsent comment into the per-slide form and a half-written note into the notes pane, both without submitting, and enters presentation mode — all work-in-progress UI state, not draft actions.',
     lang: 'en',
     hash: 'slide=middle',
     base: {
       title: 'Mid-interaction capture',
       slides: [
         { id: 'first', layout: 'title', title: 'First slide' },
-        { id: 'middle', title: 'The slide the reader is looking at', points: ['One point', 'Another point'] },
+        {
+          id: 'middle',
+          title: 'The slide the reader is looking at',
+          points: ['One point', 'Another point'],
+          notes: `${longAscii(180)} ${longJa(180)}`,
+        },
         { id: 'last', title: 'Last slide' },
       ],
     },
@@ -187,10 +192,39 @@ const line = "${longAscii(320)}";
           textarea.value = `${longAscii(200)} ${longJa(200)}`;
           textarea.dispatchEvent(new Event('input', { bubbles: true }));
         }
-        el.shadowRoot?.querySelector('.deck-fullscreen')?.click();
+        const notes = el.shadowRoot?.querySelector('.slide-notes-input');
+        if (notes) {
+          notes.value = `${longJa(260)}`;
+          notes.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        el.shadowRoot?.querySelector('.deck-present')?.click();
       } catch {
         // best-effort UI setup only
       }
     },
+  },
+
+  'notes-and-comments': {
+    description:
+      'Every slide carries speaker notes (one of them very long), while comments pile up on the same slides: the notes pane under the stage and the comment list must stay apart, and presentation shows the notes beside the slide.',
+    lang: 'ja',
+    hash: 'present=1&slide=second',
+    base: {
+      title: 'ノート付きのデッキ',
+      slides: [
+        { id: 'first', layout: 'title', title: 'ノートのあるデッキ', notes: longJa(120) },
+        {
+          id: 'second',
+          title: '長いノートのスライド',
+          points: ['ポイント 1', 'ポイント 2'],
+          notes: `${longJa(400)}\n\n${longAscii(300)}\n\n${rtlEmojiMix()}`,
+        },
+        { id: 'third', title: 'ノートのないスライド' },
+      ],
+    },
+    comments: [
+      ['slide:second', 'ノートではなく、スライドへのコメント。'],
+      ['slide:third', longAscii(160)],
+    ],
   },
 };

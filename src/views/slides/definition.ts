@@ -1,6 +1,7 @@
 import type { Locale } from '../../core/i18n';
 import type { ActionTarget, ViewDefinition } from '../../core/types';
 
+import { applySlidesAction, slidesActions } from './actions';
 import { slidesMessages } from './messages';
 import { emptySlidesBase, findSlide, parseSlidesBase, type SlidesState } from './model';
 import {
@@ -24,8 +25,9 @@ export const slidesHasTarget = (state: SlidesState, target: ActionTarget): boole
 };
 
 /**
- * No actions: a deck is the author's explanation, and what a reader sends back
- * is questions and remarks on it. `apply` therefore never has anything to apply.
+ * A deck is the author's explanation, and what a reader sends back is mostly
+ * remarks on it — so the vocabulary is deliberately small: the speaker notes are
+ * the one thing a reader rewrites into the page itself, as a patch.
  */
 export const slidesDefinitionFor = (locale: Locale): ViewDefinition<SlidesState> => {
   const m = slidesMessages(locale);
@@ -37,8 +39,8 @@ export const slidesDefinitionFor = (locale: Locale): ViewDefinition<SlidesState>
     addable: false,
     parseBase: parseSlidesBase,
     emptyBase: emptySlidesBase,
-    actions: {},
-    apply: () => null,
+    actions: slidesActions,
+    apply: applySlidesAction,
     hasTarget: slidesHasTarget,
     describe: (action, state) => describeSlidesAction(m, action, state),
     serialize: serializeSlidesAction,

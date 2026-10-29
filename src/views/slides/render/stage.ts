@@ -6,25 +6,26 @@ import type { SlideStep } from '../interactions';
 import type { SlidesMessages } from '../messages';
 import type { Slide, SlidesState } from '../model';
 
-import { iconChevronLeft, iconChevronRight, iconClose, iconMaximize } from '../../../core/icons';
-import { targetRef } from '../../../core/target';
+import { iconClose } from '../../../core/icons';
 import { slideComments, slidePosition, type SlideComment } from '../present';
+import { renderNotes, type NotesOptions } from './notes';
+import { renderParkedBodies, renderSlide, renderSlideMove } from './slide';
 
 export type StageOptions = {
-  /** Whether the browser lets this page go full screen (a sandboxed frame may not). */
-  readonly canFullscreen: boolean;
   /** The unsent comment on a slide; each slide keeps its own. */
   readonly draftFor: (slideId: string) => string;
+  /** The notes pane: the unsent text on a slide, and its explicit submit. */
+  readonly notes: NotesOptions;
   readonly onStep: (step: SlideStep) => void;
-  readonly onFullscreen: () => void;
+  readonly onPresent: () => void;
   readonly onDraft: (slideId: string, body: string) => void;
   readonly onComment: (slideId: string) => void;
   readonly onDeleteComment: (commentId: string) => void;
 };
 
 /**
- * The slide on screen, the bar that moves through the deck, and the comments
- * on the slide with a form to add one.
+ * The slide on screen, the bar that moves through the deck, the notes written
+ * for it and the comments on it.
  *
  * The slide body is author markup (`slot="preview"` + `data-preview-id` = the
  * slide id), routed into a slot this element renders. Slot assignment does not
@@ -47,76 +48,29 @@ export const renderStage = (
     <div class="deck">
       <div class="stage">${renderSlide(slide, index)}</div>
       <div class="dpk-toolbar deck-bar">
-        <div class="deck-move">
-          <button
-            class="dpk-icon-btn deck-prev"
-            type="button"
-            aria-label=${m.previous}
-            title=${m.previous}
-            ?disabled=${position.previous === undefined}
-            @click=${() => options.onStep('previous')}
-          >
-            ${iconChevronLeft()}
-          </button>
-          <span class="deck-counter" role="status" aria-label=${m.position(index + 1, total)}>
-            <strong>${index + 1}</strong> / ${total}
-          </span>
-          <button
-            class="dpk-icon-btn deck-next"
-            type="button"
-            aria-label=${m.next}
-            title=${m.next}
-            ?disabled=${position.next === undefined}
-            @click=${() => options.onStep('next')}
-          >
-            ${iconChevronRight()}
-          </button>
-        </div>
+        ${renderSlideMove(m, {
+          position: {
+            index,
+            total,
+            hasPrevious: position.previous !== undefined,
+            hasNext: position.next !== undefined,
+          },
+          onStep: options.onStep,
+          prefix: 'deck',
+        })}
         <div class="deck-progress" aria-hidden="true">
           <span style=${`width:${((index + 1) / total) * 100}%`}></span>
         </div>
-        ${
-          options.canFullscreen
-            ? html`<button
-                class="dpk-btn deck-fullscreen"
-                type="button"
-                title=${m.fullscreenHint}
-                @click=${options.onFullscreen}
-              >
-                ${iconMaximize()} ${m.fullscreen}
-              </button>`
-            : nothing
-        }
+        <button class="dpk-btn deck-present" type="button" title=${m.fullscreenHint} @click=${options.onPresent}>
+          ${m.present}
+        </button>
       </div>
+      ${renderNotes(m, slide, options.notes)}
       ${renderComments(m, slide, slideComments(context.comments, slide.id), options)}
       ${renderParkedBodies(context.state, slide.id)}
     </div>
   `;
 };
-
-const renderSlide = (slide: Slide, index: number): TemplateResult => html`
-  <article
-    class="slide"
-    data-layout=${slide.layout}
-    data-dpk-target=${targetRef({ type: 'slide', id: slide.id })}
-    aria-roledescription="slide"
-    aria-label=${`${index + 1}. ${slide.title}`}
-  >
-    <div class="slide-content">
-      <h2 class="slide-title">${slide.title}</h2>
-      ${slide.subtitle === '' ? nothing : html`<p class="slide-subtitle">${slide.subtitle}</p>`}
-      ${
-        slide.points.length === 0
-          ? nothing
-          : html`<ul class="slide-points">
-              ${slide.points.map((point) => html`<li>${point}</li>`)}
-            </ul>`
-      }
-      <div class="slide-body"><slot name=${`preview:${slide.id}`}></slot></div>
-    </div>
-    <span class="slide-number" aria-hidden="true">${index + 1}</span>
-  </article>
-`;
 
 /**
  * What the reader asks or wants changed is about the slide in front of them, so
@@ -185,17 +139,4 @@ const renderComments = (
       </div>
     </section>
   `;
-};
-
-/**
- * Every slide body except the one on screen still needs a slot in this shadow
- * root; otherwise it would fall back to the generic `slot="preview"` bucket and
- * show up as an orphan.
- */
-const renderParkedBodies = (state: SlidesState, currentId: string): TemplateResult | typeof nothing => {
-  const parked = state.slides.filter((slide) => slide.id !== currentId);
-  if (parked.length === 0) return nothing;
-  return html`<div class="parked" aria-hidden="true">
-    ${parked.map((slide) => html`<slot name=${`preview:${slide.id}`}></slot>`)}
-  </div>`;
 };

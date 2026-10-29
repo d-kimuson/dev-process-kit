@@ -25,6 +25,12 @@ export type Slide = {
   readonly title: string;
   readonly subtitle: string;
   readonly points: readonly string[];
+  /**
+   * What the presenter says over this slide. It is never drawn on the slide:
+   * the deck shows it in a pane of its own, and presentation mode shows it to
+   * the presenter alone.
+   */
+  readonly notes: string;
 };
 
 export type SlidesState = {
@@ -38,6 +44,7 @@ const slideSchema = v.strictObject({
   title: v.pipe(v.string(), v.minLength(1)),
   subtitle: v.optional(v.string(), ''),
   points: v.optional(v.array(v.string()), []),
+  notes: v.optional(v.string(), ''),
 });
 
 export const slidesBaseSchema = v.strictObject({

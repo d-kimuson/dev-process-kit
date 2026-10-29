@@ -1,21 +1,23 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { DpkViewSlides } from './element';
-
 import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import '../../index';
+import { SET_SLIDE_NOTES, applySlidesAction, slidesActions } from './actions';
 import { slidesDefinitionFor, slidesHasTarget } from './definition';
+import { DpkViewSlides } from './element';
 import { slideKeyStep, stepSlide } from './interactions';
 import { slidesMessages } from './messages';
 import { parseSlidesBase } from './model';
 import {
   describeSlidesAction,
   resolveSlidesNavigation,
+  serializeSlidesAction,
   slideComments,
   slidePosition,
   slidesCommentTargets,
   slidesCurrentTarget,
+  slidesPresenting,
   slidesTargetLabel,
 } from './present';
 
@@ -42,6 +44,22 @@ describe('slides base data', () => {
       title: '更新の流れ',
       subtitle: '',
       points: [],
+      notes: '',
+    });
+  });
+
+  it('carries the speaker notes an author wrote, and defaults them to none', () => {
+    const state = parseSlidesBase({
+      slides: [
+        { id: 'a', title: 'A', notes: 'まず結論から。' },
+        { id: 'b', title: 'B' },
+      ],
+    });
+    expect(state.slides.map((slide) => slide.notes)).toEqual(['まず結論から。', '']);
+    // An old deck without notes parses exactly as it did.
+    expect(parseSlidesBase({ slides: [{ id: 'a', title: 'A' }] })).toEqual({
+      title: '',
+      slides: [{ id: 'a', layout: 'content', title: 'A', subtitle: '', points: [], notes: '' }],
     });
   });
 
@@ -57,8 +75,9 @@ describe('slides base data', () => {
     expect(() => parseSlidesBase({ slides: [{ id: 'a.b', title: 'A' }] })).toThrow();
     expect(() => parseSlidesBase({ slides: [{ id: 'a', title: 'A', layout: 'grid' }] })).toThrow();
     expect(() => parseSlidesBase({ slides: [{ id: 'a', title: 'A', body: 'x' }] })).toThrow();
-    // What the reader needs belongs on the slide: there are no speaker notes.
-    expect(() => parseSlidesBase({ slides: [{ id: 'a', title: 'A', notes: 'x' }] })).toThrow();
+    // Notes are part of the slide; anything else still is an error, and `notes` takes text only.
+    expect(() => parseSlidesBase({ slides: [{ id: 'a', title: 'A', presenter: 'x' }] })).toThrow();
+    expect(() => parseSlidesBase({ slides: [{ id: 'a', title: 'A', notes: 1 }] })).toThrow();
     expect(() => parseSlidesBase({ title: 'x', typo: 1 })).toThrow();
   });
 });
@@ -71,6 +90,21 @@ describe('slides navigation', () => {
     expect(resolveSlidesNavigation(state, { slide: 'how' })).toEqual({ slide: 'how' });
     expect(resolveSlidesNavigation(state, { slide: 'gone', other: 'x' })).toEqual({ slide: 'cover', other: 'x' });
     expect(resolveSlidesNavigation(parseSlidesBase({}), { slide: 'gone' })).toEqual({});
+  });
+
+  it('keeps `present=1` in the hash and drops any other value of it', () => {
+    expect(resolveSlidesNavigation(state, { present: '1' })).toEqual({ slide: 'cover', present: '1' });
+    expect(resolveSlidesNavigation(state, { slide: 'how', present: '1' })).toEqual({ slide: 'how', present: '1' });
+    // Viewing state, canonicalized like the slide: only "on" is worth a shareable link.
+    expect(resolveSlidesNavigation(state, { slide: 'how', present: '0' })).toEqual({ slide: 'how' });
+    expect(resolveSlidesNavigation(state, { present: 'yes' })).toEqual({ slide: 'cover' });
+    expect(slidesPresenting({ present: '1' })).toBe(true);
+    expect(slidesPresenting({ present: '0' })).toBe(false);
+    expect(slidesPresenting({})).toBe(false);
+  });
+
+  it('never lets the present key open a presentation of an empty deck', () => {
+    expect(resolveSlidesNavigation(parseSlidesBase({}), { present: '1' })).toEqual({});
   });
 
   it('positions the current slide between its neighbours', () => {
@@ -169,10 +203,48 @@ describe('slides definition', () => {
     expect(slideComments(comments, 'how')).toEqual([]);
   });
 
-  it('has no actions of its own and titles itself', () => {
-    expect(definition.actions).toEqual({});
+  it('declares the notes patch as its only action and titles itself', () => {
+    expect(Object.keys(definition.actions)).toEqual([SET_SLIDE_NOTES]);
+    expect(slidesActions[SET_SLIDE_NOTES]?.mode).toBe('patch');
+    expect(slidesActions[SET_SLIDE_NOTES]?.targetType).toBe('slide');
     expect(definition.title(state)).toBe('楽観的ロックを 5 分で');
     expect(definition.title(parseSlidesBase({}))).toBe('Slides');
+  });
+
+  it('applies a notes patch to the slide it targets', () => {
+    const notes = {
+      id: 'n1',
+      type: SET_SLIDE_NOTES,
+      target: { type: 'slide', id: 'problem' },
+      payload: { notes: 'ここで実際の画面を見せる。' },
+      createdAt: '2026-01-01T00:00:00Z',
+    };
+    const next = definition.apply(state, notes);
+    expect(next?.slides.map((slide) => slide.notes)).toEqual(['', 'ここで実際の画面を見せる。', '', '']);
+    // Pure: the state it was given is untouched.
+    expect(state.slides[1]?.notes).toBe('');
+    // A note on a slide that is gone cannot apply, and a malformed payload never does.
+    expect(applySlidesAction(state, { ...notes, target: { type: 'slide', id: 'gone' } })).toBeNull();
+    expect(applySlidesAction(state, { ...notes, payload: { notes: 1 } })).toBeNull();
+    expect(applySlidesAction(state, { ...notes, target: { type: 'page', id: 'problem' } })).toBeNull();
+  });
+
+  it('describes and serializes a notes patch for a human and for the agent', () => {
+    const notes = {
+      id: 'n1',
+      type: SET_SLIDE_NOTES,
+      target: { type: 'slide', id: 'how' },
+      payload: { notes: 'ここで図を指す' },
+      createdAt: '2026-01-01T00:00:00Z',
+    };
+    expect(describeSlidesAction(m, notes, state)).toEqual({
+      title: 'Speaker notes',
+      targetLabel: '3. 仕組み',
+      tone: 'update',
+    });
+    expect(describeSlidesAction(m, notes, state).title).not.toBe(SET_SLIDE_NOTES);
+    expect(serializeSlidesAction(notes)).toBe('SET_SLIDE_NOTES slide:how {"notes":"ここで図を指す"}');
+    expect(describeSlidesAction(m, notes, parseSlidesBase({})).targetLabel).toBe('how');
   });
 });
 
@@ -411,6 +483,28 @@ describe('<dpk-view-slides>', () => {
     await settle(element);
     expect(element.shadowRoot?.querySelector('.deck-empty')?.textContent).toContain('slides');
     expect(element.shadowRoot?.querySelector('.deck-bar')).toBeNull();
+  });
+});
+
+describe('slides presentation styles', () => {
+  /** Every rule of the element's own cascade, flattened, as text. */
+  const ownStyles = (): string => {
+    const flatten = (styles: unknown): unknown[] => (Array.isArray(styles) ? styles.flatMap(flatten) : [styles]);
+    return flatten(DpkViewSlides.styles)
+      .map((style) => (style as { cssText?: string }).cssText ?? '')
+      .join('\n');
+  };
+
+  // The overlay is a manual popover, and the UA's `[popover]` rule sizes one to
+  // its content and centres it with `margin: auto`: without undoing that the
+  // stage is a small box in the middle of the screen, not the screen.
+  it('stretches the presentation overlay to the whole screen', () => {
+    const css = ownStyles();
+    const block = /\.presentation \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(block).toContain('inset: 0');
+    expect(block).toContain('width: auto');
+    expect(block).toContain('height: auto');
+    expect(block).toContain('margin: 0');
   });
 });
 
