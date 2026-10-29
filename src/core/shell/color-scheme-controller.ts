@@ -8,6 +8,7 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import { defaultJsonStore, memoryJsonStore, type JsonStore } from '../../lib/dom/json-store';
 import {
   parseColorScheme,
+  pickedPreference,
   resolveColorScheme,
   toggledPreference,
   type ColorScheme,
@@ -71,9 +72,19 @@ export class ColorSchemeController implements ReactiveController {
   }
 
   toggle(authored: ColorScheme | null): void {
-    this.#preference = toggledPreference(this.#sources(authored));
-    if (this.#preference === null) this.#store?.remove(STORAGE_KEY);
-    else this.#store?.write(STORAGE_KEY, this.#preference);
+    this.#apply(toggledPreference(this.#sources(authored)));
+  }
+
+  /** The reader's outright pick (the settings dialog's two options), persisted like the toggle. */
+  pick(authored: ColorScheme | null, scheme: ColorScheme): void {
+    this.#apply(pickedPreference(this.#sources(authored), scheme));
+  }
+
+  #apply(preference: ColorScheme | null): void {
+    if (preference === this.#preference) return;
+    this.#preference = preference;
+    if (preference === null) this.#store?.remove(STORAGE_KEY);
+    else this.#store?.write(STORAGE_KEY, preference);
     this.#host.requestUpdate();
   }
 

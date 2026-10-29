@@ -96,6 +96,10 @@ Add `boards.js` when the page uses a board — this is how `dpk-board-event-stor
 hosted as a page's content. Add `components.js` when the page uses components the view does not
 carry. `index.js` is the union of all of them.
 
+The page switcher's **+** menu does not need every entry up front: it offers the views and boards
+that can be a page of their own, and loads `views/<name>.js` or `boards.js` from the same version
+when the reader picks one ([page.md](page.md#load-it)).
+
 ## Minimal document
 
 ```html
@@ -325,7 +329,10 @@ draft action.
   content's own header controls and your `slot="header"` markup, and, at the end, the language
   select, the theme toggle and the settings gear. The gear opens the settings dialog: the page's own
   switches and any section its view renders, in one frame whose height stays the same as the reader
-  switches sections. The row wraps rather than squeezing its
+  switches sections. It also repeats the header's language select and light/dark choice in an
+  **Appearance** section, so a page whose content has nothing to configure still opens something
+  real; with only that one section the dialog fits it instead of drawing a tall empty frame. The row
+  wraps rather than squeezing its
   content, and on a phone the title takes a row of its own.
 - **The floating menu** carries the page's own controls, in one row or one column: the grip, undo and
   redo, the review's sections (**Review comments**, **Activity log**, and **Questions** while the page

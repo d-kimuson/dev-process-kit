@@ -5,8 +5,10 @@
  */
 import * as v from 'valibot';
 
-import { PAGE_NAME_PATTERN } from '../page/page-target';
-import { defineAction, type ActionSpecs } from '../schema';
+import type { DraftAction } from '../types';
+
+import { PAGE_NAME_PATTERN, isAppWide, splitPage } from '../page/page-target';
+import { defineAction, parseViewAction, type ActionSpecs } from '../schema';
 
 const pageNameSchema = v.pipe(v.string(), v.regex(PAGE_NAME_PATTERN));
 
@@ -44,3 +46,22 @@ export const appActions = {
 } satisfies ActionSpecs;
 
 export type AppActionType = keyof typeof appActions;
+
+/**
+ * The page an app-wide action is about. Every one of them names its page in
+ * its payload, so taking a page back finds all of them: a rename and a removal
+ * share the app-wide target with every other page's, and only the payload says
+ * which page they belong to.
+ */
+export const pageOfAppAction = (action: DraftAction): string | null => {
+  const parsed = parseViewAction(appActions, action);
+  return parsed === null ? null : parsed.payload.page;
+};
+
+/**
+ * Whether an action is about one page: its own target, or an app-wide action
+ * whose payload names it. This is the one rule "take the page back" uses, so
+ * an app action added later is not silently left behind.
+ */
+export const belongsToPage = (action: DraftAction, page: string): boolean =>
+  isAppWide(action.target) ? pageOfAppAction(action) === page : splitPage(action.target)?.page === page;

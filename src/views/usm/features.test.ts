@@ -217,9 +217,12 @@ describe('usm features: element', () => {
     expect(built).toHaveBeenCalled();
     expect([...root.querySelectorAll('.dpk-dialog-nav-item')].map((item) => item.textContent?.trim())).toEqual([
       coreMessages('en').settingsDisplay,
+      coreMessages('en').settingsAppearance,
       m.statusesSection,
       m.labelsSection,
     ]);
+    // Several sections keep one frame, so switching one never resizes or moves the panel.
+    expect(root.querySelector('#dpk-settings')?.getAttribute('data-height')).toBe('fixed');
     // Closed again, a render builds none of them.
     trigger.click();
     await settle(el);

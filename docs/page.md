@@ -32,8 +32,11 @@ every view exposes ([index.md](index.md#slots-and-styling)).
 ## Load it
 
 Every view entry registers `<dpk-app>` and `<dpk-page>`. Load the entries of the views and boards
-the document holds, or `index.js` for all of them. The **+** offers the views and boards whose
-entry is loaded, so load `index.js` when the reader should be able to add a page of any kind.
+the document holds, or `index.js` for all of them. The **+** offers the views and boards that can
+be a page of their own — the USM view, and the boards a reader can start from empty (Whiteboard,
+Example Mapping, Event Storming, Kanban) — whether or not their entry is loaded: picking one loads
+`views/<name>.js` or `boards.js` from the same version, next to the entry already running
+([index.md](index.md#load-it)).
 
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/index.js"></script>

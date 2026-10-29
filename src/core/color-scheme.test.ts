@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseColorScheme, resolveColorScheme, toggledPreference } from './color-scheme';
+import { parseColorScheme, pickedPreference, resolveColorScheme, toggledPreference } from './color-scheme';
 
 describe('parseColorScheme', () => {
   it('accepts only light and dark', () => {
@@ -38,5 +38,16 @@ describe('toggledPreference', () => {
   it('treats the authored scheme as the default to fall back to', () => {
     expect(toggledPreference({ preference: 'light', authored: 'dark', environment: 'light' })).toBeNull();
     expect(toggledPreference({ preference: null, authored: 'dark', environment: 'dark' })).toBe('light');
+  });
+});
+
+describe('pickedPreference', () => {
+  it('stores an outright pick', () => {
+    expect(pickedPreference({ preference: null, authored: null, environment: 'light' }, 'dark')).toBe('dark');
+  });
+
+  it('picking the default forgets the choice, exactly as the toggle does', () => {
+    expect(pickedPreference({ preference: 'dark', authored: null, environment: 'light' }, 'light')).toBeNull();
+    expect(pickedPreference({ preference: 'light', authored: 'dark', environment: 'light' }, 'dark')).toBeNull();
   });
 });

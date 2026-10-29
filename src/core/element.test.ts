@@ -379,6 +379,43 @@ describe('<dpk-view-prototype>', () => {
     expect(el.shadowRoot?.querySelector('.dpk-banner')).not.toBeNull();
   });
 
+  it('adopts a base script written after it started, and clears the banner it showed', async () => {
+    document.body.innerHTML = '<dpk-view-prototype storage="memory"></dpk-view-prototype>';
+    const el = document.querySelector('dpk-view-prototype') as DpkViewPrototype;
+    await settle(el);
+    expect(el.shadowRoot?.querySelector('.dpk-banner')).not.toBeNull();
+    const script = document.createElement('script');
+    script.type = 'application/json';
+    script.textContent = JSON.stringify({ title: 'Late', activities: [] });
+    el.append(script);
+    await settle(el);
+    await Promise.resolve();
+    await el.updateComplete;
+    expect(el.api.state.title).toBe('Late');
+    expect(el.shadowRoot?.querySelector('.dpk-banner')).toBeNull();
+  });
+
+  it('reads an empty base script once it is filled in, and recovers from invalid JSON', async () => {
+    document.body.innerHTML = `
+      <dpk-view-prototype storage="memory">
+        <script type="application/json"></script>
+      </dpk-view-prototype>`;
+    const el = document.querySelector('dpk-view-prototype') as DpkViewPrototype;
+    await settle(el);
+    expect(el.shadowRoot?.querySelector('.dpk-banner')).not.toBeNull();
+    const script = el.querySelector('script');
+    if (script === null) throw new Error('no script');
+    script.textContent = '{"activities":[{"id":"a","name":"A","oops":true}]}';
+    await settle(el);
+    expect(el.shadowRoot?.querySelector('.dpk-banner')).not.toBeNull();
+    script.textContent = JSON.stringify({ title: 'Fixed', activities: [] });
+    await settle(el);
+    await Promise.resolve();
+    await el.updateComplete;
+    expect(el.api.state.title).toBe('Fixed');
+    expect(el.shadowRoot?.querySelector('.dpk-banner')).toBeNull();
+  });
+
   it('exposes the rendered description and serialization through the definition', () => {
     expect(prototypeDefinitionFor('en').name).toBe('prototype');
     expect(prototypeDefinitionFor('en').label).toBe('UX Prototype');

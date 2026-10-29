@@ -34,6 +34,7 @@ import { dialogStyles } from '../dialog/styles';
 import { ViewElement, type SettingsSwitches } from '../element';
 import { GRILL_ATTRIBUTE, GRILL_TARGET_TYPE, type Grill } from '../grill';
 import { iconPlus, iconSwitch, lucide } from '../icons';
+import { PAGE_STATE_EVENT, isPageContentState, type PageContentState } from '../page/element';
 import { pageOfMark, pageGrill, refCandidates } from '../page/grill';
 import { DRAFT_PAGE_ATTRIBUTE, PAGE_HOST, PAGE_NAME_ATTRIBUTE, appPageNameOf, type PageHost } from '../page/host';
 import { PAGE_KEY, pageNavigation } from '../page/navigation';
@@ -43,7 +44,7 @@ import { parseViewAction } from '../schema';
 import { floatingMenuStyles } from '../shell/floating-menu-view';
 import { settingsDialogStyles } from '../shell/settings-dialog';
 import { chromeStyles } from '../shell/styles';
-import { appActions } from './actions';
+import { appActions, belongsToPage } from './actions';
 import { pagesSection, withPages } from './brief';
 import {
   appDefinition,
@@ -56,7 +57,7 @@ import {
 } from './definition';
 import { appMessages } from './messages';
 import { renderSwitcherMenu, renderSwitcherTrigger, SWITCHER_ID, type SwitcherRow } from './switcher';
-import { siblingEntryUrl } from './template-loader';
+import { boardEntryUrl, siblingEntryUrl } from './template-loader';
 
 /** A view or board a page can be added from, with the icon the switcher shows for its pages. */
 export type PageContent = {
@@ -94,7 +95,9 @@ type PageElementLike = HTMLElement & {
   readonly liveDefinition?: AnyDefinition;
   readonly api: ViewApi<unknown>;
   readonly controller: { replaceActions(actions: readonly unknown[]): void };
-  /** Resolves once the page's content element is upgraded and has read its base. */
+  /** What the page found where its content belongs; `null` until it is inspected. */
+  readonly contentState: PageContentState | null;
+  /** Resolves once the page knows what its content is (ready, empty or unavailable). */
   readonly ready: Promise<void>;
   /** The page's content asks to render again (the page itself is a slot). */
   refreshContent(): void;
@@ -370,6 +373,7 @@ export class AppElement extends ViewElement<AppState> {
     super.connectedCallback();
     this.addEventListener('dpk-comment-targets-change', this.#onPageTargetsChange);
     this.addEventListener('dpk-navigate', this.#onPageNavigate);
+    this.addEventListener(PAGE_STATE_EVENT, this.#onPageState);
     this.#lastPageNavigation = this.navigation;
     void this.api.ready.then(() => {
       this.#started = true;
@@ -382,8 +386,27 @@ export class AppElement extends ViewElement<AppState> {
     super.disconnectedCallback();
     this.removeEventListener('dpk-comment-targets-change', this.#onPageTargetsChange);
     this.removeEventListener('dpk-navigate', this.#onPageNavigate);
+    this.removeEventListener(PAGE_STATE_EVENT, this.#onPageState);
     this.#cancelSwitcherClose();
   }
+
+  /**
+   * A page settled into what its content is. A page that can render now has a
+   * base the app has not read yet (its entry may have arrived after the app
+   * started), so the app re-reads the document's base; one that cannot keeps
+   * its own notice and takes no part in the draft until it does.
+   */
+  #onPageState = (event: Event): void => {
+    if (!(event instanceof CustomEvent) || !isPageContentState(event.detail)) return;
+    const page = event.target;
+    if (!(page instanceof HTMLElement) || !isPageElement(page) || page.parentElement !== this) return;
+    this.#ready.set(page, event.detail.status === 'ready');
+    if (!this.#started || !this.#pagesReady) return;
+    // A page the draft made carries no base of its own; its readiness only
+    // decides when the draft's part reaches it.
+    if (page.hasAttribute(DRAFT_PAGE_ATTRIBUTE)) this.requestUpdate();
+    else this.#refreshBase();
+  };
 
   /**
    * A page keeps the `dpk-navigate` contract its content has on its own: the
@@ -477,8 +500,24 @@ export class AppElement extends ViewElement<AppState> {
         content: page.definition.name,
         label: this.#labelOf(page),
       })),
-      pages: Object.fromEntries(pages.map((page): [string, unknown] => [this.#nameOf(page), page.api.base])),
+      // Only a page that can render has a base to read. One that cannot (no
+      // content, or a tag nothing defines) keeps its place in the layout so
+      // the reader sees the page and why it is empty, and gets its base when
+      // its content arrives.
+      pages: Object.fromEntries(
+        pages.map((page): [string, unknown] => [
+          this.#nameOf(page),
+          page.contentState?.status === 'ready' ? page.api.base : {},
+        ]),
+      ),
     };
+  }
+
+  /** Reads the document's base again: a page became renderable, or the markup's pages changed. */
+  #refreshBase(): void {
+    this.#mirrored = new WeakMap();
+    this.controller.setBase({ ...this.controller.base, ...this.#base() });
+    this.refreshGrill();
   }
 
   #idsOf(pages: readonly PageElementLike[]): string {
@@ -522,41 +561,53 @@ export class AppElement extends ViewElement<AppState> {
     return isDefinition(definition) ? definition : undefined;
   }
 
-  /** The contents the "+" menu offers: those the catalog does not mark unaddable. */
+  /**
+   * The contents the "+" menu offers: those the catalog does not mark
+   * unaddable, whether or not their entry is loaded. A view and a board each
+   * live in an entry that is a sibling of the running one, so a pick can load
+   * it ([`template-loader.ts`](template-loader.ts)).
+   */
   #addableContents(): readonly PageContent[] {
-    return this.pageContents().filter(
-      (content) =>
-        content.addable !== false &&
-        (content.kind === 'view' || customElements.get(`dpk-board-${content.name}`) !== undefined),
-    );
+    return this.pageContents().filter((content) => content.addable !== false && this.#reachable(content));
+  }
+
+  /** Whether the content's entry can be loaded now: it is here, or it is one of the running entry's siblings. */
+  #reachable(content: PageContent): boolean {
+    const tag = `${content.kind === 'view' ? 'dpk-view' : 'dpk-board'}-${content.name}`;
+    if (customElements.get(tag) !== undefined) return true;
+    const entryUrl = announcedEntryUrl();
+    return content.kind === 'view'
+      ? siblingEntryUrl(content.name, entryUrl) !== null
+      : boardEntryUrl(entryUrl) !== null;
   }
 
   /**
-   * The clicked content's definition, loading its sibling entry first when
-   * its element is not registered yet — every view entry of one version ships
-   * as a sibling of every other, by `import.meta.url` ([ADR](../../../dev-docs/adr/20260920_per-template-entries.md)),
-   * so an app that loaded one view's entry can still reach another's by URL.
-   * Boards are all in `boards.js`; they are offered only when that entry is
-   * already loaded. Concurrent clicks for the same view share one import.
+   * The clicked content's definition, loading its entry first when its element
+   * is not registered yet — every entry of one version ships as a sibling of
+   * the running one ([ADR](../../../dev-docs/adr/20260920_per-template-entries.md)),
+   * so an app that loaded any entry can still reach another view's entry or
+   * `boards.js` by URL. Concurrent clicks for the same entry share one import.
    */
   async #ensureContent(content: PageContent): Promise<AnyDefinition | undefined> {
     const locale = this.locale;
     const found = this.#definitionFor(content.kind, content.name, locale);
     if (found !== undefined) return found;
-    if (content.kind === 'board') return undefined;
-    const url = siblingEntryUrl(content.name, announcedEntryUrl());
+    const entryUrl = announcedEntryUrl();
+    const url = content.kind === 'view' ? siblingEntryUrl(content.name, entryUrl) : boardEntryUrl(entryUrl);
     if (url === null) return undefined;
-    let pending = this.#pendingImports.get(content.name);
+    // One import per entry: every board shares `boards.js`, every view its own.
+    const key = content.kind === 'view' ? `view:${content.name}` : 'boards';
+    let pending = this.#pendingImports.get(key);
     pending ??= import(/* @vite-ignore */ url);
-    this.#pendingImports.set(content.name, pending);
+    this.#pendingImports.set(key, pending);
     try {
       await pending;
     } catch (error) {
-      this.#pendingImports.delete(content.name);
-      console.error(`dev-process-kit: could not load view "${content.name}" from ${url}`, error);
+      this.#pendingImports.delete(key);
+      console.error(`dev-process-kit: could not load ${content.kind} "${content.name}" from ${url}`, error);
       return undefined;
     }
-    await customElements.whenDefined(`dpk-view-${content.name}`);
+    await customElements.whenDefined(`${content.kind === 'view' ? 'dpk-view' : 'dpk-board'}-${content.name}`);
     return this.#definitionFor(content.kind, content.name, locale);
   }
 
@@ -585,7 +636,9 @@ export class AppElement extends ViewElement<AppState> {
     if (this.#pagesReady) return null;
     return this.#whenPagesReady().then(() => {
       this.#pagesReady = true;
-      for (const page of this.#pages()) this.#ready.set(page, true);
+      // A page that answered `empty` or `unavailable` is settled too: the app
+      // starts for the pages that can render instead of waiting on it.
+      for (const page of this.#pages()) this.#ready.set(page, page.contentState?.status === 'ready');
     });
   }
 
@@ -608,9 +661,7 @@ export class AppElement extends ViewElement<AppState> {
       const ids = this.#idsOf(this.#markupPages());
       if (ids === this.#baseIds) return;
       this.#baseIds = ids;
-      this.#mirrored = new WeakMap();
-      this.controller.setBase({ ...this.controller.base, ...this.#base() });
-      this.refreshGrill();
+      this.#refreshBase();
     });
   }
 
@@ -919,10 +970,12 @@ export class AppElement extends ViewElement<AppState> {
       this.dispatch({ type: 'REMOVE_PAGE', target: APP_WIDE_TARGET, payload: { page: id } });
       return;
     }
+    // The page is gone, so is everything the draft said about it: its own
+    // actions, and the app-wide ones that name it (a rename targets no page
+    // in its target, only in its payload).
     for (const action of actions) {
-      if (splitPage(action.target)?.page === id) this.removeAction(action.id);
+      if (belongsToPage(action, id)) this.removeAction(action.id);
     }
-    this.removeAction(added.id);
   }
 
   protected override updated(): void {
@@ -997,8 +1050,9 @@ export class AppElement extends ViewElement<AppState> {
     if (ready !== undefined) return ready;
     this.#ready.set(page, false);
     void page.ready.then(() => {
-      this.#ready.set(page, true);
-      this.requestUpdate();
+      const settled = page.contentState?.status === 'ready';
+      this.#ready.set(page, settled);
+      if (settled) this.requestUpdate();
     });
     return false;
   }

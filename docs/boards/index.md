@@ -139,6 +139,11 @@ To make a board the subject of a page, put it alone inside `<dpk-page name="…"
 
 The board is then that page: it owns the page's part of the app's draft (comments and element actions alike), derives its own brief section, and every target it names is qualified by the page. The page's `label` is the board's name in the app's switcher; the board itself has no `label` attribute.
 
+A board a reader can start from empty is also offered by the app's **+** menu, which adds a page
+whose content is a fresh `<dpk-board-<name>>` with the board's empty base: `whiteboard`,
+`example-mapping`, `event-storming` and `kanban` (`docs/page.md`, Load it). The diagrams that need
+authored nodes are not offered: an empty one would have nothing to show.
+
 Inside a page, write targets as you would on the board alone — they mean that page's target. Qualify with `@<page>` only to point at another page of the app (`docs/page.md`, Targets). A board that owns page-level actions (`page:whiteboard`, `page:event-storming`, `page:example-mapping`) has them qualified the same way: `page:whiteboard@findings`.
 
 ## Element comments and view integration

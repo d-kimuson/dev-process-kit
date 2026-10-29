@@ -1,21 +1,51 @@
 // @vitest-environment jsdom
+import { html } from 'lit';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { PageElement } from '../page/element';
+
 import { queryAllDeep } from '../../lib/dom/deep';
+import { DpkViewPlain } from '../../views/plain';
 import { contextMenuStyles } from '../context-menu/styles';
+import { coreMessages } from '../messages';
 import { floatingMenuStyles } from '../shell/floating-menu-view';
 import { settingsDialogStyles } from '../shell/settings-dialog';
 import { chromeStyles } from '../shell/styles';
-import { AppElement } from './element';
+import { AppElement, type PageContent } from './element';
 import { SWITCHER_ID } from './switcher';
 import '../../index';
 
 const BASE = '<script type="application/json">{"title":"Screens","activities":[]}</script>';
 
+/** An app offering one board whose entry nothing has loaded, to check the menu still offers it. */
+class AddsUnloadedBoard extends AppElement {
+  protected override pageContents(): readonly PageContent[] {
+    return [{ kind: 'board', name: 'unloaded-board', label: 'Unloaded board', icon: () => html`<span></span>` }];
+  }
+}
+
+if (!customElements.get('dpk-app-unloaded-board')) {
+  customElements.define('dpk-app-unloaded-board', AddsUnloadedBoard);
+}
+
+/** Mounts an app from markup, without building it through a string of `innerHTML`. */
+const mountMarkup = async (markup: string): Promise<AppElement> => {
+  const page = document.createElement('dpk-app');
+  if (!(page instanceof AppElement)) throw new Error('not upgraded');
+  page.storage = 'memory';
+  const parsed = new DOMParser().parseFromString(markup, 'text/html');
+  page.append(...Array.from(parsed.body.childNodes, (node) => node.cloneNode(true)));
+  document.body.append(page);
+  await page.api.ready;
+  await page.updateComplete;
+  return page;
+};
+
 type Board = HTMLElement & {
   readonly api: {
     readonly actions: readonly { type: string; target: unknown }[];
     readonly ready: Promise<void>;
+    readonly state: unknown;
     comment(target: string, body: string): unknown;
     navigate(patch: Readonly<Record<string, string | null | undefined>>): void;
   };
@@ -200,15 +230,17 @@ describe('<dpk-page>', () => {
     expect(shownPage(page)).toBe('Page 3');
   });
 
-  it('offers Whiteboard, Example Mapping and Kanban, and adds the picked board as a page', async () => {
+  it('offers the boards that stand on their own, and adds the picked board as a page', async () => {
     const { page, board, settle } = await mount();
     trigger(page).click();
     await page.updateComplete;
     page.renderRoot.querySelector<HTMLElement>('[data-key="add"]')?.click();
     await page.updateComplete;
-    for (const name of ['whiteboard', 'example-mapping', 'kanban']) {
+    for (const name of ['whiteboard', 'example-mapping', 'event-storming', 'kanban']) {
       expect(page.renderRoot.querySelector(`[data-key="content:board:${name}"]`)).not.toBeNull();
     }
+    // A diagram that needs authored nodes is not an empty page anyone can start from.
+    expect(page.renderRoot.querySelector('[data-key="content:board:er-diagram"]')).toBeNull();
     page.renderRoot.querySelector<HTMLElement>('[data-key="content:board:whiteboard"]')?.click();
     await settle();
     expect(page.api.actions.map((action) => [action.type, action.target])).toEqual([
@@ -216,6 +248,47 @@ describe('<dpk-page>', () => {
     ]);
     expect(board('whiteboard').localName).toBe('dpk-board-whiteboard');
     expect(page.api.navigation).toMatchObject({ page: 'whiteboard' });
+  });
+
+  it('adds each hand-authorable board as a page of the app', async () => {
+    const { page, board, settle } = await mount();
+    for (const name of ['whiteboard', 'example-mapping', 'event-storming', 'kanban']) {
+      trigger(page).click();
+      await page.updateComplete;
+      page.renderRoot.querySelector<HTMLElement>('[data-key="add"]')?.click();
+      await page.updateComplete;
+      page.renderRoot.querySelector<HTMLElement>(`[data-key="content:board:${name}"]`)?.click();
+      await settle();
+      expect(board(name).localName).toBe(`dpk-board-${name}`);
+    }
+    expect(page.api.state.layout.map((entry) => entry.id)).toEqual([
+      'before',
+      'after',
+      'whiteboard',
+      'example-mapping',
+      'event-storming',
+      'kanban',
+    ]);
+  });
+
+  it('offers a board whose entry is not loaded, so the pick can load it', async () => {
+    const page = document.createElement('dpk-app-unloaded-board');
+    if (!(page instanceof AppElement)) throw new Error('not upgraded');
+    page.storage = 'memory';
+    const script = document.createElement('script');
+    script.type = 'application/json';
+    script.textContent = '{"title":"Doc"}';
+    page.append(script);
+    document.body.append(page);
+    await page.api.ready;
+    await page.updateComplete;
+    trigger(page).click();
+    await page.updateComplete;
+    page.renderRoot.querySelector<HTMLElement>('[data-key="add"]')?.click();
+    await page.updateComplete;
+    // Its element is undefined, but its entry is a sibling of the running one,
+    // so the menu offers it and picking it loads `boards.js`.
+    expect(page.renderRoot.querySelector('[data-key="content:board:unloaded-board"]')).not.toBeNull();
   });
 
   it('keeps the add view open when the clicked "+" row loses focus as it is replaced (#86)', async () => {
@@ -268,6 +341,70 @@ describe('<dpk-page>', () => {
     await page.updateComplete;
     expect(popover(page)).not.toBeNull();
     expect(page.renderRoot.querySelector('[data-key="content:view:usm"]')).not.toBeNull();
+  });
+
+  it('starts a page the draft added from its empty base, without a base data error', async () => {
+    const { page, board, settle } = await mount();
+    trigger(page).click();
+    await page.updateComplete;
+    page.renderRoot.querySelector<HTMLElement>('[data-key="add"]')?.click();
+    await page.updateComplete;
+    page.renderRoot.querySelector<HTMLElement>('[data-key="content:view:usm"]')?.click();
+    await settle();
+    // The draft page owns the mark; its content has no base JSON yet and must
+    // not report the absence it was designed to start without.
+    const usm = board('usm');
+    expect(usm.shadowRoot?.querySelector('.dpk-banner')).toBeNull();
+    expect(usm.api.state).toMatchObject({ activities: [] });
+  });
+
+  it('starts even when a page holds no view or board, and says why there', async () => {
+    const page = await mountMarkup(`<script type="application/json">{"title":"Doc"}</script>
+      <dpk-page name="empty" label="Empty"></dpk-page>
+      <dpk-page name="ok" label="OK"><dpk-view-prototype>${BASE}</dpk-view-prototype></dpk-page>`);
+    const empty = page.querySelector<PageElement>('dpk-page[name="empty"]');
+    if (empty === null) throw new Error('no page');
+    expect(page.api.state.layout.map((entry) => entry.id)).toEqual(['empty', 'ok']);
+    expect(empty.shadowRoot?.querySelector('.dpk-page-notice')?.textContent).toContain(coreMessages('en').pageEmpty);
+  });
+
+  it('starts even when a page names a tag nothing defines, and recovers when it arrives', async () => {
+    const tag = 'dpk-view-late-plain';
+    const page = await mountMarkup(`<script type="application/json">{"title":"Doc"}</script>
+      <dpk-page name="late" label="Late"><dpk-view-late-plain><script type="application/json">{"title":"Late","sections":[]}</script></dpk-view-late-plain></dpk-page>
+      <dpk-page name="ok" label="OK"><dpk-view-prototype>${BASE}</dpk-view-prototype></dpk-page>`);
+    const late = page.querySelector<PageElement>('dpk-page[name="late"]');
+    if (late === null) throw new Error('no page');
+    expect(late.shadowRoot?.querySelector('.dpk-page-notice')?.textContent).toContain(
+      coreMessages('en').pageUnavailableHint(tag),
+    );
+    // The page takes its place, but its content has no base until its entry loads.
+    expect(page.api.state.layout.map((entry) => entry.id)).toEqual(['late', 'ok']);
+    expect(page.api.state.pages['late']).toEqual({});
+    customElements.define(tag, class extends DpkViewPlain {});
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await page.updateComplete;
+    expect(late.contentState).toEqual({ status: 'ready' });
+    expect(late.shadowRoot?.querySelector('.dpk-page-notice')).toBeNull();
+    // The app read the base of a page that could not be read when it started.
+    expect(page.api.state.pages['late']).toEqual({ title: 'Late', sections: [] });
+  });
+
+  it('opens the settings with the language and theme when a page has no settings of its own', async () => {
+    const page = await mountMarkup(`<script type="application/json">{"title":"Doc"}</script>
+      <dpk-page name="board" label="Board"><dpk-board-example-mapping></dpk-board-example-mapping></dpk-page>`);
+    page.openSettings();
+    await page.updateComplete;
+    // One section: no nav, and not the empty panel a page without switches used to open.
+    expect(page.renderRoot.querySelector('.dpk-dialog-nav')).toBeNull();
+    expect(page.renderRoot.querySelectorAll('.dpk-settings-row')).toHaveLength(2);
+    expect(page.renderRoot.querySelector('.dpk-settings-row .dpk-lang-select')).not.toBeNull();
+    const dark = page.renderRoot.querySelector('[data-theme-choice="dark"]');
+    if (!(dark instanceof HTMLElement)) throw new Error('no dark choice');
+    dark.click();
+    await page.updateComplete;
+    expect(page.dataset['theme']).toBe('dark');
+    expect(dark.getAttribute('aria-checked')).toBe('true');
   });
 
   it('takes an added board back with everything the draft says about it', async () => {
@@ -514,6 +651,31 @@ describe('<dpk-page>', () => {
       await settle();
       expect(page.api.actions.map((action) => action.type)).toEqual(['ADD_PAGE', 'RENAME_PAGE']);
       expect(pageOf('usm').hidden).toBe(false);
+    });
+
+    it('takes the rename back with the page it renamed', async () => {
+      const { page, settle } = await mount();
+      trigger(page).click();
+      await page.updateComplete;
+      page.renderRoot.querySelector<HTMLElement>('[data-key="add"]')?.click();
+      await page.updateComplete;
+      page.renderRoot.querySelector<HTMLElement>('[data-key="content:view:usm"]')?.click();
+      await settle();
+      await openSwitcher(page);
+      startEditing(page);
+      await page.updateComplete;
+      const input = field(page);
+      input.value = 'Roadmap';
+      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await settle();
+      expect(page.api.actions.map((action) => action.type)).toEqual(['ADD_PAGE', 'RENAME_PAGE']);
+      await openSwitcher(page);
+      removeButton(page, 'Remove page "Roadmap"').click();
+      await settle();
+      // Nothing about the page is left in the draft: not its own actions, and
+      // not the rename that shared the app-wide target with every other page.
+      expect(page.api.actions).toEqual([]);
     });
 
     it('commits a rename on Enter, recorded in the draft and undoable', async () => {

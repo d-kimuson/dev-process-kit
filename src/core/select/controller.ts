@@ -10,7 +10,14 @@
  * in `core` and so cannot depend on `components` — the reason this logic
  * lives here instead of inside the element.
  */
-import { html, nothing, type LitElement, type ReactiveController, type ReactiveControllerHost } from 'lit';
+import {
+  html,
+  nothing,
+  type LitElement,
+  type ReactiveController,
+  type ReactiveControllerHost,
+  type TemplateResult,
+} from 'lit';
 
 import { DismissController } from '../../lib/dom/dismiss';
 import { iconCheck, iconChevronDown } from '../icons';
@@ -69,7 +76,7 @@ export class SelectController implements ReactiveController {
     clearTimeout(this.#queryTimer);
   }
 
-  render(options: SelectRenderOptions): unknown {
+  render(options: SelectRenderOptions): TemplateResult {
     this.#current = options;
     const activeIndex = clampActiveIndex(this.#activeIndex, options.options.length);
     const selected = options.options.find((option) => option.value === options.value);

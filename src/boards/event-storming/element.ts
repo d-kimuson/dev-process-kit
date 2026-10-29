@@ -77,6 +77,9 @@ const BOARD_ANCHOR = 'event-storming';
  * card's hover comment button, or from the right-click menu.
  */
 export class DpkBoardEventStorming extends BoardChromeBase<EventStormingState, EsSelectionRef> {
+  protected override boardAddable(): boolean {
+    return true;
+  }
   static override styles: CSSResultGroup = [chromeStyles, eventStormingStyles];
 
   // Ephemeral UI state (mode, viewport, gesture, selection) is plain fields, not

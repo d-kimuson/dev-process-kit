@@ -29,5 +29,13 @@ export const resolveColorScheme = (sources: ColorSchemeSources): ColorScheme =>
  */
 export const toggledPreference = (sources: ColorSchemeSources): ColorScheme | null => {
   const next: ColorScheme = resolveColorScheme(sources) === 'dark' ? 'light' : 'dark';
-  return next === defaultScheme(sources) ? null : next;
+  return pickedPreference(sources, next);
 };
+
+/**
+ * The preference after the reader picks a scheme outright (the settings
+ * dialog's two options). Picking the default stores nothing, exactly as a
+ * toggle that lands back on it does.
+ */
+export const pickedPreference = (sources: ColorSchemeSources, scheme: ColorScheme): ColorScheme | null =>
+  scheme === defaultScheme(sources) ? null : scheme;

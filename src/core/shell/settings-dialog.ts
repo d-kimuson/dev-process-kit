@@ -1,10 +1,14 @@
 /**
  * The page's settings: a gear at the end of the header row and, behind it, one
- * modal dialog holding everything the reader can adjust about the page's
- * content — the template's own switches (`ViewDefinition.settings`) and any
- * section the template renders itself (`ViewElement.renderSettingsSections`).
- * The reader's language and theme are not part of it: they belong to the
- * screen, so the header holds them.
+ * modal dialog holding everything the reader can adjust about the page — the
+ * template's own switches (`ViewDefinition.settings`), the reader's language
+ * and theme, and any section the template renders itself
+ * (`ViewElement.renderSettingsSections`).
+ *
+ * The language and theme controls are the header's, repeated here on purpose:
+ * a page whose content has no switches of its own would otherwise open an
+ * empty dialog. The appearance section is therefore always there; the
+ * template's display section exists only when the template has switches.
  *
  * The trigger and the dialog are separate on purpose: where the gear sits is a
  * layout decision, and opening the dialog is `ViewElement.openSettings()`.
@@ -26,10 +30,15 @@ import { iconCheck, iconSettings } from '../icons';
 /** The `<dialog>`'s own id, so the gear can point `aria-controls` at it. */
 export const SETTINGS_ID = 'dpk-settings';
 /**
- * The kit's own section: the template's switches. Always there, and always the
- * one the dialog opens on.
+ * The kit's own section for the template's switches. Present only when the
+ * template has switches, and then the one the dialog opens on.
  */
 export const SETTINGS_DISPLAY_SECTION = 'display';
+/**
+ * The kit's own section for the reader's screen: language and light/dark. It is
+ * always there, so a page with nothing else to configure opens something real.
+ */
+export const SETTINGS_APPEARANCE_SECTION = 'appearance';
 
 export type SettingsTriggerIntents = {
   readonly open: boolean;
@@ -121,8 +130,10 @@ export const renderSettingsDialog = (options: SettingsDialogOptions): TemplateRe
   return renderDialogShell({
     id: options.id,
     size: 'md',
-    // The panel keeps one frame across its sections, so switching one never resizes or moves it.
-    fixedHeight: true,
+    // With more than one section the panel keeps one frame, so switching one never
+    // resizes or moves it; with only one there is nothing to switch, and it fits
+    // that one (an empty-looking tall panel is what it used to draw).
+    fixedHeight: sections.length > 1,
     label: options.label,
     closeLabel: options.closeLabel,
     controller: options.controller,
@@ -173,13 +184,70 @@ const renderSwitch = (item: ViewSetting, flip: (input: ActionInput) => void): Te
   </button>`;
 
 /**
- * The panel's own content styles: the switch list. The switches themselves
- * reuse `.dpk-settings-option` (the chrome's), and the frame is
+ * The panel's own content styles: the switch list and the appearance rows. The
+ * switches reuse `.dpk-settings-option` (the chrome's), and the frame is
  * `../dialog/styles.ts`'s.
  */
 export const settingsDialogStyles = css`
   .dpk-settings-list {
     display: grid;
     gap: 2px;
+  }
+
+  .dpk-settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    padding: 4px 8px;
+    border-radius: var(--dpk-radius-sm);
+  }
+
+  .dpk-settings-row-label {
+    color: var(--dpk-ink);
+    font-size: 12px;
+  }
+
+  .dpk-settings-row .dpk-rich-select {
+    height: 28px;
+    padding: 0 8px 0 12px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: 999px;
+    background: var(--dpk-paper);
+    color: var(--dpk-ink);
+  }
+
+  .dpk-settings-segment {
+    display: inline-flex;
+    flex: none;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: 999px;
+    background: var(--dpk-paper-sunken);
+  }
+
+  .dpk-settings-segment button {
+    min-width: 56px;
+    padding: 3px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: var(--dpk-ink-soft);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .dpk-settings-segment button[aria-checked='true'] {
+    background: var(--dpk-paper);
+    color: var(--dpk-ink);
+    box-shadow: var(--dpk-shadow-xs);
+  }
+
+  .dpk-settings-segment button:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
   }
 `;

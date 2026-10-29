@@ -27,7 +27,7 @@ import { revealWithin } from '../lib/dom/scroll';
 import { COMMENT_ACTION, serializeDraft } from './action';
 import { CHANGES_ATTRIBUTE, jumpOf, type ChangeEntry } from './changes';
 import { hasCheckedTargets } from './check-mode';
-import { parseColorScheme } from './color-scheme';
+import { parseColorScheme, type ColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
 import { ConfirmDialogController } from './confirm-dialog/controller';
 import { ContextMenuController } from './context-menu/controller';
@@ -71,13 +71,14 @@ import {
 } from './layouts/sidebar/model';
 import { coreMessages, LANGUAGE_NAMES, type CoreMessages } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
-import { pageHostOf, pageNameOf, DRAFT_PAGE_ATTRIBUTE, type PageHost } from './page/host';
+import { pageHostOf, pageNameOf, inDraftPage, type PageHost } from './page/host';
 import { pageNavigation, pagePatchFor } from './page/navigation';
 import { resolvePageTarget } from './page/page-target';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { PopoverController } from './popover-controller';
 import { SelectController } from './select/controller';
 import { createViewApi, renderContextOf, snapshotOf, type ViewFacadeSource } from './shell/api';
+import { BaseDataController, type BaseRead } from './shell/base-data';
 import { ChangeNoticeController } from './shell/change-notice-controller';
 import {
   NOTICE_LIST_ID,
@@ -112,6 +113,7 @@ import {
   renderSettingsDialog,
   renderSettingsSwitches,
   renderSettingsTrigger,
+  SETTINGS_APPEARANCE_SECTION,
   SETTINGS_DISPLAY_SECTION,
   SETTINGS_ID,
   settingsDialogStyles,
@@ -382,6 +384,8 @@ export abstract class ViewElement<S> extends LitElement {
   protected abstract definitionFor(locale: Locale): ViewDefinition<S>;
 
   readonly #langSelect = new SelectController(this);
+  /** The language picker of the settings dialog; the header's is its own, so one open never closes the other. */
+  readonly #settingsLangSelect = new SelectController(this);
   readonly #roundSelect = new SelectController(this);
   #localeChoice = new LocaleChoiceController(
     this,
@@ -398,9 +402,21 @@ export abstract class ViewElement<S> extends LitElement {
   #navigation: Navigation = EMPTY_NAVIGATION;
   #pendingCommentTarget: string | null = null;
   readonly #listeners = new Set<(snapshot: ViewSnapshot<S>) => void>();
-  #baseError: string | null = null;
+  /**
+   * The base JSON: read on start, re-read when the element gains or is given a
+   * different one, and the single source of the banner that reports it
+   * ([`base-data.ts`](shell/base-data.ts)).
+   */
+  readonly #baseData = new BaseDataController<S>({
+    host: this,
+    name: () => `<${this.tagName.toLowerCase()}>`,
+    script: () => this.scriptOf(BASE_SELECTOR),
+    parse: (input) => this.definition.parseBase(input),
+    empty: () => this.definition.emptyBase(),
+    optional: () => inDraftPage(this),
+    onChange: (read) => this.#onBaseRead(read),
+  });
   #unsubscribe: (() => void) | undefined;
-  #previewObserver: MutationObserver | undefined;
   #targetObserver: MutationObserver | undefined;
   #providers: readonly Element[] = [];
   #resolveReady: (() => void) | undefined;
@@ -483,7 +499,7 @@ export abstract class ViewElement<S> extends LitElement {
     // working while detached. Only external DOM resources are released here.
     window.removeEventListener('hashchange', this.#onHashChange);
     this.removeEventListener('click', this.#onClick);
-    this.#previewObserver?.disconnect();
+    this.#baseData.disconnect();
     this.#targetObserver?.disconnect();
     this.removeEventListener('dpk-comment-targets-change', this.#refreshCommentTargets);
     this.removeEventListener('dpk-comment-request', this.#onCommentRequest);
@@ -970,10 +986,10 @@ export abstract class ViewElement<S> extends LitElement {
       <main class="dpk-main">
         <div class="dpk-main-body" ?data-fill=${fill}>
           ${
-            this.#baseError
+            this.#baseData.error
               ? html`<div class="dpk-banner" role="alert">
                   <strong>${messages.baseDataError}</strong>
-                  <code>${this.#baseError}</code>
+                  <code>${this.#baseData.error}</code>
                 </div>`
               : nothing
           }
@@ -1295,10 +1311,10 @@ export abstract class ViewElement<S> extends LitElement {
       </div>`;
   }
 
-  #renderLanguageSelect(): unknown {
+  #renderLanguageSelect(select: SelectController = this.#langSelect): TemplateResult {
     const locale = this.locale;
     const label = coreMessages(locale).language;
-    return this.#langSelect.render({
+    return select.render({
       options: LOCALES.map((candidate) => ({ value: candidate, label: LANGUAGE_NAMES[candidate] })),
       value: locale,
       onChange: (value) => {
@@ -1377,8 +1393,10 @@ export abstract class ViewElement<S> extends LitElement {
   /**
    * The settings dialog, always in the tree and shown modally while
    * `settingsOpen` (the `<dialog>` and its top layer are the engine's). Its
-   * `display` section holds the kit's own rows; the template's sections follow
-   * it. A board draws none: the page that owns it does.
+   * `appearance` section is always there (the language and theme controls the
+   * header also carries); the template's `display` section and own sections
+   * follow, the display one only when the template has switches. A board draws
+   * none: the page that owns it does.
    */
   #renderSettingsDialog(context: ViewRenderContext<S>): TemplateResult | typeof nothing {
     if (this.#boardId !== null) return nothing;
@@ -1386,10 +1404,18 @@ export abstract class ViewElement<S> extends LitElement {
     // Closed, the panel shows nothing and its sections cost nothing: a template
     // may build them from its whole state, so they are built only while opened.
     const open = this.settingsOpen;
-    const display = open ? this.#renderSettingsDisplay(context) : nothing;
+    const switches = open ? this.settingsSwitches(context) : null;
+    const display = switches === null ? nothing : renderSettingsSwitches(switches.settings, messages, switches.flip);
     const sections: readonly BoundSettingsSection[] = open
       ? [
-          { id: SETTINGS_DISPLAY_SECTION, label: messages.settingsDisplay, render: () => display },
+          ...(switches === null
+            ? []
+            : [{ id: SETTINGS_DISPLAY_SECTION, label: messages.settingsDisplay, render: () => display }]),
+          {
+            id: SETTINGS_APPEARANCE_SECTION,
+            label: messages.settingsAppearance,
+            render: () => this.#renderSettingsAppearance(),
+          },
           ...this.#bindSettingsSections(this.renderSettingsSections(context)),
         ]
       : [];
@@ -1408,14 +1434,57 @@ export abstract class ViewElement<S> extends LitElement {
   }
 
   /**
-   * What the kit's `display` section shows: the template's switches and their
-   * note. The reader's language and theme are not here: they are controls of
-   * the screen, so they live in the header.
+   * The kit's `appearance` section: the reader's language and light/dark, the
+   * same controls the header carries. They are repeated here on purpose: a page
+   * whose content has no switches of its own would otherwise open an empty
+   * dialog.
    */
-  #renderSettingsDisplay(context: ViewRenderContext<S>): TemplateResult | typeof nothing {
+  #renderSettingsAppearance(): TemplateResult {
     const messages = coreMessages(this.locale);
-    const switches = this.settingsSwitches(context);
-    return switches === null ? nothing : renderSettingsSwitches(switches.settings, messages, switches.flip);
+    const scheme = this.#colorScheme.resolve(parseColorScheme(this.theme));
+    const choices = [
+      { scheme: 'light', label: messages.themeLight },
+      { scheme: 'dark', label: messages.themeDark },
+    ] as const;
+    const pick = (next: ColorScheme, focus: boolean): void => {
+      this.#colorScheme.pick(parseColorScheme(this.theme), next);
+      if (!focus) return;
+      void this.updateComplete.then(() => {
+        this.renderRoot.querySelector<HTMLElement>(`[data-theme-choice="${next}"]`)?.focus();
+      });
+    };
+    return html`<div class="dpk-settings-list">
+      <div class="dpk-settings-row">
+        <span class="dpk-settings-row-label">${messages.language}</span>
+        ${this.#renderLanguageSelect(this.#settingsLangSelect)}
+      </div>
+      <div class="dpk-settings-row">
+        <span class="dpk-settings-row-label">${messages.settingsTheme}</span>
+        <div
+          class="dpk-settings-segment"
+          role="radiogroup"
+          aria-label=${messages.settingsTheme}
+          @keydown=${(event: KeyboardEvent) => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            pick(scheme === 'light' ? 'dark' : 'light', true);
+          }}
+        >
+          ${choices.map(
+            (choice) => html`<button
+              type="button"
+              role="radio"
+              aria-checked=${scheme === choice.scheme ? 'true' : 'false'}
+              tabindex=${scheme === choice.scheme ? '0' : '-1'}
+              data-theme-choice=${choice.scheme}
+              @click=${() => pick(choice.scheme, false)}
+            >
+              ${choice.label}
+            </button>`,
+          )}
+        </div>
+      </div>
+    </div>`;
   }
 
   /** The template's sections, each bound to the context the dialog renders them with. */
@@ -1585,7 +1654,7 @@ export abstract class ViewElement<S> extends LitElement {
   }
 
   #initialize(): void {
-    const base = this.#readBase();
+    const base = this.#baseData.read();
     const board = this.#boardId !== null;
     // A board's questions, draft and hash are the page's.
     this.#grill = board ? EMPTY_GRILL : this.readGrill();
@@ -1604,7 +1673,7 @@ export abstract class ViewElement<S> extends LitElement {
     this.#refreshCommentTargets();
     this.#canonicalizeNavigation(true);
     this.#resolveReady?.();
-    this.#observeBaseScript();
+    this.#baseData.observe();
     this.requestUpdate();
   }
 
@@ -1649,24 +1718,6 @@ export abstract class ViewElement<S> extends LitElement {
     return buildAgentBrief(snapshot, this.controller.definition, FRAMEWORK_VERSION);
   }
 
-  #readBase(): S {
-    const script = this.scriptOf(BASE_SELECTOR);
-    // A board the draft added has no base JSON yet: the agent writes it from the draft.
-    if (script === null && this.hasAttribute(DRAFT_PAGE_ATTRIBUTE)) return this.definition.emptyBase();
-    if (!script?.textContent || script.textContent.trim().length === 0) {
-      console.warn(`[dev-process-kit] <${this.tagName.toLowerCase()}> has no base JSON; starting from an empty state.`);
-      this.#baseError = 'no <script type="application/json"> child found';
-      return this.definition.emptyBase();
-    }
-    try {
-      return this.definition.parseBase(JSON.parse(script.textContent));
-    } catch (error) {
-      console.error('[dev-process-kit] invalid base data:', error);
-      this.#baseError = error instanceof Error ? error.message : String(error);
-      return this.definition.emptyBase();
-    }
-  }
-
   /**
    * The questions are optional: without their script the page asks nothing.
    * A page overrides it to ask its boards' questions as well.
@@ -1703,26 +1754,16 @@ export abstract class ViewElement<S> extends LitElement {
   }
 
   /**
-   * Base data may be written after the element is upgraded (dynamically created
-   * elements, streaming HTML). Re-read it once the JSON script shows up.
+   * A base block was read after the element started: a script that arrived or
+   * was filled in later, an invalid one that was fixed. The questions are
+   * written alongside it, so they are read again too, and the state the
+   * element shows is always the one the banner speaks about.
    */
-  #observeBaseScript(): void {
-    if (this.scriptOf(BASE_SELECTOR)) return;
-    this.#previewObserver = new MutationObserver(() => {
-      const script = this.scriptOf(BASE_SELECTOR);
-      if (!script) return;
-      this.#previewObserver?.disconnect();
-      this.#previewObserver = undefined;
-      // The questions are written alongside the base data.
-      if (this.#boardId === null) this.#grill = this.readGrill();
-      this.controller.setGrill({ grill: this.#grill, locale: this.locale });
-      try {
-        this.controller.setBase(this.definition.parseBase(JSON.parse(script.textContent ?? 'null')));
-      } catch (error) {
-        console.error('[dev-process-kit] invalid base data:', error);
-      }
-    });
-    this.#previewObserver.observe(this, { childList: true, subtree: true });
+  #onBaseRead(read: BaseRead<S>): void {
+    if (this.#boardId === null) this.#grill = this.readGrill();
+    this.controller.setGrill({ grill: this.#grill, locale: this.locale });
+    this.controller.setBase(read.state);
+    this.requestUpdate();
   }
 
   #notify(): void {

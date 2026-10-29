@@ -16,8 +16,16 @@ import { PAGE_NAME_PATTERN } from './page-target';
 export const PAGE_TAG = 'dpk-page';
 export const APP_TAG = 'dpk-app';
 export const PAGE_NAME_ATTRIBUTE = 'name';
-/** Marks a page the app made for a page the draft added; its base JSON is not written yet. */
+/** Names the page the draft added, for as long as the page is in the draft rather than the markup. */
 export const DRAFT_PAGE_ATTRIBUTE = 'data-dpk-draft-page';
+
+/**
+ * Whether the element is a page the draft added, or the view or board that page
+ * holds. The page owns the mark; its content reads it to know that it may
+ * start without a base JSON, which the agent writes from the draft.
+ */
+export const inDraftPage = (element: Element): boolean =>
+  element.hasAttribute(DRAFT_PAGE_ATTRIBUTE) || element.parentElement?.hasAttribute(DRAFT_PAGE_ATTRIBUTE) === true;
 
 /** The app publishes its host under this key, so a page can find it without importing the app. */
 export const PAGE_HOST: unique symbol = Symbol.for('dev-process-kit.page-host');
@@ -44,6 +52,18 @@ const readName = (element: Element): string | null => {
   return name !== null && PAGE_NAME_PATTERN.test(name) ? name : null;
 };
 
+/** An element that publishes a host under `PAGE_HOST`, whatever entry defined it. */
+type PageHostHolder = Element & { readonly [PAGE_HOST]?: unknown };
+
+const holdsPageHost = (element: Element): element is PageHostHolder => PAGE_HOST in element;
+
+/** The host an element publishes, read structurally: a page may not share the app's class. */
+const publishedHost = (element: Element): PageHost | null => {
+  if (!holdsPageHost(element)) return null;
+  const host = element[PAGE_HOST];
+  return isPageHost(host) ? host : null;
+};
+
 /**
  * The name of the page a content element belongs to, read from the markup
  * alone: the page may not be upgraded yet when its content connects.
@@ -61,16 +81,14 @@ export const appPageNameOf = (element: Element): string | null =>
 export const pageHostOf = (element: Element): PageHost | null => {
   const page = element.parentElement;
   if (page === null || page.localName !== PAGE_TAG) return null;
-  const host: unknown = Reflect.get(page, PAGE_HOST);
-  return isPageHost(host) ? host : null;
+  return publishedHost(page);
 };
 
 /** The app's host, for a page (or a content element that sits directly inside the app). */
 export const appHostOf = (element: Element): PageHost | null => {
   const app = element.parentElement;
   if (app === null || app.localName !== APP_TAG) return null;
-  const host: unknown = Reflect.get(app, PAGE_HOST);
-  return isPageHost(host) ? host : null;
+  return publishedHost(app);
 };
 
 const isPageHost = (value: unknown): value is PageHost =>

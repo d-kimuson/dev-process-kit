@@ -28,28 +28,31 @@ export const readJsonChild = <T>(host: Element, parse: (input: unknown) => T): J
 };
 
 /**
- * Reads the JSON child now, and once more if a parser appends it later
- * (dynamically created elements, streaming HTML). Returns a disposer.
+ * Reads the JSON child now, and again whenever its text changes: a parser may
+ * append it later (dynamically created elements, streaming HTML), and an
+ * empty or invalid block may be filled in or fixed later. Returns a disposer.
  *
  * A block that is present but invalid is reported immediately: it is an
- * authoring mistake, and silently waiting for a better one hides it.
+ * authoring mistake, and silently waiting for a better one hides it. The
+ * reported error goes away with the next read that parses.
  */
 export const observeJsonChild = <T>(
   host: Element,
   parse: (input: unknown) => T,
   onChange: (result: JsonChildResult<T>) => void,
 ): (() => void) => {
-  const initial = readJsonChild(host, parse);
-  if (initial) {
-    onChange(initial);
-    return () => undefined;
-  }
-  const observer = new MutationObserver(() => {
+  // `undefined` before the first read, `null` without a block.
+  let text: string | null | undefined;
+  const refresh = (): void => {
+    const script = host.querySelector(JSON_CHILD_SELECTOR);
+    const next = script === null ? null : (script.textContent ?? '');
+    if (next === text) return;
+    text = next;
     const result = readJsonChild(host, parse);
-    if (!result) return;
-    observer.disconnect();
-    onChange(result);
-  });
-  observer.observe(host, { childList: true, subtree: true });
+    if (result !== null) onChange(result);
+  };
+  refresh();
+  const observer = new MutationObserver(refresh);
+  observer.observe(host, { childList: true, subtree: true, characterData: true });
   return () => observer.disconnect();
 };

@@ -114,28 +114,30 @@ describe('the page chrome', () => {
     ]);
   });
 
-  it("keeps the reader's language, theme and version out of the settings dialog", async () => {
+  it("repeats the reader's language and theme in the settings dialog, but not the version", async () => {
     const element = mount();
     await settle(element);
     root(element).querySelector<HTMLButtonElement>('.dpk-settings-trigger')?.click();
     await settle(element);
-    // The dialog holds the page's own settings only: one control each, in the header.
-    expect(root(element).querySelectorAll('.dpk-lang-select')).toHaveLength(1);
+    // The header's controls are repeated in the dialog's appearance section, so a
+    // page whose content has no switches of its own still opens something real.
+    expect(root(element).querySelectorAll('.dpk-lang-select')).toHaveLength(2);
     expect(root(element).querySelectorAll('.dpk-theme-toggle')).toHaveLength(1);
-    expect(root(element).querySelector('.dpk-settings-row')).toBeNull();
+    expect(root(element).querySelectorAll('.dpk-settings-row')).toHaveLength(2);
+    expect(root(element).querySelector('.dpk-settings-segment')?.getAttribute('role')).toBe('radiogroup');
     // The page runs the version its URL was opened with: no row offers another.
     expect(root(element).querySelector('.dpk-version')).toBeNull();
   });
 
-  it('keeps one frame across the settings sections, so switching one never resizes or moves it', async () => {
+  it('fits the panel to its one section instead of drawing a tall empty frame', async () => {
     const element = mount();
     await settle(element);
     root(element).querySelector<HTMLButtonElement>('.dpk-settings-trigger')?.click();
     await settle(element);
     const dialog = root(element).querySelector('#dpk-settings');
-    // jsdom lays nothing out: the panel opts into the shell's fixed height, and
-    // that rule is the one the browser measures (see `dpk-dialog` styles).
-    expect(dialog?.getAttribute('data-height')).toBe('fixed');
+    // Only the appearance section is there, so there is no frame to keep across
+    // sections and no reason to reserve a tall one.
+    expect(dialog?.hasAttribute('data-height')).toBe(false);
     expect(String(dialogStyles)).toContain(".dpk-dialog[data-height='fixed']");
   });
 
