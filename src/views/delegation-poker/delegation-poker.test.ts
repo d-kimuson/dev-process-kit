@@ -18,22 +18,22 @@ const definition = delegationPokerDefinitionFor('en');
 
 const base = {
   title: 'Who decides what',
-  parties: { delegator: 'You', delegate: 'Claude' },
+  parties: { delegator: 'Leaders', delegate: 'Team' },
   players: [
-    { id: 'claude', name: 'Claude' },
     { id: 'lead', name: 'Tech lead' },
+    { id: 'dev', name: 'Developer' },
   ],
   decisions: [
     {
       id: 'deps',
       name: 'Adding a dependency',
       cards: [
-        { player: 'claude', level: 5, reason: 'I can compare licenses' },
+        { player: 'dev', level: 5, reason: 'I can compare licenses' },
         { player: 'lead', level: 3 },
       ],
     },
-    { id: 'release', name: 'Release timing', cards: [{ player: 'claude', level: 2 }] },
-    { id: 'commits', name: 'Commit granularity', cards: [{ player: 'claude', level: 7 }], agreed: 7 },
+    { id: 'release', name: 'Release timing', cards: [{ player: 'dev', level: 2 }] },
+    { id: 'commits', name: 'Commit granularity', cards: [{ player: 'dev', level: 7 }], agreed: 7 },
   ],
 };
 
@@ -77,7 +77,7 @@ describe('delegation poker base data', () => {
   it('only accepts the seven delegation levels', () => {
     const withLevel = (level: unknown) => ({
       ...base,
-      decisions: [{ id: 'd', name: 'D', cards: [{ player: 'claude', level }] }],
+      decisions: [{ id: 'd', name: 'D', cards: [{ player: 'dev', level }] }],
     });
     expect(() => parseDelegationPokerBase(withLevel(0))).toThrow();
     expect(() => parseDelegationPokerBase(withLevel(8))).toThrow();
@@ -91,8 +91,8 @@ describe('delegation poker base data', () => {
     expect(() =>
       parseDelegationPokerBase(
         decision([
-          { player: 'claude', level: 3 },
-          { player: 'claude', level: 4 },
+          { player: 'dev', level: 3 },
+          { player: 'dev', level: 4 },
         ]),
       ),
     ).toThrow(/more than one card/);
@@ -176,8 +176,17 @@ describe('delegation poker board', () => {
       'Inquire',
       'Delegate',
     ]);
-    expect(levels[0]?.phrase).toBe('You decide and tell Claude');
-    expect(levels[6]?.phrase).toBe('Claude decides; You need not know');
+    expect(levels[0]?.phrase).toBe('Leaders decide and tell Team');
+    expect(levels[6]?.phrase).toBe('Team decides; Leaders need not know');
+  });
+
+  it('phrases the levels from the party names alone, defaulting to Leaders and Team', () => {
+    // Nothing about the counterpart is assumed: the view names whoever the base
+    // says the two parties are, and speaks of a delegator and a delegate only.
+    const empty = parseDelegationPokerBase({});
+    expect(presentBoard(m, empty, 'lax').levels[0]?.phrase).toBe('Leaders decide and tell Team');
+    const ja = delegationPokerMessages('ja');
+    expect(presentBoard(ja, empty, 'lax').levels[0]?.phrase).toBe('リーダーが決めて、チームに伝える');
   });
 
   it('keeps the other players’ cards face down until the reader plays on that row', () => {
@@ -190,7 +199,7 @@ describe('delegation poker board', () => {
     expect(after?.hidden).toBe(0);
     expect(after?.status).toBe('discuss');
     expect(after?.cells[3]).toMatchObject({ yours: true, chips: [{ label: 'You', kind: 'you' }] });
-    expect(after?.cells[4]?.chips).toEqual([{ label: 'Claude', kind: 'player', reason: 'I can compare licenses' }]);
+    expect(after?.cells[4]?.chips).toEqual([{ label: 'Developer', kind: 'player', reason: 'I can compare licenses' }]);
     expect(after?.cells[2]?.chips).toEqual([{ label: 'Tech lead', kind: 'player' }]);
   });
 
@@ -210,7 +219,7 @@ describe('delegation poker board', () => {
     const commits = rowOf(state(), 'commits');
     expect(commits?.status).toBe('agreed');
     expect(commits?.agreed).toBe(7);
-    expect(commits?.cells[6]).toMatchObject({ agreed: true, chips: [{ label: 'Claude', kind: 'player' }] });
+    expect(commits?.cells[6]).toMatchObject({ agreed: true, chips: [{ label: 'Developer', kind: 'player' }] });
   });
 
   it('counts how far the reader has come', () => {

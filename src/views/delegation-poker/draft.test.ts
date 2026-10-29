@@ -8,8 +8,8 @@ import { parseDelegationPokerBase } from './model';
 const definition = delegationPokerDefinitionFor('en');
 
 const base = parseDelegationPokerBase({
-  players: [{ id: 'claude', name: 'Claude' }],
-  decisions: [{ id: 'deps', name: 'Adding a dependency', cards: [{ player: 'claude', level: 5 }] }],
+  players: [{ id: 'dev', name: 'Developer' }],
+  decisions: [{ id: 'deps', name: 'Adding a dependency', cards: [{ player: 'dev', level: 5 }] }],
 });
 
 const controller = () => new DraftController({ definition, base, storage: null });

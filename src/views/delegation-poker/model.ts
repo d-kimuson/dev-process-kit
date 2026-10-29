@@ -10,10 +10,9 @@ import { entityIdSchema } from '../../core/schema';
  * the highest explain, and the group settles on one level. The settled levels
  * make up the delegation board.
  *
- * The base carries what the other players (often the agent itself) already
- * played. The reader's own card only ever comes from the draft (`yours`), so
- * the board can keep a row's other cards face down until the reader has played
- * on it.
+ * The base carries what the other players already played. The reader's own
+ * card only ever comes from the draft (`yours`), so the board can keep a row's
+ * other cards face down until the reader has played on it.
  */
 export const DELEGATION_LEVELS = [1, 2, 3, 4, 5, 6, 7] as const;
 

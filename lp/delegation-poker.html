@@ -22,7 +22,7 @@
         }
       }
     </style>
-    <title>Delegation Poker — Claude に何を任せるか | dev-process-kit</title>
+    <title>Delegation Poker — チームにどこまで任せるか | dev-process-kit</title>
     <!--
       The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
       by this page's own origin: the sample server is a separate origin on purpose,
@@ -47,20 +47,20 @@
     </style>
   </head>
   <body>
-    <dpk-app storage-key="sample-delegation-poker-claude">
+    <dpk-app storage-key="sample-delegation-poker">
       <script type="application/json">
-        { "title": "Sora Market — Claude に何を任せるか" }
+        { "title": "Sora Market — チームにどこまで任せるか" }
       </script>
 
       <dpk-page name="delegation-poker"
         ><dpk-view-delegation-poker mode="strict">
           <script type="application/json">
             {
-              "title": "Sora Market — Claude に何を任せるか",
-              "parties": { "delegator": "あなた", "delegate": "Claude" },
+              "title": "Sora Market — チームにどこまで任せるか",
+              "parties": { "delegator": "リーダー", "delegate": "チーム" },
               "players": [
-                { "id": "claude", "name": "Claude" },
-                { "id": "sato", "name": "佐藤（テックリード）" }
+                { "id": "sato", "name": "佐藤（リーダー）" },
+                { "id": "takeda", "name": "武田（メンバー）" }
               ],
               "decisions": [
                 {
@@ -69,9 +69,9 @@
                   "description": "新しい npm パッケージを入れる、メジャーバージョンを上げる",
                   "cards": [
                     {
-                      "player": "claude",
+                      "player": "takeda",
                       "level": 5,
-                      "reason": "ライセンスとメンテ状況は調べて比較できます。採否は助言を聞いてから決めたいです。"
+                      "reason": "ライセンスとメンテ状況は調べて比較できます。採否はリーダーの助言を聞いてから決めたいです。"
                     },
                     {
                       "player": "sato",
@@ -86,7 +86,7 @@
                   "description": "タスクのついでに、周辺のコードをどこまで整理してよいか",
                   "cards": [
                     {
-                      "player": "claude",
+                      "player": "takeda",
                       "level": 6,
                       "reason": "テストで振る舞いを守れる範囲なら任せてください。PR の説明で何を変えたか報告します。"
                     },
@@ -99,7 +99,7 @@
                   "description": "Custom Elements の属性・イベント、export している型を変える",
                   "cards": [
                     {
-                      "player": "claude",
+                      "player": "takeda",
                       "level": 3,
                       "reason": "利用者に影響するので、意見を出したうえで決めてもらうのがよいと思います。"
                     },
@@ -112,9 +112,9 @@
                   "description": "本番データのあるテーブルに列を足す・型を変える",
                   "cards": [
                     {
-                      "player": "claude",
+                      "player": "takeda",
                       "level": 2,
-                      "reason": "取り返しがつかない変更なので、方針は決めてもらい、私は手順を整えます。"
+                      "reason": "取り返しがつかない変更なので、方針は決めてもらい、私たちが手順を整えます。"
                     },
                     { "player": "sato", "level": 1 }
                   ]
@@ -125,7 +125,7 @@
                   "description": "どの層をどのくらいテストするか、モックをどこで切るか",
                   "cards": [
                     {
-                      "player": "claude",
+                      "player": "takeda",
                       "level": 4,
                       "reason": "方針は一緒に決め、個々のテストの書き方は任せてほしいです。"
                     },
@@ -138,9 +138,9 @@
                   "description": "いつ main を本番へ出すか",
                   "cards": [
                     {
-                      "player": "claude",
+                      "player": "takeda",
                       "level": 1,
-                      "reason": "顧客への告知や体制を私は知らないので、決めて伝えてください。"
+                      "reason": "顧客への告知や体制は私たちには分からないので、決めて伝えてください。"
                     }
                   ]
                 },
@@ -149,7 +149,7 @@
                   "name": "コミットの粒度",
                   "description": "1 コミットにどこまで含めるか、メッセージの書き方",
                   "cards": [
-                    { "player": "claude", "level": 7, "reason": "コミット規約があるので、それに従います。" },
+                    { "player": "takeda", "level": 7, "reason": "コミット規約があるので、それに従います。" },
                     { "player": "sato", "level": 7 }
                   ],
                   "agreed": 7
