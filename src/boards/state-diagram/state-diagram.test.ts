@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ContextMenuRequest } from '../../core/context-menu/types';
+import type { LayoutPoint } from '../../lib/layout/layered';
 
 import { EMPTY_CHECK_STATE, withEnabled } from '../../core/check-mode';
 import { collectCheckBindings } from '../../core/shell/check-mode-badges';
 import { parseTargetRef } from '../../core/target';
+import { scoreLayout, type LayoutGeometry } from '../../lib/layout/metrics';
 import { DpkBoardStateDiagram } from './element';
 import { defineStateDiagram } from './index';
 import { stateDiagramMessages } from './messages';
@@ -68,6 +70,42 @@ const ids = (element: DpkBoardStateDiagram, selector: string): (string | undefin
   [...element.renderRoot.querySelectorAll<HTMLElement>(selector)].map(
     (node) => node.dataset['state'] ?? node.dataset['transition'] ?? node.dataset['transitionLabel'],
   );
+
+/** Mounts data without asserting anything: the routing tests read the drawn geometry back. */
+const mountData = async (data: ReturnType<typeof parseStateData>): Promise<DpkBoardStateDiagram> => {
+  const element = new DpkBoardStateDiagram();
+  element.data = data;
+  document.body.append(element);
+  await settle(element);
+  return element;
+};
+
+const routePoints = (element: DpkBoardStateDiagram, transition: string): LayoutPoint[] => {
+  const d = element.renderRoot.querySelector(`[data-transition="${transition}"] .d-edge-path`)?.getAttribute('d') ?? '';
+  return [...d.matchAll(/(-?[\d.]+)[ ,](-?[\d.]+)/g)].map((match) => ({
+    x: Number(match[1]),
+    y: Number(match[2]),
+  }));
+};
+
+/** The geometry the reader actually sees: placed state cards plus each transition's drawn polyline. */
+const drawnGeometry = (element: DpkBoardStateDiagram, data: ReturnType<typeof parseStateData>): LayoutGeometry => ({
+  nodes: [...element.renderRoot.querySelectorAll<HTMLElement>('[data-state]')].map((card) => ({
+    id: card.dataset['state'] ?? '',
+    box: {
+      x: Number.parseFloat(card.style.left),
+      y: Number.parseFloat(card.style.top),
+      width: Number.parseFloat(card.style.width),
+      height: Number.parseFloat(card.style.height),
+    },
+  })),
+  edges: data.edges.map((edge) => ({
+    id: edge.id,
+    from: edge.from,
+    to: edge.to,
+    points: routePoints(element, edge.id),
+  })),
+});
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -223,5 +261,60 @@ describe('dpk-board-state-diagram', () => {
     expect(style('c', 'left')).toBe('332px');
     expect(style('b', 'top')).not.toBe(style('c', 'top'));
     expect(element.renderRoot.querySelector('.state-edge .d-edge-path')?.getAttribute('d')).toMatch(/^M/);
+  });
+});
+
+describe('state diagram transition routing', () => {
+  // A transition that skips a rank is the shared router's blind spot: the plain
+  // channel route between the two ports runs straight through the state that
+  // sits in the skipped rank.
+  it('routes a skip-rank transition around the state it skips', async () => {
+    const data = parseStateData({
+      states: [
+        { id: 'a', name: 'A' },
+        { id: 'b', name: 'B' },
+        { id: 'c', name: 'C' },
+      ],
+      transitions: [
+        { id: 'a-b', from: 'a', to: 'b', title: 'ab' },
+        { id: 'b-c', from: 'b', to: 'c', title: 'bc' },
+        { id: 'a-c', from: 'a', to: 'c', title: 'ac' },
+      ],
+    });
+    const element = await mountData(data);
+    const score = scoreLayout(drawnGeometry(element, data));
+    expect(score.edgeThroughNode.incidents).toBe(0);
+    // The two transitions leave `a` through different points on the same side,
+    // so neither rides on top of the other.
+    expect(score.collinearOverlap.incidents).toBe(0);
+  });
+
+  // Four transitions out of one state used to share one exit port and one
+  // channel per rank gap: four lines drawn on top of each other.
+  it('fans four sibling transitions out of one state into separate lanes', async () => {
+    const data = parseStateData({
+      states: [
+        { id: 'hub', name: 'Hub' },
+        { id: 'x1', name: 'X1' },
+        { id: 'x2', name: 'X2' },
+        { id: 'x3', name: 'X3' },
+        { id: 'x4', name: 'X4' },
+      ],
+      transitions: [
+        { id: 'hub-x1', from: 'hub', to: 'x1', title: '1' },
+        { id: 'hub-x2', from: 'hub', to: 'x2', title: '2' },
+        { id: 'hub-x3', from: 'hub', to: 'x3', title: '3' },
+        { id: 'hub-x4', from: 'hub', to: 'x4', title: '4' },
+      ],
+    });
+    const element = await mountData(data);
+    const score = scoreLayout(drawnGeometry(element, data));
+    expect(score.edgeThroughNode.incidents).toBe(0);
+    expect(score.collinearOverlap.incidents).toBe(0);
+    expect(score.crossings).toBe(0);
+    // Each transition still starts and ends on its own card's border.
+    for (const edge of data.edges) {
+      expect(routePoints(element, edge.id).length).toBeGreaterThanOrEqual(2);
+    }
   });
 });

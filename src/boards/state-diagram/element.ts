@@ -1,7 +1,7 @@
 import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
 import type { CommentTargetOption } from '../../core/types';
-import type { LayoutOptions } from '../../lib/layout/layered';
+import type { LayoutOptions, LayoutResult } from '../../lib/layout/layered';
 
 import { BoardCanvasElement } from '../base/element';
 import { classNames, EMPTY_REACH, reach, routeLabelPoint, type DiagramSelection, type Reach } from '../base/model';
@@ -16,6 +16,7 @@ import {
   type StateNode,
   type StateTransition,
 } from './model';
+import { withStateRoutes } from './route';
 import { stateDiagramStyles } from './styles';
 
 const ARROWS = [{ id: 'state-arrow' }, { id: 'state-arrow-active' }, { id: 'state-arrow-exception' }] as const;
@@ -56,6 +57,16 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
 
   protected override layoutOptions(): LayoutOptions {
     return this.layoutMode === 'fixed' ? { padding: 44 } : { nodeSpacing: 40, layerSpacing: 110, padding: 44 };
+  }
+
+  /**
+   * Transitions are drawn by the board's own router, not by the shared
+   * layout's: one port per transition and one lane per rank gap (see
+   * `./route.ts`). Running it from `routePlacement` means the reader's dragged
+   * placement gets the same route as the computed one.
+   */
+  protected override routePlacement(placement: LayoutResult, visible: StateDiagramData): LayoutResult {
+    return withStateRoutes(placement, visible.edges);
   }
 
   protected override relations(selection: DiagramSelection, visible: StateDiagramData): Reach {

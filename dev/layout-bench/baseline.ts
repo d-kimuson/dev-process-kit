@@ -612,13 +612,26 @@ export const LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE: Readonly<Record<string, numb
  *
  * These ceilings are deliberately generous (headroom of roughly 2–3x the
  * measured number below, and a flat 5–15ms floor under the smallest
- * fixtures) rather than tight bisected values like the scores above: a
- * single-process, single-run wall-clock timing is inherently noisier across
- * machines/CI/JIT warm-up than a pure layout computation, and the goal here
- * is to catch "someone brought back an O(n^2)-ish lever" (a multi-x jump),
- * not to chase single-digit-percent timing noise. `LAYOUT_BENCH_BASELINE`
- * above remains the tight, bisected ratchet for layout *quality*; this one
- * is only a backstop for layout/routing *time*.
+ * fixtures) rather than tight bisected values like the scores above, and the
+ * goal is to catch "someone brought back an O(n^2)-ish lever" (a multi-x
+ * jump), not to chase single-digit-percent timing noise.
+ * `LAYOUT_BENCH_BASELINE` above remains the tight, bisected ratchet for layout
+ * *quality*; this one is only a backstop for layout/routing *time*.
+ *
+ * What the ratchet guarantees: `layoutMs`/`routingMs` are each fixture's
+ * fastest pass over `TIMING_PASSES` (`dev/layout-bench/run.ts`), measured as
+ * this thread's own **CPU time**, not wall-clock (`geometryOf`'s `now`). So it
+ * fails when the amount of work the pipeline does on a fixture grows past the
+ * ceiling — a reintroduced expensive lever, a search that now runs over
+ * alternatives, an unbounded loop — and does not fail because the machine was
+ * busy: another process, Vitest's parallel file workers, or a scheduling
+ * pause inflates wall-clock but not the CPU time this thread spent. Nor does
+ * it chase JIT warm-up or a single GC pause, since the fastest of the passes
+ * is the one compared. What it no longer detects, by construction, is a
+ * slowdown that burns no CPU of its own (blocking I/O, sleeping); nothing in
+ * this pipeline does that. The ceilings below were recorded on an idle
+ * machine, where CPU and wall-clock agree, so the recorded numbers still read
+ * as the ~2–3x headroom they were chosen for.
  *
  * Measured once, right after #152 deleted the port-side search/Z-shape
  * machinery (`view.ts`'s `relationRoutes`, `orthogonal-router.ts`'s
@@ -631,17 +644,13 @@ export const LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE: Readonly<Record<string, numb
  * as it has since #151 round 2 (`layeredLayout` was never the costly step).
  *
  * `er-complex` runs first in `FIXTURES`, so under `vitest` specifically
- * (rather than a plain `node` run of `dev/layout-bench.ts`) its `routingMs`
- * is the one most exposed to this process's own cold-start/JIT-warm-up and
- * whatever else is sharing the machine at that moment — confirmed by hand:
- * repeated plain-`node` runs stayed a tight ~300–380ms, but repeated
- * `vitest run dev/layout-bench.test.ts` runs occasionally (not reliably
- * reproducible; environment-dependent) spiked past 1,000ms on this exact
- * fixture with no code change at all. Its ceiling below is therefore set to
- * roughly the same ~3x headroom the densest synthetic fixtures already get,
- * rather than the tighter ~2x it first shipped with, which is what that
- * spike caught; `synthetic-cross-bc` got the same treatment after it alone
- * flaked once in the same sampling.
+ * (rather than a plain `node` run of `dev/layout-bench.ts`) it is the one
+ * most exposed to this process's own cold-start/JIT-warm-up: repeated
+ * `vitest run dev/layout-bench.test.ts` runs occasionally spiked its
+ * wall-clock far past a plain-`node` run with no code change at all. That is
+ * exactly the noise the CPU-time measure and the fastest-of-passes rule
+ * above take out of the comparison; the ceilings themselves were left where
+ * they were, not raised to cover it.
  *
  * 2026-10 (#152 round 2): this is the ratchet the whole round was about.
  * `gridRoute` (per-edge exhaustive grid-and-Dijkstra, gated narrow/richer

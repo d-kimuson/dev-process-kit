@@ -17,7 +17,7 @@ import {
   type ArchitectureService,
   type BoundaryBox,
 } from './model';
-import { withFacingRoutes } from './route';
+import { linkLabelPoint, withFacingRoutes } from './route';
 import { architectureStyles } from './styles';
 
 const ARROWS = [{ id: 'arch-neutral' }, { id: 'arch-selected' }] as const;
@@ -57,8 +57,23 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
     return { padding: 40 };
   }
 
-  protected override computePlacement(visible: ArchitectureData): LayoutResult {
-    return withFacingRoutes(super.computePlacement(visible), visible.edges);
+  /**
+   * Links are routed by the map's own router: facing sides, one port per link,
+   * and around the cards in between (see `./route.ts`). Running it from
+   * `routePlacement` means a card the reader dragged gets the same route as the
+   * computed layout — dropping a card between two linked cards must never put
+   * the link through it.
+   */
+  protected override routePlacement(placement: LayoutResult, visible: ArchitectureData): LayoutResult {
+    return withFacingRoutes(placement, visible.edges);
+  }
+
+  /** The placed cards, for the label placement's collision check. */
+  #cardBoxes(): readonly { readonly x: number; readonly y: number; readonly width: number; readonly height: number }[] {
+    return this.visible.nodes.flatMap((node) => {
+      const placed = this.placedNode(node.id);
+      return placed ? [{ x: placed.x, y: placed.y, width: placed.width, height: placed.height }] : [];
+    });
   }
 
   protected override isEmpty(): boolean {
@@ -197,8 +212,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
   }
 
   #renderLinkLabel(label: string, points: readonly { x: number; y: number }[]): TemplateResult {
-    const middle = points[Math.floor(points.length / 2)] ?? points[0];
-    if (!middle) return html``;
+    const middle = linkLabelPoint(points, this.#cardBoxes(), label);
     return svg`<text class="arch-link-label" x=${middle.x} y=${middle.y - 6}>${label}</text>`;
   }
 

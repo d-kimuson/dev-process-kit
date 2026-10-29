@@ -16,11 +16,31 @@ import { aggregateGroups, boundedContextGroups, relationRoutes } from '../../src
 import { layeredLayout } from '../../src/lib/layout/layered';
 
 /**
+ * The clock every phase here is timed with: this thread's own CPU time, in ms.
+ *
+ * Wall-clock is what a reader feels, but it is also what every other process
+ * on the machine takes away: `LAYOUT_BENCH_TIME_BASELINE` ratchets these numbers
+ * against a recorded ceiling, and a busy CI box (or Vitest's parallel file
+ * workers) inflates wall-clock several-fold with no code change — which is what
+ * once made this ratchet fail only in the full suite. Per-thread CPU time
+ * (`process.threadCpuUsage()`, Node >= 24) counts the work this pipeline did,
+ * so it says the same thing on a quiet machine and a contended one; a real
+ * regression still shows up in it, because it is still real work. Wall-clock
+ * remains the fallback where the runtime does not expose it (a browser).
+ */
+const now = (): number => {
+  const usage = process.threadCpuUsage?.();
+  return usage === undefined ? performance.now() : (usage.user + usage.system) / 1000;
+};
+
+/**
  * `layoutMs` and `routingMs` are timed separately because they have very
  * different costs on this corpus (`layoutMs` single-digit-to-low-double-digit
  * ms even on `er-complex`; `routingMs` dominates the total — see #152's entry
  * in `dev/layout-bench/baseline.ts`) and a regression in one must not hide
- * behind an improvement in the other. Before #152, only `layeredLayout` was
+ * behind an improvement in the other. Both are this thread's CPU time (see
+ * `now` above), so a machine busy with other work cannot inflate them. Before
+ * #152, only `layeredLayout` was
  * timed here at all — `relationRoutes` ran untimed, which is why this bench's
  * own numbers (a few ms) never matched what real-browser profiling found
  * (over a second): the one pipeline step actually costing that time was
@@ -39,9 +59,9 @@ export type GeometryResult = {
 /** Runs the real layout + routing pipeline for `data` and returns the drawn geometry, plus how long each phase took. */
 export const geometryOf = (data: ErData): GeometryResult => {
   const { nodes, edges } = erLayoutSpec(data);
-  const layoutStart = performance.now();
+  const layoutStart = now();
   const result = layeredLayout(nodes, edges, LAYOUT);
-  const layoutMs = performance.now() - layoutStart;
+  const layoutMs = now() - layoutStart;
 
   const placedById = new Map(result.nodes.map((node) => [node.id, node]));
   const tables = data.nodes.flatMap((table) => {
@@ -68,9 +88,9 @@ export const geometryOf = (data: ErData): GeometryResult => {
   const frames = [...aggregateFrames, ...bcFrames];
 
   const routeById = new Map(result.routes.map((route) => [route.id, route.points]));
-  const routingStart = performance.now();
+  const routingStart = now();
   const routedById = relationRoutes(data.edges, routeById, tables, LANE_MARGIN, frames);
-  const routingMs = performance.now() - routingStart;
+  const routingMs = now() - routingStart;
   const metricEdges = data.edges.map((relation) => ({
     id: relation.id,
     from: relation.from,

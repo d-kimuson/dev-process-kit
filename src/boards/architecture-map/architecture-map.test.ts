@@ -2,8 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { DpkDialogPanel } from '../../components/dialog-panel/index';
 import type { ContextMenuRequest } from '../../core/context-menu/types';
+import type { LayoutPoint } from '../../lib/layout/layered';
 
+import { currentPositionStorageKey } from '../../core/layout-position-storage';
 import { parseTargetRef } from '../../core/target';
+import { scoreLayout, type LayoutGeometry } from '../../lib/layout/metrics';
 import { DpkBoardArchitectureMap } from './element';
 import { defineArchitectureMap } from './index';
 import { architectureMapMessages } from './messages';
@@ -86,6 +89,44 @@ const reviewComment = (element: DpkBoardArchitectureMap, ref: string): void => {
   const entry = groups.flatMap((group) => group.entries).find((candidate) => candidate.id === 'review-comment');
   if (entry?.kind === 'item') entry.run();
 };
+
+/** Mounts data without asserting anything: the routing tests read the drawn geometry back. */
+const mountData = async (data: ReturnType<typeof parseArchitectureData>): Promise<DpkBoardArchitectureMap> => {
+  const element = new DpkBoardArchitectureMap();
+  element.data = data;
+  document.body.append(element);
+  await settle(element);
+  return element;
+};
+
+const routePoints = (element: DpkBoardArchitectureMap, link: string): LayoutPoint[] =>
+  [
+    ...(element.renderRoot.querySelector(`[data-link="${link}"] .d-edge-path`)?.getAttribute('d') ?? '').matchAll(
+      /(-?[\d.]+)[ ,](-?[\d.]+)/g,
+    ),
+  ].map((match) => ({ x: Number(match[1]), y: Number(match[2]) }));
+
+/** The geometry the reader actually sees: placed service cards plus each link's drawn polyline. */
+const drawnGeometry = (
+  element: DpkBoardArchitectureMap,
+  data: ReturnType<typeof parseArchitectureData>,
+): LayoutGeometry => ({
+  nodes: [...element.renderRoot.querySelectorAll<HTMLElement>('[data-service]')].map((card) => ({
+    id: card.dataset['service'] ?? '',
+    box: {
+      x: Number.parseFloat(card.style.left),
+      y: Number.parseFloat(card.style.top),
+      width: Number.parseFloat(card.style.width),
+      height: Number.parseFloat(card.style.height),
+    },
+  })),
+  edges: data.edges.map((edge) => ({
+    id: edge.id,
+    from: edge.from,
+    to: edge.to,
+    points: routePoints(element, edge.id),
+  })),
+});
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -249,6 +290,89 @@ describe('dpk-board-architecture-map', () => {
         .map((card) => `${link} × ${card.id}`),
     );
     expect(crossings).toEqual([]);
+  });
+
+  // The elbow-only router was obstacle-blind: a link between two cards with a
+  // third card between them was drawn straight through that card.
+  it('routes a link around a card that sits between its two ends', async () => {
+    const data = parseArchitectureData({
+      services: [
+        { id: 'a', name: 'A', position: { x: 0, y: 0 } },
+        { id: 'b', name: 'B', position: { x: 300, y: 0 } },
+        { id: 'c', name: 'C', position: { x: 620, y: 0 } },
+        { id: 'd', name: 'D', position: { x: 300, y: 220 } },
+      ],
+      links: [
+        { id: 'a-c', from: 'a', to: 'c', label: 'skip' },
+        { id: 'a-b', from: 'a', to: 'b' },
+        { id: 'b-d', from: 'b', to: 'd' },
+      ],
+    });
+    const element = await mountData(data);
+    const score = scoreLayout(drawnGeometry(element, data));
+    expect(score.edgeThroughNode.incidents).toBe(0);
+    expect(score.collinearOverlap.incidents).toBe(0);
+    // Both ends still leave and enter the sides that face each other, so the
+    // link keeps reading left to right.
+    const points = routePoints(element, 'a-c');
+    const first = points[0];
+    const last = points.at(-1);
+    expect(first?.x).toBe(260);
+    expect(last?.x).toBe(660);
+  });
+
+  // A reader's drag goes through `applyPositionOverrides`, not through
+  // `computePlacement`. Routing only the computed layout left the dragged one
+  // on the blind elbow router: dropping a card between two linked cards put the
+  // line straight through it.
+  it('re-routes links around a card the reader dragged between them', async () => {
+    const data = parseArchitectureData({
+      services: [
+        { id: 'a', name: 'A', position: { x: 0, y: 0 } },
+        { id: 'b', name: 'B', position: { x: 300, y: 300 } },
+        { id: 'c', name: 'C', position: { x: 620, y: 0 } },
+      ],
+      links: [{ id: 'a-c', from: 'a', to: 'c' }],
+    });
+    localStorage.setItem(
+      currentPositionStorageKey(),
+      JSON.stringify({
+        // An override is the card's absolute world position, the layout's own
+        // padding included: `b` lands exactly between `a` and `c`, in their row.
+        v: 1,
+        overrides: [{ board: '', diagram: 'drag-test', node: 'b', position: { x: 340, y: 40 } }],
+      }),
+    );
+    const element = new DpkBoardArchitectureMap();
+    element.id = 'drag-test';
+    element.data = data;
+    document.body.append(element);
+    await settle(element);
+    expect(element.renderRoot.querySelector<HTMLElement>('[data-service="b"]')?.style.left).toBe('340px');
+    const score = scoreLayout(drawnGeometry(element, data));
+    expect(score.edgeThroughNode.incidents).toBe(0);
+  });
+
+  it('places a link label on a run instead of on an elbow', async () => {
+    const element = await mount();
+    const labels = [...element.renderRoot.querySelectorAll<SVGTextElement>('.arch-link-label')];
+    expect(labels.length).toBeGreaterThan(0);
+    const offsets = labels.map((label) => {
+      const link = label.parentElement?.dataset['link'] ?? '';
+      const x = Number(label.getAttribute('x'));
+      const y = Number(label.getAttribute('y')) + 6;
+      const points = routePoints(element, link);
+      const onSegment = points.slice(1).some((next, index) => {
+        const previous = points[index]!;
+        const withinX = x >= Math.min(previous.x, next.x) && x <= Math.max(previous.x, next.x);
+        const withinY = y >= Math.min(previous.y, next.y) && y <= Math.max(previous.y, next.y);
+        return withinX && withinY;
+      });
+      const onVertex = points.some((point) => Math.abs(point.x - x) < 0.5 && Math.abs(point.y - y) < 0.5);
+      return { link, onSegment, onVertex };
+    });
+    expect(offsets.filter((offset) => !offset.onSegment)).toEqual([]);
+    expect(offsets.filter((offset) => offset.onVertex)).toEqual([]);
   });
 
   it('hides boundaries on request', async () => {

@@ -76,7 +76,9 @@ describe('layout bench ratchet', () => {
    * just layout quality. Deliberately loose (see
    * `LAYOUT_BENCH_TIME_BASELINE`'s own doc comment) — it exists to catch a
    * reintroduced expensive lever (a multi-x jump), not to chase ordinary
-   * run-to-run timing noise.
+   * run-to-run timing noise, which is why each number is the fastest of
+   * several passes and counted in this thread's CPU time rather than
+   * wall-clock: a busy machine then costs the run nothing.
    */
   it.each(rows)('$name does not regress past its baseline layout/routing time', (row) => {
     const baseline = LAYOUT_BENCH_TIME_BASELINE[row.name];

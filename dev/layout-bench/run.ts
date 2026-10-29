@@ -50,18 +50,21 @@ export type BenchRow = MetricResult & {
   readonly routingMs: number;
 };
 
+/** How many times each fixture is laid out and routed; the fastest pass is reported. */
+const TIMING_PASSES = 3;
+
 /** Parses, lays out and scores every fixture in `FIXTURES`. Deterministic: same input, same numbers, every run. */
 export const runBench = (): readonly BenchRow[] =>
   FIXTURES.map((fixture) => {
     const data = parseErData(fixture.input);
     const measured = geometryOf(data);
-    // Timing under a parallel test runner is noisy enough to trip a loose
-    // ratchet on a busy machine. The layout itself is deterministic, so run it
-    // twice more and report the fastest pass: that is the closest available
-    // estimate of the work, not of the scheduler.
+    // A pass includes JIT warm-up and the occasional GC pause, so take the fastest
+    // of a few: the least-work estimate is the one comparable to the recorded
+    // ceiling. Cross-process load is already out of these numbers —
+    // `geometryOf` times CPU time, not wall-clock (see `now` there).
     let layoutMs = measured.layoutMs;
     let routingMs = measured.routingMs;
-    for (let pass = 0; pass < 2; pass++) {
+    for (let pass = 1; pass < TIMING_PASSES; pass++) {
       const repeat = geometryOf(data);
       layoutMs = Math.min(layoutMs, repeat.layoutMs);
       routingMs = Math.min(routingMs, repeat.routingMs);
