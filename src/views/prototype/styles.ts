@@ -377,7 +377,8 @@ export const prototypeStyles = css`
     top: 0;
     z-index: 5;
     margin: -12px -24px 0;
-    padding: 10px 24px;
+    /* Its leading text clears the fold button a folded sidebar floats over this corner. */
+    padding: 10px 24px 10px calc(24px + var(--dpk-fold-clearance-left, 0px));
     border-bottom: 1px solid var(--dpk-rule);
     background: color-mix(in srgb, var(--dpk-paper-raised) 92%, transparent);
     backdrop-filter: saturate(1.6) blur(14px);

@@ -1,3 +1,4 @@
+import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
 import type { Locale } from '../../core/i18n';
 import type { ShellRegions, ViewRenderContext } from '../../core/shell/contracts';
 import type { ActionsMenuView } from './render/actions-menu';
@@ -83,6 +84,9 @@ const noteTarget = (badge: UiNoteBadge, note: UiNote): UiTarget => ({
 
 /** The open composer: the notes list is a `.comment-pop` too. */
 const COMPOSER = '.comment-pop:not(.ui-notes-pop)';
+/** The right-click group that starts commenting on an element of the stage, and its one item. */
+const UI_COMMENT_MENU_GROUP = 'prototype-ui-comment';
+const UI_COMMENT_MENU_ITEM = 'comment-ui-element';
 const DOCUMENT_STYLES_ID = 'dpk-view-prototype-document-styles';
 /** The room a demo leaves around a device, on each side (the stage's `.is-demo` styles match it). */
 const DEMO_DEVICE_MARGIN = 24;
@@ -115,6 +119,21 @@ const flatParent = (element: Element): Element | null => {
   if (element.parentElement !== null) return element.parentElement;
   const root = element.getRootNode();
   return root instanceof ShadowRoot ? root.host : null;
+};
+
+/**
+ * Whether `origin` sits below `host` in the flat tree. `host.contains(origin)`
+ * stops at a shadow boundary, so the walk goes up through the slot a slotted
+ * element was placed in and through `getRootNode().host` instead: a right-click
+ * on a mock inside a shadow root still reaches the element that renders it.
+ */
+const sitsBelow = (origin: Element, host: Element): boolean => {
+  let node: Element | null = origin;
+  while (node !== null) {
+    if (node === host) return true;
+    node = flatParent(node);
+  }
+  return false;
 };
 
 /**
@@ -427,6 +446,49 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
   }
 
   // ------------------------------------------------------------ comment on UI
+
+  /**
+   * A right-click on the stage offers to comment on the element under the
+   * pointer — the other way into the same mode as the toolbar's toggle. The
+   * item does not pick the element: it turns the mode on, and the reader's next
+   * click picks the element (`picking`), so a right-click can start commenting
+   * on a mock that does something on click anyway.
+   */
+  getContextMenuItems(request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
+    const origin = request.origin ?? null;
+    // Nothing is on stage to comment on (a step away from the product, an unknown screen).
+    if (!(origin instanceof Element) || this.#shownIds.length === 0) return null;
+    if (!this.#onStage(origin)) return null;
+    return [
+      {
+        id: UI_COMMENT_MENU_GROUP,
+        entries: [
+          {
+            kind: 'item',
+            id: UI_COMMENT_MENU_ITEM,
+            label: prototypeMessages(this.locale).commentOnElement,
+            run: () => {
+              // Already picking (or writing a comment): the item leaves the mode as it is.
+              if (this.#uiComment.kind === 'off') this.#send({ kind: 'toggle' });
+            },
+          },
+        ],
+      },
+    ];
+  }
+
+  /**
+   * Whether the right-click landed on the stage: its own chrome (the tabs, the
+   * canvas, a frame's placeholder) or the markup of a preview on screen. The
+   * sidebar is in this element too, and commenting there is not about an
+   * element of the mock.
+   */
+  #onStage(origin: Element): boolean {
+    const stage = this.renderRoot.querySelector('.stage');
+    if (stage !== null && sitsBelow(origin, stage)) return true;
+    // The previews stay in the light DOM: their place on the stage is their slot.
+    return this.#previewWrappers().some((wrapper) => wrapper === origin || wrapper.contains(origin));
+  }
 
   #uiCommentView(context: ViewRenderContext<PrototypeState>): UiCommentView {
     const mode = this.#uiComment;

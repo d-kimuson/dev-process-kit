@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DpkInlineEdit } from '../../components/inline-edit';
+import type { ContextMenuItem } from '../../core/context-menu/types';
 import type { DpkViewPrototype } from './element';
 
 import '../../index';
@@ -111,7 +112,10 @@ describe('<dpk-view-prototype> layout', () => {
     await settle(el);
     expect(root.querySelectorAll('.step-row')).toHaveLength(5);
     expect(root.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Landing');
-    expect(root.querySelectorAll('.detail dpk-inline-edit')).toHaveLength(2);
+    const editors = root.querySelectorAll<DpkInlineEdit>('.detail dpk-inline-edit');
+    expect(editors).toHaveLength(2);
+    expect(editors[0]?.hasAttribute('wrap')).toBe(true);
+    expect(editors[1]?.hasAttribute('multiline')).toBe(true);
   });
 
   it('renders the stage: tabs, frame, placeholder and parked slots', async () => {
@@ -562,6 +566,69 @@ describe('<dpk-view-prototype> layout', () => {
       await settle(el);
       expect(el.api.navigation).toMatchObject({ story: 'billing' });
       expect(el.shadowRoot!.querySelector('.comment-pop')).toBeNull();
+    });
+
+    describe('right-click on the stage', () => {
+      /** The item this view offers for a right-click that landed on `origin`, or null. */
+      const itemOf = (el: DpkViewPrototype, origin: Element | null): ContextMenuItem | null => {
+        const entry = el.getContextMenuItems({ clientX: 0, clientY: 0, target: null, origin })?.[0]?.entries[0];
+        return entry?.kind === 'item' ? entry : null;
+      };
+      const mode = (el: DpkViewPrototype): string | null =>
+        el.shadowRoot!.querySelector('.stage')?.getAttribute('data-ui-comment') ?? null;
+
+      it('offers commenting on an element of a preview', async () => {
+        const el = await withMock();
+        const groups = el.getContextMenuItems({
+          clientX: 0,
+          clientY: 0,
+          target: null,
+          origin: el.querySelector('.pay'),
+        });
+        expect(groups?.map((group) => group.id)).toEqual(['prototype-ui-comment']);
+        expect(groups?.[0]?.entries.map((entry) => [entry.kind, entry.id, entry.label])).toEqual([
+          ['item', 'comment-ui-element', m.commentOnElement],
+        ]);
+        expect(m.commentOnElement).toBe('Comment on element');
+        // the stage's own chrome is the stage too
+        expect(itemOf(el, el.shadowRoot!.querySelector('.stage-tools'))).not.toBeNull();
+      });
+
+      it('starts the picking flow from the menu, and stays on when run while picking', async () => {
+        const el = await withMock();
+        expect(mode(el)).toBe('off');
+        itemOf(el, el.querySelector('nav a span'))!.run();
+        await settle(el);
+        expect(mode(el)).toBe('picking');
+        // Running it again is no toggle: the reader keeps commenting.
+        itemOf(el, el.querySelector('nav a'))!.run();
+        await settle(el);
+        expect(mode(el)).toBe('picking');
+        // The reader then picks the element, as the item promised.
+        el.querySelector<HTMLElement>('.pay')!.click();
+        await settle(el);
+        expect(mode(el)).toBe('composing');
+        itemOf(el, el.querySelector('nav a'))!.run();
+        await settle(el);
+        expect(mode(el)).toBe('composing');
+      });
+
+      it('offers nothing for a right-click outside the stage', async () => {
+        const el = await withMock();
+        // the sidebar is inside this element too, and a comment there is not about the mock
+        expect(itemOf(el, el.shadowRoot!.querySelector('.nav'))).toBeNull();
+        expect(itemOf(el, document.body)).toBeNull();
+        expect(el.getContextMenuItems({ clientX: 0, clientY: 0, target: null, origin: null })).toBeNull();
+      });
+
+      it('offers nothing when no preview is on screen', async () => {
+        const el = await withMock();
+        // a step without panes: the stage says the preview metadata is missing
+        el.api.navigate({ story: 'billing', step: 'invoice' });
+        await settle(el);
+        expect(el.shadowRoot!.querySelector('.stage')).not.toBeNull();
+        expect(itemOf(el, el.querySelector('[data-preview-id="landing-mobile"]'))).toBeNull();
+      });
     });
   });
 

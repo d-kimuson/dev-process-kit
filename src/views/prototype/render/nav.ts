@@ -325,6 +325,7 @@ const renderScenarioNav = (
                 <span class="dpk-label">${m.stepNameLabel}</span>
                 <span class="detail-value">
                   <dpk-inline-edit
+                    wrap
                     .value=${current.name}
                     .label=${m.stepNameLabel}
                     @dpk-commit=${onCommit((value) =>

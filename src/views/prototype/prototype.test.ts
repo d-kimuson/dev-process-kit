@@ -682,4 +682,11 @@ describe('prototype sidebar width', () => {
     expect(css).toContain('grid-template-columns: minmax(0, 1fr)');
     expect(css).toContain('.field > *');
   });
+
+  it('keeps the page head clear of the button a folded sidebar floats over that corner', () => {
+    // The sticky bar spans the column edge to edge, so its leading text has to
+    // clear the button by the reach the layout publishes for that side.
+    const css = String(prototypeStyles);
+    expect(css).toContain('calc(24px + var(--dpk-fold-clearance-left, 0px))');
+  });
 });
