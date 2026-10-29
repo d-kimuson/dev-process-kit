@@ -1432,8 +1432,8 @@
         { "title": "dev-process-kit" }
       </script>
       <!--
-        The repo star button and the package link: the page's own fixed-header items,
-        carried by the same `slot="header"` a board uses for its own header content
+        The repo star button and the package link: the document's own header items,
+        carried by the same `slot="header"` a view uses for its own header content
         (docs/page.md). The GitHub mark and the star count are one link, so the count
         doubles as the repository entry point.
       -->
@@ -1728,7 +1728,7 @@
                 <div class="entry">
                   <div class="entry-head">
                     <div class="entry-head-row">
-                      <h1 class="entry-title" data-ct="templates">View</h1>
+                      <h1 class="entry-title">View</h1>
                     </div>
                   </div>
                   <!-- prettier-ignore -->
@@ -1797,7 +1797,7 @@
                       </div>
                       <h4>Delegation Poker</h4>
                       <!-- prettier-ignore -->
-                      <p class="dpk-muted" data-i18n="delegationPoker">判断ごとに 7 段階の委任レベルのカードを出し合い、Agent に何をどこまで任せるかを合意する。</p>
+                      <p class="dpk-muted" data-i18n="delegationPoker">判断ごとに 7 段階の委任レベルのカードを出し合い、誰に何をどこまで任せるかを合意する。</p>
                     </a>
                   </div>
                 </div>
@@ -1807,7 +1807,7 @@
                 <div class="entry">
                   <div class="entry-head">
                     <div class="entry-head-row">
-                      <h1 class="entry-title" data-ct="boards">Board</h1>
+                      <h1 class="entry-title">Board</h1>
                     </div>
                   </div>
                   <!-- prettier-ignore -->
@@ -1951,38 +1951,16 @@
                 <div class="entry">
                   <div class="entry-head">
                     <div class="entry-head-row">
-                      <h1 class="entry-title" data-ct="custom">Custom</h1>
+                      <h1 class="entry-title">Custom</h1>
                     </div>
                   </div>
                   <!-- prettier-ignore -->
                   <p data-i18n="customLede">Plain に複数のボードを組み合わせた例です。図を添えた資料は、plain ビューにボードと自由な HTML を組み合わせて作ります。</p>
                   <div class="dpk-grid" data-cols="3">
-                    <a
-                      class="dpk-card"
-                      href="https://github.com/d-kimuson/dev-process-kit/blob/main/docs/views/plain.md"
-                    >
-                      <div class="thumb">
-                        <div class="shell" aria-hidden="true">
-                          <div class="shell-header">header</div>
-                          <div class="shell-main">slot="main"</div>
-                          <div>review</div>
-                        </div>
-                        <ul class="thumb-tags">
-                          <li>
-                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                          </li>
-                        </ul>
-                      </div>
-                      <h4>Plain</h4>
-                      <p class="dpk-muted" data-i18n="plain">ヘッダーとレビューだけを持ち、中身は自由に書く。</p>
-                    </a>
                     <a class="dpk-card" href="design-doc.html">
                       <div class="thumb">
                         <iframe src="design-doc.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                         <ul class="thumb-tags">
-                          <li>
-                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                          </li>
                           <li>
                             <span class="dpk-badge" data-tone="violet"><code>dpk-board-state-diagram</code></span>
                           </li>
@@ -2003,9 +1981,6 @@
                         <iframe src="architecture.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                         <ul class="thumb-tags">
                           <li>
-                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                          </li>
-                          <li>
                             <span class="dpk-badge" data-tone="violet"><code>dpk-board-architecture-map</code></span>
                           </li>
                           <li>
@@ -2025,9 +2000,6 @@
                         <iframe src="ddd-primer.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                         <ul class="thumb-tags">
                           <li>
-                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                          </li>
-                          <li>
                             <span class="dpk-badge" data-tone="violet"><code>dpk-board-mind-map</code></span>
                           </li>
                           <li>
@@ -2044,9 +2016,6 @@
                         <iframe src="formal-spec.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                         <ul class="thumb-tags">
                           <li>
-                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                          </li>
-                          <li>
                             <span class="dpk-badge" data-tone="violet"><code>formal-spec</code></span>
                           </li>
                         </ul>
@@ -2059,9 +2028,6 @@
                       <div class="thumb">
                         <iframe src="grill.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                         <ul class="thumb-tags">
-                          <li>
-                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                          </li>
                           <li>
                             <span class="dpk-badge" data-tone="violet"><code>dpk-board-er-diagram</code></span>
                           </li>
@@ -2078,9 +2044,6 @@
                       <div class="thumb">
                         <iframe src="diagrams.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
                         <ul class="thumb-tags">
-                          <li>
-                            <span class="dpk-badge" data-tone="blue"><code>dpk-view-plain</code></span>
-                          </li>
                           <li>
                             <span class="dpk-badge" data-tone="violet"><code>dpk-board-mind-map</code></span>
                           </li>
@@ -4788,12 +4751,11 @@
         usm: 'Line user stories up by release under a backbone of activities and steps.',
         exampleMapping: 'Stack rules, examples and questions under each story to find the gaps in the requirements.',
         prototype: 'Lay screen flows out as stories and steps, and try them in a preview.',
-        plain: 'Only a header and the review; write whatever you like inside.',
         slides: 'An agent explains a mechanism or a change on slides you flip through one at a time.',
         taskBoard:
           'Follow the status, todos, outputs and reports of a task you share with an agent on one page, and answer its questions and proposals.',
         delegationPoker:
-          'Play one of seven delegation levels for each decision, and agree on how much to hand over to the agent.',
+          'Play one of seven delegation levels for each decision, and agree on who decides what from then on.',
         whiteboard:
           'Place sticky notes, shapes and frames anywhere and connect them, for a brainstorm or a retro on one board.',
         boardsLede: 'One board per page. A board works on its own, or embedded in another view.',
@@ -4862,10 +4824,7 @@
           next: 'Next',
           overview: 'Overview',
           tokens: 'Tokens',
-          templates: 'View',
           patterns: 'Patterns',
-          boards: 'Board',
-          custom: 'Custom',
           controls: 'Controls',
           controlsTitle: 'Controls',
           controlsReset: 'Reset',
@@ -4896,10 +4855,7 @@
           next: '次へ',
           overview: '概要',
           tokens: 'トークン',
-          templates: 'ビュー',
           patterns: 'パターン',
-          boards: 'ボード',
-          custom: 'カスタム',
           controls: 'コントロール',
           controlsTitle: 'コントロール',
           controlsReset: 'リセット',
