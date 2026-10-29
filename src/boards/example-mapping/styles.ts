@@ -8,41 +8,6 @@ import { css } from 'lit';
  * one side. Cards style themselves.
  */
 export const exampleMappingStyles = css`
-  /* ------------------------------------------------------------ legend */
-
-  .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-size: 11.5px;
-    color: var(--dpk-ink-soft);
-  }
-
-  /* Each entry reads as a small raised chip, matching the pill vocabulary
-     used for the readiness / tally summary next to it. */
-  .legend li {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px 4px 6px;
-    border: 1px solid var(--dpk-rule);
-    border-radius: 999px;
-    background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
-    white-space: nowrap;
-  }
-
-  .legend-swatch {
-    width: 14px;
-    height: 11px;
-    border-radius: 2px;
-    background: var(--em-card-bg);
-    box-shadow: var(--dpk-shadow-xs);
-  }
-
   /* ------------------------------------------------------------- board */
 
   .board {
@@ -64,19 +29,6 @@ export const exampleMappingStyles = css`
       var(--dpk-paper-raised);
     box-shadow: var(--dpk-shadow);
     transition: outline-color 150ms ease;
-  }
-
-  /* A quiet top edge marks the section as one grouped unit, echoing the
-     activity band accent used elsewhere in the kit. */
-  .story-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    border-radius: var(--dpk-radius-lg) var(--dpk-radius-lg) 0 0;
-    background: color-mix(in srgb, var(--dpk-accent) 45%, transparent);
   }
 
   .story-section[data-drop='true'] {
@@ -410,8 +362,10 @@ export const exampleMappingStyles = css`
     overflow-wrap: anywhere;
   }
 
-  /* A side rail of round buttons that fades in on hover, like Event Storming:
-     nothing crosses the card's face. */
+  /* A side rail of round buttons (comment above delete) that fades in on
+     hover — or while anything in the card has focus, so the tools stay
+     reachable from the keyboard — like Event Storming: nothing crosses the
+     card's face. */
   .em-card .card-tools {
     position: absolute;
     top: 9px;
@@ -426,6 +380,7 @@ export const exampleMappingStyles = css`
   }
 
   .em-card:hover .card-tools,
+  .em-card:focus-within .card-tools,
   .em-card .card-tools:focus-within {
     opacity: 1;
     pointer-events: auto;

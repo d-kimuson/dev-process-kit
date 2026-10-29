@@ -84,7 +84,7 @@ question (red)   — under its rule, in a separate area below the examples
 
 ## UI provided by the component
 
-サイドバーなし。ヘッダーにカード色の凡例、本体にストーリーごとのテーブル。
+サイドバーなし。本体にストーリーごとのテーブル。
 
 | 領域         | 内容                                                                                                                        |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------- |
@@ -96,7 +96,7 @@ question (red)   — under its rule, in a separate area below the examples
 
 状態チップは Example Mapping の読み方に沿う: ルールが無い = `No rules yet`、質問が残る = `Open questions`、ルールが 5 枚以上 = `Consider splitting`、具体例の無いルールがある = `A rule has no example`、それ以外 = `Looks ready`。
 
-カードは Event Storming と同じ付箋で、名前をクリックするとその場で編集できる（編集ボタンは無い）。追加したカードは名前にキャレットが入った状態で現れる。ホバーで右側にコメント / 削除が出る。
+カードは Event Storming と同じ付箋で、名前をクリックするとその場で編集できる（編集ボタンは無い）。追加したカードは名前にキャレットが入った状態で現れる。ホバー（またはカード内にフォーカスがあるとき）で右側にコメント / 削除が出る。コメントボタンはそのカードへの composer を開くだけで、カードの選択も編集も始めない。
 
 UI から編集できるのはカード名、追加、ドラッグ移動（ストーリー = テーブル単位、ルール = 列単位、具体例 = 別のルールの具体例エリアへ、質問 = 別のルールの質問エリアへ）、削除、コメント。説明文（`description`）はカードに読み取り専用で表示され、編集は agent が base を作り直す（`SET_*_DESCRIPTION` は draft として記録される）。
 
@@ -104,7 +104,7 @@ UI から編集できるのはカード名、追加、ドラッグ移動（ス�
 
 ## Comment targets
 
-`page:example-mapping`（マップ全体。ページの内容にするときは `page:example-mapping@<page>`）と、すべての story / rule / example / question が `commentTargets` に列挙される。カードのコメントアイコンはそのカードへの composer を top layer の popover として開き、popover 内に textarea + Send / Cancel + 既存コメント一覧がある（カード自体のレイアウトは動かない）。
+すべての story / rule / example / question が `commentTargets` に列挙される（マップ全体のターゲットは無い）。カードのコメントアイコンはそのカードへの composer を top layer の popover として開き、popover 内に textarea + Send / Cancel + 既存コメント一覧がある（カード自体のレイアウトは動かない）。カードを右クリックして "Review comment" を選んでも同じ composer がそのカードの位置に開く。
 
 ## Naming
 

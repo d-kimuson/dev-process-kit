@@ -309,6 +309,24 @@ describe('BoardCanvasElement', () => {
     expect(element.renderRoot.querySelector('.comment-pop')).toBeNull();
   });
 
+  it('opens the composer over a target through the public openComment() API', async () => {
+    const element = await mount('tiny-diagram', tinyData);
+    element.id = 'tiny';
+    await settle(element);
+    // A ref this diagram does not name has no anchor: nothing opens.
+    element.openComment('element:tiny/node/ghost');
+    await settle(element);
+    expect(element.renderRoot.querySelector('.comment-pop')).toBeNull();
+
+    element.openComment('element:tiny/node/a');
+    await settle(element);
+    // The same composer the context menu opens: the target's label, and the caret in the field.
+    expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('a');
+    const area = element.renderRoot.querySelector('textarea');
+    if (!area) throw new Error('missing composer');
+    expect(element.shadowRoot?.activeElement).toBe(area);
+  });
+
   it('keeps the draft on a rejected submission, scoped to its own target', async () => {
     const element = await mount('tiny-diagram', tinyData);
     element.id = 'tiny';

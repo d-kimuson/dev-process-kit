@@ -324,8 +324,8 @@ describe('<dpk-board-example-mapping>', () => {
     expect(area(element, 'questions-r2')).toEqual(['q3']);
     // No story-wide question lane.
     expect(root.querySelector('[data-testid="questions-s1"]')).toBeNull();
-    // The legend explains the colors in the header.
-    expect(root.querySelectorAll('.legend li')).toHaveLength(4);
+    // The colors explain themselves; no legend row sits above the table.
+    expect(root.querySelector('.legend')).toBeNull();
   });
 
   it('offers every story, rule, example and question as a comment target, in board order', async () => {
@@ -382,6 +382,23 @@ describe('<dpk-board-example-mapping>', () => {
     });
     expect(element.selection).toBeNull();
     expect(area(element, 'examples-r1')).toEqual(['e2']);
+  });
+
+  it('opens the composer over a card from its hover comment button, without selecting it', async () => {
+    const element = await mount();
+    const tools = card(element, 'r1').querySelectorAll<HTMLButtonElement>('.card-tools button');
+    expect([...tools].map((button) => button.dataset['role'])).toEqual(['comment', 'delete']);
+    const button = card(element, 'r1').querySelector<HTMLButtonElement>('.card-tools [data-role="comment"]');
+    if (!button) throw new Error('missing comment button');
+    expect(button.getAttribute('aria-label')).toBe(m.commentCard);
+    button.click();
+    await settle(element);
+    // The same composer the right-click "Review comment" item opens, over this card.
+    expect(element.renderRoot.querySelector('.comment-pop')).not.toBeNull();
+    expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('在庫があれば受ける');
+    // Asking for a comment is chrome: the card is neither selected nor put into editing.
+    expect(element.selection).toBeNull();
+    expect(card(element, 'r1').getAttribute('data-mode')).toBe('view');
   });
 
   it('adds a fresh story, records the action and puts the caret straight into its name', async () => {
@@ -464,21 +481,11 @@ describe('<dpk-board-example-mapping>', () => {
   it('renders its kit text in the element’s language', async () => {
     const ja = exampleMappingMessages('ja');
     const element = await mount('ja');
-    expect([...element.renderRoot.querySelectorAll('.legend li')].map((li) => li.textContent?.trim())).toEqual([
-      ja.kindLabel('story'),
-      ja.kindLabel('rule'),
-      ja.kindLabel('example'),
-      ja.kindLabel('question'),
-    ]);
+    expect(element.renderRoot.querySelector('.add-story')?.textContent?.trim()).toBe(ja.addStoryButton);
   });
 
   it('renders its kit text in English by default', async () => {
     const element = await mount();
-    expect([...element.renderRoot.querySelectorAll('.legend li')].map((li) => li.textContent?.trim())).toEqual([
-      m.kindLabel('story'),
-      m.kindLabel('rule'),
-      m.kindLabel('example'),
-      m.kindLabel('question'),
-    ]);
+    expect(element.renderRoot.querySelector('.add-story')?.textContent?.trim()).toBe(m.addStoryButton);
   });
 });

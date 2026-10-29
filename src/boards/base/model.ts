@@ -181,7 +181,14 @@ export const classNames = (...entries: readonly (string | false | null | undefin
 
 /**
  * Where an orthogonal route can carry a label without covering its own line:
- * the middle of the segment that runs across the flow.
+ * a point inside a run, never on a corner and never on the arrowhead.
+ *
+ * A two-point route's middle is its only run. A four-point route is one bend
+ * pair, and its middle run — the one the two half-runs share a coordinate with
+ * — is where a label reads best, whichever orientation the route took (out and
+ * across, or across and down). Anything else takes the middle of its longest
+ * run, which is likewise never a corner, instead of a fixed index that used to
+ * land on an elbow as soon as the route had more bends.
  */
 export const routeLabelPoint = (points: readonly LayoutPoint[]): LayoutPoint => {
   const first = points[0] ?? { x: 0, y: 0 };
@@ -190,9 +197,20 @@ export const routeLabelPoint = (points: readonly LayoutPoint[]): LayoutPoint => 
   if (points.length === 4) {
     const top = points[1] ?? first;
     const bottom = points[2] ?? last;
-    return { x: top.x, y: (top.y + bottom.y) / 2 };
+    return { x: (top.x + bottom.x) / 2, y: (top.y + bottom.y) / 2 };
   }
-  const left = points[2] ?? first;
-  const right = points[3] ?? last;
-  return { x: (left.x + right.x) / 2, y: left.y };
+  let best = 0;
+  let longest = -1;
+  for (let index = 0; index + 1 < points.length; index++) {
+    const a = points[index]!;
+    const b = points[index + 1]!;
+    const length = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+    if (length > longest) {
+      longest = length;
+      best = index;
+    }
+  }
+  const start = points[best] ?? first;
+  const end = points[best + 1] ?? last;
+  return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
 };

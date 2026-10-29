@@ -63,6 +63,7 @@ export const eventStormingMessages = defineMessages({
     addTypeLabel: (type: NoteType) => `+ ${noteTypeLabelsEn[type]}`,
     addHotspot: '+ Hotspot',
     pinHotspotTitle: 'Pin a hotspot on this note',
+    commentNote: 'Comment',
     deleteNote: 'Delete',
     noteNameLabel: 'Note name',
 
@@ -144,6 +145,7 @@ export const eventStormingMessages = defineMessages({
     addTypeLabel: (type: NoteType) => `+ ${noteTypeLabelsJa[type]}`,
     addHotspot: '+ ホットスポット',
     pinHotspotTitle: 'この付箋にホットスポットを立てる',
+    commentNote: 'コメント',
     deleteNote: '削除',
     noteNameLabel: '付箋名',
 

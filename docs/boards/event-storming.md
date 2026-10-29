@@ -42,7 +42,7 @@ a `member` link keeps two notes in the same slice; a `flow` link is succession
 
 | Field                                           | Required | Notes                                                                                                                                                    |
 | ----------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `title`                                         | no       | shown in the page header; defaults to `Event Storming`                                                                                                   |
+| `title`                                         | no       | shown in the header; defaults to `Event Storming`                                                                                                        |
 | `contexts[].id` / `name`                        | yes      | `description` optional                                                                                                                                   |
 | `elements[].id` / `name`                        | yes      | `description` optional, `contextId` optional (must reference a known context)                                                                            |
 | `elements[].type`                               | yes      | one of `actor \| command \| aggregate \| event \| policy \| readmodel \| external \| hotspot`                                                            |
@@ -111,11 +111,15 @@ A link to an unknown note, or a note pointing at an unknown context, is an error
 
 Selecting a note opens its editor in a popover: inline-editable name and description, type select, bounded-context select, delete, and the outgoing/incoming link lists with add and remove.
 
+Every note reveals a small tool rail on hover (or while anything in the note has focus): a **comment** button, which opens the contextual composer over that very note without selecting it, and **delete**. Right-clicking a note offers the same composer through the generic "Review comment" item (`docs/boards/index.md`, Element comments).
+
 The board is a fixed grid — notes keep their size so the link lines never need measuring — and a long timeline scrolls horizontally. The UI edits note name/description/type, context assignment, add/delete note, add/remove links, add/delete context, the context filter and the selected note. Deliberately left to the agent (no UI): reordering the timeline across the flow, retargeting link endpoints, and any restructuring of the meaning model (merging contexts, re-typing whole lanes).
 
 ## Comment targets
 
 Elements and contexts: `element:<id>` labelled with the note name under group `Element`, `context:<id>` labelled with the context name under group `Bounded context`. In the chaos harness and any other code that wraps these into the `element:<board-id>/<kind>/<id>` scheme (`docs/boards/index.md`), the kind for a note is `note` — matching this section's own group label, not the `element` action-vocabulary target kind above.
+
+A note's hover comment button and the right-click "Review comment" item open the same composer, anchored on that note: a top-layer popover with a textarea, Send / Cancel and the note's existing comments. The board's layout never moves for it.
 
 ## Change notices
 

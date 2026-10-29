@@ -186,6 +186,11 @@ export const kanbanStyles = css`
     background: linear-gradient(var(--dpk-blue-soft), var(--dpk-blue-soft)), var(--dpk-paper-raised);
   }
 
+  /* The key rides in the card's head: keep it clear of the comment trigger that takes the top right. */
+  .kanban-card .dpk-card-key {
+    margin-right: 4px;
+  }
+
   .kanban-card-meta {
     align-items: center;
   }

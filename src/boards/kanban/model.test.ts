@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { kanbanMessages } from './messages';
-import { isSamePosition, parseKanbanData, reduceKanbanActions, visibleKanban, type KanbanData } from './model';
+import {
+  allCards,
+  cardKey,
+  isSamePosition,
+  nextCardNumber,
+  parseKanbanData,
+  reduceKanbanActions,
+  visibleKanban,
+  type KanbanData,
+} from './model';
 
 const m = kanbanMessages('en');
 
@@ -86,6 +95,72 @@ describe('kanban data', () => {
   });
 });
 
+describe('kanban card numbers', () => {
+  const numbered = (): KanbanData =>
+    parseKanbanData({
+      columns: [
+        {
+          id: 'todo',
+          label: 'ToDo',
+          cards: [
+            { id: 'a', title: 'A', number: 4 },
+            { id: 'b', title: 'B' },
+          ],
+        },
+        {
+          id: 'doing',
+          label: '作業中',
+          cards: [
+            { id: 'c', title: 'C' },
+            { id: 'd', title: 'D', number: 1 },
+          ],
+        },
+      ],
+    });
+
+  it('keeps authored numbers and gives the others the next ones after the highest, in board order', () => {
+    const board = numbered();
+    expect(allCards(board).map((card) => [card.id, card.number])).toEqual([
+      ['a', 4],
+      ['b', 5],
+      ['c', 6],
+      ['d', 1],
+    ]);
+    expect(allCards(board).map(cardKey)).toEqual(['TASK-4', 'TASK-5', 'TASK-6', 'TASK-1']);
+  });
+
+  it('numbers a board without authored numbers from 1, and knows the next one', () => {
+    const board = data();
+    expect(new Set(allCards(board).map((card) => card.number))).toEqual(new Set([1, 2, 3, 4]));
+    expect(nextCardNumber(board)).toBe(5);
+    expect(nextCardNumber(parseKanbanData({ columns: [] }))).toBe(1);
+    expect(cardKey({ number: 12 })).toBe('TASK-12');
+  });
+
+  it('rejects duplicate and invalid numbers', () => {
+    expect(() =>
+      parseKanbanData({
+        columns: [
+          {
+            id: 'a',
+            label: 'A',
+            cards: [
+              { id: 'x', title: 'X', number: 2 },
+              { id: 'y', title: 'Y', number: 2 },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(/duplicate card number: 2/);
+    expect(() =>
+      parseKanbanData({ columns: [{ id: 'a', label: 'A', cards: [{ id: 'x', title: 'X', number: 0 }] }] }),
+    ).toThrow();
+    expect(() =>
+      parseKanbanData({ columns: [{ id: 'a', label: 'A', cards: [{ id: 'x', title: 'X', number: 1.5 }] }] }),
+    ).toThrow();
+  });
+});
+
 describe('kanban element actions', () => {
   it('adds a card at the end of a column, marked as added', () => {
     const { data: next, results } = reduceKanbanActions(m, data(), [
@@ -112,6 +187,30 @@ describe('kanban element actions', () => {
       { id: 'm2', title: m.moveCardTitle, summary: m.moveSummarySame('通知メール', 'ToDo'), tone: 'move' },
       { id: 'm3', title: m.moveCardTitle, summary: m.moveSummaryAcross('ログイン画面', 'ToDo', '完了'), tone: 'move' },
     ]);
+  });
+
+  it('numbers a new card after the highest, and keeps the number a stored draft names', () => {
+    const { data: next, results } = reduceKanbanActions(m, data(), [
+      action('a1', 'ADD_CARD', 'column/done', { id: 'audit', title: '監査ログ' }),
+      action('a2', 'ADD_CARD', 'column/done', { id: 'billing', title: '請求', number: 9 }),
+      action('a3', 'ADD_CARD', 'column/todo', { id: 'resend', title: '再送' }),
+    ]);
+    expect(next.columns[2]?.cards.map((card) => [card.id, card.number])).toEqual([
+      ['audit', 5],
+      ['billing', 9],
+    ]);
+    expect(next.columns[0]?.cards.at(-1)).toMatchObject({ id: 'resend', number: 10 });
+    expect(results.map((result) => result.stale)).toEqual([undefined, undefined, undefined]);
+  });
+
+  it('rejects a new card whose number is already taken', () => {
+    const base = data();
+    const { data: next, results } = reduceKanbanActions(m, base, [
+      action('taken', 'ADD_CARD', 'column/todo', { id: 'x', title: 'X', number: 2 }),
+      action('invalid', 'ADD_CARD', 'column/todo', { id: 'y', title: 'Y', number: 0 }),
+    ]);
+    expect(next).toBe(base);
+    expect(results.map((result) => result.stale)).toEqual(['constraint-violated', 'constraint-violated']);
   });
 
   it('builds on cards added earlier, which stay marked as added when moved', () => {

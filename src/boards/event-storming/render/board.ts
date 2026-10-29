@@ -9,9 +9,9 @@ import type { EventStormingMessages } from '../messages';
 import type { EventStormingState, NoteType } from '../model';
 
 import { grillMark } from '../../../core/grill';
-import { notePaletteStyle } from '../components/note-card';
+import { notePaletteStyle, type NoteCardIntent } from '../components/note-card';
 import { buildSlices, planSliceBands, sliceArrows, type EsSlice, type SliceArrow } from '../layout';
-import { noteCardModeOf, type EsGesture, type EsUiMode, type NoteIntent, type Point } from '../ui-mode';
+import { noteCardModeOf, type EsGesture, type EsUiMode, type Point } from '../ui-mode';
 import { clipLabel } from './link-label';
 import { PIN_H, PIN_W, stackPins } from './pin-stack';
 
@@ -74,7 +74,7 @@ const slicePins = (
 };
 
 export type EsBoardHandlers = {
-  readonly noteIntent: (noteId: string, intent: NoteIntent) => void;
+  readonly noteIntent: (noteId: string, intent: NoteCardIntent) => void;
   readonly addFirst: () => void;
   /** A hovered slice's chip was clicked: add the missing role. */
   readonly attachNote: (sliceId: string, type: NoteType) => void;
@@ -312,7 +312,7 @@ const renderBand = (
       data-pin=${compact ? note.id : nothing}
       data-dpk-target=${props.commentRef('note', note.id)}
       data-grill-questions=${ifDefined(grillMark(note.questions))}
-      .onIntent=${(intent: NoteIntent) => handlers.noteIntent(note.id, intent)}
+      .onIntent=${(intent: NoteCardIntent) => handlers.noteIntent(note.id, intent)}
     ></dpk-internal-event-storming-note>`;
   return html`
     <section class="band" data-band=${bandIndex} style=${`left:${WALL_PAD + band.x}px;top:${band.y}px`}>

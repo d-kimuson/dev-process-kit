@@ -19,7 +19,7 @@ import {
   type MappingCardKind,
 } from './model';
 import { reduceExampleMappingActions } from './reduce';
-import { renderBoard, renderLegend, type MappingDragType } from './render/board';
+import { renderBoard, type MappingDragType } from './render/board';
 import { exampleMappingStyles } from './styles';
 import { IDLE_MODE, reduceCardIntent, type ExampleMappingUiMode, type MappingCardIntent } from './ui-mode';
 
@@ -50,8 +50,9 @@ const MAP_ANCHOR = 'example-mapping';
  * `DragController` to the board renderer, and turns card intents and drops
  * into element actions. Layout lives in `render/`, the sticky note in
  * `components/`, and every drop decision in `drop.ts` — all unchanged since
- * the template days (ADR 20261023_diagram-as-board). Comments are the
- * chrome's own contextual trigger, rendered beside each card.
+ * the template days (ADR 20261023_diagram-as-board). Comments open the chrome's
+ * own contextual composer over a card: from the card's hover comment button,
+ * or from the right-click menu.
  */
 export class DpkBoardExampleMapping extends BoardChromeBase<ExampleMappingState, MappingSelection> {
   protected override boardAddable(): boolean {
@@ -135,7 +136,7 @@ export class DpkBoardExampleMapping extends BoardChromeBase<ExampleMappingState,
         subject=${subject === '' ? nothing : subject}
         @dpk-maximize-change=${() => this.closeComposer()}
       >
-        ${this.renderToolbarActionsSlot()} ${this.renderTagFilterRow(renderLegend(m))}
+        ${this.renderToolbarActionsSlot()} ${this.renderTagFilterRow()}
         ${
           this.dataError !== null
             ? html`<p class="em-notice" role="alert">${chrome.dataError}<br />${this.dataError}</p>`
@@ -157,6 +158,7 @@ export class DpkBoardExampleMapping extends BoardChromeBase<ExampleMappingState,
                   isSelected: (kind, id) => this.#isSelected(kind, id),
                 },
                 commentRef: (kind, id) => this.commentRef(kind, id),
+                onComment: (kind, cardId) => this.openComment(this.commentRef(kind, cardId)),
               })
         }
       </dpk-dialog-panel>

@@ -16,8 +16,12 @@ import { elementRefSegments } from '../base/model';
  * cards they touch are marked, so the agent can fold them into the JSON later.
  */
 
+/** A card's number, unique on the board; it is the `TASK-<number>` key people say. */
+const cardNumberSchema = v.pipe(v.number(), v.integer(), v.minValue(1));
+
 const cardSchema = v.strictObject({
   id: v.pipe(v.string(), v.minLength(1)),
+  number: v.optional(cardNumberSchema),
   title: v.pipe(v.string(), v.minLength(1)),
   description: v.optional(v.string()),
   tags: v.optional(v.array(v.string())),
@@ -46,6 +50,12 @@ export type KanbanCardChange = 'added' | 'moved' | null;
 
 export type KanbanCard = {
   readonly id: string;
+  /**
+   * The card's number, unique on the board: people call the card by its key
+   * `TASK-<number>`. Data that leaves it out numbers the card after the
+   * highest number, in board order.
+   */
+  readonly number: number;
   readonly title: string;
   readonly description: string | null;
   readonly tags: readonly string[];
@@ -81,6 +91,14 @@ export const parseKanbanData = (input: unknown): KanbanData => {
   const parsed = v.parse(boardSchema, input);
   const columnIds = new Set<string>();
   const cardIds = new Set<string>();
+  // Authored numbers stay as they are; a card without one takes the next number
+  // after the highest, in board order (column order, then card order).
+  const numbers = parsed.columns.flatMap((column) =>
+    (column.cards ?? []).flatMap((card) => (card.number === undefined ? [] : [card.number])),
+  );
+  const repeated = numbers.find((number, index) => numbers.indexOf(number) !== index);
+  if (repeated !== undefined) throw new Error(`duplicate card number: ${repeated}`);
+  let nextNumber = Math.max(0, ...numbers);
   const columns = parsed.columns.map((column): KanbanColumn => {
     if (columnIds.has(column.id)) throw new Error(`duplicate column id: ${column.id}`);
     columnIds.add(column.id);
@@ -95,6 +113,7 @@ export const parseKanbanData = (input: unknown): KanbanData => {
         cardIds.add(card.id);
         return {
           id: card.id,
+          number: card.number ?? ++nextNumber,
           title: card.title,
           description: card.description ?? null,
           tags: card.tags ?? [],
@@ -132,6 +151,15 @@ export const isSamePosition = (data: KanbanData, id: string, column: string, bef
   return (cards[index + 1]?.id ?? null) === before;
 };
 
+/* --------------------------------------------------------------- card keys */
+
+/** The key people call a card by: `TASK-12`. */
+export const cardKey = (card: Pick<KanbanCard, 'number'>): string => `TASK-${card.number}`;
+
+/** The number a card added now takes: one after the highest on the board. */
+export const nextCardNumber = (data: KanbanData): number =>
+  Math.max(0, ...allCards(data).map((card) => card.number)) + 1;
+
 /* ---------------------------------------------------------- element actions */
 
 export const ADD_CARD = 'ADD_CARD';
@@ -140,6 +168,8 @@ export const MOVE_CARD = 'MOVE_CARD';
 const addCardPayloadSchema = v.object({
   id: v.pipe(v.string(), v.minLength(1)),
   title: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  /** A stored draft names the number it took; without one the card takes the next free number. */
+  number: v.optional(cardNumberSchema),
 });
 
 const moveCardPayloadSchema = v.object({
@@ -185,8 +215,13 @@ const addCard = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step
   if (!payload.success || findCard(data, payload.output.id) !== undefined) {
     return { data, result: { id: action.id, title, stale: 'constraint-violated' } };
   }
+  const number = payload.output.number ?? nextCardNumber(data);
+  if (allCards(data).some((card) => card.number === number)) {
+    return { data, result: { id: action.id, title, stale: 'constraint-violated' } };
+  }
   const card: KanbanCard = {
     id: payload.output.id,
+    number,
     title: payload.output.title,
     description: null,
     tags: [],

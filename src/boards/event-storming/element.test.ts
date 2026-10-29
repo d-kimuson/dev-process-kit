@@ -200,13 +200,18 @@ describe('<dpk-board-event-storming>', () => {
     acceptActions(element);
     const card = q(element, 'dpk-internal-event-storming-note[data-dpk-target="element:board/note/n1"]');
     await (card as HTMLElement & { updateComplete: Promise<boolean> }).updateComplete;
-    // The name itself is the editor; the card only carries the hotspot chip and delete.
+    // The name itself is the editor; the card only carries the hotspot chip and its tool rail.
     const edit = card.shadowRoot?.querySelector<HTMLElement>('dpk-inline-edit.note-name');
     expect(edit).not.toBeNull();
     expect(card.shadowRoot?.querySelector('[data-role="edit"]')).toBeNull();
     expect(card.shadowRoot?.querySelector('[data-role="detail"]')).toBeNull();
     expect(card.shadowRoot?.querySelector('.note-hotspot')?.textContent).toContain(m.addHotspot);
-    expect(card.shadowRoot?.querySelectorAll('.note-tools button')).toHaveLength(1);
+    expect(card.shadowRoot?.querySelectorAll('.note-tools button')).toHaveLength(2);
+    expect(
+      [...(card.shadowRoot?.querySelectorAll<HTMLButtonElement>('.note-tools button') ?? [])].map(
+        (button) => button.dataset['role'],
+      ),
+    ).toEqual(['comment', 'delete']);
     await (edit as unknown as { updateComplete: Promise<boolean> }).updateComplete;
     // The field itself is the resting display (readonly); a click on it starts editing.
     const resting = edit?.shadowRoot?.querySelector<HTMLInputElement | HTMLTextAreaElement>('.field');
@@ -222,6 +227,23 @@ describe('<dpk-board-event-storming>', () => {
     }
     await settle(element);
     expect(element.elementActions.map((a) => a.type)).toEqual(['SET_ELEMENT_NAME']);
+  });
+
+  it('opens the composer over a note from its hover comment button, without selecting it', async () => {
+    const element = await mount();
+    const card = q(element, 'dpk-internal-event-storming-note[data-dpk-target="element:board/note/n1"]');
+    await (card as HTMLElement & { updateComplete: Promise<boolean> }).updateComplete;
+    const button = card.shadowRoot?.querySelector<HTMLButtonElement>('.note-tools [data-role="comment"]');
+    if (!button) throw new Error('missing comment button');
+    expect(button.getAttribute('aria-label')).toBe(m.commentNote);
+    button.click();
+    await settle(element);
+    // The same composer the right-click "Review comment" item opens, over this note.
+    expect(element.renderRoot.querySelector('.comment-pop')).not.toBeNull();
+    expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('E1');
+    // Asking for a comment is chrome: the note is neither selected nor edited.
+    expect(element.selection).toBeNull();
+    expect(q(element, '[data-dpk-target="element:board/note/n1"]').getAttribute('data-mode')).not.toBe('editing');
   });
 
   it('selects a link stroke and deletes it with the Delete key', async () => {

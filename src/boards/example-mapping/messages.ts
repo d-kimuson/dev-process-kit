@@ -40,7 +40,6 @@ export const exampleMappingMessages = defineMessages({
     kindLabel: (kind: MappingCardKind) => KIND_LABEL_EN[kind],
     readinessLabel: (readiness: StoryReadiness) => READINESS_LABEL_EN[readiness],
     map: 'Map',
-    cardKinds: 'Card kinds',
 
     // --------------------------------------------------------- empty board
     noStoriesTitle: 'No stories yet',
@@ -55,6 +54,7 @@ export const exampleMappingMessages = defineMessages({
 
     // -------------------------------------------------------------- card
     deleteButton: 'Delete',
+    commentCard: 'Comment',
     nameField: (kindLabel: string) => `${kindLabel} name`,
 
     // ------------------------------------------------------- new cards
@@ -104,7 +104,6 @@ export const exampleMappingMessages = defineMessages({
     kindLabel: (kind: MappingCardKind) => KIND_LABEL_JA[kind],
     readinessLabel: (readiness: StoryReadiness) => READINESS_LABEL_JA[readiness],
     map: 'マップ',
-    cardKinds: 'カードの種類',
 
     noStoriesTitle: 'ストーリーがまだありません',
     noStoriesBody:
@@ -116,6 +115,7 @@ export const exampleMappingMessages = defineMessages({
     noQuestions: '未解決の質問はありません',
 
     deleteButton: '削除',
+    commentCard: 'コメント',
     nameField: (kindLabel: string) => `${kindLabel}名`,
 
     newStory: '新しいストーリー',

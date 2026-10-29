@@ -1,18 +1,21 @@
 import { html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
+import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
 import type { ElementActionResult } from '../../core/element-actions';
-import type { CommentTargetOption, DraftAction } from '../../core/types';
+import type { ActionTarget, CommentTargetOption, DraftAction } from '../../core/types';
 
 import { cardAtom } from '../../components/atoms/card';
-import { createEntityId } from '../../core/target';
+import { createEntityId, targetRef } from '../../core/target';
+import { copyText } from '../../lib/dom/clipboard';
 import { BoardChromeBase } from '../base/element';
-import { classNames, tagStateMatches } from '../base/model';
+import { classNames, elementRefSegments, tagStateMatches } from '../base/model';
 import { chromeStyles } from '../base/styles';
 import { kanbanMessages } from './messages';
 import {
   ADD_CARD,
   allCards,
+  cardKey,
   emptyKanbanData,
   findCard,
   isSamePosition,
@@ -88,6 +91,45 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
       ...items.columns.map((column) => ({ value: this.commentRef('column', column.id), label: column.label })),
       ...allCards(items).map((card) => ({ value: this.commentRef('card', card.id), label: card.title })),
     ];
+  }
+
+  /**
+   * Right-clicking a card copies its key (`TASK-3`), alone or with its title.
+   * Anything else — a column, the board, another board's card — keeps the
+   * inherited menu as it is.
+   */
+  override getContextMenuItems(request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
+    const inherited = super.getContextMenuItems(request);
+    const card = this.#cardOfTarget(request.target);
+    if (card === undefined) return inherited;
+    const m = kanbanMessages(this.locale);
+    const key = cardKey(card);
+    return [
+      {
+        id: 'kanban-card',
+        entries: [
+          { kind: 'item', id: 'copy-card-key', label: m.copyKey, run: () => void copyText(key) },
+          {
+            kind: 'item',
+            id: 'copy-card-key-title',
+            label: m.copyKeyTitle,
+            run: () => void copyText(`${key} ${card.title}`),
+          },
+        ],
+      },
+      ...(inherited ?? []),
+    ];
+  }
+
+  /** The card a menu target names, when that ref is one of this board's own cards. */
+  #cardOfTarget(target: ActionTarget | null): KanbanCard | undefined {
+    if (target === null || target.type !== 'element') return undefined;
+    const segments = elementRefSegments(target.id);
+    if (segments === null || segments.length !== 3 || segments[1] !== 'card') return undefined;
+    const id = segments[2];
+    const card = id === undefined ? undefined : findCard(this.items(), id);
+    // A nested sibling board may carry a card with the same id: only this board's own ref counts.
+    return card !== undefined && this.commentRef('card', card.id) === targetRef(target) ? card : undefined;
   }
 
   protected override hasSelection(selection: KanbanSelection): boolean {
@@ -255,7 +297,10 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
           @dragstart=${(event: DragEvent) => this.#onDragStart(event, card.id)}
           @dragend=${() => this.#endDrag()}
         >
-          <div class="dpk-card-title">${card.title}</div>
+          <div class="dpk-card-head">
+            <div class="dpk-card-title">${card.title}</div>
+            <span class="dpk-card-key">${cardKey(card)}</span>
+          </div>
           ${card.description === null ? nothing : html`<div class="dpk-card-text">${card.description}</div>`}
           ${
             card.tags.length === 0 && card.assignee === null

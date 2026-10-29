@@ -9,7 +9,7 @@ import { pointAnchor } from '../../lib/dom/popover';
 import { BoardChromeBase, isActionPayload } from '../base/element';
 import { chromeStyles } from '../base/styles';
 import { eventStormingAction } from './actions';
-import { defineEsNoteCard, notePaletteStyle } from './components/note-card';
+import { defineEsNoteCard, notePaletteStyle, type NoteCardIntent } from './components/note-card';
 import { moveGesture } from './gesture';
 import {
   constrainViewport,
@@ -40,15 +40,7 @@ import { PinHeightsController } from './pin-heights';
 import { reduceEventStormingActions } from './reduce';
 import { renderEsBoard } from './render/board';
 import { eventStormingStyles } from './styles';
-import {
-  ES_IDLE,
-  reduceNoteIntent,
-  type EsGesture,
-  type EsNaming,
-  type EsUiMode,
-  type NoteIntent,
-  type Point,
-} from './ui-mode';
+import { ES_IDLE, reduceNoteIntent, type EsGesture, type EsNaming, type EsUiMode, type Point } from './ui-mode';
 
 /** What the chrome's own comment trigger (and `hasSelection`) addresses: one sticky note. */
 export type EsSelectionRef = { readonly kind: 'note'; readonly id: string };
@@ -81,7 +73,8 @@ const BOARD_ANCHOR = 'event-storming';
  * them, and turns intents into element actions. Placement lives in `layout.ts`,
  * gesture math in `interactions.ts`, rendering in `render/board.ts` (pin
  * stacking in `render/pin-stack.ts`), the sticky note in `components/note-card.ts`.
- * Comments are the chrome's own contextual trigger, rendered beside each note.
+ * Comments open the chrome's own contextual composer over a note: from the
+ * card's hover comment button, or from the right-click menu.
  */
 export class DpkBoardEventStorming extends BoardChromeBase<EventStormingState, EsSelectionRef> {
   static override styles: CSSResultGroup = [chromeStyles, eventStormingStyles];
@@ -474,7 +467,14 @@ export class DpkBoardEventStorming extends BoardChromeBase<EventStormingState, E
   /* --------------------------------------------------------------- intents */
 
   /** A note asked for something: apply the side effect, then the mode transition. */
-  #onNoteIntent(noteId: string, intent: NoteIntent): void {
+  #onNoteIntent(noteId: string, intent: NoteCardIntent): void {
+    // The card's own comment button is chrome, not board state: it opens the
+    // composer over this note and leaves the mode and the selection alone —
+    // the same composer the right-click menu opens (see `openComment`).
+    if (intent.kind === 'comment') {
+      this.openComment(this.commentRef('note', noteId));
+      return;
+    }
     switch (intent.kind) {
       case 'select':
         this.select({ kind: 'note', id: noteId });

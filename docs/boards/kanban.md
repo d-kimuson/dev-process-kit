@@ -14,8 +14,14 @@ A board, not a diagram: it sits in the page's normal flow at its natural height,
           "label": "ToDo",
           "color": "gray",
           "cards": [
-            { "id": "login", "title": "ログイン画面", "tags": ["UI"], "assignee": "kimura" },
-            { "id": "order-api", "title": "注文 API", "description": "冪等キーを受け付ける。", "tags": ["API"] }
+            { "id": "login", "number": 1, "title": "ログイン画面", "tags": ["UI"], "assignee": "kimura" },
+            {
+              "id": "order-api",
+              "number": 2,
+              "title": "注文 API",
+              "description": "冪等キーを受け付ける。",
+              "tags": ["API"]
+            }
           ]
         },
         {
@@ -23,7 +29,7 @@ A board, not a diagram: it sits in the page's normal flow at its natural height,
           "label": "作業中",
           "color": "blue",
           "limit": 2,
-          "cards": [{ "id": "stock", "title": "在庫の仮確保" }]
+          "cards": [{ "id": "stock", "number": 3, "title": "在庫の仮確保" }]
         },
         { "id": "done", "label": "完了", "color": "green", "cards": [] }
       ]
@@ -50,13 +56,14 @@ A board, not a diagram: it sits in the page's normal flow at its natural height,
 | Card field    | Required | Meaning                                                                                              |
 | ------------- | -------- | ---------------------------------------------------------------------------------------------------- |
 | `id`          | yes      | Stable id, unique across the whole board. It is the comment target (`element:<board-id>/card/<id>`). |
+| `number`      | no       | The card's number, unique on the board: the card shows it as its key `TASK-<number>`.                |
 | `title`       | yes      | Text on the card.                                                                                    |
 | `description` | no       | Shown on the card (up to three lines) and in full as the tooltip.                                    |
 | `tags`        | no       | Tag filter values, shown on the card.                                                                |
 | `assignee`    | no       | Shown at the card's bottom right.                                                                    |
 | `questions`   | no       | Question references for the page's questions (`docs/index.md`, Questions (grill)).                   |
 
-Duplicate column or card ids and unknown keys are errors, and the element renders the reason instead of a wrong board.
+Duplicate column or card ids, duplicate card numbers and unknown keys are errors, and the element renders the reason instead of a wrong board.
 
 ## Layout
 
@@ -67,6 +74,17 @@ A column's `color` tints its heading, so statuses read at a glance; the colors c
 ## Tags
 
 The tag filter hides cards only. Every column stays, so the board keeps its shape and counts still show the whole column; the toolbar reads `shown / total Card` while a filter is active.
+
+## Card keys
+
+Every card has a number, unique on the board, and shows it as its key `TASK-3` beside the title — the short name to use in a review comment, a hand-off message or the brief. Authored `number`s are kept as they are; a card without one takes the next number after the highest on the board, in board order (column order, then card order), so authored data that leaves them out still gets stable keys. A card added on the page continues the numbering.
+
+Right-click a card for its copy items, above the review comment the board already offers:
+
+| Item                     | Copies                  |
+| ------------------------ | ----------------------- |
+| `Copy ID` / `IDをコピー` | `TASK-3`                |
+| `Copy ID and title`      | `TASK-3 カードタイトル` |
 
 ## Selection and moves
 
@@ -80,18 +98,18 @@ Cards move by drag and drop only. A moved card is selected and drawn with a blue
 
 ## Adding cards
 
-**+ Card** at the bottom of each column opens an input. Type a title and press `Enter` to add a card at the end of the column; `Escape` cancels. The new card is drawn with a dashed border and selected. Its id is derived from the title and kept unique on the board.
+**+ Card** at the bottom of each column opens an input. Type a title and press `Enter` to add a card at the end of the column; `Escape` cancels. The new card is drawn with a dashed border and selected. Its id is derived from the title and kept unique on the board, and it takes the next card number, so its key reads `TASK-<n>` like any other card's.
 
 Moves and added cards are not written into the JSON child. They are recorded as element actions in the enclosing view's draft — or the page's, when the board is its content — next to its actions and comments, and appear in that draft's review rail. The board replays these actions over the authored data, so they survive a reload and reach the agent in the brief. Outside a view or a page, or without a board `id`, there is nothing to record into: the board stays as it is and shows an error (the add input keeps its text).
 
-| Action      | Target                                  | Payload                                          | Result                                                                |
-| ----------- | --------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------- |
-| `ADD_CARD`  | `element:<board-id>/column/<column-id>` | `{ "id": string, "title": string }`              | Appends a card `{ id, title }` to the end of the column's `cards`     |
-| `MOVE_CARD` | `element:<board-id>/card/<card-id>`     | `{ "column": string, "before": string \| null }` | Moves the card into `column`, before the card `before`, or to its end |
+| Action      | Target                                  | Payload                                                | Result                                                                    |
+| ----------- | --------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `ADD_CARD`  | `element:<board-id>/column/<column-id>` | `{ "id": string, "title": string, "number"?: number }` | Appends a card `{ id, title, number }` to the end of the column's `cards` |
+| `MOVE_CARD` | `element:<board-id>/card/<card-id>`     | `{ "column": string, "before": string \| null }`       | Moves the card into `column`, before the card `before`, or to its end     |
 
-`ADD_CARD` is stale when the column no longer exists (`target-missing`), or when the title is empty or the id is already in use (`constraint-violated`). `MOVE_CARD` is stale when the card no longer exists (`target-missing`), or when the destination column is missing, `before` is not in it, or `before` is the card itself (`constraint-violated`). Actions replay in order, so a later action sees the board the earlier ones left.
+`ADD_CARD` is stale when the column no longer exists (`target-missing`), or when the title is empty, the id is already in use, or its `number` is already taken (`constraint-violated`). Without a `number` the card takes the next one on the board, as the board itself allocates it. `MOVE_CARD` is stale when the card no longer exists (`target-missing`), or when the destination column is missing, `before` is not in it, or `before` is the card itself (`constraint-violated`). Actions replay in order, so a later action sees the board the earlier ones left.
 
 To apply them to the JSON child, in draft order:
 
-- `ADD_CARD`: append `{ "id": <id>, "title": <title> }` to the target column's `cards`.
+- `ADD_CARD`: append `{ "id": <id>, "number": <number>, "title": <title> }` to the target column's `cards`.
 - `MOVE_CARD`: remove the card from its column's `cards` and insert it into `column`'s `cards` before the card `before`, or at the end when `before` is `null`. Keep the card's other fields.

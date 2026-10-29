@@ -16,6 +16,9 @@ export const kanbanMessages = defineMessages({
     moveSummarySame: (cardTitle: string, columnLabel: string) => `${cardTitle}: reorder within ${columnLabel}`,
     moveSummaryAcross: (cardTitle: string, fromLabel: string, toLabel: string) =>
       `${cardTitle}: ${fromLabel} → ${toLabel}`,
+    /** The card's right-click copy items: its key (`TASK-3`), alone and with its title. */
+    copyKey: 'Copy ID',
+    copyKeyTitle: 'Copy ID and title',
   },
   ja: {
     heading: 'カンバン',
@@ -32,6 +35,8 @@ export const kanbanMessages = defineMessages({
     moveSummarySame: (cardTitle: string, columnLabel: string) => `${cardTitle}: ${columnLabel} 内で並べ替え`,
     moveSummaryAcross: (cardTitle: string, fromLabel: string, toLabel: string) =>
       `${cardTitle}: ${fromLabel} → ${toLabel}`,
+    copyKey: 'IDをコピー',
+    copyKeyTitle: 'IDとタイトルをコピー',
   },
 });
 

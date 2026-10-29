@@ -5,7 +5,7 @@ import type { DragController, Drop } from '../../../lib/dom/drag';
 import type { ExampleMappingMessages } from '../messages';
 
 import { grillMark } from '../../../core/grill';
-import { CARD_KINDS, cardPaletteStyle, renderMappingCard } from '../components/mapping-card';
+import { cardPaletteStyle, renderMappingCard } from '../components/mapping-card';
 import {
   examplesOfRule,
   questionsOfRule,
@@ -43,6 +43,8 @@ export type BoardProps = {
   readonly m: ExampleMappingMessages;
   /** The host's own `commentRef`, so a card can be marked as a right-click comment target. */
   readonly commentRef: (kind: string, id: string) => string;
+  /** A card's hover comment button: the host opens the composer over that card. */
+  readonly onComment: (kind: MappingCardKind, cardId: string) => void;
 };
 
 type Entity = {
@@ -58,15 +60,6 @@ const tiltOf = (kind: MappingCardKind, id: string): number => {
   let hash = 0;
   for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) | 0;
   return ((Math.abs(hash) % 5) - 2) * 0.45;
-};
-
-/** The color key: what each sticky note color means. */
-export const renderLegend = (m: ExampleMappingMessages): TemplateResult => {
-  return html`<ul class="legend" aria-label=${m.cardKinds}>
-    ${CARD_KINDS.map(
-      (kind) => html`<li><span class="legend-swatch" style=${cardPaletteStyle(kind)}></span>${m.kindLabel(kind)}</li>`,
-    )}
-  </ul>`;
 };
 
 /** One story per section: story on top, rules side by side, and under each rule its examples, then its questions. */
@@ -113,6 +106,7 @@ const renderCard = (props: BoardProps, kind: MappingCardKind, entity: Entity): T
       dpkTarget: props.commentRef(kind, entity.id),
       ...(grillQuestions === undefined ? {} : { grillQuestions }),
       onIntent: (intent) => handlers.cardIntent(entity.id, kind, intent),
+      onComment: props.onComment,
       onDragStart: source.dragstart,
       onDragEnd: source.dragend,
     })}

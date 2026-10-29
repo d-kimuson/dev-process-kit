@@ -4,11 +4,19 @@ import type { DpkInlineEdit } from '../../../components/inline-edit';
 import type { StickyNote } from '../model';
 import type { NoteCardMode, NoteIntent } from '../ui-mode';
 
-import { iconPencil, iconTrash } from '../../../core/icons';
+import { iconComment, iconPencil, iconTrash } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
 import { controls, popoverSurface } from '../../../core/theme';
 import { onCommit } from '../../../lib/dom/events';
 import { eventStormingMessages } from '../messages';
+
+/**
+ * What a note card may ask its host for: the board's own intents
+ * (`NoteIntent`, `ui-mode.ts`) plus `comment`, which is the chrome's trigger
+ * rather than a change to board state — it opens the contextual composer over
+ * this very note and leaves the mode and the selection exactly as they were.
+ */
+export type NoteCardIntent = NoteIntent | { readonly kind: 'comment' };
 
 /** Sticky color per type — the single source for the notes and the legend. */
 const NOTE_TYPE_COLORS: Record<StickyNote['type'], { readonly bg: string; readonly ink: string }> = {
@@ -261,7 +269,7 @@ const cardStyles = css`
       border-color 140ms var(--dpk-ease);
   }
 
-  /* The two tools come out on hover, and while anything in the card has focus
+  /* The tools come out on hover, and while anything in the card has focus
      (the name being edited, or a tool reached with the keyboard): with no
      outline marking the editing note, its controls must not hide behind the
      pointer having to leave the text. */
@@ -300,10 +308,12 @@ const cardStyles = css`
  * `<dpk-internal-event-storming-note>` — one sticky note on the wall.
  *
  * The board positions and sizes the host; the note only paints itself and
- * reports `NoteIntent`s. Which note is being edited is the host element's
+ * reports `NoteCardIntent`s. Which note is being edited is the host element's
  * decision (`EsUiMode`); the card renders the mode it is given and never
- * dispatches actions itself. Comments are the chrome's own contextual
- * trigger, rendered by the board as the note's sibling (ADR 20261023_diagram-as-board).
+ * dispatches actions itself. The hover rail's comment button asks the chrome
+ * for the composer over this note (see `NoteCardIntent`); right-clicking the
+ * note reaches the very same composer from the chrome's menu
+ * (ADR 20261023_diagram-as-board).
  */
 export class DpkInternalEventStormingNote extends LitElement {
   static override styles = [controls, cardStyles, popoverSurface];
@@ -321,7 +331,7 @@ export class DpkInternalEventStormingNote extends LitElement {
   declare mode: NoteCardMode;
   declare focused: boolean;
   declare compact: boolean;
-  declare onIntent: ((intent: NoteIntent) => void) | null;
+  declare onIntent: ((intent: NoteCardIntent) => void) | null;
 
   readonly #i18n = new LocaleController(this);
   /**
@@ -414,6 +424,15 @@ export class DpkInternalEventStormingNote extends LitElement {
         <button
           class="dpk-icon-btn"
           type="button"
+          data-role="comment"
+          aria-label=${m.commentNote}
+          @click=${this.#tool(() => ({ kind: 'comment' }))}
+        >
+          ${iconComment()}
+        </button>
+        <button
+          class="dpk-icon-btn"
+          type="button"
           data-role="delete"
           aria-label=${m.deleteNote}
           @click=${this.#tool(() => ({ kind: 'delete' }))}
@@ -425,14 +444,14 @@ export class DpkInternalEventStormingNote extends LitElement {
   }
 
   /** Tool buttons must not also select the note. */
-  #tool(make: (event: Event) => NoteIntent): (event: Event) => void {
+  #tool(make: (event: Event) => NoteCardIntent): (event: Event) => void {
     return (event) => {
       event.stopPropagation();
       this.#report(make(event));
     };
   }
 
-  #report(intent: NoteIntent): void {
+  #report(intent: NoteCardIntent): void {
     this.onIntent?.(intent);
   }
 }

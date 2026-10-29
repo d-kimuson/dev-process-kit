@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ContextMenuRequest } from '../../core/context-menu/types';
+import type { ContextMenuEntry, ContextMenuRequest } from '../../core/context-menu/types';
 
 import { parseTargetRef } from '../../core/target';
 import { DpkBoardKanban } from './element';
@@ -74,6 +74,17 @@ const reviewComment = (element: DpkBoardKanban, ref: string): void => {
   const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
   const groups = element.getContextMenuItems(request) ?? [];
   const entry = groups.flatMap((group) => group.entries).find((candidate) => candidate.id === 'review-comment');
+  if (entry?.kind === 'item') entry.run();
+};
+
+/** Every entry the right-click menu would offer on `ref`, in order. */
+const menuEntries = (element: DpkBoardKanban, ref: string): readonly ContextMenuEntry[] => {
+  const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
+  return (element.getContextMenuItems(request) ?? []).flatMap((group) => [...group.entries]);
+};
+
+const runMenuItem = (element: DpkBoardKanban, ref: string, id: string): void => {
+  const entry = menuEntries(element, ref).find((candidate) => candidate.id === id);
   if (entry?.kind === 'item') entry.run();
 };
 
@@ -273,6 +284,39 @@ describe('<dpk-board-kanban>', () => {
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('ログイン画面');
   });
 
+  it('shows each card its key, numbered in board order', async () => {
+    const element = await mount();
+    const keyOf = (id: string) => card(element, id).querySelector('.dpk-card-key')?.textContent;
+    expect([keyOf('login'), keyOf('api'), keyOf('stock')]).toEqual(['TASK-1', 'TASK-2', 'TASK-3']);
+    // The key sits in the card's head, beside the title.
+    expect(card(element, 'api').querySelector('.dpk-card-head .dpk-card-title')?.textContent).toBe('注文 API');
+    // A card added on the page continues the numbering.
+    acceptActions(element);
+    await typeCard(element, 'done', '監査ログ');
+    expect(card(element, element.selection?.id ?? '').querySelector('.dpk-card-key')?.textContent).toBe('TASK-4');
+  });
+
+  it('copies a card’s key, or its key and title, from its right-click menu', async () => {
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    const element = await mount();
+    const entries = menuEntries(element, 'element:board/card/api');
+    expect(entries.map((entry) => entry.id)).toEqual(['copy-card-key', 'copy-card-key-title', 'review-comment']);
+    expect(entries.map((entry) => entry.label).slice(0, 2)).toEqual([m.copyKey, m.copyKeyTitle]);
+    runMenuItem(element, 'element:board/card/api', 'copy-card-key');
+    expect(writeText).toHaveBeenCalledWith('TASK-2');
+    runMenuItem(element, 'element:board/card/api', 'copy-card-key-title');
+    expect(writeText).toHaveBeenCalledWith('TASK-2 注文 API');
+  });
+
+  it('offers no copy items off a card', async () => {
+    const element = await mount();
+    expect(menuEntries(element, 'element:board/column/todo').map((entry) => entry.id)).toEqual(['review-comment']);
+    expect(menuEntries(element, 'element:board/card/nope').map((entry) => entry.id)).toEqual([]);
+    // A nested board's card of the same id is not this board's.
+    expect(menuEntries(element, 'element:other/card/api').map((entry) => entry.id)).toEqual([]);
+    expect(element.getContextMenuItems({ clientX: 0, clientY: 0, target: null })).toBeNull();
+  });
+
   it('renders its kit text in the element’s language', async () => {
     const ja = kanbanMessages('ja');
     const element = await mount('ja');
@@ -283,6 +327,11 @@ describe('<dpk-board-kanban>', () => {
     const input = element.renderRoot.querySelector<HTMLInputElement>('[data-column="done"] .kanban-add input');
     expect(input?.getAttribute('aria-label')).toBe(ja.addCardAriaLabel('完了'));
     expect(input?.getAttribute('placeholder')).toBe(ja.addCardPlaceholder);
+    expect(
+      menuEntries(element, 'element:board/card/login')
+        .map((entry) => entry.label)
+        .slice(0, 2),
+    ).toEqual([ja.copyKey, ja.copyKeyTitle]);
   });
 
   it('renders its kit text in English by default', async () => {

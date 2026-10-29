@@ -458,6 +458,20 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     this.#commentPopover.close();
   }
 
+  /**
+   * Opens the contextual composer for `ref` — one of this element's own
+   * `commentTargets` — anchored on the element of this board that carries it
+   * (`[data-dpk-target="<ref>"]`). This is the one path into the composer: the
+   * right-click menu's "Review comment" item and a card's own hover comment
+   * button both land here. The label is looked up among the targets and falls
+   * back to the ref itself, so a target that is somehow not listed any more
+   * still opens over its anchor.
+   */
+  openComment(ref: string): void {
+    const label = this.commentTargets.find((target) => target.value === ref)?.label;
+    this.#openCommentPopover(ref, label ?? ref);
+  }
+
   // ------------------------------------------------- subclass responsibilities
 
   /** The language of the page around this element, resolved on connect. */
@@ -505,6 +519,7 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     return group === null ? null : [group];
   }
 
+  /** Anchors the composer on the rendered element that carries `ref`; see {@link openComment}. */
   #openCommentPopover(ref: string, label: string): void {
     const anchor = this.renderRoot.querySelector<Element>(`[data-dpk-target="${CSS.escape(ref)}"]`);
     if (anchor === null) return;
@@ -1096,7 +1111,7 @@ export abstract class BoardCanvasElement<D extends DiagramData> extends BoardCan
     ].join('|');
     if (signature !== this.#placementSignature) {
       this.#placementSignature = signature;
-      this.#placement = this.computePlacement(visible);
+      this.#placement = this.routePlacement(this.computePlacement(visible), visible);
     }
     const viewSignature = [
       this.layoutMode,
@@ -1116,6 +1131,18 @@ export abstract class BoardCanvasElement<D extends DiagramData> extends BoardCan
     const edges = this.#edgeSpecs(visible);
     const options = this.layoutOptions();
     return this.layoutMode === 'fixed' ? fixedLayout(nodes, edges, options) : layeredLayout(nodes, edges, options);
+  }
+
+  /**
+   * Re-draws the edges of an already placed layout for the geometry it actually
+   * ended up with, and returns the placement the view renders. The shared
+   * layout's own routing knows only the ranks and one point per node side, so a
+   * board with a better router overrides this: it is called for the computed
+   * layout (see `refreshContent`) *and* for the reader's dragged one (see
+   * `#applyPositions`), so a drag never falls back to the coarser route.
+   */
+  protected routePlacement(placement: LayoutResult, _visible: D): LayoutResult {
+    return placement;
   }
 
   #nodeSpecs(visible: D): LayoutNodeSpec[] {
@@ -1144,6 +1171,11 @@ export abstract class BoardCanvasElement<D extends DiagramData> extends BoardCan
    * positions (plus any in-progress drag preview) every render, without re-running
    * the expensive ranking/packing `computePlacement` does. Also prunes overrides
    * for nodes the agent's data no longer has.
+   *
+   * A merged placement is routed again through {@link routePlacement}: the
+   * shared override pass only re-draws edges with its own rank-aware router,
+   * which would otherwise leave a dragged card connected by the coarser route
+   * the board's own router exists to replace.
    */
   #applyPositions(visible: D): void {
     this.#positions.prune(new Set(visible.nodes.map((node) => node.id)));
@@ -1158,15 +1190,20 @@ export abstract class BoardCanvasElement<D extends DiagramData> extends BoardCan
     }
     const placement = this.#placement;
     this.#appliedPlacement =
-      placement === null || overrides.size === 0
-        ? placement
-        : applyPositionOverrides(
-            placement,
-            overrides,
-            this.#nodeSpecs(visible),
-            this.#edgeSpecs(visible),
-            this.layoutOptions(),
-          );
+      placement === null
+        ? null
+        : overrides.size === 0
+          ? placement
+          : this.routePlacement(
+              applyPositionOverrides(
+                placement,
+                overrides,
+                this.#nodeSpecs(visible),
+                this.#edgeSpecs(visible),
+                this.layoutOptions(),
+              ),
+              visible,
+            );
   }
 
   /** Whether any node of this diagram has a position the reader dragged it to. */

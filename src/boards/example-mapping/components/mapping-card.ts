@@ -5,14 +5,14 @@ import type { ExampleMappingMessages } from '../messages';
 import type { MappingCardKind } from '../model';
 import type { MappingCardIntent, MappingCardMode } from '../ui-mode';
 
-import { iconTrash } from '../../../core/icons';
+import { iconComment, iconTrash } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { classNames } from '../../base/model';
 
-/** Board order of the four card kinds: the order the legend reads them in. */
+/** Board order of the four card kinds. */
 export const CARD_KINDS = ['story', 'rule', 'example', 'question'] as const satisfies readonly MappingCardKind[];
 
-/** Card color per kind — the single source for the cards and the legend. */
+/** Card color per kind — the single source for the cards. */
 const CARD_PALETTE = {
   story: { bg: 'linear-gradient(178deg, #fff3a6, #fde77a)', ink: '#4a3a06' },
   rule: { bg: 'linear-gradient(178deg, #a3d1f5, #7cb8ea)', ink: '#0e2c4b' },
@@ -40,6 +40,8 @@ export type MappingCardProps = {
   /** Space-separated grill question ids this card answers, already normalized by `grillMark`. */
   readonly grillQuestions?: string;
   readonly onIntent: (intent: MappingCardIntent) => void;
+  /** The card's hover comment button: open the chrome's composer over this card. */
+  readonly onComment: (kind: MappingCardKind, cardId: string) => void;
   readonly onDragStart: (event: DragEvent) => void;
   readonly onDragEnd: (event: DragEvent) => void;
 };
@@ -60,12 +62,25 @@ const toggleDraggable = (event: FocusEvent): void => {
  * the mode it is given and never dispatches actions itself, and the host is
  * the one that calls a freshly added card's `<dpk-inline-edit>` into editing
  * (there is no other way into `mode: 'editing'` — see `ui-mode.ts`). Comments
- * go through the right-click menu, which resolves this card via its
- * `dpkTarget` marker — no in-card trigger to render.
+ * come from the card's own hover comment button (`onComment`) and from the
+ * right-click menu, which resolves this card via its `dpkTarget` marker.
  */
 export const renderMappingCard = (props: MappingCardProps): TemplateResult => {
-  const { kind, card, tilt, mode, focused, dragging, m, dpkTarget, grillQuestions, onIntent, onDragStart, onDragEnd } =
-    props;
+  const {
+    kind,
+    card,
+    tilt,
+    mode,
+    focused,
+    dragging,
+    m,
+    dpkTarget,
+    grillQuestions,
+    onIntent,
+    onComment,
+    onDragStart,
+    onDragEnd,
+  } = props;
   const label = m.kindLabel(kind);
   return html`
     <div
@@ -94,6 +109,19 @@ export const renderMappingCard = (props: MappingCardProps): TemplateResult => {
       ></dpk-inline-edit>
       ${card.description ? html`<div class="card-text">${card.description}</div>` : nothing}
       <div class="card-tools">
+        <button
+          class="dpk-icon-btn"
+          type="button"
+          data-role="comment"
+          aria-label=${m.commentCard}
+          @click=${(event: Event) => {
+            // Asking for a comment must not also select the card or open its name editor.
+            event.stopPropagation();
+            onComment(kind, card.id);
+          }}
+        >
+          ${iconComment()}
+        </button>
         <button
           class="dpk-icon-btn"
           type="button"
