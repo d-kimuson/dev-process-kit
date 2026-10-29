@@ -310,6 +310,123 @@ export const whiteboardStyles = css`
     cursor: crosshair;
   }
 
+  /* The selection line is a handle too: a transparent strip over it resizes the
+     item, so any point of the outline pulls, not only the bottom-right corner.
+     A strip sits just outside the box (its inner edge on the item's own edge,
+     half its width over the 2px outline), so the inside stays what it was: a
+     handle for moving the item and a place to type into. Sizes are divided by
+     the zoom, so a strip is 10 screen pixels at any zoom, as the handles are. */
+  .wb-item .wb-edge {
+    position: absolute;
+    z-index: 2;
+    background: transparent;
+  }
+
+  .wb-item .wb-edge--n,
+  .wb-item .wb-edge--s {
+    left: 0;
+    right: 0;
+    height: calc(10px / var(--wb-zoom, 1));
+    cursor: ns-resize;
+  }
+
+  .wb-item .wb-edge--n {
+    top: calc(-10px / var(--wb-zoom, 1));
+  }
+
+  .wb-item .wb-edge--s {
+    bottom: calc(-10px / var(--wb-zoom, 1));
+  }
+
+  .wb-item .wb-edge--e,
+  .wb-item .wb-edge--w {
+    top: 0;
+    bottom: 0;
+    width: calc(10px / var(--wb-zoom, 1));
+    cursor: ew-resize;
+  }
+
+  .wb-item .wb-edge--w {
+    left: calc(-10px / var(--wb-zoom, 1));
+  }
+
+  .wb-item .wb-edge--e {
+    right: calc(-10px / var(--wb-zoom, 1));
+  }
+
+  /* The three corners the drawn handle does not cover; they are painted after the
+     edges, so at a corner the corner wins the press. */
+  .wb-item .wb-edge--nw,
+  .wb-item .wb-edge--ne,
+  .wb-item .wb-edge--sw {
+    width: calc(10px / var(--wb-zoom, 1));
+    height: calc(10px / var(--wb-zoom, 1));
+  }
+
+  .wb-item .wb-edge--nw {
+    left: calc(-10px / var(--wb-zoom, 1));
+    top: calc(-10px / var(--wb-zoom, 1));
+    cursor: nwse-resize;
+  }
+
+  .wb-item .wb-edge--ne {
+    right: calc(-10px / var(--wb-zoom, 1));
+    top: calc(-10px / var(--wb-zoom, 1));
+    cursor: nesw-resize;
+  }
+
+  .wb-item .wb-edge--sw {
+    left: calc(-10px / var(--wb-zoom, 1));
+    bottom: calc(-10px / var(--wb-zoom, 1));
+    cursor: nesw-resize;
+  }
+
+  /* Space held: the whole board, the selection line included, is a handle. It
+     outranks the strips' own cursors, and a strip press yields to the pan
+     before it starts a resize (element.ts checks panReady), so the board pans. */
+  .wb-canvas--pan-ready .wb-item .wb-edge {
+    cursor: grab;
+  }
+
+  /* A rail of round tools on an item's top-right corner, revealed on hover or
+     while anything in the item has focus (the in-place editor included). It
+     keeps its screen size at any zoom, like the handles, and stays out of the
+     way of a press (render/board.ts stops its pointerdown before the item
+     sees it). Frames have none: their comment goes through the right-click
+     menu. */
+  .wb-item-actions {
+    position: absolute;
+    z-index: 3;
+    top: calc(-9px / var(--wb-zoom, 1));
+    right: calc(-9px / var(--wb-zoom, 1));
+    display: flex;
+    gap: calc(3px / var(--wb-zoom, 1));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 140ms var(--dpk-ease);
+  }
+
+  .wb-item:hover .wb-item-actions,
+  .wb-item:focus-within .wb-item-actions,
+  .wb-item-actions:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .wb-item-actions .dpk-icon-btn {
+    width: calc(24px / var(--wb-zoom, 1));
+    height: calc(24px / var(--wb-zoom, 1));
+    border: calc(1px / var(--wb-zoom, 1)) solid var(--dpk-rule);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
+    box-shadow: var(--dpk-shadow-xs);
+  }
+
+  .wb-item-actions .dpk-icon-btn svg {
+    width: calc(14px / var(--wb-zoom, 1));
+    height: calc(14px / var(--wb-zoom, 1));
+  }
+
   /* A selection area being dragged out, in screen space over the board. */
   .wb-marquee {
     position: absolute;

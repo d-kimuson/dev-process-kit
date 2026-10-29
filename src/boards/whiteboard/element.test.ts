@@ -172,6 +172,31 @@ describe('<dpk-board-whiteboard>', () => {
     expect(element.selection).toEqual({ kind: 'item', id: 'went-well' });
   });
 
+  it('opens the composer over an item from its hover comment button, without selecting or editing it', async () => {
+    const element = await mount();
+    const item = q(element, '[data-item-id="pairing"]');
+    const rail = item.querySelector('.wb-item-actions');
+    expect(rail?.querySelectorAll('button')).toHaveLength(1);
+    // A frame carries its title instead of the rail: its comment is the right-click menu's.
+    expect(q(element, '[data-item-id="went-well"]').querySelector('.wb-item-actions')).toBeNull();
+    const button = rail?.querySelector<HTMLButtonElement>('[data-role="comment"]');
+    if (!button) throw new Error('missing comment button');
+    expect(button.getAttribute('aria-label')).toBe(m.comment);
+    // The press stays on the button: it starts no move and picks nothing.
+    pointer(button, 'pointerdown', 30, 70);
+    await settle(element);
+    expect(element.selection).toBeNull();
+    button.click();
+    await settle(element);
+    const state = parseWhiteboardBase(base);
+    const pairing = state.items.find((candidate) => candidate.id === 'pairing');
+    if (pairing === undefined) throw new Error('missing item');
+    expect(element.renderRoot.querySelector('.comment-pop')).not.toBeNull();
+    expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe(itemLabel(m, pairing));
+    expect(element.selection).toBeNull();
+    expect(element.renderRoot.querySelector('.wb-editor')).toBeNull();
+  });
+
   it('adds a sticky from the toolbar and types into it', async () => {
     const element = await mount();
     acceptActions(element);
@@ -293,6 +318,71 @@ describe('<dpk-board-whiteboard>', () => {
     expect(actionsOf(element).map(([type, , payload]) => [type, payload])).toEqual([
       ['RESIZE_ITEM', { w: 240, h: 150 }],
     ]);
+  });
+
+  it('resizes the selected item by the selection line, moving the origin a left or top pull gives', async () => {
+    const element = await mount();
+    acceptActions(element);
+    await click(element, q(element, '[data-item-id="goal"]'), [1100, 100]);
+    // Pulling the left side keeps the right one still: the item moves left and grows.
+    await drag(element, q(element, '[data-item-id="goal"] .wb-edge--w'), [1000, 100], [960, 100]);
+    expect(actionsOf(element)).toEqual([
+      ['MOVE_ITEM', 'board/item/goal', { x: 960, y: 40 }],
+      ['RESIZE_ITEM', 'board/item/goal', { w: 220, h: 110 }],
+    ]);
+    // The same upward: the bottom edge stays and the box grows taller (from the box the
+    // recorded move and resize left, since the host applies what it accepts).
+    await drag(element, q(element, '[data-item-id="goal"] .wb-edge--n'), [1050, 40], [1050, 10]);
+    expect(actionsOf(element).slice(2)).toEqual([
+      ['MOVE_ITEM', 'board/item/goal', { x: 960, y: 10 }],
+      ['RESIZE_ITEM', 'board/item/goal', { w: 220, h: 140 }],
+    ]);
+    // A corner strip resizes both sides at once, its opposite corner staying put.
+    await drag(element, q(element, '[data-item-id="goal"] .wb-edge--nw'), [1000, 40], [970, 20]);
+    expect(actionsOf(element).slice(4)).toEqual([
+      ['MOVE_ITEM', 'board/item/goal', { x: 930, y: -10 }],
+      ['RESIZE_ITEM', 'board/item/goal', { w: 250, h: 160 }],
+    ]);
+    expect(element.selection).toEqual({ kind: 'item', id: 'goal' });
+  });
+
+  it('resizes from anywhere on the selection line, and steps aside while typing', async () => {
+    const element = await mount();
+    const edges = (): string[] => [...element.renderRoot.querySelectorAll('.wb-edge')].map((edge) => edge.className);
+    expect(edges()).toEqual([]);
+    await click(element, q(element, '[data-item-id="goal"]'), [1100, 100]);
+    expect(edges()).toEqual([
+      'wb-edge wb-edge--n',
+      'wb-edge wb-edge--e',
+      'wb-edge wb-edge--s',
+      'wb-edge wb-edge--w',
+      'wb-edge wb-edge--ne',
+      'wb-edge wb-edge--sw',
+      'wb-edge wb-edge--nw',
+    ]);
+    // The drawn corner handle is still there; the strips cover the three other corners.
+    expect(q(element, '[data-item-id="goal"]').querySelector('.wb-handle--resize')).not.toBeNull();
+    // Typing into the item owns its whole box, edges included.
+    await click(element, q(element, '[data-item-id="goal"]'), [1100, 100]);
+    expect(element.renderRoot.querySelector('.wb-editor')).not.toBeNull();
+    expect(edges()).toEqual([]);
+    q(element, '.wb-canvas').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle(element);
+    expect(edges()).toHaveLength(7);
+    // A group of items moves together, so only the single selection gets strips.
+    await drag(element, q(element, '.wb-canvas'), [10, 50], [600, 100]);
+    expect(edges()).toEqual([]);
+  });
+
+  it('does not select, move or edit an item from a press on its selection line', async () => {
+    const element = await mount();
+    acceptActions(element);
+    await click(element, q(element, '[data-item-id="goal"]'), [1100, 100]);
+    // Released where it started: a click on the line, which is no request at all.
+    await click(element, q(element, '[data-item-id="goal"] .wb-edge--e'), [1180, 100]);
+    expect(element.elementActions).toEqual([]);
+    expect(element.selection).toEqual({ kind: 'item', id: 'goal' });
+    expect(element.renderRoot.querySelector('.wb-editor')).toBeNull();
   });
 
   it('recolors and deletes the selection from its toolbar', async () => {

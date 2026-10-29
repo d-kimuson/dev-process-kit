@@ -2,11 +2,11 @@ import { html, nothing, svg, type TemplateResult } from 'lit';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type { WbGesture } from '../gesture';
+import type { WbGesture, WbResizeEdge } from '../gesture';
 import type { WhiteboardMessages } from '../messages';
 
 import { grillMark } from '../../../core/grill';
-import { iconMinus, iconPlus } from '../../../core/icons';
+import { iconComment, iconMinus, iconPlus } from '../../../core/icons';
 import { NEW_ITEM_KINDS, type NewItemKind } from '../commands';
 import { toScreen, type Viewport } from '../interactions';
 import { centerOf, connectorPath, outlinePoint, paintOrder, type Rect } from '../layout';
@@ -35,7 +35,8 @@ export type WbBoardHandlers = {
   readonly canvasKeyUp: (event: KeyboardEvent) => void;
   readonly canvasBlur: (event: FocusEvent) => void;
   readonly itemPointerDown: (itemId: string, event: PointerEvent) => void;
-  readonly resizePointerDown: (itemId: string, event: PointerEvent) => void;
+  /** A press on a selection edge (`edge`) or on the drawn bottom-right handle (no edge: the corner). */
+  readonly resizePointerDown: (itemId: string, event: PointerEvent, edge?: WbResizeEdge) => void;
   readonly connectPointerDown: (itemId: string, event: PointerEvent) => void;
   readonly connectorPointerDown: (connectorId: string, event: PointerEvent) => void;
   /** The in-place editor lost focus: what it holds is the text to commit. */
@@ -64,6 +65,8 @@ export type WbBoardProps = {
   readonly overlay: TemplateResult | typeof nothing;
   /** The host's own `commentRef`, so the board can mark items and connectors as right-click comment targets. */
   readonly commentRef: (kind: string, id: string) => string;
+  /** An item's own hover comment button asked for the chrome's composer over it. */
+  readonly onComment: (itemId: string) => void;
   readonly handlers: WbBoardHandlers;
 };
 
@@ -164,6 +167,9 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
   const scale = hasFontSize(item) ? `;--wb-font-scale:${FONT_SCALE[item.fontSize]}` : '';
   // Handles belong to a single selected item; a group only moves together.
   const selected = props.selectedIds.size === 1 && props.selectedIds.has(item.id) && props.gesture?.moved !== true;
+  // The selection line resizes too, but not while the item is being typed into: there a
+  // press near the outline belongs to the field.
+  const resizable = selected && !isEditing(props.mode, item.id);
   const press = (event: PointerEvent): void => handlers.itemPointerDown(item.id, event);
   // A frame's inside is ground to start a selection area on: only its title is pressed as the frame.
   return html`<div
@@ -179,6 +185,36 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
       item.kind === 'frame'
         ? html`<div class="wb-frame-title" @pointerdown=${press}>${renderText(props, item)}</div>`
         : html`<div class="wb-item-body">${renderText(props, item)}</div>`
+    }
+    ${
+      // Frames carry their title instead of a rail: a frame's own comment goes
+      // through the right-click menu, so nothing hangs off its corner.
+      item.kind === 'frame'
+        ? nothing
+        : html`<div class="wb-item-actions" @pointerdown=${stopPress} @click=${stopPress}>
+            <button
+              class="dpk-icon-btn"
+              type="button"
+              data-role="comment"
+              title=${props.m.comment}
+              aria-label=${props.m.comment}
+              @click=${() => props.onComment(item.id)}
+            >
+              ${iconComment()}
+            </button>
+          </div>`
+    }
+    ${
+      resizable
+        ? html`${RESIZE_EDGES.map(
+            (edge) => html`<span
+              class=${`wb-edge wb-edge--${edge}`}
+              role="presentation"
+              aria-hidden="true"
+              @pointerdown=${(event: PointerEvent) => handlers.resizePointerDown(item.id, event, edge)}
+            ></span>`,
+          )}`
+        : nothing
     }
     ${
       selected
@@ -198,6 +234,12 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
     }
   </div>`;
 };
+
+/**
+ * The sides a press can pull: the four edges, and the corners the drawn handle
+ * does not cover (the bottom-right one stays a visible handle).
+ */
+const RESIZE_EDGES = ['n', 'e', 's', 'w', 'ne', 'sw', 'nw'] as const satisfies readonly WbResizeEdge[];
 
 /** A wheel over the editor scrolls its text, not the board. */
 const keepWheel = (event: WheelEvent): void => event.stopPropagation();

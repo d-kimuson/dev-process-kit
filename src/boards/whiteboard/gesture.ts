@@ -15,6 +15,24 @@ export const DRAG_THRESHOLD = 4;
 
 type Origin = { readonly id: string; readonly x: number; readonly y: number };
 
+/** Which side of an item's box a press pulls: one of the four edges, or a corner. */
+export type WbResizeEdge = 'n' | 'e' | 's' | 'w' | 'ne' | 'se' | 'sw' | 'nw';
+
+/**
+ * Which way each edge pulls: `x` says how the width follows the pointer, `y`
+ * the height. Zero means that axis is not pulled at all.
+ */
+const EDGE_DIRECTION = {
+  n: { x: 0, y: -1 },
+  s: { x: 0, y: 1 },
+  e: { x: 1, y: 0 },
+  w: { x: -1, y: 0 },
+  ne: { x: 1, y: -1 },
+  se: { x: 1, y: 1 },
+  sw: { x: -1, y: 1 },
+  nw: { x: -1, y: -1 },
+} as const satisfies Record<WbResizeEdge, { readonly x: number; readonly y: number }>;
+
 export type WbGesture =
   /** Space-drag, middle-button drag or a touch on empty canvas: the view follows the pointer (screen points). */
   | {
@@ -43,12 +61,14 @@ export type WbGesture =
       readonly current: Point;
       readonly moved: boolean;
     }
-  /** Pulling an item's bottom-right corner. */
+  /** Pulling one edge of an item's selection line, or a corner of it. */
   | {
       readonly kind: 'resize';
       readonly pointerId: number;
       readonly itemId: string;
-      readonly origin: { readonly w: number; readonly h: number };
+      /** The box the pull started from; pulling a west or north side also moves `x` / `y`. */
+      readonly origin: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
+      readonly edge: WbResizeEdge;
       readonly start: Point;
       readonly current: Point;
       readonly moved: boolean;
@@ -101,6 +121,7 @@ export const startResize = (
   itemId: string,
   pointerId: number,
   at: Point,
+  edge: WbResizeEdge = 'se',
 ): WbGesture | undefined => {
   const item = findItem(state, itemId);
   if (item === undefined) return undefined;
@@ -108,7 +129,8 @@ export const startResize = (
     kind: 'resize',
     pointerId,
     itemId,
-    origin: { w: item.w, h: item.h },
+    origin: { x: item.x, y: item.y, w: item.w, h: item.h },
+    edge,
     start: at,
     current: at,
     moved: false,
@@ -225,7 +247,7 @@ export const updateGesture = (
 
 const snap = (value: number): number => Math.round(value);
 
-/** The board as the reader sees it mid-gesture: carried items follow the pointer, a pulled corner grows. */
+/** The board as the reader sees it mid-gesture: carried items follow the pointer, a pulled edge moves and grows. */
 export const previewState = (state: WhiteboardState, gesture: WbGesture | undefined): WhiteboardState => {
   if (gesture === undefined || !gesture.moved) return state;
   if (gesture.kind === 'move') {
@@ -241,26 +263,58 @@ export const previewState = (state: WhiteboardState, gesture: WbGesture | undefi
     };
   }
   if (gesture.kind === 'resize') {
-    const size = resizedSize(gesture);
+    const box = resizedBox(gesture);
     return {
       ...state,
-      items: state.items.map((item) => (item.id === gesture.itemId ? { ...item, ...size } : item)),
+      items: state.items.map((item) => (item.id === gesture.itemId ? { ...item, ...box } : item)),
     };
   }
   return state;
 };
 
+const boxSize = (value: number): number => Math.max(MIN_ITEM_SIZE, snap(value));
+
 /**
- * The size the pulled corner gives. Keeping the ratio, the side pulled further
- * (relative to its length) leads, and the shorter side stops at the minimum.
+ * The size a ratio-locked pull gives: the pulled side leads and the other
+ * follows it, from a corner whichever of the two was pulled further. Neither
+ * side may end below the minimum, so the ratio holds all the way down.
  */
-const resizedSize = (gesture: Extract<WbGesture, { kind: 'resize' }>): { w: number; h: number } => {
-  const { origin } = gesture;
-  const w = origin.w + gesture.current.x - gesture.start.x;
-  const h = origin.h + gesture.current.y - gesture.start.y;
-  if (!gesture.keepRatio) return { w: Math.max(MIN_ITEM_SIZE, snap(w)), h: Math.max(MIN_ITEM_SIZE, snap(h)) };
-  const scale = Math.max(w / origin.w, h / origin.h, MIN_ITEM_SIZE / Math.min(origin.w, origin.h));
+const ratioSize = (
+  origin: { readonly w: number; readonly h: number },
+  pulledW: number | undefined,
+  pulledH: number | undefined,
+): { w: number; h: number } => {
+  const scale = Math.max(
+    pulledW === undefined ? 0 : pulledW / origin.w,
+    pulledH === undefined ? 0 : pulledH / origin.h,
+    MIN_ITEM_SIZE / Math.min(origin.w, origin.h),
+  );
   return { w: snap(origin.w * scale), h: snap(origin.h * scale) };
+};
+
+/**
+ * The box the pulled edge gives. An edge changes one axis and holds the side
+ * opposite it still, so pulling the west or north side moves the origin too; a
+ * corner changes both axes.
+ */
+export const resizedBox = (gesture: Extract<WbGesture, { kind: 'resize' }>): Rect => {
+  const { origin, edge } = gesture;
+  const direction = EDGE_DIRECTION[edge];
+  const across = (gesture.current.x - gesture.start.x) * direction.x;
+  const down = (gesture.current.y - gesture.start.y) * direction.y;
+  const pulledW = direction.x === 0 ? undefined : origin.w + across;
+  const pulledH = direction.y === 0 ? undefined : origin.h + down;
+  const size = gesture.keepRatio
+    ? ratioSize(origin, pulledW, pulledH)
+    : {
+        w: pulledW === undefined ? origin.w : boxSize(pulledW),
+        h: pulledH === undefined ? origin.h : boxSize(pulledH),
+      };
+  return {
+    ...size,
+    x: direction.x < 0 ? origin.x + origin.w - size.w : origin.x,
+    y: direction.y < 0 ? origin.y + origin.h - size.h : origin.y,
+  };
 };
 
 /** A keyboard nudge: the same moves a drag of the selection by `(dx, dy)` would dispatch, frame contents included. */
@@ -310,9 +364,14 @@ export const finishGesture = (state: WhiteboardState, gesture: WbGesture): Gestu
     }
     case 'resize': {
       if (!gesture.moved) return { kind: 'click', itemId: gesture.itemId };
-      const size = resizedSize(gesture);
-      if (size.w === gesture.origin.w && size.h === gesture.origin.h) return { kind: 'none' };
-      return { kind: 'dispatch', inputs: [whiteboardAction.resize(gesture.itemId, size.w, size.h)] };
+      const item = findItem(state, gesture.itemId);
+      if (item === undefined) return { kind: 'none' };
+      const box = resizedBox(gesture);
+      const inputs: ActionInput[] = [];
+      // A pulled west or north side moves the origin as well, so it is both a move and a resize.
+      if (box.x !== item.x || box.y !== item.y) inputs.push(whiteboardAction.move(item.id, box.x, box.y));
+      if (box.w !== item.w || box.h !== item.h) inputs.push(whiteboardAction.resize(item.id, box.w, box.h));
+      return inputs.length === 0 ? { kind: 'none' } : { kind: 'dispatch', inputs };
     }
     case 'connect':
       if (!gesture.moved) return { kind: 'click', itemId: gesture.fromId };

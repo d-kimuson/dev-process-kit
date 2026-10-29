@@ -15,6 +15,7 @@ import {
   startResize,
   updateGesture,
   type WbGesture,
+  type WbResizeEdge,
 } from './gesture';
 import { findItem, parseWhiteboardBase } from './model';
 
@@ -100,6 +101,89 @@ describe('whiteboard gestures', () => {
     expect(finishGesture(shape, updateGesture(shape, held, 1, { x: 300, y: 110 }, 1, false))).toEqual({
       kind: 'dispatch',
       inputs: [{ type: 'RESIZE_ITEM', target: { type: 'item', id: 's' }, payload: { w: 300, h: 110 } }],
+    });
+  });
+
+  describe('resizing from the selection line', () => {
+    const shape = parseWhiteboardBase({
+      items: [{ id: 's', kind: 'shape', x: 100, y: 100, w: 200, h: 100, text: '' }],
+    });
+    /** The item as it would be drawn while `to` is pulled from `from` on `edge`. */
+    const pull = (edge: WbResizeEdge, to: { x: number; y: number }, keepRatio = false): unknown =>
+      findItem(
+        previewState(
+          shape,
+          updateGesture(shape, must(startResize(shape, 's', 1, { x: 0, y: 0 }, edge)), 1, to, 1, keepRatio),
+        ),
+        's',
+      );
+
+    it('changes the pulled side and keeps the opposite one still', () => {
+      // East and south move no origin: the top-left corner is the anchor.
+      expect(pull('e', { x: 100, y: 0 })).toMatchObject({ x: 100, y: 100, w: 300, h: 100 });
+      expect(pull('s', { x: 0, y: 25 })).toMatchObject({ x: 100, y: 100, w: 200, h: 125 });
+      // West and north do: the right / bottom edge is what stays.
+      expect(pull('w', { x: -50, y: 0 })).toMatchObject({ x: 50, y: 100, w: 250, h: 100 });
+      expect(pull('n', { x: 0, y: -20 })).toMatchObject({ x: 100, y: 80, w: 200, h: 120 });
+    });
+
+    it('changes both sides from a corner, the opposite one staying still', () => {
+      expect(pull('ne', { x: 40, y: -30 })).toMatchObject({ x: 100, y: 70, w: 240, h: 130 });
+      expect(pull('sw', { x: -40, y: 30 })).toMatchObject({ x: 60, y: 100, w: 240, h: 130 });
+      expect(pull('nw', { x: -40, y: -30 })).toMatchObject({ x: 60, y: 70, w: 240, h: 130 });
+    });
+
+    it('stops at the minimum size, whichever side is pulled', () => {
+      expect(pull('e', { x: -500, y: 0 })).toMatchObject({ x: 100, y: 100, w: 24, h: 100 });
+      expect(pull('w', { x: 500, y: 0 })).toMatchObject({ x: 276, y: 100, w: 24, h: 100 });
+      expect(pull('n', { x: 0, y: 500 })).toMatchObject({ x: 100, y: 176, w: 200, h: 24 });
+      expect(pull('se', { x: -500, y: -500 })).toMatchObject({ w: 24, h: 24 });
+    });
+
+    it('keeps the proportions, the pulled axis leading from an edge', () => {
+      expect(pull('e', { x: 300, y: 0 }, true)).toMatchObject({ x: 100, y: 100, w: 500, h: 250 });
+      expect(pull('s', { x: 0, y: 150 }, true)).toMatchObject({ x: 100, y: 100, w: 500, h: 250 });
+      // North grows upward from the bottom edge the pointer cannot move.
+      expect(pull('n', { x: 0, y: -100 }, true)).toMatchObject({ x: 100, y: 0, w: 400, h: 200 });
+      // Shrunk, the shorter side stops at the minimum and the ratio holds.
+      expect(pull('e', { x: -190, y: 0 }, true)).toMatchObject({ x: 100, w: 48, h: 24 });
+    });
+
+    it('moves the origin before it resizes, and does nothing when the box is unchanged', () => {
+      const west = updateGesture(shape, must(startResize(shape, 's', 1, { x: 0, y: 0 }, 'w')), 1, { x: -50, y: 0 }, 1);
+      expect(finishGesture(shape, west)).toEqual({
+        kind: 'dispatch',
+        inputs: [
+          { type: 'MOVE_ITEM', target: { type: 'item', id: 's' }, payload: { x: 50, y: 100 } },
+          { type: 'RESIZE_ITEM', target: { type: 'item', id: 's' }, payload: { w: 250, h: 100 } },
+        ],
+      });
+      // Snapped back to the size it started with: no action at all.
+      const eased = updateGesture(
+        shape,
+        must(startResize(shape, 's', 1, { x: 0, y: 0 }, 'w')),
+        1,
+        { x: -0.3, y: 0 },
+        15,
+      );
+      expect(eased.moved).toBe(true);
+      expect(finishGesture(shape, eased)).toEqual({ kind: 'none' });
+    });
+
+    it('counts in screen pixels: a pull under the threshold at low zoom is a click', () => {
+      const press = updateGesture(
+        shape,
+        must(startResize(shape, 's', 1, { x: 0, y: 0 }, 'e')),
+        1,
+        { x: 12, y: 0 },
+        0.25,
+      );
+      expect(press.moved).toBe(false);
+      expect(finishGesture(shape, press)).toEqual({ kind: 'click', itemId: 's' });
+      expect(finishGesture(shape, must(startResize(shape, 's', 1, { x: 0, y: 0 }, 'e')))).toEqual({
+        kind: 'click',
+        itemId: 's',
+      });
     });
   });
 

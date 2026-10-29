@@ -25,6 +25,7 @@ import {
   startResize,
   updateGesture,
   type WbGesture,
+  type WbResizeEdge,
 } from './gesture';
 import {
   constrainViewport,
@@ -95,7 +96,8 @@ const BOARD_ANCHOR = 'whiteboard';
  * Geometry lives in `layout.ts`, pan / zoom in `interactions.ts`, gestures in
  * `gesture.ts`, stacking order in `arrange.ts`, and drawing in `render/` — all
  * unchanged since the template days (ADR 20261023_diagram-as-board). Comments
- * are the chrome's own contextual trigger, rendered in the selection toolbar.
+ * open the chrome's own contextual composer over an item: from the item's hover
+ * comment button, or from the right-click menu.
  */
 export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelectionRef> {
   protected override boardAddable(): boolean {
@@ -219,6 +221,7 @@ export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelec
                 panReady: this.panReady,
                 overlay: this.#renderOverlay(state, m),
                 commentRef: (kind, id) => this.commentRef(kind, id),
+                onComment: (itemId) => this.openComment(this.commentRef('item', itemId)),
                 handlers: {
                   canvasPointerDown: (event) => this.#onCanvasPointerDown(event),
                   canvasPointerMove: (event) => this.#onPointerMove(event),
@@ -240,11 +243,7 @@ export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelec
                     this.requestUpdate();
                   },
                   itemPointerDown: (itemId, event) => this.#onItemPointerDown(itemId, event),
-                  resizePointerDown: (itemId, event) =>
-                    this.#onHandlePointerDown(
-                      event,
-                      startResize(this.items(), itemId, event.pointerId, this.#canvasPoint(event)),
-                    ),
+                  resizePointerDown: (itemId, event, edge) => this.#onResizePointerDown(itemId, event, edge),
                   connectPointerDown: (itemId, event) =>
                     this.#onHandlePointerDown(event, startConnect(itemId, event.pointerId, this.#canvasPoint(event))),
                   connectorPointerDown: (connectorId, event) => this.#onConnectorPointerDown(connectorId, event),
@@ -609,6 +608,19 @@ export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelec
     this.#commitEditor();
     this.#focusCanvas();
     this.#capture(event, gesture);
+  }
+
+  /**
+   * A press on the selection line (or on the drawn corner handle). The line sits
+   * over the whole outline, so it must not select, move or open the editor; with
+   * Space held it gets out of the way and the board pans, as a press anywhere does.
+   */
+  #onResizePointerDown(itemId: string, event: PointerEvent, edge: WbResizeEdge | undefined): void {
+    if (edge !== undefined && this.panReady) return;
+    this.#onHandlePointerDown(
+      event,
+      startResize(this.items(), itemId, event.pointerId, this.#canvasPoint(event), edge),
+    );
   }
 
   #onConnectorPointerDown(connectorId: string, event: PointerEvent): void {
