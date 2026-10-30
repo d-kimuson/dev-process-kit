@@ -162,3 +162,16 @@ vocabulary, with the `@<page>` removed.
 (`navigate({ page: "domain" })` shows a page). `page.api` keeps the shape the content has on its
 own, over that page's part of the draft: its targets have no `@`, and what it dispatches goes into
 the app's draft with its page fixed.
+
+## Events
+
+A page's content element keeps the events it has on its own. The app fires `dpk-navigate` on the
+content element whenever that page's part of the navigation changes — from its own
+`api.navigate()`, a `data-dpk-navigate` click inside it, a patch or link that names this page from
+another page, or the hash — with the page's own navigation as `detail.navigation`
+(`{ "step": "s2" }`, not `{ "demo.step": "s2" }`). Slot content that listens on the view or board
+it is written in keeps re-rendering when the template becomes a page.
+
+`dpk-change` is the app's: it fires on `<dpk-app>` (and bubbles to `document`) with the document's
+snapshot, because one change can touch several pages. Listen for it there rather than on the
+content element.

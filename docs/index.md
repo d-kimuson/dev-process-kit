@@ -296,14 +296,19 @@ el.api.subscribe(fn); // returns an unsubscribe function
 
 `dispatch()` returns `{ ok: true, id }` or `{ ok: false, issues }`; `dispatchBatch()` returns `{ ok: true, ids }` or `{ ok: false, issues }`, and any failure rejects the whole batch. `subscribe(fn)` observes the complete snapshot — draft changes, navigation changes and rejected-dispatch issues — and a subsequent successful change clears previous issues before notifying. Navigation does not emit `dpk-change` and does not persist a draft.
 
-| Event          | Detail           | Fired when                                 |
-| -------------- | ---------------- | ------------------------------------------ |
-| `dpk-change`   | snapshot         | draft changed / derived state changed      |
-| `dpk-navigate` | `{ navigation }` | hash navigation changed                    |
-| `dpk-error`    | `{ issues }`     | a dispatch was rejected                    |
-| `dpk-commit`   | `{ value }`      | from `dpk-inline-edit` (bubbles, composed) |
+| Event          | Detail           | Fired when                                                      |
+| -------------- | ---------------- | --------------------------------------------------------------- |
+| `dpk-change`   | snapshot         | draft changed / derived state changed                           |
+| `dpk-navigate` | `{ navigation }` | navigation changed (a page's content element gets its own, too) |
+| `dpk-error`    | `{ issues }`     | a dispatch was rejected                                         |
+| `dpk-commit`   | `{ value }`      | from `dpk-inline-edit` (bubbles, composed)                      |
 
 All events bubble and are composed. `dpk-comment-panel` (the review rail) and `dpk-inline-edit` (the inline editor, `docs/components/inline-edit.md`) are registered by every entry; a view or a board is page content, not a component — a view owns the page, a board can be embedded or own it — and its comments and element actions go into the page's draft. `dpk-formal-spec` (verified properties restated in plain words, `docs/components/formal-spec.md`) is a component; its comments work the same way. `dpk-comment-popover` (`docs/components/comment-popover.md`) is that same contextual composer on its own, for markup that is not one of these: wrap any trigger in it and toggle `open`. Each view and board has a page under `docs/views/` or `docs/boards/`; each component under `docs/components/`.
+
+Inside `<dpk-page>`, the app fires `dpk-navigate` on the page's content element whenever that page's
+part of the navigation changes — its own `api.navigate()`, another page, or the hash — with the
+page's own navigation as `detail.navigation`. `dpk-change` stays on the app. [page.md](page.md#events)
+spells both out.
 
 ## Slots and styling
 
