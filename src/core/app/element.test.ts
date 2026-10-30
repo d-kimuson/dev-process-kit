@@ -90,6 +90,33 @@ const mount = async () => {
   return { page, pageOf, before: board('before'), after: board('after'), board, shadow, settle };
 };
 
+/**
+ * Two plain pages with nothing of their own to navigate, so a patch is the
+ * only change either page's navigation sees.
+ */
+const mountTwoPages = async () => {
+  const page = document.createElement('dpk-app');
+  if (!(page instanceof AppElement)) throw new Error('not upgraded');
+  page.storage = 'memory';
+  page.innerHTML = `<script type="application/json">{"title":"Doc"}</script>
+    <dpk-page name="first" label="First"><dpk-view-plain><script type="application/json">{"title":"First"}</script></dpk-view-plain></dpk-page>
+    <dpk-page name="second" label="Second"><dpk-view-plain><script type="application/json">{"title":"Second"}</script></dpk-view-plain></dpk-page>`;
+  document.body.append(page);
+  await page.api.ready;
+  await page.updateComplete;
+  const contentOf = (id: string): HTMLElement => {
+    const element = page.querySelector(`dpk-page[name="${id}"] > *`);
+    if (!(element instanceof HTMLElement)) throw new Error(`no content for page ${id}`);
+    return element;
+  };
+  const seen = (element: HTMLElement): unknown[] => {
+    const events: unknown[] = [];
+    element.addEventListener('dpk-navigate', (event) => events.push((event as CustomEvent).detail));
+    return events;
+  };
+  return { page, first: contentOf('first'), second: contentOf('second'), seen };
+};
+
 afterEach(() => {
   document.body.replaceChildren();
   window.location.hash = '';
@@ -122,23 +149,7 @@ describe('<dpk-page>', () => {
   });
 
   it('fires dpk-navigate on the board whose own navigation changed (#17)', async () => {
-    const page = document.createElement('dpk-app');
-    if (!(page instanceof AppElement)) throw new Error('not upgraded');
-    page.storage = 'memory';
-    page.innerHTML = `<script type="application/json">{"title":"Doc"}</script>
-      <dpk-page name="first" label="First"><dpk-view-plain><script type="application/json">{"title":"First"}</script></dpk-view-plain></dpk-page>
-      <dpk-page name="second" label="Second"><dpk-view-plain><script type="application/json">{"title":"Second"}</script></dpk-view-plain></dpk-page>`;
-    document.body.append(page);
-    await page.api.ready;
-    await page.updateComplete;
-    const first = page.querySelector('dpk-page[name="first"] > *');
-    const second = page.querySelector('dpk-page[name="second"] > *');
-    if (!(first instanceof HTMLElement) || !(second instanceof HTMLElement)) throw new Error('no boards');
-    const seen = (element: HTMLElement): unknown[] => {
-      const events: unknown[] = [];
-      element.addEventListener('dpk-navigate', (event) => events.push((event as CustomEvent).detail));
-      return events;
-    };
+    const { page, first, second, seen } = await mountTwoPages();
     const firstEvents = seen(first);
     const secondEvents = seen(second);
 
@@ -148,21 +159,32 @@ describe('<dpk-page>', () => {
   });
 
   it('relays a board-initiated navigation back to the board (#17)', async () => {
-    const page = document.createElement('dpk-app');
-    if (!(page instanceof AppElement)) throw new Error('not upgraded');
-    page.storage = 'memory';
-    page.innerHTML = `<script type="application/json">{"title":"Doc"}</script>
-      <dpk-page name="only" label="Only"><dpk-view-plain><script type="application/json">{"title":"Only"}</script></dpk-view-plain></dpk-page>`;
-    document.body.append(page);
-    await page.api.ready;
-    await page.updateComplete;
-    const board = page.querySelector('dpk-page[name="only"] > *');
-    if (!(board instanceof HTMLElement) || !('api' in board)) throw new Error('no board');
-    const events: unknown[] = [];
-    board.addEventListener('dpk-navigate', (event) => events.push((event as CustomEvent).detail));
+    const { first, seen } = await mountTwoPages();
+    const events = seen(first);
 
-    (board as Board).api.navigate({ note: 'paid' });
+    (first as Board).api.navigate({ note: 'paid' });
     expect(events).toEqual([{ navigation: { note: 'paid' } }]);
+  });
+
+  it('relays a patch that moves this page while another one is shown (#17)', async () => {
+    const { page, first, second, seen } = await mountTwoPages();
+    const firstEvents = seen(first);
+    const secondEvents = seen(second);
+
+    page.api.navigate({ page: 'second', 'first.note': 'paid' });
+    expect(firstEvents).toEqual([{ navigation: { note: 'paid' } }]);
+    expect(secondEvents).toEqual([]);
+  });
+
+  it('relays a hash change to the page content it moves (#17)', async () => {
+    const { first, second, seen } = await mountTwoPages();
+    const firstEvents = seen(first);
+    const secondEvents = seen(second);
+
+    window.history.replaceState(null, '', '#page=first&first.note=refund');
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    expect(firstEvents).toEqual([{ navigation: { note: 'refund' } }]);
+    expect(secondEvents).toEqual([]);
   });
 
   it('reports the work on a board that is taken away as stale', async () => {
