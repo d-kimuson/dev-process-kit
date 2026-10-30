@@ -6,11 +6,9 @@ import { applyTaskBoardAction } from './apply';
 import { taskBoardMessages } from './messages';
 import {
   emptyTaskBoardBase,
-  findLogEntry,
+  findDesign,
   findQuestion,
   findTodo,
-  hasContextPart,
-  isContextPart,
   parseTaskBoardBase,
   type TaskBoardState,
 } from './model';
@@ -27,10 +25,8 @@ export const taskBoardHasTarget = (state: TaskBoardState, target: ActionTarget):
   switch (target.type) {
     case 'todo':
       return findTodo(state, target.id) !== undefined;
-    case 'log':
-      return findLogEntry(state, target.id) !== undefined;
-    case 'context':
-      return isContextPart(target.id) && hasContextPart(state, target.id);
+    case 'design':
+      return findDesign(state, target.id) !== undefined;
     case 'question':
       return findQuestion(state, target.id) !== undefined;
     case 'page':

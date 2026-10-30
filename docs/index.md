@@ -43,7 +43,7 @@ Pick the one view whose subject is what you need to agree on with the reader.
 | Scope and release slicing                  | `dpk-view-usm`              |
 | Screen flow and what each step looks like  | `dpk-view-prototype`        |
 | An explanation walked through step by step | `dpk-view-slides`           |
-| Where a task shared with the user stands   | `dpk-view-task-board`       |
+| Design docs and the tasks under them       | `dpk-view-task-board`       |
 | Who decides what, between two parties      | `dpk-view-delegation-poker` |
 | Anything else                              | `dpk-view-plain`            |
 

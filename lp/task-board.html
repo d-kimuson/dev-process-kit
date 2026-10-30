@@ -31,15 +31,14 @@
       Pages or with `?dpk-version=<version>` (`kit.js`).
 
       A task board the agent rewrites as the work goes on. The main area has
-      three tabs — what the task is about (why / what / goals as a short design
-      doc, with the ER and sequence diagrams below it), the conversation with
-      the agent (its newest entry says where the task stands) and what the
-      agent asks; the right rail holds the outputs (URLs and file paths) and the todo list,
-      with the agent's own proposals under a "?" mark and the done todos folded
-      away. Questions never stop the work: the agent goes on under an
-      assumption unless the question blocks. The reader sets the status of
-      their own todos only; the agent reports its own. Replies, decisions and
-      todo changes are drafts the reader hands back.
+      three tabs — the design docs (each written in Markdown, each with its own
+      diagrams and the tasks it groups, opened from a list of titles), what the
+      agent asks, and the Kanban board of todos (the agent's own proposals
+      under a "?" mark). The left rail holds the outputs (URLs and file paths).
+      Questions never stop the work: the agent goes on under an assumption
+      unless the question blocks. The reader sets the status of their own todos
+      only; the agent reports its own. Replies, decisions and todo changes are
+      drafts the reader hands back.
     -->
     <script type="module">
       import { loadKit } from './kit.js';
@@ -69,49 +68,62 @@
             {
               "title": "注文一覧 API のページング対応",
               "status": "waiting",
-              "updatedAt": "2026-09-25 14:10",
-              "context": {
-                "why": "注文が 10 万件を超えた店舗で、管理画面の注文一覧の後ろのページが 2 秒近くかかる。offset 方式は深いページほど読み飛ばす行が増えるので、件数が増えるほど遅くなる。",
-                "what": "GET /orders のページングを offset 方式から cursor 方式（created_at, id の組を不透明な文字列で返す）に置き換える。並びは created_at desc, id desc で固定し、次のページは next_cursor で取る。",
-                "goals": [
-                  "どのページも 100 ms 以内に返る（10 万件で計測）",
-                  "管理画面の一覧が新しい API で動く",
-                  "同時刻の注文があっても重複・欠落なくページを送れる"
-                ],
-                "nonGoals": ["検索条件や並べ替え項目を増やすこと", "CSV 出力の作り直し（提案として別に挙げる）"]
-              },
               "members": [
-                { "id": "claude", "name": "Claude", "kind": "agent" },
-                { "id": "d-kimuson", "name": "d-kimuson", "kind": "human" }
+                {
+                  "id": "claude",
+                  "name": "Claude",
+                  "kind": "agent"
+                },
+                {
+                  "id": "d-kimuson",
+                  "name": "d-kimuson",
+                  "kind": "human"
+                }
               ],
               "todos": [
                 {
                   "id": "requirements",
                   "title": "困っている画面と件数を共有する",
                   "status": "done",
-                  "assignee": "d-kimuson"
+                  "assignee": "d-kimuson",
+                  "design": "paging"
                 },
-                { "id": "survey", "title": "既存の呼び出し元を洗い出す", "status": "done", "assignee": "claude" },
+                {
+                  "id": "survey",
+                  "title": "既存の呼び出し元を洗い出す",
+                  "status": "done",
+                  "assignee": "claude",
+                  "design": "paging"
+                },
                 {
                   "id": "design",
                   "title": "cursor の形式を決める",
                   "status": "done",
                   "assignee": "claude",
-                  "note": "created_at と id の組を base64url で包む。"
+                  "note": "created_at と id の組を base64url で包む。",
+                  "design": "paging"
                 },
                 {
                   "id": "impl",
                   "title": "GET /orders を cursor 方式にする",
                   "status": "doing",
                   "assignee": "claude",
-                  "note": "上限件数は Q3 の仮回答（100 件）で実装中。"
+                  "note": "上限件数は Q3 の仮回答（100 件）で実装中。",
+                  "design": "paging"
                 },
-                { "id": "tests", "title": "境界値のテストを足す", "status": "doing", "assignee": "claude" },
+                {
+                  "id": "tests",
+                  "title": "境界値のテストを足す",
+                  "status": "doing",
+                  "assignee": "claude",
+                  "design": "paging"
+                },
                 {
                   "id": "client",
                   "title": "管理画面の一覧を新しい API に切り替える",
                   "status": "blocked",
-                  "note": "旧パラメータの扱い（Q1）が決まるまで保留。"
+                  "note": "旧パラメータの扱い（Q1）が決まるまで保留。",
+                  "design": "rollout"
                 },
                 {
                   "id": "index",
@@ -119,7 +131,8 @@
                   "status": "todo",
                   "assignee": "claude",
                   "proposed": true,
-                  "reason": "今は created_at 単独の index しかなく、同時刻の注文が多い日に並べ替えが遅くなる。"
+                  "reason": "今は created_at 単独の index しかなく、同時刻の注文が多い日に並べ替えが遅くなる。",
+                  "design": "paging"
                 },
                 {
                   "id": "csv",
@@ -127,17 +140,31 @@
                   "status": "todo",
                   "assignee": "claude",
                   "proposed": true,
-                  "reason": "頼まれた範囲ではないが、offset のままだと件数が増えたときに同じく遅くなる。"
+                  "reason": "頼まれた範囲ではないが、offset のままだと件数が増えたときに同じく遅くなる。",
+                  "design": "rollout"
                 },
-                { "id": "review", "title": "PR をレビューする", "status": "todo", "assignee": "d-kimuson" },
+                {
+                  "id": "review",
+                  "title": "PR をレビューする",
+                  "status": "todo",
+                  "assignee": "d-kimuson",
+                  "design": "rollout"
+                },
                 {
                   "id": "staging",
                   "title": "ステージングの管理画面で一覧を触って確認する",
                   "status": "todo",
                   "assignee": "d-kimuson",
-                  "note": "PR が Ready になったら。"
+                  "note": "PR が Ready になったら。",
+                  "design": "rollout"
                 },
-                { "id": "release-note", "title": "リリースノートを書く", "status": "todo", "assignee": "claude" }
+                {
+                  "id": "release-note",
+                  "title": "リリースノートを書く",
+                  "status": "todo",
+                  "assignee": "claude",
+                  "design": "rollout"
+                }
               ],
               "outputs": [
                 {
@@ -159,40 +186,13 @@
                   "href": "https://github.com/example/shop/actions/runs/9120",
                   "kind": "CI"
                 },
-                { "id": "handler", "href": "src/api/orders/list.ts" },
-                { "id": "migration", "href": "db/migrate/20260925_add_orders_cursor_index.sql" }
-              ],
-              "log": [
                 {
-                  "id": "kickoff",
-                  "from": "d-kimuson",
-                  "at": "09-25 10:02",
-                  "body": "大きい店舗で注文一覧の後ろのページが遅いと問い合わせが来ている。今週中に直したいので、方式から任せたい。管理画面は私が触って確認する。"
+                  "id": "handler",
+                  "href": "src/api/orders/list.ts"
                 },
                 {
-                  "id": "plan",
-                  "from": "claude",
-                  "at": "09-25 11:45",
-                  "title": "cursor 方式で進めます",
-                  "body": "10 万件で深いページを取ると offset は 1.8 秒、cursor は 40 ms でした。比較は docs/paging.md にまとめています。",
-                  "points": [
-                    "並びは created_at desc, id desc で固定",
-                    "上限件数は Q3 の仮回答（100 件）で実装を始めます"
-                  ]
-                },
-                {
-                  "id": "limit-reply",
-                  "from": "d-kimuson",
-                  "at": "09-25 12:30",
-                  "body": "cursor で OK。上限件数は仮回答のままで進めて、あとで見直そう。"
-                },
-                {
-                  "id": "draft-pr",
-                  "from": "claude",
-                  "at": "09-25 14:10",
-                  "title": "PR を Draft で出しました。Q1 と Q2 を決めてもらえれば仕上げられます",
-                  "body": "実装とテストはほぼ終わりです。旧パラメータ page / per_page の扱い（Q1）で管理画面の切り替えを今回含めるかが変わるので、そこだけ止まっています。",
-                  "points": ["既存テストは全部通る", "複合 index と CSV 出力は提案として Todo に置いた"]
+                  "id": "migration",
+                  "href": "db/migrate/20260925_add_orders_cursor_index.sql"
                 }
               ],
               "questions": [
@@ -220,12 +220,24 @@
                   "title": "cursor に有効期限は要りますか？",
                   "assumption": "期限は付けない。並びが変わっても次のページがずれるだけで済む"
                 }
+              ],
+              "designs": [
+                {
+                  "id": "paging",
+                  "title": "注文一覧のカーソルページング",
+                  "body": "## 背景\n注文が 10 万件を超えた店舗で、管理画面の一覧の後ろのページが 2 秒近くかかる。offset 方式は深いページほど読み飛ばす行が増えるので、件数が増えるほど遅くなる。\n\n## 方針\n`GET /orders` のページングを cursor 方式に置き換える。並びは `created_at desc, id desc` で固定し、次のページは `next_cursor` で取る。\n\n- cursor は `(created_at, id)` を base64url で包んだ不透明な文字列\n- 旧パラメータ `page` / `per_page` の扱いは Q1 で決める\n- 1 ページの上限は 100 件（Q3 の仮回答）\n\n## 計測\n10 万件で深いページを取ると offset は 1.8 秒、cursor は 40 ms。比較は `docs/paging.md` にまとめた。"
+                },
+                {
+                  "id": "rollout",
+                  "title": "管理画面の切り替えとリリース",
+                  "body": "## 移行\n新しい API を出したあと、管理画面の一覧を cursor 方式に切り替える。旧パラメータの扱いが決まるまで切り替えは保留する。\n\n## リスク\n- 同時刻の注文が多い日に並べ替えが遅くなる → 複合 index を提案\n- CSV 出力は offset のまま → cursor に合わせるかは別途判断"
+                }
               ]
             }
           </script>
           <dpk-board-er-diagram
             id="orders-schema"
-            slot="main"
+            slot="design:paging"
             heading="ERD"
             subject="ページングで読むテーブル"
             style="--diagram-height: 380px"
@@ -268,7 +280,12 @@
               }
             </script>
           </dpk-board-er-diagram>
-          <dpk-board-sequence-diagram id="cursor-flow" slot="main" heading="Sequence" subject="次のページを取る">
+          <dpk-board-sequence-diagram
+            id="cursor-flow"
+            slot="design:paging"
+            heading="Sequence"
+            subject="次のページを取る"
+          >
             <script type="application/json">
               {
                 "participants": [

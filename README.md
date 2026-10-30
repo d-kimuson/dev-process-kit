@@ -35,14 +35,14 @@ components, views and boards — as Web Components, with no build step.
 A **view** owns the whole page and cannot be embedded. Pick the one whose subject is what you
 need to agree on with the reader.
 
-| View               | Element                     | What it is                                                                                                                  |
-| ------------------ | --------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| User Story Mapping | `dpk-view-usm`              | Scope, steps, stories and releases on one map; milestones, dependencies, labels and a burndown                              |
-| UX Prototype       | `dpk-view-prototype`        | Screen flow and what each step looks like: activities, stories, steps, screens and previews                                 |
-| Slides             | `dpk-view-slides`           | A deck paged through one slide at a time                                                                                    |
-| Task Context Board | `dpk-view-task-board`       | Where a task shared by an agent and a person stands: context, todos, proposals, outputs, the conversation log and questions |
-| Delegation Poker   | `dpk-view-delegation-poker` | Management 3.0 delegation poker: seven levels per decision area, settled on one agreed level per row                        |
-| Plain              | `dpk-view-plain`            | A titled page with no domain of its own: your markup and comments, for anything no other view fits                          |
+| View               | Element                     | What it is                                                                                                      |
+| ------------------ | --------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| User Story Mapping | `dpk-view-usm`              | Scope, steps, stories and releases on one map; milestones, dependencies, labels and a burndown                  |
+| UX Prototype       | `dpk-view-prototype`        | Screen flow and what each step looks like: activities, stories, steps, screens and previews                     |
+| Slides             | `dpk-view-slides`           | A deck paged through one slide at a time                                                                        |
+| Task Context Board | `dpk-view-task-board`       | Design docs and the tasks under them: Markdown design docs, a Kanban of todos, proposals, outputs and questions |
+| Delegation Poker   | `dpk-view-delegation-poker` | Management 3.0 delegation poker: seven levels per decision area, settled on one agreed level per row            |
+| Plain              | `dpk-view-plain`            | A titled page with no domain of its own: your markup and comments, for anything no other view fits              |
 
 ### Boards: embed one, or make it the page
 

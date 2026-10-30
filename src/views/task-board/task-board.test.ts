@@ -15,9 +15,8 @@ import { emptyTaskBoardBase, parseTaskBoardBase, type TaskBoardState } from './m
 import {
   describeTaskBoardAction,
   outputLocation,
+  presentDesigns,
   presentOutputs,
-  presentContext,
-  presentLog,
   presentQuestions,
   presentTasks,
   taskBoardCommentTargets,
@@ -29,32 +28,28 @@ const m = taskBoardMessages('en');
 const base = {
   title: '検索 API のページング対応',
   status: 'waiting',
-  updatedAt: '2026-09-25 14:10',
+  designs: [
+    {
+      id: 'paging',
+      title: 'カーソルページングの設計',
+      body: '## 背景\n深いページで一覧が遅い。\n\n- offset は遅い\n- cursor で進める',
+    },
+    { id: 'ops', title: 'リリースと運用', body: '切替は管理画面から。' },
+  ],
   members: [
     { id: 'agent', name: 'Claude' },
     { id: 'd-kimuson', name: 'd-kimuson', kind: 'human' },
   ],
   todos: [
-    { id: 'design', title: '方式を決める', status: 'done', assignee: 'agent' },
-    { id: 'impl', title: '実装する', status: 'doing', assignee: 'agent', note: '残り: テスト' },
-    { id: 'review', title: 'レビューする', assignee: 'd-kimuson' },
-    { id: 'deploy', title: 'デプロイする', status: 'blocked' },
-    { id: 'index', title: 'created_at に index を張る', proposed: true, reason: '並べ替えが遅い' },
+    { id: 'design', title: '方式を決める', status: 'done', assignee: 'agent', design: 'paging' },
+    { id: 'impl', title: '実装する', status: 'doing', assignee: 'agent', note: '残り: テスト', design: 'paging' },
+    { id: 'review', title: 'レビューする', assignee: 'd-kimuson', design: 'paging' },
+    { id: 'deploy', title: 'デプロイする', status: 'blocked', design: 'ops' },
+    { id: 'index', title: 'created_at に index を張る', proposed: true, reason: '並べ替えが遅い', design: 'paging' },
   ],
   outputs: [
     { id: 'pr', label: 'PR #42', href: 'https://github.com/example/repo/pull/42', kind: 'PR' },
     { id: 'doc', href: 'docs/design.md', description: '' },
-  ],
-  context: {
-    why: '深いページで一覧が遅い。',
-    what: '一覧 API を cursor 方式にする。',
-    goals: ['どのページも 200ms 以内'],
-    nonGoals: ['検索条件の追加'],
-  },
-  log: [
-    { id: 'l1', from: 'd-kimuson', at: '12:50', body: '一覧が遅いので直してほしい' },
-    { id: 'l2', title: '方式を比較した', at: '13:00', points: ['offset は遅い'] },
-    { id: 'l3', from: 'agent', title: 'cursor で実装を始めた', at: '14:00', body: '既存 API は互換を保つ。' },
   ],
   questions: [
     { id: 'limit', title: '1 ページの上限は？', assumption: '100 件で進める' },
@@ -85,11 +80,12 @@ describe('task board base data', () => {
       status: 'todo',
       assignee: 'd-kimuson',
       note: null,
+      design: 'paging',
       proposed: false,
       reason: null,
       added: false,
     });
-    expect(state.todos[4]).toMatchObject({ proposed: true, reason: '並べ替えが遅い' });
+    expect(state.todos[4]).toMatchObject({ proposed: true, reason: '並べ替えが遅い', design: 'paging' });
     expect(state.outputs[1]).toEqual({
       id: 'doc',
       label: null,
@@ -104,28 +100,16 @@ describe('task board base data', () => {
     ]);
     expect(state.answers).toEqual({});
     expect(state.decisions).toEqual({});
-    expect(state.context).toEqual({
-      why: '深いページで一覧が遅い。',
-      what: '一覧 API を cursor 方式にする。',
-      goals: ['どのページも 200ms 以内'],
-      nonGoals: ['検索条件の追加'],
-    });
-    expect(state.log[0]).toEqual({
-      id: 'l1',
-      from: 'd-kimuson',
-      at: '12:50',
-      title: null,
-      body: '一覧が遅いので直してほしい',
-      points: [],
-    });
-    expect(state.log[1]?.from).toBeNull();
-    // Blank design-doc fields read as missing, so the tab never shows an empty heading.
-    expect(parseTaskBoardBase({ context: { why: ' ', goals: ['', 'A'] } }).context).toEqual({
-      why: null,
-      what: null,
-      goals: ['A'],
-      nonGoals: [],
-    });
+    expect(state.designs).toEqual([
+      {
+        id: 'paging',
+        title: 'カーソルページングの設計',
+        body: '## 背景\n深いページで一覧が遅い。\n\n- offset は遅い\n- cursor で進める',
+      },
+      { id: 'ops', title: 'リリースと運用', body: '切替は管理画面から。' },
+    ]);
+    // A blank body reads as missing, so a doc never shows an empty box.
+    expect(parseTaskBoardBase({ designs: [{ id: 'd', title: 'D', body: ' ' }] }).designs[0]?.body).toBeNull();
   });
 
   it('rejects duplicate ids, unknown assignees, unknown keys and a provisional question without an assumption', () => {
@@ -148,17 +132,17 @@ describe('task board base data', () => {
     expect(() => parseTaskBoardBase({ context: { how: 'x' } })).toThrow();
     expect(() => parseTaskBoardBase({ summary: 'x' })).toThrow();
     expect(() => parseTaskBoardBase({ reports: [] })).toThrow();
-    // A log entry says something, and comes from someone the board names.
-    expect(() => parseTaskBoardBase({ log: [{ id: 'l', at: '10:00' }] })).toThrow(/title or a body/);
-    expect(() => parseTaskBoardBase({ log: [{ id: 'l', body: 'x', from: 'ghost' }] })).toThrow(/not in members/);
+    // A task names a design doc the board has, and a doc has a title.
+    expect(() => parseTaskBoardBase({ todos: [{ id: 'a', title: 'A', design: 'ghost' }] })).toThrow(/not in designs/);
     expect(() =>
       parseTaskBoardBase({
-        log: [
-          { id: 'l', body: 'x' },
-          { id: 'l', body: 'y' },
+        designs: [
+          { id: 'd', title: 'D' },
+          { id: 'd', title: 'E' },
         ],
       }),
-    ).toThrow(/duplicate log id/);
+    ).toThrow(/duplicate design id/);
+    expect(() => parseTaskBoardBase({ designs: [{ id: 'd' }] })).toThrow();
   });
 });
 
@@ -206,6 +190,7 @@ describe('task board actions', () => {
       status: 'todo',
       assignee: 'agent',
       note: null,
+      design: null,
       proposed: false,
       reason: null,
       added: true,
@@ -221,20 +206,37 @@ describe('task board presentation', () => {
   const state = parseTaskBoardBase(base);
   const none = (): number => 0;
 
-  it('lays out the design doc: why, what, goals and non-goals', () => {
-    expect(presentContext(m, state, none)).toEqual({
-      parts: [
-        { id: 'why', title: 'Why', text: '深いページで一覧が遅い。', items: [], comments: 0 },
-        { id: 'what', title: 'What', text: '一覧 API を cursor 方式にする。', items: [], comments: 0 },
-        { id: 'goals', title: 'Goals', text: null, items: ['どのページも 200ms 以内'], comments: 0 },
-        { id: 'nonGoals', title: 'Non-goals', text: null, items: ['検索条件の追加'], comments: 0 },
-      ],
-    });
-    const partial = parseTaskBoardBase({ context: { what: 'X' } });
-    expect(presentContext(m, partial, (target) => (target === 'context:what' ? 2 : 0)).parts).toEqual([
-      { id: 'what', title: 'What', text: 'X', items: [], comments: 2 },
+  it('indexes the design docs and opens one doc with the tasks it groups', () => {
+    const vm = presentDesigns(m, state, (target) => (target === 'design:paging' ? 2 : 0));
+    expect(vm.items).toEqual([
+      { id: 'paging', title: 'カーソルページングの設計', taskCount: 4 },
+      { id: 'ops', title: 'リリースと運用', taskCount: 1 },
     ]);
-    expect(presentContext(m, emptyTaskBoardBase(), none).parts).toEqual([]);
+    // The first doc opens until the reader picks another.
+    expect(vm.selected?.id).toBe('paging');
+    expect(vm.selected?.comments).toBe(2);
+    expect(vm.selected?.body).toContain('## 背景');
+    // One doc, many tasks: the todos that name it are its group, in the agent's order.
+    expect(vm.selected?.tasks.map((task) => [task.id, task.status, task.statusLabel, task.proposal])).toEqual([
+      ['design', 'done', 'Done', null],
+      ['impl', 'doing', 'In progress', null],
+      ['review', 'todo', 'To do', null],
+      ['index', 'todo', 'To do', 'pending'],
+    ]);
+    // The reader opened the other doc; an id the agent has since removed falls back to the first.
+    const ops = presentDesigns(m, state, none, 'ops');
+    expect(ops.selected?.id).toBe('ops');
+    expect(ops.selected?.tasks.map((task) => task.id)).toEqual(['deploy']);
+    expect(presentDesigns(m, state, none, 'gone').selected?.id).toBe('paging');
+    const bare = parseTaskBoardBase({ designs: [{ id: 'd', title: 'D', body: ' ' }] });
+    expect(presentDesigns(m, bare, none).selected).toEqual({
+      id: 'd',
+      title: 'D',
+      body: null,
+      tasks: [],
+      comments: 0,
+    });
+    expect(presentDesigns(m, emptyTaskBoardBase(), none)).toEqual({ items: [], selected: null });
   });
 
   it('puts blockers first and tells an approved or answered question from an open one', () => {
@@ -347,25 +349,6 @@ describe('task board presentation', () => {
     expect(outputs[1]?.labelled).toBe(false);
   });
 
-  it('lists the conversation newest first, and puts where the task stands on the newest entry', () => {
-    const log = presentLog(m, state, none);
-    expect(log.entries.map((entry) => [entry.id, entry.latest, entry.author?.name, entry.author?.kind])).toEqual([
-      ['l3', true, 'Claude', 'agent'],
-      ['l2', false, undefined, undefined],
-      ['l1', false, 'd-kimuson', 'human'],
-    ]);
-    // Without a title the body names the entry, cut short.
-    expect(log.entries.map((entry) => entry.label)).toEqual([
-      'cursor で実装を始めた',
-      '方式を比較した',
-      '一覧が遅いので直してほしい',
-    ]);
-    expect(log.status).toEqual({ status: 'waiting', label: 'Waiting on you', updatedAt: '2026-09-25 14:10' });
-    expect(presentLog(m, emptyTaskBoardBase(), none)).toEqual({ entries: [], status: null });
-    const long = parseTaskBoardBase({ log: [{ id: 'l', body: 'x'.repeat(80) }] });
-    expect(presentLog(m, long, none).entries[0]?.label).toBe(`${'x'.repeat(47)}…`);
-  });
-
   it('describes each change with its before and after', () => {
     const next = apply(state, setTodoStatus('review', 'doing')) ?? state;
     expect(describeTaskBoardAction(m, action(setTodoStatus('review', 'doing')), next, state)).toEqual({
@@ -396,7 +379,7 @@ describe('task board presentation', () => {
     });
   });
 
-  it('offers questions, todos, log entries and the design doc as comment targets, grouped', () => {
+  it('offers questions, todos and design docs as comment targets, grouped', () => {
     const targets = taskBoardCommentTargets(m, state);
     expect(targets.map((target) => target.value)).toEqual([
       'question:limit',
@@ -407,16 +390,11 @@ describe('task board presentation', () => {
       'todo:review',
       'todo:deploy',
       'todo:index',
-      'log:l1',
-      'log:l2',
-      'log:l3',
-      'context:why',
-      'context:what',
-      'context:goals',
-      'context:nonGoals',
+      'design:paging',
+      'design:ops',
     ]);
     expect(new Set(targets.map((target) => target.group))).toEqual(
-      new Set(['Question', 'Proposal', 'Todo', 'Log', 'Context']),
+      new Set(['Question', 'Proposal', 'Todo', 'Design Doc']),
     );
   });
 });
@@ -427,11 +405,10 @@ describe('task board definition', () => {
 
   it('knows its targets and titles itself', () => {
     expect(taskBoardHasTarget(state, { type: 'todo', id: 'impl' })).toBe(true);
-    expect(taskBoardHasTarget(state, { type: 'log', id: 'l1' })).toBe(true);
-    expect(taskBoardHasTarget(state, { type: 'report', id: 'l1' })).toBe(false);
-    expect(taskBoardHasTarget(state, { type: 'context', id: 'why' })).toBe(true);
-    expect(taskBoardHasTarget(parseTaskBoardBase({}), { type: 'context', id: 'why' })).toBe(false);
-    expect(taskBoardHasTarget(state, { type: 'context', id: 'how' })).toBe(false);
+    expect(taskBoardHasTarget(state, { type: 'design', id: 'paging' })).toBe(true);
+    expect(taskBoardHasTarget(parseTaskBoardBase({}), { type: 'design', id: 'paging' })).toBe(false);
+    expect(taskBoardHasTarget(state, { type: 'log', id: 'l1' })).toBe(false);
+    expect(taskBoardHasTarget(state, { type: 'context', id: 'why' })).toBe(false);
     expect(taskBoardHasTarget(state, { type: 'question', id: 'limit' })).toBe(true);
     expect(taskBoardHasTarget(state, { type: 'page', id: 'task-board' })).toBe(true);
     expect(taskBoardHasTarget(state, { type: 'output', id: 'pr' })).toBe(false);
@@ -519,7 +496,7 @@ afterEach(() => {
 });
 
 describe('<dpk-view-task-board>', () => {
-  it('puts context, work log, questions and the task board under tabs, and the outputs in a left-hand rail', async () => {
+  it('puts the design docs, questions and the task board under tabs, and the outputs in a left-hand rail', async () => {
     const element = mount();
     await settle(element);
     const root = element.shadowRoot;
@@ -532,23 +509,29 @@ describe('<dpk-view-task-board>', () => {
     expect(root?.querySelector('.dpk-aside')).toBeNull();
     expect((side?.compareDocumentPosition(main ?? element) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const tabs = [...(main?.querySelectorAll('[role="tab"]') ?? [])];
-    expect(tabs.map((tab) => tab.getAttribute('data-tab'))).toEqual(['context', 'log', 'questions', 'tasks']);
-    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
+    expect(tabs.map((tab) => tab.getAttribute('data-tab'))).toEqual(['designs', 'questions', 'tasks']);
+    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
     const panel = (tab: string): HTMLElement => query(element, `#board-panel-${tab}`);
-    expect(panel('context').hidden).toBe(false);
-    expect(panel('log').hidden).toBe(true);
+    expect(panel('designs').hidden).toBe(false);
     expect(panel('questions').hidden).toBe(true);
     expect(panel('tasks').hidden).toBe(true);
     expect(
-      [...panel('context').querySelectorAll('[data-context]')].map((node) => node.getAttribute('data-context')),
-    ).toEqual(['why', 'what', 'goals', 'nonGoals']);
-    expect(panel('context').querySelector('[data-context="why"] .board-context-text')?.textContent).toContain(
+      [...panel('designs').querySelectorAll('[data-design-item]')].map((node) => node.getAttribute('data-design-item')),
+    ).toEqual(['paging', 'ops']);
+    // The first doc is open, and the index says which one.
+    expect(panel('designs').querySelector('[data-design]')?.getAttribute('data-design')).toBe('paging');
+    expect(panel('designs').querySelector('[data-design-item="paging"]')?.getAttribute('aria-current')).toBe('true');
+    expect(panel('designs').querySelector('[data-design-item="ops"]')?.getAttribute('aria-current')).toBeNull();
+    expect(panel('designs').querySelector('[data-design="paging"] .board-design-body')?.textContent).toContain(
       '深いページで一覧が遅い。',
     );
-    // Where things stand lives on the newest log entry, not in the context.
-    expect(panel('context').querySelector('.board-status')).toBeNull();
+    // Each doc lists the tasks it groups: one doc, many todos.
+    expect(panel('designs').querySelectorAll('[data-design="paging"] .board-design-task')).toHaveLength(4);
+    expect(panel('designs').querySelectorAll('[data-design="ops"]')).toHaveLength(0);
+    // The overall status stays in the header, not in the docs.
+    expect(root?.querySelector('.board-status')?.getAttribute('data-status')).toBe('waiting');
+    expect(panel('designs').querySelector('.board-status')).toBeNull();
     expect(panel('questions').querySelectorAll('.board-question')).toHaveLength(3);
-    expect(panel('log').querySelectorAll('.board-log-entry')).toHaveLength(3);
     // The rail holds what the agent produced and nothing else: the todos are the Tasks board.
     expect(side?.querySelectorAll('.board-output')).toHaveLength(2);
     expect(side?.querySelector('[data-section="todos"]')).toBeNull();
@@ -583,54 +566,80 @@ describe('<dpk-view-task-board>', () => {
     expect(review?.getAttribute('data-dpk-target')).toBe('todo:review');
     expect(review?.querySelector('.board-assignee')?.getAttribute('data-kind')).toBe('human');
     expect(review?.querySelector('.board-todo-status')).not.toBeNull();
+    // The card names the design doc it belongs to: the link back to the intent.
+    expect(review?.querySelector('.board-tag[data-tone="design"]')?.textContent).toBe('カーソルページングの設計');
     // The board is only drawn when its tab is open.
     query<HTMLButtonElement>(element, '[data-tab="tasks"]').click();
     await settle(element);
     expect(query<HTMLElement>(element, '#board-panel-tasks').hidden).toBe(false);
-    expect(query<HTMLElement>(element, '#board-panel-context').hidden).toBe(true);
+    expect(query<HTMLElement>(element, '#board-panel-designs').hidden).toBe(true);
     // The progress and the filter moved with the todos, out of the rail.
     expect(query(element, '#board-panel-tasks .board-tasks-progress-label').textContent).toBe('1 of 4 done');
     expect(query(element, '#board-panel-tasks [data-filter="all"]')).not.toBeNull();
   });
 
-  it('shows the conversation newest first, with where the task stands on the newest entry', async () => {
+  it('switches the open design doc from the left-hand index', async () => {
     const element = mount();
     await settle(element);
-    const entries = [...(element.shadowRoot?.querySelectorAll('#board-panel-log .board-log-entry') ?? [])];
-    expect(entries.map((entry) => entry.getAttribute('data-log'))).toEqual(['l3', 'l2', 'l1']);
-    expect(entries.map((entry) => entry.getAttribute('data-from'))).toEqual(['agent', 'agent', 'human']);
-    expect(entries[2]?.querySelector('.board-log-author')?.textContent).toContain('d-kimuson');
-    const latest = entries[0];
-    expect(latest?.getAttribute('data-latest')).toBe('true');
-    expect(latest?.querySelector('.board-status')?.getAttribute('data-status')).toBe('waiting');
-    expect(latest?.querySelector('.board-updated')?.textContent).toContain('2026-09-25 14:10');
-    expect(entries[1]?.querySelector('.board-status')).toBeNull();
+    // Only the open doc is drawn: the index carries the rest.
+    const detail = (): HTMLElement => query(element, '#board-panel-designs [data-design]');
+    expect(detail().getAttribute('data-design')).toBe('paging');
+    expect(detail().querySelector('.board-design-title')?.textContent).toBe('カーソルページングの設計');
+    expect(detail().querySelector('.board-design-body h2')?.textContent).toBe('背景');
+    expect(
+      [...detail().querySelectorAll('.board-design-task')].map((task) => task.getAttribute('data-design-task')),
+    ).toEqual(['design', 'impl', 'review', 'index']);
+    // A proposal in the group keeps its "?" mark.
+    expect(query(element, '[data-design="paging"] [data-design-task="index"] .board-card-mark')).not.toBeNull();
     const requested = vi.spyOn(element, 'requestComment');
-    query<HTMLButtonElement>(element, '[data-log="l1"] .board-comment').click();
-    expect(requested).toHaveBeenCalledWith('log:l1');
+    query<HTMLButtonElement>(element, '[data-design="paging"] .board-comment').click();
+    expect(requested).toHaveBeenCalledWith('design:paging');
+    // Clicking another title opens its body and its tasks instead.
+    query<HTMLButtonElement>(element, '[data-design-item="ops"]').click();
+    await settle(element);
+    expect(detail().getAttribute('data-design')).toBe('ops');
+    expect(detail().querySelector('.board-design-title')?.textContent).toBe('リリースと運用');
+    expect(detail().querySelector('.board-design-body')?.textContent).toContain('切替は管理画面から。');
+    expect(detail().querySelector('.board-design-task')?.getAttribute('data-design-task')).toBe('deploy');
+    expect(query(element, '[data-design-item="ops"]').getAttribute('aria-current')).toBe('true');
+    expect(query(element, '[data-design-item="paging"]').getAttribute('aria-current')).toBeNull();
   });
 
-  it("puts the author's diagrams under the design doc, and asks for the context when there is none", async () => {
+  it("keeps each design doc's diagrams inside that doc", async () => {
     document.body.innerHTML = `
       <dpk-view-task-board storage="memory">
-        <script type="application/json">${JSON.stringify({ title: 'x' })}</script>
-        <div slot="main" id="figure">ER</div>
+        <script type="application/json">${JSON.stringify(base)}</script>
+        <div slot="design:paging" id="figure-paging">ER</div>
+        <div slot="design:ops" id="figure-ops">Flow</div>
       </dpk-view-task-board>`;
     const element = document.querySelector('dpk-view-task-board') as DpkViewTaskBoard;
     await settle(element);
-    const slot = query<HTMLSlotElement>(element, '#board-panel-context slot[name="main"]');
-    expect(slot.assignedElements().map((node) => node.id)).toEqual(['figure']);
-    // A figure alone is context enough.
-    expect(element.shadowRoot?.querySelector('#board-panel-context .board-empty')).toBeNull();
+    const slot = (id: string): HTMLSlotElement =>
+      query<HTMLSlotElement>(element, `[data-design="${id}"] slot[name="design:${id}"]`);
+    // The paging doc owns its ER diagram; it sits inside that doc, not at page level.
+    expect(
+      slot('paging')
+        .assignedElements()
+        .map((node) => node.id),
+    ).toEqual(['figure-paging']);
+    expect(query(element, '[data-design="paging"] .board-design-figures')).not.toBeNull();
+    // Opening another doc takes its own figures with it, and leaves the others behind.
+    query<HTMLButtonElement>(element, '[data-design-item="ops"]').click();
+    await settle(element);
+    expect(
+      slot('ops')
+        .assignedElements()
+        .map((node) => node.id),
+    ).toEqual(['figure-ops']);
+    expect(element.shadowRoot?.querySelector('[data-design="ops"] slot[name="design:paging"]')).toBeNull();
     const bare = mountWith({ title: 'x' });
     await settle(bare);
-    expect(query(bare, '#board-panel-context .board-empty').textContent).toBe(m.noContext);
-    expect(query(bare, '#board-panel-log .board-empty').textContent).toBe(m.noLog);
+    expect(query(bare, '#board-panel-designs .board-empty').textContent).toBe(m.noDesigns);
     const commented = mount();
     await settle(commented);
     const requested = vi.spyOn(commented, 'requestComment');
-    query<HTMLButtonElement>(commented, '[data-context="what"] .board-comment').click();
-    expect(requested).toHaveBeenCalledWith('context:what');
+    query<HTMLButtonElement>(commented, '[data-design="paging"] .board-comment').click();
+    expect(requested).toHaveBeenCalledWith('design:paging');
   });
 
   it('switches tabs by click and by arrow keys, and counts what is left to answer', async () => {
@@ -639,13 +648,12 @@ describe('<dpk-view-task-board>', () => {
     const tab = (name: string): HTMLButtonElement => query(element, `[data-tab="${name}"]`);
     expect(tab('questions').querySelector('.board-tab-count')?.textContent).toBe('3');
     expect(tab('questions').getAttribute('data-alert')).toBe('true');
-    expect(tab('log').querySelector('.board-tab-count')?.textContent).toBe('3');
     // Tasks says what it holds in its columns, not in a count.
     expect(tab('tasks').querySelector('.board-tab-count')).toBeNull();
     tab('questions').click();
     await settle(element);
     expect(query<HTMLElement>(element, '#board-panel-questions').hidden).toBe(false);
-    expect(query<HTMLElement>(element, '#board-panel-context').hidden).toBe(true);
+    expect(query<HTMLElement>(element, '#board-panel-designs').hidden).toBe(true);
     tab('questions').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     await settle(element);
     expect(tab('tasks').getAttribute('aria-selected')).toBe('true');
@@ -653,14 +661,14 @@ describe('<dpk-view-task-board>', () => {
     // Stepping past the last tab wraps to the first, and back.
     tab('tasks').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     await settle(element);
-    expect(tab('context').getAttribute('aria-selected')).toBe('true');
-    tab('context').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(tab('designs').getAttribute('aria-selected')).toBe('true');
+    tab('designs').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
     await settle(element);
     expect(tab('tasks').getAttribute('aria-selected')).toBe('true');
     tab('tasks').dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
     await settle(element);
-    expect(tab('context').getAttribute('aria-selected')).toBe('true');
-    tab('context').dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect(tab('designs').getAttribute('aria-selected')).toBe('true');
+    tab('designs').dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
     await settle(element);
     expect(tab('tasks').getAttribute('aria-selected')).toBe('true');
     // A tab stays selected across the renders its own actions cause.
@@ -910,19 +918,19 @@ describe('<dpk-view-task-board>', () => {
     await settle(element);
     const ja = taskBoardMessages('ja');
     expect(query(element, '#board-questions').textContent).toBe(ja.questions);
-    expect(query(element, '[data-tab="log"]').textContent).toContain(ja.tabLog);
+    expect(query(element, '[data-tab="designs"]').textContent).toContain(ja.tabDesigns);
     expect(query(element, '[data-tab="tasks"]').textContent).toContain(ja.tabTasks);
     expect(query(element, '[data-column="doing"] .board-lane-title').textContent).toBe(ja.todoDoing);
     expect(query(element, '[data-group="blocking"] .board-group-title').textContent).toBe(ja.blockingGroup);
   });
 
-  it('marks a context part with its card and its head, never with a stripe along an edge', () => {
-    // Why and What are the same card as Goals and Non-goals: a colored bar down
-    // one side would be decoration the title already says better
+  it('marks a design doc with its card and its head, never with a stripe along an edge', () => {
+    // A doc is the same card as the rest of the kit: a colored bar down one
+    // side would be decoration the title already says better
     // (dev-docs/guidelines/coding.md).
     const css = String(taskBoardStyles);
     const partRules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selector]) =>
-      (selector ?? '').includes('.board-context-part'),
+      /(^|[\s,>])\.board-design(?![\w-])/.test(selector ?? ''),
     );
     expect(partRules.length).toBeGreaterThan(0);
     const borders = partRules.flatMap(([, , body]) => [...(body ?? '').matchAll(/border(?:-[a-z]+)*\s*:[^;]*/g)]);
@@ -941,6 +949,15 @@ describe('task-board change notices', () => {
     const question = await showChange(element);
     expect(question?.getAttribute('data-question')).toBe('deadline');
     expect(query(element, '[role="tab"][aria-selected="true"]').getAttribute('data-tab')).toBe('questions');
+  });
+
+  it('"Show" on a design doc opens the Design Docs tab on that doc', async () => {
+    const element = mountWith(base, 'en', 'design:ops');
+    await settle(element);
+    const doc = await showChange(element);
+    expect(doc?.getAttribute('data-design')).toBe('ops');
+    expect(query(element, '[role="tab"][aria-selected="true"]').getAttribute('data-tab')).toBe('designs');
+    expect(query(element, '[data-design-item="ops"]').getAttribute('aria-current')).toBe('true');
   });
 
   it('"Show" on a todo opens the task board and clears the filter hiding it', async () => {

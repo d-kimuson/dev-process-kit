@@ -4,13 +4,15 @@ import { grillMarkEntry, questionRefsSchema } from '../../core/grill';
 import { entityIdSchema } from '../../core/schema';
 
 /**
- * Meaning model of the task board: where one collaborative task stands.
+ * Meaning model of the task board: where a body of work shared by an agent and
+ * a person stands.
  *
- * The agent writes the base data — the task and why it is done (a short design
- * doc), its todos (with the ones it proposes on its own), what it has
- * produced, the conversation so far and what it needs to ask. The reader's side is draft actions: replies to questions, decisions on
- * proposals, and changes to the todo list. Replies and decisions therefore
- * never live in the base JSON.
+ * The agent writes the base data — the design docs, the todos each doc groups
+ * (with the ones it proposes on its own), what it has produced and what it
+ * needs to ask. A design doc is the unit of intent and a todo is one step
+ * under it, so one doc can carry many todos. The reader's side is draft
+ * actions: replies to questions, decisions on proposals, and changes to the
+ * todo list. Replies and decisions therefore never live in the base JSON.
  */
 
 /** Where the task as a whole stands, from the agent's point of view. */
@@ -39,6 +41,8 @@ export type Todo = {
   /** A member id, or `null` for nobody yet. */
   readonly assignee: string | null;
   readonly note: string | null;
+  /** The design doc this todo belongs to, or `null` when it stands on its own. */
+  readonly design: string | null;
   /**
    * The agent proposes it on its own: not asked for, but it thinks it should be
    * done. It stays a proposal until the reader accepts it.
@@ -66,34 +70,15 @@ export type Output = {
 };
 
 /**
- * What the task is about, design-doc style: what anyone — the agent coming back
- * to it, or the person — reads to recall what is being done and why.
+ * A design doc: the intent behind a group of todos and the place to explain
+ * what prose does badly. It is written in Markdown and can be as long as the
+ * subject needs; todos point at it with their `design` id.
  */
-export type TaskContext = {
-  readonly why: string | null;
-  readonly what: string | null;
-  /** What counts as done. */
-  readonly goals: readonly string[];
-  /** What is deliberately left out. */
-  readonly nonGoals: readonly string[];
-};
-
-export const CONTEXT_PARTS = ['why', 'what', 'goals', 'nonGoals'] as const;
-export type ContextPart = (typeof CONTEXT_PARTS)[number];
-
-/**
- * One exchange between the person and the agent: what was asked, agreed or
- * reported, not every step of the work (the todos carry that).
- */
-export type LogEntry = {
+export type DesignDoc = {
   readonly id: string;
-  /** A member id, or `null` for the agent. */
-  readonly from: string | null;
-  /** When it happened, as the agent wrote it (`2026-09-25 14:10`). */
-  readonly at: string | null;
-  readonly title: string | null;
+  readonly title: string;
+  /** The doc itself, in Markdown. */
   readonly body: string | null;
-  readonly points: readonly string[];
   /** The page's questions (grill) this is about, space-separated refs (`Q1 Q4`): its Q badges. */
   readonly questions?: string;
 };
@@ -122,13 +107,11 @@ export type Answer = { readonly kind: 'approve' } | { readonly kind: 'answer'; r
 export type TaskBoardState = {
   readonly title: string;
   readonly status: TaskStatus | null;
-  readonly updatedAt: string | null;
-  readonly context: TaskContext;
+  /** The design docs, in the agent's order. Todos point at them by id. */
+  readonly designs: readonly DesignDoc[];
   readonly members: readonly Member[];
   readonly todos: readonly Todo[];
   readonly outputs: readonly Output[];
-  /** In the order it happened, oldest first. */
-  readonly log: readonly LogEntry[];
   readonly questions: readonly Question[];
   /** Keyed by question id. An unanswered question has no entry. */
   readonly answers: Readonly<Record<string, Answer>>;
@@ -150,6 +133,7 @@ const todoSchema = v.strictObject({
   status: v.optional(v.picklist(TODO_STATUSES), 'todo'),
   assignee: v.optional(entityIdSchema),
   note: v.optional(v.string()),
+  design: v.optional(entityIdSchema),
   proposed: v.optional(v.boolean(), false),
   reason: v.optional(v.string()),
   questions: questionRefsSchema,
@@ -164,20 +148,10 @@ const outputSchema = v.strictObject({
   questions: questionRefsSchema,
 });
 
-const contextSchema = v.strictObject({
-  why: v.optional(v.string()),
-  what: v.optional(v.string()),
-  goals: v.optional(v.array(v.string()), []),
-  nonGoals: v.optional(v.array(v.string()), []),
-});
-
-const logEntrySchema = v.strictObject({
+const designSchema = v.strictObject({
   id: entityIdSchema,
-  from: v.optional(entityIdSchema),
-  at: v.optional(v.string()),
-  title: v.optional(v.string()),
+  title: text,
   body: v.optional(v.string()),
-  points: v.optional(v.array(v.string()), []),
   questions: questionRefsSchema,
 });
 
@@ -193,12 +167,10 @@ const questionSchema = v.strictObject({
 export const taskBoardBaseSchema = v.strictObject({
   title: v.optional(v.string(), ''),
   status: v.optional(v.picklist(TASK_STATUSES)),
-  updatedAt: v.optional(v.string()),
-  context: v.optional(contextSchema, {}),
+  designs: v.optional(v.array(designSchema), []),
   members: v.optional(v.array(memberSchema), []),
   todos: v.optional(v.array(todoSchema), []),
   outputs: v.optional(v.array(outputSchema), []),
-  log: v.optional(v.array(logEntrySchema), []),
   questions: v.optional(v.array(questionSchema), []),
 });
 
@@ -214,13 +186,15 @@ const assertUnique = (kind: string, ids: readonly string[]): void => {
 const present = (value: string | undefined): string | null =>
   value === undefined || value.trim() === '' ? null : value;
 
-const presentItems = (values: readonly string[]): readonly string[] => values.filter((value) => value.trim() !== '');
-
 export const parseTaskBoardBase = (input: unknown): TaskBoardState => {
   const parsed = v.parse(taskBoardBaseSchema, input);
   assertUnique(
     'member',
     parsed.members.map((member) => member.id),
+  );
+  assertUnique(
+    'design',
+    parsed.designs.map((design) => design.id),
   );
   assertUnique(
     'todo',
@@ -229,10 +203,6 @@ export const parseTaskBoardBase = (input: unknown): TaskBoardState => {
   assertUnique(
     'output',
     parsed.outputs.map((output) => output.id),
-  );
-  assertUnique(
-    'log',
-    parsed.log.map((entry) => entry.id),
   );
   assertUnique(
     'question',
@@ -244,12 +214,10 @@ export const parseTaskBoardBase = (input: unknown): TaskBoardState => {
       throw new Error(`todo ${todo.id} is assigned to ${todo.assignee}, which is not in members`);
     }
   }
-  for (const entry of parsed.log) {
-    if (entry.from !== undefined && !memberIds.has(entry.from)) {
-      throw new Error(`log entry ${entry.id} is from ${entry.from}, which is not in members`);
-    }
-    if (present(entry.title) === null && present(entry.body) === null) {
-      throw new Error(`log entry ${entry.id} needs a title or a body`);
+  const designIds = new Set(parsed.designs.map((design) => design.id));
+  for (const todo of parsed.todos) {
+    if (todo.design !== undefined && !designIds.has(todo.design)) {
+      throw new Error(`todo ${todo.id} belongs to ${todo.design}, which is not in designs`);
     }
   }
   for (const question of parsed.questions) {
@@ -260,13 +228,12 @@ export const parseTaskBoardBase = (input: unknown): TaskBoardState => {
   return {
     title: parsed.title,
     status: parsed.status ?? null,
-    updatedAt: present(parsed.updatedAt),
-    context: {
-      why: present(parsed.context.why),
-      what: present(parsed.context.what),
-      goals: presentItems(parsed.context.goals),
-      nonGoals: presentItems(parsed.context.nonGoals),
-    },
+    designs: parsed.designs.map((design) => ({
+      id: design.id,
+      title: design.title,
+      body: present(design.body),
+      ...grillMarkEntry(design.questions),
+    })),
     members: parsed.members,
     todos: parsed.todos.map((todo) => ({
       id: todo.id,
@@ -274,6 +241,7 @@ export const parseTaskBoardBase = (input: unknown): TaskBoardState => {
       status: todo.status,
       assignee: todo.assignee ?? null,
       note: present(todo.note),
+      design: todo.design ?? null,
       proposed: todo.proposed,
       reason: present(todo.reason),
       added: false,
@@ -286,15 +254,6 @@ export const parseTaskBoardBase = (input: unknown): TaskBoardState => {
       kind: present(output.kind),
       description: present(output.description),
       ...grillMarkEntry(output.questions),
-    })),
-    log: parsed.log.map((entry) => ({
-      id: entry.id,
-      from: entry.from ?? null,
-      at: present(entry.at),
-      title: present(entry.title),
-      body: present(entry.body),
-      points: presentItems(entry.points),
-      ...grillMarkEntry(entry.questions),
     })),
     questions: parsed.questions.map((question, index) => ({
       id: question.id,
@@ -312,12 +271,10 @@ export const parseTaskBoardBase = (input: unknown): TaskBoardState => {
 export const emptyTaskBoardBase = (): TaskBoardState => ({
   title: '',
   status: null,
-  updatedAt: null,
-  context: { why: null, what: null, goals: [], nonGoals: [] },
+  designs: [],
   members: [],
   todos: [],
   outputs: [],
-  log: [],
   questions: [],
   answers: {},
   decisions: {},
@@ -331,16 +288,12 @@ export const findMember = (state: TaskBoardState, id: string | null): Member | u
 export const findTodo = (state: TaskBoardState, id: string): Todo | undefined =>
   state.todos.find((todo) => todo.id === id);
 
-export const findLogEntry = (state: TaskBoardState, id: string): LogEntry | undefined =>
-  state.log.find((entry) => entry.id === id);
+export const findDesign = (state: TaskBoardState, id: string): DesignDoc | undefined =>
+  state.designs.find((design) => design.id === id);
 
-export const isContextPart = (id: string): id is ContextPart => (CONTEXT_PARTS as readonly string[]).includes(id);
-
-/** The agent wrote this part of the design doc. */
-export const hasContextPart = (state: TaskBoardState, part: ContextPart): boolean => {
-  const value = state.context[part];
-  return typeof value === 'string' || (value !== null && value.length > 0);
-};
+/** The todos a design doc groups, in the agent's order. */
+export const todosOfDesign = (state: TaskBoardState, designId: string): readonly Todo[] =>
+  state.todos.filter((todo) => todo.design === designId);
 
 export const findQuestion = (state: TaskBoardState, id: string): Question | undefined =>
   state.questions.find((question) => question.id === id);

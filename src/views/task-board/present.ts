@@ -12,19 +12,16 @@ import { payloadFor } from '../../core/schema';
 import { targetRef } from '../../core/target';
 import { taskBoardActions } from './actions';
 import {
-  CONTEXT_PARTS,
   TODO_STATUSES,
-  findLogEntry,
+  findDesign,
   findMember,
   findQuestion,
   findTodo,
-  hasContextPart,
   isAnswered,
-  isContextPart,
   isHumanTodo,
   isPlanned,
-  type ContextPart,
-  type LogEntry,
+  todosOfDesign,
+  type DesignDoc,
   type MemberKind,
   type ProposalDecision,
   type Question,
@@ -65,28 +62,6 @@ export const todoStatusLabel = (m: TaskBoardMessages, status: TodoStatus): strin
 export const memberKindLabel = (m: TaskBoardMessages, kind: MemberKind): string =>
   kind === 'agent' ? m.kindAgent : m.kindHuman;
 
-export const contextPartTitle = (m: TaskBoardMessages, part: ContextPart): string => {
-  switch (part) {
-    case 'why':
-      return m.contextWhy;
-    case 'what':
-      return m.contextWhat;
-    case 'goals':
-      return m.contextGoals;
-    case 'nonGoals':
-      return m.contextNonGoals;
-  }
-};
-
-/** How long a log entry's label runs before it is cut short. */
-const LOG_LABEL_MAX = 48;
-
-/** A log entry's title, or its body cut short when it has none. */
-const logLabel = (entry: LogEntry): string => {
-  const label = entry.title ?? entry.body ?? entry.id;
-  return label.length <= LOG_LABEL_MAX ? label : `${label.slice(0, LOG_LABEL_MAX - 1)}…`;
-};
-
 const assigneeName = (m: TaskBoardMessages, state: TaskBoardState, assignee: string | null): string =>
   assignee === null ? m.unassigned : (findMember(state, assignee)?.name ?? assignee);
 
@@ -102,12 +77,10 @@ export const taskPageTargetLabel = (m: TaskBoardMessages, state: TaskBoardState,
       const todo = findTodo(state, target.id);
       return `${todo?.proposed === true ? m.proposalGroup : m.todoGroup} · ${todo?.title ?? target.id}`;
     }
-    case 'log': {
-      const entry = findLogEntry(state, target.id);
-      return `${m.logGroup} · ${entry === undefined ? target.id : logLabel(entry)}`;
+    case 'design': {
+      const design = findDesign(state, target.id);
+      return `${m.designGroup} · ${design?.title ?? target.id}`;
     }
-    case 'context':
-      return `${m.contextGroup} · ${isContextPart(target.id) ? contextPartTitle(m, target.id) : target.id}`;
     case 'question': {
       const question = findQuestion(state, target.id);
       return question === undefined ? target.id : `${question.ref} · ${question.title}`;
@@ -216,11 +189,10 @@ export const taskBoardCommentTargets = (
     label: todo.title,
     group: todo.proposed ? m.proposalGroup : m.todoGroup,
   })),
-  ...state.log.map((entry) => ({ value: `log:${entry.id}`, label: logLabel(entry), group: m.logGroup })),
-  ...CONTEXT_PARTS.filter((part) => hasContextPart(state, part)).map((part) => ({
-    value: `context:${part}`,
-    label: contextPartTitle(m, part),
-    group: m.contextGroup,
+  ...state.designs.map((design) => ({
+    value: `design:${design.id}`,
+    label: design.title,
+    group: m.designGroup,
   })),
 ];
 
@@ -231,38 +203,6 @@ export const resolveTaskBoardNavigation = (_state: TaskBoardState, navigation: N
 
 /** How many notes are attached to a target, e.g. `todo:write-tests`. */
 export type CommentCount = (target: string) => number;
-
-export type ContextPartViewModel = {
-  readonly id: ContextPart;
-  readonly title: string;
-  /** Prose (why, what)… */
-  readonly text: string | null;
-  /** …or a list (goals, non-goals). */
-  readonly items: readonly string[];
-  readonly comments: number;
-};
-
-export type ContextViewModel = {
-  /** Only the parts the agent wrote, in design-doc order. */
-  readonly parts: readonly ContextPartViewModel[];
-};
-
-export const presentContext = (
-  m: TaskBoardMessages,
-  state: TaskBoardState,
-  comments: CommentCount,
-): ContextViewModel => ({
-  parts: CONTEXT_PARTS.filter((part) => hasContextPart(state, part)).map((part) => {
-    const value = state.context[part];
-    return {
-      id: part,
-      title: contextPartTitle(m, part),
-      text: typeof value === 'string' ? value : null,
-      items: typeof value === 'string' || value === null ? [] : value,
-      comments: comments(`context:${part}`),
-    };
-  }),
-});
 
 /** What the reader has done with a question so far. */
 export type QuestionReply = 'none' | 'approve' | 'answer';
@@ -338,6 +278,8 @@ export type TodoViewModel = {
   readonly title: string;
   readonly note: string | null;
   readonly reason: string | null;
+  /** The design doc it belongs to, when the agent linked one. */
+  readonly design: { readonly id: string; readonly title: string } | null;
   readonly status: TodoStatus;
   readonly statusLabel: string;
   readonly assignee: string | null;
@@ -397,6 +339,86 @@ const LANE_TONES: Readonly<Record<TodoStatus, TaskLaneTone>> = {
   done: 'green',
 };
 
+/** A card on the design doc: one todo of its group and where it stands. */
+export type DesignTaskViewModel = {
+  readonly id: string;
+  readonly title: string;
+  readonly status: TodoStatus;
+  readonly statusLabel: string;
+  /** `pending`, `accept`, `decline`, or `null` for a todo the agent was asked to do. */
+  readonly proposal: ProposalState;
+};
+
+export type DesignViewModel = {
+  readonly id: string;
+  readonly title: string;
+  /** The doc itself, as Markdown. */
+  readonly body: string | null;
+  /** The todos this doc groups, in the agent's order. */
+  readonly tasks: readonly DesignTaskViewModel[];
+  readonly comments: number;
+  /** `data-grill-questions` for it, when it names any of the page's questions. */
+  readonly questions?: string;
+};
+
+/** The design docs as their own tab: one doc, many tasks. */
+export type DesignListItemViewModel = {
+  readonly id: string;
+  readonly title: string;
+  /** How many todos the doc groups. */
+  readonly taskCount: number;
+};
+
+export type DesignsViewModel = {
+  /** The left-hand index, in the agent's order. */
+  readonly items: readonly DesignListItemViewModel[];
+  /** The doc whose body is open, or `null` when the board has no doc. */
+  readonly selected: DesignViewModel | null;
+};
+
+/**
+ * The design docs as their own tab: the list of titles on the left, the open
+ * doc on the right. `selectedId` is the reader's view state; when it names no
+ * doc (the first render, or a doc the agent has since removed), the first doc
+ * opens instead.
+ */
+export const presentDesigns = (
+  m: TaskBoardMessages,
+  state: TaskBoardState,
+  comments: CommentCount,
+  selectedId: string | null = null,
+): DesignsViewModel => {
+  const selected = state.designs.find((design) => design.id === selectedId) ?? state.designs[0];
+  return {
+    items: state.designs.map((design) => ({
+      id: design.id,
+      title: design.title,
+      taskCount: todosOfDesign(state, design.id).length,
+    })),
+    selected: selected === undefined ? null : presentDesign(m, state, selected, comments),
+  };
+};
+
+const presentDesign = (
+  m: TaskBoardMessages,
+  state: TaskBoardState,
+  design: DesignDoc,
+  comments: CommentCount,
+): DesignViewModel => ({
+  id: design.id,
+  title: design.title,
+  body: design.body,
+  tasks: todosOfDesign(state, design.id).map((todo) => ({
+    id: todo.id,
+    title: todo.title,
+    status: todo.status,
+    statusLabel: todoStatusLabel(m, todo.status),
+    proposal: todo.proposed ? (state.decisions[todo.id] ?? 'pending') : null,
+  })),
+  comments: comments(`design:${design.id}`),
+  ...(design.questions === undefined ? {} : { questions: design.questions }),
+});
+
 const presentTodo = (
   m: TaskBoardMessages,
   state: TaskBoardState,
@@ -406,11 +428,13 @@ const presentTodo = (
 ): TodoViewModel => {
   const before = findTodo(base, todo.id);
   const member = findMember(state, todo.assignee);
+  const design = todo.design === null ? undefined : findDesign(state, todo.design);
   return {
     id: todo.id,
     title: todo.title,
     note: todo.note,
     reason: todo.reason,
+    design: design === undefined ? null : { id: design.id, title: design.title },
     status: todo.status,
     statusLabel: todoStatusLabel(m, todo.status),
     assignee: todo.assignee,
@@ -509,61 +533,3 @@ export const presentOutputs = (state: TaskBoardState): readonly OutputViewModel[
     place: outputLocation(output.href),
     ...(output.questions === undefined ? {} : { questions: output.questions }),
   }));
-
-export type LogEntryViewModel = {
-  readonly id: string;
-  /** `null` when the agent wrote it without naming itself. */
-  readonly author: { readonly name: string; readonly kind: MemberKind } | null;
-  readonly at: string | null;
-  readonly title: string | null;
-  readonly body: string | null;
-  readonly points: readonly string[];
-  /** What names the entry in the review: its title, or its body cut short. */
-  readonly label: string;
-  readonly latest: boolean;
-  readonly comments: number;
-  /** `data-grill-questions` for it, when it names any of the page's questions. */
-  readonly questions?: string;
-};
-
-/** Where the task stands: shown on the newest entry, which is where the reader starts. */
-export type TaskStatusViewModel = {
-  readonly status: TaskStatus | null;
-  readonly label: string | null;
-  readonly updatedAt: string | null;
-};
-
-export type LogViewModel = {
-  /** Newest first: the last exchange is what the reader wants first. */
-  readonly entries: readonly LogEntryViewModel[];
-  /** `null` when the agent gave neither a status nor an update time. */
-  readonly status: TaskStatusViewModel | null;
-};
-
-export const presentLog = (m: TaskBoardMessages, state: TaskBoardState, comments: CommentCount): LogViewModel => ({
-  entries: state.log
-    .map((entry, index) => {
-      const member = findMember(state, entry.from);
-      return {
-        id: entry.id,
-        author: member === undefined ? null : { name: member.name, kind: member.kind },
-        at: entry.at,
-        title: entry.title,
-        body: entry.body,
-        points: entry.points,
-        label: logLabel(entry),
-        latest: index === state.log.length - 1,
-        comments: comments(`log:${entry.id}`),
-        ...(entry.questions === undefined ? {} : { questions: entry.questions }),
-      };
-    })
-    .reverse(),
-  status:
-    state.status === null && state.updatedAt === null
-      ? null
-      : {
-          status: state.status,
-          label: state.status === null ? null : taskStatusLabel(m, state.status),
-          updatedAt: state.updatedAt,
-        },
-});

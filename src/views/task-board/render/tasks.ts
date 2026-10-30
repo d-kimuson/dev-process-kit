@@ -176,6 +176,13 @@ const renderCard = (
         <h4 class="dpk-card-title board-card-title">${todo.title}</h4>
         <div class="board-card-tags">${renderTags(m, todo)}</div>
       </div>
+      ${
+        todo.design === null
+          ? nothing
+          : html`<div class="board-card-design">
+              <span class="board-tag" data-tone="design" title=${todo.design.title}>${todo.design.title}</span>
+            </div>`
+      }
       ${todo.note === null ? nothing : html`<p class="dpk-card-text board-card-note">${todo.note}</p>`}
       ${
         todo.reason === null || todo.proposal === 'accept'

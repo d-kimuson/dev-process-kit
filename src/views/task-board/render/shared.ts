@@ -12,6 +12,8 @@ export type BoardHandlers = {
   /** Starts an answer that differs from the assumption, and moves focus to its box. */
   readonly answerOther: (questionId: string) => void;
   readonly decide: (todoId: string, decision: ProposalDecision | 'clear') => void;
+  /** Opens another design doc in the master-detail tab. */
+  readonly selectDesign: (designId: string) => void;
   readonly setStatus: (todoId: string, status: TodoStatus) => void;
   readonly filterTodos: (filter: TodoFilter) => void;
   readonly addTodo: (title: string, assignee: string | null) => void;

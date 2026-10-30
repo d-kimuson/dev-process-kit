@@ -16,17 +16,16 @@ import { taskBoardDefinitionFor } from './definition';
 import { taskBoardMessages, type TaskBoardMessages } from './messages';
 import { findTodo, isHumanTodo, type TaskBoardState, type TodoStatus } from './model';
 import {
-  presentContext,
-  presentLog,
+  presentDesigns,
   presentOutputs,
   presentQuestions,
   presentTasks,
   taskStatusLabel,
   type TodoFilter,
 } from './present';
-import { renderContext } from './render/context';
+import { renderDesigns } from './render/designs';
 import { renderQuestions } from './render/questions';
-import { renderLog, renderOutputs } from './render/records';
+import { renderOutputs } from './render/records';
 import { type BoardHandlers } from './render/shared';
 import { renderTabPanel, renderTabs, tabAfterKey, type BoardTab } from './render/tabs';
 import { renderTasks } from './render/tasks';
@@ -36,15 +35,14 @@ import { taskBoardStyles } from './styles';
 const COPIED_MS = 1500;
 
 /**
- * `<dpk-view-task-board>` — where one collaborative task stands.
+ * `<dpk-view-task-board>` — where a body of work shared with a person stands.
  *
- * The main area is one tab at a time: what the task is about (a short design
- * doc with the author's diagrams), the conversation so far — its newest entry
- * says where the task stands — what the agent asks, and the work itself as a
- * board of todos by status. The left rail is what the agent has produced —
- * the outputs to open or copy — and stays in view: on the left it is out of
- * the way of the review, which floats over the page's right-hand edge. Every
- * reply, decision and edit is a draft action the review hands back.
+ * The main area is one tab at a time: the design docs (each with the todos it
+ * groups, and the author's diagrams under them), what the agent asks, and the
+ * work itself as a board of todos by status. The left rail is what the agent
+ * has produced — the outputs to open or copy — and stays in view: on the left
+ * it is out of the way of the review, which floats over the page's right-hand
+ * edge. Every reply, decision and edit is a draft action the review hands back.
  */
 export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
   static override styles = [ViewElement.styles, atomStyles, taskBoardStyles];
@@ -52,10 +50,12 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
   static override properties = {
     tab: { state: true },
     todoFilter: { state: true },
+    selectedDesign: { state: true },
   };
 
   declare private tab: BoardTab;
   declare private todoFilter: TodoFilter;
+  declare private selectedDesign: string | null;
 
   /** The answer box to focus once "answer differently" is picked. */
   #focusAnswer: string | null = null;
@@ -69,8 +69,9 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
 
   constructor() {
     super();
-    this.tab = 'context';
+    this.tab = 'designs';
     this.todoFilter = 'all';
+    this.selectedDesign = null;
   }
 
   protected override get sidebarLayout(): SidebarLayout {
@@ -84,9 +85,9 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
   /** The board has no navigation: a change's target is brought forward by its tab, or by the todo filter. */
   protected override showTarget(target: ActionTarget): void {
     switch (target.type) {
-      case 'context':
-      case 'log':
-        this.tab = target.type;
+      case 'design':
+        this.tab = 'designs';
+        this.selectedDesign = target.id;
         return;
       case 'question':
         this.tab = 'questions';
@@ -107,7 +108,6 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
     const m = taskBoardMessages(this.locale);
     const count = (target: string): number => context.commentCount(target);
     const questions = presentQuestions(context.state, count);
-    const log = presentLog(m, context.state, count);
     const handlers = this.#handlers();
     const tab = this.tab;
     return {
@@ -121,18 +121,17 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
           ${renderTabs(
             m,
             tab,
-            { log: log.entries.length, questions: questions.open, alert: questions.blockingOpen > 0 },
+            { questions: questions.open, alert: questions.blockingOpen > 0 },
             (next) => {
               this.tab = next;
             },
             (event) => this.#tabKey(event),
           )}
           ${renderTabPanel(
-            'context',
+            'designs',
             tab,
-            renderContext(m, presentContext(m, context.state, count), this.#hasFigures(), handlers),
+            renderDesigns(m, presentDesigns(m, context.state, count, this.selectedDesign), handlers),
           )}
-          ${renderTabPanel('log', tab, renderLog(m, log, handlers))}
           ${renderTabPanel(
             'questions',
             tab,
@@ -181,16 +180,14 @@ export class DpkViewTaskBoard extends ViewElement<TaskBoardState> {
     </span>`;
   }
 
-  /** The author put diagrams (or any markup) in `slot="main"`: they are context too. */
-  #hasFigures(): boolean {
-    return this.querySelector(':scope > [slot="main"]') !== null;
-  }
-
   #handlers(): BoardHandlers {
     return {
       answer: (questionId, answer) => this.#answer(questionId, answer),
       answerOther: (questionId) => this.#answerOther(questionId),
       decide: (todoId, decision) => this.dispatch(decideProposal(todoId, decision)),
+      selectDesign: (designId) => {
+        this.selectedDesign = designId;
+      },
       setStatus: (todoId, status) => this.dispatch(setTodoStatus(todoId, status)),
       filterTodos: (filter) => {
         this.todoFilter = filter;

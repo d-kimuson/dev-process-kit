@@ -3,14 +3,13 @@ import { html, nothing, type TemplateResult } from 'lit';
 import type { TaskBoardMessages } from '../messages';
 
 /**
- * The main area's sections, one at a time: what the task is about, how it has
- * gone, what the agent asks, and the work itself as a board.
+ * The main area's sections, one at a time: the design docs, what the agent
+ * asks, and the work itself as a board.
  */
-export const BOARD_TABS = ['context', 'log', 'questions', 'tasks'] as const;
+export const BOARD_TABS = ['designs', 'questions', 'tasks'] as const;
 export type BoardTab = (typeof BOARD_TABS)[number];
 
 export type TabCounts = {
-  readonly log: number;
   /** Questions not replied to yet. */
   readonly questions: number;
   /** A blocker is still open: the agent is stuck until the reader answers. */
@@ -37,10 +36,8 @@ export const tabAfterKey = (current: BoardTab, key: string): BoardTab | null => 
 
 const tabLabel = (m: TaskBoardMessages, tab: BoardTab): string => {
   switch (tab) {
-    case 'context':
-      return m.tabContext;
-    case 'log':
-      return m.tabLog;
+    case 'designs':
+      return m.tabDesigns;
     case 'questions':
       return m.tabQuestions;
     case 'tasks':
@@ -50,11 +47,9 @@ const tabLabel = (m: TaskBoardMessages, tab: BoardTab): string => {
 
 const tabCount = (tab: BoardTab, counts: TabCounts): number | null => {
   switch (tab) {
-    case 'context':
+    case 'designs':
     case 'tasks':
       return null;
-    case 'log':
-      return counts.log;
     case 'questions':
       return counts.questions;
   }

@@ -46,11 +46,11 @@ const cases: readonly Case[] = [
     tag: 'dpk-view-task-board',
     base: {
       title: 'Ship checkout',
-      todos: [{ id: 'pay', title: 'Wire payments', questions: 'Q1' }],
+      designs: [{ id: 'design-a', title: 'Checkout design', body: 'Payments, end to end.', questions: 'Q1' }],
+      todos: [{ id: 'pay', title: 'Wire payments', design: 'design-a', questions: 'Q1' }],
       outputs: [{ id: 'pr', href: 'https://example.com/pr/1', questions: 'Q1' }],
-      log: [{ id: 'l1', title: 'Started', questions: 'Q1' }],
     },
-    marked: ['[data-todo="pay"]', '[data-output="pr"]', '[data-log="l1"]'],
+    marked: ['[data-design="design-a"]', '[data-todo="pay"]', '[data-output="pr"]'],
   },
   {
     tag: 'dpk-view-delegation-poker',

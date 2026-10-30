@@ -1,12 +1,11 @@
 import { html, nothing, type TemplateResult } from 'lit';
-import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import type { TaskBoardMessages } from '../messages';
-import type { LogEntryViewModel, LogViewModel, OutputViewModel, TaskStatusViewModel } from '../present';
+import type { OutputViewModel } from '../present';
 
 import { iconCheck, iconCopy } from '../../../core/icons';
-import { commentButton, sectionHead, type BoardHandlers } from './shared';
+import { sectionHead, type BoardHandlers } from './shared';
 
 /**
  * What the agent has produced so far, one tight row each: a URL opens in a new
@@ -47,7 +46,7 @@ const renderOutput = (
       class="dpk-list-row board-output"
       data-output=${output.id}
       data-place=${place.kind}
-      data-grill-questions=${ifDefined(output.questions)}
+      data-grill-questions=${output.questions}
     >
       <div class="board-output-body">
         <div class="board-output-head">
@@ -81,80 +80,6 @@ const renderOutput = (
       >
         ${copied ? iconCheck() : iconCopy()}
       </button>
-    </li>
-  `;
-};
-
-/** Where the task stands, as the agent last put it. */
-const renderStatus = (m: TaskBoardMessages, status: TaskStatusViewModel): TemplateResult => html`
-  <div class="board-log-now">
-    ${
-      status.status === null
-        ? nothing
-        : html`<span class="dpk-status board-status" data-status=${status.status}>${status.label}</span>`
-    }
-    ${status.updatedAt === null ? nothing : html`<span class="board-updated">${m.updatedAt(status.updatedAt)}</span>`}
-  </div>
-`;
-
-/**
- * The conversation between the person and the agent, newest first: what was
- * asked, agreed and reported — not every step, which the todos carry. The
- * newest entry also says where the task stands now.
- */
-export const renderLog = (m: TaskBoardMessages, vm: LogViewModel, handlers: BoardHandlers): TemplateResult => html`
-  <section class="board-section" data-section="log" aria-labelledby="board-log">
-    ${sectionHead('board-log', m.log, vm.entries.length === 0 ? null : m.logLede)}
-    ${
-      vm.entries.length === 0
-        ? html`${vm.status === null ? nothing : renderStatus(m, vm.status)}
-            <p class="dpk-empty board-empty" data-variant="dashed">${m.noLog}</p>`
-        : html`<ol class="board-log">
-            ${repeat(
-              vm.entries,
-              (entry) => entry.id,
-              (entry) => renderEntry(m, entry, entry.latest ? vm.status : null, handlers),
-            )}
-          </ol>`
-    }
-  </section>
-`;
-
-const renderEntry = (
-  m: TaskBoardMessages,
-  entry: LogEntryViewModel,
-  status: TaskStatusViewModel | null,
-  handlers: BoardHandlers,
-): TemplateResult => {
-  const name = entry.author?.name ?? m.fromAgent;
-  return html`
-    <li
-      class="board-log-entry"
-      data-log=${entry.id}
-      data-dpk-target=${`log:${entry.id}`}
-      data-grill-questions=${ifDefined(entry.questions)}
-      data-from=${entry.author?.kind ?? 'agent'}
-      data-latest=${String(entry.latest)}
-    >
-      <span class="board-log-avatar" aria-hidden="true">${name.slice(0, 1)}</span>
-      <div class="board-log-body">
-        ${status === null ? nothing : renderStatus(m, status)}
-        <div class="board-log-head">
-          <span class="board-log-author">${name}</span>
-          ${entry.at === null ? nothing : html`<time class="board-log-at">${entry.at}</time>`}
-          ${entry.latest ? html`<span class="board-log-latest">${m.latestTag}</span>` : nothing}
-          ${commentButton(`log:${entry.id}`, m.commentOn(entry.label), entry.comments, handlers)}
-        </div>
-        ${entry.title === null ? nothing : html`<h3 class="board-log-title">${entry.title}</h3>`}
-        ${entry.body === null ? nothing : html`<p class="board-log-text">${entry.body}</p>`}
-        ${
-          entry.points.length === 0
-            ? nothing
-            : html`<ul class="board-log-points">
-                ${entry.points.map((point) => html`<li>${point}</li>`)}
-              </ul>`
-        }
-      </div>
     </li>
   `;
 };

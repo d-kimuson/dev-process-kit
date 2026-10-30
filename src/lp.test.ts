@@ -198,19 +198,20 @@ describe('lp pages', () => {
     const board = parseTaskBoardBase(jsonChild(html, 'dpk-view-task-board'));
     expect(board.title).not.toBe('');
     expect(board.status).not.toBeNull();
-    // The context tab reads as a design doc, with the diagrams under it.
-    expect(board.context.why).not.toBeNull();
-    expect(board.context.what).not.toBeNull();
-    expect(board.context.goals.length).toBeGreaterThan(0);
-    expect(board.context.nonGoals.length).toBeGreaterThan(0);
+    // The design-doc tab: each doc is Markdown, and one doc groups several tasks.
+    expect(board.designs.length).toBeGreaterThan(1);
+    expect(board.designs.every((design) => design.body !== null)).toBe(true);
+    const designIds = new Set(board.designs.map((design) => design.id));
+    const linked = board.todos.flatMap((todo) => (todo.design === null ? [] : [todo.design]));
+    expect(linked.length).toBeGreaterThan(1);
+    expect(linked.every((id) => designIds.has(id))).toBe(true);
+    expect(board.designs.some((design) => board.todos.filter((todo) => todo.design === design.id).length > 1)).toBe(
+      true,
+    );
     expect(parseErData(jsonChild(html, 'dpk-board-er-diagram')).nodes.length).toBeGreaterThan(1);
     expect(parseSequenceData(jsonChild(html, 'dpk-board-sequence-diagram')).participants.length).toBeGreaterThan(1);
-    expect([...html.matchAll(/<dpk-[a-z-]+\b[^>]*\bslot="main"/g)]).toHaveLength(2);
-    // The log is a conversation: both sides speak in it.
-    const kinds = new Set(
-      board.log.map((entry) => board.members.find((member) => member.id === entry.from)?.kind ?? 'agent'),
-    );
-    expect(kinds).toEqual(new Set(['agent', 'human']));
+    // The diagrams belong to the paging doc: both are slotted into that doc, not at page level.
+    expect([...html.matchAll(/<dpk-[a-z-]+\b[^>]*\bslot="design:paging"/g)]).toHaveLength(2);
     expect(new Set(board.todos.map((todo) => todo.status))).toEqual(new Set(['todo', 'doing', 'blocked', 'done']));
     // Proposals sit in the todo list, waiting to be accepted.
     expect(board.todos.some((todo) => todo.proposed && todo.reason !== null)).toBe(true);

@@ -5,13 +5,13 @@ import { css } from 'lit';
  * board's columns: blue is moving, amber is waiting on the reader, red is
  * stuck, green is done, grey has not started.
  *
- * The page is `rail | main`. The main area is the conversation and the work —
- * context, work log, questions and the task board, one tab at a time — and
- * scrolls on its own; the shell's sidebar becomes a left-hand rail holding the
- * outputs, so what the agent has produced stays in view. It sits on the left
- * because the review floats over the page's right-hand edge: a rail there would
- * be covered by it. On a phone the outputs fold into a drawer over the board
- * and the page scrolls as one.
+ * The page is `rail | main`. The main area is the design docs, the questions
+ * and the work — the task board — one tab at a time, and scrolls on its own;
+ * the shell's sidebar becomes a left-hand rail holding the outputs, so what the
+ * agent has produced stays in view. It sits on the left because the review
+ * floats over the page's right-hand edge: a rail there would be covered by it.
+ * On a phone the outputs fold into a drawer over the board and the page scrolls
+ * as one.
  */
 export const taskBoardStyles = css`
   /* The shell's sidebar is a left-hand rail (see \`sidebarLayout\`), a drawer on a phone. */
@@ -34,7 +34,7 @@ export const taskBoardStyles = css`
   }
 
   /* A tab that reads keeps a comfortable measure; the task board takes the whole column. */
-  .board-panel > .board-context,
+  .board-panel > .board-designs,
   .board-panel > .board-section,
   .board-panel > .board-empty {
     max-width: 880px;
@@ -215,110 +215,199 @@ export const taskBoardStyles = css`
     }
   }
 
-  /* ------------------------------------------------------------ context */
+  /* ------------------------------------------------------------ designs */
 
-  .board-context {
+  .board-designs {
     display: grid;
     gap: 14px;
     min-width: 0;
   }
 
-  /* Why / What side by side, then Goals / Non-goals: a design doc at a glance. */
-  .board-context-parts {
+  .board-design-layout {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+    min-width: 0;
   }
 
   @media (max-width: 760px) {
-    .board-context-parts {
+    .board-design-layout {
       grid-template-columns: minmax(0, 1fr);
     }
   }
 
-  /*
-   * A part is the kit's card (the card atom), roomier for prose. Why and What
-   * stay neutral cards like Goals and Non-goals: the title names the part, so
-   * no edge is colored to tell them apart (a stripe along any edge says nothing
-   * the head does not; dev-docs/guidelines/coding.md).
-   */
-  .board-context-part {
-    --dpk-card-gap: 6px;
-    padding: 14px 16px;
+  .board-design-index {
+    min-width: 0;
   }
 
-  .board-context-head {
+  .board-design-index-list {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .board-design-index-item {
     display: flex;
-    align-items: center;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: var(--dpk-radius-sm);
+    background: transparent;
+    color: var(--dpk-ink-soft);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .board-design-index-item:hover {
+    background: var(--dpk-paper-sunken);
+    color: var(--dpk-ink);
+  }
+
+  .board-design-index-item:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  .board-design-index-item[aria-current='true'] {
+    border-color: var(--dpk-rule);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
+    font-weight: 650;
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+  }
+
+  .board-design-index-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .board-design-index-count {
+    flex: 0 0 auto;
+    color: var(--dpk-ink-faint);
+    font-family: var(--dpk-mono);
+    font-size: 10.5px;
+  }
+
+  .board-design-detail {
+    min-width: 0;
+  }
+
+  /*
+   * A doc is the kit's card (the card atom), roomier for prose. Its title names
+   * it, so no edge is colored to tell it apart (a stripe along any edge says
+   * nothing the head does not; dev-docs/guidelines/coding.md).
+   */
+  .board-design {
+    --dpk-card-gap: 10px;
+    padding: 16px 18px;
+  }
+
+  .board-design-head {
+    display: flex;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 8px;
   }
 
-  .board-context-title {
+  .board-design-title {
+    margin: 0;
+    color: var(--dpk-ink);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+
+  .board-design-head .board-comment {
+    flex: 0 0 auto;
+  }
+
+  .board-design-body {
+    color: var(--dpk-ink);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  /* The prose atom is for a page; inside a card its headings come down a size. */
+  .board-design-body :where(h1, h2, h3, h4) {
+    margin-top: 1.1em;
+    color: var(--dpk-ink);
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .board-design-tasks {
+    display: grid;
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--dpk-rule);
+  }
+
+  .board-design-tasks-title {
     margin: 0;
     color: var(--dpk-ink-soft);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
 
-  .board-context-text {
-    color: var(--dpk-ink);
-    font-size: 14px;
-    line-height: 1.7;
-    white-space: pre-line;
-  }
-
-  .board-context-items {
+  .board-design-task-list {
     display: grid;
-    gap: 4px;
+    gap: 2px;
+    margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  .board-design-task {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 3px 0;
+  }
+
+  .board-design-task .board-todo-state {
+    flex: 0 0 auto;
+  }
+
+  .board-design-task-title {
+    min-width: 0;
     color: var(--dpk-ink);
-    font-size: 13.5px;
-    line-height: 1.6;
+    font-size: 13px;
+    line-height: 1.5;
   }
 
-  .board-context-items li {
-    position: relative;
-    padding-left: 20px;
-  }
-
-  .board-context-items li::before {
-    position: absolute;
-    left: 0;
-    font-weight: 700;
-  }
-
-  .board-context-part[data-context='goals'] li::before {
-    content: '✓';
-    color: var(--dpk-green);
-  }
-
-  .board-context-part[data-context='nonGoals'] li::before {
-    content: '−';
+  .board-design-task[data-proposal='decline'] .board-design-task-title {
     color: var(--dpk-ink-faint);
+    text-decoration: line-through;
   }
 
-  .board-context-part[data-context='nonGoals'] .board-context-items {
-    color: var(--dpk-ink-soft);
+  .board-design-empty {
+    margin: 0;
+    color: var(--dpk-ink-faint);
+    font-size: 12px;
   }
 
-  .board-figures {
+  .board-design-figures {
     display: grid;
     gap: 14px;
     min-width: 0;
   }
 
-  .board-figures ::slotted(*) {
+  .board-design-figures ::slotted(*) {
     min-width: 0;
-  }
-
-  .board-updated {
-    color: var(--dpk-ink-faint);
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
   }
 
   /* ----------------------------------------------------------- sections */
@@ -410,6 +499,24 @@ export const taskBoardStyles = css`
   .board-tag[data-tone='changed'] {
     background: var(--dpk-blue-soft);
     color: color-mix(in srgb, var(--dpk-blue) 75%, var(--dpk-ink));
+  }
+
+  .board-tag[data-tone='design'] {
+    overflow: hidden;
+    background: var(--dpk-paper-sunken);
+    color: var(--dpk-ink-soft);
+    font-weight: 550;
+    text-overflow: ellipsis;
+  }
+
+  /* The doc a card belongs to sits on its own line: the title keeps the width. */
+  .board-card-design {
+    display: flex;
+    min-width: 0;
+  }
+
+  .board-card-design .board-tag {
+    max-width: 100%;
   }
 
   .board-tag[data-tone='muted'] {
@@ -1103,157 +1210,6 @@ export const taskBoardStyles = css`
 
   .board-copy[data-copied='true'] {
     color: var(--dpk-green);
-  }
-
-  /* ---------------------------------------------------------------- log */
-
-  .board-log {
-    display: grid;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .board-log-entry {
-    position: relative;
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr);
-    gap: 10px;
-    padding-bottom: 14px;
-  }
-
-  /* The line that joins the exchanges into one conversation. */
-  .board-log-entry::before {
-    content: '';
-    position: absolute;
-    left: 13px;
-    top: 30px;
-    bottom: 0;
-    width: 2px;
-    background: var(--dpk-rule);
-  }
-
-  .board-log-entry:last-child::before {
-    display: none;
-  }
-
-  .board-log-avatar {
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--dpk-accent-soft);
-    color: var(--dpk-accent-strong);
-    font-size: 12px;
-    font-weight: 700;
-  }
-
-  .board-log-entry[data-from='human'] .board-log-avatar {
-    background: var(--dpk-violet-soft);
-    color: var(--dpk-violet);
-  }
-
-  .board-log-body {
-    min-width: 0;
-    padding: 10px 14px 12px;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius);
-    background: var(--dpk-paper-raised);
-  }
-
-  .board-log-entry[data-from='human'] .board-log-body {
-    background: color-mix(in srgb, var(--dpk-violet) 4%, var(--dpk-paper-raised));
-    border-color: color-mix(in srgb, var(--dpk-violet) 22%, var(--dpk-rule));
-  }
-
-  .board-log-entry[data-latest='true'] .board-log-body {
-    border-color: color-mix(in srgb, var(--dpk-accent) 45%, var(--dpk-rule));
-    box-shadow:
-      var(--dpk-shadow-sm),
-      0 0 0 3px var(--dpk-accent-soft);
-  }
-
-  /* Where the task stands, on the newest entry only. */
-  .board-log-now {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin: -2px 0 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px dashed var(--dpk-rule);
-  }
-
-  .board-section > .board-log-now {
-    margin: 0;
-    padding-bottom: 0;
-    border-bottom: 0;
-  }
-
-  .board-log-head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 24px;
-  }
-
-  .board-log-author {
-    color: var(--dpk-ink);
-    font-size: 12.5px;
-    font-weight: 700;
-  }
-
-  .board-log-entry[data-from='human'] .board-log-author {
-    color: var(--dpk-violet);
-  }
-
-  .board-log-at {
-    color: var(--dpk-ink-faint);
-    font-size: 11.5px;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .board-log-latest {
-    padding: 1px 7px;
-    border-radius: 999px;
-    background: var(--dpk-accent-soft);
-    color: var(--dpk-accent-strong);
-    font-size: 10.5px;
-    font-weight: 700;
-  }
-
-  .board-log-head .board-comment {
-    margin-left: auto;
-  }
-
-  .board-log-title {
-    margin: 4px 0 0;
-    color: var(--dpk-ink);
-    font-size: 14px;
-    font-weight: 650;
-    line-height: 1.5;
-  }
-
-  .board-log-text {
-    margin: 4px 0 0;
-    color: var(--dpk-ink);
-    font-size: 13.5px;
-    line-height: 1.65;
-    white-space: pre-line;
-  }
-
-  .board-log-title + .board-log-text {
-    color: var(--dpk-ink-soft);
-    font-size: 13px;
-  }
-
-  .board-log-points {
-    margin: 6px 0 0;
-    padding-left: 18px;
-    color: var(--dpk-ink-soft);
-    font-size: 12.5px;
-    line-height: 1.6;
   }
 
   @media (prefers-reduced-motion: reduce) {

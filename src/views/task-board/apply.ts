@@ -61,6 +61,7 @@ export const applyTaskBoardAction = (state: TaskBoardState, action: DraftAction)
             status: 'todo',
             assignee: payload.assignee,
             note: null,
+            design: null,
             proposed: false,
             reason: null,
             added: true,
