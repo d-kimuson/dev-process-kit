@@ -118,6 +118,20 @@ describe('<dpk-view-prototype> layout', () => {
     expect(editors[1]?.hasAttribute('multiline')).toBe(true);
   });
 
+  it('asks the step-name editor to wrap, so a long name reads in full instead of being cut (#19)', async () => {
+    const el = mount('#step=landing');
+    await settle(el);
+    el.api.dispatch(
+      prototypeAction.setStepName('onboarding.account.landing', '手渡されたログイン ID と初期パスワードでログインする'),
+    );
+    await settle(el);
+    const editor = el.shadowRoot!.querySelectorAll<DpkInlineEdit>('.detail dpk-inline-edit')[0]!;
+    // `wrap` is what lets the column width break the name; `truncate` would cut it
+    // back to one line (or a clamp) instead. The field's own rules do the rest.
+    expect(editor.hasAttribute('wrap')).toBe(true);
+    expect(editor.hasAttribute('truncate')).toBe(false);
+  });
+
   it('renders the stage: tabs, frame, placeholder and parked slots', async () => {
     const el = mount();
     await settle(el);

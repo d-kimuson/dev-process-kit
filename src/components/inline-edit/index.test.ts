@@ -14,6 +14,26 @@ const field = (editor: DpkInlineEdit): HTMLTextAreaElement | null =>
 const mirror = (editor: DpkInlineEdit): HTMLElement | null =>
   editor.shadowRoot?.querySelector<HTMLElement>('.box > .mirror') ?? null;
 
+/** The editor's own rules, parsed by the same CSS parser the browser uses. */
+const styleRules = (): CSSStyleRule[] => {
+  const cssText = (DpkInlineEdit.styles as unknown as { cssText: string }[]).map((style) => style.cssText).join('\n');
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(cssText);
+  return Array.from(sheet.cssRules).filter((rule): rule is CSSStyleRule => 'selectorText' in rule);
+};
+
+/** Every `white-space` a selector is given, in rule order. */
+const whiteSpaceOn = (selector: string): string[] =>
+  styleRules()
+    .filter((rule) =>
+      rule.selectorText
+        .split(',')
+        .map((part) => part.trim())
+        .includes(selector),
+    )
+    .map((rule) => rule.style.whiteSpace)
+    .filter((value) => value !== '');
+
 describe('inline editing', () => {
   it('is the very same element at rest and while editing: nothing swaps, only readonly toggles', async () => {
     const editor = new DpkInlineEdit();
@@ -219,6 +239,21 @@ describe('inline editing', () => {
     expect(commit).not.toHaveBeenCalled();
     expect(field(editor)?.readOnly).toBe(true);
     expect(field(editor)?.value).toBe('old');
+  });
+
+  it('wraps a long value at rest and while editing when told to, and only then', () => {
+    // The mirror is what sizes the box from real text layout, and the field is
+    // what the reader types in: both have to lay the value out the same way, or
+    // one clips what the other wraps. Without `wrap`, one line is the contract
+    // (a name in a table cell must not reflow the row).
+    expect(whiteSpaceOn('.mirror')).toEqual(['pre']);
+    for (const selector of [
+      ':host([wrap]) .mirror',
+      ':host([wrap]) .field',
+      ':host([multiline]) .mirror',
+      ':host([multiline]) .field',
+    ])
+      expect(whiteSpaceOn(selector)).toEqual(['pre-wrap']);
   });
 
   it('never shows a focus-ring outline, only a subtle inset border while editing', () => {
