@@ -5,6 +5,7 @@ import { Lock, Network } from 'lucide';
 import type { ContextMenuGroup, ContextMenuRequest } from '../../../core/context-menu/types';
 
 import { cardAtom } from '../../../components/atoms/card';
+import { linkIcon, linkStyles } from '../../../components/atoms/link';
 import { iconComment, iconNote, lucide } from '../../../core/icons';
 import { LocaleController } from '../../../core/locale-controller';
 import { controls } from '../../../core/theme';
@@ -22,7 +23,6 @@ import {
   type UsmState,
 } from '../model';
 import { initialOf } from '../render/avatar';
-import { linkIcon, linkStyles } from '../render/link-icon';
 import { statusIcon, statusStyles, statusToneStyle } from '../render/tone';
 import { statusViewOf, type StatusView } from '../status-view';
 import { storyIdTitle, storyInfoMarkdown } from '../story-copy';

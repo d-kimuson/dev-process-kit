@@ -10,6 +10,7 @@ import type { ShellRegions, SettingsSection, ViewRenderContext } from '../../cor
 import type { ActionTarget } from '../../core/types';
 
 import { controlAtom } from '../../components/atoms/controls';
+import { linkStyles } from '../../components/atoms/link';
 import { ViewElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
 import { SelectController } from '../../core/select/controller';
@@ -35,7 +36,6 @@ import { renderBoard, type UsmDragType } from './render/board';
 import { burndownStyles, renderBurndown } from './render/burndown';
 import { dependencyPickerStyles, type DependencyPicker } from './render/dependency-picker';
 import { highlightStyles } from './render/highlight';
-import { linkStyles } from './render/link-icon';
 import { mapFilterStyles } from './render/map-filter';
 import { mapToolbarStyles, renderMapToolbar } from './render/map-toolbar';
 import { renderMilestoneOverview } from './render/milestone-overview';

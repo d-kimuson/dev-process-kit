@@ -1,8 +1,8 @@
 import { css, html, svg, type TemplateResult } from 'lit';
 
-import type { LinkKind } from '../../../lib/link-label';
+import type { LinkKind } from '../../lib/link-label';
 
-import { iconLink } from '../../../core/icons';
+import { iconLink } from '../../core/icons';
 
 /** Each service's mark in one color (`currentColor`), in a 16 × 16 box. */
 const MARKS: Record<Exclude<LinkKind, 'web'>, TemplateResult> = {

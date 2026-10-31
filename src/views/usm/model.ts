@@ -3,6 +3,7 @@ import * as v from 'valibot';
 
 import { questionRefsSchema } from '../../core/grill';
 import { entityIdSchema, splitPath } from '../../core/schema';
+import { httpUrlSchema } from '../../lib/link';
 import { findBlockerCycle } from './dependency-graph';
 
 export type BackboneStep = {
@@ -267,11 +268,7 @@ const milestoneSchema = v.strictObject({
 export const statusToneSchema = v.picklist(STATUS_TONES);
 export const statusIconSchema = v.picklist(STATUS_ICONS);
 /** Only web links: a story never points at `javascript:` or a local file. */
-export const linkUrlSchema = v.pipe(
-  v.string(),
-  v.url(),
-  v.check((url) => /^https?:\/\//i.test(url), 'a link must be an http(s) URL'),
-);
+export const linkUrlSchema = httpUrlSchema;
 const linkSchema = v.strictObject({ url: linkUrlSchema, label: v.exactOptional(v.pipe(v.string(), v.minLength(1))) });
 const statusSchema = v.strictObject({
   id: entityIdSchema,
