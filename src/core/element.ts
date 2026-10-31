@@ -525,6 +525,14 @@ export abstract class ViewElement<S> extends LitElement {
       this.#subscribe();
       return;
     }
+    // A page's content may be defined (and so upgrade) before <dpk-page> is:
+    // wait for its page, so the page's delivery promise exists when the content
+    // decides what its `api.ready` waits for.
+    const page = this.parentElement;
+    if (page?.localName === 'dpk-page' && customElements.get('dpk-page') === undefined) {
+      void customElements.whenDefined('dpk-page').then(() => this.#start(attempt));
+      return;
+    }
     if (this.childNodes.length === 0 && attempt < 2) {
       queueMicrotask(() => this.#start(attempt + 1));
       return;
