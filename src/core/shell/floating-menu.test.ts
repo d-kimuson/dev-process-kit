@@ -9,6 +9,7 @@ import {
   droppedMenuDock,
   FLOATING_MENU,
   keyedMenuDock,
+  menuClearanceOf,
   menuPlacedAt,
   nearestMenuEdge,
   orientationOf,
@@ -152,5 +153,14 @@ describe('floating menu placement', () => {
     expect(parseMenuDock({ edge: 4, offset: 10 })).toBeNull();
     expect(parseMenuDock('top')).toBeNull();
     expect(parseMenuDock(null)).toBeNull();
+  });
+});
+
+describe('the room a docked menu takes', () => {
+  it('is the menu plus its margin on the right edge, and nothing on the others', () => {
+    expect(menuClearanceOf('right', 44)).toBe(44 + FLOATING_MENU.margin);
+    for (const edge of ['top', 'bottom', 'left'] as const) expect(menuClearanceOf(edge, 44)).toBe(0);
+    // Before measurement there is nothing to step aside for yet.
+    expect(menuClearanceOf('right', 0)).toBe(0);
   });
 });

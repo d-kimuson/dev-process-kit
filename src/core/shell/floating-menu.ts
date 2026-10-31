@@ -145,6 +145,16 @@ export const dockedMenuInsets = (dock: MenuDock, area: MenuArea): readonly MenuI
   }
 };
 
+/**
+ * The room a menu docked at `edge` takes out of the screen's right side, as the
+ * `--dpk-floating-menu-clearance` a shell publishes to its own chrome and the
+ * page content: the toasts, a stage's tools and a panel's close button step
+ * aside by it instead of sitting under the menu. Only a right dock takes any:
+ * the other edges leave the top-right corner free.
+ */
+export const menuClearanceOf = (edge: MenuEdge, width: number): number =>
+  edge === 'right' && width > 0 ? width + FLOATING_MENU.margin : 0;
+
 /** Where a menu is drawn: the docked box once it is measurable, else the insets that place it there. */
 export type MenuPlacement = {
   readonly dock: MenuDock;

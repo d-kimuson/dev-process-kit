@@ -84,6 +84,18 @@ export const pageHostOf = (element: Element): PageHost | null => {
   return publishedHost(page);
 };
 
+/**
+ * The delivery signal of the page that holds this content: resolves once the
+ * app has handed the page its part of the draft and its navigation, which is
+ * what a page content's `api.ready` waits for. `null` outside a page.
+ */
+export const pageDeliveryOf = (element: Element): Promise<void> | null => {
+  const page = element.parentElement;
+  if (page === null || page.localName !== PAGE_TAG) return null;
+  const delivered: unknown = Reflect.get(page, 'delivered');
+  return delivered instanceof Promise ? delivered : null;
+};
+
 /** The app's host, for a page (or a content element that sits directly inside the app). */
 export const appHostOf = (element: Element): PageHost | null => {
   const app = element.parentElement;

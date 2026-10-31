@@ -100,6 +100,14 @@ export class DraftController<S> {
   }
 
   /**
+   * What this root's components registered. A page reads its content's snapshot
+   * to derive with the same element action results the content itself replays.
+   */
+  get componentSnapshot(): ComponentSnapshot {
+    return this.#snapshot;
+  }
+
+  /**
    * Replaces the template with the same one in another language. The draft,
    * the base and storage stay as they are; only the text derived from them changes.
    */

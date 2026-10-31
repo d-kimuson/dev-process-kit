@@ -36,6 +36,12 @@ export type ChangeNoticeOptions = {
   readonly inside: (path: readonly EventTarget[]) => boolean;
   /** Takes the reader to the change. */
   readonly show: (entry: ChangeEntry) => void;
+  /**
+   * Whether this host has a shell to show the notices in. A page's content does
+   * not: its log is ignored (and reported), rather than read into a state
+   * nothing draws.
+   */
+  readonly ignored?: () => boolean;
 };
 
 const isChangeScript = (node: Element): boolean =>
@@ -48,6 +54,8 @@ export class ChangeNoticeController implements ReactiveController {
   readonly #options: ChangeNoticeOptions;
   #log: ChangeLog | null = null;
   #error: string | null = null;
+  /** A log found where nothing can show it; reported once, then treated as settled. */
+  #ignored = false;
   #state: NoticeState | null = null;
   #store: JsonStore<SeenRecord> | null = null;
   /** The record last written, so an event that changes nothing stored writes nothing. */
@@ -144,13 +152,21 @@ export class ChangeNoticeController implements ReactiveController {
 
   /** Read once: as a valid log, or as the error that names what is wrong with it. */
   #settled(): boolean {
-    return this.#log !== null || this.#error !== null;
+    return this.#log !== null || this.#error !== null || this.#ignored;
   }
 
   /** `false` when there is no change log yet. */
   #read(): boolean {
     const script = [...this.#host.children].find(isChangeScript);
     if (!script) return false;
+    if (this.#options.ignored?.() === true) {
+      console.warn(
+        '[dev-process-kit] a change log inside <dpk-page> is ignored: put it directly under <dpk-app>, ' +
+          'qualify its targets with the page (`story:x@demo`) and prefix its navigate keys (`demo.step=…`).',
+      );
+      this.#ignored = true;
+      return true;
+    }
     let input: unknown;
     try {
       input = JSON.parse(script.textContent ?? '');

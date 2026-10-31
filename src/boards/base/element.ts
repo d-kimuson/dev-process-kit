@@ -19,7 +19,7 @@ import { COMMENT_ACTION } from '../../core/action';
 import { contextMenuMessages } from '../../core/context-menu/messages';
 import { DraftController } from '../../core/controller';
 import { diagramBoardDefinition, type DiagramBoardState } from '../../core/diagram-board';
-import { elementActionsFor, type ElementActionResult } from '../../core/element-actions';
+import { elementActionsFor, type ComponentSnapshot, type ElementActionResult } from '../../core/element-actions';
 import { type Locale } from '../../core/i18n';
 import { LocaleController } from '../../core/locale-controller';
 import { pageHostOf, pageNameOf } from '../../core/page/host';
@@ -299,6 +299,11 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   /** The draft controller this element owns when it acts as its own board. */
   get controller(): DraftController<DiagramBoardState> {
     return this.#ensureBoardController();
+  }
+
+  /** What this board's own provider registered, or `null` before its controller exists. */
+  get componentSnapshot(): ComponentSnapshot | null {
+    return this.#boardController?.componentSnapshot ?? null;
   }
 
   /** The public API surface a board of `<dpk-page>` is expected to carry. */

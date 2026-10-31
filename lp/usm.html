@@ -640,71 +640,71 @@
               ]
             }
           </script>
-          <script type="application/json" data-dpk-changes>
+        </dpk-view-usm></dpk-page
+      >
+      <script type="application/json" data-dpk-changes>
+        {
+          "revisions": [
             {
-              "revisions": [
+              "revision": "2026-10-12.1",
+              "changes": [
                 {
-                  "revision": "2026-10-12.1",
-                  "changes": [
-                    {
-                      "id": "first-draft",
-                      "title": "最初のストーリーマップを作成"
-                    }
-                  ]
+                  "id": "first-draft",
+                  "title": "最初のストーリーマップを作成"
+                }
+              ]
+            },
+            {
+              "revision": "2026-10-13.1",
+              "changes": [
+                {
+                  "id": "keyword-search",
+                  "title": "キーワード検索の受け入れ条件を具体化",
+                  "body": "レビューのコメントに沿って、0 件時の表示を追記。",
+                  "target": "story:keyword-search@usm"
                 },
                 {
-                  "revision": "2026-10-13.1",
-                  "changes": [
-                    {
-                      "id": "keyword-search",
-                      "title": "キーワード検索の受け入れ条件を具体化",
-                      "body": "レビューのコメントに沿って、0 件時の表示を追記。",
-                      "target": "story:keyword-search"
-                    },
-                    {
-                      "id": "payment-method",
-                      "title": "「支払い方法を選ぶ」をステップとして分離",
-                      "target": "step:payment-method"
-                    },
-                    {
-                      "id": "v1",
-                      "title": "v1 のゴールを書き直し",
-                      "target": "milestone:v1"
-                    },
-                    {
-                      "id": "wording",
-                      "title": "全体の言い回しを統一"
-                    }
-                  ]
+                  "id": "payment-method",
+                  "title": "「支払い方法を選ぶ」をステップとして分離",
+                  "target": "step:payment-method@usm"
                 },
                 {
-                  "revision": "2026-10-16.1",
-                  "changes": [
-                    {
-                      "id": "dependencies",
-                      "title": "ストーリー間の依存関係を追加",
-                      "body": "「注文の状態と明細を見る」が 4 件をブロックしているため、v1 の中で先に着手する。",
-                      "target": "story:order-detail"
-                    },
-                    {
-                      "id": "estimates",
-                      "title": "見積もりと MVP のバーンダウンを追加",
-                      "body": "S / M / L で見積もり、Idea → Ready を 7、Ready → Done を 3 と重み付けした。",
-                      "target": "milestone:mvp"
-                    },
-                    {
-                      "id": "members",
-                      "title": "メンバーと担当者を追加",
-                      "body": "MVP と v1 で着手済みのストーリーに担当者を割り当てた。未着手のものは担当者なし。",
-                      "target": "story:order-detail"
-                    }
-                  ]
+                  "id": "v1",
+                  "title": "v1 のゴールを書き直し",
+                  "target": "milestone:v1@usm"
+                },
+                {
+                  "id": "wording",
+                  "title": "全体の言い回しを統一"
+                }
+              ]
+            },
+            {
+              "revision": "2026-10-16.1",
+              "changes": [
+                {
+                  "id": "dependencies",
+                  "title": "ストーリー間の依存関係を追加",
+                  "body": "「注文の状態と明細を見る」が 4 件をブロックしているため、v1 の中で先に着手する。",
+                  "target": "story:order-detail@usm"
+                },
+                {
+                  "id": "estimates",
+                  "title": "見積もりと MVP のバーンダウンを追加",
+                  "body": "S / M / L で見積もり、Idea → Ready を 7、Ready → Done を 3 と重み付けした。",
+                  "target": "milestone:mvp@usm"
+                },
+                {
+                  "id": "members",
+                  "title": "メンバーと担当者を追加",
+                  "body": "MVP と v1 で着手済みのストーリーに担当者を割り当てた。未着手のものは担当者なし。",
+                  "target": "story:order-detail@usm"
                 }
               ]
             }
-          </script>
-        </dpk-view-usm></dpk-page
-      >
+          ]
+        }
+      </script>
     </dpk-app>
   </body>
 </html>

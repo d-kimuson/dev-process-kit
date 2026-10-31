@@ -17,6 +17,7 @@
 import { css, html, LitElement, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
 import type { AnyDefinition } from '../app/definition';
+import type { ComponentSnapshot } from '../element-actions';
 import type { ViewApi } from '../shell/contracts';
 import type { ViewDefinition } from '../types';
 
@@ -30,6 +31,10 @@ export type PageContentElement = HTMLElement & {
   readonly liveDefinition?: AnyDefinition;
   readonly api: ViewApi<unknown>;
   readonly controller: { replaceActions(actions: readonly unknown[]): void };
+  /** Resolves once the content has read its own base and owns its controller, before the page hands it its draft. */
+  readonly started?: Promise<void>;
+  /** What the content's components registered, for the page's own derivation. */
+  readonly componentSnapshot?: ComponentSnapshot | null;
   /** Resolves once the content is upgraded and has read its own base. */
   readonly ready?: Promise<void>;
   /** A board's own reset/fit; a view has no such viewport. */
@@ -143,6 +148,10 @@ export class PageElement extends LitElement {
   #contentState: PageContentState | null = null;
   #ready: Promise<void>;
   #resolveReady!: () => void;
+  #resolveDelivered: (() => void) | undefined;
+  readonly #deliveredPromise: Promise<void> = new Promise<void>((resolve) => {
+    this.#resolveDelivered = resolve;
+  });
 
   constructor() {
     super();
@@ -186,6 +195,21 @@ export class PageElement extends LitElement {
   get controller(): { replaceActions(actions: readonly unknown[]): void } {
     if (this.#content === null) throw new Error('<dpk-page> has no view or board content');
     return this.#content.controller;
+  }
+
+  /** What the content's components registered; the app derives with the same element action results. */
+  get componentSnapshot(): ComponentSnapshot | null {
+    return this.#content?.componentSnapshot ?? null;
+  }
+
+  /** Resolves once the app has handed this page's content its part of the draft and its navigation. */
+  get delivered(): Promise<void> {
+    return this.#deliveredPromise;
+  }
+
+  /** The app calls this once it has handed the content its state; idempotent. */
+  deliver(): void {
+    this.#resolveDelivered?.();
   }
 
   /** The app's host: the page and its content reach the app through this. */
@@ -272,8 +296,10 @@ export class PageElement extends LitElement {
       console.error(`[dev-process-kit] <dpk-page name="${this.name}"> holds <${tag}>, which no loaded entry defines`);
       return { status: 'unavailable', tag };
     }
-    // A board has no `ready` of its own; its api is ready as soon as it is defined.
-    const ready = content.ready ?? content.api?.ready;
+    // A page waits for the content's base, not for its `api.ready`: a page's
+    // content resolves that only after this page has handed it its draft.
+    // A board has no `started` of its own; its api is ready as soon as it is defined.
+    const ready = content.started ?? content.ready ?? content.api?.ready;
     if (ready !== undefined) await ready;
     return { status: 'ready' };
   }

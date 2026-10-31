@@ -16,6 +16,7 @@
 import { css, html, nothing, type CSSResultGroup, type PropertyDeclarations, type TemplateResult } from 'lit';
 import { LayoutTemplate } from 'lucide';
 
+import type { ComponentSnapshot } from '../element-actions';
 import type { Locale } from '../i18n';
 import type {
   BoundSettingsSection,
@@ -95,12 +96,16 @@ type PageElementLike = HTMLElement & {
   readonly liveDefinition?: AnyDefinition;
   readonly api: ViewApi<unknown>;
   readonly controller: { replaceActions(actions: readonly unknown[]): void };
+  /** What the content's components registered; `null` before the content started. */
+  readonly componentSnapshot?: ComponentSnapshot | null;
   /** What the page found where its content belongs; `null` until it is inspected. */
   readonly contentState: PageContentState | null;
   /** Resolves once the page knows what its content is (ready, empty or unavailable). */
   readonly ready: Promise<void>;
   /** The page's content asks to render again (the page itself is a slot). */
   refreshContent(): void;
+  /** The app says this page's content now has its part of the draft and its navigation. */
+  deliver(): void;
 };
 
 const isPageElement = (element: Element): element is PageElementLike =>
@@ -472,6 +477,15 @@ export class AppElement extends ViewElement<AppState> {
       requestComment: (target) => this.requestComment(target),
     };
     return this.#host;
+  }
+
+  /**
+   * A page reads its content's component results too: the content replays the
+   * element actions itself, but the app derives with the same results so an
+   * action inside a page is not listed as `target-missing` in the app's review.
+   */
+  protected override adoptedComponentProviders(): ComponentSnapshot['providers'] {
+    return this.#pages().flatMap((page) => page.componentSnapshot?.providers ?? []);
   }
 
   #pages(): readonly PageElementLike[] {
@@ -1021,6 +1035,7 @@ export class AppElement extends ViewElement<AppState> {
         handed = true;
       }
       page.refreshContent();
+      page.deliver();
     }
     // The settings dialog shows the active page's own sections, and they read
     // that page's state — which the page only takes in here, after this render

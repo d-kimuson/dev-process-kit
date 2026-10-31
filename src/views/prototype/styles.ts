@@ -463,6 +463,8 @@ export const prototypeStyles = css`
     gap: 8px;
     min-width: 0;
     margin-left: auto;
+    /* Maximize (and the other tools) sit below the floating menu otherwise. */
+    margin-inline-end: var(--dpk-floating-menu-clearance, 0px);
   }
 
   .stage-maximize svg,

@@ -10,7 +10,6 @@ import type {
   ShellRegions,
   ViewRenderContext,
 } from './shell/contracts';
-import type { MenuArea } from './shell/floating-menu';
 import type {
   ActionInput,
   BatchDispatchOutcome,
@@ -36,7 +35,7 @@ import { contextMenuStyles } from './context-menu/styles';
 import { DraftController } from './controller';
 import { DialogController } from './dialog/controller';
 import { dialogStyles } from './dialog/styles';
-import { componentElementActionSchema } from './element-actions';
+import { componentElementActionSchema, type ComponentSnapshot } from './element-actions';
 import { buildAgentBrief } from './export';
 import {
   answerCounts,
@@ -71,7 +70,7 @@ import {
 } from './layouts/sidebar/model';
 import { coreMessages, LANGUAGE_NAMES, type CoreMessages } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
-import { pageHostOf, pageNameOf, inDraftPage, type PageHost } from './page/host';
+import { inDraftPage, pageDeliveryOf, pageHostOf, pageNameOf, type PageHost } from './page/host';
 import { pageNavigation, pagePatchFor } from './page/navigation';
 import { resolvePageTarget } from './page/page-target';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
@@ -92,6 +91,7 @@ import { CheckModeController } from './shell/check-mode-controller';
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
+import { menuClearanceOf, type MenuArea } from './shell/floating-menu';
 import { FloatingMenuController } from './shell/floating-menu-controller';
 import { floatingMenuStyles, renderFloatingMenu } from './shell/floating-menu-view';
 import { collectBadges, GrillBadgeController, type BadgeBinding } from './shell/grill-badges';
@@ -280,6 +280,8 @@ export abstract class ViewElement<S> extends LitElement {
         (node) => node instanceof Element && (node.id === NOTICE_LIST_ID || node.classList.contains('dpk-bell')),
       ),
     show: (entry) => void this.#showChange(entry),
+    // A page's content draws no shell, so it cannot show notices of its own.
+    ignored: () => this.#boardId !== null,
   });
   readonly #noticeIntents: NoticeIntents = {
     toggleList: () => this.#notices.toggleList(),
@@ -419,9 +421,15 @@ export abstract class ViewElement<S> extends LitElement {
   #unsubscribe: (() => void) | undefined;
   #targetObserver: MutationObserver | undefined;
   #providers: readonly Element[] = [];
+  /** What this root announced last, so a snapshot that did not move announces nothing. */
+  #componentSignature = '';
   #resolveReady: (() => void) | undefined;
   #readyPromise: Promise<void> = new Promise<void>((resolve) => {
     this.#resolveReady = resolve;
+  });
+  #resolveStarted: (() => void) | undefined;
+  readonly #startedPromise: Promise<void> = new Promise<void>((resolve) => {
+    this.#resolveStarted = resolve;
   });
   #api: ViewApi<S> | undefined;
   /**
@@ -551,6 +559,26 @@ export abstract class ViewElement<S> extends LitElement {
     this.#reserveDockSpace();
     this.#placeNoticeList();
     this.#settleQuestions();
+    this.#publishMenuClearance();
+  }
+
+  /**
+   * Publishes the room the floating menu takes at the right edge, so the shell's
+   * toasts and the content's own top-right controls (a stage's maximize, a
+   * panel's close) step aside instead of sitting under it. The variable
+   * inherits into the shadow root and into the page's light DOM alike.
+   */
+  #publishMenuClearance(): void {
+    // Only the element that draws the menu (the shell) publishes its room; a
+    // page's content sits inside that shell and must not overwrite what it inherited.
+    if (this.#boardId !== null) return;
+    const menu = this.renderRoot.querySelector<HTMLElement>('.dpk-floating-menu');
+    const width = menu?.getBoundingClientRect().width ?? 0;
+    const clearance = menuClearanceOf(this.#floatingMenu.placement.dock.edge, width);
+    const value = `${clearance}px`;
+    if (this.style.getPropertyValue('--dpk-floating-menu-clearance') !== value) {
+      this.style.setProperty('--dpk-floating-menu-clearance', value);
+    }
   }
 
   // ------------------------------------------------------------------ public
@@ -560,9 +588,24 @@ export abstract class ViewElement<S> extends LitElement {
     return this.#api;
   }
 
+  /**
+   * Resolves once this element has read its own base and owns its controller,
+   * which is what a page needs before it can hand the element its part of the
+   * draft. `api.ready` resolves later for a page's content: after that hand-off
+   * (see `docs/page.md#events`).
+   */
+  get started(): Promise<void> {
+    return this.#startedPromise;
+  }
+
   get controller(): DraftController<S> {
     if (!this.#controller) throw new Error(`<${this.tagName.toLowerCase()}> is not initialized yet`);
     return this.#controller;
+  }
+
+  /** What this element's components registered, or `null` before it started. */
+  get componentSnapshot(): ComponentSnapshot | null {
+    return this.#controller?.componentSnapshot ?? null;
   }
 
   get derivation() {
@@ -1672,7 +1715,12 @@ export abstract class ViewElement<S> extends LitElement {
     this.#subscribe();
     this.#refreshCommentTargets();
     this.#canonicalizeNavigation(true);
-    this.#resolveReady?.();
+    this.#resolveStarted?.();
+    // A page's content answers `api.ready` only once the page has handed it its
+    // part of the draft and the navigation to show (see `started` above).
+    const delivered = pageDeliveryOf(this);
+    if (delivered === null) this.#resolveReady?.();
+    else void delivered.then(() => this.#resolveReady?.());
     this.#baseData.observe();
     this.requestUpdate();
   }
@@ -1826,8 +1874,37 @@ export abstract class ViewElement<S> extends LitElement {
     });
     if (!this.#controller) return;
     assignElementActions(this.#providers, this.#controller.actions);
-    this.#controller.setComponentSnapshot(readComponentSnapshot(this.#providers));
+    const own = readComponentSnapshot(this.#providers);
+    const borrowed = this.adoptedComponentProviders();
+    this.#controller.setComponentSnapshot(
+      borrowed.length === 0 ? own : { targets: own.targets, providers: [...own.providers, ...borrowed] },
+    );
+    this.#announceComponentSnapshot();
   };
+
+  /**
+   * The component providers an enclosing root reads through this element though
+   * this element does not hand them actions: a page's content is its page's
+   * board, so the page owns that draft. A template on its own has none.
+   */
+  protected adoptedComponentProviders(): ComponentSnapshot['providers'] {
+    return [];
+  }
+
+  /**
+   * A page's content tells its page when what its components registered moved
+   * (a target appeared, an element action's result arrived), so the page can
+   * read it again. Only a content announces: the page itself would hear its own
+   * event and refresh in a circle.
+   */
+  #announceComponentSnapshot(): void {
+    if (this.#boardId === null || !this.#controller) return;
+    const snapshot = this.#controller.componentSnapshot;
+    const signature = JSON.stringify([snapshot.targets, snapshot.providers]);
+    if (signature === this.#componentSignature) return;
+    this.#componentSignature = signature;
+    this.dispatchEvent(new CustomEvent('dpk-comment-targets-change', { bubbles: true, composed: true }));
+  }
 
   #onCommentRequest = (event: Event): void => {
     // Even a rejected request belongs to its nearest template, never an ancestor.

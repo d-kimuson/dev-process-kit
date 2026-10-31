@@ -582,7 +582,8 @@ export const storyPanelStyles = css`
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 14px 22px 12px;
+    /* The close button keeps clear of a floating menu docked at the right edge. */
+    padding: 14px calc(22px + var(--dpk-floating-menu-clearance, 0px)) 12px 22px;
     min-height: 60px;
     box-sizing: border-box;
     border-bottom: 1px solid var(--dpk-rule);

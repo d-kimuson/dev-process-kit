@@ -267,7 +267,10 @@ describe('lp pages', () => {
     expect(log.log.earlier.length).toBeGreaterThan(0);
     expect(log.log.latest.entries.length).toBeGreaterThan(0);
     const entries = revisionsOf(log.log).flatMap((revision) => revision.entries);
-    const ids = entries.flatMap((entry) => entry.target?.split(':')[1]?.split('.').at(-1) ?? []);
+    // The log sits on the app, so every target names the page it points into.
+    const page = /<dpk-page name="([^"]+)"/.exec(html)?.[1];
+    expect(entries.every((entry) => entry.target === null || entry.target.endsWith(`@${page}`))).toBe(true);
+    const ids = entries.flatMap((entry) => entry.target?.split(':')[1]?.split('@')[0]?.split('.').at(-1) ?? []);
     expect(ids.filter((id) => !html.includes(`"id": "${id}"`))).toEqual([]);
   });
 });

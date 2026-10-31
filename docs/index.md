@@ -263,7 +263,7 @@ Navigation is the URL hash and is completely separate from draft actions: select
 
 ## Element API
 
-Reach the facade with `element.api`, and wait for `element.api.ready` before the first read:
+Reach the facade with `element.api`, and wait for `element.api.ready` before the first read. A page's content answers it once the app has handed that page its part of the draft and the navigation it shows, so `comments`, `actions` and `navigation` are already the page's own (see [page.md](page.md#events)):
 
 ```js
 const el = document.querySelector('dpk-view-prototype');
@@ -606,6 +606,7 @@ When you regenerate a page at the reader's request, tell them what changed. Put 
 - Each change has a `title`, and optionally a `body`, an `id` (unique within its version; the position is used when omitted, so give ids when the list can be reordered), a `target` (`type:id`, as in [Targets](#targets)) and a `navigate` (hash syntax, `view=flow&screen=cart`) for where it is seen when the target alone does not say.
 - Leave the block out until there is something to announce. A log of one version may also be written as `{ "revision": "…", "changes": [ … ] }`.
 - The change log is not base data: the view never reads it, and a malformed log shows a banner without touching the page.
+- Inside an [app](page.md), the log goes **directly under `<dpk-app>`**, not on a page's view or board: a page's content draws no shell, so a log there is ignored (and reported on the console). Qualify each `target` with its page (`story:checkout.pay@scope`) and write `navigate` with the page key (`page=scope&scope.step=pay`).
 
 The floating menu gets a bell (after Check Mode), and each reader is told only what is new to them:
 

@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { html } from 'lit';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { ElementActionResult } from '../element-actions';
 import type { PageElement } from '../page/element';
+import type { DraftAction } from '../types';
 
 import { queryAllDeep } from '../../lib/dom/deep';
 import { DpkViewPlain } from '../../views/plain';
@@ -46,12 +48,47 @@ type Board = HTMLElement & {
     readonly actions: readonly { type: string; target: unknown }[];
     readonly ready: Promise<void>;
     readonly state: unknown;
+    readonly navigation: Readonly<Record<string, string>>;
     comment(target: string, body: string): unknown;
     navigate(patch: Readonly<Record<string, string | null | undefined>>): void;
   };
 };
 
 const isBoard = (element: Element | null): element is Board => element instanceof HTMLElement && 'api' in element;
+
+/**
+ * A custom component provider: it replays the element actions its host hands
+ * it and reports one result per action, the way a real provider does.
+ */
+class TestTopicProvider extends HTMLElement {
+  #actions: readonly DraftAction[] = [];
+  #results: readonly ElementActionResult[] = [];
+
+  get elementActions(): readonly DraftAction[] {
+    return this.#actions;
+  }
+
+  set elementActions(actions: readonly DraftAction[]) {
+    this.#actions = actions;
+    this.#results = actions.map((action) => {
+      const label = (action.payload as Record<string, unknown>)['label'];
+      return { id: action.id, title: `Topic ${typeof label === 'string' ? label : ''}`, tone: 'create' };
+    });
+    this.dispatchEvent(new CustomEvent('dpk-comment-targets-change', { bubbles: true, composed: true }));
+  }
+
+  get elementActionResults(): readonly ElementActionResult[] {
+    return this.#results;
+  }
+
+  get commentTargets() {
+    return [{ value: 'element:topics/card/root', label: 'Root topic' }];
+  }
+}
+
+if (!customElements.get('dpk-test-topic-provider')) {
+  customElements.define('dpk-test-topic-provider', TestTopicProvider);
+}
 
 const mount = async () => {
   const page = document.createElement('dpk-app');
@@ -1030,6 +1067,92 @@ describe('<dpk-page>', () => {
       await (commentable as unknown as { updateComplete: Promise<unknown> }).updateComplete;
       await page.updateComplete;
       expect(page.api.stale).toEqual([]);
+    });
+  });
+
+  describe('what a page’s content sees (#24, #23, #29)', () => {
+    /** An app with one prototype page, for the content-side contracts only. */
+    const mountPrototype = async (): Promise<{ page: AppElement; content: Board }> => {
+      const page = document.createElement('dpk-app');
+      if (!(page instanceof AppElement)) throw new Error('not upgraded');
+      page.storage = 'memory';
+      page.innerHTML = `<script type="application/json">{"title":"Screens"}</script>
+        <dpk-page name="screens"><dpk-view-prototype><script type="application/json">${JSON.stringify({
+          title: 'Screens',
+          apps: [
+            {
+              id: 'app',
+              name: 'App',
+              screens: [{ id: 's1', title: 'S1', previews: [{ id: 'p1', viewport: 'desktop' }] }],
+            },
+          ],
+          activities: [
+            {
+              id: 'a',
+              name: 'Activity',
+              stories: [{ id: 's', name: 'Story', steps: [{ id: 'one', name: 'One', panes: [{ screen: 's1' }] }] }],
+            },
+          ],
+        })}</script></dpk-view-prototype></dpk-page>`;
+      document.body.append(page);
+      const content = page.querySelector('dpk-page[name="screens"] > *');
+      if (!isBoard(content)) throw new Error('no content');
+      return { page, content };
+    };
+
+    it('answers api.ready with the navigation the app has already applied (#24)', async () => {
+      window.history.replaceState(null, '', '#page=screens&screens.activity=a&screens.story=s&screens.step=one');
+      const { content } = await mountPrototype();
+      // Read at the moment `ready` answers: the position on screen is the app’s,
+      // not the empty default a content starts with before its page hands it its state.
+      const navigation = await content.api.ready.then(() => content.api.navigation);
+      expect(navigation).toMatchObject({ activity: 'a', story: 's', step: 'one' });
+    });
+
+    it('derives an element action from a provider inside a page’s view (#29)', async () => {
+      const page = document.createElement('dpk-app');
+      if (!(page instanceof AppElement)) throw new Error('not upgraded');
+      page.storage = 'memory';
+      page.innerHTML = `<script type="application/json">{"title":"Topics"}</script>
+        <dpk-page name="catalog"><dpk-view-plain><script type="application/json">{"title":"Catalog"}</script>
+          <dpk-test-topic-provider slot="main" id="topics"></dpk-test-topic-provider>
+        </dpk-view-plain></dpk-page>`;
+      document.body.append(page);
+      await page.api.ready;
+      await page.updateComplete;
+      const provider = page.querySelector<TestTopicProvider>('dpk-test-topic-provider');
+      if (provider === null) throw new Error('no provider');
+
+      expect(
+        page.api.dispatch({
+          type: 'ADD_TOPIC',
+          target: 'element:topics/card/root@catalog',
+          payload: { label: 'New' },
+        }),
+      ).toMatchObject({ ok: true });
+      // The app hands the action to the page, whose provider replays it and reports a result;
+      // the app has to derive with that result, or its review lists the action as target-missing.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await page.updateComplete;
+      expect(provider.elementActions).toHaveLength(1);
+      expect(page.api.stale).toEqual([]);
+      expect(page.api.exportBrief()).not.toContain('Not applicable');
+    });
+
+    it('reports a change log inside a page, instead of reading it where nothing can show it (#23)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const page = document.createElement('dpk-app');
+      if (!(page instanceof AppElement)) throw new Error('not upgraded');
+      page.storage = 'memory';
+      page.innerHTML = `<script type="application/json">{"title":"Doc"}</script>
+        <dpk-page name="catalog"><dpk-view-plain><script type="application/json">{"title":"Catalog"}</script>
+          <script type="application/json" data-dpk-changes>{"revision":"v1","changes":[{"title":"Changed"}]}</script>
+        </dpk-view-plain></dpk-page>`;
+      document.body.append(page);
+      await page.api.ready;
+      await page.updateComplete;
+      expect(warn.mock.calls.some(([message]) => String(message).includes('change log inside <dpk-page>'))).toBe(true);
+      warn.mockRestore();
     });
   });
 });

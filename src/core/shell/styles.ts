@@ -365,12 +365,15 @@ export const chromeStyles = [
     .dpk-toasts {
       position: fixed;
       top: 64px;
-      right: 16px;
+      /* The floating menu docks at the right edge by default: the toasts step
+         aside by the room it takes (--dpk-floating-menu-clearance), so neither
+         their text nor their Show button sits under it. */
+      right: calc(16px + var(--dpk-floating-menu-clearance, 0px));
       z-index: 70;
       display: grid;
       justify-items: end;
       gap: 8px;
-      width: min(360px, calc(100vw - 32px));
+      width: min(360px, calc(100vw - 32px - var(--dpk-floating-menu-clearance, 0px)));
       pointer-events: none;
     }
 

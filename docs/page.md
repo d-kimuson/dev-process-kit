@@ -161,7 +161,9 @@ vocabulary, with the `@<page>` removed.
 `app.api` is the app's: its snapshot, the whole draft, the brief and the navigation
 (`navigate({ page: "domain" })` shows a page). `page.api` keeps the shape the content has on its
 own, over that page's part of the draft: its targets have no `@`, and what it dispatches goes into
-the app's draft with its page fixed.
+the app's draft with its page fixed. `page.api.ready` answers only after the app has handed the
+page that state — its `comments`, `actions` and `navigation` are the page's own when it resolves,
+so a script may read them straight after awaiting it.
 
 ## Events
 
@@ -175,3 +177,12 @@ it is written in keeps re-rendering when the template becomes a page.
 `dpk-change` is the app's: it fires on `<dpk-app>` (and bubbles to `document`) with the document's
 snapshot, because one change can touch several pages. Listen for it there rather than on the
 content element.
+
+## Change notices
+
+The change log (`data-dpk-changes`) goes **directly under `<dpk-app>`**, as another child of the
+app, not on a page's view or board: the app draws the bell and the toasts, and a page's content
+draws no shell of its own. A log on a page's content is ignored, with a warning on the console
+([Change notices](index.md#change-notices)). Qualify each `target` with its page
+(`story:checkout.pay@scope`) and write `navigate` with the page key (`page=scope&scope.step=pay`);
+both then point into that page when the reader presses **Show**.
