@@ -4,6 +4,7 @@ import type { ElementActionResult } from '../../core/element-actions';
 import type { DraftAction } from '../../core/types';
 import type { KanbanMessages } from './messages';
 
+import { httpUrlSchema } from '../../lib/link';
 import { elementRefSegments } from '../base/model';
 
 /**
@@ -19,6 +20,17 @@ import { elementRefSegments } from '../base/model';
 /** A card's number, unique on the board; it is the `TASK-<number>` key people say. */
 const cardNumberSchema = v.pipe(v.number(), v.integer(), v.minValue(1));
 
+/** A card's link: a web address and an optional label to read it by (esa, Slack, a PR). */
+export type KanbanLink = {
+  readonly url: string;
+  readonly label: string | null;
+};
+
+const linkSchema = v.strictObject({
+  url: httpUrlSchema,
+  label: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
+});
+
 const cardSchema = v.strictObject({
   id: v.pipe(v.string(), v.minLength(1)),
   number: v.optional(cardNumberSchema),
@@ -26,6 +38,7 @@ const cardSchema = v.strictObject({
   description: v.optional(v.string()),
   tags: v.optional(v.array(v.string())),
   assignee: v.optional(v.string()),
+  links: v.optional(v.array(linkSchema)),
   questions: v.optional(v.string()),
 });
 
@@ -60,6 +73,8 @@ export type KanbanCard = {
   readonly description: string | null;
   readonly tags: readonly string[];
   readonly assignee: string | null;
+  /** Related links, in the order the card lists them. */
+  readonly links: readonly KanbanLink[];
   /** Space-separated grill question ids. */
   readonly questions?: string;
   /** Id of the column the card is in now. */
@@ -111,6 +126,9 @@ export const parseKanbanData = (input: unknown): KanbanData => {
       cards: (column.cards ?? []).map((card): KanbanCard => {
         if (cardIds.has(card.id)) throw new Error(`duplicate card id: ${card.id}`);
         cardIds.add(card.id);
+        const links = (card.links ?? []).map((link): KanbanLink => ({ url: link.url, label: link.label ?? null }));
+        const urls = links.map((link) => link.url);
+        if (new Set(urls).size !== urls.length) throw new Error(`card "${card.id}" links the same URL twice`);
         return {
           id: card.id,
           number: card.number ?? ++nextNumber,
@@ -118,6 +136,7 @@ export const parseKanbanData = (input: unknown): KanbanData => {
           description: card.description ?? null,
           tags: card.tags ?? [],
           assignee: card.assignee ?? null,
+          links,
           ...(card.questions === undefined ? {} : { questions: card.questions }),
           column: column.id,
           change: null,
@@ -164,6 +183,13 @@ export const nextCardNumber = (data: KanbanData): number =>
 
 export const ADD_CARD = 'ADD_CARD';
 export const MOVE_CARD = 'MOVE_CARD';
+export const SET_CARD_TITLE = 'SET_CARD_TITLE';
+export const SET_CARD_DESCRIPTION = 'SET_CARD_DESCRIPTION';
+export const SET_CARD_ASSIGNEE = 'SET_CARD_ASSIGNEE';
+export const ADD_CARD_TAG = 'ADD_CARD_TAG';
+export const REMOVE_CARD_TAG = 'REMOVE_CARD_TAG';
+export const ADD_CARD_LINK = 'ADD_CARD_LINK';
+export const REMOVE_CARD_LINK = 'REMOVE_CARD_LINK';
 
 const addCardPayloadSchema = v.object({
   id: v.pipe(v.string(), v.minLength(1)),
@@ -226,6 +252,7 @@ const addCard = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step
     description: null,
     tags: [],
     assignee: null,
+    links: [],
     column: column.id,
     change: 'added',
   };
@@ -257,6 +284,104 @@ const moveCard = (m: KanbanMessages, data: KanbanData, action: DraftAction): Ste
   };
 };
 
+/** A card edit: the next card, or `null` when the patch cannot apply. */
+type CardEdit = (card: KanbanCard) => KanbanCard | null;
+
+/** Replaces one card in place, keeping its column and its order. */
+const withCard = (data: KanbanData, next: KanbanCard): KanbanData => ({
+  columns: data.columns.map((column) =>
+    column.cards.some((card) => card.id === next.id)
+      ? { ...column, cards: column.cards.map((card) => (card.id === next.id ? next : card)) }
+      : column,
+  ),
+});
+
+/** Applies one edit to the card a target names, and reports it as applied or stale. */
+const editCard = (m: KanbanMessages, data: KanbanData, action: DraftAction, title: string, edit: CardEdit): Step => {
+  const cardId = idOfTarget(action.target.id, 'card');
+  const card = cardId === null ? undefined : findCard(data, cardId);
+  if (card === undefined) return { data, result: { id: action.id, title, stale: 'target-missing' } };
+  const next = edit(card);
+  if (next === null) return { data, result: { id: action.id, title, stale: 'constraint-violated' } };
+  return {
+    data: withCard(data, next),
+    result: { id: action.id, title, summary: m.editSummary(cardKey(card), card.title), tone: 'update' },
+  };
+};
+
+const setCardTitlePayload = v.object({ title: v.pipe(v.string(), v.trim(), v.minLength(1)) });
+const setCardDescriptionPayload = v.object({ description: v.string() });
+const setCardAssigneePayload = v.object({ assignee: v.string() });
+const cardTagPayload = v.object({ tag: v.pipe(v.string(), v.trim(), v.minLength(1)) });
+const addCardLinkPayload = v.object({
+  url: httpUrlSchema,
+  label: v.exactOptional(v.pipe(v.string(), v.trim(), v.minLength(1))),
+});
+const removeCardLinkPayload = v.object({ url: v.pipe(v.string(), v.minLength(1)) });
+
+const setCardTitle = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step => {
+  const payload = v.safeParse(setCardTitlePayload, action.payload);
+  if (!payload.success)
+    return { data, result: { id: action.id, title: m.setTitleTitle, stale: 'constraint-violated' } };
+  return editCard(m, data, action, m.setTitleTitle, (card) => ({ ...card, title: payload.output.title }));
+};
+
+const setCardDescription = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step => {
+  const payload = v.safeParse(setCardDescriptionPayload, action.payload);
+  if (!payload.success)
+    return { data, result: { id: action.id, title: m.setDescriptionTitle, stale: 'constraint-violated' } };
+  const description = payload.output.description.trim() === '' ? null : payload.output.description;
+  return editCard(m, data, action, m.setDescriptionTitle, (card) => ({ ...card, description }));
+};
+
+const setCardAssignee = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step => {
+  const payload = v.safeParse(setCardAssigneePayload, action.payload);
+  if (!payload.success)
+    return { data, result: { id: action.id, title: m.setAssigneeTitle, stale: 'constraint-violated' } };
+  const assignee = payload.output.assignee.trim() === '' ? null : payload.output.assignee.trim();
+  return editCard(m, data, action, m.setAssigneeTitle, (card) => ({ ...card, assignee }));
+};
+
+const addCardTag = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step => {
+  const payload = v.safeParse(cardTagPayload, action.payload);
+  if (!payload.success) return { data, result: { id: action.id, title: m.addTagTitle, stale: 'constraint-violated' } };
+  const tag = payload.output.tag;
+  return editCard(m, data, action, m.addTagTitle, (card) =>
+    card.tags.includes(tag) ? null : { ...card, tags: [...card.tags, tag] },
+  );
+};
+
+const removeCardTag = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step => {
+  const payload = v.safeParse(cardTagPayload, action.payload);
+  if (!payload.success)
+    return { data, result: { id: action.id, title: m.removeTagTitle, stale: 'constraint-violated' } };
+  const tag = payload.output.tag;
+  return editCard(m, data, action, m.removeTagTitle, (card) =>
+    !card.tags.includes(tag) ? null : { ...card, tags: card.tags.filter((item) => item !== tag) },
+  );
+};
+
+const addCardLink = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step => {
+  const payload = v.safeParse(addCardLinkPayload, action.payload);
+  if (!payload.success) return { data, result: { id: action.id, title: m.addLinkTitle, stale: 'constraint-violated' } };
+  const link: KanbanLink = { url: payload.output.url, label: payload.output.label ?? null };
+  return editCard(m, data, action, m.addLinkTitle, (card) =>
+    card.links.some((item) => item.url === link.url) ? null : { ...card, links: [...card.links, link] },
+  );
+};
+
+const removeCardLink = (m: KanbanMessages, data: KanbanData, action: DraftAction): Step => {
+  const payload = v.safeParse(removeCardLinkPayload, action.payload);
+  if (!payload.success)
+    return { data, result: { id: action.id, title: m.removeLinkTitle, stale: 'constraint-violated' } };
+  const url = payload.output.url;
+  return editCard(m, data, action, m.removeLinkTitle, (card) =>
+    !card.links.some((item) => item.url === url)
+      ? null
+      : { ...card, links: card.links.filter((item) => item.url !== url) },
+  );
+};
+
 /**
  * Replays the draft's element actions over the authored board, in order.
  * Each action is reported on: applied, or why it is stale. Pure.
@@ -274,7 +399,24 @@ export const reduceKanbanActions = (
         ? addCard(m, board, action)
         : action.type === MOVE_CARD
           ? moveCard(m, board, action)
-          : { data: board, result: { id: action.id, title: action.type, stale: 'unsupported-action-type' as const } };
+          : action.type === SET_CARD_TITLE
+            ? setCardTitle(m, board, action)
+            : action.type === SET_CARD_DESCRIPTION
+              ? setCardDescription(m, board, action)
+              : action.type === SET_CARD_ASSIGNEE
+                ? setCardAssignee(m, board, action)
+                : action.type === ADD_CARD_TAG
+                  ? addCardTag(m, board, action)
+                  : action.type === REMOVE_CARD_TAG
+                    ? removeCardTag(m, board, action)
+                    : action.type === ADD_CARD_LINK
+                      ? addCardLink(m, board, action)
+                      : action.type === REMOVE_CARD_LINK
+                        ? removeCardLink(m, board, action)
+                        : {
+                            data: board,
+                            result: { id: action.id, title: action.type, stale: 'unsupported-action-type' as const },
+                          };
     board = step.data;
     results.push(step.result);
   }

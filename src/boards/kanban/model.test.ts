@@ -249,6 +249,120 @@ describe('kanban element actions', () => {
   });
 });
 
+describe('kanban card fields and links', () => {
+  it('parses links with an optional label, and rejects a non-web or repeated URL', () => {
+    const board = parseKanbanData({
+      columns: [
+        {
+          id: 'todo',
+          label: 'ToDo',
+          cards: [
+            {
+              id: 'api',
+              title: 'API',
+              links: [
+                { url: 'https://github.com/acme/web/pull/12', label: 'PR #12' },
+                { url: 'https://esa.io/posts/1' },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(board.columns[0]?.cards[0]?.links).toEqual([
+      { url: 'https://github.com/acme/web/pull/12', label: 'PR #12' },
+      { url: 'https://esa.io/posts/1', label: null },
+    ]);
+    expect(() =>
+      parseKanbanData({
+        columns: [{ id: 'a', label: 'A', cards: [{ id: 'x', title: 'X', links: [{ url: 'javascript:alert(1)' }] }] }],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseKanbanData({
+        columns: [
+          {
+            id: 'a',
+            label: 'A',
+            cards: [
+              {
+                id: 'x',
+                title: 'X',
+                links: [{ url: 'https://example.com/1' }, { url: 'https://example.com/1' }],
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(/links the same URL twice/);
+  });
+
+  it('edits a card in place, in draft order', () => {
+    const { data: next, results } = reduceKanbanActions(m, data(), [
+      action('t1', 'SET_CARD_TITLE', 'card/api', { title: '  注文 API v2  ' }),
+      action('d1', 'SET_CARD_DESCRIPTION', 'card/api', { description: '新しい説明' }),
+      action('a1', 'SET_CARD_ASSIGNEE', 'card/api', { assignee: ' kimura ' }),
+      action('g1', 'ADD_CARD_TAG', 'card/api', { tag: '重要' }),
+      action('g2', 'REMOVE_CARD_TAG', 'card/api', { tag: 'API' }),
+      action('l1', 'ADD_CARD_LINK', 'card/api', { url: 'https://example.com/1', label: 'One' }),
+      action('l2', 'ADD_CARD_LINK', 'card/api', { url: 'https://example.com/2' }),
+      action('l3', 'REMOVE_CARD_LINK', 'card/api', { url: 'https://example.com/1' }),
+    ]);
+    expect(next.columns[0]?.cards.find((card) => card.id === 'api')).toMatchObject({
+      column: 'todo',
+      title: '注文 API v2',
+      description: '新しい説明',
+      assignee: 'kimura',
+      tags: ['重要'],
+      links: [{ url: 'https://example.com/2', label: null }],
+    });
+    expect(results.map((result) => result.stale)).toEqual(Array<undefined>(8).fill(undefined));
+    expect(results[0]?.summary).toBe(m.editSummary('TASK-2', '注文 API'));
+  });
+
+  it('clears a description and an assignee with an empty value', () => {
+    const { data: next } = reduceKanbanActions(m, data(), [
+      action('d1', 'SET_CARD_DESCRIPTION', 'card/api', { description: '  ' }),
+      action('a1', 'SET_CARD_ASSIGNEE', 'card/login', { assignee: '' }),
+    ]);
+    expect(next.columns[0]?.cards[0]?.assignee).toBeNull();
+    expect(next.columns[0]?.cards[1]?.description).toBeNull();
+  });
+
+  it('reports edits that cannot apply and leaves the data alone', () => {
+    const base = data();
+    const { data: next, results } = reduceKanbanActions(m, base, [
+      action('gone', 'SET_CARD_TITLE', 'card/nowhere', { title: 'X' }),
+      action('blank', 'SET_CARD_TITLE', 'card/api', { title: '  ' }),
+      action('tag-dup', 'ADD_CARD_TAG', 'card/api', { tag: 'API' }),
+      action('tag-gone', 'REMOVE_CARD_TAG', 'card/api', { tag: 'none' }),
+      action('link-dup', 'ADD_CARD_LINK', 'card/api', { url: 'https://example.com/1' }),
+      action('link-duplicate', 'ADD_CARD_LINK', 'card/api', { url: 'https://example.com/1' }),
+      action('link-gone', 'REMOVE_CARD_LINK', 'card/api', { url: 'https://example.com/2' }),
+      action('link-bad', 'ADD_CARD_LINK', 'card/api', { url: 'not a url' }),
+    ]);
+    expect(next.columns[0]?.cards[1]?.links).toEqual([{ url: 'https://example.com/1', label: null }]);
+    expect(results.map((result) => [result.id, result.stale])).toEqual([
+      ['gone', 'target-missing'],
+      ['blank', 'constraint-violated'],
+      ['tag-dup', 'constraint-violated'],
+      ['tag-gone', 'constraint-violated'],
+      ['link-dup', undefined],
+      ['link-duplicate', 'constraint-violated'],
+      ['link-gone', 'constraint-violated'],
+      ['link-bad', 'constraint-violated'],
+    ]);
+  });
+
+  it('keeps an edited field when a later move replays over it', () => {
+    const { data: next } = reduceKanbanActions(m, data(), [
+      action('t1', 'SET_CARD_TITLE', 'card/api', { title: 'Renamed' }),
+      action('m1', 'MOVE_CARD', 'card/api', { column: 'done', before: null }),
+    ]);
+    expect(next.columns[2]?.cards[0]).toMatchObject({ id: 'api', title: 'Renamed', column: 'done' });
+  });
+});
+
 describe('kanban positions', () => {
   it('filters cards and keeps every column', () => {
     const visible = visibleKanban(data(), (card) => card.tags.includes('API'));

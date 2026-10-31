@@ -18,7 +18,13 @@ const raw = {
       label: 'ToDo',
       cards: [
         { id: 'login', title: 'ログイン画面', tags: ['UI'], assignee: 'kimura' },
-        { id: 'api', title: '注文 API', description: '冪等キーを受け付ける。', tags: ['API'] },
+        {
+          id: 'api',
+          title: '注文 API',
+          description: '冪等キーを受け付ける。',
+          tags: ['API'],
+          links: [{ url: 'https://example.com/spec', label: 'Spec' }],
+        },
       ],
     },
     {
@@ -117,6 +123,109 @@ const card = (element: DpkBoardKanban, id: string): HTMLElement => {
 };
 
 describe('<dpk-board-kanban>', () => {
+  it('shows a card’s links, opening them without opening the card', async () => {
+    const element = await mount();
+    const link = card(element, 'api').querySelector<HTMLAnchorElement>('.kanban-card-links a');
+    expect(link?.getAttribute('href')).toBe('https://example.com/spec');
+    expect(link?.textContent?.trim()).toBe('Spec');
+    link?.addEventListener('click', (event) => event.preventDefault());
+    link?.click();
+    await settle(element);
+    expect(element.renderRoot.querySelector('.kanban-detail')).toBeNull();
+  });
+
+  it('opens a card’s detail on click, and closes it on Escape', async () => {
+    const element = await mount();
+    card(element, 'api').click();
+    await settle(element);
+    const panel = element.renderRoot.querySelector<HTMLElement>('.kanban-detail');
+    expect(panel?.dataset['card']).toBe('api');
+    expect(panel?.querySelector<HTMLElement & { value: string }>('.kanban-detail-title dpk-inline-edit')?.value).toBe(
+      '注文 API',
+    );
+    expect(element.selection).toEqual({ kind: 'card', id: 'api' });
+    panel?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle(element);
+    expect(element.renderRoot.querySelector('.kanban-detail')).toBeNull();
+    // The keyboard is back where the panel was opened from.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect((element.renderRoot as ShadowRoot).activeElement).toBe(card(element, 'api'));
+  });
+
+  it('edits the card from its detail, recording each field as an element action', async () => {
+    const element = await mount();
+    acceptActions(element);
+    card(element, 'api').click();
+    await settle(element);
+    const panel = element.renderRoot.querySelector<HTMLElement>('.kanban-detail')!;
+    const commit = (selector: string, value: string): void => {
+      const editor = panel.querySelector(selector);
+      if (editor === null) throw new Error(`no ${selector}`);
+      editor.dispatchEvent(new CustomEvent('dpk-commit', { detail: { value }, bubbles: true, composed: true }));
+    };
+    commit('.kanban-detail-title dpk-inline-edit', '注文 API v2');
+    commit('.kanban-detail-field dpk-inline-edit', ' kimura ');
+    // The second field is the assignee; the description is multiline and comes later.
+    const fields = [...panel.querySelectorAll<HTMLElement>('.kanban-detail-field dpk-inline-edit')];
+    fields
+      .at(-1)
+      ?.dispatchEvent(
+        new CustomEvent('dpk-commit', { detail: { value: '新しい説明' }, bubbles: true, composed: true }),
+      );
+    await settle(element);
+    expect(element.elementActions.map((action) => action.type)).toEqual([
+      'SET_CARD_TITLE',
+      'SET_CARD_ASSIGNEE',
+      'SET_CARD_DESCRIPTION',
+    ]);
+    expect(
+      element.renderRoot.querySelector<HTMLElement & { value: string }>('.kanban-detail-title dpk-inline-edit')?.value,
+    ).toBe('注文 API v2');
+  });
+
+  it('changes a card’s status and edits its tags and links from the detail', async () => {
+    const element = await mount();
+    acceptActions(element);
+    card(element, 'api').click();
+    await settle(element);
+    const panel = (): HTMLElement => element.renderRoot.querySelector<HTMLElement>('.kanban-detail')!;
+    const status = [...panel().querySelectorAll<HTMLButtonElement>('.kanban-status')].find(
+      (button) => button.textContent?.trim() === '完了',
+    );
+    status?.click();
+    await settle(element);
+    expect(element.elementActions.at(-1)).toMatchObject({ type: 'MOVE_CARD', payload: { column: 'done' } });
+
+    const tagInput = panel().querySelector<HTMLInputElement>('.kanban-tag-add');
+    if (tagInput === null) throw new Error('no tag input');
+    tagInput.value = '重要';
+    tagInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle(element);
+    expect(element.elementActions.at(-1)).toMatchObject({ type: 'ADD_CARD_TAG', payload: { tag: '重要' } });
+    const removeTag = [...panel().querySelectorAll<HTMLButtonElement>('.kanban-tag-remove')].at(-1);
+    removeTag?.click();
+    await settle(element);
+    expect(element.elementActions.at(-1)).toMatchObject({ type: 'REMOVE_CARD_TAG', payload: { tag: '重要' } });
+
+    const form = panel().querySelector<HTMLFormElement>('.kanban-link-add');
+    if (form === null) throw new Error('no link form');
+    form.querySelector<HTMLInputElement>('[data-role="link-url"]')!.value = 'https://example.com/pr/1';
+    form.querySelector<HTMLInputElement>('[data-role="link-label"]')!.value = 'PR';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await settle(element);
+    expect(element.elementActions.at(-1)).toMatchObject({
+      type: 'ADD_CARD_LINK',
+      payload: { url: 'https://example.com/pr/1', label: 'PR' },
+    });
+    const removeLink = [...panel().querySelectorAll<HTMLButtonElement>('.kanban-link-remove')].at(-1);
+    removeLink?.click();
+    await settle(element);
+    expect(element.elementActions.at(-1)).toMatchObject({
+      type: 'REMOVE_CARD_LINK',
+      payload: { url: 'https://example.com/pr/1' },
+    });
+  });
+
   it('renders the columns with their cards in order', async () => {
     const element = await mount();
     expect(layout(element)).toEqual({ todo: ['login', 'api'], doing: ['stock'], done: [] });

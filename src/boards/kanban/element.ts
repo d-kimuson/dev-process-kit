@@ -6,14 +6,20 @@ import type { ElementActionResult } from '../../core/element-actions';
 import type { ActionTarget, CommentTargetOption, DraftAction } from '../../core/types';
 
 import { cardAtom } from '../../components/atoms/card';
+import { linkIcon, linkStyles } from '../../components/atoms/link';
+import { iconClose } from '../../core/icons';
 import { createEntityId, targetRef } from '../../core/target';
 import { copyText } from '../../lib/dom/clipboard';
+import { onCommit } from '../../lib/dom/events';
+import { describeLink } from '../../lib/link-label';
 import { BoardChromeBase } from '../base/element';
 import { classNames, elementRefSegments, tagStateMatches } from '../base/model';
 import { chromeStyles } from '../base/styles';
 import { kanbanMessages } from './messages';
 import {
   ADD_CARD,
+  ADD_CARD_LINK,
+  ADD_CARD_TAG,
   allCards,
   cardKey,
   emptyKanbanData,
@@ -22,6 +28,11 @@ import {
   MOVE_CARD,
   parseKanbanData,
   reduceKanbanActions,
+  REMOVE_CARD_LINK,
+  REMOVE_CARD_TAG,
+  SET_CARD_ASSIGNEE,
+  SET_CARD_DESCRIPTION,
+  SET_CARD_TITLE,
   visibleKanban,
   type KanbanCard,
   type KanbanColumn,
@@ -31,6 +42,9 @@ import {
 import { kanbanStyles } from './styles';
 
 export type KanbanSelection = { readonly kind: 'column' | 'card'; readonly id: string };
+
+/** Links on a card before the rest collapse into a `+n` chip; the detail panel lists them all. */
+const MAX_CARD_LINKS = 3;
 
 /**
  * `<dpk-board-kanban>` — columns of cards, read left to right.
@@ -48,13 +62,19 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
   protected override boardAddable(): boolean {
     return true;
   }
-  static override styles: CSSResultGroup = [chromeStyles, cardAtom, kanbanStyles];
+  static override styles: CSSResultGroup = [chromeStyles, cardAtom, linkStyles, kanbanStyles];
 
   #seededFrom: KanbanData | null = null;
   /** The card being typed into a column; `failed` when no template recorded it. */
   #adding: { readonly column: string; readonly title: string; readonly failed: boolean } | null = null;
   /** The card whose last move no template recorded. */
   #moveFailed: string | null = null;
+  /** The card whose detail panel is open, or `null`. */
+  #detail: string | null = null;
+  /** An edit from the detail panel that no template recorded. */
+  #detailFailed = false;
+  /** The panel is about to open: the next render puts the focus in it. */
+  #focusDetail = false;
   #dragging: string | null = null;
   #drop: KanbanPosition | null = null;
 
@@ -162,6 +182,11 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
       this.#adding = null;
       this.#moveFailed = null;
     }
+    // The open card may have gone with a draft action: the panel goes too.
+    if (this.#detail !== null && findCard(this.items(), this.#detail) === undefined) {
+      this.#detail = null;
+      this.#detailFailed = false;
+    }
   }
 
   protected override render(): TemplateResult {
@@ -193,12 +218,18 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
   #renderBoard(): TemplateResult {
     const visible = this.#visible();
     const counts = new Map(this.items().columns.map((column) => [column.id, column.cards.length]));
-    return html`<div class="kanban-board">
-      ${repeat(
-        visible.columns,
-        (column) => column.id,
-        (column) => this.#renderColumn(column, counts.get(column.id) ?? 0),
-      )}
+    const detail = this.#detail === null ? undefined : findCard(this.items(), this.#detail);
+    const detailColumn =
+      detail === undefined ? undefined : this.items().columns.find((column) => column.id === detail.column);
+    return html`<div class="kanban-stage">
+      <div class="kanban-board">
+        ${repeat(
+          visible.columns,
+          (column) => column.id,
+          (column) => this.#renderColumn(column, counts.get(column.id) ?? 0),
+        )}
+      </div>
+      ${detail === undefined ? nothing : this.#renderDetail(detail, detailColumn, kanbanMessages(this.locale))}
     </div>`;
   }
 
@@ -292,7 +323,7 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
           data-dpk-target=${this.commentRef('card', card.id)}
           title=${card.description ?? card.title}
           aria-pressed=${selected ? 'true' : 'false'}
-          @click=${() => this.select({ kind: 'card', id: card.id })}
+          @click=${() => this.#openDetail(card.id)}
           @keydown=${(event: KeyboardEvent) => this.#onCardKey(event, card.id)}
           @dragstart=${(event: DragEvent) => this.#onDragStart(event, card.id)}
           @dragend=${() => this.#endDrag()}
@@ -317,10 +348,259 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
                   }
                 </div>`
           }
+          ${card.links.length === 0 ? nothing : this.#renderCardLinks(card)}
         </div>
         ${this.#moveFailed === card.id ? html`<p class="kanban-error" role="alert">${m.notRecorded}</p>` : nothing}
       </div>
     `;
+  }
+
+  /** The first links as chips; the rest as a count, since the card is not the place to read them all. */
+  #renderCardLinks(card: KanbanCard): TemplateResult {
+    const shown = card.links.slice(0, MAX_CARD_LINKS);
+    return html`<div class="dpk-card-row kanban-card-links">
+      ${shown.map((link) => {
+        const label = describeLink(link.url);
+        return html`<a
+          class="link-chip"
+          data-kind=${label.kind}
+          href=${link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title=${link.label ?? label.title}
+          draggable="false"
+          tabindex="-1"
+          @click=${(event: Event) => event.stopPropagation()}
+          >${linkIcon(label.kind)}<span>${link.label ?? label.text}</span></a
+        >`;
+      })}
+      ${
+        card.links.length > shown.length
+          ? html`<span class="link-chip">+${card.links.length - shown.length}</span>`
+          : nothing
+      }
+    </div>`;
+  }
+
+  // ----------------------------------------------------------------- detail
+
+  /** Opens the card's detail panel (and selects the card, as a click always did). */
+  #openDetail(id: string): void {
+    this.select({ kind: 'card', id });
+    if (this.#detail === id) return;
+    this.#detail = id;
+    this.#detailFailed = false;
+    this.#focusDetail = true;
+    this.requestUpdate();
+  }
+
+  #closeDetail(): void {
+    const id = this.#detail;
+    if (id === null) return;
+    this.#detail = null;
+    this.#detailFailed = false;
+    this.requestUpdate();
+    void this.updateComplete.then(() =>
+      this.renderRoot.querySelector<HTMLElement>(`[data-card="${CSS.escape(id)}"]`)?.focus({ preventScroll: true }),
+    );
+  }
+
+  /** A card edit from the panel: recorded as the board's element action, or reported as not recorded. */
+  #edit(type: string, id: string, payload: Readonly<Record<string, unknown>>): void {
+    const accepted = this.dispatchElementAction(type, ['card', id], payload);
+    this.#detailFailed = !accepted;
+    this.requestUpdate();
+  }
+
+  #onDetailKey(event: KeyboardEvent): void {
+    if (event.key !== 'Escape') return;
+    // An editor cancels its own draft on Escape; the panel only closes when none is open.
+    if (event.composedPath().some((node) => node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement))
+      return;
+    event.preventDefault();
+    this.#closeDetail();
+  }
+
+  #onTagKey(event: KeyboardEvent, cardId: string): void {
+    if (event.key !== 'Enter' || event.isComposing) return;
+    event.preventDefault();
+    const input = event.currentTarget;
+    if (!(input instanceof HTMLInputElement)) return;
+    const tag = input.value.trim();
+    if (tag === '') return;
+    const accepted = this.dispatchElementAction(ADD_CARD_TAG, ['card', cardId], { tag });
+    this.#detailFailed = !accepted;
+    if (accepted) input.value = '';
+    this.requestUpdate();
+  }
+
+  #onAddLink(event: Event, cardId: string): void {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!(form instanceof HTMLFormElement)) return;
+    const url = form.querySelector<HTMLInputElement>('[data-role="link-url"]')?.value.trim() ?? '';
+    const label = form.querySelector<HTMLInputElement>('[data-role="link-label"]')?.value.trim() ?? '';
+    if (url === '') return;
+    const accepted = this.dispatchElementAction(
+      ADD_CARD_LINK,
+      ['card', cardId],
+      label === '' ? { url } : { url, label },
+    );
+    this.#detailFailed = !accepted;
+    if (accepted) form.reset();
+    this.requestUpdate();
+  }
+
+  /** The card's detail: its title, status, assignee, tags, description and links, edited in place. */
+  #renderDetail(
+    card: KanbanCard,
+    column: KanbanColumn | undefined,
+    m: ReturnType<typeof kanbanMessages>,
+  ): TemplateResult {
+    const target = (type: string, payload: Readonly<Record<string, unknown>>): void =>
+      this.#edit(type, card.id, payload);
+    return html`<aside
+      class="kanban-detail"
+      role="dialog"
+      aria-label=${m.cardDetailAria(card.title)}
+      data-card=${card.id}
+      tabindex="-1"
+      @keydown=${(event: KeyboardEvent) => this.#onDetailKey(event)}
+    >
+      <header class="kanban-detail-head">
+        <span class="kanban-detail-key">${cardKey(card)}</span>
+        ${column === undefined ? nothing : html`<span class="kanban-detail-column" data-color=${column.color ?? nothing}>${column.label}</span>`}
+        <button
+          class="dpk-icon-btn kanban-detail-close"
+          type="button"
+          aria-label=${m.closeCardDetail}
+          @click=${() => this.#closeDetail()}
+        >
+          ${iconClose()}
+        </button>
+      </header>
+      <div class="kanban-detail-body">
+        <h3 class="kanban-detail-title">
+          <dpk-inline-edit
+            wrap
+            .value=${card.title}
+            .label=${m.cardTitleLabel}
+            @dpk-commit=${onCommit((title) => target(SET_CARD_TITLE, { title }))}
+          ></dpk-inline-edit>
+        </h3>
+        <section class="kanban-detail-field">
+          <span class="dpk-label">${m.cardStatusLabel}</span>
+          <div class="kanban-statuses">
+            ${this.items().columns.map(
+              (candidate) => html`<button
+                class="kanban-status"
+                type="button"
+                aria-pressed=${String(candidate.id === card.column)}
+                @click=${() => this.#move(card.id, { column: candidate.id, before: null })}
+              >
+                ${candidate.label}
+              </button>`,
+            )}
+          </div>
+        </section>
+        <section class="kanban-detail-field">
+          <span class="dpk-label">${m.cardAssigneeLabel}</span>
+          <dpk-inline-edit
+            .value=${card.assignee ?? ''}
+            .label=${m.cardAssigneeLabel}
+            .placeholder=${m.cardAssigneePlaceholder}
+            @dpk-commit=${onCommit((assignee) => target(SET_CARD_ASSIGNEE, { assignee }))}
+          ></dpk-inline-edit>
+        </section>
+        <section class="kanban-detail-field">
+          <span class="dpk-label">${m.cardTagsLabel}</span>
+          <div class="kanban-tag-row">
+            ${card.tags.map(
+              (tag) => html`<span class="dpk-pill kanban-tag"
+                >${tag}<button
+                  type="button"
+                  class="kanban-tag-remove"
+                  aria-label=${m.removeTagAria(tag)}
+                  @click=${() => target(REMOVE_CARD_TAG, { tag })}
+                >
+                  ${iconClose()}
+                </button></span
+              >`,
+            )}
+            <input
+              class="dpk-input kanban-tag-add"
+              aria-label=${m.cardTagsPlaceholder}
+              placeholder=${m.cardTagsPlaceholder}
+              @keydown=${(event: KeyboardEvent) => this.#onTagKey(event, card.id)}
+            />
+          </div>
+        </section>
+        <section class="kanban-detail-field">
+          <span class="dpk-label">${m.cardDescriptionLabel}</span>
+          <dpk-inline-edit
+            multiline
+            markdown
+            .value=${card.description ?? ''}
+            .label=${m.cardDescriptionLabel}
+            .placeholder=${m.cardDescriptionPlaceholder}
+            @dpk-commit=${onCommit((description) => target(SET_CARD_DESCRIPTION, { description }))}
+          ></dpk-inline-edit>
+        </section>
+        <section class="kanban-detail-field">
+          <span class="dpk-label">${m.cardLinksLabel}</span>
+          ${
+            card.links.length === 0
+              ? nothing
+              : html`<ul class="kanban-link-list">
+                  ${card.links.map(
+                    (link) => html`<li>
+                      <a class="kanban-link" href=${link.url} target="_blank" rel="noopener noreferrer"
+                        >${linkIcon(describeLink(link.url).kind)}<span
+                          >${link.label ?? describeLink(link.url).text}</span
+                        ></a
+                      >
+                      <button
+                        type="button"
+                        class="dpk-icon-btn kanban-link-remove"
+                        aria-label=${m.removeLinkAria(link.url)}
+                        @click=${() => target(REMOVE_CARD_LINK, { url: link.url })}
+                      >
+                        ${iconClose()}
+                      </button>
+                    </li>`,
+                  )}
+                </ul>`
+          }
+          <form class="kanban-link-add" @submit=${(event: Event) => this.#onAddLink(event, card.id)}>
+            <input
+              class="dpk-input"
+              data-role="link-url"
+              type="url"
+              inputmode="url"
+              autocomplete="off"
+              aria-label=${m.cardLinkUrlPlaceholder}
+              placeholder=${m.cardLinkUrlPlaceholder}
+            />
+            <input
+              class="dpk-input"
+              data-role="link-label"
+              autocomplete="off"
+              aria-label=${m.cardLinkLabelPlaceholder}
+              placeholder=${m.cardLinkLabelPlaceholder}
+            />
+            <button class="dpk-btn" type="submit">${m.addLinkButton}</button>
+          </form>
+        </section>
+        ${this.#detailFailed ? html`<p class="kanban-error" role="alert">${m.notRecorded}</p>` : nothing}
+      </div>
+    </aside>`;
+  }
+
+  protected override updated(): void {
+    super.updated();
+    if (!this.#focusDetail) return;
+    this.#focusDetail = false;
+    this.renderRoot.querySelector<HTMLElement>('.kanban-detail')?.focus({ preventScroll: true });
   }
 
   #renderAdd(column: KanbanColumn, m: ReturnType<typeof kanbanMessages>): TemplateResult {
@@ -358,7 +638,7 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
   #onCardKey(event: KeyboardEvent, id: string): void {
     if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
     event.preventDefault();
-    this.select({ kind: 'card', id });
+    this.#openDetail(id);
   }
 
   /** A template that records the move has already replayed it; otherwise the card says so. */
