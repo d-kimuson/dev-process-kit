@@ -5,6 +5,7 @@ import * as v from 'valibot';
 import type { ViewRenderContext } from '../../../core/shell/contracts';
 import type { UsmMessages } from '../messages';
 
+import { linkIcon } from '../../../components/atoms/link';
 import { iconCheck, iconClose, iconComment, iconCopy, iconTrash, lucide } from '../../../core/icons';
 import { createEntityId } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
@@ -25,7 +26,6 @@ import { storyIdTitle, storyInfoMarkdown } from '../story-copy';
 import { storyKey } from '../story-key';
 import { initialOf } from './avatar';
 import { renderDependencyPicker, type DependencyPicker } from './dependency-picker';
-import { linkIcon } from './link-icon';
 import { statusIcon, statusToneStyle } from './tone';
 
 const iconIdTitle = lucide(Tag);
@@ -666,6 +666,16 @@ export const storyPanelStyles = css`
     gap: 22px;
     overflow: auto;
     padding: 18px 22px 24px;
+  }
+  /* A dependency's name is one nowrap line with an ellipsis, and every grid
+     box between it and the panel keeps the default min-width (auto): the line
+     would then become the grid's minimum width and make the whole body scroll
+     sideways instead of cropping the name. Each level opts out. */
+  .sp-body > *,
+  .sp-deps > *,
+  .sp-dep-side > *,
+  .sp-dep-list > li {
+    min-width: 0;
   }
   .sp-title {
     margin: 0;

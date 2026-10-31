@@ -148,6 +148,10 @@ export const usmStyles = css`
      scrolls sideways. */
   .act-head {
     position: relative;
+    /* The head fills its column's head row, so the progress bar at its bottom
+       edge lines up with every other group's, however many steps (and so
+       however tall) a group lists beside it. */
+    align-self: stretch;
     display: grid;
     align-content: start;
     gap: 4px;
@@ -179,18 +183,20 @@ export const usmStyles = css`
     align-items: center;
     gap: 8px;
   }
-  /* The name keeps its whole line while it fits; the actor beside it gives
-     way (truncates) first, down to an ellipsis. */
+  /* The name wraps at the column width, and the actor only drops to its own
+     line when the two cannot share one; a long name is then read in full
+     instead of being cut to a stub beside a shrunken actor. */
   .act-name {
     display: flex;
     flex: 1 1 auto;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 4px 8px;
     min-width: 0;
   }
   .act-name > dpk-inline-edit {
-    flex: none;
-    max-width: calc(100% - 32px);
+    flex: 0 1 auto;
+    max-width: 100%;
   }
   /* How far the group's stories have come: a strip along the head's bottom
      edge, as wide as the steps it spans, so it costs the band no line. */
@@ -210,7 +216,7 @@ export const usmStyles = css`
     display: flex;
     flex: 0 1 auto;
     min-width: 24px;
-    max-width: 60%;
+    max-width: 100%;
     padding: 0 4px;
     border-radius: 999px;
     background: var(--dpk-blue-soft);
@@ -330,6 +336,13 @@ export const usmStyles = css`
     gap: 10px;
     align-content: start;
     flex: 1 1 auto;
+  }
+  /* A grid item keeps the default min-width (auto), so a card whose foot
+     cannot shrink (a long step-name chip in it) would widen the column instead
+     of ellipsis-ing inside it. The card shrinks to the column; its own foot
+     clips. */
+  .card-list > * {
+    min-width: 0;
   }
   /* The add button (the kit's add atom) shows on the cell's hover only. */
   .add-cell {

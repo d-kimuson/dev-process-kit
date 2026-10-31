@@ -323,6 +323,7 @@ const renderActivityHead = (props: BoardProps, activityId: string, listSteps = f
         <span class="act-name">
           <dpk-inline-edit
             draggable="false"
+            wrap
             .value=${activity.name}
             .label=${m.activityNameLabel}
             @dpk-commit=${onCommit((name) =>
