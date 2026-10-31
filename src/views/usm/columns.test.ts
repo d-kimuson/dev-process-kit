@@ -90,6 +90,12 @@ describe('usm columns: on the map', () => {
     document.body.innerHTML = '';
   });
 
+  it('asks the activity name to wrap, so a narrow group reads its whole name (#21)', async () => {
+    const el = await mount('');
+    const head = el.shadowRoot!.querySelector('.act-head[data-activity="a1"]');
+    expect(head?.querySelector('.act-name > dpk-inline-edit')?.hasAttribute('wrap')).toBe(true);
+  });
+
   it('lets the activity group heads and the step heads be picked up by a grip, but not their editors', async () => {
     const el = await mount('');
     const root = el.shadowRoot!;
