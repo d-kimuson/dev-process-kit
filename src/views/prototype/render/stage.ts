@@ -67,6 +67,8 @@ export type StageDevices = {
 export type StageOptions = {
   /** Whether the light DOM holds markup for the preview (else a placeholder is shown). */
   readonly hasPreviewContent: (previewId: string) => boolean;
+  /** The address a preview's mock shows through `data-url`, by preview id. */
+  readonly previewUrls: ReadonlyMap<string, string>;
   /** Set while the stage fills the tab. */
   readonly lift: StageLift | null;
   /** Maximizes the stage, or restores it when it already fills the tab (the scenario view). */
@@ -241,12 +243,25 @@ export const renderStage = (
                     (pane) =>
                       html`<div class="pane" data-viewport=${pane.preview.viewport} data-pane=${pane.kind}>
                         ${renderPaneHead(context, frames, pane)}
-                        ${renderFrame(context, m, pane.preview, options.hasPreviewContent(pane.preview.id))}
+                        ${renderFrame(
+                          context,
+                          m,
+                          pane.preview,
+                          options.hasPreviewContent(pane.preview.id),
+                          options.previewUrls,
+                        )}
                       </div>`,
                   )}
                 </div>`
               : shown.map((preview) =>
-                  renderFrame(context, m, preview, options.hasPreviewContent(preview.id), frameWindow),
+                  renderFrame(
+                    context,
+                    m,
+                    preview,
+                    options.hasPreviewContent(preview.id),
+                    options.previewUrls,
+                    frameWindow,
+                  ),
                 )
         }
         ${shown.length === 0 ? html`<p class="dpk-label">${m.noPreviewMetadata}</p>` : nothing}
@@ -384,6 +399,11 @@ export const renderFrame = (
   m: PrototypeMessages,
   preview: PrototypePreview,
   hasContent: boolean,
+  /**
+   * The address the mock's `data-url` shows, by preview id: a mock that moves
+   * within its own screen (a query, a tab) sets it on its preview's element.
+   */
+  previewUrls: ReadonlyMap<string, string>,
   /** The app view's window; `null` in the scenario view, where the frame is as tall as its content. */
   frameWindow: FrameWindow | null = null,
 ): TemplateResult => {
@@ -399,7 +419,9 @@ export const renderFrame = (
       ${
         preview.kind === 'browser'
           ? html`<div class="dpk-browser-frame-bar">
-              <span class="dpk-browser-frame-url">${prototypePreviewUrl(context.state, preview)}</span>
+              <span class="dpk-browser-frame-url"
+                >${prototypePreviewUrl(context.state, preview, previewUrls.get(preview.id))}</span
+              >
             </div>`
           : preview.kind === 'mail'
             ? renderMailHeader(prototypeMailHeader(m, preview))

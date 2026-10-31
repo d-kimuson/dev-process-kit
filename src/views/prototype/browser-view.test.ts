@@ -79,6 +79,11 @@ describe('the pages the browser shows', () => {
     expect(pageAt({ view: 'app', step: 'memo' })).toEqual(list);
   });
 
+  it('finds the page a mock’s own `data-url` names (#25)', () => {
+    const urls = new Map([['list', 'https://shop.test/cart/checkout']]);
+    expect(prototypePageAt(state, 'https://shop.test/cart/checkout?step=2', 'https://shop.test/', urls)).toEqual(list);
+  });
+
   it('finds the page an address leads to, ignoring the query and a trailing slash', () => {
     expect(prototypePageAt(state, 'https://shop.test/mypage/orders/', 'https://shop.test/')).toEqual(list);
     expect(prototypePageAt(state, 'shop.test', 'https://shop.test/x')).toEqual(top);
@@ -93,6 +98,12 @@ describe('the pages the browser shows', () => {
 });
 
 describe('the browser chrome', () => {
+  it('shows the address a mock sets through `data-url`, without touching the draft (#25)', () => {
+    const view = presentBrowser(state, startBrowser(top), m, null, new Map([['top', 'https://shop.test/cart?step=2']]));
+    expect(view.url).toBe('https://shop.test/cart?step=2');
+    expect(view.tabs[0]?.url).toBe('https://shop.test/cart?step=2');
+  });
+
   it('names each tab after its page and shows the address and the user of the active one', () => {
     let sim = startBrowser(top);
     sim = reduceBrowser(sim, { kind: 'observe', page: list });

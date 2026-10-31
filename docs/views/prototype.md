@@ -140,6 +140,16 @@ The prototype itself is authored by you, in the light DOM, so your CSS, JS, `loc
 
 `slot="preview"` plus `data-preview-id` is the whole contract: the framework re-points the element to the frame slot of that preview id, and an element whose id is unknown to the base is reported in the "previews without metadata" area instead of silently disappearing.
 
+A preview element may also carry `data-url`, the address its browser chrome shows while the mock is on another address of the same screen (a query, a tab, a filter):
+
+```html
+<div slot="preview" data-preview-id="cart" data-url="/cart?step=2&coupon=spring">
+  <div class="cart">…</div>
+</div>
+```
+
+The value is resolved like `previews[].url` (a path against `baseUrl`, an absolute URL as written; an empty or missing value falls back to the preview's own `url`). Changing the attribute — from the mock's own script, say — updates the address bar in both the scenario view and the app view's browser, and the typed-address lookup finds the preview at that address. It is display state only: it is not a draft action and is not persisted; the base data keeps the address the page was generated with.
+
 ### Wire every link (required)
 
 A prototype is **clicked through**, not looked at. The reader judges the flow by clicking what looks clickable, so every link, button, menu item, tab and list row in a preview must lead somewhere. A sidebar item that does nothing reads as a dead end — or as a feature that does not exist. Wiring is plain navigation, not a draft action: add `data-dpk-navigate` (and the same hash in `href` on an `<a>`):

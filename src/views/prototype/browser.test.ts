@@ -126,6 +126,23 @@ describe('the browser of the app view', () => {
     expect(el.shadowRoot!.querySelector('.dpk-browser-frame-url')?.textContent).toBe('https://shop.test/');
   });
 
+  it('shows the address a mock sets on its preview element, in both views (#25)', async () => {
+    const el = mount('#step=top');
+    await settle(el);
+    const preview = el.querySelector<HTMLElement>('[data-preview-id="top"]');
+    if (preview === null) throw new Error('no preview');
+    preview.setAttribute('data-url', 'https://shop.test/cart?step=2');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await settle(el);
+    expect(el.shadowRoot!.querySelector('.dpk-browser-frame-url')?.textContent).toBe('https://shop.test/cart?step=2');
+
+    el.api.navigate({ view: 'app', screen: 'top' });
+    await settle(el);
+    expect(el.shadowRoot!.querySelector<HTMLInputElement>('.browser-address')?.value).toBe(
+      'https://shop.test/cart?step=2',
+    );
+  });
+
   it('runs a screen in a window of a fixed size, a device the reader picks', async () => {
     const el = mount('#view=app&screen=phone');
     await settle(el);

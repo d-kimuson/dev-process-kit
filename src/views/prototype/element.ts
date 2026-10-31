@@ -232,6 +232,13 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
   /** The mock changes its own markup as the reader clicks through it: the badges follow their elements. */
   readonly #mockChanges =
     typeof MutationObserver === 'undefined' ? null : new MutationObserver(() => this.#schedulePlacement());
+  /** A mock moves inside its screen: `data-url` on its preview element changes the address bar. */
+  readonly #urlChanges =
+    typeof MutationObserver === 'undefined'
+      ? null
+      : new MutationObserver((records) => {
+          if (records.some((record) => record.attributeName === 'data-url')) this.requestUpdate();
+        });
   #placementFrame: number | null = null;
 
   constructor() {
@@ -271,6 +278,7 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     this.addEventListener('click', this.#onLinkClick, true);
     this.addEventListener('auxclick', this.#onLinkClick, true);
     this.#mockChanges?.observe(this, { subtree: true, childList: true, attributes: true, characterData: true });
+    this.#urlChanges?.observe(this, { subtree: true, attributes: true, attributeFilter: ['data-url'] });
     installDocumentStyles();
   }
 
@@ -284,6 +292,7 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     this.#canvasSize?.disconnect();
     this.#observedCanvas = null;
     this.#mockChanges?.disconnect();
+    this.#urlChanges?.disconnect();
     if (this.#placementFrame !== null) cancelAnimationFrame(this.#placementFrame);
     this.#placementFrame = null;
     this.#stopReload();
@@ -308,6 +317,7 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
       main: renderStage(context, m, {
         deviceSelect: this.#deviceSelect,
         hasPreviewContent: (previewId) => this.#hasPreviewContent(previewId),
+        previewUrls: this.#previewUrls(),
         lift: this.#lift,
         onToggleMaximize: () => this.#setLift(this.#lift === null ? 'maximized' : null),
         onToggleDemo: () => this.#setLift(this.#lift === null ? 'demo' : null),
@@ -893,6 +903,22 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
   }
 
   /**
+   * The addresses the mocks show, by preview id: a preview element's `data-url`
+   * overrides what the base data says, so a mock that moves within its own
+   * screen (a query, a tab) can update the address bar without touching the
+   * draft. Empty or missing falls back to the preview's authored `url`.
+   */
+  #previewUrls(): ReadonlyMap<string, string> {
+    const urls = new Map<string, string>();
+    for (const child of this.children) {
+      const previewId = child.getAttribute('data-preview-id');
+      const url = child.getAttribute('data-url');
+      if (previewId !== null && url !== null && url !== '') urls.set(previewId, url);
+    }
+    return urls;
+  }
+
+  /**
    * A prototype is clicked through: a link that leads nowhere reads as a dead
    * end to the reader. Reported once, on the console, for the author.
    */
@@ -1001,7 +1027,7 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     // With no page left in any tab, the page the hash names still tells whose window it is.
     const home = prototypeBrowserHome(sim) ?? page;
     return {
-      view: presentBrowser(context.state, sim, m, home),
+      view: presentBrowser(context.state, sim, m, home, this.#previewUrls()),
       shortcuts: entry?.kind === 'new-tab' ? prototypeNewTabShortcuts(context.state, home) : [],
       switcher: this.#tabSwitcher,
       send: (command) => this.#onBrowserCommand(command),
@@ -1064,8 +1090,10 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     const sim = this.#browser;
     if (sim === null) return;
     const state = this.derivation.state;
-    const current = presentBrowser(state, sim, prototypeMessages(this.locale)).url || 'https://page.example.com/';
-    const page = prototypePageAt(state, input, current);
+    const urls = this.#previewUrls();
+    const current =
+      presentBrowser(state, sim, prototypeMessages(this.locale), null, urls).url || 'https://page.example.com/';
+    const page = prototypePageAt(state, input, current, urls);
     if (page !== null) {
       this.#sendBrowser({ kind: 'visit', page });
       return;

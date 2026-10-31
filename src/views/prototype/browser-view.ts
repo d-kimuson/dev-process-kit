@@ -51,14 +51,20 @@ const locatePage = (state: PrototypeState, page: BrowserPage) => {
  * The page an address typed into the address bar leads to: the first web
  * preview at that address. A path alone stays on the site on screen.
  */
-export const prototypePageAt = (state: PrototypeState, input: string, current: string): BrowserPage | null => {
+export const prototypePageAt = (
+  state: PrototypeState,
+  input: string,
+  current: string,
+  /** The addresses the mocks show through `data-url`, by preview id. */
+  previewUrls: ReadonlyMap<string, string> = new Map(),
+): BrowserPage | null => {
   const target = parseAddress(input, current);
   if (target === null) return null;
   const key = addressKey(target);
   for (const { screen } of allScreens(state)) {
     for (const preview of screen.previews) {
       if (preview.kind !== 'browser') continue;
-      const url = parseAddress(prototypePreviewUrl(state, preview), current);
+      const url = parseAddress(prototypePreviewUrl(state, preview, previewUrls.get(preview.id)), current);
       if (url !== null && addressKey(url) === key) return { screen: screen.id, preview: preview.id };
     }
   }
@@ -76,13 +82,17 @@ const entryTitle = (state: PrototypeState, entry: BrowserEntry | undefined, m: P
   return locatePage(state, entry.page)?.screen.title ?? m.newTab;
 };
 
-const entryUrl = (state: PrototypeState, entry: BrowserEntry | undefined): string => {
+const entryUrl = (
+  state: PrototypeState,
+  entry: BrowserEntry | undefined,
+  previewUrls: ReadonlyMap<string, string>,
+): string => {
   if (entry === undefined || entry.kind === 'new-tab') return '';
   if (entry.kind === 'unreachable') return entry.url;
   const preview = locatePage(state, entry.page)?.screen.previews.find(
     (candidate) => candidate.id === entry.page.preview,
   );
-  return preview === undefined ? '' : prototypePreviewUrl(state, preview);
+  return preview === undefined ? '' : prototypePreviewUrl(state, preview, previewUrls.get(preview.id));
 };
 
 /** The page the window last showed: in the active tab first, then in any other. */
@@ -110,6 +120,8 @@ export const presentBrowser = (
   m: PrototypeMessages,
   /** The page the window belongs to when no tab shows one any more. */
   fallback: BrowserPage | null = null,
+  /** The addresses the mocks show through `data-url`, by preview id. */
+  previewUrls: ReadonlyMap<string, string> = new Map(),
 ): BrowserView => {
   const tab = activeTab(sim);
   const entry = tab.history[tab.index];
@@ -118,11 +130,11 @@ export const presentBrowser = (
     tabs: sim.tabs.map((candidate) => ({
       id: candidate.id,
       title: entryTitle(state, candidate.history[candidate.index], m),
-      url: entryUrl(state, candidate.history[candidate.index]),
+      url: entryUrl(state, candidate.history[candidate.index], previewUrls),
       active: candidate.id === tab.id,
     })),
     entry,
-    url: entryUrl(state, entry),
+    url: entryUrl(state, entry, previewUrls),
     canBack: canGoBack(sim),
     canForward: canGoForward(sim),
     ...(profile === undefined ? {} : { profile }),

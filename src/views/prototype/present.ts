@@ -363,20 +363,27 @@ const siteBase = (state: PrototypeState): string => {
 };
 
 /**
- * Address shown in the browser chrome. `preview.url` wins, resolved against
+ * Address shown in the browser chrome. The mock's `data-url` wins (it can
+ * change as the reader uses the mock), then `preview.url`, resolved against
  * the site's base when it is a path (`/cart`), then `baseUrl`, then a
  * placeholder domain derived from the page title
  * (`https://kumoma.example.com/<preview id>`), so a preview never shows an
  * internal id as if it were a protocol.
  */
-export const prototypePreviewUrl = (state: PrototypeState, preview: PrototypePreview): string => {
+export const prototypePreviewUrl = (
+  state: PrototypeState,
+  preview: PrototypePreview,
+  /** What the mock's light DOM put in `data-url` (the page is showing another address of it). */
+  override: string | null | undefined = null,
+): string => {
   const base = siteBase(state);
-  if (!preview.url) return `${base}${preview.id}`;
-  if (ABSOLUTE_URL.test(preview.url)) return preview.url;
+  const url = override === null || override === undefined || override === '' ? preview.url : override;
+  if (!url) return `${base}${preview.id}`;
+  if (ABSOLUTE_URL.test(url)) return url;
   try {
-    return decodeURI(new URL(preview.url, base).href);
+    return decodeURI(new URL(url, base).href);
   } catch {
-    return preview.url;
+    return url;
   }
 };
 
