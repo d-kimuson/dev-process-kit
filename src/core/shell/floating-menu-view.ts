@@ -217,38 +217,20 @@ export const floatingMenuStyles = css`
       color 160ms var(--dpk-ease);
   }
 
-  /* The button that brings the menu back is tinted with the accent, so among
-     the header's grey icon buttons it reads as the one waiting to be pressed. */
-  .dpk-menu-return {
-    border-color: color-mix(in srgb, var(--dpk-accent) 60%, transparent);
-    background: color-mix(in srgb, var(--dpk-accent) 14%, transparent);
-    color: var(--dpk-accent);
-  }
-
-  /* Filled under the pointer, the accent's own button look: it reads as pressable. */
-  .dpk-menu-return:hover {
-    border-color: var(--dpk-accent);
-    background: var(--dpk-accent);
-    color: var(--dpk-accent-ink);
-    box-shadow:
-      var(--dpk-bevel),
-      0 6px 16px -8px color-mix(in srgb, var(--dpk-accent) 70%, transparent);
-  }
-
+  /* At rest it is one of the header's buttons like any other; a drag turns it
+     blue, the colour of where the menu can land, and deeper once it is over it. */
   .dpk-menu-slot[data-drop='offered'] {
-    outline-color: var(--dpk-rule-strong);
-    background: var(--dpk-paper-sunken);
-  }
-
-  /* Offered under a drag, the button keeps its tint: it is still the way back. */
-  .dpk-menu-return[data-drop='offered'] {
-    outline-color: color-mix(in srgb, var(--dpk-accent) 60%, transparent);
-    background: color-mix(in srgb, var(--dpk-accent) 14%, transparent);
+    outline-color: color-mix(in srgb, var(--dpk-blue) 70%, transparent);
+    border-color: color-mix(in srgb, var(--dpk-blue) 45%, transparent);
+    background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
   }
 
   .dpk-menu-slot[data-drop='targeted'] {
+    outline-style: solid;
     outline-color: var(--dpk-blue);
-    background: var(--dpk-blue-soft);
+    border-color: var(--dpk-blue);
+    background: color-mix(in srgb, var(--dpk-blue) 22%, transparent);
     color: var(--dpk-blue);
   }
 

@@ -343,8 +343,8 @@ draft action.
   redo, Check Mode and the changes bell, then the review's sections last (**Review comments**,
   **Activity log**, and **Questions** while the page asks any), so the review opens right under
   them. It opens in the header, as one row at the end of it after the settings gear. The reader drags it out by its grip. While it is elsewhere, the end of the
-  header holds an accent-tinted button (**Put the menu back in the header**) that brings it back. While it is
-  carried, that place — the room it left, or the button — is highlighted as where it can go back,
+  header holds a button (**Put the menu back in the header**) that brings it back. While it is
+  carried, that place — the room it left, or the button — turns blue as where it can go back,
   without changing its width, and an outline shows the edge it would land on. On release it snaps back
   into the header when let go over the header row, else to the nearest edge; its orientation follows
   that edge, so it is one row along the top or bottom and one column along the left or right.
