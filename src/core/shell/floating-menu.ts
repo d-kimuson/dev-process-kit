@@ -1,10 +1,12 @@
 /**
  * Where the floating menu sits, and which way it lies.
  *
- * The reader drags the menu anywhere on the screen; on release it snaps to the
- * nearest edge, and its orientation follows that edge: a menu on the top or
- * bottom edge is one row, on the left or right edge one column. Orientation is
- * therefore never a separate setting — it is `orientationOf(dock.edge)`.
+ * The menu opens in the header's own slot, one row among the header's controls.
+ * The reader drags it out anywhere on the screen; on release it snaps into the
+ * header again when let go over the header row, else to the nearest edge, and
+ * its orientation follows that edge: a menu on the top or bottom edge is one
+ * row, on the left or right edge one column. Orientation is therefore never a
+ * separate setting — it is `spotOrientation(spot)`.
  *
  * Every position the menu takes passes through these functions, so it is
  * always inside the area the shell leaves it (the viewport less the header
@@ -51,11 +53,23 @@ export type MenuBox = {
 /** A measured rect, as `getBoundingClientRect()` reports it. */
 export type MeasuredRect = MenuSize & MenuBox;
 
+/**
+ * Where the menu is: in the header's slot, or docked to an edge of the screen.
+ * The header's slot is not there on every screen (a narrow one has no room for
+ * it); a header spot is then drawn at `FLOATING_MENU.fallback`, and stays the
+ * reader's choice for a screen that has the room.
+ */
+export type MenuSpot = { readonly kind: 'header' } | { readonly kind: 'edge'; readonly dock: MenuDock };
+
+export const HEADER_SPOT: MenuSpot = { kind: 'header' };
+
 export const FLOATING_MENU = {
   /** The gap the menu keeps from the edges of its area, at its dock and at both ends. */
   margin: 12,
-  /** The dock the menu opens at: the top of the right edge, clear of the header row and of the hand-off dock. */
-  default: { edge: 'right', offset: 12 } as MenuDock,
+  /** Where the menu opens: among the header's controls, where it covers nothing of the page. */
+  default: HEADER_SPOT,
+  /** The dock of a header spot on a screen with no slot for it: the top of the right edge, clear of the hand-off dock. */
+  fallback: { edge: 'right', offset: 12 } as MenuDock,
 } as const;
 
 const EDGES: readonly MenuEdge[] = ['top', 'right', 'bottom', 'left'];
@@ -63,6 +77,18 @@ const EDGES: readonly MenuEdge[] = ['top', 'right', 'bottom', 'left'];
 /** The menu lies along its edge: one row on a top/bottom dock, one column on a left/right one. */
 export const orientationOf = (edge: MenuEdge): MenuOrientation =>
   edge === 'top' || edge === 'bottom' ? 'horizontal' : 'vertical';
+
+/** The header holds the menu as one row, the way it holds its other controls. */
+export const spotOrientation = (spot: MenuSpot): MenuOrientation =>
+  spot.kind === 'header' ? 'horizontal' : orientationOf(spot.dock.edge);
+
+/**
+ * The size a menu measured lying one way will have lying the other: the same
+ * buttons in a row instead of a column, so its sides are turned. It is close
+ * enough to draw where a drag would put it before the menu gets there.
+ */
+export const menuSizeAs = (orientation: MenuOrientation, size: MenuSize, measured: MenuOrientation): MenuSize =>
+  orientation === measured ? size : { width: size.height, height: size.width };
 
 /** How long the edge is, and how long the menu is along it. */
 const extentOf = (edge: MenuEdge, size: MenuSize, area: MenuArea): { available: number; own: number } =>
@@ -150,16 +176,71 @@ export const dockedMenuInsets = (dock: MenuDock, area: MenuArea): readonly MenuI
  * `--dpk-floating-menu-clearance` a shell publishes to its own chrome and the
  * page content: the toasts, a stage's tools and a panel's close button step
  * aside by it instead of sitting under the menu. Only a right dock takes any:
- * the other edges leave the top-right corner free.
+ * the other edges and the header leave the top-right corner free.
  */
-export const menuClearanceOf = (edge: MenuEdge, width: number): number =>
-  edge === 'right' && width > 0 ? width + FLOATING_MENU.margin : 0;
+export const menuClearanceOf = (spot: MenuSpot, width: number): number =>
+  spot.kind === 'edge' && spot.dock.edge === 'right' && width > 0 ? width + FLOATING_MENU.margin : 0;
 
-/** Where a menu is drawn: the docked box once it is measurable, else the insets that place it there. */
+/**
+ * What the header's slot shows: nothing while the menu is elsewhere, the room
+ * the menu sits in while it is there, and while the menu is carried, a place it
+ * can be let go — `targeted` when letting go now would put it there.
+ */
+export type MenuSlotState = 'empty' | 'holding' | 'offered' | 'targeted';
+
+export const menuSlotState = (spot: MenuSpot, drop: MenuSpot | null): MenuSlotState => {
+  if (drop !== null) return drop.kind === 'header' ? 'targeted' : 'offered';
+  return spot.kind === 'header' ? 'holding' : 'empty';
+};
+
+/** The dock a spot is drawn at: its own, or the fallback of a header with no slot to hold it. */
+const restingDock = (spot: MenuSpot): MenuDock => (spot.kind === 'edge' ? spot.dock : FLOATING_MENU.fallback);
+
+/** Where a menu resting at `spot` is drawn once measured: on the header's slot, else against its edge. */
+export const restingMenuBox = (spot: MenuSpot, slot: MenuBox | null, size: MenuSize, area: MenuArea): MenuBox =>
+  spot.kind === 'header' && slot !== null
+    ? { left: slot.left, top: slot.top }
+    : dockedMenuBox(restingDock(spot), size, area);
+
+/** The same place before it is measured: the slot's corner, or the dock's insets. */
+export const restingMenuInsets = (spot: MenuSpot, slot: MenuBox | null, area: MenuArea): readonly MenuInset[] =>
+  spot.kind === 'header' && slot !== null
+    ? [
+        { side: 'left', value: slot.left },
+        { side: 'top', value: slot.top },
+      ]
+    : dockedMenuInsets(restingDock(spot), area);
+
+/** A box with its size: where a dragged menu would land on an edge. */
+export type MenuGhost = MenuBox & MenuSize;
+
+/**
+ * Where an edge drop would draw the menu: the menu as it will lie along that
+ * edge (its `measured` size turned when the edge turns it), held inside it.
+ */
+export const menuGhostOf = (dock: MenuDock, size: MenuSize, measured: MenuOrientation, area: MenuArea): MenuGhost => {
+  const own = menuSizeAs(orientationOf(dock.edge), size, measured);
+  return { ...dockedMenuBox(clampMenuDock(dock, own, area), own, area), ...own };
+};
+
+/**
+ * Where a menu is drawn: the docked box once it is measurable, else the insets
+ * that place it there; and while it is carried, where letting go would put it.
+ */
 export type MenuPlacement = {
-  readonly dock: MenuDock;
+  /** Where it is, as drawn: a header spot on a screen with no slot for it is its fallback edge. */
+  readonly spot: MenuSpot;
   readonly box: MenuBox | null;
   readonly insets: readonly MenuInset[];
+  /** Where letting go would put it, while it is carried. */
+  readonly drop: MenuSpot | null;
+  /** The box an edge drop would take, drawn as a ghost while it is carried; `null` for the header. */
+  readonly ghost: MenuGhost | null;
+  readonly slot: {
+    readonly state: MenuSlotState;
+    /** The room the slot holds open: the menu's size as one row, once it is known. */
+    readonly width: number | null;
+  };
 };
 
 /** A sub-pixel difference between where a box is drawn and where it belongs is not a placement. */
@@ -222,6 +303,13 @@ export const droppedMenuDock = (
   area: MenuArea,
 ): MenuDock => dockedMenuAt(draggedMenuBox(drag, clientX, clientY), size, area);
 
+/**
+ * Where a box let go lands: in the header when its top reaches into the header
+ * row above the area (and the header has a slot for it), else the nearest edge.
+ */
+export const droppedMenuSpot = (box: MenuBox, size: MenuSize, area: MenuArea, header: boolean): MenuSpot =>
+  header && box.top < area.top ? HEADER_SPOT : { kind: 'edge', dock: dockedMenuAt(box, size, area) };
+
 export type MenuKey = {
   readonly key: string;
 };
@@ -249,6 +337,28 @@ export const keyedMenuDock = (dock: MenuDock, { key }: MenuKey, size: MenuSize, 
   return null;
 };
 
+/**
+ * The spot after a key press on the grip, or `null` for a key it does not use.
+ * ArrowUp on the top edge goes on up into the header, when it has a slot; out
+ * of the header, the other arrows dock the menu to the start of their edge.
+ */
+export const keyedMenuSpot = (
+  spot: MenuSpot,
+  key: MenuKey,
+  size: MenuSize,
+  area: MenuArea,
+  header: boolean,
+): MenuSpot | null => {
+  if (spot.kind === 'header') {
+    const edge = EDGE_OF_KEY[key.key];
+    if (edge === undefined || edge === 'top') return null;
+    return { kind: 'edge', dock: clampMenuDock({ edge, offset: FLOATING_MENU.margin }, size, area) };
+  }
+  if (header && key.key === 'ArrowUp' && spot.dock.edge === 'top') return HEADER_SPOT;
+  const dock = keyedMenuDock(spot.dock, key, size, area);
+  return dock === null ? null : { kind: 'edge', dock };
+};
+
 /** The menu's measured box; `null` before it is in the document. */
 export const measuredMenu = (element: Element): MeasuredRect | null => {
   const rect = element.getBoundingClientRect();
@@ -266,4 +376,16 @@ export const parseMenuDock = (value: unknown): MenuDock | null => {
   if (typeof offset !== 'number' || !Number.isFinite(offset)) return null;
   if (!isMenuEdge(edge)) return null;
   return { edge, offset: Math.round(offset) };
+};
+
+/**
+ * Whether a value read back from storage is a spot this version understands. A
+ * bare dock is an edge spot stored before the header had a slot for the menu.
+ */
+export const parseMenuSpot = (value: unknown): MenuSpot | null => {
+  if (typeof value !== 'object' || value === null) return null;
+  const { kind, dock: stored } = value as { kind?: unknown; dock?: unknown };
+  if (kind === 'header') return HEADER_SPOT;
+  const dock = parseMenuDock(kind === 'edge' ? stored : value);
+  return dock === null ? null : { kind: 'edge', dock };
 };

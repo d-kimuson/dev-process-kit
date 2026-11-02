@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { dockedMenuBox, FLOATING_MENU, type MenuArea, type MenuBox, type MenuDock } from './floating-menu';
+import {
+  dockedMenuBox,
+  FLOATING_MENU,
+  HEADER_SPOT,
+  type MeasuredRect,
+  type MenuArea,
+  type MenuBox,
+  type MenuDock,
+} from './floating-menu';
 import { FloatingMenuController } from './floating-menu-controller';
 
 /** A 1200x800 screen, less a 60px header row. */
@@ -37,11 +45,14 @@ const rectOf = (box: MenuBox): DOMRect =>
  * supplies the two things a browser does — when the page's layout settles, and
  * where the last render drew the menu.
  */
-const harness = (dock?: MenuDock) => {
+const harness = (stored?: unknown, slot: MeasuredRect | null = null) => {
   const state = { measurable: false, drawn: null as MenuBox | null };
   const surface = document.createElement('div');
   surface.getBoundingClientRect = () => (state.measurable && state.drawn !== null ? rectOf(state.drawn) : EMPTY);
-  if (dock !== undefined) localStorage.setItem('dev-process-kit:menu:plain', JSON.stringify(dock));
+  // The header's slot: absent (as on a narrow screen) unless the test gives it a box.
+  const header = document.createElement('div');
+  header.getBoundingClientRect = () => (slot === null ? EMPTY : ({ ...slot, toJSON: () => ({}) } as DOMRect));
+  if (stored !== undefined) localStorage.setItem('dev-process-kit:menu:plain', JSON.stringify(stored));
   const host = {
     updates: 0,
     addController: (_controller: unknown): void => {},
@@ -51,8 +62,9 @@ const harness = (dock?: MenuDock) => {
   };
   const controller = new FloatingMenuController(host as never, {
     surface: () => surface,
+    header: () => header,
     area: () => AREA,
-    persistKey: () => (dock === undefined ? null : 'plain'),
+    persistKey: () => (stored === undefined ? null : 'plain'),
   });
   controller.hostConnected();
   /**
@@ -62,7 +74,9 @@ const harness = (dock?: MenuDock) => {
    */
   const render = async (): Promise<void> => {
     const placement = controller.placement;
-    state.drawn = placement.box ?? dockedMenuBox(placement.dock, SIZE, AREA);
+    state.drawn =
+      placement.box ??
+      (placement.spot.kind === 'edge' ? dockedMenuBox(placement.spot.dock, SIZE, AREA) : { left: 0, top: 0 });
     controller.hostUpdated();
     await Promise.resolve();
   };
@@ -144,8 +158,65 @@ describe('FloatingMenuController placement', () => {
     await render();
     // The correction brings it back inside, and the dock it reports is the one drawn.
     const clamped: MenuDock = { edge: 'bottom', offset: AREA.width - SIZE.width - FLOATING_MENU.margin };
-    expect(controller.placement.dock).toEqual(clamped);
+    expect(controller.placement.spot).toEqual({ kind: 'edge', dock: clamped });
     expect(controller.placement.box).toEqual(dockedMenuBox(clamped, SIZE, AREA));
     expect(host.updates).toBe(1);
+  });
+});
+
+describe("FloatingMenuController in the header's slot", () => {
+  /** The slot the header holds open between its title and its tools, in the 60px header row. */
+  const SLOT: MeasuredRect = { left: 700, top: 14, width: 240, height: 32 };
+
+  const down = (x: number, y: number): PointerEvent =>
+    new PointerEvent('pointerdown', { pointerId: 1, button: 0, clientX: x, clientY: y });
+  const at = (type: string, x: number, y: number): PointerEvent =>
+    new PointerEvent(type, { pointerId: 1, clientX: x, clientY: y });
+
+  it('opens over the slot, as one row', () => {
+    const { controller } = harness(undefined, SLOT);
+    const placement = controller.placement;
+    expect(placement.spot).toEqual(HEADER_SPOT);
+    expect(placement.insets).toEqual([
+      { side: 'left', value: SLOT.left },
+      { side: 'top', value: SLOT.top },
+    ]);
+    expect(placement.slot.state).toBe('holding');
+  });
+
+  it('falls back to its edge on a screen whose header has no slot for it, and keeps the choice', () => {
+    const { controller } = harness({ kind: 'header' });
+    expect(controller.placement.spot).toEqual({ kind: 'edge', dock: FLOATING_MENU.fallback });
+    expect(controller.placement.slot.state).toBe('empty');
+    expect(JSON.parse(localStorage.getItem('dev-process-kit:menu:plain') ?? 'null')).toEqual({ kind: 'header' });
+  });
+
+  it('shows where a drag would land, and snaps into the header when let go over its row', async () => {
+    const { controller, state, render } = harness({ edge: 'right', offset: 300 }, SLOT);
+    state.measurable = true;
+    await render();
+    const from = controller.placement.box ?? { left: 0, top: 0 };
+    controller.grip.pointerdown(down(from.left + 10, from.top + 10));
+    // Carried down to the bottom of the screen: the bottom edge is where it would land, drawn as a row.
+    controller.grip.pointermove(at('pointermove', 400, 780));
+    expect(controller.placement.drop).toMatchObject({ kind: 'edge', dock: { edge: 'bottom' } });
+    expect(controller.placement.ghost).toMatchObject({ width: SIZE.height, height: SIZE.width });
+    expect(controller.placement.slot.state).toBe('offered');
+    // Up into the header row: the header's slot is the target, and no edge ghost is drawn.
+    controller.grip.pointermove(at('pointermove', from.left + 10, 20));
+    expect(controller.placement.drop).toEqual(HEADER_SPOT);
+    expect(controller.placement.ghost).toBeNull();
+    expect(controller.placement.slot.state).toBe('targeted');
+    controller.grip.pointerup(at('pointerup', from.left + 10, 20));
+    expect(controller.placement.spot).toEqual(HEADER_SPOT);
+    expect(controller.placement.drop).toBeNull();
+    expect(JSON.parse(localStorage.getItem('dev-process-kit:menu:plain') ?? 'null')).toEqual({ kind: 'header' });
+  });
+
+  it('holds open the room the menu takes as one row, turning a column it has not measured as a row', async () => {
+    const { controller, state, render } = harness({ edge: 'right', offset: 300 }, SLOT);
+    state.measurable = true;
+    await render();
+    expect(controller.placement.slot).toEqual({ state: 'empty', width: SIZE.height });
   });
 });

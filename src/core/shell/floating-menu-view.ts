@@ -2,19 +2,25 @@
  * The floating menu's markup and look.
  *
  * It carries the page's own controls — undo and redo, the review's sections,
- * Check Mode and the changes bell — and nothing about where it goes: the dock
- * it hangs from, its orientation and its position come from
- * `floating-menu.ts`, and the effects from `floating-menu-controller.ts`.
+ * Check Mode and the changes bell — and nothing about where it goes: the spot
+ * it rests at, its orientation and its position come from `floating-menu.ts`,
+ * and the effects from `floating-menu-controller.ts`.
  *
  * Every button in it is a `.dpk-chrome-action`, the icon-button class the
  * header's own controls use too, so the screen's chrome is one kind of thing.
  */
-import { css, html, type nothing, type TemplateResult } from 'lit';
+import { css, html, nothing, type TemplateResult } from 'lit';
 
 import type { CoreMessages } from '../messages';
 
 import { iconGrip, iconGripHorizontal } from '../icons';
-import { orientationOf, type MenuInset, type MenuOrientation, type MenuPlacement } from './floating-menu';
+import {
+  spotOrientation,
+  type MenuGhost,
+  type MenuInset,
+  type MenuOrientation,
+  type MenuPlacement,
+} from './floating-menu';
 
 export type FloatingMenuPlacement = MenuPlacement;
 
@@ -54,35 +60,62 @@ export const renderFloatingMenu = (
   intents: FloatingMenuIntents,
   dragging: boolean,
 ): TemplateResult => {
-  const orientation = orientationOf(placement.dock.edge);
+  const orientation = spotOrientation(placement.spot);
   const box = placement.box;
-  return html`<div
-    class="dpk-floating-menu"
-    data-edge=${placement.dock.edge}
-    data-orientation=${orientation}
-    ?data-dragging=${dragging}
-    style=${box === null ? insetStyle(placement.insets) : `left: ${box.left}px; top: ${box.top}px`}
-    role="group"
-    aria-label=${m.menu}
-  >
-    <button
-      class="dpk-chrome-action dpk-menu-grip"
-      type="button"
-      aria-label=${m.menuMove}
-      data-tooltip=${m.menuMove}
-      @pointerdown=${intents.grip.pointerdown}
-      @pointermove=${intents.grip.pointermove}
-      @pointerup=${intents.grip.pointerup}
-      @pointercancel=${intents.grip.pointercancel}
-      @lostpointercapture=${intents.grip.lostpointercapture}
-      @keydown=${intents.grip.keydown}
+  return html`${renderMenuGhost(placement.ghost)}
+    <div
+      class="dpk-floating-menu"
+      data-edge=${placement.spot.kind === 'header' ? 'header' : placement.spot.dock.edge}
+      data-orientation=${orientation}
+      ?data-dragging=${dragging}
+      style=${box === null ? insetStyle(placement.insets) : `left: ${box.left}px; top: ${box.top}px`}
+      role="group"
+      aria-label=${m.menu}
     >
-      ${orientation === 'horizontal' ? iconGripHorizontal() : iconGrip()}
-    </button>
-    ${contents.undoRedo} ${separator(orientation)} ${contents.review} ${separator(orientation)}
-    <div class="dpk-menu-tools">${contents.checkMode} ${contents.notices}</div>
-  </div>`;
+      <button
+        class="dpk-chrome-action dpk-menu-grip"
+        type="button"
+        aria-label=${m.menuMove}
+        data-tooltip=${m.menuMove}
+        @pointerdown=${intents.grip.pointerdown}
+        @pointermove=${intents.grip.pointermove}
+        @pointerup=${intents.grip.pointerup}
+        @pointercancel=${intents.grip.pointercancel}
+        @lostpointercapture=${intents.grip.lostpointercapture}
+        @keydown=${intents.grip.keydown}
+      >
+        ${orientation === 'horizontal' ? iconGripHorizontal() : iconGrip()}
+      </button>
+      ${contents.undoRedo} ${separator(orientation)} ${contents.review} ${separator(orientation)}
+      <div class="dpk-menu-tools">${contents.checkMode} ${contents.notices}</div>
+    </div>`;
 };
+
+/**
+ * The room the header holds for the menu, between the page's own header
+ * controls and the reader's tools. The menu is not inside it — it stays in the
+ * overlay, so a drag keeps its pointer capture — but is drawn over it; while
+ * the menu is carried, the slot shows itself as a place it can be let go.
+ */
+export const renderFloatingMenuSlot = (placement: FloatingMenuPlacement): TemplateResult => {
+  const { state, width } = placement.slot;
+  return html`<div
+    class="dpk-menu-slot"
+    data-state=${state}
+    style=${state === 'empty' || width === null ? '' : `width: ${width}px`}
+    aria-hidden="true"
+  ></div>`;
+};
+
+/** Where an edge drop would put the menu, outlined while it is carried there. */
+const renderMenuGhost = (ghost: MenuGhost | null): TemplateResult | typeof nothing =>
+  ghost === null
+    ? nothing
+    : html`<div
+        class="dpk-menu-drop"
+        style="left: ${ghost.left}px; top: ${ghost.top}px; width: ${ghost.width}px; height: ${ghost.height}px"
+        aria-hidden="true"
+      ></div>`;
 
 /** The dock's insets as the style that draws it, before the menu has a measured box. */
 const insetStyle = (insets: readonly MenuInset[]): string =>
@@ -130,6 +163,58 @@ export const floatingMenuStyles = css`
       var(--dpk-bevel),
       var(--dpk-shadow-lg),
       0 18px 40px -18px var(--dpk-shade-3);
+  }
+
+  /* In the header it is one of the header's controls: no pill of its own, the
+     height of the header's buttons. Carried out, it floats as a pill again. */
+  .dpk-floating-menu[data-edge='header']:not([data-dragging]) {
+    padding: 0;
+    border-width: 0;
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
+    animation: none;
+  }
+
+  /* The header's room for the menu: nothing while the menu is elsewhere (its
+     negative margin takes back the header's gap), the menu's own row while it
+     is there, and a place to let it go while it is carried. Its width is not
+     animated: the menu is drawn where the slot is, measured after each render. */
+  .dpk-menu-slot {
+    flex: none;
+    height: 32px;
+    border-radius: var(--dpk-radius-lg);
+    outline: 1.5px dashed transparent;
+    outline-offset: 3px;
+    transition:
+      outline-color 160ms var(--dpk-ease),
+      background-color 160ms var(--dpk-ease);
+  }
+
+  .dpk-menu-slot[data-state='empty'] {
+    width: 0;
+    margin-inline-start: -14px;
+  }
+
+  .dpk-menu-slot[data-state='offered'] {
+    outline-color: var(--dpk-rule-strong);
+    background: var(--dpk-paper-sunken);
+  }
+
+  .dpk-menu-slot[data-state='targeted'] {
+    outline-color: var(--dpk-blue);
+    background: var(--dpk-blue-soft);
+  }
+
+  /* Where letting go on an edge would put the menu. */
+  .dpk-menu-drop {
+    position: fixed;
+    z-index: 49;
+    box-sizing: border-box;
+    border: 1.5px dashed var(--dpk-blue);
+    border-radius: var(--dpk-radius-lg);
+    background: color-mix(in srgb, var(--dpk-blue-soft) 70%, transparent);
+    pointer-events: none;
   }
 
   /* The grip: the one part of the menu that moves it. */
@@ -195,6 +280,11 @@ export const floatingMenuStyles = css`
     /* A phone keeps the menu on one row's worth of width whatever edge it hangs from. */
     .dpk-floating-menu {
       max-width: calc(100vw - 24px);
+    }
+
+    /* A narrow header has no row to spare: a menu kept in it falls back to its edge. */
+    .dpk-menu-slot {
+      display: none;
     }
   }
 `;

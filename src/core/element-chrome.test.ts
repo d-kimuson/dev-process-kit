@@ -92,6 +92,10 @@ describe('the page chrome', () => {
     expect(row?.querySelector('.dpk-header-tools .dpk-lang-select')).not.toBeNull();
     expect(row?.querySelector('.dpk-header-tools .dpk-theme-toggle')).not.toBeNull();
     expect(row?.querySelector('.dpk-header .dpk-settings-trigger')).not.toBeNull();
+    // The floating menu's room sits before the reader's tools; jsdom lays it out
+    // nowhere, so the menu it would hold is at its fallback edge and the room is empty.
+    expect(row?.querySelector('.dpk-menu-slot + .dpk-header-tools')).not.toBeNull();
+    expect(row?.querySelector('.dpk-menu-slot')?.getAttribute('data-state')).toBe('empty');
     // A page with nothing to switch has no switcher; the app adds one.
     expect(row?.querySelector('.dpk-page-switcher-trigger')).toBeNull();
     // A view that owns the screen draws no second bar for its own controls.
@@ -178,15 +182,15 @@ describe('the page chrome', () => {
     press(grip(element), 'ArrowLeft');
     await settle(element);
     expect(menu(element)?.getAttribute('data-edge')).toBe('left');
-    expect(storedDock('plain')).toMatchObject({ edge: 'left' });
+    expect(storedDock('plain')).toMatchObject({ kind: 'edge', dock: { edge: 'left' } });
 
     press(grip(element), 'Home');
     await settle(element);
-    expect(storedDock('plain')).toMatchObject({ edge: 'left', offset: 12 });
+    expect(storedDock('plain')).toMatchObject({ kind: 'edge', dock: { edge: 'left', offset: 12 } });
 
     press(grip(element), 'PageDown');
     await settle(element);
-    expect(storedDock('plain')).toMatchObject({ edge: 'left', offset: 12 });
+    expect(storedDock('plain')).toMatchObject({ kind: 'edge', dock: { edge: 'left', offset: 12 } });
   });
 
   it('keeps the dock to the page load with storage="memory"', async () => {
@@ -211,7 +215,7 @@ describe('the page chrome', () => {
     await settle(element);
     expect(menu(element)?.getAttribute('data-edge')).toBe('bottom');
     expect(menu(element)?.getAttribute('data-orientation')).toBe('horizontal');
-    expect(storedDock('plain')).toMatchObject({ edge: 'bottom' });
+    expect(storedDock('plain')).toMatchObject({ kind: 'edge', dock: { edge: 'bottom' } });
   });
 
   it('never writes the dock or the page into the draft', async () => {

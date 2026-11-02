@@ -93,7 +93,7 @@ import { ColorSchemeController } from './shell/color-scheme-controller';
 import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
 import { menuClearanceOf, type MenuArea } from './shell/floating-menu';
 import { FloatingMenuController } from './shell/floating-menu-controller';
-import { floatingMenuStyles, renderFloatingMenu } from './shell/floating-menu-view';
+import { floatingMenuStyles, renderFloatingMenu, renderFloatingMenuSlot } from './shell/floating-menu-view';
 import { collectBadges, GrillBadgeController, type BadgeBinding } from './shell/grill-badges';
 import {
   openQuestionOf,
@@ -330,12 +330,13 @@ export abstract class ViewElement<S> extends LitElement {
     redo: () => this.controller.redo(),
   };
   /**
-   * The reader's dock for the floating menu, kept per content. It is this
+   * The reader's spot for the floating menu, kept per content. It is this
    * reader's view state: never part of the draft, and forgotten with the page
    * when the page keeps its state in memory or turns storage off.
    */
   readonly #floatingMenu = new FloatingMenuController(this, {
     surface: () => this.renderRoot.querySelector<HTMLElement>('.dpk-floating-menu'),
+    header: () => this.renderRoot.querySelector<HTMLElement>('.dpk-menu-slot'),
     area: () => this.#menuArea(),
     persistKey: () => (this.storage === 'off' || this.storage === 'memory' ? null : this.#persistedName),
   });
@@ -582,7 +583,7 @@ export abstract class ViewElement<S> extends LitElement {
     if (this.#boardId !== null) return;
     const menu = this.renderRoot.querySelector<HTMLElement>('.dpk-floating-menu');
     const width = menu?.getBoundingClientRect().width ?? 0;
-    const clearance = menuClearanceOf(this.#floatingMenu.placement.dock.edge, width);
+    const clearance = menuClearanceOf(this.#floatingMenu.placement.spot, width);
     const value = `${clearance}px`;
     if (this.style.getPropertyValue('--dpk-floating-menu-clearance') !== value) {
       this.style.setProperty('--dpk-floating-menu-clearance', value);
@@ -917,6 +918,7 @@ export abstract class ViewElement<S> extends LitElement {
             ${regions.header ?? nothing}
             <slot name="header"></slot>
           </div>
+          ${renderFloatingMenuSlot(this.#floatingMenu.placement)}
           <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
           ${renderSettingsTrigger(messages, this.settingsTriggerIntents)}
         </header>

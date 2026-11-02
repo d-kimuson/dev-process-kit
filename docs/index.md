@@ -341,14 +341,18 @@ draft action.
   content, and on a phone the title takes a row of its own.
 - **The floating menu** carries the page's own controls, in one row or one column: the grip, undo and
   redo, the review's sections (**Review comments**, **Activity log**, and **Questions** while the page
-  asks any), then Check Mode and the changes bell. The reader drags it by its grip and it snaps to
-  the nearest edge on release; its orientation follows that edge, so it is one row along the top or
-  bottom and one column along the left or right. Focusing the grip and pressing an arrow key docks
-  it to that edge, and Home / End send it to the start or the end of the edge it is on. Where it was
-  left is remembered per content (`localStorage` key `dev-process-kit:menu:<content>`) and clamped
-  into the window on restore and on resize; it is the reader's own state, never part of the draft and
-  never sent to the agent. It keeps clear of the header row, so a menu docked to the top edge never
-  covers the title or its controls.
+  asks any), then Check Mode and the changes bell. It opens in the header, as one row beside the
+  reader's own tools. The reader drags it out by its grip; while it is carried, the header shows the
+  room it can go back into and an outline shows the edge it would land on. On release it snaps back
+  into the header when let go over the header row, else to the nearest edge; its orientation follows
+  that edge, so it is one row along the top or bottom and one column along the left or right.
+  Focusing the grip and pressing an arrow key docks it to that edge (ArrowUp on the top edge puts it
+  back in the header), and Home / End send it to the start or the end of the edge it is on. A narrow
+  screen (720px or less) has no room in the header, so a menu kept there is drawn at the top of the
+  right edge. Where it was left is remembered per content (`localStorage` key
+  `dev-process-kit:menu:<content>`) and clamped into the window on restore and on resize; it is the
+  reader's own state, never part of the draft and never sent to the agent. It keeps clear of the
+  header row, so a menu docked to the top edge never covers the title or its controls.
 
 A page inside `<dpk-app>` draws neither of them: the app owns the screen. Its own header controls
 sit in a bar under the app's header instead, with no title of their own, since the header above

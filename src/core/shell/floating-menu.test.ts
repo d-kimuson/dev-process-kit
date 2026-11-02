@@ -14,6 +14,17 @@ import {
   nearestMenuEdge,
   orientationOf,
   parseMenuDock,
+  parseMenuSpot,
+  droppedMenuSpot,
+  HEADER_SPOT,
+  keyedMenuSpot,
+  menuSizeAs,
+  menuGhostOf,
+  menuSlotState,
+  restingMenuBox,
+  restingMenuInsets,
+  spotOrientation,
+  type MenuSpot,
   type MenuArea,
   type MenuDock,
   type MenuInset,
@@ -46,9 +57,9 @@ describe('floating menu placement', () => {
     expect(orientationOf('right')).toBe('vertical');
   });
 
-  it('opens at the top of the right edge, clear of the rail and of the hand-off dock', () => {
-    expect(FLOATING_MENU.default).toEqual({ edge: 'right', offset: margin });
-    expect(dockedMenuBox(FLOATING_MENU.default, COLUMN, AREA)).toEqual({
+  it('falls back to the top of the right edge, clear of the rail and of the hand-off dock', () => {
+    expect(FLOATING_MENU.fallback).toEqual({ edge: 'right', offset: margin });
+    expect(dockedMenuBox(FLOATING_MENU.fallback, COLUMN, AREA)).toEqual({
       left: AREA.left + AREA.width - COLUMN.width - margin,
       top: margin,
     });
@@ -157,10 +168,120 @@ describe('floating menu placement', () => {
 });
 
 describe('the room a docked menu takes', () => {
-  it('is the menu plus its margin on the right edge, and nothing on the others', () => {
-    expect(menuClearanceOf('right', 44)).toBe(44 + FLOATING_MENU.margin);
-    for (const edge of ['top', 'bottom', 'left'] as const) expect(menuClearanceOf(edge, 44)).toBe(0);
+  const at = (edge: MenuDock['edge']): MenuSpot => ({ kind: 'edge', dock: { edge, offset: margin } });
+
+  it('is the menu plus its margin on the right edge, and nothing on the others or in the header', () => {
+    expect(menuClearanceOf(at('right'), 44)).toBe(44 + FLOATING_MENU.margin);
+    for (const edge of ['top', 'bottom', 'left'] as const) expect(menuClearanceOf(at(edge), 44)).toBe(0);
+    expect(menuClearanceOf(HEADER_SPOT, 300)).toBe(0);
     // Before measurement there is nothing to step aside for yet.
-    expect(menuClearanceOf('right', 0)).toBe(0);
+    expect(menuClearanceOf(at('right'), 0)).toBe(0);
+  });
+});
+
+describe('the header spot', () => {
+  /** The same screen, with a 44px header row above the menu's area. */
+  const BELOW_HEADER: MenuArea = { left: 0, top: 44, width: 1200, height: 756 };
+  const edge = (dock: MenuDock): MenuSpot => ({ kind: 'edge', dock });
+
+  it('is where the menu opens, lying as one row', () => {
+    expect(FLOATING_MENU.default).toEqual(HEADER_SPOT);
+    expect(spotOrientation(HEADER_SPOT)).toBe('horizontal');
+    expect(spotOrientation(edge({ edge: 'left', offset: 40 }))).toBe('vertical');
+  });
+
+  it('takes a menu let go over the header row, and leaves the rest of the screen to the edges', () => {
+    // Its top reaches into the header row: it snaps into the header.
+    expect(droppedMenuSpot({ left: 600, top: 30 }, ROW, BELOW_HEADER, true)).toEqual(HEADER_SPOT);
+    // Just below the header it hangs from the top edge, as before.
+    expect(droppedMenuSpot({ left: 600, top: 50 }, ROW, BELOW_HEADER, true)).toEqual(
+      edge({ edge: 'top', offset: 600 }),
+    );
+    // A header with no room for the menu takes nothing: the nearest edge does.
+    expect(droppedMenuSpot({ left: 600, top: 30 }, ROW, BELOW_HEADER, false)).toEqual(
+      edge({ edge: 'top', offset: 600 }),
+    );
+  });
+
+  it('goes into the header with a second ArrowUp, and leaves it with the other arrows', () => {
+    const top = edge({ edge: 'top', offset: 300 });
+    expect(keyedMenuSpot(edge({ edge: 'left', offset: 300 }), { key: 'ArrowUp' }, ROW, AREA, true)).toEqual(top);
+    expect(keyedMenuSpot(top, { key: 'ArrowUp' }, ROW, AREA, true)).toEqual(HEADER_SPOT);
+    // A header with no room for the menu keeps it on the top edge.
+    expect(keyedMenuSpot(top, { key: 'ArrowUp' }, ROW, AREA, false)).toEqual(top);
+    expect(keyedMenuSpot(HEADER_SPOT, { key: 'ArrowDown' }, ROW, AREA, true)).toEqual(
+      edge({ edge: 'bottom', offset: margin }),
+    );
+    expect(keyedMenuSpot(HEADER_SPOT, { key: 'ArrowRight' }, COLUMN, AREA, true)).toEqual(
+      edge({ edge: 'right', offset: margin }),
+    );
+    // Already as high as it goes; Home and End have no edge to run along.
+    expect(keyedMenuSpot(HEADER_SPOT, { key: 'ArrowUp' }, ROW, AREA, true)).toBeNull();
+    expect(keyedMenuSpot(HEADER_SPOT, { key: 'Home' }, ROW, AREA, true)).toBeNull();
+    expect(keyedMenuSpot(HEADER_SPOT, { key: 'Enter' }, ROW, AREA, true)).toBeNull();
+  });
+
+  it('estimates the size the menu will have in the other orientation by turning it', () => {
+    expect(menuSizeAs('horizontal', COLUMN, 'vertical')).toEqual(ROW);
+    expect(menuSizeAs('vertical', COLUMN, 'vertical')).toEqual(COLUMN);
+  });
+
+  it('reads back what it stored, and a bare dock stored before the header had a slot', () => {
+    const left = edge({ edge: 'left', offset: 220 });
+    for (const spot of [HEADER_SPOT, left]) expect(parseMenuSpot(JSON.parse(JSON.stringify(spot)))).toEqual(spot);
+    expect(parseMenuSpot({ edge: 'left', offset: 220 })).toEqual(left);
+    expect(parseMenuSpot({ kind: 'nowhere' })).toBeNull();
+    expect(parseMenuSpot(null)).toBeNull();
+  });
+});
+
+describe("the header's slot", () => {
+  const left: MenuSpot = { kind: 'edge', dock: { edge: 'left', offset: 40 } };
+
+  it('holds the menu that is in it, and offers itself while the menu is carried', () => {
+    expect(menuSlotState(HEADER_SPOT, null)).toBe('holding');
+    expect(menuSlotState(left, null)).toBe('empty');
+    expect(menuSlotState(left, left)).toBe('offered');
+    expect(menuSlotState(HEADER_SPOT, left)).toBe('offered');
+    expect(menuSlotState(left, HEADER_SPOT)).toBe('targeted');
+  });
+});
+
+describe('where a resting menu is drawn', () => {
+  const SLOT = { left: 700, top: 6 };
+  const right: MenuSpot = { kind: 'edge', dock: { edge: 'right', offset: 40 } };
+
+  it("sits on the header's slot, and against its edge elsewhere", () => {
+    expect(restingMenuBox(HEADER_SPOT, SLOT, ROW, AREA)).toEqual(SLOT);
+    expect(restingMenuBox(right, SLOT, COLUMN, AREA)).toEqual(
+      dockedMenuBox({ edge: 'right', offset: 40 }, COLUMN, AREA),
+    );
+    expect(restingMenuInsets(HEADER_SPOT, SLOT, AREA)).toEqual([
+      { side: 'left', value: SLOT.left },
+      { side: 'top', value: SLOT.top },
+    ]);
+    expect(restingMenuInsets(right, SLOT, AREA)).toEqual(dockedMenuInsets({ edge: 'right', offset: 40 }, AREA));
+  });
+
+  it('falls back to its edge when the header has no slot to hold it', () => {
+    expect(restingMenuBox(HEADER_SPOT, null, COLUMN, AREA)).toEqual(
+      dockedMenuBox(FLOATING_MENU.fallback, COLUMN, AREA),
+    );
+    expect(restingMenuInsets(HEADER_SPOT, null, AREA)).toEqual(dockedMenuInsets(FLOATING_MENU.fallback, AREA));
+  });
+});
+
+describe('the ghost of an edge drop', () => {
+  it('is drawn at the dock, turned to lie along its edge and held inside it', () => {
+    // A column carried to the bottom edge lands as a row, clamped by the row's own width.
+    const ghost = menuGhostOf({ edge: 'bottom', offset: 5_000 }, COLUMN, 'vertical', AREA);
+    expect(ghost).toEqual({
+      ...dockedMenuBox({ edge: 'bottom', offset: AREA.width - ROW.width - margin }, ROW, AREA),
+      ...ROW,
+    });
+    expect(menuGhostOf({ edge: 'left', offset: 100 }, COLUMN, 'vertical', AREA)).toEqual({
+      ...dockedMenuBox({ edge: 'left', offset: 100 }, COLUMN, AREA),
+      ...COLUMN,
+    });
   });
 });
