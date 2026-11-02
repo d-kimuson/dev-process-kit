@@ -14,6 +14,7 @@ import {
   flattenMessages,
   layoutSequence,
   messageNumbers,
+  PARTICIPANT_PITCH,
   parseSequenceData,
   type SequenceDiagramData,
   type SequenceFragment,
@@ -91,7 +92,11 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
 
   protected override onViewChange(view: ViewState): void {
     const rail = this.renderRoot.querySelector<HTMLElement>('.sequence-rail-world');
-    if (rail) rail.style.transform = `translateX(${view.x}px) scale(${view.scale})`;
+    if (rail === null) return;
+    // The rail follows the canvas's pan and zoom with where its cards sit, not
+    // their size: a scaled card would grow past the rail's height and be cut off.
+    rail.style.transform = `translateX(${view.x}px)`;
+    rail.style.setProperty('--sequence-scale', String(view.scale));
   }
 
   protected override hasSelection(selection: SequenceSelection): boolean {
@@ -222,7 +227,12 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
     if (layout === null) return nothing;
     const m = sequenceDiagramMessages(this.locale);
     return html`
-      <div class="sequence-rail" role="group" aria-label=${m.participants}>
+      <div
+        class="sequence-rail"
+        role="group"
+        aria-label=${m.participants}
+        style="--sequence-pitch:${PARTICIPANT_PITCH}px"
+      >
         <div class="sequence-rail-world">
           ${layout.participants.map((participant) => this.#renderParticipant(participant, layout))}
         </div>
@@ -240,7 +250,7 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
         data-participant=${participant.id}
         data-grill-questions=${this.questionsOf(participant)}
         data-dpk-target=${this.commentRef('participant', participant.id)}
-        style="left:${center - 95}px"
+        style="--sequence-center:${center}px"
         aria-pressed=${state.selected ? 'true' : 'false'}
         title=${participant.description ?? participant.name}
         @click=${() => this.select({ kind: 'participant', id: participant.id })}

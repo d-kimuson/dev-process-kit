@@ -321,6 +321,16 @@ describe('dpk-board-sequence-diagram', () => {
     ).toMatch(/^\d+%$/);
   });
 
+  it('follows the zoom with the rail cards’ places, not their size, so a zoomed-in card is not cut off', async () => {
+    const element = await mount();
+    element.renderRoot
+      .querySelector('dpk-dialog-panel')
+      ?.dispatchEvent(new CustomEvent('dpk-canvas-change', { detail: { view: { x: 30, y: 0, scale: 2 } } }));
+    const rail = element.renderRoot.querySelector<HTMLElement>('.sequence-rail-world');
+    expect(rail?.style.transform).toBe('translateX(30px)');
+    expect(rail?.style.getPropertyValue('--sequence-scale')).toBe('2');
+  });
+
   it('renders its kit text in the element’s language', async () => {
     const ja = sequenceDiagramMessages('ja');
     const element = await mount('ja');

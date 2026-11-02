@@ -22,10 +22,16 @@ export const sequenceStyles = css`
     transform-origin: 0 0;
   }
 
+  /*
+   * A card keeps its size at any zoom (only its centre follows the lifeline),
+   * and narrows only when zooming out brings the lifelines closer than it is wide.
+   */
   .sequence-participant {
+    --sequence-card-width: min(190px, calc(var(--sequence-pitch) * var(--sequence-scale, 1) - 12px));
     position: absolute;
     top: 9px;
-    width: 190px;
+    left: calc(var(--sequence-center) * var(--sequence-scale, 1) - var(--sequence-card-width) / 2);
+    width: var(--sequence-card-width);
     height: 44px;
     display: flex;
     align-items: center;
