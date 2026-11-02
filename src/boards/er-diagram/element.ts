@@ -96,7 +96,12 @@ import {
  * these exact tuning numbers instead of a copy that could quietly drift.
  */
 export const LAYOUT = {
-  nodeSpacing: 40,
+  // Wide enough that the lane a relation runs beside a card (half of this)
+  // clears both the port's end glyph and a line jump over that lane; at the
+  // old 40 every crossing next to a card sat under a glyph and stayed plain.
+  // The extra room also lets routes take the gap between two tables, which
+  // trades a few more crossings (now jumped) for fewer hugging/parallel runs.
+  nodeSpacing: 64,
   layerSpacing: 136,
   // A Bounded Context frame extends BC_PADDING on every side and another
   // BC_LABEL_SPACE above its topmost table. The world box has to contain that

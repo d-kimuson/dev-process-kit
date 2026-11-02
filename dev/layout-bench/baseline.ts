@@ -404,17 +404,31 @@
  * named priority) and `synthetic-self-reference` 334.62→334.78 (+0.05%, four
  * stubs 8px longer). `order-schema` (173→128) and `synthetic-hub-table`
  * (428.37→428.05) improve with it.
+ *
+ * 2026-11 (ERD line jumps): `LAYOUT.nodeSpacing` 40→64, so the lane a route
+ * runs beside a card (half the gap) clears both the port's end glyph and a
+ * line jump over that lane — at 40 a crossing next to a card always sat under
+ * a glyph and stayed a plain one. The reader asked for the wider gap knowing
+ * it trades crossings for room: the gap between two tables becomes routable,
+ * so routes take it and cross more (now drawn as jumps), while hugging and
+ * parallel runs fall. A conscious rise: `er-complex` 4722→5485,
+ * `synthetic-cross-bc` 761→1018, `synthetic-hub-table` 428→441,
+ * `synthetic-random-2` 5178→5302; `order-schema` (128→111),
+ * `synthetic-self-reference` (334.78→328.53) and `synthetic-random-1`
+ * (4706→4563) improve. Every hard metric stays 0. 48–80 were all measured:
+ * each costs `er-complex` about the same +8–12 crossings, and 62 is the
+ * smallest gap the jump needs.
  */
 export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 4721.999988081431,
-  'order-schema': 128.22094167409958,
+  'er-complex': 5484.767265476019,
+  'order-schema': 110.86102396717018,
   'er-long-names': 156.8217124073083,
   'synthetic-no-bc': 1366.4620464945997,
-  'synthetic-cross-bc': 761.3599380406827,
-  'synthetic-hub-table': 428.0460727969348,
-  'synthetic-self-reference': 334.7799859624496,
-  'synthetic-random-1': 4706.081192034428,
-  'synthetic-random-2': 5178.028837518731,
+  'synthetic-cross-bc': 1018.4808027079304,
+  'synthetic-hub-table': 441.293100711549,
+  'synthetic-self-reference': 328.5345323741007,
+  'synthetic-random-1': 4562.875239490461,
+  'synthetic-random-2': 5301.674502986938,
 };
 
 /**
@@ -492,17 +506,23 @@ export const LAYOUT_BENCH_BASELINE: Readonly<Record<string, number>> = {
  * `synthetic-random-1` 32→24 and `synthetic-random-2` 35→31. `order-schema`
  * (0), `er-long-names` (0), `synthetic-no-bc` (0), `synthetic-hub-table` (2)
  * and `synthetic-self-reference` (2) are unchanged.
+ *
+ * 2026-11 (ERD line jumps, see `LAYOUT_BENCH_BASELINE` above): the wider
+ * `nodeSpacing` opens the gap between two tables to routing, which is where
+ * the added crossings are — and where they are now drawn as line jumps.
+ * `er-complex` 32→43, `synthetic-cross-bc` 3→6, `synthetic-random-1` 24→31,
+ * `synthetic-random-2` 31→40; the rest are unchanged.
  */
 export const LAYOUT_BENCH_CROSSINGS_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 32,
+  'er-complex': 43,
   'order-schema': 0,
   'er-long-names': 0,
   'synthetic-no-bc': 0,
-  'synthetic-cross-bc': 3,
+  'synthetic-cross-bc': 6,
   'synthetic-hub-table': 2,
   'synthetic-self-reference': 2,
-  'synthetic-random-1': 24,
-  'synthetic-random-2': 31,
+  'synthetic-random-1': 31,
+  'synthetic-random-2': 40,
 };
 
 /**
@@ -586,17 +606,22 @@ export const LAYOUT_BENCH_CROSSINGS_BASELINE: Readonly<Record<string, number>> =
  * 42→32: no route is drawn *on* a border, and `outlineHugging.length` (the
  * visible extent) rises by 700 of ~3,800px. `order-schema` (2→0),
  * `synthetic-cross-bc` (7→6) improve; `synthetic-random-1` stays at 12.
+ *
+ * 2026-11 (ERD line jumps, see `LAYOUT_BENCH_BASELINE` above): the wider gap
+ * between tables lets routes keep off the outlines — `er-complex` 16→8,
+ * `synthetic-random-1` 12→5, `synthetic-random-2` 16→15; the rest are
+ * unchanged.
  */
 export const LAYOUT_BENCH_OUTLINE_HUGGING_BASELINE: Readonly<Record<string, number>> = {
-  'er-complex': 16,
+  'er-complex': 8,
   'order-schema': 0,
   'er-long-names': 0,
   'synthetic-no-bc': 0,
   'synthetic-cross-bc': 6,
   'synthetic-hub-table': 0,
   'synthetic-self-reference': 0,
-  'synthetic-random-1': 12,
-  'synthetic-random-2': 16,
+  'synthetic-random-1': 5,
+  'synthetic-random-2': 15,
 };
 
 /**

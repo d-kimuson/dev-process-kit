@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { layeredLayout, type LayoutPoint } from '../../lib/layout/layered';
 import { routeHugsOutline } from '../../lib/layout/metrics';
 import { LAYOUT, LANE_MARGIN } from './element';
+import { LINE_JUMP_RADIUS } from './line-jumps';
 import { erDiagramMessages } from './messages';
 import { erLayoutSpec, parseErData, type ErTableDiff } from './model';
 import { END_GLYPH_REACH, endGlyph } from './notation';
@@ -740,6 +741,13 @@ describe('relation end glyphs sit on the drawn line', () => {
     // the margin-inflated box of the card across the nearest gap.
     expect(PORT_STRAIGHT).toBe(END_GLYPH_REACH);
     expect(PORT_STRAIGHT).toBeLessThanOrEqual(LANE_MARGIN);
+  });
+
+  it('leaves the lane beside a card room for a line jump clear of the port glyph', () => {
+    // A level run leaving a port crosses the lane beside the card one lane
+    // margin out; `jumpedPaths` only jumps a crossing that far from an end
+    // glyph, so a narrower gap keeps every such crossing a plain one.
+    expect(LANE_MARGIN).toBeGreaterThanOrEqual(END_GLYPH_REACH + LINE_JUMP_RADIUS);
   });
 
   it('draws a `0..N` end on the stroke even when the route bends right after the port', () => {
