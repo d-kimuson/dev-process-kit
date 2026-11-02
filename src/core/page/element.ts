@@ -57,9 +57,10 @@ export type PageContentState =
 export const PAGE_STATE_EVENT = 'dpk-page-state';
 
 /**
- * How long a page waits for an entry that loads with the document before it
- * answers. The entries of the document are evaluated within it; the wait is
- * only a bound for a tag nothing will define (or a resource that never loads).
+ * How long a page waits for its content's definition before it answers. An
+ * entry may register it after the document has loaded (an entry imported by
+ * another script), so the wait does not end at `load`; it is only a bound for
+ * a tag nothing will define (or a resource that never loads).
  */
 const CONTENT_DEFINITION_GRACE_MS = 1_000;
 
@@ -305,27 +306,22 @@ export class PageElement extends LitElement {
   }
 
   /**
-   * Whether the content's tag is defined, waiting for an entry that loads with
-   * the document (a module script that registers it, whatever the order of the
-   * page and the entry). The wait is bounded: once the document has loaded, or
-   * after a grace period (a resource that never loads keeps `load` pending),
-   * the page answers `false` and shows why. A definition that still arrives
-   * later is caught by `customElements.whenDefined` in `#findContent`.
+   * Whether the content's tag is defined, waiting for the entry that registers
+   * it, whatever the order of the page and the entry and whether the entry loads
+   * with the document or is imported after it. The wait is bounded by a grace
+   * period: answering at `load` would flash the notice for an entry still being
+   * imported. A definition that still arrives later is caught by
+   * `customElements.whenDefined` in `#findContent`.
    */
   async #defined(tag: string): Promise<boolean> {
     if (customElements.get(tag) !== undefined) return true;
-    if (document.readyState === 'complete') return false;
     return new Promise<boolean>((resolve) => {
-      const finish = (defined: boolean): void => {
+      const timeout = setTimeout(() => resolve(customElements.get(tag) !== undefined), CONTENT_DEFINITION_GRACE_MS);
+      // A definition that arrives before the bound answers at once.
+      void customElements.whenDefined(tag).then(() => {
         clearTimeout(timeout);
-        window.removeEventListener('load', onLoad);
-        resolve(defined);
-      };
-      const onLoad = (): void => finish(customElements.get(tag) !== undefined);
-      const timeout = setTimeout(() => finish(customElements.get(tag) !== undefined), CONTENT_DEFINITION_GRACE_MS);
-      window.addEventListener('load', onLoad, { once: true });
-      // A definition that arrives before the bound answers at once, however slowly the document loads.
-      void customElements.whenDefined(tag).then(() => finish(true));
+        resolve(true);
+      });
     });
   }
 

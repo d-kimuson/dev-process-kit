@@ -56,25 +56,37 @@ describe('dpk-page content state', () => {
     expect(notices(page)).toContain(messages.pageEmpty);
   });
 
-  it('settles unavailable when no loaded entry defines its content, and says which tag', async () => {
+  it('answers unavailable after its grace period when no entry defines its content, and says which tag', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const page = mountPage('missing', 'dpk-board-missing');
-    await page.ready;
-    await settle(page);
-    expect(page.contentState).toEqual({ status: 'unavailable', tag: 'dpk-board-missing' });
-    expect(notices(page)).toContain(messages.pageUnavailableHint('dpk-board-missing'));
+    vi.useFakeTimers();
+    try {
+      const tag = 'dpk-board-never-defined';
+      const page = mountPage('never', tag);
+      await Promise.resolve();
+      expect(page.contentState).toBeNull();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await page.ready;
+      await page.updateComplete;
+      expect(page.contentState).toEqual({ status: 'unavailable', tag });
+      expect(notices(page)).toContain(messages.pageUnavailableHint(tag));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it('waits for a definition that loads with the document', async () => {
-    vi.spyOn(document, 'readyState', 'get').mockReturnValue('loading');
-    const tag = 'dpk-board-late-load';
-    const page = mountPage('late-load', tag);
-    await Promise.resolve();
+  it('waits for a definition registered after the document loaded, without answering unavailable first', async () => {
+    // An entry imported by another script registers its tags after `load`.
+    const tag = 'dpk-board-late-import';
+    const page = mountPage('late-import', tag);
+    const states: PageContentState[] = [];
+    page.addEventListener(PAGE_STATE_EVENT, (event) => states.push((event as CustomEvent<PageContentState>).detail));
+    await settle(page);
     expect(page.contentState).toBeNull();
+    expect(notices(page)).toBe('');
     customElements.define(tag, class extends FakeBoard {});
     await page.ready;
     await settle(page);
-    expect(page.contentState).toEqual({ status: 'ready' });
+    expect(states).toEqual([{ status: 'ready' }]);
   });
 
   it('becomes ready when a content element arrives after it settled empty', async () => {
@@ -92,28 +104,16 @@ describe('dpk-page content state', () => {
 
   it('recovers when a definition arrives after it answered unavailable', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const tag = 'dpk-board-recovered';
-    const page = mountPage('recovered', tag);
-    await page.ready;
-    await settle(page);
-    expect(page.contentState).toEqual({ status: 'unavailable', tag });
-    customElements.define(tag, class extends FakeBoard {});
-    await settle(page);
-    expect(page.contentState).toEqual({ status: 'ready' });
-  });
-
-  it('answers unavailable after its grace period when no definition is coming', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    vi.spyOn(document, 'readyState', 'get').mockReturnValue('loading');
     vi.useFakeTimers();
     try {
-      const tag = 'dpk-board-never-defined';
-      const page = mountPage('never', tag);
-      await Promise.resolve();
-      expect(page.contentState).toBeNull();
+      const tag = 'dpk-board-recovered';
+      const page = mountPage('recovered', tag);
       await vi.advanceTimersByTimeAsync(5_000);
       await page.ready;
       expect(page.contentState).toEqual({ status: 'unavailable', tag });
+      customElements.define(tag, class extends FakeBoard {});
+      await vi.advanceTimersByTimeAsync(0);
+      expect(page.contentState).toEqual({ status: 'ready' });
     } finally {
       vi.useRealTimers();
     }
