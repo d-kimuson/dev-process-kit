@@ -121,7 +121,7 @@ export const renderFloatingMenuSlot = (
       data-tooltip=${m.menuReturn}
       @click=${intents.toHeader}
     >
-      ${iconArrowUpToLine()}<span class="dpk-menu-return-label">${m.menuReturnLabel}</span>
+      ${iconArrowUpToLine()}
     </button>`;
   return html`<div
     class="dpk-menu-slot"
@@ -217,24 +217,19 @@ export const floatingMenuStyles = css`
       color 160ms var(--dpk-ease);
   }
 
-  /* The button that brings the menu back: an action in words, tinted with the
-     accent, so it reads as something to press rather than one more icon. */
+  /* The button that brings the menu back is tinted with the accent, so among
+     the header's grey icon buttons it reads as the one waiting to be pressed. */
   .dpk-menu-return {
-    width: auto;
-    gap: 6px;
-    padding: 0 12px 0 10px;
-    border-color: color-mix(in srgb, var(--dpk-accent) 45%, transparent);
-    background: var(--dpk-accent-soft);
+    border-color: color-mix(in srgb, var(--dpk-accent) 60%, transparent);
+    background: color-mix(in srgb, var(--dpk-accent) 14%, transparent);
     color: var(--dpk-accent);
-    font: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
   }
 
+  /* Filled under the pointer, the accent's own button look: it reads as pressable. */
   .dpk-menu-return:hover {
     border-color: var(--dpk-accent);
-    color: var(--dpk-accent-strong);
+    background: var(--dpk-accent);
+    color: var(--dpk-accent-ink);
     box-shadow:
       var(--dpk-bevel),
       0 6px 16px -8px color-mix(in srgb, var(--dpk-accent) 70%, transparent);
@@ -243,6 +238,12 @@ export const floatingMenuStyles = css`
   .dpk-menu-slot[data-drop='offered'] {
     outline-color: var(--dpk-rule-strong);
     background: var(--dpk-paper-sunken);
+  }
+
+  /* Offered under a drag, the button keeps its tint: it is still the way back. */
+  .dpk-menu-return[data-drop='offered'] {
+    outline-color: color-mix(in srgb, var(--dpk-accent) 60%, transparent);
+    background: color-mix(in srgb, var(--dpk-accent) 14%, transparent);
   }
 
   .dpk-menu-slot[data-drop='targeted'] {

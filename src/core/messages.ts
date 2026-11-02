@@ -14,7 +14,6 @@ export const coreMessages = defineMessages({
     menu: 'Page menu',
     menuMove: 'Move this menu',
     menuReturn: 'Put the menu back in the header',
-    menuReturnLabel: 'Restore menu',
     /** The settings dialog's first (kit) section: the template's switches. */
     settingsDisplay: 'Display',
     settingsAppearance: 'Appearance',
@@ -107,7 +106,6 @@ export const coreMessages = defineMessages({
     menu: 'ページのメニュー',
     menuMove: 'このメニューを移動',
     menuReturn: 'メニューをヘッダーに戻す',
-    menuReturnLabel: 'メニューを戻す',
     settingsDisplay: '表示',
     settingsAppearance: '外観',
     settingsTheme: 'テーマ',
