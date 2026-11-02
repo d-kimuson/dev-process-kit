@@ -92,10 +92,13 @@ describe('the page chrome', () => {
     expect(row?.querySelector('.dpk-header-tools .dpk-lang-select')).not.toBeNull();
     expect(row?.querySelector('.dpk-header-tools .dpk-theme-toggle')).not.toBeNull();
     expect(row?.querySelector('.dpk-header .dpk-settings-trigger')).not.toBeNull();
-    // The floating menu's room sits before the reader's tools; jsdom lays it out
-    // nowhere, so the menu it would hold is at its fallback edge and the room is empty.
-    expect(row?.querySelector('.dpk-menu-slot + .dpk-header-tools')).not.toBeNull();
+    // The floating menu's room ends the row, after the settings gear; jsdom lays it
+    // out nowhere, so the menu it would hold is at its fallback edge and the room is empty.
+    expect(row?.lastElementChild?.classList.contains('dpk-menu-slot')).toBe(true);
+    expect(row?.querySelector('.dpk-settings-trigger + .dpk-menu-slot')).not.toBeNull();
     expect(row?.querySelector('.dpk-menu-slot')?.getAttribute('data-state')).toBe('empty');
+    // The review's toggles end the menu, so the review opens right under them.
+    expect(menu(element)?.lastElementChild?.classList.contains('dpk-review-toggles')).toBe(true);
     // A page with nothing to switch has no switcher; the app adds one.
     expect(row?.querySelector('.dpk-page-switcher-trigger')).toBeNull();
     // A view that owns the screen draws no second bar for its own controls.
@@ -112,9 +115,9 @@ describe('the page chrome', () => {
       messages.menuMove,
       messages.undo,
       messages.redo,
+      messages.checkModeOff,
       `${messages.reviewComments} (0)`,
       `${messages.reviewChanges} (0)`,
-      messages.checkModeOff,
     ]);
   });
 

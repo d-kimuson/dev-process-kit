@@ -1,10 +1,11 @@
 /**
  * The floating menu's markup and look.
  *
- * It carries the page's own controls — undo and redo, the review's sections,
- * Check Mode and the changes bell — and nothing about where it goes: the spot
- * it rests at, its orientation and its position come from `floating-menu.ts`,
- * and the effects from `floating-menu-controller.ts`.
+ * It carries the page's own controls — undo and redo, Check Mode and the
+ * changes bell, then the review's sections last, so the review opens right
+ * under them — and nothing about where it goes: the spot it rests at, its
+ * orientation and its position come from `floating-menu.ts`, and the effects
+ * from `floating-menu-controller.ts`.
  *
  * Every button in it is a `.dpk-chrome-action`, the icon-button class the
  * header's own controls use too, so the screen's chrome is one kind of thing.
@@ -86,16 +87,17 @@ export const renderFloatingMenu = (
       >
         ${orientation === 'horizontal' ? iconGripHorizontal() : iconGrip()}
       </button>
-      ${contents.undoRedo} ${separator(orientation)} ${contents.review} ${separator(orientation)}
+      ${contents.undoRedo} ${separator(orientation)}
       <div class="dpk-menu-tools">${contents.checkMode} ${contents.notices}</div>
+      ${separator(orientation)} ${contents.review}
     </div>`;
 };
 
 /**
- * The room the header holds for the menu, between the page's own header
- * controls and the reader's tools. The menu is not inside it — it stays in the
- * overlay, so a drag keeps its pointer capture — but is drawn over it; while
- * the menu is carried, the slot shows itself as a place it can be let go.
+ * The room the header holds for the menu, at the end of its row after the
+ * settings gear. The menu is not inside it — it stays in the overlay, so a
+ * drag keeps its pointer capture — but is drawn over it; while the menu is
+ * carried, the slot shows itself as a place it can be let go.
  */
 export const renderFloatingMenuSlot = (placement: FloatingMenuPlacement): TemplateResult => {
   const { state, width } = placement.slot;
@@ -262,7 +264,7 @@ export const floatingMenuStyles = css`
     margin: 2px 4px;
   }
 
-  /* The last group of the menu: Check Mode, then the changes bell. */
+  /* The group before the review's sections: Check Mode, then the changes bell. */
   .dpk-menu-tools {
     display: flex;
     align-items: center;

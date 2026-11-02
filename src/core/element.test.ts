@@ -279,9 +279,9 @@ describe('<dpk-view-prototype>', () => {
       messages.menuMove,
       messages.undo,
       messages.redo,
+      messages.checkModeOff,
       messages.reviewComments,
       messages.reviewChanges,
-      messages.checkModeOff,
     ]);
     expect(menu?.querySelector('.dpk-review-toggle')?.hasAttribute('title')).toBe(false);
   });

@@ -918,9 +918,9 @@ export abstract class ViewElement<S> extends LitElement {
             ${regions.header ?? nothing}
             <slot name="header"></slot>
           </div>
-          ${renderFloatingMenuSlot(this.#floatingMenu.placement)}
           <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
           ${renderSettingsTrigger(messages, this.settingsTriggerIntents)}
+          ${renderFloatingMenuSlot(this.#floatingMenu.placement)}
         </header>
         ${this.#renderBody(regions)} ${this.#renderFooter(regions)}
         <div slot="overlay" class="dpk-overlay">

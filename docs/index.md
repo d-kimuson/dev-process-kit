@@ -340,9 +340,9 @@ draft action.
   wraps rather than squeezing its
   content, and on a phone the title takes a row of its own.
 - **The floating menu** carries the page's own controls, in one row or one column: the grip, undo and
-  redo, the review's sections (**Review comments**, **Activity log**, and **Questions** while the page
-  asks any), then Check Mode and the changes bell. It opens in the header, as one row beside the
-  reader's own tools. The reader drags it out by its grip; while it is carried, the header shows the
+  redo, Check Mode and the changes bell, then the review's sections last (**Review comments**,
+  **Activity log**, and **Questions** while the page asks any), so the review opens right under
+  them. It opens in the header, as one row at the end of it after the settings gear. The reader drags it out by its grip; while it is carried, the header shows the
   room it can go back into and an outline shows the edge it would land on. On release it snaps back
   into the header when let go over the header row, else to the nearest edge; its orientation follows
   that edge, so it is one row along the top or bottom and one column along the left or right.
@@ -627,7 +627,7 @@ The floating menu gets a bell (after Check Mode), and each reader is told only w
 
 ## Check Mode
 
-A toggle in the floating menu, after the review's own sections, lets the reader tally what they have already looked over during a long review, independent of comments or questions. Turning it on shows a small badge at the corner of every element already marked `data-dpk-target` — the same marker [Change notices](#change-notices)' **Show** and the [context menu](#context-menu) use, so most views need no change to support it: a content page's own [targets](#targets) list is what Check Mode covers. Clicking a badge marks it checked; clicking again clears it.
+A toggle in the floating menu, before the review's own sections, lets the reader tally what they have already looked over during a long review, independent of comments or questions. Turning it on shows a small badge at the corner of every element already marked `data-dpk-target` — the same marker [Change notices](#change-notices)' **Show** and the [context menu](#context-menu) use, so most views need no change to support it: a content page's own [targets](#targets) list is what Check Mode covers. Clicking a badge marks it checked; clicking again clears it.
 
 A badge is a child of the box its target is laid out in, so it travels with the target — a scroll of its own column, a diagram pan, a zoom, a maximized panel — instead of being pinned over the page ([ADR](../dev-docs/adr/20261026_badge-portals.md)). A target panned out of a diagram's canvas takes its badge out of view with it.
 
