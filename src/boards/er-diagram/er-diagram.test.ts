@@ -1819,6 +1819,43 @@ describe('dpk-board-er-diagram', () => {
         expect(positionOf('orders')).toEqual(before.orders);
       });
 
+      it('draws a relation between two Bounded Contexts only while a hover or the selection lights it, the frames shown or not', async () => {
+        const element = new DpkBoardErDiagram();
+        element.data = twoBcData();
+        document.body.append(element);
+        await settle(element);
+        const concealed = () =>
+          [...element.renderRoot.querySelectorAll<HTMLElement>('.er-edge.is-concealed')].map(
+            (edge) => edge.dataset['relation'],
+          );
+        const cross = 'customers:id>orders:customer_id';
+        expect(concealed()).toEqual([cross]);
+
+        const card = element.renderRoot.querySelector('[data-er-table="customers"]');
+        card?.dispatchEvent(new Event('pointerenter'));
+        await settle(element);
+        expect(concealed()).toEqual([]);
+        card?.dispatchEvent(new Event('pointerleave'));
+        await settle(element);
+        expect(concealed()).toEqual([cross]);
+
+        element.renderRoot.querySelector<HTMLButtonElement>('[data-table="orders"]')?.click();
+        await settle(element);
+        expect(concealed()).toEqual([]);
+        element.renderRoot.querySelector<HTMLButtonElement>('[data-table="order_items"]')?.click();
+        await settle(element);
+        expect(concealed()).toEqual([cross]);
+
+        const toggle = [...element.renderRoot.querySelectorAll<HTMLButtonElement>('.er-grouping-filter button')].find(
+          (button) => button.textContent?.trim() === m.boundedContextLabel,
+        );
+        toggle?.click();
+        await settle(element);
+        expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+        expect(concealed()).toEqual([cross]);
+        element.remove();
+      });
+
       it('does not keep re-fitting a focused Bounded Context while harmless remeasurement nudges a card size by a sub-pixel (regression for #149)', async () => {
         // In the browser, `.er-table`'s ResizeObserver (re-armed on every render,
         // see `updated()`) fires a guaranteed notification each time it is
@@ -2203,37 +2240,68 @@ describe('dpk-board-er-diagram', () => {
       });
     });
 
-    it('filters columns with the three-way All / Keys / Tables-only control', async () => {
-      const element = await mount2();
-      const fieldsOf = (table: string) =>
-        [...element.renderRoot.querySelectorAll(`[data-er-table="${table}"] .er-field`)].map((row) =>
-          row.getAttribute('data-field'),
+    it('picks which relations draw at rest with the three-way control, without moving any table', async () => {
+      const table = (id: string, boundedContext: string, aggregate: string | null, ref?: string) => ({
+        id,
+        name: id,
+        tags: [],
+        boundedContext,
+        ...(aggregate === null ? {} : { aggregate }),
+        fields: [
+          { id: 'id', type: 'uuid', key: 'PK' },
+          ...(ref === undefined ? [] : [{ id: 'ref_id', type: 'uuid', key: 'FK', ref: `${ref}.id` }]),
+        ],
+      });
+      const element = new DpkBoardErDiagram();
+      element.data = parseErData({
+        after: {
+          tables: [
+            table('orders', 'sales', 'order'),
+            table('order_items', 'sales', 'order', 'orders'),
+            table('invoices', 'sales', 'invoice', 'orders'),
+            table('shipments', 'logistics', 'shipment', 'orders'),
+          ],
+        },
+      });
+      document.body.append(element);
+      await settle(element);
+      const option = (label: string): HTMLButtonElement => {
+        const button = [...element.renderRoot.querySelectorAll('.er-relation-scope button')].find(
+          (candidate) => candidate.textContent?.trim() === label,
         );
-      const option = (value: 'all' | 'keys' | 'tables-only'): HTMLButtonElement => {
-        const group = element.renderRoot.querySelector('.er-column-filter');
-        const button = [...(group?.querySelectorAll('button') ?? [])].find(
-          (_candidate, index) => ['all', 'keys', 'tables-only'][index] === value,
-        );
-        if (!(button instanceof HTMLButtonElement)) throw new Error(`no option for ${value}`);
+        if (!(button instanceof HTMLButtonElement)) throw new Error(`no option for ${label}`);
         return button;
       };
-      expect(fieldsOf('customers')).toEqual(['id', 'email', 'note']);
-      expect(option('all').getAttribute('aria-pressed')).toBe('true');
+      const concealed = () =>
+        [...element.renderRoot.querySelectorAll<HTMLElement>('.er-edge.is-concealed')]
+          .map((edge) => edge.dataset['relation'] ?? '')
+          .sort((a, b) => a.localeCompare(b));
+      const positionOf = (id: string) => {
+        const card = element.renderRoot.querySelector<HTMLElement>(`[data-er-table="${id}"]`);
+        return { left: card?.style.left, top: card?.style.top };
+      };
+      const before = ['orders', 'order_items', 'invoices', 'shipments'].map(positionOf);
+      const toShipments = 'orders:id>shipments:ref_id';
+      const toInvoices = 'orders:id>invoices:ref_id';
 
-      option('keys').click();
-      await settle(element);
-      expect(fieldsOf('customers')).toEqual(['id', 'email']);
-      expect(fieldsOf('profiles')).toEqual(['id', 'customer_id']);
-      expect(option('keys').getAttribute('aria-pressed')).toBe('true');
+      // Within BC by default: only the line into the other Bounded Context is concealed.
+      expect(option(m.relationScopeBoundedContext).getAttribute('aria-pressed')).toBe('true');
+      expect(concealed()).toEqual([toShipments]);
 
-      option('tables-only').click();
+      option(m.relationScopeAggregate).click();
       await settle(element);
-      expect(fieldsOf('customers')).toEqual([]);
-      expect(element.renderRoot.querySelector('[data-er-table="customers"] .er-fields')).toBeNull();
+      expect(option(m.relationScopeAggregate).getAttribute('aria-pressed')).toBe('true');
+      expect(option(m.relationScopeBoundedContext).getAttribute('aria-pressed')).toBe('false');
+      expect(concealed()).toEqual([toInvoices, toShipments]);
 
-      option('all').click();
+      option(m.relationScopeAll).click();
       await settle(element);
-      expect(fieldsOf('customers')).toEqual(['id', 'email', 'note']);
+      expect(concealed()).toEqual([]);
+
+      // Only lines appear and disappear: no table moved, and every column still renders.
+      expect(['orders', 'order_items', 'invoices', 'shipments'].map(positionOf)).toEqual(before);
+      expect(element.renderRoot.querySelectorAll('[data-er-table="order_items"] .er-field')).toHaveLength(2);
+      element.remove();
     });
 
     it('toggles the Bounded Context and aggregate frames independently from the bottom controls bar, without moving any table', async () => {

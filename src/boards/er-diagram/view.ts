@@ -11,6 +11,7 @@ import {
   type RouteSegment,
 } from '../../lib/layout/orthogonal-router';
 import { nudgeParallelRoutes, type NudgeInput } from '../../lib/layout/route-nudge';
+import { pathData, type PathStep } from './line-jumps';
 import { END_GLYPH_REACH } from './notation';
 
 /**
@@ -212,6 +213,47 @@ export const highlightOf = (edges: readonly ErRelation[], focus: readonly ErFocu
     columns.add(`${edge.from}.${edge.sourceField}`).add(`${edge.to}.${edge.targetField}`);
   }
   return { tables, edges: lit, columns };
+};
+
+/**
+ * Which relations the diagram draws at rest: every one, only those inside one
+ * Bounded Context, or only those inside one aggregate. A relation out of scope
+ * still appears while a focus lights it.
+ */
+export type RelationScope = 'all' | 'bounded-context' | 'aggregate';
+
+/**
+ * The relations out of `scope`, left undrawn until a focus lights them: lines
+ * that leave a frame run long and across the others. By Bounded Context, the
+ * tables outside every one share a side, so a schema that declares none
+ * conceals nothing. By aggregate, a table outside every one stands alone, as
+ * an aggregate of its own; a self-reference never leaves its table.
+ */
+export const concealedRelations = (
+  scope: RelationScope,
+  tables: readonly {
+    readonly id: string;
+    readonly boundedContext: string | null;
+    readonly aggregate: string | null;
+  }[],
+  edges: readonly ErRelation[],
+): ReadonlySet<string> => {
+  const byId = new Map(tables.map((table) => [table.id, table] as const));
+  const leaves = (edge: ErRelation): boolean => {
+    const from = byId.get(edge.from);
+    const to = byId.get(edge.to);
+    switch (scope) {
+      case 'all':
+        return false;
+      case 'bounded-context':
+        return from?.boundedContext !== to?.boundedContext;
+      case 'aggregate': {
+        const aggregate = from?.aggregate ?? null;
+        return edge.from !== edge.to && (aggregate === null || aggregate !== to?.aggregate);
+      }
+    }
+  };
+  return new Set(edges.filter(leaves).map((edge) => edge.id));
 };
 
 /** A table card's box in the world. */
@@ -826,19 +868,23 @@ const CORNER_RADIUS = 10;
  * may touch: the end glyphs are laid out along the port's own direction, so
  * the stroke has to stay straight underneath them (see `PORT_STRAIGHT`).
  */
-export const relationPath = (
+export const relationPath = (points: readonly LayoutPoint[], reach: number, straight: number = PORT_STRAIGHT): string =>
+  pathData(relationSteps(points, reach, straight));
+
+/** {@link relationPath} as drawing steps, so a later pass (`line-jumps.ts`) can see the geometry it draws. */
+export const relationSteps = (
   points: readonly LayoutPoint[],
   reach: number,
   straight: number = PORT_STRAIGHT,
-): string => {
+): readonly PathStep[] => {
   const start = points[0];
   const end = points.at(-1);
   if (start === undefined || end === undefined || !isForward(points))
-    return roundedPath(points, CORNER_RADIUS, straight);
-  const parts = [`M${point(start)}`];
+    return roundedSteps(points, CORNER_RADIUS, straight);
+  const steps: PathStep[] = [{ kind: 'move', to: start }];
   let at = start;
   const lineTo = (next: LayoutPoint) => {
-    if (next.x !== at.x || next.y !== at.y) parts.push(`L${point(next)}`);
+    if (next.x !== at.x || next.y !== at.y) steps.push({ kind: 'line', to: next });
     at = next;
   };
   // Points alternate: a jog is points[i] → points[i + 1] at one x.
@@ -865,11 +911,11 @@ export const relationPath = (
       continue;
     }
     lineTo({ x: round(top.x - r), y: top.y });
-    parts.push(`C${point(top)} ${point(bottom)} ${round(bottom.x + r)} ${bottom.y}`);
     at = { x: round(bottom.x + r), y: bottom.y };
+    steps.push({ kind: 'cubic', control1: top, control2: bottom, to: at });
   }
   lineTo(end);
-  return parts.join(' ');
+  return steps;
 };
 
 /** Level runs and vertical jogs in turn, starting and ending level, never turning back. */
@@ -883,8 +929,6 @@ export const isForward = (points: readonly LayoutPoint[]): boolean =>
   }) &&
   (points.at(-1)?.x ?? 0) > (points[0]?.x ?? 0);
 
-const point = (p: LayoutPoint): string => `${p.x} ${p.y}`;
-
 /**
  * SVG path of an orthogonal route with its corners rounded, so relation lines
  * read as smooth steps. A corner never takes more than half of either
@@ -896,19 +940,22 @@ const point = (p: LayoutPoint): string => `${p.x} ${p.y}`;
  * its crow's foot or "zero" circle hanging beside the stroke. A corner too
  * close to a port is left square instead.
  */
-export const roundedPath = (
+export const roundedPath = (points: readonly LayoutPoint[], radius: number, straight: number = PORT_STRAIGHT): string =>
+  pathData(roundedSteps(points, radius, straight));
+
+const roundedSteps = (
   points: readonly LayoutPoint[],
   radius: number,
   straight: number = PORT_STRAIGHT,
-): string => {
+): readonly PathStep[] => {
   const [first, ...rest] = points;
-  if (first === undefined) return '';
-  const parts = [`M${point(first)}`];
+  if (first === undefined) return [];
+  const steps: PathStep[] = [{ kind: 'move', to: first }];
   rest.forEach((corner, index) => {
     const before = points[index] ?? corner;
     const after = rest[index + 1];
     if (after === undefined) {
-      parts.push(`L${point(corner)}`);
+      steps.push({ kind: 'line', to: corner });
       return;
     }
     const inLength = Math.hypot(corner.x - before.x, corner.y - before.y);
@@ -918,19 +965,19 @@ export const roundedPath = (
     const outRoom = rest[index + 2] === undefined ? outLength - straight : outLength;
     const r = Math.min(radius, inLength / 2, outLength / 2, inRoom, outRoom);
     if (r <= 0) {
-      parts.push(`L${point(corner)}`);
+      steps.push({ kind: 'line', to: corner });
       return;
     }
     const toward = (from: LayoutPoint, to: LayoutPoint, length: number): LayoutPoint => ({
       x: round(from.x + ((to.x - from.x) / length) * r),
       y: round(from.y + ((to.y - from.y) / length) * r),
     });
-    parts.push(
-      `L${point(toward(corner, before, inLength))}`,
-      `Q${point(corner)} ${point(toward(corner, after, outLength))}`,
+    steps.push(
+      { kind: 'line', to: toward(corner, before, inLength) },
+      { kind: 'quad', control: corner, to: toward(corner, after, outLength) },
     );
   });
-  return parts.join(' ');
+  return steps;
 };
 
 const round = (value: number): number => Math.round(value * 100) / 100 || 0;

@@ -140,9 +140,9 @@
             await element.updateComplete;
           }),
         );
-        const filter = root?.querySelectorAll('.er-column-filter button')[1];
+        const filter = root?.querySelectorAll('.er-relation-scope button')[2];
         entries.push(
-          await action('column-filter-keys', async () => {
+          await action('relation-scope-aggregate', async () => {
             filter?.click();
             await element.updateComplete;
           }),

@@ -593,7 +593,9 @@ export const erStyles = css`
 
   /* While something is lit, the relations it does not reach step back. */
   .er-edge {
-    transition: opacity 160ms ease;
+    transition:
+      opacity 160ms ease,
+      visibility 160ms;
   }
 
   .er-edge.is-faded {
@@ -739,6 +741,17 @@ export const erStyles = css`
 
   .er-edge.is-bc-dimmed {
     opacity: 0.12;
+  }
+
+  /*
+   * A relation outside the chosen scope (Bounded Context or aggregate) stays undrawn until a
+   * hover or the selection lights it (\`concealedRelations\` in view.ts). Hidden, not just transparent, so its
+   * invisible hit path neither catches the pointer nor takes a tab stop. After
+   * \`.is-bc-dimmed\` so it wins over that opacity.
+   */
+  .er-edge.is-concealed {
+    visibility: hidden;
+    opacity: 0;
   }
 
   /* ---- Adding and editing columns ---- */
@@ -1014,8 +1027,8 @@ export const erStyles = css`
    * Slotted into dpk-dialog-panel's own floating controls bar, beside zoom and
    * maximize: the \`.dpk-segmented\` atom (via \`controlAtom\`, composed into
    * this component's own styles) trimmed down to that bar's compact height.
-   * \`renderControls\` wraps both segmented groups (columns shown, grouping
-   * frames) in \`.er-controls-row\` so they sit side by side as one slotted
+   * \`renderControls\` wraps both segmented groups (relation lines shown,
+   * grouping frames) in \`.er-controls-row\` so they sit side by side as one slotted
    * flex item.
    */
   .er-controls-row {
@@ -1024,12 +1037,12 @@ export const erStyles = css`
     gap: 6px;
   }
 
-  .er-column-filter,
+  .er-relation-scope,
   .er-grouping-filter {
     height: 28px;
   }
 
-  .er-column-filter > button,
+  .er-relation-scope > button,
   .er-grouping-filter > button {
     padding: 0 10px;
     font-size: 10.5px;

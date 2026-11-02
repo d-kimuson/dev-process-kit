@@ -8,6 +8,7 @@ import { erLayoutSpec, parseErData, type ErTableDiff } from './model';
 import { END_GLYPH_REACH, endGlyph } from './notation';
 import {
   columnIcon,
+  concealedRelations,
   detourRoute,
   type ErBox,
   editorVerdict,
@@ -23,6 +24,7 @@ import {
   typeMenu,
   typeSuggestions,
   type ColumnEditor,
+  type RelationScope,
 } from './view';
 
 /** Whether any segment of `points` passes through `box`'s open interior. */
@@ -851,6 +853,83 @@ describe('columnIcon', () => {
     expect(columnIcon(fieldOf('refunds', 'order_id'))).toBe('foreign');
     expect(columnIcon(fieldOf('orders', 'status'))).toBe('not-null');
     expect(columnIcon(fieldOf('orders', 'paid_at'))).toBe('nullable');
+  });
+});
+
+describe('concealedRelations', () => {
+  const schema = parseErData({
+    after: {
+      tables: [
+        {
+          id: 'customers',
+          name: 'Customers',
+          boundedContext: 'auth',
+          aggregate: 'customer',
+          fields: [{ id: 'id', type: 'uuid', key: 'PK' }],
+        },
+        {
+          id: 'profiles',
+          name: 'Profiles',
+          boundedContext: 'auth',
+          aggregate: 'customer',
+          fields: [{ id: 'customer_id', type: 'uuid', key: 'FK', ref: 'customers.id' }],
+        },
+        {
+          id: 'orders',
+          name: 'Orders',
+          boundedContext: 'ordering',
+          fields: [
+            { id: 'id', type: 'uuid', key: 'PK' },
+            { id: 'customer_id', type: 'uuid', key: 'FK', ref: 'customers.id' },
+          ],
+        },
+        {
+          id: 'audits',
+          name: 'Audits',
+          fields: [
+            { id: 'order_id', type: 'uuid', key: 'FK', ref: 'orders.id' },
+            { id: 'note_id', type: 'uuid', key: 'FK', ref: 'notes.id' },
+          ],
+        },
+        {
+          id: 'notes',
+          name: 'Notes',
+          fields: [
+            { id: 'id', type: 'uuid', key: 'PK' },
+            { id: 'parent_id', type: 'uuid', key: 'FK', ref: 'notes.id' },
+          ],
+        },
+      ],
+    },
+  });
+  const concealed = (scope: RelationScope) => [...concealedRelations(scope, schema.nodes, schema.edges)].sort();
+
+  it('conceals nothing when every relation is in scope', () => {
+    expect(concealed('all')).toEqual([]);
+  });
+
+  it('conceals the relations between two Bounded Contexts, the tables outside every one sharing a side', () => {
+    expect(concealed('bounded-context')).toEqual(['customers:id>orders:customer_id', 'orders:id>audits:order_id']);
+  });
+
+  it('conceals every relation leaving an aggregate, a table outside every one standing alone, but never a self-reference', () => {
+    expect(concealed('aggregate')).toEqual([
+      'customers:id>orders:customer_id',
+      'notes:id>audits:note_id',
+      'orders:id>audits:order_id',
+    ]);
+  });
+
+  it('conceals nothing by Bounded Context in a schema that declares none', () => {
+    const plain = parseErData({
+      after: {
+        tables: [
+          { id: 'a', name: 'A', fields: [{ id: 'id', type: 'uuid', key: 'PK' }] },
+          { id: 'b', name: 'B', fields: [{ id: 'a_id', type: 'uuid', key: 'FK', ref: 'a.id' }] },
+        ],
+      },
+    });
+    expect(concealedRelations('bounded-context', plain.nodes, plain.edges).size).toBe(0);
   });
 });
 

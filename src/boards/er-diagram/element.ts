@@ -31,6 +31,7 @@ import {
 } from '../base/model';
 import { diagramStyles } from '../base/styles';
 import { relationLabelPlans, type RelationLabelPlan } from './labels';
+import { jumpedPaths, pathData } from './line-jumps';
 import { erDiagramMessages, type ErDiagramMessages } from './messages';
 import {
   ADD_FIELD,
@@ -63,15 +64,16 @@ import {
   boundedContextGroups,
   cardinalityValue,
   columnIcon,
+  concealedRelations,
   editorVerdict,
   fieldChanges,
   fieldDetail,
   GROUP_LABEL_SPACE,
   GROUP_PADDING,
   highlightOf,
-  relationPath,
   relationRoute,
   relationRoutes,
+  relationSteps,
   resumeEditor,
   typeMenu,
   typeSuggestions,
@@ -81,6 +83,7 @@ import {
   type ErFocus,
   type ErHighlight,
   type ParkedEditor,
+  type RelationScope,
 } from './view';
 
 // Extra room between two aggregates' bands, so their drawn frames never touch, let alone overlap: the frame
@@ -122,6 +125,8 @@ export const LAYOUT = {
 export const LANE_MARGIN = LAYOUT.nodeSpacing / 2;
 /** How wide a relation's curve may reach: half the gap between two layers. */
 const CURVE_REACH = LAYOUT.layerSpacing / 2;
+// Jumped path sets kept per route signature: a few hovers and selections back and forth reuse theirs.
+const PATHS_CACHE_LIMIT = 16;
 
 /** Every control that opens a column editor; a press on one is not a press outside the editor. */
 const EDITOR_TRIGGERS = '[data-action="add-field"], [data-action="edit-field"]';
@@ -206,13 +211,18 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
   readonly #cardinalitySelect = new SelectController(this);
   /** Open for the selected edge; its value is lost once a different edge is selected. */
   #cardinalityEditor: CardinalityEditor | null = null;
-  /** Which columns render: every one, only keys (so the relationships alone can be read), or none (header only). */
-  #columnFilter: 'all' | 'keys' | 'tables-only' = 'all';
+  /**
+   * Which relations draw at rest: every one, only those inside one Bounded
+   * Context, or only those inside one aggregate (see `concealedRelations`).
+   * A concealed relation still draws while it is lit. Visual-only, like the
+   * frame toggles below: the tables and routes never move.
+   */
+  #relationScope: RelationScope = 'bounded-context';
   /**
    * Whether the Bounded Context / aggregate frames draw at all (bottom
-   * controls bar, like `#columnFilter` above) — on by default, matching the
+   * controls bar, like `#relationScope` above) — on by default, matching the
    * previously always-on behavior. Reader-local, in-memory only, like
-   * `#columnFilter`: neither is part of the draft, and this component has no
+   * `#relationScope`: neither is part of the draft, and this component has no
    * other precedent for persisting a view toggle across reloads.
    *
    * Deliberately visual-only: hiding a frame never reruns layout or routing.
@@ -228,6 +238,11 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
     null;
   /** Label placement memoised by the same signature: hovering re-renders, but never moves a line or a label. */
   #labelsCache: { readonly signature: string; readonly result: ReadonlyMap<string, RelationLabelPlan> } | null = null;
+  /** `#paths`' memoised jumped path data, see its own doc comment. */
+  #pathsCache: {
+    readonly signature: string;
+    readonly byDrawn: Map<string, ReadonlyMap<string, string>>;
+  } | null = null;
 
   constructor() {
     super();
@@ -562,18 +577,18 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
   }
 
   /**
-   * Beside zoom and maximize: how much of each table's columns render, and
-   * whether the Bounded Context / aggregate frames draw at all. The second
-   * group only flips `#groupByBoundedContext` / `#groupByAggregate`
-   * (gating `renderCanvas`'s frame `<div>`s) and never touches placement, so
-   * a click here is as cheap as a column-filter click.
+   * Beside zoom and maximize: which relations draw at rest, and whether the
+   * Bounded Context / aggregate frames draw at all. Neither group touches
+   * placement or routing: the first only swaps which lines are concealed, the
+   * second only flips `#groupByBoundedContext` / `#groupByAggregate` (gating
+   * `renderCanvas`'s frame `<div>`s), so no table ever moves on a click here.
    */
   protected override renderControls(): TemplateResult {
     const m = erDiagramMessages(this.locale);
-    const options: readonly { readonly value: 'all' | 'keys' | 'tables-only'; readonly label: string }[] = [
-      { value: 'all', label: m.columnFilterAll },
-      { value: 'keys', label: m.columnFilterKeys },
-      { value: 'tables-only', label: m.columnFilterTablesOnly },
+    const options: readonly { readonly value: RelationScope; readonly label: string }[] = [
+      { value: 'all', label: m.relationScopeAll },
+      { value: 'bounded-context', label: m.relationScopeBoundedContext },
+      { value: 'aggregate', label: m.relationScopeAggregate },
     ];
     const groupingOptions: readonly {
       readonly pressed: boolean;
@@ -598,13 +613,13 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
       },
     ];
     return html`<div class="er-controls-row">
-      <div class="dpk-segmented er-column-filter" role="group" aria-label=${m.columnFilterLabel}>
+      <div class="dpk-segmented er-relation-scope" role="group" aria-label=${m.relationScopeLabel}>
         ${options.map(
           (option) => html`<button
             type="button"
-            aria-pressed=${this.#columnFilter === option.value ? 'true' : 'false'}
+            aria-pressed=${this.#relationScope === option.value ? 'true' : 'false'}
             @click=${() => {
-              this.#columnFilter = option.value;
+              this.#relationScope = option.value;
               this.requestUpdate();
             }}
           >
@@ -644,6 +659,47 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
       visible.edges,
       [this.#hovered, selected].filter((focus) => focus !== null),
     );
+  }
+
+  /**
+   * The relations left undrawn unless lit, by `#relationScope`: a line leaving
+   * its Bounded Context (or aggregate) runs long and across frames. Independent
+   * of whether the frames draw, so hiding a frame never brings its lines back.
+   */
+  #concealed(visible: ErData): ReadonlySet<string> {
+    return concealedRelations(this.#relationScope, visible.nodes, visible.edges);
+  }
+
+  /**
+   * Every visible relation's path data, its level runs jumping the lines that
+   * cross them while drawn (`jumpedPaths`): those drawn at rest, plus the
+   * concealed ones `lit` brings out. Memoised per drawn set for one route
+   * signature, since a hover never moves a line; mid-drag the lines draw
+   * plain, as the labels stay put, rather than redo every crossing on each
+   * pointer move.
+   */
+  #paths(visible: ErData, lit: ErHighlight): ReadonlyMap<string, string> {
+    const routed = this.#routes(visible);
+    const steps = () =>
+      new Map(
+        visible.edges.map(
+          (relation) => [relation.id, relationSteps(routed.get(relation.id) ?? [], CURVE_REACH)] as const,
+        ),
+      );
+    if (this.draggedNodeIds().size > 0) return new Map([...steps()].map(([id, line]) => [id, pathData(line)] as const));
+    const concealed = this.#concealed(visible);
+    const drawn = visible.edges.map((relation) => relation.id).filter((id) => !concealed.has(id) || lit.edges.has(id));
+    const signature = `${this.#routesCache?.signature ?? ''}|${this.layout?.width ?? 0}x${this.layout?.height ?? 0}`;
+    if (this.#pathsCache?.signature !== signature) this.#pathsCache = { signature, byDrawn: new Map() };
+    const byDrawn = this.#pathsCache.byDrawn;
+    const key = drawn.join(',');
+    const cached = byDrawn.get(key);
+    if (cached !== undefined) return cached;
+    const result = jumpedPaths(steps(), new Set(drawn));
+    // Bounded: one entry per distinct hover/selection seen since the lines last moved.
+    if (byDrawn.size >= PATHS_CACHE_LIMIT) byDrawn.delete(byDrawn.keys().next().value ?? '');
+    byDrawn.set(key, result);
+    return result;
   }
 
   #isVisible(focus: ErFocus): boolean {
@@ -739,6 +795,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
         ? []
         : visible.nodes.filter((table) => !tagStateMatches(table.tags, bcFilter)).map((table) => table.id),
     );
+    const concealed = this.#concealed(visible);
     // Lit relations paint last, over the ones they cross. Keyed, so a relation
     // moved on top keeps its own element and the pointer stays on the line it entered.
     const ordered = [...visible.edges].sort((a, b) => Number(lit.edges.has(a.id)) - Number(lit.edges.has(b.id)));
@@ -774,11 +831,12 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
       });
       if (!draggingLabel) this.#labelsCache = { signature: labelSignature, result: labelPlans };
     }
+    const paths = this.#paths(visible, lit);
     // Built here, not inside repeat(), which would defer them past renderSelection().
     const edges = ordered.map((relation) => {
       const state = this.edgeState(relation.id);
       const points = routed.get(relation.id) ?? [];
-      const d = relationPath(points, CURVE_REACH);
+      const d = paths.get(relation.id) ?? '';
       const select = () => this.select({ kind: 'edge', id: relation.id });
       const meaning = [cardinalityText(relation.cardinality), relation.label].filter(Boolean).join(' · ');
       const before =
@@ -795,6 +853,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
             lit.edges.has(relation.id) && 'is-lit',
             lit.edges.size > 0 && !lit.edges.has(relation.id) && 'is-faded',
             (bcDimmed.has(relation.from) || bcDimmed.has(relation.to)) && 'is-bc-dimmed',
+            concealed.has(relation.id) && !lit.edges.has(relation.id) && 'is-concealed',
           )}
           data-relation=${relation.id}
           data-dpk-target=${this.commentRef('edge', relation.id)}
@@ -960,12 +1019,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
     const placed = this.placedNode(table.id);
     if (!placed) return nothing;
     const state = this.nodeState(table.id);
-    const fields =
-      this.#columnFilter === 'tables-only'
-        ? []
-        : this.#columnFilter === 'keys'
-          ? table.fields.filter((field) => field.keys.length > 0 || field.ref !== null)
-          : table.fields;
+    const fields = table.fields;
     return html`
       <div
         class=${this.elementClass(
@@ -1450,11 +1504,20 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
   /** Applies the current hover/selection highlight to the rendered DOM, without a template re-render. */
   #applyHighlight(): void {
     const lit = this.#highlight(this.visible);
+    const concealed = this.#concealed(this.visible);
+    // A concealed line coming out (or going back) adds (or drops) the jumps over it.
+    const paths = this.#paths(this.visible, lit);
     const root = this.renderRoot;
     for (const edge of root.querySelectorAll<SVGGElement>('.er-edge')) {
       const id = edge.getAttribute('data-relation') ?? '';
       edge.classList.toggle('is-lit', lit.edges.has(id));
       edge.classList.toggle('is-faded', lit.edges.size > 0 && !lit.edges.has(id));
+      edge.classList.toggle('is-concealed', concealed.has(id) && !lit.edges.has(id));
+      const d = paths.get(id);
+      if (d === undefined) continue;
+      for (const path of edge.querySelectorAll(':scope > .d-edge-path, :scope > .er-edge-flow, :scope > .d-edge-hit')) {
+        if (path.getAttribute('d') !== d) path.setAttribute('d', d);
+      }
     }
     for (const table of root.querySelectorAll<HTMLElement>('.er-table')) {
       const id = table.getAttribute('data-er-table') ?? '';
