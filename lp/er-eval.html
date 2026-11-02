@@ -18,7 +18,7 @@
       body {
         background: #0a0b0e;
       }
-      dpk-er-diagram {
+      dpk-board-er-diagram {
         display: block;
         --diagram-height: 1200px;
         height: 1200px;
@@ -55,7 +55,7 @@
       window.__erEvalStatus = status;
 
       const measure = () => {
-        const element = document.querySelector('dpk-er-diagram');
+        const element = document.querySelector('dpk-board-er-diagram');
         const panel = element?.shadowRoot?.querySelector('dpk-dialog-panel');
         const world = panel?.shadowRoot?.querySelector('.world');
         const canvas = panel?.shadowRoot?.querySelector('.canvas');
@@ -102,14 +102,14 @@
         });
         const source = new DOMParser()
           .parseFromString(html, 'text/html')
-          .querySelector('dpk-er-diagram script[type="application/json"]');
-        if (source === null) throw new Error('er-complex.html has no dpk-er-diagram JSON');
+          .querySelector('dpk-board-er-diagram script[type="application/json"]');
+        if (source === null) throw new Error('er-complex.html has no dpk-board-er-diagram JSON');
 
-        await loadKit(['components.js']);
-        await customElements.whenDefined('dpk-er-diagram');
+        await loadKit(['components.js', 'boards.js']);
+        await customElements.whenDefined('dpk-board-er-diagram');
 
         const createStart = performance.now();
-        const element = document.createElement('dpk-er-diagram');
+        const element = document.createElement('dpk-board-er-diagram');
         element.id = 'eval-diagram';
         element.setAttribute('lang', 'ja');
         const data = document.createElement('script');
