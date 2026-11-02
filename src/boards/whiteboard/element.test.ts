@@ -216,6 +216,25 @@ describe('<dpk-board-whiteboard>', () => {
     expect(element.renderRoot.querySelector('.wb-editor')).toBeNull();
   });
 
+  // A board an app adds as a new page has no data block at all: it is empty, not
+  // broken, so what the reader adds to it is drawn like on any other board.
+  it('adds to a board that was created with no data of its own', async () => {
+    const element = document.createElement('dpk-board-whiteboard');
+    if (!(element instanceof DpkBoardWhiteboard)) throw new Error('did not upgrade');
+    element.id = 'board';
+    document.body.append(element);
+    await settle(element);
+    acceptActions(element);
+    q(element, '[data-add="sticky"]').click();
+    await settle(element);
+    const [added] = element.elementActions;
+    if (added === undefined) throw new Error('expected an element action');
+    const id = (added.payload as { id: string }).id;
+    expect(element.elementActionResults.map((result) => result.stale)).toEqual([undefined]);
+    expect(element.renderRoot.querySelector(`.wb-item[data-item-id="${id}"]`)).not.toBeNull();
+    expect(element.selection).toEqual({ kind: 'item', id });
+  });
+
   it('edits a sticky on a second click or a double-click, never adding one', async () => {
     const element = await mount();
     acceptActions(element);

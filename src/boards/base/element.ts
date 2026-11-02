@@ -634,8 +634,8 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   }
 
   #replay(): void {
-    if (this.#authored === null) {
-      // Nothing to replay onto: the actions' elements do not exist here.
+    if (this.#dataError !== null) {
+      // Nothing to replay onto: data that could not be read has none of the actions' elements.
       this.#elementResults = this.#elementActions.map((action) => ({
         id: action.id,
         title: action.type,
@@ -644,7 +644,9 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
       this.requestUpdate();
       return;
     }
-    const replayed = this.reduceElementActions(this.#authored, this.#elementActions);
+    // A board with no data block (one an app adds as a new page) is empty, not broken:
+    // what the reader adds to it is replayed onto its empty data.
+    const replayed = this.reduceElementActions(this.authoredItems(), this.#elementActions);
     this.#items = replayed.data;
     this.#elementResults = replayed.results;
     if (this.#selection !== null) {
