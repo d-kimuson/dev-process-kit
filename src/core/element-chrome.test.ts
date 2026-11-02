@@ -99,6 +99,8 @@ describe('the page chrome', () => {
     expect(row?.lastElementChild).toBe(slot);
     expect(slot?.tagName).toBe('BUTTON');
     expect(slot?.getAttribute('aria-label')).toBe(messages.menuReturn);
+    // It says what it does in words, so it reads as a button and not one more icon.
+    expect(slot?.textContent?.trim()).toBe(messages.menuReturnLabel);
     expect(slot?.getAttribute('data-drop')).toBe('none');
     // The review's toggles end the menu, so the review opens right under them.
     expect(menu(element)?.lastElementChild?.classList.contains('dpk-review-toggles')).toBe(true);

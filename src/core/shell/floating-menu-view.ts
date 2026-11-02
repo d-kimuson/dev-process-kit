@@ -114,14 +114,14 @@ export const renderFloatingMenuSlot = (
   const slot = placement.slot;
   if (slot.kind === 'return')
     return html`<button
-      class="dpk-chrome-action dpk-menu-slot"
+      class="dpk-chrome-action dpk-menu-slot dpk-menu-return"
       type="button"
       data-drop=${slot.drop}
       aria-label=${m.menuReturn}
       data-tooltip=${m.menuReturn}
       @click=${intents.toHeader}
     >
-      ${iconArrowUpToLine()}
+      ${iconArrowUpToLine()}<span class="dpk-menu-return-label">${m.menuReturnLabel}</span>
     </button>`;
   return html`<div
     class="dpk-menu-slot"
@@ -215,6 +215,29 @@ export const floatingMenuStyles = css`
       outline-color 160ms var(--dpk-ease),
       background-color 160ms var(--dpk-ease),
       color 160ms var(--dpk-ease);
+  }
+
+  /* The button that brings the menu back: an action in words, tinted with the
+     accent, so it reads as something to press rather than one more icon. */
+  .dpk-menu-return {
+    width: auto;
+    gap: 6px;
+    padding: 0 12px 0 10px;
+    border-color: color-mix(in srgb, var(--dpk-accent) 45%, transparent);
+    background: var(--dpk-accent-soft);
+    color: var(--dpk-accent);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .dpk-menu-return:hover {
+    border-color: var(--dpk-accent);
+    color: var(--dpk-accent-strong);
+    box-shadow:
+      var(--dpk-bevel),
+      0 6px 16px -8px color-mix(in srgb, var(--dpk-accent) 70%, transparent);
   }
 
   .dpk-menu-slot[data-drop='offered'] {
