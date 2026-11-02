@@ -9,6 +9,7 @@ import {
   type MenuArea,
   type MenuBox,
   type MenuDock,
+  type MenuSize,
 } from './floating-menu';
 import { FloatingMenuController } from './floating-menu-controller';
 
@@ -28,13 +29,13 @@ const EMPTY = {
   toJSON: () => ({}),
 } as DOMRect;
 
-const rectOf = (box: MenuBox): DOMRect =>
+const rectOf = (box: MenuBox, size: MenuSize): DOMRect =>
   ({
     ...box,
-    width: SIZE.width,
-    height: SIZE.height,
-    right: box.left + SIZE.width,
-    bottom: box.top + SIZE.height,
+    width: size.width,
+    height: size.height,
+    right: box.left + size.width,
+    bottom: box.top + size.height,
     x: box.left,
     y: box.top,
     toJSON: () => ({}),
@@ -46,9 +47,10 @@ const rectOf = (box: MenuBox): DOMRect =>
  * where the last render drew the menu.
  */
 const harness = (stored?: unknown, slot: MeasuredRect | null = null) => {
-  const state = { measurable: false, drawn: null as MenuBox | null };
+  const state = { measurable: false, drawn: null as MenuBox | null, size: SIZE as MenuSize };
   const surface = document.createElement('div');
-  surface.getBoundingClientRect = () => (state.measurable && state.drawn !== null ? rectOf(state.drawn) : EMPTY);
+  surface.getBoundingClientRect = () =>
+    state.measurable && state.drawn !== null ? rectOf(state.drawn, state.size) : EMPTY;
   // The header's slot: absent (as on a narrow screen) unless the test gives it a box.
   const header = document.createElement('div');
   header.getBoundingClientRect = () => (slot === null ? EMPTY : ({ ...slot, toJSON: () => ({}) } as DOMRect));
@@ -181,13 +183,13 @@ describe("FloatingMenuController in the header's slot", () => {
       { side: 'left', value: SLOT.left },
       { side: 'top', value: SLOT.top },
     ]);
-    expect(placement.slot.state).toBe('holding');
+    expect(placement.slot).toEqual({ kind: 'room', drop: 'none', width: null });
   });
 
   it('falls back to its edge on a screen whose header has no slot for it, and keeps the choice', () => {
     const { controller } = harness({ kind: 'header' });
     expect(controller.placement.spot).toEqual({ kind: 'edge', dock: FLOATING_MENU.fallback });
-    expect(controller.placement.slot.state).toBe('empty');
+    expect(controller.placement.slot).toEqual({ kind: 'return', drop: 'none' });
     expect(JSON.parse(localStorage.getItem('dev-process-kit:menu:plain') ?? 'null')).toEqual({ kind: 'header' });
   });
 
@@ -201,12 +203,12 @@ describe("FloatingMenuController in the header's slot", () => {
     controller.grip.pointermove(at('pointermove', 400, 780));
     expect(controller.placement.drop).toMatchObject({ kind: 'edge', dock: { edge: 'bottom' } });
     expect(controller.placement.ghost).toMatchObject({ width: SIZE.height, height: SIZE.width });
-    expect(controller.placement.slot.state).toBe('offered');
+    expect(controller.placement.slot).toEqual({ kind: 'return', drop: 'offered' });
     // Up into the header row: the header's slot is the target, and no edge ghost is drawn.
     controller.grip.pointermove(at('pointermove', from.left + 10, 20));
     expect(controller.placement.drop).toEqual(HEADER_SPOT);
     expect(controller.placement.ghost).toBeNull();
-    expect(controller.placement.slot.state).toBe('targeted');
+    expect(controller.placement.slot).toEqual({ kind: 'return', drop: 'targeted' });
     controller.grip.pointerup(at('pointerup', from.left + 10, 20));
     expect(controller.placement.spot).toEqual(HEADER_SPOT);
     expect(controller.placement.drop).toBeNull();
@@ -217,6 +219,32 @@ describe("FloatingMenuController in the header's slot", () => {
     const { controller, state, render } = harness({ edge: 'right', offset: 300 }, SLOT);
     state.measurable = true;
     await render();
-    expect(controller.placement.slot).toEqual({ state: 'empty', width: SIZE.height });
+    controller.toHeader();
+    expect(controller.placement.slot).toEqual({ kind: 'room', drop: 'none', width: SIZE.height });
+  });
+
+  // Carried out of the header the menu grows a pill's padding; the room it left
+  // keeps the width it had, so the header does not shift under the drag.
+  it('keeps the room it left as wide as it was while the menu is carried', async () => {
+    const { controller, state, render } = harness(undefined, SLOT);
+    state.measurable = true;
+    await render();
+    const before = controller.placement.slot;
+    controller.grip.pointerdown(down(SLOT.left + 10, SLOT.top + 10));
+    state.size = { width: SIZE.width + 14, height: SIZE.height + 14 };
+    controller.grip.pointermove(at('pointermove', 400, 400));
+    expect(controller.placement.slot).toEqual({ ...before, drop: 'offered' });
+  });
+
+  it("is brought back into the header by the slot's own button, and remembers it", async () => {
+    const { controller, host, state, render } = harness({ edge: 'left', offset: 300 }, SLOT);
+    state.measurable = true;
+    await render();
+    const updates = host.updates;
+    controller.toHeader();
+    expect(controller.placement.spot).toEqual(HEADER_SPOT);
+    expect(controller.placement.box).toEqual({ left: SLOT.left, top: SLOT.top });
+    expect(host.updates).toBe(updates + 1);
+    expect(JSON.parse(localStorage.getItem('dev-process-kit:menu:plain') ?? 'null')).toEqual({ kind: 'header' });
   });
 });

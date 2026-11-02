@@ -920,7 +920,7 @@ export abstract class ViewElement<S> extends LitElement {
           </div>
           <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
           ${renderSettingsTrigger(messages, this.settingsTriggerIntents)}
-          ${renderFloatingMenuSlot(this.#floatingMenu.placement)}
+          ${renderFloatingMenuSlot(messages, this.#floatingMenu.placement, { toHeader: this.#floatingMenu.toHeader })}
         </header>
         ${this.#renderBody(regions)} ${this.#renderFooter(regions)}
         <div slot="overlay" class="dpk-overlay">

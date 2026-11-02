@@ -182,15 +182,35 @@ export const menuClearanceOf = (spot: MenuSpot, width: number): number =>
   spot.kind === 'edge' && spot.dock.edge === 'right' && width > 0 ? width + FLOATING_MENU.margin : 0;
 
 /**
- * What the header's slot shows: nothing while the menu is elsewhere, the room
- * the menu sits in while it is there, and while the menu is carried, a place it
- * can be let go — `targeted` when letting go now would put it there.
+ * The room a menu takes lying as one row: its long side, whichever way it was
+ * last drawn. The menu is a run of square buttons, so it is never as tall as a
+ * row as it is long, and the measurement alone says which way it lay — even in
+ * the render that turns it, before it has been drawn the new way.
  */
-export type MenuSlotState = 'empty' | 'holding' | 'offered' | 'targeted';
+export const menuRowWidth = (size: MenuSize): number => Math.max(size.width, size.height);
 
-export const menuSlotState = (spot: MenuSpot, drop: MenuSpot | null): MenuSlotState => {
-  if (drop !== null) return drop.kind === 'header' ? 'targeted' : 'offered';
-  return spot.kind === 'header' ? 'holding' : 'empty';
+/** Whether the header's slot is where a carried menu would land: `targeted` when letting go now would put it there. */
+export type MenuSlotDrop = 'none' | 'offered' | 'targeted';
+
+/**
+ * What the header's slot shows. While the menu is there, the room it sits in;
+ * while it is elsewhere, a button the size of one header control that brings
+ * it back. Either is where a carried menu can be let go, and carrying the menu
+ * changes only how it looks, never its width, so the header does not shift
+ * under the drag.
+ */
+export type MenuSlot =
+  | {
+      readonly kind: 'room';
+      readonly drop: MenuSlotDrop;
+      /** The room the slot holds open: the menu's size as one row, once it is known. */
+      readonly width: number | null;
+    }
+  | { readonly kind: 'return'; readonly drop: MenuSlotDrop };
+
+export const menuSlotOf = (spot: MenuSpot, drop: MenuSpot | null, width: number | null): MenuSlot => {
+  const target: MenuSlotDrop = drop === null ? 'none' : drop.kind === 'header' ? 'targeted' : 'offered';
+  return spot.kind === 'header' ? { kind: 'room', drop: target, width } : { kind: 'return', drop: target };
 };
 
 /** The dock a spot is drawn at: its own, or the fallback of a header with no slot to hold it. */
@@ -236,11 +256,7 @@ export type MenuPlacement = {
   readonly drop: MenuSpot | null;
   /** The box an edge drop would take, drawn as a ghost while it is carried; `null` for the header. */
   readonly ghost: MenuGhost | null;
-  readonly slot: {
-    readonly state: MenuSlotState;
-    /** The room the slot holds open: the menu's size as one row, once it is known. */
-    readonly width: number | null;
-  };
+  readonly slot: MenuSlot;
 };
 
 /** A sub-pixel difference between where a box is drawn and where it belongs is not a placement. */

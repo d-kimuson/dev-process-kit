@@ -14,7 +14,7 @@ import { css, html, nothing, type TemplateResult } from 'lit';
 
 import type { CoreMessages } from '../messages';
 
-import { iconGrip, iconGripHorizontal } from '../icons';
+import { iconArrowUpToLine, iconGrip, iconGripHorizontal } from '../icons';
 import {
   spotOrientation,
   type MenuGhost,
@@ -45,6 +45,11 @@ export type FloatingMenuIntents = {
     readonly lostpointercapture: (event: PointerEvent) => void;
     readonly keydown: (event: KeyboardEvent) => void;
   };
+};
+
+export type FloatingMenuSlotIntents = {
+  /** The slot's button, while the menu is elsewhere: it brings the menu back into the header. */
+  readonly toHeader: () => void;
 };
 
 /**
@@ -94,17 +99,34 @@ export const renderFloatingMenu = (
 };
 
 /**
- * The room the header holds for the menu, at the end of its row after the
- * settings gear. The menu is not inside it — it stays in the overlay, so a
- * drag keeps its pointer capture — but is drawn over it; while the menu is
- * carried, the slot shows itself as a place it can be let go.
+ * The header's place for the menu, at the end of its row after the settings
+ * gear. While the menu is there it is the room the menu takes — the menu is not
+ * inside it but stays in the overlay, so a drag keeps its pointer capture, and
+ * is drawn over it. While the menu is elsewhere it is a button that brings the
+ * menu back. Either way it is where a carried menu can be let go, shown by its
+ * look alone: its width does not change under a drag, so neither does the header.
  */
-export const renderFloatingMenuSlot = (placement: FloatingMenuPlacement): TemplateResult => {
-  const { state, width } = placement.slot;
+export const renderFloatingMenuSlot = (
+  m: CoreMessages,
+  placement: FloatingMenuPlacement,
+  intents: FloatingMenuSlotIntents,
+): TemplateResult => {
+  const slot = placement.slot;
+  if (slot.kind === 'return')
+    return html`<button
+      class="dpk-chrome-action dpk-menu-slot"
+      type="button"
+      data-drop=${slot.drop}
+      aria-label=${m.menuReturn}
+      data-tooltip=${m.menuReturn}
+      @click=${intents.toHeader}
+    >
+      ${iconArrowUpToLine()}
+    </button>`;
   return html`<div
     class="dpk-menu-slot"
-    data-state=${state}
-    style=${state === 'empty' || width === null ? '' : `width: ${width}px`}
+    data-drop=${slot.drop}
+    style=${slot.width === null ? '' : `width: ${slot.width}px`}
     aria-hidden="true"
   ></div>`;
 };
@@ -178,10 +200,11 @@ export const floatingMenuStyles = css`
     animation: none;
   }
 
-  /* The header's room for the menu: nothing while the menu is elsewhere (its
-     negative margin takes back the header's gap), the menu's own row while it
-     is there, and a place to let it go while it is carried. Its width is not
-     animated: the menu is drawn where the slot is, measured after each render. */
+  /* The header's place for the menu: the menu's own row while the menu is
+     there, a button that brings it back while it is elsewhere, and either way a
+     place to let it go while it is carried. Only its look follows the drag; its
+     width is not animated: the menu is drawn where the slot is, measured after
+     each render. */
   .dpk-menu-slot {
     flex: none;
     height: 32px;
@@ -190,22 +213,19 @@ export const floatingMenuStyles = css`
     outline-offset: 3px;
     transition:
       outline-color 160ms var(--dpk-ease),
-      background-color 160ms var(--dpk-ease);
+      background-color 160ms var(--dpk-ease),
+      color 160ms var(--dpk-ease);
   }
 
-  .dpk-menu-slot[data-state='empty'] {
-    width: 0;
-    margin-inline-start: -14px;
-  }
-
-  .dpk-menu-slot[data-state='offered'] {
+  .dpk-menu-slot[data-drop='offered'] {
     outline-color: var(--dpk-rule-strong);
     background: var(--dpk-paper-sunken);
   }
 
-  .dpk-menu-slot[data-state='targeted'] {
+  .dpk-menu-slot[data-drop='targeted'] {
     outline-color: var(--dpk-blue);
     background: var(--dpk-blue-soft);
+    color: var(--dpk-blue);
   }
 
   /* Where letting go on an edge would put the menu. */

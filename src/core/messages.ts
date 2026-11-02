@@ -13,6 +13,7 @@ export const coreMessages = defineMessages({
     /** The floating menu of the page's own controls. */
     menu: 'Page menu',
     menuMove: 'Move this menu',
+    menuReturn: 'Put the menu back in the header',
     /** The settings dialog's first (kit) section: the template's switches. */
     settingsDisplay: 'Display',
     settingsAppearance: 'Appearance',
@@ -104,6 +105,7 @@ export const coreMessages = defineMessages({
     settings: '設定',
     menu: 'ページのメニュー',
     menuMove: 'このメニューを移動',
+    menuReturn: 'メニューをヘッダーに戻す',
     settingsDisplay: '表示',
     settingsAppearance: '外観',
     settingsTheme: 'テーマ',

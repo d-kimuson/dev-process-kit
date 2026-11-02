@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   ArrowRight,
   ArrowUp,
+  ArrowUpToLine,
   Bell,
   Check,
   ChevronDown,
@@ -92,6 +93,7 @@ export const iconGrip = lucide(GripVertical);
 export const iconGripHorizontal = lucide(GripHorizontal);
 export const iconMove = lucide(Move);
 export const iconArrowUp = lucide(ArrowUp);
+export const iconArrowUpToLine = lucide(ArrowUpToLine);
 export const iconArrowDown = lucide(ArrowDown);
 export const iconArrowLeft = lucide(ArrowLeft);
 export const iconArrowRight = lucide(ArrowRight);

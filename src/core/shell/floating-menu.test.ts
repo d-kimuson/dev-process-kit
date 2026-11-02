@@ -20,7 +20,8 @@ import {
   keyedMenuSpot,
   menuSizeAs,
   menuGhostOf,
-  menuSlotState,
+  menuRowWidth,
+  menuSlotOf,
   restingMenuBox,
   restingMenuInsets,
   spotOrientation,
@@ -238,12 +239,23 @@ describe('the header spot', () => {
 describe("the header's slot", () => {
   const left: MenuSpot = { kind: 'edge', dock: { edge: 'left', offset: 40 } };
 
-  it('holds the menu that is in it, and offers itself while the menu is carried', () => {
-    expect(menuSlotState(HEADER_SPOT, null)).toBe('holding');
-    expect(menuSlotState(left, null)).toBe('empty');
-    expect(menuSlotState(left, left)).toBe('offered');
-    expect(menuSlotState(HEADER_SPOT, left)).toBe('offered');
-    expect(menuSlotState(left, HEADER_SPOT)).toBe('targeted');
+  it('holds the room of the menu that is in it, and offers itself while the menu is carried', () => {
+    expect(menuSlotOf(HEADER_SPOT, null, 240)).toEqual({ kind: 'room', drop: 'none', width: 240 });
+    expect(menuSlotOf(HEADER_SPOT, left, 240)).toEqual({ kind: 'room', drop: 'offered', width: 240 });
+    expect(menuSlotOf(HEADER_SPOT, HEADER_SPOT, null)).toEqual({ kind: 'room', drop: 'targeted', width: null });
+  });
+
+  // A menu elsewhere leaves a button that brings it back, the size of one header
+  // control whatever the menu's own: carrying the menu changes its look, not its width.
+  it('is a button that brings back a menu kept elsewhere, and the place to let it go', () => {
+    expect(menuSlotOf(left, null, 240)).toEqual({ kind: 'return', drop: 'none' });
+    expect(menuSlotOf(left, left, 240)).toEqual({ kind: 'return', drop: 'offered' });
+    expect(menuSlotOf(left, HEADER_SPOT, 240)).toEqual({ kind: 'return', drop: 'targeted' });
+  });
+
+  it('holds the room of the menu as one row, however it was last drawn', () => {
+    expect(menuRowWidth(ROW)).toBe(ROW.width);
+    expect(menuRowWidth(COLUMN)).toBe(ROW.width);
   });
 });
 

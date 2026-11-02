@@ -92,11 +92,14 @@ describe('the page chrome', () => {
     expect(row?.querySelector('.dpk-header-tools .dpk-lang-select')).not.toBeNull();
     expect(row?.querySelector('.dpk-header-tools .dpk-theme-toggle')).not.toBeNull();
     expect(row?.querySelector('.dpk-header .dpk-settings-trigger')).not.toBeNull();
-    // The floating menu's room ends the row, after the settings gear; jsdom lays it
-    // out nowhere, so the menu it would hold is at its fallback edge and the room is empty.
-    expect(row?.lastElementChild?.classList.contains('dpk-menu-slot')).toBe(true);
-    expect(row?.querySelector('.dpk-settings-trigger + .dpk-menu-slot')).not.toBeNull();
-    expect(row?.querySelector('.dpk-menu-slot')?.getAttribute('data-state')).toBe('empty');
+    // The floating menu's place ends the row, after the settings gear; jsdom lays it
+    // out nowhere, so the menu it would hold is at its fallback edge, and the place
+    // is the button that brings it back.
+    const slot = row?.querySelector<HTMLButtonElement>('.dpk-settings-trigger + .dpk-menu-slot');
+    expect(row?.lastElementChild).toBe(slot);
+    expect(slot?.tagName).toBe('BUTTON');
+    expect(slot?.getAttribute('aria-label')).toBe(messages.menuReturn);
+    expect(slot?.getAttribute('data-drop')).toBe('none');
     // The review's toggles end the menu, so the review opens right under them.
     expect(menu(element)?.lastElementChild?.classList.contains('dpk-review-toggles')).toBe(true);
     // A page with nothing to switch has no switcher; the app adds one.
@@ -194,6 +197,18 @@ describe('the page chrome', () => {
     press(grip(element), 'PageDown');
     await settle(element);
     expect(storedDock('plain')).toMatchObject({ kind: 'edge', dock: { edge: 'left', offset: 12 } });
+  });
+
+  it("brings the menu back into the header from the header's own button", async () => {
+    const element = mount('storage="on"');
+    await settle(element);
+    press(grip(element), 'ArrowLeft');
+    await settle(element);
+    root(element).querySelector<HTMLButtonElement>('.dpk-header .dpk-menu-slot')?.click();
+    await settle(element);
+    // jsdom has no header row to draw it in, so it is still drawn at its fallback
+    // edge; the reader's choice is the header, kept for a screen that has the room.
+    expect(storedDock('plain')).toEqual({ kind: 'header' });
   });
 
   it('keeps the dock to the page load with storage="memory"', async () => {

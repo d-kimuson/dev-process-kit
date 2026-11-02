@@ -21,12 +21,13 @@ import {
   measuredMenu,
   menuGhostOf,
   menuPlacedAt,
-  menuSizeAs,
-  menuSlotState,
+  menuRowWidth,
+  menuSlotOf,
   parseMenuSpot,
   restingMenuBox,
   restingMenuInsets,
   spotOrientation,
+  HEADER_SPOT,
   type MenuArea,
   type MenuBox,
   type MenuDrag,
@@ -175,21 +176,30 @@ export class FloatingMenuController implements ReactiveController {
       drag.kind === 'dragging' && drop?.kind === 'edge'
         ? menuGhostOf(drop.dock, drag.size, drag.orientation, screen.area)
         : null;
-    // The slot holds open the room of the menu lying as one row, whichever way it lies now.
-    const width = screen.rect === null ? null : menuSizeAs('horizontal', screen.rect, spotOrientation(spot)).width;
+    // The slot holds open the room of the menu lying as one row, whichever way it lies now;
+    // while it is carried, the room it had as the drag started, so the header does not shift.
+    const size = drag.kind === 'dragging' ? drag.size : screen.rect;
+    const width = size === null ? null : menuRowWidth(size);
     return {
       spot,
       box: this.#boxOf(spot, screen),
       insets: restingMenuInsets(spot, screen.slot, screen.area),
       drop,
       ghost,
-      slot: { state: menuSlotState(spot, drop), width },
+      slot: menuSlotOf(spot, drop, width),
     };
   }
 
   get dragging(): boolean {
     return this.#drag.kind === 'dragging';
   }
+
+  /** Bound to the button the header's slot shows while the menu is elsewhere: it brings the menu back. */
+  readonly toHeader = (): void => {
+    this.#spot = HEADER_SPOT;
+    this.#save();
+    this.#host.requestUpdate();
+  };
 
   /** Bound to the grip in the menu's own markup. */
   readonly grip: FloatingMenuGripHandlers = {
