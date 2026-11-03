@@ -97,6 +97,17 @@ export const coreMessages = defineMessages({
       'Every checkmark on this page will be cleared. This only affects what you see; it is never sent to the agent.',
     checkModeConfirmOk: 'Turn off',
     checkModeConfirmCancel: 'Cancel',
+    syncConnecting: 'Syncing',
+    syncSynced: 'Synced',
+    syncPending: (count: number) => `${count} unsent`,
+    syncOffline: 'Offline',
+    syncError: 'Sync error',
+    syncStatus: 'Sharing',
+    clearSharedTitle: 'Clear the shared draft?',
+    clearSharedBody:
+      'Everything you see now disappears, including other people’s changes. What others add while this is open stays.',
+    clearSharedOk: 'Clear all',
+    clearSharedCancel: 'Cancel',
   },
   ja: {
     review: 'レビュー',
@@ -188,6 +199,17 @@ export const coreMessages = defineMessages({
     checkModeConfirmBody: 'このページのチェックはすべて消えます。表示だけの状態なので、Agent には送られません。',
     checkModeConfirmOk: '終了する',
     checkModeConfirmCancel: 'キャンセル',
+    syncConnecting: '同期中',
+    syncSynced: '同期済み',
+    syncPending: (count: number) => `未送信 ${count} 件`,
+    syncOffline: 'オフライン',
+    syncError: 'エラー',
+    syncStatus: '共有',
+    clearSharedTitle: '共有中のドラフトをすべて消しますか?',
+    clearSharedBody:
+      'ほかの人の変更も含めて、今見えているものがすべて消えます。この確認中にほかの人が加えたものは残ります。',
+    clearSharedOk: 'すべて消す',
+    clearSharedCancel: 'キャンセル',
   },
 });
 

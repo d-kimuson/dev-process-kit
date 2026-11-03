@@ -135,6 +135,8 @@ import {
 } from './shell/supplements';
 import { TextRecoveryController } from './shell/text-recovery-controller';
 import { renderUndoRedo, UndoRedoKeyboardController, type UndoRedoIntents } from './shell/undo-redo';
+import { syncStatusLabel } from './sync/label';
+import { requestDraftSync } from './sync/request';
 import { parseTargetRef, targetRef, toTarget } from './target';
 import { FRAMEWORK_VERSION } from './version';
 
@@ -505,7 +507,11 @@ export abstract class ViewElement<S> extends LitElement {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     // The controller is object-owned, not DOM-owned: facade subscriptions keep
-    // working while detached. Only external DOM resources are released here.
+    // working while detached. Only external DOM resources are released here —
+    // and a shared draft's session, unless the element was only moved.
+    queueMicrotask(() => {
+      if (!this.isConnected) this.#controller?.close();
+    });
     window.removeEventListener('hashchange', this.#onHashChange);
     this.removeEventListener('click', this.#onClick);
     this.#baseData.disconnect();
@@ -523,6 +529,7 @@ export abstract class ViewElement<S> extends LitElement {
    */
   #start(attempt = 0): void {
     if (this.#controller) {
+      this.#controller.reopen();
       this.#subscribe();
       return;
     }
@@ -718,6 +725,27 @@ export abstract class ViewElement<S> extends LitElement {
     else this.controller.removeAction(id);
   }
 
+  /**
+   * The review's Clear: a shared draft loses other readers' changes too, so
+   * the reader is asked first. What is cleared is what they saw when asked.
+   */
+  async #clearFromReview(): Promise<void> {
+    if (this.#boardId !== null || this.controller.sync === null) {
+      this.clearActions();
+      return;
+    }
+    const clear = this.controller.prepareClear();
+    const messages = coreMessages(this.locale);
+    const confirmed = await this.#confirmDialog.ask({
+      title: messages.clearSharedTitle,
+      body: messages.clearSharedBody,
+      confirmLabel: messages.clearSharedOk,
+      cancelLabel: messages.clearSharedCancel,
+      tone: 'danger',
+    });
+    if (confirmed) clear();
+  }
+
   /** On a board, clears the board's own part of the page's draft. */
   clearActions(): void {
     if (this.#boardId === null) {
@@ -880,7 +908,9 @@ export abstract class ViewElement<S> extends LitElement {
       .section=${this.#reviewSection === 'questions' ? null : this.#reviewSection}
       .onDelete=${(id: string) => this.removeAction(id)}
       .onEditComment=${(id: string, body: string) => this.editComment(id, body)}
-      .onClear=${() => this.clearActions()}
+      .onClear=${() => void this.#clearFromReview()}
+      .authorOf=${this.controller.sync === null ? undefined : (id: string) => this.controller.authorOf(id)?.name}
+      .canEditComment=${this.controller.sync === null ? undefined : (id: string) => this.controller.isOwnAction(id)}
       .onComment=${(target: string, body: string) => {
         const outcome = this.dispatch({ type: COMMENT_ACTION, target, payload: { body } });
         if (outcome.ok) this.#pendingCommentTarget = null;
@@ -918,6 +948,7 @@ export abstract class ViewElement<S> extends LitElement {
             ${regions.header ?? nothing}
             <slot name="header"></slot>
           </div>
+          ${this.#renderSyncStatus()}
           <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
           ${renderSettingsTrigger(messages, this.settingsTriggerIntents)}
           ${renderFloatingMenuSlot(messages, this.#floatingMenu.placement, { toHeader: this.#floatingMenu.toHeader })}
@@ -1422,6 +1453,20 @@ export abstract class ViewElement<S> extends LitElement {
     if (confirmed) this.#checkMode.setEnabled(false);
   }
 
+  /** Where sharing the draft stands; nothing for a draft kept in this browser. */
+  #renderSyncStatus(): TemplateResult | typeof nothing {
+    const sync = this.controller.sync;
+    if (sync === null) return nothing;
+    const label = syncStatusLabel(sync, coreMessages(this.locale));
+    return html`<span
+      class="dpk-sync-status"
+      role="status"
+      data-status=${sync.status}
+      title=${sync.reason === undefined ? label : `${label}: ${sync.reason}`}
+      >${label}</span
+    >`;
+  }
+
   #renderThemeToggle(): TemplateResult {
     const dark = this.dataset['theme'] === 'dark';
     const messages = coreMessages(this.locale);
@@ -1715,12 +1760,20 @@ export abstract class ViewElement<S> extends LitElement {
     this.#navigation = board || this.hashMode === 'off' ? EMPTY_NAVIGATION : readNavigationFromHash();
     this.#boardLocale = this.locale;
     const storageKey = this.storageKey;
+    // A host may share the draft; it is asked once, before the draft is restored.
+    const sync = board
+      ? undefined
+      : requestDraftSync(this, {
+          storageKey: storageKey ?? defaultStorageKey(this.definition.name),
+          template: this.definition.name,
+        });
     this.#controller = new DraftController<S>({
       definition: this.definition,
       base,
-      storage: board ? null : this.#resolveStorage(),
+      storage: board || sync !== undefined ? null : this.#resolveStorage(),
       grill: { grill: this.#grill, locale: this.locale },
       ...(typeof storageKey === 'string' ? { storageKey } : {}),
+      ...(sync === undefined ? {} : { sync }),
     });
     this.#subscribe();
     this.#refreshCommentTargets();

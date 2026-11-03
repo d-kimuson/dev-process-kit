@@ -139,6 +139,30 @@ export const chromeStyles = [
       gap: 10px;
     }
 
+    /* Where sharing the draft stands, only while a host shares it. */
+    .dpk-sync-status {
+      flex: none;
+      padding: 3px 9px;
+      border: 1px solid var(--dpk-rule);
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 520;
+      color: var(--dpk-ink-soft);
+      white-space: nowrap;
+    }
+
+    .dpk-sync-status[data-status='pending'],
+    .dpk-sync-status[data-status='offline'] {
+      border-color: color-mix(in srgb, var(--dpk-amber) 40%, transparent);
+      background: var(--dpk-amber-soft);
+      color: var(--dpk-amber);
+    }
+
+    .dpk-sync-status[data-status='error'] {
+      border-color: color-mix(in srgb, var(--dpk-danger) 40%, transparent);
+      color: var(--dpk-danger);
+    }
+
     /* The reader's own controls, in one pill at the end of the row: the
        language select and the theme toggle. */
     .dpk-header-tools {

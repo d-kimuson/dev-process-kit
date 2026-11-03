@@ -23,6 +23,10 @@ export type PanelInputs<S> = {
   readonly editable?: boolean;
   /** Which part of the draft the panel shows; both when left out. */
   readonly section?: PanelSection;
+  /** Who wrote an entry, for a draft shared between readers. */
+  readonly authorOf?: (id: string) => string | undefined;
+  /** Which comments the host takes edits of; all of them when left out. */
+  readonly canEdit?: (id: string) => boolean;
 };
 
 /**
@@ -38,6 +42,8 @@ export type PanelItem = {
   readonly id: string;
   readonly title: string;
   readonly targetLabel: string;
+  /** Who wrote it, in a draft shared between readers. */
+  readonly author: string | null;
   readonly tone: ActionTone;
   readonly text: { readonly kind: 'comment' | 'summary'; readonly body: string };
   /** The line the agent receives; none for a comment, whose body is the line's substance and is shown already. */
@@ -100,6 +106,7 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
       id: action.id,
       title: comment ? m.comment : description.title,
       targetLabel: description.targetLabel,
+      author: inputs.authorOf?.(action.id) ?? null,
       tone: comment ? 'comment' : description.tone,
       text: {
         kind: comment ? 'comment' : 'summary',
@@ -108,7 +115,7 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
       code: comment ? null : definition.serialize(action),
       stale: stale.get(action.id) ?? null,
       edit:
-        !comment || inputs.editable !== true
+        !comment || inputs.editable !== true || inputs.canEdit?.(action.id) === false
           ? { kind: 'none' }
           : ui.editing?.id === action.id
             ? { kind: 'editing', body: ui.editing.body, canSave: ui.editing.body.trim().length > 0 }

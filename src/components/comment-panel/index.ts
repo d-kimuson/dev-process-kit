@@ -46,6 +46,8 @@ export class DpkCommentPanel extends LitElement {
     onComment: { attribute: false },
     onEditComment: { attribute: false },
     exportBrief: { attribute: false },
+    authorOf: { attribute: false },
+    canEditComment: { attribute: false },
     sendToClaude: { attribute: false },
     embedded: { type: Boolean },
     section: { type: String },
@@ -66,6 +68,10 @@ export class DpkCommentPanel extends LitElement {
   declare onComment: CommentPanelCallbacks['onComment'];
   declare onEditComment: CommentPanelCallbacks['onEditComment'];
   declare exportBrief: (() => string) | undefined;
+  /** Who wrote an entry of a draft shared between readers; shown beside its target. */
+  declare authorOf: ((id: string) => string | undefined) | undefined;
+  /** Which comments `onEditComment` takes; all of them when unset. */
+  declare canEditComment: ((id: string) => boolean) | undefined;
   /** Set by the template inside a Claude Artifact that can reach Claude; shows the send button. */
   declare sendToClaude: (() => Promise<HandoffOutcome>) | undefined;
   #ui = initialPanelState();
@@ -117,6 +123,8 @@ export class DpkCommentPanel extends LitElement {
       editable: this.onEditComment !== undefined,
       locale: this.#i18n.locale,
       section: sectionOf(this.section),
+      ...(this.authorOf === undefined ? {} : { authorOf: this.authorOf }),
+      ...(this.canEditComment === undefined ? {} : { canEdit: this.canEditComment }),
     };
   }
 

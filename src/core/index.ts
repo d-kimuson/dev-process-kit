@@ -29,6 +29,21 @@ export { parseHash, formatHash, patchNavigation, EMPTY_NAVIGATION } from './navi
 export { createActionId, createEntityId, parseTargetRef, slugify, targetRef, toTarget } from './target';
 export { WebStorageDraftStorage, MemoryDraftStorage, defaultStorage, defaultStorageKey } from './persistence';
 export type { DraftStorage, StorageLike } from './persistence';
+// The element's side of sharing a draft; the host's side is the `sync` entry.
+export { SYNC_PROTOCOL, SYNC_REQUEST_EVENT } from './sync/protocol';
+export type {
+  Author,
+  Cursor,
+  LocalOp,
+  RemoteOp,
+  RemoteUpdate,
+  SyncedAction,
+  SyncHost,
+  SyncRequestDetail,
+  SyncSession,
+  SyncSink,
+  SyncStatus,
+} from './sync/protocol';
 export { tokens, controls } from './theme';
 export type { SidebarLayout, SidebarNarrow, SidebarSide } from './layouts/index';
 export {

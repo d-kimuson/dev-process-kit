@@ -27,6 +27,7 @@
     ".": "./dist/index.js",
     "./components": "./dist/components.js",
     "./boards": "./dist/boards.js",
+    "./sync": "./dist/sync.js",
     "./views/prototype": "./dist/views/prototype.js",
     "./views/usm": "./dist/views/usm.js",
     "./views/plain": "./dist/views/plain.js",

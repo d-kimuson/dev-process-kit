@@ -24,7 +24,9 @@ import { type Locale } from '../../core/i18n';
 import { LocaleController } from '../../core/locale-controller';
 import { pageHostOf, pageNameOf } from '../../core/page/host';
 import { resolvePageTarget } from '../../core/page/page-target';
+import { defaultStorageKey } from '../../core/persistence';
 import { createViewApi, snapshotOf, type ViewFacadeSource } from '../../core/shell/api';
+import { requestDraftSync } from '../../core/sync/request';
 import { toTarget } from '../../core/target';
 import { observeJsonChild } from '../../lib/dom/base-data';
 import {
@@ -176,12 +178,17 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     // A board's children are its own; an enclosing page's provider scan must
     // not also treat this element as a flat, directly-owned component.
     if (this.board !== null) this.#ensureBoardController();
+    this.#boardController?.reopen();
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.#stopJsonChild?.();
     this.#stopJsonChild = null;
+    // A shared draft's session ends with the element, unless it was only moved.
+    queueMicrotask(() => {
+      if (!this.isConnected) this.#boardController?.close();
+    });
   }
 
   protected override willUpdate(changed: Map<PropertyKey, unknown>): void {
@@ -324,8 +331,16 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
       label: this.boardLabel(),
       addable: this.boardAddable(),
     });
+    // On its own, a board asks once whether a host shares its draft.
+    const sync = hosted
+      ? undefined
+      : requestDraftSync(this, { storageKey: defaultStorageKey(definition.name), template: definition.name });
     const controller = new DraftController<DiagramBoardState>(
-      hosted ? { definition, base: {}, storage: null } : { definition, base: {} },
+      hosted
+        ? { definition, base: {}, storage: null }
+        : sync === undefined
+          ? { definition, base: {} }
+          : { definition, base: {}, sync },
     );
     this.#boardController = controller;
     if (hosted) this.dataset['template'] = definition.name;

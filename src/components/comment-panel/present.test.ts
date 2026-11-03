@@ -116,6 +116,27 @@ describe('panel presentation', () => {
     const blank = reducePanel(editing, { kind: 'edit-input', body: ' ' });
     expect(allItems(presentPanel({ ...withDraft, editable: true }, blank))[0]?.edit).toMatchObject({ canSave: false });
   });
+  it('names who wrote each entry of a shared draft, and offers editing only where the host takes it', () => {
+    const actions = [
+      { id: 'mine', type: 'comment', target: { type: 'page', id: 'tiny' }, payload: { body: 'a' }, createdAt: 'now' },
+      { id: 'theirs', type: 'comment', target: { type: 'page', id: 'tiny' }, payload: { body: 'b' }, createdAt: 'now' },
+    ];
+    const vm = presentPanel(
+      {
+        ...inputs,
+        derivation: derive(definition, base, actions),
+        editable: true,
+        authorOf: (id) => (id === 'mine' ? 'Alice' : 'Bob'),
+        canEdit: (id) => id === 'mine',
+      },
+      initialPanelState(),
+    );
+    expect(allItems(vm).map((item) => [item.author, item.edit.kind])).toEqual([
+      ['Alice', 'available'],
+      ['Bob', 'none'],
+    ]);
+    expect(allItems(presentPanel(inputs, initialPanelState())).map((item) => item.author)).toEqual([]);
+  });
   describe('sections', () => {
     const actions = [
       { id: 'c', type: 'comment', target: { type: 'page', id: 'tiny' }, payload: { body: 'hi' }, createdAt: 'now' },

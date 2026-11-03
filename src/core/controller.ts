@@ -1,6 +1,8 @@
 import { isEqual } from 'es-toolkit/predicate';
 import { array, parse, safeParse, unknown } from 'valibot';
 
+import type { Reach } from './sync/log';
+import type { Author, SyncHost } from './sync/protocol';
 import type {
   ActionDescriptor,
   ActionTarget,
@@ -27,7 +29,8 @@ import { ANSWER_ACTION, ANSWER_DESCRIPTOR, applyAnswer, EMPTY_GRILL, isAnswerAct
 import { withGrill, type GrillLayer } from './grill-targets';
 import { defaultStorage, defaultStorageKey, type DraftStorage } from './persistence';
 import { draftActionEnvelopeSchema, ownAction } from './schema';
-import { toTarget } from './target';
+import { SyncChannel, type ChannelChange, type SyncState } from './sync/channel';
+import { createActionId, toTarget } from './target';
 import { canRedo, canUndo, clearRedo, redoStep, undoStep, EMPTY_UNDO_REDO, type UndoRedoState } from './undo-redo';
 
 export type DraftControllerOptions<S> = {
@@ -38,6 +41,11 @@ export type DraftControllerOptions<S> = {
   readonly initialActions?: readonly DraftAction[];
   /** The questions the page asks; none until `setGrill`. */
   readonly grill?: GrillLayer;
+  /**
+   * Shares the draft through a host (`dpk-sync-request`) instead of storage:
+   * the host's order is the draft, the reader's own changes ride on top.
+   */
+  readonly sync?: SyncHost;
 };
 
 export type DraftExport = {
@@ -67,6 +75,9 @@ export class DraftController<S> {
   #lastIssues: readonly ValidationIssue[] = [];
   #prunedCount = 0;
   #undoRedo: UndoRedoState = EMPTY_UNDO_REDO;
+  readonly #sync: SyncChannel | null;
+  /** While shared, what `undo` took back, for `redo` to add again; never stored. */
+  #sharedRedo: readonly DraftAction[] = [];
 
   constructor(options: DraftControllerOptions<S>) {
     this.#template = options.definition;
@@ -74,6 +85,22 @@ export class DraftController<S> {
     this.#definition = this.#wrap();
     this.#base = options.base;
     this.#storageKey = options.storageKey ?? defaultStorageKey(options.definition.name);
+    this.#sync =
+      options.sync === undefined
+        ? null
+        : new SyncChannel(
+            options.sync,
+            (input) => normalizeRestored(this.definition, [input])[0] ?? null,
+            (change) => this.#onShared(change),
+          );
+    if (this.#sync !== null) {
+      // The host holds the draft; the reader's unsent ops wait with the host.
+      this.#storage = null;
+      this.#actions = this.#sync.actions;
+      this.#rewrap();
+      this.#derivation = this.#derive(this.#actions);
+      return;
+    }
     this.#storage = options.storage === undefined ? defaultStorage() : options.storage;
     const restored = options.initialActions ?? this.#storage?.load(this.#storageKey, this.definition.name) ?? [];
     this.#actions = normalizeRestored(this.definition, restored);
@@ -166,11 +193,39 @@ export class DraftController<S> {
   }
   /** Whether there is a draft entry `undo()` would remove. */
   get canUndo(): boolean {
+    const sync = this.#sync;
+    if (sync !== null) return this.#actions.some((action) => sync.isOwn(action.id));
     return canUndo(this.#actions);
   }
   /** Whether there is a removed entry `redo()` would replay. */
   get canRedo(): boolean {
+    if (this.#sync !== null) return this.#sharedRedo.length > 0;
     return canRedo(this.#undoRedo);
+  }
+
+  /** Where sharing stands, `null` for a draft kept in storage. */
+  get sync(): SyncState | null {
+    return this.#sync?.state ?? null;
+  }
+
+  /** Who wrote an action of a shared draft; `undefined` for an unshared one. */
+  authorOf(id: string): Author | undefined {
+    return this.#sync?.authorOf(id);
+  }
+
+  /** Whether the reader may take the action back as their own; every action of an unshared draft is. */
+  isOwnAction(id: string): boolean {
+    return this.#sync?.isOwn(id) ?? this.#actions.some((action) => action.id === id);
+  }
+
+  /** Ends sharing: the host stops sending and the draft stays as it is. Changes wait for `reopen()`. */
+  close(): void {
+    this.#sync?.close();
+  }
+
+  /** Shares again after `close()`, sending what waited meanwhile. */
+  reopen(): void {
+    this.#sync?.reopen();
   }
 
   /** Comments, answers and component element actions are core-owned; the rest is the template's vocabulary. */
@@ -264,6 +319,16 @@ export class DraftController<S> {
     const edited = safeParse(draftActionEnvelopeSchema, parsed.output);
     if (!edited.success) return this.#reject([firstIssue(edited.issues)]);
     const replacement = edited.output;
+    if (this.#sync !== null) {
+      // Another reader's copy keeps the old body; only a new action reaches it.
+      if (!this.#sync.isOwn(id)) return this.#reject([{ path: 'id', message: `comment "${id}" is another reader's` }]);
+      const posted = { ...replacement, id: createActionId() };
+      this.#commit(
+        this.#actions.map((action) => (action === existing ? posted : action)),
+        { dispatched: [posted.id], reach: 'own' },
+      );
+      return { ok: true, id: posted.id };
+    }
     this.#commit(
       this.#actions.map((action) => (action === existing ? replacement : action)),
       { dispatched: [] },
@@ -273,15 +338,34 @@ export class DraftController<S> {
 
   removeAction(id: string): void {
     const next = this.#actions.filter((action) => action.id !== id);
-    if (next.length !== this.#actions.length) this.#commit(next);
+    if (next.length !== this.#actions.length) this.#commit(next, { reach: 'any' });
   }
 
   clearActions(): void {
-    if (this.#actions.length > 0) this.#commit([]);
+    this.prepareClear()();
+  }
+
+  /**
+   * Clears what the reader sees now, when the returned function is called.
+   * Shared, what others add in between stays: ask the reader in between.
+   */
+  prepareClear(): () => void {
+    const sync = this.#sync;
+    if (sync === null) {
+      return () => {
+        if (this.#actions.length > 0) this.#commit([]);
+      };
+    }
+    const mark = sync.clearMark();
+    return () => {
+      sync.clear(mark);
+      this.#sharedRedo = [];
+      this.#refresh();
+    };
   }
 
   replaceActions(actions: readonly unknown[]): void {
-    this.#commit(normalizeRestored(this.definition, actions));
+    this.#commit(normalizeRestored(this.definition, actions), { reach: 'any' });
   }
 
   setBase(base: S): void {
@@ -289,8 +373,22 @@ export class DraftController<S> {
     this.#commit(this.#actions);
   }
 
-  /** Removes the draft's last entry (comments included) and re-derives. `false` when the draft is empty. */
+  /**
+   * Removes the draft's last entry (comments included) and re-derives. `false`
+   * when the draft is empty. Shared, the entry is the reader's own last one.
+   */
   undo(): boolean {
+    const sync = this.#sync;
+    if (sync !== null) {
+      const last = [...this.#actions].reverse().find((action) => sync.isOwn(action.id));
+      if (last === undefined) return false;
+      this.#sharedRedo = [...this.#sharedRedo, last];
+      this.#commit(
+        this.#actions.filter((action) => action !== last),
+        { preserveRedo: true, reach: 'own' },
+      );
+      return true;
+    }
     const outcome = undoStep(this.#actions, this.#undoRedo);
     if (outcome === null) return false;
     this.#undoRedo = outcome.state;
@@ -300,6 +398,15 @@ export class DraftController<S> {
 
   /** Replays the most recently undone entry. `false` when there is nothing to redo. */
   redo(): boolean {
+    if (this.#sync !== null) {
+      const last = this.#sharedRedo.at(-1);
+      if (last === undefined) return false;
+      this.#sharedRedo = this.#sharedRedo.slice(0, -1);
+      // The host has seen the old id; the same id would be taken for a retry.
+      const again = { ...last, id: createActionId() };
+      this.#commit([...this.#actions, again], { preserveRedo: true, dispatched: [again.id] });
+      return true;
+    }
     const outcome = redoStep(this.#actions, this.#undoRedo);
     if (outcome === null) return false;
     this.#undoRedo = outcome.state;
@@ -323,11 +430,18 @@ export class DraftController<S> {
     };
   }
 
-  /** `preserveRedo` keeps the redo stack `undo`/`redo` just adjusted; any other commit clears it. */
+  /**
+   * `preserveRedo` keeps the redo stack `undo`/`redo` just adjusted; any
+   * other commit clears it. `reach` is what a shared draft may take back.
+   */
   #commit(
     actions: DraftAction[],
-    options?: { readonly preserveRedo?: boolean; readonly dispatched?: readonly string[] },
+    options?: { readonly preserveRedo?: boolean; readonly dispatched?: readonly string[]; readonly reach?: Reach },
   ): void {
+    if (this.#sync !== null) {
+      this.#commitShared(this.#sync, actions, options);
+      return;
+    }
     this.#lastIssues = [];
     this.#actions = actions;
     this.#rewrap();
@@ -335,6 +449,73 @@ export class DraftController<S> {
     this.#normalize(options?.dispatched);
     if (options?.preserveRedo !== true) this.#undoRedo = clearRedo();
     this.#persist();
+    for (const listener of this.#listeners) listener();
+  }
+
+  /**
+   * Shared, the draft is the host's: the change goes out as ops and the draft
+   * is what the reader sees afterwards. Nothing is compacted — another
+   * reader's action is not this reader's to fold — and what the change makes
+   * obsolete is kept from the host only when it is the reader's own and unsent.
+   * Obsolete is judged on what the reader will see: an action `reach` cannot
+   * take back stays, and a change of it back to the base is not a no-op.
+   */
+  #commitShared(
+    sync: SyncChannel,
+    actions: readonly DraftAction[],
+    options?: { readonly preserveRedo?: boolean; readonly reach?: Reach },
+  ): void {
+    this.#lastIssues = [];
+    const shown = new Set(this.#actions.map((action) => action.id));
+    const reach = options?.reach ?? 'pending';
+    const obsolete = new Set(
+      this.#derive(sync.preview(actions, reach))
+        .obsolete.filter((action) => !shown.has(action.id) || sync.isPending(action.id))
+        .map((action) => action.id),
+    );
+    this.#prunedCount += obsolete.size;
+    sync.change(
+      actions.filter((action) => !obsolete.has(action.id)),
+      reach,
+    );
+    if (options?.preserveRedo !== true) this.#sharedRedo = [];
+    this.#refresh();
+  }
+
+  /**
+   * The host's word: the draft is what the reader sees now. An unsent own
+   * action the update left without a target (another reader deleted it) is
+   * dropped quietly; a comment stays, as it does in an unshared draft.
+   */
+  #onShared(change: ChannelChange): void {
+    const sync = this.#sync;
+    if (sync === null) return;
+    if (change === 'status') {
+      for (const listener of this.#listeners) listener();
+      return;
+    }
+    const before = new Set(this.#derivation.stale.map(({ action }) => action.id));
+    this.#actions = sync.actions;
+    this.#rewrap();
+    this.#derivation = this.#derive(this.#actions);
+    const stranded = new Set(
+      this.#derivation.stale
+        .filter(({ action }) => action.type !== COMMENT_ACTION && !before.has(action.id) && sync.isPending(action.id))
+        .map(({ action }) => action.id),
+    );
+    if (stranded.size > 0)
+      sync.change(
+        this.#actions.filter((action) => !stranded.has(action.id)),
+        'pending',
+      );
+    this.#refresh();
+  }
+
+  /** Re-derives from what a shared draft shows and tells the subscribers. */
+  #refresh(): void {
+    if (this.#sync !== null) this.#actions = this.#sync.actions;
+    this.#rewrap();
+    this.#derivation = this.#derive(this.#actions);
     for (const listener of this.#listeners) listener();
   }
 

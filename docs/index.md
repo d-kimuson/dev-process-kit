@@ -79,12 +79,13 @@ version is published, so never generate HTML against a floating URL such as `@la
 `<version>` below is the version these docs belong to — the `v<version>` Git tag you are reading
 them at.
 
-| Entry                                                                                                                              | Use it when                                       |
-| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `views/usm.js` / `views/prototype.js` / `views/plain.js` / `views/slides.js` / `views/task-board.js` / `views/delegation-poker.js` | the page is that view                             |
-| `boards.js`                                                                                                                        | the page uses a board, embedded or as its content |
-| `components.js`                                                                                                                    | the page uses components without a view           |
-| `index.js`                                                                                                                         | one URL for everything                            |
+| Entry                                                                                                                              | Use it when                                                  |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `views/usm.js` / `views/prototype.js` / `views/plain.js` / `views/slides.js` / `views/task-board.js` / `views/delegation-poker.js` | the page is that view                                        |
+| `boards.js`                                                                                                                        | the page uses a board, embedded or as its content            |
+| `components.js`                                                                                                                    | the page uses components without a view                      |
+| `sync.js`                                                                                                                          | the page shares its draft among readers ([sync.md](sync.md)) |
+| `index.js`                                                                                                                         | one URL for every element (not `sync.js`)                    |
 
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@<version>/dist/views/prototype.js"></script>
@@ -94,7 +95,8 @@ A view entry registers that view, `<dpk-app>`, `<dpk-page>`, the review rail and
 Add `boards.js` when the page uses a board — this is how `dpk-board-event-storming`,
 `dpk-board-example-mapping`, `dpk-board-whiteboard` and the rest are loaded, embedded in a view or
 hosted as a page's content. Add `components.js` when the page uses components the view does not
-carry. `index.js` is the union of all of them.
+carry. `index.js` is the union of the element entries; `sync.js` defines no element and is
+loaded on its own.
 
 The page switcher's **+** menu does not need every entry up front: it offers the views and boards
 that can be a page of their own, and loads `views/<name>.js` or `boards.js` from the same version
@@ -241,7 +243,7 @@ The path states _where_ the target lives, which is the difference between "renam
 
 ## Persistence
 
-Drafts live in `LocalStorage`, so a reload keeps the review in progress. A stored draft is ignored when its view does not match or when it is not version 1; an action that no longer validates is dropped on its own, not with the rest of the draft. Drafts are per-browser, and nothing is uploaded anywhere.
+Drafts live in `LocalStorage`, so a reload keeps the review in progress, unless a host shares the draft among readers ([sync.md](sync.md)). A stored draft is ignored when its view does not match or when it is not version 1; an action that no longer validates is dropped on its own, not with the rest of the draft. Drafts are per-browser, and nothing is uploaded anywhere unless the page shares them.
 
 Text the reader has typed but not sent yet — a comment in a composer, a name in an inline edit, any text field the kit renders — is kept in `sessionStorage` (key `<storage key>:unsent-text`) for the tab's session. When a reload, a republished page or a stray `Esc` closes the field, opening the same field again puts the text back, as long as the field starts from the same text it did then. Sending the text into the draft, or pressing a Cancel button beside the field, forgets it. Your own markup (a prototype's mock form) is left alone. Under `storage="off"` / `"memory"` it is kept for this page load only.
 
@@ -654,6 +656,7 @@ Your own markup can add entries too, without writing a component: wrap it in `<d
 | The view or board I am using      | `docs/views/<name>.md` (usm / prototype / plain / slides / task-board / delegation-poker) or `docs/boards/<name>.md` (ER / state / sequence / dependency / architecture / mind map / event storming / example mapping / whiteboard / kanban) |
 | The component I am actually using | `docs/components/<name>.md` (comment-panel / inline-edit / comment-thread / formal-spec / line-chart / code-group / table / select / alternatives / extend-right-click / …)                                                                  |
 | Several pages in one app          | `docs/page.md`                                                                                                                                                                                                                               |
+| Sharing a draft among readers     | `docs/sync.md`                                                                                                                                                                                                                               |
 | Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                                                                                                                    |
 
 Read the page for what you are actually using, plus this one.

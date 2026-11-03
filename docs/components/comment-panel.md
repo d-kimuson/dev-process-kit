@@ -59,6 +59,8 @@ The panel is a normal custom element, but it expects a derivation, not a state: 
 | `exportBrief`                                          | `() => string`                                         | optional canonical host brief (shared fallback otherwise)                           |
 | `sendToClaude`                                         | `() => Promise<{ ok: true } \| { ok: false, reason }>` | shows the `Send to Claude` button and runs it; left unset outside a Claude Artifact |
 | `onDelete` / `onClear` / `onComment` / `onEditComment` | callbacks                                              | the only way the panel changes anything                                             |
+| `authorOf`                                             | `(id) => string \| undefined`                          | the name shown beside an entry's target, for a draft shared between readers         |
+| `canEditComment`                                       | `(id) => boolean`                                      | which comments get an edit button; all of them when unset                           |
 
 The boolean `embedded` property/attribute hides the panel heading and its copy button when the enclosing template supplies those controls. The composer, draft rows and Clear button remain unchanged.
 

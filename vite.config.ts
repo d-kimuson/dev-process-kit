@@ -16,6 +16,7 @@ const ENTRIES = {
   index: 'src/index.ts',
   components: 'src/entries/components.ts',
   boards: 'src/entries/boards.ts',
+  sync: 'src/entries/sync.ts',
   'views/prototype': 'src/entries/prototype.ts',
   'views/usm': 'src/entries/usm.ts',
   'views/plain': 'src/entries/plain.ts',
