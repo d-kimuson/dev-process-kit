@@ -175,6 +175,12 @@ export type ViewDefinition<S> = {
    */
   pageTargetExists?(state: S, target: ActionTarget): boolean;
 
+  /**
+   * The target a comment on the whole document takes; `page:<name>` when
+   * left out. An app, one document of several pages, names itself instead.
+   */
+  readonly wholeTarget?: ActionTarget;
+
   /** Pure reducer for a single action. `null` when not applicable. */
   apply(state: S, action: DraftAction): ApplyResult<S>;
 

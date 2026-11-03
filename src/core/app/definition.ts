@@ -233,6 +233,7 @@ export const appDefinition = (source: AppSource): ViewDefinition<AppState> => {
       return page.spec.definition.hasTarget(state.pages[page.page], page.target);
     },
     pageTargetExists: (state, target) => isAppWide(target) || scoped(state, target)?.spec !== undefined,
+    wholeTarget: APP_WIDE_TARGET,
     describe: (action, state, base) => {
       if (isAppWide(action.target)) {
         return action.type === 'comment' ? fallbackDescription(action, m.wholePage) : describeAppAction(action);

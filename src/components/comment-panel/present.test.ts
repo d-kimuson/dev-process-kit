@@ -30,6 +30,15 @@ describe('panel presentation', () => {
     expect(presentPanel({ ...inputs, navigation: { item: 'b' } }, ui).target.ref).toBe('item:b');
     expect(presentPanel({ ...inputs, navigation: {} }, ui).target.ref).toBe('page:tiny');
   });
+  it('attaches a comment on the whole page to the target the definition names for it', () => {
+    const ui = initialPanelState();
+    expect(presentPanel({ ...inputs, navigation: {} }, ui).target.ref).toBe('page:tiny');
+    const whole = { ...definition, wholeTarget: { type: 'app', id: 'app' } };
+    expect(presentPanel({ ...inputs, definition: whole, navigation: {} }, ui).target).toEqual({
+      ref: 'app:app',
+      label: 'Whole page',
+    });
+  });
   it('keeps explicit targets stable and derives their label', () => {
     const ui = reducePanel(initialPanelState(), { kind: 'target-requested', ref: 'item:a' });
     expect(presentPanel({ ...inputs, navigation: { item: 'b' } }, ui).target).toEqual({

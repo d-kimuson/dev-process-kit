@@ -176,6 +176,22 @@ describe('<dpk-page>', () => {
     expect(after.api.actions).toEqual([]);
   });
 
+  it('takes a comment the review attaches to the whole document as one on the app', async () => {
+    const { page } = await mount();
+    page.notesOpen = true;
+    await page.updateComplete;
+    const panel = page.renderRoot.querySelector('dpk-comment-panel');
+    const area = panel?.shadowRoot?.querySelector('textarea');
+    if (!(panel instanceof HTMLElement) || !area) throw new Error('missing composer');
+    area.value = 'about the whole thing';
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+    await page.updateComplete;
+    area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
+    await page.updateComplete;
+    expect(page.api.actions.map((action) => action.target)).toEqual([{ type: 'app', id: 'app' }]);
+    expect(page.api.stale).toEqual([]);
+  });
+
   it('shows only the board the hash names', async () => {
     const { page, pageOf } = await mount();
     expect(page.api.navigation).toMatchObject({ page: 'before' });

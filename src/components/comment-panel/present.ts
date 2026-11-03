@@ -1,4 +1,3 @@
-import type { Derivation, StaleReason } from '../../core/derive';
 import type { Locale } from '../../core/i18n';
 import type { ActionTone, CommentTargetOption, Navigation, ViewDefinition, ValidationIssue } from '../../core/types';
 import type { PanelState } from './model';
@@ -6,7 +5,9 @@ import type { PanelState } from './model';
 import { COMMENT_ACTION } from '../../core/action';
 import { handoffFailureLabel } from '../../core/claude-handoff';
 import { commentBody } from '../../core/comment';
+import { PAGE_TARGET_TYPE, type Derivation, type StaleReason } from '../../core/derive';
 import { isAnswerAction } from '../../core/grill';
+import { targetRef } from '../../core/target';
 import { panelMessages } from './messages';
 
 export type PanelInputs<S> = {
@@ -92,7 +93,10 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
       ? { ref: attachment.ref, label: option ? labelOf(option) : attachment.ref }
       : attachment.kind === 'current' && current
         ? { ref: current.value, label: labelOf(current) }
-        : { ref: `page:${definition.name}`, label: m.wholePage };
+        : {
+            ref: targetRef(definition.wholeTarget ?? { type: PAGE_TARGET_TYPE, id: definition.name }),
+            label: m.wholePage,
+          };
   const stale = new Map(derivation.stale.map((entry) => [entry.action.id, entry.reason]));
   const section = inputs.section ?? 'all';
   // Answers to the page's questions are shown with the questions; one that no

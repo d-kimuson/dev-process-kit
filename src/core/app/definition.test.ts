@@ -106,6 +106,15 @@ describe('app definition', () => {
     ]);
   });
 
+  it('names the app as a whole for a comment on the whole document, which applies', () => {
+    const { definition } = setup([scope, domain], { scope: { pay: 'Pay' }, domain: {} });
+    const controller = new DraftController({ definition, base: definition.parseBase({}), storage: null });
+    expect(definition.wholeTarget).toEqual({ type: 'app', id: 'app' });
+    const target = targetRef(definition.wholeTarget ?? { type: 'page', id: definition.name });
+    expect(controller.dispatch({ type: 'comment', target, payload: { body: 'x' } }).ok).toBe(true);
+    expect(controller.derivation.stale).toEqual([]);
+  });
+
   it('accepts a comment from one page on another, and on the app as a whole', () => {
     const { definition } = setup([scope, domain], { scope: { pay: 'Pay' }, domain: { paid: 'Paid' } });
     const controller = new DraftController({ definition, base: definition.parseBase({}), storage: null });
