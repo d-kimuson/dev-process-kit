@@ -418,10 +418,12 @@ describe('arrangeBoxes', () => {
       if (to === from) to = (to + 1) % boxes.length;
       return { id: `edge-${i}`, from: `n${from}`, to: `n${to}` };
     });
-    const start = performance.now();
+    // CPU time, not wall-clock: a busy machine stretches the latter without
+    // the search doing any more work, and an exhaustive one would blow past it.
+    const start = process.cpuUsage();
     const packed = arrangeBoxes(boxes, edges, 20, 1.4);
-    const elapsed = performance.now() - start;
-    expect(elapsed).toBeLessThan(2000);
+    const { user, system } = process.cpuUsage(start);
+    expect((user + system) / 1000).toBeLessThan(2000);
     expect(packed.positions.size).toBe(boxes.length);
     const sizeOf = new Map(boxes.map((b) => [b.id, { width: b.width, height: b.height }]));
     const entries = [...packed.positions];

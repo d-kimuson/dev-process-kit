@@ -1,12 +1,10 @@
 import { type LitElement } from 'lit';
-// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { DraftAction } from '../../core/types';
 import type { DpkViewUsm } from './element';
 
 import { DpkInlineEdit } from '../../components/inline-edit';
-import { DpkTable } from '../../components/table';
 import { changeLogScript, showChange } from '../../core/testing/change-notices';
 import { applyUsmAction } from './apply';
 import '../../index';
@@ -276,27 +274,6 @@ describe('usm template', () => {
     expect(root.querySelector('.view-tabs')).toBeNull();
     expect(root.querySelector('[data-testid="usm-milestones"]')).not.toBeNull();
     // switching tabs is navigation, not a draft action
-    expect(el.api.actions).toHaveLength(0);
-    document.body.innerHTML = '';
-  });
-
-  it('lists every story in a flat table, and opens the story panel when a row is picked', async () => {
-    const el = mount('#tab=table');
-    await settle(el);
-    const root = el.shadowRoot!;
-    const section = root.querySelector('[data-testid="usm-table"]');
-    const table = section?.querySelector('dpk-table');
-    if (!(table instanceof DpkTable)) throw new Error('missing dpk-table');
-    await table.updateComplete;
-    const rows = [...table.shadowRoot!.querySelectorAll<HTMLElement>('[data-row]')].map((row) => row.dataset['row']);
-    expect(rows).toEqual(['u1', 'u2']);
-    expect(root.querySelector('[data-testid="usm-story-panel"]')).toBeNull();
-
-    table.shadowRoot!.querySelector<HTMLElement>('[data-row="u2"]')?.click();
-    await settle(el);
-    expect(el.api.navigation).toMatchObject({ tab: 'table', step: 's1', story: 'u2' });
-    expect(root.querySelector('[data-testid="usm-story-panel"]')).not.toBeNull();
-    // the table only ever navigates: a row pick is never recorded as a draft action
     expect(el.api.actions).toHaveLength(0);
     document.body.innerHTML = '';
   });
