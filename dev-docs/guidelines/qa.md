@@ -22,6 +22,8 @@ Follow the shared `browser-ops` skill for browser lifecycle, profiles, and authe
 
 To look at how a template or component actually renders an arbitrary data pattern — the analog of swapping a backend response — rather than asserting pass/fail, use the chaos harness (`lp/chaos/`, driven headlessly by `dev/qa/chaos-capture.ts`). It is not a regression test; see its own header comment for usage.
 
+Draft sharing (`docs/sync.md`) needs several readers at once, which the smoke script does not cover. `pnpm demo:sync` (`dev/sync-demo/`, usage in its `server.ts`) serves the samples behind a local server that follows the protocol's server rules, with a per-tab offline switch, polling or a live channel, and a viewer of the server's log. Open it as two readers, from two browsers or from `localhost` and `127.0.0.1`, to check that changes reach the other reader, survive going offline and a reload, and carry their author. Its `hub.ts` is also the reference for what a server must do; keep it in step with `docs/sync.md`.
+
 Exercise the built bundle from the sample's separate origin. This preserves the deployment boundary and catches failures hidden by importing source modules directly. For a typical change, verify the affected scenarios among:
 
 - the sample renders without an error banner or console error;

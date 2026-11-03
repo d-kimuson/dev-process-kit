@@ -180,6 +180,9 @@ The kit trusts the server for the order and for who wrote what:
   `clear`, answer with a snapshot instead: a reader cannot tell which of its actions the clear
   covered from the ops alone.
 
+[`dev/sync-demo/hub.ts`](../dev/sync-demo/hub.ts) in the repository is a small in-memory log that
+follows these rules, and `dev/sync-demo/` serves it to the samples for trying the protocol locally.
+
 ## Notes
 
 - The element asks once. A host registered after the element started does not share it.

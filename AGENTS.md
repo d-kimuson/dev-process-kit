@@ -26,7 +26,8 @@ events / slots だけを公開契約にする（Lit は実装詳細）。
 ├── .agents/skills/    # 開発者向け skill（release）
 ├── dev/lints/         # リポジトリ固有の oxlint ルール（境界の強制）
 ├── dev/types/         # 型検査だけを目的とした compile-time guard
-└── dev/qa/            # 実ブラウザでのサンプル smoke check
+├── dev/qa/            # 実ブラウザでのサンプル smoke check
+└── dev/sync-demo/     # ドラフト共有を複数ブラウザで試すローカル sync server（`pnpm demo:sync`）
 ```
 
 ## References
