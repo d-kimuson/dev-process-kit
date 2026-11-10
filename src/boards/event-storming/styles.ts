@@ -80,6 +80,10 @@ export const eventStormingStyles = css`
   .band-canvas {
     position: relative;
     flex: 0 0 auto;
+    /* The notes (2, 3 even while hovered), links, ports, chips and context
+       labels (up to 7) are all positioned: a Q badge or a check mark on a
+       note's corner sits above them, below the gesture layer and the HUD. */
+    --dpk-badge-layer-z: 8;
   }
 
   /* ---------------------------------------------------------------- slices */

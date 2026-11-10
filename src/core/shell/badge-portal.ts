@@ -242,14 +242,20 @@ const boxOf = (target: Element, parent: HTMLElement, measured: boolean): Box | n
  * The layer's own CSS. `z-index` sits above the content it badges (cards are
  * not positioned) and below the shell's and a board's own pinned heads
  * (`z-index` 2 and 3), so a badge whose target scrolls under a pinned header is
- * covered by that header instead of floating over it.
+ * covered by that header instead of floating over it. A board whose nodes are
+ * positioned themselves (a wall of stacked notes) raises it with
+ * `--dpk-badge-layer-z` on the box the layer lands in, or its nodes cover it.
  */
 const LAYER_CSS = (portalClass: string): string => `
   .${portalClass} {
     position: absolute;
     inset: 0;
-    z-index: 1;
+    z-index: var(--dpk-badge-layer-z, 1);
     pointer-events: none;
+  }
+  /* A badge's own \`display\` would otherwise outrank the attribute. */
+  .${portalClass} > [hidden] {
+    display: none;
   }
 `;
 
@@ -269,6 +275,13 @@ export class BadgePortalController<B extends PortalBadgeBinding> implements Reac
   #settleFrame: number | null = null;
   /** Whether this pass created or re-homed a badge, so the layout it landed in may still be on its way. */
   #drew = false;
+  /**
+   * Re-places the badges when a box they sit in, or a mark, changes size. A
+   * view may lay its marks out again on its own (a board re-flows its notes to
+   * a new width) without the host rendering, and an offset badge's position is
+   * in its parent's coordinates: it stays where the mark used to be.
+   */
+  #resize: ResizeObserver | undefined;
 
   constructor(host: ReactiveControllerHost & HTMLElement, options: BadgePortalOptions<B>) {
     this.#options = options;
@@ -329,6 +342,7 @@ export class BadgePortalController<B extends PortalBadgeBinding> implements Reac
     for (const [key, record] of this.#records) {
       if (!seen.has(key)) this.#discard(record);
     }
+    this.#observe();
     // A parent that holds gutter badges says so, so the shell reserves their
     // column: a claim about its badges, not about whether one is in view now.
     for (const portal of this.#portals.values()) {
@@ -433,7 +447,35 @@ export class BadgePortalController<B extends PortalBadgeBinding> implements Reac
     this.#portals.delete(portal.parent);
   }
 
+  #observe(): void {
+    if (typeof ResizeObserver === 'undefined') return;
+    this.#resize ??= new ResizeObserver(this.#onResize);
+    this.#resize.disconnect();
+    for (const portal of this.#portals.values()) {
+      this.#resize.observe(portal.parent);
+      for (const record of portal.records) this.#resize.observe(record.target);
+    }
+  }
+
+  /**
+   * A view that laid its marks out again may have drawn new ones in their
+   * place (a removed mark reports a size of zero): those are read again, as
+   * the host's render would. Moved marks only move their badges.
+   */
+  #onResize = (): void => {
+    if (!this.#options.active()) return;
+    if ([...this.#records.values()].some((record) => !record.target.isConnected)) {
+      this.refresh();
+      return;
+    }
+    for (const record of this.#records.values()) this.#reparent(record);
+    if (this.#drew) this.#observe();
+    this.#drew = false;
+    this.#place();
+  };
+
   #clear(): void {
+    this.#resize?.disconnect();
     this.#stopSettle();
     for (const portal of this.#portals.values()) this.#discardPortal(portal);
     // `#discardPortal` already empties the map as it goes.
@@ -549,7 +591,10 @@ export class BadgePortalController<B extends PortalBadgeBinding> implements Reac
     this.#followTargets();
     // A badge that had to move may have moved into a box whose own frame is
     // still being drawn; one that did not is where it belongs already.
-    if (this.#drew) this.#settle = SETTLE_FRAMES;
+    if (this.#drew) {
+      this.#observe();
+      this.#settle = SETTLE_FRAMES;
+    }
     this.#drew = false;
     if (this.#settle > 0) this.#requestSettle();
   };

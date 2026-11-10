@@ -273,6 +273,53 @@ describe('BadgePortalController', () => {
     expect(badges()[0]?.style.top).toBe('109px');
   });
 
+  it('hides a badge whose mark has no box, whatever display its own styles give it', async () => {
+    const { parent } = mount();
+    await frames();
+    expect(parent.querySelector('.dpk-test-portal style')?.textContent).toMatch(
+      /\.dpk-test-portal > \[hidden\] \{\s*display: none;/,
+    );
+  });
+
+  /**
+   * A view can lay its marks out again on its own — a board re-flows its notes
+   * to a new width — and draw new marks in place of the old ones, without the
+   * host rendering. The removed mark reports a size of zero, and the marks are
+   * read again.
+   */
+  it('reads the marks again when a mark it badges is replaced without the host rendering', async () => {
+    const observers: Array<() => void> = [];
+    const original = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      readonly #callback: () => void;
+      constructor(callback: () => void) {
+        this.#callback = callback;
+        observers.push(() => this.#callback());
+      }
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    } as unknown as typeof ResizeObserver;
+    try {
+      const { parent, target, setBindings, badges } = mount();
+      await frames();
+      const next = document.createElement('div');
+      size(next, 80, 40);
+      next.getBoundingClientRect = () => rect(200, 120, 80, 40);
+      next.getClientRects = () => [rect(200, 120, 80, 40)] as unknown as DOMRectList;
+      target.replaceWith(next);
+      parent.append(next);
+      setBindings([{ index: 0, target: next, ref: 'card:a' }]);
+      for (const notify of observers) notify();
+      expect(badges()).toHaveLength(1);
+      expect(badges()[0]?.hidden).toBe(false);
+      expect(badges()[0]?.style.left).toBe('258px');
+      expect(badges()[0]?.style.top).toBe('109px');
+    } finally {
+      globalThis.ResizeObserver = original;
+    }
+  });
+
   it('removes the badge, its layer and the gutter claim when the feature is off', async () => {
     const { controller, parent, setActive } = mount({ gutter: true });
     await frames();

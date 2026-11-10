@@ -86,7 +86,7 @@ import {
   renderNoticeToasts,
   type NoticeIntents,
 } from './shell/change-notices';
-import { collectCheckBindings, CheckModeBadgeController, type CheckBadgeBinding } from './shell/check-mode-badges';
+import { collectCheckBindings, CheckModeBadgeController } from './shell/check-mode-badges';
 import { CheckModeController } from './shell/check-mode-controller';
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
@@ -94,7 +94,7 @@ import { assignElementActions, findComponentProviders, readComponentSnapshot } f
 import { menuClearanceOf, type MenuArea } from './shell/floating-menu';
 import { FloatingMenuController } from './shell/floating-menu-controller';
 import { floatingMenuStyles, renderFloatingMenu, renderFloatingMenuSlot } from './shell/floating-menu-view';
-import { collectBadges, GrillBadgeController, type BadgeBinding } from './shell/grill-badges';
+import { collectBadges, GrillBadgeController } from './shell/grill-badges';
 import {
   openQuestionOf,
   presentGrillPanel,
@@ -244,9 +244,8 @@ export abstract class ViewElement<S> extends LitElement {
   #focusFreeText: string | null = null;
   /** The question last scrolled to, so the list only moves when the reader opens another. */
   #revealedQuestion: string | null = null;
-  #badges: readonly BadgeBinding[] = [];
-  /** Check Mode's own badges, collected the same way as the grill's (`renderChrome`/`#renderBoardChrome`). */
-  #checkBindings: readonly CheckBadgeBinding[] = [];
+  readonly #grillBadges: GrillBadgeController;
+  readonly #checkBadges: CheckModeBadgeController;
   #grillPanelIntents: GrillPanelIntents = {
     open: (questionId) => this.#openQuestion(questionId),
     answer: (questionId, payload) => this.#answer(questionId, payload),
@@ -355,16 +354,32 @@ export abstract class ViewElement<S> extends LitElement {
         this.notesOpen = false;
       },
     });
-    new GrillBadgeController(this, {
+    // Badges are derived from the DOM (the author's markup, and the shadow roots
+    // a diagram renders into), so they are collected once the render that
+    // draws their marks has landed: during it, the marks are the last render's.
+    // A board's marks are the page's, collected by the page.
+    this.#grillBadges = new GrillBadgeController(this, {
       active: () => this.#grill.questions.length > 0,
-      bindings: () => this.#badges,
+      bindings: () =>
+        this.#boardId !== null || !this.#controller
+          ? []
+          : collectBadges(
+              this,
+              this.#grill,
+              this.derivation.answers,
+              this.notesOpen && this.reviewSection === 'questions'
+                ? openQuestionOf(this.#grill, this.#grillOpen)
+                : null,
+              (mark, token) => this.grillRefsOf(mark, token),
+            ),
       open: (questionId) => this.#openQuestion(questionId),
       labelOf: (binding) => coreMessages(this.locale).grillOpen(`${binding.ref} · ${binding.title}`),
       gutterOf: (target) => this.contains(target) && this.#badgeRegionOf(target) === 'main',
     });
-    new CheckModeBadgeController(this, {
+    this.#checkBadges = new CheckModeBadgeController(this, {
       active: () => this.#checkMode.enabled,
-      bindings: () => this.#checkBindings,
+      bindings: () =>
+        this.#boardId !== null ? [] : collectCheckBindings(this, this.#checkMode.state, this.#notices.log),
       onToggle: (ref) => this.#checkMode.toggle(ref),
       labelOf: (status) => {
         const messages = coreMessages(this.locale);
@@ -500,6 +515,7 @@ export abstract class ViewElement<S> extends LitElement {
     this.addEventListener('dpk-comment-request', this.#onCommentRequest);
     this.addEventListener('dpk-comment-submit', this.#onCommentSubmit);
     this.addEventListener('dpk-element-action', this.#onElementAction);
+    if (this.#boardId === null) this.addEventListener('dpk-board-rendered', this.#onBoardRendered);
     this.#targetObserver ??= new MutationObserver(this.#refreshCommentTargets);
     this.#refreshCommentTargets();
   }
@@ -520,6 +536,7 @@ export abstract class ViewElement<S> extends LitElement {
     this.removeEventListener('dpk-comment-request', this.#onCommentRequest);
     this.removeEventListener('dpk-comment-submit', this.#onCommentSubmit);
     this.removeEventListener('dpk-element-action', this.#onElementAction);
+    this.removeEventListener('dpk-board-rendered', this.#onBoardRendered);
   }
 
   /**
@@ -576,7 +593,16 @@ export abstract class ViewElement<S> extends LitElement {
     this.#placeNoticeList();
     this.#settleQuestions();
     this.#publishMenuClearance();
+    // A board draws its marks in its own render, after the page's: the page re-reads them then.
+    if (this.#boardId !== null) this.dispatchEvent(new Event('dpk-board-rendered', { bubbles: true, composed: true }));
   }
+
+  #onBoardRendered = (event: Event): void => {
+    if (event.target === this) return;
+    event.stopPropagation();
+    this.#grillBadges.refresh();
+    this.#checkBadges.refresh();
+  };
 
   /**
    * Publishes the room the floating menu takes at the right edge, so the shell's
@@ -923,16 +949,6 @@ export abstract class ViewElement<S> extends LitElement {
     if (this.#boardId !== null) return this.#renderBoardChrome(regions);
     const draftCount = context.actions.length;
     const { changeCount, commentCount } = this.reviewCounts(context);
-    // Badges are derived from the DOM (the author's markup, and the shadow roots
-    // a diagram renders into), so they are collected by the render that draws them.
-    this.#badges = collectBadges(
-      this,
-      this.#grill,
-      this.derivation.answers,
-      this.notesOpen && this.reviewSection === 'questions' ? openQuestionOf(this.#grill, this.#grillOpen) : null,
-      (mark, token) => this.grillRefsOf(mark, token),
-    );
-    this.#checkBindings = collectCheckBindings(this, this.#checkMode.state, this.#notices.log);
     // The header ellipsizes a long title; its `title` attribute has it whole.
     const title = this.definition.title(context.state);
     const messages = coreMessages(this.locale);
@@ -978,8 +994,6 @@ export abstract class ViewElement<S> extends LitElement {
    * settings), the floating menu and the review are the page's.
    */
   #renderBoardChrome(regions: ShellRegions): TemplateResult {
-    this.#badges = [];
-    this.#checkBindings = [];
     // The page's header names the page and holds its settings; a bar stays only for the template's own header.
     const bar =
       (regions.header !== undefined && regions.header !== nothing) ||
