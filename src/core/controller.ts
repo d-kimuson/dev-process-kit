@@ -14,6 +14,8 @@ import type {
 } from './types';
 
 import { actionInputSchema, appendAction, buildAction, COMMENT_ACTION, firstIssue, type BuildOutcome } from './action';
+import { createActionId } from './action-id';
+import { EMPTY_ADDRESSED, isAddressed, type AddressedSet } from './addressed';
 import { COMMENT_DESCRIPTOR, commentBody } from './comment';
 import { componentSnapshotSchema, withComponentSnapshot } from './comment-targets';
 import { compactDraft } from './compact';
@@ -31,7 +33,7 @@ import { withGrill, type GrillLayer } from './grill-targets';
 import { defaultStorage, defaultStorageKey, type DraftStorage } from './persistence';
 import { draftActionEnvelopeSchema, ownAction } from './schema';
 import { SyncChannel, type ChannelChange, type SyncState } from './sync/channel';
-import { createActionId, toTarget } from './target';
+import { toTarget } from './target';
 import { canRedo, canUndo, clearRedo, redoStep, undoStep, EMPTY_UNDO_REDO, type UndoRedoState } from './undo-redo';
 
 export type DraftControllerOptions<S> = {
@@ -86,6 +88,8 @@ export class DraftController<S> {
   /** While shared, what `undo` took back, for `redo` to add again; never stored. */
   #sharedRedo: readonly DraftAction[] = [];
   readonly #settled: () => boolean;
+  /** What the change log says the author handled; see `setAddressed`. */
+  #addressed: AddressedSet = EMPTY_ADDRESSED;
 
   constructor(options: DraftControllerOptions<S>) {
     this.#template = options.definition;
@@ -163,6 +167,23 @@ export class DraftController<S> {
     this.#rewrap();
     this.#derivation = this.#derive(this.#actions);
     for (const listener of this.#listeners) listener();
+  }
+
+  /**
+   * The draft actions the change log says the author handled. They leave the
+   * draft: shared, every reader's page takes them back from the host (the
+   * host ignores a removal it already took), so the log is the one place
+   * that says so, and an action arriving later is dropped the same way.
+   */
+  setAddressed(set: AddressedSet): void {
+    if (set === this.#addressed) return;
+    this.#addressed = set;
+    if (this.#sync !== null) {
+      if (this.#dropAddressedShared(this.#sync)) this.#refresh();
+      return;
+    }
+    // The commit's normalize drops them.
+    if (this.#actions.some((action) => isAddressed(set, action.id))) this.#commit(this.#actions);
   }
 
   /** Element results are keyed by action id, so they follow the draft. */
@@ -517,7 +538,20 @@ export class DraftController<S> {
         this.#actions.filter((action) => !stranded.has(action.id)),
         'pending',
       );
+    this.#dropAddressedShared(sync);
     this.#refresh();
+  }
+
+  /** Takes back from the host what the change log says was handled, whoever wrote it. */
+  #dropAddressedShared(sync: SyncChannel): boolean {
+    const handled = sync.actions.filter((action) => isAddressed(this.#addressed, action.id));
+    if (handled.length === 0) return false;
+    this.#prunedCount += handled.length;
+    sync.change(
+      sync.actions.filter((action) => !handled.includes(action)),
+      'any',
+    );
+    return true;
   }
 
   /** Re-derives from what a shared draft shows and tells the subscribers. */
@@ -532,7 +566,8 @@ export class DraftController<S> {
   #normalize(dispatched?: readonly string[]): boolean {
     // Before compaction: an addition and its deletion cancel only once the
     // comment left on the deleted entity no longer holds them in the draft.
-    const missing = this.#pruneMissing();
+    const addressed = this.#pruneAddressed();
+    const missing = this.#pruneMissing() || addressed;
     const pruned = this.#prune() || missing;
     const compacted = compactDraft(this.definition, this.#derivation, (actions) => this.#derive(actions), dispatched);
     if (compacted === this.#derivation) return pruned;
@@ -549,6 +584,16 @@ export class DraftController<S> {
     if (this.#derivation.obsolete.length === 0) return false;
     this.#prunedCount += this.#derivation.obsolete.length;
     this.#actions = liveActions(this.#derivation);
+    this.#rewrap();
+    this.#derivation = this.#derive(this.#actions);
+    return true;
+  }
+
+  #pruneAddressed(): boolean {
+    const kept = this.#actions.filter((action) => !isAddressed(this.#addressed, action.id));
+    if (kept.length === this.#actions.length) return false;
+    this.#prunedCount += this.#actions.length - kept.length;
+    this.#actions = kept;
     this.#rewrap();
     this.#derivation = this.#derive(this.#actions);
     return true;

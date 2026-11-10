@@ -8,6 +8,7 @@ import * as v from 'valibot';
 
 import type { ActionTarget, NavigationPatch } from './types';
 
+import { EMPTY_ADDRESSED, parseAddressed, type AddressedSet } from './addressed';
 import { parseHash } from './navigation';
 import { parseTargetRef } from './target';
 
@@ -29,14 +30,22 @@ const changeSchema = v.strictObject({
 const changesSchema = v.array(changeSchema);
 const revisionNameSchema = v.pipe(v.string(), v.minLength(1));
 
+/**
+ * The draft actions handled so far, every round included (`k3f9ab12:1-14`):
+ * readers' pages drop them. The brief prints the next value.
+ */
+const addressedSchema = v.optional(v.string());
+
 const revisionSchema = v.strictObject({
   /** Names the version; what a reader has seen is kept per version. */
   revision: revisionNameSchema,
   changes: changesSchema,
+  addressed: addressedSchema,
 });
 
 /** Every version kept, oldest first: the author appends one on each regeneration. */
 const historySchema = v.strictObject({
+  addressed: addressedSchema,
   revisions: v.pipe(v.array(revisionSchema), v.minLength(1, 'list at least one version')),
 });
 
@@ -62,6 +71,8 @@ export type ChangeLog = {
   readonly earlier: readonly ChangeRevision[];
   /** This version of the page. */
   readonly latest: ChangeRevision;
+  /** The draft actions the author has handled; empty when the log names none. */
+  readonly addressed?: AddressedSet;
 };
 
 export type ChangeLogResult =
@@ -99,6 +110,8 @@ export const parseChangeLog = (input: unknown): ChangeLogResult => {
   const parsed = isHistory ? v.safeParse(historySchema, input) : v.safeParse(revisionSchema, input);
   if (!parsed.success) return { ok: false, error: v.summarize(parsed.issues) };
   const output: LogInput = parsed.output;
+  const addressed = output.addressed === undefined ? EMPTY_ADDRESSED : parseAddressed(output.addressed);
+  if (typeof addressed === 'string') return { ok: false, error: `addressed: ${addressed}` };
   const inputs = 'revisions' in output ? output.revisions : [output];
   const revisions: ChangeRevision[] = [];
   for (const revision of inputs) {
@@ -110,7 +123,7 @@ export const parseChangeLog = (input: unknown): ChangeLogResult => {
   }
   const latest = revisions.pop();
   if (!latest) return { ok: false, error: 'list at least one version' };
-  return { ok: true, log: { earlier: revisions, latest } };
+  return { ok: true, log: { earlier: revisions, latest, addressed } };
 };
 
 // ---------------------------------------------------------------- seen record

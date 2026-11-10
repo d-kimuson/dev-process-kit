@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { DraftAction } from './types';
 
+import { parseAddressed } from './addressed';
 import { DraftController } from './controller';
 import { MemoryDraftStorage } from './persistence';
 import { tinyBase, tinyDefinition } from './testing/tiny-template';
@@ -205,6 +206,52 @@ describe('DraftController', () => {
     });
   });
 
+  describe('what the change log says was handled', () => {
+    const handled = (text: string) => {
+      const set = parseAddressed(text);
+      if (typeof set === 'string') throw new Error(set);
+      return set;
+    };
+    const restored = (id: string, name: string): DraftAction => ({
+      id,
+      type: 'SET_NAME',
+      target: { type: 'item', id: 'a' },
+      payload: { name },
+      createdAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    it('leaves the draft, and storage with it', () => {
+      const storage = new MemoryDraftStorage();
+      const controller = new DraftController({
+        definition: tinyDefinition,
+        base: tinyBase([
+          { id: 'a', name: 'Alpha' },
+          { id: 'b', name: 'Beta' },
+        ]),
+        storage,
+        storageKey: 'test',
+        initialActions: [restored('w1:1', 'One'), { ...restored('w1:2', 'Two'), target: { type: 'item', id: 'b' } }],
+      });
+      const listener = vi.fn();
+      controller.subscribe(listener);
+
+      controller.setAddressed(handled('w1:1'));
+
+      expect(controller.actions.map((action) => action.id)).toEqual(['w1:2']);
+      expect(storage.load('test', 'tiny')?.map((action) => action.id)).toEqual(['w1:2']);
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops an action restored later under a handled id, and keeps an id of the old form', () => {
+      const { controller } = makeController([restored('3f2a9c1e-0000-4000-8000-000000000000', 'Old')]);
+      controller.setAddressed(handled('w1:1-5'));
+      controller.replaceActions([
+        ...controller.actions,
+        { ...restored('w1:4', 'Late'), target: { type: 'item', id: 'b' } },
+      ]);
+      expect(controller.actions.map((action) => action.id)).toEqual(['3f2a9c1e-0000-4000-8000-000000000000']);
+    });
+  });
   it('notifies subscribers on every draft mutation', () => {
     const { controller } = makeController();
     const listener = vi.fn();

@@ -24,6 +24,7 @@ import type {
 
 import { revealWithin } from '../lib/dom/scroll';
 import { COMMENT_ACTION, serializeDraft } from './action';
+import { EMPTY_ADDRESSED } from './addressed';
 import { CHANGES_ATTRIBUTE, jumpOf, type ChangeEntry } from './changes';
 import { hasCheckedTargets } from './check-mode';
 import { parseColorScheme, type ColorScheme } from './color-scheme';
@@ -283,6 +284,8 @@ export abstract class ViewElement<S> extends LitElement {
     show: (entry) => void this.#showChange(entry),
     // A page's content draws no shell, so it cannot show notices of its own.
     ignored: () => this.#boardId !== null,
+    // The log may arrive after the draft starts (streaming HTML).
+    read: (log) => this.#controller?.setAddressed(log.addressed ?? EMPTY_ADDRESSED),
   });
   readonly #noticeIntents: NoticeIntents = {
     toggleList: () => this.#notices.toggleList(),
@@ -1792,6 +1795,8 @@ export abstract class ViewElement<S> extends LitElement {
       settled: () => !board && this.#baseData.error === null && this.#grillError === null && this.draftSettled(),
     });
     this.#subscribe();
+    // The draft drops what the change log says the author handled.
+    if (!board) this.#controller.setAddressed(this.#notices.log?.addressed ?? EMPTY_ADDRESSED);
     this.#refreshCommentTargets();
     this.#canonicalizeNavigation(true);
     this.#resolveStarted?.();
@@ -1851,7 +1856,12 @@ export abstract class ViewElement<S> extends LitElement {
 
   /** The brief handed to the agent; a page groups it by board. */
   protected buildBrief(snapshot: ViewSnapshot<S>): string {
-    return buildAgentBrief(snapshot, this.controller.definition, FRAMEWORK_VERSION);
+    return buildAgentBrief(
+      snapshot,
+      this.controller.definition,
+      FRAMEWORK_VERSION,
+      this.#notices.log?.addressed ?? EMPTY_ADDRESSED,
+    );
   }
 
   /**

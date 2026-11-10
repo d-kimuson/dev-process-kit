@@ -2,6 +2,7 @@ import type { ViewSnapshot } from './shell/contracts';
 import type { DraftAction, ViewDefinition } from './types';
 
 import { COMMENT_ACTION, serializeDraft } from './action';
+import { addressThrough, EMPTY_ADDRESSED, formatAddressed, parseActionId, type AddressedSet } from './addressed';
 import { commentBody } from './comment';
 import { isElementAction } from './element-actions';
 import { answerText, isAnswerAction, isAnswered, questionLabel } from './grill';
@@ -34,6 +35,8 @@ export const buildAgentBrief = <S>(
   snapshot: ViewSnapshot<S>,
   definition: ViewDefinition<S>,
   frameworkVersion: string,
+  /** What the page's change log already names as handled. */
+  addressed: AddressedSet = EMPTY_ADDRESSED,
 ): string => {
   const { actions, state } = snapshot;
   // Stale actions stay in the reader's draft (interpretive drafts) but no longer
@@ -133,6 +136,31 @@ export const buildAgentBrief = <S>(
       const detail = action.type === COMMENT_ACTION ? commentBody(action) : description.title;
       lines.push(`${index + 1}. \`${action.type}\` on \`${targetRef(action.target)}\` (${reason}) — ${detail}`);
     }
+    lines.push('');
+  }
+
+  // Every action of the draft, stale ones too: once the page is regenerated they have been dealt with.
+  if (actions.some((action) => parseActionId(action.id) !== null)) {
+    const next = formatAddressed(
+      addressThrough(
+        addressed,
+        actions.map((action) => action.id),
+      ),
+    );
+    lines.push('## Change log: addressed');
+    lines.push('');
+    lines.push(
+      'When you regenerate the page, set `"addressed"` at the top of its change log ' +
+        '(`<script type="application/json" data-dpk-changes>`) to this value, replacing the old one:',
+    );
+    lines.push('');
+    lines.push(fenced(next, 'text'));
+    lines.push('');
+    lines.push(
+      'It names every draft action handled so far, this round included, as `writer:from-to` ranges; ' +
+        "readers' pages drop what it names. To leave a request for a later round, split its id out of the range " +
+        '(`a1:1-4,a1:6-9` leaves `a1:5`).',
+    );
     lines.push('');
   }
 

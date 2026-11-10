@@ -306,4 +306,31 @@ describe('change notices', () => {
     expect(root(element).querySelector('.dpk-banner')?.textContent).toContain(m.changesError);
     expect(bell(element)).toBeNull();
   });
+
+  describe('the actions the change log says were handled', () => {
+    it('leaves the draft once the log arrives, and the brief carries the value on', async () => {
+      window.location.hash = '';
+      document.body.innerHTML = `
+        <dpk-view-plain storage-key="addressed">
+          <script type="application/json">${JSON.stringify(base)}</script>
+          <section slot="main" data-dpk-target="section:background"><h2>Background</h2></section>
+        </dpk-view-plain>`;
+      const element = document.querySelector('dpk-view-plain') as DpkViewPlain;
+      await settle(element);
+      element.api.dispatch({ id: 'k3f9:3', type: 'comment', target: 'section:background', payload: { body: 'Done' } });
+      element.api.dispatch({ id: 'k3f9:4', type: 'comment', target: 'section:background', payload: { body: 'Later' } });
+      expect(element.api.exportBrief()).toContain('k3f9:1-4');
+
+      // The regenerated page, streamed in: its change log names the first one.
+      const script = document.createElement('script');
+      script.type = 'application/json';
+      script.setAttribute('data-dpk-changes', '');
+      script.textContent = JSON.stringify({ addressed: 'k3f9:1-3', ...changeLog('r2') });
+      element.append(script);
+      await vi.waitFor(() => expect(element.api.actions.map((action) => action.id)).toEqual(['k3f9:4']));
+      const stored = Object.keys(localStorage).map((key) => localStorage.getItem(key));
+      expect(stored.join('\n')).not.toContain('Done');
+      expect(element.api.exportBrief()).toContain('k3f9:1-4');
+    });
+  });
 });

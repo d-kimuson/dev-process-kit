@@ -42,6 +42,8 @@ export type ChangeNoticeOptions = {
    * nothing draws.
    */
   readonly ignored?: () => boolean;
+  /** The log has just been read. */
+  readonly read?: (log: ChangeLog) => void;
 };
 
 const isChangeScript = (node: Element): boolean =>
@@ -181,6 +183,7 @@ export class ChangeNoticeController implements ReactiveController {
     // Written at once: the next version is told from this one on, even if the reader looks at nothing now.
     this.#remember();
     this.#syncTimers();
+    this.#options.read?.(parsed.log);
     this.#host.requestUpdate();
     return true;
   }

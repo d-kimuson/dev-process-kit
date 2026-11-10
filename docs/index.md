@@ -212,7 +212,7 @@ A draft action is a structured change request produced by a human in the browser
 
 ```json
 {
-  "id": "9f2c…",
+  "id": "k3f9ab12:7",
   "type": "SET_STEP_NAME",
   "target": { "type": "step", "id": "google-auth" },
   "payload": { "name": "Google でログイン" },
@@ -220,7 +220,7 @@ A draft action is a structured change request produced by a human in the browser
 }
 ```
 
-`id` is the action's own identity (used to delete it), `createdAt` is set by the browser, and `note` is an optional free-form note. Everything else is the content's vocabulary: there is no generic `SET_FIELD` / `DELETE` / `MOVE`. An action describes the desired end state, so replaying a draft produces the same page every time.
+`id` is the action's own identity, written `<writer>:<seq>`: the writer is one random id per browser, kept in `localStorage`, and `seq` counts that browser's actions up from 1. It is used to delete the action and to tell which actions the [change log](#change-notices) says were handled. `createdAt` is set by the browser, and `note` is an optional free-form note. Everything else is the content's vocabulary: there is no generic `SET_FIELD` / `DELETE` / `MOVE`. An action describes the desired end state, so replaying a draft produces the same page every time.
 
 ### Targets
 
@@ -587,6 +587,7 @@ When you regenerate a page at the reader's request, tell them what changed. Put 
   </script>
   <script type="application/json" data-dpk-changes>
     {
+      "addressed": "k3f9ab12:1-14,x7a2c0d9:1-3",
       "revisions": [
         {
           "revision": "2026-10-12.1",
@@ -612,7 +613,8 @@ When you regenerate a page at the reader's request, tell them what changed. Put 
 
 - `revisions` lists the versions **oldest first**; the last one is this version of the page. On each regeneration, add a new entry at the end with a new `revision` name (unique in the log) and **only the changes made in that regeneration**. Do not edit, merge or repeat the changes of earlier versions. You may drop versions from the start once the log gets long.
 - Each change has a `title`, and optionally a `body`, an `id` (unique within its version; the position is used when omitted, so give ids when the list can be reordered), a `target` (`type:id`, as in [Targets](#targets)) and a `navigate` (hash syntax, `view=flow&screen=cart`) for where it is seen when the target alone does not say.
-- Leave the block out until there is something to announce. A log of one version may also be written as `{ "revision": "…", "changes": [ … ] }`.
+- `addressed` (optional, at the top level) names every draft action the page has handled so far, all regenerations included, as `writer:from-to` ranges joined by commas (`k3f9ab12:1-14,x7a2c0d9:1-3`). Each reader's page drops what it names from its draft — in a [shared draft](sync.md), from everyone's — so a handled request does not come back. Do not work it out yourself: the brief prints the next value (the current one grown by the draft it hands over), and you **replace** the old value with it. To leave a request for a later round, split its id out of its range (`k3f9ab12:1-4,k3f9ab12:6-14` leaves `k3f9ab12:5` in the draft). An action id of the older UUID form is never named, and stays until the reader removes it.
+- Leave the block out until there is something to announce. A log of one version may also be written as `{ "revision": "…", "changes": [ … ] }` (with `addressed` beside them).
 - The change log is not base data: the view never reads it, and a malformed log shows a banner without touching the page.
 - Inside an [app](page.md), the log goes **directly under `<dpk-app>`**, not on a page's view or board: a page's content draws no shell, so a log there is ignored (and reported on the console). Qualify each `target` with its page (`story:checkout.pay@scope`) and write `navigate` with the page key (`page=scope&scope.step=pay`).
 

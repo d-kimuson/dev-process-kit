@@ -193,3 +193,7 @@ follows these rules, and `dev/sync-demo/` serves it to the samples for trying th
   The other tab still sends its own while it stays open, and the server's idempotent append
   makes an op sent by both tabs count once.
 - Text typed but not sent yet stays in `sessionStorage`, as in an unshared draft.
+- The actions the page's change log names as handled (`addressed`, see
+  [Change notices](index.md#change-notices)) are taken back by every reader's page with a `remove`
+  op, whoever wrote them, and so is one that reaches the log afterwards. Each reader sends its own
+  removes; the server ignores the ones for actions already gone.

@@ -84,8 +84,33 @@ describe('parseChangeLog', () => {
             },
           ],
         },
+        addressed: new Map(),
       },
     });
+  });
+
+  it('reads the actions the author has handled', () => {
+    const parsed = parseChangeLog({
+      addressed: 'k3f9:1-14,x7a2:1-10,k3f9:16',
+      revisions: [{ revision: 'r1', changes: [] }],
+    });
+    expect(parsed.ok && parsed.log.addressed).toEqual(
+      new Map([
+        [
+          'k3f9',
+          [
+            [1, 14],
+            [16, 16],
+          ],
+        ],
+        ['x7a2', [[1, 10]]],
+      ]),
+    );
+  });
+
+  it('rejects an addressed value it cannot read', () => {
+    const parsed = parseChangeLog({ addressed: 'k3f9:1-x', revisions: [{ revision: 'r1', changes: [] }] });
+    expect(parsed).toEqual({ ok: false, error: 'addressed: "k3f9:1-x" is not written "writer:from-to"' });
   });
 
   it('reads a log of one version written without the history around it', () => {

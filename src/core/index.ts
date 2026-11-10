@@ -26,7 +26,8 @@ export {
 } from './schema';
 export type { ActionName, ActionSpec, ActionSpecs, PayloadOfSpec, ViewAction } from './schema';
 export { parseHash, formatHash, patchNavigation, EMPTY_NAVIGATION } from './navigation';
-export { createActionId, createEntityId, parseTargetRef, slugify, targetRef, toTarget } from './target';
+export { createActionId } from './action-id';
+export { createEntityId, parseTargetRef, slugify, targetRef, toTarget } from './target';
 export { WebStorageDraftStorage, MemoryDraftStorage, defaultStorage, defaultStorageKey } from './persistence';
 export type { DraftStorage, StorageLike } from './persistence';
 // The element's side of sharing a draft; the host's side is the `sync` entry.

@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { parseAddressed, type AddressedSet } from './addressed';
 import { DraftController } from './controller';
 import { buildAgentBrief } from './export';
 import { answerGrill, parseGrill } from './grill';
 import { tinyBase, tinyDefinition } from './testing/tiny-template';
 
-const briefOf = (controller: DraftController<ReturnType<typeof tinyBase>>): string =>
+const briefOf = (controller: DraftController<ReturnType<typeof tinyBase>>, addressed?: AddressedSet): string =>
   buildAgentBrief(
     {
       base: controller.base,
@@ -20,6 +21,7 @@ const briefOf = (controller: DraftController<ReturnType<typeof tinyBase>>): stri
     },
     controller.definition,
     'test',
+    addressed,
   );
 
 // A review round against a base that has since moved on: the reader keeps the
@@ -117,5 +119,35 @@ describe('buildAgentBrief', () => {
     expect(answers).toContain('2. **Q2 · 誰に知らせる？** — `grill:notify`');
     expect(answers).toContain('   > 購入者\n   > と店舗');
     expect(answers).not.toContain('Q3');
+  });
+
+  describe('the addressed value', () => {
+    const controllerWith = (ids: readonly string[]) =>
+      new DraftController({
+        definition: tinyDefinition,
+        base: tinyBase([{ id: 'a', name: 'Alpha' }]),
+        storage: null,
+        initialActions: ids.map((id, index) => ({
+          id,
+          type: 'comment',
+          target: { type: 'item', id: 'a' },
+          payload: { body: `note ${index}` },
+          createdAt: '2026-01-01T00:00:00.000Z',
+        })),
+      });
+    const valueIn = (brief: string): string | undefined =>
+      /## Change log: addressed[\s\S]*?```text\n(.*)\n```/.exec(brief)?.[1];
+
+    it('prints what the change log names, grown by the ids of this draft', () => {
+      const current = parseAddressed('k3f9:1-10,x7a2:1-4');
+      if (typeof current === 'string') throw new Error(current);
+      const brief = briefOf(controllerWith(['k3f9:11', 'k3f9:14', 'm0q1:2']), current);
+      expect(valueIn(brief)).toBe('k3f9:1-14,m0q1:1-2,x7a2:1-4');
+    });
+
+    it('says nothing of it for a draft of old ids only', () => {
+      const brief = briefOf(controllerWith(['3f2a9c1e-0000-4000-8000-000000000000']));
+      expect(brief).not.toContain('## Change log: addressed');
+    });
   });
 });

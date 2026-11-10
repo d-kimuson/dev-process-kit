@@ -3,8 +3,9 @@ import * as v from 'valibot';
 
 import type { ActionDescriptor, DraftAction, ValidationIssue } from './types';
 
+import { createActionId } from './action-id';
 import { draftActionEnvelopeSchema, targetSchema } from './schema';
-import { createActionId, sameTarget, targetRef, toTarget } from './target';
+import { sameTarget, targetRef, toTarget } from './target';
 
 /** Core-owned action type. Templates must not redefine it. */
 export const COMMENT_ACTION = 'comment';

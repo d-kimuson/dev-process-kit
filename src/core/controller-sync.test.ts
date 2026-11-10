@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { ACTION_WRITER_KEY } from './action-id';
+import { EMPTY_ADDRESSED, parseAddressed, type AddressedSet } from './addressed';
 import { DraftController } from './controller';
 import { hostOn, MemoryStorageLike, MemorySyncHub, settle } from './sync/testing';
 import { tinyBase, tinyDefinition } from './testing/tiny-template';
@@ -234,6 +236,70 @@ describe('DraftController shared through a host', () => {
     expect(b.actions.map((action) => action.payload)).toEqual([{ body: 'Second' }]);
   });
 
+  describe('what the change log says was handled', () => {
+    const handled = (text: string): AddressedSet => {
+      const set = parseAddressed(text);
+      if (typeof set === 'string') throw new Error(set);
+      return set;
+    };
+    const commentAs = (controller: DraftController<unknown>, id: string, body: string) =>
+      controller.dispatch({ id, type: 'comment', target: 'page', payload: { body } });
+
+    it("takes every reader's handled actions back from the host", async () => {
+      const hub = new MemorySyncHub();
+      const a = reader(hub, alice);
+      const b = reader(hub, bob);
+      await settle();
+      commentAs(a, 'wa:1', 'one');
+      commentAs(a, 'wa:2', 'two');
+      commentAs(b, 'wb:1', 'three');
+      commentAs(b, 'wb:2', 'kept');
+      await settle();
+
+      b.setAddressed(handled('wa:1-2,wb:1'));
+      await settle();
+
+      expect(hub.actions.map((action) => action.id)).toEqual(['wb:2']);
+      expect(a.actions.map((action) => action.id)).toEqual(['wb:2']);
+      expect(b.actions.map((action) => action.id)).toEqual(['wb:2']);
+    });
+
+    it('drops a handled action that reaches the host afterwards', async () => {
+      const hub = new MemorySyncHub();
+      const a = reader(hub, alice);
+      const b = reader(hub, bob);
+      await settle();
+      a.setAddressed(handled('wb:1-3'));
+      commentAs(b, 'wb:2', 'late');
+      await settle();
+      await settle();
+
+      expect(hub.actions).toEqual([]);
+      expect(a.actions).toEqual([]);
+    });
+
+    it('drops the reader own unsent handled action', () => {
+      const hub = new MemorySyncHub();
+      hub.online = false;
+      const a = reader(hub, alice);
+      commentAs(a, 'wa:1', 'offline');
+      a.setAddressed(handled('wa:1'));
+
+      expect(a.actions).toEqual([]);
+    });
+
+    it('changes nothing for an empty set', async () => {
+      const hub = new MemorySyncHub();
+      const a = reader(hub, alice);
+      await settle();
+      commentAs(a, 'wa:1', 'one');
+      await settle();
+      a.setAddressed(EMPTY_ADDRESSED);
+      await settle();
+      expect(hub.actions).toHaveLength(1);
+    });
+  });
+
   it('keeps the draft away from storage', async () => {
     const hub = new MemorySyncHub();
     const a = reader(hub);
@@ -241,6 +307,7 @@ describe('DraftController shared through a host', () => {
     comment(a, 'x');
 
     expect(a.prunedCount).toBe(0);
-    expect(localStorage.length).toBe(0);
+    // Only the browser's writer, which numbers the actions.
+    expect(Object.keys(localStorage)).toEqual([ACTION_WRITER_KEY]);
   });
 });
