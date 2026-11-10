@@ -14,7 +14,7 @@ const palette = {
   'paper-inset': ['#e7eaef', '#22262e'],
   ink: ['#11141b', '#eceef3'],
   'ink-soft': ['#464e5f', '#a9b0bd'],
-  'ink-faint': ['#788195', '#737b8b'],
+  'ink-faint': ['#788195', '#8a92a2'],
   rule: ['rgba(17, 24, 39, 0.08)', 'rgba(226, 232, 244, 0.08)'],
   'rule-strong': ['rgba(17, 24, 39, 0.13)', 'rgba(226, 232, 244, 0.14)'],
   'rule-hover': ['rgba(17, 24, 39, 0.24)', 'rgba(226, 232, 244, 0.26)'],
