@@ -1788,6 +1788,8 @@ export abstract class ViewElement<S> extends LitElement {
       grill: { grill: this.#grill, locale: this.locale },
       ...(typeof storageKey === 'string' ? { storageKey } : {}),
       ...(sync === undefined ? {} : { sync }),
+      // A board's draft is the page's, and the page judges it.
+      settled: () => !board && this.#baseData.error === null && this.#grillError === null && this.draftSettled(),
     });
     this.#subscribe();
     this.#refreshCommentTargets();
@@ -1826,6 +1828,15 @@ export abstract class ViewElement<S> extends LitElement {
   /** Waited for before the draft starts: a page waits for its boards. */
   protected pendingStart(): Promise<void> | null {
     return null;
+  }
+
+  /**
+   * Whether every target the draft may name has been read, so a missing one is
+   * gone and the draft drops what points at it. Read and error-free base data
+   * and questions are checked already; an app also waits for its pages.
+   */
+  protected draftSettled(): boolean {
+    return true;
   }
 
   /**

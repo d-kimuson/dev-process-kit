@@ -656,6 +656,15 @@ export class AppElement extends ViewElement<AppState> {
     });
   }
 
+  /**
+   * The work on a page that cannot render yet (its entry still loading, its
+   * content missing) is not gone: only once every page of the markup renders
+   * does a missing target mean the target was taken away.
+   */
+  protected override draftSettled(): boolean {
+    return this.#pagesReady && this.#markupPages().every((page) => this.#ready.get(page) === true);
+  }
+
   #whenPagesReady(): Promise<void> {
     return customElements
       .whenDefined('dpk-page')

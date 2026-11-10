@@ -462,12 +462,13 @@ describe('<dpk-view-slides>', () => {
     expect(element.api.actions).toHaveLength(0);
   });
 
-  it('keeps a comment on a removed slide as stale', async () => {
+  it('drops a comment on a slide the base no longer has', async () => {
     const element = mount();
     await settle(element);
     element.api.comment('slide:flow', '残る');
     element.controller.setBase(parseSlidesBase({ title: 'x', slides: [{ id: 'cover', title: 'Cover' }] }));
-    expect(element.api.stale.map((entry) => entry.action.target)).toEqual([{ type: 'slide', id: 'flow' }]);
+    expect(element.api.stale).toEqual([]);
+    expect(element.api.comments).toEqual([]);
   });
 
   it('hides the full screen button where the browser does not allow it', async () => {

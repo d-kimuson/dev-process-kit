@@ -145,12 +145,13 @@ describe('<dpk-view-plain>', () => {
     expect(element.notesOpen).toBe(true);
   });
 
-  it('keeps a comment on a removed section as stale', async () => {
+  it('drops a comment on a section the base no longer has', async () => {
     const element = mount();
     await settle(element);
     element.api.comment('section:decision', '残る');
     element.controller.setBase(parsePlainBase({ title: 'x', sections: [] }));
-    expect(element.api.stale.map((entry) => entry.action.target)).toEqual([{ type: 'section', id: 'decision' }]);
+    expect(element.api.stale).toEqual([]);
+    expect(element.api.comments).toEqual([]);
   });
 
   it('renders a page-targeted comment label in the page language, and in English without one', async () => {

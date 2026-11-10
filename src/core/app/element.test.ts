@@ -240,13 +240,14 @@ describe('<dpk-page>', () => {
     expect(secondEvents).toEqual([]);
   });
 
-  it('reports the work on a board that is taken away as stale', async () => {
+  it('drops the work on a board that is taken away', async () => {
     const { page, pageOf, after } = await mount();
     after.api.comment('page:prototype', 'gone soon');
     pageOf('after').remove();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await page.updateComplete;
-    expect(page.api.stale.map((entry) => entry.action.target)).toEqual([{ type: 'page', id: 'prototype@after' }]);
+    expect(page.api.stale).toEqual([]);
+    expect(page.api.comments).toEqual([]);
   });
 
   const trigger = (page: AppElement): HTMLElement => {

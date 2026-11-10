@@ -22,6 +22,7 @@ import {
   ELEMENT_DESCRIPTOR,
   elementResultsById,
   isElementAction,
+  providerOf,
   type ComponentSnapshot,
   type ElementActionResult,
 } from './element-actions';
@@ -46,6 +47,12 @@ export type DraftControllerOptions<S> = {
    * the host's order is the draft, the reader's own changes ride on top.
    */
   readonly sync?: SyncHost;
+  /**
+   * Whether the page has read everything a target can live in (its base, its
+   * questions, its pages). Only then does a missing target mean the target is
+   * gone, and the draft drops what points at it. Omitted, nothing is dropped.
+   */
+  readonly settled?: () => boolean;
 };
 
 export type DraftExport = {
@@ -78,9 +85,11 @@ export class DraftController<S> {
   readonly #sync: SyncChannel | null;
   /** While shared, what `undo` took back, for `redo` to add again; never stored. */
   #sharedRedo: readonly DraftAction[] = [];
+  readonly #settled: () => boolean;
 
   constructor(options: DraftControllerOptions<S>) {
     this.#template = options.definition;
+    this.#settled = options.settled ?? (() => false);
     this.#grill = options.grill ?? { grill: EMPTY_GRILL, locale: 'en' };
     this.#definition = this.#wrap();
     this.#base = options.base;
@@ -521,7 +530,10 @@ export class DraftController<S> {
 
   /** `dispatched` narrows the cancellation search to what just changed; omitted, the whole draft is revisited. */
   #normalize(dispatched?: readonly string[]): boolean {
-    const pruned = this.#prune();
+    // Before compaction: an addition and its deletion cancel only once the
+    // comment left on the deleted entity no longer holds them in the draft.
+    const missing = this.#pruneMissing();
+    const pruned = this.#prune() || missing;
     const compacted = compactDraft(this.definition, this.#derivation, (actions) => this.#derive(actions), dispatched);
     if (compacted === this.#derivation) return pruned;
     this.#prunedCount += this.#actions.length - compacted.actions.length;
@@ -537,6 +549,26 @@ export class DraftController<S> {
     if (this.#derivation.obsolete.length === 0) return false;
     this.#prunedCount += this.#derivation.obsolete.length;
     this.#actions = liveActions(this.#derivation);
+    this.#rewrap();
+    this.#derivation = this.#derive(this.#actions);
+    return true;
+  }
+
+  /**
+   * Drops actions whose target is gone once the page has settled. A component
+   * may register its targets after the draft starts (or only while shown), so
+   * its element actions and the comments on its targets are never judged here.
+   */
+  #pruneMissing(): boolean {
+    if (!this.#settled()) return false;
+    const missing = new Set(
+      this.#derivation.stale
+        .filter(({ action, reason }) => reason === 'target-missing' && providerOf(action.target) === null)
+        .map(({ action }) => action.id),
+    );
+    if (missing.size === 0) return false;
+    this.#prunedCount += missing.size;
+    this.#actions = this.#actions.filter((action) => !missing.has(action.id));
     this.#rewrap();
     this.#derivation = this.#derive(this.#actions);
     return true;

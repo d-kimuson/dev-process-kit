@@ -207,16 +207,15 @@ describe('speaker notes', () => {
     expect(remounted.api.actions).toHaveLength(0);
   });
 
-  it('goes stale when its slide is removed from the base', async () => {
+  it('is dropped when its slide is removed from the base', async () => {
     const element = mount({ hash: '#slide=how' });
     await settle(element);
     await typeIntoNotes(element, '消えるスライドのノート');
     root(element).querySelector<HTMLButtonElement>('.slide-notes-save')?.click();
     await settle(element);
     element.controller.setBase(parseSlidesBase({ title: 'x', slides: [{ id: 'cover', title: 'Cover' }] }));
-    expect(element.api.stale.map((entry) => [entry.action.type, entry.action.target, entry.reason])).toEqual([
-      ['SET_SLIDE_NOTES', { type: 'slide', id: 'how' }, 'target-missing'],
-    ]);
+    expect(element.api.stale).toEqual([]);
+    expect(element.controller.actions.some((action) => action.type === 'SET_SLIDE_NOTES')).toBe(false);
   });
 });
 

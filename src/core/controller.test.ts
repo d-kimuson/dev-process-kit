@@ -145,6 +145,66 @@ describe('DraftController', () => {
     expect(controller.derivation.commentsByTarget.get('item:a')).toHaveLength(1);
   });
 
+  describe('once the page has settled', () => {
+    const settledController = (actions: readonly DraftAction[] = [], settled = () => true) => {
+      const storage = new MemoryDraftStorage();
+      const controller = new DraftController({
+        definition: tinyDefinition,
+        base: tinyBase([{ id: 'a', name: 'Alpha' }]),
+        storage,
+        storageKey: 'test',
+        initialActions: actions,
+        settled,
+      });
+      return { controller, storage };
+    };
+    const action = (id: string, type: string, target: DraftAction['target'], payload: unknown): DraftAction => ({
+      id,
+      type,
+      target,
+      payload,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    it('drops restored actions whose target the base no longer has', () => {
+      const { controller, storage } = settledController([
+        action('1', 'SET_NAME', { type: 'item', id: 'gone' }, { name: 'Boo' }),
+        action('2', 'comment', { type: 'item', id: 'gone' }, { body: 'gone' }),
+        action('3', 'SET_NAME', { type: 'item', id: 'a' }, { name: 'Renamed' }),
+      ]);
+      expect(controller.actions.map((entry) => entry.id)).toEqual(['3']);
+      expect(controller.derivation.stale).toHaveLength(0);
+      expect(storage.load('test', 'tiny')).toHaveLength(1);
+    });
+
+    it('drops a comment whose target the reader deletes', () => {
+      const { controller } = settledController();
+      controller.dispatch({ type: 'comment', target: 'item:a', payload: { body: 'rename me' } });
+      controller.dispatch({ type: 'DELETE_ITEM', target: 'a', payload: {} });
+      expect(controller.actions.map((entry) => entry.type)).toEqual(['DELETE_ITEM']);
+    });
+
+    it('keeps them while the page is still being read', () => {
+      let settled = false;
+      const { controller } = settledController(
+        [action('1', 'SET_NAME', { type: 'item', id: 'gone' }, { name: 'Boo' })],
+        () => settled,
+      );
+      expect(controller.derivation.stale).toHaveLength(1);
+      settled = true;
+      controller.setBase(tinyBase([{ id: 'a', name: 'Alpha' }]));
+      expect(controller.actions).toHaveLength(0);
+    });
+
+    it('keeps an element action and a comment on a component target', () => {
+      const { controller } = settledController([
+        action('1', 'SET_CELL', { type: 'element', id: 'table-1/cell/x' }, {}),
+        action('2', 'comment', { type: 'element', id: 'table-1/cell/x' }, { body: 'later' }),
+      ]);
+      expect(controller.actions).toHaveLength(2);
+    });
+  });
+
   it('notifies subscribers on every draft mutation', () => {
     const { controller } = makeController();
     const listener = vi.fn();
