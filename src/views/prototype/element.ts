@@ -23,7 +23,19 @@ import { clipOutRects } from '../../lib/dom/clip';
 import { containDialog, releaseModalDialog } from '../../lib/dom/contained-dialog';
 import { DismissController } from '../../lib/dom/dismiss';
 import { clickElements, fillFields } from '../../lib/dom/fill';
-import { findLocated, locateElement, pickableElement } from '../../lib/dom/locator';
+import {
+  boxInDocument,
+  descendAt,
+  findAcrossFrames,
+  frameAddress,
+  frameDocument,
+  hostFrame,
+  isElementNode,
+  isShadowRootNode,
+  locateAcrossFrames,
+  pickableAcrossFrames,
+  type Box,
+} from '../../lib/dom/frames';
 import { closePopover } from '../../lib/dom/popover';
 import { prototypeAction } from './actions';
 import {
@@ -43,11 +55,13 @@ import {
 } from './browser-view';
 import { prototypeDefinitionFor } from './definition';
 import { chooseDevice, deviceZoom, type DeviceChoice } from './devices';
+import { FrameBridge } from './frame-bridge';
 import { prototypeMessages } from './messages';
 import {
   allUiNoteIds,
   findPreview,
   uiTargetId,
+  uiTargetUrl,
   UI_TARGET,
   type PrototypeState,
   type UiNote,
@@ -80,6 +94,7 @@ const noteTarget = (badge: UiNoteBadge, note: UiNote): UiTarget => ({
   previewId: badge.previewId,
   selector: note.selector,
   ...(note.text === undefined ? {} : { text: note.text }),
+  ...(note.url === undefined ? {} : { url: note.url }),
 });
 
 /** The open composer: the notes list is a `.comment-pop` too. */
@@ -88,6 +103,14 @@ const COMPOSER = '.comment-pop:not(.ui-notes-pop)';
 const UI_COMMENT_MENU_GROUP = 'prototype-ui-comment';
 const UI_COMMENT_MENU_ITEM = 'comment-ui-element';
 const DOCUMENT_STYLES_ID = 'dpk-view-prototype-document-styles';
+/** A preview that is an iframe, or one inside a preview's markup. */
+const PREVIEW_FRAMES = ':scope > iframe[data-preview-id], :scope > [data-preview-id] iframe';
+
+/** The page of the frame `element` is in, as a `ui` target names it; `undefined` outside a frame. */
+const framePage = (element: Element): string | undefined => {
+  const url = frameAddress(element, document);
+  return url === undefined ? undefined : uiTargetUrl(url);
+};
 /** The room a demo leaves around a device, on each side (the stage's `.is-demo` styles match it). */
 const DEMO_DEVICE_MARGIN = 24;
 
@@ -103,9 +126,12 @@ const installDocumentStyles = (): void => {
 
 /** Whether `element` can still scroll by the wheel's delta. */
 const scrollsBy = (element: Element, dx: number, dy: number): boolean => {
-  const style = getComputedStyle(element);
-  const canX = /auto|scroll/.test(style.overflowX) && element.scrollWidth > element.clientWidth;
-  const canY = /auto|scroll/.test(style.overflowY) && element.scrollHeight > element.clientHeight;
+  const doc = element.ownerDocument;
+  const style = (doc.defaultView ?? window).getComputedStyle(element);
+  // The page in a preview iframe scrolls on its root, whatever its `overflow` says.
+  const page = doc !== document && element === doc.scrollingElement;
+  const canX = (page || /auto|scroll/.test(style.overflowX)) && element.scrollWidth > element.clientWidth;
+  const canY = (page || /auto|scroll/.test(style.overflowY)) && element.scrollHeight > element.clientHeight;
   const roomX =
     dx < 0 ? element.scrollLeft > 0 : dx > 0 && element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
   const roomY =
@@ -113,12 +139,18 @@ const scrollsBy = (element: Element, dx: number, dy: number): boolean => {
   return (canX && roomX) || (canY && roomY);
 };
 
-/** The parent in the flat tree: a slotted element sits in its slot, a shadow root's child under its host. */
+/**
+ * The parent in the flat tree: a slotted element sits in its slot, a shadow
+ * root's child under its host, and the root of a preview iframe's page in the
+ * frame.
+ */
 const flatParent = (element: Element): Element | null => {
   if (element.assignedSlot !== null) return element.assignedSlot;
   if (element.parentElement !== null) return element.parentElement;
   const root = element.getRootNode();
-  return root instanceof ShadowRoot ? root.host : null;
+  // Not `instanceof ShadowRoot`: a shadow root in a frame's page comes from that page's realm.
+  if (isShadowRootNode(root)) return root.host;
+  return root === element.ownerDocument && root !== document ? hostFrame(element.ownerDocument) : null;
 };
 
 /**
@@ -231,7 +263,13 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
   #focusNote: { readonly noteId: string; readonly part: 'editor' | 'edit' } | null = null;
   /** The mock changes its own markup as the reader clicks through it: the badges follow their elements. */
   readonly #mockChanges =
-    typeof MutationObserver === 'undefined' ? null : new MutationObserver(() => this.#schedulePlacement());
+    typeof MutationObserver === 'undefined'
+      ? null
+      : new MutationObserver(() => {
+          // A preview iframe may have just been added.
+          this.#frames.sync(this.querySelectorAll(PREVIEW_FRAMES));
+          this.#schedulePlacement();
+        });
   /** A mock moves inside its screen: `data-url` on its preview element changes the address bar. */
   readonly #urlChanges =
     typeof MutationObserver === 'undefined'
@@ -240,6 +278,15 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
           if (records.some((record) => record.attributeName === 'data-url')) this.requestUpdate();
         });
   #placementFrame: number | null = null;
+  /** What happens in the page of a preview iframe, told to this element. */
+  readonly #frames = new FrameBridge({
+    changed: () => this.#schedulePlacement(),
+    click: (event) => this.#onFrameClick(event),
+    keydown: (event) => this.#onKeydown(event),
+    loaded: (frame, doc) => this.#checkFrameLinks(frame, doc),
+  });
+  /** The pages of preview iframes whose links were checked, by address: each is reported once. */
+  readonly #framePagesChecked = new Set<string>();
 
   constructor() {
     super();
@@ -293,6 +340,7 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     this.#observedCanvas = null;
     this.#mockChanges?.disconnect();
     this.#urlChanges?.disconnect();
+    this.#frames.disconnect();
     if (this.#placementFrame !== null) cancelAnimationFrame(this.#placementFrame);
     this.#placementFrame = null;
     this.#stopReload();
@@ -350,6 +398,7 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
 
   protected override updated(): void {
     super.updated();
+    this.#frames.sync(this.querySelectorAll(PREVIEW_FRAMES));
     this.#checkLinks();
     this.#containDialogs();
     this.#observeCanvas();
@@ -374,7 +423,11 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     if (mode.kind !== 'composing' || this.#anchor === null) return;
     const surface = this.renderRoot.querySelector<HTMLElement>(COMPOSER);
     if (!surface) return;
-    this.#popovers.open(surface, this.#anchor, COMPOSER_SIZE, { placement: 'right-start' });
+    // An element in a preview iframe's page cannot anchor a popover of this document: the box drawn over it does.
+    const anchor =
+      this.#anchor.ownerDocument === document ? this.#anchor : this.renderRoot.querySelector<HTMLElement>('.ui-picked');
+    if (anchor === null) return;
+    this.#popovers.open(surface, anchor, COMPOSER_SIZE, { placement: 'right-start' });
     if (opened) surface.querySelector('textarea')?.focus({ preventScroll: true });
   }
 
@@ -440,12 +493,19 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     const wrappers = this.#previewWrappers().filter((wrapper) =>
       group.previewIds.includes(wrapper.getAttribute('data-preview-id') ?? ''),
     );
-    const missed = wrappers.map((wrapper) => {
+    const missed = wrappers.flatMap((wrapper) => {
+      const event = new CustomEvent('dpk-action', {
+        bubbles: true,
+        detail: { id: action.id, screen: group.screen.id },
+      });
+      // The page of a preview iframe plays the action itself, hearing the event on its `frameElement`.
+      if (wrapper.localName === 'iframe') {
+        wrapper.dispatchEvent(event);
+        return [];
+      }
       const unmatched = [...fillFields(wrapper, action.fill ?? {}), ...clickElements(wrapper, action.click ?? [])];
-      wrapper.dispatchEvent(
-        new CustomEvent('dpk-action', { bubbles: true, detail: { id: action.id, screen: group.screen.id } }),
-      );
-      return unmatched;
+      wrapper.dispatchEvent(event);
+      return [unmatched];
     });
     const nowhere = (missed[0] ?? []).filter((selector) => missed.every((list) => list.includes(selector)));
     if (nowhere.length === 0) return;
@@ -679,14 +739,17 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     return hit === null ? null : this.#picked(hit.element, hit.wrapper);
   }
 
-  /** The topmost element of a preview at a point of the viewport. */
+  /**
+   * The topmost element of a preview at a point of the viewport, down in the
+   * page of a same-origin iframe when the point is over one.
+   */
   #hitAt(x: number, y: number): { readonly element: Element; readonly wrapper: Element } | null {
     if (typeof document.elementsFromPoint !== 'function') return null;
     const wrappers = this.#previewWrappers();
     // The shadow root's own elements come back as this host, so the first light DOM hit is the mock's.
     for (const element of document.elementsFromPoint(x, y)) {
       const wrapper = wrappers.find((candidate) => candidate.contains(element));
-      if (wrapper !== undefined) return { element, wrapper };
+      if (wrapper !== undefined) return { element: descendAt(element, x, y), wrapper };
     }
     return null;
   }
@@ -694,14 +757,16 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
   #picked(origin: Element, wrapper: Element): { readonly element: Element; readonly target: UiTarget } | null {
     const previewId = wrapper.getAttribute('data-preview-id');
     if (!previewId) return null;
-    const element = pickableElement(origin, wrapper);
-    const location = locateElement(element, wrapper);
+    const element = pickableAcrossFrames(origin, wrapper);
+    const location = locateAcrossFrames(element, wrapper);
+    const url = framePage(element);
     return {
       element,
       target: {
         previewId,
         selector: location.selector,
         ...(location.text === undefined ? {} : { text: location.text }),
+        ...(url === undefined ? {} : { url }),
       },
     };
   }
@@ -782,7 +847,9 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     const canvas = this.renderRoot.querySelector<HTMLElement>('.canvas');
     if (canvas) this.#placeMarks(canvas, '.ui-note-badge', 'left');
     if (this.#uiComment.kind === 'off') return;
-    this.#placeBox('.ui-picked', this.#anchor);
+    // An element gone with no successor yet keeps its box (and the composer on it) where it was.
+    const picked = this.#pickedElement();
+    if (picked === null || picked.isConnected) this.#placeBox('.ui-picked', picked);
     if (!canvas) return;
     const catcher = this.renderRoot.querySelector<HTMLElement>('.ui-catcher');
     if (catcher) {
@@ -797,18 +864,36 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     this.#placeMarks(canvas, '.ui-pin', 'right');
   }
 
+  /**
+   * The element being commented on. A page that draws its markup again (a
+   * frame's app re-rendering) leaves the one picked out of the document: its
+   * successor is found again by the target, on the same page of the frame.
+   */
+  #pickedElement(): Element | null {
+    const mode = this.#uiComment;
+    if (mode.kind !== 'composing' || this.#anchor === null || this.#anchor.isConnected) return this.#anchor;
+    const wrapper = this.#previewElement(mode.target.previewId);
+    const element = wrapper ? findAcrossFrames(wrapper, mode.target.selector) : null;
+    const url = mode.target.url;
+    if (element !== null && (url === undefined || framePage(element) === url)) this.#anchor = element;
+    return this.#anchor;
+  }
+
   #placeMarks(canvas: HTMLElement, selector: string, corner: 'left' | 'right'): void {
     for (const mark of this.renderRoot.querySelectorAll<HTMLElement>(selector)) {
       const wrapper = this.#previewElement(mark.dataset['preview'] ?? '');
-      const element = wrapper ? findLocated(wrapper, mark.dataset['selector'] ?? '') : null;
-      const rect = element?.getBoundingClientRect();
+      const element = wrapper ? findAcrossFrames(wrapper, mark.dataset['selector'] ?? '') : null;
+      // In a preview iframe, the element is on one page of the frame: another page has another element there.
+      const url = mark.dataset['url'];
+      const onPage = element !== null && (url === undefined || framePage(element) === url);
+      const rect = element !== null && onPage ? boxInDocument(element, document) : null;
       if (!rect || (rect.width === 0 && rect.height === 0)) {
         mark.hidden = true;
         continue;
       }
       const origin = this.#canvasOrigin(canvas);
       mark.hidden = false;
-      mark.style.left = `${rect[corner] - origin.left}px`;
+      mark.style.left = `${(corner === 'left' ? rect.left : rect.left + rect.width) - origin.left}px`;
       mark.style.top = `${rect.top - origin.top}px`;
     }
   }
@@ -817,7 +902,7 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     const box = this.renderRoot.querySelector<HTMLElement>(selector);
     const canvas = this.renderRoot.querySelector<HTMLElement>('.canvas');
     if (!box || !canvas) return;
-    const rect = element?.getBoundingClientRect();
+    const rect: Box | null = element === null ? null : boxInDocument(element, document);
     if (!rect) {
       box.hidden = true;
       return;
@@ -941,6 +1026,35 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
         problems.push(`  ${previewId}: <${link.tagName.toLowerCase()}> "${text}" → ${where} (${problem})`);
       }
     }
+    this.#warnLinks(problems);
+  }
+
+  /**
+   * The page of a preview iframe, checked as it loads. Only its
+   * `data-dpk-navigate` links are the prototype's: the rest is the page's own
+   * routing.
+   */
+  #checkFrameLinks(frame: HTMLIFrameElement, doc: Document): void {
+    const where = frameAddress(doc.documentElement, document) ?? doc.URL;
+    if (this.#framePagesChecked.has(where)) return;
+    this.#framePagesChecked.add(where);
+    const previewId =
+      frame.getAttribute('data-preview-id') ??
+      frame.closest('[data-preview-id]')?.getAttribute('data-preview-id') ??
+      '?';
+    const state = this.derivation.state;
+    const problems: string[] = [];
+    for (const link of doc.querySelectorAll('[data-dpk-navigate]')) {
+      const navigate = link.getAttribute('data-dpk-navigate');
+      const problem = prototypeLinkProblem(state, { href: null, navigate });
+      if (problem === null) continue;
+      const text = (link.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
+      problems.push(`  ${previewId} @ ${where}: <${link.localName}> "${text}" → ${navigate} (${problem})`);
+    }
+    this.#warnLinks(problems);
+  }
+
+  #warnLinks(problems: readonly string[]): void {
     if (problems.length === 0) return;
     console.warn(
       `[dev-process-kit] <dpk-view-prototype>: ${problems.length} link(s) in the previews lead nowhere. ` +
@@ -1111,6 +1225,12 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     const timer = setTimeout(() => {
       this.#pendingReload = null;
       for (const wrapper of this.#previewWrappers()) {
+        // A preview iframe reloads the page it shows, as the browser would.
+        const page = frameDocument(wrapper);
+        if (page !== null) {
+          page.location.reload();
+          continue;
+        }
         for (const form of wrapper.querySelectorAll('form')) form.reset();
         for (const dialog of wrapper.querySelectorAll('dialog')) dialog.close();
         wrapper.scrollTop = 0;
@@ -1143,30 +1263,64 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     if (!link.blank && !background) return;
     event.preventDefault();
     event.stopPropagation();
-    const page = prototypeBrowserPage(this.derivation.state, parseHash(this.hashFor(link.patch)));
+    this.#openInTab(link.patch, background);
+  };
+
+  /**
+   * A `data-dpk-navigate` link in the page of a preview iframe moves the
+   * prototype, as it does in a preview's own markup: the page's own links and
+   * `href="#…"` stay its own routing. It is heard after the page's own
+   * handlers, which run first as they do for a preview's own markup.
+   * Commenting on the UI, the catcher sheet covers the frame, so no click of
+   * the reader reaches it.
+   */
+  #onFrameClick(event: MouseEvent): void {
+    if (this.#uiComment.kind !== 'off') return;
+    if (event.type === 'auxclick' && event.button !== 1) return;
+    const link = this.#mockLink(event, { frame: true });
+    if (link === null) return;
+    event.preventDefault();
+    const background = event.metaKey || event.ctrlKey || event.button === 1;
+    if (this.#browserShown && this.#browser !== null && (link.blank || background))
+      this.#openInTab(link.patch, background);
+    else if (event.type === 'click') this.navigate(link.patch);
+  }
+
+  #openInTab(patch: Record<string, string>, background: boolean): void {
+    const page = prototypeBrowserPage(this.derivation.state, parseHash(this.hashFor(patch)));
     if (page === null) {
       // A screen outside the browser opens where it is, whatever the link asks.
-      if (!background) this.navigate(link.patch);
+      if (!background) this.navigate(patch);
       return;
     }
     this.#sendBrowser({ kind: 'open-tab', entry: { kind: 'page', page }, background });
-  };
+  }
 
-  /** The link of a preview the event went through, and where it leads. */
-  #mockLink(event: Event): { readonly patch: Record<string, string>; readonly blank: boolean } | null {
+  /**
+   * The link of a preview the event went through, and where it leads. In the
+   * page of a preview iframe, only a `data-dpk-navigate` link is the prototype's.
+   */
+  #mockLink(
+    event: Event,
+    { frame = false }: { readonly frame?: boolean } = {},
+  ): { readonly patch: Record<string, string>; readonly blank: boolean } | null {
     const path = event.composedPath();
-    const inPreview = path.some(
-      (node) => node instanceof Element && node.parentElement === this && node.hasAttribute('data-preview-id'),
-    );
+    const inPreview =
+      frame ||
+      path.some(
+        (node) => node instanceof Element && node.parentElement === this && node.hasAttribute('data-preview-id'),
+      );
     if (!inPreview) return null;
     for (const node of path) {
-      if (!(node instanceof Element) || node === this) break;
-      const nav = node.getAttribute('data-dpk-navigate');
-      const href = node instanceof HTMLAnchorElement ? node.getAttribute('href') : null;
+      // Not `instanceof`: a frame's page has its own `Element`.
+      if (!isElementNode(node) || node === this) break;
+      const element = node;
+      const nav = element.getAttribute('data-dpk-navigate');
+      const href = !frame && element instanceof HTMLAnchorElement ? element.getAttribute('href') : null;
       const target = nav ?? (href?.startsWith('#') ? href : null);
       if (target === null) continue;
       const hash = nav !== null && !nav.includes('=') ? `step=${nav}` : target;
-      return { patch: { ...parseHash(hash) }, blank: node.getAttribute('target') === '_blank' };
+      return { patch: { ...parseHash(hash) }, blank: element.getAttribute('target') === '_blank' };
     }
     return null;
   }

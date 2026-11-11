@@ -223,4 +223,22 @@ describe('prototype UI notes: badges', () => {
     expect(prototypeUiNoteBadges(state, ['memo']).map((badge) => badge.selector)).toEqual(['p']);
     expect(prototypeUiNoteBadges(state, [])).toEqual([]);
   });
+
+  it('keeps the same selector on two pages of an iframe preview apart', () => {
+    const inFrame = { previewId: 'memo', selector: ':scope >>> button' };
+    const state = apply(
+      apply(base, prototypeAction.addUiNote({ ...inFrame, url: 'demo/index.html#/a' }, 'n2', 'On A'))!,
+      prototypeAction.addUiNote({ ...inFrame, url: 'demo/index.html#/b' }, 'n3', 'On B'),
+    )!;
+    expect(notesOf(state, 'memo')?.[0]).toEqual({
+      id: 'n2',
+      selector: inFrame.selector,
+      url: 'demo/index.html#/a',
+      body: 'On A',
+    });
+    expect(prototypeUiNoteBadges(state, ['memo']).map((badge) => [badge.url, badge.notes.length])).toEqual([
+      ['demo/index.html#/a', 1],
+      ['demo/index.html#/b', 1],
+    ]);
+  });
 });

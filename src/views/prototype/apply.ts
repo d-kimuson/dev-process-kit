@@ -271,12 +271,16 @@ export const applyPrototypeAction = (state: PrototypeState, action: DraftAction)
       const found = ui === undefined ? undefined : findPreview(state, ui.previewId);
       if (ui === undefined || found === undefined) return null;
       // Adding the same note again is already done: the draft stays as it is.
-      if (found.preview.notes?.some((note) => note.id === noteId && note.selector === ui.selector)) return state;
+      if (
+        found.preview.notes?.some((note) => note.id === noteId && note.selector === ui.selector && note.url === ui.url)
+      )
+        return state;
       if (allUiNoteIds(state).includes(noteId)) return null;
       const note: UiNote = {
         id: noteId,
         selector: ui.selector,
         ...(ui.text === undefined ? {} : { text: ui.text }),
+        ...(ui.url === undefined ? {} : { url: ui.url }),
         body,
         ...(createdAt === undefined ? {} : { createdAt }),
       };

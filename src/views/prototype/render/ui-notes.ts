@@ -24,8 +24,8 @@ export type UiNotesView = {
 };
 
 /** Which element a badge sits on: the same key names its open list. */
-export const uiNoteBadgeKey = (badge: Pick<UiNoteBadge, 'previewId' | 'selector'>): string =>
-  `${badge.previewId}/${badge.selector}`;
+export const uiNoteBadgeKey = (badge: Pick<UiNoteBadge, 'previewId' | 'selector' | 'url'>): string =>
+  `${badge.previewId}/${badge.selector}${badge.url === undefined ? '' : ` @ ${badge.url}`}`;
 
 /**
  * A badge on the top-left corner of every element that has notes, drawn over
@@ -44,6 +44,7 @@ export const renderUiNoteBadges = (m: PrototypeMessages, view: UiNotesView): Tem
         hidden
         data-preview=${badge.previewId}
         data-selector=${badge.selector}
+        data-url=${badge.url ?? nothing}
         data-key=${uiNoteBadgeKey(badge)}
         aria-label=${m.uiNotesOn(badge.label)}
         aria-expanded=${open ? 'true' : 'false'}

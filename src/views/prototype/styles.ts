@@ -1,6 +1,7 @@
 import { css } from 'lit';
 
 import { CONTAINED_DIALOG } from '../../lib/dom/contained-dialog';
+import { FRAME_HEIGHT_PROPERTY } from './frame-bridge';
 
 /** Sidebar navigation, stage and preview frames of `<dpk-view-prototype>`. */
 export const prototypeStyles = css`
@@ -1421,6 +1422,19 @@ export const prototypeDocumentStyles = `
         > [data-preview-id]:has(> :not(style, script, template, link) ~ :not(style, script, template, link))
     ) {
     align-content: start;
+  }
+
+  /*
+   * A preview that is an iframe is as tall as the page it shows (the element
+   * measures it into the property), so the scenario view lays it out like
+   * markup of its own; a window of the app view sizes it instead, and the
+   * page scrolls inside. \`:where\` lets the author size it otherwise.
+   */
+  :where(dpk-view-prototype > iframe[data-preview-id]) {
+    display: block;
+    width: 100%;
+    height: var(${FRAME_HEIGHT_PROPERTY}, auto);
+    border: 0;
   }
 
   dpk-view-prototype > [data-preview-id]:has(dialog[${CONTAINED_DIALOG}][open]) {

@@ -34,6 +34,8 @@ export type UiNote = {
   readonly selector: string;
   /** What the element said when the note was written. */
   readonly text?: string;
+  /** The page of the preview's iframe the element is on, as `UiTarget.url` names it. */
+  readonly url?: string;
   readonly body: string;
   readonly createdAt?: string;
 };
@@ -198,6 +200,7 @@ const uiNoteSchema = v.strictObject({
   id: entityIdSchema,
   selector: v.pipe(v.string(), v.minLength(1)),
   text: v.exactOptional(v.string()),
+  url: v.exactOptional(v.pipe(v.string(), v.minLength(1))),
   body: uiNoteBodySchema,
   createdAt: v.exactOptional(uiNoteAtSchema),
 });
@@ -404,16 +407,30 @@ export const UI_TARGET = 'ui';
  * `<preview id>/<selector> "<text>"`, e.g. `cart-mobile/a.sm-btn "レジに進む"`.
  * The selector is relative to the preview's light DOM element and the text is
  * what the element said, so the agent can find it either way.
+ *
+ * In a preview that is an iframe, the selector goes on into the frame's body
+ * after ` >>> `, and ` @ <url>` ends the id: the page the frame showed, as its
+ * `src` would name it (`cart/:scope >>> button.pay "Pay" @ demo/index.html#/cart`).
+ * The same selector on another page of the frame is another element.
  */
 export type UiTarget = {
   readonly previewId: string;
   readonly selector: string;
   readonly text?: string;
+  readonly url?: string;
 };
+
+/**
+ * The form a frame's page takes in a target: without spaces, so the id still
+ * ends at its last ` @ `, and without `@`, so the page qualifier an app adds
+ * after it is not read off the address.
+ */
+export const uiTargetUrl = (url: string): string => url.replaceAll(/[\s@]/g, encodeURIComponent);
 
 export const uiTargetId = (target: UiTarget): string => {
   const text = target.text?.replaceAll('"', "'");
-  return `${target.previewId}/${target.selector}${text === undefined ? '' : ` "${text}"`}`;
+  const url = target.url === undefined ? undefined : uiTargetUrl(target.url);
+  return `${target.previewId}/${target.selector}${text === undefined ? '' : ` "${text}"`}${url === undefined ? '' : ` @ ${url}`}`;
 };
 
 export const parseUiTargetId = (id: string): UiTarget | undefined => {
@@ -421,11 +438,18 @@ export const parseUiTargetId = (id: string): UiTarget | undefined => {
   if (slash <= 0) return undefined;
   const previewId = id.slice(0, slash);
   if (!v.is(entityIdSchema, previewId)) return undefined;
-  const rest = id.slice(slash + 1);
+  const located = id.slice(slash + 1);
+  const at = / @ ([^\s"]+)$/.exec(located);
+  const rest = at ? located.slice(0, at.index) : located;
   const quoted = / "([^"]*)"$/.exec(rest);
   const selector = (quoted ? rest.slice(0, quoted.index) : rest).trim();
   if (selector === '') return undefined;
-  return quoted?.[1] === undefined ? { previewId, selector } : { previewId, selector, text: quoted[1] };
+  return {
+    previewId,
+    selector,
+    ...(quoted?.[1] === undefined ? {} : { text: quoted[1] }),
+    ...(at?.[1] === undefined ? {} : { url: at[1] }),
+  };
 };
 
 export const parsePrototypeBase = (input: unknown): PrototypeState => {

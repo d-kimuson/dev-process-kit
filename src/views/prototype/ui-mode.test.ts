@@ -55,6 +55,25 @@ describe('UI comment targets', () => {
     expect(parseUiTargetId('cart/button.save')).toEqual({ previewId: 'cart', selector: 'button.save' });
   });
 
+  it('round-trips the page of an iframe preview the element is on', () => {
+    const target = {
+      previewId: 'cart',
+      selector: ':scope >>> button.pay',
+      text: 'Pay @ once',
+      url: 'demo/index.html#/cart',
+    };
+    const id = uiTargetId(target);
+    expect(id).toBe('cart/:scope >>> button.pay "Pay @ once" @ demo/index.html#/cart');
+    expect(parseUiTargetId(id)).toEqual(target);
+    expect(parseUiTargetId(uiTargetId({ previewId: 'cart', selector: 'a', url: 'demo/a b.html' }))?.url).toBe(
+      'demo/a%20b.html',
+    );
+    // An app qualifies the id with its page after the last `@`: the address keeps none of its own.
+    expect(uiTargetId({ previewId: 'cart', selector: 'a', url: 'demo/#/u@prototype' })).toBe(
+      'cart/a @ demo/#/u%40prototype',
+    );
+  });
+
   it('rejects an id without a preview or a selector', () => {
     expect(parseUiTargetId('button.save')).toBeUndefined();
     expect(parseUiTargetId('cart/')).toBeUndefined();
@@ -77,12 +96,21 @@ describe('UI comment targets', () => {
       comment('2', 'x', 'About the step', 'step'),
       comment('3', 'other/p', 'Elsewhere'),
       comment('4', 'memo/p', 'Handwriting'),
+      comment('5', 'memo/:scope >>> a @ demo/index.html#/b', 'In the frame'),
     ];
     expect(prototypeUiCommentPins(comments, ['cart', 'memo'])).toEqual([
       { id: '1', previewId: 'cart', selector: 'button', number: 1, body: 'Too small' },
       { id: '4', previewId: 'memo', selector: 'p', number: 2, body: 'Handwriting' },
+      {
+        id: '5',
+        previewId: 'memo',
+        selector: ':scope >>> a',
+        url: 'demo/index.html#/b',
+        number: 3,
+        body: 'In the frame',
+      },
     ]);
-    expect(prototypeUiCommentCount(comments, ['memo'])).toBe(1);
+    expect(prototypeUiCommentCount(comments, ['memo'])).toBe(2);
   });
 });
 

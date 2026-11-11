@@ -279,6 +279,8 @@ export type UiCommentPin = {
   readonly id: string;
   readonly previewId: string;
   readonly selector: string;
+  /** The page of an iframe preview the element is on: the pin shows only while the frame shows it. */
+  readonly url?: string;
   /** 1-based number of the pin among the comments on screen. */
   readonly number: number;
   readonly body: string;
@@ -298,6 +300,7 @@ export const prototypeUiCommentPins = (
       id: comment.id,
       previewId: ui.previewId,
       selector: ui.selector,
+      ...(ui.url === undefined ? {} : { url: ui.url }),
       number: pins.length + 1,
       body: commentBody(comment),
     });
@@ -309,6 +312,8 @@ export const prototypeUiCommentPins = (
 export type UiNoteBadge = {
   readonly previewId: string;
   readonly selector: string;
+  /** The page of an iframe preview the element is on, as its notes record it. */
+  readonly url?: string;
   /** `Desktop › "Save"`, as the element is named in a `ui` target. */
   readonly label: string;
   /** Oldest first. */
@@ -319,16 +324,23 @@ export type UiNoteBadge = {
 export const prototypeUiNoteBadges = (state: PrototypeState, previewIds: readonly string[]): readonly UiNoteBadge[] =>
   previewIds.flatMap((previewId) => {
     const preview = findPreview(state, previewId)?.preview;
-    const bySelector = new Map<string, UiNote[]>();
-    for (const note of preview?.notes ?? [])
-      bySelector.set(note.selector, [...(bySelector.get(note.selector) ?? []), note]);
+    // One element is a selector on one page of the preview: a frame's other page has another element there.
+    const byElement = new Map<string, UiNote[]>();
+    for (const note of preview?.notes ?? []) {
+      const key = JSON.stringify([note.selector, note.url ?? null]);
+      byElement.set(key, [...(byElement.get(key) ?? []), note]);
+    }
     if (preview === undefined) return [];
-    return [...bySelector].map(([selector, notes]) => ({
-      previewId,
-      selector,
-      label: prototypeUiTargetName(preview, { previewId, selector, ...textOf(notes) }),
-      notes,
-    }));
+    return [...byElement.values()].map((notes) => {
+      const { selector, url } = notes[0]!;
+      return {
+        previewId,
+        selector,
+        ...(url === undefined ? {} : { url }),
+        label: prototypeUiTargetName(preview, { previewId, selector, ...textOf(notes) }),
+        notes,
+      };
+    });
   });
 
 /** What the element said, as its latest note recorded it. */

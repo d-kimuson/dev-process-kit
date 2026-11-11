@@ -414,6 +414,30 @@ describe('<dpk-view-prototype> layout', () => {
       expect(el.api.exportBrief()).toContain('**UI · landing-mobile › "Billing"** — `ui:landing-mobile/a "Billing"`');
     });
 
+    it('follows the element being commented on when the mock draws its markup again', async () => {
+      const el = await withMock();
+      toggle(el).click();
+      await settle(el);
+      el.querySelector<HTMLElement>('button.pay')!.click();
+      await settle(el);
+      const preview = el.querySelector('[data-preview-id="landing-mobile"]')!;
+      preview.replaceChildren(...[...preview.childNodes].map((node) => node.cloneNode(true)));
+      const redrawn = preview.querySelector('button.pay')!;
+      redrawn.getBoundingClientRect = () => new DOMRect(40, 120, 80, 32);
+      const textarea = el.shadowRoot!.querySelector<HTMLTextAreaElement>('.comment-pop textarea')!;
+      textarea.value = 'Too loud';
+      textarea.dispatchEvent(new Event('input'));
+      await settle(el);
+      const box = el.shadowRoot!.querySelector<HTMLElement>('.ui-picked')!;
+      expect(box.hidden).toBe(false);
+      expect([box.style.left, box.style.top, box.style.width, box.style.height]).toEqual([
+        '40px',
+        '120px',
+        '80px',
+        '32px',
+      ]);
+    });
+
     it('keeps a note on the element instead of sending feedback, and shows it as a badge', async () => {
       const el = await withMock();
       const root = el.shadowRoot!;

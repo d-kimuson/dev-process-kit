@@ -40,6 +40,16 @@ Write the page content only. The viewer adds `<!doctype html>`, `<html>`, `<head
 - **This page's rules win over generic Artifact design guidance.** The Artifact tool has you load design guidance for any page (`artifact-design`): a token palette with dark-mode blocks, a background painted on `body`, a side gutter on `body`, your own fonts. On a kit page the app already does each of these for the page, so apply that guidance only inside your own mock content (a prototype's previews, plain's sections), never to `html`, `body` or the app element.
 - **Scripts from jsDelivr only.** The CSP admits `cdn.jsdelivr.net/npm/` for scripts, so the pinned entries are all the page needs. The only other request the kit makes is the published-version list (`data.jsdelivr.com`) behind the version select that versions old enough to draw one offer, and only when the reader opens it; where the viewer blocks it, that select lists the running version alone.
 
+## A mock built as its own app
+
+A prototype's mock can be an app of its own (a Vite build, say) published next to the page and shown in an [iframe preview](views/prototype.md#a-preview-in-an-iframe). The Artifact tool publishes supporting files through `files`, on the same origin as the page, so the view reaches into the frame: UI comments, notes and `data-dpk-navigate` work as on light DOM markup.
+
+- **Build with relative paths** (`base: './'` in Vite), so the build's own asset URLs resolve under the path you publish it at, such as `demo/`.
+- **Publish every file of the build** under that path in `files` (`demo/index.html`, `demo/assets/…`), and point the iframe's `src` at it: `src="demo/index.html#/cart"`. Route on the hash inside the frame: the viewer serves only the published paths.
+- **The frame's HTML is a whole document.** Only the page itself is wrapped by the viewer; `demo/index.html` keeps its own `<!doctype html>`, charset and viewport metas, as the build writes them.
+- **Its scripts are your own files**, so the CDN allowlist does not limit what the build bundles, but the build must not fetch from other hosts at run time.
+- **Republish only what changed.** Files left out of a later publish are kept; publish the rebuilt files (and `null` for those the build no longer writes) together with the page.
+
 ## Sending the review to Claude
 
 Declare `capabilities: { comments: {}, db: {} }` on the first publish, and the review rail (on a page with questions, also the Questions tab's own footer) offers **Send to Claude** in place of copying: the brief arrives in your session as a comment sent to Claude, pinned to the app element, and the user no longer pastes anything.

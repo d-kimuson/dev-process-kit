@@ -73,6 +73,7 @@ export const renderUiCommentLayer = (m: PrototypeMessages, view: UiCommentView):
           hidden
           data-preview=${pin.previewId}
           data-selector=${pin.selector}
+          data-url=${pin.url ?? nothing}
           title=${m.uiCommentPin(pin.number, pin.body)}
           >${pin.number}</span
         >`,
