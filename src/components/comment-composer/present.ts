@@ -22,7 +22,7 @@ export type ComposerViewModel = {
   /** What the comment is on (its target), so unsent text comes back to this composer only. */
   readonly key: string | null;
   readonly choice: ComposerChoice | null;
-  /** The submit button's text, when it is not the plain "Send". */
+  /** The submit button's text, when it is not the plain "Add". */
   readonly submitLabel: string | null;
 };
 

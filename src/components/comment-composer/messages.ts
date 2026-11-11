@@ -4,13 +4,13 @@ export const composerMessages = defineMessages({
   en: {
     comment: 'Comment',
     commentOn: (label: string) => `Comment on ${label}`,
-    submit: 'Send',
+    submit: 'Add',
     cancel: 'Cancel',
   },
   ja: {
     comment: 'コメント',
     commentOn: (label: string) => `${label}へのコメント`,
-    submit: '送信',
+    submit: '追加',
     cancel: 'キャンセル',
   },
 });

@@ -407,7 +407,7 @@ The same mode has a second way in: right-click any element of the stage and pick
 Above the box the reader picks what the click is for, Feedback or Note — the choice sticks for the next element while the mode stays on, and turning the mode on again starts at Feedback:
 
 - **Feedback** is a review comment like any other: it asks you for a change and is gone once you answer it.
-- **Note** ("Keep" in place of "Send") is instead kept as part of the prototype, for a decision or a caveat worth leaving on the element rather than asking you to act on it.
+- **Note** ("Keep" in place of "Add") is instead kept as part of the prototype, for a decision or a caveat worth leaving on the element rather than asking you to act on it.
 
 The comment enters the draft like any other, on a `ui` target that names the element:
 
