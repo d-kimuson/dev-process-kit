@@ -91,7 +91,12 @@ import { collectCheckBindings, CheckModeBadgeController } from './shell/check-mo
 import { CheckModeController } from './shell/check-mode-controller';
 import { ClaudeHandoffController } from './shell/claude-handoff-controller';
 import { ColorSchemeController } from './shell/color-scheme-controller';
-import { assignElementActions, findComponentProviders, readComponentSnapshot } from './shell/comment-targets';
+import {
+  assignElementActions,
+  assignElementComments,
+  findComponentProviders,
+  readComponentSnapshot,
+} from './shell/comment-targets';
 import { menuClearanceOf, type MenuArea } from './shell/floating-menu';
 import { FloatingMenuController } from './shell/floating-menu-controller';
 import { floatingMenuStyles, renderFloatingMenu, renderFloatingMenuSlot } from './shell/floating-menu-view';
@@ -1928,6 +1933,7 @@ export abstract class ViewElement<S> extends LitElement {
     // dispatched one sees it applied as soon as its event returns. Their
     // results are read back once the current change has settled.
     assignElementActions(this.#providers, this.controller.actions);
+    assignElementComments(this.#providers, this.controller.actions);
     queueMicrotask(this.#refreshCommentTargets);
     this.requestUpdate();
     this.#notify();
@@ -1972,6 +1978,7 @@ export abstract class ViewElement<S> extends LitElement {
     });
     if (!this.#controller) return;
     assignElementActions(this.#providers, this.#controller.actions);
+    assignElementComments(this.#providers, this.#controller.actions);
     const own = readComponentSnapshot(this.#providers);
     const borrowed = this.adoptedComponentProviders();
     this.#controller.setComponentSnapshot(

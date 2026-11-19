@@ -196,6 +196,47 @@ describe('component targets in the common shell', () => {
     expect(shape.elementActions).toEqual([]);
   });
 
+  it('hands a component the review comments on its own targets, in draft order', async () => {
+    const host = await mount();
+    class Thread extends HTMLElement {
+      commentTargets = [
+        { value: 'element:thread/line/a', label: 'Line A' },
+        { value: 'element:thread/line/b', label: 'Line B' },
+      ];
+      assigned = 0;
+      #comments: readonly { id: string; payload: unknown }[] = [];
+      get elementComments(): readonly { id: string; payload: unknown }[] {
+        return this.#comments;
+      }
+      set elementComments(next: readonly { id: string; payload: unknown }[]) {
+        this.#comments = next;
+        this.assigned += 1;
+      }
+    }
+    if (!customElements.get('test-thread')) customElements.define('test-thread', Thread);
+    const thread = document.createElement('test-thread');
+    if (!(thread instanceof Thread)) throw new Error('not upgraded');
+    thread.id = 'thread';
+    host.append(thread, provider());
+    await Promise.resolve();
+    host.api.comment('element:thread/line/a', 'first');
+    host.api.comment('element:custom/shape/a', 'elsewhere');
+    host.api.comment('element:thread/line/a', 'reply');
+    expect(thread.elementComments.map((comment) => comment.payload)).toEqual([{ body: 'first' }, { body: 'reply' }]);
+    const assigned = thread.assigned;
+    host.api.comment('element:custom/shape/a', 'still elsewhere');
+    // Unchanged lists are not reassigned.
+    expect(thread.assigned).toBe(assigned);
+    const first = thread.elementComments[0]?.id ?? '';
+    host.controller.editComment(first, 'first, edited');
+    expect(thread.elementComments.map((comment) => comment.payload)).toEqual([
+      { body: 'first, edited' },
+      { body: 'reply' },
+    ]);
+    host.controller.removeAction(first);
+    expect(thread.elementComments.map((comment) => comment.payload)).toEqual([{ body: 'reply' }]);
+  });
+
   it('never throws on a provider whose own reactive `id` property is null, and treats it as unaddressable', async () => {
     // A custom element can redeclare `id` as a reactive property (to reflect it, say) that is
     // `null`/`undefined` before its own constructor default runs, shadowing the native

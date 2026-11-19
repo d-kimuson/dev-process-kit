@@ -93,6 +93,10 @@ export const isElementAction = (action: { readonly type: string; readonly target
 export const elementActionsFor = (actions: readonly DraftAction[], provider: string): readonly DraftAction[] =>
   actions.filter((action) => isElementAction(action) && providerOf(action.target) === provider);
 
+/** The review comments on one provider's targets, in draft order. */
+export const elementCommentsFor = (actions: readonly DraftAction[], provider: string): readonly DraftAction[] =>
+  actions.filter((action) => action.type === COMMENT_ACTION && providerOf(action.target) === provider);
+
 /** Results keyed by action id; a provider can only report on its own actions. */
 export const elementResultsById = (
   actions: readonly DraftAction[],
