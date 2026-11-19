@@ -73,15 +73,18 @@ A version npm has not published can be retried by rerunning the workflow. Once n
 
 ## Verify publish
 
+The registry takes a minute or two to serve a version after the workflow reports it published, and `npm view` (through the local cache) can answer 404 meanwhile. Wait for the registry first, and only then ask jsDelivr: a request for a version that is not there yet can leave a cached 404 on the CDN for several minutes.
+
 ```bash
 VERSION="0.0.0" # replace
-npm view "dev-process-kit@$VERSION" version
-npm dist-tag ls dev-process-kit
+until curl -sf "https://registry.npmjs.org/dev-process-kit/$VERSION" >/dev/null; do sleep 15; done
+npm view "dev-process-kit@$VERSION" version --prefer-online
+npm dist-tag ls dev-process-kit --prefer-online
 curl -sfI "https://cdn.jsdelivr.net/npm/dev-process-kit@$VERSION/dist/index.js" | head -n 1
 curl -sfI "https://raw.githubusercontent.com/d-kimuson/dev-process-kit/v$VERSION/docs/index.md" | head -n 1
 ```
 
-The last two are what a consumer loads: the bundle from jsDelivr and the documentation at the tag.
+The last two are what a consumer loads: the bundle from jsDelivr and the documentation at the tag. If jsDelivr still answers 404 or 502 while `https://data.jsdelivr.com/v1/packages/npm/dev-process-kit` lists the version, the CDN has not caught up: check again a few minutes later instead of treating the release as broken.
 
 ## GitHub Release
 
