@@ -66,7 +66,7 @@ the content of a page. That is one element used two ways, not two kinds of eleme
 
 Components are the pieces you combine inside a view, a board or your own markup. They never fill
 a page by themselves: the review rail (`dpk-comment-panel`), inline editing (`dpk-inline-edit`),
-formal specs (`dpk-formal-spec`), tables and matrices (`dpk-table`, `dpk-matrix`), selects and
+formal specs (`dpk-formal-spec`), git diffs with line comments and suggestions (`dpk-diff`), tables and matrices (`dpk-table`, `dpk-matrix`), selects and
 comboboxes (`dpk-select`, `dpk-combobox`), checklists, tabs, dialogs, tag filters, commentable
 sections and the comment popover/thread, mocks and the CSS atoms. Each has a page under
 [`docs/components/`](docs/components/) and [`docs/boards/`](docs/boards/).

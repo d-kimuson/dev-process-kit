@@ -45,6 +45,7 @@ export {
 } from './core/index';
 export {
   DpkCommentPanel,
+  DpkDiff,
   DpkFormalSpec,
   DpkInlineEdit,
   DpkLineChart,
@@ -52,6 +53,8 @@ export {
 } from './components/index';
 export type {
   CommentPanelCallbacks,
+  DiffData,
+  DiffFile,
   FormalSpecData,
   LineChartAxis,
   LineChartData,

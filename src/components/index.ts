@@ -19,6 +19,8 @@ export { DpkCommentPanel, defineCommentPanel } from './comment-panel/index';
 export type { CommentPanelCallbacks } from './comment-panel/index';
 export { DpkFormalSpec, defineFormalSpec, parseFormalSpecData } from './formal-spec/index';
 export type { Assurance, Claim, Clause, FormalSpecData, Term } from './formal-spec/index';
+export { DpkDiff, defineDiff, parseUnifiedDiff, SUGGEST_CHANGE } from './diff/index';
+export type { DiffData, DiffFile, DiffFileStatus, DiffHunk, DiffLine, DiffLineKind, DiffView } from './diff/index';
 export { atomStyles, cardAtom, controlAtom, defineAtomStyles, mockAtom } from './atoms/index';
 export { DpkCommentable, defineCommentable } from './commentable/index';
 export { DpkExtendRightClick, defineExtendRightClick, parseExtendRightClickData } from './extend-right-click/index';
@@ -98,6 +100,7 @@ import { defineCommentThread } from './comment-thread/index';
 import { defineCommentable } from './commentable/index';
 import { defineConfirmDialog } from './confirm-dialog/index';
 import { defineDialogPanel } from './dialog-panel/index';
+import { defineDiff } from './diff/index';
 import { defineExtendRightClick } from './extend-right-click/index';
 import { defineFormalSpec } from './formal-spec/index';
 import { defineInlineEdit } from './inline-edit';
@@ -115,6 +118,7 @@ export const registerComponentElements = (): void => {
   defineInlineEdit();
   defineLineChart();
   defineFormalSpec();
+  defineDiff();
   registerAtoms();
 };
 
