@@ -47,6 +47,8 @@ const SAMPLES = [
   ['architecture', 'plain', 'app'],
   ['ddd-primer', 'plain', 'app'],
   ['formal-spec', 'plain', 'app'],
+  ['diff', 'plain', 'app'],
+  ['code-review', 'plain', 'app'],
   ['slides', 'slides', 'app'],
   ['task-board', 'task-board', 'app'],
   ['delegation-poker', 'delegation-poker', 'app'],

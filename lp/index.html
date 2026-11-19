@@ -1602,6 +1602,7 @@
               <a href="#catalog-architecture-map">architecture map</a>
               <a href="#catalog-kanban">kanban</a>
               <a href="#catalog-formal-spec">formal spec</a>
+              <a href="#catalog-diff">diff</a>
               <a href="#catalog-composed">custom diagrams</a>
             </div>
           </nav>
@@ -2023,6 +2024,25 @@
                       <h4 data-i18n="formalSpecTitle">形式検証の結果</h4>
                       <!-- prettier-ignore -->
                       <p class="dpk-muted" data-i18n="formalSpecSample">Lean や TLA+ で確かめた性質を、前提・結論・主張していないこと・保証の強さに分けてふだんの言葉で示す。</p>
+                    </a>
+                    <a class="dpk-card" href="code-review.html">
+                      <div class="thumb">
+                        <iframe src="code-review.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-diff</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-checklist</code></span>
+                          </li>
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-commentable</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4 data-i18n="codeReviewTitle">Code Review</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="codeReview">Agent が出した Pull Request を、変更の概要・見てほしい点・差分で一枚にまとめ、行コメントのスレッドと変更の提案でレビューする。</p>
                     </a>
                     <a class="dpk-card" href="grill.html">
                       <div class="thumb">
@@ -4626,6 +4646,14 @@
                   <div class="stage is-document" data-tag="dpk-formal-spec" data-source="formal-spec.html"></div>
                 </article>
 
+                <article id="catalog-diff" class="entry">
+                  <header>
+                    <h3>&lt;dpk-diff&gt;</h3>
+                  </header>
+                  <p>git diff を行コメントと変更の提案つきで</p>
+                  <div class="stage is-document" data-tag="dpk-diff" data-source="diff.html"></div>
+                </article>
+
                 <article id="catalog-composed" class="entry">
                   <header>
                     <h3>Composed example</h3>
@@ -4781,6 +4809,9 @@
         formalSpecTitle: 'Formal verification results',
         formalSpecSample:
           'Properties checked in Lean or TLA+, restated in plain words as premises, conclusions, what is not claimed and how strongly each holds.',
+        codeReviewTitle: 'Code Review',
+        codeReview:
+          'A pull request the agent opened, on one page with its summary, the points to check and the diff, reviewed with threaded line comments and suggested changes.',
         grillTitle: 'Grill',
         grill:
           'Ask questions from the agent on top of any view or board. Here they sit over the plain view, alongside the boards.',

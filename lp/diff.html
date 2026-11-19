@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!--
+      Hides the root element until it upgrades, so the content inside does not flash
+      before the kit paints its chrome (docs/index.md#page-height). The animation is a
+      safety net: if the script fails to load, the content still shows after 2s.
+    -->
+    <style>
+      body > :not(:defined) {
+        visibility: hidden;
+        animation: dpk-reveal 0s 2s forwards;
+      }
+      @keyframes dpk-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+    </style>
+    <title>差分レビュー — 注文合計の型付けと割引の丸め | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin (see design-doc.html).
+
+      The output of `git diff`, pasted as it is into a text/x-diff script: the
+      dpk-diff element lays it out the way a code host shows a pull request.
+      Each file and line is a comment target of the enclosing view, and a line
+      of the new side takes a suggested change (SUGGEST_CHANGE).
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['views/plain.js', 'components.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-app {
+        display: block;
+        height: 100%;
+      }
+
+      /* Everything below is author content inside slot="main". */
+      .doc {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto 64px;
+        color: var(--dpk-ink);
+        font-size: 13.5px;
+        line-height: 1.75;
+      }
+      .doc > p {
+        margin: 6px 0 20px;
+        color: var(--dpk-ink-soft);
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-app storage-key="sample-diff">
+      <script type="application/json">
+        { "title": "差分レビュー: 注文合計の型付けと割引の丸め" }
+      </script>
+
+      <dpk-page name="diff"
+        ><dpk-view-plain>
+          <script type="application/json">
+            { "title": "差分レビュー: 注文合計の型付けと割引の丸め" }
+          </script>
+
+          <div class="doc" slot="main">
+            <p>
+              注文合計に型を付け、割引後の金額を 1 円単位で切り捨てるようにした変更です。丸めの位置と、使わなくなった
+              util の削除で問題がないか見てください。直してほしい行には「変更を提案」で書き換え案をそのまま残せます。
+            </p>
+
+            <dpk-diff id="order-total" heading="注文合計の型付けと割引の丸め">
+              <script type="text/x-diff">
+                diff --git a/src/order/total.ts b/src/order/total.ts
+                index 3b18e51..a9f2c3d 100644
+                --- a/src/order/total.ts
+                +++ b/src/order/total.ts
+                @@ -1,12 +1,15 @@
+                -import { sum } from '../util/sum';
+                +import type { Order, OrderLine } from './types';
+
+                -export const lineTotal = (line) => line.price * line.quantity;
+                +export const lineTotal = (line: OrderLine): number => line.price * line.quantity;
+
+                -export const orderTotal = (order) => sum(order.lines.map(lineTotal));
+                +export const orderTotal = (order: Order): number =>
+                +  order.lines.reduce((total, line) => total + lineTotal(line), 0);
+
+                 /**
+                  * The price after a percentage discount.
+                + * Rounded down to the yen, as the receipt shows it.
+                  */
+                -export const discounted = (price, rate) => price * (1 - rate / 100);
+                +export const discounted = (price: number, rate: number): number =>
+                +  Math.floor(price * (1 - rate / 100));
+
+                 export const FREE_SHIPPING_THRESHOLD = 5000;
+                diff --git a/src/order/types.ts b/src/order/types.ts
+                new file mode 100644
+                index 0000000..e1f0a2b
+                --- /dev/null
+                +++ b/src/order/types.ts
+                @@ -0,0 +1,9 @@
+                +export type OrderLine = {
+                +  readonly sku: string;
+                +  readonly price: number;
+                +  readonly quantity: number;
+                +};
+                +
+                +export type Order = {
+                +  readonly lines: readonly OrderLine[];
+                +};
+                diff --git a/src/util/sum.ts b/src/util/sum.ts
+                deleted file mode 100644
+                index 9c1d7e4..0000000
+                --- a/src/util/sum.ts
+                +++ /dev/null
+                @@ -1,2 +0,0 @@
+                -export const sum = (xs) =>
+                -  xs.reduce((a, b) => a + b, 0);
+                diff --git a/test/total.test.js b/test/order-total.test.ts
+                similarity index 78%
+                rename from test/total.test.js
+                rename to test/order-total.test.ts
+                index 51a0b3c..7d2e9f1 100644
+                --- a/test/total.test.js
+                +++ b/test/order-total.test.ts
+                @@ -1,8 +1,12 @@
+                 import { describe, expect, it } from 'vitest';
+                -import { discounted, orderTotal } from '../src/order/total';
+                +import { discounted, lineTotal, orderTotal } from '../src/order/total';
+                +import type { Order } from '../src/order/types';
+
+                 describe('orderTotal', () => {
+                   it('adds every line', () => {
+                -    expect(orderTotal({ lines: [{ price: 100, quantity: 2 }] })).toBe(200);
+                +    const order: Order = { lines: [{ sku: 'A', price: 100, quantity: 2 }] };
+                +    expect(orderTotal(order)).toBe(200);
+                   });
+                 });
+                +
+                +it('rounds a discount down to the yen', () => expect(discounted(999, 10)).toBe(899));
+                diff --git a/public/logo.png b/public/logo.png
+                index 1111111..2222222 100644
+                Binary files a/public/logo.png and b/public/logo.png differ
+              </script>
+            </dpk-diff>
+          </div>
+        </dpk-view-plain></dpk-page
+      >
+    </dpk-app>
+  </body>
+</html>

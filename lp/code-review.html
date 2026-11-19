@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!--
+      Hides the root element until it upgrades, so the content inside does not flash
+      before the kit paints its chrome (docs/index.md#page-height). The animation is a
+      safety net: if the script fails to load, the content still shows after 2s.
+    -->
+    <style>
+      body > :not(:defined) {
+        visibility: hidden;
+        animation: dpk-reveal 0s 2s forwards;
+      }
+      @keyframes dpk-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+    </style>
+    <title>コードレビュー — #128 注文合計の型付けと割引の丸め | dev-process-kit</title>
+    <!--
+      The framework is served from `dist/` by the dev asset server (`pnpm dev`), not
+      by this page's own origin (see design-doc.html).
+
+      A pull request an agent opened, laid out for a human's code review on one
+      page: what changed and why (dpk-commentable), the points the agent wants
+      checked (dpk-checklist), and the diff itself (dpk-diff), where the reviewer
+      comments on a line, replies in its thread and suggests a change. Every
+      comment, tick and suggestion goes back to the agent with the hand-off.
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['views/plain.js', 'components.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-app {
+        display: block;
+        height: 100%;
+      }
+
+      /* Everything below is author content inside slot="main". */
+      .doc {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto 64px;
+        color: var(--dpk-ink);
+        font-size: 13.5px;
+        line-height: 1.75;
+        counter-reset: section;
+      }
+      .pr-title {
+        margin: 4px 0 8px;
+        font-family: var(--dpk-display);
+        font-size: 22px;
+        line-height: 1.35;
+      }
+      .pr-title span {
+        color: var(--dpk-ink-faint);
+        font-weight: 400;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        padding: 0 0 20px;
+        border-bottom: 1px solid var(--dpk-rule);
+        color: var(--dpk-ink-soft);
+        font-size: 12px;
+      }
+      .meta code {
+        padding: 1px 7px;
+        border-radius: var(--dpk-radius-xs);
+        background: var(--dpk-blue-soft);
+        color: var(--dpk-blue);
+        font-family: var(--dpk-mono);
+        font-size: 11.5px;
+      }
+      .doc section {
+        margin-top: 36px;
+        counter-increment: section;
+      }
+      .doc h2 {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin: 0 0 10px;
+        font-size: 16px;
+      }
+      .doc h2::before {
+        content: counter(section, decimal-leading-zero);
+        color: var(--dpk-ink-faint);
+        font-family: var(--dpk-mono);
+        font-size: 11.5px;
+        font-weight: 550;
+      }
+      .lede {
+        margin: 0 0 12px;
+        color: var(--dpk-ink-soft);
+      }
+      .summary p,
+      .summary ul {
+        margin: 0 0 8px;
+      }
+      .summary ul {
+        padding-left: 20px;
+      }
+      .verify {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 8px;
+        margin: 12px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .verify li {
+        padding: 8px 12px;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius-sm);
+        background: var(--dpk-paper-raised);
+        font-size: 12.5px;
+      }
+      .verify b {
+        display: block;
+        color: var(--dpk-green);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-app storage-key="sample-code-review">
+      <script type="application/json">
+        { "title": "コードレビュー: #128 注文合計の型付けと割引の丸め" }
+      </script>
+
+      <dpk-page name="code-review"
+        ><dpk-view-plain>
+          <script type="application/json">
+            { "title": "コードレビュー: #128 注文合計の型付けと割引の丸め" }
+          </script>
+
+          <div class="doc" slot="main">
+            <h1 class="pr-title">注文合計の型付けと割引の丸め <span>#128</span></h1>
+            <p class="meta"><code>agent/order-total-types</code> → <code>main</code> · 5 ファイル · +22 −8 · CI 通過</p>
+
+            <section>
+              <h2>変更の概要</h2>
+              <dpk-commentable id="pr-summary" heading="変更の概要" class="summary">
+                <p data-dpk-item="note:why" data-dpk-label="変更の理由">
+                  注文合計まわりの関数に型がなく、割引後の金額に 1
+                  円未満の端数が残ってレシートの表示とずれることがありました。
+                </p>
+                <ul>
+                  <li data-dpk-item="note:types">
+                    注文と注文行の型を <code>src/order/types.ts</code> に切り出し、合計の関数に型を付けた
+                  </li>
+                  <li data-dpk-item="note:round">
+                    割引後の金額を 1 円単位で切り捨てるようにした（レシートと同じ丸め）
+                  </li>
+                  <li data-dpk-item="note:sum">使わなくなった <code>util/sum.ts</code> を削除した</li>
+                </ul>
+                <ul class="verify">
+                  <li data-dpk-item="check:unit"><b>✓ 単体テスト</b>24 件通過（丸めのケースを 1 件追加）</li>
+                  <li data-dpk-item="check:types"><b>✓ 型検査</b>エラーなし</li>
+                  <li data-dpk-item="check:receipt"><b>✓ レシートとの突き合わせ</b>直近 1 週間の注文 312 件で一致</li>
+                </ul>
+              </dpk-commentable>
+            </section>
+
+            <section>
+              <h2>見てほしい点</h2>
+              <p class="lede">
+                確認できたものにチェックを付けてください。気になる点は行にコメントするか、変更を提案してください。
+              </p>
+              <dpk-checklist id="review-points" heading="レビュー観点">
+                <script type="application/json">
+                  {
+                    "items": [
+                      {
+                        "id": "rounding",
+                        "label": "割引後の金額を切り捨ててよいか",
+                        "note": "src/order/total.ts の discounted。四捨五入にする案もある"
+                      },
+                      {
+                        "id": "sum-removal",
+                        "label": "util/sum.ts を消しても他から使われていないか",
+                        "note": "リポジトリ内の参照は grep で 0 件"
+                      },
+                      {
+                        "id": "test-rename",
+                        "label": "テストの改名で CI の対象から漏れていないか",
+                        "note": "test/total.test.js → test/order-total.test.ts"
+                      }
+                    ]
+                  }
+                </script>
+              </dpk-checklist>
+            </section>
+
+            <section>
+              <h2>差分</h2>
+              <p class="lede">
+                行の「+」からコメントか変更の提案を残せます。投稿したコメントは行の下にスレッドとして残り、返信を続けられます。
+              </p>
+              <dpk-diff id="pr-128" heading="変更されたファイル">
+                <script type="text/x-diff">
+                  diff --git a/src/order/total.ts b/src/order/total.ts
+                  index 3b18e51..a9f2c3d 100644
+                  --- a/src/order/total.ts
+                  +++ b/src/order/total.ts
+                  @@ -1,12 +1,15 @@
+                  -import { sum } from '../util/sum';
+                  +import type { Order, OrderLine } from './types';
+
+                  -export const lineTotal = (line) => line.price * line.quantity;
+                  +export const lineTotal = (line: OrderLine): number => line.price * line.quantity;
+
+                  -export const orderTotal = (order) => sum(order.lines.map(lineTotal));
+                  +export const orderTotal = (order: Order): number =>
+                  +  order.lines.reduce((total, line) => total + lineTotal(line), 0);
+
+                   /**
+                    * The price after a percentage discount.
+                  + * Rounded down to the yen, as the receipt shows it.
+                    */
+                  -export const discounted = (price, rate) => price * (1 - rate / 100);
+                  +export const discounted = (price: number, rate: number): number =>
+                  +  Math.floor(price * (1 - rate / 100));
+
+                   export const FREE_SHIPPING_THRESHOLD = 5000;
+                  diff --git a/src/order/types.ts b/src/order/types.ts
+                  new file mode 100644
+                  index 0000000..e1f0a2b
+                  --- /dev/null
+                  +++ b/src/order/types.ts
+                  @@ -0,0 +1,9 @@
+                  +export type OrderLine = {
+                  +  readonly sku: string;
+                  +  readonly price: number;
+                  +  readonly quantity: number;
+                  +};
+                  +
+                  +export type Order = {
+                  +  readonly lines: readonly OrderLine[];
+                  +};
+                  diff --git a/src/util/sum.ts b/src/util/sum.ts
+                  deleted file mode 100644
+                  index 9c1d7e4..0000000
+                  --- a/src/util/sum.ts
+                  +++ /dev/null
+                  @@ -1,2 +0,0 @@
+                  -export const sum = (xs) =>
+                  -  xs.reduce((a, b) => a + b, 0);
+                  diff --git a/test/total.test.js b/test/order-total.test.ts
+                  similarity index 78%
+                  rename from test/total.test.js
+                  rename to test/order-total.test.ts
+                  index 51a0b3c..7d2e9f1 100644
+                  --- a/test/total.test.js
+                  +++ b/test/order-total.test.ts
+                  @@ -1,8 +1,12 @@
+                   import { describe, expect, it } from 'vitest';
+                  -import { discounted, orderTotal } from '../src/order/total';
+                  +import { discounted, lineTotal, orderTotal } from '../src/order/total';
+                  +import type { Order } from '../src/order/types';
+
+                   describe('orderTotal', () => {
+                     it('adds every line', () => {
+                  -    expect(orderTotal({ lines: [{ price: 100, quantity: 2 }] })).toBe(200);
+                  +    const order: Order = { lines: [{ sku: 'A', price: 100, quantity: 2 }] };
+                  +    expect(orderTotal(order)).toBe(200);
+                     });
+                   });
+                  +
+                  +it('rounds a discount down to the yen', () => expect(discounted(999, 10)).toBe(899));
+                  diff --git a/public/logo.png b/public/logo.png
+                  index 1111111..2222222 100644
+                  Binary files a/public/logo.png and b/public/logo.png differ
+                </script>
+              </dpk-diff>
+            </section>
+          </div>
+        </dpk-view-plain></dpk-page
+      >
+    </dpk-app>
+  </body>
+</html>
