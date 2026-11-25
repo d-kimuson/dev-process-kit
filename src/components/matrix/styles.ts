@@ -155,10 +155,17 @@ export const matrixStyles = css`
      host places inside reads as something set down on the board rather than
      text in a table cell. */
   .matrix-cell {
-    padding: var(--dpk-matrix-cell-pad);
+    display: grid;
     background: var(--dpk-dots), var(--dpk-paper-sunken);
     border-left: 1px solid var(--dpk-rule);
     border-top: 1px solid var(--dpk-rule);
+  }
+  /* The slotted content fills the whole cell, pad included, so a host's
+     drop target or click area is the box the reader sees rather than its
+     content's own height — a row grows to its tallest cell. */
+  .matrix-cell ::slotted(*) {
+    box-sizing: border-box;
+    padding: var(--dpk-matrix-cell-pad);
   }
 
   /* Row drag: the head is the handle (hover/active cursor), the whole row the target. */
