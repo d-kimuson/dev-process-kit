@@ -19,7 +19,7 @@ export type TokenKind =
 /** A run of the source; the tokens of a source join back into it. */
 export type Token = { readonly kind: TokenKind | null; readonly text: string };
 
-export type Grammar = 'js' | 'html' | 'css' | 'json' | 'sh';
+export type Grammar = 'js' | 'html' | 'css' | 'json' | 'sh' | 'quint';
 
 type Rule = {
   readonly kind: TokenKind | null;
@@ -93,6 +93,43 @@ const JS_KEYWORDS = [
   'void',
   'while',
   'yield',
+];
+
+const QUINT_KEYWORDS = [
+  'action',
+  'all',
+  'and',
+  'any',
+  'as',
+  'assume',
+  'bool',
+  'Bool',
+  'const',
+  'def',
+  'else',
+  'export',
+  'false',
+  'from',
+  'if',
+  'iff',
+  'implies',
+  'import',
+  'int',
+  'Int',
+  'match',
+  'module',
+  'Nat',
+  'nondet',
+  'not',
+  'or',
+  'pure',
+  'run',
+  'str',
+  'temporal',
+  'true',
+  'type',
+  'val',
+  'var',
 ];
 
 const GRAMMARS: Readonly<Record<Grammar, Modes>> = {
@@ -174,6 +211,21 @@ const GRAMMARS: Readonly<Record<Grammar, Modes>> = {
       ],
     },
   },
+  quint: {
+    start: 'code',
+    rules: {
+      code: [
+        SPACE,
+        rule('comment', /\/\/[^\n]*/y),
+        BLOCK_COMMENT,
+        rule('string', /"(?:\\.|[^\\"\n])*"?/y),
+        rule('number', /0x[\da-f_]+|\d[\d_]*/iy),
+        rule('keyword', new RegExp(`(?:${QUINT_KEYWORDS.join('|')})(?!\\w)`, 'y')),
+        rule('function', /[A-Za-z_]\w*(?=\s*\()/y),
+        rule(null, /[A-Za-z_]\w*/y),
+      ],
+    },
+  },
 };
 
 const ALIASES: Readonly<Record<string, Grammar>> = {
@@ -199,6 +251,8 @@ const ALIASES: Readonly<Record<string, Grammar>> = {
   zsh: 'sh',
   shell: 'sh',
   console: 'sh',
+  quint: 'quint',
+  qnt: 'quint',
 };
 
 /** The grammar for a `language` attribute value, or `null` when there is none. */

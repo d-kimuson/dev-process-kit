@@ -17,7 +17,7 @@ type CopyState = 'idle' | 'copied' | 'failed';
  *
  * The code is the text of a `<script type="text/plain">` child (so markup in
  * it stays literal), else the element's own text, else the `code` property.
- * `language` (`ts`, `html`, `css`, `json`, `sh`, and their aliases) colours
+ * `language` (`ts`, `html`, `css`, `json`, `sh`, `quint`, and their aliases) colours
  * the code with a small scanner (see `./highlight`); any other language shows
  * it plain. The colours follow the theme and can be set per token with
  * `--dpk-code-<kind>` (comment / string / number / keyword / function / tag /

@@ -22,13 +22,13 @@ Pass one object as the `data` property, or put it in a `script[type="application
 </dpk-code-group>
 ```
 
-| Field                 | Required | Meaning                                                                     |
-| --------------------- | -------- | --------------------------------------------------------------------------- |
-| `label`               | no       | The name in the block header. Defaults to a generic code label.             |
-| `variants[]`          | yes      | One tab per variant. At least one.                                          |
-| `variants[].label     | yes      | The tab label: `npm`, `Claude Code`, `お試し`. Unique within the group.     |
-| `variants[].language` | no       | `ts`, `html`, `css`, `json`, `sh` or an alias; unknown languages are plain. |
-| `variants[].code`     | yes      | The code itself.                                                            |
+| Field                 | Required | Meaning                                                                              |
+| --------------------- | -------- | ------------------------------------------------------------------------------------ |
+| `label`               | no       | The name in the block header. Defaults to a generic code label.                      |
+| `variants[]`          | yes      | One tab per variant. At least one.                                                   |
+| `variants[].label     | yes      | The tab label: `npm`, `Claude Code`, `お試し`. Unique within the group.              |
+| `variants[].language` | no       | `ts`, `html`, `css`, `json`, `sh`, `quint` or an alias; unknown languages are plain. |
+| `variants[].code`     | yes      | The code itself.                                                                     |
 
 Unknown keys, a duplicate tab label and an empty `variants` list are errors: the element shows
 the message instead of a block.

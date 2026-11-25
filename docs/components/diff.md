@@ -33,7 +33,7 @@ Paste the output of `git diff` (or `git diff --staged`, `git show`, `git format-
 - Added, deleted, renamed and copied files, mode changes, binary files (`Binary files … differ`, `GIT binary patch`), quoted paths (`"a/\346\227\245.md"`) and `\ No newline at end of file` are understood. A binary file shows a note instead of lines.
 - A combined diff of a merge (`diff --cc`) is not supported. Text without any file diff, an unreadable hunk header, or a path that appears twice renders the reason instead of the files (`dataError`).
 
-Syntax colors are picked from the file extension, with the grammars of `dpk-code` (`docs/components/code-group.md`): JavaScript / TypeScript (`js`, `ts`, `tsx`, `mjs`, …), HTML / XML / SVG / Vue, CSS, JSON and shell (`sh`, `bash`, `zsh`). Other files are shown uncolored.
+Syntax colors are picked from the file extension, with the grammars of `dpk-code` (`docs/components/code-group.md`): JavaScript / TypeScript (`js`, `ts`, `tsx`, `mjs`, …), HTML / XML / SVG / Vue, CSS, JSON, shell (`sh`, `bash`, `zsh`) and Quint (`qnt`). Other files are shown uncolored.
 
 ## Attributes and properties
 

@@ -16,6 +16,7 @@ describe('languageOf', () => {
     expect(languageOf('jsonc')).toBe('json');
     expect(languageOf('bash')).toBe('sh');
     expect(languageOf('css')).toBe('css');
+    expect(languageOf('qnt')).toBe('quint');
   });
 
   it('has no grammar for an unknown or missing language', () => {
@@ -27,7 +28,7 @@ describe('languageOf', () => {
 describe('highlight', () => {
   it('keeps every character of the source, in order', () => {
     const source = 'const a = `x${1}`; // done\n<p class="x">&amp;</p>';
-    for (const language of ['ts', 'html', 'css', 'json', 'sh', 'cobol', null]) {
+    for (const language of ['ts', 'html', 'css', 'json', 'sh', 'quint', 'cobol', null]) {
       expect(joined(highlight(source, language))).toBe(source);
     }
   });
@@ -108,6 +109,30 @@ describe('highlight', () => {
       'keyword:$HOME',
       'comment:# note',
     ]);
+  });
+
+  it('marks the declarations, operators, literals and calls of a Quint spec', () => {
+    expect(
+      marked(
+        highlight('pure def inc(x: int): int = x + 1_000 // why\naction step = all { n\' = inc(n), s\' = "a" }', 'qnt'),
+      ),
+    ).toEqual([
+      'keyword:pure',
+      'keyword:def',
+      'function:inc',
+      'keyword:int',
+      'keyword:int',
+      'number:1_000',
+      'comment:// why',
+      'keyword:action',
+      'keyword:all',
+      'function:inc',
+      'string:"a"',
+    ]);
+  });
+
+  it('reads the prime of a Quint variable as plain text, not a string', () => {
+    expect(marked(highlight("x' = x.map(y => y)", 'quint'))).toEqual(['function:map']);
   });
 
   it('closes an unterminated string or comment at the end of the source', () => {
