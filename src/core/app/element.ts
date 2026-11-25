@@ -365,6 +365,11 @@ export class AppElement extends ViewElement<AppState> {
     return [];
   }
 
+  /** The app's base is only its title, and an untitled app is a whole document. */
+  protected override baseOptional(): boolean {
+    return true;
+  }
+
   protected override definitionFor(locale: Locale): ViewDefinition<AppState> {
     return appDefinition({
       pages: () => this.#specs(),

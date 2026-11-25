@@ -441,7 +441,7 @@ export abstract class ViewElement<S> extends LitElement {
     script: () => this.scriptOf(BASE_SELECTOR),
     parse: (input) => this.definition.parseBase(input),
     empty: () => this.definition.emptyBase(),
-    optional: () => inDraftPage(this),
+    optional: () => this.baseOptional(),
     onChange: (read) => this.#onBaseRead(read),
   });
   #unsubscribe: (() => void) | undefined;
@@ -1833,6 +1833,15 @@ export abstract class ViewElement<S> extends LitElement {
    */
   protected scriptOf(selector: string): Element | null {
     return this.querySelector(selector);
+  }
+
+  /**
+   * Whether this element may go without a base JSON child. A page the draft
+   * added has none until the agent writes it; an element whose empty base is
+   * already a whole document allows it everywhere.
+   */
+  protected baseOptional(): boolean {
+    return inDraftPage(this);
   }
 
   /** Waited for before the draft starts: a page waits for its boards. */

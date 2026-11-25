@@ -434,6 +434,14 @@ describe('<dpk-page>', () => {
     expect(usm.api.state).toMatchObject({ activities: [] });
   });
 
+  it('starts an app written without base JSON as untitled, without a base data error', async () => {
+    const page = await mountMarkup(
+      `<dpk-page name="ok" label="OK"><dpk-view-prototype>${BASE}</dpk-view-prototype></dpk-page>`,
+    );
+    expect(page.shadowRoot?.querySelector('.dpk-banner')).toBeNull();
+    expect(page.api.state.title).toBe('Untitled document');
+  });
+
   it('starts even when a page holds no view or board, and says why there', async () => {
     const page = await mountMarkup(`<script type="application/json">{"title":"Doc"}</script>
       <dpk-page name="empty" label="Empty"></dpk-page>
