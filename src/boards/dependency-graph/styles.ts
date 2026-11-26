@@ -1,6 +1,14 @@
 import { css } from 'lit';
 
 export const dependencyStyles = css`
+  :host {
+    --dep-neutral: var(--dpk-ink-faint);
+    --dep-outgoing: var(--dpk-green);
+    --dep-incoming: var(--dpk-violet);
+    --dep-cycle: var(--dpk-amber);
+    --dep-selected: var(--dpk-blue);
+  }
+
   .dep-direction {
     display: flex;
     gap: 2px;
@@ -16,8 +24,8 @@ export const dependencyStyles = css`
     border-radius: var(--dpk-radius-xs);
     padding: 4px 8px;
     background: transparent;
-    color: var(--dpk-ink-faint);
-    font-size: 9.5px;
+    color: var(--dpk-ink-soft);
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
     transition:
@@ -36,7 +44,7 @@ export const dependencyStyles = css`
   .dep-toggle {
     min-height: 26px;
     padding: 0 8px;
-    font-size: 10.5px;
+    font-size: 11px;
   }
 
   .dep-toggle[aria-pressed='true'] {
@@ -48,12 +56,13 @@ export const dependencyStyles = css`
   .dep-module {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    padding: 11px 12px;
-    border: 1px solid var(--dpk-rule-strong);
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid var(--dpk-ink-faint);
     border-radius: var(--dpk-radius-sm);
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    color: var(--dpk-ink);
     text-align: left;
     overflow: hidden;
     transition:
@@ -63,37 +72,32 @@ export const dependencyStyles = css`
   }
 
   .dep-module:hover {
-    border-color: var(--dpk-blue);
+    border-color: var(--dep-selected);
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
     transform: translateY(-1px);
   }
 
-  .dep-module.is-cyclic:not(.is-selected) {
-    border-color: color-mix(in srgb, var(--dpk-amber) 55%, transparent);
-  }
-
-  .dep-module.is-selected {
-    border-color: var(--dpk-blue);
-    background: var(--dpk-blue-soft);
-    box-shadow:
-      var(--dpk-bevel),
-      var(--dpk-shadow-sm),
-      0 0 0 3px var(--dpk-blue-soft);
-  }
-
-  .dep-module.is-related {
-    border-color: color-mix(in srgb, var(--dpk-green) 55%, transparent);
-    background: var(--dpk-green-soft);
+  .dep-module.is-cyclic {
+    border-color: var(--dep-cycle);
   }
 
   .dep-module.is-dependency {
-    border-color: color-mix(in srgb, #6e9b61 60%, transparent);
-    background: color-mix(in srgb, #6e9b61 8%, transparent);
+    border-color: var(--dep-outgoing);
+    background: linear-gradient(var(--dpk-green-soft), var(--dpk-green-soft)), var(--dpk-paper-raised);
   }
 
   .dep-module.is-dependent {
-    border-color: color-mix(in srgb, #729aaa 60%, transparent);
-    background: color-mix(in srgb, #729aaa 8%, transparent);
+    border-color: var(--dep-incoming);
+    background: linear-gradient(var(--dpk-violet-soft), var(--dpk-violet-soft)), var(--dpk-paper-raised);
+  }
+
+  .dep-module.is-selected {
+    border-color: var(--dep-selected);
+    background: linear-gradient(var(--dpk-blue-soft), var(--dpk-blue-soft)), var(--dpk-paper-raised);
+    box-shadow:
+      var(--dpk-bevel),
+      var(--dpk-shadow-sm),
+      0 0 0 3px color-mix(in srgb, var(--dep-selected) 28%, transparent);
   }
 
   .dep-head {
@@ -101,12 +105,13 @@ export const dependencyStyles = css`
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-    min-height: 14px;
+    min-height: 17px;
   }
 
   .dep-layer {
-    font-size: 9px;
-    color: var(--dpk-ink-faint);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--dpk-ink-soft);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -114,17 +119,20 @@ export const dependencyStyles = css`
 
   .dep-cycle-badge {
     flex-shrink: 0;
-    padding: 1px 4px;
-    border-radius: 3px;
+    padding: 1px 6px;
+    border-radius: 999px;
     background: var(--dpk-amber-soft);
-    color: var(--dpk-amber);
-    font-size: 8.5px;
+    color: color-mix(in srgb, var(--dep-cycle) 58%, var(--dpk-ink));
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 15px;
   }
 
   .dep-name {
-    font-size: 13px;
-    font-weight: 640;
+    font-size: 13.5px;
+    font-weight: 650;
     letter-spacing: -0.01em;
+    line-height: 18px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -132,66 +140,108 @@ export const dependencyStyles = css`
 
   .dep-path {
     font-family: var(--dpk-mono);
-    font-size: 9px;
-    color: var(--dpk-ink-faint);
+    font-size: 11px;
+    line-height: 15px;
+    color: var(--dpk-ink-soft);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .dep-edge .d-edge-path {
-    stroke: var(--dpk-rule-strong);
-    stroke-width: 1.4;
+  .dep-edge {
+    --dep-line: var(--dep-neutral);
   }
 
-  .dep-edge.is-related .d-edge-path {
-    stroke: var(--dpk-green);
+  .dep-edge.is-cycle {
+    --dep-line: var(--dep-cycle);
+  }
+
+  .dep-edge.is-outgoing {
+    --dep-line: var(--dep-outgoing);
+  }
+
+  .dep-edge.is-incoming {
+    --dep-line: var(--dep-incoming);
+  }
+
+  .dep-edge.is-selected,
+  .dep-edge:has(.d-edge-hit:focus-visible) {
+    --dep-line: var(--dep-selected);
+  }
+
+  .dep-edge .d-edge-path {
+    stroke: var(--dep-line);
+    stroke-width: 1.5;
+  }
+
+  .dep-edge.is-cycle .d-edge-path {
     stroke-width: 2;
   }
 
-  .dep-edge.is-selected .d-edge-path {
-    stroke: var(--dpk-blue);
-    stroke-width: 2.6;
+  .dep-edge.is-related .d-edge-path {
+    stroke-width: 2;
   }
 
-  .dep-edge:focus-visible .d-edge-path {
-    stroke: var(--dpk-blue);
+  .dep-edge.is-selected .d-edge-path,
+  .dep-edge:has(.d-edge-hit:focus-visible) .d-edge-path {
+    stroke: var(--dep-line);
+    stroke-width: 2.2;
+  }
+
+  .dep-junction {
+    fill: var(--dep-line);
+  }
+
+  .diagram-legend .dep-swatch-direction {
+    position: relative;
+    border-color: var(--dep-neutral);
+  }
+
+  .diagram-legend .dep-swatch-direction::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -5px;
+    width: 6px;
+    height: 8px;
+    background: var(--dep-neutral);
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
   }
 
   .diagram-legend .dep-swatch-outgoing {
-    border-color: #6e9b61;
+    border-color: var(--dep-outgoing);
   }
 
   .diagram-legend .dep-swatch-incoming {
-    border-color: #729aaa;
+    border-color: var(--dep-incoming);
   }
 
   .diagram-legend .dep-swatch-cycle {
-    border-color: var(--dpk-amber);
+    border-color: var(--dep-cycle);
   }
 
   #dep-neutral .diagram-arrow {
-    fill: var(--dpk-rule-strong);
-    stroke: var(--dpk-rule-strong);
+    fill: var(--dep-neutral);
+    stroke: var(--dep-neutral);
   }
 
   #dep-outgoing .diagram-arrow {
-    fill: #6e9b61;
-    stroke: #6e9b61;
+    fill: var(--dep-outgoing);
+    stroke: var(--dep-outgoing);
   }
 
   #dep-incoming .diagram-arrow {
-    fill: #729aaa;
-    stroke: #729aaa;
+    fill: var(--dep-incoming);
+    stroke: var(--dep-incoming);
   }
 
   #dep-cycle .diagram-arrow {
-    fill: var(--dpk-amber);
-    stroke: var(--dpk-amber);
+    fill: var(--dep-cycle);
+    stroke: var(--dep-cycle);
   }
 
   #dep-selected .diagram-arrow {
-    fill: var(--dpk-blue);
-    stroke: var(--dpk-blue);
+    fill: var(--dep-selected);
+    stroke: var(--dep-selected);
   }
 `;

@@ -1,7 +1,7 @@
 import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
 import type { CommentTargetOption } from '../../core/types';
-import type { LayoutOptions } from '../../lib/layout/layered';
+import type { LayoutOptions, LayoutPoint, LayoutResult } from '../../lib/layout/layered';
 
 import { BoardCanvasElement } from '../base/element';
 import {
@@ -15,7 +15,7 @@ import {
   type Reach,
 } from '../base/model';
 import { diagramStyles } from '../base/styles';
-import { pathData } from '../base/view';
+import { roundedPathData } from '../base/view';
 import { dependencyGraphMessages } from './messages';
 import {
   emptyDependencyData,
@@ -25,15 +25,15 @@ import {
   type DependencyLink,
   type DependencyModule,
 } from './model';
+import { branchPoint, withDependencyRoutes } from './route';
 import { dependencyStyles } from './styles';
 
-const ARROWS = [
-  { id: 'dep-neutral' },
-  { id: 'dep-outgoing' },
-  { id: 'dep-incoming' },
-  { id: 'dep-cycle' },
-  { id: 'dep-selected' },
-] as const;
+type EdgeKind = 'neutral' | 'cycle' | 'outgoing' | 'incoming' | 'selected';
+
+/** Paint order: a highlighted edge is drawn over the plain ones it shares a trunk with. */
+const EDGE_KINDS: readonly EdgeKind[] = ['neutral', 'cycle', 'incoming', 'outgoing', 'selected'];
+
+const ARROWS = EDGE_KINDS.map((kind) => ({ id: `dep-${kind}` }));
 
 /** Module dependencies: pick a module to see what it uses and what uses it. */
 export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> {
@@ -45,6 +45,7 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
   #allCycles: readonly (readonly string[])[] = [];
   #outgoing: Reach = EMPTY_REACH;
   #incoming: Reach = EMPTY_REACH;
+  #routed: { readonly key: string; readonly placement: LayoutResult } | null = null;
 
   protected override parseData(input: unknown): DependencyData {
     return parseDependencyData(input);
@@ -69,7 +70,17 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
   }
 
   protected override layoutOptions(): LayoutOptions {
-    return { nodeSpacing: 40, layerSpacing: 96, padding: 32 };
+    return { nodeSpacing: 60, layerSpacing: 132, padding: 48 };
+  }
+
+  /** Routed once per arrangement: a render that moved nothing (a selection, a hover) reuses the routes. */
+  protected override routePlacement(placement: LayoutResult, visible: DependencyData): LayoutResult {
+    const key = JSON.stringify([
+      placement.nodes.map((node) => [node.id, node.x, node.y, node.width, node.height]),
+      visible.edges.map((edge) => [edge.id, edge.from, edge.to]),
+    ]);
+    if (this.#routed?.key !== key) this.#routed = { key, placement: withDependencyRoutes(placement, visible.edges) };
+    return this.#routed.placement;
   }
 
   protected override relations(selection: DiagramSelection, _visible: DependencyData): Reach {
@@ -186,6 +197,7 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
   protected override renderLegend(): TemplateResult {
     const m = dependencyGraphMessages(this.locale);
     return html`<div class="diagram-legend">
+      <span><i class="dep-swatch-direction"></i>${m.legendDirection}</span>
       <span><i class="dep-swatch-outgoing"></i>${m.legendOutgoing}</span>
       <span><i class="dep-swatch-incoming"></i>${m.legendIncoming}</span>
       <span><i class="dep-swatch-cycle"></i>${m.legendCycle}</span>
@@ -197,13 +209,14 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
     this.requestUpdate();
   }
 
-  #edgeMarker(link: DependencyLink, membership: ReadonlyMap<string, number>): string {
+  /** What the selection says about an edge wins over what the graph says about it. */
+  #edgeKind(link: DependencyLink, membership: ReadonlyMap<string, number>): EdgeKind {
     const selection = this.selection;
-    if (selection !== null && selection.kind === 'edge' && selection.id === link.id) return 'dep-selected';
-    if (isCycleEdge(link, membership)) return 'dep-cycle';
-    if (this.#outgoing.edges.has(link.id)) return 'dep-outgoing';
-    if (this.#incoming.edges.has(link.id)) return 'dep-incoming';
-    return 'dep-neutral';
+    if (selection !== null && selection.kind === 'edge' && selection.id === link.id) return 'selected';
+    if (this.#outgoing.edges.has(link.id)) return 'outgoing';
+    if (this.#incoming.edges.has(link.id)) return 'incoming';
+    if (isCycleEdge(link, membership)) return 'cycle';
+    return 'neutral';
   }
 
   protected override renderCanvas(): TemplateResult {
@@ -211,36 +224,49 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
     const visible = this.visible;
     const membership = cycleMembership(this.#allCycles);
     const name = (id: string) => visible.nodes.find((node) => node.id === id)?.name ?? id;
-    const edges = visible.edges.map((link) => {
-      const state = this.edgeState(link.id);
-      const route = this.routeOf(link.id);
-      const points = pathData(route);
-      const select = () => this.select({ kind: 'edge', id: link.id });
-      return svg`
-        <g
-          class=${this.elementClass(state, 'd-edge', 'dep-edge')}
-          data-dependency=${link.id}
-          data-dpk-target=${this.commentRef('edge', link.id)}
-          data-dpk-check="off"
-        >
-          <title>${[link.contract, link.description].filter((value) => value !== null).join('\n') || link.id}</title>
-          <path class="d-edge-path" d=${points} marker-end=${`url(#${this.#edgeMarker(link, membership)})`}></path>
-          <path
-            class="d-edge-hit"
-            d=${points}
-            role="button"
-            tabindex="0"
-            aria-label=${m.edgeLabel(name(link.from), name(link.to))}
-            @click=${select}
-            @keydown=${(event: KeyboardEvent) => {
-              if (event.key !== 'Enter' && event.key !== ' ') return;
-              event.preventDefault();
-              select();
-            }}
-          ></path>
-        </g>
-      `;
-    });
+    const routesBySource = new Map<string, (readonly LayoutPoint[])[]>();
+    const edges = visible.edges
+      .map((link) => {
+        const route = this.routeOf(link.id);
+        const siblings = routesBySource.get(link.from) ?? [];
+        routesBySource.set(link.from, [...siblings, route]);
+        return { link, route, junction: branchPoint(route, siblings), kind: this.#edgeKind(link, membership) };
+      })
+      .sort((a, b) => EDGE_KINDS.indexOf(a.kind) - EDGE_KINDS.indexOf(b.kind))
+      .map(({ link, route, junction, kind }) => {
+        const state = this.edgeState(link.id);
+        const points = roundedPathData(route);
+        const select = () => this.select({ kind: 'edge', id: link.id });
+        return svg`
+          <g
+            class=${this.elementClass(state, 'd-edge', 'dep-edge', `is-${kind}`)}
+            data-dependency=${link.id}
+            data-dpk-target=${this.commentRef('edge', link.id)}
+            data-dpk-check="off"
+          >
+            <title>${[link.contract, link.description].filter((value) => value !== null).join('\n') || link.id}</title>
+            <path class="d-edge-path" d=${points} marker-end=${`url(#dep-${kind})`}></path>
+            ${
+              junction === null
+                ? nothing
+                : svg`<circle class="dep-junction" cx=${junction.x} cy=${junction.y} r="3"></circle>`
+            }
+            <path
+              class="d-edge-hit"
+              d=${points}
+              role="button"
+              tabindex="0"
+              aria-label=${m.edgeLabel(name(link.from), name(link.to))}
+              @click=${select}
+              @keydown=${(event: KeyboardEvent) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                select();
+              }}
+            ></path>
+          </g>
+        `;
+      });
     const nodes = visible.nodes.map((node) => {
       const placed = this.placedNode(node.id);
       if (!placed) return nothing;
