@@ -34,15 +34,15 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 
 `states[]`:
 
-| Field         | Required | Meaning                                                                                                                                                     |
-| ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`          | yes      | Stable id; transitions reference it.                                                                                                                        |
-| `name`        | yes      | Label on the card.                                                                                                                                          |
-| `code`        | no       | Model-side code (`payment_pending`), shown under the name.                                                                                                  |
-| `kind`        | no       | `normal` (default) \| `initial` \| `terminal` \| `compensation`. `initial` draws the entry marker, `terminal` a double border, `compensation` a tint.       |
-| `description` | no       | Shown as the state tooltip.                                                                                                                                 |
-| `position`    | no       | `{ x, y }`. When **every** state has one the diagram keeps them, otherwise it lays the states out automatically.                                            |
-| `questions`   | no       | Refs of the page's questions (grill) the state is about, space-separated (`"Q1 Q4"`); each gets a Q badge on the card (`docs/index.md`, Questions (grill)). |
+| Field         | Required | Meaning                                                                                                                                                                                             |
+| ------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | yes      | Stable id; transitions reference it.                                                                                                                                                                |
+| `name`        | yes      | Label on the card.                                                                                                                                                                                  |
+| `code`        | no       | Model-side code (`payment_pending`), shown under the name.                                                                                                                                          |
+| `kind`        | no       | `normal` (default) \| `initial` \| `terminal` \| `compensation`. `initial` puts a filled dot before the name, `terminal` a ringed dot and a double border, `compensation` an amber border and tint. |
+| `description` | no       | Shown as the state tooltip.                                                                                                                                                                         |
+| `position`    | no       | `{ x, y }`. When **every** state has one the diagram keeps them, otherwise it lays the states out automatically.                                                                                    |
+| `questions`   | no       | Refs of the page's questions (grill) the state is about, space-separated (`"Q1 Q4"`); each gets a Q badge on the card (`docs/index.md`, Questions (grill)).                                         |
 
 `transitions[]`:
 
@@ -50,7 +50,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`          | yes      | Stable id.                                                                                                                                                       |
 | `from` / `to` | yes      | State ids; a transition may point at its own state (self-loop).                                                                                                  |
-| `title`       | yes      | Label on the edge.                                                                                                                                               |
+| `title`       | yes      | Label on the edge, on one line; a title too long for its chip is cut with an ellipsis, so keep it short.                                                         |
 | `kind`        | no       | `normal` (default) \| `exception` (dashed, amber).                                                                                                               |
 | `tags`        | no       | **The tag filter applies to transitions here**, not to states: it hides transitions and the states left without any.                                             |
 | `guard`       | no       | The condition, shown as the edge tooltip.                                                                                                                        |
@@ -70,8 +70,10 @@ Related transitions are highlighted and the rest dims; the same happens for stat
 
 ## Layout
 
-Author `position` on every state to keep a hand-made layout (recommended: a state diagram is usually clearer when a human placed it). Without positions the shared layered layout ranks states left to right and routes backward edges below the row.
+Author `position` on every state to keep a hand-made layout (recommended: a state diagram is usually clearer when a human placed it). Without positions the shared layered layout ranks states left to right, spaced so that the transition labels fit between them.
+
+Either way the board routes the transitions itself: every line leaves and enters a state at its border, runs around the states in between, keeps a lane of its own, and a self-loop sits outside its state. Each label is a chip on its own line, placed clear of states, of other labels and of arrowheads. Leave room between authored positions (about 120px or more) for the lines and labels that have to pass.
 
 ## Interactions
 
-The initial marker follows its state, and disappears with it when a filter removes the state.
+Dragging a state re-routes its transitions and moves their labels. A filter that removes a state removes its marks with it.

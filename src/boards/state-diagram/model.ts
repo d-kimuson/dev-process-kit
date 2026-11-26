@@ -55,7 +55,7 @@ export type StateDiagramData = {
   readonly edges: readonly StateTransition[];
 };
 
-export const STATE_NODE_SIZE = { width: 178, height: 86 } as const;
+export const STATE_NODE_SIZE = { width: 172, height: 64 } as const;
 
 export const emptyStateData = (): StateDiagramData => ({ nodes: [], edges: [] });
 

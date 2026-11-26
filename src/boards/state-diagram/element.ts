@@ -4,9 +4,9 @@ import type { CommentTargetOption } from '../../core/types';
 import type { LayoutOptions, LayoutResult } from '../../lib/layout/layered';
 
 import { BoardCanvasElement } from '../base/element';
-import { classNames, EMPTY_REACH, reach, routeLabelPoint, type DiagramSelection, type Reach } from '../base/model';
+import { EMPTY_REACH, reach, routeLabelPoint, type DiagramSelection, type Reach } from '../base/model';
 import { diagramStyles } from '../base/styles';
-import { pathData } from '../base/view';
+import { roundedPathData } from '../base/view';
 import { stateDiagramMessages } from './messages';
 import {
   emptyStateData,
@@ -16,10 +16,21 @@ import {
   type StateNode,
   type StateTransition,
 } from './model';
-import { withStateRoutes } from './route';
+import { stateLabelPoint, stateLabelSize, withStateRoutes } from './route';
 import { stateDiagramStyles } from './styles';
 
-const ARROWS = [{ id: 'state-arrow' }, { id: 'state-arrow-active' }, { id: 'state-arrow-exception' }] as const;
+const ARROWS = [
+  { id: 'state-arrow' },
+  { id: 'state-arrow-selected' },
+  { id: 'state-arrow-related' },
+  { id: 'state-arrow-exception' },
+] as const;
+
+/** Room around the states for what is drawn outside them: self transitions, their labels, outer lanes. */
+const CANVAS_PADDING = 72;
+const NODE_SPACING = 56;
+/** Gap between two ranks: the widest label plus the line that has to stay visible beside it. */
+const LAYER_SPACING = { min: 112, max: 240, besideLabel: 72 } as const;
 
 /** Lifecycle diagram: select a state to see its transitions, or one transition. */
 export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
@@ -56,14 +67,19 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
   }
 
   protected override layoutOptions(): LayoutOptions {
-    return this.layoutMode === 'fixed' ? { padding: 44 } : { nodeSpacing: 40, layerSpacing: 110, padding: 44 };
+    if (this.layoutMode === 'fixed') return { padding: CANVAS_PADDING };
+    const widest = Math.max(0, ...this.filtered().edges.map((edge) => stateLabelSize(edge.title).width));
+    return {
+      nodeSpacing: NODE_SPACING,
+      layerSpacing: Math.min(LAYER_SPACING.max, Math.max(LAYER_SPACING.min, widest + LAYER_SPACING.besideLabel)),
+      padding: CANVAS_PADDING,
+    };
   }
 
   /**
    * Transitions are drawn by the board's own router, not by the shared
-   * layout's: one port per transition and one lane per rank gap (see
-   * `./route.ts`). Running it from `routePlacement` means the reader's dragged
-   * placement gets the same route as the computed one.
+   * layout's (see `./route.ts`). Running it from `routePlacement` means the
+   * reader's dragged placement gets the same route as the computed one.
    */
   protected override routePlacement(placement: LayoutResult, visible: StateDiagramData): LayoutResult {
     return withStateRoutes(placement, visible.edges);
@@ -93,11 +109,13 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
   }
 
   protected override renderCanvas(): TemplateResult {
-    const nodes = this.visible.nodes;
-    const markers = nodes.filter((node) => node.kind === 'initial').map((node) => this.#renderInitialMark(node));
     return html`
-      ${this.renderEdges([...markers, ...this.visible.edges.map((edge) => this.#renderTransition(edge))], ARROWS)}
-      ${nodes.map((node) => this.#renderState(node))} ${this.visible.edges.map((edge) => this.#renderLabel(edge))}
+      ${this.renderEdges(
+        this.visible.edges.map((edge) => this.#renderTransition(edge)),
+        ARROWS,
+      )}
+      ${this.visible.nodes.map((node) => this.#renderState(node))}
+      ${this.visible.edges.map((edge) => this.#renderLabel(edge))}
     `;
   }
 
@@ -110,32 +128,18 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
     return [edge.guard, edge.effect].filter((value) => value !== null).join('\n') || edge.title;
   }
 
-  #renderInitialMark(node: StateNode): TemplateResult | typeof nothing {
-    const placed = this.placedNode(node.id);
-    if (!placed) return nothing;
-    const center = placed.y + placed.height / 2;
-    const state = this.nodeState(node.id);
-    return svg`
-      <g class=${classNames('state-initial-mark', state.dimmed && 'is-dimmed')}>
-        <circle cx=${placed.x - 22} cy=${center} r="5"></circle>
-        <path
-          d=${pathData([
-            { x: placed.x - 17, y: center },
-            { x: placed.x - 1, y: center },
-          ])}
-          stroke-width="1.6"
-        ></path>
-      </g>
-    `;
-  }
-
   #renderTransition(edge: StateTransition): TemplateResult {
     const m = stateDiagramMessages(this.locale);
     const state = this.edgeState(edge.id);
     const points = this.routeOf(edge.id);
-    const path = pathData(points);
-    const active = state.selected || state.related;
-    const marker = active ? 'state-arrow-active' : edge.kind === 'exception' ? 'state-arrow-exception' : 'state-arrow';
+    const path = roundedPathData(points);
+    const marker = state.selected
+      ? 'state-arrow-selected'
+      : state.related
+        ? 'state-arrow-related'
+        : edge.kind === 'exception'
+          ? 'state-arrow-exception'
+          : 'state-arrow';
     const select = () => this.select({ kind: 'edge', id: edge.id });
     return svg`
       <g
@@ -186,7 +190,11 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
           if (!this.consumeDragClick()) this.select({ kind: 'node', id: node.id });
         }}
       >
-        <span class="state-name">${node.name}</span>
+        <span class="state-title">
+          ${node.kind === 'initial' ? html`<span class="state-initial-mark" aria-hidden="true"></span>` : nothing}
+          ${node.kind === 'terminal' ? html`<span class="state-terminal-mark" aria-hidden="true"></span>` : nothing}
+          <span class="state-name">${node.name}</span>
+        </span>
         ${node.code === null ? nothing : html`<span class="state-code">${node.code}</span>`}
       </button>
     `;
@@ -194,12 +202,13 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
 
   #renderLabel(edge: StateTransition): TemplateResult {
     const state = this.edgeState(edge.id);
-    const point = routeLabelPoint(this.routeOf(edge.id));
+    const point = stateLabelPoint(this.layout, edge.id) ?? routeLabelPoint(this.routeOf(edge.id));
     return html`
       <span class="state-label-slot" style="left:${point.x}px; top:${point.y}px">
         <button
           type="button"
-          class=${this.elementClass(state, 'state-label')}
+          class=${this.elementClass(state, 'state-label', edge.kind === 'exception' && 'is-exception')}
+          style="max-width:${stateLabelSize(edge.title).width}px"
           data-transition-label=${edge.id}
           data-grill-questions=${this.questionsOf(edge)}
           data-dpk-target=${this.commentRef('edge', edge.id)}

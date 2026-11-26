@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dev-process-kit — state diagram stress</title>
+    <!--
+      Internal dev tool, not part of the published samples. Renders one fixture of
+      fixtures/state-diagram.js (`?fixture=<name>`, default `stress`) for
+      dev/qa/state-diagram-probe.ts to measure.
+    -->
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-app {
+        display: block;
+        height: 100%;
+      }
+    </style>
+    <script type="module">
+      import { loadKit } from '../kit.js';
+      import { fixtures } from './fixtures/state-diagram.js';
+
+      const name = new URLSearchParams(location.search).get('fixture') ?? 'stress';
+      const data = fixtures[name];
+      if (data === undefined) throw new Error(`Unknown fixture "${name}". Known: ${Object.keys(fixtures).join(', ')}`);
+
+      const json = (value) => {
+        const script = document.createElement('script');
+        script.type = 'application/json';
+        script.textContent = JSON.stringify(value);
+        return script;
+      };
+      const app = document.createElement('dpk-app');
+      app.setAttribute('storage-key', `chaos-state-diagram-${name}`);
+      const page = document.createElement('dpk-page');
+      page.setAttribute('name', 'state-diagram');
+      page.setAttribute('label', 'State diagram');
+      const board = document.createElement('dpk-board-state-diagram');
+      board.id = `chaos-${name}`;
+      board.setAttribute('heading', 'State machine');
+      board.setAttribute('subject', name);
+      board.append(json(data));
+      page.append(board);
+      app.append(json({ title: `State diagram — ${name}` }), page);
+      document.body.append(app);
+      loadKit(['components.js', 'boards.js']);
+    </script>
+  </head>
+  <body></body>
+</html>

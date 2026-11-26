@@ -10,7 +10,7 @@ import { scoreLayout, type LayoutGeometry } from '../../lib/layout/metrics';
 import { DpkBoardStateDiagram } from './element';
 import { defineStateDiagram } from './index';
 import { stateDiagramMessages } from './messages';
-import { hasAuthoredPositions, parseStateData } from './model';
+import { hasAuthoredPositions, parseStateData, STATE_NODE_SIZE } from './model';
 
 defineStateDiagram();
 
@@ -139,8 +139,8 @@ describe('dpk-board-state-diagram', () => {
   it('renders states at their authored positions with an initial marker', async () => {
     const element = await mount();
     expect(ids(element, '.state-node')).toEqual(['pending', 'paid', 'cancelled', 'refunding']);
-    expect(element.renderRoot.querySelector<HTMLElement>('[data-state="pending"]')?.style.left).toBe('44px');
-    expect(element.renderRoot.querySelector<HTMLElement>('[data-state="paid"]')?.style.left).toBe('344px');
+    expect(element.renderRoot.querySelector<HTMLElement>('[data-state="pending"]')?.style.left).toBe('72px');
+    expect(element.renderRoot.querySelector<HTMLElement>('[data-state="paid"]')?.style.left).toBe('372px');
     expect(element.renderRoot.querySelectorAll('.state-initial-mark')).toHaveLength(1);
     expect(element.renderRoot.querySelectorAll('[data-transition-label]')).toHaveLength(4);
     expect(element.renderRoot.querySelector('.diagram-stats')?.textContent).toBe(`4 ${m.node} · 4 ${m.edge}`);
@@ -255,10 +255,10 @@ describe('dpk-board-state-diagram', () => {
     await settle(element);
     const style = (id: string, property: 'left' | 'top') =>
       element.renderRoot.querySelector<HTMLElement>(`[data-state="${id}"]`)?.style[property];
-    expect(style('a', 'left')).toBe('44px');
+    expect(style('a', 'left')).toBe('72px');
     // `b` and `c` share the layer after `a`; the layer spreads them vertically.
-    expect(style('b', 'left')).toBe('332px');
-    expect(style('c', 'left')).toBe('332px');
+    expect(Number.parseFloat(style('b', 'left') ?? '')).toBeGreaterThan(72 + STATE_NODE_SIZE.width);
+    expect(style('c', 'left')).toBe(style('b', 'left'));
     expect(style('b', 'top')).not.toBe(style('c', 'top'));
     expect(element.renderRoot.querySelector('.state-edge .d-edge-path')?.getAttribute('d')).toMatch(/^M/);
   });
