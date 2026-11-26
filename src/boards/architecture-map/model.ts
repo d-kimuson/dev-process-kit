@@ -11,7 +11,7 @@ import type { DiagramEdgeInput, DiagramNodeInput } from '../base/model';
  */
 
 export const SERVICE_SIZE = { width: 220, height: 112 } as const;
-const BOUNDARY_PADDING = 26;
+const BOUNDARY_PADDING = 28;
 
 const artworkSchema = v.strictObject({
   src: v.pipe(v.string(), v.minLength(1)),

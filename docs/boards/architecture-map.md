@@ -36,7 +36,7 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 
 ## Data
 
-`boundaries[]`: `id`, `label` (shown uppercase in the rectangle corner) and `kind` (`internal` default, `external` for a dashed amber rectangle).
+`boundaries[]`: `id`, `label` (shown uppercase as a legend on the rectangle's top border) and `kind` (`internal` default, `external` for a dashed amber rectangle).
 
 `services[]`:
 
@@ -47,12 +47,14 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 | `position`    | yes      | `{ x, y }` of the card's top-left corner. Cards are 220 × 112; leave about 80 px between cards in different boundaries.                                       |
 | `boundary`    | no       | Boundary id. A service without one is drawn outside every rectangle.                                                                                          |
 | `description` | no       | Shown under the name (clamped to 3 lines) and as the card tooltip.                                                                                            |
-| `symbol`      | no       | Fallback glyph when there is no `artwork` (`DB`, `SES`); defaults to the first two characters of the name.                                                    |
+| `symbol`      | no       | Fallback glyph when there is no `artwork` (`DB`, `SES`); defaults to the initials of the name, or the first glyph of a CJK name.                              |
 | `tags`        | no       | The tag filter applies to services.                                                                                                                           |
 | `artwork`     | no       | `{ src, alt, license? }` — see below.                                                                                                                         |
 | `questions`   | no       | Refs of the page's questions (grill) the service is about, space-separated (`"Q1 Q4"`); each gets a Q badge on the card (`docs/index.md`, Questions (grill)). |
 
-`links[]`: `id`, `from`, `to` (required) and `label` (optional, drawn on the edge). Unknown endpoints and unknown boundaries are errors.
+`links[]`: `id`, `from`, `to` (required) and `label` (optional, drawn as a chip on the link). Unknown endpoints and unknown boundaries are errors.
+
+Links are drawn at right angles around the cards, each in a lane of its own, and are routed again when a reader drags a card. A label sits on its own link, or beside it when the link is short, and a link moves to another lane when its label would otherwise lie on another link or on a boundary's border. Two cards a boundary apart leave no room clear of the borders between them, so that label stays across them: leave more than a label's width between such cards to avoid it. Cards a reader drops onto each other are treated as one pile: links from other cards end on the pile's edge, and a link between two cards of the pile is not drawn until they are apart. Keep labels short: one that has no free room wraps onto two lines, and failing that is cut with an ellipsis (the full text stays in its tooltip).
 
 ## Artwork
 

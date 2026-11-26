@@ -1,13 +1,13 @@
 import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
 import type { CommentTargetOption } from '../../core/types';
-import type { LayoutResult } from '../../lib/layout/layered';
+import type { LayoutPoint, LayoutResult } from '../../lib/layout/layered';
 
 import { BoardCanvasElement } from '../base/element';
 import { EMPTY_REACH, reach, type DiagramSelection, type Reach } from '../base/model';
 import { diagramStyles } from '../base/styles';
-import { pathData } from '../base/view';
 import { openingCorner } from '../base/viewport';
+import { LINK_CHIP, boundaryTitleBox, linkChipWidth, placeLinkLabels, rateLinkLabels } from './labels';
 import { architectureMapMessages } from './messages';
 import {
   boundaryBoxes,
@@ -17,10 +17,57 @@ import {
   type ArchitectureService,
   type BoundaryBox,
 } from './model';
-import { linkLabelPoint, withFacingRoutes } from './route';
+import { LANE, withFacingRoutes, type RouteRect, type RoutedLinks } from './route';
 import { architectureStyles } from './styles';
 
-const ARROWS = [{ id: 'arch-neutral' }, { id: 'arch-selected' }] as const;
+/** Room around the cards: a boundary frame, its title, and two lanes for links going round it. */
+const MAP_PADDING = 72;
+
+const ARROWS = [{ id: 'arch-neutral' }, { id: 'arch-related' }, { id: 'arch-selected' }] as const;
+
+/** Length of an arrowhead along its link: the last run stays straight under it. */
+const ARROW_LENGTH = 11;
+
+/** A link's polyline with its bends rounded off; no run is shorter than a lane, so half a lane always fits. */
+const linkPath = (points: readonly LayoutPoint[]): string => {
+  const radius = LANE / 2;
+  return points
+    .map((point, index) => {
+      const before = points[index - 1];
+      const after = points[index + 1];
+      if (before === undefined) return `M${point.x} ${point.y}`;
+      if (after === undefined) return `L${point.x} ${point.y}`;
+      const enter = Math.min(radius, (Math.abs(point.x - before.x) + Math.abs(point.y - before.y)) / 2);
+      const ahead = Math.abs(after.x - point.x) + Math.abs(after.y - point.y);
+      const leave = Math.min(radius, index === points.length - 2 ? Math.max(0, ahead - ARROW_LENGTH) : ahead / 2);
+      const from = {
+        x: point.x - Math.sign(point.x - before.x) * enter,
+        y: point.y - Math.sign(point.y - before.y) * enter,
+      };
+      const to = {
+        x: point.x + Math.sign(after.x - point.x) * leave,
+        y: point.y + Math.sign(after.y - point.y) * leave,
+      };
+      return `L${from.x} ${from.y} Q${point.x} ${point.y} ${to.x} ${to.y}`;
+    })
+    .join(' ');
+};
+
+/** The tile's text for a service with neither artwork nor a symbol: initials, or one glyph of a CJK name. */
+const monogram = (name: string): string => {
+  const words = name
+    .trim()
+    .split(/[\s\-_/・]+/u)
+    .filter((word) => word !== '');
+  const glyph = (word: string | undefined): string => {
+    const point = word?.codePointAt(0);
+    return point === undefined ? '' : String.fromCodePoint(point);
+  };
+  const first = glyph(words[0]);
+  if ((first.codePointAt(0) ?? 0) >= 0x2e80) return first;
+  const second = glyph(words[1]);
+  return `${first}${/^[A-Za-z0-9]$/u.test(second) ? second : ''}`.toUpperCase();
+};
 
 /** System map: services grouped into boundaries, with the links between them. */
 export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData> {
@@ -54,7 +101,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
   }
 
   protected override layoutOptions(): { readonly padding: number } {
-    return { padding: 40 };
+    return { padding: MAP_PADDING };
   }
 
   /**
@@ -65,11 +112,39 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
    * the link through it.
    */
   protected override routePlacement(placement: LayoutResult, visible: ArchitectureData): LayoutResult {
-    return withFacingRoutes(placement, visible.edges);
+    const positions = new Map(placement.nodes.map((node) => [node.id, node] as const));
+    const placed = visible.nodes.flatMap((node) => {
+      const position = positions.get(node.id);
+      return position ? [{ ...node, position: { x: position.x, y: position.y } }] : [];
+    });
+    const frames = boundaryBoxes(placed, this.items().boundaries).map((box) => ({
+      box,
+      title: boundaryTitleBox(box, box.boundary.label),
+    }));
+    const cards = placement.nodes.map((node) => ({ x: node.x, y: node.y, width: node.width, height: node.height }));
+    const titles = frames.map((frame) => frame.title);
+    const boxes = frames.map((frame) => frame.box);
+    const labels = new Map(
+      visible.edges.flatMap((link) => (link.label === null ? [] : [[link.id, link.label] as const])),
+    );
+    // A label left lying on another link or on a border asks the router for a lane with more room.
+    const rate = (routed: RoutedLinks) => {
+      const routes = [...routed].map(([id, points]) => ({ id, points }));
+      const labelled = routes.flatMap((route) => {
+        const label = labels.get(route.id);
+        return label === undefined ? [] : [{ ...route, label }];
+      });
+      return [...rateLinkLabels(labelled, { cards, titles, frames: boxes, routes })].map(([link, placed]) => ({
+        link,
+        penalty: placed.crossing.length + placed.borders + (placed.covering ? 1 : 0),
+        crossing: placed.crossing,
+      }));
+    };
+    return withFacingRoutes(placement, visible.edges, { frames, ...(labels.size === 0 ? {} : { rate }) });
   }
 
   /** The placed cards, for the label placement's collision check. */
-  #cardBoxes(): readonly { readonly x: number; readonly y: number; readonly width: number; readonly height: number }[] {
+  #cardBoxes(): readonly RouteRect[] {
     return this.visible.nodes.flatMap((node) => {
       const placed = this.placedNode(node.id);
       return placed ? [{ x: placed.x, y: placed.y, width: placed.width, height: placed.height }] : [];
@@ -158,10 +233,21 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
     const m = architectureMapMessages(this.locale);
     const visible = this.visible;
     const name = (id: string) => visible.nodes.find((node) => node.id === id)?.name ?? id;
+    const boundaries = this.#boundaryBoxes();
+    const routes = visible.edges.map((link) => ({ id: link.id, label: link.label, points: this.routeOf(link.id) }));
+    const chips = placeLinkLabels(
+      routes.flatMap((route) => (route.label === null ? [] : [{ ...route, label: route.label }])),
+      {
+        cards: this.#cardBoxes(),
+        titles: boundaries.map((box) => boundaryTitleBox(box, box.boundary.label)),
+        frames: boundaries,
+        routes,
+      },
+    );
     const edges = visible.edges.map((link) => {
       const state = this.edgeState(link.id);
       const route = this.routeOf(link.id);
-      const d = pathData(route);
+      const d = linkPath(route);
       const select = () => this.select({ kind: 'edge', id: link.id });
       return svg`
         <g
@@ -174,7 +260,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
           <path
             class="d-edge-path"
             d=${d}
-            marker-end=${`url(#${state.selected ? 'arch-selected' : 'arch-neutral'})`}
+            marker-end=${`url(#${state.selected ? 'arch-selected' : state.related ? 'arch-related' : 'arch-neutral'})`}
           ></path>
           <path
             class="d-edge-hit"
@@ -189,31 +275,44 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
               select();
             }}
           ></path>
-          ${link.label === null || route.length === 0 ? nothing : this.#renderLinkLabel(link.label, route)}
         </g>
       `;
     });
     return html`
       ${
         this.#showBoundaries
-          ? this.#boundaryBoxes().map(
+          ? boundaries.map(
               (box) => html`<div
                 class=${`arch-boundary ${box.boundary.kind === 'external' ? 'is-external' : ''}`}
                 data-boundary=${box.boundary.id}
                 style="left:${box.x}px; top:${box.y}px; width:${box.width}px; height:${box.height}px"
               >
-                <span>${box.boundary.label}</span>
+                <span class="arch-boundary-title">${box.boundary.label}</span>
               </div>`,
             )
           : nothing
       }
-      ${this.renderEdges(edges, ARROWS)} ${visible.nodes.map((service) => this.#renderService(service, m))}
+      ${this.renderEdges(edges, ARROWS)}
+      ${visible.edges.map((link) => {
+        const chip = chips.get(link.id);
+        if (chip === undefined || link.label === null) return nothing;
+        return html`<button
+          type="button"
+          class=${this.elementClass(this.edgeState(link.id), 'arch-link-chip')}
+          ?data-wrapped=${chip.height > LINK_CHIP.height}
+          ?data-shortened=${chip.height === LINK_CHIP.height && chip.width < linkChipWidth(link.label)}
+          title=${link.label}
+          data-link-label=${link.id}
+          tabindex="-1"
+          aria-hidden="true"
+          style="left:${chip.x}px; top:${chip.y}px; width:${chip.width}px; height:${chip.height}px"
+          @click=${() => this.select({ kind: 'edge', id: link.id })}
+        >
+          <span>${link.label}</span>
+        </button>`;
+      })}
+      ${visible.nodes.map((service) => this.#renderService(service, m))}
     `;
-  }
-
-  #renderLinkLabel(label: string, points: readonly { x: number; y: number }[]): TemplateResult {
-    const middle = linkLabelPoint(points, this.#cardBoxes(), label);
-    return svg`<text class="arch-link-label" x=${middle.x} y=${middle.y - 6}>${label}</text>`;
   }
 
   #renderService(
@@ -226,7 +325,13 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
     return html`
       <button
         type="button"
-        class=${this.elementClass(state, 'd-node', 'arch-service', this.isDraggingNode(service.id) && 'is-dragging')}
+        class=${this.elementClass(
+          state,
+          'd-node',
+          'arch-service',
+          service.description === null && 'is-brief',
+          this.isDraggingNode(service.id) && 'is-dragging',
+        )}
         data-service=${service.id}
         data-grill-questions=${this.questionsOf(service)}
         data-dpk-target=${this.commentRef('node', service.id)}
@@ -240,7 +345,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
       >
         ${
           service.artwork === null
-            ? html`<span class="arch-symbol" aria-hidden="true">${service.symbol ?? service.name.slice(0, 2)}</span>`
+            ? html`<span class="arch-symbol" aria-hidden="true">${service.symbol ?? monogram(service.name)}</span>`
             : html`<img
                 class="arch-artwork"
                 src=${service.artwork.src}

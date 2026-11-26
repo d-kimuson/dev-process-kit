@@ -11,6 +11,7 @@ import { DpkBoardArchitectureMap } from './element';
 import { defineArchitectureMap } from './index';
 import { architectureMapMessages } from './messages';
 import { boundaryBoxes, parseArchitectureData, SERVICE_SIZE } from './model';
+import { withFacingRoutes } from './route';
 
 defineArchitectureMap();
 
@@ -99,12 +100,10 @@ const mountData = async (data: ReturnType<typeof parseArchitectureData>): Promis
   return element;
 };
 
-const routePoints = (element: DpkBoardArchitectureMap, link: string): LayoutPoint[] =>
-  [
-    ...(element.renderRoot.querySelector(`[data-link="${link}"] .d-edge-path`)?.getAttribute('d') ?? '').matchAll(
-      /(-?[\d.]+)[ ,](-?[\d.]+)/g,
-    ),
-  ].map((match) => ({ x: Number(match[1]), y: Number(match[2]) }));
+/** A link's route as laid out; the drawn path rounds its bends, so the corners are read from the layout. */
+const routePoints = (element: DpkBoardArchitectureMap, link: string): LayoutPoint[] => [
+  ...(element.layout?.routes.find((route) => route.id === link)?.points ?? []),
+];
 
 /** The geometry the reader actually sees: placed service cards plus each link's drawn polyline. */
 const drawnGeometry = (
@@ -159,7 +158,7 @@ describe('architecture map data', () => {
     const boxes = boundaryBoxes(data.nodes, data.boundaries);
     expect(boxes.map((box) => box.boundary.id)).toEqual(['edge', 'checkout', 'external']);
     const edge = boxes[0];
-    expect(edge?.x).toBe(-26);
+    expect(edge?.x).toBe(-28);
     expect(edge?.y).toBeLessThan(0);
     expect((edge?.x ?? 0) + (edge?.width ?? 0)).toBeGreaterThanOrEqual(220);
     expect(boundaryBoxes([], data.boundaries)).toEqual([]);
@@ -228,8 +227,8 @@ describe('architecture map data', () => {
   it('keeps the full padding, label room included, where nothing is in the way', () => {
     const boxes = boundaryBoxes(packed.nodes, packed.boundaries);
     const data = boxes.find((box) => box.boundary.id === 'data');
-    expect(data).toMatchObject({ x: 300 - 26, y: SERVICE_SIZE.height * 2 + 400 - 26 * 1.6 });
-    expect((data?.x ?? 0) + (data?.width ?? 0)).toBe(300 + 220 + 26);
+    expect(data).toMatchObject({ x: 300 - 28, y: SERVICE_SIZE.height * 2 + 400 - 28 * 1.6 });
+    expect((data?.x ?? 0) + (data?.width ?? 0)).toBe(300 + 220 + 28);
   });
 });
 
@@ -312,13 +311,41 @@ describe('dpk-board-architecture-map', () => {
     const score = scoreLayout(drawnGeometry(element, data));
     expect(score.edgeThroughNode.incidents).toBe(0);
     expect(score.collinearOverlap.incidents).toBe(0);
-    // Both ends still leave and enter the sides that face each other, so the
-    // link keeps reading left to right.
+    // The facing sides would take four bends around B: the link leaves and
+    // enters on one side of the row instead, and passes B in two.
     const points = routePoints(element, 'a-c');
-    const first = points[0];
-    const last = points.at(-1);
-    expect(first?.x).toBe(260);
-    expect(last?.x).toBe(660);
+    expect(points).toHaveLength(4);
+    expect(points[0]?.y).toBe(points.at(-1)?.y);
+  });
+
+  // Dropping a card onto another used to leave its links on the layout's own
+  // elbows, straight through both cards.
+  it('ends a link on the edge of a pile of overlapping cards and draws none inside it', () => {
+    const card = (id: string, x: number, y: number) => ({ id, x, y, ...SERVICE_SIZE, layer: 0, order: 0 });
+    const nodes = [card('a', 72, 72), card('b', 492, 72), card('c', 512, 96)];
+    const routed = withFacingRoutes({ nodes, routes: [], width: 900, height: 400 }, [
+      { id: 'a-b', from: 'a', to: 'b' },
+      { id: 'b-c', from: 'b', to: 'c' },
+    ]);
+    const points = (id: string) => routed.routes.find((route) => route.id === id)?.points ?? [];
+    expect(points('b-c')).toEqual([]);
+    expect(points('a-b').at(-1)).toEqual({ x: 492, y: points('a-b')[0]?.y });
+    expect(points('a-b')).toHaveLength(2);
+  });
+
+  it('moves a link to another lane when its label is reported to lie on something', () => {
+    const card = (id: string, x: number, y: number) => ({ id, x, y, ...SERVICE_SIZE, layer: 0, order: 0 });
+    const nodes = [card('a', 72, 292), card('b', 372, 72)];
+    const links = [{ id: 'a-b', from: 'a', to: 'b' }];
+    const placement = { nodes, routes: [], width: 700, height: 500 };
+    const lane = (points: readonly LayoutPoint[]) => points[1]?.x;
+    const plain = lane(withFacingRoutes(placement, links).routes[0]!.points);
+    const moved = withFacingRoutes(placement, links, {
+      rate: (routes) => [{ link: 'a-b', penalty: lane(routes.get('a-b') ?? []) === plain ? 1 : 0, crossing: [] }],
+    });
+    expect(plain).toBeDefined();
+    expect(lane(moved.routes[0]!.points)).not.toBe(plain);
+    expect(moved.routes[0]!.points).toHaveLength(4);
   });
 
   // A reader's drag goes through `applyPositionOverrides`, not through
@@ -353,26 +380,42 @@ describe('dpk-board-architecture-map', () => {
     expect(score.edgeThroughNode.incidents).toBe(0);
   });
 
-  it('places a link label on a run instead of on an elbow', async () => {
+  it('places a link label on its own link, clear of every card and of the other labels', async () => {
     const element = await mount();
-    const labels = [...element.renderRoot.querySelectorAll<SVGTextElement>('.arch-link-label')];
-    expect(labels.length).toBeGreaterThan(0);
-    const offsets = labels.map((label) => {
-      const link = label.parentElement?.dataset['link'] ?? '';
-      const x = Number(label.getAttribute('x'));
-      const y = Number(label.getAttribute('y')) + 6;
-      const points = routePoints(element, link);
-      const onSegment = points.slice(1).some((next, index) => {
+    const chips = [...element.renderRoot.querySelectorAll<HTMLElement>('.arch-link-chip')].map((chip) => ({
+      link: chip.dataset['linkLabel'] ?? '',
+      left: Number.parseFloat(chip.style.left),
+      top: Number.parseFloat(chip.style.top),
+      right: Number.parseFloat(chip.style.left) + Number.parseFloat(chip.style.width),
+      bottom: Number.parseFloat(chip.style.top) + Number.parseFloat(chip.style.height),
+    }));
+    expect(chips.map((chip) => chip.link).sort((x, y) => x.localeCompare(y))).toEqual([
+      'browser-orders',
+      'orders-payment',
+    ]);
+    const cards = [...element.renderRoot.querySelectorAll<HTMLElement>('[data-service]')].map((card) => ({
+      left: Number.parseFloat(card.style.left),
+      top: Number.parseFloat(card.style.top),
+      right: Number.parseFloat(card.style.left) + Number.parseFloat(card.style.width),
+      bottom: Number.parseFloat(card.style.top) + Number.parseFloat(card.style.height),
+    }));
+    type Box = (typeof cards)[number];
+    const overlap = (x: Box, y: Box) => x.left < y.right && y.left < x.right && x.top < y.bottom && y.top < x.bottom;
+    for (const chip of chips) {
+      expect(cards.filter((card) => overlap(chip, card))).toEqual([]);
+      expect(chips.filter((other) => other !== chip && overlap(chip, other))).toEqual([]);
+      const points = routePoints(element, chip.link);
+      const onLink = points.slice(1).some((next, index) => {
         const previous = points[index]!;
-        const withinX = x >= Math.min(previous.x, next.x) && x <= Math.max(previous.x, next.x);
-        const withinY = y >= Math.min(previous.y, next.y) && y <= Math.max(previous.y, next.y);
-        return withinX && withinY;
+        return (
+          Math.min(previous.x, next.x) <= chip.right &&
+          Math.max(previous.x, next.x) >= chip.left &&
+          Math.min(previous.y, next.y) <= chip.bottom + 8 &&
+          Math.max(previous.y, next.y) >= chip.top - 8
+        );
       });
-      const onVertex = points.some((point) => Math.abs(point.x - x) < 0.5 && Math.abs(point.y - y) < 0.5);
-      return { link, onSegment, onVertex };
-    });
-    expect(offsets.filter((offset) => !offset.onSegment)).toEqual([]);
-    expect(offsets.filter((offset) => offset.onVertex)).toEqual([]);
+      expect(onLink).toBe(true);
+    }
   });
 
   it('hides boundaries on request', async () => {
@@ -429,8 +472,8 @@ describe('dpk-board-architecture-map', () => {
     element.select({ kind: 'edge', id: 'orders-payment' });
     await element.updateComplete;
     expect(
-      [...element.renderRoot.querySelectorAll('.arch-link-label')]
-        .map((node) => node.textContent)
+      [...element.renderRoot.querySelectorAll('.arch-link-chip')]
+        .map((node) => node.textContent?.trim())
         .sort((a, b) => String(a).localeCompare(String(b))),
     ).toEqual(['決済要求', '注文確定']);
     expect(element.renderRoot.querySelector('[data-link="orders-payment"]')?.classList.contains('is-selected')).toBe(
