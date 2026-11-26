@@ -163,8 +163,8 @@ export class DpkDialogPanel extends LitElement {
       }
 
       .subject {
-        font-size: 10px;
-        color: var(--dpk-ink-faint);
+        font-size: 11px;
+        color: var(--dpk-ink-soft);
         padding-left: 10px;
         border-left: 1px solid var(--dpk-rule-strong);
       }
@@ -350,7 +350,7 @@ export class DpkDialogPanel extends LitElement {
         border-radius: var(--dpk-radius-sm);
         background: transparent;
         color: var(--dpk-ink-soft);
-        font-size: 10.5px;
+        font-size: 11px;
         cursor: pointer;
         transition:
           background var(--dpk-dur-fast) var(--dpk-ease),

@@ -75,8 +75,8 @@ export class DpkTagFilter extends LitElement {
         border-radius: var(--dpk-radius-xs);
         padding: 4px 8px;
         background: transparent;
-        color: var(--dpk-ink-faint);
-        font-size: 9.5px;
+        color: var(--dpk-ink-soft);
+        font-size: 11px;
         font-weight: 600;
         letter-spacing: 0.01em;
         cursor: pointer;
@@ -87,7 +87,7 @@ export class DpkTagFilter extends LitElement {
       }
 
       .diagram-match button:hover[aria-pressed='false'] {
-        color: var(--dpk-ink-soft);
+        color: var(--dpk-ink);
       }
 
       .diagram-match button[aria-pressed='true'] {
@@ -107,7 +107,7 @@ export class DpkTagFilter extends LitElement {
         border-radius: var(--dpk-radius-xs);
         background: var(--dpk-paper-inset);
         color: var(--dpk-ink-soft);
-        font-size: 10.5px;
+        font-size: 11px;
         cursor: pointer;
         transition:
           background 140ms var(--dpk-ease),
@@ -124,7 +124,7 @@ export class DpkTagFilter extends LitElement {
       .dpk-tag[aria-pressed='true'] {
         border-color: color-mix(in srgb, var(--dpk-blue) 45%, transparent);
         background: var(--dpk-blue-soft);
-        color: var(--dpk-blue);
+        color: color-mix(in srgb, var(--dpk-blue) 78%, var(--dpk-ink));
         font-weight: 600;
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 20%, transparent);
       }
@@ -139,8 +139,7 @@ export class DpkTagFilter extends LitElement {
       .dpk-tag-count {
         flex: none;
         font-family: var(--dpk-mono);
-        font-size: 9px;
-        opacity: 0.7;
+        font-size: 11px;
         font-variant-numeric: tabular-nums;
       }
 
@@ -148,8 +147,8 @@ export class DpkTagFilter extends LitElement {
         border: 0;
         background: none;
         padding: 4px 6px;
-        color: var(--dpk-ink-faint);
-        font-size: 10px;
+        color: var(--dpk-ink-soft);
+        font-size: 11px;
         cursor: pointer;
       }
 

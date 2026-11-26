@@ -56,13 +56,13 @@ export const chromeStyles = [
 
     .diagram-stats {
       font-family: var(--dpk-mono);
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 550;
       padding: 3px 9px;
       border: 1px solid var(--dpk-rule);
       border-radius: 999px;
       background: var(--dpk-paper-sunken);
-      color: var(--dpk-ink-faint);
+      color: var(--dpk-ink-soft);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
       /* How much is on the canvas is a figure: it pops in once it is counted. */
@@ -223,8 +223,8 @@ export const canvasStyles = css`
     background: var(--dpk-glass);
     backdrop-filter: blur(10px);
     box-shadow: var(--dpk-shadow-xs);
-    font-size: 9.5px;
-    color: var(--dpk-ink-faint);
+    font-size: 11px;
+    color: var(--dpk-ink-soft);
     /* The key to the canvas arrives last, once there is something to read. */
     animation: dpk-rise-in var(--dpk-dur) var(--dpk-ease-out) backwards;
     animation-delay: calc(var(--dpk-stagger) * 3);
