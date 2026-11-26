@@ -47,6 +47,8 @@ const SAMPLES = [
   ['architecture', 'plain', 'app'],
   ['ddd-primer', 'plain', 'app'],
   ['formal-spec', 'plain', 'app'],
+  ['quint-model-diagram-c-scaled', 'plain', 'app'],
+  ['quint-model-diagram-prototypes', 'plain', 'app'],
   ['diff', 'plain', 'app'],
   ['code-review', 'plain', 'app'],
   ['slides', 'slides', 'app'],

@@ -3,6 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <title>Quint モデル図プロトタイプ比較 — order_fulfillment | dev-process-kit</title>
     <style>
       html,
@@ -1538,8 +1541,10 @@
         stroke-width: 2.3 !important;
       }
     </style>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@0.4.1/dist/views/plain.js"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@0.4.1/dist/components.js"></script>
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['views/plain.js', 'components.js']);
+    </script>
   </head>
   <body>
     <dpk-app storage-key="quint-model-diagram-prototypes" lang="ja">
