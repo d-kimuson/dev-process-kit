@@ -1,0 +1,4585 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quint モデル図プロトタイプ比較 — order_fulfillment | dev-process-kit</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-app {
+        display: block;
+        height: 100%;
+      }
+      body > :not(:defined) {
+        visibility: hidden;
+        animation: dpk-reveal 0s 2s forwards;
+      }
+      @keyframes dpk-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+      [hidden] {
+        display: none !important;
+      }
+
+      /* =====================================================================
+         Shared Prototype Design System (strictly --dpk-* tokens, light & dark)
+         ===================================================================== */
+      .q-doc {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto 72px;
+        padding: 4px 20px 24px;
+        box-sizing: border-box;
+        color: var(--dpk-ink);
+        font-family: var(--dpk-body);
+        font-size: 13.5px;
+        line-height: 1.7;
+      }
+      .q-workspace {
+        width: 100%;
+        box-sizing: border-box;
+        color: var(--dpk-ink);
+        font-family: var(--dpk-body);
+        font-size: 13px;
+        line-height: 1.5;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 0 16px 20px;
+      }
+
+      /* Compare page typography & sections */
+      .q-hero {
+        margin: 4px 0 22px;
+        padding: 18px 20px;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius-lg);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+      }
+      .q-hero-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .q-hero h2 {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        color: var(--dpk-ink);
+      }
+      .q-hero p {
+        margin: 0;
+        color: var(--dpk-ink-soft);
+      }
+      .q-section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 26px 0 10px;
+      }
+      .q-section-head h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 650;
+        color: var(--dpk-ink);
+      }
+      .q-comment-btn {
+        appearance: none;
+        border: 1px solid var(--dpk-rule);
+        background: var(--dpk-paper-raised);
+        color: var(--dpk-ink-soft);
+        font-family: var(--dpk-body);
+        font-size: 11.5px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition:
+          border-color 140ms var(--dpk-ease),
+          color 140ms var(--dpk-ease),
+          background 140ms var(--dpk-ease);
+      }
+      .q-comment-btn:hover {
+        border-color: var(--dpk-accent);
+        color: var(--dpk-accent);
+        background: var(--dpk-accent-soft);
+      }
+
+      /* Chips & Badges */
+      .q-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      .q-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.2;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--dpk-rule);
+        background: var(--dpk-paper-sunken);
+        color: var(--dpk-ink-soft);
+        white-space: nowrap;
+      }
+      .q-chip--mono {
+        font-family: var(--dpk-mono);
+        font-weight: 550;
+      }
+      .q-chip--accent {
+        border-color: color-mix(in srgb, var(--dpk-accent) 34%, transparent);
+        background: var(--dpk-accent-soft);
+        color: var(--dpk-accent);
+      }
+      .q-chip--blue {
+        border-color: color-mix(in srgb, var(--dpk-blue) 34%, transparent);
+        background: var(--dpk-blue-soft);
+        color: var(--dpk-blue);
+      }
+      .q-chip--green {
+        border-color: color-mix(in srgb, var(--dpk-green) 36%, transparent);
+        background: var(--dpk-green-soft);
+        color: var(--dpk-green);
+      }
+      .q-chip--amber {
+        border-color: color-mix(in srgb, var(--dpk-amber) 38%, transparent);
+        background: var(--dpk-amber-soft);
+        color: var(--dpk-amber);
+      }
+      .q-chip--violet {
+        border-color: color-mix(in srgb, var(--dpk-violet) 36%, transparent);
+        background: var(--dpk-violet-soft);
+        color: var(--dpk-violet);
+      }
+      .q-chip--faint {
+        border-color: var(--dpk-rule);
+        background: transparent;
+        color: var(--dpk-ink-faint);
+      }
+      .q-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: currentColor;
+        flex-shrink: 0;
+      }
+
+      /* Comparison Table */
+      .q-table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-shadow-xs);
+      }
+      .q-compare-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .q-compare-table th,
+      .q-compare-table td {
+        padding: 10px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--dpk-rule);
+        vertical-align: top;
+      }
+      .q-compare-table thead th {
+        background: var(--dpk-paper-sunken);
+        font-weight: 650;
+        color: var(--dpk-ink);
+        font-size: 12px;
+      }
+      .q-compare-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .q-compare-table tbody td:first-child {
+        font-weight: 600;
+        color: var(--dpk-ink);
+        white-space: nowrap;
+      }
+      .q-rating {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: 650;
+        margin-bottom: 2px;
+      }
+      .q-rating--high {
+        color: var(--dpk-green);
+      }
+      .q-rating--mid {
+        color: var(--dpk-blue);
+      }
+      .q-rating--low {
+        color: var(--dpk-amber);
+      }
+      .q-rating-note {
+        display: block;
+        font-size: 11.5px;
+        color: var(--dpk-ink-soft);
+      }
+
+      /* Quick jump cards */
+      .q-jump-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+      }
+      .q-jump-card {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 13px 15px;
+        border-radius: var(--dpk-radius);
+        border: 1px solid var(--dpk-rule);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+        text-decoration: none;
+        color: var(--dpk-ink);
+        transition:
+          border-color 140ms var(--dpk-ease),
+          box-shadow 140ms var(--dpk-ease),
+          transform 140ms var(--dpk-ease);
+      }
+      .q-jump-card:hover {
+        border-color: var(--dpk-accent);
+        box-shadow:
+          0 0 0 2px var(--dpk-accent-soft),
+          var(--dpk-shadow-sm);
+        transform: translateY(-1px);
+      }
+      .q-jump-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-weight: 650;
+        font-size: 13px;
+      }
+      .q-jump-card p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--dpk-ink-soft);
+        line-height: 1.5;
+      }
+      .q-jump-arrow {
+        color: var(--dpk-accent);
+        font-family: var(--dpk-mono);
+        font-size: 13px;
+      }
+
+      /* =====================================================================
+         Common Diagram Toolbar & Controls
+         ===================================================================== */
+      .q-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 14px;
+        padding: 8px 12px;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+      }
+      .q-toolbar-group {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      .q-toolbar-sep {
+        width: 1px;
+        height: 18px;
+        background: var(--dpk-rule);
+        margin: 0 2px;
+      }
+      .q-toggle {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--dpk-rule);
+        background: var(--dpk-paper-sunken);
+        color: var(--dpk-ink-soft);
+        font-family: var(--dpk-body);
+        font-size: 11.5px;
+        font-weight: 550;
+        cursor: pointer;
+        transition: all 130ms var(--dpk-ease);
+        user-select: none;
+      }
+      .q-toggle:hover {
+        border-color: var(--dpk-rule-strong);
+        color: var(--dpk-ink);
+      }
+      .q-toggle[aria-pressed='true'] {
+        border-color: color-mix(in srgb, var(--dpk-accent) 45%, transparent);
+        background: var(--dpk-accent-soft);
+        color: var(--dpk-accent);
+      }
+      .q-toggle[data-tone='green'][aria-pressed='true'] {
+        border-color: color-mix(in srgb, var(--dpk-green) 45%, transparent);
+        background: var(--dpk-green-soft);
+        color: var(--dpk-green);
+      }
+      .q-toggle[data-tone='blue'][aria-pressed='true'] {
+        border-color: color-mix(in srgb, var(--dpk-blue) 45%, transparent);
+        background: var(--dpk-blue-soft);
+        color: var(--dpk-blue);
+      }
+      .q-toggle[data-tone='amber'][aria-pressed='true'] {
+        border-color: color-mix(in srgb, var(--dpk-amber) 45%, transparent);
+        background: var(--dpk-amber-soft);
+        color: var(--dpk-amber);
+      }
+      .q-btn {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 4px 9px;
+        min-height: 26px;
+        border-radius: var(--dpk-radius-sm);
+        border: 1px solid var(--dpk-rule);
+        background: var(--dpk-paper-raised);
+        color: var(--dpk-ink-soft);
+        font-family: var(--dpk-body);
+        font-size: 11.5px;
+        font-weight: 550;
+        cursor: pointer;
+        transition: all 120ms var(--dpk-ease);
+      }
+      .q-btn:hover {
+        border-color: var(--dpk-rule-strong);
+        color: var(--dpk-ink);
+        background: var(--dpk-paper-sunken);
+      }
+      .q-btn--mono {
+        font-family: var(--dpk-mono);
+      }
+      .q-btn--danger {
+        border-color: color-mix(in srgb, var(--dpk-accent) 40%, transparent);
+        background: var(--dpk-accent-soft);
+        color: var(--dpk-accent);
+      }
+      .q-seg {
+        display: inline-flex;
+        padding: 2px;
+        border-radius: var(--dpk-radius-sm);
+        border: 1px solid var(--dpk-rule);
+        background: var(--dpk-paper-sunken);
+        gap: 2px;
+      }
+      .q-seg button {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: var(--dpk-ink-soft);
+        font-family: var(--dpk-body);
+        font-size: 11px;
+        font-weight: 550;
+        padding: 3px 8px;
+        border-radius: var(--dpk-radius-xs);
+        cursor: pointer;
+        transition: all 120ms var(--dpk-ease);
+      }
+      .q-seg button[aria-pressed='true'] {
+        background: var(--dpk-paper-raised);
+        color: var(--dpk-ink);
+        box-shadow: var(--dpk-shadow-xs);
+      }
+
+      .q-legend {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        font-size: 11px;
+        color: var(--dpk-ink-soft);
+      }
+      .q-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .q-legend-line {
+        width: 18px;
+        height: 2px;
+        border-radius: 2px;
+      }
+      .q-legend-line--ref {
+        background: var(--dpk-ink-faint);
+      }
+      .q-legend-line--write {
+        background: var(--dpk-green);
+      }
+      .q-legend-line--guard {
+        background: repeating-linear-gradient(90deg, var(--dpk-blue) 0 4px, transparent 4px 7px);
+      }
+      .q-legend-line--inv {
+        background: repeating-linear-gradient(90deg, var(--dpk-amber) 0 2px, transparent 2px 5px);
+      }
+
+      /* =====================================================================
+         Shared ERD Model Card (Liam ERD inspired)
+         ===================================================================== */
+      .q-model-card {
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+        overflow: hidden;
+        transition:
+          opacity 150ms var(--dpk-ease),
+          box-shadow 150ms var(--dpk-ease),
+          border-color 150ms var(--dpk-ease);
+      }
+      .q-model-card:hover {
+        border-color: var(--dpk-rule-strong);
+      }
+      .q-model-head {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        padding: 8px 11px;
+        background: var(--dpk-paper-sunken);
+        border-bottom: 1px solid var(--dpk-rule);
+        cursor: pointer;
+        user-select: none;
+      }
+      .q-model-head-left {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px 6px;
+        width: 100%;
+        min-width: 0;
+      }
+      .q-model-icon {
+        width: 14px;
+        height: 14px;
+        color: var(--dpk-accent);
+        flex-shrink: 0;
+      }
+      .q-model-name {
+        font-family: var(--dpk-mono);
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--dpk-ink);
+      }
+      .q-model-jp {
+        font-size: 11px;
+        color: var(--dpk-ink-soft);
+        white-space: nowrap;
+      }
+      .q-model-sig {
+        font-family: var(--dpk-mono);
+        font-size: 10px;
+        color: var(--dpk-ink-faint);
+        padding: 1px 6px;
+        border-radius: 999px;
+        border: 1px solid var(--dpk-rule);
+        background: var(--dpk-paper-raised);
+        white-space: nowrap;
+      }
+
+      .q-field-list {
+        list-style: none;
+        margin: 0;
+        padding: 3px 0;
+      }
+      .q-field-row {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        padding: 4px 11px;
+        font-size: 11.5px;
+        cursor: pointer;
+        border-radius: 4px;
+        margin: 1px 4px;
+        transition:
+          background 120ms var(--dpk-ease),
+          box-shadow 120ms var(--dpk-ease),
+          opacity 130ms var(--dpk-ease);
+      }
+      .q-field-row:hover {
+        background: var(--dpk-paper-sunken);
+      }
+      .q-field-main {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+      }
+      .q-field-name {
+        font-family: var(--dpk-mono);
+        font-weight: 550;
+        color: var(--dpk-ink);
+      }
+      .q-field-tag {
+        font-family: var(--dpk-mono);
+        font-size: 9.5px;
+        font-weight: 700;
+        padding: 1px 4px;
+        border-radius: 4px;
+        letter-spacing: 0.02em;
+        flex-shrink: 0;
+      }
+      .q-field-tag--key {
+        background: var(--dpk-amber-soft);
+        color: var(--dpk-amber);
+      }
+      .q-field-tag--ref {
+        background: var(--dpk-blue-soft);
+        color: var(--dpk-blue);
+      }
+      .q-field-meta {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-shrink: 0;
+      }
+      .q-field-type {
+        font-family: var(--dpk-mono);
+        font-size: 10.5px;
+        color: var(--dpk-ink-faint);
+      }
+      .q-field-row.is-field-write {
+        background: var(--dpk-green-soft);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-green) 42%, transparent);
+      }
+      .q-field-row.is-field-guard {
+        background: var(--dpk-blue-soft);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-blue) 42%, transparent);
+      }
+      .q-field-row.is-field-both {
+        background: var(--dpk-accent-soft);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-accent) 46%, transparent);
+      }
+      .q-field-row.is-field-inv {
+        background: var(--dpk-amber-soft);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dpk-amber) 45%, transparent);
+      }
+      .q-field-row.is-field-active {
+        background: var(--dpk-accent-soft);
+        box-shadow: inset 0 0 0 1.5px var(--dpk-accent);
+      }
+
+      /* Local Invariants Footer inside ERD Card */
+      .q-local-invs {
+        border-top: 1px solid var(--dpk-rule);
+        background: color-mix(in srgb, var(--dpk-amber-soft) 26%, var(--dpk-paper-sunken));
+        padding: 6px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .q-local-invs-label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--dpk-amber);
+        padding: 0 3px;
+      }
+      .q-local-inv-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 4px 7px;
+        border-radius: var(--dpk-radius-xs);
+        border: 1px solid transparent;
+        background: color-mix(in srgb, var(--dpk-paper-raised) 76%, transparent);
+        cursor: pointer;
+        transition: all 130ms var(--dpk-ease);
+      }
+      .q-local-inv-item:hover {
+        border-color: color-mix(in srgb, var(--dpk-amber) 45%, transparent);
+      }
+      .q-local-inv-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .q-local-inv-title {
+        font-size: 11px;
+        font-weight: 550;
+        color: var(--dpk-ink);
+      }
+      .q-expr {
+        font-family: var(--dpk-mono);
+        font-size: 10px;
+        color: var(--dpk-ink-soft);
+        background: var(--dpk-paper-inset);
+        padding: 2px 5px;
+        border-radius: 4px;
+        word-break: break-word;
+      }
+      [data-show-expr='false'] .q-expr-toggleable {
+        display: none;
+      }
+
+      /* Shared Status & Highlight Rings (No border-left stripes!) */
+      .q-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-family: var(--dpk-mono);
+        font-size: 9.5px;
+        font-weight: 650;
+        padding: 1px 6px;
+        border-radius: 999px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .q-status--verified {
+        background: var(--dpk-green-soft);
+        color: var(--dpk-green);
+      }
+      .q-status--bounded {
+        background: var(--dpk-blue-soft);
+        color: var(--dpk-blue);
+      }
+      .q-status--planned {
+        background: var(--dpk-amber-soft);
+        color: var(--dpk-amber);
+      }
+
+      .is-active {
+        border-color: var(--dpk-accent) !important;
+        box-shadow:
+          0 0 0 2px color-mix(in srgb, var(--dpk-accent) 32%, transparent),
+          var(--dpk-shadow) !important;
+      }
+      .is-related {
+        border-color: color-mix(in srgb, var(--dpk-accent) 52%, var(--dpk-rule)) !important;
+        box-shadow:
+          0 0 0 1.5px color-mix(in srgb, var(--dpk-accent) 22%, transparent),
+          var(--dpk-shadow-sm) !important;
+      }
+      .is-inv-hit {
+        border-color: var(--dpk-amber) !important;
+        background: color-mix(in srgb, var(--dpk-amber-soft) 55%, var(--dpk-paper-raised)) !important;
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--dpk-amber) 34%, transparent) !important;
+      }
+      .is-dimmed {
+        opacity: 0.24 !important;
+      }
+
+      /* =====================================================================
+         Option A: ERD Extended Graph (Pan/Zoom Spatial Canvas)
+         ===================================================================== */
+      .qa-viewport {
+        position: relative;
+        height: calc(100vh - 158px);
+        min-height: 580px;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius-lg);
+        background: var(--dpk-dots), var(--dpk-paper-sunken);
+        overflow: hidden;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+      }
+      .qa-viewport.is-panning {
+        cursor: grabbing;
+      }
+      .qa-stage {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1480px;
+        height: 880px;
+        transform-origin: 0 0;
+      }
+      .qa-svg {
+        position: absolute;
+        inset: 0;
+        width: 1480px;
+        height: 880px;
+        pointer-events: none;
+        overflow: visible;
+      }
+      .qa-node {
+        position: absolute;
+        box-sizing: border-box;
+      }
+      .qa-row-label {
+        position: absolute;
+        left: 16px;
+        width: 128px;
+        box-sizing: border-box;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        line-height: 1.4;
+        color: var(--dpk-ink-soft);
+        background: var(--dpk-paper-raised);
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius-sm);
+        padding: 6px 9px;
+        box-shadow: var(--dpk-shadow-xs);
+        pointer-events: none;
+        z-index: 3;
+      }
+      .qa-row-label-sub {
+        display: block;
+        margin-top: 2px;
+        font-size: 9.5px;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        text-transform: none;
+        color: var(--dpk-ink-faint);
+      }
+      .qa-action-card {
+        border: 1px solid color-mix(in srgb, var(--dpk-violet) 28%, var(--dpk-rule));
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+        padding: 9px 11px;
+        cursor: pointer;
+        transition:
+          opacity 150ms var(--dpk-ease),
+          box-shadow 150ms var(--dpk-ease),
+          border-color 150ms var(--dpk-ease),
+          transform 130ms var(--dpk-ease);
+      }
+      .qa-action-card:hover {
+        border-color: var(--dpk-violet);
+        transform: translateY(-1px);
+      }
+      .qa-action-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        margin-bottom: 4px;
+      }
+      .qa-action-name {
+        font-family: var(--dpk-mono);
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--dpk-ink);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .qa-action-params {
+        font-family: var(--dpk-mono);
+        font-size: 10px;
+        color: var(--dpk-ink-faint);
+        margin-bottom: 4px;
+        line-height: 1.35;
+        word-break: break-word;
+      }
+      .qb-action-params {
+        font-family: var(--dpk-mono);
+        font-size: 10.5px;
+        color: var(--dpk-ink-faint);
+        margin: -2px 0 5px;
+        line-height: 1.35;
+        word-break: break-word;
+      }
+      .qa-action-summary {
+        font-size: 11px;
+        color: var(--dpk-ink-soft);
+        line-height: 1.4;
+        margin-bottom: 6px;
+      }
+      .qa-action-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        font-size: 10px;
+        font-family: var(--dpk-mono);
+      }
+
+      .qa-cross-card {
+        border: 1px solid color-mix(in srgb, var(--dpk-amber) 38%, var(--dpk-rule));
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+        padding: 10px 12px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+        overflow: hidden;
+        transition:
+          opacity 150ms var(--dpk-ease),
+          box-shadow 150ms var(--dpk-ease),
+          border-color 150ms var(--dpk-ease);
+      }
+      .qa-cross-card:hover {
+        border-color: var(--dpk-amber);
+      }
+      .qa-cross-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4px 8px;
+        min-width: 0;
+      }
+      .qa-cross-id {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-family: var(--dpk-mono);
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--dpk-amber);
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .q-bound-note {
+        font-family: var(--dpk-mono);
+        font-size: 10px;
+        color: var(--dpk-blue);
+        background: var(--dpk-blue-soft);
+        border: 1px solid color-mix(in srgb, var(--dpk-blue) 28%, transparent);
+        border-radius: var(--dpk-radius-xs);
+        padding: 2px 6px;
+        line-height: 1.35;
+        word-break: break-word;
+      }
+      .qa-cross-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--dpk-ink);
+        line-height: 1.45;
+      }
+      .qa-cross-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+      }
+
+      /* Floating Inspector Drawer (Option A) */
+      .qa-inspector {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        width: 360px;
+        max-width: calc(100% - 28px);
+        max-height: calc(100% - 28px);
+        overflow-y: auto;
+        border: 1px solid var(--dpk-rule-strong);
+        border-radius: var(--dpk-radius-lg);
+        background: var(--dpk-glass);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        box-shadow: var(--dpk-shadow-lg);
+        padding: 12px 14px;
+        z-index: 20;
+        user-select: text;
+        cursor: default;
+      }
+      .qa-inspector[hidden] {
+        display: none;
+      }
+      .qa-inspector-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .qa-inspector-title {
+        font-family: var(--dpk-mono);
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--dpk-ink);
+      }
+      .qa-inspector-sub {
+        font-size: 11.5px;
+        color: var(--dpk-ink-soft);
+        margin-top: 2px;
+      }
+      .qa-inspector-sec {
+        margin-top: 9px;
+        padding-top: 8px;
+        border-top: 1px solid var(--dpk-rule);
+      }
+      .qa-inspector-sec-title {
+        font-size: 10.5px;
+        font-weight: 700;
+        color: var(--dpk-ink-faint);
+        letter-spacing: 0.04em;
+        margin-bottom: 5px;
+      }
+      .qa-inspector-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .qa-inspector-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 11.5px;
+        padding: 3px 6px;
+        border-radius: var(--dpk-radius-xs);
+        background: color-mix(in srgb, var(--dpk-paper-raised) 70%, transparent);
+      }
+      .qa-inspector-row code {
+        font-family: var(--dpk-mono);
+        font-size: 10.5px;
+      }
+
+      /* =====================================================================
+         Option B: 3-Layer Traceability Flow (Actions -> Models -> Invariants)
+         ===================================================================== */
+      .qb-stage-wrap {
+        position: relative;
+        overflow-x: auto;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius-lg);
+        background: var(--dpk-dots), var(--dpk-paper-sunken);
+        padding: 18px 20px 24px;
+      }
+      .qb-stage {
+        position: relative;
+        min-width: 980px;
+        max-width: 1320px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(245px, 280px) minmax(300px, 370px) minmax(270px, 340px);
+        justify-content: space-between;
+        column-gap: clamp(64px, 7vw, 118px);
+        align-items: start;
+      }
+      .qb-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: visible;
+        z-index: 1;
+      }
+      .qb-col {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .qb-col-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 4px 4px 6px;
+        border-bottom: 1px solid var(--dpk-rule);
+        margin-bottom: 2px;
+      }
+      .qb-col-title {
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--dpk-ink-soft);
+      }
+      .qb-action-card {
+        position: relative;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+        padding: 9px 14px 9px 11px;
+        cursor: pointer;
+        transition: all 140ms var(--dpk-ease);
+      }
+      .qb-action-card:hover {
+        border-color: var(--dpk-violet);
+      }
+      .qb-inv-card {
+        position: relative;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+        padding: 8px 11px 8px 14px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        transition: all 140ms var(--dpk-ease);
+      }
+      .qb-inv-card:hover {
+        border-color: var(--dpk-amber);
+      }
+      .qb-inv-card[data-scope='cross'] {
+        border-color: color-mix(in srgb, var(--dpk-amber) 38%, var(--dpk-rule));
+      }
+      .qb-inv-card[hidden] {
+        display: none;
+      }
+      .qb-port {
+        position: absolute;
+        top: 50%;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--dpk-paper-raised);
+        border: 1.5px solid var(--dpk-rule-strong);
+        transform: translateY(-50%);
+        pointer-events: none;
+        transition:
+          background 130ms var(--dpk-ease),
+          border-color 130ms var(--dpk-ease),
+          transform 130ms var(--dpk-ease);
+      }
+      .qb-port--right {
+        right: -5px;
+      }
+      .qb-port--left {
+        left: -5px;
+      }
+      .qb-field-row {
+        padding-left: 14px;
+        padding-right: 14px;
+        margin: 1px 0;
+        border-radius: 0;
+      }
+      .qb-field-row .qb-port--left {
+        left: -4px;
+        width: 7px;
+        height: 7px;
+      }
+      .qb-field-row .qb-port--right {
+        right: -4px;
+        width: 7px;
+        height: 7px;
+      }
+      .qb-port.is-port-write {
+        background: var(--dpk-green);
+        border-color: var(--dpk-green);
+        transform: translateY(-50%) scale(1.25);
+      }
+      .qb-port.is-port-guard {
+        background: var(--dpk-blue);
+        border-color: var(--dpk-blue);
+        transform: translateY(-50%) scale(1.25);
+      }
+      .qb-port.is-port-inv {
+        background: var(--dpk-amber);
+        border-color: var(--dpk-amber);
+        transform: translateY(-50%) scale(1.25);
+      }
+      .qb-ref-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 4px 11px 6px;
+        border-top: 1px solid var(--dpk-rule);
+        background: var(--dpk-paper-sunken);
+      }
+      .qb-chain-strip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        font-size: 11.5px;
+        color: var(--dpk-ink-soft);
+      }
+
+      /* =====================================================================
+         Option C: Split ERD + Action Matrix Workspace
+         ===================================================================== */
+      .qc-split {
+        display: grid;
+        grid-template-columns: minmax(0, 1.56fr) minmax(440px, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+      .qc-split[data-collapsed='true'] {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .qc-split[data-collapsed='true'] .qc-erd-stage,
+      .qc-split[data-collapsed='true'] .qc-cross-section {
+        max-width: 1120px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      @media (max-width: 1079px) {
+        .qc-split {
+          grid-template-columns: 1fr;
+        }
+      }
+      .qc-pane {
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius-lg);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+        padding: 14px;
+        min-width: 0;
+      }
+      .qc-pane--canvas {
+        background: var(--dpk-dots), var(--dpk-paper-sunken);
+      }
+      .qc-pane-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .qc-pane-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--dpk-ink);
+      }
+      .qc-erd-stage {
+        position: relative;
+      }
+      .qc-erd-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: visible;
+        z-index: 1;
+      }
+      .qc-erd-grid {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 34px 44px;
+        align-items: start;
+      }
+      @media (max-width: 640px) {
+        .qc-erd-grid {
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+      }
+      .qc-head-sub {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        width: 100%;
+        height: 20px;
+        min-width: 0;
+      }
+      .qc-unchanged-slot {
+        display: inline-flex;
+        align-items: center;
+        height: 18px;
+        box-sizing: border-box;
+        font-family: var(--dpk-mono);
+        font-size: 9.5px;
+        font-weight: 600;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: var(--dpk-paper-raised);
+        border: 1px dashed var(--dpk-rule-strong);
+        color: var(--dpk-ink-faint);
+        visibility: hidden;
+        flex-shrink: 0;
+      }
+      .qc-unchanged-slot.is-visible {
+        visibility: visible;
+      }
+      .qc-field-row {
+        min-height: 24px;
+        box-sizing: border-box;
+      }
+      .qc-field-right {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .qc-gw-slot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 18px;
+        box-sizing: border-box;
+        border-radius: 999px;
+        font-family: var(--dpk-mono);
+        font-size: 9.5px;
+        font-weight: 700;
+        line-height: 1;
+        border: 1px solid transparent;
+        visibility: hidden;
+        flex-shrink: 0;
+      }
+      .qc-gw-slot.is-g {
+        visibility: visible;
+        background: var(--dpk-blue-soft);
+        color: var(--dpk-blue);
+        border-color: color-mix(in srgb, var(--dpk-blue) 38%, transparent);
+      }
+      .qc-gw-slot.is-w {
+        visibility: visible;
+        background: var(--dpk-green-soft);
+        color: var(--dpk-green);
+        border-color: color-mix(in srgb, var(--dpk-green) 42%, transparent);
+      }
+      .qc-gw-slot.is-gw {
+        visibility: visible;
+        background: var(--dpk-accent-soft);
+        color: var(--dpk-accent);
+        border-color: color-mix(in srgb, var(--dpk-accent) 44%, transparent);
+      }
+      .qc-cross-section {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid var(--dpk-rule);
+      }
+      .qc-cross-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .qc-cross-grid > * {
+        min-width: 0;
+      }
+      @media (max-width: 820px) {
+        .qc-cross-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Option C Matrix Table */
+      .qc-matrix-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper);
+      }
+      .qc-matrix {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+      }
+      .qc-matrix th,
+      .qc-matrix td {
+        padding: 6px 3px;
+        border-bottom: 1px solid var(--dpk-rule);
+        text-align: center;
+      }
+      .qc-matrix th:first-child,
+      .qc-matrix td:first-child {
+        text-align: left;
+        padding-left: 8px;
+        padding-right: 6px;
+      }
+      .qc-matrix th:last-child,
+      .qc-matrix td:last-child {
+        padding-right: 6px;
+      }
+      .qc-matrix thead th {
+        background: var(--dpk-paper-sunken);
+        font-family: var(--dpk-mono);
+        font-size: 9.5px;
+        font-weight: 700;
+        color: var(--dpk-ink-soft);
+        white-space: nowrap;
+      }
+      .qc-matrix tbody tr {
+        cursor: pointer;
+        transition:
+          background 120ms var(--dpk-ease),
+          opacity 140ms var(--dpk-ease);
+      }
+      .qc-matrix tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .qc-matrix tbody tr:hover {
+        background: var(--dpk-paper-sunken);
+      }
+      .qc-matrix tbody tr.is-row-active {
+        background: var(--dpk-accent-soft);
+      }
+      .qc-matrix tbody tr.is-row-locked {
+        background: var(--dpk-accent-soft);
+        box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--dpk-accent) 60%, transparent);
+      }
+      .qc-matrix tbody tr[hidden] {
+        display: none;
+      }
+      .qc-cell-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        padding: 2px 5px;
+        border-radius: 999px;
+        font-family: var(--dpk-mono);
+        font-size: 9.5px;
+        font-weight: 700;
+      }
+      .qc-cell--g {
+        background: var(--dpk-blue-soft);
+        color: var(--dpk-blue);
+      }
+      .qc-cell--w {
+        background: var(--dpk-green-soft);
+        color: var(--dpk-green);
+      }
+      .qc-cell--gw {
+        background: var(--dpk-accent-soft);
+        color: var(--dpk-accent);
+      }
+      .qc-cell--none {
+        color: var(--dpk-ink-faint);
+      }
+      .qc-detail {
+        margin-top: 12px;
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius);
+        background: var(--dpk-paper-sunken);
+        padding: 11px 12px;
+      }
+      .qc-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 8px;
+      }
+      @media (max-width: 680px) {
+        .qc-detail-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .qc-detail-box {
+        background: var(--dpk-paper-raised);
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius-sm);
+        padding: 8px 9px;
+      }
+      .qc-detail-box h4 {
+        margin: 0 0 6px;
+        font-size: 10.5px;
+        font-weight: 700;
+        color: var(--dpk-ink-soft);
+        letter-spacing: 0.03em;
+      }
+      .qc-detail-items {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .qc-detail-item {
+        font-size: 11px;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        padding: 3px 5px;
+        border-radius: 4px;
+        background: var(--dpk-paper-sunken);
+      }
+      .qc-detail-item code {
+        font-family: var(--dpk-mono);
+        font-size: 10.5px;
+      }
+
+      /* =====================================================================
+         Page 5: Quint Source Viewer
+         ===================================================================== */
+      .qs-card {
+        border: 1px solid var(--dpk-rule);
+        border-radius: var(--dpk-radius-lg);
+        background: var(--dpk-paper-raised);
+        box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+        overflow: hidden;
+      }
+      .qs-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 14px;
+        background: var(--dpk-paper-sunken);
+        border-bottom: 1px solid var(--dpk-rule);
+      }
+      .qs-code-wrap {
+        overflow-x: auto;
+        padding: 14px 0;
+        background: var(--dpk-paper);
+      }
+      .qs-pre {
+        margin: 0;
+        font-family: var(--dpk-mono);
+        font-size: 12px;
+        line-height: 1.65;
+        counter-reset: qline;
+      }
+      .qs-line {
+        display: flex;
+        padding: 0 16px 0 0;
+      }
+      .qs-line:hover {
+        background: var(--dpk-paper-sunken);
+      }
+      .qs-ln {
+        width: 44px;
+        flex-shrink: 0;
+        text-align: right;
+        padding-right: 14px;
+        color: var(--dpk-ink-faint);
+        user-select: none;
+        font-size: 11px;
+      }
+      .qs-txt {
+        white-space: pre;
+        color: var(--dpk-ink);
+      }
+      .tok-kw {
+        color: var(--dpk-violet);
+        font-weight: 600;
+      }
+      .tok-ty {
+        color: var(--dpk-blue);
+        font-weight: 550;
+      }
+      .tok-fn {
+        color: var(--dpk-accent);
+        font-weight: 600;
+      }
+      .tok-inv {
+        color: var(--dpk-amber);
+        font-weight: 650;
+      }
+      .tok-num {
+        color: var(--dpk-green);
+      }
+      .tok-cm {
+        color: var(--dpk-ink-faint);
+        font-style: italic;
+      }
+
+      /* SVG Edge Styles */
+      .q-edge {
+        fill: none;
+        transition:
+          opacity 150ms var(--dpk-ease),
+          stroke-width 150ms var(--dpk-ease);
+      }
+      .q-edge--ref {
+        stroke: var(--dpk-ink-faint);
+        stroke-width: 1.4;
+        opacity: 0.62;
+      }
+      .q-edge--write {
+        stroke: var(--dpk-green);
+        stroke-width: 1.5;
+        opacity: 0.32;
+      }
+      .q-edge--guard {
+        stroke: var(--dpk-blue);
+        stroke-width: 1.4;
+        stroke-dasharray: 5 4;
+        opacity: 0.34;
+      }
+      .q-edge--inv {
+        stroke: var(--dpk-amber);
+        stroke-width: 1.4;
+        stroke-dasharray: 2.5 3.5;
+        opacity: 0.42;
+      }
+      .q-edge--inv-solid {
+        stroke: var(--dpk-amber);
+        stroke-width: 1.35;
+        opacity: 0.25;
+      }
+      .q-edge.is-edge-hidden {
+        opacity: 0 !important;
+      }
+      .q-edge.is-edge-dim {
+        opacity: 0.06 !important;
+      }
+      .q-edge.is-edge-lit {
+        opacity: 0.96 !important;
+        stroke-width: 2.3 !important;
+      }
+    </style>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@0.4.1/dist/views/plain.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/dev-process-kit@0.4.1/dist/components.js"></script>
+  </head>
+  <body>
+    <dpk-app storage-key="quint-model-diagram-prototypes" lang="ja">
+      <script type="application/json">
+        { "title": "Quint モデル図プロトタイプ比較 — order_fulfillment" }
+      </script>
+
+      <!-- ===================================================================
+           PAGE 1: Compare & Decision Guide
+           =================================================================== -->
+      <dpk-page name="compare" label="比較・選び方">
+        <dpk-view-plain>
+          <script type="application/json">
+            {
+              "title": "比較・選び方",
+              "sections": [
+                { "id": "overview", "title": "3案の概要と設計意図" },
+                { "id": "comparison", "title": "観点別の比較マトリクス" },
+                { "id": "jump", "title": "プロトタイプを試す" }
+              ]
+            }
+          </script>
+          <script type="application/json" data-dpk-grill>
+            {
+              "questions": [
+                {
+                  "id": "base-option",
+                  "ref": "Q1",
+                  "title": "ベースとしてどの案を採用したいか？",
+                  "description": "3つの視覚化アプローチのうち、dev-process-kit の新ボード設計の出発点にする案を選びます。",
+                  "note": "Action 数が増えたときの拡張性と、初見での ERD 構造の読みやすさはトレードオフになります。",
+                  "options": [
+                    {
+                      "id": "option-a",
+                      "label": "案A: ERD拡張グラフ（空間キャンバス上にモデル・Action・横断不変条件を統合）"
+                    },
+                    {
+                      "id": "option-b",
+                      "label": "案B: 3層トレーサビリティ図（Actions → State Models → Invariants の因果チェーン）"
+                    },
+                    {
+                      "id": "option-c",
+                      "label": "案C: ERD + Actionマトリクス（矢印ゼロのERDにライブ投影する2ペイン構成）"
+                    },
+                    { "id": "hybrid", "label": "案の組み合わせ（例: 案Cを既定にしつつ案Bの逆引きモードを統合）" }
+                  ]
+                },
+                {
+                  "id": "primary-expression",
+                  "ref": "Q2",
+                  "title": "不変条件・ガードの主表示は自然言語要約と Quint 式のどちらを優先するか？",
+                  "description": "PdM・レビュアー向けの読みやすさと、仕様レビュー時の厳密さのバランスを決めます。",
+                  "note": "今回のプロトタイプでは既定を自然言語要約にし、ツールバーの「Quint式」トグルで切り替えられます。",
+                  "options": [
+                    {
+                      "id": "prose-first",
+                      "label": "自然言語要約を主表示にし、Quint式はトグルまたは詳細パネルで展開する"
+                    },
+                    { "id": "expr-first", "label": "Quint式を主表示にし、自然言語要約を補足として添える" },
+                    { "id": "side-by-side", "label": "カード内に常に両方（要約＋1行のQuint式）を並記する" }
+                  ]
+                },
+                {
+                  "id": "board-priority-features",
+                  "ref": "Q3",
+                  "title": "dpk-board-* として本実装する場合、優先したい機能は何か？",
+                  "description": "第1版（MVP）に含めるインタラクションやレビュー支援機能の優先度を決めます。",
+                  "options": [
+                    {
+                      "id": "diff-view",
+                      "label": "仕様変更前後の diff 表示（追加・削除された Guard / Write / Invariant の強調）"
+                    },
+                    {
+                      "id": "counterexample-trace",
+                      "label": "反例トレース再生（Quint のステップ実行結果を状態変化として再生）"
+                    },
+                    {
+                      "id": "search-filter",
+                      "label": "検索・タグフィルタ（検証状態・ドメイン・影響範囲での絞り込み）"
+                    },
+                    {
+                      "id": "edit-actions",
+                      "label": "ブラウザ上での編集アクション（コメントだけでなく不変条件・Actionの修正提案）"
+                    }
+                  ]
+                }
+              ]
+            }
+          </script>
+
+          <div class="q-doc" slot="main">
+            <section class="q-hero" data-dpk-target="section:overview">
+              <div class="q-hero-top">
+                <h2>Quint 状態遷移モデルを「読める図」にする 3 つの表現案</h2>
+                <div class="q-chip-row">
+                  <span class="q-chip q-chip--mono q-chip--accent">module order_fulfillment</span>
+                  <span class="q-chip">4 State Models</span>
+                  <span class="q-chip q-chip--violet">6 Actions</span>
+                  <span class="q-chip q-chip--amber">9 Invariants</span>
+                </div>
+              </div>
+              <p>
+                注文・在庫・在庫予約・決済台帳の 4 つの状態変数を持つ同一の Quint モデルを、3
+                つの異なる情報設計で可視化したインタラクティブ・プロトタイプです。 どの案でも 1
+                つの正規データ（<code>QUINT_MODEL</code>）から描画し、各 Action が影響する不変条件は
+                <code>writes ∩ invariant.refs</code> から自動導出しています。
+              </p>
+            </section>
+
+            <div class="q-section-head">
+              <h2>3案の比較</h2>
+              <button type="button" class="q-comment-btn" data-dpk-comment="section:overview">概要にコメント</button>
+            </div>
+
+            <dpk-alternatives heading="Quint モデル図の3案">
+              <script type="application/json">
+                {
+                  "options": [
+                    {
+                      "id": "option-a",
+                      "label": "案A: ERD拡張グラフ",
+                      "status": "considered",
+                      "summary": "パン・ズーム可能な空間キャンバス上に ERD カード（単一モデル不変条件をフッター内包）、Action ノード、横断不変条件カードを統合配置する。",
+                      "reason": "既存の ER 図のメンタルモデルをそのまま拡張でき、データ構造と操作・制約の全体像を 1 枚のマップとして俯瞰できる。",
+                      "tradeoffs": [
+                        "Action が 10 件を超えると上段からのエッジ交差が増え、レイヤー切替が必須になる",
+                        "空間配置とエッジルーティングの自動レイアウト実装コストが高い"
+                      ]
+                    },
+                    {
+                      "id": "option-b",
+                      "label": "案B: 3層トレーサビリティ図",
+                      "status": "considered",
+                      "summary": "左から Actions → State Models（フィールド単位ポート）→ Invariants の 3 列フローで結び、2 ホップの因果チェーンを双方向トレースする。",
+                      "reason": "「どの Action がどのフィールドを書き換え、どの不変条件を壊しうるか」の順引き・逆引きが最短視線移動で完結する。",
+                      "tradeoffs": [
+                        "モデル間の参照関係（REF）が縦積みの中央列に収まり、ER 図的な空間把握はやや弱まる",
+                        "全エッジ同時表示時は線密度が高いため、ホバー・選択によるフォーカスが前提になる"
+                      ]
+                    },
+                    {
+                      "id": "option-c",
+                      "label": "案C: ERD + Actionマトリクス",
+                      "status": "considered",
+                      "summary": "左ペインに Action 矢印を一切描かないクリーンな ERD＋不変条件を広く配置し、開閉可能な右ペインの Action×Model マトリクスから G / W インジケータをレイアウト崩れなくハイライト投影する。",
+                      "reason": "Action が 15 件以上に増えても ER 図が破綻せず、静止画でも操作時でも情報密度と視認性のバランスが最も安定する。",
+                      "tradeoffs": [
+                        "複数 Action を同時に 1 枚の図上で見比べるにはマトリクス表を読む必要がある",
+                        "画面幅が狭い環境では 2 ペインが縦積みになり、投影結果との行き来が生じる"
+                      ]
+                    }
+                  ]
+                }
+              </script>
+            </dpk-alternatives>
+
+            <section data-dpk-target="section:comparison">
+              <div class="q-section-head">
+                <h2>観点別の比較マトリクス</h2>
+                <button type="button" class="q-comment-btn" data-dpk-comment="section:comparison">
+                  比較表にコメント
+                </button>
+              </div>
+              <div class="q-table-wrap">
+                <table class="q-compare-table">
+                  <thead>
+                    <tr>
+                      <th>評価観点</th>
+                      <th>案A: ERD拡張グラフ</th>
+                      <th>案B: 3層トレーサビリティ図</th>
+                      <th>案C: ERD + Actionマトリクス</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>ERD 親和性</td>
+                      <td>
+                        <span class="q-rating q-rating--high">◎ 高い</span>
+                        <span class="q-rating-note">従来の ER 図の拡張として直感的に入れる</span>
+                      </td>
+                      <td>
+                        <span class="q-rating q-rating--mid">△ 中程度</span>
+                        <span class="q-rating-note">モデル間 REF はチップ表現に圧縮される</span>
+                      </td>
+                      <td>
+                        <span class="q-rating q-rating--high">◎ 非常に高い</span>
+                        <span class="q-rating-note">Action 線が無く構造図が最も純粋</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Action 数増加耐性</td>
+                      <td>
+                        <span class="q-rating q-rating--low">△ 6〜8件が上限</span>
+                        <span class="q-rating-note">増えるとエッジ交差が増えレイヤー切替依存</span>
+                      </td>
+                      <td>
+                        <span class="q-rating q-rating--mid">○ 10〜12件まで対応</span>
+                        <span class="q-rating-note">縦スクロールで伸びるが交差線の整理が必要</span>
+                      </td>
+                      <td>
+                        <span class="q-rating q-rating--high">◎ 15件以上でも安定</span>
+                        <span class="q-rating-note">行追加だけでスケールし図の複雑度が増えない</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>因果トレーサビリティ</td>
+                      <td>
+                        <span class="q-rating q-rating--mid">○ モデル粒度で把握</span>
+                        <span class="q-rating-note">選択時にフィールド行と不変条件を同時強調</span>
+                      </td>
+                      <td>
+                        <span class="q-rating q-rating--high">◎ フィールド粒度で最強</span>
+                        <span class="q-rating-note">Action→Field→Invariant の順引き・逆引きが明快</span>
+                      </td>
+                      <td>
+                        <span class="q-rating q-rating--high">◎ 単一Action深掘りに強い</span>
+                        <span class="q-rating-note">ERD上の固定スロット G/W ハイライトと右詳細・逆フィルタで追跡</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>静止画での見やすさ</td>
+                      <td>
+                        <span class="q-rating q-rating--mid">○ レイヤー調整次第</span>
+                        <span class="q-rating-note">Guard 線を隠せば 1 枚絵として成立</span>
+                      </td>
+                      <td>
+                        <span class="q-rating q-rating--low">△ 選択前提</span>
+                        <span class="q-rating-note">無選択時は多数の曲線が重なりやすい</span>
+                      </td>
+                      <td>
+                        <span class="q-rating q-rating--high">◎ そのまま読める</span>
+                        <span class="q-rating-note">構造図と一覧表が分離されノイズがない</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>実装・レイアウト難易度</td>
+                      <td>
+                        <span class="q-rating q-rating--low">高（自動配置＋ルーティング）</span>
+                        <span class="q-rating-note">汎用化にはグラフ配置エンジン調整が必要</span>
+                      </td>
+                      <td>
+                        <span class="q-rating q-rating--mid">中（3列＋動的Bezier）</span>
+                        <span class="q-rating-note">DOM ポート座標から決定的に描画できる</span>
+                      </td>
+                      <td>
+                        <span class="q-rating q-rating--high">低〜中（ERD＋表の組合せ）</span>
+                        <span class="q-rating-note">既存 ERD 基盤と表コンポーネントで堅実に組める</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section data-dpk-target="section:jump">
+              <div class="q-section-head">
+                <h2>プロトタイプを試す</h2>
+                <button type="button" class="q-comment-btn" data-dpk-comment="section:jump">
+                  ページ遷移にコメント
+                </button>
+              </div>
+              <div class="q-jump-grid">
+                <a class="q-jump-card" href="#page=option-a" data-jump-page="option-a">
+                  <div class="q-jump-card-head">
+                    <span>案A: ERD拡張グラフ</span>
+                    <span class="q-jump-arrow">→</span>
+                  </div>
+                  <p>パン・ズームキャンバス上で Action / Model / Cross-Invariant の全結合を探索する。</p>
+                </a>
+                <a class="q-jump-card" href="#page=option-b" data-jump-page="option-b">
+                  <div class="q-jump-card-head">
+                    <span>案B: 3層トレーサビリティ図</span>
+                    <span class="q-jump-arrow">→</span>
+                  </div>
+                  <p>Action → フィールド → 不変条件の 2 ホップ因果線を順引き・逆引きで辿る。</p>
+                </a>
+                <a class="q-jump-card" href="#page=option-c" data-jump-page="option-c">
+                  <div class="q-jump-card-head">
+                    <span>案C: ERD + Actionマトリクス</span>
+                    <span class="q-jump-arrow">→</span>
+                  </div>
+                  <p>
+                    矢印ゼロの ERD にマトリクスから Guard / Write
+                    をレイアウトずれなくハイライト投影し、右パネル開閉で全体俯瞰する。
+                  </p>
+                </a>
+                <a class="q-jump-card" href="#page=quint-source" data-jump-page="quint-source">
+                  <div class="q-jump-card-head">
+                    <span>元 Quint モデル</span>
+                    <span class="q-jump-arrow">→</span>
+                  </div>
+                  <p>3案共通の入力仕様 <code>module order_fulfillment</code> の全ソースを確認する。</p>
+                </a>
+              </div>
+            </section>
+          </div>
+        </dpk-view-plain>
+      </dpk-page>
+
+      <!-- ===================================================================
+           PAGE 2: Option A — ERD Extended Graph
+           =================================================================== -->
+      <dpk-page name="option-a" label="案A: ERD拡張グラフ">
+        <dpk-view-plain>
+          <script type="application/json">
+            {
+              "title": "案A: ERD拡張グラフ",
+              "sections": [{ "id": "canvas", "title": "ERD拡張グラフ キャンバス" }]
+            }
+          </script>
+          <div
+            class="q-workspace"
+            slot="main"
+            id="option-a-root"
+            data-show-expr="false"
+            data-dpk-target="section:canvas"
+          >
+            <div class="q-toolbar">
+              <div class="q-toolbar-group">
+                <button type="button" class="q-toggle" data-qa-layer="ref" aria-pressed="true">参照線</button>
+                <button type="button" class="q-toggle" data-qa-layer="write" data-tone="green" aria-pressed="true">
+                  Write
+                </button>
+                <button type="button" class="q-toggle" data-qa-layer="guard" data-tone="blue" aria-pressed="false">
+                  Guard
+                </button>
+                <button type="button" class="q-toggle" data-qa-layer="cross" data-tone="amber" aria-pressed="true">
+                  横断不変条件
+                </button>
+                <button type="button" class="q-toggle" data-qa-layer="expr" aria-pressed="false">Quint式</button>
+              </div>
+              <div class="q-toolbar-group">
+                <div class="q-legend">
+                  <span class="q-legend-item"><span class="q-legend-line q-legend-line--ref"></span>REF</span>
+                  <span class="q-legend-item"><span class="q-legend-line q-legend-line--write"></span>Write</span>
+                  <span class="q-legend-item"><span class="q-legend-line q-legend-line--guard"></span>Guard</span>
+                  <span class="q-legend-item"><span class="q-legend-line q-legend-line--inv"></span>不変条件</span>
+                </div>
+                <span class="q-toolbar-sep"></span>
+                <button type="button" class="q-btn q-btn--mono" id="qa-zoom-out" aria-label="縮小">−</button>
+                <button type="button" class="q-btn q-btn--mono" id="qa-zoom-reset">100%</button>
+                <button type="button" class="q-btn q-btn--mono" id="qa-zoom-in" aria-label="拡大">+</button>
+                <button type="button" class="q-btn" id="qa-zoom-fit">Fit</button>
+                <button type="button" class="q-btn q-btn--danger" id="qa-clear" hidden>選択解除</button>
+              </div>
+            </div>
+
+            <div class="qa-viewport" id="qa-viewport">
+              <div class="qa-stage" id="qa-stage">
+                <svg class="qa-svg" id="qa-svg" viewBox="0 0 1480 880"></svg>
+                <div class="qa-row-label" style="top: 28px">
+                  Actions (6)
+                  <span class="qa-row-label-sub">init + 5操作</span>
+                </div>
+                <div class="qa-row-label" style="top: 238px">
+                  State Models (4)
+                  <span class="qa-row-label-sub">Local Invariants 内包</span>
+                </div>
+                <div class="qa-row-label" style="top: 686px">
+                  Cross-Model Invariants (3)
+                  <span class="qa-row-label-sub">横断不変条件</span>
+                </div>
+                <div id="qa-nodes"></div>
+              </div>
+              <aside class="qa-inspector" id="qa-inspector" hidden aria-label="詳細インスペクタ"></aside>
+            </div>
+          </div>
+        </dpk-view-plain>
+      </dpk-page>
+
+      <!-- ===================================================================
+           PAGE 3: Option B — 3-Layer Traceability Flow
+           =================================================================== -->
+      <dpk-page name="option-b" label="案B: 3層トレーサビリティ図">
+        <dpk-view-plain>
+          <script type="application/json">
+            {
+              "title": "案B: 3層トレーサビリティ図",
+              "sections": [{ "id": "flow", "title": "3層トレーサビリティ図" }]
+            }
+          </script>
+          <div class="q-workspace" slot="main" id="option-b-root" data-show-expr="false" data-dpk-target="section:flow">
+            <div class="q-toolbar">
+              <div class="q-toolbar-group">
+                <button type="button" class="q-toggle" id="qb-toggle-guard" data-tone="blue" aria-pressed="false">
+                  Guard線を表示
+                </button>
+                <button type="button" class="q-toggle" id="qb-toggle-expr" aria-pressed="false">Quint式を表示</button>
+                <button type="button" class="q-toggle" id="qb-toggle-cross" data-tone="amber" aria-pressed="false">
+                  横断不変条件のみ
+                </button>
+                <span class="q-toolbar-sep"></span>
+                <div class="q-seg" role="group" aria-label="検証ステータス絞り込み" id="qb-status-filter">
+                  <button type="button" data-status="all" aria-pressed="true">すべて</button>
+                  <button type="button" data-status="verified" aria-pressed="false">verified</button>
+                  <button type="button" data-status="bounded" aria-pressed="false">bounded</button>
+                  <button type="button" data-status="planned" aria-pressed="false">planned</button>
+                </div>
+              </div>
+              <div class="q-toolbar-group">
+                <div class="qb-chain-strip" id="qb-chain-strip">
+                  <span>要素にホバーまたはクリックで因果チェーンをトレース</span>
+                </div>
+                <button type="button" class="q-btn q-btn--danger" id="qb-clear" hidden>選択解除</button>
+              </div>
+            </div>
+
+            <div class="qb-stage-wrap" id="qb-stage-wrap">
+              <div class="qb-stage" id="qb-stage">
+                <svg class="qb-svg" id="qb-svg"></svg>
+                <div class="qb-col" id="qb-col-actions"></div>
+                <div class="qb-col" id="qb-col-models"></div>
+                <div class="qb-col" id="qb-col-invariants"></div>
+              </div>
+            </div>
+          </div>
+        </dpk-view-plain>
+      </dpk-page>
+
+      <!-- ===================================================================
+           PAGE 4: Option C — ERD + Action Matrix
+           =================================================================== -->
+      <dpk-page name="option-c" label="案C: ERD + Actionマトリクス">
+        <dpk-view-plain>
+          <script type="application/json">
+            {
+              "title": "案C: ERD + Actionマトリクス",
+              "sections": [{ "id": "split", "title": "ERD + Actionマトリクス" }]
+            }
+          </script>
+          <div
+            class="q-workspace"
+            slot="main"
+            id="option-c-root"
+            data-show-expr="false"
+            data-dpk-target="section:split"
+          >
+            <div class="q-toolbar">
+              <div class="q-toolbar-group">
+                <button type="button" class="q-toggle" id="qc-toggle-expr" aria-pressed="false">Quint式を表示</button>
+                <button type="button" class="q-toggle" id="qc-toggle-filter-only" aria-pressed="false" hidden>
+                  関連Actionのみ表示
+                </button>
+                <span id="qc-filter-badge"></span>
+              </div>
+              <div class="q-toolbar-group">
+                <span class="q-chip q-chip--faint" id="qc-projection-status"
+                  >右の Action にホバー/クリックで左の ERD に Guard / Write を投影</span
+                >
+                <button type="button" class="q-btn q-btn--danger" id="qc-clear" hidden>選択解除</button>
+                <button
+                  type="button"
+                  class="q-btn"
+                  id="qc-toggle-panel"
+                  aria-expanded="true"
+                  aria-controls="qc-right-pane"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    aria-hidden="true"
+                  >
+                    <rect x="1.8" y="2.5" width="12.4" height="11" rx="2" />
+                    <path d="M10 2.5v11" />
+                  </svg>
+                  <span id="qc-toggle-panel-label">マトリクスを閉じる</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="qc-split" id="qc-split" data-collapsed="false">
+              <section class="qc-pane qc-pane--canvas" aria-label="State Models & Invariants">
+                <div class="qc-pane-head">
+                  <span class="qc-pane-title">State Models &amp; Invariants（構造図・Action矢印なし）</span>
+                  <div class="q-legend">
+                    <span class="q-legend-item"><span class="q-legend-line q-legend-line--ref"></span>REF</span>
+                    <span class="q-chip q-chip--blue" style="padding: 1px 6px; font-size: 10px">G: Guard</span>
+                    <span class="q-chip q-chip--green" style="padding: 1px 6px; font-size: 10px">W: Write</span>
+                    <span class="q-chip q-chip--accent" style="padding: 1px 6px; font-size: 10px">G·W: 両方</span>
+                  </div>
+                </div>
+                <div class="qc-erd-stage" id="qc-erd-stage">
+                  <svg class="qc-erd-svg" id="qc-erd-svg"></svg>
+                  <div class="qc-erd-grid" id="qc-erd-grid"></div>
+                </div>
+                <div class="qc-cross-section">
+                  <div class="q-local-invs-label" style="padding: 0">
+                    <span>Cross-Model Invariants (3)</span>
+                  </div>
+                  <div class="qc-cross-grid" id="qc-cross-grid"></div>
+                </div>
+              </section>
+
+              <section class="qc-pane" id="qc-right-pane" aria-label="Action Matrix & Detail">
+                <div class="qc-pane-head">
+                  <span class="qc-pane-title">Action × State Model マトリクス</span>
+                  <div class="q-toolbar-group">
+                    <span class="q-chip q-chip--faint">G: Guard（事前条件） · W: Write（状態更新） · —: unchanged</span>
+                    <button
+                      type="button"
+                      class="q-btn"
+                      id="qc-collapse-inline"
+                      title="右パネルを折りたたむ"
+                      aria-label="マトリクスを閉じる"
+                    >
+                      閉じる
+                    </button>
+                  </div>
+                </div>
+                <div class="qc-matrix-wrap">
+                  <table class="qc-matrix" id="qc-matrix"></table>
+                </div>
+                <div class="qc-detail" id="qc-detail"></div>
+              </section>
+            </div>
+          </div>
+        </dpk-view-plain>
+      </dpk-page>
+
+      <!-- ===================================================================
+           PAGE 5: Canonical Quint Source
+           =================================================================== -->
+      <dpk-page name="quint-source" label="元 Quint モデル">
+        <dpk-view-plain>
+          <script type="application/json">
+            {
+              "title": "元 Quint モデル",
+              "sections": [{ "id": "source", "title": "module order_fulfillment" }]
+            }
+          </script>
+          <div class="q-doc" slot="main" data-dpk-target="section:source">
+            <div class="qs-card">
+              <div class="qs-bar">
+                <div class="q-chip-row" id="qs-summary"></div>
+                <button type="button" class="q-btn" id="qs-copy">Quintコードをコピー</button>
+              </div>
+              <div class="qs-code-wrap">
+                <pre class="qs-pre" id="qs-code"></pre>
+              </div>
+            </div>
+          </div>
+        </dpk-view-plain>
+      </dpk-page>
+    </dpk-app>
+
+    <script type="module">
+      // =========================================================================
+      // 1. Canonical Quint Model (Single Source of Truth for all 3 options & source)
+      // =========================================================================
+      const QUINT_MODEL = {
+        moduleName: 'order_fulfillment',
+        types: [
+          { name: 'OrderStatus', variants: ['Pending', 'Paid', 'Cancelled', 'Refunded'] },
+          { name: 'PaymentKind', variants: ['Charge', 'Refund'] },
+        ],
+        constants: [{ name: 'MAX_STOCK', type: 'int', value: 100 }],
+        models: [
+          {
+            id: 'orders',
+            signature: 'OrderId -> Order',
+            label: '注文',
+            fields: [
+              { name: 'id', type: 'OrderId', key: true, desc: '注文ID' },
+              {
+                name: 'status',
+                type: 'OrderStatus',
+                enumValues: 'Pending | Paid | Cancelled | Refunded',
+                desc: '注文状態',
+              },
+              { name: 'itemId', type: 'ItemId', ref: 'inventory.itemId', desc: '対象商品' },
+              { name: 'qty', type: 'int', desc: '注文数量' },
+              { name: 'totalAmount', type: 'int', desc: '合計金額' },
+              { name: 'paidAmount', type: 'int', desc: '支払済額' },
+              { name: 'refundedAmount', type: 'int', desc: '返金済額' },
+            ],
+          },
+          {
+            id: 'inventory',
+            signature: 'ItemId -> Stock',
+            label: '在庫',
+            fields: [
+              { name: 'itemId', type: 'ItemId', key: true, desc: '商品ID' },
+              { name: 'available', type: 'int', desc: '引当可能数' },
+              { name: 'reserved', type: 'int', desc: '予約確保数' },
+              { name: 'committed', type: 'int', desc: '出荷確定数' },
+            ],
+          },
+          {
+            id: 'reservations',
+            signature: 'ResId -> Reservation',
+            label: '在庫予約',
+            fields: [
+              { name: 'id', type: 'ResId', key: true, desc: '予約ID' },
+              { name: 'orderId', type: 'OrderId', ref: 'orders.id', desc: '紐づく注文' },
+              { name: 'itemId', type: 'ItemId', ref: 'inventory.itemId', desc: '対象商品' },
+              { name: 'qty', type: 'int', desc: '予約数量' },
+              { name: 'active', type: 'bool', desc: '有効フラグ' },
+            ],
+          },
+          {
+            id: 'payments',
+            signature: 'PaymentId -> Payment',
+            label: '決済台帳',
+            fields: [
+              { name: 'id', type: 'PaymentId', key: true, desc: '決済ID' },
+              { name: 'orderId', type: 'OrderId', ref: 'orders.id', desc: '対象注文' },
+              { name: 'kind', type: 'PaymentKind', enumValues: 'Charge | Refund', desc: '決済種別' },
+              { name: 'amount', type: 'int', desc: '金額' },
+            ],
+          },
+        ],
+        invariants: [
+          {
+            id: 'inv_order_amounts',
+            scope: 'local',
+            modelId: 'orders',
+            title: '返金額 <= 支払額 <= 合計金額',
+            expr: '0 <= refundedAmount <= paidAmount <= totalAmount',
+            status: 'verified',
+            refs: ['orders.refundedAmount', 'orders.paidAmount', 'orders.totalAmount'],
+          },
+          {
+            id: 'inv_paid_status',
+            scope: 'local',
+            modelId: 'orders',
+            title: 'Paid 状態なら全額支払済',
+            expr: 'status == Paid => paidAmount == totalAmount',
+            status: 'verified',
+            refs: ['orders.status', 'orders.paidAmount', 'orders.totalAmount'],
+          },
+          {
+            id: 'inv_non_negative_stock',
+            scope: 'local',
+            modelId: 'inventory',
+            title: '在庫数はすべて非負',
+            expr: 'available >= 0 and reserved >= 0 and committed >= 0',
+            status: 'verified',
+            refs: ['inventory.available', 'inventory.reserved', 'inventory.committed'],
+          },
+          {
+            id: 'inv_stock_conservation',
+            scope: 'local',
+            modelId: 'inventory',
+            title: '総在庫保存則',
+            expr: 'available + reserved + committed == MAX_STOCK',
+            status: 'verified',
+            refs: ['inventory.available', 'inventory.reserved', 'inventory.committed'],
+          },
+          {
+            id: 'inv_positive_amounts',
+            scope: 'local',
+            modelId: 'reservations',
+            title: '予約数量は正の整数',
+            expr: 'qty > 0',
+            status: 'verified',
+            refs: ['reservations.qty'],
+          },
+          {
+            id: 'inv_positive_payment',
+            scope: 'local',
+            modelId: 'payments',
+            title: '決済・返金額は正の整数',
+            expr: 'amount > 0',
+            status: 'verified',
+            refs: ['payments.amount'],
+          },
+          {
+            id: 'inv_reserved_sync',
+            scope: 'cross',
+            title: '在庫の reserved は有効予約の qty 合計と一致',
+            expr: 'inventory[i].reserved == sum(activeRes(i).qty)',
+            status: 'verified',
+            refs: ['inventory.reserved', 'reservations.itemId', 'reservations.qty', 'reservations.active'],
+          },
+          {
+            id: 'inv_one_active_res',
+            scope: 'cross',
+            title: 'Pending 注文のみ高々1件の有効予約を持つ',
+            expr: 'activeRes(o).size() <= 1 and (size == 1 => o.status == Pending)',
+            status: 'bounded',
+            bound: '3 orders, 10 steps',
+            refs: ['orders.status', 'reservations.orderId', 'reservations.active'],
+          },
+          {
+            id: 'inv_ledger_sync',
+            scope: 'cross',
+            title: '注文の支払額・返金額は決済台帳の集計と一致',
+            expr: 'paidAmount == sum(Charge) and refundedAmount == sum(Refund)',
+            status: 'planned',
+            refs: [
+              'orders.paidAmount',
+              'orders.refundedAmount',
+              'payments.orderId',
+              'payments.kind',
+              'payments.amount',
+            ],
+          },
+        ],
+        actions: [
+          {
+            id: 'init',
+            name: 'init',
+            params: '',
+            kind: 'init',
+            summary: '初期状態構築 — orders/reservations/payments を空にし在庫を MAX_STOCK で初期化',
+            guards: [],
+            writes: [
+              { field: 'orders.id', expr: '= {}', label: '注文マップを空に初期化' },
+              { field: 'inventory.available', expr: '= MAX_STOCK', label: '引当可能数を MAX_STOCK に設定' },
+              { field: 'inventory.reserved', expr: '= 0', label: '予約確保数を 0 に初期化' },
+              { field: 'inventory.committed', expr: '= 0', label: '出荷確定数を 0 に初期化' },
+              { field: 'reservations.id', expr: '= {}', label: '在庫予約マップを空に初期化' },
+              { field: 'payments.id', expr: '= {}', label: '決済台帳マップを空に初期化' },
+            ],
+            modelWrites: ['orders', 'inventory', 'reservations', 'payments'],
+            unchanged: [],
+          },
+          {
+            id: 'placeOrder',
+            name: 'placeOrder',
+            params: 'oid, iid, qty, price',
+            kind: 'command',
+            summary: '注文作成と在庫仮押さえ',
+            guards: [
+              { field: 'orders.id', expr: 'oid notin orders', label: '注文IDが未使用' },
+              { field: 'inventory.available', expr: 'available >= qty', label: '引当可能在庫が十分' },
+            ],
+            writes: [
+              { field: 'orders.status', expr: '= Pending', label: '注文を未決済状態で登録' },
+              { field: 'orders.itemId', expr: '= iid', label: '対象商品を設定' },
+              { field: 'orders.qty', expr: '= qty', label: '注文数量を設定' },
+              { field: 'orders.totalAmount', expr: '= qty * price', label: '合計金額を計算' },
+              { field: 'inventory.available', expr: '-= qty', label: '引当可能数を減算' },
+              { field: 'inventory.reserved', expr: '+= qty', label: '予約確保数を加算' },
+              { field: 'reservations.orderId', expr: '= oid', label: '予約に注文を紐付け' },
+              { field: 'reservations.itemId', expr: '= iid', label: '予約に対象商品を設定' },
+              { field: 'reservations.qty', expr: '= qty', label: '予約数量を記録' },
+              { field: 'reservations.active', expr: '= true', label: '予約を有効化' },
+            ],
+            unchanged: ['payments'],
+          },
+          {
+            id: 'capturePayment',
+            name: 'capturePayment',
+            params: 'oid, pid',
+            kind: 'command',
+            summary: '決済確定と在庫出荷確定',
+            guards: [
+              { field: 'orders.status', expr: '== Pending', label: '対象注文が未決済' },
+              { field: 'reservations.active', expr: '== true', label: '有効な在庫予約が存在' },
+            ],
+            writes: [
+              { field: 'orders.status', expr: '-> Paid', label: '注文を支払済へ遷移' },
+              { field: 'orders.paidAmount', expr: '= totalAmount', label: '全額支払済を記録' },
+              { field: 'inventory.reserved', expr: '-= qty', label: '予約確保数を減算' },
+              { field: 'inventory.committed', expr: '+= qty', label: '出荷確定数を加算' },
+              { field: 'reservations.active', expr: '-> false', label: '在庫予約を消費済みに' },
+              { field: 'payments.orderId', expr: '= oid', label: '決済台帳に注文を紐付け' },
+              { field: 'payments.kind', expr: '= Charge', label: '課金レコード種別' },
+              { field: 'payments.amount', expr: '= totalAmount', label: '課金額を記録' },
+            ],
+            unchanged: [],
+          },
+          {
+            id: 'cancelOrder',
+            name: 'cancelOrder',
+            params: 'oid',
+            kind: 'command',
+            summary: '未決済注文のキャンセルと予約解放',
+            guards: [
+              { field: 'orders.status', expr: '== Pending', label: '対象注文が未決済' },
+              { field: 'reservations.active', expr: '== true', label: '有効な在庫予約が存在' },
+            ],
+            writes: [
+              { field: 'orders.status', expr: '-> Cancelled', label: '注文をキャンセルへ遷移' },
+              { field: 'inventory.reserved', expr: '-= qty', label: '予約確保数を戻す' },
+              { field: 'inventory.available', expr: '+= qty', label: '引当可能数へ返却' },
+              { field: 'reservations.active', expr: '-> false', label: '在庫予約を無効化' },
+            ],
+            unchanged: ['payments'],
+          },
+          {
+            id: 'expireReservation',
+            name: 'expireReservation',
+            params: 'rid',
+            kind: 'async',
+            summary: 'タイムアウトによる予約自動解放',
+            guards: [
+              { field: 'reservations.active', expr: '== true', label: '予約がまだ有効' },
+              { field: 'orders.status', expr: '== Pending', label: '紐づく注文が未決済' },
+            ],
+            writes: [
+              { field: 'reservations.active', expr: '-> false', label: '予約を期限切れ無効化' },
+              { field: 'inventory.reserved', expr: '-= qty', label: '予約確保数を解放' },
+              { field: 'inventory.available', expr: '+= qty', label: '引当可能数へ戻す' },
+              { field: 'orders.status', expr: '-> Cancelled', label: '注文を自動キャンセル' },
+            ],
+            unchanged: ['payments'],
+          },
+          {
+            id: 'refundOrder',
+            name: 'refundOrder',
+            params: 'oid, pid, amt',
+            kind: 'command',
+            summary: '決済済注文の部分/全額返金',
+            guards: [
+              { field: 'orders.status', expr: '== Paid', label: '注文が支払済状態' },
+              { field: 'orders.paidAmount', expr: 'refunded + amt <= paidAmount', label: '返金累計が支払額以内' },
+              { field: 'orders.refundedAmount', expr: 'amt > 0', label: '返金額が正の整数' },
+            ],
+            writes: [
+              { field: 'orders.refundedAmount', expr: '+= amt', label: '返金済額を加算' },
+              { field: 'orders.status', expr: 'full => Refunded', label: '全額到達時は Refunded へ' },
+              { field: 'payments.orderId', expr: '= oid', label: '返金レコードに注文を紐付け' },
+              { field: 'payments.kind', expr: '= Refund', label: '返金レコード種別' },
+              { field: 'payments.amount', expr: '= amt', label: '返金額を記録' },
+            ],
+            unchanged: ['inventory', 'reservations'],
+          },
+        ],
+      };
+
+      // =========================================================================
+      // 2. Derived Relational Indices (Zero duplication across views)
+      // =========================================================================
+      const fieldModel = (fieldRef) => fieldRef.split('.')[0];
+      const modelById = new Map(QUINT_MODEL.models.map((m) => [m.id, m]));
+      const actionById = new Map(QUINT_MODEL.actions.map((a) => [a.id, a]));
+      const invariantById = new Map(QUINT_MODEL.invariants.map((inv) => [inv.id, inv]));
+
+      // Structural model-to-model references derived from fields
+      const MODEL_REFS = [];
+      for (const m of QUINT_MODEL.models) {
+        for (const f of m.fields) {
+          if (f.ref) {
+            MODEL_REFS.push({
+              id: `${m.id}.${f.name}->${f.ref}`,
+              fromModel: m.id,
+              fromField: `${m.id}.${f.name}`,
+              toModel: fieldModel(f.ref),
+              toField: f.ref,
+            });
+          }
+        }
+      }
+
+      // Derive affected invariants for each action from action.writes (and modelWrites) intersecting invariant.refs
+      const ACTION_DERIVED = new Map();
+      const INV_TOUCHED_BY_ACTIONS = new Map(QUINT_MODEL.invariants.map((inv) => [inv.id, []]));
+      const FIELD_TOUCHED_BY_ACTIONS = new Map();
+      const FIELD_INVARIANTS = new Map();
+
+      for (const m of QUINT_MODEL.models) {
+        for (const f of m.fields) {
+          const fq = `${m.id}.${f.name}`;
+          FIELD_TOUCHED_BY_ACTIONS.set(fq, { writes: [], guards: [] });
+          FIELD_INVARIANTS.set(fq, []);
+        }
+      }
+      for (const inv of QUINT_MODEL.invariants) {
+        for (const ref of inv.refs) {
+          FIELD_INVARIANTS.get(ref)?.push(inv);
+        }
+      }
+
+      for (const action of QUINT_MODEL.actions) {
+        const writeFields = new Set(action.writes.map((w) => w.field));
+        const guardFields = new Set(action.guards.map((g) => g.field));
+        const writeModels = new Set([...action.writes.map((w) => fieldModel(w.field)), ...(action.modelWrites || [])]);
+        const guardModels = new Set(action.guards.map((g) => fieldModel(g.field)));
+        const modelWritesSet = new Set(action.modelWrites || []);
+
+        const affectedInvariants = QUINT_MODEL.invariants.filter((inv) =>
+          inv.refs.some((ref) => writeFields.has(ref) || modelWritesSet.has(fieldModel(ref))),
+        );
+
+        for (const inv of affectedInvariants) {
+          INV_TOUCHED_BY_ACTIONS.get(inv.id).push(action);
+        }
+        for (const w of action.writes) {
+          FIELD_TOUCHED_BY_ACTIONS.get(w.field)?.writes.push(action);
+        }
+        for (const g of action.guards) {
+          FIELD_TOUCHED_BY_ACTIONS.get(g.field)?.guards.push(action);
+        }
+
+        ACTION_DERIVED.set(action.id, {
+          writeFields,
+          guardFields,
+          writeModels,
+          guardModels,
+          affectedInvariants,
+          affectedInvariantIds: new Set(affectedInvariants.map((i) => i.id)),
+        });
+      }
+
+      // =========================================================================
+      // 3. Shared DOM / SVG / Visibility Utilities
+      // =========================================================================
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const esc = (s) =>
+        String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+      const svgEl = (tag, attrs = {}) => {
+        const node = document.createElementNS(SVG_NS, tag);
+        for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
+        return node;
+      };
+
+      const iconTable = `<svg class="q-model-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M2 6h12M6.5 6v7.5"/></svg>`;
+      const iconShield = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 1.8 13.2 4v3.9c0 3.2-2.2 5.4-5.2 6.3-3-0.9-5.2-3.1-5.2-6.3V4L8 1.8Z"/></svg>`;
+
+      const kindBadgeHtml = (kind) => {
+        if (kind === 'init')
+          return `<span class="q-chip q-chip--green" style="padding:1px 6px;font-size:9.5px">init</span>`;
+        if (kind === 'async')
+          return `<span class="q-chip q-chip--blue" style="padding:1px 6px;font-size:9.5px">async</span>`;
+        return `<span class="q-chip q-chip--violet" style="padding:1px 6px;font-size:9.5px">cmd</span>`;
+      };
+
+      const statusChipHtml = (inv) => {
+        const cls = `q-status q-status--${inv.status}`;
+        const titleAttr = inv.bound ? ` title="境界検証: ${esc(inv.bound)}"` : '';
+        return `<span class="${cls}"${titleAttr}><span class="q-dot"></span>${esc(inv.status)}</span>`;
+      };
+
+      const boundMetaHtml = (inv) =>
+        inv.bound
+          ? `<div class="q-bound-note" title="境界検証スコープ: ${esc(inv.bound)}">bound: ${esc(inv.bound)}</div>`
+          : '';
+
+      const ensureMarkers = (svg, prefix) => {
+        const defs = svgEl('defs');
+        const makeArrow = (id, color) => {
+          const m = svgEl('marker', {
+            id: `${prefix}-${id}`,
+            viewBox: '0 0 10 10',
+            refX: '8.5',
+            refY: '5',
+            markerWidth: '6.5',
+            markerHeight: '6.5',
+            orient: 'auto-start-reverse',
+          });
+          m.appendChild(svgEl('path', { d: 'M1.5 1.8 L8.5 5 L1.5 8.2 Z', fill: color }));
+          return m;
+        };
+        const makeDot = (id, color) => {
+          const m = svgEl('marker', {
+            id: `${prefix}-${id}`,
+            viewBox: '0 0 8 8',
+            refX: '4',
+            refY: '4',
+            markerWidth: '5',
+            markerHeight: '5',
+          });
+          m.appendChild(svgEl('circle', { cx: '4', cy: '4', r: '2.5', fill: color }));
+          return m;
+        };
+        defs.append(
+          makeArrow('arrow-ref', 'var(--dpk-ink-faint)'),
+          makeDot('dot-ref', 'var(--dpk-ink-faint)'),
+          makeArrow('arrow-write', 'var(--dpk-green)'),
+          makeArrow('arrow-guard', 'var(--dpk-blue)'),
+          makeDot('dot-inv', 'var(--dpk-amber)'),
+        );
+        svg.appendChild(defs);
+      };
+
+      // Bulletproof visibility & layout watcher for hidden <dpk-page> switching
+      const watchVisibilityAndLayout = (containerEl, onVisibleLayout) => {
+        let raf1 = 0;
+        let raf2 = 0;
+        const schedule = () => {
+          cancelAnimationFrame(raf1);
+          cancelAnimationFrame(raf2);
+          raf1 = requestAnimationFrame(() => {
+            raf2 = requestAnimationFrame(() => {
+              const rect = containerEl.getBoundingClientRect();
+              if (rect.width > 0 && rect.height > 0) {
+                onVisibleLayout(rect);
+              }
+            });
+          });
+        };
+
+        const ro = new ResizeObserver(() => schedule());
+        ro.observe(containerEl);
+
+        if (typeof IntersectionObserver !== 'undefined') {
+          const io = new IntersectionObserver(
+            (entries) => {
+              if (entries.some((e) => e.isIntersecting)) schedule();
+            },
+            { threshold: 0.01 },
+          );
+          io.observe(containerEl);
+        }
+
+        const page = containerEl.closest('dpk-page');
+        if (page) {
+          const mo = new MutationObserver(() => schedule());
+          mo.observe(page, { attributes: true });
+        }
+
+        window.addEventListener('hashchange', schedule);
+        window.addEventListener('resize', schedule);
+        document.addEventListener('dpk-navigate', schedule);
+        schedule();
+        return schedule;
+      };
+
+      // Page jump buttons on Compare page
+      document.querySelectorAll('[data-jump-page]').forEach((link) => {
+        link.addEventListener('click', (ev) => {
+          const page = link.getAttribute('data-jump-page');
+          const app = document.querySelector('dpk-app');
+          if (page && app?.api?.navigate) {
+            ev.preventDefault();
+            app.api.navigate({ page });
+          }
+        });
+      });
+
+      // =========================================================================
+      // 4. Option A: ERD Extended Graph (Pan/Zoom Spatial Canvas)
+      // =========================================================================
+      const initOptionA = () => {
+        const root = document.getElementById('option-a-root');
+        const viewport = document.getElementById('qa-viewport');
+        const stage = document.getElementById('qa-stage');
+        const svg = document.getElementById('qa-svg');
+        const nodesLayer = document.getElementById('qa-nodes');
+        const inspector = document.getElementById('qa-inspector');
+        const clearBtn = document.getElementById('qa-clear');
+        const zoomResetBtn = document.getElementById('qa-zoom-reset');
+
+        const STAGE_W = 1480;
+        const STAGE_H = 880;
+
+        const POS = {
+          actions: {
+            init: { x: 164, y: 28, w: 178 },
+            placeOrder: { x: 360, y: 28, w: 206 },
+            capturePayment: { x: 584, y: 28, w: 210 },
+            cancelOrder: { x: 812, y: 28, w: 196 },
+            expireReservation: { x: 1026, y: 28, w: 214 },
+            refundOrder: { x: 1258, y: 28, w: 194 },
+          },
+          models: {
+            orders: { x: 174, y: 238, w: 300 },
+            inventory: { x: 510, y: 238, w: 288 },
+            reservations: { x: 834, y: 238, w: 292 },
+            payments: { x: 1162, y: 238, w: 286 },
+          },
+          cross: {
+            inv_reserved_sync: { x: 210, y: 686, w: 374 },
+            inv_one_active_res: { x: 618, y: 686, w: 376 },
+            inv_ledger_sync: { x: 1028, y: 686, w: 374 },
+          },
+        };
+
+        const state = {
+          layers: { ref: true, write: true, guard: false, cross: true, expr: false },
+          tx: 0,
+          ty: 0,
+          scale: 1,
+          fittedOnce: false,
+          hovered: null, // { type: 'action'|'model'|'field'|'inv', id }
+          locked: null,
+        };
+
+        // Render DOM nodes from QUINT_MODEL
+        const renderNodes = () => {
+          const frag = document.createDocumentFragment();
+
+          for (const action of QUINT_MODEL.actions) {
+            const p = POS.actions[action.id];
+            const d = ACTION_DERIVED.get(action.id);
+            const el = document.createElement('div');
+            el.className = 'qa-node qa-action-card';
+            el.dataset.qaType = 'action';
+            el.dataset.qaId = action.id;
+            el.style.left = `${p.x}px`;
+            el.style.top = `${p.y}px`;
+            el.style.width = `${p.w}px`;
+            el.innerHTML = `
+              <div class="qa-action-top">
+                <span class="qa-action-name">${esc(action.name)}</span>
+                ${kindBadgeHtml(action.kind)}
+              </div>
+              <div class="qa-action-params">(${esc(action.params || '')})</div>
+              <div class="qa-action-summary">${esc(action.summary)}</div>
+              <div class="qa-action-foot">
+                <span style="color:var(--dpk-blue)">G:${action.guards.length}</span>
+                <span style="color:var(--dpk-green)">W:${action.writes.length}</span>
+                <span style="color:var(--dpk-amber)">Inv:${d.affectedInvariants.length}</span>
+              </div>
+            `;
+            frag.appendChild(el);
+          }
+
+          for (const model of QUINT_MODEL.models) {
+            const p = POS.models[model.id];
+            const localInvs = QUINT_MODEL.invariants.filter((i) => i.scope === 'local' && i.modelId === model.id);
+            const card = document.createElement('div');
+            card.className = 'qa-node q-model-card';
+            card.dataset.qaType = 'model';
+            card.dataset.qaId = model.id;
+            card.style.left = `${p.x}px`;
+            card.style.top = `${p.y}px`;
+            card.style.width = `${p.w}px`;
+
+            const fieldsHtml = model.fields
+              .map((f) => {
+                const fq = `${model.id}.${f.name}`;
+                const badge = f.key
+                  ? `<span class="q-field-tag q-field-tag--key">KEY</span>`
+                  : f.ref
+                    ? `<span class="q-field-tag q-field-tag--ref" title="ref: ${esc(f.ref)}">REF</span>`
+                    : '';
+                return `
+                  <li class="q-field-row" data-qa-type="field" data-qa-id="${esc(fq)}">
+                    <span class="q-field-main">
+                      <span class="q-field-name">${esc(f.name)}</span>
+                      ${badge}
+                    </span>
+                    <span class="q-field-meta">
+                      <span class="q-field-type">${esc(f.type)}</span>
+                    </span>
+                  </li>
+                `;
+              })
+              .join('');
+
+            const localInvsHtml = localInvs
+              .map(
+                (inv) => `
+                  <div class="q-local-inv-item" data-qa-type="inv" data-qa-id="${esc(inv.id)}">
+                    <div class="q-local-inv-top">
+                      <span class="q-local-inv-title">${esc(inv.title)}</span>
+                      ${statusChipHtml(inv)}
+                    </div>
+                    <code class="q-expr q-expr-toggleable">${esc(inv.expr)}</code>
+                  </div>
+                `,
+              )
+              .join('');
+
+            card.innerHTML = `
+              <div class="q-model-head" data-qa-type="model" data-qa-id="${esc(model.id)}">
+                <span class="q-model-head-left">
+                  ${iconTable}
+                  <span class="q-model-name">${esc(model.id)}</span>
+                  <span class="q-model-jp">${esc(model.label)}</span>
+                </span>
+                <span class="q-model-sig">${esc(model.signature)}</span>
+              </div>
+              <ul class="q-field-list">${fieldsHtml}</ul>
+              <div class="q-local-invs">
+                <div class="q-local-invs-label">${iconShield}<span>Local Invariants (${localInvs.length})</span></div>
+                ${localInvsHtml}
+              </div>
+            `;
+            frag.appendChild(card);
+          }
+
+          for (const inv of QUINT_MODEL.invariants.filter((i) => i.scope === 'cross')) {
+            const p = POS.cross[inv.id];
+            const el = document.createElement('div');
+            el.className = 'qa-node qa-cross-card';
+            el.dataset.qaType = 'inv';
+            el.dataset.qaId = inv.id;
+            el.dataset.qaCross = 'true';
+            el.style.left = `${p.x}px`;
+            el.style.top = `${p.y}px`;
+            el.style.width = `${p.w}px`;
+            const refModels = [...new Set(inv.refs.map(fieldModel))];
+            el.innerHTML = `
+              <div class="qa-cross-head">
+                <span class="qa-cross-id">${iconShield}${esc(inv.id)}</span>
+                ${statusChipHtml(inv)}
+              </div>
+              <div class="qa-cross-title">${esc(inv.title)}</div>
+              ${boundMetaHtml(inv)}
+              <code class="q-expr q-expr-toggleable">${esc(inv.expr)}</code>
+              <div class="qa-cross-meta">
+                ${refModels.map((m) => `<span class="q-chip q-chip--mono" style="padding:1px 6px;font-size:10px">${esc(m)}</span>`).join('')}
+              </div>
+            `;
+            frag.appendChild(el);
+          }
+
+          nodesLayer.innerHTML = '';
+          nodesLayer.appendChild(frag);
+        };
+
+        const applyTransform = () => {
+          stage.style.transform = `translate(${state.tx}px, ${state.ty}px) scale(${state.scale})`;
+          zoomResetBtn.textContent = `${Math.round(state.scale * 100)}%`;
+        };
+
+        const fitToViewport = () => {
+          const rect = viewport.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) return;
+          const pad = 20;
+          const sx = (rect.width - pad * 2) / STAGE_W;
+          const sy = (rect.height - pad * 2) / STAGE_H;
+          state.scale = Math.max(0.45, Math.min(1.08, Math.min(sx, sy)));
+          state.tx = Math.round((rect.width - STAGE_W * state.scale) / 2);
+          state.ty = Math.round((rect.height - STAGE_H * state.scale) / 2);
+          applyTransform();
+        };
+
+        const getStageBox = (el) => {
+          if (!el) return null;
+          const x = el.offsetLeft;
+          const y = el.offsetTop;
+          const w = el.offsetWidth;
+          const h = el.offsetHeight;
+          if (w === 0 || h === 0) return null;
+          return { x, y, w, h, cx: x + w / 2, cy: y + h / 2, bottom: y + h, right: x + w };
+        };
+
+        // Compute SVG edges in stage-local coordinates
+        let edgeRecords = [];
+        const drawEdges = () => {
+          const stageRect = stage.getBoundingClientRect();
+          if (stageRect.width <= 0 || stageRect.height <= 0) return;
+
+          svg.innerHTML = '';
+          ensureMarkers(svg, 'qa');
+          edgeRecords = [];
+
+          const boxes = { actions: {}, models: {}, cross: {} };
+          for (const a of QUINT_MODEL.actions) {
+            boxes.actions[a.id] = getStageBox(
+              nodesLayer.querySelector(`[data-qa-type="action"][data-qa-id="${a.id}"]`),
+            );
+          }
+          for (const m of QUINT_MODEL.models) {
+            boxes.models[m.id] = getStageBox(nodesLayer.querySelector(`.q-model-card[data-qa-id="${m.id}"]`));
+          }
+          for (const inv of QUINT_MODEL.invariants.filter((i) => i.scope === 'cross')) {
+            boxes.cross[inv.id] = getStageBox(nodesLayer.querySelector(`[data-qa-type="inv"][data-qa-id="${inv.id}"]`));
+          }
+
+          if (!boxes.models.orders) return;
+
+          // 1. Model <-> Model REF edges (routed cleanly below/between models)
+          const refGroup = svgEl('g', { 'data-layer': 'ref' });
+          MODEL_REFS.forEach((ref, idx) => {
+            const from = boxes.models[ref.fromModel];
+            const to = boxes.models[ref.toModel];
+            if (!from || !to) return;
+            const goingRight = to.cx > from.cx;
+            const span = Math.abs(to.cx - from.cx);
+            let d;
+            if (span < 420) {
+              const x1 = goingRight ? from.right : from.x;
+              const x2 = goingRight ? to.x : to.right;
+              const y = from.y + 84 + idx * 18;
+              d = `M ${x1} ${y} C ${x1 + (goingRight ? 22 : -22)} ${y}, ${x2 + (goingRight ? -22 : 22)} ${y}, ${x2} ${y}`;
+            } else {
+              // Long span: clean rounded track under the middle row above cross-invariants
+              const maxModelBottom = Math.max(...Object.values(boxes.models).map((b) => b.bottom));
+              const laneY = maxModelBottom + 16 + idx * 10;
+              const x1 = from.cx + (goingRight ? 26 : -26);
+              const x2 = to.cx + (goingRight ? -26 : 26);
+              const y1 = from.bottom;
+              const y2 = to.bottom;
+              d = `M ${x1} ${y1} C ${x1} ${laneY}, ${x2} ${laneY}, ${x2} ${y2}`;
+            }
+            const path = svgEl('path', {
+              d,
+              class: 'q-edge q-edge--ref',
+              'marker-start': 'url(#qa-dot-ref)',
+              'marker-end': 'url(#qa-arrow-ref)',
+            });
+            refGroup.appendChild(path);
+            edgeRecords.push({
+              el: path,
+              kind: 'ref',
+              models: [ref.fromModel, ref.toModel],
+              fields: [ref.fromField, ref.toField],
+            });
+          });
+          svg.appendChild(refGroup);
+
+          // Helper to spread attachment points across a model's top edge
+          const topSlotTracker = new Map(QUINT_MODEL.models.map((m) => [m.id, []]));
+          for (const action of QUINT_MODEL.actions) {
+            const d = ACTION_DERIVED.get(action.id);
+            for (const mId of d.writeModels) topSlotTracker.get(mId).push({ actionId: action.id, kind: 'write' });
+            for (const mId of d.guardModels) topSlotTracker.get(mId).push({ actionId: action.id, kind: 'guard' });
+          }
+
+          // 2. Action -> Model Write & Guard edges
+          const actionEdgeGroup = svgEl('g', { 'data-layer': 'action-edges' });
+          for (const action of QUINT_MODEL.actions) {
+            const aBox = boxes.actions[action.id];
+            const d = ACTION_DERIVED.get(action.id);
+            if (!aBox) continue;
+
+            for (const mId of d.writeModels) {
+              const mBox = boxes.models[mId];
+              if (!mBox) continue;
+              const slots = topSlotTracker.get(mId);
+              const sIdx = slots.findIndex((s) => s.actionId === action.id && s.kind === 'write');
+              const frac = (sIdx + 1) / (slots.length + 1);
+              const x1 = aBox.cx;
+              const y1 = aBox.bottom;
+              const x2 = mBox.x + 18 + (mBox.w - 36) * frac;
+              const y2 = mBox.y;
+              const midY = y1 + (y2 - y1) * 0.52;
+              const path = svgEl('path', {
+                d: `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`,
+                class: 'q-edge q-edge--write',
+                'marker-end': 'url(#qa-arrow-write)',
+              });
+              actionEdgeGroup.appendChild(path);
+              edgeRecords.push({
+                el: path,
+                kind: 'write',
+                actionId: action.id,
+                modelId: mId,
+                fields: action.writes.filter((w) => fieldModel(w.field) === mId).map((w) => w.field),
+              });
+            }
+
+            for (const mId of d.guardModels) {
+              const mBox = boxes.models[mId];
+              if (!mBox) continue;
+              const slots = topSlotTracker.get(mId);
+              const sIdx = slots.findIndex((s) => s.actionId === action.id && s.kind === 'guard');
+              const frac = (sIdx + 1) / (slots.length + 1);
+              const x1 = mBox.x + 18 + (mBox.w - 36) * frac;
+              const y1 = mBox.y;
+              const x2 = aBox.cx - 12;
+              const y2 = aBox.bottom;
+              const midY = y2 + (y1 - y2) * 0.45;
+              const path = svgEl('path', {
+                d: `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`,
+                class: 'q-edge q-edge--guard',
+                'marker-end': 'url(#qa-arrow-guard)',
+              });
+              actionEdgeGroup.appendChild(path);
+              edgeRecords.push({
+                el: path,
+                kind: 'guard',
+                actionId: action.id,
+                modelId: mId,
+                fields: action.guards.filter((g) => fieldModel(g.field) === mId).map((g) => g.field),
+              });
+            }
+          }
+          svg.appendChild(actionEdgeGroup);
+
+          // 3. Cross-Invariant <-> Model edges
+          const crossGroup = svgEl('g', { 'data-layer': 'cross' });
+          for (const inv of QUINT_MODEL.invariants.filter((i) => i.scope === 'cross')) {
+            const cBox = boxes.cross[inv.id];
+            if (!cBox) continue;
+            const refModels = [...new Set(inv.refs.map(fieldModel))];
+            refModels.forEach((mId, idx) => {
+              const mBox = boxes.models[mId];
+              if (!mBox) return;
+              const x1 = cBox.x + (cBox.w * (idx + 1)) / (refModels.length + 1);
+              const y1 = cBox.y;
+              const x2 = mBox.cx + (idx === 0 ? -24 : 24);
+              const y2 = mBox.bottom;
+              const midY = (y1 + y2) / 2;
+              const path = svgEl('path', {
+                d: `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`,
+                class: 'q-edge q-edge--inv',
+                'marker-start': 'url(#qa-dot-inv)',
+              });
+              crossGroup.appendChild(path);
+              edgeRecords.push({
+                el: path,
+                kind: 'cross',
+                invId: inv.id,
+                modelId: mId,
+                fields: inv.refs.filter((r) => fieldModel(r) === mId),
+              });
+            });
+          }
+          svg.appendChild(crossGroup);
+
+          applyHighlights();
+        };
+
+        const renderInspector = (target) => {
+          if (!target) {
+            inspector.hidden = true;
+            return;
+          }
+          let html = '';
+          if (target.type === 'action') {
+            const a = actionById.get(target.id);
+            const d = ACTION_DERIVED.get(a.id);
+            html = `
+              <div class="qa-inspector-head">
+                <div>
+                  <div class="qa-inspector-title">${esc(a.name)}(${esc(a.params)})</div>
+                  <div class="qa-inspector-sub">${esc(a.summary)}</div>
+                </div>
+                <button type="button" class="q-btn" data-qa-close>✕</button>
+              </div>
+              <div class="q-chip-row">
+                ${kindBadgeHtml(a.kind)}
+                ${a.unchanged.length ? `<span class="q-chip q-chip--faint">unchanged: ${esc(a.unchanged.join(', '))}</span>` : `<span class="q-chip q-chip--faint">全モデル更新</span>`}
+              </div>
+              <div class="qa-inspector-sec">
+                <div class="qa-inspector-sec-title">GUARDS (${a.guards.length})</div>
+                <div class="qa-inspector-list">
+                  ${
+                    a.guards.length
+                      ? a.guards
+                          .map(
+                            (g) =>
+                              `<div class="qa-inspector-row"><code style="color:var(--dpk-blue)">${esc(g.field)}</code><code>${esc(g.expr)}</code></div>`,
+                          )
+                          .join('')
+                      : `<span style="font-size:11px;color:var(--dpk-ink-faint)">なし（初期状態構築）</span>`
+                  }
+                </div>
+              </div>
+              <div class="qa-inspector-sec">
+                <div class="qa-inspector-sec-title">WRITES (${a.writes.length})</div>
+                <div class="qa-inspector-list">
+                  ${a.writes
+                    .map(
+                      (w) =>
+                        `<div class="qa-inspector-row"><code style="color:var(--dpk-green)">${esc(w.field)}</code><code>${esc(w.expr)}</code></div>`,
+                    )
+                    .join('')}
+                </div>
+              </div>
+              <div class="qa-inspector-sec">
+                <div class="qa-inspector-sec-title">影響する不変条件（writes ∩ refs 自動導出: ${d.affectedInvariants.length}）</div>
+                <div class="qa-inspector-list">
+                  ${d.affectedInvariants
+                    .map(
+                      (inv) =>
+                        `<div class="qa-inspector-row"><span>${esc(inv.title)}</span>${statusChipHtml(inv)}</div>`,
+                    )
+                    .join('')}
+                </div>
+              </div>
+            `;
+          } else if (target.type === 'model') {
+            const m = modelById.get(target.id);
+            const writingActions = QUINT_MODEL.actions.filter((a) => ACTION_DERIVED.get(a.id).writeModels.has(m.id));
+            const guardingActions = QUINT_MODEL.actions.filter((a) => ACTION_DERIVED.get(a.id).guardModels.has(m.id));
+            const invs = QUINT_MODEL.invariants.filter((i) => i.refs.some((r) => fieldModel(r) === m.id));
+            html = `
+              <div class="qa-inspector-head">
+                <div>
+                  <div class="qa-inspector-title">var ${esc(m.id)}: ${esc(m.signature)}</div>
+                  <div class="qa-inspector-sub">${esc(m.label)}（${m.fields.length} フィールド）</div>
+                </div>
+                <button type="button" class="q-btn" data-qa-close>✕</button>
+              </div>
+              <div class="qa-inspector-sec">
+                <div class="qa-inspector-sec-title">このモデルを更新する Actions (${writingActions.length})</div>
+                <div class="q-chip-row">${writingActions.map((a) => `<span class="q-chip q-chip--mono q-chip--green">${esc(a.name)}</span>`).join('')}</div>
+              </div>
+              <div class="qa-inspector-sec">
+                <div class="qa-inspector-sec-title">Guard で参照する Actions (${guardingActions.length})</div>
+                <div class="q-chip-row">${guardingActions.map((a) => `<span class="q-chip q-chip--mono q-chip--blue">${esc(a.name)}</span>`).join('') || '<span style="font-size:11px;color:var(--dpk-ink-faint)">なし</span>'}</div>
+              </div>
+              <div class="qa-inspector-sec">
+                <div class="qa-inspector-sec-title">関連する不変条件 (${invs.length})</div>
+                <div class="qa-inspector-list">
+                  ${invs.map((inv) => `<div class="qa-inspector-row"><span>${esc(inv.title)}</span>${statusChipHtml(inv)}</div>`).join('')}
+                </div>
+              </div>
+            `;
+          } else if (target.type === 'field') {
+            const [mId, fName] = target.id.split('.');
+            const m = modelById.get(mId);
+            const f = m.fields.find((x) => x.name === fName);
+            const touched = FIELD_TOUCHED_BY_ACTIONS.get(target.id);
+            const invs = FIELD_INVARIANTS.get(target.id) || [];
+            html = `
+              <div class="qa-inspector-head">
+                <div>
+                  <div class="qa-inspector-title">${esc(target.id)}: ${esc(f.type)}</div>
+                  <div class="qa-inspector-sub">${esc(f.desc)}${f.enumValues ? ` (${esc(f.enumValues)})` : ''}${f.ref ? ` → ${esc(f.ref)}` : ''}</div>
+                </div>
+                <button type="button" class="q-btn" data-qa-close>✕</button>
+              </div>
+              <div class="qa-inspector-sec">
+                <div class="qa-inspector-sec-title">WRITE (${touched.writes.length}) / GUARD (${touched.guards.length})</div>
+                <div class="q-chip-row">
+                  ${touched.writes.map((a) => `<span class="q-chip q-chip--mono q-chip--green">W: ${esc(a.name)}</span>`).join('')}
+                  ${touched.guards.map((a) => `<span class="q-chip q-chip--mono q-chip--blue">G: ${esc(a.name)}</span>`).join('')}
+                </div>
+              </div>
+              <div class="qa-inspector-sec">
+                <div class="qa-inspector-sec-title">参照している不変条件 (${invs.length})</div>
+                <div class="qa-inspector-list">
+                  ${invs.length ? invs.map((inv) => `<div class="qa-inspector-row"><span>${esc(inv.title)}</span>${statusChipHtml(inv)}</div>`).join('') : '<span style="font-size:11px;color:var(--dpk-ink-faint)">なし</span>'}
+                </div>
+              </div>
+            `;
+          } else if (target.type === 'inv') {
+            const inv = invariantById.get(target.id);
+            const actions = INV_TOUCHED_BY_ACTIONS.get(inv.id) || [];
+            html = `
+              <div class="qa-inspector-head">
+                <div>
+                  <div class="qa-inspector-title">${esc(inv.id)}</div>
+                  <div class="qa-inspector-sub">${esc(inv.title)}</div>
+                </div>
+                <button type="button" class="q-btn" data-qa-close>✕</button>
+              </div>
+              <div class="q-chip-row" style="margin-bottom:6px">
+                ${statusChipHtml(inv)}
+                ${inv.bound ? `<span class="q-chip q-chip--mono q-chip--blue">${esc(inv.bound)}</span>` : ''}
+                <span class="q-chip">${inv.scope === 'cross' ? '横断不変条件' : `単一モデル (${inv.modelId})`}</span>
+              </div>
+              <code class="q-expr" style="display:block">${esc(inv.expr)}</code>
+              <div class="qa-inspector-sec">
+                <div class="qa-inspector-sec-title">参照フィールド (${inv.refs.length})</div>
+                <div class="q-chip-row">${inv.refs.map((r) => `<span class="q-chip q-chip--mono q-chip--amber">${esc(r)}</span>`).join('')}</div>
+              </div>
+              <div class="qa-inspector-sec">
+                <div class="qa-inspector-sec-title">この不変条件に影響しうる Actions (${actions.length})</div>
+                <div class="q-chip-row">${actions.map((a) => `<span class="q-chip q-chip--mono q-chip--violet">${esc(a.name)}</span>`).join('')}</div>
+              </div>
+            `;
+          }
+          inspector.innerHTML = html;
+          inspector.hidden = false;
+          inspector.querySelector('[data-qa-close]')?.addEventListener('click', () => {
+            state.locked = null;
+            applyHighlights();
+          });
+        };
+
+        const applyHighlights = () => {
+          root.dataset.showExpr = String(state.layers.expr);
+          nodesLayer.querySelectorAll('[data-qa-cross="true"]').forEach((el) => {
+            el.style.display = state.layers.cross ? '' : 'none';
+          });
+
+          const active = state.locked || state.hovered;
+          clearBtn.hidden = !state.locked;
+          renderInspector(state.locked);
+
+          // Reset classes
+          nodesLayer.querySelectorAll('.is-active,.is-related,.is-inv-hit,.is-dimmed').forEach((el) => {
+            el.classList.remove('is-active', 'is-related', 'is-inv-hit', 'is-dimmed');
+          });
+          nodesLayer.querySelectorAll('.q-field-row').forEach((el) => {
+            el.classList.remove('is-field-write', 'is-field-guard', 'is-field-both', 'is-field-inv', 'is-field-active');
+          });
+
+          if (!active) {
+            for (const rec of edgeRecords) {
+              rec.el.classList.remove('is-edge-lit', 'is-edge-dim', 'is-edge-hidden');
+              if (
+                (rec.kind === 'ref' && !state.layers.ref) ||
+                (rec.kind === 'write' && !state.layers.write) ||
+                (rec.kind === 'guard' && !state.layers.guard) ||
+                (rec.kind === 'cross' && !state.layers.cross)
+              ) {
+                rec.el.classList.add('is-edge-hidden');
+              }
+            }
+            return;
+          }
+
+          const litActions = new Set();
+          const litModels = new Set();
+          const litInvs = new Set();
+          const writeFields = new Set();
+          const guardFields = new Set();
+          const invFields = new Set();
+
+          if (active.type === 'action') {
+            const d = ACTION_DERIVED.get(active.id);
+            litActions.add(active.id);
+            d.writeModels.forEach((m) => litModels.add(m));
+            d.guardModels.forEach((m) => litModels.add(m));
+            d.writeFields.forEach((f) => writeFields.add(f));
+            d.guardFields.forEach((f) => guardFields.add(f));
+            d.affectedInvariantIds.forEach((id) => litInvs.add(id));
+          } else if (active.type === 'model') {
+            litModels.add(active.id);
+            for (const ref of MODEL_REFS) {
+              if (ref.fromModel === active.id || ref.toModel === active.id) {
+                litModels.add(ref.fromModel);
+                litModels.add(ref.toModel);
+              }
+            }
+            for (const a of QUINT_MODEL.actions) {
+              const d = ACTION_DERIVED.get(a.id);
+              if (d.writeModels.has(active.id) || d.guardModels.has(active.id)) {
+                litActions.add(a.id);
+                d.writeFields.forEach((f) => {
+                  if (fieldModel(f) === active.id) writeFields.add(f);
+                });
+                d.guardFields.forEach((f) => {
+                  if (fieldModel(f) === active.id) guardFields.add(f);
+                });
+              }
+            }
+            for (const inv of QUINT_MODEL.invariants) {
+              if (inv.refs.some((r) => fieldModel(r) === active.id)) litInvs.add(inv.id);
+            }
+          } else if (active.type === 'field') {
+            const mId = fieldModel(active.id);
+            litModels.add(mId);
+            const touched = FIELD_TOUCHED_BY_ACTIONS.get(active.id);
+            touched?.writes.forEach((a) => litActions.add(a.id));
+            touched?.guards.forEach((a) => litActions.add(a.id));
+            (FIELD_INVARIANTS.get(active.id) || []).forEach((inv) => {
+              litInvs.add(inv.id);
+              inv.refs.forEach((r) => litModels.add(fieldModel(r)));
+            });
+          } else if (active.type === 'inv') {
+            const inv = invariantById.get(active.id);
+            litInvs.add(inv.id);
+            inv.refs.forEach((r) => {
+              invFields.add(r);
+              litModels.add(fieldModel(r));
+            });
+            (INV_TOUCHED_BY_ACTIONS.get(inv.id) || []).forEach((a) => litActions.add(a.id));
+          }
+
+          nodesLayer.querySelectorAll('[data-qa-type="action"]').forEach((el) => {
+            const id = el.dataset.qaId;
+            if (active.type === 'action' && active.id === id) el.classList.add('is-active');
+            else if (litActions.has(id)) el.classList.add('is-related');
+            else el.classList.add('is-dimmed');
+          });
+          nodesLayer.querySelectorAll('.q-model-card').forEach((el) => {
+            const id = el.dataset.qaId;
+            if (active.type === 'model' && active.id === id) el.classList.add('is-active');
+            else if (litModels.has(id)) el.classList.add('is-related');
+            else el.classList.add('is-dimmed');
+          });
+          nodesLayer.querySelectorAll('[data-qa-type="inv"]').forEach((el) => {
+            const id = el.dataset.qaId;
+            if (active.type === 'inv' && active.id === id) el.classList.add('is-active');
+            else if (litInvs.has(id)) el.classList.add('is-inv-hit');
+            else if (el.dataset.qaCross === 'true') el.classList.add('is-dimmed');
+          });
+          nodesLayer.querySelectorAll('.q-field-row').forEach((el) => {
+            const fq = el.dataset.qaId;
+            if (active.type === 'field' && active.id === fq) el.classList.add('is-field-active');
+            else if (writeFields.has(fq) && guardFields.has(fq)) el.classList.add('is-field-both');
+            else if (writeFields.has(fq)) el.classList.add('is-field-write');
+            else if (guardFields.has(fq)) el.classList.add('is-field-guard');
+            else if (invFields.has(fq)) el.classList.add('is-field-inv');
+          });
+
+          for (const rec of edgeRecords) {
+            rec.el.classList.remove('is-edge-lit', 'is-edge-dim', 'is-edge-hidden');
+            if (rec.kind === 'cross' && !state.layers.cross) {
+              rec.el.classList.add('is-edge-hidden');
+              continue;
+            }
+            let lit = false;
+            if (active.type === 'action') {
+              lit = (rec.kind === 'write' || rec.kind === 'guard') && rec.actionId === active.id;
+              if (rec.kind === 'cross' && litInvs.has(rec.invId) && litModels.has(rec.modelId)) lit = true;
+            } else if (active.type === 'model') {
+              lit =
+                (rec.kind === 'ref' && rec.models.includes(active.id)) ||
+                ((rec.kind === 'write' || rec.kind === 'guard') && rec.modelId === active.id) ||
+                (rec.kind === 'cross' && rec.modelId === active.id);
+            } else if (active.type === 'field') {
+              lit =
+                (rec.kind === 'ref' && rec.fields.includes(active.id)) ||
+                ((rec.kind === 'write' || rec.kind === 'guard') && rec.fields.includes(active.id)) ||
+                (rec.kind === 'cross' && rec.fields.includes(active.id));
+            } else if (active.type === 'inv') {
+              lit =
+                (rec.kind === 'cross' && rec.invId === active.id) ||
+                (rec.kind === 'write' && litActions.has(rec.actionId) && rec.fields.some((f) => invFields.has(f)));
+            }
+            rec.el.classList.add(lit ? 'is-edge-lit' : 'is-edge-dim');
+          }
+        };
+
+        // Toolbar events
+        root.querySelectorAll('[data-qa-layer]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const key = btn.dataset.qaLayer;
+            state.layers[key] = !state.layers[key];
+            btn.setAttribute('aria-pressed', String(state.layers[key]));
+            applyHighlights();
+            if (key === 'expr') requestAnimationFrame(drawEdges);
+          });
+        });
+
+        const zoomBy = (factor, cx, cy) => {
+          const rect = viewport.getBoundingClientRect();
+          const px = cx ?? rect.width / 2;
+          const py = cy ?? rect.height / 2;
+          const next = Math.max(0.4, Math.min(1.8, state.scale * factor));
+          const ratio = next / state.scale;
+          state.tx = px - (px - state.tx) * ratio;
+          state.ty = py - (py - state.ty) * ratio;
+          state.scale = next;
+          applyTransform();
+        };
+        document.getElementById('qa-zoom-in').addEventListener('click', () => zoomBy(1.15));
+        document.getElementById('qa-zoom-out').addEventListener('click', () => zoomBy(1 / 1.15));
+        zoomResetBtn.addEventListener('click', () => {
+          state.scale = 1;
+          const rect = viewport.getBoundingClientRect();
+          state.tx = Math.round((rect.width - STAGE_W) / 2);
+          state.ty = 12;
+          applyTransform();
+        });
+        document.getElementById('qa-zoom-fit').addEventListener('click', fitToViewport);
+        clearBtn.addEventListener('click', () => {
+          state.locked = null;
+          applyHighlights();
+        });
+
+        // Pan & wheel zoom
+        let dragging = false;
+        let dragStart = null;
+        let moved = false;
+        viewport.addEventListener('pointerdown', (ev) => {
+          if (ev.target.closest('.qa-inspector') || ev.target.closest('[data-qa-type]')) return;
+          dragging = true;
+          moved = false;
+          dragStart = { x: ev.clientX, y: ev.clientY, tx: state.tx, ty: state.ty };
+          viewport.classList.add('is-panning');
+          viewport.setPointerCapture(ev.pointerId);
+        });
+        viewport.addEventListener('pointermove', (ev) => {
+          if (!dragging || !dragStart) return;
+          const dx = ev.clientX - dragStart.x;
+          const dy = ev.clientY - dragStart.y;
+          if (Math.hypot(dx, dy) > 3) moved = true;
+          state.tx = dragStart.tx + dx;
+          state.ty = dragStart.ty + dy;
+          applyTransform();
+        });
+        viewport.addEventListener('pointerup', (ev) => {
+          if (!dragging) return;
+          dragging = false;
+          viewport.classList.remove('is-panning');
+          if (!moved && state.locked) {
+            state.locked = null;
+            applyHighlights();
+          }
+          try {
+            viewport.releasePointerCapture(ev.pointerId);
+          } catch {}
+        });
+        viewport.addEventListener(
+          'wheel',
+          (ev) => {
+            if (ev.ctrlKey || ev.metaKey) {
+              ev.preventDefault();
+              const rect = viewport.getBoundingClientRect();
+              zoomBy(ev.deltaY < 0 ? 1.09 : 1 / 1.09, ev.clientX - rect.left, ev.clientY - rect.top);
+            }
+          },
+          { passive: false },
+        );
+
+        // Node hover & click delegation
+        const findTarget = (el) => {
+          const hit = el?.closest?.('[data-qa-type]');
+          if (!hit) return null;
+          return { type: hit.dataset.qaType, id: hit.dataset.qaId };
+        };
+        nodesLayer.addEventListener('mouseover', (ev) => {
+          const t = findTarget(ev.target);
+          if (!t) return;
+          if (state.hovered?.type === t.type && state.hovered?.id === t.id) return;
+          state.hovered = t;
+          if (!state.locked) applyHighlights();
+        });
+        nodesLayer.addEventListener('mouseleave', () => {
+          state.hovered = null;
+          if (!state.locked) applyHighlights();
+        });
+        nodesLayer.addEventListener('click', (ev) => {
+          const t = findTarget(ev.target);
+          if (!t) return;
+          ev.stopPropagation();
+          if (state.locked && state.locked.type === t.type && state.locked.id === t.id) {
+            state.locked = null;
+          } else {
+            state.locked = t;
+          }
+          applyHighlights();
+        });
+
+        window.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape' && state.locked) {
+            state.locked = null;
+            applyHighlights();
+          }
+        });
+
+        renderNodes();
+        watchVisibilityAndLayout(viewport, () => {
+          if (!state.fittedOnce) {
+            fitToViewport();
+            state.fittedOnce = true;
+          }
+          drawEdges();
+        });
+      };
+
+      // =========================================================================
+      // 5. Option B: 3-Layer Traceability Flow (Actions -> Models -> Invariants)
+      // =========================================================================
+      const initOptionB = () => {
+        const root = document.getElementById('option-b-root');
+        const stage = document.getElementById('qb-stage');
+        const svg = document.getElementById('qb-svg');
+        const colActions = document.getElementById('qb-col-actions');
+        const colModels = document.getElementById('qb-col-models');
+        const colInvs = document.getElementById('qb-col-invariants');
+        const chainStrip = document.getElementById('qb-chain-strip');
+        const clearBtn = document.getElementById('qb-clear');
+
+        const state = {
+          showGuards: false,
+          showExpr: false,
+          crossOnly: false,
+          statusFilter: 'all',
+          hovered: null, // { type: 'action'|'model'|'field'|'inv', id }
+          locked: null,
+        };
+
+        const renderColumns = () => {
+          // Actions column
+          colActions.innerHTML =
+            `<div class="qb-col-head"><span class="qb-col-title">Actions</span><span class="q-chip q-chip--violet">${QUINT_MODEL.actions.length}</span></div>` +
+            QUINT_MODEL.actions
+              .map((a) => {
+                const d = ACTION_DERIVED.get(a.id);
+                return `
+                  <div class="qb-action-card" data-qb-type="action" data-qb-id="${esc(a.id)}">
+                    <div class="qa-action-top">
+                      <span class="qa-action-name">${esc(a.name)}</span>
+                      ${kindBadgeHtml(a.kind)}
+                    </div>
+                    ${a.params ? `<div class="qb-action-params">(${esc(a.params)})</div>` : ''}
+                    <div class="qa-action-summary" style="margin-bottom:6px">${esc(a.summary)}</div>
+                    <div class="q-chip-row">
+                      <span class="q-chip q-chip--mono q-chip--blue" style="padding:1px 6px;font-size:10px">G:${a.guards.length}</span>
+                      <span class="q-chip q-chip--mono q-chip--green" style="padding:1px 6px;font-size:10px">W:${a.writes.length}</span>
+                      <span class="q-chip q-chip--mono q-chip--amber" style="padding:1px 6px;font-size:10px">Inv:${d.affectedInvariants.length}</span>
+                      ${a.unchanged.length ? `<span class="q-chip q-chip--faint" style="padding:1px 6px;font-size:10px">unchanged: ${esc(a.unchanged.join(', '))}</span>` : ''}
+                    </div>
+                    <span class="qb-port qb-port--right" data-port="action:${esc(a.id)}"></span>
+                  </div>
+                `;
+              })
+              .join('');
+
+          // State Models column
+          colModels.innerHTML =
+            `<div class="qb-col-head"><span class="qb-col-title">State Models</span><span class="q-chip q-chip--accent">${QUINT_MODEL.models.length}</span></div>` +
+            QUINT_MODEL.models
+              .map((m) => {
+                const outRefs = MODEL_REFS.filter((r) => r.fromModel === m.id).map((r) => `→ ${r.toModel}`);
+                const inRefs = MODEL_REFS.filter((r) => r.toModel === m.id).map((r) => `← ${r.fromModel}`);
+                const refChips = [...new Set([...outRefs, ...inRefs])];
+                const fieldsHtml = m.fields
+                  .map((f) => {
+                    const fq = `${m.id}.${f.name}`;
+                    const badge = f.key
+                      ? `<span class="q-field-tag q-field-tag--key">KEY</span>`
+                      : f.ref
+                        ? `<span class="q-field-tag q-field-tag--ref">REF</span>`
+                        : '';
+                    return `
+                      <li class="q-field-row qb-field-row" data-qb-type="field" data-qb-id="${esc(fq)}">
+                        <span class="qb-port qb-port--left" data-port="in:${esc(fq)}"></span>
+                        <span class="q-field-main">
+                          <span class="q-field-name">${esc(f.name)}</span>
+                          ${badge}
+                        </span>
+                        <span class="q-field-meta">
+                          <span class="q-field-type">${esc(f.type)}</span>
+                        </span>
+                        <span class="qb-port qb-port--right" data-port="out:${esc(fq)}"></span>
+                      </li>
+                    `;
+                  })
+                  .join('');
+
+                return `
+                  <div class="q-model-card" style="overflow:visible" data-qb-type="model" data-qb-id="${esc(m.id)}">
+                    <div class="q-model-head" data-qb-type="model" data-qb-id="${esc(m.id)}" style="border-radius:var(--dpk-radius) var(--dpk-radius) 0 0">
+                      <span class="q-model-head-left">
+                        ${iconTable}
+                        <span class="q-model-name">${esc(m.id)}</span>
+                        <span class="q-model-jp">${esc(m.label)}</span>
+                      </span>
+                      <span class="q-model-sig">${esc(m.signature)}</span>
+                    </div>
+                    <ul class="q-field-list">${fieldsHtml}</ul>
+                    <div class="qb-ref-bar" style="border-radius:0 0 var(--dpk-radius) var(--dpk-radius)">
+                      ${refChips.map((c) => `<span class="q-chip q-chip--mono" style="padding:1px 6px;font-size:9.5px">${esc(c)}</span>`).join('')}
+                    </div>
+                  </div>
+                `;
+              })
+              .join('');
+
+          // Invariants column
+          colInvs.innerHTML =
+            `<div class="qb-col-head"><span class="qb-col-title">Invariants</span><span class="q-chip q-chip--amber" id="qb-inv-count">${QUINT_MODEL.invariants.length}</span></div>` +
+            QUINT_MODEL.invariants
+              .map((inv) => {
+                const scopeTag =
+                  inv.scope === 'cross'
+                    ? `<span class="q-chip q-chip--amber" style="padding:1px 6px;font-size:9.5px">横断</span>`
+                    : `<span class="q-chip q-chip--mono" style="padding:1px 6px;font-size:9.5px">単一: ${esc(inv.modelId)}</span>`;
+                return `
+                  <div class="qb-inv-card" data-qb-type="inv" data-qb-id="${esc(inv.id)}" data-scope="${inv.scope}" data-status="${inv.status}">
+                    <span class="qb-port qb-port--left" data-port="inv:${esc(inv.id)}"></span>
+                    <div class="qa-cross-head">
+                      <div class="q-chip-row">${scopeTag}</div>
+                      ${statusChipHtml(inv)}
+                    </div>
+                    <div class="qa-cross-title" style="font-size:11.5px">${esc(inv.title)}</div>
+                    ${boundMetaHtml(inv)}
+                    <code class="q-expr q-expr-toggleable">${esc(inv.expr)}</code>
+                  </div>
+                `;
+              })
+              .join('');
+        };
+
+        let edgeRecords = [];
+
+        const portCenter = (portEl, stageRect) => {
+          if (!portEl) return null;
+          const r = portEl.getBoundingClientRect();
+          if (r.width === 0 && r.height === 0) return null;
+          return {
+            x: r.left + r.width / 2 - stageRect.left,
+            y: r.top + r.height / 2 - stageRect.top,
+          };
+        };
+
+        const drawEdges = () => {
+          const stageRect = stage.getBoundingClientRect();
+          if (stageRect.width <= 0 || stageRect.height <= 0) return;
+
+          svg.setAttribute('viewBox', `0 0 ${stageRect.width} ${stageRect.height}`);
+          svg.innerHTML = '';
+          ensureMarkers(svg, 'qb');
+          edgeRecords = [];
+
+          const portMap = new Map();
+          stage.querySelectorAll('[data-port]').forEach((el) => {
+            portMap.set(el.dataset.port, el);
+          });
+
+          // Left-to-Center: Action -> Field (Write & Guard)
+          for (const action of QUINT_MODEL.actions) {
+            const pA = portCenter(portMap.get(`action:${action.id}`), stageRect);
+            if (!pA) continue;
+
+            for (const w of action.writes) {
+              const pF = portCenter(portMap.get(`in:${w.field}`), stageRect);
+              if (!pF) continue;
+              const dx = Math.max(44, (pF.x - pA.x) * 0.48);
+              const d = `M ${pA.x} ${pA.y} C ${pA.x + dx} ${pA.y}, ${pF.x - dx} ${pF.y}, ${pF.x} ${pF.y}`;
+              const path = svgEl('path', { d, class: 'q-edge q-edge--write' });
+              svg.appendChild(path);
+              edgeRecords.push({ el: path, kind: 'write', actionId: action.id, field: w.field });
+            }
+
+            for (const g of action.guards) {
+              const pF = portCenter(portMap.get(`in:${g.field}`), stageRect);
+              if (!pF) continue;
+              const dx = Math.max(44, (pF.x - pA.x) * 0.48);
+              const d = `M ${pA.x} ${pA.y} C ${pA.x + dx} ${pA.y}, ${pF.x - dx} ${pF.y}, ${pF.x} ${pF.y}`;
+              const path = svgEl('path', { d, class: 'q-edge q-edge--guard' });
+              svg.appendChild(path);
+              edgeRecords.push({ el: path, kind: 'guard', actionId: action.id, field: g.field });
+            }
+          }
+
+          // Center-to-Right: Field -> Visible Invariant
+          for (const inv of QUINT_MODEL.invariants) {
+            const invCard = colInvs.querySelector(`[data-qb-id="${inv.id}"]`);
+            if (!invCard || invCard.hidden) continue;
+            const pI = portCenter(portMap.get(`inv:${inv.id}`), stageRect);
+            if (!pI) continue;
+
+            for (const ref of inv.refs) {
+              const pF = portCenter(portMap.get(`out:${ref}`), stageRect);
+              if (!pF) continue;
+              const dx = Math.max(44, (pI.x - pF.x) * 0.48);
+              const d = `M ${pF.x} ${pF.y} C ${pF.x + dx} ${pF.y}, ${pI.x - dx} ${pI.y}, ${pI.x} ${pI.y}`;
+              const path = svgEl('path', { d, class: 'q-edge q-edge--inv-solid' });
+              svg.appendChild(path);
+              edgeRecords.push({ el: path, kind: 'inv', invId: inv.id, field: ref });
+            }
+          }
+
+          applyHighlights();
+        };
+
+        const applyFilters = () => {
+          root.dataset.showExpr = String(state.showExpr);
+          let visibleCount = 0;
+          colInvs.querySelectorAll('.qb-inv-card').forEach((card) => {
+            const matchesScope = !state.crossOnly || card.dataset.scope === 'cross';
+            const matchesStatus = state.statusFilter === 'all' || card.dataset.status === state.statusFilter;
+            card.hidden = !(matchesScope && matchesStatus);
+            if (!card.hidden) visibleCount++;
+          });
+          const countEl = document.getElementById('qb-inv-count');
+          if (countEl) countEl.textContent = `${visibleCount}/${QUINT_MODEL.invariants.length}`;
+          requestAnimationFrame(drawEdges);
+        };
+
+        const applyHighlights = () => {
+          const active = state.locked || state.hovered;
+          clearBtn.hidden = !state.locked;
+
+          stage.querySelectorAll('.is-active,.is-related,.is-inv-hit,.is-dimmed').forEach((el) => {
+            el.classList.remove('is-active', 'is-related', 'is-inv-hit', 'is-dimmed');
+          });
+          stage.querySelectorAll('.q-field-row').forEach((el) => {
+            el.classList.remove('is-field-write', 'is-field-guard', 'is-field-both', 'is-field-inv', 'is-field-active');
+          });
+          stage.querySelectorAll('.qb-port').forEach((el) => {
+            el.classList.remove('is-port-write', 'is-port-guard', 'is-port-inv');
+          });
+
+          if (!active) {
+            chainStrip.innerHTML = `<span>要素にホバーまたはクリックで 2 ホップの因果チェーンをトレース</span>`;
+            for (const rec of edgeRecords) {
+              rec.el.classList.remove('is-edge-lit', 'is-edge-dim', 'is-edge-hidden');
+              if (rec.kind === 'guard' && !state.showGuards) rec.el.classList.add('is-edge-hidden');
+            }
+            return;
+          }
+
+          const litActions = new Set();
+          const litModels = new Set();
+          const litInvs = new Set();
+          const writeFields = new Set();
+          const guardFields = new Set();
+          const invFields = new Set();
+
+          if (active.type === 'action') {
+            const a = actionById.get(active.id);
+            const d = ACTION_DERIVED.get(a.id);
+            litActions.add(a.id);
+            d.writeFields.forEach((f) => {
+              writeFields.add(f);
+              litModels.add(fieldModel(f));
+            });
+            d.guardFields.forEach((f) => {
+              guardFields.add(f);
+              litModels.add(fieldModel(f));
+            });
+            d.affectedInvariantIds.forEach((id) => litInvs.add(id));
+            chainStrip.innerHTML = `
+              <span class="q-chip q-chip--mono q-chip--violet">${esc(a.name)}</span>
+              <span>→</span>
+              <span class="q-chip q-chip--green">W ${a.writes.length} fields</span>
+              <span class="q-chip q-chip--blue">G ${a.guards.length} fields</span>
+              <span>→</span>
+              <span class="q-chip q-chip--amber">${d.affectedInvariants.length} invariants</span>
+            `;
+          } else if (active.type === 'inv') {
+            const inv = invariantById.get(active.id);
+            const actions = INV_TOUCHED_BY_ACTIONS.get(inv.id) || [];
+            litInvs.add(inv.id);
+            inv.refs.forEach((r) => {
+              invFields.add(r);
+              litModels.add(fieldModel(r));
+            });
+            actions.forEach((a) => litActions.add(a.id));
+            chainStrip.innerHTML = `
+              <span class="q-chip q-chip--mono q-chip--amber">${esc(inv.id)}</span>
+              <span>←</span>
+              <span class="q-chip">${inv.refs.length} fields</span>
+              <span>←</span>
+              <span class="q-chip q-chip--violet">${actions.length} actions (${esc(actions.map((a) => a.name).join(', '))})</span>
+            `;
+          } else if (active.type === 'field') {
+            const touched = FIELD_TOUCHED_BY_ACTIONS.get(active.id);
+            const invs = FIELD_INVARIANTS.get(active.id) || [];
+            litModels.add(fieldModel(active.id));
+            touched?.writes.forEach((a) => litActions.add(a.id));
+            touched?.guards.forEach((a) => litActions.add(a.id));
+            invs.forEach((inv) => litInvs.add(inv.id));
+            chainStrip.innerHTML = `
+              <span class="q-chip q-chip--violet">${touched.writes.length}W / ${touched.guards.length}G actions</span>
+              <span>→</span>
+              <span class="q-chip q-chip--mono q-chip--accent">${esc(active.id)}</span>
+              <span>→</span>
+              <span class="q-chip q-chip--amber">${invs.length} invariants</span>
+            `;
+          } else if (active.type === 'model') {
+            litModels.add(active.id);
+            for (const a of QUINT_MODEL.actions) {
+              const d = ACTION_DERIVED.get(a.id);
+              if (d.writeModels.has(active.id) || d.guardModels.has(active.id)) {
+                litActions.add(a.id);
+                d.writeFields.forEach((f) => {
+                  if (fieldModel(f) === active.id) writeFields.add(f);
+                });
+                d.guardFields.forEach((f) => {
+                  if (fieldModel(f) === active.id) guardFields.add(f);
+                });
+              }
+            }
+            for (const inv of QUINT_MODEL.invariants) {
+              if (inv.refs.some((r) => fieldModel(r) === active.id)) {
+                litInvs.add(inv.id);
+                inv.refs.forEach((r) => {
+                  if (fieldModel(r) === active.id) invFields.add(r);
+                });
+              }
+            }
+            chainStrip.innerHTML = `
+              <span class="q-chip q-chip--violet">${litActions.size} actions</span>
+              <span>→</span>
+              <span class="q-chip q-chip--mono q-chip--accent">var ${esc(active.id)}</span>
+              <span>→</span>
+              <span class="q-chip q-chip--amber">${litInvs.size} invariants</span>
+            `;
+          }
+
+          colActions.querySelectorAll('.qb-action-card').forEach((el) => {
+            const id = el.dataset.qbId;
+            if (active.type === 'action' && active.id === id) el.classList.add('is-active');
+            else if (litActions.has(id)) el.classList.add('is-related');
+            else el.classList.add('is-dimmed');
+          });
+          colModels.querySelectorAll('.q-model-card').forEach((el) => {
+            const id = el.dataset.qbId;
+            if (active.type === 'model' && active.id === id) el.classList.add('is-active');
+            else if (litModels.has(id)) el.classList.add('is-related');
+            else el.classList.add('is-dimmed');
+          });
+          colInvs.querySelectorAll('.qb-inv-card').forEach((el) => {
+            const id = el.dataset.qbId;
+            if (active.type === 'inv' && active.id === id) el.classList.add('is-active');
+            else if (litInvs.has(id)) el.classList.add('is-inv-hit');
+            else el.classList.add('is-dimmed');
+          });
+          colModels.querySelectorAll('.q-field-row').forEach((el) => {
+            const fq = el.dataset.qbId;
+            if (active.type === 'field' && active.id === fq) el.classList.add('is-field-active');
+            else if (writeFields.has(fq) && guardFields.has(fq)) el.classList.add('is-field-both');
+            else if (writeFields.has(fq)) el.classList.add('is-field-write');
+            else if (guardFields.has(fq)) el.classList.add('is-field-guard');
+            else if (invFields.has(fq)) el.classList.add('is-field-inv');
+          });
+
+          // Highlight exact 2-hop edges & ports
+          for (const rec of edgeRecords) {
+            rec.el.classList.remove('is-edge-lit', 'is-edge-dim', 'is-edge-hidden');
+            let lit = false;
+            if (active.type === 'action') {
+              if ((rec.kind === 'write' || rec.kind === 'guard') && rec.actionId === active.id) lit = true;
+              if (
+                rec.kind === 'inv' &&
+                litInvs.has(rec.invId) &&
+                (writeFields.has(rec.field) ||
+                  (actionById.get(active.id)?.modelWrites || []).includes(fieldModel(rec.field)))
+              ) {
+                lit = true;
+              }
+            } else if (active.type === 'inv') {
+              if (rec.kind === 'inv' && rec.invId === active.id) lit = true;
+              if (rec.kind === 'write' && invFields.has(rec.field) && litActions.has(rec.actionId)) lit = true;
+              if (
+                rec.kind === 'write' &&
+                rec.actionId === 'init' &&
+                litActions.has('init') &&
+                invFields.size > 0 &&
+                (actionById.get('init').modelWrites || []).includes(fieldModel(rec.field))
+              ) {
+                const invModels = new Set([...invFields].map(fieldModel));
+                if (invModels.has(fieldModel(rec.field))) lit = true;
+              }
+            } else if (active.type === 'field') {
+              if ((rec.kind === 'write' || rec.kind === 'guard' || rec.kind === 'inv') && rec.field === active.id)
+                lit = true;
+            } else if (active.type === 'model') {
+              if (
+                (rec.kind === 'write' || rec.kind === 'guard' || rec.kind === 'inv') &&
+                fieldModel(rec.field) === active.id
+              )
+                lit = true;
+            }
+
+            rec.el.classList.add(lit ? 'is-edge-lit' : 'is-edge-dim');
+            if (lit) {
+              if (rec.kind === 'write') {
+                stage.querySelector(`[data-port="action:${rec.actionId}"]`)?.classList.add('is-port-write');
+                stage.querySelector(`[data-port="in:${rec.field}"]`)?.classList.add('is-port-write');
+              } else if (rec.kind === 'guard') {
+                stage.querySelector(`[data-port="action:${rec.actionId}"]`)?.classList.add('is-port-guard');
+                stage.querySelector(`[data-port="in:${rec.field}"]`)?.classList.add('is-port-guard');
+              } else if (rec.kind === 'inv') {
+                stage.querySelector(`[data-port="out:${rec.field}"]`)?.classList.add('is-port-inv');
+                stage.querySelector(`[data-port="inv:${rec.invId}"]`)?.classList.add('is-port-inv');
+              }
+            }
+          }
+        };
+
+        // Toolbar listeners
+        document.getElementById('qb-toggle-guard').addEventListener('click', (ev) => {
+          state.showGuards = !state.showGuards;
+          ev.currentTarget.setAttribute('aria-pressed', String(state.showGuards));
+          applyHighlights();
+        });
+        document.getElementById('qb-toggle-expr').addEventListener('click', (ev) => {
+          state.showExpr = !state.showExpr;
+          ev.currentTarget.setAttribute('aria-pressed', String(state.showExpr));
+          applyFilters();
+        });
+        document.getElementById('qb-toggle-cross').addEventListener('click', (ev) => {
+          state.crossOnly = !state.crossOnly;
+          ev.currentTarget.setAttribute('aria-pressed', String(state.crossOnly));
+          applyFilters();
+        });
+        document.getElementById('qb-status-filter').addEventListener('click', (ev) => {
+          const btn = ev.target.closest('button[data-status]');
+          if (!btn) return;
+          state.statusFilter = btn.dataset.status;
+          ev.currentTarget.querySelectorAll('button').forEach((b) => {
+            b.setAttribute('aria-pressed', String(b === btn));
+          });
+          applyFilters();
+        });
+        clearBtn.addEventListener('click', () => {
+          state.locked = null;
+          applyHighlights();
+        });
+
+        // Hover & click delegation
+        const findTarget = (el) => {
+          const hit = el?.closest?.('[data-qb-type]');
+          if (!hit) return null;
+          return { type: hit.dataset.qbType, id: hit.dataset.qbId };
+        };
+        stage.addEventListener('mouseover', (ev) => {
+          const t = findTarget(ev.target);
+          if (!t) return;
+          if (state.hovered?.type === t.type && state.hovered?.id === t.id) return;
+          state.hovered = t;
+          if (!state.locked) applyHighlights();
+        });
+        stage.addEventListener('mouseleave', () => {
+          state.hovered = null;
+          if (!state.locked) applyHighlights();
+        });
+        stage.addEventListener('click', (ev) => {
+          const t = findTarget(ev.target);
+          if (!t) {
+            if (state.locked) {
+              state.locked = null;
+              applyHighlights();
+            }
+            return;
+          }
+          if (state.locked && state.locked.type === t.type && state.locked.id === t.id) {
+            state.locked = null;
+          } else {
+            state.locked = t;
+          }
+          applyHighlights();
+        });
+        window.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape' && state.locked) {
+            state.locked = null;
+            applyHighlights();
+          }
+        });
+
+        renderColumns();
+        watchVisibilityAndLayout(stage, () => drawEdges());
+      };
+
+      // =========================================================================
+      // 6. Option C: Clean ERD + Action Matrix with Live Projection
+      // =========================================================================
+      const initOptionC = () => {
+        const root = document.getElementById('option-c-root');
+        const splitEl = document.getElementById('qc-split');
+        const rightPane = document.getElementById('qc-right-pane');
+        const togglePanelBtn = document.getElementById('qc-toggle-panel');
+        const togglePanelLabel = document.getElementById('qc-toggle-panel-label');
+        const collapseInlineBtn = document.getElementById('qc-collapse-inline');
+        const erdStage = document.getElementById('qc-erd-stage');
+        const erdSvg = document.getElementById('qc-erd-svg');
+        const erdGrid = document.getElementById('qc-erd-grid');
+        const crossGrid = document.getElementById('qc-cross-grid');
+        const matrixEl = document.getElementById('qc-matrix');
+        const detailEl = document.getElementById('qc-detail');
+        const filterBadge = document.getElementById('qc-filter-badge');
+        const filterOnlyBtn = document.getElementById('qc-toggle-filter-only');
+        const projectionStatus = document.getElementById('qc-projection-status');
+        const clearBtn = document.getElementById('qc-clear');
+
+        const ERD_ORDER = ['orders', 'inventory', 'payments', 'reservations'];
+
+        const state = {
+          showExpr: false,
+          panelCollapsed: false,
+          hoveredAction: null,
+          lockedAction: null,
+          hoveredErd: null, // { type: 'model'|'field'|'inv', id }
+          erdFilter: null, // { type: 'model'|'field'|'inv', id }
+          hideUnmatched: false,
+        };
+
+        const fieldBaseTitle = new Map();
+        for (const m of QUINT_MODEL.models) {
+          for (const f of m.fields) {
+            const fq = `${m.id}.${f.name}`;
+            fieldBaseTitle.set(fq, `${f.desc}${f.enumValues ? ` (${f.enumValues})` : ''}${f.ref ? ` → ${f.ref}` : ''}`);
+          }
+        }
+
+        const renderLeftErd = () => {
+          erdGrid.innerHTML = ERD_ORDER.map((mId) => {
+            const m = modelById.get(mId);
+            const localInvs = QUINT_MODEL.invariants.filter((i) => i.scope === 'local' && i.modelId === m.id);
+            const fieldsHtml = m.fields
+              .map((f) => {
+                const fq = `${m.id}.${f.name}`;
+                const badge = f.key
+                  ? `<span class="q-field-tag q-field-tag--key">KEY</span>`
+                  : f.ref
+                    ? `<span class="q-field-tag q-field-tag--ref" title="ref: ${esc(f.ref)}">REF</span>`
+                    : '';
+                return `
+                  <li class="q-field-row qc-field-row" data-qc-erd="field" data-qc-id="${esc(fq)}" title="${esc(fieldBaseTitle.get(fq) || '')}">
+                    <span class="q-field-main">
+                      <span class="q-field-name">${esc(f.name)}</span>
+                      ${badge}
+                    </span>
+                    <span class="qc-field-right">
+                      <span class="q-field-type">${esc(f.type)}</span>
+                      <span class="qc-gw-slot" data-qc-gw="${esc(fq)}" aria-hidden="true"></span>
+                    </span>
+                  </li>
+                `;
+              })
+              .join('');
+
+            const localInvsHtml = localInvs
+              .map(
+                (inv) => `
+                  <div class="q-local-inv-item" data-qc-erd="inv" data-qc-id="${esc(inv.id)}">
+                    <div class="q-local-inv-top">
+                      <span class="q-local-inv-title">${esc(inv.title)}</span>
+                      ${statusChipHtml(inv)}
+                    </div>
+                    <code class="q-expr q-expr-toggleable">${esc(inv.expr)}</code>
+                  </div>
+                `,
+              )
+              .join('');
+
+            return `
+              <div class="q-model-card" data-qc-card="${esc(m.id)}">
+                <div class="q-model-head" data-qc-erd="model" data-qc-id="${esc(m.id)}">
+                  <span class="q-model-head-left">
+                    ${iconTable}
+                    <span class="q-model-name">${esc(m.id)}</span>
+                    <span class="q-model-jp">${esc(m.label)}</span>
+                  </span>
+                  <div class="qc-head-sub">
+                    <span class="q-model-sig">${esc(m.signature)}</span>
+                    <span class="qc-unchanged-slot" data-qc-unchanged="${esc(m.id)}">unchanged</span>
+                  </div>
+                </div>
+                <ul class="q-field-list">${fieldsHtml}</ul>
+                <div class="q-local-invs">
+                  <div class="q-local-invs-label">${iconShield}<span>Local Invariants (${localInvs.length})</span></div>
+                  ${localInvsHtml}
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          crossGrid.innerHTML = QUINT_MODEL.invariants
+            .filter((i) => i.scope === 'cross')
+            .map((inv) => {
+              const refModels = [...new Set(inv.refs.map(fieldModel))];
+              return `
+                <div class="qa-cross-card" style="padding:8px 10px" data-qc-erd="inv" data-qc-id="${esc(inv.id)}">
+                  <div class="qa-cross-head">
+                    <span class="qa-cross-id" style="font-size:10.5px">${iconShield}${esc(inv.id)}</span>
+                    ${statusChipHtml(inv)}
+                  </div>
+                  <div class="qa-cross-title" style="font-size:11.5px">${esc(inv.title)}</div>
+                  ${boundMetaHtml(inv)}
+                  <code class="q-expr q-expr-toggleable">${esc(inv.expr)}</code>
+                  <div class="qa-cross-meta">
+                    ${refModels.map((m) => `<span class="q-chip q-chip--mono" style="padding:1px 5px;font-size:9.5px">${esc(m)}</span>`).join('')}
+                  </div>
+                </div>
+              `;
+            })
+            .join('');
+        };
+
+        const renderMatrix = () => {
+          const cols = QUINT_MODEL.models.map((m) => m.id);
+          const headHtml = `
+            <thead>
+              <tr>
+                <th>Action</th>
+                ${cols.map((c) => `<th>${esc(c)}</th>`).join('')}
+                <th>不変条件</th>
+              </tr>
+            </thead>
+          `;
+
+          const rowsHtml = QUINT_MODEL.actions
+            .map((a) => {
+              const d = ACTION_DERIVED.get(a.id);
+              const cells = cols
+                .map((mId) => {
+                  const hasG = d.guardModels.has(mId);
+                  const hasW = d.writeModels.has(mId);
+                  if (hasG && hasW) return `<td><span class="qc-cell-badge qc-cell--gw">G·W</span></td>`;
+                  if (hasW) return `<td><span class="qc-cell-badge qc-cell--w">W</span></td>`;
+                  if (hasG) return `<td><span class="qc-cell-badge qc-cell--g">G</span></td>`;
+                  return `<td><span class="qc-cell--none">—</span></td>`;
+                })
+                .join('');
+
+              const invTitle = d.affectedInvariants.map((inv) => `${inv.id} (${inv.status}): ${inv.title}`).join('\n');
+
+              return `
+                <tr data-qc-action="${esc(a.id)}">
+                  <td>
+                    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:3px 5px">
+                      <span style="font-family:var(--dpk-mono);font-size:11px;font-weight:650;color:var(--dpk-ink)">${esc(a.name)}</span>
+                      ${kindBadgeHtml(a.kind)}
+                    </div>
+                    <div style="font-size:10px;line-height:1.35;color:var(--dpk-ink-faint);margin-top:1px">${esc(a.summary)}</div>
+                  </td>
+                  ${cells}
+                  <td>
+                    <span class="q-chip q-chip--amber" style="padding:1px 6px;font-size:9.5px" title="${esc(invTitle)}">${d.affectedInvariants.length}件</span>
+                  </td>
+                </tr>
+              `;
+            })
+            .join('');
+
+          matrixEl.innerHTML = `${headHtml}<tbody>${rowsHtml}</tbody>`;
+        };
+
+        const drawErdRefs = () => {
+          const stageRect = erdStage.getBoundingClientRect();
+          if (stageRect.width <= 0 || stageRect.height <= 0) return;
+
+          erdSvg.setAttribute('viewBox', `0 0 ${stageRect.width} ${stageRect.height}`);
+          erdSvg.innerHTML = '';
+          ensureMarkers(erdSvg, 'qc');
+
+          const cardBox = (mId) => {
+            const el = erdGrid.querySelector(`[data-qc-card="${mId}"]`);
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return {
+              x: r.left - stageRect.left,
+              y: r.top - stageRect.top,
+              w: r.width,
+              h: r.height,
+              cx: r.left - stageRect.left + r.width / 2,
+              cy: r.top - stageRect.top + r.height / 2,
+              right: r.right - stageRect.left,
+              bottom: r.bottom - stageRect.top,
+            };
+          };
+
+          const boxes = {
+            orders: cardBox('orders'),
+            inventory: cardBox('inventory'),
+            payments: cardBox('payments'),
+            reservations: cardBox('reservations'),
+          };
+          if (!boxes.orders || !boxes.inventory || !boxes.payments || !boxes.reservations) return;
+
+          const makePath = (d) => {
+            const p = svgEl('path', {
+              d,
+              class: 'q-edge q-edge--ref',
+              'marker-start': 'url(#qc-dot-ref)',
+              'marker-end': 'url(#qc-arrow-ref)',
+            });
+            erdSvg.appendChild(p);
+          };
+
+          // 1. orders.itemId -> inventory.itemId (top-left -> top-right horizontal)
+          {
+            const y = boxes.orders.y + 84;
+            makePath(
+              `M ${boxes.orders.right} ${y} C ${boxes.orders.right + 18} ${y}, ${boxes.inventory.x - 18} ${y}, ${boxes.inventory.x} ${y}`,
+            );
+          }
+          // 2. reservations.itemId -> inventory.itemId (bottom-right -> top-right vertical)
+          {
+            const x = boxes.inventory.cx + 16;
+            makePath(
+              `M ${x} ${boxes.reservations.y} C ${x} ${boxes.reservations.y - 16}, ${x} ${boxes.inventory.bottom + 16}, ${x} ${boxes.inventory.bottom}`,
+            );
+          }
+          // 3. payments.orderId -> orders.id (bottom-left -> top-left vertical)
+          {
+            const x = boxes.orders.cx - 16;
+            makePath(
+              `M ${x} ${boxes.payments.y} C ${x} ${boxes.payments.y - 16}, ${x} ${boxes.orders.bottom + 16}, ${x} ${boxes.orders.bottom}`,
+            );
+          }
+          // 4. reservations.orderId -> orders.id (bottom-right -> top-left gentle center curve)
+          {
+            const x1 = boxes.reservations.x;
+            const y1 = boxes.reservations.y + 68;
+            const x2 = boxes.orders.right;
+            const y2 = boxes.orders.bottom - 26;
+            const midX = (x1 + x2) / 2;
+            makePath(`M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`);
+          }
+        };
+
+        const scheduleDrawErdRefs = () => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => drawErdRefs());
+          });
+        };
+
+        const actionMatchesFilter = (action, filter) => {
+          if (!filter) return true;
+          const d = ACTION_DERIVED.get(action.id);
+          if (filter.type === 'model') {
+            return d.writeModels.has(filter.id) || d.guardModels.has(filter.id);
+          }
+          if (filter.type === 'field') {
+            return d.writeFields.has(filter.id) || d.guardFields.has(filter.id);
+          }
+          if (filter.type === 'inv') {
+            return d.affectedInvariantIds.has(filter.id);
+          }
+          return true;
+        };
+
+        const renderDetail = (actionId) => {
+          if (!actionId) {
+            detailEl.innerHTML = `
+              <div style="font-size:12px;color:var(--dpk-ink-soft);display:flex;flex-direction:column;gap:4px">
+                <strong style="color:var(--dpk-ink)">Action 詳細パネル</strong>
+                <span>上のマトリクス行にホバーまたはクリックすると、Guard（事前条件）・Write（状態更新）・unchanged モデルの詳細を表示し、左の ERD 上で対象フィールドと影響する不変条件をハイライトします。</span>
+                <span style="font-size:11px;color:var(--dpk-ink-faint)">左の ERD のモデル・フィールド・不変条件をクリックすると、関連する Action 行を絞り込めます。</span>
+              </div>
+            `;
+            return;
+          }
+          const a = actionById.get(actionId);
+          detailEl.innerHTML = `
+            <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-family:var(--dpk-mono);font-size:12.5px;font-weight:700;color:var(--dpk-ink)">${esc(a.name)}(${esc(a.params)})</span>
+                ${kindBadgeHtml(a.kind)}
+              </div>
+              <span class="q-chip q-chip--faint">${a.unchanged.length ? `unchanged: ${esc(a.unchanged.join(', '))}` : '全モデル更新'}</span>
+            </div>
+            <div style="font-size:11.5px;color:var(--dpk-ink-soft);margin-top:3px">${esc(a.summary)}</div>
+            <div class="qc-detail-grid">
+              <div class="qc-detail-box">
+                <h4 style="color:var(--dpk-blue)">Guards（事前条件 · ${a.guards.length}）</h4>
+                <div class="qc-detail-items">
+                  ${
+                    a.guards.length
+                      ? a.guards
+                          .map(
+                            (g) =>
+                              `<div class="qc-detail-item"><code>${esc(g.field)} ${esc(g.expr)}</code><span style="color:var(--dpk-ink-faint);font-size:10.5px">${esc(g.label)}</span></div>`,
+                          )
+                          .join('')
+                      : `<span style="font-size:11px;color:var(--dpk-ink-faint)">なし</span>`
+                  }
+                </div>
+              </div>
+              <div class="qc-detail-box">
+                <h4 style="color:var(--dpk-green)">Writes（状態更新 · ${a.writes.length}）</h4>
+                <div class="qc-detail-items">
+                  ${a.writes
+                    .map(
+                      (w) =>
+                        `<div class="qc-detail-item"><code>${esc(w.field)} ${esc(w.expr)}</code><span style="color:var(--dpk-ink-faint);font-size:10.5px">${esc(w.label)}</span></div>`,
+                    )
+                    .join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        };
+
+        const setPanelCollapsed = (collapsed) => {
+          state.panelCollapsed = collapsed;
+          splitEl.dataset.collapsed = String(collapsed);
+          rightPane.hidden = collapsed;
+          togglePanelBtn.setAttribute('aria-expanded', String(!collapsed));
+          togglePanelLabel.textContent = collapsed ? 'マトリクスを開く' : 'マトリクスを閉じる';
+          scheduleDrawErdRefs();
+        };
+
+        const updateView = () => {
+          root.dataset.showExpr = String(state.showExpr);
+          // Strict priority: selected (locked) ALWAYS overrides hover
+          const activeActionId = state.lockedAction ?? state.hoveredAction;
+          const activeErd = state.erdFilter ?? state.hoveredErd;
+
+          clearBtn.hidden = !(state.lockedAction || state.erdFilter);
+          filterOnlyBtn.hidden = !state.erdFilter;
+          filterOnlyBtn.setAttribute('aria-pressed', String(state.hideUnmatched));
+
+          if (state.erdFilter) {
+            filterBadge.innerHTML = `<span class="q-chip q-chip--accent">絞り込み: ${esc(state.erdFilter.id)}</span>`;
+          } else {
+            filterBadge.innerHTML = '';
+          }
+
+          if (activeActionId) {
+            const modeText = state.lockedAction === activeActionId ? '選択中' : 'プレビュー';
+            projectionStatus.className = 'q-chip q-chip--accent';
+            projectionStatus.textContent = `${modeText}: ${activeActionId}`;
+          } else {
+            projectionStatus.className = 'q-chip q-chip--faint';
+            projectionStatus.textContent = '右の Action にホバー/クリックで左の ERD に Guard / Write を投影';
+          }
+
+          // Clear left ERD overlays (without modifying element geometry!)
+          root.querySelectorAll('[data-qc-card]').forEach((card) => {
+            card.classList.remove('is-active', 'is-related', 'is-dimmed');
+            const mId = card.dataset.qcCard;
+            card.querySelector(`[data-qc-unchanged="${mId}"]`)?.classList.remove('is-visible');
+          });
+          root.querySelectorAll('.qc-field-row').forEach((row) => {
+            row.classList.remove(
+              'is-field-write',
+              'is-field-guard',
+              'is-field-both',
+              'is-field-inv',
+              'is-field-active',
+            );
+            row.title = fieldBaseTitle.get(row.dataset.qcId) || '';
+          });
+          root.querySelectorAll('[data-qc-gw]').forEach((slot) => {
+            slot.className = 'qc-gw-slot';
+            slot.textContent = '';
+          });
+          root.querySelectorAll('[data-qc-erd="inv"]').forEach((el) => {
+            el.classList.remove('is-active', 'is-inv-hit', 'is-dimmed');
+          });
+
+          // Apply zero-shift projection from active Action
+          if (activeActionId) {
+            const a = actionById.get(activeActionId);
+            const d = ACTION_DERIVED.get(activeActionId);
+
+            for (const m of QUINT_MODEL.models) {
+              const card = root.querySelector(`[data-qc-card="${m.id}"]`);
+              const touched = d.writeModels.has(m.id) || d.guardModels.has(m.id);
+              if (touched) {
+                card.classList.add('is-related');
+              } else {
+                card.classList.add('is-dimmed');
+                card.querySelector(`[data-qc-unchanged="${m.id}"]`)?.classList.add('is-visible');
+              }
+            }
+
+            // Fill pre-reserved fixed-width G / W / G·W slot and tooltip expression
+            const opsByField = new Map();
+            const addOp = (field, kind, expr, label) => {
+              if (!opsByField.has(field)) opsByField.set(field, []);
+              opsByField.get(field).push({ kind, expr, label });
+            };
+            a.guards.forEach((g) => addOp(g.field, 'g', g.expr, g.label));
+            a.writes.forEach((w) => addOp(w.field, 'w', w.expr, w.label));
+
+            for (const [fq, ops] of opsByField.entries()) {
+              const row = root.querySelector(`.qc-field-row[data-qc-id="${fq}"]`);
+              const slot = root.querySelector(`[data-qc-gw="${fq}"]`);
+              const hasG = ops.some((p) => p.kind === 'g');
+              const hasW = ops.some((p) => p.kind === 'w');
+              if (row) {
+                row.classList.add(hasG && hasW ? 'is-field-both' : hasW ? 'is-field-write' : 'is-field-guard');
+                const opLines = ops.map((p) => `${p.kind === 'g' ? 'G' : 'W'}: ${p.expr} (${p.label})`);
+                row.title = opLines.join('\n');
+              }
+              if (slot) {
+                if (hasG && hasW) {
+                  slot.className = 'qc-gw-slot is-gw';
+                  slot.textContent = 'G·W';
+                } else if (hasW) {
+                  slot.className = 'qc-gw-slot is-w';
+                  slot.textContent = 'W';
+                } else {
+                  slot.className = 'qc-gw-slot is-g';
+                  slot.textContent = 'G';
+                }
+              }
+            }
+
+            // Highlight affected invariants with amber ring
+            root.querySelectorAll('[data-qc-erd="inv"]').forEach((el) => {
+              if (d.affectedInvariantIds.has(el.dataset.qcId)) {
+                el.classList.add('is-inv-hit');
+              }
+            });
+          } else if (activeErd) {
+            // Highlight hovered/selected ERD element and its referenced fields
+            if (activeErd.type === 'model') {
+              root.querySelector(`[data-qc-card="${activeErd.id}"]`)?.classList.add('is-active');
+            } else if (activeErd.type === 'field') {
+              root.querySelector(`.qc-field-row[data-qc-id="${activeErd.id}"]`)?.classList.add('is-field-active');
+            } else if (activeErd.type === 'inv') {
+              const inv = invariantById.get(activeErd.id);
+              root.querySelector(`[data-qc-erd="inv"][data-qc-id="${inv.id}"]`)?.classList.add('is-active');
+              inv.refs.forEach((fq) => {
+                root.querySelector(`.qc-field-row[data-qc-id="${fq}"]`)?.classList.add('is-field-inv');
+              });
+            }
+          }
+
+          // Update matrix rows (active/locked + reverse filter from left ERD)
+          matrixEl.querySelectorAll('tbody tr').forEach((tr) => {
+            const aId = tr.dataset.qcAction;
+            const action = actionById.get(aId);
+            const matches = actionMatchesFilter(action, state.erdFilter);
+            tr.hidden = Boolean(state.erdFilter && state.hideUnmatched && !matches);
+            tr.classList.toggle('is-dimmed', Boolean(state.erdFilter && !matches));
+            tr.classList.toggle('is-row-locked', state.lockedAction === aId);
+            tr.classList.toggle('is-row-active', !state.lockedAction && state.hoveredAction === aId);
+          });
+
+          renderDetail(activeActionId);
+        };
+
+        // Events
+        document.getElementById('qc-toggle-expr').addEventListener('click', (ev) => {
+          state.showExpr = !state.showExpr;
+          ev.currentTarget.setAttribute('aria-pressed', String(state.showExpr));
+          updateView();
+          scheduleDrawErdRefs();
+        });
+        togglePanelBtn.addEventListener('click', () => setPanelCollapsed(!state.panelCollapsed));
+        collapseInlineBtn.addEventListener('click', () => setPanelCollapsed(true));
+        filterOnlyBtn.addEventListener('click', () => {
+          state.hideUnmatched = !state.hideUnmatched;
+          updateView();
+        });
+        clearBtn.addEventListener('click', () => {
+          state.lockedAction = null;
+          state.erdFilter = null;
+          state.hideUnmatched = false;
+          updateView();
+        });
+
+        matrixEl.addEventListener('mouseover', (ev) => {
+          const tr = ev.target.closest('tr[data-qc-action]');
+          if (!tr) return;
+          const nextId = tr.dataset.qcAction;
+          if (state.hoveredAction === nextId) return;
+          state.hoveredAction = nextId;
+          if (!state.lockedAction) updateView();
+        });
+        matrixEl.addEventListener('mouseleave', () => {
+          if (!state.hoveredAction) return;
+          state.hoveredAction = null;
+          if (!state.lockedAction) updateView();
+        });
+        matrixEl.addEventListener('click', (ev) => {
+          const tr = ev.target.closest('tr[data-qc-action]');
+          if (!tr) return;
+          const aId = tr.dataset.qcAction;
+          state.lockedAction = state.lockedAction === aId ? null : aId;
+          updateView();
+        });
+
+        const leftPane = erdStage.closest('.qc-pane');
+        const handleLeftHover = (ev) => {
+          const hit = ev.target.closest('[data-qc-erd]');
+          if (!hit) {
+            if (state.hoveredErd) {
+              state.hoveredErd = null;
+              if (!state.lockedAction && !state.erdFilter) updateView();
+            }
+            return;
+          }
+          const next = { type: hit.dataset.qcErd, id: hit.dataset.qcId };
+          if (state.hoveredErd?.type === next.type && state.hoveredErd?.id === next.id) return;
+          state.hoveredErd = next;
+          if (!state.lockedAction && !state.erdFilter) updateView();
+        };
+        const handleLeftClick = (ev) => {
+          const hit = ev.target.closest('[data-qc-erd]');
+          if (!hit) {
+            if (state.lockedAction || state.erdFilter) {
+              state.lockedAction = null;
+              state.erdFilter = null;
+              state.hideUnmatched = false;
+              updateView();
+            }
+            return;
+          }
+          const next = { type: hit.dataset.qcErd, id: hit.dataset.qcId };
+          if (state.erdFilter?.type === next.type && state.erdFilter?.id === next.id) {
+            state.erdFilter = null;
+            state.hideUnmatched = false;
+          } else {
+            state.erdFilter = next;
+          }
+          updateView();
+        };
+        leftPane.addEventListener('mouseover', handleLeftHover);
+        leftPane.addEventListener('mouseleave', () => {
+          if (!state.hoveredErd) return;
+          state.hoveredErd = null;
+          if (!state.lockedAction && !state.erdFilter) updateView();
+        });
+        leftPane.addEventListener('click', handleLeftClick);
+
+        window.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape' && (state.lockedAction || state.erdFilter)) {
+            state.lockedAction = null;
+            state.erdFilter = null;
+            state.hideUnmatched = false;
+            updateView();
+          }
+        });
+
+        renderLeftErd();
+        renderMatrix();
+        updateView();
+        watchVisibilityAndLayout(erdStage, () => drawErdRefs());
+      };
+
+      // =========================================================================
+      // 7. Page 5: Canonical Quint Source Viewer (derived from QUINT_MODEL)
+      // =========================================================================
+      const initQuintSource = () => {
+        const summaryEl = document.getElementById('qs-summary');
+        const codeEl = document.getElementById('qs-code');
+        const copyBtn = document.getElementById('qs-copy');
+
+        summaryEl.innerHTML = `
+          <span class="q-chip q-chip--mono q-chip--accent">module ${esc(QUINT_MODEL.moduleName)}</span>
+          <span class="q-chip">${QUINT_MODEL.models.length} state vars</span>
+          <span class="q-chip q-chip--violet">${QUINT_MODEL.actions.length} actions</span>
+          <span class="q-chip q-chip--amber">${QUINT_MODEL.invariants.length} invariants</span>
+        `;
+
+        const lines = [
+          `module ${QUINT_MODEL.moduleName} {`,
+          `  // --- Types & Constants ---`,
+          `  type OrderId = str`,
+          `  type ItemId = str`,
+          `  type ResId = str`,
+          `  type PaymentId = str`,
+          ...QUINT_MODEL.types.map((t) => `  type ${t.name} = ${t.variants.join(' | ')}`),
+          `  type Order = { id: OrderId, status: OrderStatus, itemId: ItemId, qty: int, totalAmount: int, paidAmount: int, refundedAmount: int }`,
+          `  type Stock = { itemId: ItemId, available: int, reserved: int, committed: int }`,
+          `  type Reservation = { id: ResId, orderId: OrderId, itemId: ItemId, qty: int, active: bool }`,
+          `  type Payment = { id: PaymentId, orderId: OrderId, kind: PaymentKind, amount: int }`,
+          ...QUINT_MODEL.constants.map((c) => `  const ${c.name}: ${c.type} = ${c.value}`),
+          ``,
+          `  // --- State Variables (4 Models) ---`,
+          ...QUINT_MODEL.models.map((m) => `  var ${m.id}: ${m.signature} // ${m.label}`),
+          ``,
+          `  // --- Helpers ---`,
+          `  pure def activeResByItem(rs: ResId -> Reservation, iid: ItemId): Set[Reservation] =`,
+          `    rs.values().filter(r => r.active and r.itemId == iid)`,
+          `  pure def activeResByOrder(rs: ResId -> Reservation, oid: OrderId): Set[Reservation] =`,
+          `    rs.values().filter(r => r.active and r.orderId == oid)`,
+          ``,
+          `  // --- Initial State ---`,
+          `  action init = all {`,
+          `    orders' = Map(),`,
+          `    reservations' = Map(),`,
+          `    payments' = Map(),`,
+          `    inventory' = Map("SKU-1" -> { itemId: "SKU-1", available: MAX_STOCK, reserved: 0, committed: 0 }),`,
+          `  }`,
+          ``,
+          `  // --- Domain Actions (5) ---`,
+          `  action placeOrder(oid: OrderId, iid: ItemId, qty: int, price: int): bool = all {`,
+          `    not(oid.in(orders.keys())),`,
+          `    iid.in(inventory.keys()),`,
+          `    qty > 0 and price > 0,`,
+          `    inventory.get(iid).available >= qty,`,
+          `    orders' = orders.put(oid, { id: oid, status: Pending, itemId: iid, qty: qty, totalAmount: qty * price, paidAmount: 0, refundedAmount: 0 }),`,
+          `    inventory' = inventory.set(iid, { ...inventory.get(iid), available: inventory.get(iid).available - qty, reserved: inventory.get(iid).reserved + qty }),`,
+          `    reservations' = reservations.put(oid, { id: oid, orderId: oid, itemId: iid, qty: qty, active: true }),`,
+          `    payments' = payments,`,
+          `  }`,
+          ``,
+          `  action capturePayment(oid: OrderId, pid: PaymentId): bool = all {`,
+          `    oid.in(orders.keys()),`,
+          `    orders.get(oid).status == Pending,`,
+          `    oid.in(reservations.keys()) and reservations.get(oid).active,`,
+          `    val o = orders.get(oid)`,
+          `    val s = inventory.get(o.itemId)`,
+          `    all {`,
+          `      orders' = orders.set(oid, { ...o, status: Paid, paidAmount: o.totalAmount }),`,
+          `      inventory' = inventory.set(o.itemId, { ...s, reserved: s.reserved - o.qty, committed: s.committed + o.qty }),`,
+          `      reservations' = reservations.set(oid, { ...reservations.get(oid), active: false }),`,
+          `      payments' = payments.put(pid, { id: pid, orderId: oid, kind: Charge, amount: o.totalAmount }),`,
+          `    }`,
+          `  }`,
+          ``,
+          `  action cancelOrder(oid: OrderId): bool = all {`,
+          `    oid.in(orders.keys()) and orders.get(oid).status == Pending,`,
+          `    oid.in(reservations.keys()) and reservations.get(oid).active,`,
+          `    val o = orders.get(oid)`,
+          `    val s = inventory.get(o.itemId)`,
+          `    all {`,
+          `      orders' = orders.set(oid, { ...o, status: Cancelled }),`,
+          `      inventory' = inventory.set(o.itemId, { ...s, reserved: s.reserved - o.qty, available: s.available + o.qty }),`,
+          `      reservations' = reservations.set(oid, { ...reservations.get(oid), active: false }),`,
+          `      payments' = payments,`,
+          `    }`,
+          `  }`,
+          ``,
+          `  action expireReservation(rid: ResId): bool = all {`,
+          `    rid.in(reservations.keys()) and reservations.get(rid).active,`,
+          `    val r = reservations.get(rid)`,
+          `    val o = orders.get(r.orderId)`,
+          `    val s = inventory.get(r.itemId)`,
+          `    all {`,
+          `      o.status == Pending,`,
+          `      reservations' = reservations.set(rid, { ...r, active: false }),`,
+          `      inventory' = inventory.set(r.itemId, { ...s, reserved: s.reserved - r.qty, available: s.available + r.qty }),`,
+          `      orders' = orders.set(r.orderId, { ...o, status: Cancelled }),`,
+          `      payments' = payments,`,
+          `    }`,
+          `  }`,
+          ``,
+          `  action refundOrder(oid: OrderId, pid: PaymentId, amt: int): bool = all {`,
+          `    oid.in(orders.keys()) and orders.get(oid).status == Paid,`,
+          `    amt > 0,`,
+          `    val o = orders.get(oid)`,
+          `    val nextRefund = o.refundedAmount + amt`,
+          `    all {`,
+          `      nextRefund <= o.paidAmount,`,
+          `      orders' = orders.set(oid, { ...o, refundedAmount: nextRefund, status: if (nextRefund == o.paidAmount) Refunded else Paid }),`,
+          `      payments' = payments.put(pid, { id: pid, orderId: oid, kind: Refund, amount: amt }),`,
+          `      inventory' = inventory,`,
+          `      reservations' = reservations,`,
+          `    }`,
+          `  }`,
+          ``,
+          `  // --- Invariants (6 Local + 3 Cross-Model) ---`,
+          ...QUINT_MODEL.invariants.map((inv) => {
+            const tag =
+              inv.scope === 'cross'
+                ? `cross · ${inv.status}${inv.bound ? ` (${inv.bound})` : ''}`
+                : `${inv.modelId} · ${inv.status}`;
+            return `  // [${tag}] ${inv.title}\n  val ${inv.id}: bool = ${inv.expr}`;
+          }),
+          `}`,
+        ];
+
+        const rawSource = lines.join('\n');
+
+        const highlightLine = (line) => {
+          const cmIdx = line.indexOf('//');
+          const codePart = cmIdx >= 0 ? line.slice(0, cmIdx) : line;
+          const commentPart = cmIdx >= 0 ? line.slice(cmIdx) : '';
+          let out = esc(codePart);
+          out = out.replace(
+            /\b(module|type|const|var|pure|def|action|val|all|and|or|not|if|else|true|false)\b/g,
+            '<span class="tok-kw">$1</span>',
+          );
+          out = out.replace(
+            /\b(OrderId|ItemId|ResId|PaymentId|OrderStatus|PaymentKind|Order|Stock|Reservation|Payment|Pending|Paid|Cancelled|Refunded|Charge|Refund|Set|Map|int|str|bool)\b/g,
+            '<span class="tok-ty">$1</span>',
+          );
+          out = out.replace(/\b(inv_[a-z_]+)\b/g, '<span class="tok-inv">$1</span>');
+          out = out.replace(
+            /\b(placeOrder|capturePayment|cancelOrder|expireReservation|refundOrder|init)\b/g,
+            '<span class="tok-fn">$1</span>',
+          );
+          out = out.replace(/\b(\d+|MAX_STOCK)\b/g, '<span class="tok-num">$1</span>');
+          if (commentPart) out += `<span class="tok-cm">${esc(commentPart)}</span>`;
+          return out;
+        };
+
+        const rawLines = rawSource.split('\n');
+        codeEl.innerHTML = rawLines
+          .map(
+            (line, i) =>
+              `<div class="qs-line"><span class="qs-ln">${i + 1}</span><span class="qs-txt">${highlightLine(line)}</span></div>`,
+          )
+          .join('');
+
+        copyBtn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(rawSource);
+            copyBtn.textContent = 'コピーしました';
+            setTimeout(() => {
+              copyBtn.textContent = 'Quintコードをコピー';
+            }, 1600);
+          } catch {
+            copyBtn.textContent = 'コピー失敗';
+            setTimeout(() => {
+              copyBtn.textContent = 'Quintコードをコピー';
+            }, 1600);
+          }
+        });
+      };
+
+      // Boot all views
+      initOptionA();
+      initOptionB();
+      initOptionC();
+      initQuintSource();
+    </script>
+  </body>
+</html>
