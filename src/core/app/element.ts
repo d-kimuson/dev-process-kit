@@ -989,7 +989,7 @@ export class AppElement extends ViewElement<AppState> {
           ? {
               remove: {
                 label: messages.removePage(label),
-                activate: () => this.#removePage(entry.id),
+                activate: () => void this.#askToRemovePage(entry.id, label),
               },
             }
           : {}),
@@ -1120,7 +1120,7 @@ export class AppElement extends ViewElement<AppState> {
           ? {
               remove: {
                 label: messages.removePage(label),
-                activate: () => this.#removePage(entry.id),
+                activate: () => void this.#askToRemovePage(entry.id, label),
               },
             }
           : {}),
@@ -1258,6 +1258,20 @@ export class AppElement extends ViewElement<AppState> {
       payload: { page, kind: content.kind, content: content.name, label: content.label },
     });
     if (outcome.ok) this.navigate({ [PAGE_KEY]: page });
+  }
+
+  /** Removing a page takes what the draft says about it along, so the reader is asked first. */
+  async #askToRemovePage(id: string, label: string): Promise<void> {
+    this.#closeSwitcher();
+    const messages = appMessages(this.locale);
+    const confirmed = await this.confirm({
+      title: messages.removePageConfirmTitle(label),
+      body: messages.removePageConfirmBody,
+      confirmLabel: messages.removePageConfirmOk,
+      cancelLabel: messages.removePageConfirmCancel,
+      tone: 'danger',
+    });
+    if (confirmed) this.#removePage(id);
   }
 
   /**

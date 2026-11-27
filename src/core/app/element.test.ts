@@ -91,6 +91,15 @@ if (!customElements.get('dpk-test-topic-provider')) {
   customElements.define('dpk-test-topic-provider', TestTopicProvider);
 }
 
+/** Answers the dialog that asks before a page is removed. */
+const answerRemoval = async (page: AppElement, answer: 'confirm' | 'cancel'): Promise<void> => {
+  await page.updateComplete;
+  const button = page.renderRoot.querySelector<HTMLElement>(`dialog.dpk-confirm-dialog button[value="${answer}"]`);
+  if (!button) throw new Error('no dialog asking about the removal');
+  button.click();
+  await page.updateComplete;
+};
+
 const mount = async () => {
   const page = document.createElement('dpk-app');
   if (!(page instanceof AppElement)) throw new Error('not upgraded');
@@ -505,6 +514,7 @@ describe('<dpk-page>', () => {
     trigger(page).click();
     await page.updateComplete;
     removeButton(page, 'Remove page "Page 3"').click();
+    await answerRemoval(page, 'confirm');
     await settle();
     expect(page.api.actions).toEqual([]);
     expect(page.querySelector('dpk-page[name="usm"]')).toBeNull();
@@ -516,13 +526,30 @@ describe('<dpk-page>', () => {
     trigger(page).click();
     await page.updateComplete;
     removeButton(page, 'Remove page "After"').click();
+    await page.updateComplete;
+    expect(page.renderRoot.querySelector('dialog.dpk-confirm-dialog')?.textContent).toContain('Remove page "After"?');
+    expect(page.api.actions).toEqual([]);
+    await answerRemoval(page, 'confirm');
     await settle();
     expect(page.api.actions.map((action) => [action.type, action.payload])).toEqual([
       ['REMOVE_PAGE', { page: 'after' }],
     ]);
     expect(pageOf('after').hidden).toBe(true);
     // The addable templates still offer a "+", even down to one board.
+    trigger(page).click();
+    await page.updateComplete;
     expect(rowLabels(page)).toEqual(['Before', 'Add a page']);
+  });
+
+  it('keeps the page when the reader cancels the removal', async () => {
+    const { page, settle } = await mount();
+    trigger(page).click();
+    await page.updateComplete;
+    removeButton(page, 'Remove page "After"').click();
+    await answerRemoval(page, 'cancel');
+    await settle();
+    expect(page.api.actions).toEqual([]);
+    expect(page.api.state.layout.map((entry) => entry.id)).toEqual(['before', 'after']);
   });
 
   it("names the page it shows in the header's switcher, and marks it in the list", async () => {
@@ -757,6 +784,7 @@ describe('<dpk-page>', () => {
       expect(page.api.actions.map((action) => action.type)).toEqual(['ADD_PAGE', 'RENAME_PAGE']);
       await openSwitcher(page);
       removeButton(page, 'Remove page "Roadmap"').click();
+      await answerRemoval(page, 'confirm');
       await settle();
       // Nothing about the page is left in the draft: not its own actions, and
       // not the rename that shared the app-wide target with every other page.
@@ -1037,12 +1065,17 @@ describe('<dpk-page>', () => {
       expect(page.renderRoot.querySelector('#dpk-page-switcher-menu')).toBeNull();
     });
 
-    it('removes a page from the "×" of its tab', async () => {
+    it('removes a page from the "×" of its tab, once the reader confirms', async () => {
       const page = await mountNav('sidebar');
       const remove = page.renderRoot.querySelector<HTMLElement>('.dpk-page-tab-remove[data-page="after"]');
       expect(remove?.getAttribute('aria-label')).toBe('Remove page "After"');
       remove?.click();
-      await page.updateComplete;
+      await answerRemoval(page, 'cancel');
+      expect(page.api.actions).toEqual([]);
+      expect(labels(page)).toEqual(['Before', 'After']);
+
+      page.renderRoot.querySelector<HTMLElement>('.dpk-page-tab-remove[data-page="after"]')?.click();
+      await answerRemoval(page, 'confirm');
       expect(page.api.actions.map((action) => [action.type, action.payload])).toEqual([
         ['REMOVE_PAGE', { page: 'after' }],
       ]);

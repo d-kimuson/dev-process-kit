@@ -29,7 +29,7 @@ import { CHANGES_ATTRIBUTE, jumpOf, type ChangeEntry } from './changes';
 import { hasCheckedTargets } from './check-mode';
 import { parseColorScheme, type ColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
-import { ConfirmDialogController } from './confirm-dialog/controller';
+import { ConfirmDialogController, type ConfirmDialogOptions } from './confirm-dialog/controller';
 import { ContextMenuController } from './context-menu/controller';
 import { contextMenuMessages } from './context-menu/messages';
 import { contextMenuStyles } from './context-menu/styles';
@@ -757,6 +757,11 @@ export abstract class ViewElement<S> extends LitElement {
   removeAction(id: string): void {
     if (this.#boardId !== null) this.#boardHost()?.removeAction(id);
     else this.controller.removeAction(id);
+  }
+
+  /** Asks the reader a yes/no question in the shell's own dialog; `false` when they cancel or dismiss it. */
+  protected confirm(options: ConfirmDialogOptions): Promise<boolean> {
+    return this.#confirmDialog.ask(options);
   }
 
   /**

@@ -24,6 +24,7 @@ shown, so nothing in the header shifts as a page is added or renamed. Hover, cli
 opens a popover listing the app's pages (the one shown checked, with a × beside each to remove it)
 and, last, **+** to add one. The page shown is renamed in that list, in place, on its own row:
 Enter or blur commits, Escape cancels.
+Removing a page asks first, since what the draft says about the page goes with it.
 
 A document of many pages can also list them in a rail: `<dpk-app page-nav="sidebar">` draws a
 column on the left of the page shown, one tab per page with its icon, its name and the count of the
