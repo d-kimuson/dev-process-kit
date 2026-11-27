@@ -12,6 +12,8 @@
  */
 import { html, nothing, type LitElement, type ReactiveController, type ReactiveControllerHost } from 'lit';
 
+import { closeModal, isDialogOpen, openModal } from '../dialog/native-dialog';
+
 export type ConfirmDialogOptions = {
   readonly title: string;
   readonly body?: string | undefined;
@@ -40,8 +42,8 @@ export class ConfirmDialogController implements ReactiveController {
   hostUpdated(): void {
     if (!this.#pendingOpen) return;
     const dialog = this.#dialog();
-    if (dialog && !dialog.open) {
-      dialog.showModal();
+    if (dialog && !isDialogOpen(dialog)) {
+      openModal(dialog);
       this.#pendingOpen = false;
     }
   }
@@ -66,7 +68,7 @@ export class ConfirmDialogController implements ReactiveController {
     const { title, body, confirmLabel, cancelLabel, tone } = this.#options;
     return html`
       <dialog class="dpk-confirm-dialog" data-dpk-confirm-dialog=${this.#id} @close=${this.#onClose}>
-        <form method="dialog" class="dpk-confirm-dialog-body">
+        <form method="dialog" class="dpk-confirm-dialog-body" @submit=${this.#onSubmit}>
           <h2 class="dpk-confirm-dialog-title">${title}</h2>
           ${body ? html`<p class="dpk-confirm-dialog-text">${body}</p>` : nothing}
           <div class="dpk-confirm-dialog-actions">
@@ -90,6 +92,20 @@ export class ConfirmDialogController implements ReactiveController {
     );
   }
 
+  /**
+   * The answer is the button that submitted the form. It is read here rather
+   * than from the dialog's `returnValue`, which only an engine with the modal
+   * dialog API fills in. Closing the dialog hands the focus back.
+   */
+  #onSubmit = (event: SubmitEvent): void => {
+    event.preventDefault();
+    const dialog = this.#dialog();
+    const submitter = event.submitter;
+    this.#settle(submitter instanceof HTMLButtonElement && submitter.value === 'confirm');
+    if (dialog) closeModal(dialog);
+  };
+
+  /** Escape, or anything else that closes the dialog without a button, is a cancel. */
   #onClose = (): void => {
     const dialog = this.#dialog();
     this.#settle(dialog?.returnValue === 'confirm');
