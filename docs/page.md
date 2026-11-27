@@ -15,6 +15,7 @@ dpk-app
   header  the document's title; the page switcher, then slot="header"; language, theme, gear
   menu    undo / redo, the review's sections, Check Mode, the changes bell
   main    the page shown; the others stay mounted, hidden
+          (page-nav="sidebar": a rail of the pages stands before it, in place of the switcher)
 ```
 
 The header carries the switcher ahead of the title, and the settings gear at its end
@@ -23,6 +24,15 @@ shown, so nothing in the header shifts as a page is added or renamed. Hover, cli
 opens a popover listing the app's pages (the one shown checked, with a × beside each to remove it)
 and, last, **+** to add one. The page shown is renamed in that list, in place, on its own row:
 Enter or blur commits, Escape cancels.
+
+A document of many pages can also list them in a rail: `<dpk-app page-nav="sidebar">` draws a
+column on the left of the page shown, one tab per page with its icon, its name and the count of the
+draft's changes and comments on it. A click or the arrow keys, Home and End switch pages. The rail
+stands in for the switcher, which the header then does not draw; the rest of the header is the same.
+The page shown is renamed on its tab, a tab's × removes its page, and **+** under the tabs adds one.
+Under 720px of width the rail is not drawn and the header's switcher takes its place. Choose the rail when
+the reader moves between four or more pages again and again, or has to see where the pending changes
+are; one or two pages read better without it.
 
 The header names the document. A direct child of `<dpk-app>` with `slot="header"` joins it
 after the title and before the kit's own language, theme and settings controls: the place for a
@@ -83,6 +93,7 @@ Example Mapping, Event Storming, Kanban) — whether or not their entry is loade
 | `dpk-app`   | `storage-key`, `storage`, `notes`, `theme` | As on a view ([index.md](index.md#persistence)): the app owns the draft and the chrome.                                                                                                  |
 | `dpk-app`   | `hash="off"`                               | Leaves `location.hash` alone (neither read nor written); pages still switch in memory.                                                                                                   |
 | `dpk-app`   | `page-nav="none"`                          | Draws no switcher or "+": the app's own header, menu and review still show, for a document embedded where pages are chosen some other way.                                               |
+| `dpk-app`   | `page-nav="sidebar"`                       | Lists the app's pages in a rail on the left of the page shown, in place of the header's switcher (which returns under 720px).                                                            |
 | `dpk-page`  | `name` (required)                          | The page's id: letters, digits, `_`, `-`; unique in the app. Targets and the hash use it.                                                                                                |
 | `dpk-page`  | `label`                                    | The page's name in the switcher (and in its trigger's label). Defaults to the content's name; the reader can rename it in place.                                                         |
 | the content | —                                          | Exactly one `dpk-view-*` or `dpk-board-*`. Its base JSON, slots and light DOM are exactly those of the view or board on its own; `storage-key` is ignored, since the draft is the app's. |

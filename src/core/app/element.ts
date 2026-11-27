@@ -57,6 +57,7 @@ import {
   type PageSpec,
 } from './definition';
 import { appMessages } from './messages';
+import { renderRail, type RailTab } from './rail';
 import { renderSwitcherMenu, renderSwitcherTrigger, SWITCHER_ID, type SwitcherRow } from './switcher';
 import { boardEntryUrl, siblingEntryUrl } from './template-loader';
 
@@ -260,6 +261,201 @@ const pageStyles = css`
     outline-offset: -2px;
   }
 
+  /* The page shown, with the rail of page-nav="sidebar" before it. */
+  .dpk-app-body {
+    flex: 1 1 0%;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .dpk-page-rail {
+    flex: 0 0 auto;
+    padding: 6px 4px;
+    border-right: 1px solid var(--dpk-rule);
+    background: var(--dpk-paper-sunken);
+    overflow-y: auto;
+  }
+
+  .dpk-page-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* One page of the rail: its tab and, beside it, the controls a tab cannot hold. */
+  .dpk-page-tab-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 56px;
+    border: 1px solid transparent;
+    border-radius: var(--dpk-radius);
+    color: var(--dpk-ink-soft);
+    font: 600 10px / 1.2 var(--dpk-body);
+    text-align: center;
+    transition:
+      background 160ms var(--dpk-ease),
+      color 160ms var(--dpk-ease);
+  }
+
+  .dpk-page-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    width: 100%;
+    padding: 6px 2px 5px;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .dpk-page-tab-icon {
+    display: grid;
+    place-items: center;
+  }
+
+  .dpk-page-tab-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 1.75;
+  }
+
+  /* A long name keeps to two lines; the tab's title has the whole of it. */
+  .dpk-page-tab-label {
+    display: -webkit-box;
+    max-width: 100%;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  /* The page shown is named by an inline edit under its tab, since a button holds no field. */
+  .dpk-page-tab-item[data-selected] .dpk-page-tab {
+    padding-bottom: 3px;
+  }
+
+  dpk-inline-edit.dpk-page-tab-label {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0 2px 5px;
+    --dpk-inline-edit-lines: 2;
+  }
+
+  .dpk-page-tab-item:hover {
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
+  }
+
+  .dpk-page-tab-item[data-selected] {
+    border-color: var(--dpk-rule-strong);
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-accent);
+    box-shadow: var(--dpk-shadow-xs);
+  }
+
+  .dpk-page-tab:focus-visible,
+  .dpk-page-tab-remove:focus-visible,
+  .dpk-page-add:focus-visible {
+    outline: 2px solid var(--dpk-focus);
+    outline-offset: 2px;
+  }
+
+  .dpk-page-tab-count {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border: 2px solid var(--dpk-paper-sunken);
+    border-radius: 999px;
+    background: var(--dpk-accent);
+    color: var(--dpk-accent-ink);
+    font-size: 9px;
+    line-height: 12px;
+  }
+
+  /* The "×" of a tab shows while the pointer or the focus is on that page. */
+  .dpk-page-tab-remove {
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: 999px;
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink-soft);
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .dpk-page-tab-remove svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  .dpk-page-tab-remove:hover {
+    color: var(--dpk-ink);
+  }
+
+  .dpk-page-tab-item:hover > .dpk-page-tab-remove,
+  .dpk-page-tab-item:focus-within > .dpk-page-tab-remove {
+    opacity: 1;
+  }
+
+  .dpk-page-add {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 32px;
+    margin-top: 6px;
+    padding: 0;
+    border: 1px dashed var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius);
+    background: transparent;
+    color: var(--dpk-ink-soft);
+    cursor: pointer;
+  }
+
+  .dpk-page-add:hover,
+  .dpk-page-add[aria-expanded='true'] {
+    background: var(--dpk-paper-raised);
+    color: var(--dpk-ink);
+  }
+
+  .dpk-page-add svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* With a rail, the header's switcher shows only where the rail does not: a
+     phone has no column to spare. */
+  .dpk-page-switcher-narrow {
+    display: none;
+  }
+
+  @media (max-width: 720px) {
+    .dpk-page-rail {
+      display: none;
+    }
+
+    .dpk-page-switcher-narrow {
+      display: contents;
+    }
+  }
+
   .dpk-app-pages {
     flex: 1 1 0%;
     display: grid;
@@ -305,8 +501,10 @@ export class AppElement extends ViewElement<AppState> {
    * `page-nav="none"` draws no page nav at all: no switcher, no "+" — the
    * app's own header (comment, history, …) still shows, for a document
    * embedded where pages are chosen some other way (a catalog's own
-   * showcase). Absent (or any other value) switches pages from a control in
-   * the header — the app's base form for every document of several pages.
+   * showcase). `page-nav="sidebar"` lists the pages in a rail beside the page
+   * shown, for a document of many pages, in place of the header's switcher.
+   * Absent (or any other value) switches pages from a control in the header
+   * — the app's base form for every document of several pages.
    */
   declare pageNav: string | null;
 
@@ -344,6 +542,8 @@ export class AppElement extends ViewElement<AppState> {
   #switcherOpen = false;
   /** Within the open switcher, whether it shows addable content instead of the app's pages. */
   #switcherAdding = false;
+  /** Whether the rail's "+" opened the popover, which then stands beside the rail. */
+  #switcherFromRail = false;
   #switcherCloseTimer: ReturnType<typeof setTimeout> | undefined;
   readonly #popovers = new PopoverController(this);
 
@@ -353,7 +553,9 @@ export class AppElement extends ViewElement<AppState> {
       open: () => this.#switcherOpen,
       closesOn: (path) =>
         !path.some(
-          (node) => node instanceof Element && (node.id === SWITCHER_ID || node.matches('.dpk-page-switcher-trigger')),
+          (node) =>
+            node instanceof Element &&
+            (node.id === SWITCHER_ID || node.matches('.dpk-page-switcher-trigger, .dpk-page-add')),
         ),
       ownsEscape: () => true,
       dismiss: () => this.#closeSwitcher(),
@@ -749,11 +951,81 @@ export class AppElement extends ViewElement<AppState> {
     return this.pageNav === 'none';
   }
 
-  protected override renderRegions(_context: ViewRenderContext<AppState>): ShellRegions {
-    const main = html`<div class="dpk-app-pages"><slot @slotchange=${() => this.#onPagesChange()}></slot></div>`;
-    // The pages themselves only; the switcher is the header's, and the title
-    // (with the author's `slot="header"` markup) is the shell's own.
+  protected override renderRegions(context: ViewRenderContext<AppState>): ShellRegions {
+    // The pages themselves and, when the author asks for it, their rail; the
+    // title (with the author's `slot="header"` markup) is the shell's own.
+    const main = html`<div class="dpk-app-body">
+      ${this.#renderRail(context)}
+      <div class="dpk-app-pages"><slot @slotchange=${() => this.#onPagesChange()}></slot></div>
+    </div>`;
     return { main };
+  }
+
+  #isSidebar(): boolean {
+    return this.pageNav === 'sidebar';
+  }
+
+  /** The rail of `page-nav="sidebar"`: the app's pages as tabs, named and managed as the switcher does. */
+  #renderRail(context: ViewRenderContext<AppState>): TemplateResult | typeof nothing {
+    const layout = context.state.layout;
+    const addable = this.#addableContents();
+    if (!this.#isSidebar() || (layout.length === 0 && addable.length === 0)) return nothing;
+    const messages = appMessages(this.locale);
+    const active = this.#activeEntry(context.state, context.navigation);
+    const title = this.definition.title(context.state);
+    const tabs = layout.map((entry, index): RailTab => {
+      const label = this.#switcherLabel(entry, index, title);
+      const selected = entry.id === active?.id;
+      return {
+        id: entry.id,
+        label,
+        icon: this.#iconOf(entry),
+        selected,
+        pending: sliceOf(context.actions, entry.id).length,
+        ...(selected
+          ? { rename: { label: messages.renamePage, commit: (name: string) => this.#renamePage(entry.id, name) } }
+          : {}),
+        ...(layout.length > 1
+          ? {
+              remove: {
+                label: messages.removePage(label),
+                activate: () => this.#removePage(entry.id),
+              },
+            }
+          : {}),
+      };
+    });
+    return renderRail(tabs, messages, {
+      select: (id, { focus }) => {
+        this.navigate({ [PAGE_KEY]: id });
+        if (!focus) return;
+        void this.updateComplete.then(() =>
+          this.renderRoot.querySelector<HTMLElement>(`.dpk-page-tab[data-page="${id}"]`)?.focus(),
+        );
+      },
+      ...(addable.length === 0
+        ? {}
+        : {
+            add: {
+              label: messages.addPage,
+              open: this.#switcherOpen && this.#switcherFromRail,
+              toggle: () => this.#toggleRailAdd(),
+            },
+          }),
+    });
+  }
+
+  /** The rail's "+": the switcher's popover, opened straight on what a page can be added from. */
+  #toggleRailAdd(): void {
+    if (this.#switcherOpen) {
+      this.#closeSwitcher();
+      return;
+    }
+    this.#switcherOpen = true;
+    this.#switcherAdding = true;
+    this.#switcherFromRail = true;
+    this.requestUpdate();
+    this.#focusFirstSwitcherRowAfterUpdate();
   }
 
   /**
@@ -787,10 +1059,11 @@ export class AppElement extends ViewElement<AppState> {
       open: () => this.#openSwitcher(),
       scheduleClose: () => this.#scheduleSwitcherClose(),
     };
+    const trigger = renderSwitcherTrigger(iconSwitch, this.#switcherOpen, layout.length, messages, intents, {
+      active: active === undefined ? null : this.#switcherLabel(active, this.#indexOf(layout, active), title),
+    });
     return html`
-      ${renderSwitcherTrigger(iconSwitch, this.#switcherOpen, layout.length, messages, intents, {
-        active: active === undefined ? null : this.#switcherLabel(active, this.#indexOf(layout, active), title),
-      })}
+      ${this.#isSidebar() ? html`<span class="dpk-page-switcher-narrow">${trigger}</span>` : trigger}
       ${
         this.#switcherOpen
           ? renderSwitcherMenu(this.#switcherRows(layout, active, title, addable), messages, {
@@ -844,7 +1117,12 @@ export class AppElement extends ViewElement<AppState> {
           ? { rename: { label: messages.renamePage, commit: (name: string) => this.#renamePage(entry.id, name) } }
           : {}),
         ...(layout.length > 1
-          ? { remove: { label: messages.removePage(label), activate: () => this.#removePage(entry.id) } }
+          ? {
+              remove: {
+                label: messages.removePage(label),
+                activate: () => this.#removePage(entry.id),
+              },
+            }
           : {}),
       };
     });
@@ -908,6 +1186,7 @@ export class AppElement extends ViewElement<AppState> {
     if (!this.#switcherOpen && !this.#switcherAdding) return;
     this.#switcherOpen = false;
     this.#switcherAdding = false;
+    this.#switcherFromRail = false;
     this.requestUpdate();
   }
 
@@ -1014,9 +1293,13 @@ export class AppElement extends ViewElement<AppState> {
 
   #placeSwitcherMenu(): void {
     const menu = this.renderRoot.querySelector<HTMLElement>(`#${SWITCHER_ID}`);
-    const anchor = this.renderRoot.querySelector('.dpk-page-switcher-trigger');
+    const anchor = this.renderRoot.querySelector(
+      this.#switcherFromRail ? '.dpk-page-add' : '.dpk-page-switcher-trigger',
+    );
     if (!menu || !anchor || isPopoverOpen(menu)) return;
-    this.#popovers.open(menu, anchor, SWITCHER_SIZE, { placement: 'bottom-end' });
+    this.#popovers.open(menu, anchor, SWITCHER_SIZE, {
+      placement: this.#switcherFromRail ? 'right-end' : 'bottom-end',
+    });
   }
 
   /**

@@ -6,6 +6,7 @@ import type { ElementActionResult } from '../element-actions';
 import type { PageElement } from '../page/element';
 import type { DraftAction } from '../types';
 
+import { DpkInlineEdit } from '../../components/inline-edit';
 import { queryAllDeep } from '../../lib/dom/deep';
 import { DpkViewPlain } from '../../views/plain';
 import { contextMenuStyles } from '../context-menu/styles';
@@ -931,6 +932,145 @@ describe('<dpk-page>', () => {
       // The page's own title bar still shows (title, settings, notice bell, …).
       expect(page.renderRoot.querySelector('.dpk-header')).not.toBeNull();
       expect(page.renderRoot.querySelector('.dpk-header h1')?.textContent).toBe('Catalog');
+    });
+  });
+
+  describe('page-nav="sidebar"', () => {
+    const TWO_PAGES = `<script type="application/json">{"title":"Checkout"}</script>
+      <dpk-page name="before" label="Before"><dpk-view-prototype>${BASE}</dpk-view-prototype></dpk-page>
+      <dpk-page name="after" label="After"><dpk-view-prototype>${BASE}</dpk-view-prototype></dpk-page>`;
+
+    const mountNav = async (pageNav?: string): Promise<AppElement> => {
+      const page = document.createElement('dpk-app');
+      if (!(page instanceof AppElement)) throw new Error('not upgraded');
+      page.storage = 'memory';
+      page.hash = 'off';
+      if (pageNav !== undefined) page.pageNav = pageNav;
+      page.innerHTML = TWO_PAGES;
+      document.body.append(page);
+      await page.api.ready;
+      await page.updateComplete;
+      return page;
+    };
+    const tabs = (page: AppElement): HTMLElement[] =>
+      Array.from(page.renderRoot.querySelectorAll<HTMLElement>('.dpk-page-rail [role="tab"]'));
+    const selected = (page: AppElement): (string | undefined)[] =>
+      tabs(page)
+        .filter((tab) => tab.getAttribute('aria-selected') === 'true')
+        .map((tab) => tab.dataset['page']);
+
+    it('draws no rail unless the author asks for one', async () => {
+      const page = await mountNav();
+      expect(page.renderRoot.querySelector('.dpk-page-rail')).toBeNull();
+    });
+
+    const labels = (page: AppElement): (string | undefined)[] =>
+      Array.from(page.renderRoot.querySelectorAll<HTMLElement>('.dpk-page-rail .dpk-page-tab-label'), (label) =>
+        label instanceof DpkInlineEdit ? label.value : label.textContent?.trim(),
+      );
+    const railEdit = (page: AppElement): DpkInlineEdit => {
+      const edit = page.renderRoot.querySelector('.dpk-page-rail dpk-inline-edit');
+      if (!(edit instanceof DpkInlineEdit)) throw new Error('no rail edit');
+      return edit;
+    };
+
+    it('keeps the switcher of a document without a rail in the header at every width', async () => {
+      const page = await mountNav();
+      const trigger = page.renderRoot.querySelector('.dpk-header .dpk-page-switcher-trigger');
+      expect(trigger).not.toBeNull();
+      expect(trigger?.closest('.dpk-page-switcher-narrow')).toBeNull();
+    });
+
+    it('lists the pages in a rail beside them and switches on a click, in place of the switcher', async () => {
+      const page = await mountNav('sidebar');
+      expect(labels(page)).toEqual(['Before', 'After']);
+      expect(selected(page)).toEqual(['before']);
+      expect(page.renderRoot.querySelector('.dpk-header h1')?.textContent).toBe('Checkout');
+      // The header's switcher is only for a width the rail does not fit.
+      const trigger = page.renderRoot.querySelector('.dpk-header .dpk-page-switcher-trigger');
+      expect(trigger?.closest('.dpk-page-switcher-narrow')).not.toBeNull();
+
+      tabs(page)[1]?.click();
+      await page.updateComplete;
+      expect(page.api.navigation).toMatchObject({ page: 'after' });
+      expect(selected(page)).toEqual(['after']);
+    });
+
+    it('moves to a page with the arrow keys, Home and End', async () => {
+      const page = await mountNav('sidebar');
+      const press = async (key: string): Promise<void> => {
+        tabs(page)[0]?.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+        await page.updateComplete;
+      };
+      await press('ArrowDown');
+      expect(selected(page)).toEqual(['after']);
+      await press('Home');
+      expect(selected(page)).toEqual(['before']);
+      await press('End');
+      expect(selected(page)).toEqual(['after']);
+      await press('ArrowUp');
+      expect(selected(page)).toEqual(['before']);
+    });
+
+    it("counts each page's pending changes on its tab", async () => {
+      const page = await mountNav('sidebar');
+      const count = (name: string): string | undefined =>
+        page.renderRoot.querySelector(`[data-page="${name}"] .dpk-page-tab-count`)?.textContent?.trim();
+      expect(count('after')).toBeUndefined();
+      const content = page.querySelector('dpk-page[name="after"] > dpk-view-prototype');
+      if (!isBoard(content)) throw new Error('no page content');
+      content.api.comment('page:prototype', 'Tighten this');
+      await page.updateComplete;
+      expect(count('after')).toBe('1');
+      expect(count('before')).toBeUndefined();
+    });
+
+    it('adds a page from the "+" under the tabs', async () => {
+      const page = await mountNav('sidebar');
+      page.renderRoot.querySelector<HTMLElement>('.dpk-page-rail .dpk-page-add')?.click();
+      await page.updateComplete;
+      page.renderRoot.querySelector<HTMLElement>('[data-key="content:view:usm"]')?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await page.updateComplete;
+      expect(page.api.actions.map((action) => action.type)).toEqual(['ADD_PAGE']);
+      expect(selected(page)).toEqual(['usm']);
+      expect(page.renderRoot.querySelector('#dpk-page-switcher-menu')).toBeNull();
+    });
+
+    it('removes a page from the "×" of its tab', async () => {
+      const page = await mountNav('sidebar');
+      const remove = page.renderRoot.querySelector<HTMLElement>('.dpk-page-tab-remove[data-page="after"]');
+      expect(remove?.getAttribute('aria-label')).toBe('Remove page "After"');
+      remove?.click();
+      await page.updateComplete;
+      expect(page.api.actions.map((action) => [action.type, action.payload])).toEqual([
+        ['REMOVE_PAGE', { page: 'after' }],
+      ]);
+      expect(labels(page)).toEqual(['Before']);
+      // The last page cannot be removed.
+      expect(page.renderRoot.querySelector('.dpk-page-tab-remove')).toBeNull();
+    });
+
+    it('renames the page shown in place, on its tab', async () => {
+      const page = await mountNav('sidebar');
+      const edit = railEdit(page);
+      edit.startEditing();
+      await edit.updateComplete;
+      const input = edit.shadowRoot?.querySelector<HTMLTextAreaElement>('.field');
+      if (!input) throw new Error('no field');
+      input.value = 'Checkout flow';
+      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await page.updateComplete;
+      expect(page.api.actions.map((action) => [action.type, action.payload])).toEqual([
+        ['RENAME_PAGE', { page: 'before', label: 'Checkout flow' }],
+      ]);
+      expect(labels(page)).toEqual(['Checkout flow', 'After']);
+    });
+
+    it('draws no rail under page-nav="none"', async () => {
+      const page = await mountNav('none');
+      expect(page.renderRoot.querySelector('.dpk-page-rail')).toBeNull();
     });
   });
 

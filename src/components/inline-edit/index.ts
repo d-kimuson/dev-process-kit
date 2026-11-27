@@ -72,6 +72,7 @@ export class DpkInlineEdit extends LitElement {
         font: inherit;
         line-height: inherit;
         letter-spacing: inherit;
+        text-align: inherit;
         color: inherit;
         white-space: pre;
         overflow-wrap: anywhere;
