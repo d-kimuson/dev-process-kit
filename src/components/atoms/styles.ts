@@ -88,7 +88,7 @@ export const atomStyles = css`
     border-radius: 999px;
     background: var(--tone-soft);
     color: color-mix(in srgb, var(--tone) 80%, var(--dpk-ink));
-    font-size: 12.5px;
+    font-size: var(--dpk-text-sm);
     font-weight: 650;
     line-height: 1.5;
     white-space: nowrap;
@@ -175,7 +175,7 @@ export const atomStyles = css`
     background: transparent;
     color: var(--dpk-ink-soft);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--dpk-text-sm);
     line-height: 1.4;
     text-align: start;
     text-decoration: none;
@@ -241,7 +241,7 @@ export const atomStyles = css`
     background: transparent;
     color: var(--dpk-ink-soft);
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--dpk-text-sm);
     line-height: 1.45;
     text-align: start;
     text-decoration: none;
@@ -348,7 +348,7 @@ export const atomStyles = css`
     min-width: 0;
     overflow: hidden;
     color: var(--dpk-ink);
-    font-size: 13.5px;
+    font-size: var(--dpk-text-md);
     font-weight: 650;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -388,7 +388,7 @@ export const atomStyles = css`
     min-width: 0;
     color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
-    font-size: 11px;
+    font-size: var(--dpk-text-xs);
     font-variant-numeric: tabular-nums;
   }
 
@@ -461,7 +461,7 @@ export const atomStyles = css`
     align-items: center;
     gap: 6px 14px;
     color: var(--dpk-ink-soft);
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     line-height: 1.4;
   }
 
@@ -493,7 +493,7 @@ export const atomStyles = css`
   :where(.dpk-prose) {
     max-width: var(--dpk-measure, 860px);
     color: var(--dpk-ink-soft);
-    font-size: 13.5px;
+    font-size: var(--dpk-text-md);
     line-height: 1.8;
     overflow-wrap: anywhere;
     word-break: auto-phrase;
@@ -510,17 +510,17 @@ export const atomStyles = css`
 
   :where(.dpk-prose) :where(h1) {
     margin: 0 0 12px;
-    font-size: 22px;
+    font-size: var(--dpk-text-3xl);
   }
 
   :where(.dpk-prose) :where(h2) {
     margin: 36px 0 12px;
-    font-size: 16px;
+    font-size: var(--dpk-text-2xl);
   }
 
   :where(.dpk-prose) :where(h3) {
     margin: 22px 0 8px;
-    font-size: 13.5px;
+    font-size: var(--dpk-text-xl);
   }
 
   :where(.dpk-prose) :where(p, ul, ol, blockquote, pre, table) {
@@ -580,7 +580,7 @@ export const atomStyles = css`
   :where(.dpk-eyebrow) {
     color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
-    font-size: 10px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 550;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -604,7 +604,7 @@ export const atomStyles = css`
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink);
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--dpk-text-sm);
     font-weight: 550;
     line-height: 1;
     white-space: nowrap;
@@ -673,7 +673,7 @@ export const atomStyles = css`
   :where(.dpk-btn[data-size='sm']) {
     min-height: 24px;
     padding: 0 9px;
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
   }
 
   /*
@@ -702,7 +702,7 @@ export const atomStyles = css`
     background: transparent;
     color: var(--dpk-ink-faint);
     font: inherit;
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     font-weight: 550;
     line-height: 18px;
     white-space: nowrap;
@@ -774,7 +774,7 @@ export const atomStyles = css`
     background: transparent;
     color: var(--dpk-ink-soft);
     font: inherit;
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     font-weight: 600;
     line-height: 1;
     white-space: nowrap;
@@ -846,7 +846,7 @@ export const atomStyles = css`
     border-radius: 999px;
     background: var(--tone-soft);
     color: var(--tone);
-    font-size: 11px;
+    font-size: var(--dpk-text-xs);
     font-weight: 600;
     line-height: 1.5;
     white-space: nowrap;
@@ -892,7 +892,7 @@ export const atomStyles = css`
     border-radius: 999px;
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink-soft);
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     line-height: 1.6;
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
   }
@@ -910,7 +910,7 @@ export const atomStyles = css`
     background: var(--dpk-paper-sunken);
     color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
-    font-size: 9.5px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 550;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -933,7 +933,7 @@ export const atomStyles = css`
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink-soft);
     font-family: var(--dpk-mono);
-    font-size: 10.5px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 600;
     line-height: 18px;
     text-decoration: none;
@@ -1020,7 +1020,7 @@ export const atomStyles = css`
   :where(.dpk-field-hint) {
     margin: -2px 0 0;
     color: var(--dpk-ink-faint);
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     line-height: 1.5;
   }
 
@@ -1056,7 +1056,7 @@ export const atomStyles = css`
     border-radius: var(--dpk-radius);
     background: var(--tone-soft);
     color: var(--dpk-ink-soft);
-    font-size: 13px;
+    font-size: var(--dpk-text-md);
     line-height: 1.65;
   }
 
@@ -1116,7 +1116,7 @@ export const atomStyles = css`
     border-radius: var(--dpk-radius-lg);
     background: var(--dpk-paper-sunken);
     color: var(--dpk-ink-faint);
-    font-size: 13px;
+    font-size: var(--dpk-text-sm);
     line-height: 1.65;
     text-align: center;
   }
@@ -1156,7 +1156,7 @@ export const atomStyles = css`
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-lg);
     color: var(--dpk-ink);
-    font-size: 12.5px;
+    font-size: var(--dpk-text-sm);
     line-height: 1.45;
   }
 
@@ -1191,7 +1191,7 @@ export const atomStyles = css`
     background: none;
     color: var(--dpk-ink);
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--dpk-text-sm);
     font-weight: 550;
     line-height: 1.4;
     text-align: start;
@@ -1243,7 +1243,7 @@ export const atomStyles = css`
     margin: 0;
     padding: 6px 9px 2px;
     color: var(--dpk-ink-faint);
-    font-size: 10.5px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 650;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -1262,7 +1262,7 @@ export const atomStyles = css`
     padding-inline-start: 16px;
     color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
-    font-size: 10.5px;
+    font-size: var(--dpk-text-2xs);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -1304,7 +1304,7 @@ export const atomStyles = css`
     min-width: 0;
     overflow: hidden;
     color: var(--dpk-ink);
-    font-size: 13px;
+    font-size: var(--dpk-text-sm);
     font-weight: 650;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1312,7 +1312,7 @@ export const atomStyles = css`
 
   :where(.dpk-menu-hint) {
     color: var(--dpk-ink-soft);
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     font-weight: 400;
     line-height: 1.45;
     white-space: normal;
@@ -1327,7 +1327,7 @@ export const atomStyles = css`
     border: 1px solid var(--dpk-rule-strong);
     border-radius: var(--dpk-radius);
     background: var(--dpk-paper-raised);
-    font-size: 12.5px;
+    font-size: var(--dpk-text-sm);
     line-height: 1.55;
     overflow: hidden;
   }
@@ -1345,7 +1345,7 @@ export const atomStyles = css`
   :where(table.dpk-table) :where(thead th) {
     background: var(--dpk-paper-sunken);
     color: var(--dpk-ink-faint);
-    font-size: 11px;
+    font-size: var(--dpk-text-xs);
     font-weight: 600;
     letter-spacing: 0.02em;
   }
@@ -1379,7 +1379,7 @@ export const atomStyles = css`
     grid-template-columns: max-content minmax(0, 1fr);
     gap: 6px 18px;
     margin: 0;
-    font-size: 13px;
+    font-size: var(--dpk-text-sm);
   }
 
   :where(dl.dpk-dl) > :where(dt) {
@@ -1405,13 +1405,13 @@ export const atomStyles = css`
 
   :where(.dpk-stat) > :where(span) {
     color: var(--dpk-ink-faint);
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
   }
 
   :where(.dpk-stat) > :where(strong) {
     color: var(--dpk-ink);
     font-family: var(--dpk-display);
-    font-size: 22px;
+    font-size: var(--dpk-text-2xl);
     font-weight: 660;
     font-variant-numeric: tabular-nums;
     line-height: 1.25;
@@ -1419,7 +1419,7 @@ export const atomStyles = css`
 
   :where(.dpk-stat) > :where(small) {
     color: var(--tone, var(--dpk-ink-faint));
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
   }
 
   :where(ol.dpk-steps) {
@@ -1450,7 +1450,7 @@ export const atomStyles = css`
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink-soft);
     font-family: var(--dpk-mono);
-    font-size: 11px;
+    font-size: var(--dpk-text-xs);
     font-weight: 600;
   }
 
@@ -1522,7 +1522,7 @@ export const atomStyles = css`
   :where(.dpk-timeline-date) {
     color: var(--dpk-ink);
     font-family: var(--dpk-mono);
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     text-align: right;
@@ -1574,7 +1574,7 @@ export const atomStyles = css`
     background: var(--dpk-paper-raised);
     color: var(--tone, var(--dpk-ink));
     font-family: var(--dpk-mono);
-    font-size: 11px;
+    font-size: var(--dpk-text-xs);
     font-weight: 650;
     font-variant-numeric: tabular-nums;
     /* A ring of page color cuts the rail around the node. */
@@ -1633,7 +1633,7 @@ export const atomStyles = css`
     margin: 0;
     color: var(--dpk-ink);
     font-family: var(--dpk-display);
-    font-size: 16px;
+    font-size: var(--dpk-text-xl);
     font-weight: 660;
     line-height: 1.35;
     letter-spacing: -0.01em;
@@ -1643,7 +1643,7 @@ export const atomStyles = css`
     max-width: 62ch;
     margin: 0;
     color: var(--dpk-ink-soft);
-    font-size: 13px;
+    font-size: var(--dpk-text-md);
     line-height: 1.7;
   }
 
@@ -1667,7 +1667,7 @@ export const atomStyles = css`
   :where(dl.dpk-timeline-facts) :where(dt) {
     margin-bottom: 3px;
     color: var(--dpk-ink-faint);
-    font-size: 11px;
+    font-size: var(--dpk-text-xs);
     font-weight: 600;
     letter-spacing: 0.02em;
   }
@@ -1678,12 +1678,12 @@ export const atomStyles = css`
     gap: 10px;
     margin: 0;
     color: var(--dpk-ink-faint);
-    font-size: 12px;
+    font-size: var(--dpk-text-sm);
   }
 
   :where(dl.dpk-timeline-facts) :where(strong) {
     color: var(--dpk-ink);
-    font-size: 15px;
+    font-size: var(--dpk-text-lg);
     font-weight: 650;
     font-variant-numeric: tabular-nums;
   }
@@ -1901,7 +1901,7 @@ export const atomStyles = css`
     overflow: hidden;
     background: color-mix(in oklab, var(--tone, var(--dpk-blue)) 16%, var(--dpk-paper-raised));
     color: var(--dpk-ink);
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     font-weight: 600;
     white-space: nowrap;
     transition: flex-grow var(--dpk-dur) var(--dpk-ease);
@@ -1928,7 +1928,7 @@ export const atomStyles = css`
     align-items: center;
     gap: 6px;
     color: var(--dpk-ink-faint);
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     font-weight: 600;
     white-space: nowrap;
   }
@@ -1939,7 +1939,7 @@ export const atomStyles = css`
     height: 14px;
     color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
-    font-size: 10px;
+    font-size: var(--dpk-text-2xs);
   }
 
   /* A tick with its value under it, standing where --dpk-at puts it. */

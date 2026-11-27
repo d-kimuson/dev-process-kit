@@ -51,7 +51,7 @@ export const cardAtom = css`
 
   :where(.dpk-card) :where(h3, h4) {
     color: var(--dpk-ink);
-    font-size: 13.5px;
+    font-size: var(--dpk-text-md);
   }
 
   /* A card that opens something lifts under the pointer. */
@@ -155,7 +155,7 @@ export const cardAtom = css`
     flex: 1 1 auto;
     min-width: 0;
     color: var(--dpk-ink);
-    font-size: 13px;
+    font-size: var(--dpk-text-md);
     font-weight: 600;
     letter-spacing: -0.01em;
     line-height: 1.45;
@@ -178,7 +178,7 @@ export const cardAtom = css`
     -webkit-line-clamp: var(--dpk-card-lines, 3);
     overflow: hidden;
     color: var(--dpk-ink-soft);
-    font-size: 12px;
+    font-size: var(--dpk-text-sm);
     line-height: 1.55;
     overflow-wrap: anywhere;
   }
@@ -229,7 +229,7 @@ export const cardAtom = css`
     flex: none;
     color: var(--dpk-ink-faint);
     font-family: var(--dpk-mono);
-    font-size: 10.5px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 600;
     line-height: 18px;
     font-variant-numeric: tabular-nums;
@@ -245,7 +245,7 @@ export const cardAtom = css`
     border-radius: 6px;
     background: color-mix(in oklab, var(--_card-tone, var(--dpk-ink-faint)) 10%, var(--dpk-paper-sunken));
     color: var(--dpk-ink-soft);
-    font-size: 10.5px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 600;
     line-height: 18px;
     white-space: nowrap;
@@ -302,7 +302,7 @@ export const cardAtom = css`
     border-radius: 999px;
     background: color-mix(in oklab, var(--_pill-tone) 12%, var(--dpk-paper-raised));
     color: var(--dpk-ink);
-    font-size: 10.5px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 600;
     line-height: 17px;
     overflow: hidden;
@@ -329,7 +329,7 @@ export const cardAtom = css`
     border-radius: 50%;
     background: var(--tone, var(--dpk-blue));
     color: var(--dpk-paper-raised);
-    font-size: 10px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 700;
     line-height: 1;
   }
@@ -337,13 +337,13 @@ export const cardAtom = css`
   :where(.dpk-avatar[data-size='md']) {
     width: 24px;
     height: 24px;
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
   }
 
   :where(.dpk-avatar[data-size='lg']) {
     width: 34px;
     height: 34px;
-    font-size: 14px;
+    font-size: var(--dpk-text-md);
     font-weight: 650;
   }
 

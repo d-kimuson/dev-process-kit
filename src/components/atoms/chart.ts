@@ -32,7 +32,7 @@ export const chartAtom = css`
 
   :where(.dpk-chart-title) {
     color: var(--dpk-ink);
-    font-size: 13px;
+    font-size: var(--dpk-text-md);
     font-weight: 650;
   }
 
@@ -40,7 +40,7 @@ export const chartAtom = css`
     margin-inline-start: auto;
     color: var(--dpk-ink-soft);
     font-family: var(--dpk-mono);
-    font-size: 12px;
+    font-size: var(--dpk-text-sm);
     font-variant-numeric: tabular-nums;
   }
 
@@ -73,7 +73,7 @@ export const chartAtom = css`
     color: var(--dpk-ink-faint);
     fill: currentColor;
     font-family: var(--dpk-mono);
-    font-size: 10px;
+    font-size: var(--dpk-text-2xs);
     font-variant-numeric: tabular-nums;
   }
 
@@ -115,7 +115,7 @@ export const chartAtom = css`
     color: var(--tone, var(--dpk-accent));
     fill: currentColor;
     font-family: var(--dpk-mono);
-    font-size: 10px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 650;
   }
 
@@ -124,7 +124,7 @@ export const chartAtom = css`
     flex-wrap: wrap;
     gap: 4px 12px;
     color: var(--dpk-ink-soft);
-    font-size: 11px;
+    font-size: var(--dpk-text-xs);
   }
 
   :where(.dpk-chart-key) {
@@ -164,6 +164,6 @@ export const chartAtom = css`
 
   :where(.dpk-chart-empty) {
     color: var(--dpk-ink-faint);
-    font-size: 12px;
+    font-size: var(--dpk-text-sm);
   }
 `;

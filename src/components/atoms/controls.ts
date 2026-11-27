@@ -23,7 +23,7 @@ export const controlAtom = css`
     background: var(--tone-soft, var(--dpk-rule));
     color: var(--tone, var(--dpk-ink-soft));
     font-family: var(--dpk-mono);
-    font-size: 10.5px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 650;
     font-variant-numeric: tabular-nums;
     line-height: 17px;
@@ -32,7 +32,7 @@ export const controlAtom = css`
 
   :where(.dpk-count[data-size='sm']) {
     color: var(--tone, var(--dpk-ink-faint));
-    font-size: 10px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 500;
     line-height: 16px;
   }
@@ -67,7 +67,7 @@ export const controlAtom = css`
     background: transparent;
     color: var(--dpk-ink-soft);
     font: inherit;
-    font-size: 12px;
+    font-size: var(--dpk-text-sm);
     font-weight: 550;
     text-decoration: none;
     white-space: nowrap;
@@ -144,7 +144,7 @@ export const controlAtom = css`
     background: transparent;
     color: var(--dpk-ink-soft);
     font: inherit;
-    font-size: 13.5px;
+    font-size: var(--dpk-text-sm);
     font-weight: 600;
     letter-spacing: -0.005em;
     text-decoration: none;
@@ -220,7 +220,7 @@ export const controlAtom = css`
       no-repeat right 8px center;
     color: var(--dpk-ink);
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--dpk-text-sm);
     text-align: left;
     box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
     cursor: pointer;
@@ -249,7 +249,7 @@ export const controlAtom = css`
   :where(.dpk-filter) > :where(:first-child) {
     flex: none;
     color: var(--dpk-ink-faint);
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     font-weight: 600;
   }
 
@@ -276,7 +276,7 @@ export const controlAtom = css`
     background: transparent;
     color: var(--dpk-ink-faint);
     font: inherit;
-    font-size: 11.5px;
+    font-size: var(--dpk-text-xs);
     font-weight: 600;
     text-decoration: none;
     cursor: pointer;
@@ -316,7 +316,7 @@ export const controlAtom = css`
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink);
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--dpk-text-sm);
     box-shadow: inset 0 1px 2px var(--dpk-shade-1);
     transition:
       border-color var(--dpk-dur) var(--dpk-ease),

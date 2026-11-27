@@ -1118,6 +1118,72 @@
         border-radius: var(--dpk-radius-sm);
       }
 
+      /* Typography: the families, then one row per atom that sets its own size. Each row's numbers
+         are read from the live specimen in its first cell, so the table follows the stylesheet. */
+      .type-spec {
+        display: grid;
+        gap: 40px;
+      }
+
+      .type-spec h4 {
+        margin: 0 0 12px;
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 650;
+      }
+
+      .type-families {
+        display: grid;
+        gap: 18px;
+        margin: 0;
+      }
+
+      .type-families dt {
+        color: var(--ink);
+        font-size: 24px;
+        line-height: 1.3;
+      }
+
+      .type-families dd,
+      .type-table > * > tr > :is(th, td:not(.type-sample)) {
+        margin: 0;
+        color: var(--ink-soft);
+        font-family: var(--mono);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .type-table-scroll {
+        overflow-x: auto;
+      }
+
+      .type-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .type-table > * > tr > :is(th, td) {
+        padding: 10px 16px 10px 0;
+        border-bottom: 1px solid var(--rule);
+        text-align: left;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+
+      .type-table > thead th {
+        color: var(--ink-faint);
+        font-weight: 500;
+      }
+
+      .type-table > * > tr > .type-num {
+        text-align: right;
+      }
+
+      .type-table > tbody > tr > .type-size {
+        color: var(--ink);
+        font-weight: 650;
+      }
+
       /* Controls: a popover opened on demand, fixed position, so
          changing a field never pushes the showcase around. */
       .controls-btn {
@@ -1507,6 +1573,22 @@
                   <circle cx="8" cy="10.5" r="2" />
                 </svg>
                 <span>Tokens</span>
+              </a>
+              <a class="toc-top-link" href="#catalog-typography">
+                <svg
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 4.5V3h10v1.5" />
+                  <path d="M8 3v10" />
+                  <path d="M6 13h4" />
+                </svg>
+                <span>Typography</span>
               </a>
               <a class="toc-top-link" href="#patterns" data-view="patterns">
                 <svg
@@ -2152,6 +2234,338 @@
                       <div class="swatch"><i style="background: var(--dpk-danger)"></i>danger</div>
                     </div>
                   </div>
+                </article>
+
+                <article id="catalog-typography" class="entry">
+                  <header>
+                    <h3>--dpk-text-*</h3>
+                  </header>
+                  <p>文字サイズはトークンで決まる。標準の文章は md。太さと行間は各クラスが直接持つ。</p>
+                  <div class="type-spec">
+                    <section>
+                      <h4>サイズ</h4>
+                      <dl class="type-families">
+                        <div>
+                          <dt style="font-size: var(--dpk-text-3xl)">返金の条件 Refund 128</dt>
+                          <dd data-type-family="--dpk-text-3xl"></dd>
+                        </div>
+                        <div>
+                          <dt style="font-size: var(--dpk-text-2xl)">返金の条件 Refund 128</dt>
+                          <dd data-type-family="--dpk-text-2xl"></dd>
+                        </div>
+                        <div>
+                          <dt style="font-size: var(--dpk-text-xl)">返金の条件 Refund 128</dt>
+                          <dd data-type-family="--dpk-text-xl"></dd>
+                        </div>
+                        <div>
+                          <dt style="font-size: var(--dpk-text-lg)">返金の条件 Refund 128</dt>
+                          <dd data-type-family="--dpk-text-lg"></dd>
+                        </div>
+                        <div>
+                          <dt style="font-size: var(--dpk-text-md)">返金の条件 Refund 128</dt>
+                          <dd data-type-family="--dpk-text-md"></dd>
+                        </div>
+                        <div>
+                          <dt style="font-size: var(--dpk-text-sm)">返金の条件 Refund 128</dt>
+                          <dd data-type-family="--dpk-text-sm"></dd>
+                        </div>
+                        <div>
+                          <dt style="font-size: var(--dpk-text-xs)">返金の条件 Refund 128</dt>
+                          <dd data-type-family="--dpk-text-xs"></dd>
+                        </div>
+                        <div>
+                          <dt style="font-size: var(--dpk-text-2xs)">返金の条件 Refund 128</dt>
+                          <dd data-type-family="--dpk-text-2xs"></dd>
+                        </div>
+                      </dl>
+                    </section>
+                    <section>
+                      <h4>クラスごとの文字</h4>
+                      <div class="type-table-scroll">
+                        <table class="type-table">
+                          <thead>
+                            <tr>
+                              <th>見本</th>
+                              <th>クラス</th>
+                              <th class="type-num">サイズ</th>
+                              <th class="type-num">太さ</th>
+                              <th class="type-num">行間</th>
+                              <th class="type-num">字間</th>
+                              <th>書体</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr data-type-row=".dpk-prose h1">
+                              <td class="type-sample">
+                                <div class="dpk-prose"><h1 data-type-sample>返金の条件 Refund 128</h1></div>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-stat > strong">
+                              <td class="type-sample">
+                                <div class="dpk-stat"><strong data-type-sample>返金の条件 Refund 128</strong></div>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-prose h2">
+                              <td class="type-sample">
+                                <div class="dpk-prose"><h2 data-type-sample>返金の条件 Refund 128</h2></div>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-timeline-title">
+                              <td class="type-sample">
+                                <span class="dpk-timeline-title" data-type-sample>返金の条件 Refund 128</span>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-timeline-facts strong">
+                              <td class="type-sample">
+                                <dl class="dpk-timeline-facts">
+                                  <div>
+                                    <dd><strong data-type-sample>返金の条件 Refund 128</strong></dd>
+                                  </div>
+                                </dl>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-prose">
+                              <td class="type-sample">
+                                <div class="dpk-prose"><p data-type-sample>返金の条件 Refund 128</p></div>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-prose h3">
+                              <td class="type-sample">
+                                <div class="dpk-prose"><h3 data-type-sample>返金の条件 Refund 128</h3></div>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-list-row-name">
+                              <td class="type-sample">
+                                <span class="dpk-list-row-name" data-type-sample>返金の条件 Refund 128</span>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-callout">
+                              <td class="type-sample">
+                                <div class="dpk-callout" data-type-sample>返金の条件 Refund 128</div>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-navlist a">
+                              <td class="type-sample">
+                                <ul class="dpk-navlist">
+                                  <li><a href="#catalog-typography" data-type-sample>返金の条件 Refund 128</a></li>
+                                </ul>
+                              </td>
+                            </tr>
+                            <tr data-type-row="dl.dpk-dl">
+                              <td class="type-sample">
+                                <dl class="dpk-dl">
+                                  <dt>状態</dt>
+                                  <dd data-type-sample>返金の条件 Refund 128</dd>
+                                </dl>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-menu-label">
+                              <td class="type-sample">
+                                <span class="dpk-menu-label" data-type-sample>返金の条件 Refund 128</span>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-timeline-text">
+                              <td class="type-sample">
+                                <p class="dpk-timeline-text" data-type-sample>返金の条件 Refund 128</p>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-btn">
+                              <td class="type-sample">
+                                <button class="dpk-btn" type="button" data-type-sample>返金の条件 Refund 128</button>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-status">
+                              <td class="type-sample">
+                                <span class="dpk-status" data-type-sample>返金の条件 Refund 128</span>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-tree-row">
+                              <td class="type-sample">
+                                <a class="dpk-tree-row" data-leaf href="#catalog-typography" data-type-sample
+                                  >返金の条件 Refund 128</a
+                                >
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-menu-item">
+                              <td class="type-sample">
+                                <button class="dpk-menu-item" type="button" data-type-sample>
+                                  返金の条件 Refund 128
+                                </button>
+                              </td>
+                            </tr>
+                            <tr data-type-row="table.dpk-table td">
+                              <td class="type-sample">
+                                <table class="dpk-table">
+                                  <tbody>
+                                    <tr>
+                                      <td data-type-sample>返金の条件 Refund 128</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-timeline-facts dd">
+                              <td class="type-sample">
+                                <dl class="dpk-timeline-facts">
+                                  <div>
+                                    <dd data-type-sample>返金の条件 Refund 128</dd>
+                                  </div>
+                                </dl>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-chip">
+                              <td class="type-sample">
+                                <span class="dpk-chip" data-type-sample>返金の条件 Refund 128</span>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-legend">
+                              <td class="type-sample">
+                                <div class="dpk-legend" data-type-sample>
+                                  <span class="dpk-legend-item">返金の条件 Refund 128</span>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-btn[data-size='sm']">
+                              <td class="type-sample">
+                                <button class="dpk-btn" data-size="sm" type="button" data-type-sample>
+                                  返金の条件 Refund 128
+                                </button>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-field-hint">
+                              <td class="type-sample">
+                                <p class="dpk-field-hint" data-type-sample>返金の条件 Refund 128</p>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-stat > span">
+                              <td class="type-sample">
+                                <div class="dpk-stat"><span data-type-sample>返金の条件 Refund 128</span></div>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-timeline-date">
+                              <td class="type-sample">
+                                <span class="dpk-timeline-date" data-type-sample>返金の条件 Refund 128</span>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-menu-hint">
+                              <td class="type-sample">
+                                <span class="dpk-menu-hint" data-type-sample>返金の条件 Refund 128</span>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-badge">
+                              <td class="type-sample">
+                                <span class="dpk-badge" data-type-sample>返金の条件 Refund 128</span>
+                              </td>
+                            </tr>
+                            <tr data-type-row="table.dpk-table thead th">
+                              <td class="type-sample">
+                                <table class="dpk-table">
+                                  <thead>
+                                    <tr>
+                                      <th data-type-sample>返金の条件 Refund 128</th>
+                                    </tr>
+                                  </thead>
+                                </table>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-list-row-meta">
+                              <td class="type-sample">
+                                <span class="dpk-list-row-meta" data-type-sample>返金の条件 Refund 128</span>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-timeline-facts dt">
+                              <td class="type-sample">
+                                <dl class="dpk-timeline-facts">
+                                  <div>
+                                    <dt data-type-sample>返金の条件 Refund 128</dt>
+                                  </div>
+                                </dl>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-link-chip">
+                              <td class="type-sample">
+                                <a class="dpk-link-chip" href="#catalog-typography" data-type-sample
+                                  >返金の条件 Refund 128</a
+                                >
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-menu-heading">
+                              <td class="type-sample">
+                                <p class="dpk-menu-heading" data-type-sample>返金の条件 Refund 128</p>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-eyebrow">
+                              <td class="type-sample">
+                                <p class="dpk-eyebrow" data-type-sample>返金の条件 Refund 128</p>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-weight-scale">
+                              <td class="type-sample">
+                                <div class="dpk-weight-scale" data-type-sample>返金の条件 Refund 128</div>
+                              </td>
+                            </tr>
+                            <tr data-type-row=".dpk-chip > b">
+                              <td class="type-sample">
+                                <span class="dpk-chip"><b data-type-sample>返金の条件 Refund 128</b></span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                  <script type="module">
+                    // Every number on this page is read from the stylesheet the kit ships: the family
+                    // stacks from the tokens, a row's metrics from its own specimen.
+                    const entry = document.getElementById('catalog-typography');
+                    const round = (value) => String(Math.round(value * 100) / 100);
+                    const stackOf = (value) => value.replace(/["'\s]/g, '').toLowerCase();
+
+                    const measureTypography = () => {
+                      // The document gets its tokens in the same step as the atoms' stylesheet, so a
+                      // token on the root element means the specimens are styled.
+                      const tokens = getComputedStyle(document.documentElement);
+                      const mono = stackOf(tokens.getPropertyValue('--dpk-mono'));
+                      if (mono === '') return false;
+
+                      for (const cell of entry.querySelectorAll('[data-type-family]')) {
+                        const name = cell.dataset.typeFamily;
+                        cell.textContent = `${name}: ${tokens.getPropertyValue(name).trim()}`;
+                      }
+                      const stepOf = (size) =>
+                        [...entry.querySelectorAll('[data-type-family^="--dpk-text-"]')]
+                          .map((cell) => cell.dataset.typeFamily)
+                          .find((name) => Number.parseFloat(tokens.getPropertyValue(name)) === size)
+                          ?.replace('--dpk-text-', '');
+
+                      const body = entry.querySelector('.type-table tbody');
+                      const rows = [...body.querySelectorAll(':scope > [data-type-row]')].map((row) => {
+                        const style = getComputedStyle(row.querySelector('[data-type-sample]'));
+                        const size = Number.parseFloat(style.fontSize);
+                        const lineHeight = Number.parseFloat(style.lineHeight);
+                        const letterSpacing = Number.parseFloat(style.letterSpacing);
+                        const cells = [
+                          ['', row.dataset.typeRow],
+                          ['type-num type-size', [stepOf(size), `${round(size)}px`].filter(Boolean).join(' · ')],
+                          ['type-num', style.fontWeight],
+                          ['type-num', Number.isNaN(lineHeight) ? style.lineHeight : round(lineHeight / size)],
+                          ['type-num', Number.isNaN(letterSpacing) ? '0' : `${round(letterSpacing / size)}em`],
+                          ['', stackOf(style.fontFamily) === mono ? 'mono' : 'sans'],
+                        ].map(([className, text]) =>
+                          Object.assign(document.createElement('td'), { className, textContent: text }),
+                        );
+                        row.replaceChildren(row.querySelector(':scope > .type-sample'), ...cells);
+                        return { row, size };
+                      });
+                      body.append(...rows.toSorted((a, b) => b.size - a.size).map(({ row }) => row));
+                      return true;
+                    };
+
+                    const measureWhenStyled = () => {
+                      if (!measureTypography()) requestAnimationFrame(measureWhenStyled);
+                    };
+                    customElements.whenDefined('dpk-app').then(measureWhenStyled);
+                  </script>
                 </article>
               </section>
 

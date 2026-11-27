@@ -189,6 +189,16 @@ const scale = css`
   --dpk-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --dpk-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 
+  /* Type scale. 'md' is standard reading text; controls and dense UI sit at 'sm'. */
+  --dpk-text-2xs: 12px;
+  --dpk-text-xs: 13px;
+  --dpk-text-sm: 14px;
+  --dpk-text-md: 16px;
+  --dpk-text-lg: 18px;
+  --dpk-text-xl: 20px;
+  --dpk-text-2xl: 24px;
+  --dpk-text-3xl: 30px;
+
   /* Shape + elevation scale, so every surface reads as one system. */
   --dpk-radius-xs: 6px;
   --dpk-radius-sm: 8px;

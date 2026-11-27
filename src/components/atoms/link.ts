@@ -38,7 +38,7 @@ export const linkStyles = css`
     background: var(--dpk-paper-raised);
     color: var(--dpk-ink-soft);
     font-family: var(--dpk-mono);
-    font-size: 10.5px;
+    font-size: var(--dpk-text-2xs);
     font-weight: 600;
     line-height: 18px;
     text-decoration: none;

@@ -377,6 +377,7 @@ Framework chrome (shell, sidebar, review rail, preview frames) is Shadow DOM; ev
 --dpk-amber --dpk-amber-soft --dpk-violet --dpk-violet-soft
 --dpk-danger --dpk-danger-soft --dpk-shade
 --dpk-display --dpk-body --dpk-mono
+--dpk-text-2xs --dpk-text-xs --dpk-text-sm --dpk-text-md --dpk-text-lg --dpk-text-xl --dpk-text-2xl --dpk-text-3xl
 --dpk-radius-xs --dpk-radius-sm --dpk-radius --dpk-radius-lg --dpk-radius-xl
 --dpk-shadow-xs --dpk-shadow-sm --dpk-shadow --dpk-shadow-lg --dpk-bevel --dpk-focus
 --dpk-ease --dpk-ease-spring --dpk-glass --dpk-dots
