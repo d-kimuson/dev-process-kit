@@ -4,7 +4,7 @@ import type { CommentTargetOption } from '../../core/types';
 import type { ViewState } from '../base/viewport';
 
 import { iconChevronDown, iconChevronRight } from '../../core/icons';
-import { BoardCanvasChromeElement } from '../base/element';
+import { BoardCanvasChromeElement, CHROMELESS_FIGURE_PADDING } from '../base/element';
 import { tagStateMatches, type ElementState } from '../base/model';
 import { diagramStyles } from '../base/styles';
 import { arrowDefinitions } from '../base/view';
@@ -135,6 +135,7 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
     const state = this.tagFilter;
     const signature = [
       state.match,
+      this.chromeless ? 'figure' : 'chrome',
       [...state.active].join(','),
       [...this.#collapsed].map(([id, value]) => `${id}:${value}`).join(','),
       flattenMessages(data.items)
@@ -145,7 +146,10 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
       this.#signature = signature;
       this.#version += 1;
       this.#numbers = messageNumbers(this.items());
-      this.#layout = layoutSequence(data, (message) => tagStateMatches(message.tags, state));
+      const margins = this.chromeless
+        ? { topMargin: CHROMELESS_FIGURE_PADDING, bottomMargin: CHROMELESS_FIGURE_PADDING }
+        : {};
+      this.#layout = layoutSequence(data, (message) => tagStateMatches(message.tags, state), margins);
     }
     this.#relatedMessages = new Set();
     this.#relatedParticipants = new Set();

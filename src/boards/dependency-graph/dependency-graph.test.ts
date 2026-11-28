@@ -225,3 +225,13 @@ describe('dpk-board-dependency-graph', () => {
     ).toEqual(['orders-pricing']);
   });
 });
+
+describe('chrome="none"', () => {
+  it('shrinks the content box to a small margin around the drawn graph', async () => {
+    const element = await mount();
+    const full = element.layout?.height ?? 0;
+    element.chrome = 'none';
+    await settle(element);
+    expect(element.layout?.height ?? 0).toBeLessThan(full - 50);
+  });
+});

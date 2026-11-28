@@ -70,13 +70,20 @@ export const resolveContextMenuTarget = (path: readonly EventTarget[]): ActionTa
   return null;
 };
 
-/** The nearest element along the path whose own method matches `name` — the duck-typed component lookup (e.g. `resetView`). */
+/**
+ * The nearest element along the path whose own method matches `name` — the
+ * duck-typed component lookup (e.g. `resetView`). An element that exposes
+ * `<name>Enabled === false` says the method would have no visible effect in
+ * its current mode (a static figure's "Reset view"), so the lookup passes it
+ * over for the next provider.
+ */
 export const findMethodProvider = <K extends string>(
   path: readonly EventTarget[],
   name: K,
 ): (Element & Record<K, () => void>) | null => {
   for (const node of path) {
     if (node instanceof Element && typeof Reflect.get(node, name) === 'function') {
+      if (Reflect.get(node, `${name}Enabled`) === false) continue;
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- duck-typed lookup; checked above, TS cannot narrow a dynamic key.
       return node as Element & Record<K, () => void>;
     }

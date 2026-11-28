@@ -53,6 +53,15 @@ class TinyDiagram extends BoardCanvasElement<TinyData> {
     return reach(visible.edges, selection.id, 'outgoing', false);
   }
 
+  protected override renderLegend(): TemplateResult {
+    return html`<div class="diagram-legend">Legend</div>`;
+  }
+
+  /** Probe for the padding rule a canvas board lays its content out with. */
+  paddingFor(full: number): number {
+    return this.figurePadding(full);
+  }
+
   protected override renderCanvas(): TemplateResult {
     const edges = this.visible.edges.map((edge) => {
       const state = this.edgeState(edge.id);
@@ -711,6 +720,107 @@ describe('BoardCanvasElement', () => {
       pointer(group, 'pointerup', 11, 10);
       await element.updateComplete;
       expect(nodeA.style.left).toBe(before);
+    });
+  });
+
+  describe('chrome="none"', () => {
+    beforeEach(() => {
+      if (!('setPointerCapture' in HTMLElement.prototype)) {
+        Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { configurable: true, value: () => {} });
+      }
+    });
+
+    const chromeless = async (): Promise<TinyDiagram> => {
+      const element = await mount('tiny-diagram', tinyData);
+      element.chrome = 'none';
+      await settle(element);
+      return element;
+    };
+
+    const pointer = (target: HTMLElement, type: string, clientX: number, clientY: number): void => {
+      target.dispatchEvent(new PointerEvent(type, { pointerId: 1, button: 0, clientX, clientY, bubbles: true }));
+    };
+
+    it('draws only the figure: no tag filter, stats, actions or control menu', async () => {
+      const element = await chromeless();
+      const { panel, filter } = shellOf(element);
+      expect(filter).toBeNull();
+      expect(element.renderRoot.querySelector('.diagram-stats')).toBeNull();
+      expect(panel?.getAttribute('chrome')).toBe('none');
+      expect(panel?.hasAttribute('maximizable')).toBe(false);
+      expect(panel?.hasAttribute('resizable')).toBe(false);
+      expect(panel?.shadowRoot?.querySelector('header')).toBeNull();
+      expect(panel?.shadowRoot?.querySelector('[part="controls"]')).toBeNull();
+    });
+
+    it('flows its legend below the figure instead of over it', async () => {
+      const element = await chromeless();
+      const footer = element.renderRoot.querySelector<HTMLElement>('[slot="footer"].diagram-legend-flow');
+      expect(footer?.querySelector('.diagram-legend')?.textContent).toBe('Legend');
+      expect(element.renderRoot.querySelector('.diagram-overlay .diagram-legend')).toBeNull();
+    });
+
+    it('does not drag a node away from its computed position', async () => {
+      const element = await chromeless();
+      const node = element.renderRoot.querySelector<HTMLElement>('[data-node="a"]');
+      if (!node) throw new Error('missing node');
+      const before = node.style.left;
+      pointer(node, 'pointerdown', 10, 10);
+      pointer(node, 'pointermove', 60, 40);
+      pointer(node, 'pointerup', 60, 40);
+      await element.updateComplete;
+      expect(node.style.left).toBe(before);
+      expect(node.classList.contains('is-dragging')).toBe(false);
+    });
+
+    it('keeps the right-click Review comment', async () => {
+      const element = await mount('tiny-diagram', tinyData);
+      element.id = 'tiny';
+      element.chrome = 'none';
+      await settle(element);
+      reviewComment(element, 'element:tiny/node/a');
+      await settle(element);
+      expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('a');
+    });
+
+    it('has no Reset view to offer, because its view is already the fitted figure', async () => {
+      expect((await mount('tiny-diagram', tinyData)).resetViewEnabled).toBe(true);
+      expect((await chromeless()).resetViewEnabled).toBe(false);
+    });
+
+    it('lays a figure out with a small margin around its bounds instead of the pan padding', async () => {
+      const element = await mount('tiny-diagram', tinyData);
+      expect(element.paddingFor(72)).toBe(72);
+      element.chrome = 'none';
+      await settle(element);
+      expect(element.paddingFor(72)).toBe(12);
+      expect(element.paddingFor(8)).toBe(8);
+    });
+
+    it('clears a selection on Escape from the focused node', async () => {
+      const element = await chromeless();
+      element.select({ kind: 'node', id: 'a' });
+      await settle(element);
+      const node = element.renderRoot.querySelector<HTMLElement>('[data-node="a"]');
+      if (!node) throw new Error('missing node');
+      node.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true, cancelable: true }),
+      );
+      await settle(element);
+      expect(element.selection).toBeNull();
+    });
+
+    it('is ignored on a board that is a page’s content', async () => {
+      const element = await mount('tiny-diagram', tinyData);
+      const page = document.createElement('dpk-page');
+      page.setAttribute('name', 'scope');
+      document.body.append(page);
+      page.append(element);
+      element.chrome = 'none';
+      await settle(element);
+      const { panel } = shellOf(element);
+      expect(panel?.getAttribute('chrome')).not.toBe('none');
+      expect(panel?.shadowRoot?.querySelector('header')).not.toBeNull();
     });
   });
 });

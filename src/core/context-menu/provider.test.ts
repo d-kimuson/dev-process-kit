@@ -2,7 +2,24 @@ import { describe, expect, it } from 'vitest';
 
 import type { ContextMenuRequest } from './types';
 
-import { collectContextMenuGroups, contextMenuOrigin } from './provider';
+import { collectContextMenuGroups, contextMenuOrigin, findMethodProvider } from './provider';
+
+describe('findMethodProvider', () => {
+  const resetView = (): void => {};
+
+  it('takes the nearest element that carries the method', () => {
+    const inner = Object.assign(document.createElement('div'), { resetView });
+    const outer = Object.assign(document.createElement('div'), { resetView });
+    expect(findMethodProvider([inner, outer, document], 'resetView')).toBe(inner);
+  });
+
+  it('passes over a provider whose method has no effect in its current mode', () => {
+    const disabled = Object.assign(document.createElement('div'), { resetView, resetViewEnabled: false });
+    const enabled = Object.assign(document.createElement('div'), { resetView, resetViewEnabled: true });
+    expect(findMethodProvider([disabled, enabled, document], 'resetView')).toBe(enabled);
+    expect(findMethodProvider([disabled, document], 'resetView')).toBeNull();
+  });
+});
 
 describe('contextMenuOrigin', () => {
   it('is the first element on the composed path', () => {

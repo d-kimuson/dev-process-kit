@@ -1,6 +1,7 @@
 import { css } from 'lit';
 
 import { controls, popoverSurface, tokens } from '../../core/theme';
+import { chromelessCanvasStyles } from './chrome-styles';
 import { edgeStyles } from './edge/styles';
 
 /**
@@ -386,4 +387,4 @@ export const canvasStyles = [
  * composer. Components add their own node/edge styling on top and only
  * use the `.is-*` state classes defined here.
  */
-export const diagramStyles = [...chromeStyles, ...canvasStyles];
+export const diagramStyles = [...chromeStyles, ...canvasStyles, chromelessCanvasStyles];

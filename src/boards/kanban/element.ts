@@ -196,6 +196,7 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
     return html`
       <dpk-dialog-panel
         class=${this.shellClass()}
+        chrome=${this.panelChrome()}
         ?maximizable=${this.frameControls}
         ?resizable=${this.frameControls}
         heading=${this.heading ?? this.defaultHeading()}

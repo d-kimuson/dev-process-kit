@@ -56,6 +56,8 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 
 Links are drawn at right angles around the cards, each in a lane of its own, and are routed again when a reader drags a card. A label sits on its own link, or beside it when the link is short, and a link moves to another lane when its label would otherwise lie on another link or on a boundary's border. Two cards a boundary apart leave no room clear of the borders between them, so that label stays across them: leave more than a label's width between such cards to avoid it. Cards a reader drops onto each other are treated as one pile: links from other cards end on the pile's edge, and a link between two cards of the pile is not drawn until they are apart. Keep labels short: one that has no free room wraps onto two lines, and failing that is cut with an ellipsis (the full text stays in its tooltip).
 
+With `chrome="none"` (`docs/boards/index.md`, Figure only) the **Boundaries** toggle is not drawn and the boundaries stay on; the static figure is fitted in full, with no pan or zoom.
+
 ## Artwork
 
 The element ships **no icon set**: `artwork.src` is any URL or data URI you provide, rendered as an `<img>` with your `alt` text, and `artwork.license` is the icon's tooltip (`Icon credit: …`).

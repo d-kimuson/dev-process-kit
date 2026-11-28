@@ -191,6 +191,7 @@ export class DpkBoardEventStorming extends BoardChromeBase<EventStormingState, E
     return html`
       <dpk-dialog-panel
         class=${this.shellClass()}
+        chrome=${this.panelChrome()}
         flush
         ?maximizable=${this.frameControls}
         ?resizable=${this.frameControls}

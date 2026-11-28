@@ -117,6 +117,56 @@ describe('dpk-dialog-panel control menu', () => {
   });
 });
 
+describe('dpk-dialog-panel chrome="none"', () => {
+  const mountChrome = async (attributes = ''): Promise<DpkDialogPanel> => {
+    document.body.innerHTML = `<dpk-dialog-panel heading="Orders" chrome="none" ${attributes}>
+      <div slot="toolbar" id="toolbar">Filter</div>
+      <p id="body">Body</p>
+      <div slot="footer" id="footer">Legend</div>
+    </dpk-dialog-panel>`;
+    const panel = document.querySelector('dpk-dialog-panel') as DpkDialogPanel;
+    await panel.updateComplete;
+    return panel;
+  };
+
+  it('draws no header and no control menu, even with maximizable and resizable', async () => {
+    const panel = await mountChrome('maximizable resizable');
+    expect(panel.shadowRoot?.querySelector('header')).toBeNull();
+    expect(panel.shadowRoot?.querySelector('.title')).toBeNull();
+    expect(panel.shadowRoot?.querySelector('[part="controls"]')).toBeNull();
+    expect(maximizeButton(panel)).toBeNull();
+    expect(panel.shadowRoot?.querySelector('.grip')).toBeNull();
+    expect(panel.shadowRoot?.querySelector('.panel')?.classList.contains('is-maximized')).toBe(false);
+  });
+
+  it('names the figure with the heading and keeps the toolbar and footer slots', async () => {
+    const panel = await mountChrome();
+    const section = panel.shadowRoot?.querySelector('.panel');
+    expect(section?.getAttribute('role')).toBe('figure');
+    expect(section?.getAttribute('aria-label')).toBe('Orders');
+    const assigned = (name: string): (string | undefined)[] =>
+      panel.shadowRoot
+        ?.querySelector<HTMLSlotElement>(`slot[name="${name}"]`)
+        ?.assignedElements()
+        .map((element) => element.id) ?? [];
+    expect(assigned('toolbar')).toEqual(['toolbar']);
+    expect(assigned('footer')).toEqual(['footer']);
+  });
+
+  it('says its Reset view would do nothing, so the context menu can leave it out', async () => {
+    expect((await mount()).resetViewEnabled).toBe(true);
+    expect((await mountChrome()).resetViewEnabled).toBe(false);
+  });
+
+  it('sizes a static canvas to its whole content and makes it no keyboard stop', async () => {
+    const panel = await mountChrome('canvas content-width="800" content-height="400"');
+    const canvas = panel.shadowRoot?.querySelector<HTMLElement>('.canvas');
+    const frame = panel.shadowRoot?.querySelector<HTMLElement>('.frame');
+    expect(canvas?.hasAttribute('tabindex')).toBe(false);
+    expect(frame?.style.height).toMatch(/^\d+px$/);
+  });
+});
+
 describe('dpk-dialog-panel canvas', () => {
   const mountCanvas = async (attributes = ''): Promise<DpkDialogPanel> => {
     document.body.innerHTML = `<dpk-dialog-panel canvas content-width="800" content-height="400" ${attributes}>

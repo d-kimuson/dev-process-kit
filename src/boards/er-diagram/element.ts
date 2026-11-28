@@ -440,6 +440,8 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
   }
 
   protected override layoutOptions(): LayoutOptions {
+    // This padding is the frame room the drawing needs (BC_PADDING plus the
+    // BC label), not a blank canvas margin, so a chrome-less figure keeps it.
     return LAYOUT;
   }
 

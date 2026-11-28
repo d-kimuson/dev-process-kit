@@ -130,6 +130,7 @@ export class DpkBoardExampleMapping extends BoardChromeBase<ExampleMappingState,
     return html`
       <dpk-dialog-panel
         class=${this.shellClass()}
+        chrome=${this.panelChrome()}
         ?maximizable=${this.frameControls}
         ?resizable=${this.frameControls}
         heading=${this.heading ?? this.defaultHeading()}

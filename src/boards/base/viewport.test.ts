@@ -451,3 +451,75 @@ describe('viewport controller', () => {
     }
   });
 });
+
+describe('non-interactive viewport', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  const staticMount = (onClearSelection: () => boolean | void = () => undefined) => {
+    const canvas = document.createElement('div');
+    const world = document.createElement('div');
+    canvas.append(world);
+    document.body.append(canvas);
+    const viewport = createViewport({ canvas, world, onClearSelection, interactive: false });
+    viewport.setContent({ x: 0, y: 0, width: 900, height: 1200 });
+    return { canvas, world, viewport };
+  };
+
+  it('hands a wheel to the page instead of panning the figure', () => {
+    const { canvas, viewport } = staticMount();
+    try {
+      const before = viewport.view();
+      const allowed = canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: 200, cancelable: true, bubbles: true }));
+      expect(allowed).toBe(true);
+      expect(viewport.view()).toEqual(before);
+    } finally {
+      viewport.destroy();
+    }
+  });
+
+  it('takes no pointer capture and does not pan on a drag', () => {
+    const { canvas, viewport } = staticMount();
+    const capture = vi.fn();
+    canvas.setPointerCapture = capture;
+    try {
+      const before = viewport.view();
+      canvas.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 10, clientY: 10 }));
+      canvas.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 60, clientY: 60 }));
+      canvas.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: 60, clientY: 60 }));
+      expect(capture).not.toHaveBeenCalled();
+      expect(viewport.view()).toEqual(before);
+    } finally {
+      viewport.destroy();
+    }
+  });
+
+  it('ignores the zoom keys but keeps Escape for the selection', () => {
+    const clear = vi.fn(() => true);
+    const { canvas, viewport } = staticMount(clear);
+    try {
+      expect(canvas.dispatchEvent(new KeyboardEvent('keydown', { key: '+', cancelable: true }))).toBe(true);
+      expect(viewport.view().scale).toBe(1);
+      expect(canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }))).toBe(false);
+      expect(clear).toHaveBeenCalledOnce();
+    } finally {
+      viewport.destroy();
+    }
+  });
+
+  it('still clears the selection on a background click, but not on a control', () => {
+    const clear = vi.fn();
+    const { canvas, viewport } = staticMount(clear);
+    try {
+      canvas.click();
+      expect(clear).toHaveBeenCalledOnce();
+      const button = document.createElement('button');
+      canvas.append(button);
+      button.click();
+      expect(clear).toHaveBeenCalledOnce();
+    } finally {
+      viewport.destroy();
+    }
+  });
+});

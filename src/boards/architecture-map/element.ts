@@ -101,6 +101,8 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
   }
 
   protected override layoutOptions(): { readonly padding: number } {
+    // A boundary frame reaches about 45px above its cards, so this padding is
+    // frame room, not a blank band: a chrome-less figure keeps it too.
     return { padding: MAP_PADDING };
   }
 

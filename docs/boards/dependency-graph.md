@@ -56,6 +56,8 @@ Shared contract (data paths, tags, pan/zoom, comments, sizing, toolbar title and
 
 Direction is visible in the color of the card and the edge: green = uses (Depends on), blue = used by (Depended on by), amber = part of a cycle.
 
+With `chrome="none"` (`docs/boards/index.md`, Figure only) the direction, indirect and cycle controls are not drawn: the board shows the defaults (`Both`, direct only), is static, and its legend flows below the figure.
+
 ## Cycles
 
 Cycles are detected from the tag-filtered graph: a group of strongly connected modules, including a self-edge. Members get a `Cycle` badge, and `Cycles N` counts the groups and filters the diagram down to them, edges included. Two modules that reference each other are one group, so the badge means "this module is in a loop", not "this edge closes a loop".

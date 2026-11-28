@@ -1024,4 +1024,14 @@ export const erStyles = css`
     padding: 0 10px;
     font-size: 10.5px;
   }
+
+  /*
+   * A chrome-less board is a static figure: its aggregate frames are drawn,
+   * not grabbed, so a touch drag that starts inside one scrolls the page and
+   * the pointer does not advertise a drag that will not happen.
+   */
+  :host([chrome='none']) .er-aggregate {
+    cursor: default;
+    touch-action: auto;
+  }
 `;

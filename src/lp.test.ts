@@ -127,7 +127,7 @@ describe('lp pages', () => {
       (match) => match[1] ?? '',
     );
     const ids = diagrams.map((attributes) => /\bid="([^"]+)"/.exec(attributes)?.[1]);
-    expect(ids).toHaveLength(7);
+    expect(ids).toHaveLength(8);
     expect(ids.every((id) => id !== undefined)).toBe(true);
     expect(new Set(ids).size).toBe(ids.length);
   });

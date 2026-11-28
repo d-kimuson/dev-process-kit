@@ -252,10 +252,17 @@ const FRAME_HEADER = 31;
 const BRANCH_ROW = 32;
 const FOLD_ROW = 40;
 
+/** Room above the first row and below the last: the rail sits outside this box. */
+export type SequenceLayoutOptions = {
+  readonly topMargin?: number;
+  readonly bottomMargin?: number;
+};
+
 /** Rows, frames and lifeline positions for the currently visible messages. */
 export const layoutSequence = (
   data: SequenceDiagramData,
   matches: (message: SequenceMessage) => boolean,
+  options: SequenceLayoutOptions = {},
 ): SequenceLayout => {
   const items = pruneItems(data.items, matches);
   const used = new Set<string>();
@@ -271,7 +278,7 @@ export const layoutSequence = (
   const branches: BranchRow[] = [];
   const dividers: DividerRow[] = [];
   const folds: FoldRow[] = [];
-  let y = 25;
+  let y = options.topMargin ?? 25;
 
   const walk = (entries: readonly SequenceItem[], depth: number): void => {
     for (const entry of entries) {
@@ -311,5 +318,15 @@ export const layoutSequence = (
     }
   };
   walk(items, 0);
-  return { width, height: y + 24, participants, rows, frames, branches, dividers, folds, x };
+  return {
+    width,
+    height: y + (options.bottomMargin ?? 24),
+    participants,
+    rows,
+    frames,
+    branches,
+    dividers,
+    folds,
+    x,
+  };
 };

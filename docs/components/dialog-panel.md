@@ -21,21 +21,28 @@ Canvas mode turns the body into a pannable, zoomable surface for absolutely-posi
 
 ## Attributes and properties
 
-| Name             | Kind               | Meaning                                                                                                                       |
-| ---------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `heading`        | attribute/property | Header title. A long one elides; the full text is its tooltip.                                                                |
-| `subject`        | attribute/property | Smaller subtitle beside the title. Hidden on narrow screens.                                                                  |
-| `maximizable`    | boolean attribute  | Shows the maximize button. The panel then covers the viewport, in the top layer.                                              |
-| `maximized`      | boolean attribute  | Whether the panel is covering the viewport. Settable; the button and `Escape` change it too.                                  |
-| `resizable`      | boolean attribute  | Shows the resize grip under the body (drag it, or focus it and use the arrow keys; double-click restores the natural height). |
-| `canvas`         | boolean attribute  | Makes the body a pan/zoom canvas.                                                                                             |
-| `content-width`  | number attribute   | The content box's width in world pixels, for content that lays out absolutely. The content is measured when absent.           |
-| `content-height` | number attribute   | The content box's height in world pixels, as above.                                                                           |
-| `initial`        | attribute/property | Opening view: `fit` (default), `fit-width`, `actual` (100%, top-left) or `none`.                                              |
-| `align`          | attribute/property | Where content smaller than the canvas sits: `center` (default) or `start`.                                                    |
-| `fit-mode`       | attribute/property | What the percentage button means: `all` (default) fits the whole content, `width` fits its width and keeps the top in view.   |
-| `label`          | attribute/property | Accessible name of the canvas. Defaults to the kit's own.                                                                     |
-| `flush`          | boolean attribute  | Drops the body's padding and its scrolling — for a table or another surface that manages its own edges.                       |
+| Name             | Kind               | Meaning                                                                                                                           |
+| ---------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `heading`        | attribute/property | Header title. A long one elides; the full text is its tooltip.                                                                    |
+| `subject`        | attribute/property | Smaller subtitle beside the title. Hidden on narrow screens.                                                                      |
+| `maximizable`    | boolean attribute  | Shows the maximize button. The panel then covers the viewport, in the top layer.                                                  |
+| `maximized`      | boolean attribute  | Whether the panel is covering the viewport. Settable; the button and `Escape` change it too.                                      |
+| `resizable`      | boolean attribute  | Shows the resize grip under the body (drag it, or focus it and use the arrow keys; double-click restores the natural height).     |
+| `canvas`         | boolean attribute  | Makes the body a pan/zoom canvas.                                                                                                 |
+| `content-width`  | number attribute   | The content box's width in world pixels, for content that lays out absolutely. The content is measured when absent.               |
+| `content-height` | number attribute   | The content box's height in world pixels, as above.                                                                               |
+| `initial`        | attribute/property | Opening view: `fit` (default), `fit-width`, `actual` (100%, top-left) or `none`.                                                  |
+| `align`          | attribute/property | Where content smaller than the canvas sits: `center` (default) or `start`.                                                        |
+| `fit-mode`       | attribute/property | What the percentage button means: `all` (default) fits the whole content, `width` fits its width and keeps the top in view.       |
+| `label`          | attribute/property | Accessible name of the canvas. Defaults to the kit's own.                                                                         |
+| `chrome`         | attribute/property | `full` (default) draws the frame, header and control menu; `none` draws only the content, as a figure in the page's flow (below). |
+| `flush`          | boolean attribute  | Drops the body's padding and its scrolling — for a table or another surface that manages its own edges.                           |
+
+## Figure only (`chrome="none"`)
+
+`chrome="none"` draws the content and nothing else: no frame, header, title or actions, no floating control menu (zoom, maximize, resize grip or `controls`), and no maximize behaviour. The box becomes a `figure` named by `heading`, and the `toolbar` and `footer` slots still take their rows.
+
+With `canvas` it also becomes static: the panel takes the natural height that shows the whole content at a scale of at most 100%, fits once, and takes no pan, zoom, pinch or keyboard navigation, so a wheel over it scrolls the page. `content-width` / `content-height` are the box it sizes to, and `align` places the fitted content; `initial` and `fit-mode` do not apply. Keep the default chrome when the content needs a view the reader can move.
 
 ## Methods
 
@@ -78,13 +85,14 @@ The control menu floats at the bottom right and carries, in order, your `control
 
 ## Styling
 
-| Custom property                 | Default | Meaning                                                    |
-| ------------------------------- | ------- | ---------------------------------------------------------- |
-| `--dpk-dialog-panel-height`     | `auto`  | The panel's height; a canvas needs a definite one to fill. |
-| `--dpk-dialog-panel-min-height` | `0`     | Its minimum height.                                        |
-| `--dpk-dialog-panel-padding`    | `16px`  | The body's padding (ignored with `flush`).                 |
-| `--dpk-canvas-height`           | `420px` | The canvas's height when the panel is not otherwise sized. |
-| `--dpk-header-height`           | read    | Keeps a maximized panel clear of the page's own header.    |
+| Custom property                 | Default                | Meaning                                                                                      |
+| ------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------- |
+| `--dpk-dialog-panel-height`     | `auto`                 | The panel's height; a canvas needs a definite one to fill.                                   |
+| `--dpk-dialog-panel-min-height` | `0`                    | Its minimum height.                                                                          |
+| `--dpk-dialog-panel-padding`    | `16px`                 | The body's padding (ignored with `flush`).                                                   |
+| `--dpk-dialog-panel-radius`     | `var(--dpk-radius-lg)` | The frame's corner radius; a page-content board sets it to `0` to square the frame it fills. |
+| `--dpk-canvas-height`           | `420px`                | The canvas's height when the panel is not otherwise sized.                                   |
+| `--dpk-header-height`           | read                   | Keeps a maximized panel clear of the page's own header.                                      |
 
 The rendered box exposes `part` names `panel`, `header`, `body`, `canvas`, `world`, `controls` and `grip`, and the `--dpk-*` tokens re-theme it like any other component.
 
