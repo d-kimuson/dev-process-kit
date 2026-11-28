@@ -351,9 +351,12 @@ export class DpkInlineEdit extends LitElement {
     if (changed.has('value') && !this.editing) this.#draft = this.value;
   }
 
-  protected override updated(): void {
+  protected override updated(changed: Map<PropertyKey, unknown>): void {
     this.#measureClipped();
-    if (!this.editing) return;
+    // Only the update that opens the editor places focus and caret. Every later
+    // one (each keystroke, each IME composition step) leaves the caret where
+    // the browser put it.
+    if (!this.editing || !changed.has('editing')) return;
     const field = this.renderRoot.querySelector<HTMLTextAreaElement>('.field');
     if (!field) return;
     const root = this.renderRoot;
