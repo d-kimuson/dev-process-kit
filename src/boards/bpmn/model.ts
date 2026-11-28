@@ -299,7 +299,7 @@ export const parseBpmnData = (input: unknown): BpmnData => {
     if (kind === 'sequence') {
       if (fromNode === undefined || toNode === undefined) throw new Error(`sequence flow ${flow.id} needs nodes`);
       if (flow.from === flow.to)
-        throw new Error(`self-loop sequence flow ${flow.id} is not supported; use a loop marker on the activity`);
+        throw new Error(`self-loop sequence flow ${flow.id} is not supported; connect the activity to another element`);
       if (flow.default && flow.condition !== undefined)
         throw new Error(`sequence flow ${flow.id} cannot be both default and conditional`);
       if (!isFlowNode(fromNode) || !isFlowNode(toNode))

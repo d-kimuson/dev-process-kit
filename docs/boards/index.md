@@ -232,7 +232,7 @@ Embedded, the shell is `var(--diagram-height, 560px)` tall and the canvas takes 
 <dpk-board-er-diagram style="--diagram-height: 720px">…</dpk-board-er-diagram>
 ```
 
-As a page's content the board takes the height the page gives it, and `--diagram-height` does not apply. The BPMN board opens at 100% at the start of the process, then keeps the reader's view; the zoom control's percentage fits the whole process. The kanban has no canvas and so no `--diagram-height`: it takes whatever height its columns need, in the page's normal flow. Maximizing still fills the viewport, same as a diagram.
+As a page's content the board takes the height the page gives it, and `--diagram-height` does not apply. The BPMN board opens fitted to its whole process as page content, then keeps the reader's view. The kanban has no canvas and so no `--diagram-height`: it takes whatever height its columns need, in the page's normal flow. Maximizing still fills the viewport, same as a diagram.
 
 With `chrome="none"` a canvas board ignores `--diagram-height` too: it takes the height of its whole figure at a scale of at most 100%, so set no height for it. The whiteboard and event storming keep their own fixed canvas height (the tools need a surface) even without chrome; the kanban and example mapping keep their natural document height.
 

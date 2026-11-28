@@ -89,4 +89,4 @@ Validation rejects a duplicate id across every collection, an unknown lane, a se
 
 ## Chrome-less figures
 
-`chrome="none"` (`docs/boards/index.md`, Figure only) drops the frame, header, tag filter and controls and fits the whole process into the page. With its chrome, the board opens at 100% at the start of the process, so the text is real size; the percentage in the zoom control fits the whole process.
+`chrome="none"` (`docs/boards/index.md`, Figure only) drops the frame, header, tag filter and controls and fits the whole process into the page. With its chrome, an embedded board opens at 100%; as a page's content the page fits the whole process on open. The percentage in the zoom control fits it at any time.

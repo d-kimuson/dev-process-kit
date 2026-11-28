@@ -1186,7 +1186,12 @@
                       },
                       { "id": "ship-task", "kind": "task", "task": "user", "lane": "ship", "name": "出荷する" },
                       { "id": "shipped", "kind": "event", "event": "end", "lane": "ship", "name": "出荷完了" },
-                      { "id": "note", "kind": "annotation", "lane": "order", "text": "与信結果は通常 1 分以内に返る。" }
+                      {
+                        "id": "note",
+                        "kind": "annotation",
+                        "lane": "credit",
+                        "text": "与信結果は通常 1 分以内に返る。"
+                      }
                     ],
                     "flows": [
                       { "id": "f1", "from": "start", "to": "review" },

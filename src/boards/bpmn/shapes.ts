@@ -124,9 +124,12 @@ export const externalLabel = (node: BpmnNode): BpmnNodeLabel | null => {
   if (node.kind === 'task' || node.kind === 'subprocess' || node.kind === 'annotation') return null;
   if (node.name === null || node.name === '') return null;
   const lines = wrapLines(node.name, NODE_LABEL_MAX_WIDTH, NODE_LABEL_FONT, 2);
+  // A pixel of slack: the measured advance and the browser's own subpixel
+  // layout can differ by a fraction, and `text-overflow: ellipsis` would turn
+  // "在庫あり?" into "在庫あ…" at the rounded width.
   const width = Math.min(
     NODE_LABEL_MAX_WIDTH,
-    Math.ceil(Math.max(...lines.map((line) => textWidth(line, NODE_LABEL_FONT)))),
+    Math.ceil(Math.max(...lines.map((line) => textWidth(line, NODE_LABEL_FONT)))) + 2,
   );
   return { lines, width, height: lines.length * 16 };
 };
