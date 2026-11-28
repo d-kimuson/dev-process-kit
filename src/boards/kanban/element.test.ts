@@ -1,9 +1,13 @@
+import { render } from 'lit';
+import { keyed } from 'lit/directives/keyed.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { DpkDialogPanel } from '../../components/dialog-panel/index';
 import type { ContextMenuEntry, ContextMenuRequest } from '../../core/context-menu/types';
 
+import { PANEL_HOST, type DetailReport, type PanelDetail, type PanelHost } from '../../core/panel/host';
 import { parseTargetRef } from '../../core/target';
+import { DpkInternalKanbanCardDetail } from './card-detail';
 import { DpkBoardKanban } from './element';
 import { defineKanban } from './index';
 import { kanbanMessages } from './messages';
@@ -123,6 +127,51 @@ const card = (element: DpkBoardKanban, id: string): HTMLElement => {
   return found;
 };
 
+type PanelReport = { readonly detail: PanelDetail | null; readonly report: DetailReport };
+
+/** Stand-in for the side panel's owner: records what the board hands it. */
+const withPanel = async (
+  element: DpkBoardKanban,
+): Promise<{ readonly reports: PanelReport[]; readonly providers: Set<Element>; detail(): PanelDetail | null }> => {
+  const reports: PanelReport[] = [];
+  const providers = new Set<Element>();
+  const host: PanelHost = {
+    provideDetail: (source) => {
+      providers.add(source);
+      return () => providers.delete(source);
+    },
+    showDetail: (_source, detail, report) => reports.push({ detail, report }),
+    addSection: () => () => undefined,
+    invalidate: () => undefined,
+    open: () => undefined,
+  };
+  const owner = document.createElement('div');
+  Object.defineProperty(owner, PANEL_HOST, { value: host });
+  element.before(owner);
+  owner.append(element);
+  await settle(element);
+  return { reports, providers, detail: () => reports.at(-1)?.detail ?? null };
+};
+
+const detailRoot = document.createElement('div');
+
+const detailElement = (root: ShadowRoot): DpkInternalKanbanCardDetail => {
+  const host = root.host;
+  if (!(host instanceof DpkInternalKanbanCardDetail)) throw new Error('no card detail');
+  return host;
+};
+
+/** Draws the detail the way the panel does, and returns its shadow root. */
+const renderDetail = async (detail: PanelDetail | null): Promise<ShadowRoot> => {
+  if (detail === null) throw new Error('no detail');
+  if (!detailRoot.isConnected) document.body.append(detailRoot);
+  render(keyed(detail.key, detail.render()), detailRoot);
+  const view = detailRoot.querySelector('dpk-internal-kanban-card-detail');
+  if (!(view instanceof DpkInternalKanbanCardDetail) || view.shadowRoot === null) throw new Error('no card detail');
+  await view.updateComplete;
+  return view.shadowRoot;
+};
+
 describe('<dpk-board-kanban>', () => {
   it('passes chrome="none" to its panel, dropping the frame, header and filter', async () => {
     const element = await mount();
@@ -140,89 +189,110 @@ describe('<dpk-board-kanban>', () => {
 
   it('shows a card’s links, opening them without opening the card', async () => {
     const element = await mount();
+    const panel = await withPanel(element);
     const link = card(element, 'api').querySelector<HTMLAnchorElement>('.kanban-card-links a');
     expect(link?.getAttribute('href')).toBe('https://example.com/spec');
     expect(link?.textContent?.trim()).toBe('Spec');
     link?.addEventListener('click', (event) => event.preventDefault());
     link?.click();
     await settle(element);
-    expect(element.renderRoot.querySelector('.kanban-detail')).toBeNull();
+    expect(panel.reports.filter((report) => report.report === 'open')).toEqual([]);
   });
 
-  it('opens a card’s detail on click, and closes it on Escape', async () => {
+  it('opens a card’s detail in the side panel on click, and gives the focus back to the card', async () => {
     const element = await mount();
+    const panel = await withPanel(element);
     card(element, 'api').click();
     await settle(element);
-    const panel = element.renderRoot.querySelector<HTMLElement>('.kanban-detail');
-    expect(panel?.dataset['card']).toBe('api');
-    expect(panel?.querySelector<HTMLElement & { value: string }>('.kanban-detail-title dpk-inline-edit')?.value).toBe(
+    expect(panel.reports.some((report) => report.report === 'open')).toBe(true);
+    const detail = panel.detail();
+    expect(detail).toMatchObject({ key: 'api', kind: m.cards, title: expect.stringMatching(/^TASK-/) });
+    const view = await renderDetail(detail);
+    expect(view.querySelector<HTMLElement & { value: string }>('.kanban-detail-title dpk-inline-edit')?.value).toBe(
       '注文 API',
     );
     expect(element.selection).toEqual({ kind: 'card', id: 'api' });
-    panel?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    await settle(element);
-    expect(element.renderRoot.querySelector('.kanban-detail')).toBeNull();
-    // The keyboard is back where the panel was opened from.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    detail?.focus?.();
     expect((element.renderRoot as ShadowRoot).activeElement).toBe(card(element, 'api'));
+  });
+
+  it('withdraws its detail from the panel when it leaves the page', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    expect(panel.providers.has(element)).toBe(true);
+    element.remove();
+    expect(panel.providers.has(element)).toBe(false);
   });
 
   it('edits the card from its detail, recording each field as an element action', async () => {
     const element = await mount();
     acceptActions(element);
+    const panel = await withPanel(element);
     card(element, 'api').click();
     await settle(element);
-    const panel = element.renderRoot.querySelector<HTMLElement>('.kanban-detail')!;
-    const commit = (selector: string, value: string): void => {
-      const editor = panel.querySelector(selector);
-      if (editor === null) throw new Error(`no ${selector}`);
+    const view = await renderDetail(panel.detail());
+    const commit = (editor: Element | null | undefined, value: string): void => {
+      if (editor === null || editor === undefined) throw new Error('no editor');
       editor.dispatchEvent(new CustomEvent('dpk-commit', { detail: { value }, bubbles: true, composed: true }));
     };
-    commit('.kanban-detail-title dpk-inline-edit', '注文 API v2');
-    commit('.kanban-detail-field dpk-inline-edit', ' kimura ');
-    // The second field is the assignee; the description is multiline and comes later.
-    const fields = [...panel.querySelectorAll<HTMLElement>('.kanban-detail-field dpk-inline-edit')];
-    fields
-      .at(-1)
-      ?.dispatchEvent(
-        new CustomEvent('dpk-commit', { detail: { value: '新しい説明' }, bubbles: true, composed: true }),
-      );
+    commit(view.querySelector('.kanban-detail-title dpk-inline-edit'), '注文 API v2');
+    commit(view.querySelector('.kanban-detail-field dpk-inline-edit'), ' kimura ');
+    // The description is multiline and comes after the assignee.
+    commit([...view.querySelectorAll('.kanban-detail-field dpk-inline-edit')].at(-1), '新しい説明');
     await settle(element);
     expect(element.elementActions.map((action) => action.type)).toEqual([
       'SET_CARD_TITLE',
       'SET_CARD_ASSIGNEE',
       'SET_CARD_DESCRIPTION',
     ]);
+    // The board hands the panel the edited card on its next render.
+    expect(panel.reports.at(-1)?.report).toBe('refresh');
+    const refreshed = await renderDetail(panel.detail());
     expect(
-      element.renderRoot.querySelector<HTMLElement & { value: string }>('.kanban-detail-title dpk-inline-edit')?.value,
+      refreshed.querySelector<HTMLElement & { value: string }>('.kanban-detail-title dpk-inline-edit')?.value,
     ).toBe('注文 API v2');
+  });
+
+  it('says so in the detail when no template recorded an edit', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    card(element, 'api').click();
+    await settle(element);
+    const view = await renderDetail(panel.detail());
+    view
+      .querySelector('.kanban-detail-title dpk-inline-edit')
+      ?.dispatchEvent(new CustomEvent('dpk-commit', { detail: { value: 'x' }, bubbles: true, composed: true }));
+    await detailElement(view).updateComplete;
+    expect(view.querySelector('[role="alert"]')?.textContent).toBe(m.notRecorded);
   });
 
   it('changes a card’s status and edits its tags and links from the detail', async () => {
     const element = await mount();
     acceptActions(element);
+    const panel = await withPanel(element);
     card(element, 'api').click();
     await settle(element);
-    const panel = (): HTMLElement => element.renderRoot.querySelector<HTMLElement>('.kanban-detail')!;
-    const status = [...panel().querySelectorAll<HTMLButtonElement>('.kanban-status')].find(
+    const view = async (): Promise<ShadowRoot> => renderDetail(panel.detail());
+    const status = [...(await view()).querySelectorAll<HTMLButtonElement>('.kanban-status')].find(
       (button) => button.textContent?.trim() === '完了',
     );
     status?.click();
     await settle(element);
     expect(element.elementActions.at(-1)).toMatchObject({ type: 'MOVE_CARD', payload: { column: 'done' } });
 
-    const tagInput = panel().querySelector<HTMLInputElement>('.kanban-tag-add');
+    const tagInput = (await view()).querySelector<HTMLInputElement>('.kanban-tag-add');
     if (tagInput === null) throw new Error('no tag input');
     tagInput.value = '重要';
     tagInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await settle(element);
     expect(element.elementActions.at(-1)).toMatchObject({ type: 'ADD_CARD_TAG', payload: { tag: '重要' } });
-    const removeTag = [...panel().querySelectorAll<HTMLButtonElement>('.kanban-tag-remove')].at(-1);
+    expect(tagInput.value).toBe('');
+    const removeTag = [...(await view()).querySelectorAll<HTMLButtonElement>('.kanban-tag-remove')].at(-1);
     removeTag?.click();
     await settle(element);
     expect(element.elementActions.at(-1)).toMatchObject({ type: 'REMOVE_CARD_TAG', payload: { tag: '重要' } });
 
-    const form = panel().querySelector<HTMLFormElement>('.kanban-link-add');
+    const form = (await view()).querySelector<HTMLFormElement>('.kanban-link-add');
     if (form === null) throw new Error('no link form');
     form.querySelector<HTMLInputElement>('[data-role="link-url"]')!.value = 'https://example.com/pr/1';
     form.querySelector<HTMLInputElement>('[data-role="link-label"]')!.value = 'PR';
@@ -232,7 +302,7 @@ describe('<dpk-board-kanban>', () => {
       type: 'ADD_CARD_LINK',
       payload: { url: 'https://example.com/pr/1', label: 'PR' },
     });
-    const removeLink = [...panel().querySelectorAll<HTMLButtonElement>('.kanban-link-remove')].at(-1);
+    const removeLink = [...(await view()).querySelectorAll<HTMLButtonElement>('.kanban-link-remove')].at(-1);
     removeLink?.click();
     await settle(element);
     expect(element.elementActions.at(-1)).toMatchObject({

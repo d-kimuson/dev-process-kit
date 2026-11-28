@@ -1,6 +1,7 @@
 import { LitElement, html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
 import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
+import type { DetailIntent } from '../../core/panel/model';
 import type { ViewApi } from '../../core/shell/contracts';
 import type {
   ActionInput,
@@ -24,6 +25,7 @@ import { type Locale } from '../../core/i18n';
 import { LocaleController } from '../../core/locale-controller';
 import { pageHostOf, pageNameOf } from '../../core/page/host';
 import { resolvePageTarget } from '../../core/page/page-target';
+import { panelHostOf, type PanelDetail, type PanelHost } from '../../core/panel/host';
 import { defaultStorageKey } from '../../core/persistence';
 import { createViewApi, snapshotOf, type ViewFacadeSource } from '../../core/shell/api';
 import { requestDraftSync } from '../../core/sync/request';
@@ -152,6 +154,9 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   #dataError: string | null = null;
   #tags: TagState = EMPTY_TAG_STATE;
   #selection: S | null = null;
+  /** The side panel this board shows its selection's detail in, once it found one. */
+  #panelHost: PanelHost | null = null;
+  #withdrawDetail: (() => void) | null = null;
   #stopJsonChild: (() => void) | null = null;
   #targetSignature = '';
   readonly #commentPopover = new CommentPopoverController(this);
@@ -203,6 +208,9 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     super.disconnectedCallback();
     this.#stopJsonChild?.();
     this.#stopJsonChild = null;
+    this.#withdrawDetail?.();
+    this.#withdrawDetail = null;
+    this.#panelHost = null;
     // A shared draft's session ends with the element, unless it was only moved.
     queueMicrotask(() => {
       if (!this.isConnected) this.#boardController?.close();
@@ -216,6 +224,27 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   protected override updated(): void {
     this.#syncTargets();
     this.#commentPopover.sync(this.renderRoot.querySelector<HTMLElement>('.comment-pop'));
+    this.#syncPanel();
+  }
+
+  /**
+   * Finds the panel above this board on each render (the owner may upgrade
+   * after the board), and hands it the detail the selection has now.
+   */
+  #syncPanel(): void {
+    const host = this.providesPanelDetail ? panelHostOf(this) : null;
+    if (host !== this.#panelHost) {
+      this.#withdrawDetail?.();
+      this.#panelHost = host;
+      this.#withdrawDetail = host?.provideDetail(this) ?? null;
+      if (host !== null && this.#selection !== null) host.showDetail(this, this.#detailOf(this.#selection), 'select');
+      return;
+    }
+    host?.showDetail(this, this.#detailOf(this.#selection), 'refresh');
+  }
+
+  #detailOf(selection: S | null): PanelDetail | null {
+    return selection === null ? null : this.panelDetail(selection);
   }
 
   #syncTargets(): void {
@@ -474,7 +503,22 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   }
 
   select(selection: S | null): void {
-    this.#select(selection);
+    this.#select(selection, 'select');
+  }
+
+  /** Selects the element and opens the side panel on its detail, as a click on a card does. */
+  protected openSelection(selection: S): void {
+    this.#select(selection, 'open');
+  }
+
+  /** Whether this board shows its selection's detail in the side panel. */
+  protected get providesPanelDetail(): boolean {
+    return false;
+  }
+
+  /** The detail the side panel shows for the selected element, or `null` when it has none. */
+  protected panelDetail(_selection: S): PanelDetail | null {
+    return null;
   }
 
   get tagFilter(): TagState {
@@ -719,7 +763,10 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     this.#elementResults = replayed.results;
     if (this.#selection !== null) {
       const exists = this.hasSelection(this.#selection);
-      if (!exists) this.#selection = null;
+      if (!exists) {
+        this.#selection = null;
+        this.#panelHost?.showDetail(this, null, 'select');
+      }
     }
     this.requestUpdate();
   }
@@ -756,13 +803,16 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     return true;
   }
 
-  #select(selection: S | null): void {
+  #select(selection: S | null, intent: DetailIntent): void {
     const same =
       selection === null
         ? this.#selection === null
         : this.#selection !== null && this.#selection.kind === selection.kind && this.#selection.id === selection.id;
-    if (same) return;
+    if (same && intent !== 'open') return;
+    if (this.#panelHost === null) this.#syncPanel();
     this.#selection = selection;
+    this.#panelHost?.showDetail(this, this.#detailOf(selection), intent);
+    if (same) return;
     this.dispatchEvent(new CustomEvent('dpk-diagram-select', { detail: { selection }, bubbles: true, composed: true }));
     this.requestUpdate();
   }
