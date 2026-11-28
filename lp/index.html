@@ -1641,6 +1641,7 @@
               <a href="#catalog-segmented">segmented</a>
               <a href="#catalog-tabstrip">tabstrip / count</a>
               <a href="#catalog-filter">filter / add</a>
+              <a href="#catalog-tag-filter">tag filter</a>
               <a href="#catalog-combobox">combobox</a>
               <a href="#catalog-select">Select</a>
               <a href="#catalog-selection-bar">selection bar</a>
@@ -1661,9 +1662,11 @@
               <a href="#catalog-code-group">code group</a>
               <a href="#catalog-dialog-panel">dialog panel</a>
               <a href="#catalog-commentable">commentable</a>
+              <a href="#catalog-comment-panel">comment panel</a>
               <a href="#catalog-extend-right-click">extend right click</a>
               <a href="#catalog-comment-popover">comment popover</a>
               <a href="#catalog-comment-thread">comment thread</a>
+              <a href="#catalog-video">video</a>
               <a href="#catalog-checklist">checklist</a>
               <a href="#catalog-alternatives">alternatives</a>
               <a href="#catalog-dpk-matrix">matrix</a>
@@ -3314,6 +3317,64 @@
                     </template>
                   </div>
                 </article>
+                <article id="catalog-tag-filter" class="entry">
+                  <header>
+                    <h3>&lt;dpk-tag-filter&gt;</h3>
+                  </header>
+                  <p>
+                    タグのチップを並べ、Single / AND / OR
+                    で絞り込む入力。チップと選択は自前で描き、タグの意味と何を隠すかはホストが決める。
+                  </p>
+                  <div class="demo" data-code>
+                    <div class="tag-filter-demo">
+                      <dpk-tag-filter id="catalog-tag-filter-row">
+                        <script type="application/json">
+                          {
+                            "tags": [
+                              { "tag": "API", "count": 4 },
+                              { "tag": "UI", "count": 2 },
+                              { "tag": "DB", "count": 3 },
+                              "未決定"
+                            ],
+                            "active": ["API"],
+                            "match": "any"
+                          }
+                        </script>
+                      </dpk-tag-filter>
+                      <div class="dpk-grid" data-cols="3" style="margin-top: 12px">
+                        <div class="dpk-card" data-tag-list="API">
+                          <div class="dpk-card-title">注文を作成する</div>
+                          <div class="dpk-card-row"><span class="dpk-pill" data-tone="blue">API</span></div>
+                        </div>
+                        <div class="dpk-card" data-tag-list="UI">
+                          <div class="dpk-card-title">カートを表示する</div>
+                          <div class="dpk-card-row"><span class="dpk-pill" data-tone="green">UI</span></div>
+                        </div>
+                        <div class="dpk-card" data-tag-list="API DB">
+                          <div class="dpk-card-title">在庫を引き当てる</div>
+                          <div class="dpk-card-row">
+                            <span class="dpk-pill" data-tone="blue">API</span>
+                            <span class="dpk-pill" data-tone="violet">DB</span>
+                          </div>
+                        </div>
+                      </div>
+                      <script>
+                        {
+                          const root = document.currentScript.closest('.tag-filter-demo');
+                          const filter = root.querySelector('dpk-tag-filter');
+                          const cards = [...root.querySelectorAll('[data-tag-list]')];
+                          const apply = () => {
+                            for (const card of cards) {
+                              card.style.opacity = filter.passes(card.dataset.tagList.split(' ')) ? '' : '0.25';
+                            }
+                          };
+                          filter.addEventListener('dpk-tag-filter-change', apply);
+                          customElements.whenDefined('dpk-tag-filter').then(apply);
+                        }
+                      </script>
+                    </div>
+                  </div>
+                </article>
                 <article id="catalog-combobox" class="entry">
                   <header>
                     <h3>&lt;dpk-combobox&gt;</h3>
@@ -4427,6 +4488,58 @@
                     </dpk-comment-thread>
                   </div>
                 </article>
+
+                <article id="catalog-video" class="entry">
+                  <header>
+                    <h3>&lt;dpk-video&gt;</h3>
+                  </header>
+                  <p>
+                    ページの HTML・CSS・スクリプトを 1
+                    本の時計で再生する動画。場面を順にクロスフェードし、再生バー・チャプター・時刻つきのコメントとメモを持つ。下の例は音声なしの
+                    2 場面。
+                  </p>
+                  <div class="demo" data-code>
+                    <dpk-video id="catalog-video-player" heading="リリースの流れ">
+                      <script type="application/json">
+                        {
+                          "scenes": [
+                            {
+                              "id": "plan",
+                              "title": "計画",
+                              "cues": [{ "text": "まず課題を 1 枚にまとめる。" }, { "text": "ストーリーに分ける。" }]
+                            },
+                            { "id": "ship", "title": "出荷", "cues": [{ "text": "レビューして、そのまま渡す。" }] }
+                          ],
+                          "pacing": { "lead": 0.6, "gap": 0.4, "tail": 1 }
+                        }
+                      </script>
+                      <section data-scene="plan">
+                        <div
+                          style="display: grid; place-items: center; height: 100%; background: var(--dpk-paper-sunken)"
+                        >
+                          <div class="dpk-card" data-tone="blue" style="max-width: 320px; text-align: center">
+                            <div class="dpk-card-title">計画</div>
+                            <div class="dpk-card-row">
+                              <span class="dpk-pill" data-tone="blue">課題 → ストーリー</span>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+                      <section data-scene="ship">
+                        <div
+                          style="display: grid; place-items: center; height: 100%; background: var(--dpk-paper-sunken)"
+                        >
+                          <div class="dpk-card" data-tone="green" style="max-width: 320px; text-align: center">
+                            <div class="dpk-card-title">出荷</div>
+                            <div class="dpk-card-row">
+                              <span class="dpk-pill" data-tone="green">レビュー → 渡す</span>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+                    </dpk-video>
+                  </div>
+                </article>
               </section>
 
               <section class="group">
@@ -4752,6 +4865,71 @@
                         </tbody>
                       </table>
                     </dpk-commentable>
+                  </div>
+                </article>
+
+                <article id="catalog-comment-panel" class="entry">
+                  <header>
+                    <h3>&lt;dpk-comment-panel&gt;</h3>
+                  </header>
+                  <p>
+                    レビュー欄そのもの。draft
+                    の変更点とコメント、古くなった印、編集・削除、エージェントへの受け渡しをまとめて出す。各テンプレートはこの欄を共通で使い、ポップオーバーに載せる。下は単体で使う例。
+                  </p>
+                  <div class="demo" data-code>
+                    <dpk-comment-panel id="catalog-comment-panel-body"></dpk-comment-panel>
+                    <script>
+                      {
+                        // The panel is a derivation, not a state: give it a template definition and the draft it
+                        // should list. Here both are hand-built from the public shapes, so the demo needs no view.
+                        const panel = document.currentScript.parentElement.querySelector('dpk-comment-panel');
+                        const target = { type: 'page', id: 'catalog' };
+                        const comment = {
+                          id: 'c1',
+                          type: 'comment',
+                          target,
+                          payload: { body: '返金の再試行回数の根拠をここに書いてほしい。' },
+                          createdAt: new Date().toISOString(),
+                        };
+                        const change = {
+                          id: 'c2',
+                          type: 'RENAME',
+                          target,
+                          payload: { from: 'paid', to: 'settled' },
+                          createdAt: new Date().toISOString(),
+                        };
+                        panel.definition = {
+                          kind: 'view',
+                          name: 'catalog',
+                          label: 'Catalog',
+                          parseBase: (input) => input,
+                          emptyBase: () => ({}),
+                          actions: {},
+                          apply: () => null,
+                          hasTarget: () => true,
+                          resolveNavigation: (_state, nav) => nav,
+                          describe: () => ({ title: '状態名の変更', targetLabel: 'ページ', tone: 'neutral' }),
+                          serialize: (action) => `${action.payload.from} → ${action.payload.to}`,
+                          commentTargets: () => [{ value: 'page:catalog', label: 'このページ' }],
+                        };
+                        panel.state = {};
+                        panel.derivation = {
+                          base: {},
+                          state: {},
+                          actions: [comment, change],
+                          applied: [comment, change],
+                          stale: [],
+                          obsolete: [],
+                          comments: [comment],
+                          commentsByTarget: new Map([['page:catalog', [comment]]]),
+                          grill: { questions: [] },
+                          answers: {},
+                        };
+                        panel.onComment = () => ({ ok: true, id: 'c' });
+                        panel.onDelete = () => {};
+                        panel.onClear = () => {};
+                      }
+                    </script>
                   </div>
                 </article>
 
