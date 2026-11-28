@@ -2,18 +2,24 @@ import { html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
 import type { DpkInlineEdit } from '../../components/inline-edit';
 import type { ElementActionResult } from '../../core/element-actions';
+import type { PanelDetail } from '../../core/panel/host';
 import type { CommentTargetOption, DraftAction } from '../../core/types';
 
 import { createEntityId } from '../../core/target';
 import { DragController, type Drop, type DropPlace } from '../../lib/dom/drag';
 import { BoardChromeBase } from '../base/element';
 import { chromeStyles } from '../base/styles';
+import { defineMappingCardDetail, type CardDetailActions, type CardDetailParent } from './components/card-detail';
 import { resolveExampleDrop, resolveQuestionDrop, resolveRuleDrop, resolveStoryDrop } from './drop';
 import { exampleMappingMessages } from './messages';
 import {
   allMappingIds,
   emptyExampleMappingBase,
   findCard,
+  findExample,
+  findQuestion,
+  findRule,
+  findStory,
   parseExampleMappingBase,
   type ExampleMappingState,
   type MappingCardKind,
@@ -30,6 +36,13 @@ const RENAME_ACTION = {
   rule: 'SET_RULE_NAME',
   example: 'SET_EXAMPLE_NAME',
   question: 'SET_QUESTION_NAME',
+} as const satisfies Record<MappingCardKind, string>;
+
+const DESCRIBE_ACTION = {
+  story: 'SET_STORY_DESCRIPTION',
+  rule: 'SET_RULE_DESCRIPTION',
+  example: 'SET_EXAMPLE_DESCRIPTION',
+  question: 'SET_QUESTION_DESCRIPTION',
 } as const satisfies Record<MappingCardKind, string>;
 
 const DELETE_ACTION = {
@@ -167,6 +180,62 @@ export class DpkBoardExampleMapping extends BoardChromeBase<ExampleMappingState,
     `;
   }
 
+  // ------------------------------------------------------------------- detail
+
+  protected override get providesPanelDetail(): boolean {
+    return true;
+  }
+
+  protected override panelDetail(selection: MappingSelection): PanelDetail | null {
+    const state = this.items();
+    const card = findCard(state, selection.id);
+    if (card === undefined || card.kind !== selection.kind) return null;
+    const m = exampleMappingMessages(this.locale);
+    const parent = this.#parentOf(card.kind, card.id);
+    const actions: CardDetailActions = {
+      rename: (name) => this.#edit(RENAME_ACTION[card.kind], card.kind, card.id, { name }),
+      describe: (description) => this.#edit(DESCRIBE_ACTION[card.kind], card.kind, card.id, { description }),
+    };
+    return {
+      key: `${card.kind}:${card.id}`,
+      kind: m.cardKind,
+      title: card.name,
+      render: () =>
+        html`<dpk-internal-example-mapping-card-detail
+          .card=${card}
+          .parent=${parent}
+          .messages=${m}
+          .actions=${actions}
+        ></dpk-internal-example-mapping-card-detail>`,
+      comment: () => this.openComment(this.commentRef(card.kind, card.id)),
+    };
+  }
+
+  #parentOf(kind: MappingCardKind, id: string): CardDetailParent | null {
+    const state = this.items();
+    const named = (
+      parentKind: MappingCardKind,
+      card: { readonly name: string } | undefined,
+    ): CardDetailParent | null => (card === undefined ? null : { kind: parentKind, name: card.name });
+    switch (kind) {
+      case 'story':
+        return null;
+      case 'rule':
+        return named('story', findStory(state, findRule(state, id)?.storyId));
+      case 'example':
+        return named('rule', findRule(state, findExample(state, id)?.ruleId));
+      case 'question':
+        return named('rule', findRule(state, findQuestion(state, id)?.ruleId));
+    }
+  }
+
+  /** A card edit from the panel; `false` when no template recorded it. */
+  #edit(type: string, kind: MappingCardKind, id: string, payload: Readonly<Record<string, unknown>>): boolean {
+    const accepted = this.dispatchElementAction(type, [kind, id], payload);
+    this.requestUpdate();
+    return accepted;
+  }
+
   // ---------------------------------------------------------------- internals
 
   #isSelected(kind: MappingCardKind, id: string): boolean {
@@ -220,7 +289,7 @@ export class DpkBoardExampleMapping extends BoardChromeBase<ExampleMappingState,
   #onCardIntent(cardId: string, kind: MappingCardKind, intent: MappingCardIntent): void {
     switch (intent.kind) {
       case 'select':
-        this.select({ kind, id: cardId });
+        this.openSelection({ kind, id: cardId });
         break;
       case 'rename':
         this.dispatchElementAction(RENAME_ACTION[kind], [kind, cardId], { name: intent.name });
@@ -267,6 +336,7 @@ export class DpkBoardExampleMapping extends BoardChromeBase<ExampleMappingState,
 }
 
 export const defineExampleMapping = (): void => {
+  defineMappingCardDetail();
   if (!customElements.get('dpk-board-example-mapping'))
     customElements.define('dpk-board-example-mapping', DpkBoardExampleMapping);
 };

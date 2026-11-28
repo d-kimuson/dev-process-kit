@@ -1,9 +1,13 @@
+import { render } from 'lit';
+import { keyed } from 'lit/directives/keyed.js';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { DraftAction } from '../../core/types';
 
 import { defineInlineEdit } from '../../components/inline-edit';
+import { PANEL_HOST, type DetailReport, type PanelDetail, type PanelHost } from '../../core/panel/host';
 import { applyExampleMappingAction } from './apply';
+import { DpkInternalExampleMappingCardDetail } from './components/card-detail';
 import { dropAfter, resolveExampleDrop, resolveQuestionDrop, resolveRuleDrop, resolveStoryDrop } from './drop';
 import { DpkBoardExampleMapping } from './element';
 import { defineExampleMapping } from './index';
@@ -476,6 +480,134 @@ describe('<dpk-board-example-mapping>', () => {
     const element = await mount(undefined, marked);
     expect(card(element, 'r1').dataset['grillQuestions']).toBe('Q1 Q2');
     expect(card(element, 'r2').hasAttribute('data-grill-questions')).toBe(false);
+  });
+
+  type PanelReport = { readonly detail: PanelDetail | null; readonly report: DetailReport };
+
+  /** Stand-in for the side panel's owner: records what the board hands it. */
+  const withPanel = async (
+    element: DpkBoardExampleMapping,
+  ): Promise<{ readonly reports: PanelReport[]; readonly providers: Set<Element>; detail(): PanelDetail | null }> => {
+    const reports: PanelReport[] = [];
+    const providers = new Set<Element>();
+    const host: PanelHost = {
+      provideDetail: (source) => {
+        providers.add(source);
+        return () => providers.delete(source);
+      },
+      showDetail: (_source, detail, report) => reports.push({ detail, report }),
+      addSection: () => () => undefined,
+      invalidate: () => undefined,
+      open: () => undefined,
+    };
+    const owner = document.createElement('div');
+    Object.defineProperty(owner, PANEL_HOST, { value: host });
+    element.before(owner);
+    owner.append(element);
+    await settle(element);
+    return { reports, providers, detail: () => reports.at(-1)?.detail ?? null };
+  };
+
+  /** Draws the detail the way the panel does, and returns its shadow root. */
+  const renderDetail = async (detail: PanelDetail | null): Promise<ShadowRoot> => {
+    if (detail === null) throw new Error('no detail');
+    const root = document.createElement('div');
+    document.body.append(root);
+    render(keyed(detail.key, detail.render()), root);
+    const view = root.querySelector('dpk-internal-example-mapping-card-detail');
+    if (!(view instanceof DpkInternalExampleMappingCardDetail) || view.shadowRoot === null)
+      throw new Error('no card detail');
+    await view.updateComplete;
+    return view.shadowRoot;
+  };
+
+  const commit = (editor: Element | null | undefined, value: string): void => {
+    if (editor === null || editor === undefined) throw new Error('no editor');
+    editor.dispatchEvent(new CustomEvent('dpk-commit', { detail: { value }, bubbles: true, composed: true }));
+  };
+
+  it('opens a card’s detail in the side panel on click: its kind, text and the card it hangs off of', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    card(element, 'e1').click();
+    await settle(element);
+    expect(panel.reports.some((report) => report.report === 'open')).toBe(true);
+    const detail = panel.detail();
+    expect(detail).toMatchObject({ key: 'example:e1', kind: m.cardKind, title: '在庫あり → 受注' });
+    const view = await renderDetail(detail);
+    expect(view.querySelector('.em-detail-kind')?.textContent?.trim()).toBe(m.kindLabel('example'));
+    const editors = [...view.querySelectorAll<HTMLElement & { value: string }>('dpk-inline-edit')];
+    expect(editors.map((editor) => editor.value)).toEqual(['在庫あり → 受注', '']);
+    expect(view.querySelector('.em-detail-value')?.textContent?.trim()).toBe('在庫があれば受ける');
+  });
+
+  it('names a rule’s story as its parent, and none for a story', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    card(element, 'r2').click();
+    await settle(element);
+    expect((await renderDetail(panel.detail())).querySelector('.em-detail-value')?.textContent?.trim()).toBe(
+      '注文する',
+    );
+    card(element, 's2').click();
+    await settle(element);
+    expect((await renderDetail(panel.detail())).querySelector('.em-detail-value')).toBeNull();
+  });
+
+  it('edits a card’s name and description from its detail as element actions', async () => {
+    const element = await mount();
+    acceptActions(element);
+    const panel = await withPanel(element);
+    card(element, 'q1').click();
+    await settle(element);
+    const editors = [...(await renderDetail(panel.detail())).querySelectorAll('dpk-inline-edit')];
+    commit(editors[0], '取り置きは何日まで？');
+    commit(editors[1], '店舗で確認する');
+    await settle(element);
+    expect(element.elementActions).toMatchObject([
+      { type: 'SET_QUESTION_NAME', target: { id: 'board/question/q1' }, payload: { name: '取り置きは何日まで？' } },
+      {
+        type: 'SET_QUESTION_DESCRIPTION',
+        target: { id: 'board/question/q1' },
+        payload: { description: '店舗で確認する' },
+      },
+    ]);
+    expect(panel.reports.at(-1)?.report).toBe('refresh');
+    expect(panel.detail()?.title).toBe('取り置きは何日まで？');
+  });
+
+  it('says so in the detail when no template recorded an edit', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    card(element, 'r1').click();
+    await settle(element);
+    const view = await renderDetail(panel.detail());
+    commit(view.querySelector('dpk-inline-edit'), 'x');
+    const host = view.host;
+    if (!(host instanceof DpkInternalExampleMappingCardDetail)) throw new Error('no card detail');
+    await host.updateComplete;
+    expect(view.querySelector('[role="alert"]')?.textContent).toBe(m.notRecorded);
+  });
+
+  it('labels its detail in the element’s language', async () => {
+    const element = await mount('ja');
+    const panel = await withPanel(element);
+    card(element, 'r1').click();
+    await settle(element);
+    const ja = exampleMappingMessages('ja');
+    expect(panel.detail()?.kind).toBe(ja.cardKind);
+    const labels = [...(await renderDetail(panel.detail())).querySelectorAll('.dpk-label')].map((label) =>
+      label.textContent?.trim(),
+    );
+    expect(labels).toEqual([ja.kindField, ja.nameField(ja.kindLabel('rule')), ja.descriptionField, '所属ストーリー']);
+  });
+
+  it('withdraws its detail from the panel when it leaves the page', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    expect(panel.providers.has(element)).toBe(true);
+    element.remove();
+    expect(panel.providers.has(element)).toBe(false);
   });
 
   it('renders its kit text in the element’s language', async () => {

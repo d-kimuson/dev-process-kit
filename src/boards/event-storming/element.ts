@@ -1,6 +1,7 @@
 import { html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
 import type { ElementActionResult } from '../../core/element-actions';
+import type { PanelDetail } from '../../core/panel/host';
 import type { ActionInput, CommentTargetOption, DraftAction } from '../../core/types';
 
 import { PopoverController } from '../../core/popover-controller';
@@ -10,6 +11,7 @@ import { BoardChromeBase, isActionPayload } from '../base/element';
 import { chromeStyles } from '../base/styles';
 import { eventStormingAction } from './actions';
 import { defineEsNoteCard, notePaletteStyle, type NoteCardIntent } from './components/note-card';
+import { defineEsNoteDetail, type NoteDetailActions } from './components/note-detail';
 import { moveGesture } from './gesture';
 import {
   constrainViewport,
@@ -138,6 +140,43 @@ export class DpkBoardEventStorming extends BoardChromeBase<EventStormingState, E
 
   protected override hasSelection(selection: EsSelectionRef): boolean {
     return findNote(this.items(), selection.id) !== undefined;
+  }
+
+  protected override get providesPanelDetail(): boolean {
+    return true;
+  }
+
+  /** A note's detail goes to the side panel; the slice and link selections stay in the selection bar. */
+  protected override panelDetail(selection: EsSelectionRef): PanelDetail | null {
+    const state = this.items();
+    const note = findNote(state, selection.id);
+    if (note === undefined) return null;
+    const m = eventStormingMessages(this.locale);
+    const contextName = note.contextId === undefined ? null : (findContext(state, note.contextId)?.name ?? null);
+    const actions: NoteDetailActions = {
+      rename: (name) => this.#edit(eventStormingAction.setElementName(note.id, name)),
+      describe: (description) => this.#edit(eventStormingAction.setElementDescription(note.id, description)),
+    };
+    return {
+      key: note.id,
+      kind: m.noteKind,
+      title: note.name,
+      render: () =>
+        html`<dpk-internal-event-storming-note-detail
+          .note=${note}
+          .contextName=${contextName}
+          .messages=${m}
+          .actions=${actions}
+        ></dpk-internal-event-storming-note-detail>`,
+      comment: () => this.openComment(this.commentRef('note', note.id)),
+    };
+  }
+
+  /** A note edit from the panel; `false` when no template recorded it. */
+  #edit(input: ActionInput): boolean {
+    const accepted = this.#dispatch(input);
+    this.requestUpdate();
+    return accepted;
   }
 
   override disconnectedCallback(): void {
@@ -481,7 +520,7 @@ export class DpkBoardEventStorming extends BoardChromeBase<EventStormingState, E
     }
     switch (intent.kind) {
       case 'select':
-        this.select({ kind: 'note', id: noteId });
+        this.openSelection({ kind: 'note', id: noteId });
         break;
       case 'rename':
         this.#dispatch(eventStormingAction.setElementName(noteId, intent.name));
@@ -849,6 +888,7 @@ const freshId = (prefix: string, taken: readonly string[]): string => {
 
 export const defineEventStorming = (): void => {
   defineEsNoteCard();
+  defineEsNoteDetail();
   if (!customElements.get('dpk-board-event-storming'))
     customElements.define('dpk-board-event-storming', DpkBoardEventStorming);
 };
