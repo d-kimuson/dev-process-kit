@@ -1,8 +1,5 @@
-import { html } from 'lit';
-
 import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
 import type { Locale } from '../../core/i18n';
-import type { PanelDetail } from '../../core/panel/host';
 import type { ShellRegions, ViewRenderContext } from '../../core/shell/contracts';
 import type { ActionsMenuView } from './render/actions-menu';
 import type { BrowserCommand } from './render/browser';
@@ -57,15 +54,12 @@ import {
   prototypePageAt,
 } from './browser-view';
 import { prototypeDefinitionFor } from './definition';
-import { definePrototypeDetail, type PrototypeDetailActions } from './detail';
 import { chooseDevice, deviceZoom, type DeviceChoice } from './devices';
 import { FrameBridge } from './frame-bridge';
 import { prototypeMessages } from './messages';
 import {
   allUiNoteIds,
   findPreview,
-  stepRef,
-  stepScreens,
   uiTargetId,
   uiTargetUrl,
   UI_TARGET,
@@ -88,7 +82,7 @@ import { renderStage, type StageLift, type StageOptions } from './render/stage';
 import { uiNoteBadgeKey, type UiNoteEdit, type UiNotesView } from './render/ui-notes';
 import { prototypeDocumentStyles, prototypeStyles } from './styles';
 import { reduceUiComment, UI_COMMENT_OFF, type UiCommentIntent, type UiCommentMode } from './ui-mode';
-import { prototypeViewOf, viewPatch } from './view-mode';
+import { prototypeViewOf } from './view-mode';
 
 const COMPOSER_SIZE = { width: 300, height: 300 };
 /** How long a reload of the app view's browser takes, so the reader sees it happen. */
@@ -317,55 +311,6 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     });
   }
 
-  protected override get providesPanelDetail(): boolean {
-    return true;
-  }
-
-  /** The step on stage in the scenario view, or the screen in the app view. */
-  protected override renderPanelDetail(): PanelDetail | null {
-    const context = this.context();
-    const m = prototypeMessages(this.locale);
-    const location = locatePrototype(context.state, context.navigation);
-    if (location === undefined || location.kind === 'story') return null;
-    if (location.kind === 'screen') {
-      const { app, screen } = location;
-      const view = { kind: 'screen', appName: app.name, screen } as const;
-      return {
-        key: `screen:${screen.id}`,
-        kind: m.screenGroup,
-        title: screen.title,
-        render: () =>
-          html`<dpk-internal-prototype-detail .view=${view} .messages=${m}></dpk-internal-prototype-detail>`,
-      };
-    }
-    const ref = stepRef(location);
-    const { step } = location;
-    const view = {
-      kind: 'step',
-      step,
-      screens: stepScreens(context.state, step).map(({ app, screen }) => ({
-        appName: app.name,
-        screen,
-        href: context.hashFor({ ...viewPatch('app'), screen: screen.id }),
-      })),
-    } as const;
-    const actions: PrototypeDetailActions = {
-      setStepName: (name) => context.dispatch(prototypeAction.setStepName(ref, name)).ok,
-      setStepDescription: (description) => context.dispatch(prototypeAction.setStepDescription(ref, description)).ok,
-    };
-    return {
-      key: `step:${ref}`,
-      kind: m.stepGroup,
-      title: step.name,
-      render: () =>
-        html`<dpk-internal-prototype-detail
-          .view=${view}
-          .messages=${m}
-          .actions=${actions}
-        ></dpk-internal-prototype-detail>`,
-    };
-  }
-
   protected override definitionFor(locale: Locale) {
     return prototypeDefinitionFor(locale);
   }
@@ -416,7 +361,7 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
     // Leaving the page before it is back stops the reload, as in a browser.
     if (this.#pendingReload !== null && this.#pendingReload.page !== this.#shownIds.join(' ')) this.#stopReload();
     return {
-      sidebar: renderNav(context, m, this.#navSelects, () => this.openPanelDetail()),
+      sidebar: renderNav(context, m, this.#navSelects),
       main: renderStage(context, m, {
         deviceSelect: this.#deviceSelect,
         hasPreviewContent: (previewId) => this.#hasPreviewContent(previewId),
@@ -1389,6 +1334,5 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
 }
 
 export const definePrototypeElement = (): void => {
-  definePrototypeDetail();
   if (!customElements.get('dpk-view-prototype')) customElements.define('dpk-view-prototype', DpkViewPrototype);
 };

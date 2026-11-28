@@ -78,6 +78,18 @@ export const prototypeStyles = css`
     color: var(--dpk-ink-faint);
   }
 
+  .step-screen {
+    color: var(--dpk-ink);
+    font-size: 12.5px;
+    font-weight: 550;
+  }
+
+  .screen-description {
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--dpk-ink);
+  }
+
   .app-tree {
     display: grid;
     gap: 4px;
@@ -298,6 +310,29 @@ export const prototypeStyles = css`
   .step-row:hover .row-tools,
   .step-row[data-current='true'] .row-tools {
     opacity: 1;
+  }
+
+  .detail {
+    display: grid;
+    /* As wide as the panel, not as a description's widest table or code line: those scroll. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px 12px 14px;
+    border: 1px solid var(--dpk-rule);
+    border-radius: var(--dpk-radius);
+    background: var(--dpk-paper-raised);
+    box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
+  }
+
+  .detail-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .detail-value {
+    font-size: 12.5px;
+    color: var(--dpk-ink-soft);
   }
 
   .nav-empty {
