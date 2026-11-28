@@ -1,9 +1,10 @@
 import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
 import type { CommentTargetOption } from '../../core/types';
-import type { LayoutOptions, LayoutResult } from '../../lib/layout/layered';
+import type { LayoutOptions, LayoutPoint, LayoutResult } from '../../lib/layout/layered';
 
-import { roundedSteps, stepsData } from '../../lib/layout/path-steps';
+import { endFrame, stepsData } from '../../lib/layout/path-steps';
+import { END_MARKERS, edgeBody, edgeSteps, lineStyleClass, type EdgeEndView, type EdgeSpec } from '../base/edge';
 import { BoardCanvasElement } from '../base/element';
 import { EMPTY_REACH, reach, routeLabelPoint, type DiagramSelection, type Reach } from '../base/model';
 import { diagramStyles } from '../base/styles';
@@ -20,12 +21,8 @@ import {
 import { stateLabelPoint, stateLabelSize, withStateRoutes } from './route';
 import { stateDiagramStyles } from './styles';
 
-const ARROWS = [
-  { id: 'state-arrow' },
-  { id: 'state-arrow-selected' },
-  { id: 'state-arrow-related' },
-  { id: 'state-arrow-exception' },
-] as const;
+/** Every transition is drawn the same way: a solid line ending in an arrowhead. Dashed/flowing come from the state classes. */
+const TRANSITION_SPEC: EdgeSpec = { line: 'solid', start: null, end: END_MARKERS.arrow, flow: 'active' };
 
 /** Room around the states for what is drawn outside them: self transitions, their labels, outer lanes. */
 const CANVAS_PADDING = 72;
@@ -110,14 +107,31 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
   }
 
   protected override renderCanvas(): TemplateResult {
+    const paths = this.#paths();
     return html`
       ${this.renderEdges(
-        this.visible.edges.map((edge) => this.#renderTransition(edge)),
-        ARROWS,
+        this.visible.edges.map((edge) => this.#renderTransition(edge, paths)),
+        [],
       )}
       ${this.visible.nodes.map((node) => this.#renderState(node))}
       ${this.visible.edges.map((edge) => this.#renderLabel(edge))}
     `;
+  }
+
+  /** Every transition's drawn `d`, rounded and trimmed under its arrowhead. */
+  #paths(): ReadonlyMap<string, string> {
+    return new Map(
+      this.visible.edges.map((edge) => {
+        const steps = edgeSteps(this.routeOf(edge.id), TRANSITION_SPEC, { radius: CORNER_RADIUS });
+        return [edge.id, stepsData(steps)] as const;
+      }),
+    );
+  }
+
+  /** One transition's end glyph, at the route's arrival end. */
+  #end(points: readonly LayoutPoint[]): EdgeEndView | null {
+    if (points.length < 2) return null;
+    return { side: 'end', marker: END_MARKERS.arrow, frame: endFrame(points, 'end') };
   }
 
   #name(id: string): string {
@@ -129,39 +143,35 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
     return [edge.guard, edge.effect].filter((value) => value !== null).join('\n') || edge.title;
   }
 
-  #renderTransition(edge: StateTransition): TemplateResult {
+  #renderTransition(edge: StateTransition, paths: ReadonlyMap<string, string>): TemplateResult {
     const m = stateDiagramMessages(this.locale);
     const state = this.edgeState(edge.id);
     const points = this.routeOf(edge.id);
-    const path = stepsData(roundedSteps(points, { radius: CORNER_RADIUS }));
-    const marker = state.selected
-      ? 'state-arrow-selected'
-      : state.related
-        ? 'state-arrow-related'
-        : edge.kind === 'exception'
-          ? 'state-arrow-exception'
-          : 'state-arrow';
+    const d = paths.get(edge.id) ?? '';
+    const end = this.#end(points);
     const select = () => this.select({ kind: 'edge', id: edge.id });
     return svg`
       <g
-        class=${this.elementClass(state, 'd-edge', 'state-edge', edge.kind === 'exception' && 'is-exception')}
+        class=${this.elementClass(
+          state,
+          'd-edge',
+          'state-edge',
+          edge.kind === 'exception' && 'is-exception',
+          lineStyleClass(edge.kind === 'exception' ? 'dashed' : 'solid'),
+          state.related && 'is-flowing',
+        )}
         data-transition=${edge.id}
       >
         <title>${this.#tooltip(edge)}</title>
-        <path class="d-edge-path" d=${path} marker-end=${`url(#${marker})`}></path>
-        <path
-          class="d-edge-hit"
-          d=${path}
-          role="button"
-          tabindex="0"
-          aria-label=${m.transitionLabel(this.#name(edge.from), this.#name(edge.to), edge.title)}
-          @click=${select}
-          @keydown=${(event: KeyboardEvent) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            select();
-          }}
-        ></path>
+        ${edgeBody({
+          d,
+          ends: end === null ? [] : [end],
+          flow: true,
+          hit: {
+            label: m.transitionLabel(this.#name(edge.from), this.#name(edge.to), edge.title),
+            onSelect: select,
+          },
+        })}
       </g>
     `;
   }

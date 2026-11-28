@@ -7,6 +7,7 @@ import { EMPTY_CHECK_STATE, withEnabled } from '../../core/check-mode';
 import { collectCheckBindings } from '../../core/shell/check-mode-badges';
 import { parseTargetRef } from '../../core/target';
 import { scoreLayout, type LayoutGeometry } from '../../lib/layout/metrics';
+import { pathDataPoints } from '../../lib/layout/path-steps';
 import { DpkBoardStateDiagram } from './element';
 import { defineStateDiagram } from './index';
 import { stateDiagramMessages } from './messages';
@@ -82,10 +83,7 @@ const mountData = async (data: ReturnType<typeof parseStateData>): Promise<DpkBo
 
 const routePoints = (element: DpkBoardStateDiagram, transition: string): LayoutPoint[] => {
   const d = element.renderRoot.querySelector(`[data-transition="${transition}"] .d-edge-path`)?.getAttribute('d') ?? '';
-  return [...d.matchAll(/(-?[\d.]+)[ ,](-?[\d.]+)/g)].map((match) => ({
-    x: Number(match[1]),
-    y: Number(match[2]),
-  }));
+  return [...pathDataPoints(d)];
 };
 
 /** The geometry the reader actually sees: placed state cards plus each transition's drawn polyline. */
@@ -176,7 +174,7 @@ describe('state diagram drawn geometry', () => {
     expect(drawn).toMatchInlineSnapshot(`
       [
         {
-          "d": "M244 104 L392 104",
+          "d": "M244 104 L391 104",
           "id": "start",
           "label": {
             "left": "317px",
@@ -184,7 +182,7 @@ describe('state diagram drawn geometry', () => {
           },
         },
         {
-          "d": "M564 95 L690 95 Q696 95 696 101 L696 260 Q696 266 702 266 L712 266",
+          "d": "M564 95 L690 95 Q696 95 696 101 L696 260 Q696 266 702 266 L711 266",
           "id": "pause",
           "label": {
             "left": "696px",
@@ -192,7 +190,7 @@ describe('state diagram drawn geometry', () => {
           },
         },
         {
-          "d": "M712 284 L586 284 Q580 284 580 278 L580 119 Q580 113 574 113 L564 113",
+          "d": "M712 284 L586 284 Q580 284 580 278 L580 119 Q580 113 574 113 L565 113",
           "id": "resume",
           "label": {
             "left": "580px",
@@ -200,7 +198,7 @@ describe('state diagram drawn geometry', () => {
           },
         },
         {
-          "d": "M464 72 L464 54 Q464 48 470 48 L486 48 Q492 48 492 54 L492 72",
+          "d": "M464 72 L464 54 Q464 48 470 48 L486 48 Q492 48 492 54 L492 71",
           "id": "retry",
           "label": {
             "left": "478px",
@@ -208,7 +206,7 @@ describe('state diagram drawn geometry', () => {
           },
         },
         {
-          "d": "M478 136 L478 312",
+          "d": "M478 136 L478 311",
           "id": "stop",
           "label": {
             "left": "478px",
@@ -216,7 +214,7 @@ describe('state diagram drawn geometry', () => {
           },
         },
         {
-          "d": "M712 302 L266 302 Q260 302 260 296 L260 128 Q260 122 254 122 L244 122",
+          "d": "M712 302 L266 302 Q260 302 260 296 L260 128 Q260 122 254 122 L245 122",
           "id": "back",
           "label": {
             "left": "341px",
@@ -306,6 +304,34 @@ describe('dpk-board-state-diagram', () => {
     await element.updateComplete;
     expect(element.selection).toEqual({ kind: 'edge', id: 'refund' });
     expect(ids(element, '.state-edge.is-selected')).toEqual(['refund']);
+  });
+
+  it('draws each arrowhead inline, with no <marker> left in the canvas', async () => {
+    const element = await mount();
+    expect(element.renderRoot.querySelectorAll('marker')).toHaveLength(0);
+    const ends = [...element.renderRoot.querySelectorAll<SVGGElement>('.state-edge .d-edge-end')];
+    expect(ends).toHaveLength(4);
+    for (const end of ends) {
+      expect(end.dataset['glyph']).toBe('arrow');
+      expect(end.getAttribute('data-end')).toBe('end');
+      expect(end.querySelector('polygon')).not.toBeNull();
+    }
+    // Every transition draws the shared flow overlay for its arrowless companion path.
+    expect(element.renderRoot.querySelectorAll('.state-edge .d-edge-flow')).toHaveLength(4);
+  });
+
+  it('dashes an exception transition through the shared line-style class', async () => {
+    const element = await mount();
+    expect(element.renderRoot.querySelector('[data-transition="cancel"]')?.classList.contains('is-dashed')).toBe(true);
+    expect(element.renderRoot.querySelector('[data-transition="charge"]')?.classList.contains('is-dashed')).toBe(false);
+  });
+
+  it('marks the transitions in and out of the selected state as flowing', async () => {
+    const element = await mount();
+    element.renderRoot.querySelector<HTMLButtonElement>('[data-state="paid"]')?.click();
+    await element.updateComplete;
+    expect(ids(element, '.state-edge.is-flowing')).toEqual(['charge', 'refund']);
+    expect(element.renderRoot.querySelectorAll('.state-edge.is-flowing .d-edge-flow')).toHaveLength(2);
   });
 
   it('filters by transition tag and drops states left without transitions', async () => {

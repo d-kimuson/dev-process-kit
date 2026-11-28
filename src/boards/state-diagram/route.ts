@@ -26,6 +26,8 @@ import type { LayoutPoint, LayoutResult, PlacedNode } from '../../lib/layout/lay
 
 import { placeEdgeLabels, type LabelBox } from '../../lib/layout/edge-labels';
 import { routeAroundObstacles } from '../../lib/layout/orthogonal-router';
+import { endFrame } from '../../lib/layout/path-steps';
+import { END_MARKERS, markerZone } from '../base/edge/glyphs';
 
 /** A transition, as far as routing it cares. `title` sizes the label. */
 export type StateRouteEdge = {
@@ -72,8 +74,6 @@ const LABEL_FONT = 11.5;
 const LABEL_PAD = 16;
 /** Gap between a label and the line it sits beside. */
 const LABEL_OFFSET = 7;
-const ARROW_ZONE = 12;
-const ARROW_HALF = 6;
 
 const SIDES: readonly Side[] = ['right', 'bottom', 'left', 'top'];
 /** Direction index: 0 right, 1 down, 2 left, 3 up. A side's index is its outward direction. */
@@ -798,24 +798,11 @@ export const stateLabelSize = (title: string): { readonly width: number; readonl
 
 const LABEL_RATIOS = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9, 0, 1] as const;
 
-/** The box a transition's arrowhead occupies, kept clear of so a label never covers it. */
+/** The box each transition's arrowhead occupies, kept clear of so a label never covers it. */
 const arrowZonesOf = (routes: ReadonlyMap<string, readonly LayoutPoint[]>): LabelBox[] =>
   [...routes.values()].flatMap((points) => {
-    const tip = points.at(-1);
-    const before = points.at(-2);
-    if (!tip || !before) return [];
-    const back = {
-      x: tip.x - Math.sign(tip.x - before.x) * ARROW_ZONE,
-      y: tip.y - Math.sign(tip.y - before.y) * ARROW_ZONE,
-    };
-    return [
-      {
-        x: Math.min(tip.x, back.x) - ARROW_HALF,
-        y: Math.min(tip.y, back.y) - ARROW_HALF,
-        width: Math.abs(tip.x - back.x) + ARROW_HALF * 2,
-        height: Math.abs(tip.y - back.y) + ARROW_HALF * 2,
-      },
-    ];
+    if (points.length < 2) return [];
+    return [markerZone(END_MARKERS.arrow, endFrame(points, 'end'))];
   });
 
 /**

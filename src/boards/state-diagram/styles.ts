@@ -162,44 +162,45 @@ export const stateDiagramStyles = css`
     opacity: 0.35;
   }
 
+  .state-edge {
+    /* The shared edge paint (base/edge/styles.ts) colours the line, glyph and flow from this one property. */
+    --d-edge-line: var(--state-line);
+  }
+
   .state-edge .d-edge-path {
-    stroke: var(--state-line);
+    stroke: var(--d-edge-line);
     stroke-width: 1.5px;
     stroke-linejoin: round;
   }
 
-  .state-edge.is-exception .d-edge-path {
-    stroke: var(--state-exception);
-    stroke-dasharray: 5 4;
+  .state-edge.is-exception {
+    --d-edge-line: var(--state-exception);
+  }
+
+  .state-edge.is-related {
+    --d-edge-line: var(--dpk-green);
   }
 
   .state-edge.is-related .d-edge-path {
-    stroke: var(--dpk-green);
     stroke-width: 2px;
   }
 
+  .state-edge.is-selected {
+    --d-edge-line: var(--dpk-blue);
+  }
+
   .state-edge.is-selected .d-edge-path {
-    stroke: var(--dpk-blue);
     stroke-width: 2.2px;
   }
 
-  #state-arrow .diagram-arrow {
-    fill: var(--state-line);
-    stroke: var(--state-line);
+  /* The inline arrowhead takes the line's own width; a selected or related line thickens it with the line. */
+  .state-edge .d-edge-end {
+    stroke-width: 1.3px;
+    stroke-linejoin: round;
   }
 
-  #state-arrow-selected .diagram-arrow {
-    fill: var(--dpk-blue);
-    stroke: var(--dpk-blue);
-  }
-
-  #state-arrow-related .diagram-arrow {
-    fill: var(--dpk-green);
-    stroke: var(--dpk-green);
-  }
-
-  #state-arrow-exception .diagram-arrow {
-    fill: var(--state-exception);
-    stroke: var(--state-exception);
+  .state-edge.is-related .d-edge-end,
+  .state-edge.is-selected .d-edge-end {
+    stroke-width: 1.6px;
   }
 `;
