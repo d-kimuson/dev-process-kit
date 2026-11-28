@@ -165,6 +165,13 @@ export type ViewportOptions = {
    * default). A world sized by its own content measures itself instead.
    */
   readonly sizeWorld?: boolean;
+  /**
+   * Whether the canvas takes gestures (the default). A non-interactive canvas
+   * is a static figure: no pan, zoom, pinch or keyboard navigation, so a wheel
+   * over it scrolls the page; only a background click (clear the selection)
+   * and `Escape` keep working.
+   */
+  readonly interactive?: boolean;
 };
 
 export type ViewportController = {
@@ -202,7 +209,7 @@ const onPath = (event: Event, canvas: Element, selector: string): Element | null
 };
 
 export const createViewport = (options: ViewportOptions): ViewportController => {
-  const { canvas, world, onClearSelection, onView, align = 'center', sizeWorld = true } = options;
+  const { canvas, world, onClearSelection, onView, align = 'center', sizeWorld = true, interactive = true } = options;
   let area: ViewportBounds = { x: 0, y: 0, width: 0, height: 0 };
   let view: ViewState = { x: 0, y: 0, scale: 1 };
 
@@ -410,6 +417,12 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
 
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.target !== canvas) return;
+    if (!interactive) {
+      // A static figure has no view to navigate; Escape still clears a selection.
+      if (event.key !== 'Escape' || onClearSelection() === false) return;
+      event.preventDefault();
+      return;
+    }
     const step = 30;
     if (event.key === '+' || event.key === '=') zoom(1.1);
     else if (event.key === '-') zoom(1 / 1.1);
@@ -449,15 +462,18 @@ export const createViewport = (options: ViewportOptions): ViewportController => 
     apply();
   };
 
-  canvas.addEventListener('wheel', onWheel, { passive: false });
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  canvas.addEventListener('pointerup', onPointerUp);
-  canvas.addEventListener('pointercancel', endPointer);
-  canvas.addEventListener('lostpointercapture', endPointer);
+  if (interactive) {
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', endPointer);
+    canvas.addEventListener('lostpointercapture', endPointer);
+    canvas.addEventListener('focusin', onFocusIn);
+  }
+  // A static figure still clears its selection on a background click and Escape.
   canvas.addEventListener('click', onClickCapture, true);
   canvas.addEventListener('keydown', onKeyDown);
-  canvas.addEventListener('focusin', onFocusIn);
   const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => apply());
   observer?.observe(canvas);
 
