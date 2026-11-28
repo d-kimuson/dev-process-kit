@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { DpkBoardArchitectureMap } from '../../src/boards/architecture-map/element';
 import { defineArchitectureMap } from '../../src/boards/architecture-map/index';
 import { parseArchitectureData } from '../../src/boards/architecture-map/model';
+import { DpkBoardBpmn } from '../../src/boards/bpmn/element';
+import { defineBpmn } from '../../src/boards/bpmn/index';
+import { parseBpmnData } from '../../src/boards/bpmn/model';
 import { DpkBoardDependencyGraph } from '../../src/boards/dependency-graph/element';
 import { defineDependencyGraph } from '../../src/boards/dependency-graph/index';
 import { parseDependencyData } from '../../src/boards/dependency-graph/model';
@@ -27,6 +30,7 @@ defineStateDiagram();
 defineDependencyGraph();
 defineArchitectureMap();
 defineSequenceDiagram();
+defineBpmn();
 
 const settle = async (element: { updateComplete: Promise<unknown> }): Promise<void> => {
   for (let index = 0; index < 3; index++) await element.updateComplete;
@@ -103,6 +107,64 @@ describe('edge line and arrowhead colours', () => {
     element.select({ kind: 'edge', id: 'a-b' });
     await settle(element);
     const selected = read(group());
+    expect(selected.line).toBe(selected.head);
+  });
+
+  it('BPMN sequence flow: line and head match, at rest and selected', async () => {
+    const element = append(new DpkBoardBpmn());
+    element.data = parseBpmnData({
+      pools: [
+        { id: 'p', name: 'P', lanes: [{ id: 'l', name: 'L' }] },
+        { id: 'q', name: 'Q', lanes: [{ id: 'm', name: 'M' }] },
+      ],
+      nodes: [
+        { id: 'a', kind: 'task', lane: 'l', name: 'A' },
+        { id: 'b', kind: 'task', lane: 'l', name: 'B' },
+        { id: 'c', kind: 'task', lane: 'm', name: 'C' },
+      ],
+      flows: [
+        { id: 'f', from: 'a', to: 'b' },
+        { id: 'msg', kind: 'message', from: 'a', to: 'c', name: 'M' },
+      ],
+    });
+    await settle(element);
+    const group = (): Element => element.renderRoot.querySelector('[data-flow="f"]')!;
+    const readBpmn = (target: Element): { line: string; head: string } => ({
+      line: getComputedStyle(target.querySelector('.d-edge-path')!).stroke,
+      head: getComputedStyle(target.querySelector('.d-edge-end')!).stroke,
+    });
+    const rest = readBpmn(group());
+    expect(rest.line).toBe(rest.head);
+    element.select({ kind: 'edge', id: 'f' });
+    await settle(element);
+    const selected = readBpmn(group());
+    expect(selected.line).toBe(selected.head);
+  });
+
+  it('BPMN message flow: line and head match, at rest and selected', async () => {
+    const element = append(new DpkBoardBpmn());
+    element.data = parseBpmnData({
+      pools: [
+        { id: 'p', name: 'P', lanes: [{ id: 'l', name: 'L' }] },
+        { id: 'q', name: 'Q', lanes: [{ id: 'm', name: 'M' }] },
+      ],
+      nodes: [
+        { id: 'a', kind: 'task', lane: 'l', name: 'A' },
+        { id: 'c', kind: 'task', lane: 'm', name: 'C' },
+      ],
+      flows: [{ id: 'msg', kind: 'message', from: 'a', to: 'c', name: 'M' }],
+    });
+    await settle(element);
+    const group = (): Element => element.renderRoot.querySelector('[data-flow="msg"]')!;
+    const readBpmn = (target: Element): { line: string; head: string } => ({
+      line: getComputedStyle(target.querySelector('.d-edge-path')!).stroke,
+      head: getComputedStyle(target.querySelector('.d-edge-end')!).stroke,
+    });
+    const rest = readBpmn(group());
+    expect(rest.line).toBe(rest.head);
+    element.select({ kind: 'edge', id: 'msg' });
+    await settle(element);
+    const selected = readBpmn(group());
     expect(selected.line).toBe(selected.head);
   });
 

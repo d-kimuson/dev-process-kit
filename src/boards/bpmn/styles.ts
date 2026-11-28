@@ -228,6 +228,17 @@ export const bpmnStyles = css`
     --d-edge-paper: var(--dpk-paper-raised);
   }
 
+  /* A selected flow goes ink in one place: the line must read the same
+     variable as its head, or the base selected rule leaves them two colours. */
+  .bpmn-flow.is-selected {
+    --d-edge-line: var(--dpk-ink);
+  }
+
+  .bpmn-flow.is-selected .d-edge-path,
+  .bpmn-flow:has(.d-edge-hit:focus-visible) .d-edge-path {
+    stroke: var(--d-edge-line);
+  }
+
   .bpmn-flow.is-message {
     --d-edge-line: var(--dpk-ink-soft);
   }
