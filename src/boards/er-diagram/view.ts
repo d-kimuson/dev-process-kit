@@ -10,8 +10,8 @@ import {
   verticalBlocked,
   type RouteSegment,
 } from '../../lib/layout/orthogonal-router';
+import { roundedSteps, stepsData, type PathStep } from '../../lib/layout/path-steps';
 import { nudgeParallelRoutes, type NudgeInput } from '../../lib/layout/route-nudge';
-import { pathData, type PathStep } from './line-jumps';
 import { END_GLYPH_REACH } from './notation';
 
 /**
@@ -869,9 +869,9 @@ const CORNER_RADIUS = 10;
  * the stroke has to stay straight underneath them (see `PORT_STRAIGHT`).
  */
 export const relationPath = (points: readonly LayoutPoint[], reach: number, straight: number = PORT_STRAIGHT): string =>
-  pathData(relationSteps(points, reach, straight));
+  stepsData(relationSteps(points, reach, straight));
 
-/** {@link relationPath} as drawing steps, so a later pass (`line-jumps.ts`) can see the geometry it draws. */
+/** {@link relationPath} as drawing steps, so a later pass (`lib/layout/line-jumps.ts`) can see the geometry it draws. */
 export const relationSteps = (
   points: readonly LayoutPoint[],
   reach: number,
@@ -880,7 +880,7 @@ export const relationSteps = (
   const start = points[0];
   const end = points.at(-1);
   if (start === undefined || end === undefined || !isForward(points))
-    return roundedSteps(points, CORNER_RADIUS, straight);
+    return roundedSteps(points, { radius: CORNER_RADIUS, keepStart: straight, keepEnd: straight });
   const steps: PathStep[] = [{ kind: 'move', to: start }];
   let at = start;
   const lineTo = (next: LayoutPoint) => {
@@ -941,43 +941,6 @@ export const isForward = (points: readonly LayoutPoint[]): boolean =>
  * close to a port is left square instead.
  */
 export const roundedPath = (points: readonly LayoutPoint[], radius: number, straight: number = PORT_STRAIGHT): string =>
-  pathData(roundedSteps(points, radius, straight));
-
-const roundedSteps = (
-  points: readonly LayoutPoint[],
-  radius: number,
-  straight: number = PORT_STRAIGHT,
-): readonly PathStep[] => {
-  const [first, ...rest] = points;
-  if (first === undefined) return [];
-  const steps: PathStep[] = [{ kind: 'move', to: first }];
-  rest.forEach((corner, index) => {
-    const before = points[index] ?? corner;
-    const after = rest[index + 1];
-    if (after === undefined) {
-      steps.push({ kind: 'line', to: corner });
-      return;
-    }
-    const inLength = Math.hypot(corner.x - before.x, corner.y - before.y);
-    const outLength = Math.hypot(after.x - corner.x, after.y - corner.y);
-    // The first corner's in-run and the last one's out-run end at a port.
-    const inRoom = index === 0 ? inLength - straight : inLength;
-    const outRoom = rest[index + 2] === undefined ? outLength - straight : outLength;
-    const r = Math.min(radius, inLength / 2, outLength / 2, inRoom, outRoom);
-    if (r <= 0) {
-      steps.push({ kind: 'line', to: corner });
-      return;
-    }
-    const toward = (from: LayoutPoint, to: LayoutPoint, length: number): LayoutPoint => ({
-      x: round(from.x + ((to.x - from.x) / length) * r),
-      y: round(from.y + ((to.y - from.y) / length) * r),
-    });
-    steps.push(
-      { kind: 'line', to: toward(corner, before, inLength) },
-      { kind: 'quad', control: corner, to: toward(corner, after, outLength) },
-    );
-  });
-  return steps;
-};
+  stepsData(roundedSteps(points, { radius, keepStart: straight, keepEnd: straight }));
 
 const round = (value: number): number => Math.round(value * 100) / 100 || 0;

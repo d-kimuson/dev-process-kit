@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { layeredLayout, type LayoutPoint } from '../../lib/layout/layered';
+import { LINE_JUMP_RADIUS } from '../../lib/layout/line-jumps';
 import { routeHugsOutline } from '../../lib/layout/metrics';
 import { LAYOUT, LANE_MARGIN } from './element';
-import { LINE_JUMP_RADIUS } from './line-jumps';
 import { erDiagramMessages } from './messages';
 import { erLayoutSpec, parseErData, type ErTableDiff } from './model';
 import { END_GLYPH_REACH, endGlyph } from './notation';

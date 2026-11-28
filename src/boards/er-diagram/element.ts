@@ -19,6 +19,8 @@ import {
   type LayoutPoint,
   type LayoutResult,
 } from '../../lib/layout/layered';
+import { jumpedPaths } from '../../lib/layout/line-jumps';
+import { stepsData } from '../../lib/layout/path-steps';
 import { BoardCanvasElement } from '../base/element';
 import {
   EMPTY_REACH,
@@ -31,7 +33,6 @@ import {
 } from '../base/model';
 import { diagramStyles } from '../base/styles';
 import { relationLabelPlans, type RelationLabelPlan } from './labels';
-import { jumpedPaths, pathData } from './line-jumps';
 import { erDiagramMessages, type ErDiagramMessages } from './messages';
 import {
   ADD_FIELD,
@@ -53,7 +54,7 @@ import {
   type ErRelation,
   type ErTableDiff,
 } from './model';
-import { CIRCLE_RADIUS, endGlyph, type ErEnd } from './notation';
+import { CIRCLE_RADIUS, END_GLYPH_REACH, endGlyph, type ErEnd } from './notation';
 import { erStyles } from './styles';
 import {
   aggregateGroups,
@@ -691,7 +692,8 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
           (relation) => [relation.id, relationSteps(routed.get(relation.id) ?? [], CURVE_REACH)] as const,
         ),
       );
-    if (this.draggedNodeIds().size > 0) return new Map([...steps()].map(([id, line]) => [id, pathData(line)] as const));
+    if (this.draggedNodeIds().size > 0)
+      return new Map([...steps()].map(([id, line]) => [id, stepsData(line)] as const));
     const concealed = this.#concealed(visible);
     const drawn = visible.edges.map((relation) => relation.id).filter((id) => !concealed.has(id) || lit.edges.has(id));
     const signature = `${this.#routesCache?.signature ?? ''}|${this.layout?.width ?? 0}x${this.layout?.height ?? 0}`;
@@ -700,7 +702,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
     const key = drawn.join(',');
     const cached = byDrawn.get(key);
     if (cached !== undefined) return cached;
-    const result = jumpedPaths(steps(), new Set(drawn));
+    const result = jumpedPaths(steps(), new Set(drawn), { clearance: END_GLYPH_REACH });
     // Bounded: one entry per distinct hover/selection seen since the lines last moved.
     if (byDrawn.size >= PATHS_CACHE_LIMIT) byDrawn.delete(byDrawn.keys().next().value ?? '');
     byDrawn.set(key, result);

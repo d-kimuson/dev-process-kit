@@ -1,23 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { jumpedPaths, LINE_JUMP_RADIUS, pathData, type PathStep } from './line-jumps';
-import { PORT_STRAIGHT, relationSteps } from './view';
+import type { PathStep } from './path-steps';
+
+import { jumpedPaths, LINE_JUMP_RADIUS } from './line-jumps';
 
 const line = (...points: readonly [number, number][]): readonly PathStep[] =>
   points.map(([x, y], index) => ({ kind: index === 0 ? 'move' : 'line', to: { x, y } }));
 
-describe('pathData', () => {
-  it('writes each step as its SVG path command', () => {
-    expect(
-      pathData([
-        { kind: 'move', to: { x: 0, y: 0 } },
-        { kind: 'line', to: { x: 10, y: 0 } },
-        { kind: 'quad', control: { x: 20, y: 0 }, to: { x: 20, y: 10 } },
-        { kind: 'cubic', control1: { x: 20, y: 20 }, control2: { x: 30, y: 20 }, to: { x: 40, y: 20 } },
-      ]),
-    ).toBe('M0 0 L10 0 Q20 0 20 10 C20 20 30 20 40 20');
-  });
-});
+/** A jump keeps clear of both ends by this much, as the ER diagram's glyphs require. */
+const CLEARANCE = 25;
 
 describe('jumpedPaths', () => {
   const r = LINE_JUMP_RADIUS;
@@ -29,6 +20,7 @@ describe('jumpedPaths', () => {
         ['upright', line([100, 0], [100, 100])],
       ]),
       new Set(['level', 'upright']),
+      { clearance: 0 },
     );
     expect(paths.get('level')).toBe(`M0 50 L${100 - r} 50 A${r} ${r} 0 0 1 ${100 + r} 50 L200 50`);
     expect(paths.get('upright')).toBe('M100 0 L100 100');
@@ -49,6 +41,7 @@ describe('jumpedPaths', () => {
         ['upright', line([100, 0], [100, 100])],
       ]),
       new Set(['level', 'upright']),
+      { clearance: 0 },
     );
     expect(paths.get('level')).toContain(`L${100 - r} 50 A${r} ${r} 0 0 1 ${100 + r} 50`);
   });
@@ -60,6 +53,7 @@ describe('jumpedPaths', () => {
         ['upright', line([100, 0], [100, 100])],
       ]),
       new Set(['level', 'upright']),
+      { clearance: 0 },
     );
     expect(paths.get('level')).toBe(`M200 50 L${100 + r} 50 A${r} ${r} 0 0 0 ${100 - r} 50 L0 50`);
   });
@@ -72,12 +66,13 @@ describe('jumpedPaths', () => {
         ['concealed', line([120, 0], [120, 100])],
       ]),
       new Set(['level', 'meets']),
+      { clearance: 0 },
     );
     expect(paths.get('level')).toBe('M0 50 L200 50');
   });
 
-  it('keeps the port runs under the end glyphs straight', () => {
-    const near = PORT_STRAIGHT - 1;
+  it('keeps the run under the end glyphs straight', () => {
+    const near = CLEARANCE - 1;
     const paths = jumpedPaths(
       new Map([
         ['level', line([0, 50], [200, 50])],
@@ -85,12 +80,13 @@ describe('jumpedPaths', () => {
         ['end', line([200 - near, 0], [200 - near, 100])],
       ]),
       new Set(['level', 'start', 'end']),
+      { clearance: CLEARANCE },
     );
     expect(paths.get('level')).toBe('M0 50 L200 50');
   });
 
   it("keeps clear of the crossed line's own end glyphs too", () => {
-    const near = PORT_STRAIGHT - 1;
+    const near = CLEARANCE - 1;
     const paths = jumpedPaths(
       new Map([
         ['level', line([0, 50], [200, 50])],
@@ -98,8 +94,24 @@ describe('jumpedPaths', () => {
         ['long', line([150, 0], [150, 100])],
       ]),
       new Set(['level', 'short', 'long']),
+      { clearance: CLEARANCE },
     );
     expect(paths.get('level')).toBe(`M0 50 L${150 - r} 50 A${r} ${r} 0 0 1 ${150 + r} 50 L200 50`);
+  });
+
+  it('takes a per-end clearance, so a board with different glyphs at each end keeps clear of both', () => {
+    // The crossing at y = 50 sits 30px from `short`'s own start tip: a per-end
+    // clearance lets a board reserve that reach only where its glyph is drawn.
+    const lines = new Map([
+      ['level', line([0, 50], [200, 50])],
+      ['short', line([150, 20], [150, 200])],
+    ]);
+    const plainNone = jumpedPaths(lines, new Set(['level', 'short']), { clearance: 0 });
+    expect(plainNone.get('level')).toContain('A6 6');
+    const startAware = jumpedPaths(lines, new Set(['level', 'short']), {
+      clearance: () => ({ start: 40, end: 0 }),
+    });
+    expect(startAware.get('level')).toBe('M0 50 L200 50');
   });
 
   it('spans crossings too close for two jumps with one wider one', () => {
@@ -110,39 +122,75 @@ describe('jumpedPaths', () => {
         ['b', line([104, 0], [104, 100])],
       ]),
       new Set(['level', 'a', 'b']),
+      { clearance: 0 },
     );
     expect(paths.get('level')).toBe(`M0 50 L${100 - r} 50 A${2 + r} ${r} 0 0 1 ${104 + r} 50 L200 50`);
   });
 
-  it("jumps where a forward route's S-curve actually crosses the run, not at the jog's own x", () => {
-    const curve = relationSteps(
-      [
-        { x: 0, y: 0 },
-        { x: 100, y: 0 },
-        { x: 100, y: 100 },
-        { x: 200, y: 100 },
-      ],
-      40,
-      0,
+  it('never jumps between two lines of the same bundle', () => {
+    const paths = jumpedPaths(
+      new Map([
+        ['main', line([0, 50], [200, 50])],
+        ['branch', line([100, 0], [100, 100])],
+      ]),
+      new Set(['main', 'branch']),
+      { clearance: 0, bundle: (id) => (id === 'main' || id === 'branch' ? 'trunk' : null) },
     );
-    // The S-curve is point-symmetric about the jog's middle, so it crosses y=50 exactly at the jog.
-    const centred = jumpedPaths(
+    expect(paths.get('main')).toBe('M0 50 L200 50');
+  });
+
+  it('still jumps a line in a different bundle', () => {
+    const paths = jumpedPaths(
+      new Map([
+        ['main', line([0, 50], [200, 50])],
+        ['branch', line([100, 0], [100, 100])],
+      ]),
+      new Set(['main', 'branch']),
+      { clearance: 0, bundle: (id) => (id === 'main' ? 'trunk' : 'other') },
+    );
+    expect(paths.get('main')).toContain(`A${r} ${r} 0 0 1`);
+  });
+});
+
+/**
+ * A route's S-curve, from `path-steps`' own corners: the crossing is where the
+ * curve actually passes the level, not at the jog's own x. Kept here rather
+ * than in the ER board's test because the rule is the jump pass's, not the
+ * board's: whatever draws the curve, the jump reads it the same way.
+ */
+describe('jumpedPaths over a curve', () => {
+  const r = LINE_JUMP_RADIUS;
+
+  const curve: readonly PathStep[] = [
+    { kind: 'move', to: { x: 0, y: 0 } },
+    { kind: 'line', to: { x: 60, y: 0 } },
+    { kind: 'cubic', control1: { x: 100, y: 0 }, control2: { x: 100, y: 100 }, to: { x: 140, y: 100 } },
+    { kind: 'line', to: { x: 200, y: 100 } },
+  ];
+
+  it('jumps where the curve actually crosses the run, not at the jog', () => {
+    const paths = jumpedPaths(
       new Map([
         ['level', line([0, 50], [200, 50])],
         ['curve', curve],
       ]),
       new Set(['level', 'curve']),
+      { clearance: 0 },
     );
-    expect(centred.get('level')).toBe(`M0 50 L${100 - r} 50 A${r} ${r} 0 0 1 ${100 + r} 50 L200 50`);
-    // Higher up, the curve is still close to its start, left of the jog.
-    const higher = jumpedPaths(
+    // Point-symmetric about the jog's middle, so it crosses y=50 exactly at x=100.
+    expect(paths.get('level')).toBe(`M0 50 L${100 - r} 50 A${r} ${r} 0 0 1 ${100 + r} 50 L200 50`);
+  });
+
+  it('finds a higher run crossing the curve where the curve is still near its start', () => {
+    const paths = jumpedPaths(
       new Map([
         ['level', line([0, 10], [200, 10])],
         ['curve', curve],
       ]),
       new Set(['level', 'curve']),
+      { clearance: 0 },
     );
-    const at = Number(/L([\d.]+) 10 A/.exec(higher.get('level') ?? '')?.[1]) + r;
+    const at = Number(/L([\d.]+) 10 A/.exec(paths.get('level') ?? '')?.[1]) + r;
     expect(at).toBeGreaterThan(60);
     expect(at).toBeLessThan(100);
   });

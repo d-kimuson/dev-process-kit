@@ -1,6 +1,8 @@
 import type { LayoutPoint } from '../../lib/layout/layered';
 import type { ErMultiplicity } from './model';
 
+import { endFrame } from '../../lib/layout/path-steps';
+
 /**
  * Crow's foot (IE) notation for one end of a relation: the symbol beside a
  * table says how many of its rows one row across the line relates to. The
@@ -80,14 +82,7 @@ export const END_GLYPH_REACH: number = Math.max(
  * to its port side: tables send relations from their right edge and receive
  * them on their left.
  */
-const inward = (points: readonly LayoutPoint[], end: ErEnd): LayoutPoint => {
-  const ordered = end === 'start' ? points : [...points].reverse();
-  const [tip] = ordered;
-  const next = ordered.find((point) => tip !== undefined && (point.x !== tip.x || point.y !== tip.y));
-  if (tip === undefined || next === undefined) return { x: end === 'start' ? 1 : -1, y: 0 };
-  const length = Math.hypot(next.x - tip.x, next.y - tip.y);
-  return { x: (next.x - tip.x) / length, y: (next.y - tip.y) / length };
-};
+const inward = (points: readonly LayoutPoint[], end: ErEnd): LayoutPoint => endFrame(points, end).inward;
 
 /** The route's direction at one end, for placing a label beside the stroke rather than on it. */
 export const endDirection = (points: readonly LayoutPoint[], end: ErEnd): LayoutPoint => inward(points, end);
