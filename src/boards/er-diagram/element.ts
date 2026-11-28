@@ -3,16 +3,13 @@ import { repeat } from 'lit/directives/repeat.js';
 
 import type { DpkDialogPanel } from '../../components/dialog-panel/element';
 import type { ElementActionResult } from '../../core/element-actions';
+import type { PanelDetail } from '../../core/panel/host';
 import type { CommentTargetOption, DraftAction } from '../../core/types';
 import type { ViewportBox } from '../base/viewport';
 
 import { controlAtom } from '../../components/atoms/controls';
 import { EDGE_PATHS } from '../../components/diagram/edge';
-import { iconDiamond, iconKey, iconLink, iconPencil, iconPlus, iconTrash } from '../../core/icons';
-import { PopoverController } from '../../core/popover-controller';
-import { SelectController } from '../../core/select/controller';
-import { DismissController } from '../../lib/dom/dismiss';
-import { revealWithin } from '../../lib/dom/scroll';
+import { iconDiamond, iconKey, iconLink, iconPencil, iconPlus } from '../../core/icons';
 import {
   fixedLayout,
   layeredLayout,
@@ -29,16 +26,24 @@ import {
   reach,
   tagStateMatches,
   type DiagramSelection,
+  type GraphSelection,
   type Reach,
   type TagState,
 } from '../base/model';
 import { diagramStyles } from '../base/styles';
+import {
+  blankColumn,
+  columnControl,
+  columnOf,
+  type ColumnPatch,
+  type ErDetailActions,
+  type ErDetailView,
+} from './detail';
 import { relationLabelPlans, type RelationLabelPlan } from './labels';
 import { erDiagramMessages, type ErDiagramMessages } from './messages';
 import {
   ADD_FIELD,
   BC_TAG_PREFIX,
-  CARDINALITIES,
   DELETE_FIELD,
   EDIT_CARDINALITY,
   EDIT_FIELD,
@@ -77,14 +82,13 @@ import {
   relationRoutes,
   relationSteps,
   resumeEditor,
-  typeMenu,
   typeSuggestions,
   type CardinalityEditor,
   type ColumnEditor,
+  type ParkedEditor,
   type ColumnIcon,
   type ErFocus,
   type ErHighlight,
-  type ParkedEditor,
   type RelationScope,
 } from './view';
 
@@ -134,9 +138,6 @@ export const LANE_MARGIN = LAYOUT.nodeSpacing / 2;
 const CURVE_REACH = LAYOUT.layerSpacing / 2;
 // Jumped path sets kept per route signature: a few hovers and selections back and forth reuse theirs.
 const PATHS_CACHE_LIMIT = 16;
-
-/** Every control that opens a column editor; a press on one is not a press outside the editor. */
-const EDITOR_TRIGGERS = '[data-action="add-field"], [data-action="edit-field"]';
 
 const SYMBOLS = { same: '', added: '+', removed: '−', changed: '~' } as const;
 
@@ -195,11 +196,8 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
   #base: ColumnEditor | null = null;
   /** Editors closed with Escape, by {@link editorKey}: reopening one brings its input back. */
   #parked = new Map<string, ParkedEditor>();
-  /**
-   * The type input's list: null while it is closed; else where the arrow keys
-   * moved the highlight, null for the default one ({@link typeMenu}).
-   */
-  #typeList: { readonly moved: number | null } | null = null;
+  /** The control in the table's detail to focus once a column's form closes back to it. */
+  #returnTo: string | null = null;
   #sizes = new Map<string, TableSize>();
   /**
    * Set once {@link #measureTables} has re-fitted the view after a table's
@@ -214,9 +212,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
   #resize: ResizeObserver | null = null;
   /** Elements `#resize` currently watches, so `updated()` can observe only ones that are new. */
   #resizeTargets = new Set<Element>();
-  readonly #popovers = new PopoverController(this);
-  readonly #cardinalitySelect = new SelectController(this);
-  /** Open for the selected edge; its value is lost once a different edge is selected. */
+  /** The selected edge's cardinality as picked; its value is lost once a different edge is selected. */
   #cardinalityEditor: CardinalityEditor | null = null;
   /**
    * Which relations draw at rest: every one, only those inside one Bounded
@@ -251,18 +247,6 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
     readonly byDrawn: Map<string, ReadonlyMap<string, string>>;
   } | null = null;
 
-  constructor() {
-    super();
-    // The editor floats like a tooltip: a press anywhere else puts it away, input kept.
-    new DismissController(this, {
-      open: () => this.#editor !== null,
-      closesOn: (path) =>
-        !path.some((target) => target instanceof Element && target.matches(`.er-editor, ${EDITOR_TRIGGERS}`)),
-      ownsEscape: () => false,
-      dismiss: () => this.#close(false, false),
-    });
-  }
-
   override disconnectedCallback(): void {
     this.#resize?.disconnect();
     this.#resize = null;
@@ -274,24 +258,22 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
     super.willUpdate(changed);
     // A hovered table or relation that a filter removed never saw the pointer leave.
     if (this.#hovered !== null && !this.#isVisible(this.#hovered)) this.#hovered = null;
-    // The cardinality editor follows the selected edge: a fresh draft for a newly
-    // selected one, kept as-is while the same edge stays selected, gone otherwise.
+    // The picked cardinality is kept while the same edge stays selected, gone otherwise.
     const selection = this.selection;
-    if (selection !== null && selection.kind === 'edge' && this.#recordable) {
-      if (this.#cardinalityEditor === null || this.#cardinalityEditor.edge !== selection.id) {
-        const edge = this.visible.edges.find((item) => item.id === selection.id);
-        this.#cardinalityEditor =
-          edge === undefined ? null : { edge: edge.id, cardinality: cardinalityValue(edge.cardinality), failed: false };
-      }
-    } else if (this.#cardinalityEditor !== null) {
+    if (
+      this.#cardinalityEditor !== null &&
+      (selection?.kind !== 'edge' || selection.id !== this.#cardinalityEditor.edge)
+    )
       this.#cardinalityEditor = null;
+    // A column's form belongs to its table's detail: selecting anything else puts it away, input kept.
+    if (this.#editor !== null && (selection?.kind !== 'node' || selection.id !== this.#editor.table)) {
+      this.#park();
+      this.#editor = null;
     }
   }
 
   protected override updated(): void {
     super.updated();
-    this.#syncEditor();
-    this.#syncCardinalityEditor();
     if (typeof ResizeObserver !== 'undefined') this.#resize ??= new ResizeObserver(() => this.#measureTables());
     this.#syncResizeTargets();
     this.#measureTables();
@@ -890,7 +872,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
             @keydown=${(event: KeyboardEvent) => {
               if (event.key !== 'Enter' && event.key !== ' ') return;
               event.preventDefault();
-              select();
+              this.openSelection({ kind: 'edge', id: relation.id });
             }}
           ></path>
           ${points.length > 0 ? this.#renderEnds(points, relation, labelPlans.get(relation.id)) : nothing}
@@ -1057,8 +1039,11 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
             aria-pressed=${state.selected ? 'true' : 'false'}
             title=${`${table.id} / ${table.name}`}
             @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, table.id)}
-            @click=${() => {
-              if (!this.consumeDragClick()) this.select({ kind: 'node', id: table.id });
+            @click=${(event: MouseEvent) => {
+              if (this.consumeDragClick()) return;
+              // A pointer press lights the table's relations; Enter or Space on it opens its detail.
+              if (event.detail === 0) this.openSelection({ kind: 'node', id: table.id });
+              else this.select({ kind: 'node', id: table.id });
             }}
           >
             <span class="er-title">
@@ -1158,19 +1143,8 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
                     data-action="edit-field"
                     data-field=${field.id}
                     aria-label=${m.editFieldButton(field.id)}
-                    aria-haspopup="dialog"
-                    aria-expanded=${editing ? 'true' : 'false'}
                     title=${m.editFieldButton(field.id)}
-                    @click=${() =>
-                      this.#toggle({
-                        kind: 'edit',
-                        table: table.id,
-                        field: field.id,
-                        type: field.type,
-                        nullable: field.nullable,
-                        description: field.description ?? '',
-                        failed: false,
-                      })}
+                    @click=${() => this.#open(columnOf(table.id, field))}
                   >
                     ${iconPencil()}
                   </button>`
@@ -1206,15 +1180,17 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
     return this.#recordable && field.status !== 'removed';
   }
 
-  /** Deletes a column from inside its editor, closing it once the delete is recorded. */
-  #deleteFromEditor(table: string, field: string): void {
+  /** Deletes a column from its form, back to the table's detail once the delete is recorded. */
+  #deleteColumn(table: string, field: string): void {
     const recorded = this.dispatchElementAction(DELETE_FIELD, ['node', table], { field });
     if (!recorded) {
       if (this.#editor !== null) this.#editor = { ...this.#editor, failed: true };
       this.requestUpdate();
       return;
     }
-    this.#close(true);
+    this.#editor = null;
+    this.#returnTo = 'add';
+    this.requestUpdate();
   }
 
   #renderAdd(table: ErTableDiff, m: ErDiagramMessages): TemplateResult | typeof nothing {
@@ -1225,274 +1201,126 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
         type="button"
         class=${classNames('er-add-button', adding && 'is-open')}
         data-action="add-field"
-        aria-haspopup="dialog"
-        aria-expanded=${adding ? 'true' : 'false'}
-        @click=${() =>
-          this.#toggle({
-            kind: 'add',
-            table: table.id,
-            name: '',
-            type: '',
-            nullable: false,
-            description: '',
-            failed: false,
-          })}
+        @click=${() => this.#open(blankColumn(table.id))}
       >
         <span class="er-icon" aria-hidden="true">${iconPlus()}</span><span>${m.addFieldButton}</span>
       </button>
     </div>`;
   }
 
-  /** The open column or cardinality editor, floating in the top layer beside what it edits. */
-  protected override renderSelection(): TemplateResult | typeof nothing {
-    const editor = this.#editor;
-    const table = editor === null ? undefined : this.visible.nodes.find((node) => node.id === editor.table);
-    const composer = super.renderSelection();
-    const columnEditor =
-      editor === null || table === undefined
-        ? nothing
-        : this.#renderEditor(table, editor, erDiagramMessages(this.locale));
-    const cardinalityEditor = this.#renderCardinalityEditor();
-    return html`${composer}${columnEditor}${cardinalityEditor}`;
+  // ----------------------------------------------------------------- detail
+
+  protected override get providesPanelDetail(): boolean {
+    return true;
   }
 
   /**
-   * A small card like a tooltip: what it edits (with the icon the row will
-   * show), the name, type and description, the nullability, and the explicit
-   * Cancel and confirm (plus, editing an existing column, a danger delete).
-   * The row it edits stays in place, marked, under it.
+   * A table's detail lists its columns, and turns into a column's form while
+   * one is open; a relation's detail holds its cardinality.
    */
-  #renderEditor(table: ErTableDiff, editor: ColumnEditor, m: ErDiagramMessages): TemplateResult {
-    const verdict = editorVerdict(editor, table);
-    const field = editor.kind === 'edit' ? table.fields.find((item) => item.id === editor.field) : undefined;
-    const icon =
-      field !== undefined && field.keys.includes('PK') ? 'primary' : editor.nullable ? 'nullable' : 'not-null';
-    const title = editor.kind === 'add' ? m.addFieldTitle : m.editFieldTitle;
-    const target = editor.kind === 'add' ? table.id : `${table.id}.${editor.field}`;
-    const deleteTarget =
-      editor.kind === 'edit' && field !== undefined && this.#deletable(field)
-        ? { table: table.id, field: editor.field }
-        : null;
-    const relationsToRemove = deleteTarget === null ? [] : fieldRelations(this.items(), table.id, deleteTarget.field);
-    return html`<div
-      class="er-editor"
-      popover="manual"
-      role="dialog"
-      data-kind=${editor.kind}
-      aria-label=${`${title} ${target}`}
-      @keydown=${(event: KeyboardEvent) => this.#onEditorKey(event)}
-    >
-      <div class="er-editor-head">
-        ${this.#renderIcon(icon, m)}
-        <span class="er-editor-title">${title}</span>
-        <code class="er-editor-target">${target}</code>
-      </div>
-      <div class="er-editor-fields">
-        ${
-          editor.kind === 'add'
-            ? html`<label class="er-editor-field">
-                <span class="dpk-label">${m.columnNameLabel}</span>
-                <input
-                  class="dpk-input"
-                  data-input="add-name"
-                  autocomplete="off"
-                  spellcheck="false"
-                  aria-invalid=${verdict.issue === 'name-taken' ? 'true' : 'false'}
-                  placeholder=${m.columnNamePlaceholder}
-                  .value=${editor.name}
-                  @input=${(event: Event) => {
-                    const input = event.currentTarget;
-                    if (this.#editor?.kind === 'add' && input instanceof HTMLInputElement)
-                      this.#change({ ...this.#editor, name: input.value });
-                  }}
-                />
-              </label>`
-            : nothing
-        }
-        ${this.#renderTypeField(editor, m)}
-      </div>
-      <label class="er-editor-field">
-        <span class="dpk-label">${m.columnDescriptionLabel}</span>
-        <input
-          class="dpk-input"
-          data-input="description"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder=${m.columnDescriptionPlaceholder}
-          .value=${editor.description}
-          @input=${(event: Event) => {
-            const input = event.currentTarget;
-            if (this.#editor !== null && input instanceof HTMLInputElement)
-              this.#change({ ...this.#editor, description: input.value });
-          }}
-        />
-      </label>
-      ${verdict.issue === 'name-taken' ? html`<p class="er-editor-note" role="status">${m.columnNameTaken}</p>` : nothing}
-      ${editor.failed ? html`<p class="er-error" role="alert">${m.notRecorded}</p>` : nothing}
-      <label class="er-editor-check">
-        <input
-          type="checkbox"
-          data-input="nullable"
-          .checked=${editor.nullable}
-          @change=${(event: Event) => {
-            const input = event.currentTarget;
-            if (this.#editor !== null && input instanceof HTMLInputElement)
-              this.#change({ ...this.#editor, nullable: input.checked });
-          }}
-        />
-        <span>${m.columnNullable}</span>
-      </label>
-      <div class="er-editor-foot">
-        <span class="er-editor-keys">${m.columnKeys}</span>
-        ${
-          deleteTarget === null || relationsToRemove.length === 0
-            ? nothing
-            : html`<span class="er-editor-note" role="status"
-                >${m.deleteFieldRelationsNote(relationsToRemove.length)}</span
-              >`
-        }
-        <div class="er-editor-actions">
-          ${
-            deleteTarget === null
-              ? nothing
-              : html`<button
-                  type="button"
-                  class="dpk-btn dpk-btn--danger"
-                  data-action="delete-column"
-                  @click=${() => this.#deleteFromEditor(deleteTarget.table, deleteTarget.field)}
-                >
-                  ${iconTrash()}<span>${m.deleteFieldTitle}</span>
-                </button>`
-          }
-          <div class="er-editor-actions-right">
-            <button
-              type="button"
-              class="dpk-btn dpk-btn--ghost"
-              data-action="cancel-column"
-              data-dpk-text-discard
-              @click=${() => this.#close(true)}
-            >
-              ${m.cancel}
-            </button>
-            <button
-              type="button"
-              class="dpk-btn dpk-btn--accent"
-              data-action="submit-column"
-              ?disabled=${!verdict.ready}
-              @click=${() => this.#submit()}
-            >
-              ${editor.kind === 'add' ? m.columnAdd : m.columnSave}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  /** Anchors the open editor under the row it edits, or under the button that adds one. */
-  #syncEditor(): void {
-    const editor = this.#editor;
-    const surface = this.renderRoot.querySelector<HTMLElement>('.er-editor');
-    if (editor === null || surface === null) return;
-    const anchor = this.renderRoot.querySelector(`[data-er-table="${CSS.escape(editor.table)}"] ${triggerOf(editor)}`);
-    const row = editor.kind === 'edit' ? anchor?.closest('.er-field') : anchor;
-    if (!row) return;
-    // Bounded to the diagram's own panel (on top of the plain viewport) so a row near the
-    // panel's top edge never flips the editor up into whatever the host page draws above it.
-    const panel = this.renderRoot.querySelector<DpkDialogPanel>('dpk-dialog-panel');
-    const boundaryOption = panel === null ? {} : { boundary: panel };
-    this.#popovers.open(
-      surface,
-      row,
-      { width: 300, height: 400 },
-      {
-        placement: 'bottom-start',
-        trackTransform: true,
-        ...boundaryOption,
-      },
-    );
-    // The type's list floats too, shown after the card so it lies above it, and
-    // turns upward where the window has no room below the input.
-    const list = surface.querySelector<HTMLElement>('.er-type-options');
-    const input = surface.querySelector<HTMLElement>('.er-editor-type');
-    if (list === null || input === null) return;
-    this.#popovers.open(
-      list,
-      input,
-      { width: Math.max(input.offsetWidth, 200), height: 220 },
-      { placement: 'bottom-start', trackTransform: true, ...boundaryOption },
-    );
-  }
-
-  /**
-   * A small card beside the selected relation: its cardinality as a `parent:child`
-   * select. Picking a value commits it at once — there is no separate Save. Opens
-   * and closes with the edge's own selection, so no separate trigger is needed,
-   * and no Cancel either: deselecting the edge (a press elsewhere, or Escape) is
-   * what puts it away.
-   */
-  #renderCardinalityEditor(): TemplateResult | typeof nothing {
-    const state = this.#cardinalityEditor;
-    if (state === null) return nothing;
-    const edge = this.visible.edges.find((item) => item.id === state.edge);
-    if (edge === undefined) return nothing;
+  protected override panelDetail(selection: GraphSelection): PanelDetail | null {
     const m = erDiagramMessages(this.locale);
-    return html`<div
-      class="er-editor er-cardinality-editor"
-      popover="manual"
-      role="dialog"
-      aria-label=${`${m.editCardinalityTitle} ${edge.from}.${edge.sourceField} → ${edge.to}.${edge.targetField}`}
-      @keydown=${(event: KeyboardEvent) => this.#onCardinalityKey(event)}
-    >
-      <div class="er-editor-head">
-        <span class="er-icon" aria-hidden="true">${iconLink()}</span>
-        <span class="er-editor-title">${m.editCardinalityTitle}</span>
-        <code class="er-editor-target">${edge.from} → ${edge.to}</code>
-      </div>
-      <label class="er-editor-field">
-        <span class="dpk-label">${m.cardinalityLabel}</span>
-        ${this.#cardinalitySelect.render({
-          options: CARDINALITIES.map((value) => ({ value, label: value.replace(':', ' : ') })),
-          value: state.cardinality,
-          ariaLabel: m.cardinalityLabel,
-          onChange: (value) => this.#pickCardinality(value),
-        })}
-      </label>
-      ${state.failed ? html`<p class="er-error" role="alert">${m.notRecorded}</p>` : nothing}
-    </div>`;
-  }
-
-  /** A picked cardinality commits immediately: no separate Save (see {@link #renderCardinalityEditor}). */
-  #pickCardinality(value: string): void {
-    const state = this.#cardinalityEditor;
-    if (state === null) return;
-    const recorded = this.dispatchElementAction(EDIT_CARDINALITY, ['edge', state.edge], { cardinality: value });
-    this.#cardinalityEditor = { ...state, cardinality: value, failed: !recorded };
-    this.requestUpdate();
-  }
-
-  /** Anchors the cardinality editor to the selected relation's `<g>`, floating like a tooltip beside it. */
-  #syncCardinalityEditor(): void {
-    const state = this.#cardinalityEditor;
-    const surface = this.renderRoot.querySelector<HTMLElement>('.er-cardinality-editor');
-    if (state === null || surface === null) return;
-    const anchor = this.renderRoot.querySelector(`[data-relation="${CSS.escape(state.edge)}"]`);
-    if (!anchor) return;
-    this.#popovers.open(
-      surface,
-      anchor,
-      { width: 240, height: 170 },
-      { placement: 'bottom-start', trackTransform: true },
+    const items = this.items();
+    if (selection.kind === 'edge') {
+      const relation = items.edges.find((edge) => edge.id === selection.id);
+      if (relation === undefined) return null;
+      const cardinality = this.#cardinalityEditor?.edge === relation.id ? this.#cardinalityEditor : null;
+      return this.#detail(
+        `edge:${relation.id}`,
+        m.edge,
+        `${relation.from} → ${relation.to}`,
+        {
+          kind: 'relation',
+          relation,
+          cardinality: this.#recordable ? (cardinality ?? this.#freshCardinality(relation)) : null,
+        },
+        () => this.renderRoot.querySelector<SVGElement>(`[data-relation="${CSS.escape(relation.id)}"] .d-edge-hit`),
+        this.commentRef('edge', relation.id),
+      );
+    }
+    const table = items.nodes.find((node) => node.id === selection.id);
+    if (table === undefined) return null;
+    const focus = (): HTMLElement | null =>
+      this.renderRoot.querySelector<HTMLElement>(`[data-er-table="${CSS.escape(table.id)}"] .er-head-select`);
+    const comment = this.commentRef('node', table.id);
+    const editor = this.#editor;
+    if (editor !== null && editor.table === table.id) {
+      const field = editor.kind === 'edit' ? table.fields.find((item) => item.id === editor.field) : undefined;
+      return this.#detail(
+        editorKey(editor),
+        editor.kind === 'add' ? m.addFieldTitle : m.editFieldTitle,
+        editor.kind === 'add' ? table.id : `${table.id}.${editor.field}`,
+        {
+          kind: 'column',
+          table,
+          editor,
+          types: typeSuggestions(items),
+          deleteRelations:
+            field !== undefined && this.#deletable(field) ? fieldRelations(items, table.id, field.id).length : null,
+        },
+        focus,
+        comment,
+      );
+    }
+    const returnTo = this.#returnTo;
+    this.#returnTo = null;
+    return this.#detail(
+      `table:${table.id}`,
+      m.node,
+      table.id,
+      { kind: 'table', table, recordable: this.#recordable, returnTo },
+      focus,
+      comment,
     );
   }
 
-  #onCardinalityKey(event: KeyboardEvent): void {
-    if (event.isComposing) return;
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      this.select(null);
-    }
+  #detail(
+    key: string,
+    kind: string,
+    title: string,
+    view: ErDetailView,
+    target: () => Element | null,
+    comment: string,
+  ): PanelDetail {
+    const m = erDiagramMessages(this.locale);
+    return {
+      key,
+      kind,
+      title,
+      render: () =>
+        html`<dpk-internal-er-diagram-detail
+          .view=${view}
+          .messages=${m}
+          .actions=${this.#detailActions}
+        ></dpk-internal-er-diagram-detail>`,
+      focus: () => {
+        const element = target();
+        if (element instanceof HTMLElement || element instanceof SVGElement) element.focus({ preventScroll: true });
+      },
+      comment: () => this.openComment(comment),
+    };
+  }
+
+  readonly #detailActions: ErDetailActions = {
+    openColumn: (editor) => this.#open(editor),
+    change: (patch) => this.#change(patch),
+    submit: () => this.#submit(),
+    close: (discard) => this.#close(discard, true),
+    deleteColumn: (table, field) => this.#deleteColumn(table, field),
+    pickCardinality: (value) => this.#pickCardinality(value),
+  };
+
+  #freshCardinality(relation: ErRelation): CardinalityEditor {
+    return { edge: relation.id, cardinality: cardinalityValue(relation.cardinality), failed: false };
+  }
+
+  /** A picked cardinality commits immediately: no separate Save. */
+  #pickCardinality(value: string): void {
+    const selection = this.selection;
+    if (selection?.kind !== 'edge') return;
+    const recorded = this.dispatchElementAction(EDIT_CARDINALITY, ['edge', selection.id], { cardinality: value });
+    this.#cardinalityEditor = { edge: selection.id, cardinality: value, failed: !recorded };
+    this.requestUpdate();
   }
 
   /** Keeps the open editor's input for when the same editor opens again. */
@@ -1538,206 +1366,45 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
     }
   }
 
-  /** Its trigger opens an editor, or puts it away when that editor is the open one. */
-  #toggle(editor: ColumnEditor): void {
-    if (this.#editor !== null && editorKey(this.#editor) === editorKey(editor)) {
-      this.#close(false);
-      return;
-    }
-    this.#open(editor);
-  }
-
-  /** Opens an editor; one already open elsewhere keeps its input for later. */
+  /** Opens a column's form in the side panel; one already open elsewhere keeps its input for later. */
   #open(editor: ColumnEditor): void {
     this.#park();
     this.#editor = resumeEditor(this.#parked.get(editorKey(editor)), editor);
     this.#base = editor;
     this.#parked.delete(editorKey(editor));
-    this.#typeList = null;
+    this.openSelection({ kind: 'node', id: editor.table });
     this.requestUpdate();
-    const field = editor.kind === 'add' ? 'add-name' : 'edit-type';
-    void this.updateComplete.then(() => {
-      const input = this.renderRoot.querySelector<HTMLInputElement>(`.er-editor [data-input="${field}"]`);
-      input?.focus({ preventScroll: true });
-      input?.select();
-    });
   }
 
-  /**
-   * The type input as a combobox: a click, typing or an arrow key opens its
-   * list of the schema's types, narrowed as it is typed, with what was typed offered as a
-   * new type. The arrow keys move through it, Enter or a click takes one, and
-   * Enter on the type already in the input confirms the editor instead.
-   * Escape closes the list before the editor.
-   */
-  #renderTypeField(editor: ColumnEditor, m: ErDiagramMessages): TemplateResult {
-    const list = this.#typeList;
-    const menu = list === null ? null : typeMenu(typeSuggestions(this.items()), editor.type, list.moved);
-    const expanded = menu !== null && menu.options.length > 0;
-    const optionId = (index: number): string => `er-type-option-${index}`;
-    const open = (): void => {
-      if (this.#typeList !== null) return;
-      this.#typeList = { moved: null };
-      this.requestUpdate();
-    };
-    return html`<div class="er-editor-combo">
-      <label class="er-editor-field">
-        <span class="dpk-label">${m.addFieldType}</span>
-        <input
-          class="dpk-input er-editor-type"
-          data-input=${editor.kind === 'add' ? 'add-type' : 'edit-type'}
-          role="combobox"
-          aria-autocomplete="list"
-          aria-controls="er-type-options"
-          aria-expanded=${String(expanded)}
-          aria-activedescendant=${expanded ? optionId(menu.active) : nothing}
-          autocomplete="off"
-          spellcheck="false"
-          placeholder=${m.columnTypePlaceholder}
-          .value=${editor.type}
-          @click=${open}
-          @blur=${() => this.#closeTypeList()}
-          @input=${(event: Event) => {
-            const input = event.currentTarget;
-            if (this.#editor === null || !(input instanceof HTMLInputElement)) return;
-            this.#typeList = { moved: null };
-            this.#change({ ...this.#editor, type: input.value });
-          }}
-          @keydown=${(event: KeyboardEvent) => this.#onTypeKey(event)}
-        />
-      </label>
-      ${
-        expanded
-          ? html`<ul
-              id="er-type-options"
-              class="er-type-options"
-              popover="manual"
-              role="listbox"
-              aria-label=${m.columnTypeChoices}
-            >
-              ${menu.options.map(
-                (option, index) =>
-                  html`<li
-                    id=${optionId(index)}
-                    role="option"
-                    data-type=${option.type}
-                    data-kind=${option.kind}
-                    aria-selected=${String(index === menu.active)}
-                    @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                    @click=${() => this.#pickType(option.type)}
-                  >
-                    ${option.kind === 'new' ? html`<span class="er-icon" aria-hidden="true">${iconPlus()}</span>` : nothing}
-                    <code>${option.type}</code>
-                    ${option.kind === 'new' ? html`<span class="er-type-option-hint">${m.columnTypeNew}</span>` : nothing}
-                  </li>`,
-              )}
-            </ul>`
-          : nothing
-      }
-    </div>`;
-  }
-
-  #onTypeKey(event: KeyboardEvent): void {
+  #change(patch: ColumnPatch): void {
     const editor = this.#editor;
-    const list = this.#typeList;
-    if (event.isComposing || editor === null) return;
-    const menu = list === null ? null : typeMenu(typeSuggestions(this.items()), editor.type, list.moved);
-    switch (event.key) {
-      case 'ArrowDown':
-      case 'ArrowUp':
-        event.preventDefault();
-        this.#typeList =
-          menu === null || menu.options.length === 0
-            ? { moved: null }
-            : { moved: menu.active + (event.key === 'ArrowDown' ? 1 : -1) };
-        this.requestUpdate();
-        void this.updateComplete.then(() => {
-          const list = this.renderRoot.querySelector('.er-type-options');
-          const active = list?.querySelector('[aria-selected="true"]');
-          if (list && active) revealWithin(list, active);
-        });
-        return;
-      case 'Enter': {
-        const option = menu?.options[menu.active];
-        // The type already in the input: Enter goes on to confirm the editor.
-        if (option === undefined || option.type === editor.type.trim()) {
-          this.#closeTypeList();
-          return;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        this.#pickType(option.type);
-        return;
-      }
-      case 'Escape':
-        if (list === null) return;
-        event.preventDefault();
-        event.stopPropagation();
-        this.#closeTypeList();
-        return;
-    }
-  }
-
-  #pickType(type: string): void {
-    if (this.#editor === null) return;
-    this.#typeList = null;
-    this.#change({ ...this.#editor, type });
-  }
-
-  #closeTypeList(): void {
-    if (this.#typeList === null) return;
-    this.#typeList = null;
-    this.requestUpdate();
-  }
-
-  #change(editor: ColumnEditor): void {
-    this.#editor = { ...editor, failed: false };
+    if (editor === null) return;
+    const { name, ...rest } = patch;
+    this.#editor =
+      editor.kind === 'add'
+        ? { ...editor, ...rest, ...(name === undefined ? {} : { name }), failed: false }
+        : { ...editor, ...rest, failed: false };
     this.requestUpdate();
   }
 
   /**
-   * Closes the editor. Cancel throws the input away; Escape, the trigger and a
-   * press outside park it, so reopening the same editor brings it back. Focus
-   * goes back to the control that opened it, unless a press took it elsewhere.
+   * Closes the column's form, back to its table's detail. Cancel throws the
+   * input away; Escape and the row's own trigger park it, so reopening the
+   * same form brings it back. Closed from the panel, the focus goes to the
+   * control in the table's detail that opens the same form.
    */
-  #close(discard: boolean, refocus = true): void {
+  #close(discard: boolean, fromPanel: boolean): void {
     const editor = this.#editor;
     if (editor === null) return;
     if (!discard) this.#park();
     this.#editor = null;
-    this.#typeList = null;
+    this.#returnTo = fromPanel ? columnControl(editor) : null;
     this.requestUpdate();
-    if (!refocus) return;
-    void this.updateComplete.then(() =>
-      this.renderRoot
-        .querySelector<HTMLElement>(`[data-er-table="${CSS.escape(editor.table)}"] ${triggerOf(editor)}`)
-        ?.focus({ preventScroll: true }),
-    );
-  }
-
-  #onEditorKey(event: KeyboardEvent): void {
-    if (event.isComposing) return;
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      this.#close(false);
-      return;
-    }
-    if (event.key !== 'Enter' || !(event.target instanceof HTMLInputElement) || event.target.type === 'checkbox')
-      return;
-    event.preventDefault();
-    // Enter on a new column's name moves on to its type until one is typed.
-    const editor = this.#editor;
-    if (editor?.kind === 'add' && event.target.dataset['input'] === 'add-name' && editor.type.trim() === '') {
-      event.target.closest('.er-editor')?.querySelector<HTMLInputElement>('[data-input="add-type"]')?.focus();
-      return;
-    }
-    this.#submit();
   }
 
   #submit(): void {
     const editor = this.#editor;
-    const table = editor === null ? undefined : this.visible.nodes.find((node) => node.id === editor.table);
+    const table = editor === null ? undefined : this.items().nodes.find((node) => node.id === editor.table);
     if (editor === null || table === undefined || !editorVerdict(editor, table).ready) return;
     const type = editor.type.trim();
     const description = editor.description.trim();
@@ -1760,16 +1427,10 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
       this.requestUpdate();
       return;
     }
-    this.#close(true);
+    this.#close(true, true);
   }
 }
 
-/** The control that opens an editor, within its table's card. */
-const triggerOf = (editor: ColumnEditor): string =>
-  editor.kind === 'add'
-    ? '[data-action="add-field"]'
-    : `[data-action="edit-field"][data-field="${CSS.escape(editor.field)}"]`;
-
-/** One editor per new column of a table, and per existing column. */
+/** One form per new column of a table, and per existing column. */
 const editorKey = (editor: ColumnEditor): string =>
   editor.kind === 'add' ? `add:${editor.table}` : `edit:${editor.table}:${editor.field}`;
