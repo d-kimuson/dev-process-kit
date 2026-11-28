@@ -335,7 +335,7 @@ describe('<dpk-board-event-storming>', () => {
         return () => providers.delete(source);
       },
       showDetail: (_source, detail, report) => reports.push({ detail, report }),
-      addSection: () => () => undefined,
+      addSection: () => ({ name: '', update: () => undefined, withdraw: () => undefined }),
       invalidate: () => undefined,
       open: () => undefined,
       provideSettings: () => () => undefined,

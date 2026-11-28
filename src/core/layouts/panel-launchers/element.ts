@@ -1,15 +1,16 @@
 /**
  * `<dpk-internal-layout-panel-launchers>`: the header's buttons for the side
- * panel's author sections (`<dpk-panel-section slot="panel">`, the
- * supplements), one per section in the author's order, beside the settings
- * gear. Internal: the element that owns the page's chrome draws it and hands
- * it the panel the header speaks for.
+ * panel's sections: those the components add, then the author's
+ * (`<dpk-panel-section slot="panel">`, the supplements), one per section in
+ * the panel's order, beside the settings gear. Internal: the element that
+ * owns the page's chrome draws it and hands it the panel the header speaks
+ * for.
  *
  * - A button opens the panel on its section, and closes the panel while it
  *   shows that section; `aria-pressed` follows.
  * - The buttons that do not fit the header go to one menu button after the
  *   others, which lists them.
- * - With no author section it draws nothing and takes no room.
+ * - With no such section it draws nothing and takes no room.
  */
 import { css, html, LitElement, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
@@ -225,7 +226,7 @@ export class DpkInternalLayoutPanelLaunchers extends LitElement {
   }
 
   get #tabs(): readonly PanelTab[] {
-    return this.host?.tabs.filter((tab) => tab.kind === 'author') ?? [];
+    return this.host?.tabs.filter((tab) => tab.kind === 'component' || tab.kind === 'author') ?? [];
   }
 
   #shows(name: string): boolean {

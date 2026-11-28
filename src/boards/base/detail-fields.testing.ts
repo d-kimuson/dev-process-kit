@@ -15,7 +15,7 @@ export const connectInPanelOwner = (board: HTMLElement): PanelReport[] => {
   const host: PanelHost = {
     provideDetail: () => () => undefined,
     showDetail: (_source, detail, report) => reports.push({ detail, report }),
-    addSection: () => () => undefined,
+    addSection: () => ({ name: '', update: () => undefined, withdraw: () => undefined }),
     invalidate: () => undefined,
     open: () => undefined,
     provideSettings: () => () => undefined,

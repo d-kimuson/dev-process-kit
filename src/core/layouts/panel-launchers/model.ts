@@ -1,10 +1,10 @@
 /**
  * How many of the section buttons the header has room for. The buttons keep
- * the author's order: those that fit stand in the row, and the rest go to one
+ * the panel's order: those that fit stand in the row, and the rest go to one
  * menu button after them.
  */
 export type FittingInput = {
-  /** Each button's width, in the author's order. */
+  /** Each button's width, in the panel's order. */
   readonly widths: readonly number[];
   /** The space between two buttons. */
   readonly gap: number;

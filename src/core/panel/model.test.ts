@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   authoredSectionName,
+  componentSectionNames,
   detailChange,
   initialSection,
   panelOpenState,
@@ -62,6 +63,35 @@ describe('panelTabs', () => {
   it('does not let an author section take a reserved name', () => {
     expect(authoredSectionName({ name: 'detail', label: 'X', badge: null, hidden: false }, 0)).toBe('section-1');
     expect(authoredSectionName({ name: 'settings', label: 'X', badge: null, hidden: false }, 1)).toBe('section-2');
+  });
+
+  it('leaves out hidden component sections but keeps their names taken', () => {
+    const result = panelTabs({
+      detail: null,
+      components: [
+        { name: 'notes', label: 'A', hidden: true },
+        { name: 'notes', label: 'B' },
+      ],
+      authored: [],
+      settings: null,
+    });
+    expect(result.map((tab) => [tab.name, tab.label])).toEqual([['notes-2', 'B']]);
+  });
+});
+
+describe('componentSectionNames', () => {
+  it('gives each section its own name, apart from the reserved and the author ones', () => {
+    expect(
+      componentSectionNames(
+        [
+          { name: 'notes', label: 'A' },
+          { name: 'notes', label: 'B' },
+          { name: 'issues', label: 'C' },
+          { name: 'detail', label: 'D' },
+        ],
+        [{ name: 'issues', label: 'Issues', badge: null, hidden: false }],
+      ),
+    ).toEqual(['notes', 'notes-2', 'issues-2', 'detail-2']);
   });
 });
 

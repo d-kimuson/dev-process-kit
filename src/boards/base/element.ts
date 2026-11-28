@@ -27,7 +27,13 @@ import { inSidePanel } from '../../core/layouts/panel/index';
 import { LocaleController } from '../../core/locale-controller';
 import { pageHostOf, pageNameOf } from '../../core/page/host';
 import { resolvePageTarget } from '../../core/page/page-target';
-import { panelHostOf, type PanelDetail, type PanelHost, type PanelSectionSpec } from '../../core/panel/host';
+import {
+  panelHostOf,
+  type PanelDetail,
+  type PanelHost,
+  type PanelSectionHandle,
+  type PanelSectionSpec,
+} from '../../core/panel/host';
 import { defaultStorageKey } from '../../core/persistence';
 import { createViewApi, snapshotOf, type ViewFacadeSource } from '../../core/shell/api';
 import { requestDraftSync } from '../../core/sync/request';
@@ -161,8 +167,8 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   /** The side panel this board shows its selection's detail in, once it found one. */
   #panelHost: PanelHost | null = null;
   #withdrawDetail: (() => void) | null = null;
-  /** The sections this board added to the panel, by what the panel lists of them. */
-  #sections: { readonly signature: string; readonly withdraw: readonly (() => void)[] } | null = null;
+  /** The sections this board added to the panel, by the name the board gave each, in its order. */
+  readonly #sections = new Map<string, PanelSectionHandle>();
   #stopJsonChild: (() => void) | null = null;
   #targetSignature = '';
   readonly #commentPopover = new CommentPopoverController(this);
@@ -257,22 +263,25 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   }
 
   /**
-   * Adds the sections anew only when what the panel lists of them (name,
-   * label, badge) changed; otherwise has the panel draw them again.
+   * Adds the sections anew only when their names or order changed; otherwise
+   * updates each in place (label, badge, hidden) and has the panel draw them
+   * again.
    */
   #syncSections(host: PanelHost, sections: readonly PanelSectionSpec[]): void {
-    const signature = JSON.stringify(sections.map(({ name, label, badge }) => [name, label, badge ?? null]));
-    if (signature === (this.#sections?.signature ?? '[]')) {
+    const names = sections.map((section) => section.name);
+    const current = [...this.#sections.keys()];
+    if (names.length === current.length && names.every((name, index) => name === current[index])) {
+      for (const section of sections) this.#sections.get(section.name)?.update(section);
       if (sections.length > 0) host.invalidate(this);
       return;
     }
     this.#withdrawSections();
-    this.#sections = { signature, withdraw: sections.map((section) => host.addSection(this, section)) };
+    for (const section of sections) this.#sections.set(section.name, host.addSection(this, section));
   }
 
   #withdrawSections(): void {
-    for (const withdraw of this.#sections?.withdraw ?? []) withdraw();
-    this.#sections = null;
+    for (const handle of this.#sections.values()) handle.withdraw();
+    this.#sections.clear();
   }
 
   #detailOf(selection: S | null): PanelDetail | null {
@@ -582,8 +591,8 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
    * stays closed, so the board does not move under the reader.
    */
   protected showPanelSection(name: string): void {
-    const host = this.#panelHost;
-    if (host !== null && 'isOpen' in host && host.isOpen === true) host.open(name);
+    const section = this.#sections.get(name);
+    if (section !== undefined && this.#panelHost?.isOpen === true) this.#panelHost.open(section.name);
   }
 
   get tagFilter(): TagState {

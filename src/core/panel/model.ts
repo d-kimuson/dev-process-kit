@@ -51,6 +51,8 @@ export type ComponentSection = {
   readonly name: string;
   readonly label: string;
   readonly badge?: string;
+  /** Leaves the section out of the panel while keeping its place and name. */
+  readonly hidden?: boolean;
 };
 
 /**
@@ -62,6 +64,28 @@ export const authoredSectionName = (section: AuthoredSection, index: number): st
     ? `section-${index + 1}`
     : section.name;
 
+/**
+ * The names the components' sections go by, in the order they were added:
+ * each keeps its own unless a reserved name, an author section or an earlier
+ * component's section has it, and then takes `<name>-<n>`. Two boards that add
+ * a section of the same name each get their own.
+ */
+export const componentSectionNames = (
+  components: readonly ComponentSection[],
+  authored: readonly AuthoredSection[],
+): readonly string[] => {
+  const taken = new Set([
+    ...RESERVED_SECTIONS,
+    ...authored.map((section, index) => authoredSectionName(section, index)),
+  ]);
+  return components.map((section) => {
+    let name = section.name;
+    for (let n = 2; taken.has(name); n += 1) name = `${section.name}-${n}`;
+    taken.add(name);
+    return name;
+  });
+};
+
 export type PanelTabsInput = {
   /** Whether the content offers the selected element's detail. */
   readonly detail: { readonly label: string } | null;
@@ -71,47 +95,56 @@ export type PanelTabsInput = {
   readonly settings: { readonly label: string } | null;
 };
 
-/** `detail` first, then the components' sections, then the author's without the hidden ones, then the settings. */
-export const panelTabs = ({ detail, components, authored, settings }: PanelTabsInput): readonly PanelTab[] => [
-  ...(detail === null
-    ? []
-    : [
-        {
-          name: DETAIL_SECTION,
-          label: detail.label,
-          badge: null,
-          kind: 'detail' as const,
-        },
-      ]),
-  ...components.map((section) => ({
-    name: section.name,
-    label: section.label,
-    badge: section.badge ?? null,
-    kind: 'component' as const,
-  })),
-  ...authored.flatMap((section, index) =>
-    section.hidden
+/** `detail` first, then the components' sections, then the author's, both without the hidden ones, then the settings. */
+export const panelTabs = ({ detail, components, authored, settings }: PanelTabsInput): readonly PanelTab[] => {
+  const names = componentSectionNames(components, authored);
+  return [
+    ...(detail === null
       ? []
       : [
           {
-            name: authoredSectionName(section, index),
-            label: section.label,
-            badge: section.badge,
-            kind: 'author' as const,
+            name: DETAIL_SECTION,
+            label: detail.label,
+            badge: null,
+            kind: 'detail' as const,
           },
-        ],
-  ),
-  ...(settings === null
-    ? []
-    : [
-        {
-          name: SETTINGS_SECTION,
-          label: settings.label,
-          badge: null,
-          kind: 'settings' as const,
-        },
-      ]),
-];
+        ]),
+    ...components.flatMap((section, index) =>
+      section.hidden === true
+        ? []
+        : [
+            {
+              name: names[index] ?? section.name,
+              label: section.label,
+              badge: section.badge ?? null,
+              kind: 'component' as const,
+            },
+          ],
+    ),
+    ...authored.flatMap((section, index) =>
+      section.hidden
+        ? []
+        : [
+            {
+              name: authoredSectionName(section, index),
+              label: section.label,
+              badge: section.badge,
+              kind: 'author' as const,
+            },
+          ],
+    ),
+    ...(settings === null
+      ? []
+      : [
+          {
+            name: SETTINGS_SECTION,
+            label: settings.label,
+            badge: null,
+            kind: 'settings' as const,
+          },
+        ]),
+  ];
+};
 
 export type InitialSectionInput = {
   readonly tabs: readonly PanelTab[];

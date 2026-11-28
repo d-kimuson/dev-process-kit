@@ -1143,7 +1143,7 @@ describe('dpk-board-er-diagram', () => {
           reports.push({ detail, report });
           render(detail === null ? nothing : keyed(detail.key, detail.render()), detailRoot);
         },
-        addSection: () => () => undefined,
+        addSection: () => ({ name: '', update: () => undefined, withdraw: () => undefined }),
         invalidate: () => undefined,
         open: () => undefined,
         provideSettings: () => () => undefined,

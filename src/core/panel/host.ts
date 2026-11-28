@@ -34,6 +34,16 @@ export type PanelSectionSpec = ComponentSection & {
   render(): TemplateResult;
 };
 
+/** A section a component added, for as long as it stays. */
+export type PanelSectionHandle = {
+  /** The name the panel lists the section under: the spec's, or `<name>-<n>` when another section had it when this one was added. */
+  readonly name: string;
+  /** Replaces the section's label, badge, hidden and render in place, keeping its place among the sections. */
+  update(section: PanelSectionSpec): void;
+  /** Takes the section, its tab and its header button away. */
+  withdraw(): void;
+};
+
 /** The page's settings, which the element that owns the page's chrome hands the panel. */
 export type PanelSettingsSpec = {
   readonly label: string;
@@ -51,7 +61,8 @@ export type PanelHost = {
   provideDetail(source: Element): () => void;
   /** The content's selection changed (or re-rendered, with `refresh`); `null` when nothing is selected. */
   showDetail(source: Element, detail: PanelDetail | null, report: DetailReport): void;
-  addSection(source: Element, section: PanelSectionSpec): () => void;
+  /** A component adds a section: the panel lists it after the detail, and the header gives it a button. */
+  addSection(source: Element, section: PanelSectionSpec): PanelSectionHandle;
   /** The chrome's owner offers the page's settings: the panel lists them last until the returned function runs. */
   provideSettings(source: Element, settings: PanelSettingsSpec): () => void;
   readonly isOpen: boolean;

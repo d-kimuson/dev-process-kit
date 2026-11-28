@@ -79,7 +79,7 @@ const withPanel = async (element: DpkBoardKanban): Promise<FakePanel> => {
     showDetail: (_source, _detail, report) => {
       if (report === 'open') panel.opened.push('detail');
     },
-    addSection: () => () => undefined,
+    addSection: () => ({ name: '', update: () => undefined, withdraw: () => undefined }),
     invalidate: () => undefined,
     provideSettings: () => () => undefined,
     close: () => undefined,

@@ -11,12 +11,20 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import type { Locale } from '../i18n';
-import type { DetailReport, PanelDetail, PanelHost, PanelSectionSpec, PanelSettingsSpec } from './host';
+import type {
+  DetailReport,
+  PanelDetail,
+  PanelHost,
+  PanelSectionHandle,
+  PanelSectionSpec,
+  PanelSettingsSpec,
+} from './host';
 
 import { deepActiveElement } from '../../lib/dom/focus';
 import { defaultJsonStore, memoryJsonStore, type JsonStore } from '../../lib/dom/json-store';
 import { panelMessages } from './messages';
 import {
+  componentSectionNames,
   DETAIL_SECTION,
   detailChange,
   initialSection,
@@ -79,6 +87,13 @@ type ActiveDetail = {
 };
 type ComponentEntry = {
   readonly source: Element;
+  /** The name the section was given when it was added, so a section withdrawn before it does not rename it. */
+  readonly name: string;
+  spec: PanelSectionSpec;
+};
+/** A component's section as the frame draws it: under the name the panel lists it by. */
+export type ShownComponentSection = {
+  readonly name: string;
   readonly spec: PanelSectionSpec;
 };
 type SettingsEntry = {
@@ -201,7 +216,7 @@ export class PanelOwner implements ReactiveController, PanelHost {
     const offers = this.#offersContent;
     return panelTabs({
       detail: offers && this.#providers.size > 0 ? { label: panelMessages(this.locale).detail } : null,
-      components: offers ? this.#components.map((entry) => entry.spec) : [],
+      components: offers ? this.#componentSpecs() : [],
       authored: offers ? this.#authoredSections() : [],
       settings: this.#settings === null ? null : { label: this.#settings.spec.label },
     });
@@ -219,8 +234,22 @@ export class PanelOwner implements ReactiveController, PanelHost {
     return this.#active?.detail ?? null;
   }
 
-  get componentSections(): readonly PanelSectionSpec[] {
-    return this.#offersContent ? this.#components.map((entry) => entry.spec) : [];
+  /** The components' sections the panel lists, under the names it lists them by. */
+  get componentSections(): readonly ShownComponentSection[] {
+    if (!this.#offersContent) return [];
+    const names = this.#componentNames();
+    return this.#components.flatMap((entry, index) =>
+      entry.spec.hidden === true ? [] : [{ name: names[index] ?? entry.name, spec: entry.spec }],
+    );
+  }
+
+  /** The components' specs under the names they were given when added. */
+  #componentSpecs(): readonly PanelSectionSpec[] {
+    return this.#components.map((entry) => ({ ...entry.spec, name: entry.name }));
+  }
+
+  #componentNames(): readonly string[] {
+    return componentSectionNames(this.#componentSpecs(), this.#authoredSections());
   }
 
   get settings(): PanelSettingsSpec | null {
@@ -394,13 +423,31 @@ export class PanelOwner implements ReactiveController, PanelHost {
     this.#changed();
   }
 
-  addSection(source: Element, spec: PanelSectionSpec): () => void {
-    const entry: ComponentEntry = { source, spec };
+  addSection(source: Element, spec: PanelSectionSpec): PanelSectionHandle {
+    const added = componentSectionNames([...this.#componentSpecs(), spec], this.#authoredSections()).at(-1);
+    const entry: ComponentEntry = { source, name: added ?? spec.name, spec };
     this.#components = [...this.#components, entry];
     this.#changed();
-    return () => {
-      this.#components = this.#components.filter((candidate) => candidate !== entry);
-      this.#changed();
+    const name = (): string => {
+      const index = this.#components.indexOf(entry);
+      return (index < 0 ? undefined : this.#componentNames()[index]) ?? entry.name;
+    };
+    return {
+      get name(): string {
+        return name();
+      },
+      update: (next) => {
+        const listed = (section: PanelSectionSpec): string =>
+          JSON.stringify([section.name, section.label, section.badge ?? null, section.hidden === true]);
+        const changed = listed(next) !== listed(entry.spec);
+        entry.spec = next;
+        if (changed && this.#components.includes(entry)) this.#changed();
+      },
+      withdraw: () => {
+        if (!this.#components.includes(entry)) return;
+        this.#components = this.#components.filter((candidate) => candidate !== entry);
+        this.#changed();
+      },
     };
   }
 

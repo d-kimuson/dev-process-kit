@@ -540,12 +540,12 @@ export class DpkInternalLayoutPanel extends LitElement {
       <div class="body">
         ${tabs.some((tab) => tab.kind === 'detail') ? this.#renderDetail(owner, section, m) : nothing}
         ${owner.componentSections.map(
-          (spec) => html`<div
+          ({ name, spec }) => html`<div
             class="section"
             role="tabpanel"
-            id=${`panel-${spec.name}`}
-            aria-labelledby=${`tab-${spec.name}`}
-            ?hidden=${section !== spec.name}
+            id=${`panel-${name}`}
+            aria-labelledby=${`tab-${name}`}
+            ?hidden=${section !== name}
           >
             ${spec.render()}
           </div>`,
