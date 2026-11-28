@@ -89,6 +89,20 @@ const settle = async (el: DpkViewPrototype): Promise<void> => {
   await el.updateComplete;
 };
 
+type Updating = HTMLElement & { updateComplete: Promise<boolean> };
+
+/** The detail the side panel shows, once the panel is open on it. */
+const panelDetail = async (el: DpkViewPrototype): Promise<ShadowRoot | null> => {
+  if (!el.panelOpen) el.openPanel('detail');
+  await settle(el);
+  const frame = el.shadowRoot!.querySelector<Updating>('dpk-internal-layout-panel')!;
+  await frame.updateComplete;
+  const detail = frame.shadowRoot!.querySelector<Updating>('dpk-internal-prototype-detail');
+  if (detail === null) return null;
+  await detail.updateComplete;
+  return detail.shadowRoot;
+};
+
 describe('<dpk-view-prototype> layout', () => {
   beforeEach(() => {
     window.location.hash = '';
@@ -112,7 +126,9 @@ describe('<dpk-view-prototype> layout', () => {
     await settle(el);
     expect(root.querySelectorAll('.step-row')).toHaveLength(5);
     expect(root.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Landing');
-    const editors = root.querySelectorAll<DpkInlineEdit>('.detail dpk-inline-edit');
+    // The step's detail is in the side panel, not under the list.
+    expect(root.querySelector('.nav dpk-inline-edit')).toBeNull();
+    const editors = (await panelDetail(el))!.querySelectorAll<DpkInlineEdit>('dpk-inline-edit');
     expect(editors).toHaveLength(2);
     expect(editors[0]?.hasAttribute('wrap')).toBe(true);
     expect(editors[1]?.hasAttribute('multiline')).toBe(true);
@@ -125,7 +141,7 @@ describe('<dpk-view-prototype> layout', () => {
       prototypeAction.setStepName('onboarding.account.landing', '手渡されたログイン ID と初期パスワードでログインする'),
     );
     await settle(el);
-    const editor = el.shadowRoot!.querySelectorAll<DpkInlineEdit>('.detail dpk-inline-edit')[0]!;
+    const editor = (await panelDetail(el))!.querySelectorAll<DpkInlineEdit>('dpk-inline-edit')[0]!;
     // `wrap` is what lets the column width break the name; `truncate` would cut it
     // back to one line (or a clamp) instead. The field's own rules do the rest.
     expect(editor.hasAttribute('wrap')).toBe(true);
@@ -303,7 +319,7 @@ describe('<dpk-view-prototype> layout', () => {
     );
     await settle(el);
     const root = el.shadowRoot!;
-    const editor = root.querySelectorAll<DpkInlineEdit>('.detail dpk-inline-edit')[1]!;
+    const editor = (await panelDetail(el))!.querySelectorAll<DpkInlineEdit>('dpk-inline-edit')[1]!;
     expect(editor.markdown).toBe(true);
     await editor.updateComplete;
     const view = editor.shadowRoot!.querySelector('.view')!;
@@ -794,5 +810,59 @@ describe('<dpk-view-prototype> layout', () => {
       await settle(el);
       expect(el.shadowRoot!.querySelector('.stage-maximize')).toBeNull();
     });
+  });
+});
+
+describe('<dpk-view-prototype> side panel detail', () => {
+  beforeEach(() => {
+    window.location.hash = '';
+    document.body.innerHTML = '';
+  });
+
+  it('keeps the panel closed when the step changes by navigation, and opens it on a step picked in the list', async () => {
+    const el = mount('#step=landing', 'en');
+    await settle(el);
+    el.api.navigate({ step: 'auth' });
+    await settle(el);
+    expect(el.panelOpen).toBe(false);
+
+    // jsdom follows no link inside a shadow root: the test moves the hash the way the browser would.
+    const link = el.shadowRoot!.querySelectorAll<HTMLAnchorElement>('.step-link')[2]!;
+    link.click();
+    window.location.hash = link.getAttribute('href')!;
+    await new Promise((resolve) => window.addEventListener('hashchange', resolve, { once: true }));
+    await settle(el);
+    expect(el.panelOpen).toBe(true);
+    expect(el.panelSection).toBe('detail');
+    const frame = el.shadowRoot!.querySelector<HTMLElement & { updateComplete: Promise<boolean> }>(
+      'dpk-internal-layout-panel',
+    )!;
+    await frame.updateComplete;
+    expect(frame.shadowRoot!.querySelector('.detail-title')?.textContent).toBe('Memo');
+  });
+
+  it('records a step name edited in the panel in the draft, and undoes it', async () => {
+    const el = mount('#step=landing', 'en');
+    await settle(el);
+    const editor = (await panelDetail(el))!.querySelector<DpkInlineEdit>('[data-field="name"] dpk-inline-edit')!;
+    editor.dispatchEvent(
+      new CustomEvent('dpk-commit', { detail: { value: 'Front page' }, bubbles: true, composed: true }),
+    );
+    await settle(el);
+    expect(el.shadowRoot!.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Front page');
+
+    expect(el.controller.undo()).toBe(true);
+    await settle(el);
+    expect(el.shadowRoot!.querySelector('.step-row[data-current="true"] .step-name')?.textContent).toBe('Landing');
+    const name = (await panelDetail(el))!.querySelector<DpkInlineEdit>('[data-field="name"] dpk-inline-edit')!;
+    expect(name.value).toBe('Landing');
+  });
+
+  it('lists the screens a step shows, each linking to the app view', async () => {
+    const el = mount('#step=desk', 'en');
+    await settle(el);
+    const links = [...(await panelDetail(el))!.querySelectorAll<HTMLAnchorElement>('[data-field="screens"] a')];
+    expect(links.map((link) => link.textContent)).toEqual(['App › Desk']);
+    expect(links[0]!.getAttribute('href')).toContain('view=app');
   });
 });

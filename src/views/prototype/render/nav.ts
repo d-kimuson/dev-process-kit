@@ -1,7 +1,5 @@
 import { html, nothing, type TemplateResult } from 'lit';
-import { keyed } from 'lit/directives/keyed.js';
 import { repeat } from 'lit/directives/repeat.js';
-import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import type { SelectController } from '../../../core/select/controller';
 import type { ViewRenderContext } from '../../../core/shell/contracts';
@@ -9,18 +7,8 @@ import type { PrototypeMessages } from '../messages';
 
 import { iconClose } from '../../../core/icons';
 import { createEntityId } from '../../../core/target';
-import { onCommit } from '../../../lib/dom/events';
-import { renderMarkdown } from '../../../lib/markdown';
 import { prototypeAction } from '../actions';
-import {
-  allStepIds,
-  stepRef,
-  stepRefOf,
-  stepScreens,
-  storyRef,
-  type PrototypeState,
-  type PrototypeStep,
-} from '../model';
+import { allStepIds, stepRefOf, storyRef, type PrototypeState } from '../model';
 import {
   locatePrototype,
   prototypeAppSections,
@@ -43,12 +31,14 @@ export type NavSelects = {
 
 /**
  * The view switch, then the scenario view's Activity select -> UserStory select
- * -> step list of the selected story, or the app view's screens.
+ * -> step list of the selected story, or the app view's screens. Picking a
+ * step or a screen also calls `openDetail`: its detail is in the side panel.
  */
 export const renderNav = (
   context: ViewRenderContext<PrototypeState>,
   m: PrototypeMessages,
   selects: NavSelects,
+  openDetail: () => void,
 ): TemplateResult => {
   const { state, navigation } = context;
   const location = locatePrototype(state, navigation);
@@ -58,9 +48,9 @@ export const renderNav = (
       ${renderViewSwitch(context, m, view)}
       ${
         view === 'app'
-          ? renderAppScreens(context, m, location, selects.app)
+          ? renderAppScreens(context, m, location, selects.app, openDetail)
           : location !== undefined && location.kind !== 'screen'
-            ? renderScenarioNav(context, m, location, selects)
+            ? renderScenarioNav(context, m, location, selects, openDetail)
             : html`<p class="nav-empty">${m.noActivityBefore}<code>activities</code>${m.noActivityAfter}</p>`
       }
     </div>
@@ -92,18 +82,19 @@ const renderViewSwitch = (
 /**
  * The screens of one app, picked with a select when the product has several:
  * its web pages as URL trees, then the screens outside the browser. The one on
- * stage is current, and its description follows.
+ * stage is current.
  */
 const renderAppScreens = (
   context: ViewRenderContext<PrototypeState>,
   m: PrototypeMessages,
   location: PrototypeLocation | undefined,
   select: SelectController,
+  openDetail: () => void,
 ): TemplateResult => {
   const current = location?.kind === 'screen' ? location : undefined;
   const sections = prototypeAppSections(context.state);
   const section = prototypeCurrentAppSection(sections, location);
-  const row: ScreenRow = { context, currentId: current?.screen.id };
+  const row: ScreenRow = { context, currentId: current?.screen.id, openDetail };
   const others = section?.others ?? [];
   return html`
     ${sections.length > 1 && section ? renderAppSelect(context, m, sections, section, select) : nothing}
@@ -134,7 +125,12 @@ const renderAppScreens = (
               ${others.map((screen) => {
                 const isOn = isCurrent(row, screen);
                 return html`<li class="step-row" data-current=${String(isOn)}>
-                  <a class="step-link" href=${screenHref(context, screen)} aria-current=${isOn ? 'page' : nothing}>
+                  <a
+                    class="step-link"
+                    href=${screenHref(context, screen)}
+                    aria-current=${isOn ? 'page' : nothing}
+                    @click=${openDetail}
+                  >
                     <span class="step-name">${screen.screen.title}</span>
                     ${renderNotes(context, screen)}
                   </a>
@@ -142,13 +138,6 @@ const renderAppScreens = (
               })}
             </ul>
           </section>`
-    }
-    ${
-      current?.screen.description
-        ? html`<div class="detail">
-            <div class="screen-description dpk-prose">${unsafeHTML(renderMarkdown(current.screen.description))}</div>
-          </div>`
-        : nothing
     }
   `;
 };
@@ -178,6 +167,7 @@ type ScreenRow = {
   readonly context: ViewRenderContext<PrototypeState>;
   /** The screen on stage. */
   readonly currentId: string | undefined;
+  readonly openDetail: () => void;
 };
 
 /**
@@ -202,6 +192,7 @@ const renderTreeNode = (row: ScreenRow, node: ScreenTreeNode, depth: number): Te
                 href=${screenHref(row.context, screen)}
                 title=${node.path}
                 aria-current=${current ? 'page' : nothing}
+                @click=${row.openDetail}
               >
                 <code class="tree-path">${node.segment}</code>
                 <span class="tree-title">${screen.screen.title}</span>
@@ -248,12 +239,12 @@ const renderScenarioNav = (
   m: PrototypeMessages,
   location: Exclude<PrototypeLocation, { readonly kind: 'screen' }>,
   selects: NavSelects,
+  openDetail: () => void,
 ): TemplateResult => {
   const { state } = context;
   const { activity, story } = location;
   const steps = story.steps;
   const current = location.kind === 'step' ? location.step : undefined;
-  const currentRef = location.kind === 'step' ? stepRef(location) : undefined;
 
   return html`
     <div class="field">
@@ -293,7 +284,11 @@ const renderScenarioNav = (
             );
           return html`
             <li class="step-row" data-current=${String(step.id === current?.id)}>
-              <a class="step-link" href=${context.hashFor({ activity: activity.id, story: story.id, step: step.id })}>
+              <a
+                class="step-link"
+                href=${context.hashFor({ activity: activity.id, story: story.id, step: step.id })}
+                @click=${openDetail}
+              >
                 <span class="step-index">${String(index + 1).padStart(2, '0')}</span>
                 <span class="step-name">${step.name}</span>
                 ${notes > 0 ? html`<span class="step-note">${notes}</span>` : nothing}
@@ -316,78 +311,7 @@ const renderScenarioNav = (
     <button class="dpk-btn" type="button" @click=${() => addStep(context, m, storyRef(activity.id, story.id))}>
       ${m.addStepButton}
     </button>
-    ${
-      current
-        ? keyed(
-            currentRef,
-            html`<div class="detail">
-              <div class="detail-row">
-                <span class="dpk-label">${m.stepNameLabel}</span>
-                <span class="detail-value">
-                  <dpk-inline-edit
-                    wrap
-                    .value=${current.name}
-                    .label=${m.stepNameLabel}
-                    @dpk-commit=${onCommit((value) =>
-                      context.dispatch(prototypeAction.setStepName(currentRef ?? current.id, value)),
-                    )}
-                  ></dpk-inline-edit>
-                </span>
-              </div>
-              <div class="detail-row">
-                <span class="dpk-label">${m.descriptionLabel}</span>
-                <span class="detail-value">
-                  <dpk-inline-edit
-                    multiline
-                    markdown
-                    .value=${current.description ?? ''}
-                    .placeholder=${m.descriptionPlaceholder}
-                    .label=${m.descriptionLabel}
-                    @dpk-commit=${onCommit((value) =>
-                      context.dispatch(prototypeAction.setStepDescription(currentRef ?? current.id, value)),
-                    )}
-                  ></dpk-inline-edit>
-                </span>
-              </div>
-              ${renderStepScreens(context, m, current)}
-            </div>`,
-          )
-        : nothing
-    }
   `;
-};
-
-/** The screens the step shows: each a way into the app view, with what the screen is for. */
-const renderStepScreens = (
-  context: ViewRenderContext<PrototypeState>,
-  m: PrototypeMessages,
-  step: PrototypeStep,
-): TemplateResult | typeof nothing => {
-  const screens = stepScreens(context.state, step);
-  if (screens.length === 0) return nothing;
-  return html`<div class="detail-row">
-    <span class="dpk-label">${m.screenGroup}</span>
-    <span class="detail-value">
-      ${screens.map(
-        ({ app, screen }) =>
-          html`<div class="step-screen-entry">
-            <a
-              class="step-screen"
-              href=${context.hashFor({ ...viewPatch('app'), screen: screen.id })}
-              title=${m.openInApp}
-              >${app.name} › ${screen.title}</a
-            >
-            ${
-              screen.description
-                ? html`<div class="screen-description dpk-prose">
-                    ${unsafeHTML(renderMarkdown(screen.description))}
-                  </div>`
-                : nothing
-            }
-          </div>`,
-      )}
-    </span>
-  </div>`;
 };
 
 /** Appends a step to the story and navigates to it. */
