@@ -5,6 +5,7 @@ import type { DetailIntent } from '../../core/panel/model';
 import type { ViewApi } from '../../core/shell/contracts';
 import type {
   ActionInput,
+  ActionTarget,
   BatchDispatchOutcome,
   CommentTargetOption,
   DispatchOutcome,
@@ -662,6 +663,17 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
       (ref, label) => this.#openCommentPopover(ref, label),
     );
     return group === null ? null : [group];
+  }
+
+  /**
+   * "Review comment" for any target this board lists in `commentItems()`,
+   * with or without an `id`: a board that is a page's content has none, so
+   * `commentTargets` is empty, yet its composer submits through the page.
+   */
+  protected ownReviewCommentGroup(target: ActionTarget | null): ContextMenuGroup | null {
+    return reviewCommentMenuGroup(target, this.commentItems(), contextMenuMessages(this.locale), (ref, label) =>
+      this.#openCommentPopover(ref, label),
+    );
   }
 
   /** Anchors the composer on the rendered element that carries `ref`; see {@link openComment}. */
