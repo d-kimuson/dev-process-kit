@@ -2,7 +2,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 
 import type { WhiteboardMessages } from '../messages';
 
-import { iconChevronDown, iconTrash } from '../../../core/icons';
+import { iconChevronDown, iconPanelRight, iconTrash } from '../../../core/icons';
 import { onCommit } from '../../../lib/dom/events';
 import { ARRANGE_DIRECTIONS, type ArrangeDirection } from '../arrange';
 import { toScreen, type Viewport } from '../interactions';
@@ -30,6 +30,8 @@ export type WbToolbarHandlers = {
   readonly arrange: (direction: ArrangeDirection) => void;
   readonly toggleArrangeMenu: () => void;
   readonly deleteSelection: () => void;
+  /** Opens the side panel on the one selected item or connector. */
+  readonly showDetail: () => void;
   readonly setLabel: (connectorId: string, label: string) => void;
   readonly setRoute: (connectorId: string, route: WbConnectorRoute) => void;
 };
@@ -80,7 +82,8 @@ const shared = <T>(values: readonly T[]): T | undefined =>
 /**
  * The floating toolbar over the selection: color, text size and stacking
  * order (when something overlaps) for items, line shape and label for a
- * connector; delete for both. A comment goes through the right-click menu.
+ * connector; the detail in the side panel for a single selection, and delete
+ * for both. A comment goes through the right-click menu.
  */
 export const renderSelectionToolbar = (props: WbToolbarProps): TemplateResult | typeof nothing => {
   const anchor = anchorOf(props);
@@ -100,6 +103,20 @@ export const renderSelectionToolbar = (props: WbToolbarProps): TemplateResult | 
     @keydown=${stop}
   >
     ${selection.kind === 'items' ? renderItemTools(props, selection.items) : renderConnectorTools(props, selection.connector)}
+    ${
+      selection.kind === 'connector' || selection.items.length === 1
+        ? html`<button
+            type="button"
+            class="dpk-icon-btn wb-toolbar-btn"
+            data-role="detail"
+            aria-label=${m.showDetail}
+            title=${m.showDetail}
+            @click=${() => handlers.showDetail()}
+          >
+            ${iconPanelRight()}
+          </button>`
+        : nothing
+    }
     <button
       type="button"
       class="dpk-icon-btn wb-toolbar-btn"
