@@ -278,6 +278,10 @@ describe('<dpk-board-event-storming>', () => {
       addSection: () => () => undefined,
       invalidate: () => undefined,
       open: () => undefined,
+      provideSettings: () => () => undefined,
+      close: () => undefined,
+      isOpen: false,
+      section: 'detail',
     };
     const owner = document.createElement('div');
     Object.defineProperty(owner, PANEL_HOST, { value: host });

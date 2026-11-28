@@ -1,14 +1,12 @@
 /**
- * The map's statuses, labels and members, as the settings dialog shows them:
- * one self-styled element per dialog section.
+ * The map's statuses, labels and members, as the page's settings show them:
+ * one self-styled element per settings section.
  *
- * The dialog is drawn by the element that owns the page's chrome — `<dpk-app>`
- * for a page inside it — in *that* element's shadow root, where this view's own
- * page CSS does not reach (the dialog only puts a `.dpk-dialog-section` frame
- * around whatever a section renders). So a section renders inside an element
- * that carries its own shadow root, its own copy of the overview CSS and its own
- * popup state: that is what makes it look and behave the same in the app's
- * dialog and in this view's own (see `SettingsSection` in
+ * The settings are drawn in the side panel's shadow root, where this view's
+ * own page CSS does not reach. So a section renders inside an element that
+ * carries its own shadow root, its own copy of the overview CSS and its own
+ * popup state: that is what makes it look and behave the same in a page's
+ * panel inside `<dpk-app>` and in this view's own (see `SettingsSection` in
  * `core/shell/contracts.ts`).
  *
  * Internal to the USM view: registered by the `usm` entry, not exported from
@@ -32,7 +30,7 @@ import { renderStatusOverview, type IconMenu } from '../render/status-overview';
 import { statusStyles } from '../render/tone';
 import { presentStatusOverview } from '../status-overview';
 
-/** The three overviews the map's settings show, each its own section of the dialog. */
+/** The three overviews the map's settings show, each its own section of the settings. */
 export type UsmSettingsSectionKind = 'statuses' | 'labels' | 'members';
 
 const ICON_MENU_SIZE = { width: 228, height: 116 };
@@ -41,7 +39,7 @@ const ICON_MENU_SIZE = { width: 228, height: 116 };
  * The overview's own look, which used to live in the view's page CSS and is
  * re-homed here because the section is rendered outside that page's shadow
  * root. The rows wrap rather than using the page's one line of columns: the
- * panel is narrower than the page, and scrolling the dialog sideways would be
+ * panel is narrower than the page, and scrolling the panel sideways would be
  * the wrong answer.
  */
 export const settingsSectionStyles = css`

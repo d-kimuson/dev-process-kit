@@ -7,9 +7,88 @@ import { css } from 'lit';
 
 import { controls, tokens } from '../theme';
 
+/**
+ * A checkbox-like option row (`.dpk-settings-option`): the settings' switches,
+ * and the menus that offer the same kind of on/off choice (the app's page
+ * switcher).
+ */
+export const settingsOptionStyles = css`
+  .dpk-settings-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 8px;
+    border: 0;
+    border-radius: var(--dpk-radius-sm);
+    background: none;
+    color: var(--dpk-ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .dpk-settings-option:hover,
+  .dpk-settings-option:focus-visible {
+    outline: none;
+    background: var(--dpk-paper-sunken);
+  }
+
+  .dpk-settings-check {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: 4px;
+    background: var(--dpk-paper-raised);
+  }
+
+  .dpk-settings-option[aria-checked='true'] .dpk-settings-check {
+    border-color: var(--dpk-accent-strong);
+    background: var(--dpk-accent-strong);
+    color: var(--dpk-accent-ink);
+  }
+
+  .dpk-settings-check svg {
+    width: 12px;
+    height: 12px;
+    stroke-width: 3;
+  }
+
+  .dpk-settings-text {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .dpk-settings-name {
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .dpk-settings-hint {
+    color: var(--dpk-ink-soft);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+
+  .dpk-settings-note {
+    margin: 4px 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--dpk-rule);
+    color: var(--dpk-ink-faint);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+`;
+
 export const chromeStyles = [
   tokens,
   controls,
+  settingsOptionStyles,
   css`
     :host {
       display: block;
@@ -228,44 +307,6 @@ export const chromeStyles = [
     }
 
     .dpk-theme-toggle:focus-visible {
-      outline: none;
-      box-shadow: var(--dpk-focus);
-    }
-
-    .dpk-panel-toggle {
-      display: inline-flex;
-      flex: none;
-      align-items: center;
-      justify-content: center;
-      width: 26px;
-      height: 26px;
-      padding: 0;
-      border: 0;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--dpk-ink-soft);
-      cursor: pointer;
-      transition:
-        color 160ms var(--dpk-ease),
-        background 160ms var(--dpk-ease);
-    }
-
-    .dpk-panel-toggle svg {
-      width: 14px;
-      height: 14px;
-    }
-
-    .dpk-panel-toggle:hover,
-    .dpk-panel-toggle[aria-expanded='true'] {
-      color: var(--dpk-ink);
-      background: var(--dpk-paper-raised);
-    }
-
-    .dpk-panel-toggle[aria-expanded='true'] {
-      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
-    }
-
-    .dpk-panel-toggle:focus-visible {
       outline: none;
       box-shadow: var(--dpk-focus);
     }
@@ -1077,77 +1118,6 @@ export const chromeStyles = [
       align-content: start;
       gap: 2px;
       animation: dpk-review-in 180ms var(--dpk-ease);
-    }
-
-    .dpk-settings-option {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      width: 100%;
-      padding: 8px;
-      border: 0;
-      border-radius: var(--dpk-radius-sm);
-      background: none;
-      color: var(--dpk-ink);
-      font: inherit;
-      text-align: left;
-      cursor: pointer;
-    }
-
-    .dpk-settings-option:hover,
-    .dpk-settings-option:focus-visible {
-      outline: none;
-      background: var(--dpk-paper-sunken);
-    }
-
-    .dpk-settings-check {
-      flex: none;
-      display: inline-grid;
-      place-items: center;
-      width: 16px;
-      height: 16px;
-      margin-top: 1px;
-      border: 1px solid var(--dpk-rule-strong);
-      border-radius: 4px;
-      background: var(--dpk-paper-raised);
-    }
-
-    .dpk-settings-option[aria-checked='true'] .dpk-settings-check {
-      border-color: var(--dpk-accent-strong);
-      background: var(--dpk-accent-strong);
-      color: var(--dpk-accent-ink);
-    }
-
-    .dpk-settings-check svg {
-      width: 12px;
-      height: 12px;
-      stroke-width: 3;
-    }
-
-    .dpk-settings-text {
-      display: grid;
-      gap: 2px;
-      min-width: 0;
-    }
-
-    .dpk-settings-name {
-      font-size: 13px;
-      font-weight: 650;
-    }
-
-    .dpk-settings-hint {
-      color: var(--dpk-ink-soft);
-      font-size: 11.5px;
-      line-height: 1.45;
-    }
-
-    .dpk-settings-note {
-      margin: 4px 8px;
-      padding-top: 8px;
-      border-top: 1px solid var(--dpk-rule);
-      color: var(--dpk-ink-faint);
-      font-size: 11px;
-      line-height: 1.45;
     }
 
     /* ------------------------------------------------------ hand-off dock */

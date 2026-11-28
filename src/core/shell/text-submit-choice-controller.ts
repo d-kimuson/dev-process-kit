@@ -1,5 +1,5 @@
 /**
- * The effects behind the settings dialog's "save text with" choice: the
+ * The effects behind the settings' "save text with" choice: the
  * reader's persisted pick, applied to the whole page (`../text-submit-controller.ts`).
  */
 import type { ReactiveController, ReactiveControllerHost } from 'lit';

@@ -10,9 +10,9 @@ import { DpkInlineEdit } from '../../components/inline-edit';
 import { queryAllDeep } from '../../lib/dom/deep';
 import { DpkViewPlain } from '../../views/plain';
 import { contextMenuStyles } from '../context-menu/styles';
+import { shownSettingsOf } from '../layouts/settings/element.testing';
 import { coreMessages } from '../messages';
 import { floatingMenuStyles } from '../shell/floating-menu-view';
-import { settingsDialogStyles } from '../shell/settings-dialog';
 import { chromeStyles } from '../shell/styles';
 import { AppElement, type PageContent } from './element';
 import { SWITCHER_ID } from './switcher';
@@ -489,15 +489,19 @@ describe('<dpk-page>', () => {
       <dpk-page name="board" label="Board"><dpk-board-example-mapping></dpk-board-example-mapping></dpk-page>`);
     page.openSettings();
     await page.updateComplete;
-    // One section: no nav, and not the empty panel a page without switches used to open.
-    expect(page.renderRoot.querySelector('.dpk-dialog-nav')).toBeNull();
-    expect(page.renderRoot.querySelectorAll('.dpk-settings-row')).toHaveLength(3);
-    expect(page.renderRoot.querySelector('.dpk-settings-row .dpk-lang-select')).not.toBeNull();
-    const dark = page.renderRoot.querySelector('[data-theme-choice="dark"]');
+    const board = page.querySelector('dpk-page[name="board"]');
+    if (board === null) throw new Error('no page');
+    // Shown in the page's panel. One section: no nav.
+    const settings = await shownSettingsOf(board);
+    expect(settings.querySelector('.nav')).toBeNull();
+    expect(settings.querySelectorAll('.dpk-settings-row')).toHaveLength(3);
+    expect(settings.querySelector('.dpk-settings-row .dpk-lang-select')).not.toBeNull();
+    const dark = settings.querySelector('[data-theme-choice="dark"]');
     if (!(dark instanceof HTMLElement)) throw new Error('no dark choice');
     dark.click();
     await page.updateComplete;
     expect(page.dataset['theme']).toBe('dark');
+    await shownSettingsOf(board);
     expect(dark.getAttribute('aria-checked')).toBe('true');
   });
 
@@ -840,7 +844,7 @@ describe('<dpk-page>', () => {
     });
   });
 
-  describe("settings dialog shows a page's own sections", () => {
+  describe("the settings show a page's own sections", () => {
     const USM_BASE = `<script type="application/json">${JSON.stringify({
       activities: [{ id: 'a1', name: 'A1', steps: [{ id: 's1', name: 'S1' }] }],
       statuses: [
@@ -860,11 +864,12 @@ describe('<dpk-page>', () => {
       await page.updateComplete;
       const view = page.querySelector('dpk-view-usm');
       if (!(view instanceof HTMLElement)) throw new Error('no usm');
-      /** The element the statuses section renders itself into, inside the app's dialog. */
+      const map = page.querySelector('dpk-page[name="map"]');
+      if (map === null) throw new Error('no page');
+      /** The element the statuses section renders itself into, inside the page's panel. */
       const sectionHost = async (): Promise<HTMLElement> => {
-        await new Promise((resolve) => setTimeout(resolve, 0));
         await page.updateComplete;
-        const found = page.renderRoot.querySelector('dpk-internal-usm-settings-section');
+        const found = (await shownSettingsOf(map)).querySelector('dpk-internal-usm-settings-section');
         if (!(found instanceof HTMLElement)) throw new Error('no settings section element');
         return found;
       };
@@ -873,18 +878,16 @@ describe('<dpk-page>', () => {
         if (!(found instanceof HTMLElement)) throw new Error('no statuses section');
         return found;
       };
-      return { page, view: view as HTMLElement & { openSettings(id?: string): void }, section, sectionHost };
+      return { page, map, view: view as HTMLElement & { openSettings(id?: string): void }, section, sectionHost };
     };
 
     const rows = (section: HTMLElement): (string | null)[] =>
       [...section.querySelectorAll('[data-status]')].map((row) => row.getAttribute('data-status'));
 
-    // The app draws the dialog, so its body is built from the page's part of the
-    // state — which the page only takes in after the app's render (`#syncPages`).
-    // Without a second render an edit made inside the open dialog showed up only
-    // after closing and reopening it.
-    it('redraws the section when a status is added from inside the open dialog', async () => {
-      const { page, view, section } = await mountUsm();
+    // The section is built from the page's part of the state, which the page
+    // only takes in after the app's render (`#syncPages`).
+    it('redraws the section when a status is added from inside the open settings', async () => {
+      const { page, map, view, section } = await mountUsm();
       view.openSettings('statuses');
       await page.updateComplete;
       const shown = await section();
@@ -893,25 +896,25 @@ describe('<dpk-page>', () => {
       if (add === undefined) throw new Error('no add button');
       add.click();
       expect(page.api.actions.map((action) => action.type)).toEqual(['ADD_STATUS']);
-      // No reopen: the same dialog, the same section, one more row.
+      // No reopen: the same panel, the same section, one more row.
       await page.updateComplete;
       expect(rows(await section())).toHaveLength(3);
-      expect((page.renderRoot.querySelector('dialog') as HTMLDialogElement).open).toBe(true);
+      expect((map as HTMLElement & { panelOpen: boolean }).panelOpen).toBe(true);
     });
 
-    // The section's markup is rendered by the page but drawn in the app's dialog,
-    // so it is put in an element that owns its shadow root and its CSS: otherwise
-    // it renders unstyled, since the app's root has none of the page's styles.
-    it('puts the section markup in its own element, not in the app root', async () => {
-      const { page, view, sectionHost } = await mountUsm();
+    // The section's markup is rendered by the view but drawn in the panel's
+    // shadow root, which has none of the view's styles: it is put in an element
+    // that owns its shadow root and its CSS.
+    it('puts the section markup in its own element, not in the panel root', async () => {
+      const { page, map, view, sectionHost } = await mountUsm();
       view.openSettings('statuses');
       await page.updateComplete;
       const host = await sectionHost();
-      expect(page.renderRoot.querySelector('[data-testid="usm-statuses"]')).toBeNull();
+      expect((await shownSettingsOf(map)).querySelector('[data-testid="usm-statuses"]')).toBeNull();
       expect(host.shadowRoot?.querySelector('[data-testid="usm-statuses"]')).not.toBeNull();
     });
 
-    it("opens a status's icon menu in the dialog the app draws", async () => {
+    it("opens a status's icon menu in the page's panel", async () => {
       const { page, view, section, sectionHost } = await mountUsm();
       view.openSettings('statuses');
       await page.updateComplete;
@@ -927,7 +930,7 @@ describe('<dpk-page>', () => {
       ).toBe('true');
     });
 
-    it('redraws the section when a status is renamed from inside the open dialog', async () => {
+    it('redraws the section when a status is renamed from inside the open settings', async () => {
       const { page, view, section } = await mountUsm();
       view.openSettings('statuses');
       await page.updateComplete;
@@ -1362,17 +1365,17 @@ describe('AppElement styles', () => {
     expect(flatten(AppElement.styles)).toContain(contextMenuStyles);
   });
 
-  // The app draws the screen's floating menu and its settings dialog itself, and
-  // `static styles` replaces the inherited set: without these it renders them
-  // unstyled — the menu a stack of rows at the bottom edge, the dialog bare.
-  it.each([
-    ['the floating menu', floatingMenuStyles, '.dpk-floating-menu'],
-    ['the settings dialog', settingsDialogStyles, '.dpk-settings-list'],
-  ])('adopts the styles for %s, which it draws itself', (_label, styles, selector) => {
-    expect(flatten(AppElement.styles)).toContain(styles);
-    const cssText = (styles as unknown as { cssText: string }).cssText;
-    expect(cssText).toContain(`${selector} {`);
-  });
+  // The app draws the screen's floating menu itself, and `static styles`
+  // replaces the inherited set: without these it renders unstyled — a stack of
+  // rows at the bottom edge.
+  it.each([['the floating menu', floatingMenuStyles, '.dpk-floating-menu']])(
+    'adopts the styles for %s, which it draws itself',
+    (_label, styles, selector) => {
+      expect(flatten(AppElement.styles)).toContain(styles);
+      const cssText = (styles as unknown as { cssText: string }).cssText;
+      expect(cssText).toContain(`${selector} {`);
+    },
+  );
 
   // The header row is the shell's, and the app owns it on every page: without the
   // chrome styles' own sheet it draws unstyled next to the page content.

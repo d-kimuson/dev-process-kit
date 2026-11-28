@@ -5,6 +5,7 @@ import type { DraftAction } from '../../core/types';
 import type { DpkViewUsm } from './element';
 
 import '../../index';
+import { shownSettingsOf } from '../../core/layouts/settings/element.testing';
 import { applyUsmAction } from './apply';
 import { usmDefinitionFor } from './definition';
 import { filterOptionIds, mapFilterOf, NO_VALUE, passesMapFilter } from './map-filter';
@@ -111,7 +112,7 @@ describe('usm members: actions', () => {
 
   it('lists members as comment targets, and sends a stored members tab back to the map', () => {
     expect(definition.commentTargets(base, {}).filter((option) => option.group === m.memberGroup)).toHaveLength(2);
-    // the members are defined in the settings dialog now, so the tab they used to have is gone
+    // the members are defined in the settings now, so the tab they used to have is gone
     expect(definition.resolveNavigation(base, { tab: 'members' })['tab']).toBeUndefined();
   });
 });
@@ -158,16 +159,18 @@ describe('usm members: element', () => {
     document.body.innerHTML = '';
   });
 
-  it('edits the members in the settings dialog', async () => {
+  it('edits the members in the settings', async () => {
     const el = await mount('');
     const root = el.shadowRoot!;
     expect(root.querySelector('[role="tab"][data-tab="members"]')).toBeNull();
     el.openSettings('members');
     await settle(el);
-    expect((root.querySelector('#dpk-settings') as HTMLDialogElement | null)?.open).toBe(true);
-    expect(root.querySelector('.dpk-dialog-nav-item[aria-current="true"]')?.textContent?.trim()).toBe(m.membersSection);
+    expect(el.panelOpen).toBe(true);
+    expect((await shownSettingsOf(el)).querySelector('.nav-item[aria-current="true"]')?.textContent?.trim()).toBe(
+      m.membersSection,
+    );
     // A self-styled section renders inside its own element: read it from there.
-    const section = root
+    const section = (await shownSettingsOf(el))
       .querySelector('dpk-internal-usm-settings-section')!
       .shadowRoot!.querySelector('[data-testid="usm-members"]')!;
     expect([...section.querySelectorAll('[data-member]')].map((row) => row.getAttribute('data-member'))).toEqual([

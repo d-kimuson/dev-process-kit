@@ -23,7 +23,7 @@ export type PanelDetail = {
    * reach: return an internal element with its own shadow root.
    */
   render(): TemplateResult;
-  /** Puts the focus back on the element on the board (Escape in the panel). */
+  /** Puts the focus back on the element on the board, when the panel closes on the detail. */
   focus?(): void;
   /** Opens the review comment composer on the element. */
   comment?(): void;
@@ -31,6 +31,12 @@ export type PanelDetail = {
 
 /** A section a component adds to the panel, drawn in the panel's shadow root like a detail. */
 export type PanelSectionSpec = ComponentSection & {
+  render(): TemplateResult;
+};
+
+/** The page's settings, which the element that owns the page's chrome hands the panel. */
+export type PanelSettingsSpec = {
+  readonly label: string;
   render(): TemplateResult;
 };
 
@@ -46,9 +52,16 @@ export type PanelHost = {
   /** The content's selection changed (or re-rendered, with `refresh`); `null` when nothing is selected. */
   showDetail(source: Element, detail: PanelDetail | null, report: DetailReport): void;
   addSection(source: Element, section: PanelSectionSpec): () => void;
+  /** The chrome's owner offers the page's settings: the panel lists them last until the returned function runs. */
+  provideSettings(source: Element, settings: PanelSettingsSpec): () => void;
+  readonly isOpen: boolean;
+  /** The name of the section the panel shows. */
+  readonly section: string;
   /** The source's state changed: draw its detail and sections again. */
   invalidate(source: Element): void;
-  open(section?: string): void;
+  /** Opens the panel, on `section` when given; `focus` moves the focus to that section's segment. */
+  open(section?: string, options?: { readonly focus?: boolean }): void;
+  close(): void;
 };
 
 export const PANEL_HOST: unique symbol = Symbol.for('dev-process-kit.panel-host');
@@ -68,7 +81,8 @@ const isPanelHost = (value: unknown): value is PanelHost =>
 /** The host an element publishes, or `null` (a page's content publishes none: the page owns the panel). */
 const holdsPanelHost = (element: Element): element is PanelHostHolder => PANEL_HOST in element;
 
-const publishedHost = (element: Element): PanelHost | null => {
+/** The host an owner element publishes itself (a page, as the app reads it), or `null`. */
+export const ownPanelHost = (element: Element): PanelHost | null => {
   if (!holdsPanelHost(element)) return null;
   const host = element[PANEL_HOST];
   return isPanelHost(host) ? host : null;
@@ -84,33 +98,8 @@ const composedParent = (element: Element): Element | null => {
 /** The nearest owner above the element, or `null` when it has none. */
 export const panelHostOf = (element: Element): PanelHost | null => {
   for (let current = composedParent(element); current !== null; current = composedParent(current)) {
-    const host = publishedHost(current);
+    const host = ownPanelHost(current);
     if (host !== null) return host;
   }
   return null;
-};
-
-/** What the chrome's toggle and shortcut reach of an owner's panel. */
-export type PanelControl = {
-  /** Whether the owner has a panel to offer at all. */
-  readonly available: boolean;
-  readonly isOpen: boolean;
-  toggle(): void;
-};
-
-const isPanelControl = (value: unknown): value is PanelControl =>
-  typeof value === 'object' &&
-  value !== null &&
-  'available' in value &&
-  typeof value.available === 'boolean' &&
-  'isOpen' in value &&
-  typeof value.isOpen === 'boolean' &&
-  'toggle' in value &&
-  typeof value.toggle === 'function';
-
-/** The panel an owner element publishes (a page, say, as the app reads it), or `null`. */
-export const panelControlOf = (element: Element): PanelControl | null => {
-  if (!holdsPanelHost(element)) return null;
-  const host = element[PANEL_HOST];
-  return isPanelControl(host) ? host : null;
 };

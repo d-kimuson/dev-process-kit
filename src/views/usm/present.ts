@@ -599,7 +599,7 @@ export const usmTitle = (state: UsmState): string => {
  * the finished stories shown, for a finished one) and without a highlight so
  * the story shows plainly; a milestone on its own page; an estimate or a
  * snapshot on the burndown. A status, a label and a member are defined in the
- * settings dialog rather than on a page, so they move no page and only open it
+ * settings rather than on a page, so they move no page and only open it
  * (`DpkViewUsm.showTarget`). A target of a feature that is off is not on
  * screen anywhere.
  */
@@ -623,7 +623,7 @@ export const usmNavigationFor = (state: UsmState, target: ActionTarget): Navigat
     case 'status':
     case 'label':
     case 'member':
-      // Defined in the settings dialog, which the show opens: leaping to a page
+      // Defined in the settings, which the show opens: leaping to a page
       // would move the reader away from it for nothing.
       return null;
     case 'estimate':

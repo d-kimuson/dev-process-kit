@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DraftAction } from '../../core/types';
 
 import '../../index';
+import { shownSettingsOf } from '../../core/layouts/settings/element.testing';
 import { coreMessages } from '../../core/messages';
 import { applyUsmAction } from './apply';
 import { usmDefinitionFor } from './definition';
@@ -101,7 +102,7 @@ describe('usm features: navigation', () => {
   it('shows an estimate on its page, and a status, label or member nowhere the page can go', () => {
     expect(definition.navigationFor?.(on, { type: 'estimate', id: 'S' })).toEqual({ tab: 'burndown' });
     expect(definition.navigationFor?.(off, { type: 'estimate', id: 'S' })).toBeNull();
-    // the map defines these in the settings dialog, which "Show" opens instead of navigating
+    // the map defines these in the settings, which "Show" opens instead of navigating
     expect(definition.navigationFor?.(on, { type: 'status', id: 'todo' })).toBeNull();
     expect(definition.navigationFor?.(on, { type: 'label', id: 'dev' })).toBeNull();
     expect(definition.navigationFor?.(on, { type: 'member', id: 'kim' })).toBeNull();
@@ -182,8 +183,8 @@ describe('usm features: element', () => {
     trigger.click();
     await settle(el);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    const option = (feature: string) =>
-      root.querySelector(`#dpk-settings [data-setting="${feature}"]`) as HTMLButtonElement;
+    const settings = await shownSettingsOf(el);
+    const option = (feature: string) => settings.querySelector(`[data-setting="${feature}"]`) as HTMLButtonElement;
     expect(option('estimates').getAttribute('aria-checked')).toBe('false');
     expect(option('estimates').textContent).toContain(usmMessages('en').featureName('estimates'));
     option('estimates').click();
@@ -204,7 +205,7 @@ describe('usm features: element', () => {
     expect(el.api.state.features).toEqual(['assignees']);
   });
 
-  it("builds the page's own sections only while the dialog is open", async () => {
+  it("builds the page's own sections only while the settings show", async () => {
     const built = vi.spyOn(
       DpkViewUsm.prototype as unknown as { renderSettingsSections: () => readonly unknown[] },
       'renderSettingsSections',
@@ -217,14 +218,14 @@ describe('usm features: element', () => {
     trigger.click();
     await settle(el);
     expect(built).toHaveBeenCalled();
-    expect([...root.querySelectorAll('.dpk-dialog-nav-item')].map((item) => item.textContent?.trim())).toEqual([
+    expect(
+      [...(await shownSettingsOf(el)).querySelectorAll('.nav-item')].map((item) => item.textContent?.trim()),
+    ).toEqual([
       coreMessages('en').settingsDisplay,
       coreMessages('en').settingsGeneral,
       m.statusesSection,
       m.labelsSection,
     ]);
-    // Several sections keep one frame, so switching one never resizes or moves the panel.
-    expect(root.querySelector('#dpk-settings')?.getAttribute('data-height')).toBe('fixed');
     // Closed again, a render builds none of them.
     trigger.click();
     await settle(el);
@@ -233,21 +234,5 @@ describe('usm features: element', () => {
     await settle(el);
     expect(built).not.toHaveBeenCalled();
     built.mockRestore();
-  });
-
-  it('closes the settings on a press outside them', async () => {
-    const el = await mount('');
-    const root = el.shadowRoot!;
-    (root.querySelector('.dpk-settings-trigger') as HTMLButtonElement).click();
-    await settle(el);
-    expect(root.querySelector('#dpk-settings')).not.toBeNull();
-    // jsdom has no PointerEvent; the listener only reads the path and the button.
-    document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, composed: true, button: 0 }));
-    await settle(el);
-    // The `<dialog>` stays mounted so it can fire `close` and hand focus back, so a
-    // closed one is still in the tree: the press closed it, it did not remove it.
-    const settings = root.querySelector('#dpk-settings') as HTMLDialogElement;
-    expect(settings).not.toBeNull();
-    expect(settings.open).toBe(false);
   });
 });

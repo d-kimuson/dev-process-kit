@@ -1,1 +1,1 @@
-export { DpkInternalLayoutPanel, defineLayoutPanel } from './element';
+export { DpkInternalLayoutPanel, defineLayoutPanel, inSidePanel } from './element';

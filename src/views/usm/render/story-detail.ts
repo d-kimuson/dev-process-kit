@@ -45,7 +45,7 @@ export type StoryCopy = {
 
 /**
  * The detail's "Manage …" links point at the definitions its fields read, and
- * those live in the settings dialog: the view opens it on that section.
+ * those live in the settings: the view opens it on that section.
  */
 export type StoryManage = {
   readonly open: (section: 'labels' | 'members') => void;
@@ -754,7 +754,7 @@ export const storyDetailStyles = css`
     gap: 8px;
   }
   .sp-manage {
-    /* A button, since it opens the settings dialog rather than moving the page. */
+    /* A button, since it opens the settings rather than moving the page. */
     padding: 0;
     border: 0;
     background: none;

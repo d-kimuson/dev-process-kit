@@ -13,7 +13,7 @@ import { renderRowTools, renderShare, renderTonePicker } from './status-overview
 import { statusToneStyle } from './tone';
 
 /**
- * The labels, in the settings dialog: the labels a story may carry, in order,
+ * The labels, in the settings: the labels a story may carry, in order,
  * each with its color and how many stories carry it. Names, colors and order
  * are edited here; which labels a story carries is set in its panel.
  */

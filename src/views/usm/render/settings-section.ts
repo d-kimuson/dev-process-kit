@@ -6,14 +6,14 @@ import type { UsmSettingsSectionKind } from '../components/settings-section';
 import type { UsmState } from '../model';
 
 /**
- * One section of the settings dialog: the dialog's own frame (`dpk-dialog-*`)
- * around one of the overviews the map used to give a page of its own
- * (`status-overview`, `label-overview`, `member-overview`).
+ * One section of the page's settings: one of the overviews the map used to
+ * give a page of its own (`status-overview`, `label-overview`,
+ * `member-overview`).
  *
  * The overview is not rendered here but in `<dpk-internal-usm-settings-section>`, which
- * owns its shadow root: however the dialog is drawn — by this view, or by the
- * element that owns the page's chrome — the section's markup and CSS stay
- * together (see `SettingsSection` in `core/shell/contracts.ts`).
+ * owns its shadow root: the settings are drawn in the side panel's shadow
+ * root, where this view's styles do not reach, so the section's markup and CSS
+ * stay together (see `SettingsSection` in `core/shell/contracts.ts`).
  */
 export const renderSettingsSection = (
   id: string,
@@ -24,11 +24,9 @@ export const renderSettingsSection = (
   id,
   label,
   render: (context: ViewRenderContext<UsmState>): TemplateResult =>
-    html`<div class="dpk-dialog-section" data-dialog-section=${id}>
-      <dpk-internal-usm-settings-section
-        .kind=${kind}
-        .locale=${locale}
-        .context=${context}
-      ></dpk-internal-usm-settings-section>
-    </div>`,
+    html`<dpk-internal-usm-settings-section
+      .kind=${kind}
+      .locale=${locale}
+      .context=${context}
+    ></dpk-internal-usm-settings-section>`,
 });

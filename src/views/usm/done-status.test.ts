@@ -5,6 +5,7 @@ import type { DraftAction } from '../../core/types';
 import type { DpkViewUsm } from './element';
 
 import '../../index';
+import { shownSettingsOf } from '../../core/layouts/settings/element.testing';
 import { applyUsmAction } from './apply';
 import { remainingSharesOf } from './burndown';
 import { usmDefinitionFor } from './definition';
@@ -155,8 +156,8 @@ describe('usm done status: element', () => {
     await el.updateComplete;
     el.openSettings('statuses');
     await el.updateComplete;
-    const section = el
-      .shadowRoot!.querySelector('dpk-internal-usm-settings-section')!
+    const section = (await shownSettingsOf(el))
+      .querySelector('dpk-internal-usm-settings-section')!
       .shadowRoot!.querySelector('[data-testid="usm-statuses"]')!;
     const choices = () => [...section.querySelectorAll<HTMLInputElement>('input[data-role="done"]')];
     expect(choices().map((choice) => choice.checked)).toEqual([false, false, false, true]);

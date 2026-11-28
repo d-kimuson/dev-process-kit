@@ -1,8 +1,8 @@
 /**
- * The `<dialog>` both surfaces draw: a title row with a close button, an
- * optional secondary nav, a scrolling body and an optional foot. The public
- * `dpk-dialog` element fills the three regions with its slots; the shell fills
- * them with what it renders (the settings sections).
+ * The `<dialog>` both surfaces draw: a title row with a close button, a
+ * scrolling body and an optional foot. The public `dpk-dialog` element fills
+ * the three regions with its slots; the shell fills them with what it renders
+ * (a confirmation).
  *
  * Kept apart from `./controller.ts` so the behavior (showModal, focus,
  * dismissal) is testable without any particular content.
@@ -25,16 +25,8 @@ export type DialogShellOptions = {
   /** An id for the `<dialog>` itself, so a trigger can point `aria-controls` at it. */
   readonly id?: string | undefined;
   readonly size?: DialogSize | undefined;
-  /**
-   * Whether the panel keeps one height whatever it holds, its body scrolling
-   * inside it. The settings dialog does, so switching a section never resizes
-   * or moves the frame; a confirmation's panel is as tall as its content.
-   */
-  readonly fixedHeight?: boolean | undefined;
   /** What the title row shows; the `label` as plain text when absent. */
   readonly heading?: unknown;
-  /** A row of section buttons between the title and the body; drawn as given. */
-  readonly nav?: unknown;
   readonly content: unknown;
   /** Drawn as a foot row; without it the panel has none. */
   readonly footer?: unknown;
@@ -50,7 +42,6 @@ export const renderDialogShell = (options: DialogShellOptions): TemplateResult =
     aria-modal="true"
     aria-label=${options.label}
     data-size=${options.size ?? 'md'}
-    data-height=${options.fixedHeight === true ? 'fixed' : nothing}
     @cancel=${options.controller.handlers.cancel}
     @close=${options.controller.handlers.close}
     @click=${options.controller.handlers.click}
@@ -68,7 +59,6 @@ export const renderDialogShell = (options: DialogShellOptions): TemplateResult =
         ${iconClose()}
       </button>
     </header>
-    ${options.nav === undefined ? nothing : options.nav}
     <div class="dpk-dialog-body" part="body">${options.content}</div>
     ${
       options.footer === undefined

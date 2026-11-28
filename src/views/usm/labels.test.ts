@@ -5,6 +5,7 @@ import type { DraftAction } from '../../core/types';
 import type { DpkViewUsm } from './element';
 
 import '../../index';
+import { shownSettingsOf } from '../../core/layouts/settings/element.testing';
 import { applyUsmAction } from './apply';
 import { usmDefinitionFor } from './definition';
 import { presentLabelOverview } from './label-overview';
@@ -113,7 +114,7 @@ describe('usm labels: actions', () => {
 
   it('lists labels as comment targets, and sends a stored labels tab back to the map', () => {
     expect(definition.commentTargets(base, {}).filter((option) => option.group === m.labelGroup)).toHaveLength(2);
-    // the labels are defined in the settings dialog now, so the tab they used to have is gone
+    // the labels are defined in the settings now, so the tab they used to have is gone
     expect(definition.resolveNavigation(base, { tab: 'labels' })['tab']).toBeUndefined();
   });
 });
@@ -152,16 +153,18 @@ describe('usm labels: element', () => {
     document.body.innerHTML = '';
   });
 
-  it('edits the labels in the settings dialog', async () => {
+  it('edits the labels in the settings', async () => {
     const el = await mount('');
     const root = el.shadowRoot!;
     expect(root.querySelector('[role="tab"][data-tab="labels"]')).toBeNull();
     el.openSettings('labels');
     await settle(el);
-    expect((root.querySelector('#dpk-settings') as HTMLDialogElement | null)?.open).toBe(true);
-    expect(root.querySelector('.dpk-dialog-nav-item[aria-current="true"]')?.textContent?.trim()).toBe(m.labelsSection);
+    expect(el.panelOpen).toBe(true);
+    expect((await shownSettingsOf(el)).querySelector('.nav-item[aria-current="true"]')?.textContent?.trim()).toBe(
+      m.labelsSection,
+    );
     // A self-styled section renders inside its own element: read it from there.
-    const section = root
+    const section = (await shownSettingsOf(el))
       .querySelector('dpk-internal-usm-settings-section')!
       .shadowRoot!.querySelector('[data-testid="usm-labels"]')!;
     expect([...section.querySelectorAll('[data-label]')].map((row) => row.getAttribute('data-label'))).toEqual([
@@ -213,11 +216,12 @@ describe('usm labels: element', () => {
 
   it('opens the labels section of the settings from the story panel', async () => {
     const el = await mount('#story=u3');
-    const root = el.shadowRoot!;
     const panel = storyDetailOf(el)!;
     (panel.querySelector('button.sp-manage') as HTMLButtonElement).click();
     await settle(el);
-    expect((root.querySelector('#dpk-settings') as HTMLDialogElement | null)?.open).toBe(true);
-    expect(root.querySelector('.dpk-dialog-section')?.getAttribute('data-dialog-section')).toBe('labels');
+    expect(el.panelOpen).toBe(true);
+    expect(
+      (await shownSettingsOf(el)).querySelector('[data-settings-section]')?.getAttribute('data-settings-section'),
+    ).toBe('labels');
   });
 });

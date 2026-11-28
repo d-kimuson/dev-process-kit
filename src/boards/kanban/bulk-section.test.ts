@@ -67,7 +67,7 @@ type FakePanel = {
 const withPanel = async (element: DpkBoardKanban): Promise<FakePanel> => {
   let sections: PanelSectionSpec[] = [];
   const panel: FakePanel = { sections: () => sections, opened: [], isOpen: false };
-  const host: PanelHost & { readonly isOpen: boolean } = {
+  const host: PanelHost = {
     provideDetail: () => () => undefined,
     showDetail: () => undefined,
     addSection: (_source, spec) => {
@@ -77,7 +77,10 @@ const withPanel = async (element: DpkBoardKanban): Promise<FakePanel> => {
       };
     },
     invalidate: () => undefined,
+    provideSettings: () => () => undefined,
+    close: () => undefined,
     open: (section) => panel.opened.push(section),
+    section: 'bulk',
     get isOpen() {
       return panel.isOpen;
     },

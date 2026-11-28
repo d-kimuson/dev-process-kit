@@ -1,6 +1,6 @@
 /**
  * The frame both native dialogs share: the public `dpk-dialog` element and the
- * shell's settings surface. The engine's own UA sheet supplies the modal
+ * shell's confirmation. The engine's own UA sheet supplies the modal
  * centering, the backdrop and the top layer; this styles the panel and its
  * three parts (head, body, foot), and nothing of the content.
  *
@@ -38,15 +38,6 @@ export const dialogStyles = css`
 
   .dpk-dialog[data-size='lg'] {
     --dpk-dialog-width: 800px;
-  }
-
-  /*
-   * One height whatever the panel holds (the settings dialog): the body scrolls
-   * inside it, the head and the nav stay put, and switching content never
-   * resizes the frame or moves where it sits.
-   */
-  .dpk-dialog[data-height='fixed'] {
-    height: min(84dvh, 760px);
   }
 
   /* The panel and the backdrop behind it arrive together. One-shot entrances,
@@ -118,49 +109,6 @@ export const dialogStyles = css`
   }
 
   .dpk-dialog-close:focus-visible {
-    outline: none;
-    box-shadow: var(--dpk-focus);
-  }
-
-  /* A secondary nav under the title (the settings sections). One row, scrolling
-     sideways on a narrow panel, so the head keeps one height. */
-  .dpk-dialog-nav {
-    display: flex;
-    flex: none;
-    gap: 2px;
-    padding: 6px 12px;
-    border-bottom: 1px solid var(--dpk-rule);
-    background: var(--dpk-paper);
-    overflow-x: auto;
-  }
-
-  .dpk-dialog-nav-item {
-    flex: none;
-    padding: 5px 10px;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--dpk-ink-soft);
-    font: inherit;
-    font-weight: 550;
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-      background var(--dpk-dur-fast) var(--dpk-ease),
-      color var(--dpk-dur-fast) var(--dpk-ease);
-  }
-
-  .dpk-dialog-nav-item:hover {
-    background: var(--dpk-paper-sunken);
-    color: var(--dpk-ink);
-  }
-
-  .dpk-dialog-nav-item[aria-current='true'] {
-    background: var(--dpk-accent-soft);
-    color: var(--dpk-accent-strong);
-  }
-
-  .dpk-dialog-nav-item:focus-visible {
     outline: none;
     box-shadow: var(--dpk-focus);
   }

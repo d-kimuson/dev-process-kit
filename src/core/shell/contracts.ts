@@ -100,23 +100,23 @@ export type ShellRegions = {
 };
 
 /**
- * One section of the settings dialog, rendered by the template that owns it.
+ * One section of the page's settings, rendered by the template that owns it.
  * `ViewElement.renderSettingsSections` returns them in reading order; the
- * dialog puts the kit's own `display` section first, shows one at a time, and
- * draws a secondary nav of their labels only when there is more than one.
+ * settings put the kit's own `display` and `appearance` sections first, show
+ * one at a time, and draw a nav of their labels only when there is more than
+ * one.
  *
- * A section is rendered in the shadow root of the element that **draws** the
- * dialog, which is the chrome owner — `<dpk-app>` for a page inside it — not
- * the template's own root. The template's page CSS does not reach there, so a
- * section that relies on it renders unstyled inside an app: a section has to
- * be self-styled, i.e. render an element with its own shadow root and its own
- * styles (as `<dpk-internal-usm-settings-section>` does), or carry no styling of its
- * own at all.
+ * A section is rendered in the side panel's shadow root (the panel of the
+ * standalone view, or of the page shown inside `<dpk-app>`), not the
+ * template's own root. The template's page CSS does not reach there, so a
+ * section has to be self-styled, i.e. render an element with its own shadow
+ * root and its own styles (as `<dpk-internal-usm-settings-section>` does), or
+ * carry no styling of its own at all.
  */
 export type SettingsSection<S> = {
-  /** Stable within the template; `openSettings(id)` opens the dialog on it. */
+  /** Stable within the template; `openSettings(id)` opens the settings on it. */
   readonly id: string;
-  /** The section's label in the dialog's nav. */
+  /** The section's label in the settings' nav. */
   readonly label: string;
   readonly render: (context: ViewRenderContext<S>) => TemplateResult | typeof nothing;
 };

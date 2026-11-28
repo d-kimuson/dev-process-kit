@@ -60,7 +60,7 @@ import { IDLE_MODE, type UsmUiMode } from './ui-mode';
 const MOVE_DIALOG_SIZE = { width: 300, height: 240 };
 
 /**
- * The settings dialog's sections, after the kit's `display`: the statuses the
+ * The settings' sections, after the kit's own: the statuses the
  * stories move through, the labels they carry and the members they are
  * assigned to. What the map is made of is defined there rather than on a page
  * of its own; `openSettings(id)` opens one of them.
@@ -174,11 +174,11 @@ export class DpkViewUsm extends ViewElement<UsmState> {
   }
 
   /**
-   * What the map is made of, in the settings dialog after the kit's `display`:
+   * What the map is made of, in the settings after the kit's own sections:
    * the statuses a story can stand in, the labels it may carry and the people
    * it may be assigned to — each the overview it always was, rendered in its own
-   * `<dpk-usm-settings-section>` so it looks the same whichever element draws
-   * the dialog. The members are offered while the feature that uses them is on.
+   * `<dpk-usm-settings-section>` so it looks the same whichever panel draws
+   * the settings. The members are offered while the feature that uses them is on.
    */
   protected override renderSettingsSections(
     context: ViewRenderContext<UsmState>,
@@ -196,7 +196,7 @@ export class DpkViewUsm extends ViewElement<UsmState> {
 
   /**
    * A change's "Show" for a status, a label or a member opens its section of
-   * the settings dialog: that is where the map defines them, and navigation
+   * the settings: that is where the map defines them, and navigation
    * cannot reach into the panel. A member is part of a feature, so while that
    * is off there is nowhere to show one.
    */

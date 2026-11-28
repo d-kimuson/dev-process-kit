@@ -173,9 +173,9 @@ vocabulary, with the `@<page>` removed.
 
 Each page owns a side panel on the right of its content. Its sections are the page's own
 `<dpk-panel-section slot="panel">` children, written beside the content, and the **Detail** of the
-element selected on a board or a view that has one (a Kanban card, a story of a story map). The header's panel button and
-`Ctrl+Alt+B` / `⌘⌥B` open the panel of the page shown; switching pages shows that page's panel,
-each with its own open state and section. `page.panelOpen`, `page.panelSection`,
+element selected on a board or a view that has one (a Kanban card, a story of a story map). The header's settings gear
+opens the panel of the page shown on its **Settings** section; switching pages shows that page's
+panel, each with its own open state and section. `page.panelOpen`, `page.panelSection`,
 `page.openPanel(section?)`, `page.closePanel()` and the `dpk-panel-change` event are listed in
 [dpk-panel-section](components/panel-section.md#the-owners-panel). The review rail stays the app's,
 beside the panel.

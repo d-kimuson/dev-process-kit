@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { DpkViewPlain } from '../views/plain/element';
 
-import { dialogStyles } from './dialog/styles';
+import { panelFrameOf, shownSettingsOf } from './layouts/settings/element.testing';
 import { coreMessages } from './messages';
 import '../index';
 
@@ -124,32 +124,95 @@ describe('the page chrome', () => {
     ]);
   });
 
-  it("repeats the reader's language and theme in the settings dialog, but not the version", async () => {
+  it("repeats the reader's language and theme in the panel's settings, but not the version", async () => {
     const element = mount();
     await settle(element);
     root(element).querySelector<HTMLButtonElement>('.dpk-settings-trigger')?.click();
     await settle(element);
-    // The header's controls are repeated in the dialog's appearance section, so a
-    // page whose content has no switches of its own still opens something real.
-    expect(root(element).querySelectorAll('.dpk-lang-select')).toHaveLength(2);
-    expect(root(element).querySelectorAll('.dpk-theme-toggle')).toHaveLength(1);
+    const settings = await shownSettingsOf(element);
+    // The header's controls are repeated in the appearance section, so a page
+    // whose content has no switches of its own still shows something real.
+    expect(settings.querySelectorAll('.dpk-lang-select')).toHaveLength(1);
     // Language, theme, and the key that saves a multi-line text field.
-    expect(root(element).querySelectorAll('.dpk-settings-row')).toHaveLength(3);
-    expect(root(element).querySelector('.dpk-settings-segment')?.getAttribute('role')).toBe('radiogroup');
+    expect(settings.querySelectorAll('.dpk-settings-row')).toHaveLength(3);
+    expect(settings.querySelector('.dpk-settings-segment')?.getAttribute('role')).toBe('radiogroup');
+    // One section: no nav to switch between sections.
+    expect(settings.querySelector('.nav')).toBeNull();
     // The page runs the version its URL was opened with: no row offers another.
-    expect(root(element).querySelector('.dpk-version')).toBeNull();
+    expect(settings.querySelector('.dpk-version')).toBeNull();
   });
 
-  it('fits the panel to its one section instead of drawing a tall empty frame', async () => {
+  it('has no panel toggle in the header: the gear opens the panel on the settings and closes it again', async () => {
     const element = mount();
     await settle(element);
-    root(element).querySelector<HTMLButtonElement>('.dpk-settings-trigger')?.click();
+    expect(root(element).querySelector('[data-role="panel-toggle"]')).toBeNull();
+    const gear = root(element).querySelector<HTMLButtonElement>('.dpk-settings-trigger');
+    if (gear === null) throw new Error('no gear');
+    expect(gear.getAttribute('aria-expanded')).toBe('false');
+    gear.click();
     await settle(element);
-    const dialog = root(element).querySelector('#dpk-settings');
-    // Only the appearance section is there, so there is no frame to keep across
-    // sections and no reason to reserve a tall one.
-    expect(dialog?.hasAttribute('data-height')).toBe(false);
-    expect(String(dialogStyles)).toContain(".dpk-dialog[data-height='fixed']");
+    expect(element.panelOpen).toBe(true);
+    expect(gear.getAttribute('aria-expanded')).toBe('true');
+    const selected = (await panelFrameOf(element)).querySelector('[role="tab"][aria-selected="true"]');
+    expect(selected?.id).toBe('tab-settings');
+    gear.click();
+    await settle(element);
+    expect(element.panelOpen).toBe(false);
+  });
+
+  describe('Escape on the side panel', () => {
+    const openOnSettings = async (): Promise<{ element: DpkViewPlain; gear: HTMLButtonElement }> => {
+      const element = mount();
+      await settle(element);
+      const gear = root(element).querySelector<HTMLButtonElement>('.dpk-settings-trigger');
+      if (gear === null) throw new Error('no gear');
+      gear.focus();
+      gear.click();
+      await settle(element);
+      await panelFrameOf(element);
+      return { element, gear };
+    };
+
+    const escape = (target: EventTarget, init: KeyboardEventInit = {}): KeyboardEvent => {
+      const event = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+        ...init,
+      });
+      target.dispatchEvent(event);
+      return event;
+    };
+
+    it('closes the panel and gives the focus back to what had it before', async () => {
+      const { element, gear } = await openOnSettings();
+      const choice = (await shownSettingsOf(element)).querySelector<HTMLElement>('[data-theme-choice="dark"]');
+      if (choice === null) throw new Error('no choice');
+      choice.focus();
+      escape(choice);
+      await settle(element);
+      expect(element.panelOpen).toBe(false);
+      expect(root(element).activeElement).toBe(gear);
+    });
+
+    it('leaves an Escape that something inside already used, or that ends a composition', async () => {
+      const { element } = await openOnSettings();
+      const choice = (await shownSettingsOf(element)).querySelector<HTMLElement>('[data-theme-choice="dark"]');
+      if (choice === null) throw new Error('no choice');
+      choice.addEventListener('keydown', (event) => event.preventDefault(), { once: true });
+      escape(choice);
+      escape(choice, { isComposing: true });
+      await settle(element);
+      expect(element.panelOpen).toBe(true);
+    });
+
+    it('leaves an Escape pressed outside the panel', async () => {
+      const { element } = await openOnSettings();
+      escape(document.body);
+      await settle(element);
+      expect(element.panelOpen).toBe(true);
+    });
   });
 
   // jsdom lays nothing out, so the menu is never measurable here: it is still

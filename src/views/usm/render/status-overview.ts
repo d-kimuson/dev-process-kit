@@ -13,7 +13,7 @@ import { STATUS_ICONS, STATUS_TONES, type StatusTone, type UsmState } from '../m
 import { statusIcon, statusToneStyle } from './tone';
 
 /**
- * The statuses, in the settings dialog: the statuses a story can stand in, in
+ * The statuses, in the settings: the statuses a story can stand in, in
  * order, each with its color and how many stories stand there. Names, colors,
  * order, icon and the status a story is done at are edited here; which status
  * a story has is set on its card.

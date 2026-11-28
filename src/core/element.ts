@@ -18,7 +18,6 @@ import type {
   Navigation,
   NavigationPatch,
   ViewDefinition,
-  ViewSettings,
   ValidationIssue,
 } from './types';
 
@@ -28,14 +27,13 @@ import { COMMENT_ACTION, serializeDraft } from './action';
 import { EMPTY_ADDRESSED } from './addressed';
 import { CHANGES_ATTRIBUTE, jumpOf, type ChangeEntry } from './changes';
 import { hasCheckedTargets } from './check-mode';
-import { parseColorScheme, type ColorScheme } from './color-scheme';
+import { parseColorScheme } from './color-scheme';
 import { componentCommentSubmissionSchema } from './comment-targets';
 import { ConfirmDialogController, type ConfirmDialogOptions } from './confirm-dialog/controller';
 import { ContextMenuController } from './context-menu/controller';
 import { contextMenuMessages } from './context-menu/messages';
 import { contextMenuStyles } from './context-menu/styles';
 import { DraftController } from './controller';
-import { DialogController } from './dialog/controller';
 import { dialogStyles } from './dialog/styles';
 import { componentElementActionSchema, type ComponentSnapshot } from './element-actions';
 import { buildAgentBrief } from './export';
@@ -59,7 +57,6 @@ import {
   iconComment,
   iconHistory,
   iconMoon,
-  iconPanelRight,
   iconQuestion,
   iconSun,
   brandMark,
@@ -76,11 +73,9 @@ import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navi
 import { inDraftPage, pageDeliveryOf, pageHostOf, pageNameOf, type PageHost } from './page/host';
 import { pageNavigation, pagePatchFor } from './page/navigation';
 import { resolvePageTarget } from './page/page-target';
-import { PANEL_HOST, panelHostOf, type PanelControl, type PanelDetail, type PanelHost } from './panel/host';
-import { panelMessages } from './panel/messages';
-import { parsePanelMode, type DetailIntent } from './panel/model';
+import { PANEL_HOST, panelHostOf, type PanelDetail, type PanelHost } from './panel/host';
+import { parsePanelMode, SETTINGS_SECTION, type DetailIntent } from './panel/model';
 import { PanelOwner } from './panel/owner';
-import { isPanelShortcut } from './panel/shortcut';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { PopoverController } from './popover-controller';
 import { SelectController } from './select/controller';
@@ -123,16 +118,12 @@ import { PreviewRouter } from './shell/preview-router';
 import { findTarget, highlightTarget, revealTarget } from './shell/reveal';
 import { ReviewPopoverController } from './shell/review-popover-controller';
 import {
-  renderSettingsDialog,
-  renderSettingsTextSubmit,
-  renderSettingsSwitches,
   renderSettingsTrigger,
-  SETTINGS_APPEARANCE_SECTION,
   SETTINGS_DISPLAY_SECTION,
-  SETTINGS_ID,
-  settingsDialogStyles,
+  type SettingsAppearance,
+  type SettingsSwitches,
   type SettingsTriggerIntents,
-} from './shell/settings-dialog';
+} from './shell/settings-panel';
 import { chromeStyles } from './shell/styles';
 import { SUPPLEMENT_HEIGHT } from './shell/supplement-height';
 import { SupplementHeightController } from './shell/supplement-height-controller';
@@ -153,7 +144,7 @@ import { renderUndoRedo, UndoRedoKeyboardController, type UndoRedoIntents } from
 import { syncStatusLabel } from './sync/label';
 import { requestDraftSync } from './sync/request';
 import { parseTargetRef, targetRef, toTarget } from './target';
-import { TEXT_SUBMIT_KEYS, textSubmitKeyLabel, type TextSubmitKey } from './text-submit';
+import { TEXT_SUBMIT_KEYS, textSubmitKeyLabel } from './text-submit';
 import { TextSubmitKeyController } from './text-submit-controller';
 import { FRAMEWORK_VERSION } from './version';
 
@@ -181,15 +172,6 @@ const countOf = (count: number): string | null => (count > 0 ? String(count) : n
 type ReviewSection = 'changes' | 'questions' | 'comments';
 
 /**
- * The template's switches, and the change that flips one, as the settings
- * dialog's `display` section shows them (`ViewElement.settingsSwitches`).
- */
-export type SettingsSwitches = {
-  readonly settings: ViewSettings;
-  readonly flip: (input: ActionInput) => void;
-};
-
-/**
  * The element that owns the page's chrome, as a board's `openSettings` reaches
  * it — structural, because the element found up the tree has its own state
  * type and only the settings entry point is used.
@@ -203,13 +185,7 @@ type SettingsRoot = {
 type BadgeRegion = 'main' | 'sidebar';
 
 export abstract class ViewElement<S> extends LitElement {
-  static override styles: CSSResultGroup = [
-    chromeStyles,
-    contextMenuStyles,
-    dialogStyles,
-    settingsDialogStyles,
-    floatingMenuStyles,
-  ];
+  static override styles: CSSResultGroup = [chromeStyles, contextMenuStyles, dialogStyles, floatingMenuStyles];
 
   /**
    * Annotated so subclasses may declare their own reactive state without having
@@ -223,7 +199,6 @@ export abstract class ViewElement<S> extends LitElement {
     theme: { type: String },
     panel: { type: String, reflect: true },
     notesOpen: { state: true },
-    settingsOpen: { state: true },
     reviewSection: { state: true },
   };
 
@@ -259,8 +234,6 @@ export abstract class ViewElement<S> extends LitElement {
   declare panel: string | null;
   /** Internal UI state of the review toggles. */
   declare notesOpen: boolean;
-  /** Whether the settings dialog is open. Viewing state of the page, never a change of the draft. */
-  declare settingsOpen: boolean;
   /**
    * The part of the review shown: what the reader changed, what the page asks
    * them, or what they asked the agent to fix.
@@ -345,21 +318,8 @@ export abstract class ViewElement<S> extends LitElement {
     state: () => this.controller.derivation.state,
     messages: () => contextMenuMessages(this.locale),
   });
-  /** The settings section the dialog shows; the kit's display section until the reader picks another. */
+  /** The settings section the panel shows; the kit's display section until the reader picks another. */
   #settingsSection: string = SETTINGS_DISPLAY_SECTION;
-  /**
-   * Keeps the settings `<dialog>` in step with `settingsOpen`: it is shown
-   * modally (never a popover), so the engine supplies the focus trap, the top
-   * layer and the inert background, and Escape and a press on the backdrop
-   * close it.
-   */
-  readonly #settingsDialog = new DialogController(this, {
-    dialog: () => this.renderRoot.querySelector<HTMLDialogElement>(`#${SETTINGS_ID}`),
-    open: () => this.settingsOpen,
-    dismiss: () => {
-      this.settingsOpen = false;
-    },
-  });
   readonly #undoRedoIntents: UndoRedoIntents = {
     undo: () => this.controller.undo(),
     redo: () => this.controller.redo(),
@@ -377,7 +337,6 @@ export abstract class ViewElement<S> extends LitElement {
   });
   constructor() {
     super();
-    this.settingsOpen = false;
     // The review opens from the floating menu, and floats over the page beside it.
     new ReviewPopoverController(this, {
       surface: () => this.renderRoot.querySelector<HTMLElement>(`#${REVIEW_ID}`),
@@ -438,8 +397,6 @@ export abstract class ViewElement<S> extends LitElement {
   protected abstract definitionFor(locale: Locale): ViewDefinition<S>;
 
   readonly #langSelect = new SelectController(this);
-  /** The language picker of the settings dialog; the header's is its own, so one open never closes the other. */
-  readonly #settingsLangSelect = new SelectController(this);
   readonly #roundSelect = new SelectController(this);
   #localeChoice = new LocaleChoiceController(
     this,
@@ -641,36 +598,42 @@ export abstract class ViewElement<S> extends LitElement {
     host.showDetail(this, detail, open ? 'open' : this.panelDetailIntent);
   }
 
-  /** The panel the header's toggle and the shortcut act on: this element's own, or (for the app) the page shown. */
-  protected panelControl(): PanelControl | null {
+  /** The panel that shows this element's settings: its own, or (for the app) the page shown's. */
+  protected settingsPanelHost(): PanelHost | null {
     return this.ownsPanel ? this.#panel : null;
   }
 
-  /** The header's panel toggle, after the theme toggle; drawn while there is a panel to open. */
-  protected renderPanelToggle(): TemplateResult | typeof nothing {
-    const control = this.panelControl();
-    if (control === null || !control.available) return nothing;
-    const messages = panelMessages(this.locale);
-    return html`<button
-      class="dpk-panel-toggle"
-      type="button"
-      data-role="panel-toggle"
-      aria-label=${messages.panel}
-      aria-expanded=${control.isOpen ? 'true' : 'false'}
-      title=${messages.togglePanelHint}
-      @click=${() => control.toggle()}
-    >
-      ${iconPanelRight()}
-    </button>`;
+  /** The panel this element's settings are handed to, and the language they were handed in. */
+  #settings: { readonly host: PanelHost; readonly locale: Locale; readonly withdraw: () => void } | null = null;
+
+  /** Whether the side panel shows this element's settings. */
+  protected get settingsShown(): boolean {
+    const host = this.#settings?.host;
+    return host !== undefined && host.isOpen && host.section === SETTINGS_SECTION;
   }
 
-  readonly #onPanelShortcut = (event: KeyboardEvent): void => {
-    if (event.defaultPrevented || !isPanelShortcut(event)) return;
-    const control = this.panelControl();
-    if (control === null || !control.available) return;
-    event.preventDefault();
-    control.toggle();
-  };
+  /** Hands the panel this element's settings (the chrome's owner only), and redraws them while they show. */
+  #syncSettings(): void {
+    const host = this.#boardId === null && this.#controller ? this.settingsPanelHost() : null;
+    const locale = this.locale;
+    const current = this.#settings;
+    if (current !== null && current.host === host && current.locale === locale) {
+      if (this.settingsShown) host.invalidate(this);
+      return;
+    }
+    current?.withdraw();
+    this.#settings =
+      host === null
+        ? null
+        : {
+            host,
+            locale,
+            withdraw: host.provideSettings(this, {
+              label: coreMessages(locale).settings,
+              render: () => this.#renderSettingsPanel(),
+            }),
+          };
+  }
 
   /** The standalone view's body, with its side panel beside the main column. */
   #renderPanelFrame(body: TemplateResult): TemplateResult {
@@ -705,7 +668,6 @@ export abstract class ViewElement<S> extends LitElement {
     }
     this.#start();
     if (this.#boardId === null && this.hashMode !== 'off') window.addEventListener('hashchange', this.#onHashChange);
-    if (this.#boardId === null) window.addEventListener('keydown', this.#onPanelShortcut);
     this.addEventListener('click', this.#onClick);
     this.addEventListener('dpk-comment-targets-change', this.#refreshCommentTargets);
     this.addEventListener('dpk-comment-request', this.#onCommentRequest);
@@ -725,7 +687,8 @@ export abstract class ViewElement<S> extends LitElement {
       if (!this.isConnected) this.#controller?.close();
     });
     window.removeEventListener('hashchange', this.#onHashChange);
-    window.removeEventListener('keydown', this.#onPanelShortcut);
+    this.#settings?.withdraw();
+    this.#settings = null;
     this.#withdrawDetail?.();
     this.#withdrawDetail = null;
     this.#detailHost = null;
@@ -785,8 +748,9 @@ export abstract class ViewElement<S> extends LitElement {
       this.#boardLocale = host.locale();
       this.#controller.setTemplate(this.definition);
     }
-    // Before the render, so the panel this element owns draws the detail in the same update.
+    // Before the render, so the panel this element owns draws the detail and the settings in the same update.
     this.#syncPanelDetail();
+    this.#syncSettings();
   }
 
   protected override updated(): void {
@@ -1047,21 +1011,23 @@ export abstract class ViewElement<S> extends LitElement {
   }
 
   /**
-   * Opens the settings dialog, on `sectionId` (the kit's `display` section by
-   * default): the entry point a template, a board or the shell's own chrome
-   * uses instead of reaching for the gear. Opening is viewing state, never a
-   * change of the draft.
+   * Opens the side panel on the settings, at `sectionId` (the kit's `display`
+   * section by default): the entry point a template, a board or the shell's
+   * own chrome uses instead of reaching for the gear. Opening is viewing
+   * state, never a change of the draft.
    *
    * A board has no chrome of its own: it asks the element that owns the page
    * (the `<dpk-app>`, or the page root it renders in) to open its settings, so
-   * one dialog shows what the reader is looking at.
+   * one panel shows what the reader is looking at.
    */
   openSettings(sectionId: string = SETTINGS_DISPLAY_SECTION): void {
     const root = this.#settingsRoot();
     if (root === null || root === this) {
       this.#settingsSection = sectionId;
-      this.settingsOpen = true;
-      this.requestUpdate();
+      this.#syncSettings();
+      const host = this.#settings?.host;
+      host?.invalidate(this);
+      host?.open(SETTINGS_SECTION, { focus: true });
       return;
     }
     root.openSettings(sectionId);
@@ -1071,10 +1037,10 @@ export abstract class ViewElement<S> extends LitElement {
   protected abstract renderRegions(context: ViewRenderContext<S>): ShellRegions;
 
   /**
-   * The sections the settings dialog offers after the kit's own `display`
-   * section, in reading order (`SettingsSection`). One is shown at a time, and
-   * the nav that switches between them is drawn only when a second section
-   * exists. `openSettings(id)` opens the dialog on one of them.
+   * The sections the settings offer after the kit's own `display` and
+   * `appearance` sections, in reading order (`SettingsSection`). One is shown
+   * at a time, and the nav that switches between them is drawn only when a
+   * second section exists. `openSettings(id)` opens the panel on one of them.
    */
   protected renderSettingsSections(_context: ViewRenderContext<S>): readonly SettingsSection<S>[] {
     return [];
@@ -1082,7 +1048,7 @@ export abstract class ViewElement<S> extends LitElement {
 
   /**
    * The template's switches (`ViewDefinition.settings`), and the change that
-   * flips one, as the settings dialog's `display` section shows them. `null`
+   * flips one, as the settings' `display` section shows them. `null`
    * when the template has none. A host that shows another element's settings
    * (the app, showing its active page) overrides it.
    */
@@ -1093,16 +1059,17 @@ export abstract class ViewElement<S> extends LitElement {
   }
 
   /**
-   * The gear's intents, wherever the gear is drawn: it opens the dialog, and
-   * closes it again while it is open. A host that draws its own gear (the app,
-   * over the active page) reuses them, so both gears behave alike.
+   * The gear's intents, wherever the gear is drawn: it opens the panel on the
+   * settings, and closes the panel again while it shows them. A host that
+   * draws its own gear (the app, over the active page) reuses them, so both
+   * gears behave alike.
    */
   protected get settingsTriggerIntents(): SettingsTriggerIntents {
     return {
-      open: this.settingsOpen,
+      open: this.settingsShown,
       toggle: () => {
-        if (this.settingsOpen) {
-          this.settingsOpen = false;
+        if (this.settingsShown) {
+          this.#settings?.host.close();
           return;
         }
         this.openSettings();
@@ -1172,9 +1139,7 @@ export abstract class ViewElement<S> extends LitElement {
             <slot name="header"></slot>
           </div>
           ${this.#renderSyncStatus()}
-          <div class="dpk-header-tools">
-            ${this.#renderLanguageSelect()} ${this.#renderThemeToggle()} ${this.renderPanelToggle()}
-          </div>
+          <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
           ${renderSettingsTrigger(messages, this.settingsTriggerIntents)}
           ${renderFloatingMenuSlot(messages, this.#floatingMenu.placement, { toHeader: this.#floatingMenu.toHeader })}
         </header>
@@ -1182,7 +1147,7 @@ export abstract class ViewElement<S> extends LitElement {
         <div slot="overlay" class="dpk-overlay">
           ${this.#renderMenu(changeCount, commentCount)} ${this.#renderReviewPopover(context)}
           ${this.#renderHandoffDock(draftCount)} ${this.#renderNoticeList()} ${this.#renderNoticeToasts()}
-          ${this.#confirmDialog.render()} ${this.#renderSettingsDialog(context)}
+          ${this.#confirmDialog.render()}
         </div>
       </dpk-internal-layout-app>
     `;
@@ -1614,10 +1579,10 @@ export abstract class ViewElement<S> extends LitElement {
       </div>`;
   }
 
-  #renderLanguageSelect(select: SelectController = this.#langSelect): TemplateResult {
+  #renderLanguageSelect(): TemplateResult {
     const locale = this.locale;
     const label = coreMessages(locale).language;
-    return select.render({
+    return this.#langSelect.render({
       options: LOCALES.map((candidate) => ({ value: candidate, label: LANGUAGE_NAMES[candidate] })),
       value: locale,
       onChange: (value) => {
@@ -1708,102 +1673,31 @@ export abstract class ViewElement<S> extends LitElement {
   }
 
   /**
-   * The settings dialog, always in the tree and shown modally while
-   * `settingsOpen` (the `<dialog>` and its top layer are the engine's). Its
-   * `appearance` section is always there (the language and theme controls the
-   * header also carries); the template's `display` section and own sections
-   * follow, the display one only when the template has switches. A board draws
-   * none: the page that owns it does.
+   * The settings as the side panel draws them, in its shadow root: the kit's
+   * `display` and `appearance` sections, then the template's own. Built only
+   * while the panel shows them, since a template may build its sections from
+   * its whole state.
    */
-  #renderSettingsDialog(context: ViewRenderContext<S>): TemplateResult | typeof nothing {
-    if (this.#boardId !== null) return nothing;
-    const messages = coreMessages(this.locale);
-    // Closed, the panel shows nothing and its sections cost nothing: a template
-    // may build them from its whole state, so they are built only while opened.
-    const open = this.settingsOpen;
-    const switches = open ? this.settingsSwitches(context) : null;
-    const display = switches === null ? nothing : renderSettingsSwitches(switches.settings, messages, switches.flip);
-    const sections: readonly BoundSettingsSection[] = open
-      ? [
-          ...(switches === null
-            ? []
-            : [{ id: SETTINGS_DISPLAY_SECTION, label: messages.settingsDisplay, render: () => display }]),
-          {
-            id: SETTINGS_APPEARANCE_SECTION,
-            label: messages.settingsGeneral,
-            render: () => this.#renderSettingsAppearance(),
-          },
-          ...this.#bindSettingsSections(this.renderSettingsSections(context)),
-        ]
-      : [];
-    return renderSettingsDialog({
-      id: SETTINGS_ID,
-      open,
-      label: messages.settings,
-      closeLabel: messages.settingsClose,
-      sectionsLabel: messages.settingsSections,
-      controller: this.#settingsDialog,
-      sections,
-      activeSection: this.#settingsSection,
-      onPick: (id) => this.#pickSettingsSection(id),
-      display,
-    });
-  }
-
-  /**
-   * The kit's `appearance` section ("General"): the reader's language and
-   * light/dark, the same controls the header carries, and the text-submit key.
-   * Language and theme are repeated here on purpose: a page
-   * whose content has no switches of its own would otherwise open an empty
-   * dialog.
-   */
-  #renderSettingsAppearance(): TemplateResult {
-    const messages = coreMessages(this.locale);
-    const scheme = this.#colorScheme.resolve(parseColorScheme(this.theme));
-    const choices = [
-      { scheme: 'light', label: messages.themeLight },
-      { scheme: 'dark', label: messages.themeDark },
-    ] as const;
-    const pick = (next: ColorScheme, focus: boolean): void => {
-      this.#colorScheme.pick(parseColorScheme(this.theme), next);
-      if (!focus) return;
-      void this.updateComplete.then(() => {
-        this.renderRoot.querySelector<HTMLElement>(`[data-theme-choice="${next}"]`)?.focus();
-      });
+  #renderSettingsPanel(): TemplateResult {
+    const context = this.#renderContext();
+    const apple = isApplePlatform();
+    const appearance: SettingsAppearance = {
+      pickLocale: (locale) => this.#localeChoice.pick(locale),
+      scheme: this.#colorScheme.resolve(parseColorScheme(this.theme)),
+      pickScheme: (next) => this.#colorScheme.pick(parseColorScheme(this.theme), next),
+      textSubmit: this.#textSubmit.key,
+      textSubmitKeys: TEXT_SUBMIT_KEYS,
+      textSubmitLabel: (key) => textSubmitKeyLabel(key, apple),
+      pickTextSubmit: (key) => this.#textSubmitChoice.pick(key),
     };
-    return html`<div class="dpk-settings-list">
-      <div class="dpk-settings-row">
-        <span class="dpk-settings-row-label">${messages.language}</span>
-        ${this.#renderLanguageSelect(this.#settingsLangSelect)}
-      </div>
-      <div class="dpk-settings-row">
-        <span class="dpk-settings-row-label">${messages.settingsTheme}</span>
-        <div
-          class="dpk-settings-segment"
-          role="radiogroup"
-          aria-label=${messages.settingsTheme}
-          @keydown=${(event: KeyboardEvent) => {
-            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-            event.preventDefault();
-            pick(scheme === 'light' ? 'dark' : 'light', true);
-          }}
-        >
-          ${choices.map(
-            (choice) => html`<button
-              type="button"
-              role="radio"
-              aria-checked=${scheme === choice.scheme ? 'true' : 'false'}
-              tabindex=${scheme === choice.scheme ? '0' : '-1'}
-              data-theme-choice=${choice.scheme}
-              @click=${() => pick(choice.scheme, false)}
-            >
-              ${choice.label}
-            </button>`,
-          )}
-        </div>
-      </div>
-      ${this.#renderSettingsTextSubmit()}
-    </div>`;
+    return html`<dpk-internal-layout-settings
+      .locale=${this.locale}
+      .display=${this.settingsSwitches(context)}
+      .appearance=${appearance}
+      .sections=${this.#bindSettingsSections(this.renderSettingsSections(context))}
+      .active=${this.#settingsSection}
+      .onPick=${(id: string) => this.#pickSettingsSection(id)}
+    ></dpk-internal-layout-settings>`;
   }
 
   /** The page's text-submit key as the reader's keyboard names it, for a field that shows it. */
@@ -1811,24 +1705,7 @@ export abstract class ViewElement<S> extends LitElement {
     return this.#textSubmit.label;
   }
 
-  /** The appearance section's input row: which key saves a multi-line text field, for the whole page. */
-  #renderSettingsTextSubmit(): TemplateResult {
-    const apple = isApplePlatform();
-    return renderSettingsTextSubmit(coreMessages(this.locale), {
-      current: this.#textSubmit.key,
-      keys: TEXT_SUBMIT_KEYS,
-      labelOf: (key) => textSubmitKeyLabel(key, apple),
-      pick: (key: TextSubmitKey, focus: boolean) => {
-        this.#textSubmitChoice.pick(key);
-        if (!focus) return;
-        void this.updateComplete.then(() => {
-          this.renderRoot.querySelector<HTMLElement>(`[data-text-submit-choice="${key}"]`)?.focus();
-        });
-      },
-    });
-  }
-
-  /** The template's sections, each bound to the context the dialog renders them with. */
+  /** The template's sections, each bound to the context the panel renders them with. */
   #bindSettingsSections(sections: readonly SettingsSection<S>[]): readonly BoundSettingsSection[] {
     return sections.map((section) => ({
       id: section.id,
@@ -1837,14 +1714,14 @@ export abstract class ViewElement<S> extends LitElement {
     }));
   }
 
-  /** Shows another section of the open dialog; the reader's choice of what to look at, not a change. */
+  /** Shows another section of the settings; the reader's choice of what to look at, not a change. */
   #pickSettingsSection(id: string): void {
     this.#settingsSection = id;
-    this.requestUpdate();
+    this.#settings?.host.invalidate(this);
   }
 
   /**
-   * The element that owns the page's chrome — the one whose settings dialog a
+   * The element that owns the page's chrome — the one whose settings a
    * board's `openSettings()` opens. Itself when it is the page root, the
    * closest enclosing view or app when it is a board, and `null` for a board
    * with no page around it.

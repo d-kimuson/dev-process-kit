@@ -158,7 +158,7 @@ describe('usm story detail: keyboard and pointer', () => {
     expect(el.api.navigation['story']).toBeUndefined();
   });
 
-  it('keeps the story on an Escape pressed inside the panel', async () => {
+  it('closes the panel and keeps the story on an Escape pressed inside the panel', async () => {
     const el = await mount('#story=u1');
     const search = panel(el)!.querySelector<HTMLInputElement>('input[data-role="add-blocker"]')!;
     search.focus();
@@ -166,10 +166,11 @@ describe('usm story detail: keyboard and pointer', () => {
     key(search, 'Escape');
     await settle(el);
     expect(search.getAttribute('aria-expanded')).toBe('false');
+    expect(el.panelOpen).toBe(true);
     key(search, 'Escape');
     await settle(el);
     expect(el.api.navigation['story']).toBe('u1');
-    expect(panel(el)?.getAttribute('data-story')).toBe('u1');
+    expect(el.panelOpen).toBe(false);
   });
 
   it('keeps the story on a press outside the panel', async () => {
