@@ -549,6 +549,18 @@ const isEdgeBar = (selector, body) => {
  * thicker — is a bevel rather than a stripe, and a 1px `border-left` stays
  * usable as a divider between columns.
  */
+/** Whether a stylesheet draws a colored stripe along one edge of a box. */
+const hasSideStripe = (css) => {
+  if (RE_SIDE_SHADOW.test(css)) return true;
+  for (const [, selector, body] of css.matchAll(RE_RULE)) {
+    if (isEdgeBar(selector, body)) return true;
+    // One edge thicker or colored, without the ring that would make it a bevel.
+    if (RE_EDGE_BORDER.test(body)) return true;
+    if (RE_EDGE_RESTYLE.test(body) && !RE_RING.test(body)) return true;
+  }
+  return false;
+};
+
 const noSideStripe = {
   create(context) {
     const filename = normalize(context.filename ?? context.getFilename());
@@ -560,14 +572,7 @@ const noSideStripe = {
       });
     return {
       TemplateElement(node) {
-        const text = node.value?.raw ?? '';
-        if (RE_SIDE_SHADOW.test(text)) return report(node);
-        for (const [, selector, body] of text.matchAll(RE_RULE)) {
-          if (isEdgeBar(selector, body)) return report(node);
-          // One edge thicker or colored, without the ring that would make it a bevel.
-          if (RE_EDGE_BORDER.test(body)) return report(node);
-          if (RE_EDGE_RESTYLE.test(body) && !RE_RING.test(body)) return report(node);
-        }
+        if (hasSideStripe(node.value?.raw ?? '')) report(node);
       },
     };
   },
@@ -651,6 +656,7 @@ export {
   localizedText,
   noSideStripe,
   discardOnCancel,
+  hasSideStripe,
   classify,
   resolveImportPath,
 };
