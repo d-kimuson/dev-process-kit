@@ -343,9 +343,10 @@ export const canvasStyles = [
       cursor: pointer;
     }
 
+    /* The line colour comes from --d-edge-line (see ./edge/styles.ts), so a board colours the line and its glyphs with one property. */
     .d-edge-path {
       fill: none;
-      stroke: var(--dpk-rule-strong);
+      stroke: var(--d-edge-line, var(--dpk-rule-strong));
       stroke-width: 1.5;
       stroke-linejoin: round;
       stroke-linecap: round;
