@@ -153,6 +153,11 @@ describe('dpk-dialog-panel chrome="none"', () => {
     expect(assigned('footer')).toEqual(['footer']);
   });
 
+  it('says its Reset view would do nothing, so the context menu can leave it out', async () => {
+    expect((await mount()).resetViewEnabled).toBe(true);
+    expect((await mountChrome()).resetViewEnabled).toBe(false);
+  });
+
   it('sizes a static canvas to its whole content and makes it no keyboard stop', async () => {
     const panel = await mountChrome('canvas content-width="800" content-height="400"');
     const canvas = panel.shadowRoot?.querySelector<HTMLElement>('.canvas');

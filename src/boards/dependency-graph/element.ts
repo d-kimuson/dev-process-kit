@@ -70,7 +70,7 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
   }
 
   protected override layoutOptions(): LayoutOptions {
-    return { nodeSpacing: 60, layerSpacing: 132, padding: 48 };
+    return { nodeSpacing: 60, layerSpacing: 132, padding: this.figurePadding(48) };
   }
 
   /** Routed once per arrangement: a render that moved nothing (a selection, a hover) reuses the routes. */

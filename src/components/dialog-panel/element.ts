@@ -590,6 +590,14 @@ export class DpkDialogPanel extends LitElement {
     this.#canvas.open();
   }
 
+  /**
+   * Whether `resetView()` has a visible effect: a chrome-less figure has no
+   * view to reopen, so the context menu leaves its "Reset view" item out.
+   */
+  get resetViewEnabled(): boolean {
+    return this.chrome !== 'none';
+  }
+
   // -------------------------------------------------------------- lifecycle
 
   protected override willUpdate(changed: PropertyValues<this>): void {

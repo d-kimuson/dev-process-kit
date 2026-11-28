@@ -57,6 +57,11 @@ class TinyDiagram extends BoardCanvasElement<TinyData> {
     return html`<div class="diagram-legend">Legend</div>`;
   }
 
+  /** Probe for the padding rule a canvas board lays its content out with. */
+  paddingFor(full: number): number {
+    return this.figurePadding(full);
+  }
+
   protected override renderCanvas(): TemplateResult {
     const edges = this.visible.edges.map((edge) => {
       const state = this.edgeState(edge.id);
@@ -776,6 +781,33 @@ describe('BoardCanvasElement', () => {
       reviewComment(element, 'element:tiny/node/a');
       await settle(element);
       expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('a');
+    });
+
+    it('has no Reset view to offer, because its view is already the fitted figure', async () => {
+      expect((await mount('tiny-diagram', tinyData)).resetViewEnabled).toBe(true);
+      expect((await chromeless()).resetViewEnabled).toBe(false);
+    });
+
+    it('lays a figure out with a small margin around its bounds instead of the pan padding', async () => {
+      const element = await mount('tiny-diagram', tinyData);
+      expect(element.paddingFor(72)).toBe(72);
+      element.chrome = 'none';
+      await settle(element);
+      expect(element.paddingFor(72)).toBe(12);
+      expect(element.paddingFor(8)).toBe(8);
+    });
+
+    it('clears a selection on Escape from the focused node', async () => {
+      const element = await chromeless();
+      element.select({ kind: 'node', id: 'a' });
+      await settle(element);
+      const node = element.renderRoot.querySelector<HTMLElement>('[data-node="a"]');
+      if (!node) throw new Error('missing node');
+      node.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true, cancelable: true }),
+      );
+      await settle(element);
+      expect(element.selection).toBeNull();
     });
 
     it('is ignored on a board that is a page’s content', async () => {

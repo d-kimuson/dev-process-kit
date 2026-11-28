@@ -105,6 +105,9 @@ const CHROME_CONVERTER = {
   toAttribute: (value: BoardChrome): string => value,
 };
 
+/** Space a chrome-less figure keeps around its drawn bounds; its panel adds the rest. */
+export const CHROMELESS_FIGURE_PADDING = 12;
+
 /**
  * Narrows an `ActionInput.payload` (`unknown`, since the pipeline carries
  * every template's payload shape alike) back to the plain object
@@ -601,6 +604,18 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   }
 
   /**
+   * The padding a graph lays its content out with. A full board keeps the
+   * generous canvas margin that leaves room to pan; a static figure only needs
+   * a small one around what is drawn, because its panel's fit already adds its
+   * own margin. A board whose frames need more room than this keeps its own
+   * value (the ER diagram's layout padding contains its Bounded Context
+   * frames, so it does not call this).
+   */
+  protected figurePadding(full: number): number {
+    return this.chromeless ? Math.min(full, CHROMELESS_FIGURE_PADDING) : full;
+  }
+
+  /**
    * Whether this element's `<dpk-dialog-panel>` frame offers maximize and
    * resize: true for `embedded` (today's chrome), false for `board` — a
    * full-page board frame already fills the page (ADR
@@ -829,9 +844,25 @@ export abstract class BoardCanvasChromeElement<D, S extends SelectionRef = Graph
     this.fitViewport();
   }
 
-  /** Escape clears a selection first (the canvas does that); only with none does a maximized shell restore. */
+  /**
+   * Whether `resetView()` has a visible effect. A chrome-less figure is already
+   * fitted to its content and has no view the reader can move, so the context
+   * menu's "Reset view" would do nothing; `findMethodProvider` skips a provider
+   * whose `<method>Enabled` is `false`.
+   */
+  get resetViewEnabled(): boolean {
+    return !this.chromeless;
+  }
+
+  /**
+   * Escape clears a selection first (the canvas does that); only with none does
+   * a maximized shell restore. A chrome-less figure's canvas is not a keyboard
+   * stop, so focus sits on the node: clear from here for it too.
+   */
   readonly #holdEscape = (event: KeyboardEvent): void => {
-    if (event.key === 'Escape' && this.selection !== null) event.preventDefault();
+    if (event.key !== 'Escape' || this.selection === null) return;
+    event.preventDefault();
+    if (this.chromeless) this.select(null);
   };
 
   // ------------------------------------------------- subclass responsibilities
@@ -1180,6 +1211,7 @@ export abstract class BoardCanvasElement<D extends DiagramData> extends BoardCan
     const visible = this.filtered();
     const signature = [
       this.layoutMode,
+      this.chromeless ? 'figure' : 'chrome',
       visible.nodes.map((node) => `${node.id}:${node.width}x${node.height}`).join(','),
       visible.edges.map((edge) => `${edge.id}:${edge.from}>${edge.to}`).join(','),
       this.layoutSignature(),

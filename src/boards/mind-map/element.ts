@@ -114,7 +114,7 @@ export class DpkBoardMindMap extends BoardCanvasElement<MindMapData> {
   }
 
   protected override computePlacement(visible: MindMapData): LayoutResult {
-    return layoutMindMap(visible);
+    return layoutMindMap(visible, { padding: this.figurePadding(40) });
   }
 
   /**

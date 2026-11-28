@@ -67,12 +67,12 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
   }
 
   protected override layoutOptions(): LayoutOptions {
-    if (this.layoutMode === 'fixed') return { padding: CANVAS_PADDING };
+    if (this.layoutMode === 'fixed') return { padding: this.figurePadding(CANVAS_PADDING) };
     const widest = Math.max(0, ...this.filtered().edges.map((edge) => stateLabelSize(edge.title).width));
     return {
       nodeSpacing: NODE_SPACING,
       layerSpacing: Math.min(LAYER_SPACING.max, Math.max(LAYER_SPACING.min, widest + LAYER_SPACING.besideLabel)),
-      padding: CANVAS_PADDING,
+      padding: this.figurePadding(CANVAS_PADDING),
     };
   }
 
