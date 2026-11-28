@@ -6,6 +6,10 @@
  */
 export { DpkInlineEdit, defineInlineEdit } from './inline-edit';
 export { DpkLineChart, defineLineChart } from './line-chart/index';
+export { DpkDiagram, defineDiagram, type DiagramSelection } from './diagram/index';
+export { DpkDiagramEdge, defineDiagramEdge } from './diagram-edge/index';
+export { DpkDiagramGroup, defineDiagramGroup } from './diagram-group/index';
+export { DpkDiagramNode, defineDiagramNode } from './diagram-node/index';
 export type {
   LineChartAxis,
   LineChartData,
@@ -101,6 +105,10 @@ import { defineCommentPopover } from './comment-popover/index';
 import { defineCommentThread } from './comment-thread/index';
 import { defineCommentable } from './commentable/index';
 import { defineConfirmDialog } from './confirm-dialog/index';
+import { defineDiagramEdge } from './diagram-edge/index';
+import { defineDiagramGroup } from './diagram-group/index';
+import { defineDiagramNode } from './diagram-node/index';
+import { defineDiagram } from './diagram/index';
 import { defineDialogPanel } from './dialog-panel/index';
 import { defineDiff } from './diff/index';
 import { defineExtendRightClick } from './extend-right-click/index';
@@ -120,6 +128,10 @@ export const registerComponentElements = (): void => {
   defineCommentPanel();
   defineInlineEdit();
   defineLineChart();
+  defineDiagramNode();
+  defineDiagramEdge();
+  defineDiagramGroup();
+  defineDiagram();
   defineFormalSpec();
   defineDiff();
   defineVideo();
