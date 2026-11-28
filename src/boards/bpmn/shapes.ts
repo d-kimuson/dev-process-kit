@@ -19,19 +19,23 @@ export type BpmnNodeLabel = {
 export const EVENT_SIZE = 36;
 export const GATEWAY_SIZE = 50;
 export const DATA_OBJECT_SIZE = { width: 36, height: 46 } as const;
-export const TASK_WIDTH = 128;
-export const TASK_PADDING_X = 12;
+export const TASK_WIDTH = 144;
+export const TASK_PADDING_X = 8;
 export const TASK_MIN_HEIGHT = 72;
-export const TASK_LINE_HEIGHT = 16;
+export const TASK_LINE_HEIGHT = 18;
 export const TASK_MAX_LINES = 4;
-export const ANNOTATION_WIDTH = 140;
-export const ANNOTATION_FONT = 11.5;
+export const ANNOTATION_WIDTH = 120;
+export const ANNOTATION_FONT = 12;
 export const ANNOTATION_LINE_HEIGHT = 16;
+/** The note text's horizontal padding (bracket side and far side), plus a pixel of slack. */
+export const ANNOTATION_INSET = 32;
 
 /** Font sizes the estimates are made at. */
-export const NODE_LABEL_FONT = 14;
-export const FLOW_LABEL_FONT = 11.5;
-export const NODE_LABEL_MAX_WIDTH = 112;
+export const NODE_LABEL_FONT = 12;
+export const NODE_LABEL_LINE_HEIGHT = 15;
+export const TASK_FONT = 13;
+export const FLOW_LABEL_FONT = 12;
+export const NODE_LABEL_MAX_WIDTH = 74;
 
 const charWidth = (char: string, font: number): number => {
   const code = char.codePointAt(0) ?? 0;
@@ -47,6 +51,10 @@ export const textWidth = (text: string, font = FLOW_LABEL_FONT): number => {
   for (const char of text) width += charWidth(char, font);
   return width;
 };
+
+const wide = /[\u2e80-\uffff]/u;
+/** Punctuation that Japanese line breaking never puts at the start of a line. */
+const closing = /[、。，．）」』】！？ー]/u;
 
 const breakToken = (token: string, maxWidth: number, font: number): string[] => {
   const pieces: string[] = [];
@@ -80,6 +88,20 @@ export const wrapLines = (text: string, maxWidth: number, font = FLOW_LABEL_FONT
       line = candidate;
       continue;
     }
+    if (wide.test(word)) {
+      // CJK text may break between any two characters, so the word first fills the rest of this line.
+      const chars = Array.from(word);
+      const lead = line === '' ? '' : `${line} `;
+      let taken = 0;
+      while (taken < chars.length && textWidth(lead + chars.slice(0, taken + 1).join(''), font) <= maxWidth) taken += 1;
+      while (taken > 1 && taken < chars.length && closing.test(chars[taken] ?? '')) taken -= 1;
+      if (taken > 0) line = lead + chars.slice(0, taken).join('');
+      if (line !== '') lines.push(line);
+      const pieces = breakToken(chars.slice(taken).join(''), maxWidth, font);
+      line = pieces.pop() ?? '';
+      lines.push(...pieces);
+      continue;
+    }
     if (line !== '') lines.push(line);
     const pieces = breakToken(word, maxWidth, font);
     line = pieces.pop() ?? '';
@@ -93,26 +115,46 @@ export const wrapLines = (text: string, maxWidth: number, font = FLOW_LABEL_FONT
   return clipped;
 };
 
-/** The label lines on a task or subprocess's own box. */
-/** Space a task type icon keeps clear of the name text at the card's left. */
-export const TASK_ICON_GUTTER = 18;
+/**
+ * Wrapping into as few lines as `wrapLines`, but as even as they can be: a
+ * two-line label splits near its middle rather than leaving one character on
+ * its second line.
+ */
+export const balancedLines = (
+  text: string,
+  maxWidth: number,
+  font = FLOW_LABEL_FONT,
+  maxLines = Infinity,
+): string[] => {
+  let best = wrapLines(text, maxWidth, font, maxLines);
+  if (best.length < 2) return best;
+  for (let width = Math.floor(maxWidth) - 1; width > maxWidth / 2; width -= 1) {
+    const lines = wrapLines(text, width, font, maxLines);
+    if (lines.length === best.length && !lines.some((line) => line.endsWith('…'))) best = lines;
+  }
+  return best;
+};
 
+/** Space a task type icon keeps clear of the name text at the card's left. */
+export const TASK_ICON_GUTTER = 22;
+
+/** The label lines on a task or subprocess's own box. */
 export const taskLabelLines = (name: string, task = 'none'): readonly string[] =>
   wrapLines(
     name,
     TASK_WIDTH - TASK_PADDING_X * 2 - (task === 'none' ? 0 : TASK_ICON_GUTTER),
-    FLOW_LABEL_FONT,
+    TASK_FONT,
     TASK_MAX_LINES,
   );
 
 /** A task's height: room for its name, never smaller than the rounded minimum. */
 export const taskHeight = (name: string, task = 'none'): number => {
   const lines = Math.min(TASK_MAX_LINES, taskLabelLines(name, task).length);
-  return Math.max(TASK_MIN_HEIGHT, 16 + lines * TASK_LINE_HEIGHT);
+  return Math.max(TASK_MIN_HEIGHT, 20 + lines * TASK_LINE_HEIGHT);
 };
 
 export const annotationLabelLines = (text: string): readonly string[] =>
-  wrapLines(text, ANNOTATION_WIDTH - 16, ANNOTATION_FONT, 6);
+  balancedLines(text, ANNOTATION_WIDTH - ANNOTATION_INSET, ANNOTATION_FONT, 6);
 
 export const annotationHeight = (text: string): number => {
   const lines = Math.max(1, annotationLabelLines(text).length);
@@ -123,7 +165,7 @@ export const annotationHeight = (text: string): number => {
 export const externalLabel = (node: BpmnNode): BpmnNodeLabel | null => {
   if (node.kind === 'task' || node.kind === 'subprocess' || node.kind === 'annotation') return null;
   if (node.name === null || node.name === '') return null;
-  const lines = wrapLines(node.name, NODE_LABEL_MAX_WIDTH, NODE_LABEL_FONT, 2);
+  const lines = balancedLines(node.name, NODE_LABEL_MAX_WIDTH, NODE_LABEL_FONT, 2);
   // A pixel of slack: the measured advance and the browser's own subpixel
   // layout can differ by a fraction, and `text-overflow: ellipsis` would turn
   // "在庫あり?" into "在庫あ…" at the rounded width.
@@ -131,12 +173,12 @@ export const externalLabel = (node: BpmnNode): BpmnNodeLabel | null => {
     NODE_LABEL_MAX_WIDTH,
     Math.ceil(Math.max(...lines.map((line) => textWidth(line, NODE_LABEL_FONT)))) + 2,
   );
-  return { lines, width, height: lines.length * 16 };
+  return { lines, width, height: lines.length * NODE_LABEL_LINE_HEIGHT };
 };
 
 /** A flow label's chip width, for the column spacing and the label placer. */
 export const flowLabelSize = (label: string): { readonly width: number; readonly height: number } => ({
-  width: Math.min(168, Math.ceil(textWidth(label, FLOW_LABEL_FONT)) + 16),
+  width: Math.min(196, Math.ceil(textWidth(label, FLOW_LABEL_FONT)) + 16),
   height: 22,
 });
 

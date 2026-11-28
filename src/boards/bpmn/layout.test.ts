@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { bpmnPlacement, BPMN_BLACK_BOX_HEIGHT } from './layout';
+import { bpmnPlacement, BPMN_BLACK_BOX_HEIGHT, BPMN_MIN_LAYER_GAP } from './layout';
 import { parseBpmnData, type BpmnNode } from './model';
-import { nodeShape, outlinePoint, type BpmnShape } from './shapes';
+import { balancedLines, nodeShape, outlinePoint, wrapLines, type BpmnShape } from './shapes';
 
 const raw = {
   pools: [
@@ -114,11 +114,16 @@ describe('bpmnPlacement without routes', () => {
     expect(note.y + note.height).toBeLessThanOrEqual(cs.y + cs.height);
   });
 
-  it('reserves a column wide enough for a node label and a gap for a flow label', () => {
+  it('widens only the gap that a labelled flow leaves', () => {
     expect(layout.placement.width).toBeGreaterThan(layout.bands.contentLeft);
     const start = placedOf('start');
     const check = placedOf('check');
-    expect(check.x - (start.x + start.width)).toBeGreaterThan(60);
+    const gw = placedOf('gw');
+    const ship = placedOf('ship');
+    const plain = check.x - (start.x + start.width);
+    expect(plain).toBeGreaterThanOrEqual(BPMN_MIN_LAYER_GAP);
+    expect(plain).toBeLessThan(BPMN_MIN_LAYER_GAP + 12);
+    expect(ship.x - (gw.x + gw.width)).toBeGreaterThan(60);
   });
 
   it('is deterministic', () => {
@@ -171,5 +176,32 @@ describe('outlinePoint', () => {
     expect(nodeShape(nodeOf('gw'))).toBe('diamond');
     expect(nodeShape(nodeOf('check'))).toBe('roundRect');
     expect(nodeShape(nodeOf('note'))).toBe('bracket');
+  });
+});
+
+describe('balancedLines', () => {
+  it('splits a two-line name near its middle instead of orphaning a character', () => {
+    expect(wrapLines('出荷依頼を受信', 74, 12)).toEqual(['出荷依頼を受', '信']);
+    expect(balancedLines('出荷依頼を受信', 74, 12)).toEqual(['出荷依頼', 'を受信']);
+  });
+
+  it('leaves a name that fits on one line alone', () => {
+    expect(balancedLines('受注確定', 74, 12)).toEqual(['受注確定']);
+  });
+});
+
+describe('balancedLines on a note', () => {
+  it('evens out a paragraph without adding a line', () => {
+    const text = '在庫は 5分ごとに同期。引当は15分で解放される。';
+    const greedy = wrapLines(text, 104, 12);
+    const balanced = balancedLines(text, 104, 12);
+    expect(balanced).toHaveLength(greedy.length);
+    expect(Math.min(...balanced.map((line) => line.length))).toBeGreaterThan(2);
+  });
+});
+
+describe('wrapLines on Japanese text with spaces', () => {
+  it('fills a line with the characters of a CJK word instead of leaving a digit alone', () => {
+    expect(wrapLines('与信結果は通常 1 分以内に返る。', 88, 12)).toEqual(['与信結果は通常', '1 分以内に返', 'る。']);
   });
 });

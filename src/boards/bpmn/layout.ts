@@ -47,15 +47,19 @@ export type BpmnBands = {
 
 export type BpmnLayout = { readonly placement: LayoutResult; readonly bands: BpmnBands };
 
-export const BPMN_POOL_HEAD_WIDTH = 32;
-export const BPMN_LANE_HEAD_WIDTH = 28;
-export const BPMN_PAD_X = 32;
+export const BPMN_POOL_HEAD_WIDTH = 36;
+export const BPMN_LANE_HEAD_WIDTH = 32;
+export const BPMN_PAD_X = 16;
 export const BPMN_POOL_GAP = 56;
-export const BPMN_BLACK_BOX_HEIGHT = 56;
-export const BPMN_LANE_MIN_HEIGHT = 120;
+export const BPMN_BLACK_BOX_HEIGHT = 60;
+export const BPMN_LANE_MIN_HEIGHT = 100;
 export const BPMN_LANE_PAD = 12;
+/** The narrowest gap between two columns: room for an arrow head and a bend. */
+export const BPMN_MIN_LAYER_GAP = 40;
+/** The gap beside a split or a join, whose flows bend in it one beside another. */
+export const BPMN_BRANCH_GAP = 72;
 /** Room under an event/gateway/data object for its label. */
-export const BPMN_LABEL_RESERVE = 36;
+export const BPMN_LABEL_RESERVE = 34;
 /** Air between two rows of nodes in one lane. */
 const ROW_GAP = 12;
 const DEFAULT_LAYER_SPACING = 112;
@@ -137,9 +141,31 @@ export const bpmnPlacement = (data: BpmnData, options: { readonly layerSpacing?:
   });
   const placed = new Map(ranked.nodes.map((node) => [node.id, node]));
 
-  const widestLabel = Math.max(0, ...data.edges.map((flow) => flowLabelSize(labelOf(flow) ?? '').width));
-  const layerSpacing = options.layerSpacing ?? Math.min(200, Math.max(72, widestLabel + 64));
+  // A gap widens only for what it has to hold: the label of a flow leaving its
+  // column (a message label sits on the run between pools instead), and the
+  // bends of a split fanning out of it or a join gathering after it.
   const layers = [...new Set(ranked.nodes.map((node) => node.layer))].sort((a, b) => a - b);
+  const gapAfter = new Map<number, number>();
+  const widen = (layer: number | undefined, need: number): void => {
+    if (layer !== undefined) gapAfter.set(layer, Math.max(gapAfter.get(layer) ?? 0, need));
+  };
+  const sequence = data.edges.filter((flow) => flow.kind === 'sequence');
+  for (const node of data.nodes) {
+    const at = placed.get(node.id)?.layer;
+    if (at === undefined) continue;
+    if (sequence.filter((flow) => flow.from === node.id).length > 1) widen(at, BPMN_BRANCH_GAP);
+    if (sequence.filter((flow) => flow.to === node.id).length > 1)
+      widen(layers[layers.indexOf(at) - 1], BPMN_BRANCH_GAP);
+  }
+  for (const flow of data.edges) {
+    const label = labelOf(flow);
+    const at = placed.get(flow.from)?.layer;
+    if (label === null || at === undefined || flow.kind === 'message') continue;
+    const need = Math.min(160, flowLabelSize(label).width + 8);
+    widen(at, need);
+  }
+  const gapOf = (layer: number): number =>
+    options.layerSpacing ?? Math.max(BPMN_MIN_LAYER_GAP, gapAfter.get(layer) ?? 0);
 
   // Column widths: the widest node or the widest label drawn under it.
   const columnWidth = new Map<number, number>();
@@ -154,7 +180,7 @@ export const bpmnPlacement = (data: BpmnData, options: { readonly layerSpacing?:
   let cursor = 0;
   for (const layer of layers) {
     columnX.set(layer, cursor);
-    cursor += (columnWidth.get(layer) ?? 0) + layerSpacing;
+    cursor += (columnWidth.get(layer) ?? 0) + gapOf(layer);
   }
   const contentLeft =
     BPMN_POOL_HEAD_WIDTH + (data.pools.some((pool) => pool.lanes.length > 0) ? BPMN_LANE_HEAD_WIDTH : 0) + BPMN_PAD_X;
@@ -264,7 +290,7 @@ export const bpmnPlacement = (data: BpmnData, options: { readonly layerSpacing?:
   });
 
   const maxRight = Math.max(0, ...nodes.map((node) => node.x + node.width));
-  const width = contentLeft + maxRight + BPMN_PAD_X;
+  const width = maxRight + BPMN_PAD_X;
   const height = Math.max(0, top);
   return {
     placement: { width, height, nodes, routes: [] },
