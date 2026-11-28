@@ -829,7 +829,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
       const state = this.edgeState(relation.id);
       const points = routed.get(relation.id) ?? [];
       const d = paths.get(relation.id) ?? '';
-      const select = () => this.select({ kind: 'edge', id: relation.id });
+      const select = () => this.openSelection({ kind: 'edge', id: relation.id });
       const meaning = [cardinalityText(relation.cardinality), relation.label].filter(Boolean).join(' · ');
       const before =
         relation.before === null
@@ -872,7 +872,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
             @keydown=${(event: KeyboardEvent) => {
               if (event.key !== 'Enter' && event.key !== ' ') return;
               event.preventDefault();
-              this.openSelection({ kind: 'edge', id: relation.id });
+              select();
             }}
           ></path>
           ${points.length > 0 ? this.#renderEnds(points, relation, labelPlans.get(relation.id)) : nothing}
@@ -1039,11 +1039,8 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
             aria-pressed=${state.selected ? 'true' : 'false'}
             title=${`${table.id} / ${table.name}`}
             @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, table.id)}
-            @click=${(event: MouseEvent) => {
-              if (this.consumeDragClick()) return;
-              // A pointer press lights the table's relations; Enter or Space on it opens its detail.
-              if (event.detail === 0) this.openSelection({ kind: 'node', id: table.id });
-              else this.select({ kind: 'node', id: table.id });
+            @click=${() => {
+              if (!this.consumeDragClick()) this.openSelection({ kind: 'node', id: table.id });
             }}
           >
             <span class="er-title">

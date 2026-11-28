@@ -1362,15 +1362,37 @@ describe('dpk-board-er-diagram', () => {
       expect(form()?.getAttribute('data-kind')).toBe('edit');
     });
 
-    it('opens the detail on Enter on a table, and only lights its relations on a pointer press', async () => {
+    it('opens the detail on a pointer press on a table, as on Enter', async () => {
       const { reported, board, settle: wait } = await mountRecording();
       const head = board<HTMLButtonElement>('[data-er-table="orders"] .er-head-select');
       head.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
       await wait();
-      expect(reported()?.report).toBe('select');
-      head.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
-      await wait();
       expect(reported()).toMatchObject({ report: 'open', detail: { key: 'table:orders' } });
+    });
+
+    it('opens the detail on a press on a relation', async () => {
+      const { reported, board, settle: wait } = await mountRecording();
+      board<SVGPathElement>('.d-edge-hit').dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+      await wait();
+      expect(reported()).toMatchObject({ report: 'open', detail: { kind: 'Relation' } });
+    });
+
+    it('does not open the detail on the click a table drag ends with', async () => {
+      // jsdom has no pointer capture; every browser the kit targets does.
+      if (!('setPointerCapture' in HTMLElement.prototype)) {
+        Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { configurable: true, value: () => {} });
+      }
+      const { reported, board, settle: wait } = await mountRecording();
+      const head = board<HTMLButtonElement>('[data-er-table="orders"] .er-head-select');
+      const press = (type: string, x: number) =>
+        head.dispatchEvent(new PointerEvent(type, { pointerId: 1, button: 0, clientX: x, clientY: 10, bubbles: true }));
+      press('pointerdown', 10);
+      press('pointermove', 60);
+      await wait();
+      press('pointerup', 60);
+      head.click();
+      await wait();
+      expect(reported()).toBeUndefined();
     });
 
     it('offers every type in the schema while the search hides other tables', async () => {

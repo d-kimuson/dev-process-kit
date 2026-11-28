@@ -226,7 +226,7 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
     const points = this.routeOf(edge.id);
     const d = paths.get(edge.id) ?? '';
     const end = this.#end(points);
-    const select = () => this.select({ kind: 'edge', id: edge.id });
+    const select = () => this.openSelection({ kind: 'edge', id: edge.id });
     return svg`
       <g
         class=${this.elementClass(
@@ -275,7 +275,7 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
         title=${node.description ?? node.name}
         @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, node.id)}
         @click=${() => {
-          if (!this.consumeDragClick()) this.select({ kind: 'node', id: node.id });
+          if (!this.consumeDragClick()) this.openSelection({ kind: 'node', id: node.id });
         }}
       >
         <span class="state-title">
@@ -302,7 +302,7 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
           data-dpk-target=${this.commentRef('edge', edge.id)}
           data-dpk-check="off"
           title=${this.#tooltip(edge)}
-          @click=${() => this.select({ kind: 'edge', id: edge.id })}
+          @click=${() => this.openSelection({ kind: 'edge', id: edge.id })}
         >
           ${edge.title}
         </button>

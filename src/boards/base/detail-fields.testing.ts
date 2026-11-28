@@ -52,9 +52,9 @@ export const clickIn = async (board: Board, selector: string): Promise<void> => 
   await board.updateComplete;
 };
 
-/** The detail of the last selection the board reported. */
+/** The detail of the last selection the board reported, leaving out the refreshes after each render. */
 export const selectedDetail = (reports: readonly PanelReport[]): PanelDetail | null => {
-  const report = [...reports].reverse().find((candidate) => candidate.report === 'select');
+  const report = reports.filter((candidate) => candidate.report !== 'refresh').at(-1);
   if (report === undefined) throw new Error('no selection reported');
   return report.detail;
 };
