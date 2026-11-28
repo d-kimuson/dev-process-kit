@@ -12,6 +12,8 @@
  * - `inLane`      a node is outside its lane band
  * - `poolLeak`    a sequence flow leaves its pool
  * - `lane`        two flows run along one lane
+ * - `touch`       two flows meet end to end on one line
+ * - `gatewaySide` a gateway is entered from the side away from its source
  * - `jog`         a run between two bends is shorter than 12px, or diagonal
  * - `labelNode`   a label lies over a node
  * - `labelLabel`  two labels overlap
@@ -80,7 +82,7 @@ const gates = `(() => {
   const bands = el.bands;
   const laneOf = new Map(bands.pools.flatMap((pool) => pool.lanes.map((lane) => [lane.id, { lane, pool }])));
   const poolOf = new Map(bands.pools.map((pool) => [pool.id, pool]));
-  const count = { through: 0, outline: 0, inLane: 0, poolLeak: 0, lane: 0, crowd: 0, frameHug: 0, borderRun: 0, jog: 0, labelNode: 0, nodeLabelLine: 0, labelLabel: 0, labelLine: 0, labelArrow: 0, drawn: 0, smallText: 0 };
+  const count = { through: 0, outline: 0, inLane: 0, poolLeak: 0, lane: 0, crowd: 0, touch: 0, gatewaySide: 0, frameHug: 0, borderRun: 0, jog: 0, labelNode: 0, nodeLabelLine: 0, labelLabel: 0, labelLine: 0, labelArrow: 0, drawn: 0, smallText: 0 };
   const notes = [];
   const note = (gate, text) => { count[gate]++; if (notes.length < 18) notes.push(gate + ': ' + text); };
   const segmentsOf = (points) => points.slice(1).map((point, index) => [points[index], point]);
@@ -156,6 +158,58 @@ const gates = `(() => {
       if (!first || !second) continue;
       for (const a of segmentsOf(first)) for (const b of segmentsOf(second)) if (run(a, b) > 1) note('lane', edges[i].id + ' / ' + edges[j].id);
     }
+  }
+
+  // Two collinear runs that only touch (or nearly do) read as one stroke.
+  for (let i = 0; i < edges.length; i++) {
+    for (let j = i + 1; j < edges.length; j++) {
+      const first = routeOf.get(edges[i].id);
+      const second = routeOf.get(edges[j].id);
+      if (!first || !second) continue;
+      for (const a of segmentsOf(first)) for (const b of segmentsOf(second)) {
+        const [p, q] = a;
+        const [r, s] = b;
+        const vertical = p.x === q.x && r.x === s.x;
+        const horizontal = p.y === q.y && r.y === s.y;
+        if (!vertical && !horizontal) continue;
+        const at = vertical ? p.x : p.y;
+        const other = vertical ? r.x : r.y;
+        if (Math.abs(at - other) >= 1.5) continue;
+        const lo = vertical ? Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) : Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x));
+        const hi = vertical ? Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) : Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x));
+        const gap = lo - hi;
+        if (gap >= -0.5 && gap <= 2.5) note('touch', edges[i].id + ' / ' + edges[j].id + ' gap=' + gap.toFixed(1));
+      }
+    }
+  }
+
+  // A sequence flow enters a gateway from the side facing its source when
+  // that side is free; entering from the opposite side means it climbed over.
+  const sideAt = (target, point) => {
+    if (Math.abs(point.x - target.x) <= 1.5) return 'left';
+    if (Math.abs(point.x - (target.x + target.width)) <= 1.5) return 'right';
+    if (Math.abs(point.y - target.y) <= 1.5) return 'top';
+    if (Math.abs(point.y - (target.y + target.height)) <= 1.5) return 'bottom';
+    return null;
+  };
+  for (const edge of edges) {
+    if (edge.kind !== 'sequence') continue;
+    const target = byId.get(edge.to);
+    const source = byId.get(edge.from);
+    const domain = domains.get(edge.to);
+    if (target === undefined || source === undefined || domain?.kind !== 'gateway') continue;
+    const dx = source.x + source.width / 2 - (target.x + target.width / 2);
+    const dy = source.y + source.height / 2 - (target.y + target.height / 2);
+    const preferred = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'right' : 'left') : dy >= 0 ? 'bottom' : 'top';
+    const points = routeOf.get(edge.id);
+    const actual = points === undefined ? null : sideAt(target, points.at(-1));
+    if (actual === null || actual === preferred) continue;
+    const occupied = edges.some((other) => {
+      if (other.id === edge.id || other.kind !== 'sequence' || other.to !== edge.to) return false;
+      const otherPoints = routeOf.get(other.id);
+      return otherPoints !== undefined && sideAt(target, otherPoints.at(-1)) === preferred;
+    });
+    if (!occupied) note('gatewaySide', edge.id + ' enters ' + edge.to + ' from ' + actual + ', source ' + preferred);
   }
 
   // Two parallel runs closer than 16px read as one corridor.
@@ -485,6 +539,7 @@ const PAGES = [
     node: 'review',
     flow: 'f-decline',
   },
+  { name: 'diagrams', path: '/diagrams.html', viewport: [1440, 900], node: 'review', flow: 'm3' },
 ] as const;
 
 try {
@@ -492,6 +547,8 @@ try {
     for (const theme of ['light', 'dark']) {
       const url = `${base}${page.path}${page.path.includes('?') ? `&theme=${theme}` : `?theme=${theme}`}`;
       open(url, theme, page.viewport[0], page.viewport[1]);
+      ab('eval', `${BOARD}.scrollIntoView({ block: 'center' }); 1`);
+      pause();
       checkGates(`${page.name} ${theme}`);
       checkContrast(theme);
       shot(`${page.name}-${theme}`);

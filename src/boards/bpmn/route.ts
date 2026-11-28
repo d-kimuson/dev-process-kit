@@ -371,6 +371,12 @@ const messageCandidates = (
   return found ?? null;
 };
 
+const fallbackPortX = (node: BpmnNode, placed: PlacedNode, wanted: number): number => {
+  const shape = nodeShape(node);
+  if (shape === 'circle' || shape === 'diamond') return Math.round(placed.x + placed.width / 2);
+  return Math.round(clamp(wanted, placed.x + 12, placed.x + placed.width - 12));
+};
+
 type MessageGap = { readonly top: number; readonly bottom: number };
 type MessageGaps = {
   readonly source: MessageGap;
@@ -510,12 +516,12 @@ const routeMessage = (context: RouteContext, flow: BpmnFlow): readonly LayoutPoi
   const sourceX =
     from !== undefined && fromNode !== undefined
       ? (messageCandidates(fromNode, from, fromSide, wantedSource, otherNodes, sourceEdgeY) ??
-        Math.round(from.x + from.width / 2))
+        fallbackPortX(fromNode, from, wantedSource))
       : Math.round(clamp(wantedSource, 8, context.placement.width - 8));
   const targetX =
     to !== undefined && toNode !== undefined
       ? (messageCandidates(toNode, to, toSide, wantedTarget, otherNodes, targetEdgeY) ??
-        Math.round(to.x + to.width / 2))
+        fallbackPortX(toNode, to, wantedTarget))
       : Math.round(clamp(wantedTarget, 8, context.placement.width - 8));
 
   const fromPort: LayoutPoint =
@@ -925,6 +931,10 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
     if (node.kind !== 'event' && node.kind !== 'gateway') continue;
     const ends: { readonly flow: BpmnFlow; readonly end: 'from' | 'to' }[] = [];
     for (const flow of nodeFlows) {
+      // An association may take any free side; a sequence must get the side
+      // that faces its source, or it climbs over the gateway to reach the
+      // opposite one. Allocate associations in the later pass, after these.
+      if (flow.kind === 'association') continue;
       if (flow.from === node.id) ends.push({ flow, end: 'from' });
       else if (flow.to === node.id) ends.push({ flow, end: 'to' });
     }
@@ -942,9 +952,12 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
       const toNode = nodeById.get(flow.to);
       if (from === undefined || to === undefined || fromNode === undefined || toNode === undefined) continue;
       const base = sideFor(flow, end, from, to, fromNode, toNode);
-      const order = ([base, 'right', 'left', 'bottom', 'top'] as PortSide[]).filter(
-        (side, at, list) => list.indexOf(side) === at,
-      );
+      // When a gateway's facing side is taken, an outgoing branch prefers a
+      // vertical side over crossing back through the gateway; an incoming
+      // branch first tries the other horizontal side.
+      const preferred: PortSide[] =
+        end === 'from' ? [base, 'bottom', 'top', 'right', 'left'] : [base, 'left', 'right', 'top', 'bottom'];
+      const order = preferred.filter((side, at, list) => list.indexOf(side) === at);
       const side = order.find((candidate) => !used.has(candidate)) ?? order[0]!;
       used.add(side);
       specialSides.set(`${node.id}|${flow.id}|${end}`, side);
