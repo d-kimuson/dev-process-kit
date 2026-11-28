@@ -3676,6 +3676,12 @@
       function loadQuintDiagram() {
         const rootEl = document.getElementById('qc-root');
         if (!rootEl) return;
+        // The inline boot below calls methods the panel only has once its element
+        // class is defined; the module bundle may still be loading at parse time.
+        if (typeof document.getElementById('quint-panel')?.apply !== 'function') {
+          customElements.whenDefined('dpk-dialog-panel').then(() => loadQuintDiagram());
+          return;
+        }
 
         const byId = (id) => document.getElementById(id);
         const panel = byId('quint-panel');
