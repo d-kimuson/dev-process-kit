@@ -133,7 +133,8 @@ describe('the page chrome', () => {
     // page whose content has no switches of its own still opens something real.
     expect(root(element).querySelectorAll('.dpk-lang-select')).toHaveLength(2);
     expect(root(element).querySelectorAll('.dpk-theme-toggle')).toHaveLength(1);
-    expect(root(element).querySelectorAll('.dpk-settings-row')).toHaveLength(2);
+    // Language, theme, and the key that saves a multi-line text field.
+    expect(root(element).querySelectorAll('.dpk-settings-row')).toHaveLength(3);
     expect(root(element).querySelector('.dpk-settings-segment')?.getAttribute('role')).toBe('radiogroup');
     // The page runs the version its URL was opened with: no row offers another.
     expect(root(element).querySelector('.dpk-version')).toBeNull();

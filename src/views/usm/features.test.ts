@@ -217,7 +217,7 @@ describe('usm features: element', () => {
     expect(built).toHaveBeenCalled();
     expect([...root.querySelectorAll('.dpk-dialog-nav-item')].map((item) => item.textContent?.trim())).toEqual([
       coreMessages('en').settingsDisplay,
-      coreMessages('en').settingsAppearance,
+      coreMessages('en').settingsGeneral,
       m.statusesSection,
       m.labelsSection,
     ]);

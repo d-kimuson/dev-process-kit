@@ -23,6 +23,7 @@ import {
 } from '../grill';
 import { iconChevronRight } from '../icons';
 import { targetRef } from '../target';
+import { handleTextSubmitKey } from '../text-submit-controller';
 
 /** Which questions the panel shows: the current ones, or an earlier round by its `history` index. */
 export type GrillRoundSelection = 'current' | number;
@@ -202,6 +203,8 @@ export const renderGrillPanel = (
   intents: GrillPanelIntents,
   footer: TemplateResult | typeof nothing,
   roundSelect: SelectController,
+  /** The page's text-submit key, named in the free-text field's placeholder. */
+  submitKey: string,
 ): TemplateResult => html`
   <div class="dpk-grill">
     <header class="dpk-grill-head">
@@ -230,7 +233,7 @@ export const renderGrillPanel = (
             ? repeat(
                 vm.view.questions,
                 (question) => question.id,
-                (question) => renderQuestion(m, question, intents),
+                (question) => renderQuestion(m, question, intents, submitKey),
               )
             : repeat(vm.view.questions, (question) => question.id, renderPastQuestion)
       }
@@ -243,6 +246,7 @@ const renderQuestion = (
   m: CoreMessages,
   question: GrillQuestionViewModel,
   intents: GrillPanelIntents,
+  submitKey: string,
 ): TemplateResult => html`
   <section
     class="dpk-grill-question"
@@ -296,7 +300,7 @@ const renderQuestion = (
                     class="dpk-textarea dpk-grill-free"
                     data-free-text=${question.id}
                     aria-label=${m.grillFreeTextOf(question.ref)}
-                    placeholder=${m.grillFreeTextPlaceholder}
+                    placeholder=${m.grillFreeTextPlaceholder(submitKey)}
                     .value=${question.draft}
                     ?hidden=${!question.freeSelected}
                     @input=${(event: Event) => {
@@ -305,8 +309,7 @@ const renderQuestion = (
                       intents.answer(question.id, { kind: 'free', text: area.value });
                     }}
                     @keydown=${(event: KeyboardEvent) => {
-                      if (event.isComposing || !(event.metaKey || event.ctrlKey) || event.key !== 'Enter') return;
-                      event.preventDefault();
+                      if (handleTextSubmitKey(event) !== 'submit') return;
                       intents.next(question.id);
                     }}
                   ></textarea>`

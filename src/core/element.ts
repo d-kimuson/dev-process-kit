@@ -22,6 +22,7 @@ import type {
   ValidationIssue,
 } from './types';
 
+import { isApplePlatform } from '../lib/dom/platform';
 import { revealWithin } from '../lib/dom/scroll';
 import { COMMENT_ACTION, serializeDraft } from './action';
 import { EMPTY_ADDRESSED } from './addressed';
@@ -117,6 +118,7 @@ import { findTarget, highlightTarget, revealTarget } from './shell/reveal';
 import { ReviewPopoverController } from './shell/review-popover-controller';
 import {
   renderSettingsDialog,
+  renderSettingsTextSubmit,
   renderSettingsSwitches,
   renderSettingsTrigger,
   SETTINGS_APPEARANCE_SECTION,
@@ -140,10 +142,13 @@ import {
   type SupplementView,
 } from './shell/supplements';
 import { TextRecoveryController } from './shell/text-recovery-controller';
+import { TextSubmitChoiceController } from './shell/text-submit-choice-controller';
 import { renderUndoRedo, UndoRedoKeyboardController, type UndoRedoIntents } from './shell/undo-redo';
 import { syncStatusLabel } from './sync/label';
 import { requestDraftSync } from './sync/request';
 import { parseTargetRef, targetRef, toTarget } from './target';
+import { TEXT_SUBMIT_KEYS, textSubmitKeyLabel, type TextSubmitKey } from './text-submit';
+import { TextSubmitKeyController } from './text-submit-controller';
 import { FRAMEWORK_VERSION } from './version';
 
 /** Base data is the JSON child that is neither the change log nor the questions. */
@@ -432,6 +437,13 @@ export abstract class ViewElement<S> extends LitElement {
       this.#controller?.setGrill({ grill: this.#grill, locale: this.locale });
     },
   );
+  /** The page's text-submit key: read and persisted by the page, followed by every element that shows it. */
+  #textSubmitChoice = new TextSubmitChoiceController(
+    this,
+    () => this.storage !== 'off' && this.storage !== 'memory',
+    () => this.#boardId === null,
+  );
+  #textSubmit = new TextSubmitKeyController(this);
   #definition: { readonly locale: Locale; readonly value: ViewDefinition<S> } | undefined;
 
   #controller: DraftController<S> | undefined;
@@ -1253,6 +1265,7 @@ export abstract class ViewElement<S> extends LitElement {
       this.#grillPanelIntents,
       dock ? html`<footer class="dpk-grill-footer">${this.#renderHandoffActions(dock)}</footer>` : nothing,
       this.#roundSelect,
+      this.#textSubmit.label,
     );
   }
 
@@ -1271,7 +1284,7 @@ export abstract class ViewElement<S> extends LitElement {
     if (!outcome.ok) return;
     // A choice is a decision: record it and move on to the next open question.
     if (payload.kind === 'option') this.#advance(questionId);
-    // Words are still being written; the caret stays until ⌘/Ctrl+Enter.
+    // Words are still being written; the caret stays until the text-submit key.
     else if (payload.kind === 'free' && payload.text === '') this.#focusFreeText = questionId;
   }
 
@@ -1546,7 +1559,7 @@ export abstract class ViewElement<S> extends LitElement {
             : [{ id: SETTINGS_DISPLAY_SECTION, label: messages.settingsDisplay, render: () => display }]),
           {
             id: SETTINGS_APPEARANCE_SECTION,
-            label: messages.settingsAppearance,
+            label: messages.settingsGeneral,
             render: () => this.#renderSettingsAppearance(),
           },
           ...this.#bindSettingsSections(this.renderSettingsSections(context)),
@@ -1567,8 +1580,9 @@ export abstract class ViewElement<S> extends LitElement {
   }
 
   /**
-   * The kit's `appearance` section: the reader's language and light/dark, the
-   * same controls the header carries. They are repeated here on purpose: a page
+   * The kit's `appearance` section ("General"): the reader's language and
+   * light/dark, the same controls the header carries, and the text-submit key.
+   * Language and theme are repeated here on purpose: a page
    * whose content has no switches of its own would otherwise open an empty
    * dialog.
    */
@@ -1617,7 +1631,30 @@ export abstract class ViewElement<S> extends LitElement {
           )}
         </div>
       </div>
+      ${this.#renderSettingsTextSubmit()}
     </div>`;
+  }
+
+  /** The page's text-submit key as the reader's keyboard names it, for a field that shows it. */
+  protected get textSubmitLabel(): string {
+    return this.#textSubmit.label;
+  }
+
+  /** The appearance section's input row: which key saves a multi-line text field, for the whole page. */
+  #renderSettingsTextSubmit(): TemplateResult {
+    const apple = isApplePlatform();
+    return renderSettingsTextSubmit(coreMessages(this.locale), {
+      current: this.#textSubmit.key,
+      keys: TEXT_SUBMIT_KEYS,
+      labelOf: (key) => textSubmitKeyLabel(key, apple),
+      pick: (key: TextSubmitKey, focus: boolean) => {
+        this.#textSubmitChoice.pick(key);
+        if (!focus) return;
+        void this.updateComplete.then(() => {
+          this.renderRoot.querySelector<HTMLElement>(`[data-text-submit-choice="${key}"]`)?.focus();
+        });
+      },
+    });
   }
 
   /** The template's sections, each bound to the context the dialog renders them with. */
