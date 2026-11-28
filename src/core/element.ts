@@ -559,6 +559,50 @@ export abstract class ViewElement<S> extends LitElement {
     return this.#boardId === null;
   }
 
+  /** The panel this view hands its own detail to: its own, or its page's. */
+  #detailHost: PanelHost | null = null;
+  #withdrawDetail: (() => void) | null = null;
+  #detailKey: string | null = null;
+  /** The reader asked for the detail (`openPanelDetail`): the next report opens the panel on it. */
+  #detailOpenRequested = false;
+
+  /** Whether this view shows the detail of what the reader is looking at in the side panel. */
+  protected get providesPanelDetail(): boolean {
+    return false;
+  }
+
+  /** The detail the side panel shows for what the reader is looking at, or `null` when it has none. */
+  protected panelDetail(): PanelDetail | null {
+    return null;
+  }
+
+  /** Opens the side panel on the detail once this view has rendered what the reader picked. */
+  protected openPanelDetail(): void {
+    this.#detailOpenRequested = true;
+    this.requestUpdate();
+  }
+
+  /**
+   * Hands the panel the detail on each update. A new key is a selection
+   * (the detail tab is marked, the panel stays as it is); the same key re-reads it.
+   */
+  #syncPanelDetail(): void {
+    const host = this.providesPanelDetail ? (this.ownsPanel ? this.#panel : panelHostOf(this)) : null;
+    if (host !== this.#detailHost) {
+      this.#withdrawDetail?.();
+      this.#detailHost = host;
+      this.#withdrawDetail = host?.provideDetail(this) ?? null;
+      this.#detailKey = null;
+    }
+    if (host === null || !this.#controller) return;
+    const detail = this.panelDetail();
+    const key = detail?.key ?? null;
+    const report = this.#detailOpenRequested ? 'open' : key === this.#detailKey ? 'refresh' : 'select';
+    this.#detailOpenRequested = false;
+    this.#detailKey = key;
+    host.showDetail(this, detail, report);
+  }
+
   /** The boards inside reach the panel through this (see `panelHostOf`). */
   get [PANEL_HOST](): PanelHost | null {
     return this.ownsPanel ? this.#panel : null;
@@ -785,6 +829,8 @@ export abstract class ViewElement<S> extends LitElement {
       this.#boardLocale = host.locale();
       this.#controller.setTemplate(this.definition);
     }
+    // Before the render, so the panel this element owns draws the detail in the same update.
+    this.#syncPanelDetail();
   }
 
   protected override updated(): void {

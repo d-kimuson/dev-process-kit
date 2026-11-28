@@ -108,6 +108,19 @@ export const whiteboardMessages = defineMessages({
     resizeHandle: 'Resize',
     connectHandle: 'Drag to connect',
     commentCount: (count: number) => `${count} comment${count === 1 ? '' : 's'}`,
+    showDetail: 'Show the detail',
+
+    // ------------------------------------------------------------ detail
+    textField: 'Text',
+    frameTitleField: 'Frame title',
+    frameField: 'Frame',
+    noFrame: 'Not in a frame',
+    connectionsField: 'Connections',
+    noConnections: 'Not connected',
+    connectedTo: (text: string) => `→ “${text}”`,
+    connectedFrom: (text: string) => `← “${text}”`,
+    endsField: 'Connects',
+    notRecorded: 'Could not record it. Place this inside a dpk-view-* element.',
 
     // ------------------------------------------------------------ zoom
     zoomIn: 'Zoom in',
@@ -191,6 +204,18 @@ export const whiteboardMessages = defineMessages({
     resizeHandle: 'サイズを変更',
     connectHandle: 'ドラッグしてつなぐ',
     commentCount: (count: number) => `コメント ${count} 件`,
+    showDetail: '詳細を表示',
+
+    textField: 'テキスト',
+    frameTitleField: 'フレーム名',
+    frameField: '所属フレーム',
+    noFrame: 'フレームの外',
+    connectionsField: 'つながり',
+    noConnections: 'つながりなし',
+    connectedTo: (text: string) => `→ 「${text}」`,
+    connectedFrom: (text: string) => `← 「${text}」`,
+    endsField: 'つなぐ要素',
+    notRecorded: '記録できませんでした（dpk-view-* 要素の中に置いてください）。',
 
     zoomIn: '拡大',
     zoomOut: '縮小',

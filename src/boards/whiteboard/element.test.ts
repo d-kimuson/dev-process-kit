@@ -1,5 +1,9 @@
+import { render } from 'lit';
+import { keyed } from 'lit/directives/keyed.js';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { PANEL_HOST, type DetailReport, type PanelDetail, type PanelHost } from '../../core/panel/host';
+import { DpkInternalWhiteboardDetail } from './detail';
 import { DpkBoardWhiteboard } from './element';
 import { defineWhiteboard } from './index';
 import { whiteboardMessages } from './messages';
@@ -20,6 +24,45 @@ const base = {
     { id: 'goal', kind: 'shape', shape: 'ellipse', x: 1000, y: 40, text: 'Ship v1' },
   ],
   connectors: [{ id: 'flaky-goal', from: 'flaky', to: 'goal', label: 'blocks' }],
+};
+
+type PanelReport = { readonly detail: PanelDetail | null; readonly report: DetailReport };
+
+/** Stand-in for the side panel's owner: records what the board hands it. */
+const withPanel = async (
+  element: DpkBoardWhiteboard,
+): Promise<{ readonly reports: PanelReport[]; detail(): PanelDetail | null }> => {
+  const reports: PanelReport[] = [];
+  const host: PanelHost = {
+    provideDetail: () => () => undefined,
+    showDetail: (_source, detail, report) => reports.push({ detail, report }),
+    addSection: () => () => undefined,
+    invalidate: () => undefined,
+    open: () => undefined,
+  };
+  const owner = document.createElement('div');
+  Object.defineProperty(owner, PANEL_HOST, { value: host });
+  element.before(owner);
+  owner.append(element);
+  for (let index = 0; index < 3; index++) await element.updateComplete;
+  return { reports, detail: () => reports.at(-1)?.detail ?? null };
+};
+
+/** Draws the detail the way the panel does, and returns its shadow root. */
+const renderDetail = async (detail: PanelDetail | null): Promise<ShadowRoot> => {
+  if (detail === null) throw new Error('no detail');
+  const root = document.createElement('div');
+  document.body.append(root);
+  render(keyed(detail.key, detail.render()), root);
+  const view = root.querySelector('dpk-internal-whiteboard-detail');
+  if (!(view instanceof DpkInternalWhiteboardDetail) || view.shadowRoot === null) throw new Error('no detail view');
+  await view.updateComplete;
+  return view.shadowRoot;
+};
+
+const commitIn = (editor: Element | null, value: string): void => {
+  if (editor === null) throw new Error('no editor');
+  editor.dispatchEvent(new CustomEvent('dpk-commit', { detail: { value }, bubbles: true, composed: true }));
 };
 
 describe('<dpk-board-whiteboard>', () => {
@@ -465,6 +508,58 @@ describe('<dpk-board-whiteboard>', () => {
     q(element, '.wb-canvas').dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
     await settle(element);
     expect(actionsOf(element).map(([type]) => type)).toEqual(['SET_CONNECTOR_ROUTE', 'DELETE_CONNECTOR']);
+  });
+
+  it('hands the panel the selected item’s detail without opening it, and opens it from the toolbar', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    await click(element, q(element, '[data-item-id="flaky"]'), [600, 90]);
+    expect(panel.reports.map((report) => report.report)).toContain('select');
+    expect(panel.reports.map((report) => report.report)).not.toContain('open');
+    expect(panel.detail()).toMatchObject({ key: 'item:flaky', kind: m.kindLabel('sticky'), title: 'Flaky CI' });
+    const view = await renderDetail(panel.detail());
+    expect(view.querySelector('[data-field="frame"]')?.textContent).toContain('To improve');
+    expect(view.querySelector('[data-field="connections"]')?.textContent).toContain('Ship v1');
+
+    q(element, '.wb-toolbar [data-role="detail"]').click();
+    await settle(element);
+    expect(panel.reports.at(-1)?.report).toBe('open');
+  });
+
+  it('edits an item’s text from its detail as a draft action', async () => {
+    const element = await mount();
+    acceptActions(element);
+    const panel = await withPanel(element);
+    await click(element, q(element, '[data-item-id="pairing"]'), [100, 150]);
+    const view = await renderDetail(panel.detail());
+    commitIn(view.querySelector('[data-field="text"] dpk-inline-edit'), 'Pair programming');
+    await settle(element);
+    expect(actionsOf(element)[0]).toEqual(['SET_ITEM_TEXT', 'board/item/pairing', { text: 'Pair programming' }]);
+    expect(panel.detail()).toMatchObject({ key: 'item:pairing', title: 'Pair programming' });
+  });
+
+  it('relabels a connector from its detail', async () => {
+    const element = await mount();
+    acceptActions(element);
+    const panel = await withPanel(element);
+    await click(element, q(element, '[data-connector-id="flaky-goal"] .wb-link-hit'), [0, 0]);
+    expect(panel.detail()).toMatchObject({ key: 'connector:flaky-goal', kind: m.connector });
+    const view = await renderDetail(panel.detail());
+    expect(view.querySelector('[data-field="ends"]')?.textContent).toContain('Flaky CI');
+    commitIn(view.querySelector('[data-field="label"] dpk-inline-edit'), 'unblocks');
+    await settle(element);
+    expect(actionsOf(element)).toEqual([['SET_CONNECTOR_LABEL', 'board/connector/flaky-goal', { label: 'unblocks' }]]);
+  });
+
+  it('says so in the detail when no template recorded an edit', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    await click(element, q(element, '[data-item-id="pairing"]'), [100, 150]);
+    const view = await renderDetail(panel.detail());
+    commitIn(view.querySelector('[data-field="text"] dpk-inline-edit'), 'x');
+    const host = view.host;
+    if (host instanceof DpkInternalWhiteboardDetail) await host.updateComplete;
+    expect(view.querySelector('[role="alert"]')?.textContent).toBe(m.notRecorded);
   });
 
   it('duplicates the selected item with copy and paste', async () => {
