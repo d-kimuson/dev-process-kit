@@ -468,6 +468,26 @@ describe('BoardCanvasElement', () => {
     expect(shell.panel?.hasAttribute('resizable')).toBe(false);
   });
 
+  it('squares the panel corners only while the board fills the viewport', async () => {
+    const element = await mount('tiny-diagram', tinyData);
+    const panel = shellOf(element).panel;
+    const radius = (): string | undefined => {
+      const section = panel?.shadowRoot?.querySelector<HTMLElement>('.panel');
+      return section ? getComputedStyle(section).borderRadius : undefined;
+    };
+    await settle(element);
+    expect(radius()).toBe('14px');
+
+    // A page's content fills the viewport, so its frame is the screen's edge.
+    element.setAttribute('data-dpk-page-content', '');
+    await settle(element);
+    expect(radius()).toBe('0px');
+
+    element.removeAttribute('data-dpk-page-content');
+    await settle(element);
+    expect(radius()).toBe('14px');
+  });
+
   it('keeps Escape from restoring while something is selected, wherever the key comes from', async () => {
     const element = await mount('tiny-diagram', tinyData);
     element.id = 'tiny';

@@ -67,7 +67,8 @@ export class DpkDialogPanel extends LitElement {
         height: var(--dpk-dialog-panel-height, auto);
         min-height: var(--dpk-dialog-panel-min-height, 0);
         border: 1px solid var(--dpk-rule);
-        border-radius: var(--dpk-radius-lg);
+        /* A full-screen host (a board that is its page's content) squares it. */
+        border-radius: var(--dpk-dialog-panel-radius, var(--dpk-radius-lg));
         background: var(--dpk-paper-raised);
         box-shadow: var(--dpk-bevel), var(--dpk-shadow-sm);
         overflow: hidden;

@@ -33,11 +33,14 @@ export const chromeStyles = [
     }
 
     /* The panel is the board's frame: on a page-content board it takes the
-       rest of the host instead of the embedded diagram height. */
+       rest of the host instead of the embedded diagram height. A page-content
+       board fills the viewport, so that frame is the screen's edge: square its
+       corners, as a maximized panel's already are. */
     :host([data-dpk-page-content]) dpk-dialog-panel {
       flex: 1;
       min-height: 0;
       --dpk-dialog-panel-height: 100%;
+      --dpk-dialog-panel-radius: 0;
     }
 
     .diagram-toolbar-rows {
