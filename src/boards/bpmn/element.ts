@@ -2,6 +2,7 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutPoint, LayoutResult } from '../../lib/layout/layered';
+import type { CanvasDetail } from '../base/detail-fields';
 
 import {
   edgeBody,
@@ -14,7 +15,7 @@ import {
 import { jumpedPaths } from '../../lib/layout/line-jumps';
 import { endFrame, stepsData, type PathStep } from '../../lib/layout/path-steps';
 import { BoardCanvasElement } from '../base/element';
-import { EMPTY_REACH, tagStateMatches, type DiagramSelection, type Reach } from '../base/model';
+import { EMPTY_REACH, tagStateMatches, type DiagramSelection, type GraphSelection, type Reach } from '../base/model';
 import { diagramStyles } from '../base/styles';
 import { CORNER_RADIUS } from '../base/view';
 import { bpmnPlacement, type BpmnBands, type BpmnLayout } from './layout';
@@ -139,6 +140,51 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
     const node = data.nodes.find((candidate) => candidate.id === id);
     if (node !== undefined) return this.#nodeName(node);
     return data.pools.find((pool) => pool.id === id)?.name ?? id;
+  }
+
+  /** The pool, and the lane within it, the node sits in. */
+  #placeName(node: BpmnNode): string | null {
+    const pools = this.items().pools;
+    for (const pool of pools) {
+      const lane = pool.lanes.find((candidate) => candidate.id === node.lane);
+      if (lane !== undefined) return this.#m().laneLabel(pool.name, lane.name);
+    }
+    return pools.find((pool) => pool.id === node.pool)?.name ?? null;
+  }
+
+  protected override get providesPanelDetail(): boolean {
+    return true;
+  }
+
+  protected override detailFields(selection: GraphSelection): CanvasDetail | null {
+    const m = this.#m();
+    const data = this.items();
+    if (selection.kind === 'node') {
+      const node = data.nodes.find((candidate) => candidate.id === selection.id);
+      if (node === undefined) return null;
+      return {
+        kind: m.node,
+        name: this.#nodeName(node),
+        fields: [
+          { label: m.detailKind, value: this.#kindName(node) },
+          { label: m.detailLane, value: this.#placeName(node) },
+          { label: m.detailDescription, value: node.description },
+        ],
+      };
+    }
+    const flow = data.edges.find((candidate) => candidate.id === selection.id);
+    if (flow === undefined) return null;
+    const kind = m.flowKind(flow.kind);
+    return {
+      kind: m.edge,
+      name: flow.label ?? kind,
+      fields: [
+        { label: m.detailKind, value: flow.isDefault ? m.defaultFlow(kind) : kind },
+        { label: m.detailFrom, value: this.#name(flow.from) },
+        { label: m.detailTo, value: this.#name(flow.to) },
+        { label: m.detailCondition, value: flow.condition === flow.label ? null : flow.condition },
+      ],
+    };
   }
 
   protected override commentItems(): readonly CommentTargetOption[] {

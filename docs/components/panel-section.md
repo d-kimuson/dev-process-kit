@@ -51,4 +51,4 @@ Whether the panel is open, its section and its width are the reader's, not the d
 
 ## Selected element's detail
 
-A board that has a detail for its selection (Kanban's card) shows it in the panel's **Detail** section. Opening the element (a click or Enter on a card) opens the panel on Detail; a selection made otherwise only marks the segment until the reader looks. Edits there are the board's element actions, as before. Review stays in the app's review rail, beside the panel.
+A board that has a detail for its selection shows it in the panel's **Detail** section: Kanban's card, and the selected node or edge of the state, sequence, architecture map, BPMN, dependency graph and mind map diagrams, whose detail lists what the element's tooltip carries (description, condition, effect, ends) read only. Opening the element (a click or Enter on a card) opens the panel on Detail; a selection made otherwise, which includes every click on a diagram, only marks the segment until the reader looks. Edits there are the board's element actions, as before. Review stays in the app's review rail, beside the panel.

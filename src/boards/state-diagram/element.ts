@@ -2,6 +2,7 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutOptions, LayoutPoint, LayoutResult } from '../../lib/layout/layered';
+import type { CanvasDetail } from '../base/detail-fields';
 
 import {
   END_MARKERS,
@@ -14,7 +15,14 @@ import {
 import { jumpedPaths } from '../../lib/layout/line-jumps';
 import { endFrame, stepsData, type PathStep } from '../../lib/layout/path-steps';
 import { BoardCanvasElement } from '../base/element';
-import { EMPTY_REACH, reach, routeLabelPoint, type DiagramSelection, type Reach } from '../base/model';
+import {
+  EMPTY_REACH,
+  reach,
+  routeLabelPoint,
+  type DiagramSelection,
+  type GraphSelection,
+  type Reach,
+} from '../base/model';
 import { diagramStyles } from '../base/styles';
 import { CORNER_RADIUS } from '../base/view';
 import { stateDiagramMessages } from './messages';
@@ -128,6 +136,40 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
     ];
   }
 
+  protected override get providesPanelDetail(): boolean {
+    return true;
+  }
+
+  protected override detailFields(selection: GraphSelection): CanvasDetail | null {
+    const m = stateDiagramMessages(this.locale);
+    const items = this.items();
+    if (selection.kind === 'node') {
+      const node = items.nodes.find((candidate) => candidate.id === selection.id);
+      if (node === undefined) return null;
+      return {
+        kind: m.node,
+        name: node.name,
+        fields: [
+          { label: m.detailCode, value: node.code },
+          { label: m.detailDescription, value: node.description },
+        ],
+      };
+    }
+    const edge = items.edges.find((candidate) => candidate.id === selection.id);
+    if (edge === undefined) return null;
+    const name = (id: string) => items.nodes.find((node) => node.id === id)?.name ?? id;
+    return {
+      kind: m.edge,
+      name: edge.title,
+      fields: [
+        { label: m.detailFrom, value: name(edge.from) },
+        { label: m.detailTo, value: name(edge.to) },
+        { label: m.detailGuard, value: edge.guard },
+        { label: m.detailEffect, value: edge.effect },
+      ],
+    };
+  }
+
   protected override renderCanvas(): TemplateResult {
     const paths = this.#paths();
     return html`
@@ -173,7 +215,7 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
     return this.filtered().nodes.find((node) => node.id === id)?.name ?? id;
   }
 
-  /** The guard and the effect, which only the tooltip carries now that there is no details panel. */
+  /** The guard and the effect on hover; the side panel's detail lists them too. */
   #tooltip(edge: StateTransition): string {
     return [edge.guard, edge.effect].filter((value) => value !== null).join('\n') || edge.title;
   }

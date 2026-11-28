@@ -2,12 +2,13 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutPoint, LayoutResult } from '../../lib/layout/layered';
+import type { CanvasDetail } from '../base/detail-fields';
 
 import { END_MARKERS, edgeBody, type EdgeEndView } from '../../components/diagram/edge';
 import { jumpedPaths } from '../../lib/layout/line-jumps';
 import { endFrame, stepsData, type PathStep } from '../../lib/layout/path-steps';
 import { BoardCanvasElement } from '../base/element';
-import { EMPTY_REACH, reach, type DiagramSelection, type Reach } from '../base/model';
+import { EMPTY_REACH, reach, type DiagramSelection, type GraphSelection, type Reach } from '../base/model';
 import { diagramStyles } from '../base/styles';
 import { openingCorner } from '../base/viewport';
 import { LINK_CHIP, boundaryTitleBox, linkChipWidth, placeLinkLabels, rateLinkLabels } from './labels';
@@ -278,6 +279,39 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
     const jumped = jumpedPaths(lines, new Set(lines.keys()), { clearance: JUMP_CLEARANCE });
     this.#paths = { signature, byId: jumped };
     return assemble(jumped);
+  }
+
+  protected override get providesPanelDetail(): boolean {
+    return true;
+  }
+
+  protected override detailFields(selection: GraphSelection): CanvasDetail | null {
+    const m = architectureMapMessages(this.locale);
+    const items = this.items();
+    const name = (id: string) => items.nodes.find((node) => node.id === id)?.name ?? id;
+    if (selection.kind === 'node') {
+      const service = items.nodes.find((candidate) => candidate.id === selection.id);
+      if (service === undefined) return null;
+      const boundary = items.boundaries.find((candidate) => candidate.id === service.boundary);
+      return {
+        kind: m.node,
+        name: service.name,
+        fields: [
+          { label: m.detailDescription, value: service.description },
+          { label: m.detailBoundary, value: boundary?.label ?? null },
+        ],
+      };
+    }
+    const link = items.edges.find((candidate) => candidate.id === selection.id);
+    if (link === undefined) return null;
+    return {
+      kind: m.edge,
+      name: link.label ?? m.edgeLabel(name(link.from), name(link.to)),
+      fields: [
+        { label: m.detailFrom, value: name(link.from) },
+        { label: m.detailTo, value: name(link.to) },
+      ],
+    };
   }
 
   protected override renderCanvas(): TemplateResult {

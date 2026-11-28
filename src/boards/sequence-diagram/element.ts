@@ -2,6 +2,7 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutPoint } from '../../lib/layout/layered';
+import type { CanvasDetail } from '../base/detail-fields';
 import type { ViewState } from '../base/viewport';
 
 import { END_MARKERS, edgeEnds } from '../../components/diagram/edge';
@@ -98,6 +99,41 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
     return selection.kind === 'participant'
       ? items.participants.some((participant) => participant.id === selection.id)
       : flattenMessages(items.items).some((message) => message.id === selection.id);
+  }
+
+  protected override get providesPanelDetail(): boolean {
+    return true;
+  }
+
+  protected override detailFields(selection: SequenceSelection): CanvasDetail | null {
+    const m = sequenceDiagramMessages(this.locale);
+    const items = this.items();
+    const participantName = (id: string) => items.participants.find((participant) => participant.id === id)?.name ?? id;
+    if (selection.kind === 'participant') {
+      const participant = items.participants.find((candidate) => candidate.id === selection.id);
+      if (participant === undefined) return null;
+      return {
+        kind: m.participant,
+        name: participant.name,
+        fields: [
+          { label: m.detailRole, value: participant.role },
+          { label: m.detailDescription, value: participant.description },
+        ],
+      };
+    }
+    const message = flattenMessages(items.items).find((candidate) => candidate.id === selection.id);
+    if (message === undefined) return null;
+    const number = messageNumbers(items).get(message.id);
+    return {
+      kind: m.message,
+      name: number === undefined ? message.title : `${number} ${message.title}`,
+      fields: [
+        { label: m.detailFrom, value: participantName(message.from) },
+        { label: m.detailTo, value: participantName(message.to) },
+        { label: m.detailGuard, value: message.guard },
+        { label: m.detailLabel(message.style), value: message.detail },
+      ],
+    };
   }
 
   protected override tagItems(): readonly (readonly string[])[] {

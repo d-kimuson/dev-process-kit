@@ -9,6 +9,10 @@ export const architectureMapMessages = defineMessages({
     boundaries: 'Boundaries',
     edgeLabel: (from: string, to: string) => `Connection from ${from} to ${to}`,
     artworkCredit: (license: string) => `Icon credit: ${license}`,
+    detailDescription: 'Description',
+    detailBoundary: 'Boundary',
+    detailFrom: 'From',
+    detailTo: 'To',
   },
   ja: {
     heading: 'アーキテクチャマップ',
@@ -18,6 +22,10 @@ export const architectureMapMessages = defineMessages({
     boundaries: '境界',
     edgeLabel: (from: string, to: string) => `${from} から ${to} への接続`,
     artworkCredit: (license: string) => `アイコン出典: ${license}`,
+    detailDescription: '説明',
+    detailBoundary: '境界',
+    detailFrom: '接続元',
+    detailTo: '接続先',
   },
 });
 
