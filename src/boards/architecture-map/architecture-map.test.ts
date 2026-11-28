@@ -7,7 +7,8 @@ import type { LayoutPoint } from '../../lib/layout/layered';
 import { currentPositionStorageKey } from '../../core/layout-position-storage';
 import { parseTargetRef } from '../../core/target';
 import { scoreLayout, type LayoutGeometry } from '../../lib/layout/metrics';
-import { DpkBoardArchitectureMap } from './element';
+import { stepsData } from '../../lib/layout/path-steps';
+import { archLinkSteps, DpkBoardArchitectureMap } from './element';
 import { defineArchitectureMap } from './index';
 import { architectureMapMessages } from './messages';
 import { boundaryBoxes, parseArchitectureData, SERVICE_SIZE } from './model';
@@ -266,6 +267,47 @@ describe('architecture map drawn edges', () => {
         },
       ]
     `);
+  });
+});
+
+describe('archLinkSteps', () => {
+  // The step builder that replaced `linkPath`; `stepsData` must serialise to the
+  // exact strings the old string builder produced.
+  it('draws a straight link as a plain line', () => {
+    expect(
+      stepsData(
+        archLinkSteps([
+          { x: 0, y: 0 },
+          { x: 80, y: 0 },
+        ]),
+      ),
+    ).toBe('M0 0 L80 0');
+  });
+
+  it('rounds each bend and keeps the run into the arrowhead straight', () => {
+    expect(
+      stepsData(
+        archLinkSteps([
+          { x: 0, y: 0 },
+          { x: 60, y: 0 },
+          { x: 60, y: 60 },
+          { x: 120, y: 60 },
+        ]),
+      ),
+    ).toBe('M0 0 L54 0 Q60 0 60 6 L60 54 Q60 60 66 60 L120 60');
+  });
+
+  it('leaves no rounding on a short last run into the arrowhead', () => {
+    expect(
+      stepsData(
+        archLinkSteps([
+          { x: 0, y: 0 },
+          { x: 60, y: 0 },
+          { x: 60, y: 20 },
+          { x: 90, y: 20 },
+        ]),
+      ),
+    ).toBe('M0 0 L54 0 Q60 0 60 6 L60 14 Q60 20 66 20 L90 20');
   });
 });
 

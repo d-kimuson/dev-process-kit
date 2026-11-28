@@ -3,6 +3,7 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutPoint, LayoutResult } from '../../lib/layout/layered';
 
+import { stepsData, type PathStep } from '../../lib/layout/path-steps';
 import { BoardCanvasElement } from '../base/element';
 import { EMPTY_REACH, reach, type DiagramSelection, type Reach } from '../base/model';
 import { diagramStyles } from '../base/styles';
@@ -28,29 +29,39 @@ const ARROWS = [{ id: 'arch-neutral' }, { id: 'arch-related' }, { id: 'arch-sele
 /** Length of an arrowhead along its link: the last run stays straight under it. */
 const ARROW_LENGTH = 11;
 
-/** A link's polyline with its bends rounded off; no run is shorter than a lane, so half a lane always fits. */
-const linkPath = (points: readonly LayoutPoint[]): string => {
+/**
+ * A link's polyline as drawing steps: every bend rounded, and the run into the
+ * arrowhead kept straight for the head's whole length. A corner takes at most
+ * half of the shorter run beside it, so the lane-sized runs always fit.
+ */
+export const archLinkSteps = (points: readonly LayoutPoint[]): readonly PathStep[] => {
   const radius = LANE / 2;
-  return points
-    .map((point, index) => {
-      const before = points[index - 1];
-      const after = points[index + 1];
-      if (before === undefined) return `M${point.x} ${point.y}`;
-      if (after === undefined) return `L${point.x} ${point.y}`;
-      const enter = Math.min(radius, (Math.abs(point.x - before.x) + Math.abs(point.y - before.y)) / 2);
-      const ahead = Math.abs(after.x - point.x) + Math.abs(after.y - point.y);
-      const leave = Math.min(radius, index === points.length - 2 ? Math.max(0, ahead - ARROW_LENGTH) : ahead / 2);
-      const from = {
-        x: point.x - Math.sign(point.x - before.x) * enter,
-        y: point.y - Math.sign(point.y - before.y) * enter,
-      };
-      const to = {
-        x: point.x + Math.sign(after.x - point.x) * leave,
-        y: point.y + Math.sign(after.y - point.y) * leave,
-      };
-      return `L${from.x} ${from.y} Q${point.x} ${point.y} ${to.x} ${to.y}`;
-    })
-    .join(' ');
+  const steps: PathStep[] = [];
+  points.forEach((point, index) => {
+    const before = points[index - 1];
+    const after = points[index + 1];
+    if (before === undefined) {
+      steps.push({ kind: 'move', to: point });
+      return;
+    }
+    if (after === undefined) {
+      steps.push({ kind: 'line', to: point });
+      return;
+    }
+    const enter = Math.min(radius, (Math.abs(point.x - before.x) + Math.abs(point.y - before.y)) / 2);
+    const ahead = Math.abs(after.x - point.x) + Math.abs(after.y - point.y);
+    const leave = Math.min(radius, index === points.length - 2 ? Math.max(0, ahead - ARROW_LENGTH) : ahead / 2);
+    const enterAt = {
+      x: point.x - Math.sign(point.x - before.x) * enter,
+      y: point.y - Math.sign(point.y - before.y) * enter,
+    };
+    const leaveAt = {
+      x: point.x + Math.sign(after.x - point.x) * leave,
+      y: point.y + Math.sign(after.y - point.y) * leave,
+    };
+    steps.push({ kind: 'line', to: enterAt }, { kind: 'quad', control: point, to: leaveAt });
+  });
+  return steps;
 };
 
 /** The tile's text for a service with neither artwork nor a symbol: initials, or one glyph of a CJK name. */
@@ -249,7 +260,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
     const edges = visible.edges.map((link) => {
       const state = this.edgeState(link.id);
       const route = this.routeOf(link.id);
-      const d = linkPath(route);
+      const d = stepsData(archLinkSteps(route));
       const select = () => this.select({ kind: 'edge', id: link.id });
       return svg`
         <g
