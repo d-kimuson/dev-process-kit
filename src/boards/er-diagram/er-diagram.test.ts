@@ -1549,6 +1549,22 @@ describe('dpk-board-er-diagram', () => {
       expect(label?.textContent).toContain('顧客集約');
     });
 
+    it('drops the grab cursor and touch-action from aggregate frames without chrome', async () => {
+      const element = await mount2();
+      const aggregateStyle = (): CSSStyleDeclaration => {
+        const aggregate = element.renderRoot.querySelector<HTMLElement>('.er-aggregate');
+        if (aggregate === null) throw new Error('missing aggregate frame');
+        return getComputedStyle(aggregate);
+      };
+      expect(aggregateStyle().cursor).toBe('grab');
+      expect(aggregateStyle().touchAction).toBe('none');
+
+      element.chrome = 'none';
+      await settle(element);
+      expect(aggregateStyle().cursor).toBe('default');
+      expect(aggregateStyle().touchAction).toBe('auto');
+    });
+
     it("folds each table into the layout's generic group by its aggregate, and leaves it unset outside one", () => {
       const data = parseErData({
         after: {
