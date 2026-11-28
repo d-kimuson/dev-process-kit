@@ -1,12 +1,16 @@
+import { nothing, render } from 'lit';
+import { keyed } from 'lit/directives/keyed.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ContextMenuRequest } from '../../core/context-menu/types';
 
 import { DpkDialogPanel } from '../../components/dialog-panel/element';
 import { EMPTY_CHECK_STATE, withEnabled } from '../../core/check-mode';
+import { PANEL_HOST, type DetailReport, type PanelDetail, type PanelHost } from '../../core/panel/host';
 import { collectCheckBindings } from '../../core/shell/check-mode-badges';
 import { parseTargetRef } from '../../core/target';
 import { diagramMessages } from '../base/messages';
+import { DpkInternalErDiagramDetail } from './detail';
 import { DpkBoardErDiagram } from './element';
 import { defineErDiagram } from './index';
 import { erDiagramMessages } from './messages';
@@ -1129,36 +1133,104 @@ describe('dpk-board-er-diagram', () => {
       expect(out.results.map((result) => result.stale)).toEqual(['constraint-violated', 'target-missing']);
     });
 
-    it('records a typed column through the hosting template', async () => {
+    /** Mounts a recordable board under a stand-in for the side panel, which draws each detail it is handed. */
+    const mountRecording = async (setup?: (element: DpkBoardErDiagram) => void) => {
+      const reports: { readonly detail: PanelDetail | null; readonly report: DetailReport }[] = [];
+      const detailRoot = document.createElement('div');
+      const host: PanelHost = {
+        provideDetail: () => () => undefined,
+        showDetail: (_source, detail, report) => {
+          reports.push({ detail, report });
+          render(detail === null ? nothing : keyed(detail.key, detail.render()), detailRoot);
+        },
+        addSection: () => () => undefined,
+        invalidate: () => undefined,
+        open: () => undefined,
+      };
+      const owner = document.createElement('div');
+      Object.defineProperty(owner, PANEL_HOST, { value: host });
       const element = new DpkBoardErDiagram();
       element.id = 'erd';
       element.data = parseErData(raw);
-      document.body.append(element);
+      setup?.(element);
+      owner.append(element);
+      document.body.append(owner, detailRoot);
       await settle(element);
-      let seen: unknown = null;
+      const seen: unknown[] = [];
       element.addEventListener('dpk-element-action', (event) => {
         if (!(event instanceof CustomEvent)) return;
         event.preventDefault();
-        seen = event.detail;
+        seen.push(event.detail);
       });
-      element.renderRoot
-        .querySelector<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]')
-        ?.click();
-      await settle(element);
-      const name = element.renderRoot.querySelector<HTMLInputElement>('[data-input="add-name"]');
-      const type = element.renderRoot.querySelector<HTMLInputElement>('[data-input="add-type"]');
-      if (!name || !type) throw new Error('no inputs');
-      name.value = 'note';
-      name.dispatchEvent(new Event('input'));
-      type.value = 'text';
-      type.dispatchEvent(new Event('input'));
-      type.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      await settle(element);
-      expect(seen).toMatchObject({
-        type: 'ADD_FIELD',
-        target: 'element:erd/node/orders',
-        payload: { id: 'note', type: 'text' },
-      });
+      const detail = (): DpkInternalErDiagramDetail | null => {
+        const found = detailRoot.querySelector('dpk-internal-er-diagram-detail');
+        return found instanceof DpkInternalErDiagramDetail ? found : null;
+      };
+      const settleAll = async () => {
+        await settle(element);
+        await detail()?.updateComplete;
+        await settle(element);
+        await detail()?.updateComplete;
+      };
+      /** Finds a control inside the detail, the panel's own shadow tree in the real page. */
+      const query = <T extends Element>(selector: string): T => {
+        const found = detail()?.shadowRoot?.querySelector<T>(selector);
+        if (!found) throw new Error(`no ${selector}`);
+        return found;
+      };
+      const board = <T extends Element>(selector: string): T => {
+        const found = element.renderRoot.querySelector<T>(selector);
+        if (!found) throw new Error(`no ${selector}`);
+        return found;
+      };
+      const type = (input: HTMLInputElement, value: string) => {
+        input.value = value;
+        input.dispatchEvent(new Event('input'));
+      };
+      /** The last time the board reported its selection, leaving out the refreshes after each render. */
+      const reported = () => reports.filter((entry) => entry.report !== 'refresh').at(-1);
+      const focused = (): Element | null => detail()?.shadowRoot?.activeElement ?? null;
+      const form = (): Element | null => detail()?.shadowRoot?.querySelector('.er-editor') ?? null;
+      const options = () =>
+        [...(detail()?.shadowRoot?.querySelectorAll('[role="option"]') ?? [])].map((option) =>
+          option.getAttribute('data-type'),
+        );
+      const open = async (selector: string) => {
+        board<HTMLButtonElement>(selector).click();
+        await settleAll();
+      };
+      return {
+        element,
+        seen,
+        reports,
+        reported,
+        detail,
+        query,
+        board,
+        type,
+        focused,
+        form,
+        options,
+        open,
+        settle: settleAll,
+      };
+    };
+
+    const ADD_ORDERS = '[data-er-table="orders"] [data-action="add-field"]';
+    const EDIT_STATUS = '[data-er-table="orders"] [data-action="edit-field"][data-field="status"]';
+
+    it('records a typed column through the hosting template', async () => {
+      const { seen, query, type, open, settle: wait } = await mountRecording();
+      await open(ADD_ORDERS);
+      type(query('[data-input="add-name"]'), 'note');
+      const kind = query<HTMLInputElement>('[data-input="add-type"]');
+      type(kind, 'text');
+      await wait();
+      kind.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, composed: true }));
+      await wait();
+      expect(seen).toMatchObject([
+        { type: 'ADD_FIELD', target: 'element:erd/node/orders', payload: { id: 'note', type: 'text' } },
+      ]);
     });
 
     it('offers no column editing without an id, which every recorded change is addressed by', async () => {
@@ -1168,72 +1240,45 @@ describe('dpk-board-er-diagram', () => {
       expect(element.renderRoot.querySelector('[data-action="edit-field"]')).toBeNull();
     });
 
-    it('shows an error and keeps the input when no template records it', async () => {
-      const element = new DpkBoardErDiagram();
-      element.id = 'erd';
-      element.data = parseErData(raw);
-      document.body.append(element);
-      await settle(element);
-      element.renderRoot
-        .querySelector<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]')
-        ?.click();
-      await settle(element);
-      const name = element.renderRoot.querySelector<HTMLInputElement>('[data-input="add-name"]');
-      const type = element.renderRoot.querySelector<HTMLInputElement>('[data-input="add-type"]');
-      if (!name || !type) throw new Error('no inputs');
-      name.value = 'note';
-      name.dispatchEvent(new Event('input'));
-      type.value = 'text';
-      type.dispatchEvent(new Event('input'));
-      type.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      await settle(element);
-      expect(element.renderRoot.querySelector('.er-editor [role="alert"]')).not.toBeNull();
+    it('opens the form in the side panel, titled by the column it edits, and marks the row on the table', async () => {
+      const { reported, board, form, open } = await mountRecording();
+      await open(EDIT_STATUS);
+      expect(reported()).toMatchObject({
+        report: 'open',
+        detail: { key: 'edit:orders:status', kind: m.editFieldTitle, title: 'orders.status' },
+      });
+      expect(form()?.getAttribute('data-kind')).toBe('edit');
+      expect(board('[data-er-table="orders"] .er-field[data-field="status"]').classList).toContain('is-editing');
+      expect(board('[data-er-table="orders"]').querySelector('.er-editor')).toBeNull();
     });
 
-    const options = (element: DpkBoardErDiagram) =>
-      [...element.renderRoot.querySelectorAll('.er-editor [role="option"]')].map((option) =>
-        option.getAttribute('data-type'),
-      );
-
-    const mountRecording = async () => {
-      const element = new DpkBoardErDiagram();
-      element.id = 'erd';
-      element.data = parseErData(raw);
-      document.body.append(element);
-      await settle(element);
-      const seen: unknown[] = [];
-      element.addEventListener('dpk-element-action', (event) => {
-        if (!(event instanceof CustomEvent)) return;
-        event.preventDefault();
-        seen.push(event.detail);
-      });
-      const query = <T extends Element>(selector: string): T => {
-        const found = element.renderRoot.querySelector<T>(selector);
-        if (!found) throw new Error(`no ${selector}`);
-        return found;
-      };
-      const type = (input: HTMLInputElement, value: string) => {
-        input.value = value;
-        input.dispatchEvent(new Event('input'));
-      };
-      return { element, seen, query, type };
-    };
+    it('shows an error and keeps the input when no template records it', async () => {
+      const { element, query, type, open, settle: wait } = await mountRecording();
+      element.addEventListener('dpk-element-action', (event) => event.stopImmediatePropagation(), { capture: true });
+      await open(ADD_ORDERS);
+      type(query('[data-input="add-name"]'), 'note');
+      type(query('[data-input="add-type"]'), 'text');
+      await wait();
+      query<HTMLButtonElement>('[data-action="submit-column"]').click();
+      await wait();
+      expect(query('.er-editor [role="alert"]').textContent).toBe(m.notRecorded);
+      expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
+    });
 
     it('saves an edited type and nullability with the Save button, once something changed', async () => {
-      const { element, seen, query, type } = await mountRecording();
-      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="status"]').click();
-      await settle(element);
-      const save = query<HTMLButtonElement>('.er-editor [data-action="submit-column"]');
-      expect(element.shadowRoot?.activeElement).toBe(query('[data-input="edit-type"]'));
-      expect(save.disabled).toBe(true);
+      const { seen, query, type, focused, form, open, settle: wait } = await mountRecording();
+      await open(EDIT_STATUS);
+      expect(focused()).toBe(query('[data-input="edit-type"]'));
+      expect(query<HTMLButtonElement>('[data-action="submit-column"]').disabled).toBe(true);
       type(query('[data-input="edit-type"]'), 'order_status');
       const nullable = query<HTMLInputElement>('[data-input="nullable"]');
       nullable.checked = true;
       nullable.dispatchEvent(new Event('change'));
-      await settle(element);
+      await wait();
+      const save = query<HTMLButtonElement>('[data-action="submit-column"]');
       expect(save.disabled).toBe(false);
       save.click();
-      await settle(element);
+      await wait();
       expect(seen).toMatchObject([
         {
           type: 'EDIT_FIELD',
@@ -1241,262 +1286,246 @@ describe('dpk-board-er-diagram', () => {
           payload: { field: 'status', type: 'order_status', nullable: true },
         },
       ]);
-      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+      expect(form()).toBeNull();
+      expect(focused()).toBe(query('[data-column-control="status"]'));
     });
 
     it('moves from the name to the type on Enter, and refuses a name the table already uses', async () => {
-      const { element, seen, query, type } = await mountRecording();
-      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]').click();
-      await settle(element);
+      const { seen, query, type, focused, open, settle: wait } = await mountRecording();
+      await open(ADD_ORDERS);
       const name = query<HTMLInputElement>('[data-input="add-name"]');
-      expect(element.shadowRoot?.activeElement).toBe(name);
+      expect(focused()).toBe(name);
       type(name, 'status');
-      name.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      await settle(element);
-      expect(element.shadowRoot?.activeElement).toBe(query('[data-input="add-type"]'));
+      name.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, composed: true }));
+      await wait();
+      expect(focused()).toBe(query('[data-input="add-type"]'));
       type(query('[data-input="add-type"]'), 'text');
-      await settle(element);
+      await wait();
       expect(query('.er-editor [role="status"]').textContent).toContain(m.columnNameTaken);
       expect(query<HTMLButtonElement>('[data-action="submit-column"]').disabled).toBe(true);
       query<HTMLButtonElement>('[data-action="submit-column"]').click();
-      await settle(element);
+      await wait();
       expect(seen).toEqual([]);
     });
 
-    it('closes on Cancel without recording, and gives focus back to the button that opened it', async () => {
-      const { element, seen, query, type } = await mountRecording();
-      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]').click();
-      await settle(element);
+    it("closes on Cancel without recording, back to the table's detail with the add button focused", async () => {
+      const { seen, reports, query, type, focused, form, open, settle: wait } = await mountRecording();
+      await open(ADD_ORDERS);
       type(query('[data-input="add-name"]'), 'note');
       query<HTMLButtonElement>('[data-action="cancel-column"]').click();
-      await settle(element);
-      await settle(element);
-      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
-      expect(element.shadowRoot?.activeElement).toBe(query('[data-er-table="orders"] [data-action="add-field"]'));
+      await wait();
+      expect(form()).toBeNull();
+      expect(reports.at(-1)?.detail).toMatchObject({ key: 'table:orders', kind: m.node, title: 'orders' });
+      expect(focused()).toBe(query('[data-action="add-field"]'));
       expect(seen).toEqual([]);
     });
 
-    it('keeps the typed input after Escape, and discards it on Cancel', async () => {
-      const { element, query, type } = await mountRecording();
-      const open = async () => {
-        query<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]').click();
-        await settle(element);
-      };
-      await open();
+    it('keeps the typed input after Escape or another selection, and discards it on Cancel', async () => {
+      const { element, query, type, form, open, settle: wait } = await mountRecording();
+      await open(ADD_ORDERS);
       type(query('[data-input="add-name"]'), 'note');
-      query('[data-input="add-name"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      await settle(element);
-      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
-      await open();
+      query('[data-input="add-name"]').dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }),
+      );
+      await wait();
+      expect(form()).toBeNull();
+      await open(ADD_ORDERS);
+      expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
+      element.select({ kind: 'node', id: 'customers' });
+      await wait();
+      expect(form()).toBeNull();
+      await open(ADD_ORDERS);
+      expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
+      await open(EDIT_STATUS);
+      expect(form()?.getAttribute('data-kind')).toBe('edit');
+      await open(ADD_ORDERS);
       expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
       query<HTMLButtonElement>('[data-action="cancel-column"]').click();
-      await settle(element);
-      await open();
+      await wait();
+      await open(ADD_ORDERS);
       expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('');
     });
 
-    it('floats the editor beside the row it edits, which stays in place and marked', async () => {
-      const { element, query } = await mountRecording();
-      const pencil = query<HTMLButtonElement>(
-        '[data-er-table="orders"] [data-action="edit-field"][data-field="status"]',
-      );
-      expect(pencil.getAttribute('aria-expanded')).toBe('false');
-      pencil.click();
-      await settle(element);
-      const editor = query<HTMLElement>('.er-editor');
-      expect(editor.getAttribute('popover')).toBe('manual');
-      expect(editor.closest('[data-er-table]')).toBeNull();
-      expect(editor.querySelector('.er-editor-target')?.textContent).toBe('orders.status');
-      const row = query<HTMLElement>('[data-er-table="orders"] .er-field[data-field="status"]');
-      expect(row.classList).toContain('is-editing');
-      expect(row.querySelector('.er-field-type')).not.toBeNull();
-      expect(pencil.getAttribute('aria-expanded')).toBe('true');
-      expect(editor.getAttribute('aria-label')).toContain('orders.status');
+    it("opens a column's form from the table's detail, which lists every column", async () => {
+      const { element, reported, detail, query, form, settle: wait } = await mountRecording();
+      element.select({ kind: 'node', id: 'orders' });
+      await wait();
+      expect(reported()).toMatchObject({ report: 'select', detail: { key: 'table:orders' } });
+      expect(
+        [...(detail()?.shadowRoot?.querySelectorAll('.er-detail-column') ?? [])].map((row) =>
+          row.getAttribute('data-field'),
+        ),
+      ).toEqual(['id', 'customer_id', 'status', 'total_amount', 'currency']);
+      query<HTMLButtonElement>('[data-action="edit-field"][data-field="currency"]').click();
+      await wait();
+      expect(reported()).toMatchObject({ detail: { key: 'edit:orders:currency', title: 'orders.currency' } });
+      expect(form()?.getAttribute('data-kind')).toBe('edit');
+    });
+
+    it('opens the detail on Enter on a table, and only lights its relations on a pointer press', async () => {
+      const { reported, board, settle: wait } = await mountRecording();
+      const head = board<HTMLButtonElement>('[data-er-table="orders"] .er-head-select');
+      head.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+      await wait();
+      expect(reported()?.report).toBe('select');
+      head.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+      await wait();
+      expect(reported()).toMatchObject({ report: 'open', detail: { key: 'table:orders' } });
     });
 
     it('offers every type in the schema while the search hides other tables', async () => {
-      const { element, query } = await mountRecording();
-      const search = query<HTMLInputElement>('.er-search input');
+      const { element, query, board, options, open, settle: wait } = await mountRecording();
+      const search = board<HTMLInputElement>('.er-search input');
       search.value = 'orders';
       search.dispatchEvent(new Event('input', { bubbles: true }));
-      await settle(element);
+      await wait();
       expect(element.renderRoot.querySelector('[data-er-table="customers"]')).toBeNull();
-      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]').click();
-      await settle(element);
+      await open(ADD_ORDERS);
       query<HTMLInputElement>('[data-input="add-type"]').click();
-      await settle(element);
-      expect(options(element)).toContain('varchar');
+      await wait();
+      expect(options()).toContain('varchar');
     });
 
     describe('type combobox', () => {
       const press = (input: HTMLInputElement, key: string, init: KeyboardEventInit = {}) =>
-        input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
+        input.dispatchEvent(
+          new KeyboardEvent('keydown', { key, bubbles: true, composed: true, cancelable: true, ...init }),
+        );
       const editStatus = async () => {
         const recording = await mountRecording();
-        recording
-          .query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="status"]')
-          .click();
-        await settle(recording.element);
+        await recording.open(EDIT_STATUS);
         return { ...recording, input: recording.query<HTMLInputElement>('[data-input="edit-type"]') };
       };
 
       it('keeps its list closed until the input is clicked, then lists every type with the current one highlighted', async () => {
-        const { element, input } = await editStatus();
+        const { input, query, focused, options, settle: wait } = await editStatus();
         expect(input.getAttribute('role')).toBe('combobox');
-        expect(element.shadowRoot?.activeElement).toBe(input);
+        expect(focused()).toBe(input);
         expect(input.getAttribute('aria-expanded')).toBe('false');
-        expect(options(element)).toEqual([]);
+        expect(options()).toEqual([]);
         input.click();
-        await settle(element);
+        await wait();
         expect(input.getAttribute('aria-expanded')).toBe('true');
-        expect(options(element)).toEqual(['bigint', 'char(3)', 'integer', 'order_status', 'uuid', 'varchar']);
-        const active = element.renderRoot.querySelector('.er-editor [role="option"][aria-selected="true"]');
-        expect(active?.getAttribute('data-type')).toBe('order_status');
-        expect(input.getAttribute('aria-activedescendant')).toBe(active?.id);
+        expect(options()).toEqual(['bigint', 'char(3)', 'integer', 'order_status', 'uuid', 'varchar']);
+        const active = query('[role="option"][aria-selected="true"]');
+        expect(active.getAttribute('data-type')).toBe('order_status');
+        expect(input.getAttribute('aria-activedescendant')).toBe(active.id);
       });
 
       it('narrows while typing, offers what was typed as a new type, and takes the highlighted one on Enter', async () => {
-        const { element, seen, input, type } = await editStatus();
+        const { seen, input, query, type, options, settle: wait } = await editStatus();
         type(input, 'int');
-        await settle(element);
-        expect(options(element)).toEqual(['integer', 'bigint', 'int']);
-        expect(element.renderRoot.querySelector('.er-editor [role="option"][data-kind="new"]')?.textContent).toContain(
-          m.columnTypeNew,
-        );
+        await wait();
+        expect(options()).toEqual(['integer', 'bigint', 'int']);
+        expect(query('[role="option"][data-kind="new"]').textContent).toContain(m.columnTypeNew);
         press(input, 'ArrowDown');
-        await settle(element);
+        await wait();
         press(input, 'Enter');
-        await settle(element);
+        await wait();
         expect(input.value).toBe('bigint');
         expect(input.getAttribute('aria-expanded')).toBe('false');
         expect(seen).toEqual([]);
         press(input, 'Enter');
-        await settle(element);
+        await wait();
         expect(seen).toMatchObject([{ type: 'EDIT_FIELD', payload: { field: 'status', type: 'bigint' } }]);
       });
 
       it('records a type the schema does not use yet with one Enter', async () => {
-        const { element, seen, input, type } = await editStatus();
+        const { seen, input, type, options, settle: wait } = await editStatus();
         type(input, 'jsonb');
-        await settle(element);
-        expect(options(element)).toEqual(['jsonb']);
+        await wait();
+        expect(options()).toEqual(['jsonb']);
         press(input, 'Enter');
-        await settle(element);
+        await wait();
         expect(seen).toMatchObject([{ type: 'EDIT_FIELD', payload: { field: 'status', type: 'jsonb' } }]);
       });
 
       it('takes a clicked type, keeping the focus in the input', async () => {
-        const { element, query, input } = await editStatus();
+        const { input, query, focused, options, settle: wait } = await editStatus();
         input.click();
-        await settle(element);
-        const option = query('.er-editor [role="option"][data-type="uuid"]');
+        await wait();
+        const option = query('[role="option"][data-type="uuid"]');
         option.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
         option.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        await settle(element);
+        await wait();
         expect(input.value).toBe('uuid');
-        expect(element.shadowRoot?.activeElement).toBe(input);
-        expect(options(element)).toEqual([]);
+        expect(focused()).toBe(input);
+        expect(options()).toEqual([]);
       });
 
-      it('closes the list on Escape before the editor, and leaves Enter to the IME while it composes', async () => {
-        const { element, input, type } = await editStatus();
+      it('closes the list on Escape before the form, and leaves Enter to the IME while it composes', async () => {
+        const { input, type, form, options, settle: wait } = await editStatus();
         type(input, 'int');
-        await settle(element);
+        await wait();
         press(input, 'Enter', { isComposing: true });
-        await settle(element);
+        await wait();
         expect(input.value).toBe('int');
         press(input, 'Escape');
-        await settle(element);
-        expect(options(element)).toEqual([]);
-        expect(element.renderRoot.querySelector('.er-editor')).not.toBeNull();
+        await wait();
+        expect(options()).toEqual([]);
+        expect(form()).not.toBeNull();
         press(input, 'ArrowDown');
-        await settle(element);
-        expect(options(element)).toEqual(['integer', 'bigint', 'int']);
+        await wait();
+        expect(options()).toEqual(['integer', 'bigint', 'int']);
         press(input, 'Escape');
-        await settle(element);
+        await wait();
         press(input, 'Escape');
-        await settle(element);
-        expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+        await wait();
+        expect(form()).toBeNull();
       });
     });
 
-    it('closes with its trigger or a press outside, keeping the input, and moves to another column', async () => {
-      const { element, query, type } = await mountRecording();
-      const add = query<HTMLButtonElement>('[data-er-table="orders"] [data-action="add-field"]');
-      add.click();
-      await settle(element);
-      type(query('[data-input="add-name"]'), 'note');
-      add.click();
-      await settle(element);
-      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
-      add.click();
-      await settle(element);
-      expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
-      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
-      await settle(element);
-      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
-      add.click();
-      await settle(element);
-      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="status"]').click();
-      await settle(element);
-      expect(query('.er-editor').getAttribute('data-kind')).toBe('edit');
-      add.click();
-      await settle(element);
-      expect(query<HTMLInputElement>('[data-input="add-name"]').value).toBe('note');
-    });
-
-    it("deletes any present column from its editor's danger button, warning first when relations will go too", async () => {
-      const { element, seen, query } = await mountRecording();
+    it("deletes any present column from its form's danger button, warning first when relations will go too", async () => {
+      const { seen, query, form, open, settle: wait } = await mountRecording();
 
       // customer_id is an FK column: it is still editable to reach Delete, but Save never activates
       // (a relation's multiplicities follow the column it is anchored to, see editorVerdict), and deleting
       // it warns that the one relation it carries goes with it.
-      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="customer_id"]').click();
-      await settle(element);
+      await open('[data-er-table="orders"] [data-action="edit-field"][data-field="customer_id"]');
       expect(query<HTMLButtonElement>('[data-action="submit-column"]').disabled).toBe(true);
       expect(query('.er-editor-note').textContent).toContain('1');
       query<HTMLButtonElement>('[data-action="cancel-column"]').click();
-      await settle(element);
+      await wait();
 
       // id is referenced by two relations (payment_attempts.order_id and inventory_reservations.order_id):
-      // its editor warns both go with it, and deleting it records the one action.
-      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="id"]').click();
-      await settle(element);
+      // its form warns both go with it, and deleting it records the one action.
+      await open('[data-er-table="orders"] [data-action="edit-field"][data-field="id"]');
       expect(query('.er-editor-note').textContent).toContain('2');
-      query<HTMLButtonElement>('.er-editor [data-action="delete-column"]').click();
+      query<HTMLButtonElement>('[data-action="delete-column"]').click();
       expect(seen).toMatchObject([{ type: 'DELETE_FIELD', payload: { field: 'id' } }]);
-      await settle(element);
-      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+      await wait();
+      expect(form()).toBeNull();
 
-      // status is a plain column with no relation: its editor offers the delete button with no note.
-      query<HTMLButtonElement>('[data-er-table="orders"] [data-action="edit-field"][data-field="status"]').click();
-      await settle(element);
-      expect(element.renderRoot.querySelector('.er-editor-note')).toBeNull();
-      query<HTMLButtonElement>('.er-editor [data-action="delete-column"]').click();
+      // status is a plain column with no relation: its form offers the delete button with no note.
+      await open(EDIT_STATUS);
+      expect(form()?.querySelector('.er-editor-note')).toBeNull();
+      query<HTMLButtonElement>('[data-action="delete-column"]').click();
       expect(seen).toMatchObject([
         { type: 'DELETE_FIELD', payload: { field: 'id' } },
         { type: 'DELETE_FIELD', payload: { field: 'status' } },
       ]);
-      await settle(element);
-      expect(element.renderRoot.querySelector('.er-editor')).toBeNull();
+      await wait();
+      expect(form()).toBeNull();
     });
 
-    it('opens a cardinality editor for the selected relation and commits a picked multiplicity at once, with no Save', async () => {
-      const { element, seen, query } = await mountRecording();
+    it("commits a multiplicity picked in the selected relation's detail at once, with no Save", async () => {
+      const { element, seen, reported, query, board, detail, settle: wait } = await mountRecording();
       const edgeId = 'customers:id>orders:customer_id';
-      query<SVGElement>(`[data-relation="${edgeId}"] .d-edge-hit`).dispatchEvent(
-        new MouseEvent('click', { bubbles: true }),
+      board<SVGElement>(`[data-relation="${edgeId}"] .d-edge-hit`).dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
       );
-      await settle(element);
-      const editor = query<HTMLElement>('.er-cardinality-editor');
-      expect(editor.getAttribute('aria-label')).toContain('customers.id');
-      expect(editor.querySelector('.er-editor-foot')).toBeNull();
-      const trigger = query<HTMLButtonElement>('.er-cardinality-editor .dpk-rich-select');
+      await wait();
+      expect(reported()).toMatchObject({
+        report: 'open',
+        detail: { key: `edge:${edgeId}`, kind: m.edge, title: 'customers → orders' },
+      });
+      expect(query('dl').textContent).toContain('customers.id');
+      const trigger = query<HTMLButtonElement>('.dpk-rich-select');
       expect(trigger.textContent).toContain('1 : 0..N');
       trigger.click();
-      await settle(element);
+      await wait();
       query<HTMLElement>('.dpk-rich-select-option[data-value="1:1"]').click();
-      await settle(element);
+      await wait();
       expect(seen).toMatchObject([
         {
           type: 'EDIT_CARDINALITY',
@@ -1504,11 +1533,20 @@ describe('dpk-board-er-diagram', () => {
           payload: { cardinality: '1:1' },
         },
       ]);
-      // Still open: a pick commits but does not deselect the edge.
-      expect(query<HTMLElement>('.er-cardinality-editor')).not.toBeNull();
+      expect(query('.dpk-rich-select').textContent).toContain('1 : 1');
       element.select(null);
-      await settle(element);
-      expect(element.renderRoot.querySelector('.er-cardinality-editor')).toBeNull();
+      await wait();
+      expect(detail()).toBeNull();
+    });
+
+    it("shows a relation's cardinality without a picker when the board records nothing", async () => {
+      const recording = await mountRecording((element) => {
+        element.id = '';
+      });
+      recording.element.select({ kind: 'edge', id: 'customers:id>orders:customer_id' });
+      await recording.settle();
+      expect(recording.detail()?.shadowRoot?.querySelector('.dpk-rich-select')).toBeNull();
+      expect(recording.query('dl').textContent).toContain(m.cardinalityLabel);
     });
 
     it('leads each row with the icon of its strongest role', async () => {

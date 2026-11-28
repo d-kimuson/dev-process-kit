@@ -23,8 +23,10 @@ export type {
   ErTableDiff,
 } from './model';
 
+import { defineErDetail } from './detail';
 import { DpkBoardErDiagram } from './element';
 
 export const defineErDiagram = (): void => {
+  defineErDetail();
   if (!customElements.get('dpk-board-er-diagram')) customElements.define('dpk-board-er-diagram', DpkBoardErDiagram);
 };
