@@ -322,7 +322,7 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
   }
 
   /** The step on stage in the scenario view, or the screen in the app view. */
-  protected override panelDetail(): PanelDetail | null {
+  protected override renderPanelDetail(): PanelDetail | null {
     const context = this.context();
     const m = prototypeMessages(this.locale);
     const location = locatePrototype(context.state, context.navigation);
