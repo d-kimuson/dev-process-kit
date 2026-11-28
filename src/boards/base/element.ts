@@ -25,7 +25,7 @@ import { type Locale } from '../../core/i18n';
 import { LocaleController } from '../../core/locale-controller';
 import { pageHostOf, pageNameOf } from '../../core/page/host';
 import { resolvePageTarget } from '../../core/page/page-target';
-import { panelHostOf, type PanelDetail, type PanelHost } from '../../core/panel/host';
+import { panelHostOf, type PanelDetail, type PanelHost, type PanelSectionSpec } from '../../core/panel/host';
 import { defaultStorageKey } from '../../core/persistence';
 import { createViewApi, snapshotOf, type ViewFacadeSource } from '../../core/shell/api';
 import { requestDraftSync } from '../../core/sync/request';
@@ -55,6 +55,7 @@ import {
   type DiagramEdgeInput,
   type DiagramNodeInput,
   type DiagramSelection,
+  type ElementActionRequest,
   type ElementState,
   type GraphSelection,
   type Reach,
@@ -157,6 +158,8 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   /** The side panel this board shows its selection's detail in, once it found one. */
   #panelHost: PanelHost | null = null;
   #withdrawDetail: (() => void) | null = null;
+  /** The sections this board added to the panel, by what the panel lists of them. */
+  #sections: { readonly signature: string; readonly withdraw: readonly (() => void)[] } | null = null;
   #stopJsonChild: (() => void) | null = null;
   #targetSignature = '';
   readonly #commentPopover = new CommentPopoverController(this);
@@ -210,6 +213,7 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     this.#stopJsonChild = null;
     this.#withdrawDetail?.();
     this.#withdrawDetail = null;
+    this.#withdrawSections();
     this.#panelHost = null;
     // A shared draft's session ends with the element, unless it was only moved.
     queueMicrotask(() => {
@@ -232,15 +236,40 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
    * after the board), and hands it the detail the selection has now.
    */
   #syncPanel(): void {
-    const host = this.providesPanelDetail ? panelHostOf(this) : null;
+    const sections = this.panelSections();
+    const host = this.providesPanelDetail || sections.length > 0 ? panelHostOf(this) : null;
     if (host !== this.#panelHost) {
       this.#withdrawDetail?.();
+      this.#withdrawSections();
       this.#panelHost = host;
-      this.#withdrawDetail = host?.provideDetail(this) ?? null;
-      if (host !== null && this.#selection !== null) host.showDetail(this, this.#detailOf(this.#selection), 'select');
+      this.#withdrawDetail = host !== null && this.providesPanelDetail ? host.provideDetail(this) : null;
+      if (host !== null) this.#syncSections(host, sections);
+      if (host !== null && this.providesPanelDetail && this.#selection !== null)
+        host.showDetail(this, this.#detailOf(this.#selection), 'select');
       return;
     }
-    host?.showDetail(this, this.#detailOf(this.#selection), 'refresh');
+    if (host === null) return;
+    this.#syncSections(host, sections);
+    if (this.providesPanelDetail) host.showDetail(this, this.#detailOf(this.#selection), 'refresh');
+  }
+
+  /**
+   * Adds the sections anew only when what the panel lists of them (name,
+   * label, badge) changed; otherwise has the panel draw them again.
+   */
+  #syncSections(host: PanelHost, sections: readonly PanelSectionSpec[]): void {
+    const signature = JSON.stringify(sections.map(({ name, label, badge }) => [name, label, badge ?? null]));
+    if (signature === (this.#sections?.signature ?? '[]')) {
+      if (sections.length > 0) host.invalidate(this);
+      return;
+    }
+    this.#withdrawSections();
+    this.#sections = { signature, withdraw: sections.map((section) => host.addSection(this, section)) };
+  }
+
+  #withdrawSections(): void {
+    for (const withdraw of this.#sections?.withdraw ?? []) withdraw();
+    this.#sections = null;
   }
 
   #detailOf(selection: S | null): PanelDetail | null {
@@ -498,6 +527,25 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     return event.defaultPrevented;
   }
 
+  /**
+   * Records several element actions as one reader act: on a page, one batch
+   * that undo takes back in one step. An enclosing view takes element actions
+   * one event at a time, so there they go in one by one. `true` once all
+   * were accepted.
+   */
+  protected dispatchElementActions(actions: readonly ElementActionRequest[]): boolean {
+    if (this.board === null)
+      return actions.every((action) => this.dispatchElementAction(action.type, action.element, action.payload));
+    if (actions.length === 0) return true;
+    return this.#dispatchBoardBatch(
+      actions.map((action) => ({
+        type: action.type,
+        target: this.commentRef(...action.element),
+        payload: action.payload,
+      })),
+    ).ok;
+  }
+
   get selection(): S | null {
     return this.#selection;
   }
@@ -519,6 +567,20 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   /** The detail the side panel shows for the selected element, or `null` when it has none. */
   protected panelDetail(_selection: S): PanelDetail | null {
     return null;
+  }
+
+  /** Sections this board adds to the side panel now; read on each render. */
+  protected panelSections(): readonly PanelSectionSpec[] {
+    return [];
+  }
+
+  /**
+   * Turns an open side panel to one of this board's sections; a closed panel
+   * stays closed, so the board does not move under the reader.
+   */
+  protected showPanelSection(name: string): void {
+    const host = this.#panelHost;
+    if (host !== null && 'isOpen' in host && host.isOpen === true) host.open(name);
   }
 
   get tagFilter(): TagState {
