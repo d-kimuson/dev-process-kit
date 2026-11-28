@@ -97,4 +97,5 @@ With `chrome="none"` (`docs/boards/index.md`, Figure only) the diagram is a stat
 
 - **Fold** a fragment from its header (`▾` / `▸`). Folding is per fragment; there is no "collapse all".
 - A selected participant highlights every message it sends or receives.
+- A selected message, and the messages of a selected participant, animate their flow dots; reduced motion leaves them still.
 - The rows are tall: the diagram opens width-fitted and top-aligned, and pans down from there.
