@@ -1064,6 +1064,90 @@
         min-height: 360px;
       }
 
+      /* A video reads as a 16:9 clip only at the stage's readable width: fit-content sizing would collapse it
+         to a postage stamp. Fill the width, and sit at the top so its player's own height sets the stage. */
+      .showcase-canvas:has(dpk-video) {
+        place-items: start center;
+        padding-top: 24px;
+      }
+      .showcase-canvas:has(dpk-video) > .demo {
+        width: 100%;
+      }
+
+      /* The catalog video's two scenes: a promo-like composition that reads at the player's size, in cqw so it
+         scales with the stage. The headline sits at the top and the cards at the bottom, leaving the middle
+         open so the player's centred play button covers no text. Scoped to #catalog-video. */
+      #catalog-video [data-scene] {
+        font-family: var(--dpk-body);
+        color: var(--on-video, #fff);
+      }
+      #catalog-video .clip-scene {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        justify-items: center;
+        gap: 2cqw;
+        padding: 6.5cqw 8cqw 9cqw;
+        background: radial-gradient(120% 100% at 50% 0%, #202a4d 0%, #0d1220 62%);
+      }
+      #catalog-video .clip-head {
+        display: grid;
+        justify-items: center;
+        gap: 2.2cqw;
+      }
+      #catalog-video .clip-eyebrow {
+        font-family: var(--dpk-mono);
+        font-size: 2.1cqw;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #aeb8d6;
+      }
+      #catalog-video .clip-headline {
+        margin: 0;
+        font-size: 5.4cqw;
+        font-weight: 800;
+        line-height: 1.15;
+        letter-spacing: -0.01em;
+        text-align: center;
+      }
+      #catalog-video .clip-headline em {
+        font-style: normal;
+        color: #b59cff;
+      }
+      #catalog-video .clip-strip {
+        align-self: end;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 2.4cqw;
+      }
+      #catalog-video .clip-chip {
+        display: grid;
+        gap: 0.6cqw;
+        min-width: 20cqw;
+        padding: 2.2cqw 2.8cqw;
+        border: 1px solid #ffffff2b;
+        border-radius: 1.4cqw;
+        background: #ffffff10;
+        box-shadow: 0 1.5cqw 4cqw #0007;
+      }
+      #catalog-video .clip-chip b {
+        font-size: 2.8cqw;
+        font-weight: 750;
+      }
+      #catalog-video .clip-chip span {
+        font-size: 2.1cqw;
+        color: #c3cbe4;
+      }
+      #catalog-video .clip-chip[data-tone='plan'] {
+        border-color: #7aa2f780;
+      }
+      #catalog-video .clip-chip[data-tone='ship'] {
+        border-color: #4cc78780;
+      }
+
       /* .dpk-browser-frame is also the Received mail frame, so this is scoped to the Browser frame entry
          alone: same treatment as the browser demo above, so its figure reads as a real browser-sized window. */
       #catalog-browser-frame .showcase-canvas {
@@ -1685,7 +1769,7 @@
               <a href="#catalog-diagram-label">diagram label</a>
               <a href="#catalog-diagram-node">diagram node</a>
               <a href="#catalog-diagram-group">diagram group</a>
-              <a href="#catalog-diagram-composed">diagram sketch</a>
+              <a href="#catalog-diagram-composed">dpk-diagram</a>
               <a href="#catalog-mind-map">mind map</a>
               <a href="#catalog-state-diagram">state diagram</a>
               <a href="#catalog-sequence-diagram">sequence diagram</a>
@@ -4517,30 +4601,30 @@
                             },
                             { "id": "ship", "title": "出荷", "cues": [{ "text": "レビューして、そのまま渡す。" }] }
                           ],
-                          "pacing": { "lead": 0.6, "gap": 0.4, "tail": 1 }
+                          "pacing": { "lead": 1.2, "gap": 0.6, "tail": 1.2 }
                         }
                       </script>
                       <section data-scene="plan">
-                        <div
-                          style="display: grid; place-items: center; height: 100%; background: var(--dpk-paper-sunken)"
-                        >
-                          <div class="dpk-card" data-tone="blue" style="max-width: 320px; text-align: center">
-                            <div class="dpk-card-title">計画</div>
-                            <div class="dpk-card-row">
-                              <span class="dpk-pill" data-tone="blue">課題 → ストーリー</span>
-                            </div>
+                        <div class="clip-scene">
+                          <div class="clip-head">
+                            <span class="clip-eyebrow">Release flow · 1</span>
+                            <h2 class="clip-headline">課題を、<em>1 枚</em>の HTML に</h2>
+                          </div>
+                          <div class="clip-strip">
+                            <div class="clip-chip" data-tone="plan"><b>課題</b><span>長い設計文書</span></div>
+                            <div class="clip-chip" data-tone="plan"><b>ストーリー</b><span>優先順位つき</span></div>
                           </div>
                         </div>
                       </section>
                       <section data-scene="ship">
-                        <div
-                          style="display: grid; place-items: center; height: 100%; background: var(--dpk-paper-sunken)"
-                        >
-                          <div class="dpk-card" data-tone="green" style="max-width: 320px; text-align: center">
-                            <div class="dpk-card-title">出荷</div>
-                            <div class="dpk-card-row">
-                              <span class="dpk-pill" data-tone="green">レビュー → 渡す</span>
-                            </div>
+                        <div class="clip-scene">
+                          <div class="clip-head">
+                            <span class="clip-eyebrow">Release flow · 2</span>
+                            <h2 class="clip-headline">レビューして、<em>そのまま</em>渡す</h2>
+                          </div>
+                          <div class="clip-strip">
+                            <div class="clip-chip" data-tone="ship"><b>レビュー</b><span>その場でコメント</span></div>
+                            <div class="clip-chip" data-tone="ship"><b>受け渡し</b><span>エージェントへ</span></div>
                           </div>
                         </div>
                       </section>
@@ -5260,7 +5344,7 @@
 
                 <article id="catalog-diagram-composed" class="entry">
                   <header>
-                    <h3>diagram sketch</h3>
+                    <h3>&lt;dpk-diagram&gt;</h3>
                   </header>
                   <p>
                     部品を組み合わせて描いた返金フローの略図。<code>direction="down"</code> で上から下へ並ぶ。
