@@ -12,6 +12,7 @@ import { usmDefinitionFor } from './definition';
 import { dropAfter, resolveGroupDrop } from './drop';
 import { usmMessages } from './messages';
 import { parseUsmBase } from './model';
+import { panelFrameOf, settleDetail, storyDetailOf } from './testing';
 
 const usmDefinition = usmDefinitionFor('en');
 const m = usmMessages('en');
@@ -53,6 +54,7 @@ const settle = async (el: DpkViewUsm): Promise<void> => {
   await el.updateComplete;
   await Promise.resolve();
   await el.updateComplete;
+  await settleDetail(el);
 };
 
 describe('usm template', () => {
@@ -323,7 +325,7 @@ describe('usm template', () => {
     expect((cards[0] as HTMLElement).style.getPropertyValue('--usm-tone').trim()).toBe('var(--dpk-ink-faint)');
     (cards[0] as HTMLElement).click();
     await settle(el);
-    const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
+    const panel = storyDetailOf(el)!;
     expect(panel.getAttribute('data-story')).toBe('u1');
     const thread = panel.querySelector('dpk-comment-thread') as LitElement;
     await thread.updateComplete;
@@ -349,7 +351,7 @@ describe('usm template', () => {
     expect(cards[0]!.shadowRoot!.querySelector('[data-kind="comments"]')?.textContent?.trim()).toBe('1');
     expect(cards[0]!.shadowRoot!.querySelector('[data-kind="review"]')).toBeNull();
     // a review comment on the story is written in the review rail, and the card shows it apart
-    (panel.querySelector('[data-role="review-story"]') as HTMLButtonElement).click();
+    panelFrameOf(el)!.shadowRoot!.querySelector<HTMLButtonElement>('.detail-head button')!.click();
     await settle(el);
     expect(el.notesOpen).toBe(true);
     el.api.comment('story:u1', 'split this story');

@@ -7,6 +7,7 @@ import type { DpkViewUsm } from './element';
 
 import { DpkTable } from '../../components/table';
 import '../../index';
+import { settleDetail, storyDetailOf } from './testing';
 
 const base = {
   activities: [{ id: 'a1', name: 'A1', steps: [{ id: 's1', name: 'S1' }] }],
@@ -30,6 +31,7 @@ const settle = async (el: DpkViewUsm): Promise<void> => {
   await el.updateComplete;
   await Promise.resolve();
   await el.updateComplete;
+  await settleDetail(el);
 };
 
 describe('usm story table', () => {
@@ -43,12 +45,12 @@ describe('usm story table', () => {
     await table.updateComplete;
     const rows = [...table.shadowRoot!.querySelectorAll<HTMLElement>('[data-row]')].map((row) => row.dataset['row']);
     expect(rows).toEqual(['u1', 'u2']);
-    expect(root.querySelector('[data-testid="usm-story-panel"]')).toBeNull();
+    expect(storyDetailOf(el)).toBeNull();
 
     table.shadowRoot!.querySelector<HTMLElement>('[data-row="u2"]')?.click();
     await settle(el);
     expect(el.api.navigation).toMatchObject({ tab: 'table', step: 's1', story: 'u2' });
-    expect(root.querySelector('[data-testid="usm-story-panel"]')).not.toBeNull();
+    expect(storyDetailOf(el)).not.toBeNull();
     // the table only ever navigates: a row pick is never recorded as a draft action
     expect(el.api.actions).toHaveLength(0);
     document.body.innerHTML = '';

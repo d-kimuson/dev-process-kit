@@ -313,9 +313,9 @@ const markdownDescriptions = {
 };
 
 /** @type {Fixture} */
-const wipStoryPanelOpen = {
+const wipStoryDetailOpen = {
   description:
-    'The story panel is open via hash (#story=s1) and the inline description editor is opened programmatically with very long Markdown already typed in.',
+    'The story detail is open in the side panel via hash (#story=s1) and the inline description editor is opened programmatically with very long Markdown already typed in.',
   lang: 'en',
   hash: 'story=s1',
   base: {
@@ -336,8 +336,11 @@ const wipStoryPanelOpen = {
     ],
   },
   prepare: (el) => {
-    const panel = el.shadowRoot?.querySelector('.sp-description');
-    if (panel && typeof panel.startEditing === 'function') panel.startEditing();
+    const detail = el.shadowRoot
+      ?.querySelector('dpk-internal-layout-panel')
+      ?.shadowRoot?.querySelector('dpk-internal-usm-story-detail')
+      ?.shadowRoot?.querySelector('.sp-description');
+    if (detail && typeof detail.startEditing === 'function') detail.startEditing();
   },
 };
 
@@ -421,7 +424,7 @@ export default {
   'many-drafts-stale': manyDraftsStale,
   'comments-rail-open': commentsRailOpen,
   'markdown-descriptions': markdownDescriptions,
-  'wip-story-panel-open': wipStoryPanelOpen,
+  'wip-story-detail-open': wipStoryDetailOpen,
   'status-filter-and-menu': statusFilterAndMenu,
   'features-all-on': featuresAllOn,
 };

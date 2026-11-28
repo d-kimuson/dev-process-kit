@@ -6,6 +6,8 @@ import type {
   MatrixReorderSubColumnDetail,
 } from '../../components/matrix';
 import type { Locale } from '../../core/i18n';
+import type { PanelDetail } from '../../core/panel/host';
+import type { DetailIntent } from '../../core/panel/model';
 import type { ShellRegions, SettingsSection, ViewRenderContext } from '../../core/shell/contracts';
 import type { ActionTarget } from '../../core/types';
 
@@ -15,7 +17,6 @@ import { ViewElement } from '../../core/element';
 import { PopoverController } from '../../core/popover-controller';
 import { SelectController } from '../../core/select/controller';
 import { popoverSurface } from '../../core/theme';
-import { copyText } from '../../lib/dom/clipboard';
 import { DismissController } from '../../lib/dom/dismiss';
 import { DragController, type Drop } from '../../lib/dom/drag';
 import { pointAnchor } from '../../lib/dom/popover';
@@ -25,6 +26,7 @@ import { usmTabOf, type UsmTab } from './board-tabs';
 import { defineUsmBurndownChart } from './components/burndown-chart';
 import { defineInternalUsmSettingsSection } from './components/settings-section';
 import { defineUsmStoryCard } from './components/story-card';
+import { defineInternalUsmStoryDetail } from './components/story-detail';
 import { defineUsmWeightBar } from './components/weight-bar';
 import { highlightedStoriesOf, highlightOf } from './critical-path';
 import { usmDefinitionFor } from './definition';
@@ -34,7 +36,6 @@ import { presentMilestoneOverview } from './milestone-overview';
 import { findStory, flatSteps, hasFeature, stepRefOf, type UsmState } from './model';
 import { renderBoard, type UsmDragType } from './render/board';
 import { burndownStyles, renderBurndown } from './render/burndown';
-import { dependencyPickerStyles, type DependencyPicker } from './render/dependency-picker';
 import { highlightStyles } from './render/highlight';
 import { mapFilterStyles } from './render/map-filter';
 import { mapToolbarStyles, renderMapToolbar } from './render/map-toolbar';
@@ -49,15 +50,10 @@ import {
   TABS_MENU_WIDTH,
 } from './render/page-tabs';
 import { renderSettingsSection } from './render/settings-section';
-import {
-  panelStoryOf,
-  renderStoryPanel,
-  storyPanelStyles,
-  type StoryCopy,
-  type StoryManage,
-} from './render/story-panel';
+import { selectedStoryOf, type StoryManage } from './render/story-detail';
 import { renderStoryTable } from './render/story-table';
 import { statusStyles } from './render/tone';
+import { storyKey } from './story-key';
 import { usmStyles } from './styles';
 import { IDLE_MODE, type UsmUiMode } from './ui-mode';
 
@@ -86,8 +82,6 @@ const FILTER_OPTION_HEIGHT = 31;
 const FILTER_MENU_PADDING = 14;
 /** Room kept around a highlighted card brought into view: about the backbone's height and the milestone column's width. */
 const HIGHLIGHT_REVEAL_MARGIN = 160;
-/** How long the story panel's copy buttons say what they copied. */
-const COPIED_MS = 1500;
 
 /**
  * `<dpk-view-usm>` — the user story map.
@@ -105,8 +99,6 @@ export class DpkViewUsm extends ViewElement<UsmState> {
     usmStyles,
     statusStyles,
     linkStyles,
-    storyPanelStyles,
-    dependencyPickerStyles,
     burndownStyles,
     mapToolbarStyles,
     mapFilterStyles,
@@ -127,8 +119,6 @@ export class DpkViewUsm extends ViewElement<UsmState> {
 
   readonly #drag = new DragController<UsmDragType>(this);
   readonly #popovers = new PopoverController(this);
-  /** The story the panel showed at the last update, to move the focus when that changes. */
-  #panelShown: string | null = null;
   /** Which page tabs do not fit on the bar's line, and so fold behind its more button. */
   readonly #tabsFit = new PriorityOverflowController(this, {
     row: () => this.renderRoot.querySelector('.page-nav'),
@@ -139,9 +129,6 @@ export class DpkViewUsm extends ViewElement<UsmState> {
   });
   /** Whether the map has brought its highlight into view since it was turned on, so the reader's own scrolling is left alone. */
   #revealedHighlight = false;
-  /** The text the story panel just copied, while its buttons say so. */
-  #copied: string | null = null;
-  #copiedTimer: ReturnType<typeof setTimeout> | undefined;
   readonly #milestoneSelect = new SelectController(this);
   readonly #moveDialogSelect = new SelectController(this);
   /** The step picked in the move dialog so far, reset once it opens or closes. */
@@ -150,12 +137,13 @@ export class DpkViewUsm extends ViewElement<UsmState> {
   constructor() {
     super();
     this.mode = IDLE_MODE;
-    // The story panel closes on Escape and on a press on the page outside it.
+    // Escape on the map lets go of the selected story; an Escape inside the side panel is the panel's.
     new DismissController(this, {
-      open: () => this.#panel() !== null,
-      closesOn: (path) => this.#closesPanel(path),
+      open: () => this.navigation['story'] !== undefined,
+      closesOn: () => false,
       ownsEscape: (path) =>
         this.mode.kind === 'idle' &&
+        !path.some((node) => node instanceof Element && node.localName === 'dpk-internal-layout-panel') &&
         (path.includes(this) || path[0] === document.body || path[0] === document.documentElement),
       dismiss: () => this.context().navigate({ story: null }),
     });
@@ -179,12 +167,6 @@ export class DpkViewUsm extends ViewElement<UsmState> {
       ownsEscape: () => true,
       dismiss: () => (this.mode = IDLE_MODE),
     });
-  }
-
-  override disconnectedCallback(): void {
-    super.disconnectedCallback();
-    clearTimeout(this.#copiedTimer);
-    this.#copied = null;
   }
 
   protected override renderRegions(context: ViewRenderContext<UsmState>): ShellRegions {
@@ -228,11 +210,6 @@ export class DpkViewUsm extends ViewElement<UsmState> {
   protected override updated(): void {
     super.updated();
     this.#revealHighlight();
-    this.#syncPanelFocus();
-    if (this.mode.kind === 'picking-dependency') {
-      this.#syncDependencyChoices();
-      return;
-    }
     // A filter's menu hangs off its trigger, as tall as its choices.
     if (this.mode.kind === 'filtering') {
       const menu = this.renderRoot.querySelector<HTMLElement>('#filter-menu');
@@ -260,62 +237,6 @@ export class DpkViewUsm extends ViewElement<UsmState> {
     if (this.mode.kind !== 'picking-step') return;
     const dialog = this.renderRoot.querySelector<HTMLElement>('#move-dialog');
     if (dialog) this.#popovers.open(dialog, pointAnchor(this.mode.point.x, this.mode.point.y), MOVE_DIALOG_SIZE);
-  }
-
-  /**
-   * A dependency picker's choices show while its field has the focus; once
-   * the field is gone (the panel closed) the search goes with it. The
-   * highlighted choice is kept in sight as the arrow keys move it.
-   */
-  #syncDependencyChoices(): void {
-    const field = this.renderRoot instanceof ShadowRoot ? this.renderRoot.activeElement : null;
-    if (!field?.matches('.sp-dep-search')) {
-      this.mode = IDLE_MODE;
-      return;
-    }
-    const active = field.getAttribute('aria-activedescendant');
-    if (active) this.renderRoot.querySelector(`#${CSS.escape(active)}`)?.scrollIntoView?.({ block: 'nearest' });
-  }
-
-  #panel(): HTMLElement | null {
-    return this.renderRoot.querySelector<HTMLElement>('.story-panel');
-  }
-
-  /**
-   * A press on the page outside the panel closes it. A press on a card opens
-   * that card's story instead, and one on a popover (the step picker) or on
-   * the review rail beside the page keeps the panel open.
-   */
-  #closesPanel(path: readonly EventTarget[]): boolean {
-    const panel = this.#panel();
-    const main = this.renderRoot.querySelector('.dpk-main');
-    if (!panel || !main || path.includes(panel) || !path.includes(main)) return false;
-    return !path.some(
-      (node) =>
-        node instanceof Element && (node.localName === 'dpk-internal-usm-story-card' || node.hasAttribute('popover')),
-    );
-  }
-
-  /**
-   * The panel takes the focus when it opens on a story, so the keyboard goes
-   * on from there; once it closes, the focus goes back to the story's card
-   * unless the reader already put it elsewhere.
-   */
-  #syncPanelFocus(): void {
-    const panel = this.#panel();
-    const shown = panel?.dataset['story'] ?? null;
-    const previous = this.#panelShown;
-    if (shown === previous) return;
-    this.#panelShown = shown;
-    const active = this.shadowRoot?.activeElement ?? null;
-    if (panel) {
-      if (!active || !panel.contains(active)) panel.focus({ preventScroll: true });
-      return;
-    }
-    if (previous === null || (active !== null && active.isConnected)) return;
-    this.renderRoot
-      .querySelector<HTMLElement>(`dpk-internal-usm-story-card[data-story="${CSS.escape(previous)}"]`)
-      ?.focus({ preventScroll: true });
   }
 
   /**
@@ -355,7 +276,7 @@ export class DpkViewUsm extends ViewElement<UsmState> {
         }),
         this.#renderToolbar(m, context, tab),
       )}
-      ${this.#renderTab(m, context, tab)} ${this.#renderPanel(m, context, tab)}
+      ${this.#renderTab(m, context, tab)}
       ${renderMoveDialog(m, context, this.mode, this.#moveDialogSelect, this.#moveDialogStepId, {
         pick: (stepId) => {
           this.#moveDialogStepId = stepId;
@@ -383,39 +304,10 @@ export class DpkViewUsm extends ViewElement<UsmState> {
     });
   }
 
-  /** The story panel, on the map only: the stories live there. */
-  #renderPanel(m: UsmMessages, context: ViewRenderContext<UsmState>, tab: UsmTab): TemplateResult | typeof nothing {
-    if (tab !== 'map' && tab !== 'table') return nothing;
-    const story = panelStoryOf(context);
-    if (!story) return nothing;
-    const picker: DependencyPicker = {
-      search: this.mode.kind === 'picking-dependency' ? this.mode.search : null,
-      set: (search) => (this.mode = search ? { kind: 'picking-dependency', search } : IDLE_MODE),
-    };
-    const copy: StoryCopy = {
-      copied: this.#copied,
-      copy: (text) => void this.#copy(text),
-    };
-    const manage: StoryManage = { open: (section) => this.openSettings(section) };
-    return renderStoryPanel(m, context, story, picker, copy, manage);
-  }
-
-  /** Puts `text` on the clipboard and lets the panel say so for a moment. */
-  async #copy(text: string): Promise<void> {
-    if (!(await copyText(text))) return;
-    clearTimeout(this.#copiedTimer);
-    this.#copied = text;
-    this.requestUpdate();
-    this.#copiedTimer = setTimeout(() => {
-      this.#copied = null;
-      this.requestUpdate();
-    }, COPIED_MS);
-  }
-
   #renderTab(m: UsmMessages, context: ViewRenderContext<UsmState>, tab: UsmTab): TemplateResult {
     switch (tab) {
       case 'table':
-        return renderStoryTable(m, context);
+        return renderStoryTable(m, context, (storyId) => this.#onSelectStory(storyId));
       case 'milestones':
         return renderMilestoneOverview(m, context, presentMilestoneOverview(context.state));
       case 'burndown':
@@ -442,11 +334,47 @@ export class DpkViewUsm extends ViewElement<UsmState> {
     });
   }
 
-  /** A click on a card opens its story in the panel. */
+  /** A click on a card or a row opens its story in the panel, the story already selected too. */
   #onSelectStory(storyId: string): void {
     const context = this.context();
     const story = findStory(context.state, storyId);
-    if (story) context.navigate({ step: story.stepId, story: story.id });
+    if (!story) return;
+    context.navigate({ step: story.stepId, story: story.id });
+    this.openPanelDetail();
+  }
+
+  protected override get providesPanelDetail(): boolean {
+    return true;
+  }
+
+  /** The selected story is always the reader's pick (a card, a row, a link, the URL): it opens the panel. */
+  protected override get panelDetailIntent(): DetailIntent {
+    return 'open';
+  }
+
+  protected override renderPanelDetail(context: ViewRenderContext<UsmState>): PanelDetail | null {
+    const story = selectedStoryOf(context);
+    if (!story) return null;
+    const m = usmMessages(this.locale);
+    const manage: StoryManage = { open: (section) => this.openSettings(section) };
+    const target = { type: 'story', id: story.id };
+    return {
+      key: story.id,
+      kind: m.storyDetailKind,
+      title: storyKey(story),
+      render: () =>
+        html`<dpk-internal-usm-story-detail
+          .story=${story}
+          .context=${context}
+          .messages=${m}
+          .manage=${manage}
+        ></dpk-internal-usm-story-detail>`,
+      focus: () =>
+        this.renderRoot
+          .querySelector<HTMLElement>(`dpk-internal-usm-story-card[data-story="${CSS.escape(story.id)}"]`)
+          ?.focus({ preventScroll: true }),
+      comment: () => context.requestComment(target),
+    };
   }
 
   #onCellDrop(cell: CellRef, drop: Drop<'story'>): void {
@@ -518,6 +446,7 @@ export class DpkViewUsm extends ViewElement<UsmState> {
 
 export const defineUsmElement = (): void => {
   defineUsmStoryCard();
+  defineInternalUsmStoryDetail();
   defineInternalUsmSettingsSection();
   defineUsmBurndownChart();
   defineUsmWeightBar();

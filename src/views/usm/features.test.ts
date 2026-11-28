@@ -11,6 +11,7 @@ import { DpkViewUsm } from './element';
 import { filterOptionIds } from './map-filter';
 import { usmMessages } from './messages';
 import { hasFeature, parseUsmBase, type UsmState } from './model';
+import { settleDetail, storyDetailOf } from './testing';
 
 const m = usmMessages('en');
 const definition = usmDefinitionFor('en');
@@ -112,6 +113,7 @@ describe('usm features: element', () => {
     await el.updateComplete;
     await new Promise((resolve) => setTimeout(resolve, 0));
     await el.updateComplete;
+    await settleDetail(el);
   };
 
   const mount = async (hash: string, base: object = raw): Promise<DpkViewUsm> => {
@@ -143,7 +145,7 @@ describe('usm features: element', () => {
     expect(tabs(el)).toEqual(['map', 'table', 'milestones']);
     // a member is defined in the settings, and its section is part of the feature too
     expect(settingsSections(el)).toEqual(['statuses', 'labels']);
-    const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
+    const panel = storyDetailOf(el)!;
     expect(panel.querySelector('[data-estimate]')).toBeNull();
     expect(panel.querySelector('[data-assignee]')).toBeNull();
     const card = root.querySelector('dpk-internal-usm-story-card[data-story="u1"]') as HTMLElement & {

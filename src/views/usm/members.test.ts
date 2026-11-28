@@ -11,6 +11,7 @@ import { filterOptionIds, mapFilterOf, NO_VALUE, passesMapFilter } from './map-f
 import { presentMemberOverview } from './member-overview';
 import { usmMessages } from './messages';
 import { assigneeOf, parseUsmBase, type UsmState } from './model';
+import { settleDetail, storyDetailOf } from './testing';
 
 const m = usmMessages('en');
 const definition = usmDefinitionFor('en');
@@ -137,6 +138,7 @@ describe('usm members: element', () => {
     await el.updateComplete;
     await new Promise((resolve) => setTimeout(resolve, 0));
     await el.updateComplete;
+    await settleDetail(el);
   };
 
   const mount = async (hash: string): Promise<DpkViewUsm> => {
@@ -197,7 +199,7 @@ describe('usm members: element', () => {
     const avatar = card('u1').shadowRoot!.querySelector('[data-kind="assignee"]')!;
     expect(avatar.textContent?.trim()).toBe('K');
     expect(avatar.getAttribute('title')).toBe(m.assigneeChipTitle('Kimura'));
-    const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
+    const panel = storyDetailOf(el)!;
     const options = () => [...panel.querySelectorAll('[data-assignee]')] as HTMLButtonElement[];
     expect(
       options().map((option) => [option.getAttribute('data-assignee'), option.getAttribute('aria-checked')]),

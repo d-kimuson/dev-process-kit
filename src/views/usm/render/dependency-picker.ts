@@ -3,13 +3,19 @@ import { css, html, nothing, type TemplateResult } from 'lit';
 import type { ViewRenderContext } from '../../../core/shell/contracts';
 import type { UsmMessages } from '../messages';
 import type { UsmState } from '../model';
-import type { DependencySearch } from '../ui-mode';
 
 import { dependencyChoices, type DependencyChoice, type DependencySide } from '../dependency-choices';
 import { statusViews } from '../status-view';
 import { statusIcon, statusToneStyle } from './tone';
 
-/** The search the story panel's pickers share (one list is open at most), and how to change it. */
+/** What the reader typed into one of the story detail's dependency pickers, and which choice is highlighted. */
+export type DependencySearch = {
+  readonly side: DependencySide;
+  readonly query: string;
+  readonly active: number;
+};
+
+/** The search the story detail's pickers share (one list is open at most), and how to change it. */
 export type DependencyPicker = {
   readonly search: DependencySearch | null;
   readonly set: (search: DependencySearch | null) => void;
@@ -19,7 +25,7 @@ export type DependencyPicker = {
  * A combobox that adds one side of the story's dependencies: typing narrows
  * the stories it may take (by name, activity or step), the arrow keys move
  * through them and Enter or a click adds one. The list is open while the
- * field has the focus; Escape closes it before it closes the panel. Nothing
+ * field has the focus; Escape closes it before the panel takes the key. Nothing
  * shows when no story is left to take.
  */
 export const renderDependencyPicker = (
@@ -68,7 +74,7 @@ export const renderDependencyPicker = (
         choose(highlighted);
         return;
       case 'Escape':
-        // Left alone while closed, so it closes the panel instead.
+        // Left alone while closed, so the panel takes it.
         if (!search) return;
         event.preventDefault();
         picker.set(null);

@@ -6,7 +6,7 @@ import type { ViewRenderContext } from '../../../core/shell/contracts';
 import type { UsmMessages } from '../messages';
 
 import { linkIcon } from '../../../components/atoms/link';
-import { iconCheck, iconClose, iconComment, iconCopy, iconTrash, lucide } from '../../../core/icons';
+import { iconCheck, iconClose, iconCopy, iconTrash, lucide } from '../../../core/icons';
 import { createEntityId } from '../../../core/target';
 import { onCommit } from '../../../lib/dom/events';
 import { describeLink } from '../../../lib/link-label';
@@ -32,11 +32,11 @@ const iconIdTitle = lucide(Tag);
 const iconCardInfo = lucide(FileText);
 
 /** The story the panel shows: the one the reader navigated to, if it still exists. */
-export const panelStoryOf = (context: ViewRenderContext<UsmState>): UserStory | undefined => {
+export const selectedStoryOf = (context: ViewRenderContext<UsmState>): UserStory | undefined => {
   return findStory(context.state, context.navigation['story']);
 };
 
-/** Copying from the panel: the host keeps the text it last copied. */
+/** Copying from the detail: the detail keeps the text it last copied. */
 export type StoryCopy = {
   /** The text the last press copied, while the buttons say so; `null` once they may have been. */
   readonly copied: string | null;
@@ -44,20 +44,19 @@ export type StoryCopy = {
 };
 
 /**
- * The panel's "Manage …" links point at the definitions its fields read, and
- * those live in the settings dialog: the host opens it on that section.
+ * The detail's "Manage …" links point at the definitions its fields read, and
+ * those live in the settings dialog: the view opens it on that section.
  */
 export type StoryManage = {
   readonly open: (section: 'labels' | 'members') => void;
 };
 
 /**
- * The story panel: a drawer on the right that edits one story — its title,
- * status, labels, description and links. A click on a card opens it (`#story=<id>`);
- * closing it clears the story from the navigation. The host moves the focus
- * in and out and closes it on Escape or a press outside (`DismissController`).
+ * A story's detail, drawn in the side panel: where it sits on the map, its
+ * copy buttons, and its title, status, labels, dependencies, description,
+ * links and comments, each edited in place.
  */
-export const renderStoryPanel = (
+export const renderStoryDetail = (
   m: UsmMessages,
   context: ViewRenderContext<UsmState>,
   story: UserStory,
@@ -67,85 +66,69 @@ export const renderStoryPanel = (
 ): TemplateResult => {
   const { state } = context;
   const target = { type: 'story', id: story.id };
-  const close = (): void => context.navigate({ story: null });
   const located = findStep(state, `${story.activityId}.${story.stepId}`);
   const milestone = findMilestone(state, story.milestoneId);
-  return html`<aside
-    class="story-panel"
-    role="dialog"
-    aria-label=${m.panelLabel(story.name)}
-    data-testid="usm-story-panel"
-    data-story=${story.id}
-    tabindex="-1"
-  >
-    <header class="sp-head">
+  return html`<div class="sp-body" data-testid="usm-story-detail" data-story=${story.id}>
+    <div class="sp-heading">
       <span class="sp-where">
         ${located ? html`<span>${located.activity.name}</span><span>${located.step.name}</span>` : nothing}
         <span>${milestone?.name ?? m.unassigned}</span>
       </span>
-      ${renderReviewButton(m, context, story)}
-      <button class="dpk-icon-btn" type="button" data-role="close" aria-label=${m.closePanelAria} @click=${close}>
-        ${iconClose()}
-      </button>
-    </header>
-    <div class="sp-body">
-      <div class="sp-heading">
-        <div class="sp-copy-row">
-          ${renderKeyButton(m, story, copy)}
-          ${renderCopyButton(m, copy, {
-            role: 'copy-id-title',
-            label: m.copyIdTitle,
-            text: storyIdTitle(story),
-            icon: iconIdTitle,
-          })}
-          ${renderCopyButton(m, copy, {
-            role: 'copy-info',
-            label: m.copyStoryInfo,
-            text: storyInfoMarkdown(m, state, story),
-            icon: iconCardInfo,
-          })}
-        </div>
-        <h2 class="sp-title">
-          <dpk-inline-edit
-            wrap
-            .value=${story.name}
-            .label=${m.storyTitleLabel}
-            @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_STORY_NAME', target, payload: { name } }))}
-          ></dpk-inline-edit>
-        </h2>
+      <div class="sp-copy-row">
+        ${renderKeyButton(m, story, copy)}
+        ${renderCopyButton(m, copy, {
+          role: 'copy-id-title',
+          label: m.copyIdTitle,
+          text: storyIdTitle(story),
+          icon: iconIdTitle,
+        })}
+        ${renderCopyButton(m, copy, {
+          role: 'copy-info',
+          label: m.copyStoryInfo,
+          text: storyInfoMarkdown(m, state, story),
+          icon: iconCardInfo,
+        })}
       </div>
-      ${state.statuses.length === 0 ? nothing : renderStatusField(m, context, story)}
-      ${hasFeature(state, 'estimates') ? renderEstimateField(m, context, story) : nothing}
-      ${hasFeature(state, 'assignees') ? renderAssigneeField(m, context, story, manage) : nothing}
-      ${renderLabelsField(m, context, story, manage)} ${renderDependenciesField(m, context, story, picker)}
-      <section class="sp-field">
-        <h3>${m.storyDescriptionLabel}</h3>
+      <h3 class="sp-title">
         <dpk-inline-edit
-          multiline
-          markdown
-          class="sp-description"
-          .value=${story.description ?? ''}
-          .label=${m.storyDescriptionLabel}
-          @dpk-commit=${onCommit((description) =>
-            context.dispatch({ type: 'SET_STORY_DESCRIPTION', target, payload: { description } }),
-          )}
+          wrap
+          .value=${story.name}
+          .label=${m.storyTitleLabel}
+          @dpk-commit=${onCommit((name) => context.dispatch({ type: 'SET_STORY_NAME', target, payload: { name } }))}
         ></dpk-inline-edit>
-      </section>
-      ${renderLinksField(m, context, story)} ${renderComments(m, context, story)}
+      </h3>
     </div>
+    ${state.statuses.length === 0 ? nothing : renderStatusField(m, context, story)}
+    ${hasFeature(state, 'estimates') ? renderEstimateField(m, context, story) : nothing}
+    ${hasFeature(state, 'assignees') ? renderAssigneeField(m, context, story, manage) : nothing}
+    ${renderLabelsField(m, context, story, manage)} ${renderDependenciesField(m, context, story, picker)}
+    <section class="sp-field">
+      <h3>${m.storyDescriptionLabel}</h3>
+      <dpk-inline-edit
+        multiline
+        markdown
+        class="sp-description"
+        .value=${story.description ?? ''}
+        .label=${m.storyDescriptionLabel}
+        @dpk-commit=${onCommit((description) =>
+          context.dispatch({ type: 'SET_STORY_DESCRIPTION', target, payload: { description } }),
+        )}
+      ></dpk-inline-edit>
+    </section>
+    ${renderLinksField(m, context, story)} ${renderComments(m, context, story)}
     <footer class="sp-foot">
       <button
         class="dpk-btn dpk-btn--ghost sp-delete"
         type="button"
         @click=${() => {
           const outcome = context.dispatch({ type: 'DELETE_STORY', target, payload: {} });
-          if (outcome.ok) close();
+          if (outcome.ok) context.navigate({ story: null });
         }}
       >
         ${iconTrash()}<span>${m.deleteStoryButton}</span>
       </button>
     </footer>
-  </aside>`;
+  </div>`;
 };
 
 /** The story's key, which a press copies so the reader can name the story to someone else. */
@@ -504,26 +487,6 @@ const renderLinksField = (m: UsmMessages, context: ViewRenderContext<UsmState>, 
 };
 
 /**
- * Opens the review rail at a review comment on this story: a request to the
- * agent, which leaves with the draft. The count is the review comments on it.
- */
-const renderReviewButton = (m: UsmMessages, context: ViewRenderContext<UsmState>, story: UserStory): TemplateResult => {
-  const count = context.commentCount({ type: 'story', id: story.id });
-  return html`<button
-    class="sp-review"
-    type="button"
-    data-role="review-story"
-    title=${m.reviewStoryTitle}
-    aria-label=${count > 0 ? `${m.reviewStoryButton} (${count})` : m.reviewStoryButton}
-    @click=${() => context.requestComment({ type: 'story', id: story.id })}
-  >
-    ${iconComment()}<span>${m.reviewStoryButton}</span>${
-      count > 0 ? html`<span class="sp-review-count">${count}</span>` : nothing
-    }
-  </button>`;
-};
-
-/**
  * The comments kept on the story, oldest first, and a field to add one. They
  * are part of the map, like the description: adding or deleting one is a
  * change in the draft, which the agent writes into the base data.
@@ -552,46 +515,30 @@ const renderComments = (m: UsmMessages, context: ViewRenderContext<UsmState>, st
   </section>`;
 };
 
-export const storyPanelStyles = css`
-  /* Over the main column's edge, below the header: the page's own controls stay in reach. */
-  .story-panel {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 20;
+export const storyDetailStyles = css`
+  .sp-body {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    width: min(420px, 100%);
-    border-left: 1px solid var(--dpk-rule-strong);
-    background: var(--dpk-paper-raised);
-    box-shadow: var(--dpk-shadow-lg);
-    animation: sp-slide-in 220ms var(--dpk-ease);
-  }
-  /* The panel takes the focus when it opens; the ring belongs to its controls. */
-  .story-panel:focus {
-    outline: none;
-  }
-  @keyframes sp-slide-in {
-    from {
-      opacity: 0;
-      transform: translateX(24px);
-    }
-  }
-  .sp-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    /* The close button keeps clear of a floating menu docked at the right edge. */
-    padding: 14px calc(22px + var(--dpk-floating-menu-clearance, 0px)) 12px 22px;
-    min-height: 60px;
-    box-sizing: border-box;
-    border-bottom: 1px solid var(--dpk-rule);
+    align-content: start;
+    gap: 22px;
   }
   .sp-heading {
     display: grid;
     justify-items: start;
     gap: 6px;
+  }
+  .sp-where {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 0;
+    min-width: 0;
+    color: var(--dpk-ink-faint);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .sp-where > span + span::before {
+    content: '›';
+    margin: 0 6px;
+    color: var(--dpk-rule-strong);
   }
   .sp-heading .sp-title {
     justify-self: stretch;
@@ -645,28 +592,6 @@ export const storyPanelStyles = css`
     flex: none;
     width: 12px;
     height: 12px;
-  }
-  .sp-where {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px 0;
-    flex: 1 1 auto;
-    min-width: 0;
-    color: var(--dpk-ink-faint);
-    font-size: 11.5px;
-    font-weight: 600;
-  }
-  .sp-where > span + span::before {
-    content: '›';
-    margin: 0 6px;
-    color: var(--dpk-rule-strong);
-  }
-  .sp-body {
-    display: grid;
-    align-content: start;
-    gap: 22px;
-    overflow: auto;
-    padding: 18px 22px 24px;
   }
   /* A dependency's name is one nowrap line with an ellipsis, and every grid
      box between it and the panel keeps the default min-width (auto): the line
@@ -1018,50 +943,10 @@ export const storyPanelStyles = css`
   .sp-comments dpk-comment-thread {
     margin-top: 6px;
   }
-  /* A request to the agent, not part of the story: it carries the review rail's comment icon. */
-  .sp-review {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    gap: 6px;
-    height: 28px;
-    padding: 0 10px;
-    border: 1px solid var(--dpk-rule-strong);
-    border-radius: 999px;
-    background: var(--dpk-paper-raised);
-    color: var(--dpk-ink-soft);
-    font: inherit;
-    font-size: 11.5px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .sp-review:hover {
-    color: var(--dpk-accent);
-    border-color: color-mix(in srgb, var(--dpk-accent) 45%, transparent);
-  }
-  .sp-review:focus-visible {
-    outline: none;
-    box-shadow: var(--dpk-focus);
-  }
-  .sp-review svg {
-    width: 14px;
-    height: 14px;
-  }
-  .sp-review-count {
-    min-width: 16px;
-    padding: 0 4px;
-    border-radius: 999px;
-    background: var(--dpk-accent-soft);
-    color: var(--dpk-accent);
-    font-family: var(--dpk-mono);
-    font-size: 10px;
-    line-height: 16px;
-    text-align: center;
-  }
   .sp-foot {
     display: flex;
     justify-content: flex-start;
-    padding: 12px 22px;
+    padding-top: 12px;
     border-top: 1px solid var(--dpk-rule);
   }
   .sp-delete {

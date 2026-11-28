@@ -5,6 +5,7 @@ import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-me
 import type { DpkViewUsm } from './element';
 
 import '../../index';
+import { panelFrameOf, settleDetail, storyDetailOf } from './testing';
 
 const raw = {
   activities: [{ id: 'a1', name: 'A1', steps: [{ id: 's1', name: 'S1' }] }],
@@ -54,6 +55,7 @@ const settle = async (el: DpkViewUsm): Promise<void> => {
   await el.updateComplete;
   await new Promise((resolve) => setTimeout(resolve, 0));
   await el.updateComplete;
+  await settleDetail(el);
 };
 
 const mountWith = async (base: unknown, hash: string): Promise<DpkViewUsm> => {
@@ -73,7 +75,13 @@ const mount = (hash: string): Promise<DpkViewUsm> => mountWith(raw, hash);
 const card = (el: DpkViewUsm, id: string): HTMLElement =>
   el.shadowRoot!.querySelector(`dpk-internal-usm-story-card[data-story="${id}"]`) as HTMLElement;
 
-const panel = (el: DpkViewUsm): HTMLElement | null => el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]');
+const panel = (el: DpkViewUsm): HTMLElement | null => storyDetailOf(el);
+
+/** The element that has the focus, looked up through the view's and the panel's shadow roots. */
+const focused = (el: DpkViewUsm): Element | null => {
+  const active = el.shadowRoot!.activeElement;
+  return active === panelFrameOf(el) ? (panelFrameOf(el)!.shadowRoot!.activeElement ?? active) : active;
+};
 
 const key = (target: EventTarget, name: string): KeyboardEvent => {
   const event = new KeyboardEvent('keydown', { key: name, bubbles: true, composed: true, cancelable: true });
@@ -86,7 +94,7 @@ const pointerDown = (target: EventTarget): void => {
   target.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, composed: true, button: 0 }));
 };
 
-describe('usm story panel: keyboard and pointer', () => {
+describe('usm story detail: keyboard and pointer', () => {
   beforeEach(() => {
     window.location.hash = '';
     document.body.innerHTML = '';
@@ -107,19 +115,36 @@ describe('usm story panel: keyboard and pointer', () => {
     expect(el.api.navigation['story']).toBe('u2');
   });
 
-  it('moves focus into the panel it opens and back to the card it closes on', async () => {
+  it('opens the side panel on the story it shows, with the focus on its heading, and Escape gives it back to the card', async () => {
     const el = await mount('');
+    expect(el.panelOpen).toBe(false);
     card(el, 'u1').focus();
     key(card(el, 'u1'), 'Enter');
     await settle(el);
-    expect(el.shadowRoot!.activeElement).toBe(panel(el));
-    (panel(el)!.querySelector('[data-role="close"]') as HTMLButtonElement).click();
+    expect(el.panelOpen).toBe(true);
+    expect(el.panelSection).toBe('detail');
+    expect(panel(el)?.getAttribute('data-story')).toBe('u1');
+    const heading = focused(el);
+    expect(heading?.getAttribute('data-role')).toBe('detail-heading');
+    expect(heading?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Story STORY-1');
+    key(heading!, 'Escape');
     await settle(el);
-    expect(panel(el)).toBeNull();
-    expect(el.shadowRoot!.activeElement).toBe(card(el, 'u1'));
+    expect(focused(el)).toBe(card(el, 'u1'));
+    expect(el.api.navigation['story']).toBe('u1');
   });
 
-  it('closes on Escape wherever the focus is, but leaves a cancelled edit alone', async () => {
+  it('opens the panel again when the story it shows is picked once more after the panel was closed', async () => {
+    const el = await mount('#story=u1');
+    expect(el.panelOpen).toBe(true);
+    el.panelOpen = false;
+    await settle(el);
+    card(el, 'u1').click();
+    await settle(el);
+    expect(el.panelOpen).toBe(true);
+    expect(panel(el)?.getAttribute('data-story')).toBe('u1');
+  });
+
+  it('lets go of the story on Escape outside the panel, but leaves a cancelled edit alone', async () => {
     const el = await mount('#story=u1');
     expect(panel(el)).not.toBeNull();
     const handled = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
@@ -133,22 +158,51 @@ describe('usm story panel: keyboard and pointer', () => {
     expect(el.api.navigation['story']).toBeUndefined();
   });
 
-  it('closes on a press outside it, but not on a press inside it or on another card', async () => {
+  it('keeps the story on an Escape pressed inside the panel', async () => {
     const el = await mount('#story=u1');
-    pointerDown(panel(el)!.querySelector('.sp-body')!);
+    const search = panel(el)!.querySelector<HTMLInputElement>('input[data-role="add-blocker"]')!;
+    search.focus();
     await settle(el);
-    expect(panel(el)).not.toBeNull();
-    pointerDown(card(el, 'u2'));
+    key(search, 'Escape');
     await settle(el);
-    expect(panel(el)).not.toBeNull();
+    expect(search.getAttribute('aria-expanded')).toBe('false');
+    key(search, 'Escape');
+    await settle(el);
+    expect(el.api.navigation['story']).toBe('u1');
+    expect(panel(el)?.getAttribute('data-story')).toBe('u1');
+  });
+
+  it('keeps the story on a press outside the panel', async () => {
+    const el = await mount('#story=u1');
     pointerDown(el.shadowRoot!.querySelector('[data-testid="usm-map"]')!);
     await settle(el);
-    expect(panel(el)).toBeNull();
+    expect(panel(el)?.getAttribute('data-story')).toBe('u1');
+    expect(el.api.navigation['story']).toBe('u1');
+  });
+
+  it('edits the title in place and asks for a review comment on the story from the detail heading', async () => {
+    const el = await mount('#story=u1');
+    const edit = panel(el)!.querySelector('.sp-title dpk-inline-edit')!;
+    edit.dispatchEvent(new CustomEvent('dpk-commit', { detail: { value: 'Sign in' }, bubbles: true, composed: true }));
+    await settle(el);
+    expect(el.api.state.stories.find((story) => story.id === 'u1')?.name).toBe('Sign in');
+    const comment = panelFrameOf(el)!.shadowRoot!.querySelector<HTMLButtonElement>('.detail-head button')!;
+    comment.click();
+    await settle(el);
+    expect(el.notesOpen).toBe(true);
+  });
+
+  it('shows nothing once the story is deleted from the detail', async () => {
+    const el = await mount('#story=u1');
+    panel(el)!.querySelector<HTMLButtonElement>('.sp-delete')!.click();
+    await settle(el);
+    expect(el.api.state.stories.map((story) => story.id)).toEqual(['u2']);
     expect(el.api.navigation['story']).toBeUndefined();
+    expect(panel(el)).toBeNull();
   });
 });
 
-describe('usm story panel: the story key', () => {
+describe('usm story detail: the story key', () => {
   beforeEach(() => {
     window.location.hash = '';
     document.body.innerHTML = '';
@@ -165,7 +219,7 @@ describe('usm story panel: the story key', () => {
     expect(panel(el)?.getAttribute('data-story')).toBe('u2');
   });
 
-  it('copies the key from the panel and says so on the button', async () => {
+  it('copies the key from the detail and says so on the button', async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     const el = await mount('#story=u2');
@@ -181,7 +235,7 @@ describe('usm story panel: the story key', () => {
   });
 });
 
-describe('usm story copy: the panel buttons and the card menu', () => {
+describe('usm story copy: the detail buttons and the card menu', () => {
   beforeEach(() => {
     window.location.hash = '';
     document.body.innerHTML = '';
@@ -199,7 +253,7 @@ describe('usm story copy: the panel buttons and the card menu', () => {
   const copyButton = (el: DpkViewUsm, role: string): HTMLButtonElement =>
     panel(el)!.querySelector(`[data-role="${role}"]`) as HTMLButtonElement;
 
-  it('copies the story’s id and title from the panel and says so on that button alone', async () => {
+  it('copies the story’s id and title from the detail and says so on that button alone', async () => {
     const writeText = clipboard();
     const el = await mountWith(richRaw, '#story=u2');
     const button = copyButton(el, 'copy-id-title');
@@ -216,7 +270,7 @@ describe('usm story copy: the panel buttons and the card menu', () => {
     expect(copyButton(el, 'copy-key').getAttribute('data-copied')).toBe('false');
   });
 
-  it('copies the card as Markdown from the panel', async () => {
+  it('copies the card as Markdown from the detail', async () => {
     const writeText = clipboard();
     const el = await mountWith(richRaw, '#story=u2');
     const button = copyButton(el, 'copy-info');
