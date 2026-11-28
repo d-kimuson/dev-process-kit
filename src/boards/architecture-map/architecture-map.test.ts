@@ -232,6 +232,43 @@ describe('architecture map data', () => {
   });
 });
 
+describe('architecture map drawn edges', () => {
+  /*
+   * Characterisation before `linkPath` becomes `archLinkSteps`: the exact `d`
+   * each link is drawn with, so a rewrite that returns path steps instead of a
+   * string can be proven to draw the same thing.
+   */
+  it('draws each link the same way', async () => {
+    const element = await mount();
+    const drawn = [...element.renderRoot.querySelectorAll<SVGGElement>('[data-link]')]
+      .map((group) => ({
+        id: group.dataset['link'] ?? '',
+        d: group.querySelector('.d-edge-path')?.getAttribute('d') ?? '',
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    expect(drawn).toMatchInlineSnapshot(`
+      [
+        {
+          "d": "M292 132 L372 132",
+          "id": "browser-orders",
+        },
+        {
+          "d": "M480 184 L480 292",
+          "id": "orders-database",
+        },
+        {
+          "d": "M592 144 L642 144 Q648 144 648 150 L648 342 Q648 348 654 348 L692 348",
+          "id": "orders-mail",
+        },
+        {
+          "d": "M592 120 L692 120",
+          "id": "orders-payment",
+        },
+      ]
+    `);
+  });
+});
+
 describe('dpk-board-architecture-map', () => {
   it('renders boundaries, services and artwork', async () => {
     const element = await mount();
