@@ -15,9 +15,9 @@ const envelope = (x: number, y: number, width: number, height: number, filled: b
   ${filled ? '' : svg`<path class="line" d="M${x} ${y} L${x + width / 2} ${y + height / 2} L${x + width} ${y}"></path>`}
 `;
 
-const taskIcon = (task: string): TemplateResult | '' => {
-  const x = 6;
-  const y = 6;
+const taskGlyph = (task: string): TemplateResult | '' => {
+  const x = 8;
+  const y = 8;
   const s = TASK_ICON;
   const cx = x + s / 2;
   const cy = y + s / 2;
@@ -40,6 +40,16 @@ const taskIcon = (task: string): TemplateResult | '' => {
     default:
       return '';
   }
+};
+
+/** A task's type icon on a chip in the card's top-left corner, coloured by the type. */
+const taskIcon = (task: string): TemplateResult | '' => {
+  const glyph = taskGlyph(task);
+  if (glyph === '') return '';
+  return svg`<g class="task-icon icon-${task}">
+    <rect class="chip" x="4" y="4" width="22" height="22" rx="7"></rect>
+    ${glyph}
+  </g>`;
 };
 
 const eventTrigger = (trigger: string, width: number, height: number, thrown: boolean): TemplateResult | '' => {
@@ -95,7 +105,7 @@ const taskShape = (node: Extract<BpmnNode, { kind: 'task' | 'subprocess' }>): Te
   const { width, height } = node;
   const subprocess = node.kind === 'subprocess';
   return svg`
-    <rect class="surface" x="1.5" y="1.5" width=${width - 3} height=${height - 3} rx="10"></rect>
+    <rect class="surface" x="1.5" y="1.5" width=${width - 3} height=${height - 3} rx="12"></rect>
     ${node.kind === 'task' ? taskIcon(node.task) : ''}
     ${
       subprocess
@@ -113,8 +123,18 @@ const dataObjectShape = (node: Extract<BpmnNode, { kind: 'dataObject' }>): Templ
     <path class="line" d="M${width - fold} 2 V${2 + fold} H${width - 2}"></path>`;
 };
 
-const bracketShape = (height: number): TemplateResult =>
-  svg`<path class="line" d="M18 2 H4 V${height - 2} H18"></path>`;
+const annotationShape = (width: number, height: number): TemplateResult =>
+  svg`<rect class="note" x="4" y="1" width=${width - 4} height=${height - 2} rx="8"></rect>
+    <path class="line" d="M18 2 H4 V${height - 2} H18"></path>`;
+
+/** The colour family a node is painted in (see `styles.ts`). */
+const tone = (node: BpmnNode): string => {
+  if (node.kind === 'event') return `tone-${node.event}`;
+  if (node.kind === 'gateway') return 'tone-gateway';
+  if (node.kind === 'dataObject') return 'tone-data';
+  if (node.kind === 'annotation') return 'tone-note';
+  return 'tone-task';
+};
 
 /** The inline SVG for one node. The element positions it over the node's box. */
 export const bpmnNodeShape = (node: BpmnNode): TemplateResult => {
@@ -128,10 +148,10 @@ export const bpmnNodeShape = (node: BpmnNode): TemplateResult => {
           : node.kind === 'dataObject'
             ? dataObjectShape(node)
             : node.kind === 'annotation'
-              ? bracketShape(node.height)
+              ? annotationShape(node.width, node.height)
               : '';
   return svg`<svg
-    class="bpmn-shape"
+    class="bpmn-shape ${tone(node)}"
     width=${node.width}
     height=${node.height}
     viewBox="0 0 ${node.width} ${node.height}"
