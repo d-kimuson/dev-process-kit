@@ -331,7 +331,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
             )
           : nothing
       }
-      ${this.renderEdges(edges, [])}
+      ${this.renderEdges(edges)}
       ${visible.edges.map((link) => {
         const chip = chips.get(link.id);
         if (chip === undefined || link.label === null) return nothing;

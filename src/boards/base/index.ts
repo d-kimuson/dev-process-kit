@@ -46,8 +46,7 @@ export type {
   ViewportController,
   ViewportOptions,
 } from './viewport';
-export { arrowDefinitions, pathData } from './view';
-export type { ArrowDefinition } from './view';
+export { pathData } from './view';
 export {
   EDGE_PATHS,
   END_MARKERS,

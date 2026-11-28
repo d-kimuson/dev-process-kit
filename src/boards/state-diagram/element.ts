@@ -124,10 +124,7 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
   protected override renderCanvas(): TemplateResult {
     const paths = this.#paths();
     return html`
-      ${this.renderEdges(
-        this.visible.edges.map((edge) => this.#renderTransition(edge, paths)),
-        [],
-      )}
+      ${this.renderEdges(this.visible.edges.map((edge) => this.#renderTransition(edge, paths)))}
       ${this.visible.nodes.map((node) => this.#renderState(node))}
       ${this.visible.edges.map((edge) => this.#renderLabel(edge))}
     `;

@@ -36,9 +36,6 @@ type EdgeKind = 'neutral' | 'cycle' | 'outgoing' | 'incoming' | 'selected';
 /** Paint order: a highlighted edge is drawn over the plain ones it shares a trunk with. */
 const EDGE_KINDS: readonly EdgeKind[] = ['neutral', 'cycle', 'incoming', 'outgoing', 'selected'];
 
-/** The shared `renderEdges` still takes marker definitions; this board now draws its heads inline. */
-const NO_ARROWS: readonly { readonly id: string }[] = [];
-
 /** Every dependency is a solid line ending in an arrowhead; the kind's colour comes from `--d-edge-line`. */
 const DEPENDENCY_SPEC: EdgeSpec = { line: 'solid', start: null, end: END_MARKERS.arrow, flow: 'active' };
 
@@ -357,6 +354,6 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
         </button>
       `;
     });
-    return html`${this.renderEdges(edges, NO_ARROWS)}${nodes}`;
+    return html`${this.renderEdges(edges)}${nodes}`;
   }
 }

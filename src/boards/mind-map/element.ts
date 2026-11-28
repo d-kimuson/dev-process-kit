@@ -173,10 +173,7 @@ export class DpkBoardMindMap extends BoardCanvasElement<MindMapData> {
     const visible = this.filtered();
     const m = mindMapMessages(this.locale);
     return html`
-      ${this.renderEdges(
-        visible.edges.map((edge) => this.#renderBranch(edge)),
-        [],
-      )}
+      ${this.renderEdges(visible.edges.map((edge) => this.#renderBranch(edge)))}
       ${visible.nodes.map((node) => this.#renderTopic(node, m))} ${this.#renderActions(m)}
     `;
   }
