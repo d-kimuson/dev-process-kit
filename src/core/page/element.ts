@@ -288,8 +288,7 @@ export class PageElement extends LitElement {
     if (state.status !== 'ready') return;
     this.requestUpdate();
     // A page-content board opens fitted, the way entering fullscreen re-fits it.
-    if (content.localName.startsWith('dpk-board-') && !content.hasAttribute('data-dpk-open-actual'))
-      requestAnimationFrame(() => content.resetView?.());
+    if (content.localName.startsWith('dpk-board-')) requestAnimationFrame(() => content.resetView?.());
   }
 
   async #inspect(content: PageContentElement): Promise<PageContentState> {
