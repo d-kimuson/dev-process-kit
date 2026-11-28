@@ -11,6 +11,8 @@ There is no attribute to switch between the two: what encloses a board decides (
 
 `chrome` is a separate matter: it decides how much of the board's own shell is drawn, not where the board sits. `chrome="none"` leaves just the figure for a diagram embedded in prose (below).
 
+A sketch of a few boxes and lines with no meaning model of its own is not a board: compose it from `dpk-diagram` and its children (`docs/components/diagram.md`).
+
 | Board tag                    | Answers                                               | Page                              |
 | ---------------------------- | ----------------------------------------------------- | --------------------------------- |
 | `dpk-board-state-diagram`    | Which states exist, and what moves between?           | `docs/boards/state-diagram.md`    |

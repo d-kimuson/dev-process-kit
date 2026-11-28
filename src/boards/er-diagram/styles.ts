@@ -568,7 +568,7 @@ export const erStyles = css`
 
   .er-edge {
     --er-line: color-mix(in srgb, var(--dpk-ink-faint) 75%, transparent);
-    /* The shared edge paint (base/edge/styles.ts) colours the line, glyphs and flow from this one property. */
+    /* The shared edge paint (src/components/diagram/edge/styles.ts) colours the line, glyphs and flow from this one property. */
     --d-edge-line: var(--er-line);
   }
 

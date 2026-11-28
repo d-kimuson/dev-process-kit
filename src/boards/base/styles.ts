@@ -1,8 +1,8 @@
 import { css } from 'lit';
 
+import { edgeStyles } from '../../components/diagram/edge/styles';
 import { controls, popoverSurface, tokens } from '../../core/theme';
 import { chromelessCanvasStyles } from './chrome-styles';
-import { edgeStyles } from './edge/styles';
 
 /**
  * Chrome every element with this shell shares, canvas or not: the toolbar
@@ -165,7 +165,7 @@ export const chromeStyles = [
  * What only a pan/zoom canvas needs on top of the shared chrome: the sizing
  * knob, the world box edges lay out in, the legend and empty/error notices
  * placed over the canvas, and the shared node/edge element states (selected,
- * related, dimmed). The shared edge paint (`./edge/styles.ts`) comes first, so
+ * related, dimmed). The shared edge paint (`src/components/diagram/edge/styles.ts`) comes first, so
  * a board's own rules after it win where they refine a shared one.
  */
 export const canvasStyles = [
@@ -344,7 +344,7 @@ export const canvasStyles = [
       cursor: pointer;
     }
 
-    /* The line colour comes from --d-edge-line (see ./edge/styles.ts), so a board colours the line and its glyphs with one property. */
+    /* The line colour comes from --d-edge-line (see src/components/diagram/edge/styles.ts), so a board colours the line and its glyphs with one property. */
     .d-edge-path {
       fill: none;
       stroke: var(--d-edge-line, var(--dpk-rule-strong));

@@ -3,9 +3,16 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutPoint, LayoutResult } from '../../lib/layout/layered';
 
+import {
+  edgeBody,
+  edgeSteps,
+  lineStyleClass,
+  type EdgeEndView,
+  type EdgeSpec,
+  type EndMarker,
+} from '../../components/diagram/edge';
 import { jumpedPaths } from '../../lib/layout/line-jumps';
 import { endFrame, stepsData, type PathStep } from '../../lib/layout/path-steps';
-import { edgeBody, edgeSteps, lineStyleClass, type EdgeEndView, type EdgeSpec, type EndMarker } from '../base/edge';
 import { BoardCanvasElement } from '../base/element';
 import { EMPTY_REACH, tagStateMatches, type DiagramSelection, type Reach } from '../base/model';
 import { diagramStyles } from '../base/styles';

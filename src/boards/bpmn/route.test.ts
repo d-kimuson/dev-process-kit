@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { LayoutPoint, LayoutResult } from '../../lib/layout/layered';
 
-import { edgeReach } from '../base/edge';
+import { edgeReach } from '../../components/diagram/edge';
 import { bpmnPlacement, type BpmnBands } from './layout';
 import { flowSpec } from './markers';
 import { parseBpmnData, type BpmnData } from './model';

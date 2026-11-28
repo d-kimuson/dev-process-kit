@@ -4,9 +4,9 @@ import type { CommentTargetOption } from '../../core/types';
 import type { LayoutPoint } from '../../lib/layout/layered';
 import type { ViewState } from '../base/viewport';
 
+import { END_MARKERS, edgeEnds } from '../../components/diagram/edge';
 import { iconChevronDown, iconChevronRight } from '../../core/icons';
 import { endFrame } from '../../lib/layout/path-steps';
-import { END_MARKERS, edgeEnds } from '../base/edge';
 import { BoardCanvasChromeElement, CHROMELESS_FIGURE_PADDING } from '../base/element';
 import { tagStateMatches, type ElementState } from '../base/model';
 import { diagramStyles } from '../base/styles';

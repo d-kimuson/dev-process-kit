@@ -1,7 +1,7 @@
 import type { EndFrame } from '../../lib/layout/path-steps';
 import type { BpmnFlow, BpmnNode } from './model';
 
-import { END_MARKERS, type EdgeSpec, type EndMarker, type GlyphShape } from '../base/edge';
+import { END_MARKERS, type EdgeSpec, type EndMarker, type GlyphShape } from '../../components/diagram/edge';
 
 /**
  * How each BPMN flow is drawn.

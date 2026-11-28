@@ -3,12 +3,12 @@ import { css } from 'lit';
 /**
  * The paint every diagram's edges share: the dash patterns, the end glyphs and
  * the flow overlay. The line's own colour lives on the base `.d-edge-path` rule
- * (`../styles.ts`), which reads the same `--d-edge-line`; a board paints its own
+ * (`src/boards/base/styles.ts`), which reads the same `--d-edge-line`; a board paints its own
  * colours through `--d-edge-line` (path, glyphs and flow together) and
  * `--d-edge-paper` (a hollow glyph's interior) rather than restating these
  * rules, so a change here reaches every diagram at once.
  *
- * Concatenated into `canvasStyles` (`../styles.ts`), so every board that takes
+ * Concatenated into `canvasStyles` (`src/boards/base/styles.ts`), so every board that takes
  * the shared diagram shell gets it before its own styles.
  */
 export const edgeStyles = css`

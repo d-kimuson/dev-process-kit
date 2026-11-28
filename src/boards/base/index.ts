@@ -67,4 +67,4 @@ export {
   type GlyphPaint,
   type GlyphShape,
   type LineStyle,
-} from './edge';
+} from '../../components/diagram/edge';

@@ -24,10 +24,10 @@
 
 import type { LayoutPoint, LayoutResult, PlacedNode } from '../../lib/layout/layered';
 
+import { END_MARKERS, markerZone } from '../../components/diagram/edge/glyphs';
 import { placeEdgeLabels, type LabelBox } from '../../lib/layout/edge-labels';
 import { routeAroundObstacles } from '../../lib/layout/orthogonal-router';
 import { endFrame } from '../../lib/layout/path-steps';
-import { END_MARKERS, markerZone } from '../base/edge/glyphs';
 
 /** A transition, as far as routing it cares. `title` sizes the label. */
 export type StateRouteEdge = {

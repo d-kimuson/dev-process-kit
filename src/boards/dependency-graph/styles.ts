@@ -149,7 +149,7 @@ export const dependencyStyles = css`
   }
 
   .dep-edge {
-    /* The shared edge paint (base/edge/styles.ts) colours the line, glyph and flow from this one property. */
+    /* The shared edge paint (src/components/diagram/edge/styles.ts) colours the line, glyph and flow from this one property. */
     --d-edge-line: var(--dep-neutral);
   }
 

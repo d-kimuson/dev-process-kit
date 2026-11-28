@@ -1679,6 +1679,13 @@
               <a href="#catalog-terminal">Terminal</a>
               <a href="#catalog-paper">Paper</a>
               <b>Diagrams</b>
+              <a href="#catalog-diagram-line">diagram line</a>
+              <a href="#catalog-diagram-flow">diagram flow</a>
+              <a href="#catalog-diagram-jump">diagram jumps</a>
+              <a href="#catalog-diagram-label">diagram label</a>
+              <a href="#catalog-diagram-node">diagram node</a>
+              <a href="#catalog-diagram-group">diagram group</a>
+              <a href="#catalog-diagram-composed">diagram sketch</a>
               <a href="#catalog-mind-map">mind map</a>
               <a href="#catalog-state-diagram">state diagram</a>
               <a href="#catalog-sequence-diagram">sequence diagram</a>
@@ -5074,6 +5081,216 @@
 
               <section class="group">
                 <h2>Organisms</h2>
+
+                <article id="catalog-diagram-line" class="entry">
+                  <header>
+                    <h3>&lt;dpk-diagram-edge&gt; line</h3>
+                  </header>
+                  <p>
+                    <code>dpk-diagram</code> の中で 2 つのノードを結ぶ線。<code>line</code> で実線・破線・点線を、
+                    <code>start</code> / <code>end</code> で両端の記号を選ぶ。
+                  </p>
+                  <div class="demo" data-code>
+                    <dpk-diagram id="diagram-line" label="線の種類と端の記号" layout="grid">
+                      <dpk-diagram-node id="order" col="0" row="0">Order</dpk-diagram-node>
+                      <dpk-diagram-node id="payment" col="1" row="0">Payment</dpk-diagram-node>
+                      <dpk-diagram-node id="draft" col="0" row="1">Draft</dpk-diagram-node>
+                      <dpk-diagram-node id="review" col="1" row="1">Review</dpk-diagram-node>
+                      <dpk-diagram-node id="report" col="0" row="2">Report</dpk-diagram-node>
+                      <dpk-diagram-node id="archive" col="1" row="2">Archive</dpk-diagram-node>
+                      <dpk-diagram-node id="team" col="0" row="3">Team</dpk-diagram-node>
+                      <dpk-diagram-node id="member" col="1" row="3">Member</dpk-diagram-node>
+                      <dpk-diagram-edge id="order-payment" from="order" to="payment"></dpk-diagram-edge>
+                      <dpk-diagram-edge
+                        id="draft-review"
+                        from="draft"
+                        to="review"
+                        line="dashed"
+                        end="open-arrow"
+                      ></dpk-diagram-edge>
+                      <dpk-diagram-edge
+                        id="report-archive"
+                        from="report"
+                        to="archive"
+                        line="dotted"
+                        end="hollow-arrow"
+                      ></dpk-diagram-edge>
+                      <dpk-diagram-edge
+                        id="team-member"
+                        from="team"
+                        to="member"
+                        start="diamond"
+                        end="circle"
+                      ></dpk-diagram-edge>
+                    </dpk-diagram>
+                  </div>
+                </article>
+
+                <article id="catalog-diagram-flow" class="entry">
+                  <header>
+                    <h3>&lt;dpk-diagram-edge flow&gt;</h3>
+                  </header>
+                  <p>
+                    <code>flow</code>
+                    を付けた線は向きに沿って流れ続ける。選択中の線と、選択したノードにつながる線も流れる。
+                    動きを減らす設定では止まる。
+                  </p>
+                  <div class="demo" data-code>
+                    <dpk-diagram id="diagram-flow" label="イベントの流れ">
+                      <dpk-diagram-node id="api" shape="pill" tone="blue">API</dpk-diagram-node>
+                      <dpk-diagram-node id="queue" shape="cylinder">Queue</dpk-diagram-node>
+                      <dpk-diagram-node id="worker" tone="violet">Worker</dpk-diagram-node>
+                      <dpk-diagram-node id="store" shape="cylinder" tone="green">Store</dpk-diagram-node>
+                      <dpk-diagram-edge id="api-queue" from="api" to="queue" flow tone="blue"></dpk-diagram-edge>
+                      <dpk-diagram-edge
+                        id="queue-worker"
+                        from="queue"
+                        to="worker"
+                        flow
+                        tone="violet"
+                      ></dpk-diagram-edge>
+                      <dpk-diagram-edge id="worker-store" from="worker" to="store" flow tone="green"></dpk-diagram-edge>
+                    </dpk-diagram>
+                  </div>
+                </article>
+
+                <article id="catalog-diagram-jump" class="entry">
+                  <header>
+                    <h3>&lt;dpk-diagram crossings="jump"&gt;</h3>
+                  </header>
+                  <p>
+                    線が交差する所では、横に走る線が小さな弧で縦の線をまたぐ。端の記号の上ではまたがない。
+                    <code>crossings="plain"</code> でまたぎを止める。
+                  </p>
+                  <div class="demo" data-code>
+                    <dpk-diagram id="diagram-jump" label="交差する線" layout="grid">
+                      <dpk-diagram-node id="web" col="0" row="1">Web</dpk-diagram-node>
+                      <dpk-diagram-node id="billing" col="2" row="1">Billing</dpk-diagram-node>
+                      <dpk-diagram-node id="auth" col="1" row="0">Auth</dpk-diagram-node>
+                      <dpk-diagram-node id="audit" col="1" row="2">Audit log</dpk-diagram-node>
+                      <dpk-diagram-node id="mobile" col="0" row="2">Mobile</dpk-diagram-node>
+                      <dpk-diagram-edge id="web-billing" from="web" to="billing"></dpk-diagram-edge>
+                      <dpk-diagram-edge id="auth-audit" from="auth" to="audit" line="dashed"></dpk-diagram-edge>
+                      <dpk-diagram-edge id="mobile-auth" from="mobile" to="auth"></dpk-diagram-edge>
+                    </dpk-diagram>
+                  </div>
+                </article>
+
+                <article id="catalog-diagram-label" class="entry">
+                  <header>
+                    <h3>&lt;dpk-diagram-edge&gt; label</h3>
+                  </header>
+                  <p>
+                    <code>dpk-diagram-edge</code> の子要素が線のラベルになる。ラベルは線の上に置かれ、ノード・端の記号・
+                    他のラベルと重ならない位置が選ばれる。
+                  </p>
+                  <div class="demo" data-code>
+                    <dpk-diagram id="diagram-label" label="ラベル付きの線">
+                      <dpk-diagram-node id="customer">Customer</dpk-diagram-node>
+                      <dpk-diagram-node id="cart">Cart</dpk-diagram-node>
+                      <dpk-diagram-node id="checkout" tone="accent">Checkout</dpk-diagram-node>
+                      <dpk-diagram-node id="mail">Mail</dpk-diagram-node>
+                      <dpk-diagram-edge id="customer-cart" from="customer" to="cart">adds item</dpk-diagram-edge>
+                      <dpk-diagram-edge id="cart-checkout" from="cart" to="checkout">submits</dpk-diagram-edge>
+                      <dpk-diagram-edge id="checkout-mail" from="checkout" to="mail" line="dashed"
+                        >sends receipt</dpk-diagram-edge
+                      >
+                      <dpk-diagram-edge id="customer-checkout" from="customer" to="checkout" line="dotted"
+                        >buys now</dpk-diagram-edge
+                      >
+                    </dpk-diagram>
+                  </div>
+                </article>
+
+                <article id="catalog-diagram-node" class="entry">
+                  <header>
+                    <h3>&lt;dpk-diagram-node&gt;</h3>
+                  </header>
+                  <p>
+                    子要素がノードのラベルで、その大きさがノードの大きさになる。<code>shape</code> で形を、
+                    <code>tone</code> で色味を選ぶ。
+                  </p>
+                  <div class="demo" data-code>
+                    <dpk-diagram id="diagram-node" label="ノードの形と色" layout="grid">
+                      <dpk-diagram-node id="rounded" col="0" row="0">rounded</dpk-diagram-node>
+                      <dpk-diagram-node id="box" shape="box" tone="blue" col="1" row="0">box</dpk-diagram-node>
+                      <dpk-diagram-node id="pill" shape="pill" tone="green" col="2" row="0">pill</dpk-diagram-node>
+                      <dpk-diagram-node id="circle" shape="circle" tone="amber" col="0" row="1"
+                        >circle</dpk-diagram-node
+                      >
+                      <dpk-diagram-node id="diamond" shape="diamond" tone="violet" col="1" row="1"
+                        >diamond</dpk-diagram-node
+                      >
+                      <dpk-diagram-node id="cylinder" shape="cylinder" tone="danger" col="2" row="1"
+                        >cylinder</dpk-diagram-node
+                      >
+                      <dpk-diagram-node id="rich" tone="accent" col="1" row="2"
+                        ><b>Order</b><br /><small>aggregate root</small></dpk-diagram-node
+                      >
+                    </dpk-diagram>
+                  </div>
+                </article>
+
+                <article id="catalog-diagram-group" class="entry">
+                  <header>
+                    <h3>&lt;dpk-diagram-group&gt;</h3>
+                  </header>
+                  <p>
+                    中に置いたノードを 1 つの枠にまとめる。枠の上辺に
+                    <code>label</code> が載る。グループは入れ子にできない。
+                  </p>
+                  <div class="demo" data-code>
+                    <dpk-diagram id="diagram-group" label="境界でまとめたサービス">
+                      <dpk-diagram-group id="edge-tier" label="Edge" tone="blue">
+                        <dpk-diagram-node id="gateway" tone="blue">Gateway</dpk-diagram-node>
+                        <dpk-diagram-node id="cdn" tone="blue">CDN</dpk-diagram-node>
+                      </dpk-diagram-group>
+                      <dpk-diagram-group id="core" label="Core" tone="violet">
+                        <dpk-diagram-node id="orders" tone="violet">Orders</dpk-diagram-node>
+                        <dpk-diagram-node id="stock" tone="violet">Stock</dpk-diagram-node>
+                      </dpk-diagram-group>
+                      <dpk-diagram-node id="db" shape="cylinder">Database</dpk-diagram-node>
+                      <dpk-diagram-edge id="gateway-orders" from="gateway" to="orders"></dpk-diagram-edge>
+                      <dpk-diagram-edge id="cdn-stock" from="cdn" to="stock" line="dashed"></dpk-diagram-edge>
+                      <dpk-diagram-edge id="orders-db" from="orders" to="db"></dpk-diagram-edge>
+                      <dpk-diagram-edge id="stock-db" from="stock" to="db"></dpk-diagram-edge>
+                    </dpk-diagram>
+                  </div>
+                </article>
+
+                <article id="catalog-diagram-composed" class="entry">
+                  <header>
+                    <h3>diagram sketch</h3>
+                  </header>
+                  <p>
+                    部品を組み合わせて描いた返金フローの略図。<code>direction="down"</code> で上から下へ並ぶ。
+                    ノードや線を右クリックするとレビューコメントを書ける。
+                  </p>
+                  <div class="demo" data-code>
+                    <dpk-diagram id="diagram-composed" label="返金フロー" direction="down">
+                      <dpk-diagram-node id="request" shape="pill" tone="blue">返金リクエスト</dpk-diagram-node>
+                      <dpk-diagram-node id="eligible" shape="diamond" tone="amber">返金できる?</dpk-diagram-node>
+                      <dpk-diagram-group id="payments" label="決済" tone="violet">
+                        <dpk-diagram-node id="refund" tone="violet">返金を実行</dpk-diagram-node>
+                        <dpk-diagram-node id="ledger" shape="cylinder" tone="violet">台帳</dpk-diagram-node>
+                      </dpk-diagram-group>
+                      <dpk-diagram-node id="reject" tone="danger">却下を通知</dpk-diagram-node>
+                      <dpk-diagram-node id="done" shape="pill" tone="green">完了</dpk-diagram-node>
+                      <dpk-diagram-edge id="request-eligible" from="request" to="eligible"></dpk-diagram-edge>
+                      <dpk-diagram-edge id="eligible-refund" from="eligible" to="refund" tone="green"
+                        >はい</dpk-diagram-edge
+                      >
+                      <dpk-diagram-edge id="eligible-reject" from="eligible" to="reject" tone="danger"
+                        >いいえ</dpk-diagram-edge
+                      >
+                      <dpk-diagram-edge id="refund-ledger" from="refund" to="ledger" line="dashed" flow
+                        >記帳</dpk-diagram-edge
+                      >
+                      <dpk-diagram-edge id="refund-done" from="refund" to="done"></dpk-diagram-edge>
+                      <dpk-diagram-edge id="reject-done" from="reject" to="done"></dpk-diagram-edge>
+                    </dpk-diagram>
+                  </div>
+                </article>
 
                 <article id="catalog-mind-map" class="entry">
                   <header>

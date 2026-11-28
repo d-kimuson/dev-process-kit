@@ -301,8 +301,8 @@ const pureLayerBoundaries = {
       }
       const target = classify(edge.resolved);
       if ((target.kind === 'view' || target.kind === 'board') && target.name !== self.name) {
-        // The shared board base is the one pure foundation both a board and a
-        // component may read; it is not another content element.
+        // The shared board base is the one pure foundation a board
+        // may read; it is not another content element.
         if (self.kind === 'board' && target.name === 'base') return;
         context.report({ node: edge.node, message: 'pure modules must not depend on another view or board' });
       }
