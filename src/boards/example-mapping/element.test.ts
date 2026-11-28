@@ -1,13 +1,11 @@
-import { render } from 'lit';
-import { keyed } from 'lit/directives/keyed.js';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { ContextMenuEntry, ContextMenuRequest } from '../../core/context-menu/types';
 import type { DraftAction } from '../../core/types';
 
 import { defineInlineEdit } from '../../components/inline-edit';
-import { PANEL_HOST, type DetailReport, type PanelDetail, type PanelHost } from '../../core/panel/host';
+import { parseTargetRef } from '../../core/target';
 import { applyExampleMappingAction } from './apply';
-import { DpkInternalExampleMappingCardDetail } from './components/card-detail';
 import { dropAfter, resolveExampleDrop, resolveQuestionDrop, resolveRuleDrop, resolveStoryDrop } from './drop';
 import { DpkBoardExampleMapping } from './element';
 import { defineExampleMapping } from './index';
@@ -373,12 +371,24 @@ describe('<dpk-board-example-mapping>', () => {
     ]);
   });
 
-  it('deletes a card, records the action and clears its selection', async () => {
+  /** Every entry the right-click menu would offer on `ref`, in order. */
+  const menuEntries = (element: DpkBoardExampleMapping, ref: string): readonly ContextMenuEntry[] => {
+    const request: ContextMenuRequest = { clientX: 0, clientY: 0, target: parseTargetRef(ref) };
+    return (element.getContextMenuItems(request) ?? []).flatMap((group) => [...group.entries]);
+  };
+
+  const runMenuItem = (element: DpkBoardExampleMapping, ref: string, id: string): void => {
+    const entry = menuEntries(element, ref).find((candidate) => candidate.id === id);
+    if (entry?.kind !== 'item') throw new Error(`no menu item ${id}`);
+    entry.run();
+  };
+
+  it('deletes a card from the right-click menu, records the action and clears its selection', async () => {
     const element = await mount();
     acceptActions(element);
     element.select({ kind: 'example', id: 'e1' });
     await settle(element);
-    card(element, 'e1').querySelector<HTMLButtonElement>('[data-role="delete"]')?.click();
+    runMenuItem(element, 'element:board/example/e1', 'delete');
     await settle(element);
     expect(element.elementActions[0]).toMatchObject({
       type: 'DELETE_EXAMPLE',
@@ -388,16 +398,46 @@ describe('<dpk-board-example-mapping>', () => {
     expect(area(element, 'examples-r1')).toEqual(['e2']);
   });
 
-  it('opens the composer over a card from its hover comment button, without selecting it', async () => {
+  it('carries no buttons on a card: comment and delete are the right-click menu’s', async () => {
     const element = await mount();
-    const tools = card(element, 'r1').querySelectorAll<HTMLButtonElement>('.card-tools button');
-    expect([...tools].map((button) => button.dataset['role'])).toEqual(['comment', 'delete']);
-    const button = card(element, 'r1').querySelector<HTMLButtonElement>('.card-tools [data-role="comment"]');
-    if (!button) throw new Error('missing comment button');
-    expect(button.getAttribute('aria-label')).toBe(m.commentCard);
-    button.click();
+    expect(card(element, 'r1').querySelector('button')).toBeNull();
+    const entries = menuEntries(element, 'element:board/rule/r1');
+    expect(entries.map((entry) => entry.id)).toEqual(['review-comment', 'delete']);
+    expect(entries.find((entry) => entry.id === 'delete')).toMatchObject({ danger: true });
+    // Something that is not one of this board's cards gets no delete.
+    expect(menuEntries(element, 'element:board/rule/nope').map((entry) => entry.id)).toEqual([]);
+    expect(menuEntries(element, 'element:other/rule/r1').map((entry) => entry.id)).toEqual([]);
+  });
+
+  it('offers the comment on a card of a board without an id, as a page’s content is', async () => {
+    const element = await mount();
+    element.removeAttribute('id');
     await settle(element);
-    // The same composer the right-click "Review comment" item opens, over this card.
+    expect(element.commentTargets).toEqual([]);
+    const ref = card(element, 'r1').dataset['dpkTarget'] ?? '';
+    expect(menuEntries(element, ref).map((entry) => entry.id)).toEqual(['review-comment', 'delete']);
+  });
+
+  it.each([
+    { key: 'F10', shiftKey: true },
+    { key: 'ContextMenu', shiftKey: false },
+  ])('opens the right-click menu on a card from the keyboard ($key)', async (init) => {
+    const element = await mount();
+    const opened: Event[] = [];
+    element.addEventListener('contextmenu', (event) => opened.push(event));
+    const name = card(element, 'r1').querySelector('dpk-inline-edit');
+    if (name === null) throw new Error('no name editor');
+    const key = new KeyboardEvent('keydown', { ...init, bubbles: true, composed: true, cancelable: true });
+    name.dispatchEvent(key);
+    expect(key.defaultPrevented).toBe(true);
+    expect(opened).toHaveLength(1);
+    expect(opened[0]?.composedPath()[0]).toBe(card(element, 'r1'));
+  });
+
+  it('opens the composer over a card from the right-click menu, without selecting it', async () => {
+    const element = await mount();
+    runMenuItem(element, 'element:board/rule/r1', 'review-comment');
+    await settle(element);
     expect(element.renderRoot.querySelector('.comment-pop')).not.toBeNull();
     expect(element.renderRoot.querySelector('.comment-target')?.textContent).toBe('在庫があれば受ける');
     // Asking for a comment is chrome: the card is neither selected nor put into editing.
@@ -480,134 +520,6 @@ describe('<dpk-board-example-mapping>', () => {
     const element = await mount(undefined, marked);
     expect(card(element, 'r1').dataset['grillQuestions']).toBe('Q1 Q2');
     expect(card(element, 'r2').hasAttribute('data-grill-questions')).toBe(false);
-  });
-
-  type PanelReport = { readonly detail: PanelDetail | null; readonly report: DetailReport };
-
-  /** Stand-in for the side panel's owner: records what the board hands it. */
-  const withPanel = async (
-    element: DpkBoardExampleMapping,
-  ): Promise<{ readonly reports: PanelReport[]; readonly providers: Set<Element>; detail(): PanelDetail | null }> => {
-    const reports: PanelReport[] = [];
-    const providers = new Set<Element>();
-    const host: PanelHost = {
-      provideDetail: (source) => {
-        providers.add(source);
-        return () => providers.delete(source);
-      },
-      showDetail: (_source, detail, report) => reports.push({ detail, report }),
-      addSection: () => () => undefined,
-      invalidate: () => undefined,
-      open: () => undefined,
-    };
-    const owner = document.createElement('div');
-    Object.defineProperty(owner, PANEL_HOST, { value: host });
-    element.before(owner);
-    owner.append(element);
-    await settle(element);
-    return { reports, providers, detail: () => reports.at(-1)?.detail ?? null };
-  };
-
-  /** Draws the detail the way the panel does, and returns its shadow root. */
-  const renderDetail = async (detail: PanelDetail | null): Promise<ShadowRoot> => {
-    if (detail === null) throw new Error('no detail');
-    const root = document.createElement('div');
-    document.body.append(root);
-    render(keyed(detail.key, detail.render()), root);
-    const view = root.querySelector('dpk-internal-example-mapping-card-detail');
-    if (!(view instanceof DpkInternalExampleMappingCardDetail) || view.shadowRoot === null)
-      throw new Error('no card detail');
-    await view.updateComplete;
-    return view.shadowRoot;
-  };
-
-  const commit = (editor: Element | null | undefined, value: string): void => {
-    if (editor === null || editor === undefined) throw new Error('no editor');
-    editor.dispatchEvent(new CustomEvent('dpk-commit', { detail: { value }, bubbles: true, composed: true }));
-  };
-
-  it('opens a card’s detail in the side panel on click: its kind, text and the card it hangs off of', async () => {
-    const element = await mount();
-    const panel = await withPanel(element);
-    card(element, 'e1').click();
-    await settle(element);
-    expect(panel.reports.some((report) => report.report === 'open')).toBe(true);
-    const detail = panel.detail();
-    expect(detail).toMatchObject({ key: 'example:e1', kind: m.cardKind, title: '在庫あり → 受注' });
-    const view = await renderDetail(detail);
-    expect(view.querySelector('.em-detail-kind')?.textContent?.trim()).toBe(m.kindLabel('example'));
-    const editors = [...view.querySelectorAll<HTMLElement & { value: string }>('dpk-inline-edit')];
-    expect(editors.map((editor) => editor.value)).toEqual(['在庫あり → 受注', '']);
-    expect(view.querySelector('.em-detail-value')?.textContent?.trim()).toBe('在庫があれば受ける');
-  });
-
-  it('names a rule’s story as its parent, and none for a story', async () => {
-    const element = await mount();
-    const panel = await withPanel(element);
-    card(element, 'r2').click();
-    await settle(element);
-    expect((await renderDetail(panel.detail())).querySelector('.em-detail-value')?.textContent?.trim()).toBe(
-      '注文する',
-    );
-    card(element, 's2').click();
-    await settle(element);
-    expect((await renderDetail(panel.detail())).querySelector('.em-detail-value')).toBeNull();
-  });
-
-  it('edits a card’s name and description from its detail as element actions', async () => {
-    const element = await mount();
-    acceptActions(element);
-    const panel = await withPanel(element);
-    card(element, 'q1').click();
-    await settle(element);
-    const editors = [...(await renderDetail(panel.detail())).querySelectorAll('dpk-inline-edit')];
-    commit(editors[0], '取り置きは何日まで？');
-    commit(editors[1], '店舗で確認する');
-    await settle(element);
-    expect(element.elementActions).toMatchObject([
-      { type: 'SET_QUESTION_NAME', target: { id: 'board/question/q1' }, payload: { name: '取り置きは何日まで？' } },
-      {
-        type: 'SET_QUESTION_DESCRIPTION',
-        target: { id: 'board/question/q1' },
-        payload: { description: '店舗で確認する' },
-      },
-    ]);
-    expect(panel.reports.at(-1)?.report).toBe('refresh');
-    expect(panel.detail()?.title).toBe('取り置きは何日まで？');
-  });
-
-  it('says so in the detail when no template recorded an edit', async () => {
-    const element = await mount();
-    const panel = await withPanel(element);
-    card(element, 'r1').click();
-    await settle(element);
-    const view = await renderDetail(panel.detail());
-    commit(view.querySelector('dpk-inline-edit'), 'x');
-    const host = view.host;
-    if (!(host instanceof DpkInternalExampleMappingCardDetail)) throw new Error('no card detail');
-    await host.updateComplete;
-    expect(view.querySelector('[role="alert"]')?.textContent).toBe(m.notRecorded);
-  });
-
-  it('labels its detail in the element’s language', async () => {
-    const element = await mount('ja');
-    const panel = await withPanel(element);
-    card(element, 'r1').click();
-    await settle(element);
-    const ja = exampleMappingMessages('ja');
-    expect(panel.detail()?.kind).toBe(ja.cardKind);
-    const labels = [...(await renderDetail(panel.detail())).querySelectorAll('.dpk-label')].map((label) =>
-      label.textContent?.trim(),
-    );
-    expect(labels).toEqual([ja.kindField, ja.nameField(ja.kindLabel('rule')), ja.descriptionField, '所属ストーリー']);
-  });
-
-  it('withdraws its detail from the panel when it leaves the page', async () => {
-    const element = await mount();
-    const panel = await withPanel(element);
-    expect(panel.providers.has(element)).toBe(true);
-    element.remove();
-    expect(panel.providers.has(element)).toBe(false);
   });
 
   it('renders its kit text in the element’s language', async () => {

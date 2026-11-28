@@ -131,7 +131,8 @@ A page's question is qualified by its page like any of its targets: question `re
 `scope` page is `grill:retry@scope`, and its ref shows as `Q1@scope`. Within the page's markup,
 `data-grill-questions="Q1"` means that page's `Q1` (and the app's own `Q1` when the page has
 none); write `Q1@domain` to mark another page's question. Each page numbers its questions on its
-own, so ids and refs only need to be unique within one block.
+own, so ids and refs only need to be unique within one block. A badge on a marked element reads
+the token as the mark writes it (`Q1`, or `Q1@domain`); its accessible name keeps the qualified ref.
 
 The hash names the page shown and keeps each page's position under its name:
 

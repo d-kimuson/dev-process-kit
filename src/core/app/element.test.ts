@@ -1172,10 +1172,17 @@ describe('<dpk-page>', () => {
       expect(toggle(page)?.textContent).toBe('0/4');
     });
 
-    it('reads a mark inside a board as that board’s question', async () => {
+    it('reads a mark inside a board as that board’s question, labelled as the mark writes it', async () => {
       const page = await mountAsking();
-      const badges = queryAllDeep(page, '.dpk-grill-badge').map((badge) => badge.textContent?.trim());
-      expect(badges).toEqual(['Q1@before', 'Q2@before', 'Q1@after']);
+      const badges = queryAllDeep(page, '.dpk-grill-badge').map((badge) => [
+        badge.textContent?.trim(),
+        badge.getAttribute('data-question'),
+      ]);
+      expect(badges).toEqual([
+        ['Q1', 'retry@before'],
+        ['Q2', 'notify@before'],
+        ['Q1', 'retry@after'],
+      ]);
     });
 
     it('lays a badge on a card a board renders from its data', async () => {
@@ -1197,7 +1204,7 @@ describe('<dpk-page>', () => {
         await page.updateComplete;
       }
       const badges = queryAllDeep(page, '.dpk-grill-badge').map((badge) => badge.textContent?.trim());
-      expect(badges).toEqual(['Q1@rules']);
+      expect(badges).toEqual(['Q1']);
     });
 
     it('stops asking the questions of a board the draft removes', async () => {
