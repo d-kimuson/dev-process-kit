@@ -31,6 +31,9 @@ const PATHS = new WeakMap<LayoutResult, ReadonlyMap<string, string>>();
 
 const EMPTY_BANDS: BpmnBands = { pools: [], contentLeft: 0 };
 
+/** Pools cycle through this many hues (`--bpmn-hue-<n>` in `styles.ts`). */
+const POOL_HUES = 5;
+
 /**
  * `<dpk-board-bpmn>` — a business process: pools and lanes, events, tasks,
  * gateways and the flows between them, laid out automatically from the data.
@@ -173,10 +176,12 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
     return html`
       <div class="bpmn-frames">
         ${this.#bands.pools.map(
-          (pool) => html`
+          (pool, index) => html`
             <div
-              class="bpmn-pool"
-              style="top:${pool.y}px;height:${pool.height}px;width:${layout.width}px"
+              class=${pool.blackBox ? 'bpmn-pool is-black-box' : 'bpmn-pool'}
+              style="top:${pool.y}px;height:${pool.height}px;width:${layout.width}px;--bpmn-hue:var(--bpmn-hue-${
+                index % POOL_HUES
+              })"
               data-bpmn-pool-frame=${pool.id}
             >
               ${pool.lanes.map(
@@ -352,7 +357,7 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
       <span class="bpmn-flow-label-slot" style="left:${point.x}px; top:${point.y}px">
         <button
           type="button"
-          class=${this.elementClass(state, 'bpmn-flow-label')}
+          class=${this.elementClass(state, 'bpmn-flow-label', `is-${flow.kind}`)}
           data-flow-label=${flow.id}
           data-dpk-target=${this.commentRef('edge', flow.id)}
           data-dpk-check="off"

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseBpmnData, type BpmnNode, type BpmnTaskNode } from './model';
-import { DATA_OBJECT_SIZE, EVENT_SIZE, GATEWAY_SIZE, TASK_WIDTH } from './shapes';
+import {
+  DATA_OBJECT_SIZE,
+  EVENT_SIZE,
+  GATEWAY_SIZE,
+  TASK_LINE_HEIGHT,
+  TASK_MAX_LINES,
+  TASK_MIN_HEIGHT,
+  TASK_WIDTH,
+} from './shapes';
 
 /** The design's minimal order-handling example: two pools, lanes, all three flow kinds. */
 const raw = {
@@ -69,7 +77,7 @@ describe('parseBpmnData', () => {
     });
     expect(byId(parsed.nodes, 'e')).toMatchObject({ width: EVENT_SIZE, height: EVENT_SIZE });
     expect(byId(parsed.nodes, 'g')).toMatchObject({ width: GATEWAY_SIZE, height: GATEWAY_SIZE });
-    expect(byId(parsed.nodes, 't')).toMatchObject({ width: TASK_WIDTH, height: 72 });
+    expect(byId(parsed.nodes, 't')).toMatchObject({ width: TASK_WIDTH, height: TASK_MIN_HEIGHT });
     expect(byId(parsed.nodes, 'd')).toMatchObject(DATA_OBJECT_SIZE);
   });
 
@@ -79,7 +87,7 @@ describe('parseBpmnData', () => {
       pools: [{ id: 'p', name: 'P' }],
       nodes: [{ id: 't', kind: 'task', lane: 'p', name }],
     });
-    expect((byId(parsed.nodes, 't') as BpmnTaskNode).height).toBe(80);
+    expect((byId(parsed.nodes, 't') as BpmnTaskNode).height).toBe(20 + TASK_MAX_LINES * TASK_LINE_HEIGHT);
   });
 
   it('treats a pool without lanes as an implicit lane, and its nodes name the pool as lane', () => {

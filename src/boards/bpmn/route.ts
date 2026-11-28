@@ -1,5 +1,4 @@
 import type { LayoutPoint, LayoutResult, PlacedNode } from '../../lib/layout/layered';
-import type { BpmnBands, BpmnPoolBand } from './layout';
 import type { BpmnData, BpmnFlow, BpmnNode } from './model';
 
 import { edgeReach, markerZone, type EdgeSpec } from '../../components/diagram/edge';
@@ -13,6 +12,7 @@ import {
 import { endFrame } from '../../lib/layout/path-steps';
 import { staggeredEdgePorts, type EdgePorts, type PortSide } from '../../lib/layout/ports';
 import { nudgeParallelRoutes } from '../../lib/layout/route-nudge';
+import { BPMN_PAD_X, type BpmnBands, type BpmnPoolBand } from './layout';
 import { flowSpec } from './markers';
 import { externalLabel, flowLabelSize, nodeShape, outlinePoint } from './shapes';
 
@@ -654,11 +654,11 @@ const overlap = (a: Box, b: Box, margin: number): boolean =>
 
 const headBoxes = (bands: BpmnBands): Box[] =>
   bands.pools.flatMap((pool) => [
-    { x: 0, y: pool.y, width: Math.max(0, bands.contentLeft - 32), height: pool.height },
+    { x: 0, y: pool.y, width: Math.max(0, bands.contentLeft - BPMN_PAD_X), height: pool.height },
     ...pool.lanes.map((lane) => ({
-      x: Math.max(0, bands.contentLeft - 32),
+      x: Math.max(0, bands.contentLeft - BPMN_PAD_X),
       y: lane.y,
-      width: 32,
+      width: BPMN_PAD_X,
       height: lane.height,
     })),
   ]);
