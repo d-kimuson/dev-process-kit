@@ -25,9 +25,9 @@ export type EdgeSpec = {
 /**
  * The straight run a router should leave under the end markers, so their
  * footprints are drawn on a straight tail rather than past a corner: the longer
- * of the two ends' trims.
+ * of the two ends' reaches (the furthest drawn part, not the trimmed run).
  */
-export const edgeReach = (spec: EdgeSpec): number => Math.max(spec.start?.trim ?? 0, spec.end?.trim ?? 0);
+export const edgeReach = (spec: EdgeSpec): number => Math.max(spec.start?.reach ?? 0, spec.end?.reach ?? 0);
 
 export type EdgeStepsOptions = {
   /** The corner radius. A corner never takes more than half of either segment beside it. */
@@ -37,14 +37,18 @@ export type EdgeStepsOptions = {
 /**
  * A routed polyline as drawing steps: its corners rounded, then each end
  * shortened by its marker's `trim` so the glyph sits at the very end of the
- * line. `edgeReach` is kept straight at each end before rounding may bend it.
+ * line. Each end keeps its own marker's `reach` straight before rounding may
+ * bend it — the whole glyph footprint, so rounding never bends under a head.
  */
 export const edgeSteps = (
   points: readonly LayoutPoint[],
   spec: EdgeSpec,
   options: EdgeStepsOptions,
 ): readonly PathStep[] => {
-  const reach = edgeReach(spec);
-  const rounded = roundedSteps(points, { radius: options.radius, keepStart: reach, keepEnd: reach });
+  const rounded = roundedSteps(points, {
+    radius: options.radius,
+    keepStart: spec.start?.reach ?? 0,
+    keepEnd: spec.end?.reach ?? 0,
+  });
   return trimSteps(rounded, spec.start?.trim ?? 0, spec.end?.trim ?? 0);
 };
