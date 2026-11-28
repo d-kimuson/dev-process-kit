@@ -94,12 +94,20 @@ export const wrapLines = (text: string, maxWidth: number, font = FLOW_LABEL_FONT
 };
 
 /** The label lines on a task or subprocess's own box. */
-export const taskLabelLines = (name: string): readonly string[] =>
-  wrapLines(name, TASK_WIDTH - TASK_PADDING_X * 2, FLOW_LABEL_FONT, TASK_MAX_LINES);
+/** Space a task type icon keeps clear of the name text at the card's left. */
+export const TASK_ICON_GUTTER = 18;
+
+export const taskLabelLines = (name: string, task = 'none'): readonly string[] =>
+  wrapLines(
+    name,
+    TASK_WIDTH - TASK_PADDING_X * 2 - (task === 'none' ? 0 : TASK_ICON_GUTTER),
+    FLOW_LABEL_FONT,
+    TASK_MAX_LINES,
+  );
 
 /** A task's height: room for its name, never smaller than the rounded minimum. */
-export const taskHeight = (name: string): number => {
-  const lines = Math.min(TASK_MAX_LINES, taskLabelLines(name).length);
+export const taskHeight = (name: string, task = 'none'): number => {
+  const lines = Math.min(TASK_MAX_LINES, taskLabelLines(name, task).length);
   return Math.max(TASK_MIN_HEIGHT, 16 + lines * TASK_LINE_HEIGHT);
 };
 

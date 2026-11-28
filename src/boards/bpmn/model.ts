@@ -268,7 +268,7 @@ export const parseBpmnData = (input: unknown): BpmnData => {
         name: node.name,
         task: node.task,
         width: TASK_WIDTH,
-        height: taskHeight(node.name),
+        height: taskHeight(node.name, node.task),
       };
     }
     if (node.kind === 'subprocess') {
@@ -298,6 +298,10 @@ export const parseBpmnData = (input: unknown): BpmnData => {
 
     if (kind === 'sequence') {
       if (fromNode === undefined || toNode === undefined) throw new Error(`sequence flow ${flow.id} needs nodes`);
+      if (flow.from === flow.to)
+        throw new Error(`self-loop sequence flow ${flow.id} is not supported; use a loop marker on the activity`);
+      if (flow.default && flow.condition !== undefined)
+        throw new Error(`sequence flow ${flow.id} cannot be both default and conditional`);
       if (!isFlowNode(fromNode) || !isFlowNode(toNode))
         throw new Error(`sequence flow ${flow.id} joins a non-flow node`);
       if (fromPool !== toPool) throw new Error(`sequence flow ${flow.id} leaves its pool`);
@@ -320,6 +324,10 @@ export const parseBpmnData = (input: unknown): BpmnData => {
         throw new Error(`message flow ${flow.id} starts at a ${fromNode.kind}`);
       if (toNode !== undefined && !['event', 'task', 'subprocess'].includes(toNode.kind))
         throw new Error(`message flow ${flow.id} ends at a ${toNode.kind}`);
+      if (fromNode?.kind === 'event' && fromNode.event === 'start')
+        throw new Error(`message flow ${flow.id} leaves a start event`);
+      if (toNode?.kind === 'event' && toNode.event === 'end')
+        throw new Error(`message flow ${flow.id} enters an end event`);
       if (fromPool === toPool) throw new Error(`message flow ${flow.id} stays inside one pool`);
       if (flow.default || flow.condition !== undefined)
         throw new Error(`message flow ${flow.id} cannot be default or conditional`);
@@ -354,7 +362,12 @@ export const parseBpmnData = (input: unknown): BpmnData => {
 
   const laned = (id: string): boolean => {
     const node = nodeById.get(id);
-    return node !== undefined && node.lane !== null && node.pool !== null && laneOwner.has(node.lane);
+    return (
+      node !== undefined &&
+      node.lane !== null &&
+      node.pool !== null &&
+      (laneOwner.has(node.lane) || node.lane === node.pool)
+    );
   };
   for (const node of nodes) {
     if (!isArtifact(node) || node.lane !== null) continue;

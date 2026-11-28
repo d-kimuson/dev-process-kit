@@ -183,6 +183,51 @@ describe('parseBpmnData', () => {
       ).toThrow(/needs a lane or an association to a laned node/);
     });
 
+    it('accepts an artifact attached to a node in a lane-less pool', () => {
+      const parsed = parseBpmnData({
+        pools: [{ id: 'p', name: 'P' }],
+        nodes: [
+          { id: 't', kind: 'task', lane: 'p', name: 'T' },
+          { id: 'n', kind: 'annotation', text: 'note' },
+        ],
+        flows: [{ id: 'a', kind: 'association', from: 'n', to: 't' }],
+      });
+      expect(byId(parsed.nodes, 'n')).toMatchObject({ lane: null, pool: null });
+    });
+
+    it('rejects a self-loop sequence flow', () => {
+      expect(() => parseBpmnData(flow({ id: 'bad', from: 'check', to: 'check' }))).toThrow(/self-loop sequence flow/);
+    });
+
+    it('rejects a flow that is both default and conditional', () => {
+      expect(() => parseBpmnData(flow({ id: 'bad', from: 'gw', to: 'check', default: true, condition: 'x' }))).toThrow(
+        /both default and conditional/,
+      );
+    });
+
+    it('rejects a message into an end event or out of a start event', () => {
+      expect(() =>
+        parseBpmnData({
+          pools: [
+            { id: 'p', name: 'P' },
+            { id: 'q', name: 'Q' },
+          ],
+          nodes: [{ id: 'e', kind: 'event', event: 'end', lane: 'p' }],
+          flows: [{ id: 'm', kind: 'message', from: 'q', to: 'e' }],
+        }),
+      ).toThrow(/enters an end event/);
+      expect(() =>
+        parseBpmnData({
+          pools: [
+            { id: 'p', name: 'P' },
+            { id: 'q', name: 'Q' },
+          ],
+          nodes: [{ id: 's', kind: 'event', event: 'start', lane: 'p' }],
+          flows: [{ id: 'm', kind: 'message', from: 's', to: 'q' }],
+        }),
+      ).toThrow(/leaves a start event/);
+    });
+
     it('rejects an unknown structural shape', () => {
       expect(() => parseBpmnData({ pools: [] })).toThrow();
       expect(() => parseBpmnData({ pools: [{ id: 'p', name: 'P' }], nodes: [{ id: 'x', kind: 'loop' }] })).toThrow();
