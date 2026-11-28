@@ -128,3 +128,79 @@ export const flowLabelSize = (label: string): { readonly width: number; readonly
   width: Math.min(168, Math.ceil(textWidth(label, FLOW_LABEL_FONT)) + 16),
   height: 22,
 });
+
+/** The outline a node's ports and end points are projected onto. */
+export type BpmnShape = 'circle' | 'diamond' | 'roundRect' | 'document' | 'bracket';
+
+export const nodeShape = (node: BpmnNode): BpmnShape => {
+  if (node.kind === 'event') return 'circle';
+  if (node.kind === 'gateway') return 'diamond';
+  if (node.kind === 'dataObject') return 'document';
+  if (node.kind === 'annotation') return 'bracket';
+  return 'roundRect';
+};
+
+export type OutlineBox = {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+};
+
+const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
+
+/** Distance a rounded box's port stays from a corner. */
+const ROUND_INSET = 10;
+/** Width of the fold on a document's right edge, where no port may sit. */
+const DOCUMENT_FOLD = 10;
+
+/**
+ * A point on a node's outline, on `side` and `along` from the side's middle.
+ * `along` is measured on the side's own axis (vertical for left/right), and is
+ * clamped where the outline cannot hold it, so every returned point lies on
+ * the outline.
+ */
+export const outlinePoint = (
+  shape: BpmnShape,
+  box: OutlineBox,
+  side: 'left' | 'right' | 'top' | 'bottom',
+  along: number,
+): { x: number; y: number } => {
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  if (shape === 'circle') {
+    const rx = box.width / 2;
+    const ry = box.height / 2;
+    if (side === 'left' || side === 'right') {
+      const offset = clamp(along, -ry + 0.5, ry - 0.5);
+      const reach = rx * Math.sqrt(Math.max(0, 1 - (offset / ry) ** 2));
+      return { x: side === 'left' ? cx - reach : cx + reach, y: cy + offset };
+    }
+    const offset = clamp(along, -rx + 0.5, rx - 0.5);
+    const reach = ry * Math.sqrt(Math.max(0, 1 - (offset / rx) ** 2));
+    return { x: cx + offset, y: side === 'top' ? cy - reach : cy + reach };
+  }
+  if (shape === 'diamond') {
+    const halfW = box.width / 2;
+    const halfH = box.height / 2;
+    if (side === 'left' || side === 'right') {
+      const offset = clamp(along, -halfH, halfH);
+      const reach = halfW * (1 - Math.abs(offset) / halfH);
+      return { x: side === 'left' ? cx - reach : cx + reach, y: cy + offset };
+    }
+    const offset = clamp(along, -halfW, halfW);
+    const reach = halfH * (1 - Math.abs(offset) / halfW);
+    return { x: cx + offset, y: side === 'top' ? cy - reach : cy + reach };
+  }
+  if (shape === 'bracket') {
+    const offset = clamp(along, -box.height / 2 + ROUND_INSET, box.height / 2 - ROUND_INSET);
+    return { x: box.x, y: cy + offset };
+  }
+  if (side === 'left' || side === 'right') {
+    const high = shape === 'document' && side === 'right' ? box.height - DOCUMENT_FOLD : box.height - ROUND_INSET;
+    const offset = clamp(along, -box.height / 2 + ROUND_INSET, -box.height / 2 + high);
+    return { x: side === 'left' ? box.x : box.x + box.width, y: cy + offset };
+  }
+  const offset = clamp(along, -box.width / 2 + ROUND_INSET, box.width / 2 - ROUND_INSET);
+  return { x: cx + offset, y: side === 'top' ? box.y : box.y + box.height };
+};
