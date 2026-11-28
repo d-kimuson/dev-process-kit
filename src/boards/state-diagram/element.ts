@@ -3,10 +3,11 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutOptions, LayoutResult } from '../../lib/layout/layered';
 
+import { roundedSteps, stepsData } from '../../lib/layout/path-steps';
 import { BoardCanvasElement } from '../base/element';
 import { EMPTY_REACH, reach, routeLabelPoint, type DiagramSelection, type Reach } from '../base/model';
 import { diagramStyles } from '../base/styles';
-import { roundedPathData } from '../base/view';
+import { CORNER_RADIUS } from '../base/view';
 import { stateDiagramMessages } from './messages';
 import {
   emptyStateData,
@@ -132,7 +133,7 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
     const m = stateDiagramMessages(this.locale);
     const state = this.edgeState(edge.id);
     const points = this.routeOf(edge.id);
-    const path = roundedPathData(points);
+    const path = stepsData(roundedSteps(points, { radius: CORNER_RADIUS }));
     const marker = state.selected
       ? 'state-arrow-selected'
       : state.related

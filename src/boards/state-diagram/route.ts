@@ -24,6 +24,7 @@
 
 import type { LayoutPoint, LayoutResult, PlacedNode } from '../../lib/layout/layered';
 
+import { placeEdgeLabels, type LabelBox } from '../../lib/layout/edge-labels';
 import { routeAroundObstacles } from '../../lib/layout/orthogonal-router';
 
 /** A transition, as far as routing it cares. `title` sizes the label. */
@@ -71,8 +72,6 @@ const LABEL_FONT = 11.5;
 const LABEL_PAD = 16;
 /** Gap between a label and the line it sits beside. */
 const LABEL_OFFSET = 7;
-/** Line left visible on each side of a label that sits on its own line. */
-const LABEL_LINE_KEEP = 14;
 const ARROW_ZONE = 12;
 const ARROW_HALF = 6;
 
@@ -124,13 +123,6 @@ const segmentsOf = (edge: string, points: readonly LayoutPoint[]): Segment[] => 
     else out.push({ edge, horizontal: false, at: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y) });
   }
   return out;
-};
-
-const routeLength = (points: readonly LayoutPoint[]): number => {
-  let total = 0;
-  for (let index = 0; index + 1 < points.length; index++)
-    total += Math.abs(points[index + 1]!.x - points[index]!.x) + Math.abs(points[index + 1]!.y - points[index]!.y);
-  return total;
 };
 
 /** Whether the segment runs through the box grown by `margin`. */
@@ -788,8 +780,6 @@ const assignPorts = (
 
 /* -------------------------------------------------------------------- labels */
 
-type Rect = { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
-
 const charWidth = (char: string): number => {
   const code = char.codePointAt(0) ?? 0;
   if (code >= 0x2e80) return LABEL_FONT;
@@ -806,161 +796,57 @@ export const stateLabelSize = (title: string): { readonly width: number; readonl
   return { width: Math.min(LABEL_MAX_WIDTH, Math.ceil(width)), height: LABEL_HEIGHT };
 };
 
-const rectAround = (center: LayoutPoint, width: number, height: number): Rect => ({
-  left: center.x - width / 2,
-  top: center.y - height / 2,
-  right: center.x + width / 2,
-  bottom: center.y + height / 2,
-});
-
-const rectsOverlap = (a: Rect, b: Rect, margin: number): boolean =>
-  a.left < b.right + margin && a.right > b.left - margin && a.top < b.bottom + margin && a.bottom > b.top - margin;
-
-const segmentInRect = (segment: Segment, rect: Rect, margin: number): boolean =>
-  segment.horizontal
-    ? segment.at > rect.top - margin &&
-      segment.at < rect.bottom + margin &&
-      segment.hi > rect.left - margin &&
-      segment.lo < rect.right + margin
-    : segment.at > rect.left - margin &&
-      segment.at < rect.right + margin &&
-      segment.hi > rect.top - margin &&
-      segment.lo < rect.bottom + margin;
-
-/** `host` is the run the label sits on, or -1 when it sits beside its line. */
-type LabelCandidate = { readonly center: LayoutPoint; readonly host: number; readonly cost: number };
-
 const LABEL_RATIOS = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9, 0, 1] as const;
 
-const labelCandidates = (points: readonly LayoutPoint[], width: number, height: number): LabelCandidate[] => {
-  const out: LabelCandidate[] = [];
-  const lengths = points
-    .slice(1)
-    .map((point, index) => Math.abs(point.x - points[index]!.x) + Math.abs(point.y - points[index]!.y));
-  const longest = Math.max(0, ...lengths);
-  const total = lengths.reduce((sum, length) => sum + length, 0);
-  let travelled = 0;
-  for (let index = 0; index + 1 < points.length; index++) {
-    const a = points[index]!;
-    const b = points[index + 1]!;
-    const length = lengths[index]!;
-    const before = travelled;
-    travelled += length;
-    if (length < MIN_JOG) continue;
-    const horizontal = a.y === b.y;
-    const last = index + 2 === points.length;
-    const base = (longest - length) * 0.04;
-    /** Spots along the run, each a distance from `a`; the nearer the route's own middle, the cheaper. */
-    const along = (keepStart: number, keepEnd: number): { readonly at: number; readonly cost: number }[] => {
-      const to = length - keepEnd;
-      if (keepStart > to) return [];
-      return LABEL_RATIOS.map((ratio) => {
-        const at = keepStart + (to - keepStart) * ratio;
-        return { at, cost: Math.abs(before + at - total / 2) * 0.03 };
-      });
+/** The box a transition's arrowhead occupies, kept clear of so a label never covers it. */
+const arrowZonesOf = (routes: ReadonlyMap<string, readonly LayoutPoint[]>): LabelBox[] =>
+  [...routes.values()].flatMap((points) => {
+    const tip = points.at(-1);
+    const before = points.at(-2);
+    if (!tip || !before) return [];
+    const back = {
+      x: tip.x - Math.sign(tip.x - before.x) * ARROW_ZONE,
+      y: tip.y - Math.sign(tip.y - before.y) * ARROW_ZONE,
     };
-    const pointAt = (at: number): LayoutPoint =>
-      horizontal ? { x: a.x + Math.sign(b.x - a.x) * at, y: a.y } : { x: a.x, y: a.y + Math.sign(b.y - a.y) * at };
-    const extent = (horizontal ? width : height) / 2 + LABEL_LINE_KEEP;
-    for (const spot of along(extent, extent + (last ? ARROW_ZONE : 0)))
-      out.push({ center: pointAt(spot.at), host: index, cost: base + spot.cost });
-    const inset = Math.min(length / 2, 8);
-    const offset = (horizontal ? height : width) / 2 + LABEL_OFFSET;
-    // Past either end of the run too, by up to half the label: a short run still gets a caption that touches it.
-    const overhang = Math.max(0, (horizontal ? width : height) / 2 - inset);
-    const beside = [
-      ...along(inset, inset),
-      { at: -overhang, cost: Math.abs(before - total / 2) * 0.03 + 4 },
-      { at: length + overhang, cost: Math.abs(before + length - total / 2) * 0.03 + 4 },
+    return [
+      {
+        x: Math.min(tip.x, back.x) - ARROW_HALF,
+        y: Math.min(tip.y, back.y) - ARROW_HALF,
+        width: Math.abs(tip.x - back.x) + ARROW_HALF * 2,
+        height: Math.abs(tip.y - back.y) + ARROW_HALF * 2,
+      },
     ];
-    for (const spot of beside) {
-      const on = pointAt(spot.at);
-      // Above a horizontal run and right of a vertical one first: where a reader looks for a caption.
-      out.push(
-        {
-          center: horizontal ? { x: on.x, y: on.y - offset } : { x: on.x + offset, y: on.y },
-          host: -1,
-          cost: base + spot.cost + 6,
-        },
-        {
-          center: horizontal ? { x: on.x, y: on.y + offset } : { x: on.x - offset, y: on.y },
-          host: -1,
-          cost: base + spot.cost + 10,
-        },
-      );
-    }
-  }
-  return out;
-};
+  });
 
+/**
+ * Where each transition's label goes, through the shared placer: on the
+ * transition's own line where it fits, else beside it, avoiding the states,
+ * the other labels and the arrowheads.
+ */
 const placeLabels = (
   edges: readonly StateRouteEdge[],
   routes: ReadonlyMap<string, readonly LayoutPoint[]>,
   boxes: readonly Box[],
 ): Map<string, LayoutPoint> => {
-  const segments = new Map<string, Segment[]>();
-  const arrowZones: Rect[] = [];
-  for (const [id, points] of routes) {
-    segments.set(id, segmentsOf(id, points));
-    const tip = points.at(-1);
-    const before = points.at(-2);
-    if (!tip || !before) continue;
-    const back = {
-      x: tip.x - Math.sign(tip.x - before.x) * ARROW_ZONE,
-      y: tip.y - Math.sign(tip.y - before.y) * ARROW_ZONE,
-    };
-    arrowZones.push({
-      left: Math.min(tip.x, back.x) - ARROW_HALF,
-      top: Math.min(tip.y, back.y) - ARROW_HALF,
-      right: Math.max(tip.x, back.x) + ARROW_HALF,
-      bottom: Math.max(tip.y, back.y) + ARROW_HALF,
-    });
-  }
-  const nodeRects = boxes.map((box) => ({
-    left: box.x,
-    top: box.y,
-    right: box.x + box.width,
-    bottom: box.y + box.height,
-  }));
-  const placedRects: Rect[] = [];
-  const labels = new Map<string, LayoutPoint>();
   // Self transitions and short routes have the fewest spots to choose from, so they choose first.
-  const order = edges
-    .filter((edge) => (routes.get(edge.id)?.length ?? 0) >= 2)
-    .sort(
-      (p, q) =>
-        Number(q.from === q.to) - Number(p.from === p.to) ||
-        routeLength(routes.get(p.id)!) - routeLength(routes.get(q.id)!) ||
-        byId(p.id, q.id),
-    );
-  for (const edge of order) {
-    const points = routes.get(edge.id)!;
-    const size = stateLabelSize(edge.title ?? '');
-    let best: LabelCandidate | null = null;
-    let bestCost = Infinity;
-    for (const candidate of labelCandidates(points, size.width, size.height)) {
-      const rect = rectAround(candidate.center, size.width, size.height);
-      let cost = candidate.cost;
-      if (rect.left < 4 || rect.top < 4) cost += 2000;
-      for (const node of nodeRects) if (rectsOverlap(rect, node, 3)) cost += 2000;
-      for (const other of placedRects) if (rectsOverlap(rect, other, 4)) cost += 2000;
-      for (const zone of arrowZones) if (rectsOverlap(rect, zone, 0)) cost += 1500;
-      for (const [id, list] of segments) {
-        for (const [index, segment] of list.entries()) {
-          if (id === edge.id && index === candidate.host) continue;
-          if (segmentInRect(segment, rect, 2)) cost += id === edge.id ? 200 : 600;
-        }
-      }
-      if (cost < bestCost) {
-        bestCost = cost;
-        best = candidate;
-      }
-    }
-    const center = best?.center ?? points[Math.floor(points.length / 2)]!;
-    labels.set(edge.id, { x: Math.round(center.x), y: Math.round(center.y) });
-    placedRects.push(rectAround(center, size.width, size.height));
-  }
-  return labels;
+  const requests = edges.flatMap((edge) => {
+    const points = routes.get(edge.id);
+    if (points === undefined || points.length < 2) return [];
+    return [
+      {
+        id: edge.id,
+        points,
+        size: stateLabelSize(edge.title ?? ''),
+        priority: edge.from === edge.to ? 1 : 0,
+      },
+    ];
+  });
+  const placed = placeEdgeLabels(
+    requests,
+    { boxes, zones: arrowZonesOf(routes), lines: routes },
+    { ratios: LABEL_RATIOS },
+  );
+  return new Map([...placed].map(([id, placement]) => [id, placement.center] as const));
 };
 
 /* ---------------------------------------------------------------------- main */
