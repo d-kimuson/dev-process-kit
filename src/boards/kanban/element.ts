@@ -3,8 +3,9 @@ import { repeat } from 'lit/directives/repeat.js';
 
 import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
 import type { ElementActionResult } from '../../core/element-actions';
-import type { PanelDetail } from '../../core/panel/host';
+import type { PanelDetail, PanelSectionSpec } from '../../core/panel/host';
 import type { ActionTarget, CommentTargetOption, DraftAction } from '../../core/types';
+import type { BulkActions } from './bulk-section';
 import type { CardDetailActions } from './card-detail';
 
 import { cardAtom } from '../../components/atoms/card';
@@ -13,8 +14,9 @@ import { createEntityId, targetRef } from '../../core/target';
 import { copyText } from '../../lib/dom/clipboard';
 import { describeLink } from '../../lib/link-label';
 import { BoardChromeBase } from '../base/element';
-import { classNames, elementRefSegments, tagStateMatches } from '../base/model';
+import { classNames, elementRefSegments, tagStateMatches, type ElementActionRequest } from '../base/model';
 import { chromeStyles } from '../base/styles';
+import { bulkMoveActions, bulkTagActions, cardRange, toggleCard } from './bulk';
 import { kanbanMessages } from './messages';
 import {
   ADD_CARD,
@@ -63,6 +65,13 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
   /** The card whose last move no template recorded. */
   #moveFailed: string | null = null;
   #dragging: string | null = null;
+  /**
+   * The cards picked with Cmd/Ctrl or Shift, in the order picked; the bulk
+   * actions apply to those of them on show. `#anchor` is where a Shift range
+   * starts.
+   */
+  #picked: readonly string[] = [];
+  #anchor: string | null = null;
   #drop: KanbanPosition | null = null;
 
   protected override parseData(input: unknown): KanbanData {
@@ -281,7 +290,8 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
   }
 
   #renderCard(card: KanbanCard, m: ReturnType<typeof kanbanMessages>): TemplateResult {
-    const selected = this.#isSelected('card', card.id);
+    const picked = this.#bulk();
+    const selected = picked.length > 0 ? picked.includes(card.id) : this.#isSelected('card', card.id);
     return html`
       <div class="kanban-card-slot">
         <div
@@ -300,7 +310,7 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
           data-dpk-target=${this.commentRef('card', card.id)}
           title=${card.description ?? card.title}
           aria-pressed=${selected ? 'true' : 'false'}
-          @click=${() => this.openSelection({ kind: 'card', id: card.id })}
+          @click=${(event: MouseEvent) => this.#pick(event, card.id)}
           @keydown=${(event: KeyboardEvent) => this.#onCardKey(event, card.id)}
           @dragstart=${(event: DragEvent) => this.#onDragStart(event, card.id)}
           @dragend=${() => this.#endDrag()}
@@ -435,9 +445,107 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
   }
 
   #onCardKey(event: KeyboardEvent, id: string): void {
-    if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+    if (event.target !== event.currentTarget) return;
+    if (event.key === 'Escape' && this.#bulk().length > 0) {
+      event.preventDefault();
+      this.#clearPicked();
+      return;
+    }
+    if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
-    this.openSelection({ kind: 'card', id });
+    this.#pick(event, id);
+  }
+
+  // ------------------------------------------------------------- bulk actions
+
+  /** The picked cards on show, in the order picked; empty unless at least two are. */
+  #bulk(): readonly string[] {
+    const shown = new Set(allCards(this.#visible()).map((card) => card.id));
+    const picked = this.#picked.filter((id) => shown.has(id));
+    return picked.length < 2 ? [] : picked;
+  }
+
+  /**
+   * A plain press opens the card's detail and drops the picked cards;
+   * Cmd/Ctrl adds the card to them or takes it out, and Shift picks the cards
+   * between the last one picked and this one.
+   */
+  #pick(event: MouseEvent | KeyboardEvent, id: string): void {
+    const before = this.#bulk().length;
+    if (event.metaKey || event.ctrlKey) {
+      const selection = this.selection;
+      const seed =
+        this.#picked.length > 0
+          ? this.#picked
+          : selection?.kind === 'card' && selection.id !== id
+            ? [selection.id]
+            : [];
+      this.#picked = toggleCard(seed, id);
+      const [only] = this.#picked;
+      if (this.#picked.includes(id)) {
+        this.#anchor = id;
+        this.select({ kind: 'card', id });
+      } else if (this.#picked.length === 1 && only !== undefined) {
+        this.#anchor = only;
+        this.select({ kind: 'card', id: only });
+      }
+    } else if (event.shiftKey) {
+      const selection = this.selection;
+      const anchor = this.#anchor ?? (selection?.kind === 'card' ? selection.id : id);
+      const order = allCards(this.#visible()).map((card) => card.id);
+      this.#picked = cardRange(order, anchor, id);
+      this.#anchor = anchor;
+    } else {
+      this.#picked = [];
+      this.#anchor = id;
+      this.openSelection({ kind: 'card', id });
+      return;
+    }
+    this.requestUpdate();
+    if (before === 0 && this.#bulk().length > 0)
+      void this.updateComplete.then(() => this.showPanelSection(this.#bulkSectionName()));
+  }
+
+  #clearPicked(): void {
+    this.#picked = [];
+    this.requestUpdate();
+  }
+
+  #bulkSectionName(): string {
+    return this.id === '' ? 'kanban-bulk' : `kanban-bulk-${this.id}`;
+  }
+
+  /** Records the actions as one batch; nothing to record counts as done. */
+  #bulkRecord(actions: readonly ElementActionRequest[]): boolean {
+    if (actions.length === 0) return true;
+    const accepted = this.dispatchElementActions(actions);
+    this.requestUpdate();
+    return accepted;
+  }
+
+  protected override panelSections(): readonly PanelSectionSpec[] {
+    const picked = this.#bulk();
+    if (picked.length === 0) return [];
+    const m = kanbanMessages(this.locale);
+    const actions: BulkActions = {
+      move: (column) => this.#bulkRecord(bulkMoveActions(this.items(), this.#bulk(), column)),
+      tag: (tag, present) => this.#bulkRecord(bulkTagActions(this.items(), this.#bulk(), tag, present)),
+      clear: () => this.#clearPicked(),
+    };
+    return [
+      {
+        name: this.#bulkSectionName(),
+        label: m.bulkLabel,
+        badge: String(picked.length),
+        render: () =>
+          html`<dpk-internal-kanban-bulk
+            .data=${this.items()}
+            .picked=${this.#bulk()}
+            .messages=${m}
+            .actions=${actions}
+          ></dpk-internal-kanban-bulk>`,
+      },
+    ];
   }
 
   /** A template that records the move has already replayed it; otherwise the card says so. */
