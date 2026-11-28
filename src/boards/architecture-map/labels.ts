@@ -1,8 +1,8 @@
 import type { LayoutPoint } from '../../lib/layout/layered';
 import type { RouteRect } from './route';
 
+import { END_MARKERS, markerZone } from '../../components/diagram/edge/glyphs';
 import { endFrame } from '../../lib/layout/path-steps';
-import { END_MARKERS, markerZone } from '../base/edge/glyphs';
 
 /**
  * Where each link's label chip goes.

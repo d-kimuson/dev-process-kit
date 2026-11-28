@@ -17,7 +17,7 @@ import { defineStateDiagram } from '../../src/boards/state-diagram/index';
 import { parseStateData } from '../../src/boards/state-diagram/model';
 
 /**
- * Every board that draws with `src/boards/base/edge` colours its line, its
+ * Every board that draws with `src/components/diagram/edge` colours its line, its
  * inline arrowhead and its flow from one `--d-edge-line`. A state can set that
  * property on a rule that loses the stroke (a base `.d-edge.is-selected
  * .d-edge-path` of equal specificity wins it), leaving the line a different

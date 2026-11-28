@@ -2,6 +2,7 @@ import type { LayoutPoint, LayoutResult, PlacedNode } from '../../lib/layout/lay
 import type { BpmnBands, BpmnPoolBand } from './layout';
 import type { BpmnData, BpmnFlow, BpmnNode } from './model';
 
+import { edgeReach, markerZone, type EdgeSpec } from '../../components/diagram/edge';
 import { placeEdgeLabels, type LabelBox } from '../../lib/layout/edge-labels';
 import {
   horizontalBlocked,
@@ -12,7 +13,6 @@ import {
 import { endFrame } from '../../lib/layout/path-steps';
 import { staggeredEdgePorts, type EdgePorts, type PortSide } from '../../lib/layout/ports';
 import { nudgeParallelRoutes } from '../../lib/layout/route-nudge';
-import { edgeReach, markerZone, type EdgeSpec } from '../base/edge';
 import { flowSpec } from './markers';
 import { externalLabel, flowLabelSize, nodeShape, outlinePoint } from './shapes';
 

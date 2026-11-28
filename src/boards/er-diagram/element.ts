@@ -7,6 +7,7 @@ import type { CommentTargetOption, DraftAction } from '../../core/types';
 import type { ViewportBox } from '../base/viewport';
 
 import { controlAtom } from '../../components/atoms/controls';
+import { EDGE_PATHS } from '../../components/diagram/edge';
 import { iconDiamond, iconKey, iconLink, iconPencil, iconPlus, iconTrash } from '../../core/icons';
 import { PopoverController } from '../../core/popover-controller';
 import { SelectController } from '../../core/select/controller';
@@ -21,7 +22,6 @@ import {
 } from '../../lib/layout/layered';
 import { jumpedPaths } from '../../lib/layout/line-jumps';
 import { stepsData } from '../../lib/layout/path-steps';
-import { EDGE_PATHS } from '../base/edge';
 import { BoardCanvasElement } from '../base/element';
 import {
   EMPTY_REACH,
