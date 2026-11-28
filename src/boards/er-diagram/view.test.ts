@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import type { PathStep } from '../../lib/layout/path-steps';
+
 import { layeredLayout, type LayoutPoint } from '../../lib/layout/layered';
-import { LINE_JUMP_RADIUS } from '../../lib/layout/line-jumps';
+import { jumpedPaths, LINE_JUMP_RADIUS } from '../../lib/layout/line-jumps';
 import { routeHugsOutline } from '../../lib/layout/metrics';
 import { LAYOUT, LANE_MARGIN } from './element';
 import { erDiagramMessages } from './messages';
@@ -20,6 +22,7 @@ import {
   relationPath,
   relationRoute,
   relationRoutes,
+  relationSteps,
   resumeEditor,
   roundedPath,
   typeMenu,
@@ -407,6 +410,71 @@ describe('relationPath', () => {
       { x: 0, y: 10 },
     ];
     expect(relationPath(back, 40)).toBe(roundedPath(back, 10));
+  });
+});
+
+/**
+ * The ER board's own S-curve through `jumpedPaths`: the routing used to test
+ * the jump pass against the real `relationSteps` output, and this keeps that
+ * coverage after the pass moved to `lib/layout`. Whatever draws the curve, the
+ * jump must land where the curve actually crosses the level — not at the jog's
+ * own x, which on a forward route is only right when the curve is symmetric
+ * about its middle.
+ */
+describe('jumpedPaths over a real relation route', () => {
+  const r = LINE_JUMP_RADIUS;
+  const level = (points: readonly [number, number][]): readonly PathStep[] =>
+    points.map(([x, y], index) => ({ kind: index === 0 ? 'move' : 'line', to: { x, y } }));
+
+  const curve = relationSteps(
+    [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+    ],
+    40,
+    0,
+  );
+
+  it('jumps a level run where the forward curve crosses it, at the jog', () => {
+    const paths = jumpedPaths(
+      new Map([
+        [
+          'level',
+          level([
+            [0, 50],
+            [200, 50],
+          ]),
+        ],
+        ['curve', curve],
+      ]),
+      new Set(['level', 'curve']),
+      { clearance: 0 },
+    );
+    // Point-symmetric about the jog's middle, so `relationSteps`' S-curve
+    // crosses y=50 exactly at the jog (x=100).
+    expect(paths.get('level')).toBe(`M0 50 L${100 - r} 50 A${r} ${r} 0 0 1 ${100 + r} 50 L200 50`);
+  });
+
+  it('finds a higher run crossing the curve left of the jog', () => {
+    const paths = jumpedPaths(
+      new Map([
+        [
+          'level',
+          level([
+            [0, 10],
+            [200, 10],
+          ]),
+        ],
+        ['curve', curve],
+      ]),
+      new Set(['level', 'curve']),
+      { clearance: 0 },
+    );
+    const at = Number(/L([\d.]+) 10 A/.exec(paths.get('level') ?? '')?.[1]) + r;
+    expect(at).toBeGreaterThan(60);
+    expect(at).toBeLessThan(100);
   });
 });
 
