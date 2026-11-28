@@ -2,11 +2,11 @@ import type { Diagram, DiagramEdge, DiagramTone, EdgeLine, EdgeMarkerName, NodeS
 
 import { placeEdgeLabels, type LabelBox } from '../../lib/layout/edge-labels';
 import { gridPositions } from '../../lib/layout/grid';
-import { layeredLayout, type LayoutPoint, type LayoutResult } from '../../lib/layout/layered';
+import { layeredLayout, type LayoutPoint } from '../../lib/layout/layered';
 import { jumpedPaths, LINE_JUMP_RADIUS } from '../../lib/layout/line-jumps';
 import { routeAroundObstacles, type RouteSegment } from '../../lib/layout/orthogonal-router';
 import { endFrame, stepsData, type EndFrame, type EndSide, type PathStep } from '../../lib/layout/path-steps';
-import { staggeredEdgePorts, type PortSide } from '../../lib/layout/ports';
+import { facingPortSide, staggeredEdgePorts, type FanSideContext, type PortSide } from '../../lib/layout/ports';
 import { transposeLayout } from '../../lib/layout/transpose';
 import { END_MARKERS, markerZone, type EndMarker } from './edge/glyphs';
 import { edgeSteps, type EdgeSpec } from './edge/spec';
@@ -56,6 +56,16 @@ const GRID_GAPS = { columnGap: 88, rowGap: 64 };
 const GRID_STUB = 18;
 const GRID_MARGIN = 14;
 const JUMP_GAP = 4;
+/**
+ * The layout band every node outside a group shares. Ids are trimmed and never
+ * empty, so no group can take this name. Without it each loose node becomes a
+ * band of its own and the figure spreads diagonally.
+ */
+const LOOSE_BAND = ' ';
+/** The largest offset `straighten` removes between two nodes an edge joins. */
+const JOG = 28;
+/** The room a straightened node keeps from every other node. */
+const JOG_CLEARANCE = 16;
 
 const MARKERS: Readonly<Record<EdgeMarkerName, EndMarker | null>> = {
   none: null,
@@ -79,31 +89,88 @@ const specOf = (edge: DiagramEdge): EdgeSpec => ({
 
 const sizeOf = (sizes: ReadonlyMap<string, Size>, id: string): Size => sizes.get(id) ?? { width: 0, height: 0 };
 
-const autoLayout = (diagram: Diagram, sizes: DiagramSizes): LayoutResult => {
+type NodeBox = Box & { readonly id: string };
+
+const FRAME_GAP = 12;
+
+const overlaps = (a: Box, b: Box, gap: number): boolean =>
+  a.x < b.x + b.width + gap && b.x < a.x + a.width + gap && a.y < b.y + b.height + gap && b.y < a.y + a.height + gap;
+
+/** Whether a group frame would touch another frame or cover a node outside its group. */
+const framesClash = (diagram: Diagram, boxes: readonly NodeBox[]): boolean => {
+  const frames = framesOf(diagram, new Map(boxes.map((box) => [box.id, box] as const)));
+  const groupOf = new Map(diagram.nodes.map((node) => [node.id, node.group]));
+  return frames.some(
+    (frame, index) =>
+      frames.slice(index + 1).some((other) => overlaps(frame, other, FRAME_GAP)) ||
+      boxes.some((box) => groupOf.get(box.id) !== frame.id && overlaps(frame, box, 0)),
+  );
+};
+
+/**
+ * Pulls a node onto the line of its only predecessor when the two centres
+ * differ by a little and the move keeps it clear of every other node, so a
+ * straight edge does not turn twice for a jog.
+ */
+const straighten = (diagram: Diagram, boxes: readonly NodeBox[], down: boolean): readonly NodeBox[] => {
+  const placed = new Map(boxes.map((box) => [box.id, box] as const));
+  const incoming = new Map<string, number>();
+  for (const edge of diagram.edges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
+  for (const edge of diagram.edges) {
+    const from = placed.get(edge.from);
+    const to = placed.get(edge.to);
+    if (from === undefined || to === undefined || incoming.get(edge.to) !== 1) continue;
+    const offset = down
+      ? from.x + from.width / 2 - (to.x + to.width / 2)
+      : from.y + from.height / 2 - (to.y + to.height / 2);
+    if (offset === 0 || Math.abs(offset) > JOG) continue;
+    const moved = down ? { ...to, x: to.x + offset } : { ...to, y: to.y + offset };
+    const blocked = [...placed.values()].some((box) => box.id !== to.id && overlaps(moved, box, JOG_CLEARANCE));
+    if (!blocked) placed.set(edge.to, moved);
+  }
+  return [...placed.values()];
+};
+
+/**
+ * Layers along `direction`; only the node boxes are kept, every edge is routed
+ * afterwards. Groups are first placed like any other node; only when a frame
+ * would then clash does each group get a band of its own.
+ */
+const autoBoxes = (diagram: Diagram, sizes: DiagramSizes): readonly NodeBox[] => {
   const down = diagram.direction === 'down';
   const chips = [...sizes.chips.values()];
   const widest = Math.max(0, ...chips.map((chip) => chip.width));
   const tallest = Math.max(0, ...chips.map((chip) => chip.height));
-  const grouped = diagram.groups.length > 0;
-  const result = layeredLayout(
-    diagram.nodes.map((node) => {
-      const size = sizeOf(sizes.nodes, node.id);
-      return {
-        id: node.id,
-        width: down ? size.height : size.width,
-        height: down ? size.width : size.height,
-        ...(node.group === null ? {} : { group: node.group }),
-      };
-    }),
-    diagram.edges.map((edge) => ({ id: edge.id, from: edge.from, to: edge.to })),
-    {
-      nodeSpacing: down ? 44 : 36,
-      layerSpacing: down ? Math.max(72, tallest + 52) : Math.max(84, widest + 52),
-      padding: grouped ? PADDING + FRAME_INSET + FRAME_TITLE_RISE : PADDING,
-      groupSpacing: grouped ? FRAME_INSET * 2 + 28 : 34,
-    },
-  );
-  return down ? transposeLayout(result) : result;
+  const place = (banded: boolean): readonly NodeBox[] => {
+    const result = layeredLayout(
+      diagram.nodes.map((node) => {
+        const size = sizeOf(sizes.nodes, node.id);
+        return {
+          id: node.id,
+          width: down ? size.height : size.width,
+          height: down ? size.width : size.height,
+          ...(banded ? { group: node.group ?? LOOSE_BAND } : {}),
+        };
+      }),
+      diagram.edges.map((edge) => ({ id: edge.id, from: edge.from, to: edge.to })),
+      {
+        nodeSpacing: down ? 44 : 36,
+        layerSpacing: down ? Math.max(72, tallest + 52) : Math.max(84, widest + 52),
+        padding: PADDING,
+        groupSpacing: FRAME_INSET * 2 + 28,
+      },
+    );
+    const boxes = (down ? transposeLayout(result) : result).nodes.map(({ id, x, y, width, height }) => ({
+      id,
+      x,
+      y,
+      width,
+      height,
+    }));
+    return straighten(diagram, boxes, down);
+  };
+  const loose = place(false);
+  return diagram.groups.length > 0 && framesClash(diagram, loose) ? place(true) : loose;
 };
 
 const sideStep = (side: PortSide): LayoutPoint =>
@@ -130,9 +197,8 @@ const withoutRepeats = (points: readonly LayoutPoint[]): readonly LayoutPoint[] 
     return before === undefined || before.x !== point.x || before.y !== point.y;
   });
 
-/** Grid cells fix every node; each edge leaves the side facing its other end and routes around the other nodes. */
-const gridLayout = (diagram: Diagram, sizes: DiagramSizes): LayoutResult => {
-  const offset = PADDING + (diagram.groups.length > 0 ? FRAME_INSET + FRAME_TITLE_RISE : 0);
+/** Grid cells fix every node. */
+const gridBoxes = (diagram: Diagram, sizes: DiagramSizes): readonly NodeBox[] => {
   const positions = gridPositions(
     diagram.nodes.map((node) => ({
       id: node.id,
@@ -142,14 +208,60 @@ const gridLayout = (diagram: Diagram, sizes: DiagramSizes): LayoutResult => {
     })),
     GRID_GAPS,
   );
-  const boxes = new Map(
-    diagram.nodes.map((node) => {
-      const at = positions.get(node.id) ?? { x: 0, y: 0 };
-      return [node.id, { id: node.id, x: at.x + offset, y: at.y + offset, ...sizeOf(sizes.nodes, node.id) }] as const;
-    }),
-  );
+  return diagram.nodes.map((node) => {
+    const at = positions.get(node.id) ?? { x: 0, y: 0 };
+    return { id: node.id, ...at, ...sizeOf(sizes.nodes, node.id) };
+  });
+};
+
+const facingSide = ({ node, other }: FanSideContext): PortSide => facingPortSide(node, other);
+
+/** Whether the straight line between two nodes' centres crosses any other node. */
+const corridorBlocked = (from: Box, to: Box, placed: readonly NodeBox[]): boolean => {
+  const a = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+  const b = { x: to.x + to.width / 2, y: to.y + to.height / 2 };
+  return placed.some((box) => {
+    if (box === from || box === to) return false;
+    const samples = 24;
+    return Array.from({ length: samples + 1 }, (_, step) => step / samples).some((t) => {
+      const x = a.x + (b.x - a.x) * t;
+      const y = a.y + (b.y - a.y) * t;
+      return x > box.x && x < box.x + box.width && y > box.y && y < box.y + box.height;
+    });
+  });
+};
+
+/**
+ * An edge that would cut through another node leaves and enters over the top
+ * (or, laid out downwards, on the left), so it arches around the nodes between
+ * instead of squeezing into the ports of its neighbours.
+ */
+const detourSide =
+  (direction: Diagram['direction']) =>
+  (context: FanSideContext, placed: readonly NodeBox[]): PortSide => {
+    const ends = placed.filter((box) => box.id === context.edge.from || box.id === context.edge.to);
+    const [first, second] = ends;
+    if (first !== undefined && second !== undefined && corridorBlocked(first, second, placed)) {
+      return direction === 'down' ? 'left' : 'top';
+    }
+    return facingPortSide(context.node, context.other);
+  };
+
+/**
+ * Each edge leaves the side facing its other end, from its own port on that
+ * side, and routes around every other node and every line already drawn, so
+ * two edges never share a lane.
+ */
+const routeEdges = (
+  diagram: Diagram,
+  placed: readonly NodeBox[],
+  sideOf: (context: FanSideContext, placed: readonly NodeBox[]) => PortSide,
+): ReadonlyMap<string, readonly LayoutPoint[]> => {
+  const boxes = new Map(placed.map((box) => [box.id, box] as const));
   const shapes = new Map(diagram.nodes.map((node) => [node.id, node.shape]));
-  const ports = staggeredEdgePorts([...boxes.values()], diagram.edges);
+  const ports = staggeredEdgePorts([...boxes.values()], diagram.edges, {
+    sideOf: (context) => sideOf(context, placed),
+  });
   const drawn: RouteSegment[] = [];
   const routes = diagram.edges.flatMap((edge) => {
     const pair = ports.get(edge.id);
@@ -168,15 +280,9 @@ const gridLayout = (diagram: Diagram, sizes: DiagramSizes): LayoutResult => {
     const middle = routeAroundObstacles(startStub, endStub, obstacles, GRID_MARGIN, drawn);
     const points = withoutRepeats([start, ...middle, end]);
     for (let index = 1; index < points.length; index += 1) drawn.push([points[index - 1]!, points[index]!]);
-    return [{ id: edge.id, points }];
+    return [[edge.id, points] as const];
   });
-  const placed = [...boxes.values()];
-  return {
-    width: Math.max(0, ...placed.map((box) => box.x + box.width)) + offset,
-    height: Math.max(0, ...placed.map((box) => box.y + box.height)) + offset,
-    nodes: placed.map((box) => ({ ...box, layer: 0, order: 0 })),
-    routes,
-  };
+  return new Map(routes);
 };
 
 const framesOf = (diagram: Diagram, nodes: ReadonlyMap<string, Box>): readonly DiagramFrameView[] =>
@@ -203,6 +309,16 @@ const framesOf = (diagram: Diagram, nodes: ReadonlyMap<string, Box>): readonly D
     ];
   });
 
+/** Roughly where a frame's title chip sits, so no edge label lands on it. */
+const titleZone = (frame: DiagramFrameView): Box => {
+  const { label } = frame;
+  const width = Array.from({ length: label.length }, (_, index) => (label.charCodeAt(index) > 0xff ? 12 : 8)).reduce(
+    (sum, step) => sum + step,
+    20,
+  );
+  return { x: frame.x + 14, y: frame.y - FRAME_TITLE_RISE, width: Math.min(width, frame.width - 28), height: 24 };
+};
+
 const shiftBox = <T extends Box>(box: T, dx: number, dy: number): T => ({ ...box, x: box.x + dx, y: box.y + dy });
 
 /**
@@ -212,14 +328,9 @@ const shiftBox = <T extends Box>(box: T, dx: number, dy: number): T => ({ ...box
  * even padding.
  */
 export const presentDiagram = (diagram: Diagram, sizes: DiagramSizes): DiagramView => {
-  const layout = diagram.layout === 'grid' ? gridLayout(diagram, sizes) : autoLayout(diagram, sizes);
-  const nodeBoxes = new Map(
-    layout.nodes.map((node) => [
-      node.id,
-      { id: node.id, x: node.x, y: node.y, width: node.width, height: node.height },
-    ]),
-  );
-  const routes = new Map(layout.routes.map((route) => [route.id, route.points] as const));
+  const placed = diagram.layout === 'grid' ? gridBoxes(diagram, sizes) : autoBoxes(diagram, sizes);
+  const nodeBoxes = new Map(placed.map((box) => [box.id, box] as const));
+  const routes = routeEdges(diagram, placed, diagram.layout === 'grid' ? facingSide : detourSide(diagram.direction));
   const frames = framesOf(diagram, nodeBoxes);
 
   const zones = diagram.edges.flatMap((edge) => {
@@ -237,7 +348,7 @@ export const presentDiagram = (diagram: Diagram, sizes: DiagramSizes): DiagramVi
       const points = routes.get(edge.id);
       return size === undefined || points === undefined ? [] : [{ id: edge.id, points, size }];
     }),
-    { boxes: [...nodeBoxes.values()], zones, lines: routes },
+    { boxes: [...nodeBoxes.values()], zones: [...zones, ...frames.map(titleZone)], lines: routes },
   );
   const chips = new Map(
     [...placements].map(([id, placement]) => {

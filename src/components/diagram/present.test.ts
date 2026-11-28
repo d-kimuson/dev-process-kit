@@ -145,4 +145,34 @@ describe('presentDiagram', () => {
     expect(arcs('jump')).toBeGreaterThan(0);
     expect(arcs('plain')).toBe(0);
   });
+
+  it('keeps two groups in consecutive layers side by side, not stacked diagonally', () => {
+    const diagram = diagramOf({
+      attributes: { id: 'd' },
+      nodes: [node('a', {}, 'left'), node('b', {}, 'left'), node('c', {}, 'right'), node('e', {}, 'right')],
+      edges: [edge('ac', 'a', 'c'), edge('be', 'b', 'e')],
+      groups: [{ attributes: { id: 'left' } }, { attributes: { id: 'right' } }],
+      nestedGroups: [],
+    });
+    const view = presentDiagram(diagram, sizes(['a', 'b', 'c', 'e']));
+    const [left, right] = view.frames;
+    expect(left!.y).toBe(right!.y);
+    expect(left!.x + left!.width).toBeLessThan(right!.x);
+  });
+
+  it('arches a line over the node standing between its ends', () => {
+    const diagram = diagramOf({
+      attributes: { id: 'd' },
+      nodes: [node('a'), node('b'), node('c')],
+      edges: [edge('ab', 'a', 'b'), edge('bc', 'b', 'c'), edge('ac', 'a', 'c')],
+      groups: [],
+      nestedGroups: [],
+    });
+    const view = presentDiagram(diagram, sizes(['a', 'b', 'c']));
+    const b = view.nodes.find((box) => box.id === 'b')!;
+    const skip = view.edges.find((line) => line.id === 'ac')!;
+    const points = pathDataPoints(skip.d);
+    expect(Math.min(...points.map((point) => point.y))).toBeLessThan(b.y);
+    expect(points.every((point) => !overlaps({ ...point, width: 0, height: 0 }, b))).toBe(true);
+  });
 });
