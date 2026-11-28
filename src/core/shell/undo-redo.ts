@@ -69,12 +69,15 @@ const isRedoChord = (event: KeyboardEvent): boolean => {
  * Document-level Cmd+Z/Ctrl+Z and Shift+Cmd+Z/Ctrl+Shift+Z/Ctrl+Y, listening
  * while the host is connected. `composedPath()` finds the real target even
  * across shadow roots, so a shortcut typed while editing inside one still
- * reaches native text undo instead of this controller.
+ * reaches native text undo instead of this controller. An inert host (a view
+ * shown as a picture, such as one in a video) takes no shortcut.
  */
 export class UndoRedoKeyboardController implements ReactiveController {
   readonly #options: UndoRedoIntents;
+  readonly #host: ReactiveControllerHost;
   constructor(host: ReactiveControllerHost, options: UndoRedoIntents) {
     this.#options = options;
+    this.#host = host;
     host.addController(this);
   }
   hostConnected(): void {
@@ -87,6 +90,7 @@ export class UndoRedoKeyboardController implements ReactiveController {
   #onKeyDown = (event: KeyboardEvent): void => {
     if (event.isComposing || event.defaultPrevented) return;
     if (isEditableTarget(event.composedPath())) return;
+    if (this.#host instanceof Element && this.#host.closest('[inert]') !== null) return;
     if (isRedoChord(event)) {
       event.preventDefault();
       this.#options.redo();

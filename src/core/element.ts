@@ -207,6 +207,7 @@ export abstract class ViewElement<S> extends LitElement {
   static override properties: PropertyDeclarations = {
     storageKey: { type: String, attribute: 'storage-key' },
     storage: { type: String },
+    hash: { type: String },
     notes: { type: String },
     theme: { type: String },
     notesOpen: { state: true },
@@ -218,6 +219,13 @@ export abstract class ViewElement<S> extends LitElement {
   declare storageKey: string | null;
   /** `storage="off"` disables persistence entirely. */
   declare storage: string | null;
+  /**
+   * `hash="off"` leaves `location.hash` alone: the view neither reads it on
+   * start nor writes it on navigation or action, for a view embedded where the
+   * hash belongs to something else (a catalog's routing, the page around a
+   * video). Absent (or any other value) keeps the hash as every view always had it.
+   */
+  declare hash: string | null;
   /**
    * Review rail visibility. It is closed by default and reached through the
    * changes, questions and review comments buttons; `notes="on"` (or
@@ -1863,14 +1871,9 @@ export abstract class ViewElement<S> extends LitElement {
     return true;
   }
 
-  /**
-   * Whether this root (never a board) owns `location.hash`: `'auto'` reads
-   * and writes it as every template always has; `'off'` leaves it alone, for
-   * a page embedded where the hash belongs to something else. A board never
-   * reaches here (its hash is already the page's).
-   */
+  /** Whether this root (never a board) owns `location.hash`; see `hash`. */
   protected get hashMode(): 'auto' | 'off' {
-    return 'auto';
+    return this.hash === 'off' ? 'off' : 'auto';
   }
 
   /** The brief handed to the agent; a page groups it by board. */

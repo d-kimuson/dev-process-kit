@@ -251,6 +251,7 @@ Text the reader has typed but not sent yet — a comment in a composer, a name i
 | ------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `storage-key` | string                           | LocalStorage key override (recommended for anything a human will re-open)                               |
 | `storage`     | `off` \| `memory`                | persistence mode (default: `localStorage`)                                                              |
+| `hash`        | `off`                            | leaves `location.hash` alone (neither read nor written); navigation stays in memory (default: the hash) |
 | `notes`       | `on` \| `changes` \| `questions` | opens the review popover on load at the review comments, the changes or the questions (default: closed) |
 | `theme`       | `light` \| `dark`                | the default color scheme (see [Color scheme](#color-scheme))                                            |
 

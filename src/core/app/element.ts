@@ -494,7 +494,6 @@ export class AppElement extends ViewElement<AppState> {
 
   static override properties: PropertyDeclarations = {
     pageNav: { type: String, attribute: 'page-nav' },
-    hash: { type: String },
   };
 
   /**
@@ -507,19 +506,6 @@ export class AppElement extends ViewElement<AppState> {
    * — the app's base form for every document of several pages.
    */
   declare pageNav: string | null;
-
-  /**
-   * `hash="off"` leaves `location.hash` alone: the app neither reads it on
-   * start nor writes it on navigation or action, for a document embedded
-   * where the hash already belongs to something else (a catalog's own
-   * routing). Page switching still works, in memory, either way. Absent (or
-   * any other value) keeps the hash as every document always had it.
-   */
-  declare hash: string | null;
-
-  protected override get hashMode(): 'auto' | 'off' {
-    return this.hash === 'off' ? 'off' : 'auto';
-  }
 
   #pagesReady = false;
   /** Set once the app's own draft exists; pages find no host before that. */

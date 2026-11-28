@@ -105,6 +105,29 @@ describe('<dpk-view-prototype>', () => {
     document.body.innerHTML = '';
   });
 
+  it('leaves location.hash alone under hash="off"', async () => {
+    const el = mount('#foo=bar', 'hash="off"');
+    await settle(el);
+    expect(location.hash).toBe('#foo=bar');
+    expect(el.api.navigation).toMatchObject({ step: 'landing' });
+    el.api.navigate({ step: 'google-auth' });
+    await el.updateComplete;
+    expect(el.api.navigation).toMatchObject({ step: 'google-auth' });
+    expect(location.hash).toBe('#foo=bar');
+  });
+
+  it('takes no undo shortcut while inert', async () => {
+    const el = mount();
+    await settle(el);
+    const undo = vi.spyOn(el.controller, 'undo');
+    document.body.setAttribute('inert', '');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    expect(undo).not.toHaveBeenCalled();
+    document.body.removeAttribute('inert');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    expect(undo).toHaveBeenCalledOnce();
+  });
+
   it('reads base data, renders the tree and canonically syncs the URL', async () => {
     const el = mount();
     await settle(el);
