@@ -1,7 +1,9 @@
-import { html, nothing, type TemplateResult } from 'lit';
+import { css, html, nothing, type TemplateResult } from 'lit';
 
 import type { ComposerMessages } from './messages';
 import type { ComposerChoice, ComposerViewModel } from './present';
+
+import { iconArrowUp } from '../../core/icons';
 
 export type ComposerIntent =
   | { readonly kind: 'input'; readonly body: string }
@@ -96,3 +98,145 @@ const renderChoice = (choice: ComposerChoice, send: (intent: ComposerIntent) => 
     </fieldset>
     ${hint === undefined ? nothing : html`<p class="comment-kind-hint">${hint}</p>`}`;
 };
+
+/**
+ * A composer that stays in its surface (a side panel, a chat column): the kind of comment above, one growing text box
+ * with the send button beside it. Ctrl/Cmd+Enter sends; Enter alone starts a new line.
+ */
+export const renderInlineComposer = (
+  m: ComposerMessages,
+  vm: ComposerViewModel,
+  send: (intent: ComposerIntent) => void,
+): TemplateResult => {
+  const submit = (): void => {
+    if (vm.submission !== null) send({ kind: 'comment', body: vm.submission });
+  };
+  const submitLabel = vm.submitLabel ?? m.submit;
+  return html`<form
+    class="inline-composer"
+    @submit=${(event: Event) => {
+      event.preventDefault();
+      submit();
+    }}
+  >
+    ${
+      vm.choice
+        ? html`<div
+            class="inline-composer-kinds"
+            @keydown=${(event: KeyboardEvent) => {
+              if (event.key === 'Enter') event.preventDefault();
+            }}
+          >
+            ${renderChoice(vm.choice, send)}
+          </div>`
+        : nothing
+    }
+    ${vm.error ? html`<p class="comment-error" role="alert">${vm.error}</p>` : nothing}
+    <div class="inline-composer-box">
+      <textarea
+        rows="1"
+        aria-label=${vm.label ?? vm.placeholder ?? m.comment}
+        placeholder=${vm.placeholder ?? nothing}
+        data-dpk-text-key=${vm.key ?? nothing}
+        .value=${vm.body}
+        @input=${(event: Event) => {
+          if (event.currentTarget instanceof HTMLTextAreaElement)
+            send({ kind: 'input', body: event.currentTarget.value });
+        }}
+        @keydown=${(event: KeyboardEvent) => {
+          if (event.isComposing) return;
+          if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            submit();
+          }
+        }}
+      ></textarea>
+      <button
+        class="dpk-btn dpk-btn--accent inline-composer-send"
+        type="submit"
+        aria-label=${submitLabel}
+        title=${submitLabel}
+        ?disabled=${vm.submission === null}
+      >
+        ${iconArrowUp()}
+      </button>
+    </div>
+  </form>`;
+};
+
+export const inlineComposerCss = css`
+  .inline-composer {
+    display: grid;
+    gap: 8px;
+  }
+
+  .inline-composer .comment-kinds {
+    font-size: var(--dpk-text-2xs);
+  }
+
+  .inline-composer .comment-error {
+    margin: 0;
+    color: var(--dpk-danger);
+    font-size: var(--dpk-text-2xs);
+  }
+
+  .inline-composer-box {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 4px 4px 4px 10px;
+    border: 1px solid var(--dpk-rule-strong);
+    border-radius: var(--dpk-radius-md);
+    background: var(--dpk-paper-raised);
+    box-shadow: inset 0 1px 2px var(--dpk-shade-1);
+    transition:
+      border-color var(--dpk-dur) var(--dpk-ease),
+      box-shadow var(--dpk-dur) var(--dpk-ease);
+  }
+
+  .inline-composer-box:hover {
+    border-color: var(--dpk-rule-hover);
+  }
+
+  .inline-composer-box:focus-within {
+    border-color: var(--dpk-blue);
+    box-shadow: var(--dpk-focus);
+    transition-duration: var(--dpk-dur-fast);
+  }
+
+  .inline-composer-box textarea {
+    flex: 1;
+    min-width: 0;
+    min-height: 26px;
+    max-height: calc(1.5em * 8 + 8px);
+    padding: 4px 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--dpk-ink);
+    font: inherit;
+    font-size: var(--dpk-text-sm);
+    line-height: 1.5;
+    resize: none;
+    field-sizing: content;
+  }
+
+  .inline-composer-box textarea::placeholder {
+    color: var(--dpk-ink-faint);
+  }
+
+  .inline-composer-send {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    min-height: 0;
+  }
+
+  .inline-composer-send svg {
+    width: 16px;
+    height: 16px;
+  }
+`;

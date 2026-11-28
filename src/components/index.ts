@@ -21,6 +21,8 @@ export { DpkFormalSpec, defineFormalSpec, parseFormalSpecData } from './formal-s
 export type { Assurance, Claim, Clause, FormalSpecData, Term } from './formal-spec/index';
 export { DpkDiff, defineDiff, parseUnifiedDiff, SUGGEST_CHANGE } from './diff/index';
 export type { DiffData, DiffFile, DiffFileStatus, DiffHunk, DiffLine, DiffLineKind, DiffView } from './diff/index';
+export { DpkVideo, defineVideo, parseVideoData } from './video/index';
+export type { VideoCue, VideoData, VideoPacing, VideoScene, VideoTrack } from './video/index';
 export { atomStyles, cardAtom, controlAtom, defineAtomStyles, mockAtom } from './atoms/index';
 export { DpkCommentable, defineCommentable } from './commentable/index';
 export { DpkExtendRightClick, defineExtendRightClick, parseExtendRightClickData } from './extend-right-click/index';
@@ -111,6 +113,7 @@ import { defineSelectionBar } from './selection-bar/index';
 import { defineTable } from './table/index';
 import { defineTabs } from './tabs/index';
 import { defineTagFilter } from './tag-filter/index';
+import { defineVideo } from './video/index';
 
 /** Registers the built-in components (idempotent). */
 export const registerComponentElements = (): void => {
@@ -119,6 +122,7 @@ export const registerComponentElements = (): void => {
   defineLineChart();
   defineFormalSpec();
   defineDiff();
+  defineVideo();
   registerAtoms();
 };
 

@@ -24,6 +24,7 @@ export type ComposerViewModel = {
   readonly choice: ComposerChoice | null;
   /** The submit button's text, when it is not the plain "Add". */
   readonly submitLabel: string | null;
+  readonly placeholder: string | null;
 };
 
 export const presentComposer = (
@@ -35,6 +36,7 @@ export const presentComposer = (
     readonly key?: string;
     readonly choice?: ComposerChoice;
     readonly submitLabel?: string;
+    readonly placeholder?: string;
   } = {},
 ): ComposerViewModel => ({
   body,
@@ -45,4 +47,5 @@ export const presentComposer = (
   key: context.key ?? null,
   choice: context.choice ?? null,
   submitLabel: context.submitLabel ?? null,
+  placeholder: context.placeholder ?? null,
 });

@@ -8,6 +8,8 @@ import {
   ArrowUp,
   ArrowUpToLine,
   Bell,
+  Captions,
+  CaptionsOff,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -21,14 +23,19 @@ import {
   KeyRound,
   Link,
   ListChecks,
+  Maximize,
   Maximize2,
   MessageSquare,
   MessageSquareText,
+  Minimize,
   Minimize2,
   Minus,
   Moon,
   Move,
+  PanelRight,
+  Pause,
   Pencil,
+  Play,
   Plus,
   Redo2,
   Settings,
@@ -36,6 +43,9 @@ import {
   Table2,
   Trash,
   Undo2,
+  Volume1,
+  Volume2,
+  VolumeX,
   X,
   type IconNode,
 } from 'lucide';
@@ -112,6 +122,16 @@ export const iconSwitch = lucide(ArrowLeftRight);
 export const iconUndo = lucide(Undo2);
 export const iconRedo = lucide(Redo2);
 export const iconChecklist = lucide(ListChecks);
+export const iconPlay = lucide(Play);
+export const iconPause = lucide(Pause);
+export const iconVolume = lucide(Volume2);
+export const iconVolumeLow = lucide(Volume1);
+export const iconVolumeOff = lucide(VolumeX);
+export const iconCaptions = lucide(Captions);
+export const iconCaptionsOff = lucide(CaptionsOff);
+export const iconFullscreen = lucide(Maximize);
+export const iconFullscreenExit = lucide(Minimize);
+export const iconPanelRight = lucide(PanelRight);
 
 /**
  * The dev-process-kit mark: one flat path traced from the approved brand artwork
