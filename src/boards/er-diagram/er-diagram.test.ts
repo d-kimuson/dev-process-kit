@@ -518,6 +518,39 @@ const openComment = async (element: DpkBoardErDiagram, kind: 'node' | 'edge', id
   expect(element.renderRoot.querySelector('.comment-pop')).not.toBeNull();
 };
 
+describe('er diagram drawn edges', () => {
+  /*
+   * Characterisation before the geometry moves to `lib/layout`: this is the
+   * exact path data and class list the ER board paints for its own test
+   * schema, recorded so a refactor of the shared path/line-jump primitives
+   * cannot quietly change what a reader sees.
+   */
+  it('paints the same relation paths and edge classes', async () => {
+    const element = await mount();
+    await settle(element);
+    const drawn = [...element.renderRoot.querySelectorAll<SVGGElement>('.er-edge')].map((edge) => ({
+      classes: [...edge.classList].sort().join(' '),
+      d: edge.querySelector('.d-edge-path')?.getAttribute('d') ?? '',
+    }));
+    expect(drawn).toMatchInlineSnapshot(`
+      [
+        {
+          "classes": "d-edge er-edge is-same",
+          "d": "M360 248 L380 248 L380 212 L496 212",
+        },
+        {
+          "classes": "d-edge er-edge is-removed",
+          "d": "M776 173 L796 173 L796 176 L912 176",
+        },
+        {
+          "classes": "d-edge er-edge is-added",
+          "d": "M776 187 L796 187 L796 352 L912 352",
+        },
+      ]
+    `);
+  });
+});
+
 describe('dpk-board-er-diagram', () => {
   it('lets long labels determine card and row heights instead of fixing them', async () => {
     const element = await mount();
