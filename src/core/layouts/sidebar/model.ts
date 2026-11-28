@@ -43,11 +43,15 @@ export type SidebarLayout = {
 
 export const DEFAULT_SIDEBAR_LAYOUT: SidebarLayout = { side: 'left', defaultWidth: 260 };
 
-const clamp = (width: number): number => Math.round(Math.min(SIDEBAR_WIDTH.max, Math.max(SIDEBAR_WIDTH.min, width)));
+/** The narrowest and widest a resizable column may be; the shell's sidebars use `SIDEBAR_WIDTH`. */
+export type SidebarBounds = { readonly min: number; readonly max: number };
+
+const clamp = (width: number, bounds: SidebarBounds): number =>
+  Math.round(Math.min(bounds.max, Math.max(bounds.min, width)));
 
 /** A stored width, or `null` when the value is not one. */
-export const parseSidebarWidth = (value: unknown): number | null =>
-  typeof value === 'number' && Number.isFinite(value) ? clamp(value) : null;
+export const parseSidebarWidth = (value: unknown, bounds: SidebarBounds = SIDEBAR_WIDTH): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? clamp(value, bounds) : null;
 
 /** How far the sidebar grows when its edge moves `dx` pixels to the right. */
 const growth = (side: SidebarSide, dx: number): number => (side === 'left' ? dx : -dx);
@@ -59,8 +63,11 @@ export type SidebarDrag = {
   readonly startWidth: number;
 };
 
-export const draggedSidebarWidth = (drag: SidebarDrag, clientX: number): number =>
-  clamp(drag.startWidth + growth(drag.side, clientX - drag.startX));
+export const draggedSidebarWidth = (
+  drag: SidebarDrag,
+  clientX: number,
+  bounds: SidebarBounds = SIDEBAR_WIDTH,
+): number => clamp(drag.startWidth + growth(drag.side, clientX - drag.startX), bounds);
 
 export type SidebarKey = {
   readonly key: string;
@@ -71,17 +78,22 @@ export type SidebarKey = {
  * The width after a key press on the edge, or `null` when the key does not
  * resize. The arrows move the edge; Home and End go to the narrowest and widest.
  */
-export const keyedSidebarWidth = (width: number, side: SidebarSide, { key, shiftKey }: SidebarKey): number | null => {
+export const keyedSidebarWidth = (
+  width: number,
+  side: SidebarSide,
+  { key, shiftKey }: SidebarKey,
+  bounds: SidebarBounds = SIDEBAR_WIDTH,
+): number | null => {
   const step = shiftKey ? SIDEBAR_WIDTH.largeStep : SIDEBAR_WIDTH.step;
   switch (key) {
     case 'ArrowLeft':
-      return clamp(width + growth(side, -step));
+      return clamp(width + growth(side, -step), bounds);
     case 'ArrowRight':
-      return clamp(width + growth(side, step));
+      return clamp(width + growth(side, step), bounds);
     case 'Home':
-      return SIDEBAR_WIDTH.min;
+      return bounds.min;
     case 'End':
-      return SIDEBAR_WIDTH.max;
+      return bounds.max;
     default:
       return null;
   }

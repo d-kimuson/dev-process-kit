@@ -40,6 +40,8 @@ import { pageOfMark, pageGrill, refCandidates } from '../page/grill';
 import { DRAFT_PAGE_ATTRIBUTE, PAGE_HOST, PAGE_NAME_ATTRIBUTE, appPageNameOf, type PageHost } from '../page/host';
 import { PAGE_KEY, pageNavigation } from '../page/navigation';
 import { APP_WIDE_TARGET, isAppWide, splitPage } from '../page/page-target';
+import { panelControlOf, type PanelControl } from '../panel/host';
+import { PANEL_STATE_EVENT } from '../panel/owner';
 import { PopoverController } from '../popover-controller';
 import { parseViewAction } from '../schema';
 import { floatingMenuStyles } from '../shell/floating-menu-view';
@@ -535,6 +537,10 @@ export class AppElement extends ViewElement<AppState> {
 
   constructor() {
     super();
+    // A page's panel opening or closing redraws the header's panel toggle.
+    this.addEventListener(PANEL_STATE_EVENT, (event) => {
+      if (event.target instanceof Element && event.target.parentElement === this) this.requestUpdate();
+    });
     new DismissController(this, {
       open: () => this.#switcherOpen,
       closesOn: (path) =>
@@ -679,6 +685,17 @@ export class AppElement extends ViewElement<AppState> {
    */
   protected override adoptedComponentProviders(): ComponentSnapshot['providers'] {
     return this.#pages().flatMap((page) => page.componentSnapshot?.providers ?? []);
+  }
+
+  /** Each page owns its side panel; the app has none of its own. */
+  protected override get ownsPanel(): boolean {
+    return false;
+  }
+
+  /** The header's panel toggle and the shortcut act on the page shown. */
+  protected override panelControl(): PanelControl | null {
+    const page = this.#pages().find((candidate) => !candidate.hidden);
+    return page === undefined ? null : panelControlOf(page);
   }
 
   #pages(): readonly PageElementLike[] {

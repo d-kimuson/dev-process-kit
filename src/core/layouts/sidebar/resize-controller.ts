@@ -6,7 +6,15 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import { defaultJsonStore, memoryJsonStore, type JsonStore } from '../../../lib/dom/json-store';
-import { draggedSidebarWidth, keyedSidebarWidth, parseSidebarWidth, type SidebarDrag, type SidebarSide } from './model';
+import {
+  draggedSidebarWidth,
+  keyedSidebarWidth,
+  parseSidebarWidth,
+  SIDEBAR_WIDTH,
+  type SidebarBounds,
+  type SidebarDrag,
+  type SidebarSide,
+} from './model';
 
 /**
  * One key per layout for every page of the origin: the width is the reader's
@@ -33,6 +41,8 @@ export type SidebarResizeOptions = {
   readonly side: () => SidebarSide;
   /** The width before the reader resizes it, and the one a double-click restores. */
   readonly defaultWidth: () => number;
+  /** How narrow and wide the reader may make it; the shell's sidebars' bounds by default. */
+  readonly bounds?: SidebarBounds;
 };
 
 export class SidebarResizeController implements ReactiveController {
@@ -53,13 +63,18 @@ export class SidebarResizeController implements ReactiveController {
   hostConnected(): void {
     if (this.#store !== null) return;
     const key = this.#options.persistKey();
-    this.#store = key === null ? memoryJsonStore(parseSidebarWidth) : defaultJsonStore(parseSidebarWidth);
+    const parse = (value: unknown): number | null => parseSidebarWidth(value, this.#bounds);
+    this.#store = key === null ? memoryJsonStore(parse) : defaultJsonStore(parse);
     this.#key = storageKey(key ?? '');
     this.#preference = this.#store.read(this.#key);
   }
 
   hostDisconnected(): void {
     this.#drag = IDLE;
+  }
+
+  get #bounds(): SidebarBounds {
+    return this.#options.bounds ?? SIDEBAR_WIDTH;
   }
 
   get width(): number {
@@ -89,12 +104,12 @@ export class SidebarResizeController implements ReactiveController {
     pointermove: (event) => {
       const drag = this.#drag;
       if (drag.kind !== 'dragging' || drag.pointerId !== event.pointerId) return;
-      this.#show(draggedSidebarWidth(drag, event.clientX));
+      this.#show(draggedSidebarWidth(drag, event.clientX, this.#bounds));
     },
     pointerup: (event) => this.#endDrag(event),
     pointercancel: (event) => this.#endDrag(event),
     keydown: (event) => {
-      const next = keyedSidebarWidth(this.width, this.#options.side(), event);
+      const next = keyedSidebarWidth(this.width, this.#options.side(), event, this.#bounds);
       if (next === null) return;
       event.preventDefault();
       this.#show(next);

@@ -1730,6 +1730,7 @@
               <a href="#catalog-combobox">combobox</a>
               <a href="#catalog-select">Select</a>
               <a href="#catalog-selection-bar">selection bar</a>
+              <a href="#catalog-panel-section">panel section</a>
               <a href="#catalog-confirm-dialog">confirm dialog</a>
               <a href="#catalog-card">card</a>
               <a href="#catalog-pill">pill / avatar</a>
@@ -3649,6 +3650,28 @@
                           selected.clear();
                           if (selectAll.checked) for (const row of rows) selected.add(row);
                           render();
+                        });
+                      }
+                    </script>
+                  </div>
+                </article>
+
+                <article id="catalog-panel-section" class="entry">
+                  <header>
+                    <h3>&lt;dpk-panel-section&gt;</h3>
+                  </header>
+                  <p>
+                    ページの右に開くサイドパネルへ、著者が書いた節を足す。<code>&lt;dpk-page&gt;</code> の子に
+                    <code>slot="panel"</code> で置くと、パネル上部の切り替えに <code>label</code> の名前で並ぶ。
+                    このページにも「論点」の節がある。
+                  </p>
+                  <div class="demo" data-code>
+                    <button class="dpk-btn" type="button">「論点」をパネルで開く</button>
+                    <script>
+                      {
+                        const root = document.currentScript.parentElement;
+                        root.querySelector('button').addEventListener('click', () => {
+                          root.closest('dpk-page')?.openPanel('catalog-issues');
                         });
                       }
                     </script>
@@ -5643,8 +5666,14 @@
               </section>
             </main>
           </div>
-        </dpk-view-plain></dpk-page
-      >
+        </dpk-view-plain>
+        <dpk-panel-section slot="panel" name="catalog-issues" label="論点" badge="2">
+          <ol class="dpk-prose">
+            <li>パネルの節は、ページの本文を読みながら脇で確かめたい内容に使う。</li>
+            <li>選択した要素の詳細は、ボードがパネルの「詳細」に出す。</li>
+          </ol>
+        </dpk-panel-section>
+      </dpk-page>
     </dpk-app>
 
     <script>
