@@ -137,12 +137,13 @@ export class DpkViewUsm extends ViewElement<UsmState> {
   constructor() {
     super();
     this.mode = IDLE_MODE;
-    // Escape on the map lets go of the selected story; the panel stays as it is.
+    // Escape on the map lets go of the selected story; an Escape inside the side panel is the panel's.
     new DismissController(this, {
       open: () => this.navigation['story'] !== undefined,
       closesOn: () => false,
       ownsEscape: (path) =>
         this.mode.kind === 'idle' &&
+        !path.some((node) => node instanceof Element && node.localName === 'dpk-internal-layout-panel') &&
         (path.includes(this) || path[0] === document.body || path[0] === document.documentElement),
       dismiss: () => this.context().navigate({ story: null }),
     });

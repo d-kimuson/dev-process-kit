@@ -158,6 +158,20 @@ describe('usm story detail: keyboard and pointer', () => {
     expect(el.api.navigation['story']).toBeUndefined();
   });
 
+  it('keeps the story on an Escape pressed inside the panel', async () => {
+    const el = await mount('#story=u1');
+    const search = panel(el)!.querySelector<HTMLInputElement>('input[data-role="add-blocker"]')!;
+    search.focus();
+    await settle(el);
+    key(search, 'Escape');
+    await settle(el);
+    expect(search.getAttribute('aria-expanded')).toBe('false');
+    key(search, 'Escape');
+    await settle(el);
+    expect(el.api.navigation['story']).toBe('u1');
+    expect(panel(el)?.getAttribute('data-story')).toBe('u1');
+  });
+
   it('keeps the story on a press outside the panel', async () => {
     const el = await mount('#story=u1');
     pointerDown(el.shadowRoot!.querySelector('[data-testid="usm-map"]')!);

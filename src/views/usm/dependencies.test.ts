@@ -245,7 +245,7 @@ describe('usm dependencies: element', () => {
     expect(highlighted()?.getAttribute('data-story')).toBe('u1');
   });
 
-  it('is a combobox whose list opens on focus and closes on Escape before the story is let go', async () => {
+  it('is a combobox whose list opens on focus and closes on Escape', async () => {
     const el = await mount('#story=u3');
     const input = pickerOf(el, 'add-blocker');
     expect(input.getAttribute('role')).toBe('combobox');
@@ -262,8 +262,6 @@ describe('usm dependencies: element', () => {
     await press(el, input, 'Escape');
     expect(input.getAttribute('aria-expanded')).toBe('false');
     expect(storyDetailOf(el)).not.toBeNull();
-    await press(el, input, 'Escape');
-    expect(storyDetailOf(el)).toBeNull();
   });
 
   it('says so when the query finds no story', async () => {
