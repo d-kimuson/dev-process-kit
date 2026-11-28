@@ -78,6 +78,29 @@ describe('DraftController shared through a host', () => {
     expect(names(b)).toEqual(['Alpha', 'Beta']);
   });
 
+  it('undoes and redoes the reader own batch in one step', async () => {
+    const hub = new MemorySyncHub();
+    const a = reader(hub);
+    await settle();
+    a.dispatchBatch([
+      { type: 'SET_NAME', target: 'a', payload: { name: 'One' } },
+      { type: 'SET_NAME', target: 'b', payload: { name: 'Two' } },
+    ]);
+    await settle();
+
+    expect(a.undo()).toBe(true);
+    await settle();
+    expect(names(a)).toEqual(['Alpha', 'Beta']);
+    expect(hub.actions).toHaveLength(0);
+
+    expect(a.redo()).toBe(true);
+    await settle();
+    expect(names(a)).toEqual(['One', 'Two']);
+    expect(a.undo()).toBe(true);
+    await settle();
+    expect(hub.actions).toHaveLength(0);
+  });
+
   it('redoes with a new id the host has not seen', async () => {
     const hub = new MemorySyncHub();
     const a = reader(hub);

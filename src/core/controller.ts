@@ -34,7 +34,17 @@ import { defaultStorage, defaultStorageKey, type DraftStorage } from './persiste
 import { draftActionEnvelopeSchema, ownAction } from './schema';
 import { SyncChannel, type ChannelChange, type SyncState } from './sync/channel';
 import { toTarget } from './target';
-import { canRedo, canUndo, clearRedo, redoStep, undoStep, EMPTY_UNDO_REDO, type UndoRedoState } from './undo-redo';
+import {
+  canRedo,
+  canUndo,
+  clearRedo,
+  recordBatch,
+  redoStep,
+  takeStep,
+  undoStep,
+  EMPTY_UNDO_REDO,
+  type UndoRedoState,
+} from './undo-redo';
 
 export type DraftControllerOptions<S> = {
   readonly definition: ViewDefinition<S>;
@@ -85,8 +95,8 @@ export class DraftController<S> {
   #prunedCount = 0;
   #undoRedo: UndoRedoState = EMPTY_UNDO_REDO;
   readonly #sync: SyncChannel | null;
-  /** While shared, what `undo` took back, for `redo` to add again; never stored. */
-  #sharedRedo: readonly DraftAction[] = [];
+  /** While shared, the steps `undo` took back, for `redo` to add again; never stored. */
+  #sharedRedo: readonly (readonly DraftAction[])[] = [];
   readonly #settled: () => boolean;
   /** What the change log says the author handled; see `setAddressed`. */
   #addressed: AddressedSet = EMPTY_ADDRESSED;
@@ -308,6 +318,7 @@ export class DraftController<S> {
       ids.push(action.id);
     }
     this.#commit(actions, { dispatched: ids });
+    this.#undoRedo = recordBatch(this.#undoRedo, ids);
     return { ok: true, ids };
   }
 
@@ -412,9 +423,15 @@ export class DraftController<S> {
     if (sync !== null) {
       const last = [...this.#actions].reverse().find((action) => sync.isOwn(action.id));
       if (last === undefined) return false;
-      this.#sharedRedo = [...this.#sharedRedo, last];
+      const taken = takeStep(
+        this.#actions.filter((action) => sync.isOwn(action.id)),
+        this.#undoRedo,
+        last,
+      );
+      this.#undoRedo = taken.state;
+      this.#sharedRedo = [...this.#sharedRedo, taken.removed];
       this.#commit(
-        this.#actions.filter((action) => action !== last),
+        this.#actions.filter((action) => !taken.removed.includes(action)),
         { preserveRedo: true, reach: 'own' },
       );
       return true;
@@ -432,9 +449,11 @@ export class DraftController<S> {
       const last = this.#sharedRedo.at(-1);
       if (last === undefined) return false;
       this.#sharedRedo = this.#sharedRedo.slice(0, -1);
-      // The host has seen the old id; the same id would be taken for a retry.
-      const again = { ...last, id: createActionId() };
-      this.#commit([...this.#actions, again], { preserveRedo: true, dispatched: [again.id] });
+      // The host has seen the old ids; the same ids would be taken for a retry.
+      const again = last.map((action) => ({ ...action, id: createActionId() }));
+      const ids = again.map((action) => action.id);
+      this.#commit([...this.#actions, ...again], { preserveRedo: true, dispatched: ids });
+      this.#undoRedo = recordBatch(this.#undoRedo, ids);
       return true;
     }
     const outcome = redoStep(this.#actions, this.#undoRedo);
@@ -477,7 +496,7 @@ export class DraftController<S> {
     this.#rewrap();
     this.#derivation = this.#derive(this.#actions);
     this.#normalize(options?.dispatched);
-    if (options?.preserveRedo !== true) this.#undoRedo = clearRedo();
+    if (options?.preserveRedo !== true) this.#undoRedo = clearRedo(this.#undoRedo);
     this.#persist();
     for (const listener of this.#listeners) listener();
   }

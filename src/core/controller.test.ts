@@ -542,6 +542,26 @@ describe('DraftController', () => {
       expect(reloaded.canRedo).toBe(false);
     });
 
+    it('takes a batch back in one step, and replays it in one', () => {
+      const { controller } = makeController();
+      controller.dispatch({ type: 'comment', target: 'page', payload: { body: 'before' } });
+      controller.dispatchBatch([
+        { type: 'SET_NAME', target: 'a', payload: { name: 'One' } },
+        { type: 'SET_NAME', target: 'b', payload: { name: 'Two' } },
+      ]);
+      const names = (): string[] => controller.derivation.state.items.map((item) => item.name);
+      expect(names()).toEqual(['One', 'Two']);
+
+      expect(controller.undo()).toBe(true);
+      expect(names()).toEqual(['Alpha', 'Beta']);
+      expect(controller.actions.map((action) => action.type)).toEqual(['comment']);
+
+      expect(controller.redo()).toBe(true);
+      expect(names()).toEqual(['One', 'Two']);
+      expect(controller.undo()).toBe(true);
+      expect(controller.actions.map((action) => action.type)).toEqual(['comment']);
+    });
+
     it('notifies subscribers on undo and redo', () => {
       const { controller } = makeController();
       controller.dispatch({ type: 'SET_NAME', target: 'a', payload: { name: 'One' } });
