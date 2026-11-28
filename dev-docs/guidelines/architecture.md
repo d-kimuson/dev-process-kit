@@ -58,6 +58,18 @@ Keep these semantic details in mind:
 - A slot only distributes light DOM belonging to its own host. Author-owned preview content therefore needs a slot in the template element that owns that light DOM.
 - SVG fragments must be created in the SVG namespace. Keep theme-driven SVG paint in styles rather than relying on CSS variables inside presentation attributes.
 
+## A component's side panel section
+
+Besides the selected element's detail and the author's `<dpk-panel-section>`, an internal component may add sections of its own to the side panel ([ADR](../adr/20261128_side-panel-for-selection-detail.md)). It is an internal API, not part of the public contract, so it is documented here and not in `docs/`.
+
+- **A board** overrides `panelSections()` in `src/boards/base/element.ts`. The board reads it on every render: a section appears while the method returns it and goes away when it stops, or when the board leaves the DOM. A change of label, badge or `hidden` updates the section in place; a change of the names or their order adds the board's sections anew. State the section draws is ordinary board state: change it and let the board render, and the panel draws the section again.
+- **Another component** finds its owner with `panelHostOf` (`src/core/panel/host.ts`) and calls `addSection`, keeping the returned handle: `update` replaces the spec in place, `withdraw` removes it, and `invalidate(source)` redraws the content.
+- **`render()` runs in the panel's shadow root**, where the component's styles do not reach. Return an internal element with its own shadow root, as a detail does.
+- **Names are the component's own.** A board names its sections uniquely among themselves; the owner keeps sections of different components apart by giving a section whose name is taken `<name>-<n>` when it is added, and the section keeps that name while it stays, so the panel's name (`handle.name`) can differ from the spec's. `showPanelSection(name)` takes the spec's name and turns an open panel to it; a closed panel stays closed, since the header's button is how the reader opens it.
+- **Every section gets a header button**, like an author's section. A component therefore adds a section only for something a reader looks for on its own, not for a transient state that a selection bar or a detail already shows.
+
+`src/boards/base/panel-sections.test.ts` pins this behaviour against the real owner and frame.
+
 ## Browser capability assumptions
 
 The DOM type library includes APIs that may exist in only one browser engine. Type acceptance is therefore not evidence of browser support. Treat feature detection and real-browser verification as part of adopting a browser API whose availability is not universal.
