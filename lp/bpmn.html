@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <style>
+      body > :not(:defined) {
+        visibility: hidden;
+        animation: dpk-reveal 0s 2s forwards;
+      }
+      @keyframes dpk-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+    </style>
+    <title>注文処理 — Business process | dev-process-kit</title>
+    <script type="module">
+      import { loadKit } from './kit.js';
+      loadKit(['components.js', 'boards.js']);
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      dpk-app {
+        display: block;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <dpk-app storage-key="sample-bpmn-order">
+      <script type="application/json">
+        { "title": "Sora Market — 注文処理" }
+      </script>
+
+      <dpk-page name="bpmn" label="業務プロセス">
+        <dpk-board-bpmn id="order-process" heading="注文処理" subject="受注から出荷まで">
+          <script type="application/json">
+            {
+              "pools": [
+                { "id": "customer", "name": "顧客" },
+                {
+                  "id": "sales",
+                  "name": "販売管理",
+                  "lanes": [
+                    { "id": "order", "name": "受注" },
+                    { "id": "credit", "name": "与信" }
+                  ]
+                },
+                {
+                  "id": "warehouse",
+                  "name": "倉庫",
+                  "lanes": [
+                    { "id": "stock", "name": "在庫" },
+                    { "id": "ship", "name": "出荷" }
+                  ]
+                }
+              ],
+              "nodes": [
+                {
+                  "id": "order-received",
+                  "kind": "event",
+                  "event": "start",
+                  "trigger": "message",
+                  "lane": "order",
+                  "name": "注文を受信"
+                },
+                {
+                  "id": "review",
+                  "kind": "task",
+                  "task": "user",
+                  "lane": "order",
+                  "name": "注文内容を確認",
+                  "description": "数量・配送先・希望日を確認する。"
+                },
+                {
+                  "id": "credit-check",
+                  "kind": "task",
+                  "task": "service",
+                  "lane": "credit",
+                  "name": "与信を照会",
+                  "description": "与信サービスに顧客コードと与信枠を問い合わせる。"
+                },
+                {
+                  "id": "credit-ok",
+                  "kind": "gateway",
+                  "gateway": "exclusive",
+                  "lane": "credit",
+                  "name": "与信OK?"
+                },
+                {
+                  "id": "confirm",
+                  "kind": "task",
+                  "task": "send",
+                  "lane": "order",
+                  "name": "注文を確定して連絡"
+                },
+                {
+                  "id": "decline",
+                  "kind": "task",
+                  "task": "send",
+                  "lane": "order",
+                  "name": "注文をお断り"
+                },
+                { "id": "accepted", "kind": "event", "event": "end", "lane": "order", "name": "受注確定" },
+                { "id": "cancelled", "kind": "event", "event": "end", "lane": "order", "name": "受注取消" },
+                {
+                  "id": "order-note",
+                  "kind": "annotation",
+                  "lane": "order",
+                  "text": "与信結果は通常 1 分以内に返る。"
+                },
+                { "id": "order-data", "kind": "dataObject", "lane": "order", "name": "注文データ" },
+                {
+                  "id": "ship-request",
+                  "kind": "event",
+                  "event": "start",
+                  "trigger": "message",
+                  "lane": "ship",
+                  "name": "出荷依頼を受信"
+                },
+                {
+                  "id": "reserve",
+                  "kind": "task",
+                  "task": "service",
+                  "lane": "stock",
+                  "name": "在庫を引き当て"
+                },
+                {
+                  "id": "prepare",
+                  "kind": "task",
+                  "task": "user",
+                  "lane": "ship",
+                  "name": "出荷を準備"
+                },
+                { "id": "ship-out", "kind": "task", "task": "service", "lane": "ship", "name": "出荷する" },
+                { "id": "shipped", "kind": "event", "event": "end", "lane": "ship", "name": "出荷完了" },
+                {
+                  "id": "stock-note",
+                  "kind": "annotation",
+                  "lane": "stock",
+                  "text": "在庫は 5 分ごとに同期。引当は 15 分で解放される。"
+                }
+              ],
+              "flows": [
+                { "id": "f-start", "from": "order-received", "to": "review" },
+                { "id": "f-credit", "from": "review", "to": "credit-check" },
+                { "id": "f-decision", "from": "credit-check", "to": "credit-ok" },
+                { "id": "f-confirm", "from": "credit-ok", "to": "confirm", "condition": "与信OK" },
+                { "id": "f-decline", "from": "credit-ok", "to": "decline", "default": true, "name": "与信NG" },
+                { "id": "f-accepted", "from": "confirm", "to": "accepted" },
+                { "id": "f-cancelled", "from": "decline", "to": "cancelled" },
+                { "id": "f-request", "from": "ship-request", "to": "reserve" },
+                { "id": "f-prepare", "from": "reserve", "to": "prepare" },
+                { "id": "f-ship", "from": "prepare", "to": "ship-out" },
+                { "id": "f-done", "from": "ship-out", "to": "shipped" },
+                { "id": "m-order", "kind": "message", "from": "customer", "to": "order-received", "name": "注文" },
+                { "id": "m-confirm", "kind": "message", "from": "confirm", "to": "customer", "name": "注文確認" },
+                {
+                  "id": "m-handover",
+                  "kind": "message",
+                  "from": "confirm",
+                  "to": "ship-request",
+                  "name": "出荷依頼"
+                },
+                { "id": "m-shipped", "kind": "message", "from": "ship-out", "to": "customer", "name": "発送通知" },
+                { "id": "a-order", "kind": "association", "from": "order-data", "to": "review" },
+                { "id": "a-note", "kind": "association", "from": "stock-note", "to": "reserve" }
+              ]
+            }
+          </script>
+        </dpk-board-bpmn>
+      </dpk-page>
+    </dpk-app>
+  </body>
+</html>

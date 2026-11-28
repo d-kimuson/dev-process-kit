@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { parseArchitectureData } from './boards/architecture-map/model';
+import { parseBpmnData } from './boards/bpmn/model';
 import { parseDependencyData } from './boards/dependency-graph/model';
 import { parseErData } from './boards/er-diagram/model';
 import { parseExampleMappingBase } from './boards/example-mapping/model';
@@ -106,6 +107,9 @@ describe('lp pages', () => {
     const mindMap = parseMindMapData(jsonChild(html, 'dpk-board-mind-map'));
     expect(mindMap.nodes.filter((node) => node.depth === 1).length).toBeGreaterThan(3);
     expect(new Set(mindMap.nodes.map((node) => node.side))).toEqual(new Set([null, 'left', 'right']));
+    const bpmn = parseBpmnData(jsonChild(html, 'dpk-board-bpmn'));
+    expect(bpmn.pools).toHaveLength(3);
+    expect(bpmn.nodes.length).toBeGreaterThan(8);
     const kanban = parseKanbanData(jsonChild(html, 'dpk-board-kanban'));
     expect(kanban.columns.length).toBeGreaterThan(2);
     expect(kanban.columns.flatMap((column) => column.cards).length).toBeGreaterThan(3);
@@ -127,9 +131,31 @@ describe('lp pages', () => {
       (match) => match[1] ?? '',
     );
     const ids = diagrams.map((attributes) => /\bid="([^"]+)"/.exec(attributes)?.[1]);
-    expect(ids).toHaveLength(8);
+    expect(ids).toHaveLength(9);
     expect(ids.every((id) => id !== undefined)).toBe(true);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('bpmn.html draws an order process across customer, sales and warehouse pools', () => {
+    const html = lpPage('bpmn.html');
+    expect(entriesOf(html)).toContain('boards.js');
+    const board = parseBpmnData(jsonChild(html, 'dpk-board-bpmn'));
+    expect(board.pools.map((pool) => pool.id)).toEqual(['customer', 'sales', 'warehouse']);
+    expect(board.pools.flatMap((pool) => pool.lanes).map((lane) => lane.id)).toEqual([
+      'order',
+      'credit',
+      'stock',
+      'ship',
+    ]);
+    expect(board.nodes.length).toBeGreaterThanOrEqual(16);
+    expect(board.edges.filter((flow) => flow.kind === 'message')).toHaveLength(4);
+    // The sales and warehouse processes are separate; only messages cross pools.
+    for (const flow of board.edges) {
+      if (flow.kind !== 'sequence') continue;
+      const from = board.nodes.find((node) => node.id === flow.from);
+      const to = board.nodes.find((node) => node.id === flow.to);
+      expect(from?.pool).toBe(to?.pool);
+    }
   });
 
   it('example-mapping.html maps the flow through the example-mapping diagram', () => {

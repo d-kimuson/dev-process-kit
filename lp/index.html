@@ -1682,6 +1682,7 @@
               <a href="#catalog-dependency-graph">dependency graph</a>
               <a href="#catalog-er-diagram">ER diagram</a>
               <a href="#catalog-architecture-map">architecture map</a>
+              <a href="#catalog-bpmn">BPMN</a>
               <a href="#catalog-kanban">kanban</a>
               <a href="#catalog-formal-spec">formal spec</a>
               <a href="#catalog-diff">diff</a>
@@ -1921,6 +1922,19 @@
                       <h4>State</h4>
                       <!-- prettier-ignore -->
                       <p class="dpk-muted" data-i18n="stateSample">状態と遷移を並べ、選んだ状態の出入りと、条件・副作用を確かめる。</p>
+                    </a>
+                    <a class="dpk-card" href="bpmn.html">
+                      <div class="thumb">
+                        <iframe src="bpmn.html" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+                        <ul class="thumb-tags">
+                          <li>
+                            <span class="dpk-badge" data-tone="violet"><code>dpk-board-bpmn</code></span>
+                          </li>
+                        </ul>
+                      </div>
+                      <h4>BPMN</h4>
+                      <!-- prettier-ignore -->
+                      <p class="dpk-muted" data-i18n="bpmnSample">顧客・販売・倉庫のプールとレーンに、受注から出荷までの業務プロセスを描く。</p>
                     </a>
                     <a class="dpk-card" href="sequence-diagram.html">
                       <div class="thumb">
@@ -4899,6 +4913,14 @@
                   <div class="stage" data-tag="dpk-board-state-diagram"></div>
                 </article>
 
+                <article id="catalog-bpmn" class="entry">
+                  <header>
+                    <h3>&lt;dpk-board-bpmn&gt;</h3>
+                  </header>
+                  <p>誰がどの順に何をするか</p>
+                  <div class="stage" data-tag="dpk-board-bpmn"></div>
+                </article>
+
                 <article id="catalog-sequence-diagram" class="entry">
                   <header>
                     <h3>&lt;dpk-board-sequence-diagram&gt;</h3>
@@ -5241,7 +5263,8 @@
         architectureSample: 'Place services and boundaries on one map and see what depends on what.',
         mindMapSample: 'Grow branches left and right from a central topic to see the whole argument at a glance.',
         kanbanSample: 'Split the work into columns and follow how far each item has come.',
-        diagramsSample: 'The seven diagram types side by side on one Plain page.',
+        diagramsSample: 'The eight diagram types side by side on one Plain page.',
+        bpmnSample: 'Draw an order-to-shipment process across customer, sales and warehouse pools and lanes.',
         designDoc:
           'The design of order cancellation and refunds as a design doc, with state, sequence and ER diagrams.',
         architectureTitle: 'Architecture design',

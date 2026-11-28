@@ -206,6 +206,10 @@
                   "title": "dpk-architecture-map"
                 },
                 {
+                  "id": "bpmn",
+                  "title": "dpk-board-bpmn"
+                },
+                {
                   "id": "kanban",
                   "title": "dpk-kanban"
                 }
@@ -1121,6 +1125,87 @@
                   }
                 </script>
               </dpk-board-architecture-map>
+            </section>
+
+            <section class="block">
+              <div class="block-head">
+                <h2>dpk-board-bpmn</h2>
+                <button type="button" class="block-comment" data-dpk-comment="section:bpmn">
+                  このセクションにコメント
+                </button>
+              </div>
+              <p>プールとレーンに業務プロセスを描く。顧客・販売・倉庫がメッセージでつながります。</p>
+              <dpk-board-bpmn id="order-bpmn" class="diagram--tall" heading="BPMN" subject="注文処理">
+                <script type="application/json">
+                  {
+                    "pools": [
+                      { "id": "customer", "name": "顧客" },
+                      {
+                        "id": "sales",
+                        "name": "販売管理",
+                        "lanes": [
+                          { "id": "order", "name": "受注" },
+                          { "id": "credit", "name": "与信" }
+                        ]
+                      },
+                      {
+                        "id": "warehouse",
+                        "name": "倉庫",
+                        "lanes": [{ "id": "ship", "name": "出荷" }]
+                      }
+                    ],
+                    "nodes": [
+                      {
+                        "id": "start",
+                        "kind": "event",
+                        "event": "start",
+                        "trigger": "message",
+                        "lane": "order",
+                        "name": "注文受信"
+                      },
+                      { "id": "review", "kind": "task", "task": "user", "lane": "order", "name": "注文内容を確認" },
+                      {
+                        "id": "credit-check",
+                        "kind": "task",
+                        "task": "service",
+                        "lane": "credit",
+                        "name": "与信を照会"
+                      },
+                      { "id": "ok", "kind": "gateway", "lane": "credit", "name": "与信OK?" },
+                      { "id": "confirm", "kind": "task", "task": "send", "lane": "order", "name": "注文を確定" },
+                      { "id": "decline", "kind": "task", "task": "send", "lane": "order", "name": "注文をお断り" },
+                      { "id": "accepted", "kind": "event", "event": "end", "lane": "order", "name": "受注確定" },
+                      { "id": "cancelled", "kind": "event", "event": "end", "lane": "order", "name": "受注取消" },
+                      {
+                        "id": "shipping",
+                        "kind": "event",
+                        "event": "start",
+                        "trigger": "message",
+                        "lane": "ship",
+                        "name": "出荷依頼"
+                      },
+                      { "id": "ship-task", "kind": "task", "task": "user", "lane": "ship", "name": "出荷する" },
+                      { "id": "shipped", "kind": "event", "event": "end", "lane": "ship", "name": "出荷完了" },
+                      { "id": "note", "kind": "annotation", "lane": "order", "text": "与信結果は通常 1 分以内に返る。" }
+                    ],
+                    "flows": [
+                      { "id": "f1", "from": "start", "to": "review" },
+                      { "id": "f2", "from": "review", "to": "credit-check" },
+                      { "id": "f3", "from": "credit-check", "to": "ok" },
+                      { "id": "f4", "from": "ok", "to": "confirm", "condition": "与信OK" },
+                      { "id": "f5", "from": "ok", "to": "decline", "default": true, "name": "与信NG" },
+                      { "id": "f6", "from": "confirm", "to": "accepted" },
+                      { "id": "f7", "from": "decline", "to": "cancelled" },
+                      { "id": "f8", "from": "shipping", "to": "ship-task" },
+                      { "id": "f9", "from": "ship-task", "to": "shipped" },
+                      { "id": "m1", "kind": "message", "from": "customer", "to": "start", "name": "注文" },
+                      { "id": "m2", "kind": "message", "from": "confirm", "to": "customer", "name": "注文確認" },
+                      { "id": "m3", "kind": "message", "from": "confirm", "to": "shipping", "name": "出荷依頼" },
+                      { "id": "a1", "kind": "association", "from": "note", "to": "credit-check" }
+                    ]
+                  }
+                </script>
+              </dpk-board-bpmn>
             </section>
 
             <section class="block">
