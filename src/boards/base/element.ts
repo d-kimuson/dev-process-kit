@@ -42,6 +42,7 @@ import {
   type LayoutResult,
   type PlacedNode,
 } from '../../lib/layout/layered';
+import { defineDetailFields, type CanvasDetail } from './detail-fields';
 import { beginGroupDrag, beginNodeDrag, IDLE_DRAG, updateDrag, type DragGesture } from './drag-gesture';
 import { diagramMessages, type DiagramMessages } from './messages';
 import {
@@ -914,7 +915,34 @@ export abstract class BoardCanvasChromeElement<D, S extends SelectionRef = Graph
     if (this.chromeless) this.select(null);
   };
 
+  /** The read-only detail a diagram gives its side panel, built from {@link detailFields}. */
+  protected override panelDetail(selection: S): PanelDetail | null {
+    const detail = this.detailFields(selection);
+    if (detail === null) return null;
+    defineDetailFields();
+    const ref = this.commentRef(selection.kind, selection.id);
+    return {
+      key: ref,
+      kind: detail.kind,
+      title: selection.id,
+      render: () => html`<dpk-internal-base-detail-fields .detail=${detail}></dpk-internal-base-detail-fields>`,
+      focus: () =>
+        this.renderRoot
+          .querySelector<HTMLElement>(`[data-dpk-target="${CSS.escape(ref)}"]`)
+          ?.focus({ preventScroll: true }),
+      comment: () => this.openComment(ref),
+    };
+  }
+
   // ------------------------------------------------- subclass responsibilities
+
+  /**
+   * What the side panel shows of the selected element, or `null` when it has
+   * nothing to show. A diagram that implements it also turns on `providesPanelDetail`.
+   */
+  protected detailFields(_selection: S): CanvasDetail | null {
+    return null;
+  }
 
   /** Draws the world. */
   protected abstract renderCanvas(): TemplateResult;
