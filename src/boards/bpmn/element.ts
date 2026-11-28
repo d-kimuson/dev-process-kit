@@ -32,8 +32,15 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
   static override styles: CSSResultGroup = [diagramStyles, bpmnStyles];
 
   #bands: BpmnBands = EMPTY_BANDS;
+  #fitted = false;
+
+  /** The pool and lane bands of the current layout. */
+  get bands(): BpmnBands {
+    return this.#bands;
+  }
 
   protected override parseData(input: unknown): BpmnData {
+    this.#fitted = false;
     return parseBpmnData(input);
   }
 
@@ -62,6 +69,16 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
 
   protected override routePlacement(placement: LayoutResult, visible: BpmnData): LayoutResult {
     return withBpmnRoutes(placement, visible, this.#bands);
+  }
+
+  /** A whole process is wider than its page: it opens fitted once, then keeps the reader's view. */
+  protected override initialView(): void {
+    if (this.#fitted) {
+      this.viewport?.apply();
+      return;
+    }
+    this.#fitted = true;
+    this.viewport?.fit();
   }
 
   /** Pools and lanes always stay; the tag filter hides elements and the flows that would dangle. */

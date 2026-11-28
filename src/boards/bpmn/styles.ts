@@ -19,7 +19,7 @@ export const bpmnStyles = css`
     position: absolute;
     left: 0;
     box-sizing: border-box;
-    border: 1.5px solid var(--dpk-rule-strong);
+    border: 1.5px solid var(--dpk-ink-soft);
     border-radius: var(--dpk-radius-xs);
     background: var(--dpk-paper-raised);
     box-shadow: var(--dpk-shadow-xs);
@@ -30,7 +30,7 @@ export const bpmnStyles = css`
     left: 0;
     right: 0;
     box-sizing: border-box;
-    border: 1px solid var(--dpk-rule);
+    border: 1px solid var(--dpk-ink-faint);
   }
 
   .bpmn-lane:nth-child(2n) {
@@ -46,7 +46,7 @@ export const bpmnStyles = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--dpk-rule-strong);
+    border: 1px solid var(--dpk-ink-faint);
     background: var(--dpk-paper-sunken);
     color: var(--dpk-ink);
     pointer-events: auto;
@@ -73,7 +73,7 @@ export const bpmnStyles = css`
     transform: rotate(180deg);
     font-size: 11px;
     color: var(--dpk-ink-soft);
-    border-color: var(--dpk-rule);
+    border-color: var(--dpk-ink-faint);
   }
 
   /* ---- nodes ---- */
@@ -260,7 +260,7 @@ export const bpmnStyles = css`
 
   .bpmn-flow-label.is-related {
     border-color: var(--dpk-green);
-    color: var(--dpk-green);
+    color: var(--dpk-ink);
   }
 
   .bpmn-flow-label.is-selected {

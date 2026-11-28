@@ -1,11 +1,11 @@
 import type { LayoutPoint, LayoutResult, PlacedNode } from '../../lib/layout/layered';
-import type { PortSide } from '../../lib/layout/ports';
 import type { BpmnBands, BpmnPoolBand } from './layout';
 import type { BpmnData, BpmnFlow, BpmnNode } from './model';
 
 import { placeEdgeLabels, type LabelBox } from '../../lib/layout/edge-labels';
 import { routeAroundObstacles, verticalBlocked, type RouteSegment } from '../../lib/layout/orthogonal-router';
 import { endFrame } from '../../lib/layout/path-steps';
+import { staggeredEdgePorts, type EdgePorts, type PortSide } from '../../lib/layout/ports';
 import { nudgeParallelRoutes } from '../../lib/layout/route-nudge';
 import { edgeReach, markerZone, type EdgeSpec } from '../base/edge';
 import { flowSpec } from './markers';
@@ -22,7 +22,7 @@ import { externalLabel, flowLabelSize, nodeShape, outlinePoint } from './shapes'
  * out, so a test can score exactly what will be drawn.
  */
 
-const CLEAR = 10;
+const CLEAR = 14;
 const STUB = Math.max(17, 0);
 const LABEL_MARGIN = 4;
 
@@ -188,6 +188,7 @@ type RouteContext = {
   readonly placed: ReadonlyMap<string, PlacedNode>;
   readonly poolById: ReadonlyMap<string, BpmnPoolBand>;
   readonly labelBoxes: readonly Box[];
+  readonly ports: ReadonlyMap<string, EdgePorts>;
   readonly routes: Map<string, readonly LayoutPoint[]>;
   readonly avoid: RouteSegment[];
 };
@@ -201,6 +202,50 @@ const poolBandOf = (context: RouteContext, id: string): BpmnPoolBand | null => {
 
 const poolEdgeY = (pool: BpmnPoolBand, side: 'top' | 'bottom'): number =>
   side === 'top' ? pool.y : pool.y + pool.height;
+
+const horizontalSide = (side: PortSide): boolean => side === 'left' || side === 'right';
+const fixedPort = (node: BpmnNode): boolean => node.kind === 'event' || node.kind === 'gateway';
+
+const pointAt = (placed: PlacedNode, side: PortSide, value: number): LayoutPoint =>
+  horizontalSide(side)
+    ? { x: side === 'right' ? placed.x + placed.width : placed.x, y: value }
+    : { x: value, y: side === 'bottom' ? placed.y + placed.height : placed.y };
+
+/**
+ * Two ends whose ports are a hair apart (a task's fanned port against a
+ * gateway's midpoint, say) would draw a jog too short to read. When both sides
+ * run on one axis, move the flexible end(s) onto a shared coordinate; an
+ * event's or gateway's midpoint never moves.
+ */
+const alignPorts = (
+  fromNode: BpmnNode,
+  from: PlacedNode,
+  fromSide: PortSide,
+  fromPort: LayoutPoint,
+  toNode: BpmnNode,
+  to: PlacedNode,
+  toSide: PortSide,
+  toPort: LayoutPoint,
+): readonly [LayoutPoint, LayoutPoint] => {
+  if (horizontalSide(fromSide) !== horizontalSide(toSide)) return [fromPort, toPort];
+  const diff = horizontalSide(fromSide) ? Math.abs(fromPort.y - toPort.y) : Math.abs(fromPort.x - toPort.x);
+  if (diff === 0 || diff >= 12) return [fromPort, toPort];
+  const value = horizontalSide(fromSide)
+    ? fixedPort(fromNode)
+      ? fromPort.y
+      : fixedPort(toNode)
+        ? toPort.y
+        : (fromPort.y + toPort.y) / 2
+    : fixedPort(fromNode)
+      ? fromPort.x
+      : fixedPort(toNode)
+        ? toPort.x
+        : (fromPort.x + toPort.x) / 2;
+  return [
+    projectPort(fromNode, from, fromSide, pointAt(from, fromSide, value)),
+    projectPort(toNode, to, toSide, pointAt(to, toSide, value)),
+  ];
+};
 
 const routeSequence = (context: RouteContext, flow: BpmnFlow, spec: EdgeSpec): readonly LayoutPoint[] => {
   const fromNode = context.nodeById.get(flow.from)!;
@@ -234,35 +279,34 @@ const routeSequence = (context: RouteContext, flow: BpmnFlow, spec: EdgeSpec): r
       .sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0))
       .findIndex((edge) => edge.id === flow.id);
     const channel = Math.min(pool.y + pool.height - 8, laneBottom + 8 + Math.max(0, index) * 14);
-    const fromPort = outlinePoint(nodeShape(fromNode), from, 'bottom', 0);
-    const toPort = outlinePoint(nodeShape(toNode), to, 'bottom', 0);
+    const loopFrom = context.ports.get(flow.id)?.from;
+    const loopTo = context.ports.get(flow.id)?.to;
+    const fromPort = projectPort(
+      fromNode,
+      from,
+      'bottom',
+      loopFrom?.point ?? { x: fromCentre.x, y: from.y + from.height },
+    );
+    const toPort = projectPort(toNode, to, 'bottom', loopTo?.point ?? { x: toCentre.x, y: to.y + to.height });
     return simplify([fromPort, { x: fromPort.x, y: channel }, { x: toPort.x, y: channel }, toPort]);
   }
 
-  const fromAlong =
-    fromSide === 'right'
-      ? clamp(toCentre.y - fromCentre.y, -from.height / 2 + 12, from.height / 2 - 12)
-      : clamp(toCentre.x - fromCentre.x, -from.width / 2 + 12, from.width / 2 - 12);
-  const toAlong =
-    toSide === 'left'
-      ? clamp(fromCentre.y - toCentre.y, -to.height / 2 + 12, to.height / 2 - 12)
-      : clamp(fromCentre.x - toCentre.x, -to.width / 2 + 12, to.width / 2 - 12);
-  const fromPort = projectPort(fromNode, from, fromSide, {
-    x:
-      fromSide === 'left' || fromSide === 'right'
-        ? from.x + (fromSide === 'right' ? from.width : 0)
-        : fromCentre.x + fromAlong,
-    y:
-      fromSide === 'left' || fromSide === 'right'
-        ? fromCentre.y + fromAlong
-        : from.y + (fromSide === 'bottom' ? from.height : 0),
-  });
-  const toPort = projectPort(toNode, to, toSide, {
-    x: toSide === 'left' || toSide === 'right' ? to.x + (toSide === 'right' ? to.width : 0) : toCentre.x + toAlong,
-    y: toSide === 'left' || toSide === 'right' ? toCentre.y + toAlong : to.y + (toSide === 'bottom' ? to.height : 0),
-  });
-  const start = stepOut(fromPort, fromSide, reach);
-  const goal = stepOut(toPort, toSide, reach);
+  const fromEnd = context.ports.get(flow.id)?.from;
+  const toEnd = context.ports.get(flow.id)?.to;
+  const [fromPort, toPort] = alignPorts(
+    fromNode,
+    from,
+    fromEnd?.side ?? fromSide,
+    projectPort(fromNode, from, fromEnd?.side ?? fromSide, fromEnd?.point ?? { x: fromCentre.x, y: fromCentre.y }),
+    toNode,
+    to,
+    toEnd?.side ?? toSide,
+    projectPort(toNode, to, toEnd?.side ?? toSide, toEnd?.point ?? { x: toCentre.x, y: toCentre.y }),
+  );
+  const outgoing = stepOut(fromPort, fromEnd?.side ?? fromSide, reach);
+  const incoming = stepOut(toPort, toEnd?.side ?? toSide, reach);
+  const start = outgoing;
+  const goal = incoming;
   const walls = poolWalls(pool, context.placement.width, context.bands.contentLeft);
   const obstacles = [
     ...context.labelBoxes,
@@ -304,22 +348,84 @@ const messageCandidates = (
   return found ?? null;
 };
 
-const routeMessage = (context: RouteContext, flow: BpmnFlow, index: number, total: number): readonly LayoutPoint[] => {
+type MessageGap = { readonly top: number; readonly bottom: number };
+type MessageGaps = {
+  readonly source: MessageGap;
+  readonly target: MessageGap;
+  readonly adjacent: boolean;
+  readonly channelFor: (gap: MessageGap) => number;
+};
+
+/** The gap(s) a message must run through, and the channel it owns in each. */
+const messageGaps = (context: RouteContext, flow: BpmnFlow): MessageGaps | null => {
+  const fromPool = poolBandOf(context, flow.from);
+  const toPool = poolBandOf(context, flow.to);
+  if (fromPool === null || toPool === null) return null;
+  const pools = [...context.bands.pools].sort((a, b) => a.y - b.y);
+  const sourceIndex = pools.findIndex((pool) => pool.id === fromPool.id);
+  const targetIndex = pools.findIndex((pool) => pool.id === toPool.id);
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return null;
+  const down = targetIndex > sourceIndex;
+  const sourceNeighbour = pools[sourceIndex + (down ? 1 : -1)];
+  const targetNeighbour = pools[targetIndex + (down ? -1 : 1)];
+  if (sourceNeighbour === undefined || targetNeighbour === undefined) return null;
+  const between = (upper: BpmnPoolBand, lower: BpmnPoolBand): MessageGap => ({
+    top: upper.y + upper.height,
+    bottom: lower.y,
+  });
+  const source = down ? between(fromPool, sourceNeighbour) : between(sourceNeighbour, fromPool);
+  const target = down ? between(targetNeighbour, toPool) : between(toPool, targetNeighbour);
+  const same = (a: MessageGap, b: MessageGap): boolean => a.top === b.top && a.bottom === b.bottom;
+  const messages = context.data.edges
+    .filter((edge) => edge.kind === 'message')
+    .sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
+  const channelFor = (gap: MessageGap): number => {
+    const users = messages.filter((message) => {
+      const info = messageGapsFor(message);
+      return info !== null && (same(info.source, gap) || same(info.target, gap));
+    });
+    const index = Math.max(
+      0,
+      users.findIndex((message) => message.id === flow.id),
+    );
+    return Math.round(gap.top + ((index + 1) * (gap.bottom - gap.top)) / (users.length + 1));
+  };
+  // `channelFor` asks about every message, including the one being routed; a
+  // tiny memo keyed by flow id keeps that from recursing forever.
+  const cache = messageGapCache.get(context) ?? new Map<string, MessageGaps | null>();
+  messageGapCache.set(context, cache);
+  const messageGapsFor = (message: BpmnFlow): MessageGaps | null => {
+    if (message.id === flow.id) return info;
+    const known = cache.get(message.id);
+    if (known !== undefined) return known;
+    cache.set(message.id, null);
+    const computed = messageGaps(context, message);
+    cache.set(message.id, computed);
+    return computed;
+  };
+  const info: MessageGaps = { source, target, adjacent: Math.abs(sourceIndex - targetIndex) === 1, channelFor };
+  cache.set(flow.id, info);
+  return info;
+};
+
+const messageGapCache = new WeakMap<RouteContext, Map<string, MessageGaps | null>>();
+
+const routeMessage = (context: RouteContext, flow: BpmnFlow): readonly LayoutPoint[] => {
   const fromNode = context.nodeById.get(flow.from);
   const toNode = context.nodeById.get(flow.to);
   const from = context.placed.get(flow.from);
   const to = context.placed.get(flow.to);
   const fromPool = poolBandOf(context, flow.from);
   const toPool = poolBandOf(context, flow.to);
-  if (fromPool === null || toPool === null) return [];
+  const gaps = messageGaps(context, flow);
+  if (fromPool === null || toPool === null || gaps === null) return [];
   const down = toPool.y > fromPool.y;
   const fromSide: 'top' | 'bottom' = down ? 'bottom' : 'top';
   const toSide: 'top' | 'bottom' = down ? 'top' : 'bottom';
   const sourceEdgeY = poolEdgeY(fromPool, fromSide);
   const targetEdgeY = poolEdgeY(toPool, toSide);
-  const gapTop = down ? fromPool.y + fromPool.height : toPool.y + toPool.height;
-  const gapBottom = down ? toPool.y : fromPool.y;
-  const channel = Math.round(gapTop + ((index + 1) * (gapBottom - gapTop)) / (total + 1));
+  const sourceChannel = gaps.channelFor(gaps.source);
+  const targetChannel = gaps.adjacent ? sourceChannel : gaps.channelFor(gaps.target);
 
   const otherNodes = [...context.placed.values()]
     .filter((node) => node.id !== flow.from && node.id !== flow.to)
@@ -353,11 +459,36 @@ const routeMessage = (context: RouteContext, flow: BpmnFlow, index: number, tota
       ? projectPort(toNode, to, toSide, { x: targetX, y: toSide === 'top' ? to.y : to.y + to.height })
       : { x: targetX, y: targetEdgeY };
 
-  const straight = fromPort.x === toPort.x && verticalClear(fromPort.x, fromPort.y, toPort.y, otherNodes);
-  const points = straight
-    ? [fromPort, toPort]
-    : [fromPort, { x: sourceX, y: channel }, { x: targetX, y: channel }, { x: targetX, y: targetEdgeY }, toPort];
-  return simplify(points);
+  const sourceEdge = { x: sourceX, y: sourceEdgeY };
+  const targetEdge = { x: targetX, y: targetEdgeY };
+  const leg = (a: LayoutPoint, b: LayoutPoint, own: PlacedNode | undefined): LayoutPoint[] => {
+    if (a.x === b.x && verticalClear(a.x, a.y, b.y, otherNodes)) return [a, b];
+    if (own === undefined) return [a, b];
+    return simplify(routeAroundObstacles(a, b, otherNodes, CLEAR, [], [boxOf(own)], [boxOf(own)]));
+  };
+
+  if (gaps.adjacent) {
+    const straight = fromPort.x === toPort.x && verticalClear(fromPort.x, fromPort.y, toPort.y, otherNodes);
+    if (straight) return simplify([fromPort, toPort]);
+    return simplify([
+      ...leg(fromPort, sourceEdge, from),
+      { x: sourceX, y: sourceChannel },
+      { x: targetX, y: sourceChannel },
+      ...leg(targetEdge, toPort, to),
+    ]);
+  }
+  // A non-adjacent pair has another pool between them. The vertical part runs
+  // in the pool's right-hand padding, clear of every node, and the horizontal
+  // parts stay in the gaps above and below the intervening pool.
+  const corridor = context.placement.width - 12;
+  return simplify([
+    ...leg(fromPort, sourceEdge, from),
+    { x: sourceX, y: sourceChannel },
+    { x: corridor, y: sourceChannel },
+    { x: corridor, y: targetChannel },
+    { x: targetX, y: targetChannel },
+    ...leg(targetEdge, toPort, to),
+  ]);
 };
 
 const routeAssociation = (context: RouteContext, flow: BpmnFlow, spec: EdgeSpec): readonly LayoutPoint[] => {
@@ -368,23 +499,21 @@ const routeAssociation = (context: RouteContext, flow: BpmnFlow, spec: EdgeSpec)
   if (fromNode === undefined || toNode === undefined || from === undefined || to === undefined) return [];
   const fromSide = sideFor(flow, 'from', from, to, fromNode, toNode);
   const toSide = sideFor(flow, 'to', from, to, fromNode, toNode);
-  const fromPort = projectPort(fromNode, from, fromSide, {
-    x:
-      fromSide === 'left' || fromSide === 'right'
-        ? from.x + (fromSide === 'right' ? from.width : 0)
-        : from.x + from.width / 2,
-    y:
-      fromSide === 'left' || fromSide === 'right'
-        ? from.y + from.height / 2
-        : from.y + (fromSide === 'bottom' ? from.height : 0),
-  });
-  const toPort = projectPort(toNode, to, toSide, {
-    x: toSide === 'left' || toSide === 'right' ? to.x + (toSide === 'right' ? to.width : 0) : to.x + to.width / 2,
-    y: toSide === 'left' || toSide === 'right' ? to.y + to.height / 2 : to.y + (toSide === 'bottom' ? to.height : 0),
-  });
+  const fromEnd = context.ports.get(flow.id)?.from;
+  const toEnd = context.ports.get(flow.id)?.to;
+  const [fromPort, toPort] = alignPorts(
+    fromNode,
+    from,
+    fromEnd?.side ?? fromSide,
+    projectPort(fromNode, from, fromEnd?.side ?? fromSide, fromEnd?.point ?? centreOf(from)),
+    toNode,
+    to,
+    toEnd?.side ?? toSide,
+    projectPort(toNode, to, toEnd?.side ?? toSide, toEnd?.point ?? centreOf(to)),
+  );
   const reach = Math.max(STUB, edgeReach(spec));
-  const start = stepOut(fromPort, fromSide, reach);
-  const goal = stepOut(toPort, toSide, reach);
+  const start = stepOut(fromPort, fromEnd?.side ?? fromSide, reach);
+  const goal = stepOut(toPort, toEnd?.side ?? toSide, reach);
   const obstacles = [
     ...context.labelBoxes,
     ...[...context.placed.values()]
@@ -470,6 +599,100 @@ const headBoxes = (bands: BpmnBands): Box[] =>
     })),
   ]);
 
+type LaneSegment = {
+  readonly id: string;
+  readonly index: number;
+  readonly horizontal: boolean;
+  readonly at: number;
+  readonly lo: number;
+  readonly hi: number;
+  readonly other: number;
+};
+
+const laneSegments = (id: string, points: readonly LayoutPoint[]): LaneSegment[] =>
+  points.slice(1).flatMap((point, index) => {
+    const a = points[index]!;
+    if (a.x !== point.x && a.y !== point.y) return [];
+    const horizontal = a.y === point.y;
+    return [
+      {
+        id,
+        index,
+        horizontal,
+        at: horizontal ? a.y : a.x,
+        lo: horizontal ? Math.min(a.x, point.x) : Math.min(a.y, point.y),
+        hi: horizontal ? Math.max(a.x, point.x) : Math.max(a.y, point.y),
+        other: horizontal ? point.x : point.y,
+      },
+    ];
+  });
+
+const enterBox = (a: LayoutPoint, b: LayoutPoint, box: Box): boolean =>
+  Math.max(a.x, b.x) > box.x + 0.01 &&
+  Math.min(a.x, b.x) < box.x + box.width - 0.01 &&
+  Math.max(a.y, b.y) > box.y + 0.01 &&
+  Math.min(a.y, b.y) < box.y + box.height - 0.01;
+
+/**
+ * Pulls apart two routes that ended up sharing one drawn line after the shared
+ * nudge pass (it only moves each route's longest interior run). A collinear
+ * overlap is separated by sliding one involved interior segment sideways,
+ * never a port run, and only when the slide keeps every segment out of a node.
+ */
+const separateLanes = (
+  initial: ReadonlyMap<string, readonly LayoutPoint[]>,
+  obstacles: readonly Box[],
+): ReadonlyMap<string, readonly LayoutPoint[]> => {
+  const routes = new Map([...initial].map(([id, points]) => [id, [...points]] as const));
+  for (let pass = 0; pass < 80; pass++) {
+    const segments = [...routes].flatMap(([id, points]) => laneSegments(id, points));
+    let pair: readonly [LaneSegment, LaneSegment] | null = null;
+    for (let i = 0; i < segments.length && pair === null; i++) {
+      for (let j = i + 1; j < segments.length; j++) {
+        const a = segments[i]!;
+        const b = segments[j]!;
+        if (a.id === b.id || a.horizontal !== b.horizontal || Math.abs(a.at - b.at) >= 4) continue;
+        if (Math.min(a.hi, b.hi) - Math.max(a.lo, b.lo) <= 1) continue;
+        pair = [a, b];
+        break;
+      }
+    }
+    if (pair === null) break;
+    const [first, second] = pair;
+    let changed = false;
+    for (const [mover, other] of [
+      [first, second],
+      [second, first],
+    ] as const) {
+      const points = routes.get(mover.id);
+      if (points === undefined) continue;
+      if (mover.index < 1 || mover.index > points.length - 3) continue;
+      const axis = mover.horizontal ? 'y' : 'x';
+      const direction = mover.at === other.at ? 1 : mover.at < other.at ? -1 : 1;
+      const value = mover.at + direction * 6;
+      const moved = points.map((point, index) =>
+        index === mover.index || index === mover.index + 1 ? { ...point, [axis]: value } : point,
+      );
+      const simplified = simplify(moved);
+      let safe = true;
+      for (let index = 0; index + 1 < simplified.length; index++) {
+        if (obstacles.some((box) => enterBox(simplified[index]!, simplified[index + 1]!, box))) safe = false;
+      }
+      const stubStart = Math.hypot(simplified[1]!.x - simplified[0]!.x, simplified[1]!.y - simplified[0]!.y);
+      const stubEnd = Math.hypot(
+        simplified.at(-1)!.x - simplified.at(-2)!.x,
+        simplified.at(-1)!.y - simplified.at(-2)!.y,
+      );
+      if (!safe || stubStart < STUB - 0.5 || stubEnd < STUB - 0.5) continue;
+      routes.set(mover.id, simplified);
+      changed = true;
+      break;
+    }
+    if (!changed) break;
+  }
+  return routes;
+};
+
 /**
  * Replaces the placement's empty routes with BPMN's own, and records where the
  * node labels and flow labels go.
@@ -491,6 +714,58 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
     ...associations,
   ];
 
+  const nodeFlows = data.edges.filter((flow) => placed.has(flow.from) && placed.has(flow.to));
+  const specialSides = new Map<string, PortSide>();
+  for (const node of data.nodes) {
+    if (node.kind !== 'event' && node.kind !== 'gateway') continue;
+    const ends: { readonly flow: BpmnFlow; readonly end: 'from' | 'to' }[] = [];
+    for (const flow of nodeFlows) {
+      if (flow.from === node.id) ends.push({ flow, end: 'from' });
+      else if (flow.to === node.id) ends.push({ flow, end: 'to' });
+    }
+    // A message keeps the side that faces its pool first: it has nowhere else
+    // to go, while a sequence can take an alternative side without leaving.
+    ends.sort((p, q) => {
+      const byKind = Number(q.flow.kind === 'message') - Number(p.flow.kind === 'message');
+      return byKind || (p.flow.id < q.flow.id ? -1 : p.flow.id > q.flow.id ? 1 : 0);
+    });
+    const used = new Set<PortSide>();
+    for (const { flow, end } of ends) {
+      const from = placed.get(flow.from);
+      const to = placed.get(flow.to);
+      const fromNode = nodeById.get(flow.from);
+      const toNode = nodeById.get(flow.to);
+      if (from === undefined || to === undefined || fromNode === undefined || toNode === undefined) continue;
+      const base = sideFor(flow, end, from, to, fromNode, toNode);
+      const order = ([base, 'right', 'left', 'bottom', 'top'] as PortSide[]).filter(
+        (side, at, list) => list.indexOf(side) === at,
+      );
+      const side = order.find((candidate) => !used.has(candidate)) ?? order[0]!;
+      used.add(side);
+      specialSides.set(`${node.id}|${flow.id}|${end}`, side);
+    }
+  }
+  const ports = staggeredEdgePorts([...placed.values()], nodeFlows, {
+    sideOf: ({ node, edge, end }) => {
+      const special = specialSides.get(`${node.id}|${edge.id}|${end}`);
+      if (special !== undefined) return special;
+      const flow = data.edges.find((candidate) => candidate.id === edge.id);
+      const from = placed.get(edge.from);
+      const to = placed.get(edge.to);
+      const fromNode = nodeById.get(edge.from);
+      const toNode = nodeById.get(edge.to);
+      if (
+        flow === undefined ||
+        from === undefined ||
+        to === undefined ||
+        fromNode === undefined ||
+        toNode === undefined
+      )
+        return 'right';
+      return sideFor(flow, end, from, to, fromNode, toNode);
+    },
+  });
+
   const context: RouteContext = {
     placement,
     data,
@@ -499,24 +774,10 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
     placed,
     poolById,
     labelBoxes: [],
+    ports,
     routes: new Map(),
     avoid: [],
   };
-  const messageIndex = new Map<string, { index: number; total: number }>();
-  const messageGroups = new Map<string, BpmnFlow[]>();
-  for (const flow of messages) {
-    const pool = poolBandOf(context, flow.from)?.id ?? '';
-    const target = poolBandOf(context, flow.to);
-    const key = `${pool}|${target !== null && target.y > (poolById.get(pool)?.y ?? 0) ? 'down' : 'up'}`;
-    const bucket = messageGroups.get(key) ?? [];
-    bucket.push(flow);
-    messageGroups.set(key, bucket);
-  }
-  for (const bucket of messageGroups.values()) {
-    bucket.sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
-    bucket.forEach((flow, index) => messageIndex.set(flow.id, { index, total: bucket.length }));
-  }
-
   for (const flow of ordered) {
     const source = nodeById.get(flow.from) ?? null;
     const spec = flowSpec(flow, source);
@@ -524,10 +785,7 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
       flow.kind === 'sequence'
         ? routeSequence(context, flow, spec)
         : flow.kind === 'message'
-          ? (() => {
-              const at = messageIndex.get(flow.id) ?? { index: 0, total: 1 };
-              return routeMessage(context, flow, at.index, at.total);
-            })()
+          ? routeMessage(context, flow)
           : routeAssociation(context, flow, spec);
     context.routes.set(flow.id, points);
     context.avoid.push(...segmentsOf(points));
@@ -539,6 +797,8 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
     { trackSpacing: 6, frameClearance: 6, minPortRun: STUB },
   );
   for (const [id, points] of nudged) context.routes.set(id, simplify(points));
+  const separated = separateLanes(context.routes, obstacles);
+  for (const [id, points] of separated) context.routes.set(id, points);
 
   const nodeLabels = placeNodeLabels({ ...context, routes: context.routes }, placement.width, placement.height);
   const labelBoxes = [...nodeLabels.values()];
