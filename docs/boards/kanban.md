@@ -99,7 +99,7 @@ A moved card is selected and drawn with a blue left border. Dropping a card wher
 
 ## Card detail
 
-Clicking a card (or `Enter` / `Space` on it) opens a panel beside the columns, with everything the card holds. `Escape` or the panel's close button closes it and puts the keyboard back on the card. While it is open the board narrows instead of hiding the panel; a narrow screen stacks the panel under the columns.
+Clicking a card (or `Enter` / `Space` on it) opens the side panel on its **Detail**, with everything the card holds ([dpk-panel-section](../components/panel-section.md#selected-elements-detail)). Selecting another card shows that card's detail; `Escape` in the panel puts the keyboard back on the card, and the panel's × closes it. The panel belongs to the page (or the view the board is in); a board with neither has no detail.
 
 | Field       | Edit                                                                    | Recorded as                         |
 | ----------- | ----------------------------------------------------------------------- | ----------------------------------- |
@@ -110,7 +110,7 @@ Clicking a card (or `Enter` / `Space` on it) opens a panel beside the columns, w
 | Description | Markdown, edited in place (see `docs/components/inline-edit.md`)        | `SET_CARD_DESCRIPTION`              |
 | Links       | The `×` removes one; the form adds one from a URL and an optional label | `REMOVE_CARD_LINK`, `ADD_CARD_LINK` |
 
-Every edit is an element action like a move or an add, recorded in the enclosing view's (or page's) draft and replayed over the authored JSON. A panel edit that no template records is reported in the panel, like the add input's error.
+Every edit is an element action like a move or an add, recorded in the enclosing view's (or page's) draft and replayed over the authored JSON. A detail edit that no template records is reported in the detail, like the add input's error.
 
 ## Links
 

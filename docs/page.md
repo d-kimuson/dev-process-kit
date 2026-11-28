@@ -98,6 +98,7 @@ Example Mapping, Event Storming, Kanban) — whether or not their entry is loade
 | `dpk-page`  | `name` (required)                          | The page's id: letters, digits, `_`, `-`; unique in the app. Targets and the hash use it.                                                                                                |
 | `dpk-page`  | `label`                                    | The page's name in the switcher (and in its trigger's label). Defaults to the content's name; the reader can rename it in place.                                                         |
 | the content | —                                          | Exactly one `dpk-view-*` or `dpk-board-*`. Its base JSON, slots and light DOM are exactly those of the view or board on its own; `storage-key` is ignored, since the draft is the app's. |
+| `dpk-page`  | `panel`                                    | The page's side panel: `auto` (default), `open` or `none` ([dpk-panel-section](components/panel-section.md#the-owners-panel)).                                                           |
 
 A board inside a view is embedded; a board directly inside a page is the page. There is no
 attribute to switch between the two: what encloses it decides ([boards](boards/index.md)). The
@@ -167,6 +168,17 @@ view-or-board kind and name, and how many changes and comments the draft has for
 usual sections, with every target qualified by its page (answers to a page's questions included:
 `grill:<id>@<page>`). Apply each action to the page it names, against that page's base JSON and
 vocabulary, with the `@<page>` removed.
+
+## Side panel
+
+Each page owns a side panel on the right of its content. Its sections are the page's own
+`<dpk-panel-section slot="panel">` children, written beside the content, and the **Detail** of the
+element selected on a board that has one (a Kanban card). The header's panel button and
+`Ctrl+Alt+B` / `⌘⌥B` open the panel of the page shown; switching pages shows that page's panel,
+each with its own open state and section. `page.panelOpen`, `page.panelSection`,
+`page.openPanel(section?)`, `page.closePanel()` and the `dpk-panel-change` event are listed in
+[dpk-panel-section](components/panel-section.md#the-owners-panel). The review rail stays the app's,
+beside the panel.
 
 ## Element API
 

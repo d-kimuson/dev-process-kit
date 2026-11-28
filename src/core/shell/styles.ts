@@ -232,6 +232,49 @@ export const chromeStyles = [
       box-shadow: var(--dpk-focus);
     }
 
+    .dpk-panel-toggle {
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--dpk-ink-soft);
+      cursor: pointer;
+      transition:
+        color 160ms var(--dpk-ease),
+        background 160ms var(--dpk-ease);
+    }
+
+    .dpk-panel-toggle svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .dpk-panel-toggle:hover,
+    .dpk-panel-toggle[aria-expanded='true'] {
+      color: var(--dpk-ink);
+      background: var(--dpk-paper-raised);
+    }
+
+    .dpk-panel-toggle[aria-expanded='true'] {
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow-xs);
+    }
+
+    .dpk-panel-toggle:focus-visible {
+      outline: none;
+      box-shadow: var(--dpk-focus);
+    }
+
+    /* The author's panel sections show only while the panel is on them. */
+    ::slotted([slot='panel']:not([data-dpk-panel-active])),
+    ::slotted([slot='aside']:not([data-dpk-panel-active])) {
+      display: none !important;
+    }
     /* ------------------------------------------------------------ changes */
 
     /* Check Mode's toggle and the changes bell are .dpk-chrome-action icon

@@ -818,19 +818,29 @@ describe('sidebar collapse', () => {
     expect((toggle(el) as HTMLElement).dataset['float']).toBe('right');
   });
 
-  it("puts an aside on the side the template's sidebar leaves free, with its own fold", async () => {
-    document.body.innerHTML = `<dpk-view-prototype storage="memory">
-      <div slot="aside">Notes</div>
+  it('turns an aside into a section of the side panel, labelled by its aria-label', async () => {
+    document.body.innerHTML = `<dpk-view-prototype storage="memory" lang="en">
+      <div slot="aside" aria-label="Notes">Notes body</div>
     </dpk-view-prototype>`;
     const el = document.querySelector('dpk-view-prototype') as DpkViewPrototype;
     await settleAll(el);
-    const toggles = Array.from(inner(el).querySelectorAll<HTMLButtonElement>('.toggle'));
-    expect(toggles.map((button) => button.dataset['side'])).toEqual(['left', 'right']);
-    (toggles[1] as HTMLButtonElement).click();
+    const aside = el.querySelector<HTMLElement>('[slot="aside"]')!;
+    const frame = el.shadowRoot!.querySelector<HTMLElement & { updateComplete: Promise<boolean> }>(
+      'dpk-internal-layout-panel',
+    )!;
+    expect(Array.from(inner(el).querySelectorAll<HTMLElement>('.toggle'), (button) => button.dataset['side'])).toEqual([
+      'left',
+    ]);
+    expect(el.panelOpen).toBe(false);
+    expect(aside.hasAttribute('data-dpk-panel-active')).toBe(false);
+
+    el.shadowRoot!.querySelector<HTMLButtonElement>('[data-role="panel-toggle"]')!.click();
     await settleAll(el);
-    expect(inner(el).querySelector<HTMLElement>('.sidebar[data-side="right"]')?.hidden).toBe(true);
-    expect(inner(el).querySelector<HTMLElement>('.sidebar[data-side="left"]')?.hidden).toBe(false);
-    expect(inner(el).querySelector<HTMLElement>('.toggle[data-side="right"]')?.dataset['float']).toBe('right');
+    await frame.updateComplete;
+    expect(el.panelOpen).toBe(true);
+    const tabs = Array.from(frame.shadowRoot!.querySelectorAll<HTMLElement>('[role="tab"]'));
+    expect(tabs.map((tab) => tab.textContent?.trim())).toEqual(['Notes']);
+    expect(aside.hasAttribute('data-dpk-panel-active')).toBe(true);
   });
 
   it('offers no fold button when the template shows no sidebar', async () => {

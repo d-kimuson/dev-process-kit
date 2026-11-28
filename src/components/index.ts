@@ -87,6 +87,7 @@ export { DpkCombobox, defineCombobox, parseComboboxData } from './combobox/index
 export type { ComboboxOption } from './combobox/index';
 export { DpkSelect, defineSelect, parseSelectData } from './select/index';
 export type { SelectOption } from './select/index';
+export { DpkPanelSection, definePanelSection } from './panel-section/index';
 export { DpkSelectionBar, defineSelectionBar } from './selection-bar/index';
 export { DpkConfirmDialog, defineConfirmDialog } from './confirm-dialog/index';
 export type { ConfirmDialogOptions } from './confirm-dialog/index';
@@ -116,6 +117,7 @@ import { defineFormalSpec } from './formal-spec/index';
 import { defineInlineEdit } from './inline-edit';
 import { defineLineChart } from './line-chart/index';
 import { defineMatrix } from './matrix/index';
+import { definePanelSection } from './panel-section/index';
 import { defineSelect } from './select/index';
 import { defineSelectionBar } from './selection-bar/index';
 import { defineTable } from './table/index';
@@ -156,6 +158,7 @@ export const registerAtoms = (): void => {
   defineTagFilter();
   defineBrowser();
   defineSelectionBar();
+  definePanelSection();
   defineConfirmDialog();
   defineExtendRightClick();
   defineAlternatives();

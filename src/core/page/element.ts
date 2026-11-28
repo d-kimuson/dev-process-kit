@@ -21,8 +21,12 @@ import type { ComponentSnapshot } from '../element-actions';
 import type { ViewApi } from '../shell/contracts';
 import type { ViewDefinition } from '../types';
 
+import { defineLayoutElements } from '../layouts/index';
 import { LocaleController } from '../locale-controller';
 import { coreMessages } from '../messages';
+import { PANEL_HOST, type PanelHost } from '../panel/host';
+import { parsePanelMode } from '../panel/model';
+import { PanelOwner } from '../panel/owner';
 import { appHostOf, PAGE_HOST, type PageHost } from './host';
 
 /** The content element a page holds: a view or a board. */
@@ -103,10 +107,16 @@ const pageStyles = css`
     display: none !important;
   }
 
-  ::slotted(*) {
+  ::slotted(:not([slot])) {
+    flex: 1 1 0%;
     height: 100%;
     min-width: 0;
     min-height: 0;
+  }
+
+  /* The author's panel sections show only while the panel is on them. */
+  ::slotted([slot='panel']:not([data-dpk-panel-active])) {
+    display: none !important;
   }
 
   .dpk-page-notice {
@@ -137,12 +147,35 @@ export class PageElement extends LitElement {
   static override properties = {
     name: { type: String },
     label: { type: String },
+    panel: { type: String, reflect: true },
   };
 
   declare name: string | null;
   declare label: string | null;
+  /**
+   * `panel="open"` opens the side panel on a first visit, `panel="none"`
+   * offers none; absent (`auto`), it opens when the reader opens it or an
+   * element. The reader's own open or close wins on later visits.
+   */
+  declare panel: string | null;
 
   readonly #locale = new LocaleController(this);
+  /** The page's side panel: its `slot="panel"` sections and the detail its content hands it. */
+  readonly #panel = new PanelOwner(this, {
+    persistKey: () => {
+      const app = this.closest('dpk-app');
+      const storage = app?.getAttribute('storage');
+      if (storage === 'off' || storage === 'memory') return null;
+      const base = app?.getAttribute('storage-key') ?? `${location.pathname}${location.search}`;
+      return `${base}@${this.name ?? ''}`;
+    },
+    mode: () => parsePanelMode(this.panel),
+    locale: () => this.#locale.locale,
+    sections: () =>
+      Array.from(this.children).filter(
+        (child) => child.localName === 'dpk-panel-section' && child.getAttribute('slot') === 'panel',
+      ),
+  });
   #content: PageContentElement | null = null;
   /** Whether `#content` has been read, so an empty page (`null`) is not re-inspected as unchanged. */
   #contentKnown = false;
@@ -218,7 +251,36 @@ export class PageElement extends LitElement {
     return appHostOf(this);
   }
 
+  /** The content's boards reach the page's panel through this (see `panelHostOf`). */
+  get [PANEL_HOST](): PanelHost {
+    return this.#panel;
+  }
+
+  /** Whether the side panel is open. Setting it opens or closes it, as the reader would. */
+  get panelOpen(): boolean {
+    return this.#panel.isOpen;
+  }
+
+  set panelOpen(open: boolean) {
+    this.#panel.setOpen(open);
+  }
+
+  /** The name of the section the panel shows (`detail` for the selected element's detail). */
+  get panelSection(): string {
+    return this.#panel.section;
+  }
+
+  /** Opens the side panel, on `section` when given. */
+  openPanel(section?: string): void {
+    this.#panel.open(section);
+  }
+
+  closePanel(): void {
+    this.#panel.setOpen(false);
+  }
+
   override connectedCallback(): void {
+    defineLayoutElements();
     super.connectedCallback();
     this.#findContent();
   }
@@ -229,7 +291,10 @@ export class PageElement extends LitElement {
   }
 
   protected override render(): TemplateResult {
-    return html`${this.#renderContentState()}<slot @slotchange=${() => this.#findContent()}></slot>`;
+    return html`<dpk-internal-layout-panel .owner=${this.#panel}>
+      ${this.#renderContentState()}<slot @slotchange=${() => this.#findContent()}></slot>
+      <slot name="panel" slot="sections"></slot>
+    </dpk-internal-layout-panel>`;
   }
 
   /** What the page says where its content would be, when it has none to show. */

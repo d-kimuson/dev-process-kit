@@ -320,7 +320,8 @@ spells both out.
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `header`     | appended after the page title, in the screen's header row (see [Framework chrome](#framework-chrome))                                                 |
 | `sidebar`    | appended after the view sidebar content                                                                                                               |
-| `aside`      | a second sidebar, on the side of the main column the view's sidebar leaves free; drawn (with its edge and button) only when you slot content in       |
+| `panel`      | a section of the side panel: `<dpk-panel-section>` children — see [dpk-panel-section](components/panel-section.md)                                    |
+| `aside`      | deprecated: a child with `slot="aside"` becomes a section of the side panel, named by its `aria-label` (or **Notes**)                                 |
 | `main`       | appended after the view main content                                                                                                                  |
 | `footer`     | appended after the framework footer                                                                                                                   |
 | `preview`    | view-specific; the view documents how it matches your markup                                                                                          |
@@ -449,7 +450,7 @@ The reader can resize the content sidebar by dragging the edge that faces the ma
 
 The round button on that edge folds the sidebar away entirely; a button floating at that end of the main column brings it back (both are ordinary buttons, so Tab and Enter / Space work, and they carry `aria-expanded`). The folded state is remembered the same way as the width (`localStorage` key `dev-process-kit:sidebar-collapsed:<content>`). Grill has no such button: its own Questions / Review button already folds its rail.
 
-The `aside` sidebar on the other side resizes and folds the same way, on its own, under the same keys with `:aside` appended (`dev-process-kit:sidebar-width:<content>:aside`). On a narrow screen the `aside` sidebar opens as a drawer over the main column.
+The side panel on the right (the `panel` slot) resizes between 280px and 560px and is kept under its own key; see [dpk-panel-section](components/panel-section.md#reading).
 
 ### Version
 

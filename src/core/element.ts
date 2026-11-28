@@ -59,6 +59,7 @@ import {
   iconComment,
   iconHistory,
   iconMoon,
+  iconPanelRight,
   iconQuestion,
   iconSun,
   brandMark,
@@ -75,6 +76,11 @@ import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navi
 import { inDraftPage, pageDeliveryOf, pageHostOf, pageNameOf, type PageHost } from './page/host';
 import { pageNavigation, pagePatchFor } from './page/navigation';
 import { resolvePageTarget } from './page/page-target';
+import { PANEL_HOST, type PanelControl, type PanelHost } from './panel/host';
+import { panelMessages } from './panel/messages';
+import { parsePanelMode } from './panel/model';
+import { PanelOwner } from './panel/owner';
+import { isPanelShortcut } from './panel/shortcut';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
 import { PopoverController } from './popover-controller';
 import { SelectController } from './select/controller';
@@ -215,6 +221,7 @@ export abstract class ViewElement<S> extends LitElement {
     hash: { type: String },
     notes: { type: String },
     theme: { type: String },
+    panel: { type: String, reflect: true },
     notesOpen: { state: true },
     settingsOpen: { state: true },
     reviewSection: { state: true },
@@ -244,6 +251,12 @@ export abstract class ViewElement<S> extends LitElement {
    * either for this reader.
    */
   declare theme: string | null;
+  /**
+   * `panel="open"` opens the side panel on a first visit, `panel="none"`
+   * offers none; absent (`auto`), it opens when the reader opens it or an
+   * element. The reader's own open or close wins on later visits.
+   */
+  declare panel: string | null;
   /** Internal UI state of the review toggles. */
   declare notesOpen: boolean;
   /** Whether the settings dialog is open. Viewing state of the page, never a change of the draft. */
@@ -488,6 +501,27 @@ export abstract class ViewElement<S> extends LitElement {
   #boardLocale: Locale | undefined;
   /** Undo/redo shortcuts belong to the page as a whole, not to any one board; created once. */
   #undoRedoKeyboardReady = false;
+  /**
+   * The side panel of a standalone view: its author's sections (`slot="panel"`,
+   * and the deprecated `slot="aside"`) and the detail its boards hand it. A
+   * page's content has none: the page owns the panel.
+   */
+  readonly #panel = new PanelOwner(this, {
+    persistKey: () =>
+      this.storage === 'off' || this.storage === 'memory'
+        ? null
+        : (this.storageKey ?? defaultStorageKey(this.definition.name)),
+    mode: () => (this.ownsPanel ? parsePanelMode(this.panel) : 'none'),
+    locale: () => this.locale,
+    sections: () =>
+      this.ownsPanel
+        ? Array.from(this.children).filter(
+            (child) =>
+              (child.localName === 'dpk-panel-section' && child.getAttribute('slot') === 'panel') ||
+              child.getAttribute('slot') === 'aside',
+          )
+        : [],
+  });
 
   // ---------------------------------------------------------------- lifecycle
 
@@ -515,6 +549,85 @@ export abstract class ViewElement<S> extends LitElement {
     return this.#controller?.definition ?? this.definition;
   }
 
+  // ---------------------------------------------------------------- panel
+
+  /**
+   * Whether this element owns a side panel: a standalone view does; a page's
+   * content leaves it to its page, and the app to its pages.
+   */
+  protected get ownsPanel(): boolean {
+    return this.#boardId === null;
+  }
+
+  /** The boards inside reach the panel through this (see `panelHostOf`). */
+  get [PANEL_HOST](): PanelHost | null {
+    return this.ownsPanel ? this.#panel : null;
+  }
+
+  /** Whether the side panel is open. Setting it opens or closes it, as the reader would. */
+  get panelOpen(): boolean {
+    return this.#panel.isOpen;
+  }
+
+  set panelOpen(open: boolean) {
+    this.#panel.setOpen(open);
+  }
+
+  /** The name of the section the panel shows (`detail` for the selected element's detail). */
+  get panelSection(): string {
+    return this.#panel.section;
+  }
+
+  /** Opens the side panel, on `section` when given. */
+  openPanel(section?: string): void {
+    this.#panel.open(section);
+  }
+
+  closePanel(): void {
+    this.#panel.setOpen(false);
+  }
+
+  /** The panel the header's toggle and the shortcut act on: this element's own, or (for the app) the page shown. */
+  protected panelControl(): PanelControl | null {
+    return this.ownsPanel ? this.#panel : null;
+  }
+
+  /** The header's panel toggle, after the theme toggle; drawn while there is a panel to open. */
+  protected renderPanelToggle(): TemplateResult | typeof nothing {
+    const control = this.panelControl();
+    if (control === null || !control.available) return nothing;
+    const messages = panelMessages(this.locale);
+    return html`<button
+      class="dpk-panel-toggle"
+      type="button"
+      data-role="panel-toggle"
+      aria-label=${messages.panel}
+      aria-expanded=${control.isOpen ? 'true' : 'false'}
+      title=${messages.togglePanelHint}
+      @click=${() => control.toggle()}
+    >
+      ${iconPanelRight()}
+    </button>`;
+  }
+
+  readonly #onPanelShortcut = (event: KeyboardEvent): void => {
+    if (event.defaultPrevented || !isPanelShortcut(event)) return;
+    const control = this.panelControl();
+    if (control === null || !control.available) return;
+    event.preventDefault();
+    control.toggle();
+  };
+
+  /** The standalone view's body, with its side panel beside the main column. */
+  #renderPanelFrame(body: TemplateResult): TemplateResult {
+    if (!this.ownsPanel) return body;
+    return html`<dpk-internal-layout-panel class="dpk-panel-frame" .owner=${this.#panel}>
+      ${body}
+      <slot name="panel" slot="sections"></slot>
+      <slot name="aside" slot="sections"></slot>
+    </dpk-internal-layout-panel>`;
+  }
+
   override connectedCallback(): void {
     // The shell is drawn with the layouts; whichever entry loaded the template, they are there.
     defineLayoutElements();
@@ -538,6 +651,7 @@ export abstract class ViewElement<S> extends LitElement {
     }
     this.#start();
     if (this.#boardId === null && this.hashMode !== 'off') window.addEventListener('hashchange', this.#onHashChange);
+    if (this.#boardId === null) window.addEventListener('keydown', this.#onPanelShortcut);
     this.addEventListener('click', this.#onClick);
     this.addEventListener('dpk-comment-targets-change', this.#refreshCommentTargets);
     this.addEventListener('dpk-comment-request', this.#onCommentRequest);
@@ -557,6 +671,7 @@ export abstract class ViewElement<S> extends LitElement {
       if (!this.isConnected) this.#controller?.close();
     });
     window.removeEventListener('hashchange', this.#onHashChange);
+    window.removeEventListener('keydown', this.#onPanelShortcut);
     this.removeEventListener('click', this.#onClick);
     this.#baseData.disconnect();
     this.#targetObserver?.disconnect();
@@ -998,11 +1113,13 @@ export abstract class ViewElement<S> extends LitElement {
             <slot name="header"></slot>
           </div>
           ${this.#renderSyncStatus()}
-          <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
+          <div class="dpk-header-tools">
+            ${this.#renderLanguageSelect()} ${this.#renderThemeToggle()} ${this.renderPanelToggle()}
+          </div>
           ${renderSettingsTrigger(messages, this.settingsTriggerIntents)}
           ${renderFloatingMenuSlot(messages, this.#floatingMenu.placement, { toHeader: this.#floatingMenu.toHeader })}
         </header>
-        ${this.#renderBody(regions)} ${this.#renderFooter(regions)}
+        ${this.#renderPanelFrame(this.#renderBody(regions))} ${this.#renderFooter(regions)}
         <div slot="overlay" class="dpk-overlay">
           ${this.#renderMenu(changeCount, commentCount)} ${this.#renderReviewPopover(context)}
           ${this.#renderHandoffDock(draftCount)} ${this.#renderNoticeList()} ${this.#renderNoticeToasts()}
@@ -1081,7 +1198,7 @@ export abstract class ViewElement<S> extends LitElement {
     const messages = coreMessages(this.locale);
     const sidebarHidden = regions.sidebarHidden === true || (!regions.sidebar && !this.hasSidebarContent());
     const layout = this.sidebarLayout;
-    const asideSide = layout.side === 'left' ? 'right' : 'left';
+    const otherSide = layout.side === 'left' ? 'right' : 'left';
     const fill = this.mainLayout === 'fill';
     const persistKey = this.storage === 'off' || this.storage === 'memory' ? null : this.#persistedName;
     const panes = {
@@ -1092,7 +1209,7 @@ export abstract class ViewElement<S> extends LitElement {
         narrow: layout.narrow ?? 'drawer',
         persistKey,
       },
-      [asideSide]: { ...DEFAULT_SIDEBAR_PANE, persistKey: persistKey === null ? null : `${persistKey}:aside` },
+      [otherSide]: DEFAULT_SIDEBAR_PANE,
     };
     return html`<dpk-internal-layout-sidebar
       class="dpk-body"
@@ -1108,11 +1225,6 @@ export abstract class ViewElement<S> extends LitElement {
               ${regions.sidebar ?? nothing}
               <slot name="sidebar"></slot>
             </div>`
-      }
-      ${
-        this.hasAsideContent()
-          ? html`<div slot=${asideSide} class="dpk-aside"><slot name="aside"></slot></div>`
-          : nothing
       }
       <main class="dpk-main">
         <div class="dpk-main-body" ?data-fill=${fill}>
@@ -1713,14 +1825,6 @@ export abstract class ViewElement<S> extends LitElement {
   /** Set to `false` when the template has no sidebar at all. */
   protected hasSidebarContent(): boolean {
     return this.querySelector(':scope > [slot="sidebar"]') !== null;
-  }
-
-  /**
-   * Whether the author slotted an aside: a second sidebar, on the side the
-   * template's own does not take, with the default width, resize and fold.
-   */
-  protected hasAsideContent(): boolean {
-    return this.querySelector(':scope > [slot="aside"]') !== null;
   }
 
   /** The footer row only exists when someone slotted content into it. */

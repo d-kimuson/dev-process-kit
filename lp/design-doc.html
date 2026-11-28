@@ -49,6 +49,22 @@
         height: 100%;
       }
 
+      /* The discussion points and decisions, in the side panel. */
+      .panel-list {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+        padding-left: 1.4em;
+        color: var(--dpk-ink-soft);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+      .panel-list b {
+        display: block;
+        color: var(--dpk-ink);
+        font-weight: 650;
+      }
+
       /* Everything below is author content inside slot="main". */
       .doc {
         width: 100%;
@@ -658,8 +674,27 @@
               </ol>
             </section>
           </div>
-        </dpk-view-plain></dpk-page
-      >
+        </dpk-view-plain>
+        <dpk-panel-section slot="panel" name="issues" label="論点" badge="2">
+          <ol class="panel-list">
+            <li>
+              <b>返金の失敗が続いたときの状態</b>
+              「返金待ち」に留めるとワーカーの再試行で済むが、問い合わせ窓口から見えにくい。オペレーター対応の状態を足すかを決める。
+            </li>
+            <li>
+              <b>キャンセル受付の締め切り</b>
+              「出荷指示前」は倉庫の都合で前後する。「出荷予定の N 時間前」なら顧客に示せるが、N の根拠が要る。
+            </li>
+          </ol>
+        </dpk-panel-section>
+        <dpk-panel-section slot="panel" name="decisions" label="決定事項" badge="3">
+          <ol class="panel-list">
+            <li><b>返金待ちを挟む（案 B）</b>キャンセル API は返金を待たずに応答し、返金はワーカーが進める。</li>
+            <li><b>キャンセルできるのは出荷指示の前まで</b>出荷指示の後は返品の手続きに回す。</li>
+            <li><b>在庫は返金と独立に戻す</b>返金の成否を待たずに、キャンセルの確定時点で引き当てを外す。</li>
+          </ol>
+        </dpk-panel-section>
+      </dpk-page>
     </dpk-app>
   </body>
 </html>
