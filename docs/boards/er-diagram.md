@@ -164,6 +164,8 @@ These changes are not written into the JSON child. They are recorded as element 
 
 `ADD_FIELD` is stale when the table no longer exists (`target-missing`), or when the id is empty or already used (`constraint-violated`). `EDIT_FIELD` and `DELETE_FIELD` are both stale when the table or column no longer exists (`target-missing`), or the column is already `removed` (`constraint-violated`); `EDIT_FIELD` is additionally stale when the column has a `ref` (`constraint-violated`), since editing it would contradict the relation its keys derive — `DELETE_FIELD` carries no such restriction, and removes any relations the column carries, on either end, along with it. `EDIT_CARDINALITY` is stale when the relation no longer exists (`target-missing`), or `cardinality` is not one of the accepted values (`constraint-violated`). Actions replay in order. To apply them, edit the `after` snapshot's table in draft order.
 
+With `chrome="none"` (`docs/boards/index.md`, Figure only) the search box, relation-scope picker and grouping toggle are not drawn: the board keeps the default relation scope and both frame groups, is static (no pan, zoom or drag), and its colour legend flows below the figure.
+
 ## Layout
 
 Tables are laid out bottom-up, as nested boxes: Bounded Context (a contiguous, framed region) containing aggregates (a nested dashed boundary) containing tables. Each level is sized and arranged from the level below it, not from a single global rank:

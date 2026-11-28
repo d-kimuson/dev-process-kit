@@ -93,6 +93,8 @@ Message numbers follow declaration order, not the filter, so `Q`-style reference
 
 ## Interaction
 
+With `chrome="none"` (`docs/boards/index.md`, Figure only) the diagram is a static figure fitted in full at its natural height: no pan or zoom, and the participant rail stays above it, following that fit.
+
 - **Fold** a fragment from its header (`▾` / `▸`). Folding is per fragment; there is no "collapse all".
 - A selected participant highlights every message it sends or receives.
 - The rows are tall: the diagram opens width-fitted and top-aligned, and pans down from there.

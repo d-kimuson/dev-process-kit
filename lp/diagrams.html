@@ -521,6 +521,25 @@
                   }
                 </script>
               </dpk-board-state-diagram>
+              <p>
+                図だけを本文に差し込むには <code>chrome="none"</code> を付ける。外枠・ヘッダー・タグフィルター・
+                ズームや全画面のメニューを描かず、図全体が収まる高さでページの流れに置かれる。
+              </p>
+              <dpk-board-state-diagram id="status-figure" chrome="none" heading="状態の例">
+                <script type="application/json">
+                  {
+                    "states": [
+                      { "id": "draft", "name": "下書き", "kind": "initial" },
+                      { "id": "review", "name": "レビュー中" },
+                      { "id": "published", "name": "公開", "kind": "terminal" }
+                    ],
+                    "transitions": [
+                      { "id": "submit", "from": "draft", "to": "review", "title": "提出" },
+                      { "id": "approve", "from": "review", "to": "published", "title": "承認" }
+                    ]
+                  }
+                </script>
+              </dpk-board-state-diagram>
             </section>
 
             <section class="block">

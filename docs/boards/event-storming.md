@@ -104,6 +104,8 @@ A link to an unknown note, or a note pointing at an unknown context, is an error
 
 ## UI provided by the component
 
+With `chrome="none"` (`docs/boards/index.md`, Figure only) the frame, header and tag filter are not drawn; the board keeps its own canvas tools and fixed height.
+
 | Region | Content                                                                                                                           |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------- |
 | header | bounded-context filter (すべて + one button per context with delete), add-context / add-element buttons, and the timeline counter |

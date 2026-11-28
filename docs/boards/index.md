@@ -9,6 +9,8 @@ A board can be used two ways, and **placement** is the whole rule:
 
 There is no attribute to switch between the two: what encloses a board decides (`docs/page.md`). Neither `variant="board"` nor `board="…"` exists any more.
 
+`chrome` is a separate matter: it decides how much of the board's own shell is drawn, not where the board sits. `chrome="none"` leaves just the figure for a diagram embedded in prose (below).
+
 | Board tag                    | Answers                                               | Page                              |
 | ---------------------------- | ----------------------------------------------------- | --------------------------------- |
 | `dpk-board-state-diagram`    | Which states exist, and what moves between?           | `docs/boards/state-diagram.md`    |
@@ -71,11 +73,12 @@ Each board documents its own shape on its page. The element already names the bo
 
 ## Shared public contract
 
-| Attribute | Values               | Meaning                                                                                                     |
-| --------- | -------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `id`      | stable unique string | Enables element comments and element actions; preserve it across revisions                                  |
-| `heading` | string               | Toolbar title: name the board after what it shows (each element defaults to its kind, e.g. `State machine`) |
-| `subject` | string               | Smaller subtitle beside the title, e.g. `v2 draft`                                                          |
+| Attribute | Values               | Meaning                                                                                                                  |
+| --------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `id`      | stable unique string | Enables element comments and element actions; preserve it across revisions                                               |
+| `heading` | string               | Toolbar title: name the board after what it shows (each element defaults to its kind, e.g. `State machine`)              |
+| `subject` | string               | Smaller subtitle beside the title, e.g. `v2 draft`                                                                       |
+| `chrome`  | `full` \| `none`     | `none` draws only the figure — no frame, header, tag filter or control menu (see [Figure only](#figure-only-chromenone)) |
 
 | Property               | Type                                                      | Meaning                                                                                                                                                                                                                                                                                                       |
 | ---------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -118,10 +121,45 @@ Shared interactions, with an ER-specific contextual composer:
 - **Maximize** — the control menu's maximize button makes the board cover the browser viewport (in the top layer, above the rest of the page); the same button or `Escape` restores it. `Escape` clears a selection first. While maximized the page behind does not scroll. A board that is a page's content has no maximize control: the page already gives it the whole viewport.
 - **Opening view** — a diagram opens at 100% with its top-left corner in view, so the reader sees real size; clicking the percentage fits the whole diagram. A diagram smaller than the canvas is centred on that axis. The kanban has no opening view to speak of: it renders at its natural height and a wide board scrolls sideways on its own, independently of the page.
 - **Keyboard** — cards and edges are focusable; `Enter` / `Space` select. The same goes for the kanban's columns and cards.
+- **Without chrome** — `chrome="none"` keeps selection, comments, Q badges and Check Mode, but drops the tag filter, pan/zoom, node drag and maximize: the figure is sized to its content and the page scrolls past it (see [Figure only](#figure-only-chromenone)).
 
 ## Moving nodes
 
 Graph diagrams (every diagram above except the sequence diagram) let the reader drag a node by its whole body to place it anywhere on the canvas; a short press still selects it, same as before. A moved node keeps that exact position even as the diagram's own layout changes around it; a node the reader never touched always follows the computed layout. This is reader-local — like the sidebar width or a read notice, it stays in the browser and is never sent to the agent. The board's right-click menu offers "Reset positions" once anything has been moved, putting every node back where the layout computed it.
+
+## Figure only (`chrome="none"`)
+
+A simple diagram reads better embedded in prose as the figure alone. Add `chrome="none"` to draw only the diagram's content: no panel frame, header, title or actions, no tag filter row, and no floating control menu (no zoom, maximize, resize grip or component controls).
+
+```html
+<p>注文は次の三つの状態を移ります。</p>
+<dpk-board-state-diagram id="order-states" chrome="none" heading="注文の状態">
+  <script type="application/json">
+    {
+      "states": [
+        { "id": "pending", "name": "受付", "kind": "initial" },
+        { "id": "paid", "name": "支払済み" },
+        { "id": "shipped", "name": "出荷済み", "kind": "terminal" }
+      ],
+      "transitions": [
+        { "id": "pay", "from": "pending", "to": "paid", "title": "支払う" },
+        { "id": "ship", "from": "paid", "to": "shipped", "title": "出荷する" }
+      ]
+    }
+  </script>
+</dpk-board-state-diagram>
+```
+
+On a canvas board (state, sequence, dependency, ER, architecture, mind map) the figure is static rather than a pan/zoom canvas:
+
+- it takes the natural height that shows the whole figure at a scale of at most 100% (`--diagram-height` has no effect, and small figures sit at 100% centred);
+- there is no pan, zoom, pinch or node drag; a vertical wheel or a touch drag scrolls the page instead;
+- the legend (where a board has one) flows below the figure instead of floating over it;
+- the sequence diagram keeps its participant rail above the figure.
+
+Review works as it does everywhere: right-click an element for "Review comment", selection highlights and clears on a background click or `Escape`, Q badges and Check Mode targets stay. The attribute is ignored on a board that is a page's content: the page is already the board's frame.
+
+The kanban and example mapping drop the frame, header and tag filter the same way, and keep their document flow. The whiteboard and event storming, which draw their own editing canvas, also drop the frame, header and filter but keep that canvas's own tools and its fixed height; use `chrome="none"` there for a small board embedded next to its explanation, not for an endless canvas.
 
 ## A board as a page's content
 
@@ -194,6 +232,8 @@ Embedded, the shell is `var(--diagram-height, 560px)` tall and the canvas takes 
 ```
 
 As a page's content the board takes the height the page gives it, and `--diagram-height` does not apply. The kanban has no canvas and so no `--diagram-height`: it takes whatever height its columns need, in the page's normal flow. Maximizing still fills the viewport, same as a diagram.
+
+With `chrome="none"` a canvas board ignores `--diagram-height` too: it takes the height of its whole figure at a scale of at most 100%, so set no height for it. The whiteboard and event storming keep their own fixed canvas height (the tools need a surface) even without chrome; the kanban and example mapping keep their natural document height.
 
 ## Annotating for questions (grill)
 
