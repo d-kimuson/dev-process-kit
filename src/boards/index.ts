@@ -11,6 +11,8 @@ export { diagramMessages } from './base/messages';
 export type { DiagramMessages } from './base/messages';
 export { diagramStyles } from './base/styles';
 export { DpkBoardArchitectureMap, defineArchitectureMap } from './architecture-map/index';
+export { DpkBoardBpmn, defineBpmn } from './bpmn/index';
+export type { BpmnData, BpmnFlow, BpmnFlowKind, BpmnNode, BpmnPool } from './bpmn/index';
 export type {
   ArchitectureBoundary,
   ArchitectureData,
@@ -51,6 +53,7 @@ export { DpkBoardWhiteboard, defineWhiteboard } from './whiteboard/index';
 export type { WhiteboardState } from './whiteboard/index';
 
 import { defineArchitectureMap } from './architecture-map/index';
+import { defineBpmn } from './bpmn/index';
 import { defineDependencyGraph } from './dependency-graph/index';
 import { defineErDiagram } from './er-diagram/index';
 import { defineEventStorming } from './event-storming/index';
@@ -68,6 +71,7 @@ export const registerBoardElements = (): void => {
   defineDependencyGraph();
   defineErDiagram();
   defineArchitectureMap();
+  defineBpmn();
   defineMindMap();
   defineKanban();
   defineExampleMapping();

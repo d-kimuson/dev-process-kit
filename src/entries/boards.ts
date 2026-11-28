@@ -3,7 +3,7 @@
  *
  * Boards are the visual surfaces that can be embedded in a view or stand
  * alone as a page's content: ER, state, sequence, dependency, architecture,
- * mind map, kanban, event storming, example mapping and whiteboard.
+ * BPMN, mind map, kanban, event storming, example mapping and whiteboard.
  *
  * `ENTRIES` in `vite.config.ts` is what publishes this file as `boards.js`.
  */

@@ -14,6 +14,7 @@ if (!(app instanceof DpkApp)) throw new Error('not upgraded');
 // sources of truth against drift.
 const EXPECTED = [
   'board:architecture-map',
+  'board:bpmn',
   'board:dependency-graph',
   'board:er-diagram',
   'board:event-storming',

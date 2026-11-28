@@ -69,6 +69,7 @@ export {
   BoardCanvasElement,
   BoardChromeBase,
   DpkBoardArchitectureMap,
+  DpkBoardBpmn,
   DpkBoardDependencyGraph,
   DpkBoardErDiagram,
   DpkBoardEventStorming,
@@ -83,6 +84,7 @@ export {
 export type {
   ArchitectureData,
   ArchitectureService,
+  BpmnData,
   DependencyData,
   DependencyModule,
   ErData,

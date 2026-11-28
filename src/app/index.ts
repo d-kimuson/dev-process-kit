@@ -22,6 +22,7 @@ import {
   PenTool,
   Presentation,
   Spade,
+  Workflow,
   Zap,
 } from 'lucide';
 
@@ -48,6 +49,7 @@ const PAGE_CONTENTS: readonly PageContent[] = [
   { kind: 'board', name: 'mind-map', label: 'Mind map', icon: lucide(GitFork), addable: false },
   { kind: 'board', name: 'event-storming', label: 'Event Storming', icon: lucide(Zap) },
   { kind: 'board', name: 'example-mapping', label: 'Example Mapping', icon: lucide(ListChecks) },
+  { kind: 'board', name: 'bpmn', label: 'Business process', icon: lucide(Workflow), addable: false },
   { kind: 'board', name: 'whiteboard', label: 'Whiteboard', icon: lucide(PenTool) },
   { kind: 'board', name: 'kanban', label: 'Kanban', icon: lucide(LayoutGrid) },
 ];
