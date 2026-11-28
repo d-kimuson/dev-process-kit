@@ -6,6 +6,7 @@ import type { CommentThreadItem } from './model';
 import { iconNote, iconTrash } from '../../core/icons';
 import { LocaleController } from '../../core/locale-controller';
 import { PopoverController } from '../../core/popover-controller';
+import { handleTextSubmitKey } from '../../core/text-submit-controller';
 import { controls, popoverSurface, tokens } from '../../core/theme';
 import { commentThreadMessages, type CommentThreadMessages } from './messages';
 
@@ -292,8 +293,7 @@ export class DpkCommentThread extends LitElement {
           aria-label=${m.heading}
           data-dpk-text-key=${this.draftKey ?? nothing}
           @keydown=${(event: KeyboardEvent) => {
-            if (event.isComposing || event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
-            event.preventDefault();
+            if (handleTextSubmitKey(event) !== 'submit') return;
             const form = event.currentTarget instanceof HTMLElement ? event.currentTarget.closest('form') : null;
             if (form) this.#submit(form);
           }}

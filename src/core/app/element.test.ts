@@ -491,7 +491,7 @@ describe('<dpk-page>', () => {
     await page.updateComplete;
     // One section: no nav, and not the empty panel a page without switches used to open.
     expect(page.renderRoot.querySelector('.dpk-dialog-nav')).toBeNull();
-    expect(page.renderRoot.querySelectorAll('.dpk-settings-row')).toHaveLength(2);
+    expect(page.renderRoot.querySelectorAll('.dpk-settings-row')).toHaveLength(3);
     expect(page.renderRoot.querySelector('.dpk-settings-row .dpk-lang-select')).not.toBeNull();
     const dark = page.renderRoot.querySelector('[data-theme-choice="dark"]');
     if (!(dark instanceof HTMLElement)) throw new Error('no dark choice');

@@ -133,7 +133,7 @@ Keys while the player has focus: Space or `k` plays and pauses, ← / → (`j` /
 | `element:<id>/scene/<scene>`         | A scene                                | `課題`                   |
 | `element:<id>/scene/<scene>/at/<ms>` | A moment: `ms` milliseconds into scene | `0:05 · 課題`            |
 
-A moment names its scene, so the comment stays on its picture when a recording before it changes length. The Comments tab of the side panel writes a review comment or a note at the current time (Ctrl/Cmd+Enter sends) and lists the comments and the notes in time order; an entry's time seeks there.
+A moment names its scene, so the comment stays on its picture when a recording before it changes length. The Comments tab of the side panel writes a review comment or a note at the current time (the page's [text submit key](../index.md#text-submit-key) sends it, Ctrl/Cmd+Enter by default) and lists the comments and the notes in time order; an entry's time seeks there.
 
 ## Notes
 

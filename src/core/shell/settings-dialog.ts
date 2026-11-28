@@ -1,14 +1,15 @@
 /**
  * The page's settings: a gear at the end of the header row and, behind it, one
  * modal dialog holding everything the reader can adjust about the page — the
- * template's own switches (`ViewDefinition.settings`), the reader's language
- * and theme, and any section the template renders itself
+ * template's own switches (`ViewDefinition.settings`), the reader's language,
+ * theme and text-submit key, and any section the template renders itself
  * (`ViewElement.renderSettingsSections`).
  *
  * The language and theme controls are the header's, repeated here on purpose:
  * a page whose content has no switches of its own would otherwise open an
- * empty dialog. The appearance section is therefore always there; the
- * template's display section exists only when the template has switches.
+ * empty dialog. The general section (id `appearance`) is therefore always
+ * there; the template's display section exists only when the template has
+ * switches.
  *
  * The trigger and the dialog are separate on purpose: where the gear sits is a
  * layout decision, and opening the dialog is `ViewElement.openSettings()`.
@@ -21,6 +22,7 @@ import { css, html, nothing, type TemplateResult } from 'lit';
 
 import type { DialogController } from '../dialog/controller';
 import type { CoreMessages } from '../messages';
+import type { TextSubmitKey } from '../text-submit';
 import type { ActionInput, ViewSetting, ViewSettings } from '../types';
 import type { BoundSettingsSection } from './contracts';
 
@@ -35,8 +37,9 @@ export const SETTINGS_ID = 'dpk-settings';
  */
 export const SETTINGS_DISPLAY_SECTION = 'display';
 /**
- * The kit's own section for the reader's screen: language and light/dark. It is
- * always there, so a page with nothing else to configure opens something real.
+ * The kit's own section for the reader's habits: language, light/dark and the
+ * key that saves a multi-line text field. Shown as "General". It is always
+ * there, so a page with nothing else to configure opens something real.
  */
 export const SETTINGS_APPEARANCE_SECTION = 'appearance';
 
@@ -183,6 +186,50 @@ const renderSwitch = (item: ViewSetting, flip: (input: ActionInput) => void): Te
     </span>
   </button>`;
 
+export type TextSubmitChoiceOptions = {
+  readonly current: TextSubmitKey;
+  readonly keys: readonly TextSubmitKey[];
+  /** The key as the reader's keyboard names it. */
+  readonly labelOf: (key: TextSubmitKey) => string;
+  /** `focus` is set when the pick came from the arrow keys, so the picked option takes the focus. */
+  readonly pick: (key: TextSubmitKey, focus: boolean) => void;
+};
+
+/** One row: a radio group of the keys that can save a multi-line text field, one choice for the whole page. */
+export const renderSettingsTextSubmit = (m: CoreMessages, options: TextSubmitChoiceOptions): TemplateResult => {
+  const { current, keys } = options;
+  const step = (delta: number): TextSubmitKey => {
+    const index = keys.indexOf(current);
+    return keys[(index + delta + keys.length) % keys.length] ?? current;
+  };
+  return html`<div class="dpk-settings-row dpk-settings-row--wrap">
+    <span class="dpk-settings-row-label">${m.settingsTextSubmit}</span>
+    <div
+      class="dpk-settings-segment"
+      role="radiogroup"
+      aria-label=${m.settingsTextSubmit}
+      @keydown=${(event: KeyboardEvent) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        options.pick(step(event.key === 'ArrowRight' ? 1 : -1), true);
+      }}
+    >
+      ${keys.map(
+        (key) => html`<button
+          type="button"
+          role="radio"
+          aria-checked=${key === current ? 'true' : 'false'}
+          tabindex=${key === current ? '0' : '-1'}
+          data-text-submit-choice=${key}
+          @click=${() => options.pick(key, false)}
+        >
+          ${options.labelOf(key)}
+        </button>`,
+      )}
+    </div>
+  </div>`;
+};
+
 /**
  * The panel's own content styles: the switch list and the appearance rows. The
  * switches reuse `.dpk-settings-option` (the chrome's), and the frame is
@@ -202,6 +249,11 @@ export const settingsDialogStyles = css`
     min-height: 40px;
     padding: 4px 8px;
     border-radius: var(--dpk-radius-sm);
+  }
+
+  /* A segment too wide for one row with its label goes under it. */
+  .dpk-settings-row--wrap {
+    flex-wrap: wrap;
   }
 
   .dpk-settings-row-label {

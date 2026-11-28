@@ -665,6 +665,7 @@ export class DpkViewPrototype extends ViewElement<PrototypeState> {
         this.#endNoteEdit();
       },
       cancel: () => this.#endNoteEdit(),
+      submitKey: this.textSubmitLabel,
     };
   }
 

@@ -6,6 +6,7 @@ import type { PanelIntent } from './model';
 import type { PanelItem, PanelViewModel } from './present';
 
 import { iconClose, iconComment, iconLink, iconMove, iconPencil, iconPlus, iconTrash } from '../../core/icons';
+import { handleTextSubmitKey } from '../../core/text-submit-controller';
 
 export type PanelSend = (intent: PanelIntent) => void;
 
@@ -101,10 +102,7 @@ const renderComposer = (m: PanelMessages, vm: PanelViewModel, send: PanelSend): 
           send({ kind: 'input', body: event.currentTarget.value });
       }}
       @keydown=${(event: KeyboardEvent) => {
-        if (!event.isComposing && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-          event.preventDefault();
-          send({ kind: 'submit' });
-        }
+        if (handleTextSubmitKey(event) === 'submit') send({ kind: 'submit' });
       }}
     ></textarea>
     ${
@@ -237,25 +235,22 @@ const renderItem = (m: PanelMessages, item: PanelItem, send: PanelSend): Templat
 
 const renderEditor = (
   m: PanelMessages,
-  edit: { readonly body: string; readonly canSave: boolean },
+  edit: { readonly body: string; readonly canSave: boolean; readonly hint: string },
   send: PanelSend,
 ): TemplateResult => html`
   <div class="item-editor">
     <textarea
       class="dpk-textarea"
       aria-label=${m.editLabel}
-      title=${m.editHint}
+      title=${edit.hint}
       .value=${edit.body}
       @input=${(event: Event) => {
         if (event.currentTarget instanceof HTMLTextAreaElement)
           send({ kind: 'edit-input', body: event.currentTarget.value });
       }}
       @keydown=${(event: KeyboardEvent) => {
-        if (event.isComposing) return;
-        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-          event.preventDefault();
-          send({ kind: 'edit-save' });
-        } else if (event.key === 'Escape') {
+        if (handleTextSubmitKey(event) === 'submit') send({ kind: 'edit-save' });
+        else if (event.key === 'Escape' && !event.isComposing) {
           event.preventDefault();
           event.stopPropagation();
           send({ kind: 'edit-cancel' });

@@ -20,6 +20,8 @@ export type PanelInputs<S> = {
   readonly sendable?: boolean;
   /** The language the panel renders its own text in. */
   readonly locale: Locale;
+  /** The page's text-submit key as the reader's keyboard names it, named in the editor's hint. */
+  readonly submitKey: string;
   /** The host takes edits of posted comments. */
   readonly editable?: boolean;
   /** Which part of the draft the panel shows; both when left out. */
@@ -53,7 +55,7 @@ export type PanelItem = {
   /** Only a comment can be rewritten; `editing` holds its unsaved text. */
   readonly edit:
     | { readonly kind: 'none' | 'available' }
-    | { readonly kind: 'editing'; readonly body: string; readonly canSave: boolean };
+    | { readonly kind: 'editing'; readonly body: string; readonly canSave: boolean; readonly hint: string };
 };
 
 export type PanelViewModel = {
@@ -122,7 +124,12 @@ export const presentPanel = <S>(inputs: PanelInputs<S>, ui: PanelState): PanelVi
         !comment || inputs.editable !== true || inputs.canEdit?.(action.id) === false
           ? { kind: 'none' }
           : ui.editing?.id === action.id
-            ? { kind: 'editing', body: ui.editing.body, canSave: ui.editing.body.trim().length > 0 }
+            ? {
+                kind: 'editing',
+                body: ui.editing.body,
+                canSave: ui.editing.body.trim().length > 0,
+                hint: m.editHint(inputs.submitKey),
+              }
             : { kind: 'available' },
     };
   });

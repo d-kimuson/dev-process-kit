@@ -338,9 +338,9 @@ draft action.
   content's own header controls and your `slot="header"` markup, and, at the end, the language
   select, the theme toggle and the settings gear. The gear opens the settings dialog: the page's own
   switches and any section its view renders, in one frame whose height stays the same as the reader
-  switches sections. It also repeats the header's language select and light/dark choice in an
-  **Appearance** section, so a page whose content has nothing to configure still opens something
-  real; with only that one section the dialog fits it instead of drawing a tall empty frame. The row
+  switches sections. Its **General** section repeats the header's language select and light/dark
+  choice and holds the [text submit key](#text-submit-key), so a page whose content has nothing to
+  configure still opens something real; with only that one section the dialog fits it instead of drawing a tall empty frame. The row
   wraps rather than squeezing its
   content, and on a phone the title takes a row of its own.
 - **The floating menu** carries the page's own controls, in one row or one column: the grip, undo and
@@ -399,6 +399,30 @@ Every view renders light or dark, and its header carries a sun / moon toggle for
 4. the OS preference (`prefers-color-scheme`)
 
 The app sets `color-scheme` on itself, and the color tokens switch with it, so author content that uses `var(--dpk-*)` follows without extra CSS. Hard-coded colors do not: write page CSS with the tokens, and do not paint `html` / `body` with a fixed background (leave the page ground to the view). A mockup that must stay light can set `color-scheme: light` on its own container. A component used on its own follows the page's `color-scheme` (light when the page declares none).
+
+### Text submit key
+
+Every multi-line text field on the page — comment boxes, review replies and suggestions, speaker
+notes, UI notes, a free-text Grill answer, and a `multiline` [inline edit](components/inline-edit.md)
+such as a card description — saves on the same key. The reader picks it in the settings dialog's
+**General** section, under **Save text with** (テキストフォームの保存):
+
+| Choice                        | Saves on                                                           | Inserts a line break                            |
+| ----------------------------- | ------------------------------------------------------------------ | ----------------------------------------------- |
+| `Command` + `Enter` (default) | `Command` + `Enter` on Apple platforms, `Ctrl` + `Enter` elsewhere | `Enter`, `Shift` + `Enter`                      |
+| `Enter`                       | `Enter`                                                            | `Shift` + `Enter`, `Command` / `Ctrl` + `Enter` |
+| `Shift` + `Enter`             | `Shift` + `Enter`                                                  | `Enter`, `Command` / `Ctrl` + `Enter`           |
+
+The choice is named as the reader's keyboard names it (`Command` on Apple platforms, `Ctrl`
+elsewhere), and a hint beside a field ("Ctrl + Enter to save") follows it. No key saves while an
+input method is composing, including the `Enter` that confirms a conversion. One-line inputs (a
+title, a tag, a table cell) keep committing on `Enter`.
+
+The pick is remembered per browser for every page of the origin, like the color scheme
+(`localStorage` key `dev-process-kit:text-submit-key`; for this page load only under
+`storage="off"` / `"memory"`). Picking the default forgets it. While a page runs, the choice is on
+`<html data-dpk-text-submit>` (absent for the default), so components on the page and in other
+bundles read the same value.
 
 ### Theme
 

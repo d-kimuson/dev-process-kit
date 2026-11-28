@@ -3,6 +3,7 @@ import { html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 import type { ElementActionResult } from '../../core/element-actions';
 import type { ActionInput, CommentTargetOption, DraftAction } from '../../core/types';
 
+import { handleTextSubmitKey } from '../../core/text-submit-controller';
 import { BoardChromeBase, isActionPayload } from '../base/element';
 import { chromeStyles } from '../base/styles';
 import { whiteboardAction } from './actions';
@@ -482,7 +483,7 @@ export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelec
       return;
     }
     const oneLine = findItem(this.items(), itemId)?.kind === 'frame';
-    if (event.key === 'Enter' && (oneLine || event.metaKey || event.ctrlKey)) {
+    if (oneLine ? event.key === 'Enter' : handleTextSubmitKey(event) === 'submit') {
       event.preventDefault();
       // Blurring commits.
       this.#focusCanvas();

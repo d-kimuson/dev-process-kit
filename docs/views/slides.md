@@ -13,7 +13,7 @@ dpk-view-slides
 
 The header, the floating menu and the review are the app's ([page.md](../page.md)).
 
-A reader produces two kinds of thing here, and the review rail keeps them apart. Their **comments** are questions and remarks about the deck: the form beneath the slide writes to the slide on screen (`⌘` / `Ctrl` + `Enter` adds it), an unsent comment stays with its slide while the reader moves through the deck, and each comment in the list above the form can be deleted there. The review composer offers the same attachment, and a comment on the deck as a whole. The **speaker notes** are the author's own material; a reader who rewrites them asks for a change to the page, so that edit is listed with the changes — see [Speaker notes](#speaker-notes).
+A reader produces two kinds of thing here, and the review rail keeps them apart. Their **comments** are questions and remarks about the deck: the form beneath the slide writes to the slide on screen (the page's [text submit key](../index.md#text-submit-key), `⌘` / `Ctrl` + `Enter` by default, adds it), an unsent comment stays with its slide while the reader moves through the deck, and each comment in the list above the form can be deleted there. The review composer offers the same attachment, and a comment on the deck as a whole. The **speaker notes** are the author's own material; a reader who rewrites them asks for a change to the page, so that edit is listed with the changes — see [Speaker notes](#speaker-notes).
 
 ## Base data
 
@@ -53,7 +53,7 @@ Keep one idea per slide and a handful of short points: the reader follows one sc
 
 `notes` is the presenter's material: what to say over the slide, kept with the slide in reading order and deliberately **not** part of it. The deck shows it in a pane under the stage, and [presentation](#presentation-mode) shows it beside the slide — the notes are never drawn inside the slide itself, so a deck reads correctly with or without them.
 
-Write them with the base data (the agent's job), or let the reader rewrite one: the pane holds a field for the slide on screen, and it submits when they press **Save notes**, `⌘` / `Ctrl` + `Enter` while the field has focus. Typing alone changes nothing; an IME conversion's `Enter` is left alone. The text they have typed but not sent survives moving to another slide and, through the kit's unsent-text store, a reload ([Persistence](../index.md#persistence)).
+Write them with the base data (the agent's job), or let the reader rewrite one: the pane holds a field for the slide on screen, and it submits when they press **Save notes**, or the page's [text submit key](../index.md#text-submit-key) (`⌘` / `Ctrl` + `Enter` by default) while the field has focus. Typing alone changes nothing; an IME conversion's `Enter` is left alone. The text they have typed but not sent survives moving to another slide and, through the kit's unsent-text store, a reload ([Persistence](../index.md#persistence)).
 
 A saved note is a draft action, `SET_SLIDE_NOTES`, a patch on `slide:<id>`:
 

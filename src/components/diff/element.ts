@@ -10,6 +10,7 @@ import { contextMenuMessages } from '../../core/context-menu/messages';
 import { iconChevronRight, iconComment, iconPencil, iconPlus } from '../../core/icons';
 import { LocaleController } from '../../core/locale-controller';
 import { targetRef } from '../../core/target';
+import { handleTextSubmitKey } from '../../core/text-submit-controller';
 import { CommentPopoverController, reviewCommentMenuGroup } from '../comment-composer/controller';
 import { diffMessages, type DiffMessages } from './messages';
 import {
@@ -704,10 +705,7 @@ export class DpkDiff extends LitElement {
                   event.preventDefault();
                   event.stopPropagation();
                   this.#closeReply(false);
-                } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-                  event.preventDefault();
-                  this.#submitReply(ref);
-                }
+                } else if (handleTextSubmitKey(event) === 'submit') this.#submitReply(ref);
               }}
             >
               <textarea
@@ -807,10 +805,7 @@ export class DpkDiff extends LitElement {
           event.preventDefault();
           event.stopPropagation();
           this.#closeComposer(false);
-        } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-          event.preventDefault();
-          this.#submitComposer();
-        }
+        } else if (handleTextSubmitKey(event) === 'submit') this.#submitComposer();
       }}
     >
       <div class="composer-head">${tabs}<span class="composer-target">${open.label}</span></div>

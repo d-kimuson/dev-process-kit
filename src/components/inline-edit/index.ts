@@ -3,6 +3,7 @@ import { live } from 'lit/directives/live.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import { LocaleController } from '../../core/locale-controller';
+import { handleTextSubmitKey } from '../../core/text-submit-controller';
 import { prose, tokens } from '../../core/theme';
 import { elementOf } from '../../lib/dom/element';
 import { renderMarkdown } from '../../lib/markdown';
@@ -493,10 +494,14 @@ export class DpkInlineEdit extends LitElement {
       this.editing = false;
       return;
     }
+    // A multi-line field saves with the page's text-submit key, like every
+    // other multi-line form; any other Enter breaks the line.
+    if (this.multiline) {
+      if (handleTextSubmitKey(event) === 'submit') this.#commit();
+      return;
+    }
     if (event.key === 'Enter') {
-      // Shift+Enter inserts a line break when multiline allows one; plain
-      // Enter always commits, the same as blur does.
-      if (event.shiftKey && this.multiline) return;
+      // One line: Enter commits, the same as blur does.
       event.preventDefault();
       if (event.shiftKey) return;
       this.#commit();
