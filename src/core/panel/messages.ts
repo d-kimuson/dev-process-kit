@@ -18,6 +18,7 @@ export const panelMessages = defineMessages({
     resizePanel: 'Resize panel',
     resizePanelHint: 'Drag to resize. Double-click to reset',
     commentOnDetail: 'Comment on this element',
+    backToSection: (label: string) => `Back to ${label}`,
     notes: 'Notes',
   },
   ja: {
@@ -37,6 +38,7 @@ export const panelMessages = defineMessages({
     resizePanel: 'パネルの幅を変更',
     resizePanelHint: 'ドラッグで幅を変更。ダブルクリックで元に戻す',
     commentOnDetail: 'この要素にコメント',
+    backToSection: (label: string) => `${label} に戻る`,
     notes: 'メモ',
   },
 });

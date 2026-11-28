@@ -27,6 +27,7 @@ import { coreMessages } from '../messages';
 import { PANEL_HOST, type PanelHost } from '../panel/host';
 import { parsePanelMode } from '../panel/model';
 import { PanelOwner } from '../panel/owner';
+import { SUPPLEMENT_SLOT, supplementsOf, supplementStyles } from '../shell/supplements';
 import { appHostOf, PAGE_HOST, type PageHost } from './host';
 
 /** The content element a page holds: a view or a board. */
@@ -142,7 +143,7 @@ const pageStyles = css`
 `;
 
 export class PageElement extends LitElement {
-  static override styles: CSSResultGroup = pageStyles;
+  static override styles: CSSResultGroup = [pageStyles, supplementStyles];
 
   static override properties = {
     name: { type: String },
@@ -160,7 +161,10 @@ export class PageElement extends LitElement {
   declare panel: string | null;
 
   readonly #locale = new LocaleController(this);
-  /** The page's side panel: its `slot="panel"` sections and the detail its content hands it. */
+  /**
+   * The page's side panel: its `slot="panel"` sections, its content's
+   * supplements (see `#adoptSupplements`), and the detail its content hands it.
+   */
   readonly #panel = new PanelOwner(this, {
     persistKey: () => {
       const app = this.closest('dpk-app');
@@ -173,7 +177,9 @@ export class PageElement extends LitElement {
     locale: () => this.#locale.locale,
     sections: () =>
       Array.from(this.children).filter(
-        (child) => child.localName === 'dpk-panel-section' && child.getAttribute('slot') === 'panel',
+        (child) =>
+          (child.localName === 'dpk-panel-section' && child.getAttribute('slot') === 'panel') ||
+          child.getAttribute('slot') === SUPPLEMENT_SLOT,
       ),
   });
   #content: PageContentElement | null = null;
@@ -283,6 +289,12 @@ export class PageElement extends LitElement {
     defineLayoutElements();
     super.connectedCallback();
     this.#findContent();
+    if (this.#content !== null) this.#watchSupplements(this.#content);
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.#supplementObserver?.disconnect();
   }
 
   /** Asks the content to render again; the app calls this instead of `requestUpdate`. */
@@ -294,6 +306,7 @@ export class PageElement extends LitElement {
     return html`<dpk-internal-layout-panel .owner=${this.#panel}>
       ${this.#renderContentState()}<slot @slotchange=${() => this.#findContent()}></slot>
       <slot name="panel" slot="sections"></slot>
+      <slot name=${SUPPLEMENT_SLOT} slot="sections"></slot>
     </dpk-internal-layout-panel>`;
   }
 
@@ -316,6 +329,33 @@ export class PageElement extends LitElement {
     return nothing;
   }
 
+  #supplementObserver: MutationObserver | null = null;
+
+  /** Takes the content's supplements now and whenever the author adds one to it. */
+  #watchSupplements(content: Element | null): void {
+    this.#supplementObserver?.disconnect();
+    if (content === null) return;
+    this.#supplementObserver ??= new MutationObserver(() => {
+      if (this.#content !== null) this.#adoptSupplements(this.#content);
+    });
+    this.#supplementObserver.observe(content, { childList: true });
+    this.#adoptSupplements(content);
+  }
+
+  /**
+   * The page owns the panel, and a panel shows only its owner's children: the
+   * content's supplements move up to sit right after the content, in the
+   * order written, keeping their slot.
+   */
+  #adoptSupplements(content: Element): void {
+    let anchor: Element = content;
+    while (anchor.nextElementSibling?.getAttribute('slot') === SUPPLEMENT_SLOT) anchor = anchor.nextElementSibling;
+    for (const supplement of supplementsOf(content)) {
+      anchor.after(supplement);
+      anchor = supplement;
+    }
+  }
+
   #findContent(): void {
     const contents = Array.from(this.children).filter(isContent);
     const content = contents[0] ?? null;
@@ -323,6 +363,7 @@ export class PageElement extends LitElement {
     this.#contentKnown = true;
     this.#content = content;
     this.#contentState = null;
+    this.#watchSupplements(content);
     if (content === null) {
       if (this.name !== null) console.warn(`[dev-process-kit] <dpk-page name="${this.name}"> holds no view or board`);
       this.#settle({ status: 'empty' });
