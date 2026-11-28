@@ -19,6 +19,13 @@ export const sequenceDiagramMessages = defineMessages({
     frameHeaderLabel: (operator: string, title: string, collapsed: boolean) =>
       `${operator} · ${collapsed ? `Expand ${title}` : `Collapse ${title}`}`,
     frameCount: (count: number) => `${count} message${count === 1 ? '' : 's'}`,
+    participant: 'Participant',
+    message: 'Message',
+    detailRole: 'Role',
+    detailDescription: 'Description',
+    detailFrom: 'From',
+    detailTo: 'To',
+    detailGuard: 'Condition',
   },
   ja: {
     heading: 'シーケンス図',
@@ -30,6 +37,13 @@ export const sequenceDiagramMessages = defineMessages({
     frameHeaderLabel: (operator: string, title: string, collapsed: boolean) =>
       `${operator} · ${title}を${collapsed ? '展開' : '折りたたむ'}`,
     frameCount: (count: number) => `${count} メッセージ`,
+    participant: '参加者',
+    message: 'メッセージ',
+    detailRole: '役割',
+    detailDescription: '説明',
+    detailFrom: '送信元',
+    detailTo: '送信先',
+    detailGuard: '条件',
   },
 });
 

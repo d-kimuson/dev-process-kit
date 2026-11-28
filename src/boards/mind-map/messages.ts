@@ -12,6 +12,9 @@ export const mindMapMessages = defineMessages({
     addSubtopicPlaceholder: 'Subtopic title (Enter to add)',
     notRecorded: 'Could not record it. Place this inside a dpk-view-* element.',
     addTopicTitle: 'Add topic',
+    detailParent: 'Parent topic',
+    detailDescription: 'Description',
+    detailTags: 'Tags',
     addSummary: (parentLabel: string, label: string) => `${parentLabel} › ${label}`,
   },
   ja: {
@@ -25,6 +28,9 @@ export const mindMapMessages = defineMessages({
     addSubtopicPlaceholder: 'サブトピック名（Enter で追加）',
     notRecorded: '記録できませんでした（dpk-view-* 要素の中に置いてください）。',
     addTopicTitle: 'トピックを追加',
+    detailParent: '親トピック',
+    detailDescription: '説明',
+    detailTags: 'タグ',
     addSummary: (parentLabel: string, label: string) => `${parentLabel} › ${label}`,
   },
 });

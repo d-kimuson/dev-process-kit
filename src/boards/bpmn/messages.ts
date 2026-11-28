@@ -40,6 +40,13 @@ export const bpmnMessages = defineMessages({
     flowLabel: (kind: string, from: string, to: string, label: string | null) =>
       `${kind} flow from ${from} to ${to}${label === null || label === '' ? '' : `: ${label}`}`,
     poolLabel: (name: string) => `Pool: ${name}`,
+    detailKind: 'Type',
+    detailLane: 'Lane',
+    detailDescription: 'Description',
+    detailFrom: 'From',
+    detailTo: 'To',
+    detailCondition: 'Condition',
+    defaultFlow: (kind: string) => `${kind} (default)`,
     laneLabel: (pool: string, lane: string) => `${pool} / ${lane}`,
   },
   ja: {
@@ -60,6 +67,13 @@ export const bpmnMessages = defineMessages({
     flowLabel: (kind: string, from: string, to: string, label: string | null) =>
       `${from} から ${to} への${JA_FLOW[kind] ?? kind}${label === null || label === '' ? '' : `（${label}）`}`,
     poolLabel: (name: string) => `プール: ${name}`,
+    detailKind: '種類',
+    detailLane: 'レーン',
+    detailDescription: '説明',
+    detailFrom: '接続元',
+    detailTo: '接続先',
+    detailCondition: '条件',
+    defaultFlow: (kind: string) => `${kind}（既定）`,
     laneLabel: (pool: string, lane: string) => `${pool} / ${lane}`,
   },
 });

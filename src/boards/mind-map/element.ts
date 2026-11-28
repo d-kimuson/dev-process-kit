@@ -3,10 +3,11 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 import type { ElementActionResult } from '../../core/element-actions';
 import type { CommentTargetOption, DraftAction } from '../../core/types';
 import type { LayoutResult, PlacedNode } from '../../lib/layout/layered';
+import type { CanvasDetail } from '../base/detail-fields';
 
 import { createEntityId } from '../../core/target';
 import { BoardCanvasElement } from '../base/element';
-import { reach, tagStateMatches, type DiagramSelection, type Reach } from '../base/model';
+import { reach, tagStateMatches, type DiagramSelection, type GraphSelection, type Reach } from '../base/model';
 import { diagramStyles } from '../base/styles';
 import { branchPath, layoutMindMap } from './layout';
 import { mindMapMessages } from './messages';
@@ -166,6 +167,26 @@ export class DpkBoardMindMap extends BoardCanvasElement<MindMapData> {
     return {
       nodes: new Map([...below.nodes, ...above.nodes]),
       edges: new Set([...below.edges, ...above.edges]),
+    };
+  }
+
+  protected override get providesPanelDetail(): boolean {
+    return true;
+  }
+
+  protected override detailFields(selection: GraphSelection): CanvasDetail | null {
+    const m = mindMapMessages(this.locale);
+    const nodes = this.items().nodes;
+    const node = selection.kind === 'node' ? nodes.find((candidate) => candidate.id === selection.id) : undefined;
+    if (node === undefined) return null;
+    return {
+      kind: m.topics,
+      name: node.label,
+      fields: [
+        { label: m.detailParent, value: nodes.find((candidate) => candidate.id === node.parent)?.label ?? null },
+        { label: m.detailDescription, value: node.description },
+        { label: m.detailTags, value: node.tags.join(', ') },
+      ],
     };
   }
 

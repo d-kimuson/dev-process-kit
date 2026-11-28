@@ -21,6 +21,12 @@ export const dependencyGraphMessages = defineMessages({
     edgeLabel: (from: string, to: string) => `${from} depends on ${to}`,
     cyclicSuffix: (name: string) => `${name}, part of a cycle`,
     cycleBadge: 'Cycle',
+    detailPath: 'Path',
+    detailLayer: 'Layer',
+    detailDescription: 'Description',
+    detailFrom: 'Dependent',
+    detailTo: 'Dependency',
+    detailContract: 'Contract',
   },
   ja: {
     heading: '依存関係グラフ',
@@ -42,6 +48,12 @@ export const dependencyGraphMessages = defineMessages({
     edgeLabel: (from: string, to: string) => `${from} が ${to} に依存`,
     cyclicSuffix: (name: string) => `${name}・循環依存あり`,
     cycleBadge: '循環',
+    detailPath: 'パス',
+    detailLayer: 'レイヤー',
+    detailDescription: '説明',
+    detailFrom: '依存元',
+    detailTo: '依存先',
+    detailContract: '契約',
   },
 });
 

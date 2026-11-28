@@ -2,6 +2,7 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutOptions, LayoutPoint, LayoutResult } from '../../lib/layout/layered';
+import type { CanvasDetail } from '../base/detail-fields';
 
 import { END_MARKERS, edgeBody, edgeSteps, type EdgeEndView, type EdgeSpec } from '../../components/diagram/edge';
 import { jumpedPaths } from '../../lib/layout/line-jumps';
@@ -15,6 +16,7 @@ import {
   reach,
   tagStateMatches,
   type DiagramSelection,
+  type GraphSelection,
   type Reach,
 } from '../base/model';
 import { diagramStyles } from '../base/styles';
@@ -265,6 +267,41 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
     });
     this.#paths = { signature, byId: jumped };
     return assemble(jumped);
+  }
+
+  protected override get providesPanelDetail(): boolean {
+    return true;
+  }
+
+  protected override detailFields(selection: GraphSelection): CanvasDetail | null {
+    const m = dependencyGraphMessages(this.locale);
+    const items = this.items();
+    const name = (id: string) => items.nodes.find((node) => node.id === id)?.name ?? id;
+    if (selection.kind === 'node') {
+      const module = items.nodes.find((candidate) => candidate.id === selection.id);
+      if (module === undefined) return null;
+      return {
+        kind: m.node,
+        name: module.name,
+        fields: [
+          { label: m.detailPath, value: module.path },
+          { label: m.detailLayer, value: module.layer },
+          { label: m.detailDescription, value: module.description },
+        ],
+      };
+    }
+    const link = items.edges.find((candidate) => candidate.id === selection.id);
+    if (link === undefined) return null;
+    return {
+      kind: m.edge,
+      name: m.edgeLabel(name(link.from), name(link.to)),
+      fields: [
+        { label: m.detailFrom, value: name(link.from) },
+        { label: m.detailTo, value: name(link.to) },
+        { label: m.detailContract, value: link.contract },
+        { label: m.detailDescription, value: link.description },
+      ],
+    };
   }
 
   protected override renderCanvas(): TemplateResult {

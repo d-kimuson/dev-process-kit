@@ -7,6 +7,12 @@ export const stateDiagramMessages = defineMessages({
     edge: 'Transition',
     empty: 'No matching transitions.',
     transitionLabel: (from: string, to: string, title: string) => `${title} from ${from} to ${to}`,
+    detailCode: 'Code',
+    detailDescription: 'Description',
+    detailFrom: 'From',
+    detailTo: 'To',
+    detailGuard: 'Guard',
+    detailEffect: 'Effect',
   },
   ja: {
     heading: 'ステート図',
@@ -14,6 +20,12 @@ export const stateDiagramMessages = defineMessages({
     edge: '遷移',
     empty: '該当する遷移はありません。',
     transitionLabel: (from: string, to: string, title: string) => `${from} から ${to} への ${title}`,
+    detailCode: 'コード',
+    detailDescription: '説明',
+    detailFrom: '遷移元',
+    detailTo: '遷移先',
+    detailGuard: 'ガード条件',
+    detailEffect: '効果',
   },
 });
 
