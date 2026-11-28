@@ -3,6 +3,9 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutOptions, LayoutPoint, LayoutResult } from '../../lib/layout/layered';
 
+import { jumpedPaths } from '../../lib/layout/line-jumps';
+import { endFrame, stepsData, type PathStep } from '../../lib/layout/path-steps';
+import { END_MARKERS, edgeBody, edgeSteps, type EdgeEndView, type EdgeSpec } from '../base/edge';
 import { BoardCanvasElement } from '../base/element';
 import {
   cycleMembership,
@@ -15,7 +18,7 @@ import {
   type Reach,
 } from '../base/model';
 import { diagramStyles } from '../base/styles';
-import { roundedPathData } from '../base/view';
+import { CORNER_RADIUS } from '../base/view';
 import { dependencyGraphMessages } from './messages';
 import {
   emptyDependencyData,
@@ -33,7 +36,15 @@ type EdgeKind = 'neutral' | 'cycle' | 'outgoing' | 'incoming' | 'selected';
 /** Paint order: a highlighted edge is drawn over the plain ones it shares a trunk with. */
 const EDGE_KINDS: readonly EdgeKind[] = ['neutral', 'cycle', 'incoming', 'outgoing', 'selected'];
 
-const ARROWS = EDGE_KINDS.map((kind) => ({ id: `dep-${kind}` }));
+/** Every dependency is a solid line ending in an arrowhead; the kind's colour comes from `--d-edge-line`. */
+const DEPENDENCY_SPEC: EdgeSpec = { line: 'solid', start: null, end: END_MARKERS.arrow, flow: 'active' };
+
+/**
+ * A jump keeps clear of each end glyph's own reach. The router already leaves
+ * `ROUTE_CLEARANCE` (24) straight in front of a port, so this is a tighter bound
+ * than the route gives and never disturbs a drawn glyph.
+ */
+const JUMP_CLEARANCE = END_MARKERS.arrow.reach;
 
 /** Module dependencies: pick a module to see what it uses and what uses it. */
 export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> {
@@ -46,6 +57,8 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
   #outgoing: Reach = EMPTY_REACH;
   #incoming: Reach = EMPTY_REACH;
   #routed: { readonly key: string; readonly placement: LayoutResult } | null = null;
+  /** Jumped paths for the routes they were computed from; a hover or a selection reuses them. */
+  #paths: { readonly signature: string; readonly byId: ReadonlyMap<string, string> } | null = null;
 
   protected override parseData(input: unknown): DependencyData {
     return parseDependencyData(input);
@@ -219,11 +232,47 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
     return 'neutral';
   }
 
+  /**
+   * Every dependency's drawn `d` and its arrival frame, its level runs jumping
+   * the lines that cross them. Edges leaving one module share a trunk, so
+   * `bundle: link.from` keeps them from jumping each other. Memoised by route
+   * signature, so a hover or a selection (which only changes classes) reuses its
+   * own paths; mid-drag the lines draw plain, as the ER board's do.
+   */
+  #drawn(): ReadonlyMap<string, { readonly d: string; readonly end: EdgeEndView | null }> {
+    const lines = new Map<string, readonly PathStep[]>();
+    const ends = new Map<string, EdgeEndView>();
+    const bundles = new Map<string, string>();
+    for (const link of this.visible.edges) {
+      const route = this.routeOf(link.id);
+      lines.set(link.id, edgeSteps(route, DEPENDENCY_SPEC, { radius: CORNER_RADIUS }));
+      bundles.set(link.id, link.from);
+      if (route.length >= 2)
+        ends.set(link.id, { side: 'end', marker: END_MARKERS.arrow, frame: endFrame(route, 'end') });
+    }
+    const assemble = (
+      data: ReadonlyMap<string, string>,
+    ): Map<string, { readonly d: string; readonly end: EdgeEndView | null }> =>
+      new Map([...data].map(([id, d]) => [id, { d, end: ends.get(id) ?? null }] as const));
+    if (this.draggedNodeIds().size > 0) {
+      return assemble(new Map([...lines].map(([id, steps]) => [id, stepsData(steps)] as const)));
+    }
+    const signature = [...lines].map(([id, steps]) => `${id}:${stepsData(steps)}`).join('|');
+    if (this.#paths?.signature === signature) return assemble(this.#paths.byId);
+    const jumped = jumpedPaths(lines, new Set(lines.keys()), {
+      clearance: JUMP_CLEARANCE,
+      bundle: (id) => bundles.get(id) ?? null,
+    });
+    this.#paths = { signature, byId: jumped };
+    return assemble(jumped);
+  }
+
   protected override renderCanvas(): TemplateResult {
     const m = dependencyGraphMessages(this.locale);
     const visible = this.visible;
     const membership = cycleMembership(this.#allCycles);
     const name = (id: string) => visible.nodes.find((node) => node.id === id)?.name ?? id;
+    const drawn = this.#drawn();
     const routesBySource = new Map<string, (readonly LayoutPoint[])[]>();
     const edges = visible.edges
       .map((link) => {
@@ -233,37 +282,35 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
         return { link, route, junction: branchPoint(route, siblings), kind: this.#edgeKind(link, membership) };
       })
       .sort((a, b) => EDGE_KINDS.indexOf(a.kind) - EDGE_KINDS.indexOf(b.kind))
-      .map(({ link, route, junction, kind }) => {
+      .map(({ link, junction, kind }) => {
         const state = this.edgeState(link.id);
-        const points = roundedPathData(route);
+        const body = drawn.get(link.id);
         const select = () => this.select({ kind: 'edge', id: link.id });
         return svg`
           <g
-            class=${this.elementClass(state, 'd-edge', 'dep-edge', `is-${kind}`)}
+            class=${this.elementClass(
+              state,
+              'd-edge',
+              'dep-edge',
+              `is-${kind}`,
+              (kind === 'outgoing' || kind === 'incoming') && 'is-flowing',
+            )}
             data-dependency=${link.id}
             data-dpk-target=${this.commentRef('edge', link.id)}
             data-dpk-check="off"
           >
             <title>${[link.contract, link.description].filter((value) => value !== null).join('\n') || link.id}</title>
-            <path class="d-edge-path" d=${points} marker-end=${`url(#dep-${kind})`}></path>
+            ${edgeBody({
+              d: body?.d ?? '',
+              ends: body?.end === null || body?.end === undefined ? [] : [body.end],
+              flow: true,
+              hit: { label: m.edgeLabel(name(link.from), name(link.to)), onSelect: select },
+            })}
             ${
               junction === null
                 ? nothing
                 : svg`<circle class="dep-junction" cx=${junction.x} cy=${junction.y} r="3"></circle>`
             }
-            <path
-              class="d-edge-hit"
-              d=${points}
-              role="button"
-              tabindex="0"
-              aria-label=${m.edgeLabel(name(link.from), name(link.to))}
-              @click=${select}
-              @keydown=${(event: KeyboardEvent) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                event.preventDefault();
-                select();
-              }}
-            ></path>
           </g>
         `;
       });
@@ -307,6 +354,6 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
         </button>
       `;
     });
-    return html`${this.renderEdges(edges, ARROWS)}${nodes}`;
+    return html`${this.renderEdges(edges)}${nodes}`;
   }
 }

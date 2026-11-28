@@ -62,7 +62,6 @@ import {
 import { PositionController } from './position-controller';
 import { presentStats } from './present';
 import { chromeStyles, diagramStyles } from './styles';
-import { arrowDefinitions, type ArrowDefinition } from './view';
 
 /** What a diagram drives of its canvas: the canvas methods of `<dpk-dialog-panel canvas>`. */
 export type DiagramViewport = Pick<
@@ -1184,12 +1183,10 @@ export abstract class BoardCanvasElement<D extends DiagramData> extends BoardCan
   }
 
   /** SVG wrapper for the edges; the width/height follow the current layout. */
-  protected renderEdges(content: unknown, definitions: readonly ArrowDefinition[]): TemplateResult {
+  protected renderEdges(content: unknown): TemplateResult {
     const width = this.#appliedPlacement?.width ?? 0;
     const height = this.#appliedPlacement?.height ?? 0;
-    return html`<svg class="diagram-edges" width=${width} height=${height}>
-      ${arrowDefinitions(definitions)}${content}
-    </svg>`;
+    return html`<svg class="diagram-edges" width=${width} height=${height}>${content}</svg>`;
   }
 
   protected filtered(): D {

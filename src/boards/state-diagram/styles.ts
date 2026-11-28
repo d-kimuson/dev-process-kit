@@ -190,6 +190,10 @@ export const stateDiagramStyles = css`
   }
 
   .state-edge.is-selected .d-edge-path {
+    /* Restate the colour: the base .d-edge.is-selected .d-edge-path rule wins the
+       stroke (same specificity) and would paint the line ink while the head stays
+       --d-edge-line. */
+    stroke: var(--d-edge-line);
     stroke-width: 2.2px;
   }
 

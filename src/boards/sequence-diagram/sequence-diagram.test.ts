@@ -230,6 +230,93 @@ describe('sequence diagram data', () => {
   });
 });
 
+describe('sequence diagram drawn messages', () => {
+  /*
+   * Characterisation before the message lines move onto the shared edge
+   * primitives: the exact `d` and class list of each message, for a sample with
+   * a request, a dashed response, an async message and a self-message.
+   */
+  const sample = {
+    participants: [
+      { id: 'ui', name: 'UI', symbol: 'UI' },
+      { id: 'api', name: 'API', symbol: 'API' },
+    ],
+    items: [
+      { kind: 'message', id: 'req', from: 'ui', to: 'api', title: 'request' },
+      { kind: 'message', id: 'res', from: 'api', to: 'ui', title: 'response', style: 'response' },
+      { kind: 'message', id: 'note', from: 'api', to: 'ui', title: 'notify', style: 'async' },
+      { kind: 'message', id: 'self', from: 'api', to: 'api', title: 'retry' },
+    ],
+  } as const;
+
+  it('draws each message the same way', async () => {
+    const element = new DpkBoardSequenceDiagram();
+    element.data = parseSequenceData(sample);
+    document.body.append(element);
+    await settle(element);
+    const drawn = [...element.renderRoot.querySelectorAll<SVGGElement>('.sequence-message-row')]
+      .map((group) => ({
+        id: group.dataset['message'] ?? '',
+        classes: [...group.classList].sort().join(' '),
+        d: group.querySelector('.sequence-message')?.getAttribute('d') ?? '',
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    expect(drawn).toMatchInlineSnapshot(`
+      [
+        {
+          "classes": "d-edge is-async sequence-message-row",
+          "d": "M360 182 H120",
+          "id": "note",
+        },
+        {
+          "classes": "d-edge is-request sequence-message-row",
+          "d": "M120 54 H360",
+          "id": "req",
+        },
+        {
+          "classes": "d-edge is-response sequence-message-row",
+          "d": "M360 118 H120",
+          "id": "res",
+        },
+        {
+          "classes": "d-edge is-request sequence-message-row",
+          "d": "M360 246 h42 v25 H360",
+          "id": "self",
+        },
+      ]
+    `);
+  });
+
+  it('draws each arrowhead inline, with no <marker> left in the canvas', async () => {
+    const element = new DpkBoardSequenceDiagram();
+    element.data = parseSequenceData(sample);
+    document.body.append(element);
+    await settle(element);
+    expect(element.renderRoot.querySelectorAll('marker')).toHaveLength(0);
+    const ends = [...element.renderRoot.querySelectorAll<SVGGElement>('.sequence-message-row .d-edge-end')];
+    expect(ends).toHaveLength(4);
+    for (const end of ends) expect(end.getAttribute('data-end')).toBe('end');
+  });
+
+  it('draws an async message with an open head, every other style with a filled one', async () => {
+    const element = new DpkBoardSequenceDiagram();
+    element.data = parseSequenceData(sample);
+    document.body.append(element);
+    await settle(element);
+    const glyph = (id: string): string | null =>
+      element.renderRoot.querySelector(`[data-message="${id}"] .d-edge-end`)?.getAttribute('data-glyph') ?? null;
+    // The old `seq-async` marker had no `open`: async drew a filled head. It is
+    // now the open arrow.
+    expect(glyph('note')).toBe('openArrow');
+    expect(glyph('req')).toBe('arrow');
+    expect(glyph('res')).toBe('arrow');
+    expect(glyph('self')).toBe('arrow');
+    // The open arrow is an unpainted polyline; the filled arrow a `line` polygon.
+    expect(element.renderRoot.querySelector('[data-message="note"] .d-edge-end polyline')).not.toBeNull();
+    expect(element.renderRoot.querySelector('[data-message="note"] .d-edge-end [data-paint="line"]')).toBeNull();
+  });
+});
+
 describe('dpk-board-sequence-diagram', () => {
   it('renders the participant rail, numbered messages and a folded fragment', async () => {
     const element = await mount();

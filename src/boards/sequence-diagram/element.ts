@@ -1,13 +1,15 @@
 import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
 import type { CommentTargetOption } from '../../core/types';
+import type { LayoutPoint } from '../../lib/layout/layered';
 import type { ViewState } from '../base/viewport';
 
 import { iconChevronDown, iconChevronRight } from '../../core/icons';
+import { endFrame } from '../../lib/layout/path-steps';
+import { END_MARKERS, edgeEnds } from '../base/edge';
 import { BoardCanvasChromeElement, CHROMELESS_FIGURE_PADDING } from '../base/element';
 import { tagStateMatches, type ElementState } from '../base/model';
 import { diagramStyles } from '../base/styles';
-import { arrowDefinitions } from '../base/view';
 import { sequenceDiagramMessages } from './messages';
 import {
   emptySequenceData,
@@ -28,14 +30,6 @@ import { sequenceStyles } from './styles';
 export type SequenceSelection =
   | { readonly kind: 'participant'; readonly id: string }
   | { readonly kind: 'message'; readonly id: string };
-
-const ARROWS = [
-  { id: 'seq-request' },
-  { id: 'seq-response' },
-  { id: 'seq-async' },
-  { id: 'seq-related' },
-  { id: 'seq-selected' },
-] as const;
 
 /** Interaction diagram: participants on a rail, messages as numbered rows. */
 export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDiagramData, SequenceSelection> {
@@ -318,17 +312,26 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
     const messages = layout.rows.map((row) => {
       const from = layout.x.get(row.message.from) ?? 0;
       const to = layout.x.get(row.message.to) ?? 0;
-      const d = from === to ? `M${from} ${row.y} h42 v25 H${from}` : `M${from} ${row.y} H${to}`;
+      const self = from === to;
+      // A message is a hand-drawn line (a self-message is a square loop, not a
+      // routed bend), so the board keeps its own `sequence-message` path and only
+      // adds the inline head, placed from the same polyline.
+      const d = self ? `M${from} ${row.y} h42 v25 H${from}` : `M${from} ${row.y} H${to}`;
+      const points: readonly LayoutPoint[] = self
+        ? [
+            { x: from, y: row.y },
+            { x: from + 42, y: row.y },
+            { x: from + 42, y: row.y + 25 },
+            { x: from, y: row.y + 25 },
+          ]
+        : [
+            { x: from, y: row.y },
+            { x: to, y: row.y },
+          ];
       const state = this.#messageState(row.message.id);
-      const marker = state.selected
-        ? 'seq-selected'
-        : state.related
-          ? 'seq-related'
-          : row.message.style === 'async'
-            ? 'seq-async'
-            : row.message.style === 'response'
-              ? 'seq-response'
-              : 'seq-request';
+      // Async is an open head; every other style keeps a filled arrow. Selection
+      // and relation recolour the head through `--d-edge-line`, as before.
+      const marker = row.message.style === 'async' ? END_MARKERS.openArrow : END_MARKERS.arrow;
       const select = () => this.select({ kind: 'message', id: row.message.id });
       return svg`
         <g
@@ -344,12 +347,13 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
               event.preventDefault();
               select();
             }}></path>
-          <path class="sequence-message is-${row.message.style}" d=${d} marker-end=${`url(#${marker})`}></path>
+          <path class="sequence-message is-${row.message.style}" d=${d}></path>
+          ${edgeEnds([{ side: 'end', marker, frame: endFrame(points, 'end') }])}
         </g>
       `;
     });
     return html`<svg class="diagram-edges" width=${layout.width} height=${layout.height}>
-      ${arrowDefinitions(ARROWS)} ${lifelines} ${dividers} ${messages}
+      ${lifelines} ${dividers} ${messages}
     </svg>`;
   }
 

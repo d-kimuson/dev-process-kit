@@ -455,6 +455,10 @@ describe('state diagram line jumps', () => {
   const drawn = (element: DpkBoardStateDiagram, id: string): string =>
     element.renderRoot.querySelector(`[data-transition="${id}"] .d-edge-path`)?.getAttribute('d') ?? '';
 
+  const pointer = (target: HTMLElement, type: string, clientX: number, clientY: number): void => {
+    target.dispatchEvent(new PointerEvent(type, { pointerId: 1, button: 0, clientX, clientY, bubbles: true }));
+  };
+
   it('lifts a level run over the transition crossing it, leaving the crossed line straight', async () => {
     const element = await mountData(crossing);
     expect(drawn(element, 'ac')).toMatch(/L[\d.]+ \d+ A6 6 0 0 1 [\d.]+ \d+ L/);
@@ -464,9 +468,27 @@ describe('state diagram line jumps', () => {
   it('draws the same jumps again from cache on a re-render, and none mid-drag', async () => {
     const element = await mountData(crossing);
     const withJump = drawn(element, 'ac');
+    expect(withJump).toContain(' A');
     element.select({ kind: 'node', id: 'a' });
     await settle(element);
+    // A selection only changes classes: the cached, jumped path is reused.
     expect(drawn(element, 'ac')).toBe(withJump);
+
+    // A real drag redraws the lines plain, so a crossing is not recomputed on
+    // every pointer move; dropping puts the jumps back.
+    if (!('setPointerCapture' in HTMLElement.prototype)) {
+      Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { configurable: true, value: () => {} });
+    }
+    const card = element.renderRoot.querySelector<HTMLElement>('[data-state="a"]');
+    if (!card) throw new Error('missing state card');
+    pointer(card, 'pointerdown', 10, 10);
+    pointer(card, 'pointermove', 80, 60);
+    await settle(element);
+    expect(card.classList.contains('is-dragging')).toBe(true);
+    expect(drawn(element, 'ac')).not.toContain(' A');
+    pointer(card, 'pointerup', 80, 60);
+    await settle(element);
+    expect(drawn(element, 'ac')).toContain(' A');
   });
 });
 

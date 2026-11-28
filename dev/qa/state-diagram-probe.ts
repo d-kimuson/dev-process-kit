@@ -156,7 +156,7 @@ const gates = `(() => {
     const end = path.getPointAtLength(path.getTotalLength());
     if (off(start.x, points[0].x) || off(start.y, points[0].y) || off(end.x, points.at(-1).x) || off(end.y, points.at(-1).y))
       note('drawn', 'path ' + group.dataset.transition);
-    if (!path.getAttribute('marker-end')) note('drawn', 'no arrowhead ' + group.dataset.transition);
+    if (!group.querySelector('.d-edge-end [data-paint="line"]')) note('drawn', 'no arrowhead ' + group.dataset.transition);
   }
   if (paths.length !== edges.length) note('drawn', 'edge count ' + paths.length + ' of ' + edges.length);
 
@@ -287,8 +287,8 @@ const contrast = `(() => {
     const kind = pick(group, ['selected', 'related', 'exception'], 'normal');
     const path = group.querySelector('.d-edge-path');
     add('line ' + kind, rgba(getComputedStyle(path).stroke), ground, 3);
-    const marker = /#([\\w-]+)/.exec(path.getAttribute('marker-end'))[1];
-    add('arrowhead ' + kind, rgba(getComputedStyle(root.getElementById(marker).querySelector('.diagram-arrow')).fill), ground, 3);
+    // The head is drawn inline (no <marker>), so read the glyph's own fill.
+    add('arrowhead ' + kind, rgba(getComputedStyle(group.querySelector('.d-edge-end [data-paint="line"]')).fill), ground, 3);
   }
   for (const label of root.querySelectorAll('[data-transition-label]')) {
     if (!live(label)) continue;

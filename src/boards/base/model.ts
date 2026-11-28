@@ -175,9 +175,13 @@ export const stateOf = (
   };
 };
 
-/** Shared class names so every diagram dims and highlights the same way. */
+/**
+ * Shared class names so every diagram dims and highlights the same way. A name
+ * a board passes in and the state adds again (`is-selected`, when the state's
+ * own kind is also `selected`) appears once, keeping its first position.
+ */
 export const classNames = (...entries: readonly (string | false | null | undefined)[]): string =>
-  entries.filter((entry): entry is string => typeof entry === 'string' && entry !== '').join(' ');
+  [...new Set(entries.filter((entry): entry is string => typeof entry === 'string' && entry !== ''))].join(' ');
 
 /**
  * Where an orthogonal route can carry a label without covering its own line:

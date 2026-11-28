@@ -7,7 +7,8 @@ import type { LayoutPoint } from '../../lib/layout/layered';
 import { currentPositionStorageKey } from '../../core/layout-position-storage';
 import { parseTargetRef } from '../../core/target';
 import { scoreLayout, type LayoutGeometry } from '../../lib/layout/metrics';
-import { DpkBoardArchitectureMap } from './element';
+import { stepsData } from '../../lib/layout/path-steps';
+import { archLinkSteps, DpkBoardArchitectureMap } from './element';
 import { defineArchitectureMap } from './index';
 import { architectureMapMessages } from './messages';
 import { boundaryBoxes, parseArchitectureData, SERVICE_SIZE } from './model';
@@ -229,6 +230,123 @@ describe('architecture map data', () => {
     const data = boxes.find((box) => box.boundary.id === 'data');
     expect(data).toMatchObject({ x: 300 - 28, y: SERVICE_SIZE.height * 2 + 400 - 28 * 1.6 });
     expect((data?.x ?? 0) + (data?.width ?? 0)).toBe(300 + 220 + 28);
+  });
+});
+
+describe('architecture map drawn edges', () => {
+  /*
+   * Characterisation before `linkPath` becomes `archLinkSteps`: the exact `d`
+   * each link is drawn with, so a rewrite that returns path steps instead of a
+   * string can be proven to draw the same thing.
+   */
+  it('draws each link the same way', async () => {
+    const element = await mount();
+    const drawn = [...element.renderRoot.querySelectorAll<SVGGElement>('[data-link]')]
+      .map((group) => ({
+        id: group.dataset['link'] ?? '',
+        d: group.querySelector('.d-edge-path')?.getAttribute('d') ?? '',
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    expect(drawn).toMatchInlineSnapshot(`
+      [
+        {
+          "d": "M292 132 L372 132",
+          "id": "browser-orders",
+        },
+        {
+          "d": "M480 184 L480 292",
+          "id": "orders-database",
+        },
+        {
+          "d": "M592 144 L642 144 Q648 144 648 150 L648 342 Q648 348 654 348 L692 348",
+          "id": "orders-mail",
+        },
+        {
+          "d": "M592 120 L692 120",
+          "id": "orders-payment",
+        },
+      ]
+    `);
+  });
+});
+
+describe('archLinkSteps', () => {
+  // The step builder that replaced `linkPath`; `stepsData` must serialise to the
+  // exact strings the old string builder produced.
+  it('draws a straight link as a plain line', () => {
+    expect(
+      stepsData(
+        archLinkSteps([
+          { x: 0, y: 0 },
+          { x: 80, y: 0 },
+        ]),
+      ),
+    ).toBe('M0 0 L80 0');
+  });
+
+  it('rounds each bend and keeps the run into the arrowhead straight', () => {
+    expect(
+      stepsData(
+        archLinkSteps([
+          { x: 0, y: 0 },
+          { x: 60, y: 0 },
+          { x: 60, y: 60 },
+          { x: 120, y: 60 },
+        ]),
+      ),
+    ).toBe('M0 0 L54 0 Q60 0 60 6 L60 54 Q60 60 66 60 L120 60');
+  });
+
+  it('leaves no rounding on a short last run into the arrowhead', () => {
+    expect(
+      stepsData(
+        archLinkSteps([
+          { x: 0, y: 0 },
+          { x: 60, y: 0 },
+          { x: 60, y: 20 },
+          { x: 90, y: 20 },
+        ]),
+      ),
+    ).toBe('M0 0 L54 0 Q60 0 60 6 L60 14 Q60 20 66 20 L90 20');
+  });
+});
+
+describe('architecture map inline arrowheads and jumps', () => {
+  it('draws each arrowhead inline, with no <marker> left in the canvas', async () => {
+    const element = await mount();
+    expect(element.renderRoot.querySelectorAll('marker')).toHaveLength(0);
+    const ends = [...element.renderRoot.querySelectorAll<SVGGElement>('[data-link] .d-edge-end')];
+    expect(ends).toHaveLength(4);
+    for (const end of ends) {
+      expect(end.dataset['glyph']).toBe('arrow');
+      expect(end.querySelector('[data-paint="line"]')).not.toBeNull();
+    }
+  });
+
+  it('lifts a level link over the one crossing it, leaving the crossed link straight', async () => {
+    // Two horizontal links on one row, with a vertical link crossing both between
+    // them: the level runs jump the crossing.
+    const data = parseArchitectureData({
+      services: [
+        { id: 'l1', name: 'L1', position: { x: 0, y: 200 } },
+        { id: 'r1', name: 'R1', position: { x: 600, y: 200 } },
+        { id: 'top', name: 'Top', position: { x: 300, y: 0 } },
+        { id: 'bottom', name: 'Bottom', position: { x: 300, y: 600 } },
+      ],
+      links: [
+        { id: 'l1-r1', from: 'l1', to: 'r1' },
+        { id: 'top-bottom', from: 'top', to: 'bottom' },
+      ],
+    });
+    const element = await mountData(data);
+    const paths = [...element.renderRoot.querySelectorAll('[data-link] .d-edge-path')].map((path) => ({
+      id: path.closest('[data-link]')?.getAttribute('data-link'),
+      d: path.getAttribute('d') ?? '',
+    }));
+    const level = paths.find((path) => path.id === 'l1-r1')?.d ?? '';
+    const vertical = paths.find((path) => path.id === 'top-bottom')?.d ?? '';
+    expect(level).toMatch(/ A\d/);
+    expect(vertical).not.toContain(' A');
   });
 });
 

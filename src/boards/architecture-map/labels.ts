@@ -1,6 +1,9 @@
 import type { LayoutPoint } from '../../lib/layout/layered';
 import type { RouteRect } from './route';
 
+import { endFrame } from '../../lib/layout/path-steps';
+import { END_MARKERS, markerZone } from '../base/edge/glyphs';
+
 /**
  * Where each link's label chip goes.
  *
@@ -36,8 +39,12 @@ export const LINK_CHIP = { height: 20, tallHeight: 34, maxWidth: 176, minWidth: 
 /** Widths of a shortened chip, as a share of the label's full width, tried in turn until one fits. */
 const SHORTENED = [0.75, 0.55, 0.4] as const;
 
-/** Length of the arrowhead along its link, and half its width. */
-const ARROW = { length: 12, half: 6 } as const;
+/**
+ * The arrowhead a chip keeps off, taken from the glyph the board draws. The
+ * old constant here was 12 long and 6 half-wide; the inline `END_MARKERS.arrow`
+ * is 10 long and 4.5 half-wide, so the reserved box now matches what is drawn.
+ */
+const ARROW = { length: END_MARKERS.arrow.reach, half: END_MARKERS.arrow.halfWidth } as const;
 /** Gap between a link and a chip set beside it: clear of the arrowhead's width. */
 const BESIDE_GAP = 7;
 const STEP = 12;
@@ -107,17 +114,10 @@ const lengthOf = (points: readonly LayoutPoint[]): number =>
     return sum + Math.abs(point.x - previous.x) + Math.abs(point.y - previous.y);
   }, 0);
 
-/** The box an arrowhead covers at the end of `points`. */
+/** The box an arrowhead covers at the end of `points`, from the glyph's own zone. */
 const arrowBox = (points: readonly LayoutPoint[]): RouteRect | null => {
-  const tip = points.at(-1);
-  const before = points.at(-2);
-  if (tip === undefined || before === undefined) return null;
-  const dx = Math.sign(tip.x - before.x);
-  const dy = Math.sign(tip.y - before.y);
-  const tail = { x: tip.x - dx * ARROW.length, y: tip.y - dy * ARROW.length };
-  return dx === 0
-    ? { x: tip.x - ARROW.half, y: Math.min(tip.y, tail.y), width: ARROW.half * 2, height: ARROW.length }
-    : { x: Math.min(tip.x, tail.x), y: tip.y - ARROW.half, width: ARROW.length, height: ARROW.half * 2 };
+  if (points.length < 2) return null;
+  return markerZone(END_MARKERS.arrow, endFrame(points, 'end'));
 };
 
 /** How much of the segment `a`–`b` lies under `box`. */

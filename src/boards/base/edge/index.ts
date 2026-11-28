@@ -20,6 +20,7 @@ export { edgeReach, edgeSteps, type EdgeSpec, type EdgeStepsOptions, type FlowSt
 export {
   EDGE_PATHS,
   edgeBody,
+  edgeEnds,
   edgeTextLabel,
   lineStyleClass,
   type EdgeBodyView,

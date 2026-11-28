@@ -138,13 +138,13 @@ const geometryProbe = (board: string): string => `(() => {
     if (route.points.length < 2 || !onBorder(route.points.at(-1), end, route.points.at(-2))) found.looseEnd.push(route.id + ' to');
   }
 
-  // Arrowheads: the last 12px of a link, 10px across.
+  // Arrowheads: the inline glyph is 10px long and 9px across (markerZone of END_MARKERS.arrow).
   const arrows = routes.filter((route) => route.points.length >= 2).map((route) => {
     const tip = route.points.at(-1), before = route.points.at(-2);
     const dx = Math.sign(tip.x - before.x), dy = Math.sign(tip.y - before.y);
     return dx === 0
-      ? { id: route.id, x: tip.x - 5, y: Math.min(tip.y, tip.y - dy * 12), width: 10, height: 12 }
-      : { id: route.id, x: Math.min(tip.x, tip.x - dx * 12), y: tip.y - 5, width: 12, height: 10 };
+      ? { id: route.id, x: tip.x - 4.5, y: Math.min(tip.y, tip.y - dy * 10), width: 9, height: 10 }
+      : { id: route.id, x: Math.min(tip.x, tip.x - dx * 10), y: tip.y - 4.5, width: 10, height: 9 };
   });
   const lengthUnder = (points, box) => points.slice(1).reduce((sum, to, index) => {
     const from = points[index];
@@ -301,7 +301,7 @@ const contrastProbe = (board: string): string => `(async () => {
   put('external boundary border', 3, on('.arch-boundary.is-external', (node) => paint(node, 'borderTopColor')));
   put('link label', 4.5, on('.arch-link-chip', text));
   put('link', 3, on('.arch-link .d-edge-path', (node) => paint(node, 'stroke')));
-  put('arrowhead', 3, on('#arch-neutral .diagram-arrow', (node) => paint(node, 'fill')));
+  put('arrowhead', 3, on('.arch-link .d-edge-end [data-paint="line"]', (node) => paint(node, 'fill')));
 
   const edges = el.visible.edges;
   const hub = [...el.visible.nodes].sort((a, b) =>
@@ -314,14 +314,14 @@ const contrastProbe = (board: string): string => `(async () => {
   put('related service description', 4.5, on('.arch-service.is-related .arch-description', text));
   put('related service border', 3, on('.arch-service.is-related', (node) => paint(node, 'borderTopColor')));
   put('related link', 3, on('.arch-link.is-related .d-edge-path', (node) => paint(node, 'stroke')));
-  put('related arrowhead', 3, on('#arch-related .diagram-arrow', (node) => paint(node, 'fill')));
+  put('related arrowhead', 3, on('.arch-link.is-related .d-edge-end [data-paint="line"]', (node) => paint(node, 'fill')));
   put('related link label', 4.5, on('.arch-link-chip.is-related', text));
 
   const labelled = edges.find((edge) => edge.label !== null) ?? edges[0];
   el.select({ kind: 'edge', id: labelled.id });
   await settle();
   put('selected link', 3, on('.arch-link.is-selected .d-edge-path', (node) => paint(node, 'stroke')));
-  put('selected arrowhead', 3, on('#arch-selected .diagram-arrow', (node) => paint(node, 'fill')));
+  put('selected arrowhead', 3, on('.arch-link.is-selected .d-edge-end [data-paint="line"]', (node) => paint(node, 'fill')));
   put('selected link label', 4.5, on('.arch-link-chip.is-selected', text));
   el.select(null);
   await settle();
@@ -332,7 +332,42 @@ const counts = v.record(v.string(), v.number());
 const geometrySchema = v.object({ counted: counts, gates: counts, details: v.record(v.string(), v.array(v.string())) });
 const contrastSchema = v.record(v.string(), v.object({ ratio: v.number(), floor: v.number() }));
 const pointSchema = v.object({ x: v.number(), y: v.number() });
+const coloursSchema = v.record(v.string(), v.object({ line: v.string(), head: v.string() }));
 type Contrast = v.InferOutput<typeof contrastSchema>;
+
+/** The raw computed line stroke and arrowhead fill of a link in each state, to compare them. */
+const colourProbe = (board: string): string => `(async () => {
+  const el = ${board};
+  const root = el.shadowRoot;
+  const settle = async () => {
+    await el.updateComplete;
+    await new Promise((resolve) => setTimeout(resolve, 450));
+  };
+  const read = (group) => ({
+    line: getComputedStyle(group.querySelector('.d-edge-path')).stroke,
+    head: getComputedStyle(group.querySelector('.d-edge-end [data-paint="line"]')).fill,
+  });
+  const out = {};
+  el.select(null);
+  await settle();
+  const neutral = root.querySelector('.arch-link:not(.is-related):not(.is-selected)');
+  if (neutral) out.neutral = read(neutral);
+  const edges = el.visible.edges;
+  const hub = [...el.visible.nodes].sort((a, b) =>
+    edges.filter((edge) => edge.from === b.id || edge.to === b.id).length - edges.filter((edge) => edge.from === a.id || edge.to === a.id).length)[0];
+  el.select({ kind: 'node', id: hub.id });
+  await settle();
+  const related = root.querySelector('.arch-link.is-related');
+  if (related) out.related = read(related);
+  const labelled = edges.find((edge) => edge.label !== null) ?? edges[0];
+  el.select({ kind: 'edge', id: labelled.id });
+  await settle();
+  const selected = root.querySelector('.arch-link.is-selected');
+  if (selected) out.selected = read(selected);
+  el.select(null);
+  await settle();
+  return JSON.stringify(out);
+})()`;
 
 const setTheme = (theme: 'light' | 'dark') => {
   ab('eval', `document.documentElement.dataset.theme = '${theme}'`);
@@ -398,9 +433,13 @@ try {
   );
   const geometry = boards.map((board) => evaluate(geometrySchema, geometryProbe(board)));
   const contrast: Record<string, Contrast[]> = {};
+  // The line, its head and its flow share one `--d-edge-line`; a state where the
+  // line and the head disagree is a regression even if both clear their floor.
+  const colours: Record<string, v.InferOutput<typeof coloursSchema>[]> = {};
   for (const theme of ['light', 'dark'] as const) {
     setTheme(theme);
     contrast[theme] = boards.map((board) => evaluate(contrastSchema, contrastProbe(board)));
+    colours[theme] = boards.map((board) => evaluate(coloursSchema, colourProbe(board)));
     if (shot !== undefined) ab('screenshot', `${shot}-${theme}.png`);
   }
   const errors = ab('errors');
@@ -415,11 +454,24 @@ try {
         ),
       ),
     ),
+    ...Object.entries(colours).flatMap(([theme, maps]) =>
+      maps.flatMap((states, board) =>
+        Object.entries(states).flatMap(([state, value]) =>
+          value.line !== value.head
+            ? [`map ${board} ${theme} ${state} link: line ${value.line} ≠ head ${value.head}`]
+            : [],
+        ),
+      ),
+    ),
     ...(toggled.hidden !== 0 || toggled.shown === 0 ? ['boundary toggle'] : []),
     ...(/\S/.test(errors) && !/no (page )?errors/i.test(errors) ? [`page errors: ${errors}`] : []),
   ];
   console.log(
-    JSON.stringify({ url, drag: drag ?? null, maps: geometry, boundaryToggle: toggled, contrast, failures }, null, 2),
+    JSON.stringify(
+      { url, drag: drag ?? null, maps: geometry, boundaryToggle: toggled, contrast, colours, failures },
+      null,
+      2,
+    ),
   );
   if (failures.length > 0) process.exitCode = 1;
 } finally {

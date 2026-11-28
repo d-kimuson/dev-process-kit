@@ -102,6 +102,93 @@ describe('dependency graph data', () => {
   });
 });
 
+describe('dependency graph drawn edges', () => {
+  /*
+   * Characterisation before the path building moves onto the shared edge
+   * primitives: the exact `d` and class list each dependency is drawn with, so
+   * the refactor cannot quietly move a line.
+   */
+  it('draws each dependency the same way', async () => {
+    const element = await mount();
+    const drawn = [...element.renderRoot.querySelectorAll<SVGGElement>('[data-dependency]')]
+      .map((group) => ({
+        id: group.dataset['dependency'] ?? '',
+        classes: [...group.classList].sort().join(' '),
+        d: group.querySelector('.d-edge-path')?.getAttribute('d') ?? '',
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    expect(drawn).toMatchInlineSnapshot(`
+      [
+        {
+          "classes": "d-edge dep-edge is-neutral",
+          "d": "M532 96 L618 96 Q624 96 624 102 L624 126 Q624 132 630 132 L663 132",
+          "id": "api-orders",
+        },
+        {
+          "classes": "d-edge dep-edge is-neutral",
+          "d": "M224 156 L306 156 Q312 156 312 150 L312 126 Q312 120 318 120 L355 120",
+          "id": "checkout-api",
+        },
+        {
+          "classes": "d-edge dep-edge is-neutral",
+          "d": "M224 156 L306 156 Q312 156 312 162 L312 198 Q312 204 318 204 L355 204",
+          "id": "checkout-http",
+        },
+        {
+          "classes": "d-edge dep-edge is-neutral",
+          "d": "M840 156 L930 156 Q936 156 936 150 L936 114 Q936 108 942 108 L971 108",
+          "id": "orders-pricing",
+        },
+        {
+          "classes": "d-edge dep-edge is-neutral",
+          "d": "M840 156 L930 156 Q936 156 936 162 L936 210 Q936 216 942 216 L971 216",
+          "id": "orders-repository",
+        },
+        {
+          "classes": "d-edge dep-edge is-cycle",
+          "d": "M1148 96 L1230 96 Q1236 96 1236 102 L1236 126 Q1236 132 1242 132 L1279 132",
+          "id": "pricing-promotions",
+        },
+        {
+          "classes": "d-edge dep-edge is-cycle",
+          "d": "M1280 144 L1182 144 Q1176 144 1176 138 L1176 126 Q1176 120 1170 120 L1149 120",
+          "id": "promotions-pricing",
+        },
+      ]
+    `);
+  });
+
+  it('draws each arrowhead inline, with no <marker> left in the canvas', async () => {
+    const element = await mount();
+    expect(element.renderRoot.querySelectorAll('marker')).toHaveLength(0);
+    const ends = [...element.renderRoot.querySelectorAll<SVGGElement>('[data-dependency] .d-edge-end')];
+    expect(ends).toHaveLength(7);
+    for (const end of ends) {
+      expect(end.dataset['glyph']).toBe('arrow');
+      expect(end.querySelector('[data-paint="line"]')).not.toBeNull();
+    }
+  });
+
+  it('never jumps two edges that share a source trunk', async () => {
+    // `a` leaves for `b` and `c` over one trunk; a bundled pair must not jump.
+    const element = new DpkBoardDependencyGraph();
+    element.data = parseDependencyData({
+      modules: ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id, name: id.toUpperCase() })),
+      dependencies: [
+        { id: 'a-b', from: 'a', to: 'b' },
+        { id: 'a-c', from: 'a', to: 'c' },
+        { id: 'd-e', from: 'd', to: 'e' },
+      ],
+    });
+    document.body.append(element);
+    await settle(element);
+    for (const id of ['a-b', 'a-c']) {
+      const d = element.renderRoot.querySelector(`[data-dependency="${id}"] .d-edge-path`)?.getAttribute('d') ?? '';
+      expect(d).not.toContain(' A');
+    }
+  });
+});
+
 describe('dpk-board-dependency-graph', () => {
   it('renders modules, dependencies and cycle badges', async () => {
     const element = await mount();

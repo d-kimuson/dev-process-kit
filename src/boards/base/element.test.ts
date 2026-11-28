@@ -98,7 +98,7 @@ class TinyDiagram extends BoardCanvasElement<TinyData> {
       data-group="x"
       @pointerdown=${(event: PointerEvent) => this.onGroupDragStart(event, 'x', ['a', 'c'])}
     ></div>`;
-    return html`${this.renderEdges(edges, [{ id: 'tiny-arrow', color: '#888' }])}${group}${nodes}`;
+    return html`${this.renderEdges(edges)}${group}${nodes}`;
   }
 }
 

@@ -155,19 +155,44 @@ export const architectureStyles = css`
     overflow: hidden;
   }
 
+  .arch-link {
+    /* The shared edge paint (base/edge/styles.ts) colours the line, glyph and flow from this one property. */
+    --d-edge-line: var(--arch-line);
+  }
+
   .arch-link .d-edge-path {
-    stroke: var(--arch-line);
+    stroke: var(--d-edge-line);
     stroke-width: 1.5;
   }
 
+  .arch-link.is-related {
+    --d-edge-line: var(--dpk-green);
+  }
+
   .arch-link.is-related .d-edge-path {
-    stroke: var(--dpk-green);
     stroke-width: 2;
   }
 
+  .arch-link.is-selected {
+    --d-edge-line: var(--dpk-blue);
+  }
+
   .arch-link.is-selected .d-edge-path {
-    stroke: var(--dpk-blue);
+    /* Restate the colour: the base .d-edge.is-selected .d-edge-path rule wins the
+       stroke (same specificity) and would paint the line ink while the head and
+       flow stay --d-edge-line. */
+    stroke: var(--d-edge-line);
     stroke-width: 2.2;
+  }
+
+  /* The inline arrowhead takes the line's own colour and thickens with a highlighted line. */
+  .arch-link .d-edge-end {
+    stroke-width: 1.3px;
+  }
+
+  .arch-link.is-related .d-edge-end,
+  .arch-link.is-selected .d-edge-end {
+    stroke-width: 1.6px;
   }
 
   .arch-link-chip {
@@ -226,20 +251,5 @@ export const architectureStyles = css`
 
   .arch-link-chip.is-dimmed {
     opacity: 0.26;
-  }
-
-  #arch-neutral .diagram-arrow {
-    fill: var(--arch-line);
-    stroke: var(--arch-line);
-  }
-
-  #arch-related .diagram-arrow {
-    fill: var(--dpk-green);
-    stroke: var(--dpk-green);
-  }
-
-  #arch-selected .diagram-arrow {
-    fill: var(--dpk-blue);
-    stroke: var(--dpk-blue);
   }
 `;

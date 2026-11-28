@@ -135,7 +135,8 @@ const gates = `(() => {
     const end = path.getPointAtLength(path.getTotalLength());
     if (off(start.x, points[0].x) || off(start.y, points[0].y) || off(end.x, points.at(-1).x) || off(end.y, points.at(-1).y))
       note('drawn', 'path ' + group.dataset.dependency);
-    if (!path.getAttribute('marker-end')) note('drawn', 'no arrowhead ' + group.dataset.dependency);
+    // The head is drawn inline now (no <marker>), so check the glyph group is there.
+    if (!group.querySelector('.d-edge-end [data-paint="line"]')) note('drawn', 'no arrowhead ' + group.dataset.dependency);
   }
   if (root.querySelectorAll('[data-dependency]').length !== edges.length) note('drawn', 'edge count');
 
@@ -223,8 +224,7 @@ const contrast = `(() => {
     if (!live(group)) continue;
     const kind = ['selected', 'outgoing', 'incoming', 'cycle', 'neutral'].find((name) => group.classList.contains('is-' + name));
     add('line ' + kind, rgba(getComputedStyle(group.querySelector('.d-edge-path')).stroke), ground, 3);
-    const marker = /#([\\w-]+)/.exec(group.querySelector('.d-edge-path').getAttribute('marker-end'))[1];
-    add('arrowhead ' + kind, rgba(getComputedStyle(root.getElementById(marker).querySelector('.diagram-arrow')).fill), ground, 3);
+    add('arrowhead ' + kind, rgba(getComputedStyle(group.querySelector('.d-edge-end [data-paint="line"]')).fill), ground, 3);
     const dot = group.querySelector('.dep-junction');
     if (dot) add('junction ' + kind, rgba(getComputedStyle(dot).fill), ground, 3);
   }

@@ -149,28 +149,29 @@ export const dependencyStyles = css`
   }
 
   .dep-edge {
-    --dep-line: var(--dep-neutral);
+    /* The shared edge paint (base/edge/styles.ts) colours the line, glyph and flow from this one property. */
+    --d-edge-line: var(--dep-neutral);
   }
 
   .dep-edge.is-cycle {
-    --dep-line: var(--dep-cycle);
+    --d-edge-line: var(--dep-cycle);
   }
 
   .dep-edge.is-outgoing {
-    --dep-line: var(--dep-outgoing);
+    --d-edge-line: var(--dep-outgoing);
   }
 
   .dep-edge.is-incoming {
-    --dep-line: var(--dep-incoming);
+    --d-edge-line: var(--dep-incoming);
   }
 
   .dep-edge.is-selected,
   .dep-edge:has(.d-edge-hit:focus-visible) {
-    --dep-line: var(--dep-selected);
+    --d-edge-line: var(--dep-selected);
   }
 
   .dep-edge .d-edge-path {
-    stroke: var(--dep-line);
+    stroke: var(--d-edge-line);
     stroke-width: 1.5;
   }
 
@@ -184,12 +185,24 @@ export const dependencyStyles = css`
 
   .dep-edge.is-selected .d-edge-path,
   .dep-edge:has(.d-edge-hit:focus-visible) .d-edge-path {
-    stroke: var(--dep-line);
+    stroke: var(--d-edge-line);
     stroke-width: 2.2;
   }
 
+  /* The inline arrowhead takes the line's own colour and thickens with a highlighted line. */
+  .dep-edge .d-edge-end {
+    stroke-width: 1.3px;
+  }
+
+  .dep-edge.is-cycle .d-edge-end,
+  .dep-edge.is-related .d-edge-end,
+  .dep-edge.is-selected .d-edge-end,
+  .dep-edge:has(.d-edge-hit:focus-visible) .d-edge-end {
+    stroke-width: 1.6px;
+  }
+
   .dep-junction {
-    fill: var(--dep-line);
+    fill: var(--d-edge-line);
   }
 
   .diagram-legend .dep-swatch-direction {
@@ -218,30 +231,5 @@ export const dependencyStyles = css`
 
   .diagram-legend .dep-swatch-cycle {
     border-color: var(--dep-cycle);
-  }
-
-  #dep-neutral .diagram-arrow {
-    fill: var(--dep-neutral);
-    stroke: var(--dep-neutral);
-  }
-
-  #dep-outgoing .diagram-arrow {
-    fill: var(--dep-outgoing);
-    stroke: var(--dep-outgoing);
-  }
-
-  #dep-incoming .diagram-arrow {
-    fill: var(--dep-incoming);
-    stroke: var(--dep-incoming);
-  }
-
-  #dep-cycle .diagram-arrow {
-    fill: var(--dep-cycle);
-    stroke: var(--dep-cycle);
-  }
-
-  #dep-selected .diagram-arrow {
-    fill: var(--dep-selected);
-    stroke: var(--dep-selected);
   }
 `;

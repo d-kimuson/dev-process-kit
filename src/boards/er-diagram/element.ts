@@ -954,7 +954,6 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
         (_, index) => ordered[index]?.id,
         (edge) => edge,
       ),
-      [],
     )}${visible.nodes.map((table) => this.#renderTable(table, lit, m, bcDimmed.has(table.id)))}`;
   }
 
