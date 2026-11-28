@@ -14,5 +14,5 @@
     "useDefineForClassFields": false,
     "noPropertyAccessFromIndexSignature": true
   },
-  "include": ["src", "dev", "vite.config.ts", "vitest.config.ts", "oxlint.config.ts"]
+  "include": ["src", "dev", "lp/promo/generate.ts", "vite.config.ts", "vitest.config.ts", "oxlint.config.ts"]
 }

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>サンプル | 紹介動画</title>
+    <!--
+      One sample of the landing site (`?page=usm` for usm.html), drawn live inside the promo video: promo-video.html
+      shows it in an inert iframe, so the sample keeps a window of its own. `?notices` keeps the sample's change log,
+      so it opens with its notices. Nothing is stored and the hash is left alone: every load starts from the sample.
+    -->
+    <script type="module">
+      import { loadKit } from './kit.js';
+      const params = new URLSearchParams(location.search);
+      const page = params.get('page') ?? '';
+      if (/^[a-z][a-z-]*$/.test(page)) {
+        const source = new DOMParser().parseFromString(await (await fetch(`${page}.html`)).text(), 'text/html');
+        const root = [...source.body.children].find((element) => element.localName.startsWith('dpk-'));
+        const entries = /loadKit\((\[[^\]]*\])\)/.exec(source.head.innerHTML)?.[1];
+        if (root !== undefined && entries !== undefined) {
+          root.removeAttribute('storage-key');
+          root.setAttribute('storage', 'memory');
+          root.setAttribute('hash', 'off');
+          if (!params.has('notices')) root.querySelector('[data-dpk-changes]')?.remove();
+          document.body.append(document.adoptNode(root));
+          loadKit(JSON.parse(entries.replaceAll("'", '"')));
+        }
+      }
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+      body > * {
+        display: block;
+        height: 100%;
+      }
+      body > :not(:defined) {
+        visibility: hidden;
+      }
+    </style>
+  </head>
+  <body></body>
+</html>

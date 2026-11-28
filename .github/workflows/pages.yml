@@ -28,6 +28,8 @@ jobs:
         run: |
           mkdir _site
           cp lp/*.html lp/*.js lp/*.ico lp/*.png _site/
+          mkdir _site/promo
+          cp -r lp/promo/audio lp/promo/cast lp/promo/shots lp/promo/promo.css _site/promo/
           # The markup on main may be ahead of npm `latest` (a beta). Pin the
           # version this checkout belongs to so the samples load matching code.
           VERSION="$(node -p 'require("./package.json").version')"

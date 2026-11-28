@@ -1,0 +1,10 @@
+{
+  "voices": {
+    "ずんだもん": { "speaker": 3, "speedScale": 1.12, "intonationScale": 1.2 },
+    "四国めたん": { "speaker": 2, "speedScale": 1.08, "intonationScale": 1.1 }
+  },
+  "readings": {
+    "dev-process-kit": "デブプロセスキット",
+    "CDN": "シーディーエヌ"
+  }
+}
