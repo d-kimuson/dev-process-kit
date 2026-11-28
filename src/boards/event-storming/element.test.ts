@@ -1,10 +1,14 @@
+import { render } from 'lit';
+import { keyed } from 'lit/directives/keyed.js';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { DraftAction } from '../../core/types';
 
 import { defineInlineEdit } from '../../components/inline-edit';
+import { PANEL_HOST, type DetailReport, type PanelDetail, type PanelHost } from '../../core/panel/host';
 import { eventStormingAction } from './actions';
 import { applyEventStormingAction } from './apply';
+import { DpkInternalEventStormingNoteDetail } from './components/note-detail';
 import { DpkBoardEventStorming } from './element';
 import { defineEventStorming } from './index';
 import { eventStormingMessages } from './messages';
@@ -255,6 +259,111 @@ describe('<dpk-board-event-storming>', () => {
     q(element, '.board-viewport').dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
     await settle(element);
     expect(element.elementActions.map((a) => a.type)).toEqual(['UNLINK_ELEMENTS']);
+  });
+
+  type PanelReport = { readonly detail: PanelDetail | null; readonly report: DetailReport };
+
+  /** Stand-in for the side panel's owner: records what the board hands it. */
+  const withPanel = async (
+    element: DpkBoardEventStorming,
+  ): Promise<{ readonly reports: PanelReport[]; readonly providers: Set<Element>; detail(): PanelDetail | null }> => {
+    const reports: PanelReport[] = [];
+    const providers = new Set<Element>();
+    const host: PanelHost = {
+      provideDetail: (source) => {
+        providers.add(source);
+        return () => providers.delete(source);
+      },
+      showDetail: (_source, detail, report) => reports.push({ detail, report }),
+      addSection: () => () => undefined,
+      invalidate: () => undefined,
+      open: () => undefined,
+    };
+    const owner = document.createElement('div');
+    Object.defineProperty(owner, PANEL_HOST, { value: host });
+    element.before(owner);
+    owner.append(element);
+    await settle(element);
+    return { reports, providers, detail: () => reports.at(-1)?.detail ?? null };
+  };
+
+  /** Draws the detail the way the panel does, and returns its shadow root. */
+  const renderDetail = async (detail: PanelDetail | null): Promise<ShadowRoot> => {
+    if (detail === null) throw new Error('no detail');
+    const root = document.createElement('div');
+    document.body.append(root);
+    render(keyed(detail.key, detail.render()), root);
+    const view = root.querySelector('dpk-internal-event-storming-note-detail');
+    if (!(view instanceof DpkInternalEventStormingNoteDetail) || view.shadowRoot === null)
+      throw new Error('no note detail');
+    await view.updateComplete;
+    return view.shadowRoot;
+  };
+
+  const commit = (editor: Element | null | undefined, value: string): void => {
+    if (editor === null || editor === undefined) throw new Error('no editor');
+    editor.dispatchEvent(new CustomEvent('dpk-commit', { detail: { value }, bubbles: true, composed: true }));
+  };
+
+  it('opens a note’s detail in the side panel on click: its type, text and context', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    q(element, '[data-dpk-target="element:board/note/n1"]').click();
+    await settle(element);
+    expect(panel.reports.some((report) => report.report === 'open')).toBe(true);
+    const detail = panel.detail();
+    expect(detail).toMatchObject({ key: 'n1', kind: m.noteKind, title: 'E1' });
+    const view = await renderDetail(detail);
+    expect(view.querySelector('.es-detail-type')?.textContent?.trim()).toBe(m.noteTypeLabel('event'));
+    const editors = [...view.querySelectorAll<HTMLElement & { value: string }>('dpk-inline-edit')];
+    expect(editors.map((editor) => editor.value)).toEqual(['E1', 'Description text']);
+    expect(view.querySelector('.es-detail-value')?.textContent?.trim()).toBe('Ctx1');
+  });
+
+  it('shows a note outside any context as such', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    q(element, '[data-dpk-target="element:board/note/n2"]').click();
+    await settle(element);
+    const view = await renderDetail(panel.detail());
+    expect(view.querySelector('.es-detail-value')?.textContent?.trim()).toBe(m.noContext);
+  });
+
+  it('edits a note’s name and description from its detail as element actions', async () => {
+    const element = await mount();
+    acceptActions(element);
+    const panel = await withPanel(element);
+    q(element, '[data-dpk-target="element:board/note/n1"]').click();
+    await settle(element);
+    const view = await renderDetail(panel.detail());
+    const editors = [...view.querySelectorAll('dpk-inline-edit')];
+    commit(editors[0], 'E1 v2');
+    commit(editors[1], 'New description');
+    await settle(element);
+    expect(element.elementActions.map((a) => a.type)).toEqual(['SET_ELEMENT_NAME', 'SET_ELEMENT_DESCRIPTION']);
+    expect(panel.reports.at(-1)?.report).toBe('refresh');
+    expect(panel.detail()?.title).toBe('E1 v2');
+  });
+
+  it('says so in the detail when no template recorded an edit', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    q(element, '[data-dpk-target="element:board/note/n1"]').click();
+    await settle(element);
+    const view = await renderDetail(panel.detail());
+    commit(view.querySelector('dpk-inline-edit'), 'x');
+    const host = view.host;
+    if (!(host instanceof DpkInternalEventStormingNoteDetail)) throw new Error('no note detail');
+    await host.updateComplete;
+    expect(view.querySelector('[role="alert"]')?.textContent).toBe(m.notRecorded);
+  });
+
+  it('withdraws its detail from the panel when it leaves the page', async () => {
+    const element = await mount();
+    const panel = await withPanel(element);
+    expect(panel.providers.has(element)).toBe(true);
+    element.remove();
+    expect(panel.providers.has(element)).toBe(false);
   });
 
   it('renders its own text in the page language, and in English without one', async () => {

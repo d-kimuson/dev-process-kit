@@ -99,7 +99,7 @@ A link to an unknown note, or a note pointing at an unknown context, is an error
 #note=ordered&context=kitchen
 ```
 
-- `note` selects a note: it gets the accent outline on the board and its editor opens. `context` filters the board to that bounded context (notes without that `contextId` are hidden; link lines stay computed from timeline positions).
+- `note` selects a note: it gets the accent outline on the board, and the side panel’s **Detail** shows it (marked unread when the panel is closed). `context` filters the board to that bounded context (notes without that `contextId` are hidden; link lines stay computed from timeline positions).
 - Unknown ids fall back and the URL is rewritten to the canonical form.
 
 ## UI provided by the component
@@ -111,7 +111,7 @@ With `chrome="none"` (`docs/boards/index.md`, Figure only) the frame, header and
 | header | bounded-context filter (すべて + one button per context with delete), add-context / add-element buttons, and the timeline counter |
 | main   | the board: fixed-grid notes grouped into slices, SVG causality lines, and the empty state when there are no notes                 |
 
-Selecting a note opens its editor in a popover: inline-editable name and description, type select, bounded-context select, delete, and the outgoing/incoming link lists with add and remove.
+Clicking a note (or `Enter` on it) opens the side panel on its **Detail** ([dpk-panel-section](../components/panel-section.md#selected-elements-detail)): its type, its name and description edited in place (`SET_ELEMENT_NAME`, `SET_ELEMENT_DESCRIPTION`), and the bounded context it belongs to. The type and the context are shown, not edited there; a context groups whole slices from the selection bar. Every edit is recorded in the enclosing view’s (or page’s) draft like any other element action, and one that no template records is reported in the detail. The panel belongs to the page (or the view the board is in); a board with neither has no detail. Selecting several slices or links still brings up the selection bar over the board.
 
 Every note reveals a small tool rail on hover (or while anything in the note has focus): a **comment** button, which opens the contextual composer over that very note without selecting it, and **delete**. Right-clicking a note offers the same composer through the generic "Review comment" item (`docs/boards/index.md`, Element comments).
 

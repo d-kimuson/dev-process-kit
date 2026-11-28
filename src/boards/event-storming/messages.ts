@@ -67,6 +67,14 @@ export const eventStormingMessages = defineMessages({
     deleteNote: 'Delete',
     noteNameLabel: 'Note name',
 
+    // -------------------------------------------------------------- detail
+    noteKind: 'Sticky note',
+    noteTypeField: 'Type',
+    noteDescriptionLabel: 'Description',
+    noteDescriptionPlaceholder: 'Add a description',
+    noteContextField: 'Bounded context',
+    notRecorded: 'Could not record it. Place this inside a dpk-view-* element.',
+
     // ----------------------------------------------------------- chrome
     newContextTitle: 'New bounded context',
     contextNamePlaceholder: 'Context name',
@@ -148,6 +156,14 @@ export const eventStormingMessages = defineMessages({
     commentNote: 'コメント',
     deleteNote: '削除',
     noteNameLabel: '付箋名',
+
+    // -------------------------------------------------------------- detail
+    noteKind: '付箋',
+    noteTypeField: '種類',
+    noteDescriptionLabel: '説明',
+    noteDescriptionPlaceholder: '説明を追加',
+    noteContextField: '所属コンテキスト',
+    notRecorded: '記録できませんでした（dpk-view-* 要素の中に置いてください）。',
 
     // ----------------------------------------------------------- chrome
     newContextTitle: '新しい境界づけられたコンテキスト',
