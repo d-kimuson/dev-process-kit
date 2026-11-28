@@ -1,6 +1,6 @@
 # Boards (`dpk-board-*`)
 
-A board is a visual surface: a pan/zoom canvas (a diagram) or a columned surface (the kanban) with its own meaning model, its own comment targets and its own element actions. Ten boards ship; they share one public contract — data paths, `id` / `heading` / `subject`, tag filter, selection, comments, element actions, sizing — and differ only in their data and their meaning.
+A board is a visual surface: a pan/zoom canvas (a diagram) or a columned surface (the kanban) with its own meaning model, its own comment targets and its own element actions. Eleven boards ship; they share one public contract — data paths, `id` / `heading` / `subject`, tag filter, selection, comments, element actions, sizing — and differ only in their data and their meaning.
 
 A board can be used two ways, and **placement** is the whole rule:
 
@@ -18,6 +18,7 @@ There is no attribute to switch between the two: what encloses a board decides (
 | `dpk-board-dependency-graph` | What depends on what, and what is circular?           | `docs/boards/dependency-graph.md` |
 | `dpk-board-er-diagram`       | What changed between two schema snapshots?            | `docs/boards/er-diagram.md`       |
 | `dpk-board-architecture-map` | Which services exist, in which boundary?              | `docs/boards/architecture-map.md` |
+| `dpk-board-bpmn`             | Who does what, in which order, across which pools?    | `docs/boards/bpmn.md`             |
 | `dpk-board-mind-map`         | How does one topic break down?                        | `docs/boards/mind-map.md`         |
 | `dpk-board-whiteboard`       | Loose ideas, placed and connected freely on a canvas? | `docs/boards/whiteboard.md`       |
 | `dpk-board-event-storming`   | What domain events happen, in what causal order?      | `docs/boards/event-storming.md`   |
@@ -125,7 +126,7 @@ Shared interactions, with an ER-specific contextual composer:
 
 ## Moving nodes
 
-Graph diagrams (every diagram above except the sequence diagram) let the reader drag a node by its whole body to place it anywhere on the canvas; a short press still selects it, same as before. A moved node keeps that exact position even as the diagram's own layout changes around it; a node the reader never touched always follows the computed layout. This is reader-local — like the sidebar width or a read notice, it stays in the browser and is never sent to the agent. The board's right-click menu offers "Reset positions" once anything has been moved, putting every node back where the layout computed it.
+Graph diagrams (every diagram above except the sequence and BPMN diagrams) let the reader drag a node by its whole body to place it anywhere on the canvas; a short press still selects it, same as before. A moved node keeps that exact position even as the diagram's own layout changes around it; a node the reader never touched always follows the computed layout. This is reader-local — like the sidebar width or a read notice, it stays in the browser and is never sent to the agent. The board's right-click menu offers "Reset positions" once anything has been moved, putting every node back where the layout computed it.
 
 ## Figure only (`chrome="none"`)
 
@@ -150,7 +151,7 @@ A simple diagram reads better embedded in prose as the figure alone. Add `chrome
 </dpk-board-state-diagram>
 ```
 
-On a canvas board (state, sequence, dependency, ER, architecture, mind map) the figure is static rather than a pan/zoom canvas:
+On a canvas board (state, sequence, dependency, ER, architecture, BPMN, mind map) the figure is static rather than a pan/zoom canvas:
 
 - it takes the natural height that shows the whole figure at a scale of at most 100%, sized to what is drawn rather than the canvas's pan margin (`--diagram-height` has no effect, and small figures sit at 100% centred);
 - there is no pan, zoom, pinch or node drag; a vertical wheel or a touch drag scrolls the page instead;
@@ -201,7 +202,7 @@ The enclosing view registers the board's targets and owns the comments and eleme
 
 Target references use `element:<board-id>/<kind>/<item-id>` (each segment is URI-encoded), and inside a page they end in `@<page>`:
 
-- Graphs: `node` and `edge` (tables/relationships, states/transitions, modules/dependencies, services/connections).
+- Graphs: `node` and `edge` (tables/relationships, states/transitions, modules/dependencies, services/connections, BPMN elements/flows), plus BPMN's `pool` and `lane` frames.
 - Sequence diagrams: `participant` and `message`.
 - Kanban: `column` and `card`.
 
@@ -231,13 +232,13 @@ Embedded, the shell is `var(--diagram-height, 560px)` tall and the canvas takes 
 <dpk-board-er-diagram style="--diagram-height: 720px">…</dpk-board-er-diagram>
 ```
 
-As a page's content the board takes the height the page gives it, and `--diagram-height` does not apply. The kanban has no canvas and so no `--diagram-height`: it takes whatever height its columns need, in the page's normal flow. Maximizing still fills the viewport, same as a diagram.
+As a page's content the board takes the height the page gives it, and `--diagram-height` does not apply. The BPMN board opens fitted to its whole process, then keeps the reader's view. The kanban has no canvas and so no `--diagram-height`: it takes whatever height its columns need, in the page's normal flow. Maximizing still fills the viewport, same as a diagram.
 
 With `chrome="none"` a canvas board ignores `--diagram-height` too: it takes the height of its whole figure at a scale of at most 100%, so set no height for it. The whiteboard and event storming keep their own fixed canvas height (the tools need a surface) even without chrome; the kanban and example mapping keep their natural document height.
 
 ## Annotating for questions (grill)
 
-An annotatable element in the data may carry `questions`: a space-separated list of question references from the page's `data-dpk-grill` block (`docs/index.md`, Questions (grill)). Which elements those are is the board's rule, and its page says so: an ERD's tables and fields, an architecture map's services, a dependency graph's modules, a state diagram's states and transitions, a sequence diagram's participants and messages, a mind map's nodes, a kanban's cards, a whiteboard's items, an event storming's notes and contexts, an example mapping's cards.
+An annotatable element in the data may carry `questions`: a space-separated list of question references from the page's `data-dpk-grill` block (`docs/index.md`, Questions (grill)). Which elements those are is the board's rule, and its page says so: an ERD's tables and fields, an architecture map's services, a dependency graph's modules, a state diagram's states and transitions, a sequence diagram's participants and messages, a BPMN's elements and flows, a mind map's nodes, a kanban's cards, a whiteboard's items, an event storming's notes and contexts, an example mapping's cards.
 
 ```json
 { "id": "inventory_reservations", "name": "在庫予約", "questions": "Q1 Q4" }

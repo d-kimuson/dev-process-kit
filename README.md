@@ -56,6 +56,7 @@ the content of a page. That is one element used two ways, not two kinds of eleme
 | Sequence diagram | `dpk-board-sequence-diagram` | In what order participants talk                                                                           |
 | Dependency graph | `dpk-board-dependency-graph` | What depends on what, and what is circular                                                                |
 | Architecture map | `dpk-board-architecture-map` | Which services exist, in which boundary                                                                   |
+| BPMN             | `dpk-board-bpmn`             | Who does what, in which order, across which pools and lanes                                               |
 | Mind map         | `dpk-board-mind-map`         | A central topic and its subtopics, fanned out left and right, with folding                                |
 | Event Storming   | `dpk-board-event-storming`   | Sticky notes on swimlanes in timeline order, with causality links                                         |
 | Example Mapping  | `dpk-board-example-mapping`  | One story per column, rules beneath it, examples beneath each rule, questions pinned to any of them       |

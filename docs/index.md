@@ -61,6 +61,7 @@ A board can be a page's content, or sit inside a view.
 | Message order                             | `dpk-board-sequence-diagram` |
 | Dependencies and cycles                   | `dpk-board-dependency-graph` |
 | Services and boundaries                   | `dpk-board-architecture-map` |
+| A business process in pools and lanes     | `dpk-board-bpmn`             |
 | A topic and its subtopics                 | `dpk-board-mind-map`         |
 | Cards in columns                          | `dpk-board-kanban`           |
 
@@ -655,12 +656,12 @@ Your own markup can add entries too, without writing a component: wrap it in `<d
 
 ## Read next
 
-| Question                          | Read                                                                                                                                                                                                                                         |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The view or board I am using      | `docs/views/<name>.md` (usm / prototype / plain / slides / task-board / delegation-poker) or `docs/boards/<name>.md` (ER / state / sequence / dependency / architecture / mind map / event storming / example mapping / whiteboard / kanban) |
-| The component I am actually using | `docs/components/<name>.md` (comment-panel / inline-edit / comment-thread / formal-spec / diff / video / line-chart / code-group / table / select / alternatives / extend-right-click / …)                                                   |
-| Several pages in one app          | `docs/page.md`                                                                                                                                                                                                                               |
-| Sharing a draft among readers     | `docs/sync.md`                                                                                                                                                                                                                               |
-| Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                                                                                                                    |
+| Question                          | Read                                                                                                                                                                                                                                                |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The view or board I am using      | `docs/views/<name>.md` (usm / prototype / plain / slides / task-board / delegation-poker) or `docs/boards/<name>.md` (ER / state / sequence / dependency / architecture / BPMN / mind map / event storming / example mapping / whiteboard / kanban) |
+| The component I am actually using | `docs/components/<name>.md` (comment-panel / inline-edit / comment-thread / formal-spec / diff / video / line-chart / code-group / table / select / alternatives / extend-right-click / …)                                                          |
+| Several pages in one app          | `docs/page.md`                                                                                                                                                                                                                                      |
+| Sharing a draft among readers     | `docs/sync.md`                                                                                                                                                                                                                                      |
+| Publishing as a Claude Artifact   | `docs/claude-artifact.md`                                                                                                                                                                                                                           |
 
 Read the page for what you are actually using, plus this one.
