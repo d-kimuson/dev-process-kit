@@ -162,6 +162,30 @@ describe('trimSteps', () => {
   it('changes nothing when both trims are zero', () => {
     expect(trimSteps(straight, 0, 0)).toBe(straight);
   });
+
+  it('clamps two trims that would cross on one shared run to meet at its midpoint', () => {
+    // 60 + 60 past a 100px run would reverse the line; each end keeps half.
+    expect(stepsData(trimSteps(straight, 60, 60))).toBe('M50 0 L50 0');
+  });
+
+  it('leaves a first step that is not a line untrimmed, trimming only the other end', () => {
+    const curved: readonly PathStep[] = [
+      { kind: 'move', to: { x: 0, y: 0 } },
+      { kind: 'quad', control: { x: 20, y: 0 }, to: { x: 20, y: 20 } },
+      { kind: 'line', to: { x: 120, y: 20 } },
+    ];
+    // The start sits next to a `quad`, so it is left alone; the tail line shortens.
+    expect(stepsData(trimSteps(curved, 10, 30))).toBe('M0 0 Q20 0 20 20 L90 20');
+  });
+
+  it('leaves a last step that is not a line untrimmed, trimming only the other end', () => {
+    const curved: readonly PathStep[] = [
+      { kind: 'move', to: { x: 0, y: 0 } },
+      { kind: 'line', to: { x: 100, y: 0 } },
+      { kind: 'quad', control: { x: 120, y: 0 }, to: { x: 120, y: 20 } },
+    ];
+    expect(stepsData(trimSteps(curved, 30, 10))).toBe('M30 0 L100 0 Q120 0 120 20');
+  });
 });
 
 describe('endFrame', () => {

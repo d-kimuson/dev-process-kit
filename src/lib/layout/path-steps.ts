@@ -119,40 +119,55 @@ export const roundedSteps = (points: readonly LayoutPoint[], options: RoundedSte
 
 /**
  * Shortens the run at either end of `steps` by `start`/`end`, so a glyph's own
- * footprint sits at the very end of the line rather than past its last bend:
- * only the first and last `line` steps move, and a run shorter than its trim
- * is left whole rather than crossed into.
+ * footprint sits at the very end of the line rather than past its last bend.
+ *
+ * Only a plain `line` step touching the endpoint is shortened; a curve next to
+ * the endpoint (a rounded corner's `quad`, or a `cubic` S-curve) is left whole,
+ * and its end stops past the glyph's run instead. When the two ends share one
+ * run (a two-point line), the trims are clamped to meet at its midpoint rather
+ * than cross, so the line never reverses.
  */
 export const trimSteps = (steps: readonly PathStep[], start: number, end: number): readonly PathStep[] => {
   if (steps.length < 2 || (start === 0 && end === 0)) return steps;
-  const trimmed = [...steps];
-  const moveStep = trimmed[0];
-  const firstRun = trimmed[1];
-  if (start > 0 && moveStep !== undefined && moveStep.kind === 'move' && firstRun !== undefined) {
-    const length = Math.hypot(firstRun.to.x - moveStep.to.x, firstRun.to.y - moveStep.to.y);
-    if (length > start) {
-      trimmed[0] = {
-        kind: 'move',
-        to: {
-          x: moveStep.to.x + ((firstRun.to.x - moveStep.to.x) / length) * start,
-          y: moveStep.to.y + ((firstRun.to.y - moveStep.to.y) / length) * start,
-        },
-      };
-    }
+  const head = steps[0];
+  const firstRun = steps[1];
+  const tail = steps.at(-1);
+  const beforeTail = steps.at(-2);
+  const canStart = start > 0 && head?.kind === 'move' && firstRun?.kind === 'line';
+  const canEnd = end > 0 && tail?.kind === 'line' && beforeTail !== undefined;
+  if (!canStart && !canEnd) return steps;
+
+  const distance = (a: LayoutPoint, b: LayoutPoint): number => Math.hypot(b.x - a.x, b.y - a.y);
+  const startRun = canStart ? distance(head.to, firstRun.to) : 0;
+  const endRun = canEnd ? distance(beforeTail.to, tail.to) : 0;
+
+  let startAmount = start;
+  let endAmount = end;
+  // A single straight line is shortened from both ends; clamp so they meet at
+  // the middle instead of crossing when their trims add up past the run.
+  if (canStart && canEnd && steps.length === 2 && startAmount + endAmount > startRun) {
+    startAmount = startRun / 2;
+    endAmount = endRun / 2;
   }
-  const lastRun = trimmed.at(-1);
-  const beforeLast = trimmed.at(-2);
-  if (end > 0 && lastRun !== undefined && lastRun.kind === 'line' && beforeLast !== undefined) {
-    const length = Math.hypot(lastRun.to.x - beforeLast.to.x, lastRun.to.y - beforeLast.to.y);
-    if (length > end) {
-      trimmed[trimmed.length - 1] = {
-        kind: 'line',
-        to: {
-          x: lastRun.to.x - ((lastRun.to.x - beforeLast.to.x) / length) * end,
-          y: lastRun.to.y - ((lastRun.to.y - beforeLast.to.y) / length) * end,
-        },
-      };
-    }
+
+  const trimmed = [...steps];
+  if (canStart && startAmount > 0 && startAmount < startRun) {
+    trimmed[0] = {
+      kind: 'move',
+      to: {
+        x: head.to.x + ((firstRun.to.x - head.to.x) / startRun) * startAmount,
+        y: head.to.y + ((firstRun.to.y - head.to.y) / startRun) * startAmount,
+      },
+    };
+  }
+  if (canEnd && endAmount > 0 && endAmount < endRun) {
+    trimmed[trimmed.length - 1] = {
+      kind: 'line',
+      to: {
+        x: tail.to.x - ((tail.to.x - beforeTail.to.x) / endRun) * endAmount,
+        y: tail.to.y - ((tail.to.y - beforeTail.to.y) / endRun) * endAmount,
+      },
+    };
   }
   return trimmed;
 };
