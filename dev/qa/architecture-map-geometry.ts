@@ -138,13 +138,13 @@ const geometryProbe = (board: string): string => `(() => {
     if (route.points.length < 2 || !onBorder(route.points.at(-1), end, route.points.at(-2))) found.looseEnd.push(route.id + ' to');
   }
 
-  // Arrowheads: the last 12px of a link, 10px across.
+  // Arrowheads: the inline glyph is 10px long and 9px across (markerZone of END_MARKERS.arrow).
   const arrows = routes.filter((route) => route.points.length >= 2).map((route) => {
     const tip = route.points.at(-1), before = route.points.at(-2);
     const dx = Math.sign(tip.x - before.x), dy = Math.sign(tip.y - before.y);
     return dx === 0
-      ? { id: route.id, x: tip.x - 5, y: Math.min(tip.y, tip.y - dy * 12), width: 10, height: 12 }
-      : { id: route.id, x: Math.min(tip.x, tip.x - dx * 12), y: tip.y - 5, width: 12, height: 10 };
+      ? { id: route.id, x: tip.x - 4.5, y: Math.min(tip.y, tip.y - dy * 10), width: 9, height: 10 }
+      : { id: route.id, x: Math.min(tip.x, tip.x - dx * 10), y: tip.y - 4.5, width: 10, height: 9 };
   });
   const lengthUnder = (points, box) => points.slice(1).reduce((sum, to, index) => {
     const from = points[index];
@@ -301,7 +301,7 @@ const contrastProbe = (board: string): string => `(async () => {
   put('external boundary border', 3, on('.arch-boundary.is-external', (node) => paint(node, 'borderTopColor')));
   put('link label', 4.5, on('.arch-link-chip', text));
   put('link', 3, on('.arch-link .d-edge-path', (node) => paint(node, 'stroke')));
-  put('arrowhead', 3, on('#arch-neutral .diagram-arrow', (node) => paint(node, 'fill')));
+  put('arrowhead', 3, on('.arch-link .d-edge-end [data-paint="line"]', (node) => paint(node, 'fill')));
 
   const edges = el.visible.edges;
   const hub = [...el.visible.nodes].sort((a, b) =>
@@ -314,14 +314,14 @@ const contrastProbe = (board: string): string => `(async () => {
   put('related service description', 4.5, on('.arch-service.is-related .arch-description', text));
   put('related service border', 3, on('.arch-service.is-related', (node) => paint(node, 'borderTopColor')));
   put('related link', 3, on('.arch-link.is-related .d-edge-path', (node) => paint(node, 'stroke')));
-  put('related arrowhead', 3, on('#arch-related .diagram-arrow', (node) => paint(node, 'fill')));
+  put('related arrowhead', 3, on('.arch-link.is-related .d-edge-end [data-paint="line"]', (node) => paint(node, 'fill')));
   put('related link label', 4.5, on('.arch-link-chip.is-related', text));
 
   const labelled = edges.find((edge) => edge.label !== null) ?? edges[0];
   el.select({ kind: 'edge', id: labelled.id });
   await settle();
   put('selected link', 3, on('.arch-link.is-selected .d-edge-path', (node) => paint(node, 'stroke')));
-  put('selected arrowhead', 3, on('#arch-selected .diagram-arrow', (node) => paint(node, 'fill')));
+  put('selected arrowhead', 3, on('.arch-link.is-selected .d-edge-end [data-paint="line"]', (node) => paint(node, 'fill')));
   put('selected link label', 4.5, on('.arch-link-chip.is-selected', text));
   el.select(null);
   await settle();

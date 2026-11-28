@@ -3,7 +3,9 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutPoint, LayoutResult } from '../../lib/layout/layered';
 
-import { stepsData, type PathStep } from '../../lib/layout/path-steps';
+import { jumpedPaths } from '../../lib/layout/line-jumps';
+import { endFrame, stepsData, type PathStep } from '../../lib/layout/path-steps';
+import { END_MARKERS, edgeBody, type EdgeEndView } from '../base/edge';
 import { BoardCanvasElement } from '../base/element';
 import { EMPTY_REACH, reach, type DiagramSelection, type Reach } from '../base/model';
 import { diagramStyles } from '../base/styles';
@@ -24,7 +26,12 @@ import { architectureStyles } from './styles';
 /** Room around the cards: a boundary frame, its title, and two lanes for links going round it. */
 const MAP_PADDING = 72;
 
-const ARROWS = [{ id: 'arch-neutral' }, { id: 'arch-related' }, { id: 'arch-selected' }] as const;
+/**
+ * A jump keeps clear of each end glyph's own reach. A link keeps a straight run
+ * in front of its arrowhead anyway (`archLinkSteps` keeps 11px), so this never
+ * disturbs a drawn glyph.
+ */
+const JUMP_CLEARANCE = END_MARKERS.arrow.reach;
 
 /** Length of an arrowhead along its link: the last run stays straight under it. */
 const ARROW_LENGTH = 11;
@@ -85,6 +92,8 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
   static override styles: CSSResultGroup = [diagramStyles, architectureStyles];
 
   #showBoundaries = true;
+  /** Jumped paths for the routes they were computed from; a hover or a selection reuses them. */
+  #paths: { readonly signature: string; readonly byId: ReadonlyMap<string, string> } | null = null;
 
   protected override parseData(input: unknown): ArchitectureData {
     return parseArchitectureData(input);
@@ -242,6 +251,35 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
     return boundaryBoxes(placed, this.items().boundaries);
   }
 
+  /**
+   * Every link's drawn `d` and its arrival frame, its level runs jumping the
+   * links that cross them. No link shares a trunk with another here, so the
+   * jump pass needs no bundle. Memoised by route signature, so a hover or a
+   * selection reuses its own paths; mid-drag the lines draw plain.
+   */
+  #drawn(): ReadonlyMap<string, { readonly d: string; readonly end: EdgeEndView | null }> {
+    const lines = new Map<string, readonly PathStep[]>();
+    const ends = new Map<string, EdgeEndView>();
+    for (const link of this.visible.edges) {
+      const route = this.routeOf(link.id);
+      lines.set(link.id, archLinkSteps(route));
+      if (route.length >= 2)
+        ends.set(link.id, { side: 'end', marker: END_MARKERS.arrow, frame: endFrame(route, 'end') });
+    }
+    const assemble = (
+      data: ReadonlyMap<string, string>,
+    ): Map<string, { readonly d: string; readonly end: EdgeEndView | null }> =>
+      new Map([...data].map(([id, d]) => [id, { d, end: ends.get(id) ?? null }] as const));
+    if (this.draggedNodeIds().size > 0) {
+      return assemble(new Map([...lines].map(([id, steps]) => [id, stepsData(steps)] as const)));
+    }
+    const signature = [...lines].map(([id, steps]) => `${id}:${stepsData(steps)}`).join('|');
+    if (this.#paths?.signature === signature) return assemble(this.#paths.byId);
+    const jumped = jumpedPaths(lines, new Set(lines.keys()), { clearance: JUMP_CLEARANCE });
+    this.#paths = { signature, byId: jumped };
+    return assemble(jumped);
+  }
+
   protected override renderCanvas(): TemplateResult {
     const m = architectureMapMessages(this.locale);
     const visible = this.visible;
@@ -257,37 +295,25 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
         routes,
       },
     );
+    const drawn = this.#drawn();
     const edges = visible.edges.map((link) => {
       const state = this.edgeState(link.id);
-      const route = this.routeOf(link.id);
-      const d = stepsData(archLinkSteps(route));
+      const body = drawn.get(link.id);
       const select = () => this.select({ kind: 'edge', id: link.id });
       return svg`
         <g
-          class=${this.elementClass(state, 'd-edge', 'arch-link')}
+          class=${this.elementClass(state, 'd-edge', 'arch-link', (state.related || state.selected) && 'is-flowing')}
           data-link=${link.id}
           data-dpk-target=${this.commentRef('edge', link.id)}
           data-dpk-check="off"
         >
           <title>${link.label ?? link.id}</title>
-          <path
-            class="d-edge-path"
-            d=${d}
-            marker-end=${`url(#${state.selected ? 'arch-selected' : state.related ? 'arch-related' : 'arch-neutral'})`}
-          ></path>
-          <path
-            class="d-edge-hit"
-            d=${d}
-            role="button"
-            tabindex="0"
-            aria-label=${m.edgeLabel(name(link.from), name(link.to))}
-            @click=${select}
-            @keydown=${(event: KeyboardEvent) => {
-              if (event.key !== 'Enter' && event.key !== ' ') return;
-              event.preventDefault();
-              select();
-            }}
-          ></path>
+          ${edgeBody({
+            d: body?.d ?? '',
+            ends: body?.end === null || body?.end === undefined ? [] : [body.end],
+            flow: true,
+            hit: { label: m.edgeLabel(name(link.from), name(link.to)), onSelect: select },
+          })}
         </g>
       `;
     });
@@ -305,7 +331,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
             )
           : nothing
       }
-      ${this.renderEdges(edges, ARROWS)}
+      ${this.renderEdges(edges, [])}
       ${visible.edges.map((link) => {
         const chip = chips.get(link.id);
         if (chip === undefined || link.label === null) return nothing;

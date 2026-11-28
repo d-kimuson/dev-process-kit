@@ -311,6 +311,45 @@ describe('archLinkSteps', () => {
   });
 });
 
+describe('architecture map inline arrowheads and jumps', () => {
+  it('draws each arrowhead inline, with no <marker> left in the canvas', async () => {
+    const element = await mount();
+    expect(element.renderRoot.querySelectorAll('marker')).toHaveLength(0);
+    const ends = [...element.renderRoot.querySelectorAll<SVGGElement>('[data-link] .d-edge-end')];
+    expect(ends).toHaveLength(4);
+    for (const end of ends) {
+      expect(end.dataset['glyph']).toBe('arrow');
+      expect(end.querySelector('[data-paint="line"]')).not.toBeNull();
+    }
+  });
+
+  it('lifts a level link over the one crossing it, leaving the crossed link straight', async () => {
+    // Two horizontal links on one row, with a vertical link crossing both between
+    // them: the level runs jump the crossing.
+    const data = parseArchitectureData({
+      services: [
+        { id: 'l1', name: 'L1', position: { x: 0, y: 200 } },
+        { id: 'r1', name: 'R1', position: { x: 600, y: 200 } },
+        { id: 'top', name: 'Top', position: { x: 300, y: 0 } },
+        { id: 'bottom', name: 'Bottom', position: { x: 300, y: 600 } },
+      ],
+      links: [
+        { id: 'l1-r1', from: 'l1', to: 'r1' },
+        { id: 'top-bottom', from: 'top', to: 'bottom' },
+      ],
+    });
+    const element = await mountData(data);
+    const paths = [...element.renderRoot.querySelectorAll('[data-link] .d-edge-path')].map((path) => ({
+      id: path.closest('[data-link]')?.getAttribute('data-link'),
+      d: path.getAttribute('d') ?? '',
+    }));
+    const level = paths.find((path) => path.id === 'l1-r1')?.d ?? '';
+    const vertical = paths.find((path) => path.id === 'top-bottom')?.d ?? '';
+    expect(level).toMatch(/ A\d/);
+    expect(vertical).not.toContain(' A');
+  });
+});
+
 describe('dpk-board-architecture-map', () => {
   it('renders boundaries, services and artwork', async () => {
     const element = await mount();
