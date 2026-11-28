@@ -228,23 +228,24 @@ export const bpmnStyles = css`
     --d-edge-paper: var(--dpk-paper-raised);
   }
 
-  /* A selected flow goes ink in one place: the line must read the same
-     variable as its head, or the base selected rule leaves them two colours. */
-  .bpmn-flow.is-selected {
-    --d-edge-line: var(--dpk-ink);
-  }
-
-  .bpmn-flow.is-selected .d-edge-path,
-  .bpmn-flow:has(.d-edge-hit:focus-visible) .d-edge-path {
-    stroke: var(--d-edge-line);
-  }
-
   .bpmn-flow.is-message {
     --d-edge-line: var(--dpk-ink-soft);
   }
 
   .bpmn-flow.is-association {
     --d-edge-line: var(--dpk-ink-soft);
+  }
+
+  /* A selected flow takes the accent in one place: the line must read the
+     same variable as its head, or the base selected rule leaves them two
+     colours. It comes after the kind colours so a selected message wins too. */
+  .bpmn-flow.is-selected {
+    --d-edge-line: var(--dpk-blue);
+  }
+
+  .bpmn-flow.is-selected .d-edge-path,
+  .bpmn-flow:has(.d-edge-hit:focus-visible) .d-edge-path {
+    stroke: var(--d-edge-line);
   }
 
   .bpmn-flow.is-message .d-edge-path {

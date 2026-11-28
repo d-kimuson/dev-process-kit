@@ -530,6 +530,26 @@ const expectClass = (selector: string, name: string, label: string): void => {
   else failures.push(`interaction ${label}: ${selector} is not ${name}`);
 };
 
+const expectSelectedPaint = (flowId: string, label: string): void => {
+  const paint = evaluate(
+    v.object({ line: v.string(), head: v.string(), accent: v.string() }),
+    `(() => {
+      const group = ${BOARD}.shadowRoot.querySelector(${JSON.stringify(`[data-flow="${flowId}"]`)});
+      const label = ${BOARD}.shadowRoot.querySelector('.bpmn-flow-label.is-selected');
+      const accent = label ? getComputedStyle(label).borderColor : '';
+      return JSON.stringify({
+        line: getComputedStyle(group.querySelector('.d-edge-path')).stroke,
+        head: getComputedStyle(group.querySelector('.d-edge-end')).stroke,
+        accent,
+      });
+    })()`,
+  );
+  if (paint.line !== paint.head) failures.push(`interaction ${label}: line ${paint.line} != head ${paint.head}`);
+  else if (paint.line !== paint.accent)
+    failures.push(`interaction ${label}: line ${paint.line} != accent ${paint.accent}`);
+  else console.log(`[interaction] PASS ${label}: line and head are ${paint.line}`);
+};
+
 const PAGES = [
   { name: 'sample', path: '/bpmn.html', viewport: [1440, 900], node: 'review', flow: 'f-confirm' },
   {
@@ -556,6 +576,7 @@ try {
       checkContrast(theme);
       shot(`${page.name}-${theme}-node-selected`);
       click(`[data-flow-label="${page.flow}"]`);
+      expectSelectedPaint(page.flow, `${page.name} ${theme} selected flow paint`);
       checkContrast(theme);
       shot(`${page.name}-${theme}-flow-selected`);
     }

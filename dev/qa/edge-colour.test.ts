@@ -139,6 +139,7 @@ describe('edge line and arrowhead colours', () => {
     await settle(element);
     const selected = readBpmn(group());
     expect(selected.line).toBe(selected.head);
+    expect(selected.line).toContain('#3563d9');
   });
 
   it('BPMN message flow: line and head match, at rest and selected', async () => {
@@ -166,6 +167,7 @@ describe('edge line and arrowhead colours', () => {
     await settle(element);
     const selected = readBpmn(group());
     expect(selected.line).toBe(selected.head);
+    expect(selected.line).toContain('#3563d9');
   });
 
   it('sequence diagram: line and head match, at rest and selected', async () => {
