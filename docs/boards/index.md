@@ -152,12 +152,12 @@ A simple diagram reads better embedded in prose as the figure alone. Add `chrome
 
 On a canvas board (state, sequence, dependency, ER, architecture, mind map) the figure is static rather than a pan/zoom canvas:
 
-- it takes the natural height that shows the whole figure at a scale of at most 100% (`--diagram-height` has no effect, and small figures sit at 100% centred);
+- it takes the natural height that shows the whole figure at a scale of at most 100%, sized to what is drawn rather than the canvas's pan margin (`--diagram-height` has no effect, and small figures sit at 100% centred);
 - there is no pan, zoom, pinch or node drag; a vertical wheel or a touch drag scrolls the page instead;
 - the legend (where a board has one) flows below the figure instead of floating over it;
 - the sequence diagram keeps its participant rail above the figure.
 
-Review works as it does everywhere: right-click an element for "Review comment", selection highlights and clears on a background click or `Escape`, Q badges and Check Mode targets stay. The attribute is ignored on a board that is a page's content: the page is already the board's frame.
+Review works as it does everywhere: right-click an element for "Review comment", selection highlights and clears on a background click or `Escape` (from the selected element too), Q badges and Check Mode targets stay. The context menu offers no "Reset view", because the figure has no view to reset. The attribute is ignored on a board that is a page's content: the page is already the board's frame.
 
 The kanban and example mapping drop the frame, header and tag filter the same way, and keep their document flow. The whiteboard and event storming, which draw their own editing canvas, also drop the frame, header and filter but keep that canvas's own tools and its fixed height; use `chrome="none"` there for a small board embedded next to its explanation, not for an endless canvas.
 
