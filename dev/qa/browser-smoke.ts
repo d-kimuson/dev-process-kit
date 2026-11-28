@@ -146,6 +146,31 @@ const healthy = (state: ProbeState | null, shape: Shape): boolean =>
   // An app holds pages, and at least one of them has to have rendered its board.
   (shape !== 'app' || (state.pages > 0 && state.rendered > 0));
 
+/**
+ * The catalog's `dpk-diagram` entries: ids of the figures that show their
+ * error list, or that drew fewer lines than they have edge children.
+ */
+const brokenDiagrams = (): readonly string[] | null => {
+  try {
+    const raw = ab(
+      'eval',
+      `(() => JSON.stringify([...document.querySelectorAll('dpk-diagram')]
+        .filter((diagram) => {
+          const shadow = diagram.shadowRoot;
+          const drawn = shadow?.querySelectorAll('.d-edge').length ?? 0;
+          const edges = diagram.querySelectorAll('dpk-diagram-edge').length;
+          return !shadow || shadow.querySelector('[role=alert]') !== null || drawn !== edges;
+        })
+        .map((diagram) => diagram.id)))()`,
+    ).trim();
+    const decoded: unknown = JSON.parse(raw);
+    const parsed = v.safeParse(v.array(v.string()), typeof decoded === 'string' ? JSON.parse(decoded) : decoded);
+    return parsed.success ? parsed.output : null;
+  } catch {
+    return null;
+  }
+};
+
 let failed = 0;
 for (const [sample, template, shape] of SAMPLES) {
   let errors = '';
@@ -159,6 +184,12 @@ for (const [sample, template, shape] of SAMPLES) {
   const ok = state !== null && errors === '' && healthy(state, shape);
   if (!ok) failed += 1;
   console.log(`${ok ? 'PASS' : 'FAIL'} ${sample}: errors=${JSON.stringify(errors)} state=${JSON.stringify(state)}`);
+  if (sample === 'index') {
+    const broken = brokenDiagrams();
+    const drawn = broken !== null && broken.length === 0;
+    if (!drawn) failed += 1;
+    console.log(`${drawn ? 'PASS' : 'FAIL'} index diagrams: broken=${JSON.stringify(broken)}`);
+  }
 }
 
 try {
