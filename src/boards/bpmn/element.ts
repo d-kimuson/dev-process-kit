@@ -29,10 +29,15 @@ const EMPTY_BANDS: BpmnBands = { pools: [], contentLeft: 0 };
  * gateways and the flows between them, laid out automatically from the data.
  */
 export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
+  /** A process map reads at real size: a page must not shrink it to fit on open. */
+  override connectedCallback(): void {
+    this.setAttribute('data-dpk-open-actual', '');
+    super.connectedCallback();
+  }
+
   static override styles: CSSResultGroup = [diagramStyles, bpmnStyles];
 
   #bands: BpmnBands = EMPTY_BANDS;
-  #fitted = false;
 
   /** The pool and lane bands of the current layout. */
   get bands(): BpmnBands {
@@ -40,7 +45,6 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
   }
 
   protected override parseData(input: unknown): BpmnData {
-    this.#fitted = false;
     return parseBpmnData(input);
   }
 
@@ -69,16 +73,6 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
 
   protected override routePlacement(placement: LayoutResult, visible: BpmnData): LayoutResult {
     return withBpmnRoutes(placement, visible, this.#bands);
-  }
-
-  /** A whole process is wider than its page: it opens fitted once, then keeps the reader's view. */
-  protected override initialView(): void {
-    if (this.#fitted) {
-      this.viewport?.apply();
-      return;
-    }
-    this.#fitted = true;
-    this.viewport?.fit();
   }
 
   /** Pools and lanes always stay; the tag filter hides elements and the flows that would dangle. */
@@ -195,18 +189,28 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
                   data-bpmn-lane-frame=${lane.id}
                 ></div>`,
               )}
-              <div class="bpmn-pool-head" data-dpk-target=${this.commentRef('pool', pool.id)} title=${pool.name}>
+              <button
+                type="button"
+                class="bpmn-pool-head"
+                data-dpk-target=${this.commentRef('pool', pool.id)}
+                data-grill-questions=${pool.questions ?? nothing}
+                title=${pool.name}
+                @click=${() => this.openComment(this.commentRef('pool', pool.id))}
+              >
                 ${pool.name}
-              </div>
+              </button>
               ${pool.lanes.map(
-                (lane) => html`<div
+                (lane) => html`<button
+                  type="button"
                   class="bpmn-lane-head"
                   style="top:${lane.y - pool.y}px;height:${lane.height}px"
                   data-dpk-target=${this.commentRef('lane', lane.id)}
+                  data-grill-questions=${lane.questions ?? nothing}
                   title=${lane.name}
+                  @click=${() => this.openComment(this.commentRef('lane', lane.id))}
                 >
                   ${lane.name}
-                </div>`,
+                </button>`,
               )}
             </div>
           `,
@@ -280,6 +284,7 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
           hit: {
             label: m.flowLabel(m.flowKind(flow.kind), this.#name(flow.from), this.#name(flow.to), flow.label),
             onSelect: select,
+            ...(flow.questions === undefined ? {} : { questions: flow.questions }),
           },
         })}
       </g>
@@ -291,14 +296,22 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
     if (placed === undefined) return nothing;
     const state = this.nodeState(node.id);
     const label = node.name ?? (node.kind === 'annotation' ? node.text : this.#kindName(node));
+    const named = node.kind === 'event' || node.kind === 'gateway' || node.kind === 'dataObject';
     return html`
       <button
         type="button"
-        class=${this.elementClass(state, 'd-node', 'bpmn-node', `is-${node.kind}`)}
+        class=${this.elementClass(
+          state,
+          'd-node',
+          'bpmn-node',
+          `is-${node.kind}`,
+          node.kind === 'task' && node.task !== 'none' && 'has-icon',
+        )}
         data-node=${node.id}
         data-grill-questions=${this.questionsOf(node)}
         data-dpk-target=${this.commentRef('node', node.id)}
         style="left:${placed.x}px; top:${placed.y}px; width:${node.width}px; height:${node.height}px"
+        aria-label=${named ? `${label} (${this.#kindName(node)})` : nothing}
         aria-pressed=${state.selected ? 'true' : 'false'}
         title=${node.description ?? label}
         @click=${() => this.select({ kind: 'node', id: node.id })}
@@ -321,17 +334,15 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
     if (label === null || box === null) return nothing;
     const state = this.nodeState(node.id);
     return html`
-      <button
-        type="button"
+      <span
         class=${this.elementClass(state, 'bpmn-node-label')}
         style="left:${box.x}px; top:${box.y}px; width:${box.width}px; height:${box.height}px"
         data-node-label=${node.id}
-        aria-pressed=${state.selected ? 'true' : 'false'}
         title=${node.name ?? ''}
         @click=${() => this.select({ kind: 'node', id: node.id })}
       >
         ${label.lines.map((line) => html`<span>${line}</span>`)}
-      </button>
+      </span>
     `;
   }
 
@@ -346,7 +357,6 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
           type="button"
           class=${this.elementClass(state, 'bpmn-flow-label')}
           data-flow-label=${flow.id}
-          data-grill-questions=${this.questionsOf(flow)}
           data-dpk-target=${this.commentRef('edge', flow.id)}
           data-dpk-check="off"
           title=${flow.condition ?? label}

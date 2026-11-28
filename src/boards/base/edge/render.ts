@@ -19,7 +19,12 @@ export type EdgeBodyView = {
   readonly ends: readonly EdgeEndView[];
   /** Whether to draw the animated flow path. A board usually sets this from its lit/selected state via CSS instead. */
   readonly flow: boolean;
-  readonly hit: { readonly label: string; readonly onSelect: () => void } | null;
+  readonly hit: {
+    readonly label: string;
+    readonly onSelect: () => void;
+    /** Space-separated grill question refs, so an unlabeled line can carry them too. */
+    readonly questions?: string;
+  } | null;
 };
 
 /** The shared paths of an edge, for a highlight pass that moves their `d` without a re-render. */
@@ -62,6 +67,7 @@ export const edgeBody = (view: EdgeBodyView): TemplateResult => svg`
           role="button"
           tabindex="0"
           aria-label=${view.hit.label}
+          data-grill-questions=${view.hit.questions ?? nothing}
           @click=${() => view.hit?.onSelect()}
           @keydown=${(event: KeyboardEvent) => {
             if (event.key !== 'Enter' && event.key !== ' ') return;

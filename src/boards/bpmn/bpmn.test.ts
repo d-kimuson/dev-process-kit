@@ -147,7 +147,57 @@ describe('<dpk-board-bpmn>', () => {
         (end) => `${end.getAttribute('data-end')}:${end.getAttribute('data-glyph')}`,
       );
     expect(conditionalGlyphs('cond')).toEqual(['start:diamond', 'end:arrow']);
-    expect(conditionalGlyphs('def')).toEqual(['start:slash', 'end:arrow']);
+    expect(conditionalGlyphs('def')).toEqual(['start:diagonalSlash', 'end:arrow']);
+  });
+
+  it('draws an event-based gateway with the double circle and pentagon', async () => {
+    const element = await mount({
+      pools: [{ id: 'p', name: 'P' }],
+      nodes: [
+        { id: 'eg', kind: 'gateway', gateway: 'eventBased', lane: 'p', name: '何か起きた?' },
+        { id: 't', kind: 'task', lane: 'p', name: 'T' },
+      ],
+      flows: [{ id: 'f', from: 'eg', to: 't', condition: 'x' }],
+    });
+    const glyph = element.renderRoot.querySelector('[data-node="eg"]');
+    expect(glyph?.querySelectorAll('circle')).toHaveLength(2);
+    expect(glyph?.querySelector('path.line')).not.toBeNull();
+  });
+
+  it('gives an event or gateway one tab stop and an accessible name with its kind', async () => {
+    const element = await mount(raw);
+    const gateway = element.renderRoot.querySelector<HTMLElement>('[data-node="gw"]');
+    expect(gateway?.tagName).toBe('BUTTON');
+    expect(gateway?.getAttribute('aria-label')).toBe('在庫あり? (exclusive gateway)');
+    const label = element.renderRoot.querySelector<HTMLElement>('[data-node-label="gw"]');
+    expect(label?.tagName).toBe('SPAN');
+    expect(label?.hasAttribute('tabindex')).toBe(false);
+    expect(element.renderRoot.querySelector('.bpmn-pool-head')?.tagName).toBe('BUTTON');
+    expect(element.renderRoot.querySelector('.bpmn-lane-head')?.tagName).toBe('BUTTON');
+  });
+
+  it('puts grill questions on pool and lane heads and on an unlabeled flow hit path', async () => {
+    const element = await mount({
+      pools: [{ id: 'p', name: 'P', questions: 'Q1', lanes: [{ id: 'l', name: 'L', questions: 'Q2' }] }],
+      nodes: [
+        { id: 'a', kind: 'task', lane: 'l', name: 'A' },
+        { id: 'b', kind: 'task', lane: 'l', name: 'B' },
+      ],
+      flows: [{ id: 'f', from: 'a', to: 'b', questions: 'Q3' }],
+    });
+    expect(
+      element.renderRoot
+        .querySelector('[data-dpk-target="element:board/pool/p"]')
+        ?.getAttribute('data-grill-questions'),
+    ).toBe('Q1');
+    expect(
+      element.renderRoot
+        .querySelector('[data-dpk-target="element:board/lane/l"]')
+        ?.getAttribute('data-grill-questions'),
+    ).toBe('Q2');
+    expect(element.renderRoot.querySelector('[data-flow="f"] .d-edge-hit')?.getAttribute('data-grill-questions')).toBe(
+      'Q3',
+    );
   });
 
   it('jumps one flow over another when the routes cross', async () => {

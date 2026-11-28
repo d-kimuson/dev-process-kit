@@ -23,6 +23,7 @@ import { externalLabel, flowLabelSize } from './shapes';
 export type BpmnLaneBand = {
   readonly id: string;
   readonly name: string;
+  readonly questions: string | null;
   readonly y: number;
   readonly height: number;
 };
@@ -34,6 +35,7 @@ export type BpmnPoolBand = {
   readonly height: number;
   /** A pool with no lanes and no nodes: only its frame and messages reach it. */
   readonly blackBox: boolean;
+  readonly questions: string | null;
   readonly lanes: readonly BpmnLaneBand[];
 };
 
@@ -63,6 +65,7 @@ const byId = (p: string, q: string): number => (p < q ? -1 : p > q ? 1 : 0);
 type LaneContent = {
   readonly id: string;
   readonly name: string;
+  readonly questions: string | null;
   readonly nodes: readonly BpmnNode[];
 };
 
@@ -91,10 +94,18 @@ const laneContents = (
 ): readonly LaneContent[] => {
   const laneId = (node: BpmnNode): string | null => laneOf.get(node.id) ?? node.lane;
   if (pool.lanes.length === 0)
-    return [{ id: pool.id, name: pool.name, nodes: nodes.filter((node) => laneId(node) === pool.id) }];
+    return [
+      {
+        id: pool.id,
+        name: pool.name,
+        questions: pool.questions,
+        nodes: nodes.filter((node) => laneId(node) === pool.id),
+      },
+    ];
   return pool.lanes.map((lane) => ({
     id: lane.id,
     name: lane.name,
+    questions: lane.questions,
     nodes: nodes.filter((node) => laneId(node) === lane.id),
   }));
 };
@@ -191,6 +202,7 @@ export const bpmnPlacement = (data: BpmnData, options: { readonly layerSpacing?:
         y: top,
         height: BPMN_BLACK_BOX_HEIGHT,
         blackBox: true,
+        questions: pool.questions,
         lanes: [],
       });
       top += BPMN_BLACK_BOX_HEIGHT + (poolIndex + 1 < data.pools.length ? BPMN_POOL_GAP : 0);
@@ -201,10 +213,18 @@ export const bpmnPlacement = (data: BpmnData, options: { readonly layerSpacing?:
     for (const lane of lanes) {
       const heights = rowsByLane.get(lane.id)?.heights ?? [];
       const height = Math.max(BPMN_LANE_MIN_HEIGHT, heights.reduce((sum, value) => sum + value, 0) + BPMN_LANE_PAD * 2);
-      laneBands.push({ id: lane.id, name: lane.name, y: laneTop, height });
+      laneBands.push({ id: lane.id, name: lane.name, questions: lane.questions, y: laneTop, height });
       laneTop += height;
     }
-    poolBands.push({ id: pool.id, name: pool.name, y: top, height: laneTop - top, blackBox: false, lanes: laneBands });
+    poolBands.push({
+      id: pool.id,
+      name: pool.name,
+      blackBox: false,
+      questions: pool.questions,
+      y: top,
+      height: laneTop - top,
+      lanes: laneBands,
+    });
     top = laneTop + (poolIndex + 1 < data.pools.length ? BPMN_POOL_GAP : 0);
   }
 

@@ -35,6 +35,18 @@ afterEach(() => {
 });
 
 describe('dpk-page board content', () => {
+  it('leaves a board that asks to open at actual size at 100%', async () => {
+    const page = document.createElement('dpk-page');
+    page.setAttribute('name', 'sample');
+    const board = document.createElement('dpk-board-fake') as FakeBoard;
+    board.setAttribute('data-dpk-open-actual', '');
+    page.append(board);
+    document.body.append(page);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(board.resetView).not.toHaveBeenCalled();
+  });
+
   it('marks a board as page content and opens it fitted', async () => {
     const page = mountPage('sample', 'dpk-board-fake');
     const board = page.querySelector('dpk-board-fake') as FakeBoard;

@@ -84,8 +84,9 @@ const gatewayShape = (node: Extract<BpmnNode, { kind: 'gateway' }>): TemplateRes
     if (node.gateway === 'inclusive') {
       return svg`<circle class="line" cx=${cx} cy=${cy} r="7"></circle>`;
     }
-    return svg`<path class="line" d="M${cx} ${cy - 7} L${cx + 6.7} ${cy - 2} L${cx + 4} ${cy + 6} L${cx - 4} ${cy + 6} L${cx - 6.7} ${cy - 2} Z"></path>
-      <circle class="line" cx=${cx} cy=${cy} r="2"></circle>`;
+    return svg`<circle class="line" cx=${cx} cy=${cy} r="10"></circle>
+      <circle class="line" cx=${cx} cy=${cy} r="7.5"></circle>
+      <path class="line" d="M${cx - 3.5} ${cy - 3.5} L${cx + 3} ${cy - 4.5} L${cx + 5} ${cy} L${cx + 2.5} ${cy + 4.5} L${cx - 3.5} ${cy + 4} Z"></path>`;
   })();
   return svg`<polygon class="surface" points=${diamond}></polygon>${mark}`;
 };

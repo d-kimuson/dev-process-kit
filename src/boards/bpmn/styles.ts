@@ -51,6 +51,15 @@ export const bpmnStyles = css`
     color: var(--dpk-ink);
     pointer-events: auto;
     overflow: hidden;
+    padding: 0;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .bpmn-pool-head:focus-visible,
+  .bpmn-lane-head:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
   }
 
   .bpmn-pool-head {
@@ -58,8 +67,8 @@ export const bpmnStyles = css`
     width: 32px;
     height: 100%;
     writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    font-size: 12px;
+    text-orientation: mixed;
+    font-size: 13px;
     font-weight: 650;
     letter-spacing: 0.02em;
   }
@@ -70,8 +79,9 @@ export const bpmnStyles = css`
     width: 28px;
     height: 100%;
     writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    font-size: 11px;
+    text-orientation: mixed;
+    font-size: 12px;
+    font-weight: 550;
     color: var(--dpk-ink-soft);
     border-color: var(--dpk-ink-faint);
   }
@@ -155,7 +165,8 @@ export const bpmnStyles = css`
   .bpmn-task-label {
     position: relative;
     z-index: 1;
-    max-width: 104px;
+    box-sizing: border-box;
+    width: 104px;
     font-size: 11.5px;
     line-height: 16px;
     font-weight: 560;
@@ -164,6 +175,12 @@ export const bpmnStyles = css`
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 4;
     overflow: hidden;
+  }
+
+  /* The type icon owns the card's top-left corner; the name starts clear of it. */
+  .bpmn-node.has-icon .bpmn-task-label {
+    padding-left: 20px;
+    padding-right: 4px;
   }
 
   .bpmn-annotation-text {
