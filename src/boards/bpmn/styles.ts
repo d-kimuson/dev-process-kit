@@ -7,18 +7,21 @@ export const bpmnStyles = css`
     --bpmn-intermediate: var(--dpk-amber);
     --bpmn-end: var(--dpk-danger);
     --bpmn-gateway: var(--dpk-violet);
+    --bpmn-teal: light-dark(#0b7f7a, #3fc9c0);
     --bpmn-task: color-mix(in oklab, var(--dpk-blue) 30%, var(--dpk-ink-soft));
+    --bpmn-human: light-dark(var(--dpk-accent), color-mix(in oklab, var(--dpk-accent) 72%, white));
+    --bpmn-system: var(--bpmn-teal);
     --bpmn-data: color-mix(in oklab, var(--dpk-blue) 18%, var(--dpk-ink-faint));
     --bpmn-message: light-dark(#0a7684, #3cc0cf);
     --bpmn-line: color-mix(in oklab, var(--dpk-ink-soft) 80%, var(--dpk-ink-faint));
     --bpmn-paper: var(--dpk-paper-raised);
 
     /* Pools take these hues in turn (the element sets --bpmn-hue on each pool). */
-    --bpmn-hue-0: var(--dpk-accent);
-    --bpmn-hue-1: var(--dpk-amber);
-    --bpmn-hue-2: var(--dpk-blue);
+    --bpmn-hue-0: var(--dpk-blue);
+    --bpmn-hue-1: var(--bpmn-teal);
+    --bpmn-hue-2: var(--dpk-violet);
     --bpmn-hue-3: var(--dpk-green);
-    --bpmn-hue-4: var(--dpk-violet);
+    --bpmn-hue-4: var(--dpk-accent);
   }
 
   /* ---- pools and lanes (drawn behind the graph) ---- */
@@ -31,14 +34,14 @@ export const bpmnStyles = css`
 
   .bpmn-pool {
     --bpmn-frame: color-mix(in oklab, var(--bpmn-hue) 45%, var(--dpk-ink-faint));
-    --bpmn-head: color-mix(in srgb, var(--bpmn-hue) 15%, var(--dpk-paper-raised));
-    --bpmn-head-ink: color-mix(in oklab, var(--bpmn-hue) 62%, var(--dpk-ink));
+    --bpmn-head: color-mix(in srgb, var(--bpmn-hue) 22%, var(--dpk-paper-raised));
+    --bpmn-head-ink: color-mix(in oklab, var(--bpmn-hue) 55%, var(--dpk-ink));
     position: absolute;
     left: 0;
     box-sizing: border-box;
     border: 1px solid var(--bpmn-frame);
     border-radius: var(--dpk-radius-lg);
-    background: color-mix(in srgb, var(--bpmn-hue) 3%, var(--dpk-paper-raised));
+    background: color-mix(in srgb, var(--bpmn-hue) 5%, var(--dpk-paper-raised));
     box-shadow: var(--dpk-shadow-sm);
     overflow: hidden;
   }
@@ -57,7 +60,7 @@ export const bpmnStyles = css`
   }
 
   .bpmn-lane:nth-child(2n) {
-    background: color-mix(in srgb, var(--bpmn-hue) 4%, transparent);
+    background: color-mix(in srgb, var(--bpmn-hue) 7%, transparent);
   }
 
   .bpmn-pool-head,
@@ -82,7 +85,7 @@ export const bpmnStyles = css`
 
   .bpmn-pool-head:hover,
   .bpmn-lane-head:hover {
-    background: color-mix(in srgb, var(--bpmn-hue) 24%, var(--dpk-paper-raised));
+    background: color-mix(in srgb, var(--bpmn-hue) 32%, var(--dpk-paper-raised));
   }
 
   .bpmn-pool-head:focus-visible,
@@ -93,11 +96,11 @@ export const bpmnStyles = css`
 
   .bpmn-pool-head {
     z-index: 2;
-    width: 32px;
+    width: 36px;
     height: 100%;
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.14em;
   }
@@ -105,29 +108,29 @@ export const bpmnStyles = css`
   /* A pool without lanes is a single row: its name reads across, on a header chip at its start. */
   .bpmn-pool.is-black-box .bpmn-pool-head {
     width: auto;
-    min-width: 32px;
-    padding: 0 18px;
+    min-width: 36px;
+    padding: 0 22px;
     writing-mode: horizontal-tb;
     letter-spacing: 0.04em;
   }
 
   .bpmn-lane-head {
     z-index: 2;
-    left: 32px;
-    width: 28px;
+    left: 36px;
+    width: 32px;
     height: 100%;
     border-left: 1px solid color-mix(in srgb, var(--bpmn-frame) 45%, transparent);
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 650;
     letter-spacing: 0.12em;
-    background: color-mix(in srgb, var(--bpmn-hue) 7%, var(--dpk-paper-raised));
-    color: color-mix(in oklab, var(--bpmn-hue) 35%, var(--dpk-ink-soft));
+    background: color-mix(in srgb, var(--bpmn-hue) 11%, var(--dpk-paper-raised));
+    color: color-mix(in oklab, var(--bpmn-hue) 45%, var(--dpk-ink));
   }
 
   .bpmn-lane-head:hover {
-    background: color-mix(in srgb, var(--bpmn-hue) 14%, var(--dpk-paper-raised));
+    background: color-mix(in srgb, var(--bpmn-hue) 20%, var(--dpk-paper-raised));
   }
 
   /* ---- nodes ---- */
@@ -158,28 +161,37 @@ export const bpmnStyles = css`
 
   .bpmn-shape.tone-start {
     --bpmn-tone: var(--bpmn-start);
-    --bpmn-fill: 12%;
+    --bpmn-fill: 16%;
   }
 
   .bpmn-shape.tone-intermediate {
     --bpmn-tone: var(--bpmn-intermediate);
-    --bpmn-fill: 12%;
+    --bpmn-fill: 16%;
   }
 
   .bpmn-shape.tone-end {
     --bpmn-tone: var(--bpmn-end);
-    --bpmn-fill: 12%;
+    --bpmn-fill: 14%;
   }
 
   .bpmn-shape.tone-gateway {
     --bpmn-tone: var(--bpmn-gateway);
-    --bpmn-fill: 12%;
+    --bpmn-fill: 22%;
   }
 
   .bpmn-shape.tone-task {
     --bpmn-tone: var(--bpmn-task);
-    --bpmn-fill: 3%;
-    filter: drop-shadow(0 1px 1px var(--dpk-shade-1)) drop-shadow(0 4px 8px var(--dpk-shade-2));
+    --bpmn-fill: 12%;
+    filter: drop-shadow(0 1px 1px var(--dpk-shade-1)) drop-shadow(0 4px 10px var(--dpk-shade-2));
+  }
+
+  /* People do a user or manual task; a system does the rest. The icon chip names the exact type. */
+  .bpmn-shape.tone-task:is(.task-user, .task-manual) {
+    --bpmn-tone: var(--bpmn-human);
+  }
+
+  .bpmn-shape.tone-task:is(.task-service, .task-script, .task-send, .task-receive) {
+    --bpmn-tone: var(--bpmn-system);
   }
 
   .bpmn-shape.tone-data {
@@ -269,7 +281,7 @@ export const bpmnStyles = css`
   .bpmn-node:focus-visible .bpmn-shape,
   .bpmn-node.is-selected .bpmn-shape {
     --bpmn-tone: var(--dpk-blue);
-    --bpmn-fill: 10%;
+    --bpmn-fill: 16%;
   }
 
   .bpmn-node:focus-visible .bpmn-shape :is(.surface, .line),
@@ -279,19 +291,21 @@ export const bpmnStyles = css`
 
   .bpmn-node:focus-visible .bpmn-shape .surface,
   .bpmn-node.is-selected .bpmn-shape .surface {
-    filter: drop-shadow(0 0 4px var(--dpk-blue-soft)) drop-shadow(0 0 1px var(--dpk-blue-soft));
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--dpk-blue) 45%, transparent));
   }
 
   .bpmn-task-label {
     position: relative;
     z-index: 1;
     box-sizing: border-box;
-    width: 104px;
-    font-size: 11.5px;
-    line-height: 16px;
+    width: calc(100% - 16px);
+    font-size: 13px;
+    line-height: 18px;
     font-weight: 620;
     letter-spacing: 0.01em;
     text-align: center;
+    text-wrap: balance;
+    word-break: auto-phrase;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 4;
@@ -300,8 +314,8 @@ export const bpmnStyles = css`
 
   /* The type icon owns the card's top-left corner; the name starts clear of it. */
   .bpmn-node.has-icon .bpmn-task-label {
-    padding-left: 20px;
-    padding-right: 4px;
+    padding-left: 22px;
+    padding-right: 0;
   }
 
   .bpmn-annotation-text {
@@ -309,7 +323,7 @@ export const bpmnStyles = css`
     z-index: 1;
     align-self: stretch;
     padding: 4px 8px 4px 22px;
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 16px;
     text-align: left;
     color: var(--dpk-ink-soft);
@@ -322,12 +336,17 @@ export const bpmnStyles = css`
     border: 0;
     background: transparent;
     color: var(--dpk-ink);
-    font-size: 14px;
-    font-weight: 560;
-    line-height: 16px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 15px;
     text-align: center;
     cursor: pointer;
     overflow: hidden;
+  }
+
+  .bpmn-annotation-text > span {
+    display: block;
+    white-space: nowrap;
   }
 
   .bpmn-node-label > span {
@@ -399,12 +418,12 @@ export const bpmnStyles = css`
     box-shadow: var(--dpk-shadow-xs);
     color: color-mix(in oklab, var(--bpmn-chip) 45%, var(--dpk-ink));
     font: inherit;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 560;
     line-height: 1.45;
     white-space: nowrap;
     cursor: pointer;
-    max-width: 180px;
+    max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
   }

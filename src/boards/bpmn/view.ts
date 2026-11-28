@@ -133,7 +133,7 @@ const tone = (node: BpmnNode): string => {
   if (node.kind === 'gateway') return 'tone-gateway';
   if (node.kind === 'dataObject') return 'tone-data';
   if (node.kind === 'annotation') return 'tone-note';
-  return 'tone-task';
+  return node.kind === 'task' ? `tone-task task-${node.task}` : 'tone-task';
 };
 
 /** The inline SVG for one node. The element positions it over the node's box. */
