@@ -12,6 +12,10 @@ export const diagramStyles = css`
     overflow-y: hidden;
     scrollbar-width: thin;
   }
+  .sizer {
+    max-width: 100%;
+    height: 0;
+  }
   .stage {
     position: relative;
     margin-inline: auto;

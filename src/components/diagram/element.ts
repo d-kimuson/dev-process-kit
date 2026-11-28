@@ -192,6 +192,7 @@ export class DpkDiagram extends LitElement {
         style="margin:0"
         @click=${this.#onCanvasClick}
       >
+        <div class="sizer" style=${`width:${width}px`}></div>
         <div class="stage" style=${`width:${width * scale}px;height:${height * scale}px`}>
           <div
             class=${view === null ? 'canvas is-measuring' : 'canvas'}
