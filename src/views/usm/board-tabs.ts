@@ -7,7 +7,7 @@ import { hasFeature, type UsmFeature, type UsmState } from './model';
  * sliced into and how the milestones burn down (with the estimate scale).
  * Which one is on screen is navigation, never a draft action. What the map is
  * made of — the statuses its stories move through, the labels they carry and
- * the members they are assigned to — is defined in the settings dialog
+ * the members they are assigned to — is defined in the settings
  * (`DpkViewUsm.renderSettingsSections`), not on a page of its own.
  */
 export const USM_TABS = ['map', 'table', 'milestones', 'burndown'] as const;

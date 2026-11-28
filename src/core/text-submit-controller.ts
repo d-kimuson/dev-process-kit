@@ -4,7 +4,7 @@
  * The choice is kept on `<html data-dpk-text-submit>`, one per page: every
  * field reads it at the moment a key is pressed, so a field never holds a stale
  * copy, and every bundle loaded on the page sees the same value. The reader's
- * pick itself is persisted by the template that owns the settings dialog
+ * pick itself is persisted by the template that owns the settings
  * (`./shell/text-submit-choice-controller.ts`).
  */
 import type { ReactiveController, ReactiveControllerHost } from 'lit';

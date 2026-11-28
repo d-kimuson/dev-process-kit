@@ -6,6 +6,7 @@ import type { DpkInlineEdit } from '../components/inline-edit/index';
 import type { DpkViewPlain } from '../views/plain/element';
 
 import { DraftController } from './controller';
+import { shownSettingsOf } from './layouts/settings/element.testing';
 import { tinyBase, tinyDefinition } from './testing/tiny-template';
 import { setPageTextSubmitKey } from './text-submit-controller';
 import '../index';
@@ -38,7 +39,9 @@ const shadow = (element: Element): ShadowRoot => {
 const pickInSettings = async (element: DpkViewPlain, key: string): Promise<void> => {
   shadow(element).querySelector<HTMLButtonElement>('.dpk-settings-trigger')?.click();
   await settle(element);
-  const choice = shadow(element).querySelector<HTMLButtonElement>(`[data-text-submit-choice="${key}"]`);
+  const choice = (await shownSettingsOf(element)).querySelector<HTMLButtonElement>(
+    `[data-text-submit-choice="${key}"]`,
+  );
   if (!choice) throw new Error(`no ${key} choice`);
   choice.click();
   await settle(element);
@@ -64,11 +67,11 @@ afterEach(() => {
 });
 
 describe('the page-wide text-submit key', () => {
-  it('offers the three keys in the settings dialog, Ctrl/Command+Enter picked by default', async () => {
+  it('offers the three keys in the settings, Ctrl/Command+Enter picked by default', async () => {
     const element = mount('on');
     await element.api.ready;
     await pickInSettings(element, 'mod-enter');
-    const choices = [...shadow(element).querySelectorAll('[data-text-submit-choice]')];
+    const choices = [...(await shownSettingsOf(element)).querySelectorAll('[data-text-submit-choice]')];
     expect(choices.map((choice) => choice.textContent?.trim())).toEqual(['Enter', 'Ctrl + Enter', 'Shift + Enter']);
     expect(choices.map((choice) => choice.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false']);
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();

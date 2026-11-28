@@ -5,6 +5,7 @@ import type { DraftAction } from '../../core/types';
 import type { DpkViewUsm } from './element';
 
 import '../../index';
+import { shownSettingsOf } from '../../core/layouts/settings/element.testing';
 import { applyUsmAction } from './apply';
 import { usmDefinitionFor } from './definition';
 import { usmMessages } from './messages';
@@ -130,7 +131,7 @@ describe('usm statuses: actions', () => {
 
   it('lists statuses as comment targets, and sends a stored statuses tab back to the map', () => {
     expect(definition.commentTargets(base, {}).filter((option) => option.group === m.statusGroup)).toHaveLength(3);
-    // the statuses are defined in the settings dialog now, so the tab they used to have is gone
+    // the statuses are defined in the settings now, so the tab they used to have is gone
     expect(definition.resolveNavigation(base, { tab: 'statuses' })['tab']).toBeUndefined();
   });
 });
@@ -336,20 +337,19 @@ describe('usm statuses: element', () => {
     expect(el.api.state.activities[0]).not.toHaveProperty('actor');
   });
 
-  it('edits the statuses in the settings dialog, icon menu and all', async () => {
+  it('edits the statuses in the settings, icon menu and all', async () => {
     const el = await mount('');
     const root = el.shadowRoot!;
     expect(root.querySelector('[role="tab"][data-tab="statuses"]')).toBeNull();
     el.openSettings('statuses');
     await settle(el);
-    const dialog = root.querySelector('#dpk-settings') as HTMLDialogElement;
-    expect(dialog.open).toBe(true);
-    expect(root.querySelector('.dpk-dialog-nav-item[aria-current="true"]')?.textContent?.trim()).toBe(
+    expect(el.panelOpen).toBe(true);
+    expect((await shownSettingsOf(el)).querySelector('.nav-item[aria-current="true"]')?.textContent?.trim()).toBe(
       m.statusesSection,
     );
-    // A self-styled section renders inside its own element (it is drawn by the
-    // dialog of whichever element owns the chrome), so read it from there.
-    const host = root.querySelector('dpk-internal-usm-settings-section') as HTMLElement;
+    // A self-styled section renders inside its own element (it is drawn in the
+    // side panel's shadow root), so read it from there.
+    const host = (await shownSettingsOf(el)).querySelector('dpk-internal-usm-settings-section') as HTMLElement;
     const section = host.shadowRoot!.querySelector('[data-testid="usm-statuses"]')!;
     expect([...section.querySelectorAll('[data-status]')].map((row) => row.getAttribute('data-status'))).toEqual([
       'idea',
@@ -377,10 +377,10 @@ describe('usm statuses: element', () => {
     await el.updateComplete;
     expect(el.api.state.statuses.find((status) => status.id === 'ready')?.icon).toBe('play');
     expect(host.shadowRoot!.querySelector('#icon-menu')).toBeNull();
-    // the pick redrew the overview, and the dialog is still the one the reader was in
+    // the pick redrew the overview, and the panel still shows the settings the reader was in
     expect(section.querySelector('[data-status="ready"] [data-icon-trigger]')?.getAttribute('title')).toBe(
       m.iconName('play'),
     );
-    expect(dialog.open).toBe(true);
+    expect(el.panelOpen).toBe(true);
   });
 });

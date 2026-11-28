@@ -5,6 +5,7 @@ import type { DraftAction } from '../../core/types';
 import type { DpkViewUsm } from './element';
 
 import '../../index';
+import { shownSettingsOf } from '../../core/layouts/settings/element.testing';
 import { applyUsmAction } from './apply';
 import { burndownMilestoneOf, burndownOf, measureOf, remainingSharesOf, tallyOf } from './burndown';
 import { layoutChart, readoutAt, timeTicks, valueTicks } from './burndown-chart';
@@ -529,8 +530,8 @@ describe('usm estimates and burndown: element', () => {
     await settle(el);
     el.openSettings('statuses');
     await settle(el);
-    const section = el
-      .shadowRoot!.querySelector('dpk-internal-usm-settings-section')!
+    const section = (await shownSettingsOf(el))
+      .querySelector('dpk-internal-usm-settings-section')!
       .shadowRoot!.querySelector('[data-testid="usm-statuses"]')!;
     expect(section.querySelector('dpk-internal-usm-weight-bar')).toBeNull();
   });

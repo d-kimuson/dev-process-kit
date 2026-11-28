@@ -26,13 +26,14 @@ import type {
   ViewRenderContext,
   ViewSnapshot,
 } from '../shell/contracts';
+import type { SettingsSwitches } from '../shell/settings-panel';
 import type { DraftAction, Navigation, ViewDefinition } from '../types';
 
 import { announcedEntryUrl } from '../../lib/announce';
 import { DismissController } from '../../lib/dom/dismiss';
 import { contextMenuStyles } from '../context-menu/styles';
 import { dialogStyles } from '../dialog/styles';
-import { ViewElement, type SettingsSwitches } from '../element';
+import { ViewElement } from '../element';
 import { GRILL_ATTRIBUTE, GRILL_TARGET_TYPE, type Grill } from '../grill';
 import { iconPlus, iconSwitch, lucide } from '../icons';
 import { PAGE_STATE_EVENT, isPageContentState, type PageContentState } from '../page/element';
@@ -40,12 +41,11 @@ import { pageOfMark, pageGrill, refCandidates } from '../page/grill';
 import { DRAFT_PAGE_ATTRIBUTE, PAGE_HOST, PAGE_NAME_ATTRIBUTE, appPageNameOf, type PageHost } from '../page/host';
 import { PAGE_KEY, pageNavigation } from '../page/navigation';
 import { APP_WIDE_TARGET, isAppWide, splitPage } from '../page/page-target';
-import { panelControlOf, type PanelControl } from '../panel/host';
-import { PANEL_STATE_EVENT } from '../panel/owner';
+import { ownPanelHost, type PanelHost } from '../panel/host';
+import { PANEL_CHANGE_EVENT } from '../panel/owner';
 import { PopoverController } from '../popover-controller';
 import { parseViewAction } from '../schema';
 import { floatingMenuStyles } from '../shell/floating-menu-view';
-import { settingsDialogStyles } from '../shell/settings-dialog';
 import { chromeStyles } from '../shell/styles';
 import { appActions, belongsToPage } from './actions';
 import { pagesSection, withPages } from './brief';
@@ -480,16 +480,15 @@ const pageStyles = css`
 
 export class AppElement extends ViewElement<AppState> {
   /**
-   * The shell's chrome, plus the dialog frame and rows the settings panel draws.
-   * The app owns the screen's header row, its floating menu and its settings
-   * dialog, so their styles are part of this set too: `static styles` replaces —
-   * not merges with — the `ViewElement` one.
+   * The shell's chrome, plus the dialog frame its confirmation draws. The app
+   * owns the screen's header row and its floating menu, so their styles are
+   * part of this set too: `static styles` replaces — not merges with — the
+   * `ViewElement` one.
    */
   static override styles: CSSResultGroup = [
     chromeStyles,
     contextMenuStyles,
     dialogStyles,
-    settingsDialogStyles,
     floatingMenuStyles,
     pageStyles,
   ];
@@ -537,8 +536,8 @@ export class AppElement extends ViewElement<AppState> {
 
   constructor() {
     super();
-    // A page's panel opening or closing redraws the header's panel toggle.
-    this.addEventListener(PANEL_STATE_EVENT, (event) => {
+    // A page's panel opening or closing redraws the header's gear.
+    this.addEventListener(PANEL_CHANGE_EVENT, (event) => {
       if (event.target instanceof Element && event.target.parentElement === this) this.requestUpdate();
     });
     new DismissController(this, {
@@ -692,10 +691,11 @@ export class AppElement extends ViewElement<AppState> {
     return false;
   }
 
-  /** The header's panel toggle and the shortcut act on the page shown. */
-  protected override panelControl(): PanelControl | null {
-    const page = this.#pages().find((candidate) => !candidate.hidden);
-    return page === undefined ? null : panelControlOf(page);
+  /** The settings show in the panel of the page shown. */
+  protected override settingsPanelHost(): PanelHost | null {
+    const active = this.navigation[PAGE_KEY];
+    const page = active === undefined ? undefined : this.#pageOf(active);
+    return page === undefined ? null : ownPanelHost(page);
   }
 
   #pages(): readonly PageElementLike[] {
@@ -1229,7 +1229,7 @@ export class AppElement extends ViewElement<AppState> {
     return this.#pages().find((element) => this.#nameOf(element) === id);
   }
 
-  /** The content of the page the reader is on, whose settings the dialog shows. */
+  /** The content of the page the reader is on, whose settings the panel shows. */
   #settingsContent(context: ViewRenderContext<AppState>): SettingsContent | null {
     const entry = this.#activeEntry(context.state, context.navigation);
     const content = (entry === undefined ? undefined : this.#pageOf(entry.id))?.content ?? null;
@@ -1351,12 +1351,12 @@ export class AppElement extends ViewElement<AppState> {
       page.refreshContent();
       page.deliver();
     }
-    // The settings dialog shows the active page's own sections, and they read
-    // that page's state — which the page only takes in here, after this render
-    // built the dialog. One more render of the app, with the page's fresh state,
-    // is what makes an edit inside the open dialog show itself (a status it
+    // The settings show the active page's own sections, and they read that
+    // page's state — which the page only takes in here, after this render drew
+    // the settings. One more render of the app, with the page's fresh state, is
+    // what makes an edit inside the open settings show itself (a status it
     // just added, a name it just changed) instead of waiting for a reopen.
-    if (handed && this.settingsOpen) this.requestUpdate();
+    if (handed && this.settingsShown) this.requestUpdate();
   }
 
   /** An element for a page the draft added; it starts from its content's empty base. */

@@ -23,6 +23,7 @@ import { DraftController } from '../../core/controller';
 import { diagramBoardDefinition, type DiagramBoardState } from '../../core/diagram-board';
 import { elementActionsFor, type ComponentSnapshot, type ElementActionResult } from '../../core/element-actions';
 import { type Locale } from '../../core/i18n';
+import { inSidePanel } from '../../core/layouts/panel/index';
 import { LocaleController } from '../../core/locale-controller';
 import { pageHostOf, pageNameOf } from '../../core/page/host';
 import { resolvePageTarget } from '../../core/page/page-target';
@@ -981,10 +982,11 @@ export abstract class BoardCanvasChromeElement<D, S extends SelectionRef = Graph
   /**
    * Escape clears a selection first (the canvas does that); only with none does
    * a maximized shell restore. A chrome-less figure's canvas is not a keyboard
-   * stop, so focus sits on the node: clear from here for it too.
+   * stop, so focus sits on the node: clear from here for it too. An Escape
+   * inside the side panel is the panel's.
    */
   readonly #holdEscape = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape' || this.selection === null) return;
+    if (event.key !== 'Escape' || this.selection === null || inSidePanel(event)) return;
     event.preventDefault();
     if (this.chromeless) this.select(null);
   };

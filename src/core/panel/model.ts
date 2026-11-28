@@ -5,8 +5,8 @@
  *
  * The panel belongs to the element that holds the content (`<dpk-page>`, a
  * standalone view or board). Its first section, `detail`, is the content's
- * selected element; the others are the author's `<dpk-panel-section>` elements
- * and the sections a component adds itself.
+ * selected element; then come the sections a component adds itself and the
+ * author's `<dpk-panel-section>` elements, and last the page's settings.
  */
 import * as v from 'valibot';
 
@@ -16,7 +16,16 @@ export const PANEL_WIDTH = { min: 280, max: 560, default: 360 } as const;
 /** The section that shows the selected element. An author section may not take this name. */
 export const DETAIL_SECTION = 'detail';
 
-/** `auto` readies a closed panel when there is something to show; `open` opens it on a first visit; `none` draws none. */
+/** The section that shows the page's settings, opened by the header's gear. An author section may not take this name. */
+export const SETTINGS_SECTION = 'settings';
+
+const RESERVED_SECTIONS: ReadonlySet<string> = new Set([DETAIL_SECTION, SETTINGS_SECTION]);
+
+/**
+ * `auto` opens the panel on a first visit when it has an author's or a
+ * component's section, and keeps it closed otherwise; `open` opens it on a
+ * first visit; `none` offers only the settings.
+ */
 export type PanelMode = 'auto' | 'open' | 'none';
 
 export const parsePanelMode = (value: string | null | undefined): PanelMode =>
@@ -27,7 +36,7 @@ export type PanelTab = {
   readonly name: string;
   readonly label: string;
   readonly badge: string | null;
-  readonly kind: 'detail' | 'component' | 'author';
+  readonly kind: 'detail' | 'component' | 'author' | 'settings';
 };
 
 /** An author's `<dpk-panel-section>` as its attributes read; `name` is `null` when the author left it out. */
@@ -50,7 +59,7 @@ export type ComponentSection = {
  * among the author's sections when it has none (or takes the reserved one).
  */
 export const authoredSectionName = (section: AuthoredSection, index: number): string =>
-  section.name === null || section.name === '' || section.name === DETAIL_SECTION
+  section.name === null || section.name === '' || RESERVED_SECTIONS.has(section.name)
     ? `section-${index + 1}`
     : section.name;
 
@@ -59,11 +68,22 @@ export type PanelTabsInput = {
   readonly detail: { readonly label: string } | null;
   readonly components: readonly ComponentSection[];
   readonly authored: readonly AuthoredSection[];
+  /** Whether the element that owns the page's chrome offers its settings here. */
+  readonly settings: { readonly label: string } | null;
 };
 
-/** `detail` first, then the components' sections, then the author's, without the hidden ones. */
-export const panelTabs = ({ detail, components, authored }: PanelTabsInput): readonly PanelTab[] => [
-  ...(detail === null ? [] : [{ name: DETAIL_SECTION, label: detail.label, badge: null, kind: 'detail' as const }]),
+/** `detail` first, then the components' sections, then the author's without the hidden ones, then the settings. */
+export const panelTabs = ({ detail, components, authored, settings }: PanelTabsInput): readonly PanelTab[] => [
+  ...(detail === null
+    ? []
+    : [
+        {
+          name: DETAIL_SECTION,
+          label: detail.label,
+          badge: null,
+          kind: 'detail' as const,
+        },
+      ]),
   ...components.map((section) => ({
     name: section.name,
     label: section.label,
@@ -82,6 +102,16 @@ export const panelTabs = ({ detail, components, authored }: PanelTabsInput): rea
           },
         ],
   ),
+  ...(settings === null
+    ? []
+    : [
+        {
+          name: SETTINGS_SECTION,
+          label: settings.label,
+          badge: null,
+          kind: 'settings' as const,
+        },
+      ]),
 ];
 
 export type InitialSectionInput = {
@@ -94,14 +124,17 @@ export type InitialSectionInput = {
 
 /**
  * The section the panel shows: the reader's last choice while it still
- * exists; the detail while an element is selected; else the first other
- * section; else the detail.
+ * exists; the detail while an element is selected; else the first component
+ * or author section; else the detail; else the settings.
  */
 export const initialSection = ({ tabs, stored, selected }: InitialSectionInput): string => {
   if (stored !== null && tabs.some((tab) => tab.name === stored)) return stored;
   const hasDetail = tabs.some((tab) => tab.kind === 'detail');
   if (hasDetail && selected) return DETAIL_SECTION;
-  return tabs.find((tab) => tab.kind !== 'detail')?.name ?? DETAIL_SECTION;
+  const other = tabs.find((tab) => tab.kind === 'component' || tab.kind === 'author');
+  if (other !== undefined) return other.name;
+  if (hasDetail) return DETAIL_SECTION;
+  return tabs.some((tab) => tab.kind === 'settings') ? SETTINGS_SECTION : DETAIL_SECTION;
 };
 
 /**
@@ -156,9 +189,15 @@ export const tabKeyTarget = (names: readonly string[], current: string, key: str
 };
 
 /** What the panel keeps for the reader: whether it is open, and the section they chose. */
-export type PanelRecord = { readonly open: boolean; readonly section: string | null };
+export type PanelRecord = {
+  readonly open: boolean;
+  readonly section: string | null;
+};
 
-const PanelRecordSchema = v.object({ open: v.boolean(), section: v.nullable(v.string()) });
+const PanelRecordSchema = v.object({
+  open: v.boolean(),
+  section: v.nullable(v.string()),
+});
 
 /** A stored record, or `null` when the value is not one. */
 export const parsePanelRecord = (value: unknown): PanelRecord | null => {
@@ -168,9 +207,12 @@ export const parsePanelRecord = (value: unknown): PanelRecord | null => {
 
 /**
  * Whether the panel is open: the reader's record wins; without one, the
- * author's `panel="open"` opens it.
+ * author's `panel="open"` opens it, and so does a section beside the detail
+ * and the settings (an author's or a component's), which the reader would
+ * otherwise have no way to reach.
  */
-export const panelOpenState = (record: PanelRecord | null, mode: PanelMode): boolean => record?.open ?? mode === 'open';
+export const panelOpenState = (record: PanelRecord | null, mode: PanelMode, tabs: readonly PanelTab[]): boolean =>
+  record?.open ?? (mode === 'open' || tabs.some((tab) => tab.kind === 'author' || tab.kind === 'component'));
 
 /** How tall the panel is as a sheet on a narrow screen. */
 export type SheetLevel = 'half' | 'full';

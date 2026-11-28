@@ -12,7 +12,7 @@
  * and the same contract holds.
  *
  * Shared by the public `dpk-dialog` element (`src/components/dialog`) and the
- * shell's settings surface, which sits in `core` and so cannot depend on
+ * shell's confirmation, which sits in `core` and so cannot depend on
  * `components` — the same reason `ConfirmDialogController` and
  * `SelectController` live here.
  */

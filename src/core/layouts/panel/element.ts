@@ -11,6 +11,9 @@
  *   height, which leaves the column usable, or all of it.
  * - The `sections` slot takes the author's `<dpk-panel-section>` elements,
  *   forwarded by the owner; the owner marks the one that shows.
+ * - Escape inside the panel closes it, unless an input or a popup inside used
+ *   that Escape itself (an IME's conversion, a list of candidates closing):
+ *   it first restores a maximized panel or shrinks a full sheet.
  * - `--dpk-panel-width` sets the width before the reader changes it.
  */
 import { css, html, LitElement, nothing, type CSSResultGroup, type PropertyValues, type TemplateResult } from 'lit';
@@ -20,21 +23,20 @@ import type { PanelOwner } from '../../panel/owner';
 
 import { iconChevronLeft, iconClose, iconComment, iconMaximize, iconMinimize } from '../../icons';
 import { panelMessages } from '../../panel/messages';
-import { DETAIL_SECTION, PANEL_WIDTH, tabKeyTarget, type PanelTab } from '../../panel/model';
+import { DETAIL_SECTION, PANEL_WIDTH, SETTINGS_SECTION, tabKeyTarget, type PanelTab } from '../../panel/model';
 import { controls, tokens } from '../../theme';
 import { NarrowScreenController } from '../sidebar/narrow-screen-controller';
 import { SidebarResizeController } from '../sidebar/resize-controller';
 
-const editing = (event: Event): boolean =>
-  event
-    .composedPath()
-    .some(
-      (node) =>
-        node instanceof HTMLInputElement ||
-        node instanceof HTMLTextAreaElement ||
-        node instanceof HTMLSelectElement ||
-        (node instanceof HTMLElement && node.isContentEditable),
-    );
+/** Marks the panel's own surface, apart from the main column the frame also holds. */
+const SIDE_PANEL_ATTRIBUTE = 'data-dpk-side-panel';
+
+/**
+ * Whether the event happened inside a side panel: a board that holds the
+ * Escape for its own selection leaves this one to the panel.
+ */
+export const inSidePanel = (event: Event): boolean =>
+  event.composedPath().some((node) => node instanceof Element && node.hasAttribute(SIDE_PANEL_ATTRIBUTE));
 
 const panelStyles = css`
   :host {
@@ -436,10 +438,14 @@ export class DpkInternalLayoutPanel extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     this.#subscribe();
+    // On the window, so it runs after every handler inside (and the document's
+    // dismissable layers): an Escape one of them used arrives prevented.
+    window.addEventListener('keydown', this.#onKey);
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
+    window.removeEventListener('keydown', this.#onKey);
     this.#unsubscribe?.();
     this.#unsubscribe = null;
     this.#subscribed = null;
@@ -494,7 +500,7 @@ export class DpkInternalLayoutPanel extends LitElement {
       ?data-maximized=${!narrow && owner.maximized}
       data-sheet=${narrow ? owner.sheet : nothing}
       style=${narrow ? nothing : `width: ${this.#width.width}px`}
-      @keydown=${(event: KeyboardEvent) => this.#onPanelKey(event, owner)}
+      data-dpk-side-panel
     >
       ${narrow ? this.#renderHandle(owner, m) : this.#renderResizer(m)}
       <div class="head">
@@ -522,7 +528,7 @@ export class DpkInternalLayoutPanel extends LitElement {
             data-role="close-panel"
             aria-label=${m.closePanel}
             title=${m.closePanel}
-            @click=${() => owner.setOpen(false)}
+            @click=${() => owner.dismiss()}
           >
             ${iconClose()}
           </button>
@@ -542,6 +548,18 @@ export class DpkInternalLayoutPanel extends LitElement {
           </div>`,
         )}
         <div class="authored" ?hidden=${!authored}><slot name="sections"></slot></div>
+        ${
+          owner.settings !== null && section === SETTINGS_SECTION
+            ? html`<div
+                class="section"
+                role="tabpanel"
+                id=${`panel-${SETTINGS_SECTION}`}
+                aria-labelledby=${`tab-${SETTINGS_SECTION}`}
+              >
+                ${owner.settings.render()}
+              </div>`
+            : nothing
+        }
       </div>
     </aside>`;
   }
@@ -670,20 +688,17 @@ export class DpkInternalLayoutPanel extends LitElement {
     this.requestUpdate();
   }
 
-  /** Escape leaves an editor to its own cancel; otherwise it steps the panel back, then returns to the board. */
-  #onPanelKey(event: KeyboardEvent, owner: PanelOwner): void {
-    if (event.key !== 'Escape' || event.defaultPrevented || editing(event)) return;
+  /** Escape steps a maximized panel or a full sheet back, then leaves the detail for its section or closes the panel. */
+  readonly #onKey = (event: KeyboardEvent): void => {
+    const owner = this.owner;
+    if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented || owner?.isOpen !== true) return;
+    const panel = this.renderRoot.querySelector('.panel');
+    if (panel === null || !event.composedPath().includes(panel)) return;
+    event.preventDefault();
     if (owner.maximized) owner.setMaximized(false);
     else if (this.#narrow.narrow && owner.sheet === 'full') owner.setSheet('half');
-    else if (owner.detail?.focus !== undefined && owner.section === DETAIL_SECTION) {
-      // The element sits in an author's section (a board in a supplement): show it before focusing it.
-      const origin = owner.detailOrigin;
-      if (origin !== null) owner.select(origin.name);
-      owner.detail.focus();
-    } else return;
-    event.preventDefault();
-    event.stopPropagation();
-  }
+    else owner.escape();
+  };
 
   protected override updated(): void {
     const owner = this.owner;
@@ -693,8 +708,11 @@ export class DpkInternalLayoutPanel extends LitElement {
       this.#focusTab = null;
       this.renderRoot.querySelector<HTMLElement>(`[role="tab"][data-section="${CSS.escape(name)}"]`)?.focus();
     }
-    if (owner.takeDetailFocus()) {
+    const focus = owner.takeFocus();
+    if (focus === 'detail') {
       this.renderRoot.querySelector<HTMLElement>('[data-role="detail-heading"]')?.focus({ preventScroll: true });
+    } else if (focus === 'tab') {
+      this.renderRoot.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
     }
   }
 }

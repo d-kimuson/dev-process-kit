@@ -336,11 +336,12 @@ draft action.
   page to switch to or a content to add (the name of the page shown is in its own label, and **+**
   adds one), the page's title as its `h1` (ellipsized, with the whole title on hover), then the
   content's own header controls and your `slot="header"` markup, and, at the end, the language
-  select, the theme toggle and the settings gear. The gear opens the settings dialog: the page's own
-  switches and any section its view renders, in one frame whose height stays the same as the reader
-  switches sections. Its **General** section repeats the header's language select and light/dark
+  select, the theme toggle and the settings gear. The gear opens the
+  [side panel](components/panel-section.md) on its last section, **Settings** (設定): the page's own
+  switches and any section its view renders, one at a time, with a nav between them when there is
+  more than one. Its **General** section repeats the header's language select and light/dark
   choice and holds the [text submit key](#text-submit-key), so a page whose content has nothing to
-  configure still opens something real; with only that one section the dialog fits it instead of drawing a tall empty frame. The row
+  configure still shows something real. The gear again, the panel's ×, or Escape closes it. The row
   wraps rather than squeezing its
   content, and on a phone the title takes a row of its own.
 - **The floating menu** carries the page's own controls, in one row or one column: the grip, undo and
@@ -404,7 +405,7 @@ The app sets `color-scheme` on itself, and the color tokens switch with it, so a
 
 Every multi-line text field on the page — comment boxes, review replies and suggestions, speaker
 notes, UI notes, a free-text Grill answer, and a `multiline` [inline edit](components/inline-edit.md)
-such as a card description — saves on the same key. The reader picks it in the settings dialog's
+such as a card description — saves on the same key. The reader picks it in the settings'
 **General** section, under **Save text with** (テキストフォームの保存):
 
 | Choice                        | Saves on                                                           | Inserts a line break                            |
@@ -453,7 +454,7 @@ The side panel on the right (the `panel` slot) resizes between 280px and 560px a
 
 ### Version
 
-The page runs the version of `dev-process-kit` its own URL pins, and the settings dialog offers no
+The page runs the version of `dev-process-kit` its own URL pins, and the settings offer no
 other: a page defines a custom element once, so switching versions needs a fresh page. A
 `?dpk-version=<version>` on the page's URL hands the page to that version instead — the entry the page
 loads imports that version's same entry from jsDelivr and defines nothing itself. Nothing else about
@@ -481,7 +482,7 @@ Slot each piece of supporting material as its own element with a `data-name`:
 </section>
 ```
 
-Each supplement is a section of the side panel, labelled by its `data-name` (one without a name is labelled **Notes**), after **Detail** and in the order written together with the `slot="panel"` sections. The panel shows one section at a time and follows supplements added later; in a [`<dpk-page>`](page.md) the page's panel shows its content's supplements after its own sections. A supplement may hold the boards (load `components.js` too). Selecting an element of a board in the supplement on show turns the panel to its **Detail**, which leads back to that supplement (`Back to <name>`, or `Esc` in the detail).
+Each supplement is a section of the side panel, labelled by its `data-name` (one without a name is labelled **Notes**), after **Detail** and in the order written together with the `slot="panel"` sections, and before **Settings**. A page with a supplement opens its panel until the reader closes it. The panel shows one section at a time and follows supplements added later; in a [`<dpk-page>`](page.md) the page's panel shows its content's supplements after its own sections. A supplement may hold the boards (load `components.js` too). Selecting an element of a board in the supplement on show turns the panel to its **Detail**, which leads back to that supplement (`Back to <name>`, or `Esc` in the detail).
 
 The `memo` slot is gone: content left in `slot="memo"` is not shown, and the console says so. Wrap it in a `slot="supplement"` element instead.
 

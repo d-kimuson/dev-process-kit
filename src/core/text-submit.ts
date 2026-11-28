@@ -1,6 +1,6 @@
 /**
  * Which key saves a multi-line text field. One choice for the whole page: the
- * reader picks it in the settings dialog, and every multi-line field (comment
+ * reader picks it in the settings, and every multi-line field (comment
  * boxes, notes, a multi-line inline edit) follows it. Any other Enter starts a
  * new line.
  */

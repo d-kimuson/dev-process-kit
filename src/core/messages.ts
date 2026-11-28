@@ -14,14 +14,13 @@ export const coreMessages = defineMessages({
     menu: 'Page menu',
     menuMove: 'Move this menu',
     menuReturn: 'Put the menu back in the header',
-    /** The settings dialog's first (kit) section: the template's switches. */
+    /** The settings' first (kit) section: the template's switches. */
     settingsDisplay: 'Display',
     settingsGeneral: 'General',
     settingsTheme: 'Theme',
     settingsTextSubmit: 'Save text with',
     themeLight: 'Light',
     themeDark: 'Dark',
-    settingsClose: 'Close settings',
     settingsSections: 'Settings sections',
     undoRedo: 'Undo / redo',
     undo: 'Undo',
@@ -118,7 +117,6 @@ export const coreMessages = defineMessages({
     settingsTextSubmit: 'テキストフォームの保存',
     themeLight: 'ライト',
     themeDark: 'ダーク',
-    settingsClose: '設定を閉じる',
     settingsSections: '設定のセクション',
     undoRedo: '取り消し・やり直し',
     undo: '取り消し',

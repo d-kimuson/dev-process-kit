@@ -642,8 +642,8 @@ export const usmStyles = css`
   /*
    * The statuses, labels and members overviews are no longer styled here: they
    * are rendered by <dpk-usm-settings-section>, which carries its own copy of
-   * that CSS in its own shadow root, because the settings dialog may be drawn
-   * by the element that owns the page's chrome (see that file).
+   * that CSS in its own shadow root, because the settings are drawn
+   * in the side panel's shadow root (see that file).
    */
 
   /* Step picker shown after a cross-activity drop. */

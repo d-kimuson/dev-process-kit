@@ -4,11 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DpkViewPlain } from '../views/plain/element';
 
+import { coreMessages } from './messages';
 import { PANEL_HOST, type PanelHost } from './panel/host';
 import { panelMessages } from './panel/messages';
 import '../index';
 
 const m = panelMessages('en');
+const settings = coreMessages('en').settings;
 
 type Frame = HTMLElement & { updateComplete: Promise<boolean> };
 
@@ -72,12 +74,20 @@ afterEach(() => {
 });
 
 describe('supplements as sections of the side panel', () => {
-  it('offers no panel when the author slots no supplement', async () => {
+  it('starts closed with only the settings when the author slots no supplement', async () => {
     const element = mount();
     await settle(element);
+    expect(element.panelOpen).toBe(false);
     element.openPanel();
     await settle(element);
-    expect(element.panelOpen).toBe(false);
+    expect(tabLabels(element)).toEqual([settings]);
+  });
+
+  it('starts open on the first supplement until the reader closes the panel', async () => {
+    const element = mount(THREE);
+    await settle(element);
+    expect(element.panelOpen).toBe(true);
+    expect(shown(element)).toEqual(['ERD']);
   });
 
   it('lists each supplement by its name, in the order written, and shows only the one picked', async () => {
@@ -85,7 +95,7 @@ describe('supplements as sections of the side panel', () => {
     await settle(element);
     element.openPanel();
     await settle(element);
-    expect(tabLabels(element)).toEqual(['ERD', 'Checklist', 'Sequence']);
+    expect(tabLabels(element)).toEqual(['ERD', 'Checklist', 'Sequence', settings]);
     expect(shown(element)).toEqual(['ERD']);
 
     tab(element, 'Sequence').click();
@@ -100,7 +110,7 @@ describe('supplements as sections of the side panel', () => {
     await settle(element);
     element.openPanel();
     await settle(element);
-    expect(tabLabels(element)).toEqual([m.notes]);
+    expect(tabLabels(element)).toEqual([m.notes, settings]);
   });
 
   it('keeps supplements and the author panel sections in the order written', async () => {
@@ -111,7 +121,7 @@ describe('supplements as sections of the side panel', () => {
     await settle(element);
     element.openPanel();
     await settle(element);
-    expect(tabLabels(element)).toEqual(['Decisions', 'ERD', 'Risks']);
+    expect(tabLabels(element)).toEqual(['Decisions', 'ERD', 'Risks', settings]);
   });
 
   it('follows supplements the author adds later', async () => {
@@ -125,7 +135,7 @@ describe('supplements as sections of the side panel', () => {
     element.append(added);
     await new Promise((resolve) => setTimeout(resolve, 0));
     await settle(element);
-    expect(tabLabels(element)).toEqual(['ERD', 'Checklist', 'Sequence', 'Glossary']);
+    expect(tabLabels(element)).toEqual(['ERD', 'Checklist', 'Sequence', 'Glossary', settings]);
   });
 
   it('leads from the detail of an element in a supplement back to that supplement', async () => {

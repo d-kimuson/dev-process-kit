@@ -818,7 +818,7 @@ describe('sidebar collapse', () => {
     expect((toggle(el) as HTMLElement).dataset['float']).toBe('right');
   });
 
-  it('turns an aside into a section of the side panel, labelled by its aria-label', async () => {
+  it('turns an aside into a section of the side panel, labelled by its aria-label, open on a first visit', async () => {
     document.body.innerHTML = `<dpk-view-prototype storage="memory" lang="en">
       <div slot="aside" aria-label="Notes">Notes body</div>
     </dpk-view-prototype>`;
@@ -831,15 +831,11 @@ describe('sidebar collapse', () => {
     expect(Array.from(inner(el).querySelectorAll<HTMLElement>('.toggle'), (button) => button.dataset['side'])).toEqual([
       'left',
     ]);
-    expect(el.panelOpen).toBe(false);
-    expect(aside.hasAttribute('data-dpk-panel-active')).toBe(false);
-
-    el.shadowRoot!.querySelector<HTMLButtonElement>('[data-role="panel-toggle"]')!.click();
-    await settleAll(el);
+    // A section beside the detail and the settings opens the panel on a first visit.
     await frame.updateComplete;
     expect(el.panelOpen).toBe(true);
     const tabs = Array.from(frame.shadowRoot!.querySelectorAll<HTMLElement>('[role="tab"]'));
-    expect(tabs.map((tab) => tab.textContent?.trim())).toEqual(['Notes']);
+    expect(tabs.map((tab) => tab.textContent?.trim())).toEqual(['Notes', 'Settings']);
     expect(aside.hasAttribute('data-dpk-panel-active')).toBe(true);
   });
 

@@ -75,7 +75,7 @@ export class ColorSchemeController implements ReactiveController {
     this.#apply(toggledPreference(this.#sources(authored)));
   }
 
-  /** The reader's outright pick (the settings dialog's two options), persisted like the toggle. */
+  /** The reader's outright pick (the settings' two options), persisted like the toggle. */
   pick(authored: ColorScheme | null, scheme: ColorScheme): void {
     this.#apply(pickedPreference(this.#sources(authored), scheme));
   }
