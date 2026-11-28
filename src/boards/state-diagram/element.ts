@@ -37,12 +37,17 @@ const NODE_SPACING = 56;
 /** Gap between two ranks: the widest label plus the line that has to stay visible beside it. */
 const LAYER_SPACING = { min: 112, max: 240, besideLabel: 72 } as const;
 
-/** Jumped paths per drawn layout, so a hover or a selection reuses its own instead of redoing every crossing. */
-const JUMPED = new WeakMap<LayoutResult, ReadonlyMap<string, string>>();
-
 /** Lifecycle diagram: select a state to see its transitions, or one transition. */
 export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
   static override styles: CSSResultGroup = [diagramStyles, stateDiagramStyles];
+
+  /**
+   * Jumped paths for the routes they were computed from. The layout object is
+   * rebuilt whenever a position override is applied (`#applyPositions`), so it
+   * cannot be the key: a drag would miss the cache every render. The routes
+   * themselves are what the jumps depend on, so they key it instead.
+   */
+  #jumps: { readonly signature: string; readonly paths: ReadonlyMap<string, string> } | null = null;
 
   protected override parseData(input: unknown): StateDiagramData {
     return parseStateData(input);
@@ -130,34 +135,28 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
 
   /**
    * Every transition's drawn `d`, its level runs jumping the transitions that
-   * cross them. Memoised per layout in a `WeakMap`, so a hover or a selection
-   * (which only changes classes) reuses the same paths. Mid-drag the lines draw
-   * plain, as the ER board's do, rather than redo every crossing on each
-   * pointer move.
+   * cross them. Memoised by route signature, so a hover or a selection (which
+   * only changes classes) reuses its own paths, and so does a drag: the base
+   * element rebuilds the layout on every override, but the routes only change
+   * when a state actually moves. Mid-drag the lines draw plain, as the ER
+   * board's do, rather than redo every crossing on each pointer move.
    */
   #paths(): ReadonlyMap<string, string> {
-    const layout = this.layout;
-    if (layout === null) return new Map();
     const routed = new Map(this.visible.edges.map((edge) => [edge.id, this.routeOf(edge.id)] as const));
-    if (this.draggedNodeIds().size > 0) {
-      return new Map(
-        this.visible.edges.map((edge) => {
-          const steps = edgeSteps(routed.get(edge.id) ?? [], TRANSITION_SPEC, { radius: CORNER_RADIUS });
-          return [edge.id, stepsData(steps)] as const;
-        }),
-      );
-    }
-    const cached = JUMPED.get(layout);
-    if (cached !== undefined) return cached;
     const lines = new Map<string, readonly PathStep[]>(
       this.visible.edges.map((edge) => [
         edge.id,
         edgeSteps(routed.get(edge.id) ?? [], TRANSITION_SPEC, { radius: CORNER_RADIUS }),
       ]),
     );
-    const result = jumpedPaths(lines, new Set(lines.keys()), { clearance: JUMP_CLEARANCE });
-    JUMPED.set(layout, result);
-    return result;
+    if (this.draggedNodeIds().size > 0) {
+      return new Map([...lines].map(([id, steps]) => [id, stepsData(steps)] as const));
+    }
+    const signature = [...lines].map(([id, steps]) => `${id}:${stepsData(steps)}`).join('|');
+    if (this.#jumps?.signature === signature) return this.#jumps.paths;
+    const paths = jumpedPaths(lines, new Set(lines.keys()), { clearance: JUMP_CLEARANCE });
+    this.#jumps = { signature, paths };
+    return paths;
   }
 
   /** One transition's end glyph, at the route's arrival end. */
