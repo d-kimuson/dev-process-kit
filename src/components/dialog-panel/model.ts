@@ -19,6 +19,62 @@ export const naturalCanvasHeight = (
   return Math.ceil(content.height * scale + 40);
 };
 
+/** One measured width of a static canvas, and the height it needed. */
+export type StaticCanvasSample = { readonly width: number; readonly height: number };
+
+/**
+ * What the static sizer remembers between measurements: the last two widths
+ * it applied, and — once a width has alternated back to the one from two
+ * syncs ago — the frozen pair and the larger of its two heights.
+ */
+export type StaticCanvasState = {
+  readonly samples: readonly StaticCanvasSample[];
+  readonly settled: { readonly widths: readonly [number, number]; readonly height: number } | null;
+};
+
+export const EMPTY_STATIC_CANVAS: StaticCanvasState = { samples: [], settled: null };
+
+export type StaticCanvasResolution = { readonly state: StaticCanvasState; readonly height: number };
+
+/**
+ * Picks the height a static canvas should take for the width just measured.
+ *
+ * The width can change on its own for a reason the content did not cause: a
+ * classic page scrollbar appearing or disappearing shifts it by ~15px, which
+ * changes the fitted scale and therefore the natural height, which can bring
+ * the scrollbar back — a loop. The rule that ends it: when the new width is
+ * the one from two syncs ago, the width is oscillating between two values, so
+ * keep the larger height (the one that fits the wider of the pair) and stop
+ * changing it while either of those widths comes back. A genuinely different
+ * width ends the freeze and starts a new pair.
+ */
+export const resolveStaticCanvasSize = (
+  state: StaticCanvasState,
+  width: number,
+  height: number,
+): StaticCanvasResolution => {
+  const settled = state.settled;
+  if (settled !== null) {
+    if (width === settled.widths[0] || width === settled.widths[1]) {
+      return { state, height: settled.height };
+    }
+    return { state: { samples: [...state.samples, { width, height }].slice(-2), settled: null }, height };
+  }
+  const twoAgo = state.samples[state.samples.length - 2];
+  if (twoAgo !== undefined && width === twoAgo.width) {
+    const previous = state.samples[state.samples.length - 1];
+    // `twoAgo` exists, so the history has a last entry too; the guard keeps
+    // the types honest without asserting.
+    if (previous === undefined) return { state, height };
+    const stable = Math.max(height, previous.height);
+    return {
+      state: { samples: state.samples, settled: { widths: [twoAgo.width, previous.width], height: stable } },
+      height: stable,
+    };
+  }
+  return { state: { samples: [...state.samples, { width, height }].slice(-2), settled: null }, height };
+};
+
 /** One element on the way from a wheel event's target up to the panel. */
 export type ScrollBox = {
   readonly overflowX: string;

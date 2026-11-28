@@ -14,7 +14,7 @@ import {
   type ViewportPoint,
   type ViewState,
 } from '../../boards/base/viewport';
-import { naturalCanvasHeight } from './model';
+import { EMPTY_STATIC_CANVAS, naturalCanvasHeight, resolveStaticCanvasSize, type StaticCanvasState } from './model';
 
 /** The view the content opens in: fitted, fitted to the width, at 100%, or left to the caller. */
 export type CanvasInitial = 'fit' | 'fit-width' | 'actual' | 'none';
@@ -45,7 +45,12 @@ export class PanelCanvasController implements ReactiveController {
   #measure: ResizeObserver | null = null;
   /** Watches the static canvas's width, the only thing its natural height depends on. */
   #staticMeasure: ResizeObserver | null = null;
-  #staticWidth = -1;
+  /** Widths already measured in this content's current size, for the oscillation guard. */
+  #static: StaticCanvasState = EMPTY_STATIC_CANVAS;
+  /** The width the frame was last laid out at, including a settled pair's width. */
+  #staticObserved = -1;
+  /** Identifies what the measured widths belong to; a content change starts over. */
+  #staticContent = '';
   #staticFrame: number | null = null;
   #opened = false;
 
@@ -97,7 +102,9 @@ export class PanelCanvasController implements ReactiveController {
       cancelAnimationFrame(this.#staticFrame);
     }
     this.#staticFrame = null;
-    this.#staticWidth = -1;
+    this.#static = EMPTY_STATIC_CANVAS;
+    this.#staticObserved = -1;
+    this.#staticContent = '';
     this.#staticMeasure?.disconnect();
     this.#staticMeasure = null;
     const frame = this.#options.elements()?.canvas.parentElement;
@@ -128,32 +135,43 @@ export class PanelCanvasController implements ReactiveController {
 
   /**
    * A static canvas gets the height its whole content needs at a scale of at
-   * most 100%, and is fitted once into it. The height is written on the frame
-   * (the canvas fills it absolutely), so it never becomes a second source of
-   * truth for the content's own box.
+   * most 100%, and is fitted into it. The height is written on the frame (the
+   * canvas fills it absolutely), so it never becomes a second source of truth
+   * for the content's own box.
    */
   #layoutStatic(contentWidth: number, contentHeight: number): void {
     const canvas = this.#options.elements()?.canvas;
     const frame = canvas?.parentElement;
     if (canvas === undefined || frame === null || frame === undefined) return;
-    const width = canvas.clientWidth;
-    this.#staticWidth = width;
     const content = contentWidth > 0 && contentHeight > 0 ? { width: contentWidth, height: contentHeight } : null;
-    frame.style.height = `${naturalCanvasHeight(width, content, MIN_SCALE)}px`;
+    const key = content === null ? 'empty' : `${content.width}x${content.height}`;
+    if (key !== this.#staticContent) {
+      this.#staticContent = key;
+      this.#static = EMPTY_STATIC_CANVAS;
+    }
+    const width = canvas.clientWidth;
+    this.#staticObserved = width;
+    const resolved = resolveStaticCanvasSize(this.#static, width, naturalCanvasHeight(width, content, MIN_SCALE));
+    this.#static = resolved.state;
+    const style = `${resolved.height}px`;
+    if (frame.style.height !== style) frame.style.height = style;
     this.#viewport?.fit();
   }
 
   /**
-   * A resize can follow from the height this very controller wrote (the page's
-   * scrollbar appearing or going away). Re-laying out only when the width
-   * actually changed, once per frame, keeps that from oscillating.
+   * A resize can follow from the height this very controller wrote: a classic
+   * scrollbar appearing or disappearing changes the width, which changes the
+   * fitted scale and therefore the height that decides the scrollbar. Only a
+   * real width change is worth re-measuring, once per frame, and
+   * `resolveStaticCanvasSize` then freezes the larger height once the width
+   * has alternated back to its value from two syncs ago.
    */
   #scheduleStaticSync(): void {
     if (this.#staticFrame !== null || typeof requestAnimationFrame === 'undefined') return;
     this.#staticFrame = requestAnimationFrame(() => {
       this.#staticFrame = null;
       const canvas = this.#options.elements()?.canvas;
-      if (canvas === undefined || Math.abs(canvas.clientWidth - this.#staticWidth) <= 1) return;
+      if (canvas === undefined || Math.abs(canvas.clientWidth - this.#staticObserved) <= 1) return;
       this.sync();
     });
   }
