@@ -55,7 +55,6 @@ import { presentDock, type DockViewModel } from './handoff-dock';
 import { LOCALES, type Locale } from './i18n';
 import {
   iconChecklist,
-  iconChevronRight,
   iconComment,
   iconHistory,
   iconMoon,
@@ -71,7 +70,7 @@ import {
   type SidebarLayout,
   type SidebarSide,
 } from './layouts/sidebar/model';
-import { coreMessages, LANGUAGE_NAMES, type CoreMessages } from './messages';
+import { coreMessages, LANGUAGE_NAMES } from './messages';
 import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navigation';
 import { inDraftPage, pageDeliveryOf, pageHostOf, pageNameOf, type PageHost } from './page/host';
 import { pageNavigation, pagePatchFor } from './page/navigation';
@@ -134,19 +133,7 @@ import {
   type SettingsTriggerIntents,
 } from './shell/settings-dialog';
 import { chromeStyles } from './shell/styles';
-import { SUPPLEMENT_HEIGHT } from './shell/supplement-height';
-import { SupplementHeightController } from './shell/supplement-height-controller';
-import {
-  FOLDED_SUPPLEMENTS,
-  LEGACY_MEMO_SLOT,
-  openSupplementOf,
-  openSupplementRule,
-  pressSupplement,
-  SUPPLEMENT_SLOT,
-  supplementsOf,
-  toggleSupplements,
-  type SupplementView,
-} from './shell/supplements';
+import { LEGACY_MEMO_SLOT, SUPPLEMENT_SLOT, supplementStyles } from './shell/supplements';
 import { TextRecoveryController } from './shell/text-recovery-controller';
 import { TextSubmitChoiceController } from './shell/text-submit-choice-controller';
 import { renderUndoRedo, UndoRedoKeyboardController, type UndoRedoIntents } from './shell/undo-redo';
@@ -209,6 +196,7 @@ export abstract class ViewElement<S> extends LitElement {
     dialogStyles,
     settingsDialogStyles,
     floatingMenuStyles,
+    supplementStyles,
   ];
 
   /**
@@ -290,12 +278,6 @@ export abstract class ViewElement<S> extends LitElement {
   };
   #notesInitialized = false;
   #previewRouter = new PreviewRouter(this);
-  /** The supplement the reader picked in the bar, and whether it is open. */
-  #supplements: SupplementView = FOLDED_SUPPLEMENTS;
-  /** How tall the drawer is: one height for every supplement, dragged from its top edge. */
-  #supplementHeight = new SupplementHeightController(this, {
-    persistKey: () => (this.storage === 'off' || this.storage === 'memory' ? null : this.#persistedName),
-  });
   #colorScheme = new ColorSchemeController(this, () => this.storage !== 'off' && this.storage !== 'memory');
   #claude = new ClaudeHandoffController(this);
   #dock = new HandoffDockController(this);
@@ -503,7 +485,8 @@ export abstract class ViewElement<S> extends LitElement {
   #undoRedoKeyboardReady = false;
   /**
    * The side panel of a standalone view: its author's sections (`slot="panel"`,
-   * and the deprecated `slot="aside"`) and the detail its boards hand it. A
+   * the supplements, and the deprecated `slot="aside"`) in the order written,
+   * and the detail its boards hand it. A
    * page's content has none: the page owns the panel.
    */
   readonly #panel = new PanelOwner(this, {
@@ -518,6 +501,7 @@ export abstract class ViewElement<S> extends LitElement {
         ? Array.from(this.children).filter(
             (child) =>
               (child.localName === 'dpk-panel-section' && child.getAttribute('slot') === 'panel') ||
+              child.getAttribute('slot') === SUPPLEMENT_SLOT ||
               child.getAttribute('slot') === 'aside',
           )
         : [],
@@ -678,6 +662,7 @@ export abstract class ViewElement<S> extends LitElement {
     return html`<dpk-internal-layout-panel class="dpk-panel-frame" .owner=${this.#panel}>
       ${body}
       <slot name="panel" slot="sections"></slot>
+      <slot name=${SUPPLEMENT_SLOT} slot="sections"></slot>
       <slot name="aside" slot="sections"></slot>
     </dpk-internal-layout-panel>`;
   }
@@ -791,7 +776,6 @@ export abstract class ViewElement<S> extends LitElement {
 
   protected override updated(): void {
     this.#routePreviews();
-    this.#reserveDockSpace();
     this.#placeNoticeList();
     this.#settleQuestions();
     this.#publishMenuClearance();
@@ -1318,7 +1302,6 @@ export abstract class ViewElement<S> extends LitElement {
             <slot name="preview"></slot>
           </section>
         </div>
-        ${this.#renderSupplements(messages)}
       </main>
     </dpk-internal-layout-sidebar>`;
   }
@@ -2288,89 +2271,6 @@ export abstract class ViewElement<S> extends LitElement {
       }
     }
   };
-
-  /**
-   * The supplements bar at the bottom of the main column: one tab per
-   * supplement, opening it alone above the bar. It exists only when the author
-   * slotted a supplement, and follows the slot as the author adds more. The
-   * drawer keeps one height for every tab, which the reader sets from its top
-   * edge; taller content scrolls inside it.
-   */
-  #renderSupplements(messages: CoreMessages): TemplateResult {
-    const supplements = supplementsOf(this, messages.memo);
-    const open = openSupplementOf(this.#supplements, supplements);
-    const height = this.#supplementHeight;
-    const show = (view: SupplementView): void => {
-      this.#supplements = view;
-      this.requestUpdate();
-    };
-    const on = height.handlers;
-    return html`<div
-      class="dpk-supplements"
-      ?hidden=${supplements.length === 0}
-      ?data-open=${open !== null}
-      style=${`--dpk-supplement-height: ${height.height}px`}
-    >
-      <div
-        class="dpk-supplements-edge"
-        ?hidden=${open === null}
-        role="separator"
-        tabindex="0"
-        aria-orientation="horizontal"
-        aria-controls="dpk-supplements-body"
-        aria-label=${messages.resizeSupplements}
-        aria-valuemin=${SUPPLEMENT_HEIGHT.min}
-        aria-valuemax=${height.max}
-        aria-valuenow=${height.height}
-        title=${messages.resizeSupplementsHint}
-        ?data-dragging=${height.dragging}
-        @pointerdown=${on.pointerdown}
-        @pointermove=${on.pointermove}
-        @pointerup=${on.pointerup}
-        @pointercancel=${on.pointercancel}
-        @lostpointercapture=${on.lostpointercapture}
-        @keydown=${on.keydown}
-        @dblclick=${on.dblclick}
-      ></div>
-      <div class="dpk-supplements-bar" role="group" aria-label=${messages.supplements}>
-        <button
-          type="button"
-          class="dpk-supplements-toggle"
-          aria-expanded=${String(open !== null)}
-          aria-controls="dpk-supplements-body"
-          aria-label=${open === null ? messages.openSupplements : messages.closeSupplements}
-          @click=${() => show(toggleSupplements(this.#supplements, supplements))}
-        >
-          ${iconChevronRight()}
-        </button>
-        ${supplements.map(
-          (supplement) =>
-            html`<button
-              type="button"
-              class="dpk-supplement-tab"
-              aria-expanded=${String(supplement === open)}
-              aria-controls="dpk-supplements-body"
-              @click=${() => show(pressSupplement(this.#supplements, supplement.element))}
-            >
-              ${supplement.name}
-            </button>`,
-        )}
-      </div>
-      <div class="dpk-supplements-body" id="dpk-supplements-body" ?hidden=${open === null}>
-        <style .textContent=${open === null ? '' : openSupplementRule(this, open)}></style>
-        <slot name=${SUPPLEMENT_SLOT} @slotchange=${() => this.requestUpdate()}></slot>
-      </div>
-    </div>`;
-  }
-
-  /** The supplements bar keeps its right edge clear of the hand-off dock, whose width follows its labels. */
-  #reserveDockSpace(): void {
-    const shell = this.renderRoot.querySelector<HTMLElement>('.dpk-shell');
-    const dock = this.renderRoot.querySelector<HTMLElement>('.dpk-dock-actions');
-    if (!shell) return;
-    if (dock) shell.style.setProperty('--dpk-dock-space', `${dock.offsetWidth + 8}px`);
-    else shell.style.removeProperty('--dpk-dock-space');
-  }
 
   /** Assigns light-DOM previews to the frame slots the template rendered. */
   #routePreviews(): void {

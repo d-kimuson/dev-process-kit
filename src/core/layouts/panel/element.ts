@@ -18,7 +18,7 @@ import { keyed } from 'lit/directives/keyed.js';
 
 import type { PanelOwner } from '../../panel/owner';
 
-import { iconClose, iconComment, iconMaximize, iconMinimize } from '../../icons';
+import { iconChevronLeft, iconClose, iconComment, iconMaximize, iconMinimize } from '../../icons';
 import { panelMessages } from '../../panel/messages';
 import { DETAIL_SECTION, PANEL_WIDTH, tabKeyTarget, type PanelTab } from '../../panel/model';
 import { controls, tokens } from '../../theme';
@@ -191,6 +191,45 @@ const panelStyles = css`
     align-items: center;
     gap: 8px;
     margin: 0 0 10px;
+  }
+
+  .origin {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    max-width: 100%;
+    margin: -4px 0 8px -6px;
+    padding: 2px 8px 2px 2px;
+    border: none;
+    border-radius: var(--dpk-radius-xs, 4px);
+    background: transparent;
+    color: var(--dpk-ink-soft);
+    font: inherit;
+    font-size: var(--dpk-text-xs, 12px);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .origin:hover {
+    background: var(--dpk-paper-inset);
+    color: var(--dpk-ink);
+  }
+
+  .origin:focus-visible {
+    outline: none;
+    box-shadow: var(--dpk-focus);
+  }
+
+  .origin svg {
+    flex: none;
+    width: 14px;
+    height: 14px;
+  }
+
+  .origin span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .detail-head h2 {
@@ -532,6 +571,7 @@ export class DpkInternalLayoutPanel extends LitElement {
 
   #renderDetail(owner: PanelOwner, section: string, m: ReturnType<typeof panelMessages>): TemplateResult {
     const detail = owner.detail;
+    const origin = owner.detailOrigin;
     return html`<div
       class="section"
       role="tabpanel"
@@ -544,7 +584,20 @@ export class DpkInternalLayoutPanel extends LitElement {
           ? html`<p class="empty">${m.nothingSelected}</p>`
           : keyed(
               detail.key,
-              html`<div class="detail-head">
+              html`${
+                  origin === null
+                    ? nothing
+                    : html`<button
+                        class="origin"
+                        type="button"
+                        data-role="detail-origin"
+                        aria-label=${m.backToSection(origin.label)}
+                        @click=${() => owner.select(origin.name)}
+                      >
+                        ${iconChevronLeft()}<span>${origin.label}</span>
+                      </button>`
+                }
+                <div class="detail-head">
                   <h2 tabindex="-1" data-role="detail-heading">
                     <span class="detail-kind">${detail.kind}</span>
                     <span class="detail-title">${detail.title}</span>
@@ -622,8 +675,12 @@ export class DpkInternalLayoutPanel extends LitElement {
     if (event.key !== 'Escape' || event.defaultPrevented || editing(event)) return;
     if (owner.maximized) owner.setMaximized(false);
     else if (this.#narrow.narrow && owner.sheet === 'full') owner.setSheet('half');
-    else if (owner.detail?.focus !== undefined && owner.section === DETAIL_SECTION) owner.detail.focus();
-    else return;
+    else if (owner.detail?.focus !== undefined && owner.section === DETAIL_SECTION) {
+      // The element sits in an author's section (a board in a supplement): show it before focusing it.
+      const origin = owner.detailOrigin;
+      if (origin !== null) owner.select(origin.name);
+      owner.detail.focus();
+    } else return;
     event.preventDefault();
     event.stopPropagation();
   }

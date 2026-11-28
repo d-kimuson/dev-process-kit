@@ -153,17 +153,8 @@ describe('<dpk-view-prototype> views', () => {
     expect(location.hash).toContain('screen=detail');
     expect(location.hash).toContain('view=app');
     expect(root.querySelector('.tree-row[data-current="true"] .tree-title')?.textContent).toBe('Order detail');
-    // The screen's description is in the side panel, not under the list.
-    expect(root.querySelector('.nav .dpk-prose')).toBeNull();
-    el.openPanel('detail');
-    await settle(el);
-    const frame = root.querySelector<HTMLElement & { updateComplete: Promise<boolean> }>('dpk-internal-layout-panel')!;
-    await frame.updateComplete;
-    const detail = frame.shadowRoot!.querySelector<HTMLElement & { updateComplete: Promise<boolean> }>(
-      'dpk-internal-prototype-detail',
-    )!;
-    await detail.updateComplete;
-    expect(detail.shadowRoot!.querySelector('[data-field="description"] strong')?.textContent).toBe('order');
+    // The screen's description follows the list.
+    expect(root.querySelector('.screen-description strong')?.textContent).toBe('order');
   });
 
   it('shows a screen alone, never the materials a step holds beside it', async () => {

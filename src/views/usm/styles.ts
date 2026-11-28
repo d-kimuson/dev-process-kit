@@ -16,10 +16,9 @@ export const usmStyles = css`
    * second clearance under it.
    *
    * The map's row is the space that is actually left, never a fixed minimum:
-   * the supplements bar at the foot of the column is sticky and takes its own
-   * height out of the column, so a floor taller than what remains would push the
-   * map's last rows under that bar — off screen, with nothing left to scroll
-   * them into view. The map itself scrolls; it does not need to be tall.
+   * a floor taller than what remains would push the map's last rows off screen,
+   * with nothing left to scroll them into view. The map itself scrolls; it does
+   * not need to be tall.
    */
   .dpk-main-body:has(> dpk-matrix) {
     flex: 1 1 0;
