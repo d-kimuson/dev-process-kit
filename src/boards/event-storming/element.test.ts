@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { DraftAction } from '../../core/types';
 
 import { defineInlineEdit } from '../../components/inline-edit';
+import { DpkSelectionBar } from '../../components/selection-bar/index';
 import { PANEL_HOST, type DetailReport, type PanelDetail, type PanelHost } from '../../core/panel/host';
 import { eventStormingAction } from './actions';
 import { applyEventStormingAction } from './apply';
@@ -259,6 +260,65 @@ describe('<dpk-board-event-storming>', () => {
     q(element, '.board-viewport').dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
     await settle(element);
     expect(element.elementActions.map((a) => a.type)).toEqual(['UNLINK_ELEMENTS']);
+  });
+
+  const bar = (element: DpkBoardEventStorming): DpkSelectionBar => {
+    const found = element.renderRoot.querySelector('dpk-selection-bar');
+    if (!(found instanceof DpkSelectionBar)) throw new Error('no selection bar');
+    return found;
+  };
+
+  const pressAction = (target: DpkSelectionBar, action: string, value: string | null = null): void => {
+    target.dispatchEvent(
+      new CustomEvent('dpk-selection-action', {
+        detail: { action, value, entered: false, rect: new DOMRect(100, 500, 80, 30) },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  };
+
+  it('offers deleting the selected links on the selection bar', async () => {
+    const element = await mount();
+    acceptActions(element);
+    q(element, 'path.link-hit').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await settle(element);
+    const linksBar = bar(element);
+    expect(linksBar.label).toBe(m.selectedLinks(1));
+    expect(linksBar.actions.map((a) => [a.name, a.tone])).toEqual([['delete', 'accent']]);
+    pressAction(linksBar, 'delete');
+    await settle(element);
+    expect(element.elementActions.map((a) => a.type)).toEqual(['UNLINK_ELEMENTS']);
+    expect(element.renderRoot.querySelector('dpk-selection-bar')).toBeNull();
+  });
+
+  it('groups, assigns, strips and clears the selected slices from the selection bar', async () => {
+    const element = await mount();
+    acceptActions(element);
+    const sliceId = q(element, '[data-slice-id]').dataset['sliceId'];
+    Reflect.set(element, 'selectedSliceIds', [sliceId]);
+    element.requestUpdate();
+    await settle(element);
+    const slicesBar = bar(element);
+    expect(slicesBar.label).toBe(m.selectedSlices(1));
+    expect(slicesBar.actions.map((a) => a.name)).toEqual(['group', 'assign', 'strip', 'delete']);
+    expect(slicesBar.actions[1]?.options).toEqual([{ value: 'c1', label: 'Ctx1' }]);
+
+    pressAction(slicesBar, 'assign', 'c1');
+    await settle(element);
+    expect(element.elementActions.map((a) => a.payload)).toEqual([{ contextId: 'c1' }]);
+    expect(element.renderRoot.querySelector('dpk-selection-bar')).toBeNull();
+
+    Reflect.set(element, 'selectedSliceIds', [sliceId]);
+    element.requestUpdate();
+    await settle(element);
+    pressAction(bar(element), 'group');
+    await settle(element);
+    expect(element.renderRoot.querySelector('#context-name')).not.toBeNull();
+
+    bar(element).dispatchEvent(new CustomEvent('dpk-selection-clear', { bubbles: true, composed: true }));
+    await settle(element);
+    expect(element.renderRoot.querySelector('dpk-selection-bar')).toBeNull();
   });
 
   type PanelReport = { readonly detail: PanelDetail | null; readonly report: DetailReport };

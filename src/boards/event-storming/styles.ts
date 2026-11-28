@@ -524,26 +524,6 @@ export const eventStormingStyles = css`
     font-size: 10.5px;
   }
 
-  /*
-   * The outer chrome (position, background, border, the clipping-proof
-   * top-layer promotion) is dpk-selection-bar's own, shared across every
-   * board or component that claims it (components/selection-bar).
-   * Only the slotted text below is still this template's own.
-   */
-
-  .board-selection-count {
-    font-family: var(--dpk-mono);
-    font-size: 10.5px;
-    color: var(--dpk-ink-soft);
-    white-space: nowrap;
-  }
-
-  .board-selection-hint {
-    font-size: 10.5px;
-    color: var(--dpk-ink-faint);
-    white-space: nowrap;
-  }
-
   /* ----------------------------------------------------------------- empty */
 
   .empty {

@@ -3,7 +3,7 @@ import { html, nothing, svg, type TemplateResult } from 'lit';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type { SelectController } from '../../../core/select/controller';
+import type { SelectionBarAction, SelectionBarActionDetail } from '../../../components/selection-bar/index';
 import type { Viewport } from '../interactions';
 import type { EventStormingMessages } from '../messages';
 import type { EventStormingState, NoteType } from '../model';
@@ -117,8 +117,6 @@ export type EsBoardProps = {
   readonly selectedLinkIds: readonly string[];
   /** The note the chrome's own selection currently names, if any. */
   readonly selectedNoteId: string | undefined;
-  /** The one-shot "assign to an existing context" command select in the selection bar. */
-  readonly assignSelect: SelectController;
   /** The host's own `commentRef`, so the board can mark notes and contexts as right-click comment targets. */
   readonly commentRef: (kind: string, id: string) => string;
   readonly handlers: EsBoardHandlers;
@@ -509,65 +507,45 @@ const renderZoomControls = (props: EsBoardProps): TemplateResult => {
   </div>`;
 };
 
+/** What the bar offers for the selected links (delete) or slices (group, assign, strip, delete). */
+const selectionActions = (props: EsBoardProps): readonly SelectionBarAction[] => {
+  const { m, state, selectedLinkIds } = props;
+  if (selectedLinkIds.length > 0) return [{ name: 'delete', label: m.deleteLinks, tone: 'accent' }];
+  return [
+    { name: 'group', label: m.groupIntoContext, tone: 'accent' },
+    ...(state.contexts.length > 0
+      ? [
+          {
+            name: 'assign',
+            label: m.addToExisting,
+            options: state.contexts.map((context) => ({ value: context.id, label: context.name })),
+          },
+        ]
+      : []),
+    { name: 'strip', label: m.removeFromContext },
+    { name: 'delete', label: m.deleteButton },
+  ];
+};
+
+const onSelectionAction = (handlers: EsBoardHandlers, { action, value, rect }: SelectionBarActionDetail): void => {
+  if (action === 'group') handlers.groupSelection({ x: rect.left + rect.width / 2, y: rect.top });
+  else if (action === 'assign' && value !== null) handlers.assignSelection(value);
+  else if (action === 'strip') handlers.stripSelectionContext();
+  else if (action === 'delete') handlers.deleteSelection();
+};
+
 const renderSelectionBar = (props: EsBoardProps): TemplateResult | typeof nothing => {
-  const { m, state, selectedSliceIds, selectedLinkIds, assignSelect, handlers } = props;
+  const { m, selectedSliceIds, selectedLinkIds, handlers } = props;
   if (selectedLinkIds.length === 0 && selectedSliceIds.length === 0) return nothing;
-  const contexts = state.contexts;
-  if (selectedLinkIds.length > 0) {
-    return html`<dpk-selection-bar
-      label=${m.selectedLinks(selectedLinkIds.length)}
-      @pointerdown=${(event: PointerEvent) => event.stopPropagation()}
-      @dpk-selection-clear=${() => handlers.clearSelection()}
-    >
-      <span class="board-selection-count">${m.selectedLinks(selectedLinkIds.length)}</span>
-      <button class="dpk-btn dpk-btn--accent" type="button" @click=${() => handlers.deleteSelection()}>
-        ${m.deleteLinks}
-      </button>
-      <span class="board-selection-hint">${m.deleteHint}</span>
-      <button
-        class="dpk-icon-btn"
-        type="button"
-        aria-label=${m.clearSelection}
-        @click=${() => handlers.clearSelection()}
-      >
-        ✕
-      </button>
-    </dpk-selection-bar>`;
-  }
+  const links = selectedLinkIds.length > 0;
   return html`<dpk-selection-bar
-    label=${m.selectedSlices(selectedSliceIds.length)}
+    .count=${links ? selectedLinkIds.length : selectedSliceIds.length}
+    label=${links ? m.selectedLinks(selectedLinkIds.length) : m.selectedSlices(selectedSliceIds.length)}
+    .actions=${selectionActions(props)}
     @pointerdown=${(event: PointerEvent) => event.stopPropagation()}
+    @dpk-selection-action=${(event: CustomEvent<SelectionBarActionDetail>) => onSelectionAction(handlers, event.detail)}
     @dpk-selection-clear=${() => handlers.clearSelection()}
-  >
-    <span class="board-selection-count">${m.selectedSlices(selectedSliceIds.length)}</span>
-    <button
-      class="dpk-btn dpk-btn--accent"
-      type="button"
-      @click=${(event: MouseEvent) => handlers.groupSelection({ x: event.clientX, y: event.clientY })}
-    >
-      ${m.groupIntoContext}
-    </button>
-    ${
-      contexts.length > 0
-        ? assignSelect.render({
-            options: contexts.map((c) => ({ value: c.id, label: c.name })),
-            value: '',
-            onChange: (value) => {
-              if (value !== '') handlers.assignSelection(value);
-            },
-            ariaLabel: m.addToExistingAria,
-            placeholder: m.addToExistingOption,
-          })
-        : nothing
-    }
-    <button class="dpk-btn" type="button" @click=${() => handlers.stripSelectionContext()}>
-      ${m.removeFromContext}
-    </button>
-    <button class="dpk-btn" type="button" @click=${() => handlers.deleteSelection()}>${m.deleteButton}</button>
-    <button class="dpk-icon-btn" type="button" aria-label=${m.clearSelection} @click=${() => handlers.clearSelection()}>
-      ✕
-    </button>
-  </dpk-selection-bar>`;
+  ></dpk-selection-bar>`;
 };
 
 /* ------------------------------------------------------------------ arrows */

@@ -1,4 +1,5 @@
 export { DpkSelectionBar } from './element';
+export type { SelectionBarAction, SelectionBarActionDetail, SelectionBarOption } from './types';
 
 import { DpkSelectionBar } from './element';
 

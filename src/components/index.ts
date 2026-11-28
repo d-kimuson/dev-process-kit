@@ -89,6 +89,7 @@ export { DpkSelect, defineSelect, parseSelectData } from './select/index';
 export type { SelectOption } from './select/index';
 export { DpkPanelSection, definePanelSection } from './panel-section/index';
 export { DpkSelectionBar, defineSelectionBar } from './selection-bar/index';
+export type { SelectionBarAction, SelectionBarActionDetail, SelectionBarOption } from './selection-bar/index';
 export { DpkConfirmDialog, defineConfirmDialog } from './confirm-dialog/index';
 export type { ConfirmDialogOptions } from './confirm-dialog/index';
 export { DpkAlternatives, defineAlternatives, parseAlternativesData } from './alternatives/index';

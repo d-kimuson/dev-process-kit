@@ -4,8 +4,8 @@ import type { ElementActionResult } from '../../core/element-actions';
 import type { PanelDetail } from '../../core/panel/host';
 import type { ActionInput, CommentTargetOption, DraftAction } from '../../core/types';
 
+import { defineSelectionBar } from '../../components/selection-bar/index';
 import { PopoverController } from '../../core/popover-controller';
-import { SelectController } from '../../core/select/controller';
 import { pointAnchor } from '../../lib/dom/popover';
 import { BoardChromeBase, isActionPayload } from '../base/element';
 import { chromeStyles } from '../base/styles';
@@ -103,7 +103,6 @@ export class DpkBoardEventStorming extends BoardChromeBase<EventStormingState, E
   readonly #popovers = new PopoverController(this);
   readonly #pinHeights = new PinHeightsController(this);
   /** The one-shot "assign to an existing context" command select in the selection bar. */
-  readonly #assignSelect = new SelectController(this);
 
   protected override parseData(input: unknown): EventStormingState {
     return parseEventStormingBase(input);
@@ -254,7 +253,6 @@ export class DpkBoardEventStorming extends BoardChromeBase<EventStormingState, E
                 selectedSliceIds: this.selectedSliceIds,
                 selectedLinkIds: this.selectedLinkIds,
                 selectedNoteId: this.selection?.kind === 'note' ? this.selection.id : undefined,
-                assignSelect: this.#assignSelect,
                 commentRef: (kind, id) => this.commentRef(kind, id),
                 handlers: {
                   noteIntent: (noteId, intent) => this.#onNoteIntent(noteId, intent),
@@ -889,6 +887,7 @@ const freshId = (prefix: string, taken: readonly string[]): string => {
 export const defineEventStorming = (): void => {
   defineEsNoteCard();
   defineEsNoteDetail();
+  defineSelectionBar();
   if (!customElements.get('dpk-board-event-storming'))
     customElements.define('dpk-board-event-storming', DpkBoardEventStorming);
 };

@@ -3544,7 +3544,9 @@
                   <header>
                     <h3>&lt;dpk-selection-bar&gt;</h3>
                   </header>
-                  <p>複数選択した行に対して操作できる、一覧の下に出る操作バー。</p>
+                  <p>
+                    複数選択した行に対して操作できる、画面の下に出る操作バー。件数と解除ボタンはバーが出し、操作とその選択肢だけを渡す。
+                  </p>
                   <div class="demo" data-code>
                     <div class="selection-bar-demo">
                       <div class="dpk-table-wrap">
@@ -3608,25 +3610,32 @@
                             bar = null;
                             return;
                           }
-                          const label = `${selected.size} 件選択中`;
                           if (!bar) {
                             bar = document.createElement('dpk-selection-bar');
-                            bar.innerHTML = `
-                            <span class="dpk-count"></span>
-                            <button class="dpk-btn dpk-btn--accent" type="button">配送ラベルを発行する</button>
-                            <button class="dpk-icon-btn" type="button" aria-label="選択解除">✕</button>
-                          `;
-                            const clear = () => {
+                            bar.actions = [
+                              {
+                                name: 'payment',
+                                label: '支払い方法',
+                                options: ['クレジットカード', 'コンビニ払い', '銀行振込'].map((label) => ({
+                                  value: label,
+                                  label,
+                                })),
+                              },
+                              { name: 'ship', label: '配送ラベルを発行する', tone: 'accent' },
+                            ];
+                            bar.addEventListener('dpk-selection-action', (event) => {
+                              const { action, value } = event.detail;
+                              if (action === 'payment') for (const row of selected) row.cells[2].textContent = value;
                               selected.clear();
                               render();
-                            };
-                            bar.querySelector('.dpk-btn--accent').addEventListener('click', clear);
-                            bar.querySelector('.dpk-icon-btn').addEventListener('click', clear);
-                            bar.addEventListener('dpk-selection-clear', clear);
+                            });
+                            bar.addEventListener('dpk-selection-clear', () => {
+                              selected.clear();
+                              render();
+                            });
                             root.append(bar);
                           }
-                          bar.setAttribute('label', label);
-                          bar.querySelector('.dpk-count').textContent = label;
+                          bar.count = selected.size;
                         };
                         for (const row of rows) {
                           checkboxOf(row).addEventListener('change', (event) => {

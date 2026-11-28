@@ -15,6 +15,11 @@
  *   that Escape itself (an IME's conversion, a list of candidates closing):
  *   it first restores a maximized panel or shrinks a full sheet.
  * - `--dpk-panel-width` sets the width before the reader changes it.
+ * - The main column carries what the open panel takes of the screen, for
+ *   what floats over the column (the selection bar) to keep clear of it:
+ *   `--dpk-panel-inset-right` beside it, `--dpk-panel-inset-bottom` under a
+ *   half sheet, and `--dpk-panel-cover-visibility: hidden` while the panel
+ *   covers the column.
  */
 import { css, html, LitElement, nothing, type CSSResultGroup, type PropertyValues, type TemplateResult } from 'lit';
 import { keyed } from 'lit/directives/keyed.js';
@@ -437,11 +442,13 @@ export class DpkInternalLayoutPanel extends LitElement {
     // On the window, so it runs after every handler inside (and the document's
     // dismissable layers): an Escape one of them used arrives prevented.
     window.addEventListener('keydown', this.#onKey);
+    window.addEventListener('resize', this.#publishInsets);
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('keydown', this.#onKey);
+    window.removeEventListener('resize', this.#publishInsets);
     this.#unsubscribe?.();
     this.#unsubscribe = null;
     this.#subscribed = null;
@@ -696,7 +703,31 @@ export class DpkInternalLayoutPanel extends LitElement {
     else owner.escape();
   };
 
+  /** Measured from the frame, not the panel, so the panel's entrance animation does not skew it. */
+  readonly #publishInsets = (): void => {
+    const main = this.renderRoot.querySelector<HTMLElement>('.main');
+    if (main === null) return;
+    const owner = this.owner;
+    const open = owner?.isOpen === true;
+    const narrow = this.#narrow.narrow;
+    const cover = open && (owner.maximized || (narrow && owner.sheet === 'full'));
+    const frame = this.getBoundingClientRect();
+    const right = open && !cover && !narrow ? window.innerWidth - (frame.right - this.#width.width) : null;
+    const bottom =
+      open && !cover && narrow
+        ? window.innerHeight - frame.bottom + Math.min(window.innerHeight / 2, frame.height)
+        : null;
+    const set = (name: string, value: string | null): void => {
+      if (value === null) main.style.removeProperty(name);
+      else main.style.setProperty(name, value);
+    };
+    set('--dpk-panel-inset-right', right === null ? null : `${Math.max(0, right)}px`);
+    set('--dpk-panel-inset-bottom', bottom === null ? null : `${Math.max(0, bottom)}px`);
+    set('--dpk-panel-cover-visibility', cover ? 'hidden' : null);
+  };
+
   protected override updated(): void {
+    this.#publishInsets();
     const owner = this.owner;
     if (owner === null) return;
     if (this.#focusTab !== null) {

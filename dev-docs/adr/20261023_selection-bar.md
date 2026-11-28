@@ -2,7 +2,7 @@
 
 ## Status
 
-accepted
+accepted. Its content-free shell is superseded by [ADR: The selection bar renders the count, the actions and their menus](20261129_selection-bar-renders-its-controls.md): the bar now renders the count, the actions, their menus and a clear button. The top layer, the coordinator and the placement stand.
 
 ## Context
 
