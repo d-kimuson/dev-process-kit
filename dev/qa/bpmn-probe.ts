@@ -80,7 +80,7 @@ const gates = `(() => {
   const bands = el.bands;
   const laneOf = new Map(bands.pools.flatMap((pool) => pool.lanes.map((lane) => [lane.id, { lane, pool }])));
   const poolOf = new Map(bands.pools.map((pool) => [pool.id, pool]));
-  const count = { through: 0, outline: 0, inLane: 0, poolLeak: 0, lane: 0, jog: 0, labelNode: 0, labelLabel: 0, labelLine: 0, labelArrow: 0, drawn: 0, smallText: 0 };
+  const count = { through: 0, outline: 0, inLane: 0, poolLeak: 0, lane: 0, crowd: 0, frameHug: 0, borderRun: 0, jog: 0, labelNode: 0, nodeLabelLine: 0, labelLabel: 0, labelLine: 0, labelArrow: 0, drawn: 0, smallText: 0 };
   const notes = [];
   const note = (gate, text) => { count[gate]++; if (notes.length < 18) notes.push(gate + ': ' + text); };
   const segmentsOf = (points) => points.slice(1).map((point, index) => [points[index], point]);
@@ -158,6 +158,64 @@ const gates = `(() => {
     }
   }
 
+  // Two parallel runs closer than 16px read as one corridor.
+  for (let i = 0; i < edges.length; i++) {
+    for (let j = i + 1; j < edges.length; j++) {
+      const first = routeOf.get(edges[i].id);
+      const second = routeOf.get(edges[j].id);
+      if (!first || !second) continue;
+      for (const a of segmentsOf(first)) for (const b of segmentsOf(second)) {
+        const [p, q] = a;
+        const [r, s] = b;
+        const parallel = (p.x === q.x && r.x === s.x) || (p.y === q.y && r.y === s.y);
+        if (!parallel) continue;
+        const at = p.x === q.x ? p.x : p.y;
+        const other = r.x === s.x ? r.x : r.y;
+        const lo = p.x === q.x ? Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) : Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x));
+        const hi = p.x === q.x ? Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) : Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x));
+        if (Math.abs(at - other) < 16 && hi - lo > 12) note('crowd', edges[i].id + ' / ' + edges[j].id + ' d=' + Math.abs(at - other).toFixed(1));
+      }
+    }
+  }
+
+  // A run parallel to a node border, lane border or pool frame, within 6px.
+  const nodeBorders = nodes.flatMap((node) => [
+    { horizontal: true, at: node.y, lo: node.x, hi: node.x + node.width, id: node.id },
+    { horizontal: true, at: node.y + node.height, lo: node.x, hi: node.x + node.width, id: node.id },
+    { horizontal: false, at: node.x, lo: node.y, hi: node.y + node.height, id: node.id },
+    { horizontal: false, at: node.x + node.width, lo: node.y, hi: node.y + node.height, id: node.id },
+  ]);
+  const frameBorders = bands.pools.flatMap((pool) =>
+    [pool, ...pool.lanes].flatMap((band) => [
+      { horizontal: true, at: band.y, lo: 0, hi: width, id: band.id },
+      { horizontal: true, at: band.y + band.height, lo: 0, hi: width, id: band.id },
+      { horizontal: false, at: 0, lo: band.y, hi: band.y + band.height, id: band.id },
+      { horizontal: false, at: width, lo: band.y, hi: band.y + band.height, id: band.id },
+    ]),
+  );
+  for (const edge of edges) {
+    const points = routeOf.get(edge.id);
+    if (!points) continue;
+    for (const segment of segmentsOf(points)) {
+      const [p, q] = segment;
+      if (p.x !== q.x && p.y !== q.y) continue;
+      const horizontal = p.y === q.y;
+      const at = horizontal ? p.y : p.x;
+      const lo = horizontal ? Math.min(p.x, q.x) : Math.min(p.y, q.y);
+      const hi = horizontal ? Math.max(p.x, q.x) : Math.max(p.y, q.y);
+      for (const border of nodeBorders) {
+        if (border.horizontal !== horizontal) continue;
+        if (Math.abs(at - border.at) >= 6) continue;
+        if (Math.min(hi, border.hi) - Math.max(lo, border.lo) > 4) note('borderRun', edge.id + ' beside ' + border.id);
+      }
+      for (const border of frameBorders) {
+        if (border.horizontal !== horizontal) continue;
+        if (Math.abs(at - border.at) >= 6) continue;
+        if (Math.min(hi, border.hi) - Math.max(lo, border.lo) > 4) note('frameHug', edge.id + ' beside ' + border.id);
+      }
+    }
+  }
+
   const svg = root.querySelector('.diagram-edges').getBoundingClientRect();
   const sample = root.querySelector('[data-node]');
   const scale = sample.getBoundingClientRect().width / byId.get(sample.dataset.node).width;
@@ -203,6 +261,17 @@ const gates = `(() => {
     note('drawn', 'node label count ' + labels.filter((label) => label.kind === 'node').length + ' of ' + expectedNodeLabels);
 
   for (const [index, label] of labels.entries()) {
+    if (label.kind === 'node') {
+      for (const edge of edges) {
+        const points = routeOf.get(edge.id);
+        if (!points) continue;
+        if (segmentsOf(points).some((segment) => {
+          const [a, b] = segment;
+          const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x), y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
+          return label.box.x < x2 + 0.5 && label.box.x + label.box.width > x1 - 0.5 && label.box.y < y2 + 0.5 && label.box.y + label.box.height > y1 - 0.5;
+        })) note('nodeLabelLine', label.id + ' over ' + edge.id);
+      }
+    }
     for (const box of nodes) if (overlap(label.box, box)) note('labelNode', label.id + ' over ' + box.id);
     for (const other of labels.slice(index + 1)) if (overlap(label.box, other.box)) note('labelLabel', label.id + ' / ' + other.id);
     if (label.kind !== 'flow') continue;

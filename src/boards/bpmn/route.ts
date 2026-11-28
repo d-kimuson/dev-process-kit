@@ -3,7 +3,12 @@ import type { BpmnBands, BpmnPoolBand } from './layout';
 import type { BpmnData, BpmnFlow, BpmnNode } from './model';
 
 import { placeEdgeLabels, type LabelBox } from '../../lib/layout/edge-labels';
-import { routeAroundObstacles, verticalBlocked, type RouteSegment } from '../../lib/layout/orthogonal-router';
+import {
+  horizontalBlocked,
+  routeAroundObstacles,
+  verticalBlocked,
+  type RouteSegment,
+} from '../../lib/layout/orthogonal-router';
 import { endFrame } from '../../lib/layout/path-steps';
 import { staggeredEdgePorts, type EdgePorts, type PortSide } from '../../lib/layout/ports';
 import { nudgeParallelRoutes } from '../../lib/layout/route-nudge';
@@ -141,10 +146,27 @@ const sideFor = (
   }
   const forward = centreOf(to).x >= centreOf(from).x;
   if (!forward) return 'bottom';
-  if (end === 'to') return 'left';
+  const facing = (own: PlacedNode, other: PlacedNode): PortSide => {
+    const dx = centreOf(other).x - centreOf(own).x;
+    const dy = centreOf(other).y - centreOf(own).y;
+    if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+    return dy >= 0 ? 'bottom' : 'top';
+  };
+  const facingEntry = (own: PlacedNode, other: PlacedNode): PortSide => {
+    // `own` is the gateway/event being entered; the side that faces `other`
+    // is the side pointing at it, not away from it.
+    const dx = centreOf(other).x - centreOf(own).x;
+    const dy = centreOf(other).y - centreOf(own).y;
+    if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+    return dy >= 0 ? 'bottom' : 'top';
+  };
+  if (end === 'to') {
+    if (toNode.kind === 'gateway' || toNode.kind === 'event') return facingEntry(to, from);
+    return 'left';
+  }
   const dy = centreOf(to).y - centreOf(from).y;
+  if (fromNode.kind === 'gateway' || fromNode.kind === 'event') return facing(from, to);
   if (Math.abs(dy) < from.height / 2) return 'right';
-  if (fromNode.kind === 'gateway' || fromNode.kind === 'event') return dy > 0 ? 'bottom' : 'top';
   return 'right';
 };
 
@@ -189,6 +211,7 @@ type RouteContext = {
   readonly poolById: ReadonlyMap<string, BpmnPoolBand>;
   readonly labelBoxes: readonly Box[];
   readonly ports: ReadonlyMap<string, EdgePorts>;
+  readonly messageOffsets: ReadonlyMap<string, number>;
   readonly routes: Map<string, readonly LayoutPoint[]>;
   readonly avoid: RouteSegment[];
 };
@@ -410,6 +433,53 @@ const messageGaps = (context: RouteContext, flow: BpmnFlow): MessageGaps | null 
 
 const messageGapCache = new WeakMap<RouteContext, Map<string, MessageGaps | null>>();
 
+/**
+ * A vertical leg that steps sideways around whatever blocks it. The sideways
+ * run happens one stub away from the port, inside the pool if it must: a
+ * message may dodge its own pool's nodes, while its cross-pool horizontal runs
+ * still happen only in the gaps.
+ */
+const verticalLeg = (
+  start: LayoutPoint,
+  end: LayoutPoint,
+  blockers: readonly Box[],
+  preference: 'left' | 'right',
+): LayoutPoint[] => {
+  if (start.x === end.x && verticalClear(start.x, start.y, end.y, blockers)) return [start, end];
+  const sign = Math.sign(end.y - start.y) || 1;
+  const span = Math.abs(end.y - start.y);
+  const mids = [...new Set([Math.min(STUB, span / 2), Math.min(16, span / 2), Math.min(24, span / 2)])]
+    .map((distance) => start.y + sign * distance)
+    .filter((mid) => Math.abs(mid - start.y) >= 8 && Math.abs(mid - end.y) >= 8);
+  const crossing = blockers.filter(
+    (box) =>
+      start.x > box.x &&
+      start.x < box.x + box.width &&
+      Math.min(start.y, end.y) < box.y + box.height &&
+      Math.max(start.y, end.y) > box.y,
+  );
+  const left = crossing.length === 0 ? null : Math.min(...crossing.map((box) => box.x)) - 8;
+  const right = crossing.length === 0 ? null : Math.max(...crossing.map((box) => box.x + box.width)) + 8;
+  const sides = [left, right].filter((side): side is number => side !== null);
+  if (preference === 'right') sides.reverse();
+  for (const mid of mids) {
+    for (const side of sides) {
+      const first = { x: start.x, y: mid };
+      const second = { x: side, y: mid };
+      const third = { x: side, y: end.y };
+      const fourth = { x: start.x, y: end.y };
+      if (
+        horizontalBlocked(mid, Math.min(start.x, side), Math.max(start.x, side), blockers) ||
+        !verticalClear(side, mid, end.y, blockers) ||
+        horizontalBlocked(end.y, Math.min(side, start.x), Math.max(side, start.x), blockers)
+      )
+        continue;
+      return simplify([start, first, second, third, fourth]);
+    }
+  }
+  return [start, end];
+};
+
 const routeMessage = (context: RouteContext, flow: BpmnFlow): readonly LayoutPoint[] => {
   const fromNode = context.nodeById.get(flow.from);
   const toNode = context.nodeById.get(flow.to);
@@ -431,10 +501,11 @@ const routeMessage = (context: RouteContext, flow: BpmnFlow): readonly LayoutPoi
     .filter((node) => node.id !== flow.from && node.id !== flow.to)
     .map((node) => inflate(boxOf(node), CLEAR));
 
+  const offset = context.messageOffsets.get(flow.id) ?? 0;
   const wantedSource =
-    from !== undefined ? centreOf(from).x : to !== undefined ? centreOf(to).x : context.placement.width / 2;
+    (from !== undefined ? centreOf(from).x : to !== undefined ? centreOf(to).x : context.placement.width / 2) + offset;
   const wantedTarget =
-    to !== undefined ? centreOf(to).x : from !== undefined ? centreOf(from).x : context.placement.width / 2;
+    (to !== undefined ? centreOf(to).x : from !== undefined ? centreOf(from).x : context.placement.width / 2) + offset;
 
   const sourceX =
     from !== undefined && fromNode !== undefined
@@ -459,35 +530,28 @@ const routeMessage = (context: RouteContext, flow: BpmnFlow): readonly LayoutPoi
       ? projectPort(toNode, to, toSide, { x: targetX, y: toSide === 'top' ? to.y : to.y + to.height })
       : { x: targetX, y: targetEdgeY };
 
-  const sourceEdge = { x: sourceX, y: sourceEdgeY };
-  const targetEdge = { x: targetX, y: targetEdgeY };
-  const leg = (a: LayoutPoint, b: LayoutPoint, own: PlacedNode | undefined): LayoutPoint[] => {
-    if (a.x === b.x && verticalClear(a.x, a.y, b.y, otherNodes)) return [a, b];
-    if (own === undefined) return [a, b];
-    return simplify(routeAroundObstacles(a, b, otherNodes, CLEAR, [], [boxOf(own)], [boxOf(own)]));
-  };
+  const alignedX = fromPort.x === toPort.x ? fromPort.x : sourceX === targetX ? sourceX : null;
+  if (alignedX !== null && verticalClear(alignedX, fromPort.y, toPort.y, otherNodes)) {
+    return simplify([fromPort, { ...fromPort, x: alignedX }, { ...toPort, x: alignedX }, toPort]);
+  }
+
+  const preference = offset > 0 ? 'right' : 'left';
+  const sourceLeg = verticalLeg(fromPort, { x: sourceX, y: sourceChannel }, otherNodes, preference);
+  const targetLeg = [...verticalLeg(toPort, { x: targetX, y: targetChannel }, otherNodes, preference)].reverse();
 
   if (gaps.adjacent) {
-    const straight = fromPort.x === toPort.x && verticalClear(fromPort.x, fromPort.y, toPort.y, otherNodes);
-    if (straight) return simplify([fromPort, toPort]);
-    return simplify([
-      ...leg(fromPort, sourceEdge, from),
-      { x: sourceX, y: sourceChannel },
-      { x: targetX, y: sourceChannel },
-      ...leg(targetEdge, toPort, to),
-    ]);
+    return simplify([...sourceLeg, { x: targetX, y: sourceChannel }, ...targetLeg]);
   }
   // A non-adjacent pair has another pool between them. The vertical part runs
   // in the pool's right-hand padding, clear of every node, and the horizontal
   // parts stay in the gaps above and below the intervening pool.
   const corridor = context.placement.width - 12;
   return simplify([
-    ...leg(fromPort, sourceEdge, from),
-    { x: sourceX, y: sourceChannel },
+    ...sourceLeg,
     { x: corridor, y: sourceChannel },
     { x: corridor, y: targetChannel },
     { x: targetX, y: targetChannel },
-    ...leg(targetEdge, toPort, to),
+    ...targetLeg,
   ]);
 };
 
@@ -536,48 +600,42 @@ const routeAssociation = (context: RouteContext, flow: BpmnFlow, spec: EdgeSpec)
 const placeNodeLabels = (context: RouteContext, width: number, height: number): ReadonlyMap<string, Box> => {
   const placed = new Map<string, Box>();
   const nodeBoxes = [...context.placed.values()].map(boxOf);
+  const routes = [...context.routes.values()].map(segmentsOf);
   for (const node of [...context.data.nodes].sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0))) {
     const label = externalLabel(node);
     const at = context.placed.get(node.id);
     if (label === null || at === undefined) continue;
-    const candidates: Box[] = [
-      {
-        x: Math.round(at.x + at.width / 2 - label.width / 2),
-        y: at.y + at.height + 4,
-        width: label.width,
-        height: label.height,
-      },
-      {
-        x: Math.round(at.x + at.width / 2 - label.width / 2),
-        y: at.y - label.height - 4,
-        width: label.width,
-        height: label.height,
-      },
-      {
-        x: at.x + at.width + 4,
-        y: Math.round(at.y + at.height / 2 - label.height / 2),
-        width: label.width,
-        height: label.height,
-      },
-    ];
-    const free = (box: Box): boolean => {
-      if (
-        box.x < LABEL_MARGIN ||
-        box.y < LABEL_MARGIN ||
-        box.x + box.width > width - LABEL_MARGIN ||
-        box.y + box.height > height - LABEL_MARGIN
-      )
-        return false;
-      if (nodeBoxes.some((other) => overlap(box, other, 3))) return false;
-      if ([...placed.values()].some((other) => overlap(box, other, LABEL_MARGIN))) return false;
-      for (const points of context.routes.values()) {
-        const segments = segmentsOf(points);
-        if (segments.some((segment) => segmentHitsBox(segment, box, 2))) return false;
-      }
-      return true;
-    };
-    const chosen = candidates.find(free) ?? candidates[0]!;
-    placed.set(node.id, chosen);
+    const centreX = Math.round(at.x + at.width / 2 - label.width / 2);
+    const centreY = Math.round(at.y + at.height / 2 - label.height / 2);
+    const candidates: Box[] = [];
+    for (const gap of [4, 12, 24, 40, 60]) {
+      candidates.push(
+        { x: centreX, y: at.y + at.height + gap, width: label.width, height: label.height },
+        { x: centreX, y: at.y - label.height - gap, width: label.width, height: label.height },
+        { x: at.x + at.width + gap, y: centreY, width: label.width, height: label.height },
+        { x: at.x - label.width - gap, y: centreY, width: label.width, height: label.height },
+      );
+    }
+    const inside = (box: Box): boolean =>
+      box.x >= LABEL_MARGIN &&
+      box.y >= LABEL_MARGIN &&
+      box.x + box.width <= width - LABEL_MARGIN &&
+      box.y + box.height <= height - LABEL_MARGIN;
+    const free = (box: Box): boolean =>
+      inside(box) &&
+      !nodeBoxes.some((other) => overlap(box, other, 3)) &&
+      ![...placed.values()].some((other) => overlap(box, other, LABEL_MARGIN)) &&
+      !routes.some((segments) => segments.some((segment) => segmentHitsBox(segment, box, 2)));
+    const score = (box: Box): number =>
+      routes.reduce(
+        (total, segments) => total + segments.filter((segment) => segmentHitsBox(segment, box, 2)).length,
+        0,
+      );
+    const ranked = candidates
+      .map((box) => ({ box, free: free(box), crossings: score(box) }))
+      // A free side first; when every side is crossed, take the one crossed least.
+      .sort((p, q) => Number(q.free) - Number(p.free) || p.crossings - q.crossings);
+    placed.set(node.id, ranked[0]?.box ?? candidates[0]!);
   }
   return placed;
 };
@@ -651,8 +709,8 @@ const separateLanes = (
       for (let j = i + 1; j < segments.length; j++) {
         const a = segments[i]!;
         const b = segments[j]!;
-        if (a.id === b.id || a.horizontal !== b.horizontal || Math.abs(a.at - b.at) >= 4) continue;
-        if (Math.min(a.hi, b.hi) - Math.max(a.lo, b.lo) <= 1) continue;
+        if (a.id === b.id || a.horizontal !== b.horizontal || Math.abs(a.at - b.at) >= 16) continue;
+        if (Math.min(a.hi, b.hi) - Math.max(a.lo, b.lo) <= 4) continue;
         pair = [a, b];
         break;
       }
@@ -668,25 +726,172 @@ const separateLanes = (
       if (points === undefined) continue;
       if (mover.index < 1 || mover.index > points.length - 3) continue;
       const axis = mover.horizontal ? 'y' : 'x';
-      const direction = mover.at === other.at ? 1 : mover.at < other.at ? -1 : 1;
-      const value = mover.at + direction * 6;
-      const moved = points.map((point, index) =>
-        index === mover.index || index === mover.index + 1 ? { ...point, [axis]: value } : point,
-      );
-      const simplified = simplify(moved);
-      let safe = true;
-      for (let index = 0; index + 1 < simplified.length; index++) {
-        if (obstacles.some((box) => enterBox(simplified[index]!, simplified[index + 1]!, box))) safe = false;
+      const away = mover.at === other.at ? 1 : mover.at < other.at ? -1 : 1;
+      for (const distance of [16, 24, 32, 40, 56, -16, -24, -32, -40, -56]) {
+        const value = mover.at + away * distance;
+        const moved = points.map((point, index) =>
+          index === mover.index || index === mover.index + 1 ? { ...point, [axis]: value } : point,
+        );
+        const simplified = simplify(moved);
+        let safe = true;
+        for (let index = 0; index + 1 < simplified.length; index++) {
+          if (obstacles.some((box) => enterBox(simplified[index]!, simplified[index + 1]!, box))) safe = false;
+        }
+        const stubStart = Math.hypot(simplified[1]!.x - simplified[0]!.x, simplified[1]!.y - simplified[0]!.y);
+        const stubEnd = Math.hypot(
+          simplified.at(-1)!.x - simplified.at(-2)!.x,
+          simplified.at(-1)!.y - simplified.at(-2)!.y,
+        );
+        if (!safe || stubStart < 12.5 || stubEnd < 12.5) continue;
+        routes.set(mover.id, simplified);
+        changed = true;
+        break;
       }
-      const stubStart = Math.hypot(simplified[1]!.x - simplified[0]!.x, simplified[1]!.y - simplified[0]!.y);
-      const stubEnd = Math.hypot(
-        simplified.at(-1)!.x - simplified.at(-2)!.x,
-        simplified.at(-1)!.y - simplified.at(-2)!.y,
+      if (changed) break;
+    }
+    if (!changed) break;
+  }
+  return routes;
+};
+
+type ParallelBorder = {
+  readonly horizontal: boolean;
+  readonly at: number;
+  readonly lo: number;
+  readonly hi: number;
+};
+
+const borderList = (nodes: readonly PlacedNode[], bands: BpmnBands, width: number): ParallelBorder[] => {
+  const borders: ParallelBorder[] = [];
+  for (const node of nodes) {
+    borders.push(
+      {
+        horizontal: true,
+        at: node.y,
+        lo: node.x,
+        hi: node.x + node.width,
+      },
+      {
+        horizontal: true,
+        at: node.y + node.height,
+        lo: node.x,
+        hi: node.x + node.width,
+      },
+      {
+        horizontal: false,
+        at: node.x,
+        lo: node.y,
+        hi: node.y + node.height,
+      },
+      {
+        horizontal: false,
+        at: node.x + node.width,
+        lo: node.y,
+        hi: node.y + node.height,
+      },
+    );
+  }
+  for (const pool of bands.pools) {
+    for (const band of [pool, ...pool.lanes]) {
+      borders.push(
+        { horizontal: true, at: band.y, lo: 0, hi: width },
+        {
+          horizontal: true,
+          at: band.y + band.height,
+          lo: 0,
+          hi: width,
+        },
+        { horizontal: false, at: 0, lo: band.y, hi: band.y + band.height },
+        {
+          horizontal: false,
+          at: width,
+          lo: band.y,
+          hi: band.y + band.height,
+        },
       );
-      if (!safe || stubStart < STUB - 0.5 || stubEnd < STUB - 0.5) continue;
-      routes.set(mover.id, simplified);
-      changed = true;
-      break;
+    }
+  }
+  return borders;
+};
+
+const lengthOf = (a: LayoutPoint, b: LayoutPoint): number => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+
+/**
+ * Keeps a route off the borders it runs beside. A run parallel to a node,
+ * lane or pool border within 6px is slid 6px clear, on the side it already
+ * occupies; port runs are never moved (their segment touches the route's end)
+ * and a move that would pierce a node or leave a stub too short is skipped.
+ */
+const clearBorderHugs = (
+  initial: ReadonlyMap<string, readonly LayoutPoint[]>,
+  nodes: readonly PlacedNode[],
+  bands: BpmnBands,
+  width: number,
+): ReadonlyMap<string, readonly LayoutPoint[]> => {
+  const routes = new Map([...initial].map(([id, points]) => [id, [...points]] as const));
+  const borders = borderList(nodes, bands, width);
+  const boxes = nodes.map(boxOf);
+  for (let pass = 0; pass < 120; pass++) {
+    let changed = false;
+    for (const [id, original] of routes) {
+      let points = original;
+      for (let index = 1; index + 2 < points.length; index++) {
+        const a = points[index]!;
+        const b = points[index + 1]!;
+        if (a.x !== b.x && a.y !== b.y) continue;
+        const horizontal = a.y === b.y;
+        const at = horizontal ? a.y : a.x;
+        const lo = horizontal ? Math.min(a.x, b.x) : Math.min(a.y, b.y);
+        const hi = horizontal ? Math.max(a.x, b.x) : Math.max(a.y, b.y);
+        const near = borders.filter(
+          (border) =>
+            border.horizontal === horizontal &&
+            Math.abs(at - border.at) < 7.5 &&
+            Math.min(hi, border.hi) - Math.max(lo, border.lo) > 4,
+        );
+        if (near.length === 0) continue;
+        const candidates = new Set<number>();
+        for (const border of borders) {
+          if (border.horizontal !== horizontal) continue;
+          if (Math.min(hi, border.hi) - Math.max(lo, border.lo) <= 4) continue;
+          candidates.add(border.at - 8);
+          candidates.add(border.at + 8);
+        }
+        const valid = [...candidates]
+          .filter((value) => value !== at)
+          .sort((p, q) => Math.abs(p - at) - Math.abs(q - at));
+        for (const target of valid) {
+          // A position has to clear every border it runs beside, not just the
+          // one that prompted the move: a lane edge and a node top can be only
+          // 12px apart, and then only the other side of the edge is usable.
+          const clears = borders.every(
+            (border) =>
+              border.horizontal !== horizontal ||
+              Math.min(hi, border.hi) - Math.max(lo, border.lo) <= 4 ||
+              Math.abs(target - border.at) >= 6.5,
+          );
+          if (!clears) continue;
+          const moved = points.map((point, at2) =>
+            at2 === index || at2 === index + 1 ? { ...point, [horizontal ? 'y' : 'x']: target } : point,
+          );
+          const simplified = simplify(moved);
+          const safe =
+            simplified.slice(1).every((point, segment) => {
+              const start = simplified[segment]!;
+              if (lengthOf(start, point) < 12) return false;
+              return !boxes.some((box) => enterBox(start, point, box));
+            }) &&
+            Math.hypot(simplified[1]!.x - simplified[0]!.x, simplified[1]!.y - simplified[0]!.y) >= 12.5 &&
+            Math.hypot(simplified.at(-1)!.x - simplified.at(-2)!.x, simplified.at(-1)!.y - simplified.at(-2)!.y) >=
+              12.5;
+          if (!safe) continue;
+          points = simplified;
+          changed = true;
+          break;
+        }
+        if (changed) break;
+      }
+      routes.set(id, points);
     }
     if (!changed) break;
   }
@@ -745,7 +950,47 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
       specialSides.set(`${node.id}|${flow.id}|${end}`, side);
     }
   }
+  const usedSides = new Map<string, Set<PortSide>>();
+  const use = (nodeId: string, side: PortSide): void => {
+    const set = usedSides.get(nodeId) ?? new Set<PortSide>();
+    set.add(side);
+    usedSides.set(nodeId, set);
+  };
+  for (const flow of nodeFlows) {
+    if (flow.kind === 'association') continue;
+    const from = placed.get(flow.from);
+    const to = placed.get(flow.to);
+    const fromNode = nodeById.get(flow.from);
+    const toNode = nodeById.get(flow.to);
+    if (from === undefined || to === undefined || fromNode === undefined || toNode === undefined) continue;
+    use(
+      flow.from,
+      specialSides.get(`${flow.from}|${flow.id}|from`) ?? sideFor(flow, 'from', from, to, fromNode, toNode),
+    );
+    use(flow.to, specialSides.get(`${flow.to}|${flow.id}|to`) ?? sideFor(flow, 'to', from, to, fromNode, toNode));
+  }
+  for (const flow of nodeFlows) {
+    if (flow.kind !== 'association') continue;
+    const from = placed.get(flow.from);
+    const to = placed.get(flow.to);
+    const fromNode = nodeById.get(flow.from);
+    const toNode = nodeById.get(flow.to);
+    if (from === undefined || to === undefined || fromNode === undefined || toNode === undefined) continue;
+    for (const end of ['from', 'to'] as const) {
+      const nodeId = end === 'from' ? flow.from : flow.to;
+      const base = sideFor(flow, end, from, to, fromNode, toNode);
+      const taken = usedSides.get(nodeId);
+      if (taken === undefined || !taken.has(base)) continue;
+      const alternative = (['top', 'bottom', 'left', 'right'] as PortSide[]).find((side) => !taken.has(side));
+      if (alternative !== undefined) {
+        specialSides.set(`${nodeId}|${flow.id}|${end}`, alternative);
+        use(nodeId, alternative);
+      }
+    }
+  }
+
   const ports = staggeredEdgePorts([...placed.values()], nodeFlows, {
+    gap: 32,
     sideOf: ({ node, edge, end }) => {
       const special = specialSides.get(`${node.id}|${edge.id}|${end}`);
       if (special !== undefined) return special;
@@ -766,6 +1011,24 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
     },
   });
 
+  const messageColumns = new Map<string, BpmnFlow[]>();
+  for (const flow of data.edges) {
+    if (flow.kind !== 'message') continue;
+    const source = placed.get(flow.from);
+    if (source === undefined) continue;
+    const key = String(Math.round(centreOf(source).x));
+    const bucket = messageColumns.get(key) ?? [];
+    bucket.push(flow);
+    messageColumns.set(key, bucket);
+  }
+  const messageOffsets = new Map<string, number>();
+  for (const bucket of messageColumns.values()) {
+    bucket.sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
+    bucket.forEach((flow, index) => {
+      messageOffsets.set(flow.id, Math.round((index - (bucket.length - 1) / 2) * 16));
+    });
+  }
+
   const context: RouteContext = {
     placement,
     data,
@@ -775,6 +1038,7 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
     poolById,
     labelBoxes: [],
     ports,
+    messageOffsets,
     routes: new Map(),
     avoid: [],
   };
@@ -792,13 +1056,18 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
   }
 
   const obstacles = [...placed.values()].map((node) => inflate(boxOf(node), CLEAR));
+  const separationObstacles = [...placed.values()].map(boxOf);
   const nudged = nudgeParallelRoutes(
     [...context.routes].map(([id, points]) => ({ id, points, obstacles })),
-    { trackSpacing: 6, frameClearance: 6, minPortRun: STUB },
+    { trackSpacing: 16, frameClearance: 6, minPortRun: STUB },
   );
   for (const [id, points] of nudged) context.routes.set(id, simplify(points));
-  const separated = separateLanes(context.routes, obstacles);
-  for (const [id, points] of separated) context.routes.set(id, points);
+  for (let round = 0; round < 2; round++) {
+    const separated = separateLanes(context.routes, separationObstacles);
+    for (const [id, points] of separated) context.routes.set(id, points);
+    const clear = clearBorderHugs(context.routes, [...placed.values()], bands, placement.width);
+    for (const [id, points] of clear) context.routes.set(id, points);
+  }
 
   const nodeLabels = placeNodeLabels({ ...context, routes: context.routes }, placement.width, placement.height);
   const labelBoxes = [...nodeLabels.values()];
@@ -817,6 +1086,11 @@ export const withBpmnRoutes = (placement: LayoutResult, data: BpmnData, bands: B
     const parts: LabelBox[] = [];
     if (spec.start !== null) parts.push(markerZone(spec.start, endFrame(points, 'start')));
     if (spec.end !== null) parts.push(markerZone(spec.end, endFrame(points, 'end')));
+    // Keep a caption clear of every end, not only a marked one: the probe
+    // treats the whole arrowhead box as the glyph.
+    for (const end of [points[0], points.at(-1)]) {
+      if (end !== undefined) parts.push({ x: end.x - 12, y: end.y - 12, width: 24, height: 24 });
+    }
     return parts;
   });
   const placedLabels = placeEdgeLabels(
