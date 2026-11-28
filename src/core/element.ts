@@ -76,9 +76,9 @@ import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navi
 import { inDraftPage, pageDeliveryOf, pageHostOf, pageNameOf, type PageHost } from './page/host';
 import { pageNavigation, pagePatchFor } from './page/navigation';
 import { resolvePageTarget } from './page/page-target';
-import { PANEL_HOST, type PanelControl, type PanelHost } from './panel/host';
+import { PANEL_HOST, panelHostOf, type PanelControl, type PanelDetail, type PanelHost } from './panel/host';
 import { panelMessages } from './panel/messages';
-import { parsePanelMode } from './panel/model';
+import { parsePanelMode, type DetailIntent } from './panel/model';
 import { PanelOwner } from './panel/owner';
 import { isPanelShortcut } from './panel/shortcut';
 import { defaultStorage, defaultStorageKey, MemoryDraftStorage, type DraftStorage } from './persistence';
@@ -587,6 +587,60 @@ export abstract class ViewElement<S> extends LitElement {
     this.#panel.setOpen(false);
   }
 
+  /** The panel this view's selection's detail goes to (its own, or its page's), once found. */
+  #detailHost: PanelHost | null = null;
+  #withdrawDetail: (() => void) | null = null;
+  /** The key of the detail the panel was last handed, to tell a new selection from a re-render. */
+  #detailKey: string | null = null;
+  #openDetail = false;
+
+  /** Whether this view shows its selection's detail in the side panel. */
+  protected get providesPanelDetail(): boolean {
+    return false;
+  }
+
+  /** The detail the side panel shows for this view's selection, or `null` when nothing is selected. */
+  protected renderPanelDetail(_context: ViewRenderContext<S>): PanelDetail | null {
+    return null;
+  }
+
+  /**
+   * How a newly selected element reaches the panel: `open` for a view whose
+   * selection is only ever the reader's explicit pick (a click, a link).
+   */
+  protected get panelDetailIntent(): DetailIntent {
+    return 'select';
+  }
+
+  /** Opens the panel on the selection's detail after the next render, even when the selection stays the same. */
+  protected openPanelDetail(): void {
+    this.#openDetail = true;
+    this.requestUpdate();
+  }
+
+  /** Hands the panel the detail of this render: a new element with its intent, the same one as a refresh. */
+  #syncPanelDetail(): void {
+    const host =
+      this.providesPanelDetail && this.#controller ? (this.ownsPanel ? this.#panel : panelHostOf(this)) : null;
+    if (host !== this.#detailHost) {
+      this.#withdrawDetail?.();
+      this.#detailHost = host;
+      this.#withdrawDetail = host?.provideDetail(this) ?? null;
+      this.#detailKey = null;
+    }
+    if (host === null) return;
+    const detail = this.renderPanelDetail(this.#renderContext());
+    const key = detail?.key ?? null;
+    const open = this.#openDetail;
+    this.#openDetail = false;
+    if (key === this.#detailKey && !open) {
+      host.showDetail(this, detail, 'refresh');
+      return;
+    }
+    this.#detailKey = key;
+    host.showDetail(this, detail, open ? 'open' : this.panelDetailIntent);
+  }
+
   /** The panel the header's toggle and the shortcut act on: this element's own, or (for the app) the page shown. */
   protected panelControl(): PanelControl | null {
     return this.ownsPanel ? this.#panel : null;
@@ -672,6 +726,9 @@ export abstract class ViewElement<S> extends LitElement {
     });
     window.removeEventListener('hashchange', this.#onHashChange);
     window.removeEventListener('keydown', this.#onPanelShortcut);
+    this.#withdrawDetail?.();
+    this.#withdrawDetail = null;
+    this.#detailHost = null;
     this.removeEventListener('click', this.#onClick);
     this.#baseData.disconnect();
     this.#targetObserver?.disconnect();
@@ -731,6 +788,7 @@ export abstract class ViewElement<S> extends LitElement {
   }
 
   protected override updated(): void {
+    this.#syncPanelDetail();
     this.#routePreviews();
     this.#reserveDockSpace();
     this.#placeNoticeList();
