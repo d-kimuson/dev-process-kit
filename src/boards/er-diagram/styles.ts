@@ -568,6 +568,8 @@ export const erStyles = css`
 
   .er-edge {
     --er-line: color-mix(in srgb, var(--dpk-ink-faint) 75%, transparent);
+    /* The shared edge paint (base/edge/styles.ts) colours the line, glyphs and flow from this one property. */
+    --d-edge-line: var(--er-line);
   }
 
   .er-edge.is-added {
@@ -616,32 +618,7 @@ export const erStyles = css`
     stroke-width: 2.25;
   }
 
-  /* Dots running from the referenced column to the FK column while lit. */
-  .er-edge-flow {
-    fill: none;
-    stroke: none;
-    pointer-events: none;
-  }
-
-  .er-edge:is(.is-lit, .is-selected) .er-edge-flow {
-    stroke: var(--er-line);
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke-dasharray: 0.1 13;
-    animation: er-flow 900ms linear infinite;
-  }
-
-  @keyframes er-flow {
-    to {
-      stroke-dashoffset: -13.1;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .er-edge:is(.is-lit, .is-selected) .er-edge-flow {
-      animation: none;
-    }
-  }
+  /* Dots running from the referenced column to the FK column while lit come from the shared edge paint. */
 
   /* Crow's foot ends take the line's colour; the "zero" circle is hollow. */
   .er-end {

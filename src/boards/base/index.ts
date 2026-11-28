@@ -48,3 +48,24 @@ export type {
 } from './viewport';
 export { arrowDefinitions, pathData } from './view';
 export type { ArrowDefinition } from './view';
+export {
+  EDGE_PATHS,
+  END_MARKERS,
+  edgeBody,
+  edgeReach,
+  edgeSteps,
+  edgeStyles,
+  edgeTextLabel,
+  lineStyleClass,
+  markerZone,
+  type EdgeBodyView,
+  type EdgeEndView,
+  type EdgeSpec,
+  type EdgeStepsOptions,
+  type EdgeTextLabelView,
+  type EndMarker,
+  type FlowStyle,
+  type GlyphPaint,
+  type GlyphShape,
+  type LineStyle,
+} from './edge';

@@ -21,6 +21,7 @@ import {
 } from '../../lib/layout/layered';
 import { jumpedPaths } from '../../lib/layout/line-jumps';
 import { stepsData } from '../../lib/layout/path-steps';
+import { EDGE_PATHS } from '../base/edge';
 import { BoardCanvasElement } from '../base/element';
 import {
   EMPTY_REACH,
@@ -876,7 +877,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
             .filter(Boolean)
             .join(' · ')}</title>
           <path class="d-edge-path" d=${d}></path>
-          <path class="er-edge-flow" d=${d}></path>
+          <path class="d-edge-flow" d=${d}></path>
           <path
             class="d-edge-hit"
             d=${d}
@@ -1522,7 +1523,7 @@ export class DpkBoardErDiagram extends BoardCanvasElement<ErData> {
       edge.classList.toggle('is-concealed', concealed.has(id) && !lit.edges.has(id));
       const d = paths.get(id);
       if (d === undefined) continue;
-      for (const path of edge.querySelectorAll(':scope > .d-edge-path, :scope > .er-edge-flow, :scope > .d-edge-hit')) {
+      for (const path of edge.querySelectorAll(EDGE_PATHS)) {
         if (path.getAttribute('d') !== d) path.setAttribute('d', d);
       }
     }

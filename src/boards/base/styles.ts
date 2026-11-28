@@ -1,6 +1,7 @@
 import { css } from 'lit';
 
 import { controls, popoverSurface, tokens } from '../../core/theme';
+import { edgeStyles } from './edge/styles';
 
 /**
  * Chrome every element with this shell shares, canvas or not: the toolbar
@@ -163,44 +164,47 @@ export const chromeStyles = [
  * What only a pan/zoom canvas needs on top of the shared chrome: the sizing
  * knob, the world box edges lay out in, the legend and empty/error notices
  * placed over the canvas, and the shared node/edge element states (selected,
- * related, dimmed).
+ * related, dimmed). The shared edge paint (`./edge/styles.ts`) comes first, so
+ * a board's own rules after it win where they refine a shared one.
  */
-export const canvasStyles = css`
-  /*
+export const canvasStyles = [
+  edgeStyles,
+  css`
+    /*
    * The shell is a panel: header, tag row, viewport. The sizing knob is
    * --diagram-height; the panel may be resized vertically, and the canvas
    * takes whatever is left of it.
    */
-  .diagram {
-    --dpk-dialog-panel-height: var(--diagram-height, 560px);
-    --dpk-dialog-panel-min-height: 260px;
-  }
+    .diagram {
+      --dpk-dialog-panel-height: var(--diagram-height, 560px);
+      --dpk-dialog-panel-min-height: 260px;
+    }
 
-  /* A board has no fixed height to fall back to: it takes all of what its
+    /* A board has no fixed height to fall back to: it takes all of what its
      full-screen host (e.g. dpk-page) gives it, same as any other board. */
-  :host([data-dpk-page-content]) .diagram {
-    --dpk-dialog-panel-height: 100%;
-    flex: 1 1 0%;
-    min-height: 0;
-  }
+    :host([data-dpk-page-content]) .diagram {
+      --dpk-dialog-panel-height: 100%;
+      flex: 1 1 0%;
+      min-height: 0;
+    }
 
-  /* The world inside the viewport: its content box, which nodes and edges lay out in. */
-  .diagram-world {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
+    /* The world inside the viewport: its content box, which nodes and edges lay out in. */
+    .diagram-world {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
 
-  .diagram-overlay {
-    display: contents;
-  }
+    .diagram-overlay {
+      display: contents;
+    }
 
-  .diagram-edges {
-    position: absolute;
-    inset: 0;
-    overflow: visible;
-    pointer-events: none;
-    /*
+    .diagram-edges {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+      pointer-events: none;
+      /*
      * The edges are drawn after the frame they connect: one fade over the whole
      * layer, a step after the panel arrives. One animation on one element, not
      * one per edge — a plan of four hundred links must not cost four hundred
@@ -208,171 +212,172 @@ export const canvasStyles = css`
      * each board writes its own path data, so no path has a known length to
      * dash against.)
      */
-    animation: dpk-fade-in var(--dpk-dur-slow) var(--dpk-ease-out) backwards;
-    animation-delay: calc(var(--dpk-stagger) * 2);
-  }
+      animation: dpk-fade-in var(--dpk-dur-slow) var(--dpk-ease-out) backwards;
+      animation-delay: calc(var(--dpk-stagger) * 2);
+    }
 
-  .diagram-legend {
-    position: absolute;
-    left: 12px;
-    bottom: calc(14px + var(--dpk-dock-overlap, 0px));
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    max-width: calc(100% - 240px);
-    padding: 4px 8px;
-    border: 1px solid var(--dpk-rule);
-    border-radius: var(--dpk-radius-xs);
-    background: var(--dpk-glass);
-    backdrop-filter: blur(10px);
-    box-shadow: var(--dpk-shadow-xs);
-    font-size: 11px;
-    color: var(--dpk-ink-soft);
-    /* The key to the canvas arrives last, once there is something to read. */
-    animation: dpk-rise-in var(--dpk-dur) var(--dpk-ease-out) backwards;
-    animation-delay: calc(var(--dpk-stagger) * 3);
-  }
+    .diagram-legend {
+      position: absolute;
+      left: 12px;
+      bottom: calc(14px + var(--dpk-dock-overlap, 0px));
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      max-width: calc(100% - 240px);
+      padding: 4px 8px;
+      border: 1px solid var(--dpk-rule);
+      border-radius: var(--dpk-radius-xs);
+      background: var(--dpk-glass);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--dpk-shadow-xs);
+      font-size: 11px;
+      color: var(--dpk-ink-soft);
+      /* The key to the canvas arrives last, once there is something to read. */
+      animation: dpk-rise-in var(--dpk-dur) var(--dpk-ease-out) backwards;
+      animation-delay: calc(var(--dpk-stagger) * 3);
+    }
 
-  .diagram-legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-  }
+    .diagram-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
 
-  .diagram-legend i {
-    width: 16px;
-    border-top: 1.6px solid var(--dpk-rule-strong);
-  }
+    .diagram-legend i {
+      width: 16px;
+      border-top: 1.6px solid var(--dpk-rule-strong);
+    }
 
-  .diagram-empty,
-  .diagram-notice {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    margin: 0;
-    max-width: min(80%, 360px);
-    font-size: 12px;
-    color: var(--dpk-ink-faint);
-    text-align: center;
-    pointer-events: none;
-    /* Fade only: these two are centered by a transform of their own, so an
+    .diagram-empty,
+    .diagram-notice {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+      max-width: min(80%, 360px);
+      font-size: 12px;
+      color: var(--dpk-ink-faint);
+      text-align: center;
+      pointer-events: none;
+      /* Fade only: these two are centered by a transform of their own, so an
        entrance that moved them would knock them off the canvas middle. */
-    animation: dpk-fade-in var(--dpk-dur-slow) var(--dpk-ease-out) backwards;
-    animation-delay: calc(var(--dpk-stagger) * 2);
-  }
+      animation: dpk-fade-in var(--dpk-dur-slow) var(--dpk-ease-out) backwards;
+      animation-delay: calc(var(--dpk-stagger) * 2);
+    }
 
-  .diagram-empty {
-    padding: 16px 26px;
-    border: 1.5px dashed var(--dpk-rule-strong);
-    border-radius: var(--dpk-radius);
-    background: color-mix(in srgb, var(--dpk-paper-raised) 55%, transparent);
-  }
+    .diagram-empty {
+      padding: 16px 26px;
+      border: 1.5px dashed var(--dpk-rule-strong);
+      border-radius: var(--dpk-radius);
+      background: color-mix(in srgb, var(--dpk-paper-raised) 55%, transparent);
+    }
 
-  .diagram-notice {
-    pointer-events: auto;
-    padding: 12px 16px 12px 19px;
-    border: 1px solid color-mix(in srgb, var(--dpk-danger) 35%, transparent);
-    border-radius: var(--dpk-radius);
-    background: linear-gradient(90deg, var(--dpk-danger) 0 3px, transparent 3px), var(--dpk-danger-soft);
-    box-shadow: var(--dpk-bevel), var(--dpk-shadow);
-    color: var(--dpk-ink-soft);
-    text-align: left;
-  }
+    .diagram-notice {
+      pointer-events: auto;
+      padding: 12px 16px 12px 19px;
+      border: 1px solid color-mix(in srgb, var(--dpk-danger) 35%, transparent);
+      border-radius: var(--dpk-radius);
+      background: linear-gradient(90deg, var(--dpk-danger) 0 3px, transparent 3px), var(--dpk-danger-soft);
+      box-shadow: var(--dpk-bevel), var(--dpk-shadow);
+      color: var(--dpk-ink-soft);
+      text-align: left;
+    }
 
-  .diagram-notice p {
-    margin: 0 0 9px;
-  }
+    .diagram-notice p {
+      margin: 0 0 9px;
+    }
 
-  /* Element state, shared by every diagram so highlighting reads the same. */
-  .d-node {
-    position: absolute;
-    cursor: pointer;
-    transition:
-      opacity var(--dpk-dur-fast) var(--dpk-ease),
-      border-color var(--dpk-dur) var(--dpk-ease),
-      box-shadow var(--dpk-dur) var(--dpk-ease),
-      background var(--dpk-dur) var(--dpk-ease),
-      transform var(--dpk-dur) var(--dpk-ease);
-  }
+    /* Element state, shared by every diagram so highlighting reads the same. */
+    .d-node {
+      position: absolute;
+      cursor: pointer;
+      transition:
+        opacity var(--dpk-dur-fast) var(--dpk-ease),
+        border-color var(--dpk-dur) var(--dpk-ease),
+        box-shadow var(--dpk-dur) var(--dpk-ease),
+        background var(--dpk-dur) var(--dpk-ease),
+        transform var(--dpk-dur) var(--dpk-ease);
+    }
 
-  /*
+    /*
    * A node lifts a hair under the pointer, as a card does — the same
    * --dpk-lift, so a board and a page of cards feel like one product. Written
    * at :where() specificity on purpose: a board that gives its own node a
    * bigger gesture (a scale, a tone, a different offset) keeps it.
    */
-  :where(.d-node):hover:not(.is-dragging) {
-    transform: translateY(var(--dpk-lift));
-  }
+    :where(.d-node):hover:not(.is-dragging) {
+      transform: translateY(var(--dpk-lift));
+    }
 
-  .d-node.is-dimmed,
-  .d-edge.is-dimmed {
-    opacity: 0.26;
-  }
+    .d-node.is-dimmed,
+    .d-edge.is-dimmed {
+      opacity: 0.26;
+    }
 
-  /* While a node's whole-body drag has passed the movement threshold. */
-  .d-node.is-dragging {
-    cursor: grabbing;
-    transition: none;
-    z-index: 3;
-  }
+    /* While a node's whole-body drag has passed the movement threshold. */
+    .d-node.is-dragging {
+      cursor: grabbing;
+      transition: none;
+      z-index: 3;
+    }
 
-  .d-edge {
-    outline: none;
-    cursor: pointer;
-  }
+    .d-edge {
+      outline: none;
+      cursor: pointer;
+    }
 
-  /*
+    /*
    * The hit area — not the <g> — is what actually takes focus (it is the
    * one with tabindex), and it spans the whole route between the two
    * tables an edge joins. Left to the UA, its default focus ring would
    * outline that whole bounding box instead of the line; the line's own
    * stroke is the feedback instead, below.
    */
-  .d-edge-hit {
-    outline: none;
-    fill: none;
-    stroke: transparent;
-    stroke-width: 16;
-    pointer-events: stroke;
-    cursor: pointer;
-  }
+    .d-edge-hit {
+      outline: none;
+      fill: none;
+      stroke: transparent;
+      stroke-width: 16;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
 
-  .d-edge-path {
-    fill: none;
-    stroke: var(--dpk-rule-strong);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    transition:
-      stroke var(--dpk-dur) var(--dpk-ease),
-      stroke-width var(--dpk-dur) var(--dpk-ease);
-  }
+    .d-edge-path {
+      fill: none;
+      stroke: var(--dpk-rule-strong);
+      stroke-width: 1.5;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      transition:
+        stroke var(--dpk-dur) var(--dpk-ease),
+        stroke-width var(--dpk-dur) var(--dpk-ease);
+    }
 
-  .d-edge.is-selected .d-edge-path,
-  .d-edge:has(.d-edge-hit:focus-visible) .d-edge-path {
-    stroke: var(--dpk-ink);
-    stroke-width: 2.6;
-  }
+    .d-edge.is-selected .d-edge-path,
+    .d-edge:has(.d-edge-hit:focus-visible) .d-edge-path {
+      stroke: var(--dpk-ink);
+      stroke-width: 2.6;
+    }
 
-  .d-edge:has(.d-edge-hit:focus-visible) .d-edge-hit {
-    stroke: var(--dpk-blue-soft);
-  }
+    .d-edge:has(.d-edge-hit:focus-visible) .d-edge-hit {
+      stroke: var(--dpk-blue-soft);
+    }
 
-  .d-edge-label {
-    font-size: 9.5px;
-    fill: var(--dpk-ink-faint);
-    paint-order: stroke;
-    stroke: var(--dpk-paper-raised);
-    stroke-width: 5px;
-    stroke-linejoin: round;
-  }
+    .d-edge-label {
+      font-size: 9.5px;
+      fill: var(--dpk-ink-faint);
+      paint-order: stroke;
+      stroke: var(--dpk-paper-raised);
+      stroke-width: 5px;
+      stroke-linejoin: round;
+    }
 
-  .d-edge-label.is-dimmed {
-    opacity: 0.3;
-  }
-`;
+    .d-edge-label.is-dimmed {
+      opacity: 0.3;
+    }
+  `,
+];
 
 /**
  * Shared diagram chrome on top of the panel (a canvas) and tag filter elements:
@@ -380,4 +385,4 @@ export const canvasStyles = css`
  * composer. Components add their own node/edge styling on top and only
  * use the `.is-*` state classes defined here.
  */
-export const diagramStyles = [...chromeStyles, canvasStyles];
+export const diagramStyles = [...chromeStyles, ...canvasStyles];
