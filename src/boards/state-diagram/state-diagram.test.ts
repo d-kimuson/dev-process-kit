@@ -437,3 +437,35 @@ describe('state diagram transition routing', () => {
     }
   });
 });
+
+describe('state diagram line jumps', () => {
+  const crossing = parseStateData({
+    states: [
+      { id: 'a', name: 'A', position: { x: 0, y: 300 } },
+      { id: 'c', name: 'C', position: { x: 640, y: 300 } },
+      { id: 'e', name: 'E', position: { x: 300, y: 0 } },
+      { id: 'f', name: 'F', position: { x: 300, y: 600 } },
+    ],
+    transitions: [
+      { id: 'ac', from: 'a', to: 'c', title: 'across' },
+      { id: 'ef', from: 'e', to: 'f', title: 'over' },
+    ],
+  });
+
+  const drawn = (element: DpkBoardStateDiagram, id: string): string =>
+    element.renderRoot.querySelector(`[data-transition="${id}"] .d-edge-path`)?.getAttribute('d') ?? '';
+
+  it('lifts a level run over the transition crossing it, leaving the crossed line straight', async () => {
+    const element = await mountData(crossing);
+    expect(drawn(element, 'ac')).toMatch(/L[\d.]+ \d+ A6 6 0 0 1 [\d.]+ \d+ L/);
+    expect(drawn(element, 'ef')).not.toContain(' A');
+  });
+
+  it('draws the same jumps again from cache on a re-render, and none mid-drag', async () => {
+    const element = await mountData(crossing);
+    const withJump = drawn(element, 'ac');
+    element.select({ kind: 'node', id: 'a' });
+    await settle(element);
+    expect(drawn(element, 'ac')).toBe(withJump);
+  });
+});

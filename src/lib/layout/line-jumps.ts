@@ -20,11 +20,15 @@ const CURVE_SAMPLES = 24;
 
 /**
  * The distance a jump keeps from a line's own end glyphs, measured from the
- * end of the route. A plain number applies to both ends; a function answers
- * per line, because a board whose two ends carry different glyphs needs a
- * different gap at each (`start` is the route's first point, `end` its last).
+ * end of the route. A plain number applies to both ends; a `{ start, end }`
+ * object gives each end its own; a function answers per line. A board whose
+ * two ends carry different glyphs needs a different gap at each (`start` is
+ * the route's first point, `end` its last).
  */
-export type JumpClearance = number | ((id: string) => { readonly start: number; readonly end: number });
+export type JumpClearance =
+  | number
+  | { readonly start: number; readonly end: number }
+  | ((id: string) => { readonly start: number; readonly end: number });
 
 export type JumpOptions = {
   readonly clearance: JumpClearance;
@@ -125,8 +129,11 @@ const crossingsAt = (pieces: readonly Piece[], y: number): readonly number[] =>
     return [p.x + ((q.x - p.x) * (y - p.y)) / (q.y - p.y)];
   });
 
-const clearancesOf = (clearance: JumpClearance, id: string): { readonly start: number; readonly end: number } =>
-  typeof clearance === 'number' ? { start: clearance, end: clearance } : clearance(id);
+const clearancesOf = (clearance: JumpClearance, id: string): { readonly start: number; readonly end: number } => {
+  if (typeof clearance === 'number') return { start: clearance, end: clearance };
+  if (typeof clearance === 'function') return clearance(id);
+  return clearance;
+};
 
 /** Whether a jump at `p` stays clear of a line's end glyphs, whose reach differs by end. */
 const clearOf = (ends: readonly LayoutPoint[], p: LayoutPoint, start: number, end: number, radius: number): boolean =>

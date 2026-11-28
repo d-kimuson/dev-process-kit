@@ -3,7 +3,8 @@ import { html, svg, nothing, type CSSResultGroup, type TemplateResult } from 'li
 import type { CommentTargetOption } from '../../core/types';
 import type { LayoutOptions, LayoutPoint, LayoutResult } from '../../lib/layout/layered';
 
-import { endFrame, stepsData } from '../../lib/layout/path-steps';
+import { jumpedPaths } from '../../lib/layout/line-jumps';
+import { endFrame, stepsData, type PathStep } from '../../lib/layout/path-steps';
 import { END_MARKERS, edgeBody, edgeSteps, lineStyleClass, type EdgeEndView, type EdgeSpec } from '../base/edge';
 import { BoardCanvasElement } from '../base/element';
 import { EMPTY_REACH, reach, routeLabelPoint, type DiagramSelection, type Reach } from '../base/model';
@@ -24,11 +25,20 @@ import { stateDiagramStyles } from './styles';
 /** Every transition is drawn the same way: a solid line ending in an arrowhead. Dashed/flowing come from the state classes. */
 const TRANSITION_SPEC: EdgeSpec = { line: 'solid', start: null, end: END_MARKERS.arrow, flow: 'active' };
 
+/**
+ * A transition's jump raises where another transition crosses it: the arrow
+ * tip needs 10px kept straight, the start needs none.
+ */
+const JUMP_CLEARANCE = { start: 0, end: 10 } as const;
+
 /** Room around the states for what is drawn outside them: self transitions, their labels, outer lanes. */
 const CANVAS_PADDING = 72;
 const NODE_SPACING = 56;
 /** Gap between two ranks: the widest label plus the line that has to stay visible beside it. */
 const LAYER_SPACING = { min: 112, max: 240, besideLabel: 72 } as const;
+
+/** Jumped paths per drawn layout, so a hover or a selection reuses its own instead of redoing every crossing. */
+const JUMPED = new WeakMap<LayoutResult, ReadonlyMap<string, string>>();
 
 /** Lifecycle diagram: select a state to see its transitions, or one transition. */
 export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
@@ -118,14 +128,36 @@ export class DpkBoardStateDiagram extends BoardCanvasElement<StateDiagramData> {
     `;
   }
 
-  /** Every transition's drawn `d`, rounded and trimmed under its arrowhead. */
+  /**
+   * Every transition's drawn `d`, its level runs jumping the transitions that
+   * cross them. Memoised per layout in a `WeakMap`, so a hover or a selection
+   * (which only changes classes) reuses the same paths. Mid-drag the lines draw
+   * plain, as the ER board's do, rather than redo every crossing on each
+   * pointer move.
+   */
   #paths(): ReadonlyMap<string, string> {
-    return new Map(
-      this.visible.edges.map((edge) => {
-        const steps = edgeSteps(this.routeOf(edge.id), TRANSITION_SPEC, { radius: CORNER_RADIUS });
-        return [edge.id, stepsData(steps)] as const;
-      }),
+    const layout = this.layout;
+    if (layout === null) return new Map();
+    const routed = new Map(this.visible.edges.map((edge) => [edge.id, this.routeOf(edge.id)] as const));
+    if (this.draggedNodeIds().size > 0) {
+      return new Map(
+        this.visible.edges.map((edge) => {
+          const steps = edgeSteps(routed.get(edge.id) ?? [], TRANSITION_SPEC, { radius: CORNER_RADIUS });
+          return [edge.id, stepsData(steps)] as const;
+        }),
+      );
+    }
+    const cached = JUMPED.get(layout);
+    if (cached !== undefined) return cached;
+    const lines = new Map<string, readonly PathStep[]>(
+      this.visible.edges.map((edge) => [
+        edge.id,
+        edgeSteps(routed.get(edge.id) ?? [], TRANSITION_SPEC, { radius: CORNER_RADIUS }),
+      ]),
     );
+    const result = jumpedPaths(lines, new Set(lines.keys()), { clearance: JUMP_CLEARANCE });
+    JUMPED.set(layout, result);
+    return result;
   }
 
   /** One transition's end glyph, at the route's arrival end. */

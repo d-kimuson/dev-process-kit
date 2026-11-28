@@ -114,6 +114,18 @@ describe('jumpedPaths', () => {
     expect(startAware.get('level')).toBe('M0 50 L200 50');
   });
 
+  it('accepts one fixed clearance per end as a plain object', () => {
+    const lines = new Map([
+      ['level', line([0, 50], [200, 50])],
+      ['short', line([150, 20], [150, 200])],
+    ]);
+    // A uniform 0 jumps; a `{ start, end }` object keeps the jump off the start glyph.
+    expect(jumpedPaths(lines, new Set(['level', 'short']), { clearance: 0 }).get('level')).toContain('A6 6');
+    expect(jumpedPaths(lines, new Set(['level', 'short']), { clearance: { start: 40, end: 0 } }).get('level')).toBe(
+      'M0 50 L200 50',
+    );
+  });
+
   it('spans crossings too close for two jumps with one wider one', () => {
     const paths = jumpedPaths(
       new Map([
