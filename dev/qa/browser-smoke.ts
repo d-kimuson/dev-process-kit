@@ -13,7 +13,9 @@
 import { execFileSync } from 'node:child_process';
 import * as v from 'valibot';
 
-const base = process.argv[2];
+// A trailing slash would make sample paths start with `//`, which history
+// reads as another origin, so the page never renders.
+const base = process.argv[2]?.replace(/\/+$/, '');
 if (base === undefined) {
   console.error('usage: node dev/qa/browser-smoke.ts <lp-url>');
   process.exit(2);

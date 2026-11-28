@@ -32,7 +32,9 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import * as v from 'valibot';
 
-const base = process.argv[2];
+// A trailing slash would make page paths start with `//`, which history reads
+// as another origin, so the board never renders.
+const base = process.argv[2]?.replace(/\/+$/, '');
 const session = process.env['AGENT_BROWSER_SESSION'];
 if (!base || !session) throw new Error('Provide the lp URL and AGENT_BROWSER_SESSION');
 const shotsAt = process.argv.indexOf('--shots');
@@ -371,7 +373,11 @@ const contrast = `(() => {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 1;
   const context = canvas.getContext('2d', { willReadFrequently: true });
+  const empty = new Set();
+  // An element outside the rendered tree has no computed style; null marks
+  // that, so the row fails instead of being measured as black.
   const rgba = (color) => {
+    if (color === '') return null;
     context.clearRect(0, 0, 1, 1);
     context.fillStyle = '#000';
     context.fillStyle = color;
@@ -390,6 +396,7 @@ const contrast = `(() => {
       const style = getComputedStyle(at);
       layers.push(rgba(style.backgroundColor));
     }
+    if (layers.includes(null)) return null;
     const scheme = getComputedStyle(document.documentElement).colorScheme.includes('dark') ? [0, 0, 0, 1] : [255, 255, 255, 1];
     return layers.reduceRight((under, layer) => over(layer, under), scheme);
   };
@@ -401,6 +408,10 @@ const contrast = `(() => {
   const hex = (c) => '#' + c.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
   const rows = new Map();
   const add = (item, fg, bg, floor) => {
+    if (fg === null || bg === null) {
+      empty.add(item);
+      return;
+    }
     const front = over(fg, bg);
     const value = ratio(front, bg);
     const known = rows.get(item);
@@ -447,7 +458,7 @@ const contrast = `(() => {
   }
   const stats = root.querySelector('.diagram-stats');
   if (stats) add('text stats', rgba(getComputedStyle(stats).color), backdrop(stats, true), 4.5);
-  return JSON.stringify({ canvas: hex(ground), rows: [...rows.values()] });
+  return JSON.stringify({ canvas: ground === null ? '' : hex(ground), rows: [...rows.values()], empty: [...empty] });
 })()`;
 
 const gateReport = v.object({
@@ -460,6 +471,7 @@ const gateReport = v.object({
 const contrastReport = v.object({
   canvas: v.string(),
   rows: v.array(v.object({ item: v.string(), fg: v.string(), bg: v.string(), ratio: v.number(), floor: v.number() })),
+  empty: v.array(v.string()),
 });
 type ContrastRow = v.InferOutput<typeof contrastReport>['rows'][number];
 
@@ -480,6 +492,7 @@ const checkGates = (label: string): void => {
 const contrastRows = new Map<string, Map<string, ContrastRow>>();
 const checkContrast = (theme: string): void => {
   const report = evaluate(contrastReport, contrast);
+  if (report.empty.length > 0) failures.push(`contrast ${theme}: no computed colour for ${report.empty.join(', ')}`);
   const rows = contrastRows.get(theme) ?? new Map<string, ContrastRow>();
   contrastRows.set(theme, rows);
   for (const row of report.rows) {
@@ -544,7 +557,11 @@ const expectSelectedPaint = (flowId: string, label: string): void => {
       });
     })()`,
   );
-  if (paint.line !== paint.head) failures.push(`interaction ${label}: line ${paint.line} != head ${paint.head}`);
+  if (paint.line === '' || paint.head === '' || paint.accent === '')
+    failures.push(
+      `interaction ${label}: no computed colour (line '${paint.line}', head '${paint.head}', accent '${paint.accent}')`,
+    );
+  else if (paint.line !== paint.head) failures.push(`interaction ${label}: line ${paint.line} != head ${paint.head}`);
   else if (paint.line !== paint.accent)
     failures.push(`interaction ${label}: line ${paint.line} != accent ${paint.accent}`);
   else console.log(`[interaction] PASS ${label}: line and head are ${paint.line}`);
