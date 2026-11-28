@@ -675,7 +675,7 @@ This state is entirely the reader's: it lives in `localStorage` under `<storage 
 
 A plain right-click anywhere on the page opens a menu instead of the browser's own, with whatever applies to what was clicked: **Copy text** (when it is one of the content's targets — the same ones `data-dpk-target`/[Targets](#targets) mark), **Give feedback** (when that target accepts comments — feedback to the agent, distinct from any comments a page keeps of its own), and **Reset view** on a board, regardless of target. A view, board or component may add its own entries (for example, "Duplicate" or "Delete" where supported); its own page says so when it does. Labels stay short — this is not where explanations live.
 
-Shift+right-click, and a plain right-click inside a text field or an editable region, always get the browser's own menu (cut/paste and spellcheck need it). Inside the custom menu: arrow keys move, Enter/Space runs the highlighted entry, Escape or a click elsewhere closes it.
+Shift+right-click, and a plain right-click inside a text field or an editable region being edited, always get the browser's own menu (cut/paste and spellcheck need it); a read-only field gets the custom menu. Where a board says so, Shift+F10 or the ContextMenu key on a focused item opens the same menu. Inside the custom menu: arrow keys move, Enter/Space runs the highlighted entry, Escape or a click elsewhere closes it.
 
 Your own markup can add entries too, without writing a component: wrap it in `<dpk-extend-right-click>` and list the selectors and entries in a JSON child ([extend-right-click.md](components/extend-right-click.md)). It needs a `dpk-view-*` above it, which is where the menu lives.
 
