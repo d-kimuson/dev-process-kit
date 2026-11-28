@@ -29,12 +29,6 @@ const EMPTY_BANDS: BpmnBands = { pools: [], contentLeft: 0 };
  * gateways and the flows between them, laid out automatically from the data.
  */
 export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
-  /** A process map reads at real size: a page must not shrink it to fit on open. */
-  override connectedCallback(): void {
-    this.setAttribute('data-dpk-open-actual', '');
-    super.connectedCallback();
-  }
-
   static override styles: CSSResultGroup = [diagramStyles, bpmnStyles];
 
   #bands: BpmnBands = EMPTY_BANDS;
@@ -159,11 +153,7 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
   protected override renderCanvas(): TemplateResult {
     const paths = this.#paths();
     return html`
-      ${this.#renderBands()}
-      ${this.renderEdges(
-        this.visible.edges.map((flow) => this.#renderFlow(flow, paths)),
-        [],
-      )}
+      ${this.#renderBands()} ${this.renderEdges(this.visible.edges.map((flow) => this.#renderFlow(flow, paths)))}
       ${this.visible.nodes.map((node) => this.#renderNode(node))}
       ${this.visible.nodes.map((node) => this.#renderNodeLabel(node))}
       ${this.visible.edges.map((flow) => this.#renderFlowLabel(flow))}
