@@ -45,6 +45,13 @@ const endGroup = (end: EdgeEndView): TemplateResult =>
   svg`<g class="d-edge-end" data-end=${end.side} data-glyph=${end.marker.name}>${end.marker.shapes(end.frame).map(shape)}</g>`;
 
 /**
+ * Just the end glyphs of an edge, for a board that keeps its own line and hit
+ * paths (a hand-drawn shape, a `sequence-message` class) and only wants the
+ * inline heads the shared vocabulary draws.
+ */
+export const edgeEnds = (ends: readonly EdgeEndView[]): TemplateResult => svg`${ends.map(endGroup)}`;
+
+/**
  * The drawable body of one edge, in paint order: the line, its flow overlay,
  * the end glyphs, and last the transparent hit area (so a pointer lands on the
  * line, never on a glyph). The hit area takes focus and answers Enter/Space.
@@ -52,7 +59,7 @@ const endGroup = (end: EdgeEndView): TemplateResult =>
 export const edgeBody = (view: EdgeBodyView): TemplateResult => svg`
   <path class="d-edge-path" d=${view.d}></path>
   ${view.flow ? svg`<path class="d-edge-flow" d=${view.d}></path>` : nothing}
-  ${view.ends.map(endGroup)}
+  ${edgeEnds(view.ends)}
   ${
     view.hit === null
       ? nothing

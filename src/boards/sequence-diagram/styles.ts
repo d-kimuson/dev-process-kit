@@ -124,29 +124,53 @@ export const sequenceStyles = css`
     stroke-dasharray: 4 4;
   }
 
+  .sequence-message-row {
+    /* The shared edge paint colours the inline head from this one property; the message path sets it below. */
+    --d-edge-line: var(--dpk-ink-faint);
+  }
+
   .sequence-message {
     fill: none;
-    stroke: var(--dpk-ink-faint);
+    stroke: var(--d-edge-line);
     stroke-width: 1.5;
     stroke-linejoin: round;
   }
 
+  /* The response keeps its dashed stroke (out of scope for the edge migration). */
   .sequence-message.is-response {
     stroke-dasharray: 5 4;
   }
 
-  .sequence-message.is-async {
-    stroke: var(--dpk-blue);
+  .sequence-message-row.is-async {
+    --d-edge-line: var(--dpk-blue);
+  }
+
+  .sequence-message-row.is-related {
+    --d-edge-line: var(--dpk-green);
   }
 
   .sequence-message-row.is-related .sequence-message {
-    stroke: var(--dpk-green);
     stroke-width: 2;
   }
 
+  .sequence-message-row.is-selected {
+    --d-edge-line: var(--dpk-ink);
+  }
+
   .sequence-message-row.is-selected .sequence-message {
-    stroke: var(--dpk-ink);
     stroke-width: 2.4;
+  }
+
+  .sequence-message-row .d-edge-end {
+    stroke-width: 1.3px;
+  }
+
+  .sequence-message-row.is-related .d-edge-end {
+    stroke-width: 1.6px;
+  }
+
+  .sequence-message-row.is-selected .d-edge-end {
+    stroke-width: 1.8px;
   }
 
   .sequence-message-row.is-dimmed,
@@ -287,25 +311,5 @@ export const sequenceStyles = css`
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  #seq-request .diagram-arrow,
-  #seq-response .diagram-arrow {
-    fill: var(--dpk-ink-faint);
-    stroke: var(--dpk-ink-faint);
-  }
-
-  #seq-async .diagram-arrow {
-    stroke: var(--dpk-blue);
-  }
-
-  #seq-related .diagram-arrow {
-    fill: var(--dpk-green);
-    stroke: var(--dpk-green);
-  }
-
-  #seq-selected .diagram-arrow {
-    fill: var(--dpk-ink);
-    stroke: var(--dpk-ink);
   }
 `;

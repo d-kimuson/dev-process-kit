@@ -286,6 +286,35 @@ describe('sequence diagram drawn messages', () => {
       ]
     `);
   });
+
+  it('draws each arrowhead inline, with no <marker> left in the canvas', async () => {
+    const element = new DpkBoardSequenceDiagram();
+    element.data = parseSequenceData(sample);
+    document.body.append(element);
+    await settle(element);
+    expect(element.renderRoot.querySelectorAll('marker')).toHaveLength(0);
+    const ends = [...element.renderRoot.querySelectorAll<SVGGElement>('.sequence-message-row .d-edge-end')];
+    expect(ends).toHaveLength(4);
+    for (const end of ends) expect(end.getAttribute('data-end')).toBe('end');
+  });
+
+  it('draws an async message with an open head, every other style with a filled one', async () => {
+    const element = new DpkBoardSequenceDiagram();
+    element.data = parseSequenceData(sample);
+    document.body.append(element);
+    await settle(element);
+    const glyph = (id: string): string | null =>
+      element.renderRoot.querySelector(`[data-message="${id}"] .d-edge-end`)?.getAttribute('data-glyph') ?? null;
+    // The old `seq-async` marker had no `open`: async drew a filled head. It is
+    // now the open arrow.
+    expect(glyph('note')).toBe('openArrow');
+    expect(glyph('req')).toBe('arrow');
+    expect(glyph('res')).toBe('arrow');
+    expect(glyph('self')).toBe('arrow');
+    // The open arrow is an unpainted polyline; the filled arrow a `line` polygon.
+    expect(element.renderRoot.querySelector('[data-message="note"] .d-edge-end polyline')).not.toBeNull();
+    expect(element.renderRoot.querySelector('[data-message="note"] .d-edge-end [data-paint="line"]')).toBeNull();
+  });
 });
 
 describe('dpk-board-sequence-diagram', () => {
