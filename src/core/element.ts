@@ -76,7 +76,7 @@ import { EMPTY_NAVIGATION, formatHash, parseHash, patchNavigation } from './navi
 import { inDraftPage, pageDeliveryOf, pageHostOf, pageNameOf, type PageHost } from './page/host';
 import { pageNavigation, pagePatchFor } from './page/navigation';
 import { resolvePageTarget } from './page/page-target';
-import { PANEL_HOST, type PanelControl, type PanelHost } from './panel/host';
+import { PANEL_HOST, panelHostOf, type PanelControl, type PanelDetail, type PanelHost } from './panel/host';
 import { panelMessages } from './panel/messages';
 import { parsePanelMode } from './panel/model';
 import { PanelOwner } from './panel/owner';
@@ -559,6 +559,50 @@ export abstract class ViewElement<S> extends LitElement {
     return this.#boardId === null;
   }
 
+  /** The panel this view hands its own detail to: its own, or its page's. */
+  #detailHost: PanelHost | null = null;
+  #withdrawDetail: (() => void) | null = null;
+  #detailKey: string | null = null;
+  /** The reader asked for the detail (`openPanelDetail`): the next report opens the panel on it. */
+  #detailOpenRequested = false;
+
+  /** Whether this view shows the detail of what the reader is looking at in the side panel. */
+  protected get providesPanelDetail(): boolean {
+    return false;
+  }
+
+  /** The detail the side panel shows for what the reader is looking at, or `null` when it has none. */
+  protected panelDetail(): PanelDetail | null {
+    return null;
+  }
+
+  /** Opens the side panel on the detail once this view has rendered what the reader picked. */
+  protected openPanelDetail(): void {
+    this.#detailOpenRequested = true;
+    this.requestUpdate();
+  }
+
+  /**
+   * Hands the panel the detail on each update. A new key is a selection
+   * (the detail tab is marked, the panel stays as it is); the same key re-reads it.
+   */
+  #syncPanelDetail(): void {
+    const host = this.providesPanelDetail ? (this.ownsPanel ? this.#panel : panelHostOf(this)) : null;
+    if (host !== this.#detailHost) {
+      this.#withdrawDetail?.();
+      this.#detailHost = host;
+      this.#withdrawDetail = host?.provideDetail(this) ?? null;
+      this.#detailKey = null;
+    }
+    if (host === null || !this.#controller) return;
+    const detail = this.panelDetail();
+    const key = detail?.key ?? null;
+    const report = this.#detailOpenRequested ? 'open' : key === this.#detailKey ? 'refresh' : 'select';
+    this.#detailOpenRequested = false;
+    this.#detailKey = key;
+    host.showDetail(this, detail, report);
+  }
+
   /** The boards inside reach the panel through this (see `panelHostOf`). */
   get [PANEL_HOST](): PanelHost | null {
     return this.ownsPanel ? this.#panel : null;
@@ -672,6 +716,9 @@ export abstract class ViewElement<S> extends LitElement {
     });
     window.removeEventListener('hashchange', this.#onHashChange);
     window.removeEventListener('keydown', this.#onPanelShortcut);
+    this.#withdrawDetail?.();
+    this.#withdrawDetail = null;
+    this.#detailHost = null;
     this.removeEventListener('click', this.#onClick);
     this.#baseData.disconnect();
     this.#targetObserver?.disconnect();
@@ -728,6 +775,8 @@ export abstract class ViewElement<S> extends LitElement {
       this.#boardLocale = host.locale();
       this.#controller.setTemplate(this.definition);
     }
+    // Before the render, so the panel this element owns draws the detail in the same update.
+    this.#syncPanelDetail();
   }
 
   protected override updated(): void {
