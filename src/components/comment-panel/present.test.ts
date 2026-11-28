@@ -21,6 +21,7 @@ const inputs = {
   derivation: derive(definition, base, []),
   issues: [],
   locale: 'en' as const,
+  submitKey: 'Ctrl + Enter',
 };
 
 describe('panel presentation', () => {
@@ -121,6 +122,7 @@ describe('panel presentation', () => {
       kind: 'editing',
       body: 'hi',
       canSave: true,
+      hint: 'Ctrl + Enter to save, Esc to close',
     });
     const blank = reducePanel(editing, { kind: 'edit-input', body: ' ' });
     expect(allItems(presentPanel({ ...withDraft, editable: true }, blank))[0]?.edit).toMatchObject({ canSave: false });

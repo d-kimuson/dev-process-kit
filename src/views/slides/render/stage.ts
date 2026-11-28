@@ -7,6 +7,7 @@ import type { SlidesMessages } from '../messages';
 import type { Slide, SlidesState } from '../model';
 
 import { iconClose } from '../../../core/icons';
+import { handleTextSubmitKey } from '../../../core/text-submit-controller';
 import { slideComments, slidePosition, type SlideComment } from '../present';
 import { renderNotes, type NotesOptions } from './notes';
 import { renderParkedBodies, renderSlide, renderSlideMove } from './slide';
@@ -21,6 +22,8 @@ export type StageOptions = {
   readonly onDraft: (slideId: string, body: string) => void;
   readonly onComment: (slideId: string) => void;
   readonly onDeleteComment: (commentId: string) => void;
+  /** The page's text-submit key, shown beside the comment's submit button. */
+  readonly submitKey: string;
 };
 
 /**
@@ -120,9 +123,7 @@ const renderComments = (
               options.onDraft(slide.id, event.currentTarget.value);
           }}
           @keydown=${(event: KeyboardEvent) => {
-            if (event.isComposing || event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) return;
-            event.preventDefault();
-            if (canSubmit) options.onComment(slide.id);
+            if (handleTextSubmitKey(event) === 'submit' && canSubmit) options.onComment(slide.id);
           }}
         ></textarea>
         <div class="slide-comment-actions">
@@ -134,7 +135,7 @@ const renderComments = (
           >
             ${m.addComment}
           </button>
-          <span class="slide-comment-hint">${m.submitHint}</span>
+          <span class="slide-comment-hint">${options.submitKey}</span>
         </div>
       </div>
     </section>

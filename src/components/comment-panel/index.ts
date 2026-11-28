@@ -6,6 +6,7 @@ import type { DispatchOutcome, Navigation, ViewDefinition, ValidationIssue } fro
 
 import { buildAgentBrief } from '../../core/export';
 import { LocaleController } from '../../core/locale-controller';
+import { TextSubmitKeyController } from '../../core/text-submit-controller';
 import { FRAMEWORK_VERSION } from '../../core/version';
 import { copyText } from '../../lib/dom/clipboard';
 import { panelMessages } from './messages';
@@ -78,6 +79,7 @@ export class DpkCommentPanel extends LitElement {
   /** Where focus goes after the next render: an editor that just opened, or the edit button it closed into. */
   #focus: { readonly kind: 'editor' | 'edit-button'; readonly id: string } | null = null;
   readonly #i18n = new LocaleController(this);
+  readonly #textSubmit = new TextSubmitKeyController(this);
 
   constructor() {
     super();
@@ -122,6 +124,7 @@ export class DpkCommentPanel extends LitElement {
       sendable: this.sendToClaude !== undefined,
       editable: this.onEditComment !== undefined,
       locale: this.#i18n.locale,
+      submitKey: this.#textSubmit.label,
       section: sectionOf(this.section),
       ...(this.authorOf === undefined ? {} : { authorOf: this.authorOf }),
       ...(this.canEditComment === undefined ? {} : { canEdit: this.canEditComment }),

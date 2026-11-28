@@ -4,6 +4,7 @@ import type { ComposerMessages } from './messages';
 import type { ComposerChoice, ComposerViewModel } from './present';
 
 import { iconArrowUp } from '../../core/icons';
+import { handleTextSubmitKey } from '../../core/text-submit-controller';
 
 export type ComposerIntent =
   | { readonly kind: 'input'; readonly body: string }
@@ -54,11 +55,7 @@ export const renderComposer = (
           send({ kind: 'input', body: event.currentTarget.value });
       }}
       @keydown=${(event: KeyboardEvent) => {
-        if (event.isComposing) return;
-        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-          event.preventDefault();
-          submit();
-        }
+        if (handleTextSubmitKey(event) === 'submit') submit();
       }}
     ></textarea>
     <div class="pop-actions">
@@ -101,7 +98,7 @@ const renderChoice = (choice: ComposerChoice, send: (intent: ComposerIntent) => 
 
 /**
  * A composer that stays in its surface (a side panel, a chat column): the kind of comment above, one growing text box
- * with the send button beside it. Ctrl/Cmd+Enter sends; Enter alone starts a new line.
+ * with the send button beside it. The page's text-submit key sends; any other Enter starts a new line.
  */
 export const renderInlineComposer = (
   m: ComposerMessages,
@@ -144,11 +141,7 @@ export const renderInlineComposer = (
             send({ kind: 'input', body: event.currentTarget.value });
         }}
         @keydown=${(event: KeyboardEvent) => {
-          if (event.isComposing) return;
-          if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-            event.preventDefault();
-            submit();
-          }
+          if (handleTextSubmitKey(event) === 'submit') submit();
         }}
       ></textarea>
       <button

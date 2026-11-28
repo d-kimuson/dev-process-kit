@@ -177,7 +177,7 @@ describe('inline editing', () => {
     expect(event instanceof CustomEvent ? event.detail : null).toEqual({ value: 'new' });
   });
 
-  it('inserts a line break on Shift+Enter when multiline, instead of committing', async () => {
+  it('breaks the line on Enter when multiline and commits on the text-submit key (Ctrl/Command+Enter by default)', async () => {
     const editor = new DpkInlineEdit();
     editor.value = 'old';
     editor.multiline = true;
@@ -189,17 +189,21 @@ describe('inline editing', () => {
     if (!input) throw new Error('missing field');
     const commit = vi.fn();
     editor.addEventListener('dpk-commit', commit);
-    const shiftEnter = new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, cancelable: true });
-    input.dispatchEvent(shiftEnter);
-    expect(shiftEnter.defaultPrevented).toBe(false);
+    for (const shiftKey of [false, true]) {
+      const enter = new KeyboardEvent('keydown', { key: 'Enter', shiftKey, cancelable: true });
+      input.dispatchEvent(enter);
+      expect(enter.defaultPrevented).toBe(false);
+    }
     expect(commit).not.toHaveBeenCalled();
     // jsdom does not perform the native "insert a newline" that a real browser
     // would on the un-prevented keydown above; simulate its result directly.
     input.value = 'old\nmore';
     input.dispatchEvent(new Event('input'));
-    const plainEnter = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
-    input.dispatchEvent(plainEnter);
-    expect(plainEnter.defaultPrevented).toBe(true);
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, isComposing: true }));
+    expect(commit).not.toHaveBeenCalled();
+    const modEnter = new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, cancelable: true });
+    input.dispatchEvent(modEnter);
+    expect(modEnter.defaultPrevented).toBe(true);
     expect(commit).toHaveBeenCalledOnce();
   });
 

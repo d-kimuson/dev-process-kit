@@ -4,6 +4,7 @@ import type { PrototypeMessages } from '../messages';
 import type { UiNoteBadge } from '../present';
 
 import { iconClose, iconNote, iconPencil, iconTrash } from '../../../core/icons';
+import { handleTextSubmitKey } from '../../../core/text-submit-controller';
 
 /** The note being rewritten in the open list, with its unsaved text. */
 export type UiNoteEdit = { readonly noteId: string; readonly body: string };
@@ -21,6 +22,8 @@ export type UiNotesView = {
   readonly input: (body: string) => void;
   readonly save: () => void;
   readonly cancel: () => void;
+  /** The page's text-submit key, named in the editor's hint. */
+  readonly submitKey: string;
 };
 
 /** Which element a badge sits on: the same key names its open list. */
@@ -124,17 +127,14 @@ const renderEditor = (m: PrototypeMessages, view: UiNotesView, edit: UiNoteEdit)
     <textarea
       class="dpk-textarea"
       aria-label=${m.editUiNoteLabel}
-      title=${m.editUiNoteHint}
+      title=${m.editUiNoteHint(view.submitKey)}
       .value=${edit.body}
       @input=${(event: Event) => {
         if (event.currentTarget instanceof HTMLTextAreaElement) view.input(event.currentTarget.value);
       }}
       @keydown=${(event: KeyboardEvent) => {
-        if (event.isComposing) return;
-        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-          event.preventDefault();
-          view.save();
-        } else if (event.key === 'Escape') {
+        if (handleTextSubmitKey(event) === 'submit') view.save();
+        else if (event.key === 'Escape' && !event.isComposing) {
           // The Escape is for the text: the list stays open.
           event.preventDefault();
           event.stopPropagation();

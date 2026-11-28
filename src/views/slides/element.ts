@@ -91,6 +91,7 @@ export class DpkViewSlides extends ViewElement<SlidesState> {
         textFor: (slide: Slide) => this.#notes.get(slide.id) ?? slide.notes,
         onDraft: (slide: Slide, text: string) => this.#setNotesDraft(slide, text),
         onSave: (slideId: string) => this.#saveNotes(slideId),
+        submitKey: this.textSubmitLabel,
       },
       onStep: (step: SlideStep) => this.#go(step),
       onPresent: () => this.#setPresenting(true),
@@ -99,6 +100,7 @@ export class DpkViewSlides extends ViewElement<SlidesState> {
       onDraft: (slideId: string, body: string) => this.#setDraft(slideId, body),
       onComment: (slideId: string) => this.#comment(slideId),
       onDeleteComment: (commentId: string) => this.removeAction(commentId),
+      submitKey: this.textSubmitLabel,
     };
     return {
       // Presenting is the deck alone: no outline, no bar, no comments around it.
