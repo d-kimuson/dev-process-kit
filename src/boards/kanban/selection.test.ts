@@ -1,16 +1,11 @@
-import { render } from 'lit';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { PageElement } from '../../core/page/element';
+import type { DpkSelectionBar } from '../../components/selection-bar/index';
 
 import { AppElement } from '../../core/app/element';
-import { PANEL_HOST, type PanelHost, type PanelSectionSpec } from '../../core/panel/host';
-import { DpkInternalKanbanBulk } from './bulk-section';
+import { PANEL_HOST, type PanelHost } from '../../core/panel/host';
 import { DpkBoardKanban } from './element';
-import { kanbanMessages } from './messages';
 import '../../index';
-
-const m = kanbanMessages('ja');
 
 const raw = {
   columns: [
@@ -35,6 +30,7 @@ const settle = async (element: DpkBoardKanban): Promise<void> => {
   for (let index = 0; index < 3; index++) {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await element.updateComplete;
+    await barOf(element)?.updateComplete;
   }
 };
 
@@ -42,6 +38,15 @@ const card = (element: DpkBoardKanban, id: string): HTMLElement => {
   const found = element.renderRoot.querySelector<HTMLElement>(`[data-card="${id}"]`);
   if (!found) throw new Error(`no card ${id}`);
   return found;
+};
+
+const barOf = (element: DpkBoardKanban): DpkSelectionBar | null =>
+  element.renderRoot.querySelector<DpkSelectionBar>('dpk-selection-bar');
+
+const barRoot = (element: DpkBoardKanban): ShadowRoot => {
+  const root = barOf(element)?.shadowRoot;
+  if (!root) throw new Error('no selection bar');
+  return root;
 };
 
 const pressed = (element: DpkBoardKanban): (string | undefined)[] =>
@@ -57,30 +62,29 @@ const key = (target: HTMLElement, init: KeyboardEventInit): void => {
   target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, composed: true, cancelable: true, ...init }));
 };
 
-type FakePanel = {
-  readonly sections: () => readonly PanelSectionSpec[];
-  readonly opened: (string | undefined)[];
-  isOpen: boolean;
+/** Opens an action's menu on the bar and returns its choices. */
+const openMenu = async (element: DpkBoardKanban, action: string): Promise<HTMLElement[]> => {
+  barRoot(element).querySelector<HTMLButtonElement>(`[data-action="${action}"]`)?.click();
+  await settle(element);
+  return [...barRoot(element).querySelectorAll<HTMLElement>('.menu [data-value]')];
 };
 
-/** Stand-in for the side panel's owner: keeps the sections the board adds. */
+type FakePanel = { readonly opened: (string | undefined)[]; isOpen: boolean };
+
+/** Stand-in for the side panel's owner: records what the board asks of it. */
 const withPanel = async (element: DpkBoardKanban): Promise<FakePanel> => {
-  let sections: PanelSectionSpec[] = [];
-  const panel: FakePanel = { sections: () => sections, opened: [], isOpen: false };
+  const panel: FakePanel = { opened: [], isOpen: false };
   const host: PanelHost = {
     provideDetail: () => () => undefined,
-    showDetail: () => undefined,
-    addSection: (_source, spec) => {
-      sections = [...sections, spec];
-      return () => {
-        sections = sections.filter((candidate) => candidate !== spec);
-      };
+    showDetail: (_source, _detail, report) => {
+      if (report === 'open') panel.opened.push('detail');
     },
+    addSection: () => () => undefined,
     invalidate: () => undefined,
     provideSettings: () => () => undefined,
     close: () => undefined,
     open: (section) => panel.opened.push(section),
-    section: 'bulk',
+    section: 'detail',
     tabs: [],
     subscribe: () => () => undefined,
     get isOpen() {
@@ -105,109 +109,90 @@ const mount = async (): Promise<{ element: DpkBoardKanban; panel: FakePanel }> =
   return { element, panel: await withPanel(element) };
 };
 
-const sectionRoot = document.createElement('div');
-
-const renderSection = async (spec: PanelSectionSpec | undefined): Promise<ShadowRoot> => {
-  if (spec === undefined) throw new Error('no section');
-  if (!sectionRoot.isConnected) document.body.append(sectionRoot);
-  render(spec.render(), sectionRoot);
-  const view = sectionRoot.querySelector('dpk-internal-kanban-bulk');
-  if (!(view instanceof DpkInternalKanbanBulk) || view.shadowRoot === null) throw new Error('no bulk section');
-  await view.updateComplete;
-  return view.shadowRoot;
-};
-
 describe('picking several kanban cards', () => {
-  it('adds and takes out cards with Cmd/Ctrl, and lists the bulk section while two or more are picked', async () => {
+  it('adds and takes out cards with Cmd/Ctrl, and shows the selection bar while two or more are picked', async () => {
     const { element, panel } = await mount();
     click(card(element, 'login'));
     await settle(element);
-    expect(panel.sections()).toEqual([]);
+    expect(barOf(element)).toBeNull();
+    expect(panel.opened).toEqual(['detail']);
 
     click(card(element, 'stock'), { metaKey: true });
     await settle(element);
     expect(pressed(element)).toEqual(['login', 'stock']);
-    expect(panel.sections().map(({ name, label, badge }) => ({ name, label, badge }))).toEqual([
-      { name: 'kanban-bulk-board', label: '一括操作', badge: '2' },
-    ]);
+    expect(barRoot(element).querySelector('.count')?.textContent).toBe('2 件選択');
+    expect(panel.opened).toEqual(['detail']);
 
     click(card(element, 'login'), { ctrlKey: true });
     await settle(element);
     expect(pressed(element)).toEqual(['stock']);
     expect(element.selection).toEqual({ kind: 'card', id: 'stock' });
-    expect(panel.sections()).toEqual([]);
+    expect(barOf(element)).toBeNull();
   });
 
   it('picks the cards between the last picked and the Shift-clicked one, across columns', async () => {
-    const { element, panel } = await mount();
+    const { element } = await mount();
     click(card(element, 'api'));
     click(card(element, 'stock'), { shiftKey: true });
     await settle(element);
     expect(pressed(element)).toEqual(['api', 'mail', 'stock']);
-    expect(panel.sections()[0]?.badge).toBe('3');
+    expect(barOf(element)?.count).toBe(3);
   });
 
-  it('picks from the keyboard, and Escape drops the picked cards', async () => {
-    const { element, panel } = await mount();
+  it('picks from the keyboard, and Escape on a card drops the picked cards', async () => {
+    const { element } = await mount();
     key(card(element, 'login'), { key: 'Enter' });
     key(card(element, 'api'), { key: ' ', ctrlKey: true });
     await settle(element);
     expect(pressed(element)).toEqual(['login', 'api']);
     key(card(element, 'api'), { key: 'Escape' });
     await settle(element);
-    expect(panel.sections()).toEqual([]);
+    expect(barOf(element)).toBeNull();
+  });
+
+  it('drops the picked cards from the bar’s clear button', async () => {
+    const { element } = await mount();
+    click(card(element, 'login'));
+    click(card(element, 'api'), { metaKey: true });
+    await settle(element);
+    barRoot(element).querySelector<HTMLButtonElement>('[data-role="clear"]')?.click();
+    await settle(element);
+    expect(barOf(element)).toBeNull();
+    expect(pressed(element)).toEqual(['api']);
   });
 
   it('drops the picked cards on a plain click, which opens that card’s detail as before', async () => {
-    const { element, panel } = await mount();
+    const { element } = await mount();
     click(card(element, 'login'));
     click(card(element, 'api'), { metaKey: true });
     click(card(element, 'mail'));
     await settle(element);
     expect(pressed(element)).toEqual(['mail']);
-    expect(panel.sections()).toEqual([]);
+    expect(barOf(element)).toBeNull();
   });
 
-  it('turns an open panel to the bulk section, and leaves a closed one closed', async () => {
-    const { element, panel } = await mount();
+  it('offers the columns the picked cards can move to, and how many of them carry each tag', async () => {
+    const { element } = await mount();
     click(card(element, 'login'));
     click(card(element, 'api'), { metaKey: true });
     await settle(element);
-    expect(panel.opened).toEqual([]);
-
-    click(card(element, 'mail'));
-    panel.isOpen = true;
-    click(card(element, 'api'), { metaKey: true });
-    await settle(element);
-    expect(panel.opened).toEqual(['kanban-bulk-board']);
-  });
-
-  it('shows how many picked cards carry each tag, and which columns they can move to', async () => {
-    const { element, panel } = await mount();
-    click(card(element, 'login'));
-    click(card(element, 'api'), { metaKey: true });
-    await settle(element);
-    const root = await renderSection(panel.sections()[0]);
-    expect(root.querySelector('.kanban-bulk-summary')?.textContent).toBe(m.bulkSummary(2));
-    const tags = [...root.querySelectorAll<HTMLButtonElement>('[data-tag]')];
-    expect(tags.map((tag) => [tag.dataset['tag'], tag.getAttribute('aria-pressed')])).toEqual([
-      ['UI', 'mixed'],
-      ['API', 'mixed'],
-    ]);
-    const moves = [...root.querySelectorAll<HTMLButtonElement>('[data-column]')];
-    expect(moves.map((move) => [move.dataset['column'], move.disabled])).toEqual([
+    const moves = await openMenu(element, 'move');
+    expect(moves.map((move) => [move.dataset['value'], (move as HTMLButtonElement).disabled])).toEqual([
       ['todo', true],
       ['doing', false],
+    ]);
+    const tags = await openMenu(element, 'tag');
+    expect(
+      tags.map((tag) => [tag.dataset['value'], tag.getAttribute('aria-checked'), tag.textContent?.trim()]),
+    ).toEqual([
+      ['UI', 'mixed', expect.stringContaining('1/2')],
+      ['API', 'mixed', expect.stringContaining('1/2')],
     ]);
   });
 });
 
 describe('bulk actions on a page', () => {
-  const mountApp = async (): Promise<{
-    page: PageElement;
-    element: DpkBoardKanban;
-    root: () => Promise<ShadowRoot>;
-  }> => {
+  const mountApp = async (): Promise<{ app: AppElement; element: DpkBoardKanban }> => {
     const app = document.createElement('dpk-app');
     if (!(app instanceof AppElement)) throw new Error('not upgraded');
     app.storage = 'memory';
@@ -218,24 +203,13 @@ describe('bulk actions on a page', () => {
       </dpk-board-kanban></dpk-page>`;
     document.body.append(app);
     await app.api.ready;
-    const page = app.querySelector('dpk-page');
     const element = app.querySelector('dpk-board-kanban');
-    if (page === null || !(element instanceof DpkBoardKanban)) throw new Error('no board');
+    if (!(element instanceof DpkBoardKanban)) throw new Error('no board');
     await settle(element);
     click(card(element, 'login'));
     click(card(element, 'mail'), { shiftKey: true });
     await settle(element);
-    const section = (): Promise<ShadowRoot> => {
-      const view = document.createElement('div');
-      document.body.append(view);
-      const spec = (element as unknown as { panelSections(): readonly PanelSectionSpec[] }).panelSections()[0];
-      if (spec === undefined) throw new Error('no section');
-      render(spec.render(), view);
-      const bulk = view.querySelector('dpk-internal-kanban-bulk');
-      if (!(bulk instanceof DpkInternalKanbanBulk) || bulk.shadowRoot === null) throw new Error('no bulk section');
-      return bulk.updateComplete.then(() => bulk.shadowRoot as ShadowRoot);
-    };
-    return { page: page as PageElement, element, root: section };
+    return { app, element };
   };
 
   const columnsOf = (element: DpkBoardKanban): Record<string, (string | undefined)[]> =>
@@ -246,14 +220,14 @@ describe('bulk actions on a page', () => {
       ]),
     );
 
-  it('moves the picked cards in one batch, which one undo takes back', async () => {
-    const { element, root } = await mountApp();
-    const app = document.querySelector('dpk-app');
-    if (!(app instanceof AppElement)) throw new Error('no app');
-    (await root()).querySelector<HTMLButtonElement>('[data-column="doing"]')?.click();
+  it('moves the picked cards in one batch from the bar, which one undo takes back', async () => {
+    const { app, element } = await mountApp();
+    const moves = await openMenu(element, 'move');
+    moves.find((move) => move.dataset['value'] === 'doing')?.click();
     await settle(element);
     expect(columnsOf(element)).toEqual({ todo: [], doing: ['stock', 'login', 'api', 'mail'] });
     expect(element.api.actions.map((action) => action.type)).toEqual(['MOVE_CARD', 'MOVE_CARD', 'MOVE_CARD']);
+    expect(barRoot(element).querySelector('.menu')).toBeNull();
 
     expect(app.controller.undo()).toBe(true);
     await settle(element);
@@ -261,21 +235,19 @@ describe('bulk actions on a page', () => {
     expect(element.api.actions).toEqual([]);
   });
 
-  it('puts a tag on every picked card and takes it off again, each in one batch', async () => {
-    const { element, root } = await mountApp();
-    const app = document.querySelector('dpk-app');
-    if (!(app instanceof AppElement)) throw new Error('no app');
-    (await root()).querySelector<HTMLButtonElement>('[data-tag="UI"]')?.click();
+  it('puts a tag on every picked card and a typed one too, each in one batch', async () => {
+    const { app, element } = await mountApp();
+    const tags = await openMenu(element, 'tag');
+    tags.find((tag) => tag.dataset['value'] === 'UI')?.click();
     await settle(element);
     expect(element.api.actions.map((action) => [action.type, action.target.id])).toEqual([
       ['ADD_CARD_TAG', expect.stringContaining('api')],
       ['ADD_CARD_TAG', expect.stringContaining('mail')],
     ]);
-    const tags = await root();
-    expect(tags.querySelector('[data-tag="UI"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(barRoot(element).querySelector('[data-value="UI"]')?.getAttribute('aria-checked')).toBe('true');
 
-    const input = tags.querySelector<HTMLInputElement>('.kanban-bulk-tag-add');
-    if (input === null) throw new Error('no tag input');
+    const input = barRoot(element).querySelector<HTMLInputElement>('.menu .entry');
+    if (input === null) throw new Error('no tag entry');
     input.value = '決済';
     key(input, { key: 'Enter' });
     await settle(element);
@@ -289,5 +261,22 @@ describe('bulk actions on a page', () => {
     expect(app.controller.undo()).toBe(true);
     await settle(element);
     expect(element.api.actions).toEqual([]);
+  });
+
+  it('takes a tag every picked card carries off all of them', async () => {
+    const { element } = await mountApp();
+    const tags = await openMenu(element, 'tag');
+    tags.find((tag) => tag.dataset['value'] === 'UI')?.click();
+    await settle(element);
+    barRoot(element).querySelector<HTMLButtonElement>('[data-value="UI"]')?.click();
+    await settle(element);
+    expect(element.api.actions.map((action) => action.type)).toEqual([
+      'ADD_CARD_TAG',
+      'ADD_CARD_TAG',
+      'REMOVE_CARD_TAG',
+      'REMOVE_CARD_TAG',
+      'REMOVE_CARD_TAG',
+    ]);
+    expect(barRoot(element).querySelector('[data-value="UI"]')?.getAttribute('aria-checked')).toBe('false');
   });
 });

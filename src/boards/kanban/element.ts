@@ -1,11 +1,11 @@
 import { html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
+import type { SelectionBarAction, SelectionBarActionDetail } from '../../components/selection-bar/index';
 import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
 import type { ElementActionResult } from '../../core/element-actions';
-import type { PanelDetail, PanelSectionSpec } from '../../core/panel/host';
+import type { PanelDetail } from '../../core/panel/host';
 import type { ActionTarget, CommentTargetOption, DraftAction } from '../../core/types';
-import type { BulkActions } from './bulk-section';
 import type { CardDetailActions } from './card-detail';
 
 import { cardAtom } from '../../components/atoms/card';
@@ -16,7 +16,7 @@ import { describeLink } from '../../lib/link-label';
 import { BoardChromeBase } from '../base/element';
 import { classNames, elementRefSegments, tagStateMatches, type ElementActionRequest } from '../base/model';
 import { chromeStyles } from '../base/styles';
-import { bulkMoveActions, bulkTagActions, cardRange, toggleCard } from './bulk';
+import { allInColumn, bulkMoveActions, bulkTagActions, cardRange, tagCoverage, toggleCard } from './bulk';
 import { kanbanMessages } from './messages';
 import {
   ADD_CARD,
@@ -203,7 +203,7 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
               : this.#renderBoard()
         }
       </dpk-dialog-panel>
-      ${this.renderSelection()}
+      ${this.renderSelection()} ${this.#renderSelectionBar()}
     `;
   }
 
@@ -471,7 +471,6 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
    * between the last one picked and this one.
    */
   #pick(event: MouseEvent | KeyboardEvent, id: string): void {
-    const before = this.#bulk().length;
     if (event.metaKey || event.ctrlKey) {
       const selection = this.selection;
       const seed =
@@ -502,17 +501,11 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
       return;
     }
     this.requestUpdate();
-    if (before === 0 && this.#bulk().length > 0)
-      void this.updateComplete.then(() => this.showPanelSection(this.#bulkSectionName()));
   }
 
   #clearPicked(): void {
     this.#picked = [];
     this.requestUpdate();
-  }
-
-  #bulkSectionName(): string {
-    return this.id === '' ? 'kanban-bulk' : `kanban-bulk-${this.id}`;
   }
 
   /** Records the actions as one batch; nothing to record counts as done. */
@@ -523,29 +516,55 @@ export class DpkBoardKanban extends BoardChromeBase<KanbanData, KanbanSelection>
     return accepted;
   }
 
-  protected override panelSections(): readonly PanelSectionSpec[] {
+  /** Moving the picked cards to a column, and putting a tag on them or taking it off. */
+  #renderSelectionBar(): TemplateResult | typeof nothing {
     const picked = this.#bulk();
-    if (picked.length === 0) return [];
+    if (picked.length === 0) return nothing;
+    const data = this.items();
     const m = kanbanMessages(this.locale);
-    const actions: BulkActions = {
-      move: (column) => this.#bulkRecord(bulkMoveActions(this.items(), this.#bulk(), column)),
-      tag: (tag, present) => this.#bulkRecord(bulkTagActions(this.items(), this.#bulk(), tag, present)),
-      clear: () => this.#clearPicked(),
-    };
-    return [
+    const cards = allCards(data).filter((card) => picked.includes(card.id));
+    const tags = [...new Set(allCards(data).flatMap((card) => card.tags))];
+    const actions: readonly SelectionBarAction[] = [
       {
-        name: this.#bulkSectionName(),
-        label: m.bulkLabel,
-        badge: String(picked.length),
-        render: () =>
-          html`<dpk-internal-kanban-bulk
-            .data=${this.items()}
-            .picked=${this.#bulk()}
-            .messages=${m}
-            .actions=${actions}
-          ></dpk-internal-kanban-bulk>`,
+        name: 'move',
+        label: m.bulkMoveLabel,
+        options: data.columns.map((column) => ({
+          value: column.id,
+          label: column.label,
+          disabled: allInColumn(data, picked, column.id),
+        })),
+      },
+      {
+        name: 'tag',
+        label: m.bulkTagsLabel,
+        options: tags.map((tag) => {
+          const coverage = tagCoverage(data, picked, tag);
+          const tagged = cards.filter((card) => card.tags.includes(tag)).length;
+          return {
+            value: tag,
+            label: tag,
+            checked: coverage === 'all' ? true : coverage === 'some' ? 'mixed' : false,
+            hint: `${tagged}/${cards.length}`,
+          };
+        }),
+        entry: { placeholder: m.bulkTagPlaceholder },
       },
     ];
+    return html`<dpk-selection-bar
+      .count=${picked.length}
+      .actions=${actions}
+      @dpk-selection-action=${(event: CustomEvent<SelectionBarActionDetail>) => this.#onBulkAction(event.detail)}
+      @dpk-selection-clear=${() => this.#clearPicked()}
+    ></dpk-selection-bar>`;
+  }
+
+  #onBulkAction({ action, value, entered }: SelectionBarActionDetail): void {
+    if (value === null) return;
+    const data = this.items();
+    const picked = this.#bulk();
+    if (action === 'move') this.#bulkRecord(bulkMoveActions(data, picked, value));
+    else if (action === 'tag')
+      this.#bulkRecord(bulkTagActions(data, picked, value, entered || tagCoverage(data, picked, value) !== 'all'));
   }
 
   /** A template that records the move has already replayed it; otherwise the card says so. */

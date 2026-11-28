@@ -117,15 +117,15 @@ Every edit is an element action like a move or an add, recorded in the enclosing
 
 ## Bulk actions
 
-Pick two or more cards (`Cmd`/`Ctrl` or `Shift`, see [Selection and moves](#selection-and-moves)) and the side panel lists a **Bulk actions** / **一括操作** section, with the number of picked cards as its badge. An open panel turns to the section; a closed one stays closed. A plain click on a card drops the picked cards and opens that card's detail, as before. Only cards on show count: a card the tag filter hides is left out.
+Pick two or more cards (`Cmd`/`Ctrl` or `Shift`, see [Selection and moves](#selection-and-moves)) and the [selection bar](../components/selection-bar.md) appears at the bottom of the board with the number of picked cards, **Move** / **移動**, **Tags** / **タグ** and a clear button. Picking cards does not open the side panel; an open panel shows the detail of the card picked last. A plain click on a card drops the picked cards and opens that card's detail, as before. Only cards on show count: a card the tag filter hides is left out. The clear button or `Escape` drops the picked cards.
 
-| Control                | Result                                                                                                                                 | Recorded as                        |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| A column under Move to | Moves the picked cards that are elsewhere to the end of that column, in board order; a column already holding all of them is disabled  | `MOVE_CARD` per card               |
-| A tag                  | Puts the tag on every picked card, or takes it off when all of them have it; the tag reads `n/m` and is half-pressed when only some do | `ADD_CARD_TAG` / `REMOVE_CARD_TAG` |
-| The tag input          | Type a tag and press `Enter` to put it on every picked card                                                                            | `ADD_CARD_TAG` per card            |
+| Control                | Result                                                                                                                                                      | Recorded as                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| A column under Move    | Moves the picked cards that are elsewhere to the end of that column, in board order; a column already holding all of them is disabled                       | `MOVE_CARD` per card               |
+| A tag under Tags       | Puts the tag on every picked card, or takes it off when all of them have it; the tag reads `n/m` and is half-checked when only some do; the menu stays open | `ADD_CARD_TAG` / `REMOVE_CARD_TAG` |
+| The text field in Tags | Type a tag and press `Enter` to put it on every picked card                                                                                                 | `ADD_CARD_TAG` per card            |
 
-Each press records one action per card that changes, together as one batch: on a page one undo takes the whole press back. Inside a view the actions go in one by one, so undo takes them back one at a time.
+Each choice records one action per card that changes, together as one batch: on a page one undo takes the whole choice back. Inside a view the actions go in one by one, so undo takes them back one at a time.
 
 ## Links
 

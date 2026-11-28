@@ -14,12 +14,12 @@ export {
 } from './model';
 export type { KanbanCard, KanbanCardChange, KanbanColor, KanbanColumn, KanbanData, KanbanPosition } from './model';
 
-import { defineKanbanBulk } from './bulk-section';
+import { defineSelectionBar } from '../../components/selection-bar/index';
 import { defineKanbanCardDetail } from './card-detail';
 import { DpkBoardKanban } from './element';
 
 export const defineKanban = (): void => {
   defineKanbanCardDetail();
-  defineKanbanBulk();
+  defineSelectionBar();
   if (!customElements.get('dpk-board-kanban')) customElements.define('dpk-board-kanban', DpkBoardKanban);
 };

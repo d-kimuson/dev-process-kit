@@ -41,14 +41,9 @@ export const kanbanMessages = defineMessages({
     /** The card's right-click copy items: its key (`TASK-3`), alone and with its title. */
     copyKey: 'Copy ID',
     copyKeyTitle: 'Copy ID and title',
-    bulkLabel: 'Bulk actions',
-    bulkSummary: (count: number) => `${count} cards selected`,
-    bulkClear: 'Clear selection',
-    bulkCards: 'Selected cards',
-    bulkMoveLabel: 'Move to',
+    bulkMoveLabel: 'Move',
     bulkTagsLabel: 'Tags',
-    bulkTagAria: (tag: string, tagged: number, count: number) => `${tag}, on ${tagged} of ${count}`,
-    bulkTagPlaceholder: 'Tag for all (Enter to add)',
+    bulkTagPlaceholder: 'New tag',
   },
   ja: {
     heading: 'カンバン',
@@ -89,14 +84,9 @@ export const kanbanMessages = defineMessages({
     removeLinkAria: (url: string) => `リンク ${url} を削除`,
     copyKey: 'IDをコピー',
     copyKeyTitle: 'IDとタイトルをコピー',
-    bulkLabel: '一括操作',
-    bulkSummary: (count: number) => `${count} 枚のカードを選択中`,
-    bulkClear: '選択を解除',
-    bulkCards: '選択中のカード',
-    bulkMoveLabel: '移動先',
+    bulkMoveLabel: '移動',
     bulkTagsLabel: 'タグ',
-    bulkTagAria: (tag: string, tagged: number, count: number) => `${tag}、${count} 枚中 ${tagged} 枚に付いている`,
-    bulkTagPlaceholder: '全カードに付けるタグ（Enter で追加）',
+    bulkTagPlaceholder: '新しいタグ',
   },
 });
 
