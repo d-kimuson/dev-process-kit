@@ -17,6 +17,13 @@ export {
  * cycle grouping. No DOM, no Lit — the components' `element.ts` owns those.
  */
 
+/** One element action `dispatchElementActions` records: what `dispatchElementAction` takes. */
+export type ElementActionRequest = {
+  readonly type: string;
+  readonly element: readonly [kind: string, ...ids: string[]];
+  readonly payload: Readonly<Record<string, unknown>>;
+};
+
 export const toggleTag = (state: TagState, tag: string): TagState => {
   if (state.active.includes(tag)) return { ...state, active: state.active.filter((item) => item !== tag) };
   if (state.match === 'single') return { ...state, active: [tag] };

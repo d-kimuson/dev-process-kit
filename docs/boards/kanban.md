@@ -89,11 +89,14 @@ Right-click a card for its copy items, above the review comment the board alread
 
 ## Selection and moves
 
-| Action                              | Result                                                                                |
-| ----------------------------------- | ------------------------------------------------------------------------------------- |
-| Click a column heading              | The column is selected                                                                |
-| Click a card, or `Enter` / `Space`  | The card is selected, and its [detail](#card-detail) opens                            |
-| Drag a card and drop it in a column | The card moves before the card under the pointer, or to the end; a marker shows where |
+| Action                                        | Result                                                                                |
+| --------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Click a column heading                        | The column is selected                                                                |
+| Click a card, or `Enter` / `Space`            | The card is selected, and its [detail](#card-detail) opens                            |
+| `Cmd`/`Ctrl` with a click, `Enter` or `Space` | The card joins the [picked cards](#bulk-actions), or leaves them                      |
+| `Shift` with a click, `Enter` or `Space`      | The cards from the last one picked to this one are picked, in board order             |
+| `Escape` on a card while cards are picked     | The cards are no longer picked                                                        |
+| Drag a card and drop it in a column           | The card moves before the card under the pointer, or to the end; a marker shows where |
 
 A moved card is selected and drawn with a blue left border. Dropping a card where it already is records nothing. The detail's status buttons move it too, to the end of that column.
 
@@ -111,6 +114,18 @@ Clicking a card (or `Enter` / `Space` on it) opens the side panel on its **Detai
 | Links       | The `×` removes one; the form adds one from a URL and an optional label | `REMOVE_CARD_LINK`, `ADD_CARD_LINK` |
 
 Every edit is an element action like a move or an add, recorded in the enclosing view's (or page's) draft and replayed over the authored JSON. A detail edit that no template records is reported in the detail, like the add input's error.
+
+## Bulk actions
+
+Pick two or more cards (`Cmd`/`Ctrl` or `Shift`, see [Selection and moves](#selection-and-moves)) and the side panel lists a **Bulk actions** / **一括操作** section, with the number of picked cards as its badge. An open panel turns to the section; a closed one stays closed. A plain click on a card drops the picked cards and opens that card's detail, as before. Only cards on show count: a card the tag filter hides is left out.
+
+| Control                | Result                                                                                                                                 | Recorded as                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| A column under Move to | Moves the picked cards that are elsewhere to the end of that column, in board order; a column already holding all of them is disabled  | `MOVE_CARD` per card               |
+| A tag                  | Puts the tag on every picked card, or takes it off when all of them have it; the tag reads `n/m` and is half-pressed when only some do | `ADD_CARD_TAG` / `REMOVE_CARD_TAG` |
+| The tag input          | Type a tag and press `Enter` to put it on every picked card                                                                            | `ADD_CARD_TAG` per card            |
+
+Each press records one action per card that changes, together as one batch: on a page one undo takes the whole press back. Inside a view the actions go in one by one, so undo takes them back one at a time.
 
 ## Links
 
