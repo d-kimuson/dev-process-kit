@@ -57,6 +57,7 @@
     "test": "vitest run",
     "demo:sync": "node dev/sync-demo/server.ts",
     "qa:browser": "node dev/qa/browser-smoke.ts",
+    "qa:bpmn": "node dev/qa/bpmn-probe.ts",
     "qa:chaos": "node dev/qa/chaos-capture.ts",
     "bench:layout": "node dev/layout-bench.ts",
     "eval": "node dev/eval.ts",

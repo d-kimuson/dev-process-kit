@@ -41,7 +41,7 @@ import { loadKit } from '../kit.js';
  * set instead), bundled only in `components.js`. This harness still renders
  * one per fixture, same as any template, so they stay listed in `TEMPLATES`.
  */
-const DIAGRAM_BOARDS = new Set(['whiteboard', 'event-storming', 'example-mapping']);
+const DIAGRAM_BOARDS = new Set(['whiteboard', 'event-storming', 'example-mapping', 'bpmn']);
 
 /** Every template (plus every diagram-as-board) this kit ships, in `docs/` order. */
 export const TEMPLATES = [
@@ -54,14 +54,24 @@ export const TEMPLATES = [
   'task-board',
   'delegation-poker',
   'whiteboard',
+  'bpmn',
 ];
 
 /** `dpk-<name>` for a diagram-as-board, `dpk-template-<name>` for an actual template. */
-const tagFor = (template) => (DIAGRAM_BOARDS.has(template) ? `dpk-${template}` : `dpk-template-${template}`);
+const tagFor = (template) =>
+  template === 'bpmn'
+    ? 'dpk-board-bpmn'
+    : DIAGRAM_BOARDS.has(template)
+      ? `dpk-${template}`
+      : `dpk-template-${template}`;
 
 /** The entries a template needs loaded: its own per-template entry, or none for a diagram-as-board. */
 const entriesFor = (template) =>
-  DIAGRAM_BOARDS.has(template) ? ['components.js'] : [`templates/${template}.js`, 'components.js'];
+  template === 'bpmn'
+    ? ['boards.js']
+    : DIAGRAM_BOARDS.has(template)
+      ? ['components.js']
+      : [`templates/${template}.js`, 'components.js'];
 
 const app = document.getElementById('app');
 
