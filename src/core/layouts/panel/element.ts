@@ -215,7 +215,9 @@ const panelStyles = css`
   }
 
   .detail-kind {
+    flex: none;
     color: var(--dpk-ink-faint);
+    white-space: nowrap;
     font-weight: 650;
     letter-spacing: 0.04em;
     text-transform: uppercase;
