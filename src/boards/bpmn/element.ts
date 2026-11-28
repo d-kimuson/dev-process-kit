@@ -311,7 +311,7 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
     const ends: EdgeEndView[] = [];
     if (spec.start !== null && points.length >= 2) ends.push(this.#end(points, 'start', spec.start));
     if (spec.end !== null && points.length >= 2) ends.push(this.#end(points, 'end', spec.end));
-    const select = (): void => this.select({ kind: 'edge', id: flow.id });
+    const select = (): void => this.openSelection({ kind: 'edge', id: flow.id });
     return svg`
       <g
         class=${this.elementClass(
@@ -362,7 +362,7 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
         aria-label=${named ? `${label} (${this.#kindName(node)})` : nothing}
         aria-pressed=${state.selected ? 'true' : 'false'}
         title=${node.description ?? label}
-        @click=${() => this.select({ kind: 'node', id: node.id })}
+        @click=${() => this.openSelection({ kind: 'node', id: node.id })}
       >
         ${bpmnNodeShape(node)}
         ${
@@ -387,7 +387,7 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
         style="left:${box.x}px; top:${box.y}px; width:${box.width}px; height:${box.height}px"
         data-node-label=${node.id}
         title=${node.name ?? ''}
-        @click=${() => this.select({ kind: 'node', id: node.id })}
+        @click=${() => this.openSelection({ kind: 'node', id: node.id })}
       >
         ${label.lines.map((line) => html`<span>${line}</span>`)}
       </span>
@@ -408,7 +408,7 @@ export class DpkBoardBpmn extends BoardCanvasElement<BpmnData> {
           data-dpk-target=${this.commentRef('edge', flow.id)}
           data-dpk-check="off"
           title=${flow.condition ?? label}
-          @click=${() => this.select({ kind: 'edge', id: flow.id })}
+          @click=${() => this.openSelection({ kind: 'edge', id: flow.id })}
         >
           ${label}
         </button>

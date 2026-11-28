@@ -287,7 +287,7 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
         style="--sequence-center:${center}px"
         aria-pressed=${state.selected ? 'true' : 'false'}
         title=${participant.description ?? participant.name}
-        @click=${() => this.select({ kind: 'participant', id: participant.id })}
+        @click=${() => this.openSelection({ kind: 'participant', id: participant.id })}
       >
         <span class="sequence-symbol" aria-hidden="true">${participant.symbol ?? participant.name.slice(0, 2)}</span>
         <span class="sequence-names">
@@ -368,7 +368,7 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
       // Async is an open head; every other style keeps a filled arrow. Selection
       // and relation recolour the head through `--d-edge-line`, as before.
       const marker = row.message.style === 'async' ? END_MARKERS.openArrow : END_MARKERS.arrow;
-      const select = () => this.select({ kind: 'message', id: row.message.id });
+      const select = () => this.openSelection({ kind: 'message', id: row.message.id });
       return svg`
         <g
           class=${this.elementClass(
@@ -449,7 +449,7 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
         data-dpk-check="off"
         style="left:${left}px; top:${y - 28}px; width:${width}px"
         title=${this.#tooltip(message, m)}
-        @click=${() => this.select({ kind: 'message', id: message.id })}
+        @click=${() => this.openSelection({ kind: 'message', id: message.id })}
       >
         <span class="sequence-number">${this.#numbers.get(message.id) ?? ''}</span>
         <span class="sequence-text">${message.title}</span>

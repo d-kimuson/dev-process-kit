@@ -21,7 +21,7 @@ One side panel per content-holding element shows, in sections, the selected elem
 - **The detail is drawn by a function, in its own shadow root.** A board answers a selection with a `PanelDetail` whose `render()` returns an internal element. The panel keys the rendering on the detail's key, so a half-typed value is dropped instead of moving to the next selected element, and edits go through the board's draft actions as before.
 - **The review rail is not merged into the panel.** The review has its own placement and its own clearance rules, and the reader often wants both at once.
 - **A side panel on wide screens, a sheet on narrow ones.** Above 760px the panel narrows the main column (280–560px, `--dpk-panel-width`, 360 by default) and can be maximized over it; at 760px and below it is a bottom sheet.
-- **The panel moves to the detail only on an explicit open.** Clicking a card opens the panel on 詳細; a selection made otherwise marks the tab unread and leaves the reader on the section they were reading.
+- **The panel moves to the detail only on an explicit open.** Clicking a card or a diagram element (a table, a column, a node, an edge) opens the panel on 詳細, and the click that ends a drag or a pan does not; a selection made otherwise marks the tab unread and leaves the reader on the section they were reading.
 - **`aside` is replaced.** An `aside` child becomes a section labelled by its `aria-label`, or 「メモ」 without one. Open and section are the reader's state and are kept in `localStorage`, not in the draft.
 
 ## Consequences

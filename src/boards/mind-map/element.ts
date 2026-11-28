@@ -245,7 +245,7 @@ export class DpkBoardMindMap extends BoardCanvasElement<MindMapData> {
         title=${node.description ?? node.label}
         @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, node.id)}
         @click=${() => {
-          if (!this.consumeDragClick()) this.select({ kind: 'node', id: node.id });
+          if (!this.consumeDragClick()) this.openSelection({ kind: 'node', id: node.id });
         }}
       >
         <span class="mind-label">${node.label}</span>

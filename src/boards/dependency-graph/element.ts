@@ -322,7 +322,7 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
       .map(({ link, junction, kind }) => {
         const state = this.edgeState(link.id);
         const body = drawn.get(link.id);
-        const select = () => this.select({ kind: 'edge', id: link.id });
+        const select = () => this.openSelection({ kind: 'edge', id: link.id });
         return svg`
           <g
             class=${this.elementClass(
@@ -379,7 +379,7 @@ export class DpkBoardDependencyGraph extends BoardCanvasElement<DependencyData> 
           title=${[node.path ?? node.name, node.description].filter((value) => value !== null).join('\n')}
           @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, node.id)}
           @click=${() => {
-            if (!this.consumeDragClick()) this.select({ kind: 'node', id: node.id });
+            if (!this.consumeDragClick()) this.openSelection({ kind: 'node', id: node.id });
           }}
         >
           <span class="dep-head">
