@@ -335,7 +335,13 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
       const select = () => this.select({ kind: 'message', id: row.message.id });
       return svg`
         <g
-          class=${this.elementClass(state, 'sequence-message-row', 'd-edge', `is-${row.message.style}`)}
+          class=${this.elementClass(
+            state,
+            'sequence-message-row',
+            'd-edge',
+            `is-${row.message.style}`,
+            state.related && 'is-lit',
+          )}
           data-message=${row.message.id}
         >
           <title>${this.#tooltip(row.message, m)}</title>
@@ -348,6 +354,7 @@ export class DpkBoardSequenceDiagram extends BoardCanvasChromeElement<SequenceDi
               select();
             }}></path>
           <path class="sequence-message is-${row.message.style}" d=${d}></path>
+          <path class="d-edge-flow" d=${d}></path>
           ${edgeEnds([{ side: 'end', marker, frame: endFrame(points, 'end') }])}
         </g>
       `;

@@ -375,6 +375,29 @@ describe('dpk-board-sequence-diagram', () => {
     expect(element.renderRoot.querySelectorAll('.sequence-message-row.is-related')).toHaveLength(5);
   });
 
+  it('draws the shared flow path on selected and participant-related messages', async () => {
+    const element = await mount();
+    const row = (id: string): Element => element.renderRoot.querySelector(`[data-message="${id}"]`)!;
+    const flow = (id: string): SVGPathElement | null => row(id).querySelector('.d-edge-flow');
+
+    element.select({ kind: 'message', id: 'm2' });
+    await settle(element);
+    expect(row('m2').classList).toContain('is-selected');
+    expect(flow('m2')).not.toBeNull();
+    expect(flow('m2')?.getAttribute('d')).toBe(row('m2').querySelector('.sequence-message')?.getAttribute('d'));
+    // A response keeps its own dashed line; the flow overlay is another path.
+    expect(row('m3').querySelector('.sequence-message')?.classList).toContain('is-response');
+
+    element.select({ kind: 'participant', id: 'api' });
+    await settle(element);
+    const related = [...element.renderRoot.querySelectorAll('.sequence-message-row.is-related')];
+    expect(related).toHaveLength(5);
+    for (const message of related) {
+      expect(message.classList).toContain('is-lit');
+      expect(message.querySelector('.d-edge-flow')).not.toBeNull();
+    }
+  });
+
   it('filters messages by tag, and shows the empty state when nothing matches', async () => {
     const element = await mount();
     element.renderRoot
