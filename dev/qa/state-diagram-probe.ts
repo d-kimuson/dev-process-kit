@@ -156,7 +156,7 @@ const gates = `(() => {
     const end = path.getPointAtLength(path.getTotalLength());
     if (off(start.x, points[0].x) || off(start.y, points[0].y) || off(end.x, points.at(-1).x) || off(end.y, points.at(-1).y))
       note('drawn', 'path ' + group.dataset.transition);
-    if (!path.getAttribute('marker-end')) note('drawn', 'no arrowhead ' + group.dataset.transition);
+    if (!group.querySelector('.d-edge-end [data-paint="line"]')) note('drawn', 'no arrowhead ' + group.dataset.transition);
   }
   if (paths.length !== edges.length) note('drawn', 'edge count ' + paths.length + ' of ' + edges.length);
 
