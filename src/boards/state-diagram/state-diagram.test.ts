@@ -135,6 +135,99 @@ describe('state diagram data', () => {
   });
 });
 
+describe('state diagram drawn geometry', () => {
+  /*
+   * Characterisation before the routing moves onto `lib/layout`'s shared
+   * primitives: the exact `d` each transition is drawn with, and the centre of
+   * each label chip, for a sample with a forward edge, a back edge, a
+   * self-loop and an exception — recorded so a refactor cannot quietly move a
+   * line or a label.
+   */
+  const sample = {
+    states: [
+      { id: 'idle', name: 'Idle', kind: 'initial', position: { x: 0, y: 0 } },
+      { id: 'running', name: 'Running', position: { x: 320, y: 0 } },
+      { id: 'paused', name: 'Paused', position: { x: 640, y: 180 } },
+      { id: 'failed', name: 'Failed', kind: 'terminal', position: { x: 320, y: 240 } },
+    ],
+    transitions: [
+      { id: 'start', from: 'idle', to: 'running', title: '開始する' },
+      { id: 'pause', from: 'running', to: 'paused', title: '一時停止', kind: 'exception' },
+      { id: 'resume', from: 'paused', to: 'running', title: '再開する' },
+      { id: 'retry', from: 'running', to: 'running', title: 'リトライ' },
+      { id: 'stop', from: 'running', to: 'failed', title: '停止する' },
+      { id: 'back', from: 'paused', to: 'idle', title: '取り消す' },
+    ],
+  } as const;
+
+  it('draws each transition and places each label the same way', async () => {
+    const element = new DpkBoardStateDiagram();
+    element.data = parseStateData(sample);
+    document.body.append(element);
+    await settle(element);
+    const drawn = [...element.renderRoot.querySelectorAll<SVGGElement>('.state-edge')].map((edge) => {
+      const id = edge.dataset['transition'] ?? '';
+      const d = edge.querySelector('.d-edge-path')?.getAttribute('d') ?? '';
+      const slot = element.renderRoot.querySelector<HTMLElement>(
+        `.state-label-slot:has([data-transition-label="${id}"])`,
+      );
+      return { id, d, label: { left: slot?.style.left ?? '', top: slot?.style.top ?? '' } };
+    });
+    expect(drawn).toMatchInlineSnapshot(`
+      [
+        {
+          "d": "M244 104 L392 104",
+          "id": "start",
+          "label": {
+            "left": "317px",
+            "top": "104px",
+          },
+        },
+        {
+          "d": "M564 95 L690 95 Q696 95 696 101 L696 260 Q696 266 702 266 L712 266",
+          "id": "pause",
+          "label": {
+            "left": "696px",
+            "top": "120px",
+          },
+        },
+        {
+          "d": "M712 284 L586 284 Q580 284 580 278 L580 119 Q580 113 574 113 L564 113",
+          "id": "resume",
+          "label": {
+            "left": "580px",
+            "top": "259px",
+          },
+        },
+        {
+          "d": "M464 72 L464 54 Q464 48 470 48 L486 48 Q492 48 492 54 L492 72",
+          "id": "retry",
+          "label": {
+            "left": "478px",
+            "top": "30px",
+          },
+        },
+        {
+          "d": "M478 136 L478 312",
+          "id": "stop",
+          "label": {
+            "left": "478px",
+            "top": "229px",
+          },
+        },
+        {
+          "d": "M712 302 L266 302 Q260 302 260 296 L260 128 Q260 122 254 122 L244 122",
+          "id": "back",
+          "label": {
+            "left": "341px",
+            "top": "302px",
+          },
+        },
+      ]
+    `);
+  });
+});
+
 describe('dpk-board-state-diagram', () => {
   it('renders states at their authored positions with an initial marker', async () => {
     const element = await mount();
