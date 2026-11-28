@@ -10,6 +10,7 @@ import { usmDefinitionFor } from './definition';
 import { presentLabelOverview } from './label-overview';
 import { usmMessages } from './messages';
 import { labelsOfStory, parseUsmBase, type UsmState } from './model';
+import { settleDetail, storyDetailOf } from './testing';
 
 const m = usmMessages('en');
 const definition = usmDefinitionFor('en');
@@ -131,6 +132,7 @@ describe('usm labels: element', () => {
     await el.updateComplete;
     await new Promise((resolve) => setTimeout(resolve, 0));
     await el.updateComplete;
+    await settleDetail(el);
   };
 
   const mount = async (hash: string): Promise<DpkViewUsm> => {
@@ -192,7 +194,7 @@ describe('usm labels: element', () => {
       'Dev',
       'PdM',
     ]);
-    const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
+    const panel = storyDetailOf(el)!;
     const toggles = () => [...panel.querySelectorAll('.sp-label')] as HTMLButtonElement[];
     expect(toggles().map((toggle) => [toggle.textContent?.trim(), toggle.getAttribute('aria-pressed')])).toEqual([
       ['Dev', 'false'],
@@ -212,7 +214,7 @@ describe('usm labels: element', () => {
   it('opens the labels section of the settings from the story panel', async () => {
     const el = await mount('#story=u3');
     const root = el.shadowRoot!;
-    const panel = root.querySelector('[data-testid="usm-story-panel"]')!;
+    const panel = storyDetailOf(el)!;
     (panel.querySelector('button.sp-manage') as HTMLButtonElement).click();
     await settle(el);
     expect((root.querySelector('#dpk-settings') as HTMLDialogElement | null)?.open).toBe(true);

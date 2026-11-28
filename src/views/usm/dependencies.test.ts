@@ -11,6 +11,7 @@ import { blockerOptions, dependencyOf } from './dependencies';
 import { dependencyChoices } from './dependency-choices';
 import { usmMessages } from './messages';
 import { parseUsmBase, type UsmState } from './model';
+import { settleDetail, storyDetailOf } from './testing';
 
 const m = usmMessages('en');
 const definition = usmDefinitionFor('en');
@@ -128,6 +129,7 @@ describe('usm dependencies: element', () => {
     await el.updateComplete;
     await new Promise((resolve) => setTimeout(resolve, 0));
     await el.updateComplete;
+    await settleDetail(el);
   };
 
   const mount = async (hash: string): Promise<DpkViewUsm> => {
@@ -175,7 +177,7 @@ describe('usm dependencies: element', () => {
     expect(card(el, 'u3').hasAttribute('data-relation')).toBe(false);
   });
 
-  const panelOf = (el: DpkViewUsm) => el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')!;
+  const panelOf = (el: DpkViewUsm) => storyDetailOf(el)!;
   const pickerOf = (el: DpkViewUsm, role: 'add-blocker' | 'add-dependent') =>
     panelOf(el).querySelector(`input[data-role="${role}"]`) as HTMLInputElement;
   const type = async (el: DpkViewUsm, input: HTMLInputElement, query: string): Promise<void> => {
@@ -243,7 +245,7 @@ describe('usm dependencies: element', () => {
     expect(highlighted()?.getAttribute('data-story')).toBe('u1');
   });
 
-  it('is a combobox whose list opens on focus and closes on Escape before the panel does', async () => {
+  it('is a combobox whose list opens on focus and closes on Escape before the story is let go', async () => {
     const el = await mount('#story=u3');
     const input = pickerOf(el, 'add-blocker');
     expect(input.getAttribute('role')).toBe('combobox');
@@ -259,9 +261,9 @@ describe('usm dependencies: element', () => {
     expect(choicesOf(el)).toEqual(['spike', 'u1', 'u2']);
     await press(el, input, 'Escape');
     expect(input.getAttribute('aria-expanded')).toBe('false');
-    expect(el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')).not.toBeNull();
+    expect(storyDetailOf(el)).not.toBeNull();
     await press(el, input, 'Escape');
-    expect(el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')).toBeNull();
+    expect(storyDetailOf(el)).toBeNull();
   });
 
   it('says so when the query finds no story', async () => {

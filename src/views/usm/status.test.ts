@@ -11,6 +11,7 @@ import { usmMessages } from './messages';
 import { parseUsmBase, type UsmState } from './model';
 import { presentStatusOverview } from './status-overview';
 import { statusDistribution } from './status-view';
+import { settleDetail, storyDetailOf } from './testing';
 
 const m = usmMessages('en');
 const definition = usmDefinitionFor('en');
@@ -189,6 +190,7 @@ describe('usm statuses: element', () => {
     await el.updateComplete;
     await new Promise((resolve) => setTimeout(resolve, 0));
     await el.updateComplete;
+    await settleDetail(el);
   };
 
   const mount = async (hash: string): Promise<DpkViewUsm> => {
@@ -223,10 +225,10 @@ describe('usm statuses: element', () => {
     // no status name on the card: the icon carries it, the filter is the legend
     expect(card.shadowRoot!.textContent).not.toContain('Idea');
     expect(card.shadowRoot!.querySelector('.card-status')?.getAttribute('aria-label')).toBe(m.storyStatusAria('Idea'));
-    expect(root.querySelector('[data-testid="usm-story-panel"]')).toBeNull();
+    expect(storyDetailOf(el)).toBeNull();
     card.click();
     await settle(el);
-    const panel = () => root.querySelector('[data-testid="usm-story-panel"]')!;
+    const panel = () => storyDetailOf(el)!;
     expect(panel().getAttribute('data-story')).toBe('u4');
     expect(el.api.navigation['story']).toBe('u4');
     const options = [...panel().querySelectorAll('.sp-status')];
@@ -254,10 +256,10 @@ describe('usm statuses: element', () => {
     await card.updateComplete;
     expect(card.shadowRoot!.querySelector('.link-chip')?.textContent?.trim()).toBe('#86');
     expect(panel().querySelector('.sp-link-text')?.textContent?.trim()).toBe('#86');
-    // closing clears the story from the navigation
-    (panel().querySelector('[data-role="close"]') as HTMLButtonElement).click();
+    // Escape on the map lets go of the story
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     await settle(el);
-    expect(root.querySelector('[data-testid="usm-story-panel"]')).toBeNull();
+    expect(storyDetailOf(el)).toBeNull();
     expect(el.api.navigation['story']).toBeUndefined();
   });
 

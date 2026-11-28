@@ -12,6 +12,7 @@ import { usmDefinitionFor } from './definition';
 import { usmMessages } from './messages';
 import { parseUsmBase, type UsmState } from './model';
 import { resolveUsmNavigation } from './present';
+import { settleDetail, storyDetailOf } from './testing';
 
 const m = usmMessages('en');
 const definition = usmDefinitionFor('en');
@@ -346,6 +347,7 @@ describe('usm estimates and burndown: element', () => {
     await el.updateComplete;
     await new Promise((resolve) => setTimeout(resolve, 0));
     await el.updateComplete;
+    await settleDetail(el);
   };
 
   const mount = async (hash: string): Promise<DpkViewUsm> => {
@@ -372,7 +374,7 @@ describe('usm estimates and burndown: element', () => {
     };
     await card.updateComplete;
     expect(card.shadowRoot!.querySelector('[data-kind="estimate"]')?.textContent?.trim()).toBe('L');
-    const panel = el.shadowRoot!.querySelector('[data-testid="usm-story-panel"]')!;
+    const panel = storyDetailOf(el)!;
     (panel.querySelector('[data-estimate="M"]') as HTMLButtonElement).click();
     await settle(el);
     expect(el.api.state.stories.find((story) => story.id === 'e')?.estimateId).toBe('M');

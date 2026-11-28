@@ -238,8 +238,7 @@ export const usmMessages = defineMessages({
 
     // ----------------------------------------------------------- story card
     storyStatusLabel: 'Status',
-    panelLabel: (name: string) => `Story: ${name}`,
-    closePanelAria: 'Close',
+    storyDetailKind: 'Story',
     copyStoryKey: (key: string) => `Copy ${key}`,
     storyKeyCopied: 'Copied',
     storyKeyColumn: 'Key',
@@ -284,8 +283,6 @@ export const usmMessages = defineMessages({
     removeLinkAria: (label: string) => `Remove ${label}`,
     deleteStoryButton: 'Delete story',
     storyCommentsLabel: 'Comments',
-    reviewStoryButton: 'Review comment',
-    reviewStoryTitle: 'Write a review comment on this story, asking the agent for a change',
     storyStatusAria: (name: string) => `Status: ${name}`,
 
     // ------------------------------------------------------ members & assignees
@@ -552,8 +549,7 @@ export const usmMessages = defineMessages({
     moveCancel: 'キャンセル',
 
     storyStatusLabel: 'ステータス',
-    panelLabel: (name: string) => `ストーリー: ${name}`,
-    closePanelAria: '閉じる',
+    storyDetailKind: 'ストーリー',
     copyStoryKey: (key: string) => `${key} をコピー`,
     storyKeyCopied: 'コピーしました',
     storyKeyColumn: 'キー',
@@ -594,8 +590,6 @@ export const usmMessages = defineMessages({
     removeLinkAria: (label: string) => `${label} を外す`,
     deleteStoryButton: 'ストーリーを削除',
     storyCommentsLabel: 'コメント',
-    reviewStoryButton: 'レビューコメント',
-    reviewStoryTitle: 'このストーリーについて Agent に直してほしいことをレビューコメントに書く',
     storyStatusAria: (name: string) => `ステータス: ${name}`,
 
     addMember: 'メンバーを追加',
