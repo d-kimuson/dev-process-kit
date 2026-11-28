@@ -10,6 +10,14 @@ import { PanelHeightController } from './height-controller';
 import { panelMessages, type PanelMessages } from './messages';
 import { scrollsInside } from './model';
 
+/** `full` draws the frame, header and control menu; `none` draws only the content (a figure). */
+export type PanelChrome = 'full' | 'none';
+
+const CHROME_CONVERTER = {
+  fromAttribute: (value: string | null): PanelChrome => (value === 'none' ? 'none' : 'full'),
+  toAttribute: (value: PanelChrome): string => value,
+};
+
 /**
  * `<dpk-dialog-panel>` — a framed box with a header and a floating control
  * menu: the shell every diagram uses, for any content.
@@ -30,6 +38,10 @@ import { scrollsInside } from './model';
  *   handled the key), a resize grip (with `resizable`), and the `controls`
  *   slot for buttons of the panel's own use. Maximized, it moves to the
  *   bottom-centre instead.
+ * - `chrome="none"` drops the frame, header and control menu for a figure
+ *   embedded in the page's own flow. A canvas is then static: it takes the
+ *   height its whole content needs at a scale of at most 100% instead of
+ *   panning and zooming.
  *
  * Events: `dpk-maximize-change` with `{ maximized }`; with `canvas`,
  * `dpk-canvas-change` with `{ view }` after every move and the cancelable
@@ -412,6 +424,38 @@ export class DpkDialogPanel extends LitElement {
           display: none;
         }
       }
+
+      /*
+       * A figure in the page's flow: no frame to draw, no header or menu over
+       * it, and a canvas that takes the height its content needs rather than
+       * a fixed one to pan inside.
+       */
+      :host([chrome='none']) .panel {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      :host([chrome='none'][canvas]) .panel {
+        height: auto;
+        min-height: 0;
+      }
+
+      :host([chrome='none'][canvas]) .frame {
+        flex: none;
+        min-height: 0;
+      }
+
+      :host([chrome='none']) .canvas {
+        background: transparent;
+        cursor: auto;
+        touch-action: auto;
+      }
+
+      :host([chrome='none']) .body {
+        padding: var(--dpk-dialog-panel-padding, 0);
+      }
     `,
   ];
 
@@ -428,6 +472,7 @@ export class DpkDialogPanel extends LitElement {
     align: { type: String },
     fitMode: { type: String, attribute: 'fit-mode' },
     label: { type: String },
+    chrome: { type: String, reflect: true, converter: CHROME_CONVERTER },
   };
 
   /** Header title. The `heading` slot replaces it with markup. */
@@ -451,6 +496,8 @@ export class DpkDialogPanel extends LitElement {
   declare fitMode: 'all' | 'width';
   /** Accessible name of the canvas. */
   declare label: string | null;
+  /** `full` (default) draws the whole shell; `none` draws only the content. */
+  declare chrome: PanelChrome;
 
   readonly #i18n = new LocaleController(this);
   readonly #canvas = new PanelCanvasController(this, {
@@ -472,6 +519,7 @@ export class DpkDialogPanel extends LitElement {
       if (value) value.textContent = zoomLabel(view);
       this.dispatchEvent(new CustomEvent('dpk-canvas-change', { detail: { view }, bubbles: true, composed: true }));
     },
+    staticSize: () => this.chrome === 'none' && this.canvas,
   });
   readonly #height = new PanelHeightController(
     this,
@@ -496,6 +544,7 @@ export class DpkDialogPanel extends LitElement {
     this.align = 'center';
     this.fitMode = 'all';
     this.label = null;
+    this.chrome = CHROME_CONVERTER.fromAttribute(this.getAttribute('chrome'));
     // On the host, so a key or a wheel turn from slotted content is seen too.
     this.addEventListener('keydown', this.#restoreOnEscape);
     this.addEventListener('wheel', this.#holdWheel, { passive: false });
@@ -554,6 +603,7 @@ export class DpkDialogPanel extends LitElement {
     // The controller reads the alignment once; a change rebuilds it.
     const rebuild =
       (changed.has('canvas') && this.canvas !== this.#canvas.attached) ||
+      (changed.has('chrome') && this.canvas) ||
       (changed.has('align') && changed.get('align') !== undefined && this.canvas);
     if (rebuild) {
       if (this.canvas) this.#canvas.attach();
@@ -564,29 +614,39 @@ export class DpkDialogPanel extends LitElement {
   protected override render(): unknown {
     // Read from the children, so the menu does not appear a frame late; the slot reports later changes.
     this.#hasControls = Array.from(this.children).some((child) => child.slot === 'controls');
-    const showControls = this.canvas || this.maximizable || this.resizable || this.#hasControls;
+    const chromeless = this.chrome === 'none';
+    const maximizable = this.maximizable && !chromeless;
+    const resizable = this.resizable && !chromeless;
+    const maximized = this.maximized && maximizable;
+    const showControls = !chromeless && (this.canvas || maximizable || resizable || this.#hasControls);
     const height = this.#height.height;
     return html`
-      ${this.maximized ? html`<div class="placeholder" style="height:${this.#placeholderHeight}px"></div>` : nothing}
+      ${maximized ? html`<div class="placeholder" style="height:${this.#placeholderHeight}px"></div>` : nothing}
       <section
-        class=${this.maximized ? 'panel is-maximized' : 'panel'}
+        class=${maximized ? 'panel is-maximized' : 'panel'}
         part="panel"
-        popover=${this.maximized ? 'manual' : nothing}
-        style=${height === null || !this.resizable ? nothing : `height: ${height}px`}
-        ?data-resizing=${this.#height.dragging}
+        popover=${maximized ? 'manual' : nothing}
+        style=${height === null || !resizable ? nothing : `height: ${height}px`}
+        ?data-resizing=${resizable && this.#height.dragging}
+        role=${chromeless ? 'figure' : nothing}
+        aria-label=${chromeless ? (this.heading ?? nothing) : nothing}
       >
-        <header part="header">
-          <slot name="heading">
-            ${this.heading ? html`<span class="title" title=${this.heading}>${this.heading}</span>` : nothing}
-            ${this.subject ? html`<span class="subject" title=${this.subject}>${this.subject}</span>` : nothing}
-          </slot>
-          <div class="actions"><slot name="actions"></slot></div>
-        </header>
+        ${
+          chromeless
+            ? nothing
+            : html`<header part="header">
+                <slot name="heading">
+                  ${this.heading ? html`<span class="title" title=${this.heading}>${this.heading}</span>` : nothing}
+                  ${this.subject ? html`<span class="subject" title=${this.subject}>${this.subject}</span>` : nothing}
+                </slot>
+                <div class="actions"><slot name="actions"></slot></div>
+              </header>`
+        }
         <slot name="toolbar"></slot>
         <div class="frame" ?data-controls=${showControls && !this.canvas}>
           ${this.canvas ? this.#renderCanvas() : html`<div class="body" part="body"><slot></slot></div>`}
-          ${this.#renderControls(showControls)}
-          ${this.maximized && this.maximizable ? this.#renderExitFullscreen() : nothing}
+          ${chromeless ? nothing : this.#renderControls(showControls)}
+          ${maximized && maximizable ? this.#renderExitFullscreen() : nothing}
         </div>
         <slot name="footer"></slot>
       </section>
@@ -598,7 +658,14 @@ export class DpkDialogPanel extends LitElement {
   }
 
   #renderCanvas(): TemplateResult {
-    return html`<div class="body canvas" part="body canvas" tabindex="0" aria-label=${this.label ?? this.#m.canvas}>
+    // A static figure has no view to navigate, so it is not a keyboard stop either.
+    const tabindex = this.chrome === 'none' ? nothing : '0';
+    return html`<div
+      class="body canvas"
+      part="body canvas"
+      tabindex=${tabindex}
+      aria-label=${this.label ?? this.#m.canvas}
+    >
       <div class="world" part="world"><slot></slot></div>
       <slot name="overlay"></slot>
     </div>`;

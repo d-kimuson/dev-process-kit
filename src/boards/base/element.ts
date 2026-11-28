@@ -97,6 +97,14 @@ const VARIANT_CONVERTER = {
   toAttribute: (value: DiagramVariant): string => value,
 };
 
+/** `full` draws the board's shell; `none` draws only the figure, for a diagram embedded in prose. */
+export type BoardChrome = 'full' | 'none';
+
+const CHROME_CONVERTER = {
+  fromAttribute: (value: string | null): BoardChrome => (value === 'none' ? 'none' : 'full'),
+  toAttribute: (value: BoardChrome): string => value,
+};
+
 /**
  * Narrows an `ActionInput.payload` (`unknown`, since the pipeline carries
  * every template's payload shape alike) back to the plain object
@@ -115,6 +123,7 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     heading: { type: String },
     subject: { type: String },
     variant: { type: String, reflect: true, converter: VARIANT_CONVERTER },
+    chrome: { type: String, reflect: true, converter: CHROME_CONVERTER },
   };
 
   /** Element data as a typed property. The JSON child is the HTML-side path. */
@@ -125,6 +134,12 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   declare subject: string | null;
   /** `embedded` (default) or `board`; see `DiagramVariant`. */
   declare variant: DiagramVariant;
+  /**
+   * `full` (default) draws the board's shell; `none` strips its frame, header,
+   * tag filter and control menu for a figure embedded in the page's flow.
+   * Ignored while this board is a page's content, which is the page itself.
+   */
+  declare chrome: BoardChrome;
 
   /** The authored data, before this element's element actions. */
   #authored: D | null = null;
@@ -158,6 +173,7 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
     this.heading = null;
     this.subject = null;
     this.variant = VARIANT_CONVERTER.fromAttribute(this.getAttribute('variant'));
+    this.chrome = CHROME_CONVERTER.fromAttribute(this.getAttribute('chrome'));
   }
 
   override connectedCallback(): void {
@@ -576,6 +592,15 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   }
 
   /**
+   * Whether this board draws only its figure: `chrome="none"` on an embedded
+   * board. A board that is a page's content is that page, so the attribute is
+   * ignored there (`this.board === null`).
+   */
+  protected get chromeless(): boolean {
+    return this.chrome === 'none' && this.board === null;
+  }
+
+  /**
    * Whether this element's `<dpk-dialog-panel>` frame offers maximize and
    * resize: true for `embedded` (today's chrome), false for `board` — a
    * full-page board frame already fills the page (ADR
@@ -584,7 +609,7 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
    * instead of re-deriving `variant !== 'board'` on its own.
    */
   protected get frameControls(): boolean {
-    return this.board === null;
+    return this.board === null && !this.chromeless;
   }
 
   protected defaultHeading(): string {
@@ -616,15 +641,24 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
   }
 
   /** `<div slot="actions">`: the component's own toolbar controls plus the stats pill. */
-  protected renderToolbarActionsSlot(): TemplateResult {
+  protected renderToolbarActionsSlot(): TemplateResult | typeof nothing {
+    if (this.chromeless) return nothing;
     return html`<div slot="actions" class="diagram-toolbar-actions">
       ${this.renderToolbarActions()}
       <span class="diagram-stats">${this.statsText()}</span>
     </div>`;
   }
 
-  /** `<div slot="toolbar">`: the tag filter, plus anything a canvas element renders above its body. */
-  protected renderTagFilterRow(extra: TemplateResult | typeof nothing = nothing): TemplateResult {
+  /**
+   * `<div slot="toolbar">`: the tag filter, plus anything a canvas element
+   * renders above its body (the sequence diagram's participant rail). Without
+   * chrome the filter is gone, but that rail still has to line up with the
+   * canvas below it, so it keeps its row.
+   */
+  protected renderTagFilterRow(extra: TemplateResult | typeof nothing = nothing): TemplateResult | typeof nothing {
+    if (this.chromeless) {
+      return extra === nothing ? nothing : html`<div slot="toolbar" class="diagram-toolbar-rows">${extra}</div>`;
+    }
     return html`<div slot="toolbar" class="diagram-toolbar-rows">
       <dpk-tag-filter
         .tags=${tagCounts(this.tagItems())}
@@ -638,6 +672,11 @@ export abstract class BoardChromeBase<D, S extends SelectionRef = GraphSelection
       ></dpk-tag-filter>
       ${extra}
     </div>`;
+  }
+
+  /** What a board passes to its panel's `chrome`: `none` only for a figure. */
+  protected panelChrome(): BoardChrome | typeof nothing {
+    return this.chromeless ? 'none' : nothing;
   }
 
   // ---------------------------------------------------------------- internals
@@ -763,6 +802,9 @@ export abstract class BoardCanvasChromeElement<D, S extends SelectionRef = Graph
     const size = this.contentSize();
     viewport.contentWidth = size?.width ?? 0;
     viewport.contentHeight = size?.height ?? 0;
+    // A figure has no view of its own to open: the panel sizes itself to the
+    // whole content and fits it once.
+    if (this.chromeless) return;
     await viewport.updateComplete;
     if (size === null) return;
     const version = this.layoutVersion();
@@ -806,6 +848,10 @@ export abstract class BoardCanvasChromeElement<D, S extends SelectionRef = Graph
   }
 
   protected fitViewport(): void {
+    if (this.chromeless) {
+      this.viewport?.fit();
+      return;
+    }
     if (this.fitMode() === 'width') this.viewport?.fitWidth();
     else this.viewport?.fit();
   }
@@ -913,9 +959,11 @@ export abstract class BoardCanvasChromeElement<D, S extends SelectionRef = Graph
     const m = this.chromeMessages;
     const subject = this.subject ?? this.defaultSubject();
     const controls = this.renderControls();
+    const legend = this.renderLegend();
     return html`
       <dpk-dialog-panel
         class=${classNames('diagram', this.shellClass())}
+        chrome=${this.panelChrome()}
         flush
         ?maximizable=${this.frameControls}
         ?resizable=${this.frameControls}
@@ -945,7 +993,7 @@ export abstract class BoardCanvasChromeElement<D, S extends SelectionRef = Graph
       >
         ${this.renderToolbarActionsSlot()} ${this.renderTagFilterRow(this.renderAboveCanvas())}
         <div class="diagram-world">${this.renderCanvas()}</div>
-        ${controls === nothing ? nothing : html`<div slot="controls">${controls}</div>`}
+        ${this.chromeless || controls === nothing ? nothing : html`<div slot="controls">${controls}</div>`}
         <div slot="overlay" class="diagram-overlay">
           ${this.isEmpty() ? html`<p class="diagram-empty">${this.emptyMessage()}</p>` : nothing}
           ${
@@ -953,8 +1001,13 @@ export abstract class BoardCanvasChromeElement<D, S extends SelectionRef = Graph
               ? nothing
               : html`<p class="diagram-notice" role="alert">${m.dataError}<br />${this.dataError}</p>`
           }
-          ${this.renderLegend()}
+          ${this.chromeless ? nothing : legend}
         </div>
+        ${
+          this.chromeless && legend !== nothing
+            ? html`<div slot="footer" class="diagram-legend-flow">${legend}</div>`
+            : nothing
+        }
       </dpk-dialog-panel>
       ${this.renderSelection()}
     `;
@@ -1293,6 +1346,8 @@ export abstract class BoardCanvasElement<D extends DiagramData> extends BoardCan
    * own buttons, "+ 追加", inputs) never starts a drag at all.
    */
   protected onNodeDragStart(event: PointerEvent, id: string): void {
+    // A figure is placed by its layout alone: its nodes stay where they are.
+    if (this.chromeless) return;
     if (event.button !== 0 || this.#drag.kind !== 'idle') return;
     const origin = event.target instanceof Element ? event.target.closest(NODE_INTERACTIVE_SELECTOR) : null;
     if (origin !== null && origin !== event.currentTarget) return;
@@ -1346,6 +1401,7 @@ export abstract class BoardCanvasElement<D extends DiagramData> extends BoardCan
    * and nothing requires it to match one.
    */
   protected onGroupDragStart(event: PointerEvent, key: string, ids: readonly string[]): void {
+    if (this.chromeless) return;
     if (event.button !== 0 || this.#drag.kind !== 'idle') return;
     const target = event.currentTarget;
     if (!(target instanceof HTMLElement) || ids.length === 0) return;

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { DpkDialogPanel } from '../../components/dialog-panel/index';
 import type { ContextMenuEntry, ContextMenuRequest } from '../../core/context-menu/types';
 
 import { parseTargetRef } from '../../core/target';
@@ -123,6 +124,20 @@ const card = (element: DpkBoardKanban, id: string): HTMLElement => {
 };
 
 describe('<dpk-board-kanban>', () => {
+  it('passes chrome="none" to its panel, dropping the frame, header and filter', async () => {
+    const element = await mount();
+    const panel = (): DpkDialogPanel | null => element.renderRoot.querySelector<DpkDialogPanel>('dpk-dialog-panel');
+    expect(panel()?.getAttribute('chrome')).not.toBe('none');
+
+    element.chrome = 'none';
+    await settle(element);
+    await panel()?.updateComplete;
+
+    expect(panel()?.getAttribute('chrome')).toBe('none');
+    expect(panel()?.shadowRoot?.querySelector('header')).toBeNull();
+    expect(element.renderRoot.querySelector('dpk-tag-filter')).toBeNull();
+  });
+
   it('shows a card’s links, opening them without opening the card', async () => {
     const element = await mount();
     const link = card(element, 'api').querySelector<HTMLAnchorElement>('.kanban-card-links a');

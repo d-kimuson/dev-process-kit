@@ -199,6 +199,7 @@ export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelec
     return html`
       <dpk-dialog-panel
         class=${this.shellClass()}
+        chrome=${this.panelChrome()}
         flush
         ?maximizable=${this.frameControls}
         ?resizable=${this.frameControls}

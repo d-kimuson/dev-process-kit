@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { PANEL_MIN_HEIGHT, draggedPanelHeight, keyedPanelHeight, scrollsInside, type ScrollBox } from './model';
+import { MIN_SCALE } from '../../boards/base/viewport';
+import {
+  PANEL_MIN_HEIGHT,
+  draggedPanelHeight,
+  keyedPanelHeight,
+  naturalCanvasHeight,
+  scrollsInside,
+  type ScrollBox,
+} from './model';
 
 const box = (overrides: Partial<ScrollBox> = {}): ScrollBox => ({
   overflowX: 'visible',
@@ -41,6 +49,28 @@ describe('scrollsInside', () => {
   it('ignores a box that only scrolls vertically when the turn is horizontal, and vice versa', () => {
     expect(scrollsInside([box({ overflowY: 'scroll', scrollTop: 200 })], -10, 0)).toBe(false);
     expect(scrollsInside([box({ overflowX: 'auto', scrollWidth: 400, scrollLeft: 200 })], 0, -10)).toBe(false);
+  });
+});
+
+describe('naturalCanvasHeight', () => {
+  it('fits the content width and adds the vertical margin when it has to shrink', () => {
+    // 800px content in a 424px canvas: scale 400/800 = 0.5, height 400 * 0.5 + 40.
+    expect(naturalCanvasHeight(424, { width: 800, height: 400 }, MIN_SCALE)).toBe(240);
+  });
+
+  it('opens small content at 100%, rounding the height up', () => {
+    expect(naturalCanvasHeight(1000, { width: 300, height: 201 }, MIN_SCALE)).toBe(241);
+  });
+
+  it('never shrinks below MIN_SCALE', () => {
+    expect(naturalCanvasHeight(10, { width: 100_000, height: 100_000 }, MIN_SCALE)).toBe(
+      Math.ceil(100_000 * MIN_SCALE + 40),
+    );
+  });
+
+  it('leaves room for the notice when there is no content', () => {
+    expect(naturalCanvasHeight(800, null, MIN_SCALE)).toBe(160);
+    expect(naturalCanvasHeight(800, { width: 0, height: 0 }, MIN_SCALE)).toBe(160);
   });
 });
 

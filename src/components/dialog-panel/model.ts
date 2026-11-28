@@ -1,3 +1,24 @@
+import { clamp } from 'es-toolkit/math';
+
+/**
+ * The height a static canvas needs to show its whole content box at scale
+ * <= 100%, for a figure embedded in the page's flow rather than a fixed-height
+ * canvas. The scale is the width-fit one (`fit()`'s own `(width - 24)` margin),
+ * and the height is that scaled content plus the 20px margin `fit()` leaves at
+ * the top and bottom, so the viewport's fit needs no panning or zooming.
+ * Without content the notice still needs room to sit. `minScale` is the
+ * viewport's own lower bound, so the two can never drift.
+ */
+export const naturalCanvasHeight = (
+  canvasWidth: number,
+  content: { readonly width: number; readonly height: number } | null,
+  minScale: number,
+): number => {
+  if (content === null || content.width <= 0 || content.height <= 0) return 160;
+  const scale = clamp((canvasWidth - 24) / content.width, minScale, 1);
+  return Math.ceil(content.height * scale + 40);
+};
+
 /** One element on the way from a wheel event's target up to the panel. */
 export type ScrollBox = {
   readonly overflowX: string;
