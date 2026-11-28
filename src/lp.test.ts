@@ -148,7 +148,12 @@ describe('lp pages', () => {
       'ship',
     ]);
     expect(board.nodes.length).toBeGreaterThanOrEqual(16);
-    expect(board.edges.filter((flow) => flow.kind === 'message')).toHaveLength(4);
+    expect(board.edges.filter((flow) => flow.kind === 'message')).toHaveLength(5);
+    expect(board.edges.find((flow) => flow.id === 'm-decline')).toMatchObject({ from: 'decline', to: 'customer' });
+    expect(board.edges.find((flow) => flow.id === 'a-credit-note')).toMatchObject({
+      from: 'order-note',
+      to: 'credit-check',
+    });
     // The sales and warehouse processes are separate; only messages cross pools.
     for (const flow of board.edges) {
       if (flow.kind !== 'sequence') continue;

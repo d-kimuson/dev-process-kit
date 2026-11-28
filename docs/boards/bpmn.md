@@ -80,7 +80,7 @@ Validation rejects a duplicate id across every collection, an unknown lane, a se
 
 ## Reading it
 
-- **Layout** — columns follow the sequence flows left to right, rows follow the author's pool and lane order. Every pool spans the same width, so a message between non-adjacent pools can run around the pools in between. There are no authored positions.
+- **Layout** — columns follow the sequence flows left to right, rows follow the author's pool and lane order. Every pool spans the same width, so a message between non-adjacent pools takes the shortest clear vertical run and detours only around an element in its way; its horizontal runs stay in the gaps. There are no authored positions.
 - **Selection** — click an element or a flow's label to select it. A selected element lights its one-hop incoming and outgoing flows (of every kind) and their other ends; the rest dims. Clicking the background or `Escape` clears it.
 - **Flow animation** — a related or selected sequence/message flow animates its dots; reduced motion leaves them still.
 - **Tag filter** — filters elements; pools and lanes always stay, and a flow whose end is filtered out goes with it.
@@ -89,4 +89,4 @@ Validation rejects a duplicate id across every collection, an unknown lane, a se
 
 ## Chrome-less figures
 
-`chrome="none"` (`docs/boards/index.md`, Figure only) drops the frame, header, tag filter and controls and fits the whole process into the page. The board opens fitted when it is a page's content or embedded with its control, so a wide process starts readable rather than clipped.
+`chrome="none"` (`docs/boards/index.md`, Figure only) drops the frame, header, tag filter and controls and fits the whole process into the page. With its chrome, the board opens at 100% at the start of the process, so the text is real size; the percentage in the zoom control fits the whole process.

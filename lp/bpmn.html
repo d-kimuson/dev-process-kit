@@ -171,8 +171,10 @@
                   "name": "出荷依頼"
                 },
                 { "id": "m-shipped", "kind": "message", "from": "ship-out", "to": "customer", "name": "発送通知" },
+                { "id": "m-decline", "kind": "message", "from": "decline", "to": "customer", "name": "お断り" },
                 { "id": "a-order", "kind": "association", "from": "order-data", "to": "review" },
-                { "id": "a-note", "kind": "association", "from": "stock-note", "to": "reserve" }
+                { "id": "a-note", "kind": "association", "from": "stock-note", "to": "reserve" },
+                { "id": "a-credit-note", "kind": "association", "from": "order-note", "to": "credit-check" }
               ]
             }
           </script>

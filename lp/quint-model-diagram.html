@@ -3673,13 +3673,21 @@
       const WORLD_W = WORLD.x0 * 2 + BCS.length * WORLD.cardW + (BCS.length - 1) * WORLD.colGap;
       const columnX = (index) => WORLD.x0 + index * (WORLD.cardW + WORLD.colGap);
 
-      function loadQuintDiagram() {
+      function loadQuintDiagram(attempt = 0) {
         const rootEl = document.getElementById('qc-root');
         if (!rootEl) return;
         // The inline boot below calls methods the panel only has once its element
         // class is defined; the module bundle may still be loading at parse time.
+        // Bounded, so a page without the panel (or one that never upgrades) stops.
         if (typeof document.getElementById('quint-panel')?.apply !== 'function') {
-          customElements.whenDefined('dpk-dialog-panel').then(() => loadQuintDiagram());
+          if (attempt >= 40) {
+            console.error('quint: dpk-dialog-panel did not become usable');
+            return;
+          }
+          const ready = customElements.get('dpk-dialog-panel')
+            ? Promise.resolve()
+            : customElements.whenDefined('dpk-dialog-panel');
+          ready.then(() => window.setTimeout(() => loadQuintDiagram(attempt + 1), 25));
           return;
         }
 
