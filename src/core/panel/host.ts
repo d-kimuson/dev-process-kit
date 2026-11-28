@@ -8,7 +8,7 @@
  */
 import type { TemplateResult } from 'lit';
 
-import type { ComponentSection, DetailIntent } from './model';
+import type { ComponentSection, DetailIntent, PanelTab } from './model';
 
 /** The selected element's detail, as the content hands it to the panel. */
 export type PanelDetail = {
@@ -57,6 +57,10 @@ export type PanelHost = {
   readonly isOpen: boolean;
   /** The name of the section the panel shows. */
   readonly section: string;
+  /** The sections the panel lists, in order. */
+  readonly tabs: readonly PanelTab[];
+  /** Calls the listener whenever what the panel shows or lists may have changed; returns the unsubscribe. */
+  subscribe(listener: () => void): () => void;
   /** The source's state changed: draw its detail and sections again. */
   invalidate(source: Element): void;
   /** Opens the panel, on `section` when given; `focus` moves the focus to that section's segment. */

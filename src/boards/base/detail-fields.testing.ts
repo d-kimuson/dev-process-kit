@@ -22,6 +22,8 @@ export const connectInPanelOwner = (board: HTMLElement): PanelReport[] => {
     close: () => undefined,
     isOpen: false,
     section: 'detail',
+    tabs: [],
+    subscribe: () => () => undefined,
   };
   const owner = document.createElement('div');
   Object.defineProperty(owner, PANEL_HOST, { value: host });

@@ -336,7 +336,10 @@ draft action.
   page to switch to or a content to add (the name of the page shown is in its own label, and **+**
   adds one), the page's title as its `h1` (ellipsized, with the whole title on hover), then the
   content's own header controls and your `slot="header"` markup, and, at the end, the language
-  select, the theme toggle and the settings gear. The gear opens the
+  select, the theme toggle, one button per section of the side panel the author wrote (each
+  `slot="panel"` section and supplement, with its label and badge) and the settings gear. A
+  section's button opens the panel on that section and closes it while it shows that section;
+  buttons with no room go into one menu button after the others. The gear opens the
   [side panel](components/panel-section.md) on its last section, **Settings** (設定): the page's own
   switches and any section its view renders, one at a time, with a nav between them when there is
   more than one. Its **General** section repeats the header's language select and light/dark
@@ -482,7 +485,7 @@ Slot each piece of supporting material as its own element with a `data-name`:
 </section>
 ```
 
-Each supplement is a section of the side panel, labelled by its `data-name` (one without a name is labelled **Notes**), after **Detail** and in the order written together with the `slot="panel"` sections, and before **Settings**. A page with a supplement opens its panel until the reader closes it. The panel shows one section at a time and follows supplements added later; in a [`<dpk-page>`](page.md) the page's panel shows its content's supplements after its own sections. A supplement may hold the boards (load `components.js` too). Selecting an element of a board in the supplement on show turns the panel to its **Detail**, which leads back to that supplement (`Back to <name>`, or `Esc` in the detail).
+Each supplement is a section of the side panel, labelled by its `data-name` (one without a name is labelled **Notes**), after **Detail** and in the order written together with the `slot="panel"` sections, and before **Settings**. The header's button for a supplement opens the panel on it (see [the header](#framework-chrome)). The panel shows one section at a time and follows supplements added later; in a [`<dpk-page>`](page.md) the page's panel shows its content's supplements after its own sections. A supplement may hold the boards (load `components.js` too). Selecting an element of a board in the supplement on show turns the panel to its **Detail**, which leads back to that supplement (`Back to <name>`, or `Esc` in the detail).
 
 The `memo` slot is gone: content left in `slot="memo"` is not shown, and the console says so. Wrap it in a `slot="supplement"` element instead.
 

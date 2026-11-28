@@ -9,11 +9,13 @@
  */
 export { DpkInternalLayoutApp, defineLayoutApp } from './app/index';
 export { DpkInternalLayoutPanel, defineLayoutPanel } from './panel/index';
+export { DpkInternalLayoutPanelLaunchers, defineLayoutPanelLaunchers } from './panel-launchers/index';
 export { DpkInternalLayoutSettings, defineLayoutSettings } from './settings/index';
 export { DpkInternalLayoutSidebar, defineLayoutSidebar } from './sidebar/index';
 export type { SidebarLayout, SidebarNarrow, SidebarPane, SidebarSide } from './sidebar/index';
 
 import { defineLayoutApp } from './app/index';
+import { defineLayoutPanelLaunchers } from './panel-launchers/index';
 import { defineLayoutPanel } from './panel/index';
 import { defineLayoutSettings } from './settings/index';
 import { defineLayoutSidebar } from './sidebar/index';
@@ -23,5 +25,6 @@ export const defineLayoutElements = (): void => {
   defineLayoutApp();
   defineLayoutSidebar();
   defineLayoutPanel();
+  defineLayoutPanelLaunchers();
   defineLayoutSettings();
 };

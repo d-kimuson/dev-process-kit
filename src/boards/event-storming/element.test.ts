@@ -281,6 +281,8 @@ describe('<dpk-board-event-storming>', () => {
       provideSettings: () => () => undefined,
       close: () => undefined,
       isOpen: false,
+      tabs: [],
+      subscribe: () => () => undefined,
       section: 'detail',
     };
     const owner = document.createElement('div');

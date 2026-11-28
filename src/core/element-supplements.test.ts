@@ -83,10 +83,13 @@ describe('supplements as sections of the side panel', () => {
     expect(tabLabels(element)).toEqual([settings]);
   });
 
-  it('starts open on the first supplement until the reader closes the panel', async () => {
+  it('starts closed, and opens on the first supplement', async () => {
     const element = mount(THREE);
     await settle(element);
-    expect(element.panelOpen).toBe(true);
+    expect(element.panelOpen).toBe(false);
+    expect(shown(element)).toEqual([]);
+    element.openPanel();
+    await settle(element);
     expect(shown(element)).toEqual(['ERD']);
   });
 

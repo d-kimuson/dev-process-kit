@@ -147,6 +147,8 @@ const withPanel = async (
     provideSettings: () => () => undefined,
     close: () => undefined,
     isOpen: false,
+    tabs: [],
+    subscribe: () => () => undefined,
     section: 'detail',
   };
   const owner = document.createElement('div');

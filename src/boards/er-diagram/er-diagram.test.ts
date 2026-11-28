@@ -1149,6 +1149,8 @@ describe('dpk-board-er-diagram', () => {
         provideSettings: () => () => undefined,
         close: () => undefined,
         isOpen: false,
+        tabs: [],
+        subscribe: () => () => undefined,
         section: 'detail',
       };
       const owner = document.createElement('div');

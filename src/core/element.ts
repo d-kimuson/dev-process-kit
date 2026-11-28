@@ -1121,6 +1121,10 @@ export abstract class ViewElement<S> extends LitElement {
           </div>
           ${this.#renderSyncStatus()}
           <div class="dpk-header-tools">${this.#renderLanguageSelect()} ${this.#renderThemeToggle()}</div>
+          <dpk-internal-layout-panel-launchers
+            .host=${this.settingsPanelHost()}
+            .locale=${this.locale}
+          ></dpk-internal-layout-panel-launchers>
           ${renderSettingsTrigger(messages, this.settingsTriggerIntents)}
           ${renderFloatingMenuSlot(messages, this.#floatingMenu.placement, { toHeader: this.#floatingMenu.toHeader })}
         </header>

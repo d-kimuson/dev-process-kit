@@ -229,22 +229,15 @@ describe('stored state', () => {
     expect(parsePanelRecord({ section: 'issues' })).toBeNull();
   });
 
-  it("lets the reader's record win over panel=open and the sections", () => {
-    expect(panelOpenState({ open: false, section: null }, 'open', [])).toBe(false);
-    expect(panelOpenState({ open: false, section: null }, 'auto', tabs(false, 'issues'))).toBe(false);
-    expect(panelOpenState(null, 'open', [])).toBe(true);
-    expect(panelOpenState(null, 'auto', withSettings(tabs(true)))).toBe(false);
+  it("lets the reader's record win over panel=open", () => {
+    expect(panelOpenState({ open: false, section: null }, 'open')).toBe(false);
+    expect(panelOpenState({ open: true, section: null }, 'auto')).toBe(true);
   });
 
-  it('opens a panel with an author or component section until the reader closes it', () => {
-    expect(panelOpenState(null, 'auto', withSettings(tabs(true, 'issues')))).toBe(true);
-    const component = panelTabs({
-      detail: null,
-      components: [{ name: 'bulk', label: 'Bulk' }],
-      authored: [],
-      settings: null,
-    });
-    expect(panelOpenState(null, 'auto', component)).toBe(true);
+  it('opens on a first visit only for panel=open', () => {
+    expect(panelOpenState(null, 'open')).toBe(true);
+    expect(panelOpenState(null, 'auto')).toBe(false);
+    expect(panelOpenState(null, 'none')).toBe(false);
   });
 
   it('reads the panel mode', () => {

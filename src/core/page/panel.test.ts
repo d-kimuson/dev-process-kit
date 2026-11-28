@@ -68,7 +68,7 @@ describe('dpk-page side panel', () => {
   it("opens on the author's sections, shows the section asked for and says so", async () => {
     const page = mountPage(SECTIONS);
     let root = await settle(page);
-    expect(page.panelOpen).toBe(true);
+    expect(page.panelOpen).toBe(false);
 
     const changes: PanelChangeDetail[] = [];
     page.addEventListener(PANEL_CHANGE_EVENT, (event) => {
@@ -101,21 +101,25 @@ describe('dpk-page side panel', () => {
     expect(after.activeElement).toBe(tabs(after)[1]);
   });
 
-  it.each([{ panel: 'open' }, {}])(
-    'remembers the reader closing a panel that opens by itself (%o)',
-    async (attributes) => {
-      const first = mountPage(SECTIONS, attributes);
-      await settle(first);
-      expect(first.panelOpen).toBe(true);
-      first.panelOpen = false;
-      await settle(first);
-      first.remove();
+  it('starts closed without panel="open"', async () => {
+    const page = mountPage(SECTIONS);
+    const root = await settle(page);
+    expect(page.panelOpen).toBe(false);
+    expect(root.querySelector('.panel')).toBeNull();
+  });
 
-      const second = mountPage(SECTIONS, attributes);
-      await settle(second);
-      expect(second.panelOpen).toBe(false);
-    },
-  );
+  it('remembers the reader closing a panel that panel="open" opened', async () => {
+    const first = mountPage(SECTIONS, { panel: 'open' });
+    await settle(first);
+    expect(first.panelOpen).toBe(true);
+    first.panelOpen = false;
+    await settle(first);
+    first.remove();
+
+    const second = mountPage(SECTIONS, { panel: 'open' });
+    await settle(second);
+    expect(second.panelOpen).toBe(false);
+  });
 
   it('offers no panel with panel="none"', async () => {
     const page = mountPage(SECTIONS, { panel: 'none' });

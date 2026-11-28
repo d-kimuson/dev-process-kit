@@ -81,6 +81,8 @@ const withPanel = async (element: DpkBoardKanban): Promise<FakePanel> => {
     close: () => undefined,
     open: (section) => panel.opened.push(section),
     section: 'bulk',
+    tabs: [],
+    subscribe: () => () => undefined,
     get isOpen() {
       return panel.isOpen;
     },

@@ -18,6 +18,7 @@ export const panelMessages = defineMessages({
     commentOnDetail: 'Comment on this element',
     backToSection: (label: string) => `Back to ${label}`,
     notes: 'Notes',
+    moreSections: 'More sections',
   },
   ja: {
     panel: 'パネル',
@@ -36,6 +37,7 @@ export const panelMessages = defineMessages({
     commentOnDetail: 'この要素にコメント',
     backToSection: (label: string) => `${label} に戻る`,
     notes: 'メモ',
+    moreSections: 'ほかの区画',
   },
 });
 

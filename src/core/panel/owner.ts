@@ -34,6 +34,18 @@ import {
 export const PANEL_CHANGE_EVENT = 'dpk-panel-change';
 /** The attribute the owner sets on the author's section that is showing. */
 export const PANEL_ACTIVE_ATTRIBUTE = 'data-dpk-panel-active';
+/** Marks the panel's own surface, apart from the main column its frame also holds. */
+export const SIDE_PANEL_ATTRIBUTE = 'data-dpk-side-panel';
+
+/** Whether the element sits in a side panel, across shadow boundaries. */
+const inSidePanel = (element: Element): boolean => {
+  for (let current: Element | null = element; current !== null;) {
+    if (current.hasAttribute(SIDE_PANEL_ATTRIBUTE)) return true;
+    const root = current.getRootNode();
+    current = current.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
+  }
+  return false;
+};
 
 export type PanelChangeDetail = {
   readonly open: boolean;
@@ -170,11 +182,7 @@ export class PanelOwner implements ReactiveController, PanelHost {
   }
 
   get #opened(): boolean {
-    return panelOpenState(
-      this.#open === null ? null : { open: this.#open, section: null },
-      this.#options.mode(),
-      this.tabs,
-    );
+    return panelOpenState(this.#open === null ? null : { open: this.#open, section: null }, this.#options.mode());
   }
 
   get maximized(): boolean {
@@ -413,6 +421,9 @@ export class PanelOwner implements ReactiveController, PanelHost {
 
   open(section?: string, options?: { readonly focus?: boolean }): void {
     if (section !== undefined) this.#section = section;
+    // A control outside the panel that moves the focus in (the gear, a section's button) takes it back on Escape, even when the panel was open already.
+    const active = options?.focus === true && this.isOpen ? deepActiveElement() : null;
+    if (active !== null && !inSidePanel(active)) this.#returnFocus = active;
     this.setOpen(true);
     if (options?.focus === true && this.isOpen) {
       this.#focus = 'tab';

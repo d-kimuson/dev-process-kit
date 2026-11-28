@@ -22,9 +22,8 @@ export const SETTINGS_SECTION = 'settings';
 const RESERVED_SECTIONS: ReadonlySet<string> = new Set([DETAIL_SECTION, SETTINGS_SECTION]);
 
 /**
- * `auto` opens the panel on a first visit when it has an author's or a
- * component's section, and keeps it closed otherwise; `open` opens it on a
- * first visit; `none` offers only the settings.
+ * `auto` keeps the panel closed until the reader opens it; `open` opens it on
+ * a first visit; `none` offers only the settings.
  */
 export type PanelMode = 'auto' | 'open' | 'none';
 
@@ -206,13 +205,11 @@ export const parsePanelRecord = (value: unknown): PanelRecord | null => {
 };
 
 /**
- * Whether the panel is open: the reader's record wins; without one, the
- * author's `panel="open"` opens it, and so does a section beside the detail
- * and the settings (an author's or a component's), which the reader would
- * otherwise have no way to reach.
+ * Whether the panel is open: the reader's record wins; without one, only the
+ * author's `panel="open"` opens it. The header's section buttons and the gear
+ * open it otherwise.
  */
-export const panelOpenState = (record: PanelRecord | null, mode: PanelMode, tabs: readonly PanelTab[]): boolean =>
-  record?.open ?? (mode === 'open' || tabs.some((tab) => tab.kind === 'author' || tab.kind === 'component'));
+export const panelOpenState = (record: PanelRecord | null, mode: PanelMode): boolean => record?.open ?? mode === 'open';
 
 /** How tall the panel is as a sheet on a narrow screen. */
 export type SheetLevel = 'half' | 'full';

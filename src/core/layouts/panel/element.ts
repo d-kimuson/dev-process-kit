@@ -19,17 +19,13 @@
 import { css, html, LitElement, nothing, type CSSResultGroup, type PropertyValues, type TemplateResult } from 'lit';
 import { keyed } from 'lit/directives/keyed.js';
 
-import type { PanelOwner } from '../../panel/owner';
-
 import { iconChevronLeft, iconClose, iconComment, iconMaximize, iconMinimize } from '../../icons';
 import { panelMessages } from '../../panel/messages';
 import { DETAIL_SECTION, PANEL_WIDTH, SETTINGS_SECTION, tabKeyTarget, type PanelTab } from '../../panel/model';
+import { SIDE_PANEL_ATTRIBUTE, type PanelOwner } from '../../panel/owner';
 import { controls, tokens } from '../../theme';
 import { NarrowScreenController } from '../sidebar/narrow-screen-controller';
 import { SidebarResizeController } from '../sidebar/resize-controller';
-
-/** Marks the panel's own surface, apart from the main column the frame also holds. */
-const SIDE_PANEL_ATTRIBUTE = 'data-dpk-side-panel';
 
 /**
  * Whether the event happened inside a side panel: a board that holds the
