@@ -84,13 +84,18 @@ const effectiveLane = (data: BpmnData): ReadonlyMap<string, string | null> => {
   return laneOf;
 };
 
-const laneContents = (pool: BpmnPool, nodes: readonly BpmnNode[]): readonly LaneContent[] => {
+const laneContents = (
+  pool: BpmnPool,
+  nodes: readonly BpmnNode[],
+  laneOf: ReadonlyMap<string, string | null>,
+): readonly LaneContent[] => {
+  const laneId = (node: BpmnNode): string | null => laneOf.get(node.id) ?? node.lane;
   if (pool.lanes.length === 0)
-    return [{ id: pool.id, name: pool.name, nodes: nodes.filter((node) => node.pool === pool.id) }];
+    return [{ id: pool.id, name: pool.name, nodes: nodes.filter((node) => laneId(node) === pool.id) }];
   return pool.lanes.map((lane) => ({
     id: lane.id,
     name: lane.name,
-    nodes: nodes.filter((node) => node.lane === lane.id),
+    nodes: nodes.filter((node) => laneId(node) === lane.id),
   }));
 };
 
@@ -143,7 +148,7 @@ export const bpmnPlacement = (data: BpmnData, options: { readonly layerSpacing?:
   const contentLeft =
     BPMN_POOL_HEAD_WIDTH + (data.pools.some((pool) => pool.lanes.length > 0) ? BPMN_LANE_HEAD_WIDTH : 0) + BPMN_PAD_X;
 
-  const allLanes: LaneContent[] = data.pools.flatMap((pool) => laneContents(pool, data.nodes));
+  const allLanes: LaneContent[] = data.pools.flatMap((pool) => laneContents(pool, data.nodes, laneOf));
   const laneById = new Map(allLanes.map((lane) => [lane.id, lane]));
 
   type LaneRows = { readonly heights: readonly number[]; readonly tallest: readonly number[] };
@@ -177,7 +182,7 @@ export const bpmnPlacement = (data: BpmnData, options: { readonly layerSpacing?:
   const poolBands: BpmnPoolBand[] = [];
   let top = 0;
   for (const [poolIndex, pool] of data.pools.entries()) {
-    const lanes = laneContents(pool, data.nodes);
+    const lanes = laneContents(pool, data.nodes, laneOf);
     const empty = lanes.every((lane) => lane.nodes.length === 0);
     if (pool.lanes.length === 0 && empty) {
       poolBands.push({
