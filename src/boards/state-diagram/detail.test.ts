@@ -52,10 +52,10 @@ describe('state diagram detail in the side panel', () => {
     ]);
   });
 
-  it('reports a click as a selection, which leaves a closed panel closed', async () => {
+  it('reports a click as a request to open the panel on the detail', async () => {
     const { board, reports } = await mount();
     await clickIn(board, '[data-state="pending"]');
-    expect(reports.map((report) => report.report)).not.toContain('open');
+    expect(reports.filter((report) => report.report !== 'refresh').at(-1)?.report).toBe('open');
     expect(selectedDetail(reports)?.key).toContain('pending');
   });
 

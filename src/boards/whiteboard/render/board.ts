@@ -6,7 +6,7 @@ import type { WbGesture, WbResizeEdge } from '../gesture';
 import type { WhiteboardMessages } from '../messages';
 
 import { grillMark } from '../../../core/grill';
-import { iconComment, iconMinus, iconPlus } from '../../../core/icons';
+import { iconMinus, iconPlus } from '../../../core/icons';
 import { NEW_ITEM_KINDS, type NewItemKind } from '../commands';
 import { toScreen, type Viewport } from '../interactions';
 import { centerOf, connectorPath, outlinePoint, paintOrder, type Rect } from '../layout';
@@ -65,8 +65,6 @@ export type WbBoardProps = {
   readonly overlay: TemplateResult | typeof nothing;
   /** The host's own `commentRef`, so the board can mark items and connectors as right-click comment targets. */
   readonly commentRef: (kind: string, id: string) => string;
-  /** An item's own hover comment button asked for the chrome's composer over it. */
-  readonly onComment: (itemId: string) => void;
   readonly handlers: WbBoardHandlers;
 };
 
@@ -185,24 +183,6 @@ const renderItem = (props: WbBoardProps, item: WbItem): TemplateResult => {
       item.kind === 'frame'
         ? html`<div class="wb-frame-title" @pointerdown=${press}>${renderText(props, item)}</div>`
         : html`<div class="wb-item-body">${renderText(props, item)}</div>`
-    }
-    ${
-      // Frames carry their title instead of a rail: a frame's own comment goes
-      // through the right-click menu, so nothing hangs off its corner.
-      item.kind === 'frame'
-        ? nothing
-        : html`<div class="wb-item-actions" @pointerdown=${stopPress} @click=${stopPress}>
-            <button
-              class="dpk-icon-btn"
-              type="button"
-              data-role="comment"
-              title=${props.m.comment}
-              aria-label=${props.m.comment}
-              @click=${() => props.onComment(item.id)}
-            >
-              ${iconComment()}
-            </button>
-          </div>`
     }
     ${
       resizable

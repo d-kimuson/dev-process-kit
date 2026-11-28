@@ -153,3 +153,36 @@ describe('dpk-page side panel', () => {
     expect(next?.value).toBe('');
   });
 });
+
+describe("dpk-page and its content's supplements", () => {
+  it('shows each supplement of its content as a section, after its own, in the order written', async () => {
+    const page = mountPage(`
+      <dpk-panel-section slot="panel" name="issues" label="Issues">points</dpk-panel-section>
+      <dpk-view-sample>
+        <section slot="supplement" data-name="ERD">erd</section>
+        <p slot="main">body</p>
+        <section slot="supplement" data-name="Checklist">checklist</section>
+      </dpk-view-sample>`);
+    page.openPanel();
+    let root = await settle(page);
+    expect(tabs(root).map((tab) => tab.textContent?.trim())).toEqual(['Issues', 'ERD', 'Checklist']);
+    const content = page.querySelector('dpk-view-sample');
+    expect(content?.querySelector('[slot="supplement"]')).toBeNull();
+
+    const added = document.createElement('section');
+    added.slot = 'supplement';
+    added.dataset['name'] = 'Glossary';
+    content?.append(added);
+    await settle(page);
+    root = await settle(page);
+    expect(tabs(root).map((tab) => tab.textContent?.trim())).toEqual(['Issues', 'ERD', 'Checklist', 'Glossary']);
+
+    tabs(root)[2]?.click();
+    await settle(page);
+    expect(
+      Array.from(page.querySelectorAll('[slot="supplement"][data-dpk-panel-active]'), (node) =>
+        node.getAttribute('data-name'),
+      ),
+    ).toEqual(['Checklist']);
+  });
+});

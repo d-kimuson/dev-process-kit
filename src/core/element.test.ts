@@ -831,12 +831,11 @@ describe('sidebar collapse', () => {
     expect(Array.from(inner(el).querySelectorAll<HTMLElement>('.toggle'), (button) => button.dataset['side'])).toEqual([
       'left',
     ]);
-    // A section beside the detail opens the panel on a first visit: there is no other way in.
+    // A section beside the detail and the settings opens the panel on a first visit.
     await frame.updateComplete;
     expect(el.panelOpen).toBe(true);
     const tabs = Array.from(frame.shadowRoot!.querySelectorAll<HTMLElement>('[role="tab"]'));
-    // The prototype shows the detail of its step too, so the aside follows the detail tab.
-    expect(tabs.map((tab) => tab.textContent?.trim())).toEqual(['Detail', 'Notes', 'Settings']);
+    expect(tabs.map((tab) => tab.textContent?.trim())).toEqual(['Notes', 'Settings']);
     expect(aside.hasAttribute('data-dpk-panel-active')).toBe(true);
   });
 

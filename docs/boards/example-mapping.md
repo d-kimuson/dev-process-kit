@@ -96,17 +96,15 @@ question (red)   — under its rule, in a separate area below the examples
 
 状態チップは Example Mapping の読み方に沿う: ルールが無い = `No rules yet`、質問が残る = `Open questions`、ルールが 5 枚以上 = `Consider splitting`、具体例の無いルールがある = `A rule has no example`、それ以外 = `Looks ready`。
 
-カードは Event Storming と同じ付箋で、名前をクリックするとその場で編集できる（編集ボタンは無い）。追加したカードは名前にキャレットが入った状態で現れる。ホバー（またはカード内にフォーカスがあるとき）で右側にコメント / 削除が出る。コメントボタンはそのカードへの composer を開くだけで、カードの選択も編集も始めない。
+カードは Event Storming と同じ付箋で、名前をクリックするとその場で編集できる（編集ボタンは無い）。追加したカードは名前にキャレットが入った状態で現れる。カードにボタンは無く、コメントと削除はカードの右クリックメニューにある（"Review comment" / "Delete"。ボードに `id` が無いページの内容でも出る）。カード内にフォーカスがあるときは Shift+F10 または ContextMenu キーで同じメニューが開く。コメントはそのカードへの composer を開くだけで、カードの選択も編集も始めない。
 
-カードをクリックする（またはフォーカスして `Enter`）と、サイドパネルの **Detail** にそのカードが出る（[dpk-panel-section](../components/panel-section.md#selected-elements-detail)）。Detail は種類、名前と説明（その場で編集し `SET_*_NAME` / `SET_*_DESCRIPTION` として draft に記録）、ぶら下がる先のカード（ルールならストーリー、具体例と質問ならルール）を示す。どのテンプレートも記録しなかった編集は Detail に表示する。パネルはページ（またはボードを含む view）に属し、どちらも無いボードには Detail が無い。
-
-UI から編集できるのはカード名と説明、追加、ドラッグ移動（ストーリー = テーブル単位、ルール = 列単位、具体例 = 別のルールの具体例エリアへ、質問 = 別のルールの質問エリアへ）、削除、コメント。説明文（`description`）はカードには読み取り専用で表示され、Detail から編集する。
+UI から編集できるのはカード名、追加、ドラッグ移動（ストーリー = テーブル単位、ルール = 列単位、具体例 = 別のルールの具体例エリアへ、質問 = 別のルールの質問エリアへ）、削除、コメント。説明文（`description`）はカードに読み取り専用で表示され、編集は agent が base を作り直す（`SET_*_DESCRIPTION` は draft として記録される）。
 
 ドラッグの並び替えは USM と同じで、同じ並びの中ではドロップした要素の位置を取り、別のルールから来たカードは要素の中央より上か下かで前後が決まる。
 
 ## Comment targets
 
-すべての story / rule / example / question が `commentTargets` に列挙される（マップ全体のターゲットは無い）。カードのコメントアイコンはそのカードへの composer を top layer の popover として開き、popover 内に textarea + Send / Cancel + 既存コメント一覧がある（カード自体のレイアウトは動かない）。カードを右クリックして "Review comment" を選んでも同じ composer がそのカードの位置に開く。
+すべての story / rule / example / question が `commentTargets` に列挙される（マップ全体のターゲットは無い）。カードを右クリックして "Review comment" を選ぶと、そのカードへの composer が top layer の popover としてカードの位置に開く。popover 内に textarea + Send / Cancel + 既存コメント一覧がある（カード自体のレイアウトは動かない）。
 
 ## Naming
 

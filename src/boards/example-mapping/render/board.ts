@@ -43,8 +43,6 @@ export type BoardProps = {
   readonly m: ExampleMappingMessages;
   /** The host's own `commentRef`, so a card can be marked as a right-click comment target. */
   readonly commentRef: (kind: string, id: string) => string;
-  /** A card's hover comment button: the host opens the composer over that card. */
-  readonly onComment: (kind: MappingCardKind, cardId: string) => void;
 };
 
 type Entity = {
@@ -106,7 +104,6 @@ const renderCard = (props: BoardProps, kind: MappingCardKind, entity: Entity): T
       dpkTarget: props.commentRef(kind, entity.id),
       ...(grillQuestions === undefined ? {} : { grillQuestions }),
       onIntent: (intent) => handlers.cardIntent(entity.id, kind, intent),
-      onComment: props.onComment,
       onDragStart: source.dragstart,
       onDragEnd: source.dragend,
     })}

@@ -5,7 +5,7 @@ import type { ExampleMappingMessages } from '../messages';
 import type { MappingCardKind } from '../model';
 import type { MappingCardIntent, MappingCardMode } from '../ui-mode';
 
-import { iconComment, iconTrash } from '../../../core/icons';
+import { openContextMenuFromKeyboard } from '../../../core/context-menu/keyboard';
 import { onCommit } from '../../../lib/dom/events';
 import { classNames } from '../../base/model';
 
@@ -40,8 +40,6 @@ export type MappingCardProps = {
   /** Space-separated grill question ids this card answers, already normalized by `grillMark`. */
   readonly grillQuestions?: string;
   readonly onIntent: (intent: MappingCardIntent) => void;
-  /** The card's hover comment button: open the chrome's composer over this card. */
-  readonly onComment: (kind: MappingCardKind, cardId: string) => void;
   readonly onDragStart: (event: DragEvent) => void;
   readonly onDragEnd: (event: DragEvent) => void;
 };
@@ -50,6 +48,11 @@ export type MappingCardProps = {
 const toggleDraggable = (event: FocusEvent): void => {
   const target = event.currentTarget;
   if (target instanceof HTMLElement) target.draggable = event.type === 'focusout';
+};
+
+/** Shift+F10 / the ContextMenu key on anything in a card opens the card's right-click menu. */
+const openMenuFromKeyboard = (event: KeyboardEvent): void => {
+  if (event.currentTarget instanceof Element) openContextMenuFromKeyboard(event, event.currentTarget);
 };
 
 /**
@@ -61,26 +64,13 @@ const toggleDraggable = (event: FocusEvent): void => {
  * host's decision (`ExampleMappingUiMode`, driving `mode`): the card renders
  * the mode it is given and never dispatches actions itself, and the host is
  * the one that calls a freshly added card's `<dpk-inline-edit>` into editing
- * (there is no other way into `mode: 'editing'` — see `ui-mode.ts`). Comments
- * come from the card's own hover comment button (`onComment`) and from the
- * right-click menu, which resolves this card via its `dpkTarget` marker.
+ * (there is no other way into `mode: 'editing'` — see `ui-mode.ts`). Comment
+ * and delete live in the right-click menu, which resolves this card via its
+ * `dpkTarget` marker; Shift+F10 / the ContextMenu key opens the same menu.
  */
 export const renderMappingCard = (props: MappingCardProps): TemplateResult => {
-  const {
-    kind,
-    card,
-    tilt,
-    mode,
-    focused,
-    dragging,
-    m,
-    dpkTarget,
-    grillQuestions,
-    onIntent,
-    onComment,
-    onDragStart,
-    onDragEnd,
-  } = props;
+  const { kind, card, tilt, mode, focused, dragging, m, dpkTarget, grillQuestions, onIntent, onDragStart, onDragEnd } =
+    props;
   const label = m.kindLabel(kind);
   return html`
     <div
@@ -97,6 +87,7 @@ export const renderMappingCard = (props: MappingCardProps): TemplateResult => {
       @focusout=${toggleDraggable}
       @dragstart=${onDragStart}
       @dragend=${onDragEnd}
+      @keydown=${openMenuFromKeyboard}
     >
       <div class="card-kind">${label}</div>
       <dpk-inline-edit
@@ -108,33 +99,6 @@ export const renderMappingCard = (props: MappingCardProps): TemplateResult => {
         @dpk-commit=${onCommit((name) => onIntent({ kind: 'rename', name }))}
       ></dpk-inline-edit>
       ${card.description ? html`<div class="card-text">${card.description}</div>` : nothing}
-      <div class="card-tools">
-        <button
-          class="dpk-icon-btn"
-          type="button"
-          data-role="comment"
-          aria-label=${m.commentCard}
-          @click=${(event: Event) => {
-            // Asking for a comment must not also select the card or open its name editor.
-            event.stopPropagation();
-            onComment(kind, card.id);
-          }}
-        >
-          ${iconComment()}
-        </button>
-        <button
-          class="dpk-icon-btn"
-          type="button"
-          data-role="delete"
-          aria-label=${m.deleteButton}
-          @click=${(event: Event) => {
-            event.stopPropagation();
-            onIntent({ kind: 'delete' });
-          }}
-        >
-          ${iconTrash()}
-        </button>
-      </div>
     </div>
   `;
 };

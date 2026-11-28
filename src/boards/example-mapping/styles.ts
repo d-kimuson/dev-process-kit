@@ -361,37 +361,4 @@ export const exampleMappingStyles = css`
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
-
-  /* A side rail of round buttons (comment above delete) that fades in on
-     hover — or while anything in the card has focus, so the tools stay
-     reachable from the keyboard — like Event Storming: nothing crosses the
-     card's face. */
-  .em-card .card-tools {
-    position: absolute;
-    top: 9px;
-    right: -11px;
-    z-index: 8;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 140ms var(--dpk-ease);
-  }
-
-  .em-card:hover .card-tools,
-  .em-card:focus-within .card-tools,
-  .em-card .card-tools:focus-within {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .em-card .card-tools .dpk-icon-btn {
-    width: 22px;
-    height: 22px;
-    border: 1px solid var(--dpk-rule);
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
-    box-shadow: var(--dpk-shadow-xs);
-  }
 `;

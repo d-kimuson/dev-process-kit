@@ -134,8 +134,7 @@ matches, is the view's business: each view documents its own shape under `docs/v
 ## Page height
 
 Every view and board is a bounded shell: its header stays on top, the floating menu floats over
-it, the supplements bar sits at the bottom of the main column, and the sidebar, main column and
-review popover each scroll on their own. That
+it, and the sidebar, main column, side panel and review popover each scroll on their own. That
 needs the document's height on the `<dpk-app>` element, and the same `<style>` block hides the
 element until its custom element is defined, so the light DOM inside (your markup, the base
 data's text) does not flash on screen before the kit's own chrome paints over it — `loadKit` /
@@ -316,16 +315,16 @@ spells both out.
 
 ## Slots and styling
 
-| Slot         | Notes                                                                                                                                                 |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `header`     | appended after the page title, in the screen's header row (see [Framework chrome](#framework-chrome))                                                 |
-| `sidebar`    | appended after the view sidebar content                                                                                                               |
-| `panel`      | a section of the side panel: `<dpk-panel-section>` children — see [dpk-panel-section](components/panel-section.md)                                    |
-| `aside`      | deprecated: a child with `slot="aside"` becomes a section of the side panel, named by its `aria-label` (or **Notes**)                                 |
-| `main`       | appended after the view main content                                                                                                                  |
-| `footer`     | appended after the framework footer                                                                                                                   |
-| `preview`    | view-specific; the view documents how it matches your markup                                                                                          |
-| `supplement` | supporting material (an ERD, a checklist, a sequence diagram), named tabs in a bar at the bottom of the main column — see [Supplements](#supplements) |
+| Slot         | Notes                                                                                                                                                      |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `header`     | appended after the page title, in the screen's header row (see [Framework chrome](#framework-chrome))                                                      |
+| `sidebar`    | appended after the view sidebar content                                                                                                                    |
+| `panel`      | a section of the side panel: `<dpk-panel-section>` children — see [dpk-panel-section](components/panel-section.md)                                         |
+| `aside`      | deprecated: a child with `slot="aside"` becomes a section of the side panel, named by its `aria-label` (or **Notes**)                                      |
+| `main`       | appended after the view main content                                                                                                                       |
+| `footer`     | appended after the framework footer                                                                                                                        |
+| `preview`    | view-specific; the view documents how it matches your markup                                                                                               |
+| `supplement` | supporting material (an ERD, a checklist, a sequence diagram), each a section of the side panel named by its `data-name` — see [Supplements](#supplements) |
 
 ### Framework chrome
 
@@ -483,9 +482,7 @@ Slot each piece of supporting material as its own element with a `data-name`:
 </section>
 ```
 
-The shell lines the names up, in the order written, in a bar the full width of the main column, pinned to its bottom. The reader presses a name to open that supplement alone, growing upward over the content; pressing another switches, and pressing the open one folds it. The chevron at the start of the bar folds it too, and reopens the supplement last opened (the first, before any). One without a `data-name` is labelled "Memo". The bar is rendered only while at least one supplement is slotted, and follows ones added later. A supplement may hold the boards (load `components.js` too).
-
-Every supplement opens at one height — 320px, the same for every tab and every page load — so switching tabs never moves the drawer: a shorter supplement leaves the rest of it empty and a taller one scrolls inside. The reader changes that height by dragging the drawer's top edge, or with the arrow keys on it once focused (Shift for a larger step, Home / End for the shortest and the tallest, a double-click for the default), clamped between 140px and 160px short of the window; it is the reader's own state, remembered per browser for that template (`localStorage` key `dev-process-kit:supplements-height:<content>`, for this page load only under `storage` `off` / `memory`) and never written to the draft.
+Each supplement is a section of the side panel, labelled by its `data-name` (one without a name is labelled **Notes**), after **Detail** and in the order written together with the `slot="panel"` sections, and before **Settings**. A page with a supplement opens its panel until the reader closes it. The panel shows one section at a time and follows supplements added later; in a [`<dpk-page>`](page.md) the page's panel shows its content's supplements after its own sections. A supplement may hold the boards (load `components.js` too). Selecting an element of a board in the supplement on show turns the panel to its **Detail**, which leads back to that supplement (`Back to <name>`, or `Esc` in the detail).
 
 The `memo` slot is gone: content left in `slot="memo"` is not shown, and the console says so. Wrap it in a `slot="supplement"` element instead.
 
@@ -676,7 +673,7 @@ This state is entirely the reader's: it lives in `localStorage` under `<storage 
 
 A plain right-click anywhere on the page opens a menu instead of the browser's own, with whatever applies to what was clicked: **Copy text** (when it is one of the content's targets — the same ones `data-dpk-target`/[Targets](#targets) mark), **Give feedback** (when that target accepts comments — feedback to the agent, distinct from any comments a page keeps of its own), and **Reset view** on a board, regardless of target. A view, board or component may add its own entries (for example, "Duplicate" or "Delete" where supported); its own page says so when it does. Labels stay short — this is not where explanations live.
 
-Shift+right-click, and a plain right-click inside a text field or an editable region, always get the browser's own menu (cut/paste and spellcheck need it). Inside the custom menu: arrow keys move, Enter/Space runs the highlighted entry, Escape or a click elsewhere closes it.
+Shift+right-click, and a plain right-click inside a text field or an editable region being edited, always get the browser's own menu (cut/paste and spellcheck need it); a read-only field gets the custom menu. Where a board says so, Shift+F10 or the ContextMenu key on a focused item opens the same menu. Inside the custom menu: arrow keys move, Enter/Space runs the highlighted entry, Escape or a click elsewhere closes it.
 
 Your own markup can add entries too, without writing a component: wrap it in `<dpk-extend-right-click>` and list the selectors and entries in a JSON child ([extend-right-click.md](components/extend-right-click.md)). It needs a `dpk-view-*` above it, which is where the menu lives.
 

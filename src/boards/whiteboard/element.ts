@@ -1,7 +1,7 @@
 import { html, nothing, type CSSResultGroup, type TemplateResult } from 'lit';
 
+import type { ContextMenuGroup, ContextMenuRequest } from '../../core/context-menu/types';
 import type { ElementActionResult } from '../../core/element-actions';
-import type { PanelDetail } from '../../core/panel/host';
 import type { ActionInput, CommentTargetOption, DraftAction } from '../../core/types';
 
 import { handleTextSubmitKey } from '../../core/text-submit-controller';
@@ -11,7 +11,6 @@ import { whiteboardAction } from './actions';
 import { arrangeActions, arrangeOptions, type ArrangeDirection } from './arrange';
 import { caretOffsetAt } from './caret';
 import { newConnectorId, newItem, PASTE_OFFSET, pasteItems, type NewItemKind } from './commands';
-import { defineWhiteboardDetail, type WhiteboardDetailActions } from './detail';
 import { editedText } from './editor';
 import {
   finishGesture,
@@ -52,14 +51,13 @@ import {
   findItem,
   hasColor,
   hasFontSize,
-  itemText,
   parseWhiteboardBase,
   type WbColor,
   type WbFontSize,
   type WbItem,
   type WhiteboardState,
 } from './model';
-import { connectorLabel, excerpt, itemLabel } from './present';
+import { connectorLabel, itemLabel } from './present';
 import { reduceWhiteboardActions } from './reduce';
 import { FONT_SCALE, renderWhiteboard } from './render/board';
 import { renderSelectionToolbar, type WbSelection } from './render/toolbar';
@@ -100,8 +98,8 @@ const BOARD_ANCHOR = 'whiteboard';
  * Geometry lives in `layout.ts`, pan / zoom in `interactions.ts`, gestures in
  * `gesture.ts`, stacking order in `arrange.ts`, and drawing in `render/` — all
  * unchanged since the template days (ADR 20261023_diagram-as-board). Comments
- * open the chrome's own contextual composer over an item: from the item's hover
- * comment button, or from the right-click menu.
+ * open the chrome's own contextual composer over an item from the right-click
+ * menu.
  */
 export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelectionRef> {
   protected override boardAddable(): boolean {
@@ -182,42 +180,17 @@ export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelec
     ];
   }
 
+  /** An item, a connector or a frame offers "Review comment" whether or not the board has an `id`. */
+  override getContextMenuItems(request: ContextMenuRequest): readonly ContextMenuGroup[] | null {
+    const group = this.ownReviewCommentGroup(request.target);
+    return group === null ? null : [group];
+  }
+
   protected override hasSelection(selection: WbSelectionRef): boolean {
     const state = this.items();
     return selection.kind === 'item'
       ? findItem(state, selection.id) !== undefined
       : findConnector(state, selection.id) !== undefined;
-  }
-
-  protected override get providesPanelDetail(): boolean {
-    return true;
-  }
-
-  protected override panelDetail(selection: WbSelectionRef): PanelDetail | null {
-    const state = this.items();
-    const m = whiteboardMessages(this.locale);
-    const item = selection.kind === 'item' ? findItem(state, selection.id) : undefined;
-    const connector = selection.kind === 'connector' ? findConnector(state, selection.id) : undefined;
-    if (item === undefined && connector === undefined) return null;
-    const actions: WhiteboardDetailActions = {
-      setText: (itemId, text) => this.#editText(itemId, text),
-      setLabel: (connectorId, label) => this.#dispatch(whiteboardAction.setConnectorLabel(connectorId, label)),
-    };
-    return {
-      key: `${selection.kind}:${selection.id}`,
-      kind:
-        item === undefined ? m.connector : item.kind === 'shape' ? m.shapeLabel(item.shape) : m.kindLabel(item.kind),
-      title: item === undefined ? (connector?.label ?? m.noLabel) : excerpt(m, itemText(item)),
-      render: () =>
-        html`<dpk-internal-whiteboard-detail
-          .state=${state}
-          .selection=${selection}
-          .messages=${m}
-          .actions=${actions}
-        ></dpk-internal-whiteboard-detail>`,
-      focus: () => this.renderRoot.querySelector<HTMLElement>('.wb-canvas')?.focus({ preventScroll: true }),
-      comment: () => this.openComment(this.commentRef(selection.kind, selection.id)),
-    };
   }
 
   protected override render(): TemplateResult {
@@ -257,7 +230,6 @@ export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelec
                 panReady: this.panReady,
                 overlay: this.#renderOverlay(state, m),
                 commentRef: (kind, id) => this.commentRef(kind, id),
-                onComment: (itemId) => this.openComment(this.commentRef('item', itemId)),
                 handlers: {
                   canvasPointerDown: (event) => this.#onCanvasPointerDown(event),
                   canvasPointerMove: (event) => this.#onPointerMove(event),
@@ -394,9 +366,6 @@ export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelec
           this.requestUpdate();
         },
         deleteSelection: () => this.#deleteSelection(),
-        showDetail: () => {
-          if (this.selection !== null) this.openSelection(this.selection);
-        },
         setLabel: (connectorId, label) => this.#dispatch(whiteboardAction.setConnectorLabel(connectorId, label)),
         setRoute: (connectorId, route) => {
           if (findConnector(state, connectorId)?.route !== route)
@@ -465,25 +434,6 @@ export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelec
     const text = item === undefined ? undefined : editedText(item, raw);
     if (item === undefined || text === undefined) return;
     this.#dispatchAll([whiteboardAction.setText(itemId, text), ...this.#fitText(item)]);
-  }
-
-  /**
-   * Sets an item's text from its detail in the panel. The item is grown to
-   * hold it once the board has drawn the new text, since only then can it be
-   * measured.
-   */
-  #editText(itemId: string, raw: string): boolean {
-    const item = findItem(this.items(), itemId);
-    if (item === undefined) return false;
-    const text = editedText(item, raw);
-    if (text === undefined) return true;
-    if (!this.#dispatch(whiteboardAction.setText(itemId, text))) return false;
-    this.requestUpdate();
-    void this.updateComplete.then(() => {
-      const edited = findItem(this.items(), itemId);
-      if (edited !== undefined) this.#dispatchAll(this.#fitText(edited));
-    });
-    return true;
   }
 
   /**
@@ -997,6 +947,5 @@ export class DpkBoardWhiteboard extends BoardChromeBase<WhiteboardState, WbSelec
 }
 
 export const defineWhiteboard = (): void => {
-  defineWhiteboardDetail();
   if (!customElements.get('dpk-board-whiteboard')) customElements.define('dpk-board-whiteboard', DpkBoardWhiteboard);
 };

@@ -8,7 +8,8 @@
  *
  * The native context menu stays reachable two ways: Shift+right-click
  * anywhere, and a plain right-click inside a text input, a textarea or a
- * `contenteditable` region (editing needs its own menu — Cut included).
+ * `contenteditable` region being edited (editing needs its own menu — Cut
+ * included). A read-only field is text to read, and gets this menu.
  */
 import type { ReactiveController, ReactiveControllerHost, TemplateResult, nothing } from 'lit';
 
@@ -19,6 +20,7 @@ import type { ContextMenuEntry, ContextMenuGroup } from './types';
 import { DismissController } from '../../lib/dom/dismiss';
 import { closePopover, openPopover, pointAnchor } from '../../lib/dom/popover';
 import { buildCommonContextMenuGroup, type CommonActionsHost } from './common-actions';
+import { isTextEditingSurface } from './keyboard';
 import {
   CLOSED_CONTEXT_MENU,
   activate,
@@ -47,9 +49,6 @@ export type ContextMenuControllerOptions = {
   readonly state: () => unknown;
   readonly messages: () => ContextMenuMessages;
 };
-
-const isTextEditingSurface = (element: Element): boolean =>
-  element.closest('input, textarea, [contenteditable=""], [contenteditable="true"]') !== null;
 
 export class ContextMenuController implements ReactiveController {
   readonly #host: ContextMenuHost;

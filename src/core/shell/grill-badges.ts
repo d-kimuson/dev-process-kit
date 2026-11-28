@@ -19,6 +19,12 @@ export type BadgeBinding = PortalBadgeBinding & {
   readonly target: Element;
   readonly questionId: string;
   readonly ref: string;
+  /**
+   * What the badge says: the token as the mark writes it. Inside a page a
+   * mark's `Q1` names that page's `Q1@<page>`, and the badge sits in that
+   * page, so the short form is the one the reader sees in the page's text.
+   */
+  readonly label: string;
   readonly title: string;
   readonly answered: boolean;
   readonly open: boolean;
@@ -63,6 +69,7 @@ export const collectBadges = (
           target,
           questionId: question.id,
           ref: question.ref,
+          label: token,
           title: question.title,
           answered: isAnswered(question, answers[question.id]),
           open: question.id === openId,
@@ -96,6 +103,7 @@ const BADGE_CSS = `
     font-size: 10px;
     font-weight: 650;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.28),
       0 2px 6px -2px color-mix(in srgb, var(--dpk-accent) 55%, transparent);
@@ -212,10 +220,10 @@ export class GrillBadgeController extends BadgePortalController<BadgeBinding> {
           button.dataset['answered'] = String(binding.answered);
           button.setAttribute('aria-pressed', String(binding.open));
           button.setAttribute('aria-label', label);
-          button.title = `${binding.ref} · ${binding.title}`;
-          // Only when the ref changed: replacing the text node every render would
+          button.title = `${binding.label} · ${binding.title}`;
+          // Only when the label changed: replacing the text node every render would
           // be a DOM change of its own on a badge that already says the right thing.
-          if (button.textContent !== binding.ref) button.textContent = binding.ref;
+          if (button.textContent !== binding.label) button.textContent = binding.label;
         },
         gutterOf: (binding) => options.gutterOf(binding.target),
       },

@@ -388,45 +388,6 @@ export const whiteboardStyles = css`
     cursor: grab;
   }
 
-  /* A rail of round tools on an item's top-right corner, revealed on hover or
-     while anything in the item has focus (the in-place editor included). It
-     keeps its screen size at any zoom, like the handles, and stays out of the
-     way of a press (render/board.ts stops its pointerdown before the item
-     sees it). Frames have none: their comment goes through the right-click
-     menu. */
-  .wb-item-actions {
-    position: absolute;
-    z-index: 3;
-    top: calc(-9px / var(--wb-zoom, 1));
-    right: calc(-9px / var(--wb-zoom, 1));
-    display: flex;
-    gap: calc(3px / var(--wb-zoom, 1));
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 140ms var(--dpk-ease);
-  }
-
-  .wb-item:hover .wb-item-actions,
-  .wb-item:focus-within .wb-item-actions,
-  .wb-item-actions:focus-within {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .wb-item-actions .dpk-icon-btn {
-    width: calc(24px / var(--wb-zoom, 1));
-    height: calc(24px / var(--wb-zoom, 1));
-    border: calc(1px / var(--wb-zoom, 1)) solid var(--dpk-rule);
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--dpk-paper-raised) 94%, transparent);
-    box-shadow: var(--dpk-shadow-xs);
-  }
-
-  .wb-item-actions .dpk-icon-btn svg {
-    width: calc(14px / var(--wb-zoom, 1));
-    height: calc(14px / var(--wb-zoom, 1));
-  }
-
   /* A selection area being dragged out, in screen space over the board. */
   .wb-marquee {
     position: absolute;

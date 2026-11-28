@@ -42,9 +42,15 @@ export type PanelChangeDetail = {
 
 const storageKey = (key: string): string => `dev-process-kit:panel:${key}`;
 
-const SECTION_SLOTS: ReadonlySet<string | null> = new Set(['panel', 'aside']);
+const SECTION_SLOTS: ReadonlySet<string | null> = new Set(['panel', 'aside', 'supplement']);
 
 const isSectionNode = (node: Node): boolean => node instanceof Element && SECTION_SLOTS.has(node.getAttribute('slot'));
+
+/** A supplement is named by its `data-name`; a blank one counts as none. */
+const supplementName = (element: Element): string | null => {
+  const name = element.getAttribute('data-name')?.trim() ?? '';
+  return name === '' ? null : name;
+};
 
 export type PanelOwnerOptions = {
   /** Read on first connect: `null` keeps the reader's state to this page load. */
@@ -108,7 +114,7 @@ export class PanelOwner implements ReactiveController, PanelHost {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['slot', 'name', 'label', 'badge', 'hidden', 'aria-label'],
+      attributeFilter: ['slot', 'name', 'label', 'badge', 'hidden', 'aria-label', 'data-name'],
     });
     this.#changed();
   }
@@ -214,16 +220,32 @@ export class PanelOwner implements ReactiveController, PanelHost {
   }
 
   /** The author's section elements paired with the names the panel lists them under. */
-  get authoredElements(): readonly {
-    readonly element: Element;
-    readonly name: string;
-  }[] {
+  /** Whether the panel is open on an author's section that holds `source`, as a supplement holds its board. */
+  #showsSectionHolding(source: Element): boolean {
+    if (!this.isOpen) return false;
+    const section = this.section;
+    return this.authoredElements.some((entry) => entry.name === section && entry.element.contains(source));
+  }
+
+  get authoredElements(): readonly { readonly element: Element; readonly name: string }[] {
     const tabs = this.tabs.filter((tab) => tab.kind === 'author');
     const visible = this.#options.sections().filter((element) => !element.hasAttribute('hidden'));
     return visible.flatMap((element, index) => {
       const tab = tabs[index];
       return tab === undefined ? [] : [{ element, name: tab.name }];
     });
+  }
+
+  /**
+   * The author's section the selected element sits in (a board in a
+   * supplement), so the detail can lead back to it; `null` for an element
+   * outside the author's sections.
+   */
+  get detailOrigin(): PanelTab | null {
+    const source = this.#active?.detail === null ? null : (this.#active?.source ?? null);
+    if (source === null) return null;
+    const origin = this.authoredElements.find((entry) => entry.element.contains(source));
+    return origin === undefined ? null : (this.tabs.find((tab) => tab.name === origin.name) ?? null);
   }
 
   /** What the next frame render should move the focus to; reading it clears it. */
@@ -242,7 +264,7 @@ export class PanelOwner implements ReactiveController, PanelHost {
     const fallback = panelMessages(this.locale).notes;
     return this.#options.sections().map((element) => ({
       name: element.getAttribute('name'),
-      label: element.getAttribute('label') ?? element.getAttribute('aria-label') ?? fallback,
+      label: element.getAttribute('label') ?? element.getAttribute('aria-label') ?? supplementName(element) ?? fallback,
       badge: element.getAttribute('badge'),
       hidden: element.hasAttribute('hidden'),
     }));
@@ -261,6 +283,22 @@ export class PanelOwner implements ReactiveController, PanelHost {
     if (open && this.section === DETAIL_SECTION) this.#unread = false;
     this.#save();
     this.#changed();
+  }
+
+  /**
+   * Escape in the panel: on the detail of an element that sits in an author's
+   * section (a board in a supplement), back to that section and the element;
+   * otherwise the panel closes.
+   */
+  escape(): void {
+    const detail = this.section === DETAIL_SECTION ? this.detail : null;
+    const origin = detail === null ? null : this.detailOrigin;
+    if (origin === null) {
+      this.dismiss();
+      return;
+    }
+    this.select(origin.name);
+    detail?.focus?.();
   }
 
   /**
@@ -320,7 +358,11 @@ export class PanelOwner implements ReactiveController, PanelHost {
     this.#section ??= this.section;
     this.#active = { source, detail };
     const change = detailChange({
-      intent: this.#offersContent ? report : 'select',
+      intent: !this.#offersContent
+        ? 'select'
+        : report === 'select' && this.#showsSectionHolding(source)
+          ? 'open'
+          : report,
       open: this.isOpen,
       section: this.section,
       selected: detail !== null,

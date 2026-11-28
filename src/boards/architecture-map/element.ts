@@ -333,7 +333,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
     const edges = visible.edges.map((link) => {
       const state = this.edgeState(link.id);
       const body = drawn.get(link.id);
-      const select = () => this.select({ kind: 'edge', id: link.id });
+      const select = () => this.openSelection({ kind: 'edge', id: link.id });
       return svg`
         <g
           class=${this.elementClass(state, 'd-edge', 'arch-link', (state.related || state.selected) && 'is-flowing')}
@@ -379,7 +379,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
           tabindex="-1"
           aria-hidden="true"
           style="left:${chip.x}px; top:${chip.y}px; width:${chip.width}px; height:${chip.height}px"
-          @click=${() => this.select({ kind: 'edge', id: link.id })}
+          @click=${() => this.openSelection({ kind: 'edge', id: link.id })}
         >
           <span>${link.label}</span>
         </button>`;
@@ -413,7 +413,7 @@ export class DpkBoardArchitectureMap extends BoardCanvasElement<ArchitectureData
         title=${service.description ?? service.name}
         @pointerdown=${(event: PointerEvent) => this.onNodeDragStart(event, service.id)}
         @click=${() => {
-          if (!this.consumeDragClick()) this.select({ kind: 'node', id: service.id });
+          if (!this.consumeDragClick()) this.openSelection({ kind: 'node', id: service.id });
         }}
       >
         ${

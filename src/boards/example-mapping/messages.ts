@@ -53,17 +53,7 @@ export const exampleMappingMessages = defineMessages({
     noQuestions: 'No open questions',
 
     // -------------------------------------------------------------- card
-    deleteButton: 'Delete',
-    commentCard: 'Comment',
     nameField: (kindLabel: string) => `${kindLabel} name`,
-
-    // ------------------------------------------------------------ detail
-    cardKind: 'Card',
-    kindField: 'Kind',
-    descriptionField: 'Description',
-    descriptionPlaceholder: 'Add a description',
-    parentField: (kindLabel: string) => kindLabel,
-    notRecorded: 'Could not record it. Place this inside a dpk-view-* element.',
 
     // ------------------------------------------------------- new cards
     newStory: 'New story',
@@ -122,16 +112,7 @@ export const exampleMappingMessages = defineMessages({
     noExamples: '具体例がまだありません',
     noQuestions: '未解決の質問はありません',
 
-    deleteButton: '削除',
-    commentCard: 'コメント',
     nameField: (kindLabel: string) => `${kindLabel}名`,
-
-    cardKind: 'カード',
-    kindField: '種類',
-    descriptionField: '説明',
-    descriptionPlaceholder: '説明を追加',
-    parentField: (kindLabel: string) => `所属${kindLabel}`,
-    notRecorded: '記録できませんでした（dpk-view-* 要素の中に置いてください）。',
 
     newStory: '新しいストーリー',
     newRule: '新しいルール',
