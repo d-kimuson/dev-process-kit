@@ -304,6 +304,82 @@ describe('inline editing', () => {
     expect(input.selectionEnd).toBe(3);
   });
 
+  describe('while editing, the caret stays where the browser put it', () => {
+    /** An open multiline editor holding `value`, as a description field is. */
+    const openEditor = async (value: string): Promise<{ editor: DpkInlineEdit; input: HTMLTextAreaElement }> => {
+      const editor = new DpkInlineEdit();
+      editor.multiline = true;
+      editor.markdown = true;
+      editor.value = value;
+      document.body.append(editor);
+      await editor.updateComplete;
+      editor.startEditing();
+      await editor.updateComplete;
+      const input = field(editor);
+      if (!input) throw new Error('missing field');
+      return { editor, input };
+    };
+
+    /** What the browser itself does for one edit: change the text, place the caret, fire `input`. */
+    const edit = async (
+      editor: DpkInlineEdit,
+      input: HTMLTextAreaElement,
+      change: { value: string; caret: number; init?: InputEventInit },
+    ): Promise<void> => {
+      input.value = change.value;
+      input.setSelectionRange(change.caret, change.caret);
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, ...change.init }));
+      await editor.updateComplete;
+    };
+
+    it('keeps the caret after text typed at the start of a line (Ctrl+A, then a key)', async () => {
+      const { editor, input } = await openEditor('first\nsecond');
+      input.setSelectionRange(6, 6); // Ctrl+A on macOS: start of the second line.
+      await edit(editor, input, { value: 'first\nxsecond', caret: 7, init: { inputType: 'insertText', data: 'x' } });
+      expect([input.selectionStart, input.selectionEnd]).toEqual([7, 7]);
+      expect(input.value).toBe('first\nxsecond');
+    });
+
+    it('keeps the caret after text typed in the middle', async () => {
+      const { editor, input } = await openEditor('abcd');
+      await edit(editor, input, { value: 'abXcd', caret: 3, init: { inputType: 'insertText', data: 'X' } });
+      expect([input.selectionStart, input.selectionEnd]).toEqual([3, 3]);
+    });
+
+    it('keeps the caret through an IME composition at the start of a line, and after it', async () => {
+      const { editor, input } = await openEditor('first\nsecond');
+      input.setSelectionRange(6, 6);
+      input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, composed: true, data: '' }));
+      const composing = { inputType: 'insertCompositionText', isComposing: true };
+      await edit(editor, input, { value: 'first\nあsecond', caret: 7, init: { ...composing, data: 'あ' } });
+      expect([input.selectionStart, input.selectionEnd]).toEqual([7, 7]);
+      await edit(editor, input, { value: 'first\nああsecond', caret: 8, init: { ...composing, data: 'ああ' } });
+      expect([input.selectionStart, input.selectionEnd]).toEqual([8, 8]);
+      input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, composed: true, data: 'ああ' }));
+      await edit(editor, input, {
+        value: 'first\nああsecond',
+        caret: 8,
+        init: { inputType: 'insertFromComposition', data: 'ああ' },
+      });
+      expect([input.selectionStart, input.selectionEnd]).toEqual([8, 8]);
+      // Backspace removes the character before the caret: the second あ.
+      await edit(editor, input, { value: 'first\nあsecond', caret: 7, init: { inputType: 'deleteContentBackward' } });
+      expect([input.selectionStart, input.selectionEnd]).toEqual([7, 7]);
+      // Delete removes the character after it: the s of "second".
+      await edit(editor, input, { value: 'first\nあecond', caret: 7, init: { inputType: 'deleteContentForward' } });
+      expect([input.selectionStart, input.selectionEnd]).toEqual([7, 7]);
+      expect(input.value).toBe('first\nあecond');
+    });
+
+    it('keeps a selection made while editing when the next update renders', async () => {
+      const { editor, input } = await openEditor('abcdef');
+      input.setSelectionRange(1, 4);
+      editor.placeholder = 'changed';
+      await editor.updateComplete;
+      expect([input.selectionStart, input.selectionEnd]).toEqual([1, 4]);
+    });
+  });
+
   it('does not suppress the native mousedown on a resting field, so it can place the caret', async () => {
     const editor = new DpkInlineEdit();
     editor.value = 'Googleでログイン';
